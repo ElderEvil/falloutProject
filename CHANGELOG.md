@@ -2,6 +2,64 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.133.0 (2026-09-23)
+
+### Features
+
+* **exploration:** add return leg so dwellers travel home after exploring 2eca23f
+
+### Bug Fixes
+
+* **exploration:** serialize reward claims and enforce arrival 26626ad
+* **exploration:** serialize the return transition and surface arrival globally 537f1b4
+
+## 2.132.0 (2026-09-22)
+
+### Features
+
+* **frontend:** restyle tabs as CRT terminal controls with an inverted active state c151e66
+
+### Bug Fixes
+
+* **frontend:** repair Tabs orientation layout and restore missing scanlines d8d1c00
+* **frontend:** scope DwellerChat scanlines to stop the global override edb36f4
+* **frontend:** unify vault stat tooltips and invert tooltip colors 5f0c689
+
+### Performance Improvements
+
+* **frontend:** cut the initial payload by 16% and gate it in CI f90816e
+
+### Documentation
+
+* **roadmap:** record the component-library migration epic and Phase 1 resolutions f9a9f62
+
+### Code Refactoring
+
+* **frontend:** bridge shadcn-vue semantic tokens onto the CRT theme 6651e25
+* **frontend:** finish shadcn-vue migration and remove the U* layer 74d18dd
+* **frontend:** land shadcn-vue primitives and generator hardening for Phase 2 bd32802
+* **frontend:** migrate ai-settings module from U* to shadcn-vue primitives b6cb292
+* **frontend:** migrate auth module to shadcn-vue primitives 339c606
+* **frontend:** migrate chat module to shadcn-vue primitives 92649b2
+* **frontend:** migrate crafting panel to shadcn-vue primitives 26c4eed
+* **frontend:** migrate map module to shadcn-vue primitives ed58471
+* **frontend:** migrate profile components to shadcn-vue primitives 4fa3e20
+* **frontend:** migrate profile views to shadcn-vue primitives e84f7bb
+* **frontend:** migrate progression module to shadcn-vue primitives 567d4cd
+* **frontend:** migrate remaining raw labels and account for bespoke controls 861ed87
+* **frontend:** migrate social module to shadcn-vue primitives 49e0d35
+* **frontend:** migrate storage module to shadcn-vue primitives 1c82ab4
+* **frontend:** migrate trading module to shadcn-vue primitives 6398644
+* **frontend:** migrate vault shell chrome to shadcn-vue primitives 61c040b
+* **frontend:** migrate vault views and widgets to shadcn-vue primitives 05e2260
+* **frontend:** unify the scanline overlay into a single layout-level component 621923a
+
+## 2.131.6 (2026-09-21)
+
+### Bug Fixes
+
+* give pregnancy state a single frontend owner bca8b0f
+
 ## 2.131.5 (2026-09-21)
 
 ### Bug Fixes

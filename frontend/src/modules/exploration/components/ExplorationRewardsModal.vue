@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UButton, UModal } from '@/core/components/ui'
+import { Button } from '@/core/components/ui/button'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
 import RewardCard from '@/core/components/common/RewardCard.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
@@ -93,21 +94,22 @@ const tryClose = () => emit('close', requiresResolution.value)
 </script>
 
 <template>
-  <UModal
-    :model-value="show"
-    title="Exploration Complete!"
-    size="wide"
-    @close="tryClose"
-  >
-    <template #header="{ titleId }">
-      <div class="flex items-center gap-3">
+  <Dialog :open="show" @update:open="(open) => { if (!open) tryClose() }">
+    <DialogContent
+      class="flex max-h-[75vh] w-full max-w-xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-xl"
+    >
+      <DialogHeader
+        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
+      >
         <Icon icon="mdi:treasure-chest" class="h-8 w-8 text-theme-primary terminal-glow" />
-        <h2 :id="titleId" class="text-2xl font-bold text-theme-primary terminal-glow">Exploration Complete!</h2>
-      </div>
-    </template>
-    <template #default>
-      <!-- Dweller Name -->
-      <div class="dweller-name">
+        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow"
+          >Exploration Complete!</DialogTitle
+        >
+      </DialogHeader>
+
+      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+        <!-- Dweller Name -->
+        <div class="dweller-name">
         <Icon icon="mdi:account-check" class="mr-2 h-6 w-6 shrink-0" />
         {{ dwellerName }} has returned from the wasteland!
       </div>
@@ -216,31 +218,35 @@ const tryClose = () => emit('close', requiresResolution.value)
               </div>
             </div>
             <div class="overflow-actions">
-              <UButton size="sm" :disabled="busyIndex !== null" :loading="busyIndex === index" @click="resolveOverflow('take', index)">
+              <Button size="sm" :disabled="busyIndex !== null" @click="resolveOverflow('take', index)">
+                <Icon v-if="busyIndex === index" icon="mdi:loading" class="mr-1 animate-spin" />
                 Take
-              </UButton>
-              <UButton size="sm" variant="secondary" :disabled="busyIndex !== null" @click="resolveOverflow('sell', index)">
+              </Button>
+              <Button size="sm" variant="secondary" :disabled="busyIndex !== null" @click="resolveOverflow('sell', index)">
                 Sell
-              </UButton>
+              </Button>
             </div>
           </div>
-          <UButton v-if="unclaimed.length > 1" size="sm" variant="secondary" class="sell-all-btn self-end" :disabled="busyIndex !== null" @click="sellAll">
+          <Button v-if="unclaimed.length > 1" size="sm" variant="secondary" class="sell-all-btn self-end" :disabled="busyIndex !== null" @click="sellAll">
             Sell all remaining
-          </UButton>
+          </Button>
         </div>
       </div>
-    </template>
+      </div>
 
-    <template #footer>
-      <button
-        @click="tryClose"
-        class="collect-btn"
+      <DialogFooter
+        class="flex flex-shrink-0 justify-end border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
       >
-        <Icon :icon="hasOverflow ? 'mdi:clock-outline' : 'mdi:check-bold'" class="mr-2" />
-        {{ hasOverflow ? 'Resolve Later' : 'Collect Rewards' }}
-      </button>
-    </template>
-  </UModal>
+        <button
+          @click="tryClose"
+          class="collect-btn"
+        >
+          <Icon :icon="hasOverflow ? 'mdi:clock-outline' : 'mdi:check-bold'" class="mr-2" />
+          {{ hasOverflow ? 'Resolve Later' : 'Collect Rewards' }}
+        </button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <style scoped>

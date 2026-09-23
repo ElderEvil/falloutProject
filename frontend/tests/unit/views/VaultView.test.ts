@@ -9,7 +9,7 @@ describe('VaultView', () => {
     setActivePinia(createPinia())
   })
 
-  it('uses the terminal surface for the vault loading error', async () => {
+  it('renders the vault loading error state with a way back', async () => {
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [
@@ -22,10 +22,8 @@ describe('VaultView', () => {
 
     const wrapper = mount(VaultView, { global: { plugins: [router] } })
     await flushPromises()
-    const errorCard = wrapper.find('h2').element.parentElement
 
-    expect(wrapper.text()).toContain('Error Loading Vault')
-    expect(errorCard?.classList).toContain('bg-surface-raised')
-    expect(errorCard?.classList).not.toContain('bg-gray-900')
+    expect(wrapper.find('h2').text()).toContain('Error Loading Vault')
+    expect(wrapper.text()).toContain('Go to Vault List')
   })
 })

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import UProgressBar from '@/core/components/ui/UProgressBar.vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
+import { Progress } from '@/core/components/ui/progress'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 
 interface Props {
   level: number
@@ -44,30 +44,63 @@ const barAnimation = computed(() => {
   if (progressPercentage.value >= 90) return 'pulse' as const
   return 'none' as const
 })
+
+const tooltipText = computed(() =>
+  isMaxLevel.value
+    ? 'Maximum level reached'
+    : `${xpToNextLevel.value} XP to level ${level + 1}`
+)
+
+// Amber for the at-risk / max-level states, primary→accent gradient otherwise.
+const fillGradient = computed(() =>
+  barAnimation.value === 'none'
+    ? 'linear-gradient(90deg, var(--color-theme-primary) 0%, var(--color-theme-accent) 100%)'
+    : 'linear-gradient(90deg, rgb(250 204 21) 0%, rgb(251 191 36) 50%, rgb(250 204 21) 100%)'
+)
 </script>
 
 <template>
   <div class="xp-bar-container">
     <div class="stat-row">
       <span class="stat-label">Level {{ level }}</span>
-      <UTooltip
-        :text="
-          isMaxLevel
-            ? 'Maximum level reached'
-            : `${xpToNextLevel} XP to level ${level + 1}`
-        "
-      >
-        <span class="stat-value" :class="{ 'max-level': isMaxLevel }">
-          <template v-if="!isMaxLevel">{{ xpToNextLevel }} XP to L{{ level + 1 }}</template>
-          <template v-else>MAX</template>
-        </span>
-      </UTooltip>
+      <TooltipProvider :delay-duration="200">
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <span class="stat-value" :class="{ 'max-level': isMaxLevel }">
+              <template v-if="!isMaxLevel">{{ xpToNextLevel }} XP to L{{ level + 1 }}</template>
+              <template v-else>MAX</template>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top">{{ tooltipText }}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
-    <UProgressBar :model-value="progressPercentage" :height="10" :animation="barAnimation" />
+    <Progress
+      class="xp-progress bar-fill h-2.5"
+      :class="{
+        'xp-progress--pulse': barAnimation === 'pulse',
+        'xp-progress--shimmer': barAnimation === 'shimmer',
+      }"
+      :style="{ '--bar-fill': fillGradient }"
+      :model-value="progressPercentage"
+    />
   </div>
 </template>
 
 <style scoped>
+:deep(.bar-fill [data-slot='progress-indicator']) {
+  background: var(--bar-fill);
+}
+
+.xp-progress--pulse :deep([data-slot='progress-indicator']) {
+  animation: xp-pulse 1.5s ease-in-out infinite;
+}
+
+.xp-progress--shimmer :deep([data-slot='progress-indicator']) {
+  background-size: 200% 100%;
+  animation: xp-shimmer 3s linear infinite;
+}
+
 /* Informational values (glow-0): facts about progress, not calls to action. */
 .xp-bar-container {
   display: flex;
@@ -100,5 +133,24 @@ const barAnimation = computed(() => {
 
 .stat-value.max-level {
   color: rgb(250 204 21);
+}
+
+@keyframes xp-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes xp-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 </style>

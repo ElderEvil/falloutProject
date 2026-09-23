@@ -17,24 +17,6 @@ vi.mock('@/core/plugins/axios', () => ({
   },
 }))
 
-// Mock the UI components
-vi.mock('@/core/components/ui', () => ({
-  UCard: {
-    name: 'UCard',
-    props: ['title', 'glow', 'crt'],
-    template: '<div class="u-card"><h2>{{ title }}</h2><slot /></div>',
-  },
-  USkeleton: {
-    name: 'USkeleton',
-    template: '<div class="skeleton"></div>',
-  },
-  UButton: {
-    name: 'UButton',
-    props: ['variant', 'size'],
-    template: '<button class="u-button"><slot /></button>',
-  },
-}))
-
 // Mock vue-router
 vi.mock('vue-router', () => ({
   RouterLink: { template: '<a><slot /></a>' },
@@ -92,7 +74,7 @@ describe('AboutView', () => {
     const wrapper = mount(AboutView)
 
     // Before flushPromises, should show loading state
-    const skeletons = wrapper.findAll('.skeleton')
+    const skeletons = wrapper.findAll('[data-slot="skeleton"]')
     expect(skeletons.length).toBeGreaterThan(0)
   })
 

@@ -43,6 +43,17 @@ const router = createRouter({
     ...aiSettingsRoutes,
     // Auth module routes
     ...authRoutes,
+    // Dev-only UI catalog — compiled out of production builds (import.meta.env.DEV
+    // is statically replaced with false by Vite), never linked from any nav.
+    ...(import.meta.env.DEV
+      ? [
+          {
+            path: '/dev/ui-catalog',
+            name: 'ui-catalog',
+            component: () => import('@/core/views/UiCatalogView.vue'),
+          },
+        ]
+      : []),
     {
       path: '/about',
       name: 'about',

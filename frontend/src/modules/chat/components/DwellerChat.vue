@@ -18,7 +18,14 @@ import { useToast } from '@/core/composables/useToast'
 import { useMapStore } from '@/modules/map/stores/map'
 import type { MapPlaceLink } from '@/modules/dwellers/models/dweller'
 import ChatMessageList from './ChatMessageList.vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
+import { Button } from '@/core/components/ui/button'
+import { Input } from '@/core/components/ui/input'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 
 const props = withDefaults(
   defineProps<{
@@ -127,6 +134,12 @@ const conversationStarters = computed(() =>
 const prefillConversationStarter = (message: string) => {
   userMessage.value = message
   chatInputRef.value?.focus()
+}
+
+// shadcn Input is a component; unwrap its root <input> for the composable's
+// element ref (focus + key-stroke target).
+const setChatInputRef = (el: unknown) => {
+  chatInputRef.value = (el as { $el?: HTMLInputElement } | null)?.$el ?? (el as HTMLInputElement | null)
 }
 
 const { isPerformingAction, handleActionConfirm, refreshAfterChat } = useChatActions({
@@ -258,7 +271,7 @@ onUnmounted(() => {
 
 <template>
   <div class="chat-container">
-    <div class="scanlines"></div>
+    <div class="chat-texture"></div>
     <div class="chat-identity-header">
       <div class="identity-avatar">
         <DwellerPortrait
@@ -281,15 +294,16 @@ onUnmounted(() => {
         aria-label="Conversation starters"
       >
         <p class="w-full text-xs tracking-[0.12em] text-theme-primary/60">VAULT-TEC PROMPTS</p>
-        <button
+        <Button
           v-for="starter in conversationStarters"
           :key="starter"
           type="button"
-          class="conversation-starter border border-theme-primary/35 bg-theme-primary/5 px-2.5 py-1.5 text-left text-xs text-theme-primary transition-colors hover:bg-theme-primary/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary"
+          variant="ghost"
+          class="conversation-starter h-auto border border-theme-primary/35 bg-theme-primary/5 px-2.5 py-1.5 text-left text-xs text-theme-primary transition-colors hover:bg-theme-primary/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary"
           @click="prefillConversationStarter(starter)"
         >
           {{ starter }}
-        </button>
+        </Button>
       </div>
       <ChatMessageList
         :messages="messages"
@@ -336,71 +350,99 @@ onUnmounted(() => {
     </div>
 
     <div v-else class="chat-input">
-      <UTooltip :text="audioMode ? 'Switch to text' : 'Switch to voice'">
-        <button
-          class="mode-toggle-btn"
-          :aria-label="audioMode ? 'Switch to text input' : 'Switch to voice input'"
-          @click="audioMode = !audioMode"
-        >
-          <Icon :icon="audioMode ? 'mdi:keyboard' : 'mdi:microphone'" class="h-5 w-5" />
-        </button>
-      </UTooltip>
-      <template v-if="!audioMode">
-        <span class="terminal-prompt">&gt;</span>
-        <input
-          ref="chatInputRef"
-          v-model="userMessage"
-          class="chat-input-field"
-          placeholder="Type your message..."
-          @input="handleTyping"
-          @beforeinput="playSound('typeKey')"
-        />
-        <button
-          class="chat-send-btn"
-          :class="{ disabled: !canSend }"
-          :disabled="!canSend"
-          aria-label="Send message"
-          @click="handleSendMessage"
-        >
-          <Icon icon="mdi:send" class="h-5 w-5" />
-        </button>
-      </template>
-      <template v-else>
-        <div v-if="isRecording" class="recording-indicator">
-          <span class="recording-dot"></span>
-          Recording: {{ formatDuration(recordingDuration) }}
-        </div>
-        <div v-else-if="isSendingAudio" class="processing-indicator">
-          <Icon icon="mdi:loading" class="spinning h-5 w-5" />
-          Processing audio...
-        </div>
-        <div v-else class="ready-indicator">
-          <Icon icon="mdi:microphone" class="h-5 w-5" />
-          Ready to record
-        </div>
-        <UTooltip v-if="!isRecording" text="Start recording">
-        <button
-          class="record-btn"
-          aria-label="Start recording"
-          :disabled="isSendingAudio"
-          @click="startRecording"
-        >
-          <Icon icon="mdi:microphone" class="h-6 w-6" />
-        </button>
-        </UTooltip>
-        <template v-else>
-          <UTooltip text="Cancel recording">
-            <button class="cancel-btn" aria-label="Cancel recording" @click="cancelRecording">
-              <Icon icon="mdi:close" class="h-5 w-5" />
-            </button>
-          </UTooltip>
-          <UTooltip text="Send recording">
-            <button class="send-audio-btn" aria-label="Send recording" @click="sendAudioMessage">
-              <Icon icon="mdi:send" class="h-5 w-5" />
-            </button>
-          </UTooltip>
+      <TooltipProvider :delay-duration="200">
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button
+              variant="ghost"
+              class="mode-toggle-btn h-auto"
+              :aria-label="audioMode ? 'Switch to text input' : 'Switch to voice input'"
+              @click="audioMode = !audioMode"
+            >
+              <Icon :icon="audioMode ? 'mdi:keyboard' : 'mdi:microphone'" class="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{{ audioMode ? 'Switch to text' : 'Switch to voice' }}</TooltipContent>
+        </Tooltip>
+        <template v-if="!audioMode">
+          <span class="terminal-prompt">&gt;</span>
+          <!-- @vue-ignore -->
+          <Input
+            :ref="setChatInputRef"
+            v-model="userMessage"
+            class="chat-input-field"
+            placeholder="Type your message..."
+            @input="handleTyping"
+            @beforeinput="playSound('typeKey')"
+          />
+          <Button
+            variant="ghost"
+            class="chat-send-btn h-auto"
+            :class="{ disabled: !canSend }"
+            :disabled="!canSend"
+            aria-label="Send message"
+            @click="handleSendMessage"
+          >
+            <Icon icon="mdi:send" class="h-5 w-5" />
+          </Button>
         </template>
-      </template>
+        <template v-else>
+          <div v-if="isRecording" class="recording-indicator">
+            <span class="recording-dot"></span>
+            Recording: {{ formatDuration(recordingDuration) }}
+          </div>
+          <div v-else-if="isSendingAudio" class="processing-indicator">
+            <Icon icon="mdi:loading" class="spinning h-5 w-5" />
+            Processing audio...
+          </div>
+          <div v-else class="ready-indicator">
+            <Icon icon="mdi:microphone" class="h-5 w-5" />
+            Ready to record
+          </div>
+          <Tooltip v-if="!isRecording">
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                class="record-btn h-auto"
+                aria-label="Start recording"
+                :disabled="isSendingAudio"
+                @click="startRecording"
+              >
+                <Icon icon="mdi:microphone" class="h-6 w-6" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Start recording</TooltipContent>
+          </Tooltip>
+          <template v-else>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  class="cancel-btn h-auto"
+                  aria-label="Cancel recording"
+                  @click="cancelRecording"
+                >
+                  <Icon icon="mdi:close" class="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Cancel recording</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  class="send-audio-btn h-auto"
+                  aria-label="Send recording"
+                  @click="sendAudioMessage"
+                >
+                  <Icon icon="mdi:send" class="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Send recording</TooltipContent>
+            </Tooltip>
+          </template>
+        </template>
+      </TooltipProvider>
     </div>
   </div>
 </template>

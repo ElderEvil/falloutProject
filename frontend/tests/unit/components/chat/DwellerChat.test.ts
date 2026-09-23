@@ -9,6 +9,15 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import * as trainingService from '@/modules/progression/services/trainingService'
 
+// iconify's Icon ships with no component name, so VTU stubs can't match it — mock the module instead.
+vi.mock('@iconify/vue', () => ({
+  Icon: {
+    name: 'Icon',
+    template: '<span class="icon-stub" :data-icon="icon"></span>',
+    props: ['icon'],
+  },
+}))
+
 vi.mock('@/core/plugins/axios', () => ({
   default: {
     get: vi.fn(),
@@ -256,7 +265,7 @@ describe('DwellerChat', () => {
       const happinessIndicator = wrapper.find('.happiness-indicator')
       expect(happinessIndicator.exists()).toBe(true)
       expect(happinessIndicator.text()).toContain('+5')
-      expect(happinessIndicator.classes()).toContain('text-green-400')
+      expect(happinessIndicator.find('.icon-stub').attributes('data-icon')).toBe('mdi:emoticon-happy')
     })
 
     it('should render negative happiness impact with red color', async () => {
@@ -285,7 +294,7 @@ describe('DwellerChat', () => {
       const happinessIndicator = wrapper.find('.happiness-indicator')
       expect(happinessIndicator.exists()).toBe(true)
       expect(happinessIndicator.text()).toContain('-3')
-      expect(happinessIndicator.classes()).toContain('text-red-400')
+      expect(happinessIndicator.find('.icon-stub').attributes('data-icon')).toBe('mdi:emoticon-sad')
     })
 
     it('should render neutral happiness impact with gray color', async () => {
@@ -314,7 +323,7 @@ describe('DwellerChat', () => {
       const happinessIndicator = wrapper.find('.happiness-indicator')
       expect(happinessIndicator.exists()).toBe(true)
       expect(happinessIndicator.text()).toContain('0')
-      expect(happinessIndicator.classes()).toContain('text-gray-400')
+      expect(happinessIndicator.find('.icon-stub').attributes('data-icon')).toBe('mdi:emoticon-neutral')
     })
 
     it('should not render happiness indicator when response has no happiness_impact', async () => {
@@ -677,7 +686,7 @@ describe('DwellerChat', () => {
       const wrapper = mountComponent()
 
       const sendBtn = wrapper.find('.chat-send-btn')
-      expect(sendBtn.classes()).toContain('disabled')
+      expect((sendBtn.element as HTMLButtonElement).disabled).toBe(true)
     })
 
     it('should enable send button when input has text', async () => {
@@ -687,7 +696,7 @@ describe('DwellerChat', () => {
       await input.setValue('Hello')
 
       const sendBtn = wrapper.find('.chat-send-btn')
-      expect(sendBtn.classes()).not.toContain('disabled')
+      expect((sendBtn.element as HTMLButtonElement).disabled).toBe(false)
     })
   })
 
@@ -810,7 +819,7 @@ describe('DwellerChat', () => {
 
       // Verify only the targeted dweller message has happiness impact
       messages = wrapper.findAll('.message-wrapper')
-      const dwellerMessages = messages.filter((m) => m.classes().includes('dweller'))
+      const dwellerMessages = wrapper.findAll('.message-wrapper.dweller')
       expect(dwellerMessages.length).toBe(2)
 
       // First dweller message should NOT have happiness indicator
@@ -1671,7 +1680,7 @@ describe('DwellerChat', () => {
 
       // The action card should be associated with msg-A (first dweller message, index 1)
       // NOT the latest message (msg-B at index 3)
-      const dwellerMessages = messages.filter((m) => m.classes().includes('dweller'))
+      const dwellerMessages = wrapper.findAll('.message-wrapper.dweller')
       expect(dwellerMessages.length).toBe(2)
 
       // First dweller message SHOULD have the action card

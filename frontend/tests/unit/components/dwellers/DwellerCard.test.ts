@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import DwellerCard from '@/modules/dwellers/components/cards/DwellerCard.vue'
+import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 
 // Mock the happiness service
 vi.mock('@/modules/dwellers/services/happinessService', () => ({
@@ -168,29 +168,27 @@ describe('DwellerCard', () => {
         },
       })
 
-      const progressBar = wrapper.findComponent({ name: 'UProgressBar' })
+      const progressBar = wrapper.findComponent({ name: 'HealthRadiationBar' })
       expect(progressBar.exists()).toBe(true)
-      expect(progressBar.props('modelValue')).toBe(80)
+      expect(progressBar.props('value')).toBe(80)
     })
 
-    it('describes the maximum level instead of a negative XP remainder', async () => {
+    it('describes the maximum level instead of a negative XP remainder', () => {
       const maxedDweller = { ...mockDweller, level: 50, experience: 50000 }
+      // Reka renders TooltipContent only when open and teleported; stub it inline so the
+      // max-level description (the behavioral contract) is assertable without hover timers.
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: maxedDweller,
           imageUrl: null,
         },
+        global: { stubs: { TooltipContent: { template: '<div><slot /></div>' } } },
       })
 
       const value = wrapper.find('.xp-bar-container .stat-value')
       expect(value.classes()).toContain('max-level')
       expect(value.text()).not.toMatch(/-\d/)
-      vi.useFakeTimers()
-      await wrapper.find('.xp-bar-container .stat-value').trigger('mouseenter')
-      vi.advanceTimersByTime(250)
-      await nextTick()
-      expect(document.body.textContent).toContain('Maximum level')
-      vi.useRealTimers()
+      expect(wrapper.text()).toContain('Maximum level reached')
     })
   })
 
@@ -206,11 +204,16 @@ describe('DwellerCard', () => {
   describe('Away and dead dwellers', () => {
     const actionLabels = (wrapper: ReturnType<typeof mount>) =>
       wrapper
-        .findAllComponents({ name: 'UButton' })
+        .findAllComponents({ name: 'Button' })
         .map((btn) => btn.text().trim())
         .filter(Boolean)
 
     it('replaces the room actions with Recall while exploring', () => {
+      const explorationStore = useExplorationStore()
+      explorationStore.explorations = [
+        { id: 'e1', dweller_id: mockDweller.id, vault_id: 'v1', status: 'active' },
+      ] as any
+
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: { ...mockDweller, status: 'exploring', room: null },
@@ -224,6 +227,38 @@ describe('DwellerCard', () => {
       expect(labels).not.toContain('Assign')
       expect(labels).not.toContain('Wasteland')
       expect(labels).not.toContain('Train')
+    })
+
+    it('withholds Recall when the exploration record is unavailable', () => {
+      const explorationStore = useExplorationStore()
+      explorationStore.explorations = []
+
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: { ...mockDweller, status: 'exploring', room: null },
+          imageUrl: null,
+        },
+      })
+
+      expect(actionLabels(wrapper)).not.toContain('Recall')
+    })
+
+    it('swaps Recall for a Returning state once the dweller is heading home', () => {
+      const explorationStore = useExplorationStore()
+      explorationStore.explorations = [
+        { id: 'e1', dweller_id: mockDweller.id, vault_id: 'v1', status: 'returning' },
+      ] as any
+
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: { ...mockDweller, status: 'exploring', room: null },
+          imageUrl: null,
+        },
+      })
+
+      const labels = actionLabels(wrapper)
+      expect(labels).toContain('Returning')
+      expect(labels).not.toContain('Recall')
     })
 
     it('withholds vault actions from a questing dweller', () => {
@@ -328,9 +363,7 @@ describe('DwellerCard', () => {
         },
       })
 
-      const chatButton = wrapper
-        .findAllComponents({ name: 'UButton' })
-        .find((btn) => btn.text().includes('Chat'))
+      const chatButton = wrapper.findAll('button').find((btn) => btn.text().includes('Chat'))
 
       expect(chatButton).toBeDefined()
       await chatButton!.trigger('click')
@@ -345,9 +378,7 @@ describe('DwellerCard', () => {
         },
       })
 
-      const assignButton = wrapper
-        .findAllComponents({ name: 'UButton' })
-        .find((btn) => btn.text().includes('Assign'))
+      const assignButton = wrapper.findAll('button').find((btn) => btn.text().includes('Assign'))
 
       expect(assignButton).toBeDefined()
       await assignButton!.trigger('click')
@@ -355,6 +386,11 @@ describe('DwellerCard', () => {
     })
 
     it('should show recall button when dweller is exploring', async () => {
+      const explorationStore = useExplorationStore()
+      explorationStore.explorations = [
+        { id: 'e1', dweller_id: mockDweller.id, vault_id: 'v1', status: 'active' },
+      ] as any
+
       const exploringDweller = { ...mockDweller, status: 'exploring' }
       const wrapper = mount(DwellerCard, {
         props: {
@@ -364,7 +400,7 @@ describe('DwellerCard', () => {
       })
 
       const recallButton = wrapper
-        .findAllComponents({ name: 'UButton' })
+        .findAllComponents({ name: 'Button' })
         .find((btn) => btn.text().includes('Recall'))
 
       expect(recallButton).toBeDefined()
@@ -379,7 +415,7 @@ describe('DwellerCard', () => {
       })
 
       const recallButton = wrapper
-        .findAllComponents({ name: 'UButton' })
+        .findAllComponents({ name: 'Button' })
         .find((btn) => btn.text().includes('Recall'))
 
       expect(recallButton).toBeUndefined()
@@ -395,7 +431,7 @@ describe('DwellerCard', () => {
       })
 
       const sendButton = wrapper
-        .findAllComponents({ name: 'UButton' })
+        .findAllComponents({ name: 'Button' })
         .find((btn) => btn.text().includes('Wasteland'))
 
       expect(sendButton).toBeDefined()
@@ -411,7 +447,7 @@ describe('DwellerCard', () => {
       })
 
       const sendButton = wrapper
-        .findAllComponents({ name: 'UButton' })
+        .findAllComponents({ name: 'Button' })
         .find((btn) => btn.text().includes('Wasteland'))
 
       expect(sendButton!.props('disabled')).toBeFalsy()
@@ -527,7 +563,7 @@ describe('DwellerCard', () => {
   describe('Contextual Room Actions', () => {
     const actionLabels = (wrapper: ReturnType<typeof mount>) =>
       wrapper
-        .findAllComponents({ name: 'UButton' })
+        .findAllComponents({ name: 'Button' })
         .map((btn) => btn.text().trim())
         .filter(Boolean)
 
@@ -571,17 +607,17 @@ describe('DwellerCard', () => {
 
   describe('Button Tooltips', () => {
     it('should have tooltip for train stats button', () => {
+      // Reka renders TooltipContent only when open and teleported; stub it inline so the
+      // tooltip text (the behavioral contract) is assertable without hover timers.
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
           imageUrl: null,
         },
+        global: { stubs: { TooltipContent: { template: '<div><slot /></div>' } } },
       })
 
-      const tooltips = wrapper.findAllComponents({ name: 'UTooltip' })
-      const trainTooltip = tooltips.find((t) => t.props('text')?.includes('Train SPECIAL stats'))
-
-      expect(trainTooltip).toBeDefined()
+      expect(wrapper.text()).toContain('Train SPECIAL stats to improve dweller abilities')
     })
   })
 })

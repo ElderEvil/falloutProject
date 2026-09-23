@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import CraftingPanel from '@/modules/crafting/components/CraftingPanel.vue'
 import { craftingService } from '@/modules/crafting/services/craftingService'
 import type { CraftingOrder, CraftingRecipe } from '@/modules/crafting/models/crafting'
@@ -60,6 +60,11 @@ const order = (overrides: Partial<CraftingOrder> = {}): CraftingOrder =>
 const mountPanel = () =>
   mount(CraftingPanel, { props: { vaultId: 'vault-1', itemType: 'weapon' } })
 
+// The filter bar's shadcn SelectTrigger is also a <button>, so target the Start
+// action by its label rather than by DOM position.
+const findButton = (wrapper: VueWrapper, label: string) =>
+  wrapper.findAll('button').find((button) => button.text().includes(label))!
+
 describe('CraftingPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -94,7 +99,7 @@ describe('CraftingPanel', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('0/3 rare')
-    expect(wrapper.get('button').attributes('disabled')).toBeDefined()
+    expect(findButton(wrapper, 'Start').attributes('disabled')).toBeDefined()
   })
 
   it('filters schematics by rarity, craftability and name', async () => {
@@ -137,14 +142,14 @@ describe('CraftingPanel', () => {
     const wrapper = mountPanel()
     await flushPromises()
 
-    expect(wrapper.get('button').attributes('disabled')).toBeDefined()
+    expect(findButton(wrapper, 'Start').attributes('disabled')).toBeDefined()
   })
 
   it('queues an order, refreshes and reports it', async () => {
     const wrapper = mountPanel()
     await flushPromises()
 
-    await wrapper.get('button').trigger('click')
+    await findButton(wrapper, 'Start').trigger('click')
     await flushPromises()
 
     expect(craftingService.startOrder).toHaveBeenCalledWith('vault-1', 'Pipe pistol', 'weapon')
@@ -157,7 +162,7 @@ describe('CraftingPanel', () => {
     const wrapper = mountPanel()
     await flushPromises()
 
-    await wrapper.get('button').trigger('click')
+    await findButton(wrapper, 'Start').trigger('click')
     await flushPromises()
 
     expect(mockToast.error).toHaveBeenCalled()
@@ -183,6 +188,17 @@ describe('CraftingPanel', () => {
 
     expect(wrapper.text()).toContain('Queue')
     expect(wrapper.text()).not.toContain('Collect')
+  })
+
+  it('renders the queue progress bar with the live percentage', async () => {
+    vi.mocked(craftingService.listOrders).mockResolvedValue([order({ status: 'active', progress: 0.5 })])
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    const bar = wrapper.find('[role="progressbar"]')
+    expect(bar.exists()).toBe(true)
+    expect(bar.attributes('aria-valuenow')).toBe('50')
+    expect(wrapper.text()).toContain('50%')
   })
 
   it('collects a finished order', async () => {

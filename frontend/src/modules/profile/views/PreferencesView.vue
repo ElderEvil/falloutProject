@@ -11,7 +11,9 @@ import { useProfileStore } from '../stores/profile'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
-import { UCard, UButton, USlider, UTooltip } from '@/core/components/ui'
+import { Card } from '@/core/components/ui/card'
+import { Slider } from '@/core/components/ui/slider'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 
 const breadcrumbs = [{ label: 'Profile', to: '/profile' }, { label: 'Display Preferences' }]
 
@@ -72,8 +74,6 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div class="scanlines" v-if="scanlines"></div>
-
     <div class="vault-layout">
       <SidePanel />
 
@@ -95,10 +95,9 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
             </PageHeader>
 
             <!-- Theme Selection -->
-            <UCard class="mb-4">
+            <Card class="mb-4 gap-0">
               <h2
-                class="text-xl font-bold mb-2 flex items-center gap-2"
-                :style="{ color: 'var(--color-theme-primary)' }"
+                class="text-xl font-bold mb-2 flex items-center gap-2 text-theme-primary"
               >
                 <Icon icon="mdi:palette" class="text-xl" />
                 Color Theme
@@ -133,13 +132,12 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                   </div>
                 </button>
               </div>
-            </UCard>
+            </Card>
 
             <!-- Visual Effects -->
-            <UCard class="mb-4">
+            <Card class="mb-4 gap-0">
               <h2
-                class="text-xl font-bold mb-2 flex items-center gap-2"
-                :style="{ color: 'var(--color-theme-primary)' }"
+                class="text-xl font-bold mb-2 flex items-center gap-2 text-theme-primary"
               >
                 <Icon icon="mdi:television-classic" class="text-xl" />
                 CRT Visual Effects
@@ -155,8 +153,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                   <div class="flex items-center gap-2">
                     <Icon
                       icon="mdi:flash"
-                      class="text-xl"
-                      :style="{ color: 'var(--color-theme-primary)' }"
+                      class="text-xl text-theme-primary"
                     />
                     <h3 class="setting-label">Screen Flickering</h3>
                   </div>
@@ -180,8 +177,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                   <div class="flex items-center gap-2">
                     <Icon
                       icon="mdi:view-sequential"
-                      class="text-xl"
-                      :style="{ color: 'var(--color-theme-primary)' }"
+                      class="text-xl text-theme-primary"
                     />
                     <h3 class="setting-label">Scanlines</h3>
                   </div>
@@ -205,8 +201,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                   <div class="flex items-center gap-2">
                     <Icon
                       icon="mdi:lightbulb-on"
-                      class="text-xl"
-                      :style="{ color: 'var(--color-theme-primary)' }"
+                      class="text-xl text-theme-primary"
                     />
                     <h3 class="setting-label">Text Glow Intensity</h3>
                   </div>
@@ -216,32 +211,36 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                     <span class="demo-label">Preview: </span>
                     <span
                       :class="injectedGlowClass"
-                      :style="{ color: 'var(--color-theme-primary)' }"
-                      class="demo-text"
+                      class="demo-text text-theme-primary"
                     >
                       VAULT-TEC TERMINAL
                     </span>
                   </div>
                   <!-- Glow Controls (moved inside setting-info) -->
                   <div class="glow-controls mt-3">
-                    <UTooltip v-for="option in glowIntensityOptions" :key="option.value" :text="option.description">
-                    <button
-                      @click="setGlowIntensity(option.value)"
-                      class="glow-option"
-                      :class="{ active: glowIntensity === option.value }"
-                      :aria-label="`Set glow to ${option.label}`"
-                    >
-                      {{ option.label }}
-                    </button>
-                    </UTooltip>
+                    <TooltipProvider :delay-duration="200">
+                      <Tooltip v-for="option in glowIntensityOptions" :key="option.value">
+                        <TooltipTrigger as-child>
+                          <button
+                            @click="setGlowIntensity(option.value)"
+                            class="glow-option"
+                            :class="{ active: glowIntensity === option.value }"
+                            :aria-label="`Set glow to ${option.label}`"
+                          >
+                            {{ option.label }}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">{{ option.description }}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </div>
               </div>
-            </UCard>
+            </Card>
 
             <!-- Room Rendering -->
-            <UCard class="mb-4">
-              <h2 class="text-xl font-bold mb-2" :style="{ color: 'var(--color-theme-primary)' }">
+            <Card class="mb-4 gap-0">
+              <h2 class="text-xl font-bold mb-2 text-theme-primary">
                 <Icon icon="mdi:image" class="inline mr-2" />
                 Room Rendering
               </h2>
@@ -268,13 +267,12 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                   </button>
                 </div>
               </div>
-            </UCard>
+            </Card>
 
             <!-- Badges -->
-            <UCard class="mb-4">
+            <Card class="mb-4 gap-0">
               <h2
-                class="text-xl font-bold mb-2 flex items-center gap-2"
-                :style="{ color: 'var(--color-theme-primary)' }"
+                class="text-xl font-bold mb-2 flex items-center gap-2 text-theme-primary"
               >
                 <Icon icon="mdi:palette" class="text-xl" />
                 Badge Colors
@@ -300,13 +298,12 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                   <span class="toggle-slider" :class="{ active: isMonochrome }"></span>
                 </button>
               </div>
-            </UCard>
+            </Card>
 
             <!-- Sound -->
-            <UCard class="mb-4">
+            <Card class="mb-4 gap-0">
               <h2
-                class="text-xl font-bold mb-2 flex items-center gap-2"
-                :style="{ color: 'var(--color-theme-primary)' }"
+                class="text-xl font-bold mb-2 flex items-center gap-2 text-theme-primary"
               >
                 <Icon icon="mdi:volume-high" class="text-xl" />
                 Sound
@@ -340,24 +337,26 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                     <p class="setting-description">{{ option.description }}</p>
                   </div>
                   <div class="w-40 shrink-0">
-                    <USlider
-                      :model-value="audioManager.volumes[option.bus]"
+                    <!-- @vue-ignore -->
+                    <Slider
+                      :model-value="[audioManager.volumes[option.bus]]"
                       :min="0"
                       :max="1"
                       :step="0.05"
                       :aria-label="`${option.label} volume`"
-                      @update:model-value="setBusVolume(option.bus, $event)"
+                      @update:model-value="setBusVolume(option.bus, $event[0] ?? 0)"
                     />
                   </div>
                 </div>
               </template>
-            </UCard>
+            </Card>
 
             <!-- Quick Actions -->
-            <UCard>
-              <h2 class="text-xl font-bold mb-2" :style="{ color: 'var(--color-theme-primary)' }">
+            <Card class="gap-0">
+              <h2 class="text-xl font-bold mb-2 text-theme-primary">
                 Quick Actions
               </h2>
+              <!-- Bespoke raw action buttons: custom scoped CSS (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
               <div class="flex flex-wrap gap-3">
                 <button @click="enableAllEffects" class="action-button">
                   <Icon icon="mdi:eye" class="mr-2" />
@@ -372,7 +371,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                   Reset to Defaults
                 </button>
               </div>
-            </UCard>
+            </Card>
           </div>
         </div>
       </div>
@@ -549,7 +548,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
   letter-spacing: 0.05em;
 }
 
-/* Volume sliders use the shared USlider component */
+/* Volume sliders use the shared Slider component */
 
 /* Action Buttons */
 .action-button {

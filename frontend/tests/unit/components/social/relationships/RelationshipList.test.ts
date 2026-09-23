@@ -19,13 +19,18 @@ const { relationships, pregnancies, fetchVaultRelationships } = vi.hoisted(() =>
 vi.mock('@/modules/social/stores/relationship', () => ({
   useRelationshipStore: () => ({
     relationships,
-    pregnancies,
     isLoading: false,
     fetchVaultRelationships,
     initiateRomance: vi.fn(),
     makePartners: vi.fn(),
     marry: vi.fn(),
     breakUp: vi.fn(),
+  }),
+}))
+
+vi.mock('@/modules/social/stores/pregnancy', () => ({
+  usePregnancyStore: () => ({
+    pregnancies,
   }),
 }))
 
@@ -57,8 +62,6 @@ function mountList() {
     props: { vaultId: 'v1' },
     global: {
       stubs: {
-        UButton: { template: '<button class="ubutton-stub"><slot /></button>' },
-        UCard: { template: '<div class="ucard-stub"><slot /></div>' },
         TerminalEmptyState: { template: '<div class="empty-stub" />' },
       },
     },

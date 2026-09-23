@@ -1,20 +1,39 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import StorageItemCard from '@/modules/storage/components/StorageItemCard.vue'
 
-const tooltipText = async (button: { trigger: (event: string) => Promise<void> }) => {
-  vi.useFakeTimers()
-  await button.trigger('focusin')
-  vi.advanceTimersByTime(250)
+// jsdom lacks ResizeObserver, which reka-ui's TooltipContent uses to measure
+// itself on mount (same polyfill pattern as AISettingsPanel.test.ts for
+// reka-ui's missing browser APIs).
+if (!globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+}
+
+const findButton = (wrapper: VueWrapper, label: string) =>
+  wrapper.findAll('button').find((button) => button.text().includes(label))!
+
+// reka-ui's TooltipTrigger opens on native `focus` (immediate, no delay) and on
+// `pointermove` (delayed by TooltipProvider's delayDuration). jsdom's synthetic
+// events carry no pointerType, so dispatch real events — the same approach the
+// sibling AISettingsPanel.test.ts uses for reka-ui pointer/keyboard behaviour.
+const expectTooltip = async (button: ReturnType<typeof findButton>, text: string) => {
+  button.element.dispatchEvent(new FocusEvent('focus'))
   await nextTick()
-  const text = document.querySelector('[role="tooltip"]')?.textContent?.trim()
-  vi.useRealTimers()
-  return text
+  const tooltip = document.querySelector<HTMLElement>('[role="tooltip"]')
+  expect(tooltip?.textContent).toContain(text)
+  expect(button.attributes('aria-describedby')).toBe(tooltip?.id)
+  button.element.dispatchEvent(new FocusEvent('blur'))
+  await nextTick()
 }
 
 describe('StorageItemCard', () => {
-  afterEach(() => {
+  beforeEach(() => {
+    // Tooltip content is teleported to <body>; drop leftovers between tests.
     document.querySelectorAll('[role="tooltip"]').forEach((element) => element.remove())
   })
 
@@ -30,33 +49,79 @@ describe('StorageItemCard', () => {
         },
         itemType: 'weapon',
       },
-      attachTo: document.body,
       global: { stubs: { Icon: true } },
     })
 
     expect(wrapper.text()).toContain('Built for close-range combat.')
 
     const buttons = wrapper.findAll('button')
-    const scrap = buttons.find((button) => button.text().includes('Scrap'))!
-    const sell = buttons.find((button) => button.text().trim() === 'Sell')!
+    const scrap = findButton(wrapper, 'Scrap')
+    const sell = findButton(wrapper, 'Sell')
 
-    expect(await tooltipText(scrap)).toBe('Scrap')
-    expect(await tooltipText(sell)).toBe('Sell')
+    // The old UTooltip hover description is now a shadcn Tooltip wired to the
+    // button: focusing the trigger reveals the tooltip and the trigger gets
+    // aria-describedby pointing at it.
+    await expectTooltip(scrap, 'Scrap')
+    await expectTooltip(sell, 'Sell')
 
     const actions = buttons.map((button) => button.text())
     expect(actions.indexOf('Sell')).toBeLessThan(actions.indexOf('Scrap'))
   })
 
-  it('includes the junk quantity in the sell-all title', async () => {
+  it('includes the junk quantity in the sell-all tooltip on hover', async () => {
     const wrapper = mount(StorageItemCard, {
       props: { item: { name: 'Desk Fan', value: 10 }, itemType: 'junk', count: 3 },
-      attachTo: document.body,
       global: { stubs: { Icon: true } },
     })
 
-    const sellAll = wrapper.findAll('button').find((button) => button.text().includes('Sell all'))!
+    // The single-sell tooltip distinguishes the count>1 case.
+    await expectTooltip(findButton(wrapper, 'Sell'), 'Sell one')
 
-    expect(await tooltipText(sellAll)).toBe('Sell all (3)')
+    const sellAll = findButton(wrapper, 'Sell all')
+    // reka-ui opens on pointermove (not pointerenter); the open is delayed by
+    // TooltipProvider's delayDuration (200ms, matching the old UTooltip delay).
+    sellAll.element.dispatchEvent(new MouseEvent('pointermove', { bubbles: true }))
+    await vi.waitFor(() => {
+      const tooltip = document.querySelector<HTMLElement>('[role="tooltip"]')
+      expect(tooltip?.textContent).toContain('Sell all (3)')
+    })
+    expect(sellAll.attributes('aria-describedby')).toBe(
+      document.querySelector<HTMLElement>('[role="tooltip"]')?.id
+    )
+  })
+
+  it('emits the inventory actions on click', async () => {
+    const weapon = mount(StorageItemCard, {
+      props: {
+        item: {
+          name: '10mm Pistol',
+          rarity: 'rare',
+          value: 50,
+          weapon_subtype: 'pistol',
+        },
+        itemType: 'weapon',
+      },
+      global: { stubs: { Icon: true } },
+    })
+    await findButton(weapon, 'Scrap').trigger('click')
+    expect(weapon.emitted('scrap')).toHaveLength(1)
+    await findButton(weapon, 'Sell').trigger('click')
+    expect(weapon.emitted('sell')).toHaveLength(1)
+
+    const lunchbox = mount(StorageItemCard, {
+      props: { item: { name: 'Lunchbox', value: 500 }, itemType: 'lunchbox' },
+      global: { stubs: { Icon: true } },
+    })
+    await expectTooltip(findButton(lunchbox, 'Open'), 'Open lunchbox')
+    await findButton(lunchbox, 'Open').trigger('click')
+    expect(lunchbox.emitted('open')).toHaveLength(1)
+
+    const junk = mount(StorageItemCard, {
+      props: { item: { name: 'Desk Fan', value: 10 }, itemType: 'junk', count: 3 },
+      global: { stubs: { Icon: true } },
+    })
+    await findButton(junk, 'Sell all').trigger('click')
+    expect(junk.emitted('sellAll')).toHaveLength(1)
   })
 
   it('renders the unified weapon stats including accuracy', () => {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mount, VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import QuestsView from '@/modules/progression/views/QuestsView.vue'
 import { useQuestStore } from '@/modules/progression/stores/quest'
@@ -151,8 +151,8 @@ describe('QuestsView', () => {
 
       await wrapper.vm.$nextTick()
 
-      const tabs = wrapper.findAll('.utabs-button')
-      expect(tabs[0].classes()).toContain('active')
+      const tabs = wrapper.findAll('[role="tab"]')
+      expect(tabs[0].attributes('aria-selected')).toBe('true')
     })
 
     it('should switch to completed tab when clicked', async () => {
@@ -167,10 +167,11 @@ describe('QuestsView', () => {
 
       await wrapper.vm.$nextTick()
 
-      const completedTab = wrapper.findAll('.utabs-button')[1]
-      await completedTab.trigger('click')
+      const completedTab = wrapper.findAll('[role="tab"]')[1]
+      await completedTab.trigger('mousedown')
+      await flushPromises()
 
-      expect(completedTab.classes()).toContain('active')
+      expect(completedTab.attributes('aria-selected')).toBe('true')
     })
   })
 
@@ -373,8 +374,9 @@ describe('QuestsView', () => {
       await wrapper.vm.$nextTick()
 
       // Switch to completed tab
-      const completedTab = wrapper.findAll('.utabs-button')[1]
-      await completedTab.trigger('click')
+      const completedTab = wrapper.findAll('[role="tab"]')[1]
+      await completedTab.trigger('mousedown')
+      await flushPromises()
 
       expect(wrapper.text()).toContain('Completed Quest')
       expect(wrapper.text()).toContain('View Details')
@@ -589,8 +591,9 @@ describe('QuestsView', () => {
 
       await wrapper.vm.$nextTick()
 
-      const completedTab = wrapper.findAll('.utabs-button')[1]
-      await completedTab.trigger('click')
+      const completedTab = wrapper.findAll('[role="tab"]')[1]
+      await completedTab.trigger('mousedown')
+      await flushPromises()
       await wrapper.find('.view-btn').trigger('click')
 
       expect(routerPushMock).toHaveBeenCalledWith('/vault/vault-123/quests/quest-9')

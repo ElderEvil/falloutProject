@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UBadge, UButton, UCard, UProgressBar } from '@/core/components/ui'
+import { Badge } from '@/core/components/ui/badge'
+import { Button } from '@/core/components/ui/button'
+import { Card } from '@/core/components/ui/card'
+import { Progress } from '@/core/components/ui/progress'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
@@ -348,7 +351,7 @@ const handleAction = () => {
 </script>
 
 <template>
-  <UCard
+  <Card
     class="quest-card flex h-full flex-col"
     :style="{ borderColor: cardBorderColor }"
     :class="{ 'completed-quest': status === 'completed' }"
@@ -358,23 +361,23 @@ const handleAction = () => {
       <div class="quest-header">
       <h3 class="quest-title">{{ quest.title }}</h3>
       <div class="quest-badges">
-        <UBadge
+        <Badge
           :style="{ backgroundColor: typeColor.bg, color: typeColor.text }"
           class="type-badge"
         >
           {{ typeLabel }}
-        </UBadge>
-        <UBadge v-if="quest.quest_category" variant="secondary" class="category-badge">
+        </Badge>
+        <Badge v-if="quest.quest_category" variant="secondary" class="category-badge">
           {{ quest.quest_category }}
-        </UBadge>
-        <UBadge v-if="isChainQuest" variant="outline" class="chain-badge">
+        </Badge>
+        <Badge v-if="isChainQuest" variant="outline" class="chain-badge">
           <Icon icon="mdi:link-variant" class="inline-icon" />
           {{ chainPosition }}
-        </UBadge>
-        <UBadge v-if="isLocked" variant="outline" class="locked-badge">
+        </Badge>
+        <Badge v-if="isLocked" variant="outline" class="locked-badge">
           <Icon icon="mdi:lock" class="inline-icon" />
           LOCKED
-        </UBadge>
+        </Badge>
       </div>
     </div>
 
@@ -506,7 +509,7 @@ const handleAction = () => {
         </div>
         <span class="timer-value">{{ status === 'ready' ? 'Ready to claim' : timeRemaining }}</span>
       </div>
-      <UProgressBar :model-value="displayedQuestProgress" :height="8" :glow="false" class="quest-progress-bar" />
+      <Progress :model-value="displayedQuestProgress" class="quest-progress-bar h-2" />
       <span class="timer-progress">{{ questProgressLabel }}</span>
     </div>
 
@@ -518,10 +521,10 @@ const handleAction = () => {
 
     </div>
 
-    <template #footer>
-      <UButton
+    <div>
+      <Button
         class="quest-action-btn"
-        :variant="status === 'completed' ? 'secondary' : 'primary'"
+        :variant="status === 'completed' ? 'secondary' : 'default'"
         :disabled="isButtonDisabled"
         @click="handleAction"
       >
@@ -542,9 +545,9 @@ const handleAction = () => {
           class="btn-icon"
         />
         {{ actionButtonText }}
-      </UButton>
-    </template>
-  </UCard>
+      </Button>
+    </div>
+  </Card>
 </template>
 
 <style scoped>

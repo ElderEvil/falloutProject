@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import axios from '@/core/plugins/axios'
-import { UButton, UInput } from '@/core/components/ui'
+import { Icon } from '@iconify/vue'
+import { Button } from '@/core/components/ui/button'
+import { Input } from '@/core/components/ui/input'
+import { Label } from '@/core/components/ui/label'
 
 const email = ref('')
 const error = ref('')
@@ -34,9 +37,6 @@ const handleSubmit = async () => {
 
 <template>
   <div class="login-container">
-    <!-- Scanlines overlay -->
-    <div class="scanlines"></div>
-
     <!-- CRT effect container -->
     <div class="crt-container flicker">
       <div class="login-box">
@@ -62,27 +62,30 @@ const handleSubmit = async () => {
           </div>
 
           <div class="form-group">
-            <UInput
+            <Label for="forgot-email" class="mb-1 text-sm font-medium text-theme-primary/70">
+              > EMAIL ADDRESS:
+            </Label>
+            <Input
+              id="forgot-email"
               v-model="email"
               type="email"
-              label="> EMAIL ADDRESS:"
               placeholder="overseer@vault-tec.com"
               :disabled="loading"
-              variant="terminal"
+              class="h-auto w-full rounded border-2 border-theme-primary/50 bg-surface-sunken px-4 py-2 text-terminal-green placeholder:text-theme-primary/40 focus:border-theme-primary"
             />
           </div>
 
-          <UButton
-            variant="primary"
-            block
-            :loading="loading"
+          <Button
+            variant="default"
+            class="w-full border-2 border-theme-primary hover:shadow-glow-md"
             :disabled="loading"
             @click.prevent="handleSubmit"
           >
+            <Icon v-if="loading" icon="mdi:loading" class="animate-spin" />
             <span class="button-icon">►</span>
             {{ loading ? 'PROCESSING...' : 'SEND RESET LINK' }}
             <span class="button-icon">◄</span>
-          </UButton>
+          </Button>
         </form>
 
         <!-- Error Message -->
@@ -118,18 +121,6 @@ const handleSubmit = async () => {
   font-family: 'Courier New', monospace;
   position: relative;
   overflow: hidden;
-}
-
-.scanlines {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(transparent 50%, rgba(0, 255, 0, 0.03) 50%);
-  background-size: 100% 4px;
-  pointer-events: none;
-  z-index: 1;
 }
 
 .crt-container {

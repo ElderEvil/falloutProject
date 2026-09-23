@@ -4,7 +4,10 @@
  */
 import { ref, onMounted, computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UCard, UButton, UBadge, USkeleton } from '@/core/components/ui'
+import { Card } from '@/core/components/ui/card'
+import { Button } from '@/core/components/ui/button'
+import { Badge } from '@/core/components/ui/badge'
+import { Skeleton } from '@/core/components/ui/skeleton'
 import {
   changelogService,
   type ChangelogEntry,
@@ -144,9 +147,9 @@ onMounted(() => {
     </div>
 
     <!-- Filters -->
-    <UCard class="mb-8 bg-surface-warm!" glow>
+    <Card class="mb-8 gap-0 bg-surface-warm shadow-glow-md">
       <div class="flex flex-wrap gap-4 items-center">
-        <!-- Search -->
+        <!-- Search: vendored Input exists, but this field carries bespoke terminal classes and migrates with the view (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
         <div class="flex-1 min-w-64">
           <input
             v-model="searchQuery"
@@ -177,43 +180,43 @@ onMounted(() => {
         </div>
 
         <!-- Clear Filters -->
-        <UButton
+        <Button
           variant="secondary"
           @click="clearFilters"
           :disabled="!searchQuery && selectedCategories.length === 0"
         >
           Clear Filters
-        </UButton>
+        </Button>
       </div>
-    </UCard>
+    </Card>
 
     <!-- Loading state -->
     <div v-if="loading" class="space-y-8">
-      <USkeleton v-for="i in 3" :key="i" class="h-32 w-full" />
+      <Skeleton v-for="i in 3" :key="i" class="h-32 w-full" />
     </div>
 
     <!-- Error state -->
-    <UCard v-else-if="error" glow class="text-center py-12 bg-surface-warm!">
+    <Card v-else-if="error" class="gap-0 bg-surface-warm py-12 text-center shadow-glow-md">
       <div class="text-red-400 text-xl mb-4">{{ error }}</div>
-      <UButton variant="primary" @click="fetchChangelog">Retry</UButton>
-    </UCard>
+      <Button variant="default" @click="fetchChangelog">Retry</Button>
+    </Card>
 
     <!-- No results -->
-    <UCard v-else-if="filteredChangelog.length === 0" glow class="text-center py-12 bg-surface-warm!">
+    <Card v-else-if="filteredChangelog.length === 0" class="gap-0 bg-surface-warm py-12 text-center shadow-glow-md">
       <div class="text-gray-400 text-xl mb-2">No matching entries found</div>
       <div class="text-gray-500">Try adjusting your search or filter criteria</div>
-    </UCard>
+    </Card>
 
     <!-- Changelog content -->
     <div v-else class="space-y-8">
       <div v-for="entry in filteredChangelog" :key="entry.version" class="mb-8">
         <!-- Version header -->
-        <UCard class="mb-4 bg-surface-warm!" glow>
+        <Card class="mb-4 gap-0 bg-surface-warm shadow-glow-md">
           <div class="flex items-center gap-3">
-            <UBadge variant="primary" class="text-xl font-bold"> v{{ entry.version }} </UBadge>
+            <Badge variant="default" class="text-xl font-bold"> v{{ entry.version }} </Badge>
             <span class="text-gray-400">{{ entry.date_display }}</span>
           </div>
-        </UCard>
+        </Card>
 
         <!-- Changes grouped by category -->
         <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -230,9 +233,9 @@ onMounted(() => {
               <h3 :class="getCategoryInfo(category).color" class="font-semibold text-lg">
                 {{ category }}
               </h3>
-              <UBadge variant="secondary" class="ml-auto">
+              <Badge variant="secondary" class="ml-auto">
                 {{ changes.length }}
-              </UBadge>
+              </Badge>
             </div>
 
             <!-- Change items -->
@@ -252,14 +255,14 @@ onMounted(() => {
 
     <!-- Back to top button -->
     <div v-if="!loading && !error && filteredChangelog.length > 0" class="fixed bottom-8 right-8">
-      <UButton
-        variant="primary"
+      <Button
+        variant="default"
         size="lg"
         @click="scrollToTop()"
         class="shadow-lg shadow-theme-primary/50"
       >
         ↑ Top
-      </UButton>
+      </Button>
     </div>
   </div>
 </template>

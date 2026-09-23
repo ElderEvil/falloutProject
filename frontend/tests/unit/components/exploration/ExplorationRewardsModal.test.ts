@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { UModal } from '@/core/components/ui'
+import { Dialog } from '@/core/components/ui/dialog'
 import ExplorationRewardsModal from '@/modules/exploration/components/ExplorationRewardsModal.vue'
 import type { RewardsSummary } from '@/modules/exploration/stores/exploration'
 
@@ -56,8 +56,7 @@ describe('ExplorationRewardsModal', () => {
   it('uses the shared wide terminal modal like other popups', () => {
     const wrapper = mountModal()
 
-    expect(wrapper.findComponent(UModal).props('size')).toBe('wide')
-    expect(wrapper.findComponent(UModal).props('modelValue')).toBe(true)
+    expect(wrapper.findComponent(Dialog).props('open')).toBe(true)
   })
 
   it('labels stored and undecided items truthfully', () => {
@@ -164,7 +163,7 @@ describe('ExplorationRewardsModal', () => {
   it('emits one close event when the modal close control is used', async () => {
     const wrapper = mountModal({ ...rewardsWithOverflow, overflow_items: [] })
 
-    await wrapper.get('[aria-label="Close modal"]').trigger('click')
+    await wrapper.get('[data-slot="dialog-close"]').trigger('click')
 
     expect(wrapper.emitted('close')).toHaveLength(1)
   })

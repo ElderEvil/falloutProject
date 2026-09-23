@@ -11,7 +11,7 @@ describe('SpecialGuideModal', () => {
       props: { modelValue: true },
       global: {
         stubs: {
-          UModal: { template: '<div><slot /></div>' },
+          Teleport: { template: '<div><slot /></div>' },
         },
       },
     })
@@ -32,7 +32,7 @@ describe('SpecialGuideModal', () => {
       props: { modelValue: false },
       global: {
         stubs: {
-          UModal: { template: '<div v-if="modelValue"><slot /></div>', props: ['modelValue'] },
+          Teleport: { template: '<div><slot /></div>' },
         },
       },
     })
@@ -44,7 +44,7 @@ describe('SpecialGuideModal', () => {
       props: { modelValue: true },
       global: {
         stubs: {
-          UModal: { template: '<div><slot /></div>' },
+          Teleport: { template: '<div><slot /></div>' },
         },
       },
     })

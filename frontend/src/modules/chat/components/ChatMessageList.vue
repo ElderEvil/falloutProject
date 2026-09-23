@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { UButton, UTooltip } from '@/core/components/ui'
+import { Button } from '@/core/components/ui/button'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import DwellerPlacesBadge from '@/modules/dwellers/components/DwellerPlacesBadge.vue'
 import type { ActionSuggestion, ChatMessageDisplay, MapDiscovery } from '../models/chat'
@@ -132,12 +138,13 @@ const messageContentSegments = (
 </script>
 
 <template>
-  <div
-    v-for="(message, index) in messages"
-    :key="message.messageId ?? index"
-    class="message-wrapper"
-    :class="message.type"
-  >
+  <TooltipProvider :delay-duration="200">
+    <div
+      v-for="(message, index) in messages"
+      :key="message.messageId ?? index"
+      class="message-wrapper"
+      :class="message.type"
+    >
     <div class="message-avatar">
       <DwellerPortrait
         v-if="message.type === 'dweller'"
@@ -163,50 +170,55 @@ const messageContentSegments = (
           {{ message.type === 'user' ? username : dwellerName }}
         </span>
         <div class="flex items-center gap-2">
-          <UTooltip
+          <Tooltip
             v-if="message.type === 'dweller' && message.happinessImpact"
-            :text="message.happinessImpact.reason_text"
           >
-          <span
-            class="happiness-indicator"
-            :class="getHappinessColor(message.happinessImpact.delta)"
-          >
-            <Icon :icon="getHappinessIcon(message.happinessImpact.delta)" class="h-4 w-4" />
-            <span class="text-xs">
-              {{ message.happinessImpact.delta > 0 ? '+' : '' }}{{ message.happinessImpact.delta }}
-            </span>
-          </span>
-          </UTooltip>
+            <TooltipTrigger as-child>
+              <span
+                class="happiness-indicator"
+                :class="getHappinessColor(message.happinessImpact.delta)"
+              >
+                <Icon :icon="getHappinessIcon(message.happinessImpact.delta)" class="h-4 w-4" />
+                <span class="text-xs">
+                  {{ message.happinessImpact.delta > 0 ? '+' : '' }}{{ message.happinessImpact.delta }}
+                </span>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{{ message.happinessImpact.reason_text }}</TooltipContent>
+          </Tooltip>
           <DwellerPlacesBadge
             v-if="message.type === 'dweller' && message.unlockedPlaces?.length"
             class="map-discovery-indicator happiness-indicator text-theme-primary"
             :count="message.unlockedPlaces.length"
             :title="mapDiscoveryTitle(message.unlockedPlaces)"
           />
-          <UTooltip
-            v-if="message.audioUrl"
-            :text="currentlyPlayingUrl === message.audioUrl ? 'Stop audio' : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio`"
-          >
-          <button
-            class="audio-replay-btn"
-            :class="{ 'is-playing': currentlyPlayingUrl === message.audioUrl }"
-            :aria-label="
-              currentlyPlayingUrl === message.audioUrl
-                ? 'Stop audio playback'
-                : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio`
-            "
-            @click="
-              currentlyPlayingUrl === message.audioUrl
-                ? emit('stopAudio')
-                : emit('playAudio', message.audioUrl)
-            "
-          >
-            <Icon
-              :icon="currentlyPlayingUrl === message.audioUrl ? 'mdi:stop' : 'mdi:volume-high'"
-              class="h-4 w-4"
-            />
-          </button>
-          </UTooltip>
+          <Tooltip v-if="message.audioUrl">
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                class="audio-replay-btn h-auto"
+                :class="{ 'is-playing': currentlyPlayingUrl === message.audioUrl }"
+                :aria-label="
+                  currentlyPlayingUrl === message.audioUrl
+                    ? 'Stop audio playback'
+                    : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio`
+                "
+                @click="
+                  currentlyPlayingUrl === message.audioUrl
+                    ? emit('stopAudio')
+                    : emit('playAudio', message.audioUrl)
+                "
+              >
+                <Icon
+                  :icon="currentlyPlayingUrl === message.audioUrl ? 'mdi:stop' : 'mdi:volume-high'"
+                  class="h-4 w-4"
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {{ currentlyPlayingUrl === message.audioUrl ? 'Stop audio' : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio` }}
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
       <div class="message-content">
@@ -240,14 +252,15 @@ const messageContentSegments = (
       <div v-if="message.error" class="message-error" role="alert" aria-live="polite">
         <Icon icon="mdi:alert-circle-outline" class="message-error-icon" />
         <span>{{ message.error }}</span>
-        <UButton
+        <Button
           v-if="message.type === 'user'"
           variant="ghost"
           size="xs"
+          class="h-auto text-theme-primary hover:text-theme-primary"
           @click="emit('retryMessage', index)"
         >
           Retry
-        </UButton>
+        </Button>
       </div>
 
       <div
@@ -280,19 +293,25 @@ const messageContentSegments = (
             <Icon icon="mdi:account-lock-outline" class="h-4 w-4" />
             Too young for the wasteland
           </span>
-          <button
+          <Button
             v-else
-            class="action-confirm-btn"
+            variant="ghost"
+            class="action-confirm-btn h-auto"
             :disabled="isPerformingAction"
             @click="emit('confirmAction', message.actionSuggestion, index)"
           >
             <Icon v-if="isPerformingAction" icon="mdi:loading" class="h-4 w-4 spinning" />
             <Icon v-else icon="mdi:check" class="h-4 w-4" />
             <span>{{ actionConfirmLabel(message.actionSuggestion, isPerformingAction) }}</span>
-          </button>
-          <button class="action-dismiss-btn" aria-label="Dismiss suggested action" @click="emit('dismissAction', index)">
+          </Button>
+          <Button
+            variant="ghost"
+            class="action-dismiss-btn h-auto"
+            aria-label="Dismiss suggested action"
+            @click="emit('dismissAction', index)"
+          >
             <Icon icon="mdi:close" class="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -312,4 +331,5 @@ const messageContentSegments = (
       {{ dwellerName }} is typing...
     </div>
   </div>
+  </TooltipProvider>
 </template>

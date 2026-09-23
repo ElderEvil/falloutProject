@@ -5,8 +5,8 @@ import DwellerStatusBadge from '../stats/DwellerStatusBadge.vue'
 import DwellerAgeBadge from '../DwellerAgeBadge.vue'
 import DwellerGenderBadge from '../DwellerGenderBadge.vue'
 import DwellerRarityBadge from '../DwellerRarityBadge.vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
-import UProgressBar from '@/core/components/ui/UProgressBar.vue'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
 import type { DwellerShort } from '../../models/dweller'
 import { getEffectiveMaxHealth, getHealthDisplay, getRadiationPercentage } from '../../models/dweller'
 import DwellerPortrait from '../DwellerPortrait.vue'
@@ -84,20 +84,25 @@ const getStatColorClass = (value: number) => {
         </div>
 
         <!-- Generate AI Button -->
-        <UTooltip text="Generate AI portrait" position="top">
-          <button
-            @click.stop="emit('generate-ai')"
-            class="ai-generate-button"
-            :disabled="generatingAI"
-            aria-label="Generate AI portrait"
-          >
-            <Icon
-              :icon="generatingAI ? 'mdi:loading' : 'mdi:sparkles'"
-              class="ai-icon"
-              :class="{ 'animate-spin': generatingAI }"
-            />
-          </button>
-        </UTooltip>
+        <TooltipProvider :delay-duration="200">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <button
+                @click.stop="emit('generate-ai')"
+                class="ai-generate-button"
+                :disabled="generatingAI"
+                aria-label="Generate AI portrait"
+              >
+                <Icon
+                  :icon="generatingAI ? 'mdi:loading' : 'mdi:sparkles'"
+                  class="ai-icon"
+                  :class="{ 'animate-spin': generatingAI }"
+                />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">Generate AI portrait</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </template>
     </div>
 
@@ -131,7 +136,7 @@ const getStatColorClass = (value: number) => {
       </div>
 
       <!-- Health Bar -->
-      <UProgressBar :model-value="healthPercentage" :radiation="radiationPercentage" :height="6" :glow="false" />
+      <HealthRadiationBar :value="healthPercentage" :radiation="radiationPercentage" :height="6" />
 
       <!-- Job-relevant stat (matches list view: combat power for arena, else SPECIAL) -->
       <div v-if="roomStat" class="job-stat">
@@ -145,12 +150,17 @@ const getStatColorClass = (value: number) => {
       <!-- Room Badge -->
       <div class="room-info">
         <template v-if="roomName">
-          <UTooltip :text="`Assigned to ${roomName}`" position="top">
-            <button @click.stop="emit('room-click')" class="room-badge">
-              <Icon icon="mdi:office-building" class="room-icon" />
-              <span class="room-name">{{ roomName }}</span>
-            </button>
-          </UTooltip>
+          <TooltipProvider :delay-duration="200">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <button @click.stop="emit('room-click')" class="room-badge">
+                  <Icon icon="mdi:office-building" class="room-icon" />
+                  <span class="room-name">{{ roomName }}</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">Assigned to {{ roomName }}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </template>
         <template v-else>
           <div class="room-badge unassigned">

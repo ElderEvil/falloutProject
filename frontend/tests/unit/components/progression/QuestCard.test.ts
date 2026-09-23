@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { Icon } from '@iconify/vue'
-import { UProgressBar } from '@/core/components/ui'
+import { Progress } from '@/core/components/ui/progress'
 import QuestCard from '@/modules/progression/components/QuestCard.vue'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import { useQuestStore } from '@/modules/progression/stores/quest'
@@ -42,8 +42,12 @@ describe('QuestCard', () => {
     })
 
     expect(wrapper.find('.quest-card-content').classes()).toContain('flex-1')
-    expect(wrapper.html()).toContain('mt-4')
-    expect(wrapper.text()).toContain('Start Quest')
+    const actionButton = wrapper.find('.quest-card button')
+    expect(actionButton.exists()).toBe(true)
+    expect(actionButton.text()).toContain('Start Quest')
+    // Footer action renders below the variable quest content in DOM order.
+    const contentEl = wrapper.find('.quest-card-content').element
+    expect(contentEl.compareDocumentPosition(actionButton.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it.each(['building', 'population', 'training'])('renders %s quests as vault objectives', async quest_category => {
@@ -100,7 +104,7 @@ describe('QuestCard', () => {
       },
     })
 
-    expect(wrapper.findComponent(UProgressBar).props('modelValue')).toBeGreaterThan(0)
+    expect(wrapper.findComponent(Progress).props('modelValue')).toBeGreaterThan(0)
     expect(wrapper.find('.quest-progress-bar').exists()).toBe(true)
     expect(wrapper.find('.timer-progress').text()).toMatch(/% complete/)
   })
@@ -120,7 +124,7 @@ describe('QuestCard', () => {
       },
     })
 
-    expect(wrapper.findComponent(UProgressBar).props('modelValue')).toBe(100)
+    expect(wrapper.findComponent(Progress).props('modelValue')).toBe(100)
     expect(wrapper.text()).toContain('Complete')
   })
 

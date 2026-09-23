@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, inject, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, shallowRef, watch } from 'vue'
 import {
   useRouter,
   useRoute,
@@ -12,6 +12,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
+import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
 import { happinessService } from '@/modules/dwellers/services/happinessService'
@@ -22,7 +23,7 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
-import USkeleton from '@/core/components/ui/USkeleton.vue'
+import { Skeleton } from '@/core/components/ui/skeleton'
 import HappinessDashboard from '@/modules/vault/components/HappinessDashboard.vue'
 import {
   useDwellerStore,
@@ -58,9 +59,9 @@ const featureFlags = useFeatureFlagsStore()
 const vaultStore = useVaultStore()
 const roomStore = useRoomStore()
 const incidentStore = useIncidentStore()
+const explorationStore = useExplorationStore()
 const { isCollapsed } = useSidePanel()
 const toast = useToast()
-const scanlinesEnabled = inject('scanlines', ref(true))
 const router = useRouter()
 const route = useRoute()
 const generatingAI = ref<Record<string, boolean>>({})
@@ -258,6 +259,10 @@ onMounted(async () => {
         isIncidentsLoading.value = false
       }),
       roomStore.fetchRooms(vaultId.value, authStore.token as string),
+      // Recall gating reads the exploration store; a failed load must not block the roster.
+      explorationStore
+        .fetchExplorationsByVault(vaultId.value, authStore.token as string)
+        .catch(() => undefined),
     ])
   }
 
@@ -362,7 +367,7 @@ const handleAssignIdle = () => {
   dwellerStore.setFilterStatus('idle')
 }
 
-const { run: runActivateRadio } = useAsyncAction(
+const { run: runActivateRadio, isLoading: isActivatingRadio } = useAsyncAction(
   async (currentVaultId: string, token: string) => {
     await setRadioMode(currentVaultId, 'happiness')
     await vaultStore.refreshVault(currentVaultId, token)
@@ -371,7 +376,7 @@ const { run: runActivateRadio } = useAsyncAction(
 )
 
 const handleActivateRadio = async () => {
-  if (!vaultId.value || !authStore.token) return
+  if (!vaultId.value || !authStore.token || isActivatingRadio.value) return
   await runActivateRadio(vaultId.value, authStore.token)
 }
 
@@ -396,8 +401,6 @@ const handleTreatIrradiated = async () => {
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div v-if="scanlinesEnabled" class="scanlines"></div>
-
     <div class="vault-layout">
       <!-- Side Panel -->
       <SidePanel />
@@ -413,11 +416,9 @@ const handleTreatIrradiated = async () => {
 
           <!-- Happiness Dashboard -->
           <div class="mb-6">
-            <USkeleton
+            <Skeleton
               v-if="!currentVault && !vaultLoadError"
-              width="100%"
-              height="120px"
-              rounded="lg"
+              class="h-[120px] w-full rounded-lg"
             />
             <p v-else-if="vaultLoadError" role="alert" class="text-danger">{{ vaultLoadError }}</p>
             <details v-else-if="happinessDashboardData" class="happiness-overview">
@@ -579,16 +580,5 @@ const handleTreatIrradiated = async () => {
 .main-content span,
 .main-content div {
   text-shadow: 0 0 2px var(--color-theme-glow);
-}
-
-.scanlines {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 50%, transparent 50%);
-  background-size: 100% 2px;
-  pointer-events: none;
 }
 </style>

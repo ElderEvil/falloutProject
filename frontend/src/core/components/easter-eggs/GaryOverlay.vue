@@ -30,13 +30,11 @@ defineProps<Props>()
                 />
                 <Icon
                   icon="mdi:alert"
-                  class="text-terminal-green terminal-glow animate-bounce"
-                  style="animation-delay: 0.2s"
+                  class="text-terminal-green terminal-glow animate-bounce [animation-delay:0.2s]"
                 />
                 <Icon
                   icon="mdi:account-alert"
-                  class="text-terminal-green terminal-glow animate-bounce"
-                  style="animation-delay: 0.4s"
+                  class="text-terminal-green terminal-glow animate-bounce [animation-delay:0.4s]"
                 />
               </div>
             </div>

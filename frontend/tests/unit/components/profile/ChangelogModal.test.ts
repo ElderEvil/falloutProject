@@ -39,38 +39,6 @@ vi.mock('@/modules/profile/components/FormattedChangeDescription.vue', () => ({
   },
 }))
 
-// Mock UCard, UButton, UBadge
-vi.mock('@/core/components/ui', () => ({
-  UCard: {
-    name: 'UCard',
-    props: ['glow', 'crt'],
-    template: `
-      <div class="mock-card">
-        <div class="mock-card-header">
-          <slot name="header" />
-        </div>
-        <div class="mock-card-content">
-          <slot />
-        </div>
-        <div class="mock-card-footer">
-          <slot name="footer" />
-        </div>
-      </div>
-    `,
-  },
-  UButton: {
-    name: 'UButton',
-    props: ['variant', 'disabled'],
-    template:
-      '<button class="mock-button" :class="`variant-${variant}`" :disabled="disabled"><slot /></button>',
-  },
-  UBadge: {
-    name: 'UBadge',
-    props: ['variant'],
-    template: '<span class="mock-badge"><slot /></span>',
-  },
-}))
-
 describe('ChangelogModal', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -92,8 +60,8 @@ describe('ChangelogModal', () => {
 
       await flushPromises()
       expect(wrapper.text()).toContain('New feature')
-      expect(wrapper.find('.mock-card').classes()).toContain('!bg-surface-warm')
-      const buttons = wrapper.findAll('.mock-button')
+      expect(wrapper.find('[data-slot="card"]').exists()).toBe(true)
+      const buttons = wrapper.findAll('button')
       const closeButton = buttons.find((btn) => btn.text().includes('Close'))
       expect(closeButton).toBeUndefined()
     })
@@ -112,7 +80,7 @@ describe('ChangelogModal', () => {
 
       await flushPromises()
       expect(wrapper.text()).toContain('All caught up')
-      const buttons = wrapper.findAll('.mock-button')
+      const buttons = wrapper.findAll('button')
       const gotItButton = buttons.find((btn) => btn.text().includes('Got it!'))
       expect(gotItButton).toBeUndefined()
     })
@@ -189,7 +157,7 @@ describe('ChangelogModal', () => {
         },
       })
 
-      expect(wrapper.find('.mock-card').exists()).toBe(false)
+      expect(wrapper.find('[data-slot="card"]').exists()).toBe(false)
     })
   })
 })

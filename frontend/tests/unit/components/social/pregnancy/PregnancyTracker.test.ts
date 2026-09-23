@@ -65,13 +65,6 @@ vi.mock('@/modules/social/components/pregnancy/PregnancyCard.vue', () => ({
 function mountTracker() {
   return mount(PregnancyTracker, {
     props: { vaultId: 'v1', autoRefresh: false },
-    global: {
-      stubs: {
-        UButton: { template: '<button class="ubutton-stub"><slot /></button>' },
-        UBadge: { template: '<span class="ubadge-stub"><slot /></span>' },
-        UCard: { template: '<div class="ucard-stub"><slot /></div>' },
-      },
-    },
   })
 }
 

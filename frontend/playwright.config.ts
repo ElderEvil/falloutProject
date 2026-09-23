@@ -29,5 +29,17 @@ export default defineConfig({
   ],
   use: {
     baseURL: 'http://localhost:5173',
+    // Seed the version-seen key so the first-run "What's New" changelog modal never
+    // mounts: it otherwise races the app's version-detection fetch and intermittently
+    // intercepts clicks, making whichever spec clicks first flaky.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: 'http://localhost:5173',
+          localStorage: [{ name: 'fallout_changelog_last_seen', value: '999.0.0' }],
+        },
+      ],
+    },
   },
 })

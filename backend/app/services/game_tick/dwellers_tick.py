@@ -47,14 +47,16 @@ async def _drought_ticks(db_session: AsyncSession, vault_id: UUID4) -> int:
 
 
 async def process_explorations(db_session: AsyncSession, vault_id: UUID4) -> ExplorationStats:
-    """Process all active explorations for a vault.
+    """Process all in-progress explorations for a vault.
 
     - Generate events for explorations that are due
-    - Auto-complete explorations that have reached their duration
+    - Send a dweller home when exploring ends (loot and rewards wait for arrival)
+    - Finalize the run once the dweller is back
     """
     stats: ExplorationStats = {
         "active_count": 0,
         "events_generated": 0,
+        "returning": 0,
         "completed": 0,
     }
 
@@ -90,12 +92,19 @@ async def process_explorations(db_session: AsyncSession, vault_id: UUID4) -> Exp
 
 
 async def _process_single_exploration(db_session: AsyncSession, stats: ExplorationStats, exploration) -> None:
-    # Check if exploration should be auto-completed
+    # A returning dweller only waits for arrival; no events fire on the way home.
+    if exploration.is_returning():
+        if exploration.return_time_remaining_seconds() <= 0:
+            await exploration_service.finalize_return(db_session, exploration.id)
+            stats["completed"] += 1
+            logger.info(f"Finalized returning exploration {exploration.id} for dweller {exploration.dweller_id}")
+        return
+
+    # Exploring is done: send the dweller home; loot and rewards wait for arrival.
     if exploration.time_remaining_seconds() <= 0:
-        # Auto-complete the exploration
-        await exploration_service.complete_exploration(db_session, exploration.id)
-        stats["completed"] += 1
-        logger.info(f"Auto-completed exploration {exploration.id} for dweller {exploration.dweller_id}")
+        await exploration_service.start_return(db_session, exploration.id)
+        stats["returning"] += 1
+        logger.info(f"Exploration {exploration.id} finished; dweller {exploration.dweller_id} is returning home")
         return
 
     # Try to generate an event

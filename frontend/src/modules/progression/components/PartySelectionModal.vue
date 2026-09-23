@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
-import UModal from '@/core/components/ui/UModal.vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UBadge from '@/core/components/ui/UBadge.vue'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
+import { Button } from '@/core/components/ui/button'
+import { Badge } from '@/core/components/ui/badge'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { VaultQuest } from '../models/quest'
@@ -147,12 +147,18 @@ const handleAssignAndStart = () => {
 </script>
 
 <template>
-  <UModal
-    :model-value="modelValue"
-    :title="quest ? `Start Quest: ${quest.title}` : 'Start Quest'"
-    size="lg"
-    @update:model-value="emit('update:modelValue', $event)"
-  >
+  <Dialog :open="modelValue" @update:open="emit('update:modelValue', $event)">
+    <DialogContent
+      class="flex max-h-[80vh] w-full max-w-5xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-5xl"
+    >
+      <DialogHeader
+        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
+      >
+        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">{{ quest ? `Start Quest: ${quest.title}` : 'Start Quest' }}</DialogTitle>
+      </DialogHeader>
+
+      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+
     <div v-if="quest" class="party-modal-content">
       <!-- Party Slots -->
       <div class="party-slots">
@@ -225,9 +231,9 @@ const handleAssignAndStart = () => {
               <span class="dweller-stats">Level {{ getDwellerLevel(dweller) }}</span>
             </div>
             <div class="dweller-status">
-              <UBadge :variant="dweller.status === 'idle' ? 'success' : 'warning'">
+              <Badge variant="default" :class="dweller.status === 'idle' ? '' : 'border-warning bg-warning/10 text-warning'">
                 {{ dweller.status === 'resting' ? 'Socializing' : dweller.status }}
-              </UBadge>
+              </Badge>
             </div>
           </div>
 
@@ -249,16 +255,20 @@ const handleAssignAndStart = () => {
       </div>
     </div>
 
-    <template #footer>
-      <div class="modal-actions">
-        <UButton variant="secondary" @click="close"> Cancel </UButton>
-        <UButton variant="primary" :disabled="!canSubmit" @click="handleAssignAndStart">
-          <Icon icon="mdi:check" class="btn-icon" />
-          Start Quest
-        </UButton>
+      <DialogFooter
+        class="flex-shrink-0 justify-end border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
+      >
+        <div class="modal-actions">
+          <Button variant="secondary" @click="close"> Cancel </Button>
+          <Button variant="default" :disabled="!canSubmit" @click="handleAssignAndStart">
+            <Icon icon="mdi:check" class="btn-icon" />
+            Start Quest
+          </Button>
+        </div>
+      </DialogFooter>
       </div>
-    </template>
-  </UModal>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <style scoped>

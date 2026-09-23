@@ -43,6 +43,9 @@ class ExplorationRead(ExplorationBase):
     status: ExplorationStatus
     start_time: datetime
     end_time: datetime | None
+    return_started_at: datetime | None
+    return_completes_at: datetime | None
+    recalled_early: bool
     events: list[dict]
     loot_collected: list[dict]
     total_distance: int
@@ -72,6 +75,8 @@ class ExplorationReadShort(SQLModel):
     status: ExplorationStatus
     start_time: datetime
     end_time: datetime | None
+    return_started_at: datetime | None
+    return_completes_at: datetime | None
     duration: int
     total_distance: int
     total_caps_found: int
@@ -88,6 +93,8 @@ class ExplorationProgress(SQLModel):
     progress_percentage: float = Field(ge=0, le=100)
     time_remaining_seconds: int
     elapsed_time_seconds: int
+    return_completes_at: datetime | None = None
+    return_time_remaining_seconds: int = 0
     events: list[dict]
     loot_collected: list[dict]
     stimpaks: int
@@ -123,7 +130,9 @@ class ExplorationCompleteResponse(SQLModel):
     """Schema for completed exploration response."""
 
     exploration: ExplorationRead
-    rewards_summary: dict = Field(description="Summary of rewards: {caps: int, items: list, experience: int}")
+    rewards_summary: dict | None = Field(
+        default=None, description="Rewards summary, or None while the dweller is still returning"
+    )
 
 
 class PendingOverflowRead(SQLModel):

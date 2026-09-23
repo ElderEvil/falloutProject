@@ -5,7 +5,8 @@
  */
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UCard, UButton, UBadge } from '@/core/components/ui'
+import { Button } from '@/core/components/ui/button'
+import { Card } from '@/core/components/ui/card'
 import type { RevivalCostResponse } from '@/modules/dwellers/models/dweller'
 
 interface Props {
@@ -43,12 +44,14 @@ const handleRevive = () => {
 </script>
 
 <template>
-  <UCard
-    title="EMERGENCY MEDICAL PROTOCOL"
-    glow
-    crt
-    class="revival-section !border-theme-primary/40 !bg-terminal-background"
+  <Card
+    class="revival-section gap-0 rounded-lg border-2 border-theme-primary/40 bg-terminal-background p-6 shadow-glow-md ring-0 crt-screen"
   >
+    <div class="mb-4 border-b border-gray-700 pb-4">
+      <h3 class="text-xl font-bold terminal-glow text-theme-primary">
+        EMERGENCY MEDICAL PROTOCOL
+      </h3>
+    </div>
     <div v-if="revivalCost" class="flex flex-col gap-4">
       <!-- Cost Analysis -->
       <div class="grid grid-cols-2 gap-4">
@@ -109,17 +112,17 @@ const handleRevive = () => {
           levels may persist.
         </p>
 
-        <UButton
-          variant="primary"
+        <Button
+          variant="default"
           size="lg"
-          block
-          :disabled="!canAfford"
-          :loading="loading"
-          icon="mdi:flash"
+          class="w-full"
+          :disabled="!canAfford || loading"
           @click="handleRevive"
         >
+          <Icon v-if="loading" icon="mdi:loading" class="mr-2 animate-spin" />
+          <Icon v-else icon="mdi:flash" class="mr-2" />
           INITIATE REVIVAL SEQUENCE
-        </UButton>
+        </Button>
       </div>
     </div>
 
@@ -132,7 +135,7 @@ const handleRevive = () => {
       <div class="h-2 bg-theme-primary/10 rounded mt-4"></div>
       <div class="h-10 bg-theme-primary/10 rounded mt-4"></div>
     </div>
-  </UCard>
+  </Card>
 </template>
 
 <style scoped>

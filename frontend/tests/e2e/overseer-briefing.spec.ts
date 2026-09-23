@@ -126,6 +126,7 @@ const incidents = ['incident-1', 'incident-2'].map((id, index) => ({
   id,
   vault_id: 'vault-1',
   room_id: 'room-1',
+  room_name: 'Power Generator',
   type: index ? 'radroach_infestation' : 'raider_attack',
   status: 'active',
   difficulty: 3,
@@ -136,8 +137,15 @@ const incidents = ['incident-1', 'incident-2'].map((id, index) => ({
   damage_dealt: 10,
   enemies_defeated: 1,
   loot: null,
+  unclaimed_loot: [],
   rooms_affected: ['room-1'],
   spread_count: 0,
+  family: index ? 'infestation' : 'intrusion',
+  objective: 'defeat',
+  progress: { current: 1, target: 3, label: 'Enemies defeated' },
+  risk: { kind: index ? 'infestation' : 'intrusion', rooms_affected: 1 },
+  response: { label: 'Respond to active incidents' },
+  events: [],
   created_at: '2026-08-22T00:00:00Z',
   updated_at: '2026-08-22T00:00:00Z',
 }))
@@ -159,6 +167,23 @@ const rooms = [
     image_url: null,
     t2_upgrade_cost: 3500,
     t3_upgrade_cost: 15000,
+  },
+  {
+    id: 'room-1',
+    vault_id: 'vault-1',
+    name: 'Power Generator',
+    category: 'production',
+    ability: 'strength',
+    tier: 1,
+    capacity: 2,
+    size: 3,
+    size_min: 3,
+    size_max: 3,
+    coordinate_x: 0,
+    coordinate_y: 3,
+    image_url: null,
+    t2_upgrade_cost: 500,
+    t3_upgrade_cost: 1500,
   },
 ]
 
@@ -182,17 +207,7 @@ async function mockVaultApi(page: Page) {
         json: {
           vault_id: 'vault-1',
           incident_count: incidents.length,
-          incidents: incidents.map(({ id, type, status, room_id, difficulty, start_time, elapsed_time, damage_dealt, enemies_defeated }) => ({
-            id,
-            type,
-            status,
-            room_id,
-            difficulty,
-            start_time,
-            elapsed_time,
-            damage_dealt,
-            enemies_defeated,
-          })),
+          incidents,
         },
       })
     }
@@ -202,6 +217,28 @@ async function mockVaultApi(page: Page) {
     }
     if (path === '/api/v1/notifications/unread-count') return route.fulfill({ json: { count: 0 } })
     if (path === '/api/v1/notifications/') return route.fulfill({ json: [] })
+    if (path === '/api/v1/users/me/profile') {
+      return route.fulfill({
+        json: { id: 'user-1', email: 'overseer@vault-tec.com', username: 'overseer', is_active: true, is_superuser: true },
+      })
+    }
+    if (path === '/api/v1/system/features') {
+      return route.fulfill({ json: { race_mechanics: true, faction_mechanics: true } })
+    }
+    if (path === '/api/v1/rooms/grid-config/') {
+      return route.fulfill({
+        json: {
+          units_per_room: 3,
+          elevator_units: 1,
+          floor_units: 3,
+          shaft_x: 3,
+          left_slot_starts: [0, 1, 2, 4, 5, 6],
+          right_slot_starts: [9, 10, 11, 13, 14, 15],
+          y_max: 25,
+          build_y_max: 24,
+        },
+      })
+    }
     if (path.startsWith('/api/v1/stream/')) {
       return route.fulfill({ contentType: 'text/event-stream', body: ': connected\n\n' })
     }
@@ -228,5 +265,5 @@ test('authenticated vault route keeps the briefing in the Overseer’s Office', 
   await expect(briefing).toContainText('Water reserves are critical')
 
   await briefing.getByRole('button', { name: 'Respond to active incidents' }).click()
-  await expect(page.getByText('>> LOCATION')).toBeVisible()
+  await expect(page.getByText('RAIDER ATTACK')).toBeVisible()
 })

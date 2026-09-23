@@ -137,6 +137,12 @@ watch(currentSseEvent, (evt) => {
     if (notificationData.notification_type === 'hazard_team_joined') {
       toast.success(notificationData.message)
     }
+    // Arrival is asynchronous, so away from the exploration routes this would be bell-only
+    // (progression red line): announce it and queue the reward report without a bell click.
+    if (notificationData.notification_type === 'exploration_complete') {
+      enqueuePendingReport(newNotif)
+      toast.success(notificationData.message)
+    }
 })
 
 const fetchNotifications = async () => {
@@ -321,6 +327,7 @@ onBeforeUnmount(() => {
           <h3 class="font-semibold text-theme-primary">
             Notifications
           </h3>
+          <!-- Raw popup buttons: bespoke popup styling; migrate with the component (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
           <button
             v-if="notifications.length > 0"
             @click="markAllAsRead"

@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, inject, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useMapStore } from '../stores/map'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
-import USkeleton from '@/core/components/ui/USkeleton.vue'
-import { UButton } from '@/core/components/ui'
+import { Skeleton } from '@/core/components/ui/skeleton'
+import { Button } from '@/core/components/ui/button'
 import WorldMap from '../components/WorldMap.vue'
 import MarkerDetailModal from '../components/MarkerDetailModal.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
@@ -17,7 +17,6 @@ const authStore = useAuthStore()
 const mapStore = useMapStore()
 const route = useRoute()
 const { isCollapsed } = useSidePanel()
-const scanlinesEnabled = inject('scanlines', ref(true))
 
 const vaultId = computed(() => route.params.id as string)
 
@@ -94,8 +93,6 @@ const mapPaneHeight = 'var(--map-pane-size)'
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div v-if="scanlinesEnabled" class="scanlines"></div>
-
     <div class="vault-layout">
       <!-- Side Panel -->
       <SidePanel />
@@ -111,14 +108,21 @@ const mapPaneHeight = 'var(--map-pane-size)'
 
           <!-- Loading skeleton -->
           <div v-if="mapStore.isLoading" class="map-skeleton">
-            <USkeleton :width="mapPaneSize" :height="mapPaneSize" rounded="lg" />
-            <USkeleton width="100%" :height="mapPaneHeight" rounded="lg" />
+            <Skeleton :style="{ width: mapPaneSize, height: mapPaneSize }" class="rounded-lg" />
+            <Skeleton :style="{ width: '100%', height: mapPaneHeight }" class="rounded-lg" />
           </div>
 
           <!-- Error state -->
           <div v-else-if="mapStore.error" class="empty-state">
             <p class="empty-text terminal-glow-subtle">{{ mapStore.error }}</p>
-            <UButton variant="secondary" size="sm" class="mt-4" @click="retry">Retry</UButton>
+            <Button
+              variant="outline"
+              size="sm"
+              class="mt-4 border-2 border-theme-primary bg-transparent"
+              @click="retry"
+            >
+              Retry
+            </Button>
           </div>
 
           <!-- Empty state -->
@@ -126,14 +130,14 @@ const mapPaneHeight = 'var(--map-pane-size)'
             <p class="empty-text terminal-glow-subtle">
               The wasteland is uncharted. Recruit dwellers and send explorers to fill the map.
             </p>
-            <UButton
-              variant="secondary"
+            <Button
+              variant="outline"
               size="sm"
-              class="mt-4"
+              class="mt-4 border-2 border-theme-primary bg-transparent"
               @click="$router.push(`/vault/${vaultId}`)"
             >
               Recruit Dwellers
-            </UButton>
+            </Button>
           </div>
 
           <!-- Map -->

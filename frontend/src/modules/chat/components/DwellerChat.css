@@ -13,8 +13,9 @@
   overflow: hidden;
 }
 
-/* Scanline overlay */
-.scanlines {
+/* Scanline overlay (chat-scoped: the global `.scanlines` in tailwind.css is the black
+   canonical variant; this name must stay chat-prefixed so it cannot leak into it) */
+.chat-texture {
   position: absolute;
   top: 0;
   left: 0;

@@ -22,9 +22,9 @@ describe('TrainingProgressCard', () => {
       global: {
         stubs: {
           Icon: true,
-          UButton: true,
-          UBadge: true,
-          UProgressBar: true,
+          Button: true,
+          Badge: true,
+          Progress: true,
           DwellerPortrait: true,
         },
       },

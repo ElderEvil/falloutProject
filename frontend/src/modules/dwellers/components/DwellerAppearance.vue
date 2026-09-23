@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
-import UButton from '@/core/components/ui/UButton.vue'
+import { Button } from '@/core/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 import type { VisualAttributes } from '../models/dweller'
 import DwellerIdentitySignal from './DwellerIdentitySignal.vue'
@@ -91,38 +91,44 @@ const hasAttributes = computed(() =>
     <div class="appearance-header panel-header">
       <h3 class="appearance-title panel-title">Appearance</h3>
       <div class="header-buttons">
-        <UTooltip
-          v-if="canGenerateAppearance"
-          text="Creates or replaces visual attributes; it does not generate a portrait"
-          position="top"
-        >
-          <UButton
-            @click="ctx.actions.generateAppearance()"
-            class="generate-button"
-            variant="secondary"
-            size="sm"
-            :disabled="isAnyGenerating"
-          >
-            <Icon
-              :icon="generatingAppearance ? 'mdi:loading' : 'mdi:auto-fix'"
-              class="h-5 w-5"
-              :class="{ 'animate-spin': generatingAppearance }"
-            />
-            <span>{{ hasAttributes ? 'Regenerate appearance' : 'Generate appearance' }}</span>
-          </UButton>
-        </UTooltip>
+        <TooltipProvider :delay-duration="200">
+          <Tooltip v-if="canGenerateAppearance">
+            <TooltipTrigger as-child>
+              <Button
+                @click="ctx.actions.generateAppearance()"
+                class="generate-button"
+                variant="secondary"
+                size="sm"
+                :disabled="isAnyGenerating"
+              >
+                <Icon
+                  :icon="generatingAppearance ? 'mdi:loading' : 'mdi:auto-fix'"
+                  class="h-5 w-5"
+                  :class="{ 'animate-spin': generatingAppearance }"
+                />
+                <span>{{ hasAttributes ? 'Regenerate appearance' : 'Generate appearance' }}</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top"
+              >Creates or replaces visual attributes; it does not generate a portrait</TooltipContent
+            >
+          </Tooltip>
 
-        <UTooltip v-if="hasAttributes" text="Adjust visual attributes manually" position="top">
-          <UButton
-            @click="ctx.actions.editAppearance()"
-            class="generate-button"
-            variant="secondary"
-            size="sm"
-          >
-            <Icon icon="mdi:pencil" class="h-5 w-5" />
-            <span>Edit appearance</span>
-          </UButton>
-        </UTooltip>
+          <Tooltip v-if="hasAttributes">
+            <TooltipTrigger as-child>
+              <Button
+                @click="ctx.actions.editAppearance()"
+                class="generate-button"
+                variant="secondary"
+                size="sm"
+              >
+                <Icon icon="mdi:pencil" class="h-5 w-5" />
+                <span>Edit appearance</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">Adjust visual attributes manually</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
 

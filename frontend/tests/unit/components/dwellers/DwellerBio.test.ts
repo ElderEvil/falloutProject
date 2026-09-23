@@ -82,10 +82,13 @@ describe('DwellerBio', () => {
     })
 
     it('should render a tooltip on the generate button', () => {
-      const tooltip = wrapper
-        .findAllComponents({ name: 'UTooltip' })
-        .find((item) => item.props('text') === "Creates or replaces this dweller's biography")
-      expect(tooltip).toBeDefined()
+      // Reka renders TooltipContent only when open and teleported; stub it inline so the
+      // tooltip text (the behavioral contract) is assertable without hover timers.
+      wrapper = mountWithDwellerContext(DwellerBio, {
+        context: ctx,
+        global: { stubs: { TooltipContent: { template: '<div><slot /></div>' } } },
+      })
+      expect(wrapper.text()).toContain("Creates or replaces this dweller's biography")
     })
   })
 

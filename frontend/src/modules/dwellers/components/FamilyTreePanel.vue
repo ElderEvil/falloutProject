@@ -18,25 +18,22 @@ const { lineage, isLoading, error, load, select } = useLineage(
   (id) => ctx.actions.navigateToDweller(id)
 )
 
-const partnerStage = (member: LineageMember) => member.relationship_type ?? 'partner'
 const isDead = (member: LineageMember) => member.is_dead
+const partnerStage = (member: LineageMember) => member.relationship_type ?? 'partner'
+
+const ageLabel = (age: string) => age.charAt(0).toUpperCase() + age.slice(1)
+
+
+const selfAge = computed(() => {
+  const age = ctx.dweller.value?.age_group
+  return age ? ageLabel(age) : ''
+})
 </script>
 
 <template>
   <div class="family-tree-panel">
     <div class="family-tree-header">
-      <div class="family-tree-actions">
-        <span v-if="lineage" class="tree-generation">Gen {{ lineage.generation }}</span>
-        <button
-          type="button"
-          class="tree-refresh"
-          :disabled="isLoading"
-          title="Refresh family tree"
-          @click="load"
-        >
-          ⟳
-        </button>
-      </div>
+      <span v-if="lineage" class="tree-generation">Gen {{ lineage.generation }}</span>
     </div>
 
     <div v-if="isLoading" class="family-tree-loading">Loading lineage…</div>
@@ -56,11 +53,15 @@ const isDead = (member: LineageMember) => member.is_dead
             type="button"
             class="tree-node"
             :class="{ 'tree-node-dead': isDead(member) }"
-            :title="member.first_name + ' ' + (member.last_name || '')"
             @click="select(member)"
           >
-            <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
-            {{ member.first_name }} {{ member.last_name }}
+            <span class="member-info">
+              <span class="member-name">
+                <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
+                {{ member.first_name }} {{ member.last_name }}
+              </span>
+              <span class="member-age">{{ ageLabel(member.age_group) }}</span>
+            </span>
           </button>
           <span v-if="!lineage.parents.length" class="tree-empty">—</span>
         </div>
@@ -68,33 +69,45 @@ const isDead = (member: LineageMember) => member.is_dead
 
       <div class="trunk" aria-hidden="true" />
 
-      <section class="tier" aria-label="Household">
+      <section class="tier" aria-label="Dweller">
         <span class="tier-caption">Dweller</span>
         <div class="tier-nodes tier-nodes-column">
-          <div class="pair bus">
-            <span class="tree-node tree-node-self">{{ dwellerName || 'This Dweller' }}</span>
+          <div class="couple bus">
+            <div class="member-card member-card-self">
+              <span class="member-info">
+                <span class="tree-node-self">{{ dwellerName || 'This Dweller' }}</span>
+                <span v-if="selfAge" class="member-age">{{ selfAge }}</span>
+              </span>
+            </div>
             <template v-for="member in lineage.partners" :key="member.id">
-              <span class="pair-bond">
-                {{ partnerStage(member) }}
-                <span v-if="member.affinity != null" class="bond-affinity">
-                  <span class="affinity-bar" aria-hidden="true">
-                    <span class="affinity-fill" :style="{ width: member.affinity + '%' }" />
-                  </span>
-                  {{ member.affinity }}♥
-                </span>
+              <span class="pair-bond" aria-hidden="true">
+                <Icon
+                  :icon="member.relationship_type === 'MARRIED' ? 'mdi:ring' : 'mdi:heart'"
+                  class="node-icon"
+                />
               </span>
               <button
                 type="button"
                 class="tree-node tree-node-partner"
                 :class="{ 'tree-node-dead': isDead(member) }"
-                :title="member.first_name + ' ' + (member.last_name || '')"
                 @click="select(member)"
               >
-                <Icon
-                  :icon="member.relationship_type === 'MARRIED' ? 'mdi:ring' : 'mdi:heart'"
-                  class="node-icon"
-                />
+                <span class="member-info">
+                  <span class="member-name">
+                <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
                 {{ member.first_name }} {{ member.last_name }}
+              </span>
+                  <span class="member-age">{{ ageLabel(member.age_group) }}</span>
+                  <span class="member-relation">
+                    {{ partnerStage(member) }}
+                    <span v-if="member.affinity != null" class="bond-affinity">
+                      <span class="affinity-bar" aria-hidden="true">
+                        <span class="affinity-fill" :style="{ width: member.affinity + '%' }" />
+                      </span>
+                      {{ member.affinity }}♥
+                    </span>
+                  </span>
+                </span>
               </button>
             </template>
             <span v-if="!lineage.partners.length" class="tree-empty">—</span>
@@ -107,11 +120,15 @@ const isDead = (member: LineageMember) => member.is_dead
               type="button"
               class="tree-node tree-node-sibling"
               :class="{ 'tree-node-dead': isDead(member) }"
-              :title="member.first_name + ' ' + (member.last_name || '')"
               @click="select(member)"
             >
-              <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
-              {{ member.first_name }} {{ member.last_name }}
+              <span class="member-info">
+                <span class="member-name">
+                <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
+                {{ member.first_name }} {{ member.last_name }}
+              </span>
+                <span class="member-age">{{ ageLabel(member.age_group) }}</span>
+              </span>
             </button>
           </div>
         </div>
@@ -128,11 +145,15 @@ const isDead = (member: LineageMember) => member.is_dead
             type="button"
             class="tree-node"
             :class="{ 'tree-node-dead': isDead(member) }"
-            :title="member.first_name + ' ' + (member.last_name || '')"
             @click="select(member)"
           >
-            <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
-            {{ member.first_name }} {{ member.last_name }}
+            <span class="member-info">
+              <span class="member-name">
+                <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
+                {{ member.first_name }} {{ member.last_name }}
+              </span>
+              <span class="member-age">{{ ageLabel(member.age_group) }}</span>
+            </span>
           </button>
           <span v-if="!lineage.children.length" class="tree-empty">—</span>
         </div>
@@ -153,37 +174,10 @@ const isDead = (member: LineageMember) => member.is_dead
   margin-bottom: 1rem;
 }
 
-.family-tree-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
 .tree-generation {
   font-size: 0.875rem;
   color: var(--color-theme-primary);
   opacity: 0.7;
-}
-
-.tree-refresh {
-  background: transparent;
-  border: 1px solid var(--color-theme-primary);
-  border-radius: 0.375rem;
-  color: var(--color-theme-primary);
-  width: 1.75rem;
-  height: 1.75rem;
-  cursor: pointer;
-  font-size: 1rem;
-  line-height: 1;
-}
-
-.tree-refresh:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-theme-primary) 18%, transparent);
-}
-
-.tree-refresh:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 
 .family-tree {
@@ -234,7 +228,8 @@ const isDead = (member: LineageMember) => member.is_dead
   top: 0;
   left: 4px;
   right: 4px;
-  height: 1px;
+  height: 2px;
+  border-radius: var(--border-radius-full);
   background: var(--color-theme-primary);
   opacity: 0.55;
   box-shadow: 0 0 6px var(--color-theme-glow);
@@ -245,15 +240,16 @@ const isDead = (member: LineageMember) => member.is_dead
 }
 
 .trunk {
-  width: 1px;
+  width: 2px;
   height: 0.9rem;
   margin: 0.15rem auto;
+  border-radius: var(--border-radius-full);
   background: var(--color-theme-primary);
   opacity: 0.55;
   box-shadow: 0 0 6px var(--color-theme-glow);
 }
 
-.pair {
+.couple {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -279,23 +275,21 @@ const isDead = (member: LineageMember) => member.is_dead
   opacity: 0.55;
 }
 
-.tree-node-sibling {
-  font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
-}
-
 .tree-node {
   background: color-mix(in srgb, var(--color-theme-primary) 8%, transparent);
   border: 1px solid var(--color-theme-primary);
-  border-radius: 0.375rem;
-  padding: 0.4rem 0.75rem;
+  border-radius: var(--border-radius-base);
+  padding: 0.5rem 0.6rem;
   color: var(--color-theme-primary);
   cursor: pointer;
   transition: all 0.2s;
   font-family: 'Courier New', monospace;
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   gap: 0.35rem;
+  min-width: 5.5rem;
+  text-align: center;
 }
 
 .tree-node:hover {
@@ -303,29 +297,78 @@ const isDead = (member: LineageMember) => member.is_dead
   background: color-mix(in srgb, var(--color-theme-primary) 18%, transparent);
 }
 
-.tree-node-self {
-  cursor: default;
-  opacity: 0.85;
-  background: color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
+.tree-node:focus-visible {
+  outline: 1px solid var(--color-theme-accent);
+  outline-offset: 2px;
 }
 
 .tree-node-partner {
   background: color-mix(in srgb, var(--color-theme-primary) 14%, transparent);
 }
 
+.member-card {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 5.5rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--border-radius-base);
+  font-family: 'Courier New', monospace;
+  color: var(--color-theme-primary);
+  text-align: center;
+}
+
+.member-card-self {
+  border: 1px solid var(--color-theme-accent);
+  background: color-mix(in srgb, var(--color-theme-accent) 14%, transparent);
+  box-shadow: 0 0 10px var(--color-theme-glow);
+}
+
+
+.member-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  line-height: 1.2;
+}
+
+.member-name,
+.tree-node-self {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.member-age {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.65;
+}
+
+.member-relation {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.85;
+  margin-top: 0.15rem;
+}
+
 .pair-bond {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--border-radius-full);
   color: var(--color-theme-primary);
-  background: rgba(0, 0, 0, 0.85);
+  background: var(--color-surface-sunken);
   border: 1px solid color-mix(in srgb, var(--color-theme-primary) 45%, transparent);
-  border-radius: 999px;
-  padding: 0.15rem 0.65rem;
-  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .bond-affinity {
@@ -337,6 +380,9 @@ const isDead = (member: LineageMember) => member.is_dead
 
 .tree-node-dead {
   opacity: 0.5;
+}
+
+.tree-node-dead .member-name {
   text-decoration: line-through;
 }
 
@@ -383,7 +429,7 @@ const isDead = (member: LineageMember) => member.is_dead
   margin-top: 0.75rem;
   background: transparent;
   border: 1px solid var(--color-theme-primary);
-  border-radius: 0.375rem;
+  border-radius: var(--border-radius-base);
   color: var(--color-theme-primary);
   padding: 0.375rem 1rem;
   cursor: pointer;

@@ -127,4 +127,30 @@ describe('FamilyTreePanel', () => {
 
     expect(wrapper.text()).toContain('No lineage data')
   })
+
+  it('does not render a refresh control', () => {
+    stubStore()
+    const { wrapper } = mountPanel()
+
+    expect(wrapper.find('.tree-refresh').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Refresh family tree')
+  })
+
+  it('keeps the self member non-interactive while relatives are buttons', () => {
+    stubStore()
+    const { wrapper } = mountPanel()
+
+    expect(wrapper.find('.member-card-self').element.tagName).toBe('DIV')
+    expect(wrapper.find('.tree-node-self').element.tagName).toBe('SPAN')
+    expect(wrapper.findAll('button.tree-node').length).toBeGreaterThanOrEqual(4)
+  })
+
+  it('leads each member card with the name, not a portrait stand-in', () => {
+    stubStore()
+    const { wrapper } = mountPanel()
+
+    expect(wrapper.find('.member-avatar').exists()).toBe(false)
+    expect(wrapper.find('.tree-node .member-name').text()).toBe('Mom Dweller')
+    expect(wrapper.find('.member-card-self .tree-node-self').text()).toBe('Self Dweller')
+  })
 })

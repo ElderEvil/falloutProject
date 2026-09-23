@@ -79,6 +79,12 @@
     /* === TYPOGRAPHY === */
     --font-family-mono: "Courier New", Courier, monospace;
     --font-family-base: var(--font-family-mono);
+    /* The font-mono/font-sans utilities must resolve to the app's mono stack;
+       Tailwind's built-in defaults are a different family, which left buttons
+       inside a font-mono container rendering in a different font than the
+       labels beside them. */
+    --font-mono: var(--font-family-mono);
+    --font-sans: var(--font-family-mono);
 
     /* Font Sizes */
     --font-size-xs: 0.75rem; /* 12px */
@@ -261,6 +267,7 @@ body {
     background-color: var(--color-terminal-background);
     color: var(--color-theme-primary);
     font-family: var(--font-family-mono);
+    font-weight: 500;
     text-shadow: 0 0 10px var(--color-theme-glow);
     min-height: 100vh;
     line-height: var(--line-height-normal);

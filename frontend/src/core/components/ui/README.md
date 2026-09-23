@@ -44,8 +44,12 @@ import { Card, CardContent } from '@/core/components/ui/card'
 - **Tooltips** need a `TooltipProvider` ancestor. Wrap a component trigger with
   `TooltipTrigger as-child`; import `Tooltip`, `TooltipContent`, `TooltipProvider`, `TooltipTrigger`
   together.
-- **`Progress` custom fills** go through a `--bar-fill` CSS var plus one scoped
-  `:deep(.bar-fill [data-slot='progress-indicator'])` rule; heights are classes (`h-1`, `h-2.5`, …).
+- **`Progress` owns its fill.** Pass `size` (`xs`/`sm`/`md`), `tone`
+  (`default`/`info`/`warning`/`danger`/`success`), an explicit `fill` colour for a dynamic/domain value
+  (precedence over `tone`), and `segmented` for decorative terminal divisions. Name the meter with `label`
+  (or a fallthrough `aria-label`) and add `value-text` wherever fill length or colour alone would be
+  ambiguous. Do **not** reach into `[data-slot='progress-indicator']` or set `--bar-fill` from callers —
+  that pattern is retired as callers migrate.
 - **Two-segment health bars** use the shared `core/components/common/HealthRadiationBar.vue`.
 - **Overlays** (`Dialog`) render through a `Teleport`; tests stub `Teleport` and assert opening via
   `Dialog.props('open')`.

@@ -405,6 +405,47 @@ This section records the current visual decisions for vault-management screens. 
 </div>
 ```
 
+### Progress & meters
+
+A meter is the same instrument everywhere: dark recessed track, readable fill, stable height scale, optional
+terminal divisions, and a nearby text value when the number matters. Use the owned `Progress` primitive
+(`@/core/components/ui/progress`) — never hand-roll a `role="progressbar"`.
+
+```vue
+<Progress :model-value="questProgress" size="sm" label="Quest progress" value-text="62%" />
+<Progress :model-value="populationProgress" size="xs" tone="info" label="Population" />
+<Progress :model-value="happiness" size="sm" :fill="happinessColor" label="Happiness" value-text="88%" />
+<Progress :model-value="explorationProgress" size="md" segmented label="Exploration" value-text="62%" />
+```
+
+| Meaning | Treatment |
+|---|---|
+| Generic completion, capacity, affinity, quest, training | single-fill `Progress`, default theme-primary |
+| Exploration / time progression | single-fill with terminal segment divisions (`segmented`) |
+| Health + radiation | `HealthRadiationBar` — a two-segment domain composite on the shared track |
+| Threshold / status value | semantic `tone` (`info` / `warning` / `danger` / `success`) **plus** a text label; colour is never the sole signal |
+| Resource / economy value | an explicit resource token only where it carries gameplay meaning |
+
+**Contract**
+
+- `size` — `xs` | `sm` | `md` (a small fixed height scale; `sm` is the historical bar).
+- `tone` — `default` (theme-primary) | `info` | `warning` | `danger` | `success`.
+- `fill` — an explicit CSS colour for a dynamic/domain value; **takes precedence over `tone`**.
+- `segmented` — decorative terminal divisions only; it never changes the announced numeric value.
+- `label` / `value-text` — the accessible name and value (`aria-label` / `aria-valuetext`). A meter must have
+  an accessible name; add `value-text` wherever fill length or colour alone would be ambiguous.
+
+**Theme contract**
+
+- The default fill resolves through `--primary` / `--color-theme-primary`, so it renders correctly in FO3
+  green, FNV amber, and FO4 teal. Tracks and frames use the warm-neutral surface roles, never a
+  palette-specific black/green treatment.
+- Semantic tones use their tokens. New meter code must not contain FO4 green hex values, `green-*`, or green
+  RGBA glows. `--color-theme-accent` is a terminal brand accent; shadcn's semantic `accent` is a hover
+  surface, never a fill shortcut.
+- Motion is reserved for a meaningful live state, honours `prefers-reduced-motion`, and animates the fill's
+  transform/opacity only. Informational meters do not pulse or shimmer.
+
 ### Modals
 
 ```vue

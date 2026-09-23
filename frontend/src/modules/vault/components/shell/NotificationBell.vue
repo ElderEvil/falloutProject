@@ -215,6 +215,8 @@ const getNotificationRoute = (notification: Notification): string | null => {
     case 'pregnancy_detected':
     case 'radio_new_dweller':
       return `${vaultPath}/dwellers`
+    case 'radio_auto_switched_to_happiness':
+      return vaultPath
     case 'achievement_unlocked':
       return `${vaultPath}/objectives`
     default:
@@ -259,6 +261,7 @@ const getNotificationIcon = (type: string): string => {
     combat_victory: 'mdi:sword',
     combat_defeat: 'mdi:skull-crossbones',
     radio_new_dweller: 'mdi:radio',
+    radio_auto_switched_to_happiness: 'mdi:radio-tower',
     resource_low: 'mdi:alert',
   }
   return iconMap[type] || 'mdi:information'

@@ -52,6 +52,7 @@ class NotificationType(StrEnum):
     QUEST_COMPLETE = "quest_complete"
     ACHIEVEMENT_UNLOCKED = "achievement_unlocked"
     RADIO_NEW_DWELLER = "radio_new_dweller"
+    RADIO_AUTO_SWITCHED_TO_HAPPINESS = "radio_auto_switched_to_happiness"
     MAP_REGISTRATION_FAILED = "map_registration_failed"
 
 

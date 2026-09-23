@@ -89,12 +89,20 @@
     - progressbar /Progress \d+/
     - progressbar /Progress \d+/
     - progressbar /Progress \d+/
-    - text: Heights
-    - progressbar /\d+%/
-    - progressbar /\d+%/
-    - progressbar /\d+%/
-    - text: Custom color
-    - progressbar /\d+%/
+    - text: Sizes
+    - progressbar "Extra small"
+    - progressbar "Small"
+    - progressbar "Medium"
+    - text: Tones
+    - progressbar "Default tone"
+    - progressbar "Info tone"
+    - progressbar "Warning tone"
+    - progressbar "Danger tone"
+    - progressbar "Success tone"
+    - text: Dynamic fill
+    - progressbar "Dynamic fill"
+    - text: Segmented
+    - progressbar "Segmented progress"
     - text: Radiation
     - progressbar
   - region "Skeleton":
@@ -108,11 +116,11 @@
     - button "Tooltip right"
   - region "Icon Button":
     - heading "Icon Button" [level=2]
-    - button
-    - button
-    - button
-    - button
-    - button [disabled]
+    - button "Icon icon-xs"
+    - button "Icon icon-sm"
+    - button "Icon icon"
+    - button "Icon icon-lg"
+    - button "Delete" [disabled]
   - region "Toast":
     - heading "Toast" [level=2]
     - paragraph: Inline fixtures; the global Toaster is populated on mount (top-right of the viewport).

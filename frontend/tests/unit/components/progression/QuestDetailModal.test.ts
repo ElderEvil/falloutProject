@@ -282,7 +282,7 @@ describe('QuestDetailModal start button', () => {
       ]
       await vi.advanceTimersByTimeAsync(30_000)
 
-      expect(questStore.fetchVaultQuests).toHaveBeenCalledWith('vault-123')
+      expect(questStore.fetchVaultQuests).toHaveBeenCalledWith('vault-123', { silent: true })
       expect(wrapper.text()).toContain('Claim Rewards')
     } finally {
       vi.useRealTimers()

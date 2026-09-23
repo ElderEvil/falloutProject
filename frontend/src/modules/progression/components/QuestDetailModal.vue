@@ -229,10 +229,12 @@ async function refreshQuestAfterArrival() {
   if (!props.vaultId || !props.questId || isRefreshingQuest) return
   isRefreshingQuest = true
   try {
-    await questStore.fetchVaultQuests(props.vaultId)
+    await questStore.fetchVaultQuests(props.vaultId, { silent: true })
     const updated = questStore.vaultQuests.find((q) => q.id === props.questId)
     if (updated) quest.value = updated
     await loadParty()
+  } catch {
+    // Background poll: ignore and retry on the next tick.
   } finally {
     isRefreshingQuest = false
   }

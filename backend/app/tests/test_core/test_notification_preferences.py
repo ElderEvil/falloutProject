@@ -32,9 +32,7 @@ def test_unknown_future_type_defaults_to_enabled() -> None:
 
 def test_protected_categories_cannot_be_disabled() -> None:
     with pytest.raises(ValueError, match="cannot be disabled"):
-        validate_notification_preferences(
-            {"notifications": {"version": 1, "disabled_categories": ["combat_defeat"]}}
-        )
+        validate_notification_preferences({"notifications": {"version": 1, "disabled_categories": ["combat_defeat"]}})
 
 
 def test_all_selectable_categories_are_known() -> None:
@@ -44,7 +42,9 @@ def test_all_selectable_categories_are_known() -> None:
 
 
 @pytest.mark.asyncio
-async def test_muted_notification_is_not_persisted_or_delivered(async_session: AsyncSession, user_with_vault: tuple) -> None:
+async def test_muted_notification_is_not_persisted_or_delivered(
+    async_session: AsyncSession, user_with_vault: tuple
+) -> None:
     user, vault = user_with_vault
     user_id, vault_id = user.id, vault.id
     profile = await profile_crud.create_for_user(async_session, user_id)

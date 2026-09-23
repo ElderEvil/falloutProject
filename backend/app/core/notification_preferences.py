@@ -58,7 +58,9 @@ def validate_notification_preferences(preferences: dict[str, Any]) -> None:
     if settings.get("version") != NOTIFICATION_PREFERENCES_VERSION:
         raise ValueError("Notification preferences must use version 1")
     disabled_categories = settings.get("disabled_categories", [])
-    if not isinstance(disabled_categories, list) or not all(isinstance(category, str) for category in disabled_categories):
+    if not isinstance(disabled_categories, list) or not all(
+        isinstance(category, str) for category in disabled_categories
+    ):
         raise ValueError("Disabled notification categories must be a list of strings")
     if len(disabled_categories) != len(set(disabled_categories)):
         raise ValueError("Disabled notification categories must not contain duplicates")

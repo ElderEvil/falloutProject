@@ -13,7 +13,7 @@ import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
 import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
 import type { VaultQuest } from '../models/quest'
-import { isQuestReturning } from '../models/quest'
+import { formatQuestReward, isQuestReturning, questRewardIcon } from '../models/quest'
 
 const route = useRoute()
 const router = useRouter()
@@ -295,7 +295,7 @@ const goBack = () => {
                 </Card>
 
                 <!-- Prerequisites Section -->
-                <Card class="prerequisites-card gap-0">
+                <Card v-if="(quest.quest_requirements?.length ?? 0) > 0" class="prerequisites-card gap-0">
                   <div class="mb-4 border-b border-gray-700 pb-4">
                     <h3 class="text-xl font-bold terminal-glow text-theme-primary">Prerequisites</h3>
                   </div>
@@ -319,7 +319,7 @@ const goBack = () => {
                 </Card>
 
                 <!-- Chain Progress Section -->
-                <Card class="chain-card gap-0">
+                <Card v-if="isChainQuest" class="chain-card gap-0">
                   <div class="mb-4 border-b border-gray-700 pb-4">
                     <h3 class="text-xl font-bold terminal-glow text-theme-primary">Quest Chain</h3>
                   </div>
@@ -354,10 +354,10 @@ const goBack = () => {
                   >
                     <div v-for="reward in quest.quest_rewards" :key="reward.id" class="reward-item">
                       <div class="reward-icon-wrapper">
-                        <Icon icon="mdi:gift" class="reward-icon" />
+                        <Icon :icon="questRewardIcon(reward)" class="reward-icon" />
                       </div>
                       <div class="reward-details">
-                        <span class="reward-type">{{ reward.reward_type }}</span>
+                        <span class="reward-type">{{ formatQuestReward(reward) }}</span>
                         <span v-if="reward.reward_chance < 1" class="reward-chance">
                           {{ Math.round(reward.reward_chance * 100) }}% chance
                         </span>
@@ -682,6 +682,8 @@ const goBack = () => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .reward-type {

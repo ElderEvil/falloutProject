@@ -234,4 +234,72 @@ describe('QuestDetailView start button', () => {
       vi.useRealTimers()
     }
   })
+
+  it('hides the prerequisites and chain cards when a completed quest has neither', async () => {
+    questStore.vaultQuests = [
+      {
+        id: 'quest-2',
+        title: 'Lone Quest',
+        short_description: 'Done',
+        long_description: 'Done the journey.',
+        requirements: '',
+        rewards: '',
+        created_at: '2025-01-01',
+        updated_at: '2025-01-01',
+        is_visible: true,
+        is_completed: true,
+        started_at: '2025-01-02T00:00:00Z',
+        duration_minutes: 60,
+        chain_id: null,
+        chain_order: 0,
+        previous_quest_id: null,
+        next_quest_id: null,
+        quest_type: 'side',
+        quest_requirements: [],
+        quest_rewards: [],
+      },
+    ]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.prerequisites-card').exists()).toBe(false)
+    expect(wrapper.find('.chain-card').exists()).toBe(false)
+  })
+
+  it('formats reward rows with labels instead of raw type slugs', async () => {
+    questStore.vaultQuests = [
+      {
+        id: 'quest-2',
+        title: 'Rewarded Quest',
+        short_description: 'Done',
+        long_description: 'Done the journey.',
+        requirements: '',
+        rewards: '',
+        created_at: '2025-01-01',
+        updated_at: '2025-01-01',
+        is_visible: true,
+        is_completed: true,
+        started_at: '2025-01-02T00:00:00Z',
+        duration_minutes: 60,
+        chain_id: null,
+        chain_order: 0,
+        previous_quest_id: null,
+        next_quest_id: null,
+        quest_type: 'side',
+        quest_requirements: [],
+        quest_rewards: [
+          { id: 'reward-1', reward_type: 'caps', reward_data: { amount: 50 }, reward_chance: 1 },
+        ],
+      },
+    ]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).toContain('50 Caps')
+    expect(wrapper.text()).not.toMatch(/^\s*caps\s*$/m)
+  })
 })

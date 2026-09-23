@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.135.0 (2026-09-23)
+
+### Features
+
+* reliable quest start/claim actions and sorted available quests ([#756](https://github.com/ElderEvil/falloutProject/issues/756)) 975cea9
+
 ## 2.134.1 (2026-09-23)
 
 ### Bug Fixes

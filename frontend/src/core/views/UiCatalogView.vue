@@ -348,6 +348,16 @@ const setSlider = (value: number[] | undefined) => {
           <Progress :model-value="60" fill="#facc15" label="Dynamic fill" value-text="60%" />
         </div>
         <div class="flex items-center gap-4">
+          <span class="w-24 text-sm text-theme-primary/70">Gradient fill</span>
+          <!-- @vue-ignore -->
+          <Progress
+            :model-value="60"
+            :fill="'linear-gradient(90deg, var(--color-theme-primary), var(--color-theme-accent))'"
+            label="Gradient fill"
+            value-text="60%"
+          />
+        </div>
+        <div class="flex items-center gap-4">
           <span class="w-24 text-sm text-theme-primary/70">Segmented</span>
           <!-- @vue-ignore -->
           <Progress

@@ -137,8 +137,8 @@ const riskTitle = (dwellerId: string) => {
           <!-- @vue-ignore -->
           <Progress
             :model-value="getProgressPercentage(exploration)"
-            class="explorer-progress bar-fill h-1.5"
-            :style="{ '--bar-fill': 'linear-gradient(90deg, rgb(205 133 63 / 0.6), rgb(205 133 63))' }"
+            class="h-1.5"
+            :fill="'linear-gradient(90deg, rgb(205 133 63 / 0.6), rgb(205 133 63))'"
             :aria-label="`Exploration progress for ${getDwellerById(exploration.dweller_id)?.first_name ?? 'dweller'}`"
           />
           <div class="explorer-stats">
@@ -316,10 +316,6 @@ const riskTitle = (dwellerId: string) => {
   flex: 1;
   font-size: 0.7rem;
   padding: 0.25rem 0.5rem;
-}
-
-.explorer-progress :deep([data-slot='progress-indicator']) {
-  background: var(--bar-fill);
 }
 
 @media (max-width: 639px) {

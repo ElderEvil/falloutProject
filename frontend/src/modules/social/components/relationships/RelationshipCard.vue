@@ -127,7 +127,7 @@
           v-if="hiddenChildCount"
           type="button"
           class="inline-flex items-center rounded-full border border-dashed border-theme-primary/30 px-2 py-1 text-xs text-theme-primary/70 transition-colors hover:border-theme-primary/60 hover:text-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
-          :aria-label="`Show all ${children.length} children`"
+          :aria-label="`Show ${children.length} children, starting with ${children[CHILD_PREVIEW_LIMIT].first_name}`"
           @click="emit('select-dweller', children[CHILD_PREVIEW_LIMIT].id)"
         >
           +{{ hiddenChildCount }} more
@@ -243,7 +243,7 @@
           v-if="hiddenChildCount"
           type="button"
           class="inline-flex items-center rounded-full border border-dashed border-theme-primary/30 px-2 py-1 text-xs text-theme-primary/70 transition-colors hover:border-theme-primary/60 hover:text-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
-          :aria-label="`Show all ${children.length} children`"
+          :aria-label="`Show ${children.length} children, starting with ${children[CHILD_PREVIEW_LIMIT].first_name}`"
           @click="emit('select-dweller', children[CHILD_PREVIEW_LIMIT].id)"
         >
           +{{ hiddenChildCount }} more

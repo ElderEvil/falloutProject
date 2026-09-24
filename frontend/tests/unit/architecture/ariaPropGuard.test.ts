@@ -22,36 +22,62 @@ const SRC_DIR = join(process.cwd(), 'src')
 // `'aria-foo'?: type` / `'data-foo'?: type` written as a quoted property key.
 const HYPHENATED_KEY = /['"]([a-z]+(?:-[a-z]+)+)['"]\s*\??:/g
 const KEBAB_PREFIX = /^(?:aria|data)-/
-// Only the prop surface matters: an interface/type used as the defineProps
-// argument. Object literals elsewhere (`{ 'data-slot': 'switch' }`) are not props.
-const PROP_TYPE = /(?:interface|type)\s+(\w+)(?:\s*<[^>]*>)?\s*(?:=\s*)?\{([\s\S]*?)\}/g
-const DEFINE_PROPS = /defineProps<\s*(\w+)\s*>/g
 
-function propTypeBodies(source: string): string {
-  const named = new Map<string, string>()
-  for (const match of source.matchAll(PROP_TYPE)) named.set(match[1], match[2])
+/** The balanced `{...}` region starting at `open`, honouring nested braces. */
+function balancedBraces(source: string, open: number): string {
+  let depth = 0
+  for (let i = open; i < source.length; i++) {
+    if (source[i] === '{') depth++
+    else if (source[i] === '}') {
+      depth--
+      if (depth === 0) return source.slice(open + 1, i)
+    }
+  }
+  return source.slice(open + 1)
+}
 
+/** A named `interface Props {…}` / `type Props = {…}` body, brace-balanced. */
+function namedTypeBody(source: string, name: string): string | undefined {
+  const re = new RegExp(String.raw`(?:interface|type)\s+${name}\b[^{]*\{`)
+  const match = re.exec(source)
+  return match ? balancedBraces(source, match.index + match[0].length - 1) : undefined
+}
+
+/**
+ * The prop surface only: every `defineProps<…>()` argument, whether it is an
+ * inline type literal or a named interface/type. Object literals elsewhere
+ * (`{ 'data-slot': 'switch' }`) are not props.
+ */
+export function propTypeBodies(source: string): string[] {
   const bodies: string[] = []
-  for (const match of source.matchAll(DEFINE_PROPS)) {
-    const body = named.get(match[1])
+  const re = /defineProps\s*<\s*/g
+  for (const match of source.matchAll(re)) {
+    const start = match.index + match[0].length
+    if (source[start] === '{') {
+      bodies.push(balancedBraces(source, start))
+      continue
+    }
+    const name = /^\w+/.exec(source.slice(start))?.[0]
+    const body = name ? namedTypeBody(source, name) : undefined
     if (body) bodies.push(body)
   }
-  return bodies.join('\n')
+  return bodies
 }
 
 export function hyphenatedOnlyDeclarations(source: string): string[] {
-  const declared = new Set<string>()
-  for (const match of propTypeBodies(source).matchAll(HYPHENATED_KEY)) {
-    const key = match[1]
-    if (KEBAB_PREFIX.test(key)) declared.add(key)
+  const offenders = new Set<string>()
+  for (const body of propTypeBodies(source)) {
+    const kebab: string[] = []
+    for (const match of body.matchAll(HYPHENATED_KEY)) {
+      if (KEBAB_PREFIX.test(match[1])) kebab.push(match[1])
+    }
+    for (const key of kebab) {
+      const camel = key.replace(/-([a-z])/g, (_, char: string) => char.toUpperCase())
+      // The camelCase sibling must live in the SAME prop type, not anywhere in the file.
+      if (!new RegExp(String.raw`\b${camel}\b\s*\??:`).test(body)) offenders.add(key)
+    }
   }
-  const offenders: string[] = []
-  for (const key of declared) {
-    const camel = key.replace(/-([a-z])/g, (_, char: string) => char.toUpperCase())
-    // Accept the kebab key only when the camelCase sibling is also declared.
-    if (!new RegExp(String.raw`\b${camel}\b\s*\??:`).test(source)) offenders.push(key)
-  }
-  return offenders.sort()
+  return [...offenders].sort()
 }
 
 function walkVueFiles(dir: string): string[] {
@@ -106,5 +132,31 @@ describe('aria prop convention guard', () => {
     expect(hyphenatedOnlyDeclarations(camelOnly)).toEqual([])
     expect(hyphenatedOnlyDeclarations(dataKebab)).toEqual(['data-state'])
     expect(hyphenatedOnlyDeclarations(objectLiteral)).toEqual([])
+  })
+
+  it('scans inline defineProps type literals, not only named types', () => {
+    const inlineKebabOnly = `const props = defineProps<{ 'aria-label'?: string }>()`
+    const inlineBoth = `const props = defineProps<{ 'aria-label'?: string; ariaLabel?: string }>()`
+
+    expect(hyphenatedOnlyDeclarations(inlineKebabOnly)).toEqual(['aria-label'])
+    expect(hyphenatedOnlyDeclarations(inlineBoth)).toEqual([])
+  })
+
+  it('requires the camelCase sibling in the same prop type, not elsewhere in the file', () => {
+    const unrelatedSibling = `
+      interface Props { 'aria-label'?: string }
+      interface Other { ariaLabel?: string }
+      const props = defineProps<Props>()
+    `
+    const nestedFields = `
+      interface Props {
+        thing?: { a?: string }
+        'aria-label'?: string
+      }
+      const props = defineProps<Props>()
+    `
+
+    expect(hyphenatedOnlyDeclarations(unrelatedSibling)).toEqual(['aria-label'])
+    expect(hyphenatedOnlyDeclarations(nestedFields)).toEqual(['aria-label'])
   })
 })

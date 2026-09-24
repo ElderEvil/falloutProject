@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.enums import RarityEnum
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
+from app.crud import vault as crud_vault
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.outfit import Outfit
@@ -24,11 +25,19 @@ from app.schemas.exploration_event import (
     RestEventSchema,
     WeaponSchema,
 )
+from app.services.exploration import data_loader
 from app.services.exploration.event_generator import event_generator
+from app.services.notification_service import notification_service
 from app.services.radiation_service import apply_radiation_gain, radiation_removal_amount
 from app.services.stream_manager import sse_manager
+from app.utils.combat import expedition_combat_profile
+from app.utils.item_factory import build_catalog_item
 
 logger = logging.getLogger(__name__)
+
+# Equip bell entries are parked during the event transaction and sent after its
+# commit: sending mid-event would commit the loot/equip work prematurely.
+_PENDING_EQUIP_NOTIFICATIONS = "pending_exploration_equip_notifications"
 
 
 class EventService:
@@ -44,7 +53,12 @@ class EventService:
         Returns:
             Updated exploration
         """
-        event = await asyncio.to_thread(event_generator.generate_event, exploration)
+        db_session.info.pop(_PENDING_EQUIP_NOTIFICATIONS, None)
+        dweller_with_equipment = await dweller_crud.get_with_equipment(db_session, exploration.dweller_id)
+        profile = None
+        if dweller_with_equipment is not None and not dweller_with_equipment.is_dead:
+            profile = expedition_combat_profile(dweller_with_equipment)
+        event = await asyncio.to_thread(event_generator.generate_event, exploration, profile)
 
         if not event:
             return exploration
@@ -169,6 +183,8 @@ class EventService:
                 **sse_extra,
             )
 
+        await self._notify_equips(db_session, exploration)
+
         return exploration
 
     async def _handle_loot_event(self, db_session: AsyncSession, exploration: Exploration, event) -> list[dict]:
@@ -219,10 +235,16 @@ class EventService:
         new_health = dweller_obj.health - damage
 
         if new_health <= 0:
-            # Dweller dies in the wasteland
+            # Dweller dies in the wasteland. Delete held mid-run upgrades BEFORE
+            # mark_as_dead so its commit lands the death and the cleanup atomically;
+            # the equipped upgrade stays on the corpse.
             from app.core.enums import DeathCauseEnum
+            from app.crud import outfit as outfit_crud
+            from app.crud import weapon as weapon_crud
             from app.services.family.death_service import death_service
 
+            await weapon_crud.delete_held_for_exploration(db_session, exploration.id)
+            await outfit_crud.delete_held_for_exploration(db_session, exploration.id)
             await death_service.mark_as_dead(db_session, dweller_obj, DeathCauseEnum.EXPLORATION)
         else:
             # Just apply damage (cap at 1 to give player chance to recall)
@@ -296,56 +318,96 @@ class EventService:
         item_schema: WeaponSchema | OutfitSchema,
         item_type: str,
     ) -> dict | None:
-        """Flag the strongest found weapon/outfit for auto-equip; returns the equip event record."""
-        flagged = next(
-            (
-                entry
-                for entry in reversed(exploration.loot_collected)
-                if entry.get("item_type") == item_type and entry.get("auto_equip")
-            ),
-            None,
-        )
+        """Equip a found weapon/outfit immediately when it beats the equipped one.
+
+        The displaced item is held on the exploration (not sent to storage) and the
+        loot entry is marked equipped so settlement skips it. Returns the equip event
+        record, or None when the find is not an upgrade or the explorer is dead.
+        """
+        if await self._get_living_dweller(db_session, exploration) is None:
+            return None
+
+        from app.crud import outfit as outfit_crud
+        from app.crud import weapon as weapon_crud
+
+        item_crud = weapon_crud if item_type == "weapon" else outfit_crud
+        current = await item_crud.get_equipped(db_session, exploration.dweller_id)
+        current_score = self._item_score(current)
 
         match item_type:
             case "weapon" if isinstance(item_schema, WeaponSchema):
                 new_score = ((item_schema.damage_min + item_schema.damage_max) / 2,)
-                score_fields = ("auto_equip_avg_damage",)
-                model = Weapon
             case _:
                 new_score = (self._rarity_priority(item_schema.rarity), item_schema.value or 0)
-                score_fields = ("auto_equip_priority", "auto_equip_value")
-                model = Outfit
-
-        if flagged is not None:
-            current_score = tuple(flagged.get(key, 0) for key in score_fields)
-        else:
-            from app.crud import outfit as outfit_crud
-            from app.crud import weapon as weapon_crud
-
-            item_crud = weapon_crud if model is Weapon else outfit_crud
-            current = await item_crud.get_equipped(db_session, exploration.dweller_id)
-            current_score = self._item_score(current)
 
         if new_score <= current_score:
             return None
 
-        # The new item outclasses the current champion; move the flag to it.
-        for entry in exploration.loot_collected:
-            if entry.get("item_type") == item_type and entry.get("auto_equip"):
-                entry["auto_equip"] = False
+        weapons_data = await asyncio.to_thread(data_loader.load_weapons)
+        outfits_data = await asyncio.to_thread(data_loader.load_outfits)
+        new_item = build_catalog_item(
+            item_type,
+            item_schema.name,
+            item_schema.rarity,
+            weapons_data=weapons_data,
+            outfits_data=outfits_data,
+        )
+        if new_item is None:
+            return None
+
+        db_session.add(new_item)
+        await db_session.flush()
+
+        await item_crud.equip(
+            db_session=db_session,
+            item_id=new_item.id,
+            dweller_id=exploration.dweller_id,
+            held_exploration_id=exploration.id,
+            commit=False,
+        )
+
         for entry in reversed(exploration.loot_collected):
             if entry.get("item_type") == item_type and entry.get("item_name") == item_schema.name:
-                entry["auto_equip"] = True
-                entry.update(zip(score_fields, new_score, strict=True))
+                entry["equipped"] = True
+                entry["equipped_item_id"] = str(new_item.id)
                 break
         orm.attributes.flag_modified(exploration, "loot_collected")
+        db_session.info.setdefault(_PENDING_EQUIP_NOTIFICATIONS, []).append((item_type, item_schema.name))
 
         record = exploration.add_event(
             ExplorationEventType.EQUIP,
-            f"Found better {item_type}: {item_schema.name}. Will equip on return.",
+            f"Equipped a better {item_type}: {item_schema.name}.",
         )
         db_session.add(exploration)
         return record
+
+    async def _notify_equips(self, db_session: AsyncSession, exploration: Exploration) -> None:
+        """Best-effort bell entries for gear equipped mid-run (progression visibility)."""
+        equipped = db_session.info.pop(_PENDING_EQUIP_NOTIFICATIONS, [])
+        if not equipped:
+            return
+        try:
+            vault = await crud_vault.get(db_session, exploration.vault_id)
+            dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+            if not vault or not vault.user_id or dweller_obj is None:
+                return
+            dweller_name = f"{dweller_obj.first_name} {dweller_obj.last_name or ''}".strip()
+            for item_type, item_name in equipped:
+                await notification_service.notify_exploration_update(
+                    db_session,
+                    user_id=vault.user_id,
+                    vault_id=vault.id,
+                    dweller_id=exploration.dweller_id,
+                    dweller_name=dweller_name,
+                    event_description=f"equipped a better {item_type} found in the wasteland: {item_name}",
+                    meta_data={
+                        "dweller_id": str(exploration.dweller_id),
+                        "item_name": item_name,
+                        "item_type": item_type,
+                    },
+                )
+        except Exception:
+            logger.exception("Failed to send equip notifications: exploration=%s", exploration.id)
 
     def _item_score(self, item: Weapon | Outfit | None) -> tuple:
         """Comparable strength score so weapon and outfit candidates rank uniformly."""

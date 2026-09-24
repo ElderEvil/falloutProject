@@ -84,3 +84,31 @@ def build_junk(
         description=description,
         storage_id=storage_id,
     )
+
+
+def build_catalog_item(
+    item_type: str,
+    name: str,
+    rarity: RarityEnum | str,
+    storage_id: UUID4 | None = None,
+    *,
+    weapons_data: list[dict],
+    outfits_data: list[dict],
+) -> Weapon | Outfit | None:
+    """Build a catalog-backed weapon/outfit by name; None when the catalog has no such row.
+
+    The loot schemas used mid-exploration are a reduced shape (``OutfitSchema`` carries
+    no SPECIAL bonuses), so callers materialize the full catalog row by name instead of
+    building from the schema dump.
+    """
+    if item_type == "weapon":
+        weapon_data = next((w for w in weapons_data if w["name"] == name), None)
+        if weapon_data is None:
+            return None
+        return build_weapon(weapon_data, rarity, storage_id)
+    if item_type == "outfit":
+        outfit_data = next((o for o in outfits_data if o["name"] == name), None)
+        if outfit_data is None:
+            return None
+        return build_outfit(outfit_data, rarity, storage_id)
+    return None

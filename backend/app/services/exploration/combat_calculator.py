@@ -6,6 +6,7 @@ from app.core.game_config import game_config
 from app.models.exploration import Exploration
 from app.schemas.exploration_event import CombatOutcomeSchema, EnemySchema
 from app.services.exploration import data_loader
+from app.utils.combat import ExpeditionCombatProfile
 
 
 class CombatCalculator:
@@ -33,21 +34,38 @@ class CombatCalculator:
 
         return EnemySchema(**random.choice(available_enemies))
 
-    def calculate_combat_outcome(self, exploration: Exploration, enemy: EnemySchema) -> CombatOutcomeSchema:
+    def calculate_combat_outcome(
+        self,
+        exploration: Exploration,
+        enemy: EnemySchema,
+        profile: ExpeditionCombatProfile | None = None,
+    ) -> CombatOutcomeSchema:
         """Calculate combat outcome based on dweller stats.
 
         Args:
             exploration: Active exploration
             enemy: Enemy schema with combat stats
+            profile: Live combat inputs (effective SPECIAL + equipped weapon damage);
+                None falls back to the exploration's departure snapshot.
 
         Returns:
             CombatOutcomeSchema with victory, health_loss, and description
         """
-        # Combat power = Strength + (Agility / 2)
-        combat_power = exploration.dweller_strength + (exploration.dweller_agility // 2)
+        if profile is not None:
+            strength, agility, endurance = profile.strength, profile.agility, profile.endurance
+        else:
+            strength, agility, endurance = (
+                exploration.dweller_strength,
+                exploration.dweller_agility,
+                exploration.dweller_endurance,
+            )
+
+        # Combat power = Strength + (Agility / 2) + equipped weapon damage bonus
+        cfg = game_config.exploration
+        weapon_bonus = profile.weapon_damage * cfg.combat_weapon_damage_multiplier if profile else 0
+        combat_power = strength + (agility // 2) + weapon_bonus
 
         # Success chance based on combat power
-        cfg = game_config.exploration
         success_chance = min(
             cfg.combat_success_max,
             cfg.combat_success_base + (combat_power * cfg.combat_stat_multiplier),
@@ -57,12 +75,12 @@ class CombatCalculator:
 
         if success:
             # Victory - minimal damage (enemy min damage - endurance bonus)
-            damage = max(1, enemy.min_damage - (exploration.dweller_endurance * 2))
+            damage = max(1, enemy.min_damage - (endurance * 2))
             description = f"Defeated {enemy.name}! Took {damage} damage."
             return CombatOutcomeSchema(victory=True, health_loss=damage, description=description)
 
         # Defeat - significant damage (random in range - endurance bonus)
-        damage = random.randint(enemy.min_damage, enemy.max_damage) - exploration.dweller_endurance
+        damage = random.randint(enemy.min_damage, enemy.max_damage) - endurance
         damage = max(damage // 2, 1)  # At least some damage
         description = f"Barely survived {enemy.name}. Took {damage} damage."
         return CombatOutcomeSchema(victory=False, health_loss=damage, description=description)

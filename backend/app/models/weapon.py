@@ -56,3 +56,6 @@ class Weapon(BaseUUIDModel, WeaponBase, TimeStampMixin, table=True):
     dweller: "Dweller" = Relationship(back_populates="weapon")
     storage_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="storage.id")
     storage: "Storage" = Relationship(back_populates="weapons")
+    exploration_id: UUID4 | None = Field(
+        default=None, nullable=True, foreign_key="exploration.id", index=True, ondelete="CASCADE"
+    )

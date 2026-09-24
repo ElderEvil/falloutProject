@@ -9,7 +9,6 @@ import pytest_asyncio
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app import crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.junk import Junk
@@ -17,10 +16,8 @@ from app.models.outfit import Outfit
 from app.models.storage import Storage
 from app.models.vault import Vault
 from app.models.weapon import Weapon
-from app.schemas.common import JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
+from app.schemas.common import OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
 from app.schemas.exploration_event import (
-    CombatEventSchema,
-    ExplorationEventType,
     ItemSchema,
     LootEventSchema,
     LootSchema,
@@ -225,36 +222,36 @@ async def _process_loot_event(async_session: AsyncSession, exploration, loot_eve
 
 
 @pytest.mark.asyncio
-async def test_auto_equip_failure_does_not_break_completion(
+async def test_catalog_miss_weapon_stays_ordinary_loot_and_run_completes(
     async_session: AsyncSession,
     vault: Vault,
     dweller: Dweller,
     make_vault_storage,
 ):
-    """A failing auto-equip is best-effort and never fails the completion."""
-    storage = await make_vault_storage()
+    """A find with no catalog row is not equipped: ordinary loot, no held row, run completes."""
+    await make_vault_storage()
     await _equip_weapon(async_session, dweller, name=".32 pistol", rarity=RarityEnum.COMMON, damage_min=1, damage_max=2)
 
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await _process_loot_event(
-        async_session, exploration, _weapon_loot_event("Fire hydrant bat", "Legendary", 19, 31, 500)
+        async_session, exploration, _weapon_loot_event("NonExistentWeapon12345", "Legendary", 19, 31, 500)
     )
+
+    equipped = (await async_session.execute(select(Weapon).where(Weapon.dweller_id == dweller.id))).scalars().all()
+    assert [w.name for w in equipped] == [".32 pistol"]
+    held = (await async_session.execute(select(Weapon).where(Weapon.exploration_id == exploration.id))).scalars().all()
+    assert held == []
+    assert all(entry.get("equipped") is not True for entry in exploration.loot_collected)
 
     exploration.start_time = datetime.utcnow() - timedelta(hours=exploration.duration)
     async_session.add(exploration)
     await async_session.flush()
-
-    with patch(
-        "app.services.exploration.rewards_service.crud_weapon.equip",
-        new_callable=AsyncMock,
-        side_effect=RuntimeError("equip exploded"),
-    ):
-        await exploration_coordinator.start_return(async_session, exploration.id)
-        await async_session.refresh(exploration)
-        exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
-        async_session.add(exploration)
-        await async_session.commit()
-        rewards = await exploration_coordinator.finalize_return(async_session, exploration.id)
+    await exploration_coordinator.start_return(async_session, exploration.id)
+    await async_session.refresh(exploration)
+    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    async_session.add(exploration)
+    await async_session.commit()
+    rewards = await exploration_coordinator.finalize_return(async_session, exploration.id)
 
     assert rewards.caps == 5
     equipped = (await async_session.execute(select(Weapon).where(Weapon.dweller_id == dweller.id))).scalars().all()
@@ -292,8 +289,8 @@ async def test_auto_equip_keeps_strongest_found_outfit(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """A lower-rarity later find never replaces the strongest flagged outfit."""
-    await make_vault_storage()
+    """A lower-rarity later find never replaces the strongest equipped outfit."""
+    storage = await make_vault_storage()
     await _equip_outfit(
         async_session,
         dweller,
@@ -319,9 +316,15 @@ async def test_auto_equip_keeps_strongest_found_outfit(
         LootEventSchema(description="Found some Tattered rags", loot=LootSchema(item=rags, item_type="outfit", caps=0)),
     )
 
-    assert exploration.loot_collected[0]["auto_equip"] is True
+    equipped = (await async_session.execute(select(Outfit).where(Outfit.dweller_id == dweller.id))).scalars().all()
+    assert [o.name for o in equipped] == ["NCR Ranger outfit"]
+    held = (await async_session.execute(select(Outfit).where(Outfit.exploration_id == exploration.id))).scalars().all()
+    assert [o.name for o in held] == ["Mechanic jumpsuit"]
+    assert all(o.dweller_id is None and o.storage_id is None for o in held)
+
     assert exploration.loot_collected[0]["item_name"] == "NCR Ranger outfit"
-    assert exploration.loot_collected[1].get("auto_equip") is not True
+    assert exploration.loot_collected[0]["equipped"] is True
+    assert exploration.loot_collected[1].get("equipped") is not True
 
     exploration.start_time = datetime.utcnow() - timedelta(hours=exploration.duration)
     async_session.add(exploration)
@@ -335,6 +338,8 @@ async def test_auto_equip_keeps_strongest_found_outfit(
 
     equipped = (await async_session.execute(select(Outfit).where(Outfit.dweller_id == dweller.id))).scalars().all()
     assert [o.name for o in equipped] == ["NCR Ranger outfit"]
+    stored = (await async_session.execute(select(Outfit).where(Outfit.storage_id == storage.id))).scalars().all()
+    assert [o.name for o in stored] == ["Mechanic jumpsuit"]
 
 
 @pytest.mark.asyncio
@@ -371,7 +376,9 @@ async def test_process_event_publishes_followup_events(
     ):
         await event_service.process_event(async_session, exploration)
 
-    published_types = [call.args[2]["type"] for call in publish_mock.await_args_list]
+    # Only the exploration-channel publishes are journey events; the equip bell's
+    # real-time delivery lands on the "notifications" channel via the same manager.
+    published_types = [call.args[2]["type"] for call in publish_mock.await_args_list if call.args[1] == "exploration"]
     assert published_types == ["loot", "equip", "item_use"]
     assert exploration.stimpaks == 0
     assert dweller.health == 60

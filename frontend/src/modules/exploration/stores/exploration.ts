@@ -6,6 +6,7 @@ import { useToast } from '@/core/composables/useToast'
 import { useSse } from '@/core/composables/useEventStream'
 import { addPendingReport } from '../composables/usePendingReports'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { explorationUpdatesDisabled } from '@/modules/profile/stores/profile'
 import type { ExplorationEventType } from '@/modules/exploration/models/exploration'
 
 export interface ExplorationEvent {
@@ -233,6 +234,21 @@ export const useExplorationStore = defineStore('exploration', () => {
           if (!seenEventKeys.has(key)) {
             seenEventKeys.add(key)
             exploration.events.push(eventRecord)
+            if (eventRecord.type === 'equip') {
+              const dwellerId = data.dweller_id
+              if (typeof dwellerId === 'string' && dwellerId.length > 0) {
+                void dwellerFilter.fetchDwellerDetails(dwellerId, token, true)
+              }
+              if (!explorationUpdatesDisabled()) {
+                const dweller = dwellerFilter.dwellers.find((d) => d.id === data.dweller_id)
+                const dwellerName = dweller
+                  ? `${dweller.first_name} ${dweller.last_name}`
+                  : 'Dweller'
+                const description =
+                  eventRecord.description.charAt(0).toLowerCase() + eventRecord.description.slice(1)
+                toast.info(`${dwellerName} ${description}`)
+              }
+            }
           }
         }
 

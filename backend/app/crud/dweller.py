@@ -79,6 +79,20 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             raise ResourceNotFoundException(self.model, identifier=id)
         return db_obj
 
+    async def get_with_equipment(self, db_session: AsyncSession, dweller_id: UUID4) -> Dweller | None:
+        """One dweller with weapon and outfit eager-loaded, or None when absent.
+
+        Live combat reads (``expedition_combat_profile``) need the equipped weapon and
+        outfit without raising on a missing row.
+        """
+        query = (
+            select(self.model)
+            .where(self.model.id == dweller_id)
+            .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit))
+        )
+        result = await db_session.execute(query)
+        return result.scalar_one_or_none()
+
     async def has_other_apprentice(
         self, db_session: AsyncSession, *, room_id: UUID4, exclude_dweller_id: UUID4
     ) -> bool:

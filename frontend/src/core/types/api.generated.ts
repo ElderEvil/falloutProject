@@ -1708,7 +1708,7 @@ export interface paths {
          *         IncidentRead: Incident details.
          *
          *     Raises:
-         *         HTTPException: 404 if incident not found.
+         *         ResourceNotFoundException: 404 if the incident is not in this vault.
          */
         get: operations["get_incident_api_v1_game_vaults__vault_id__incidents__incident_id__get"];
         put?: never;
@@ -2046,14 +2046,7 @@ export interface paths {
          */
         get: operations["get_notifications_api_v1_notifications__get"];
         put?: never;
-        /**
-         * Create Notification
-         * @description Create a new notification (admin/system use).
-         *
-         *     Returns:
-         *         The created notification.
-         */
-        post: operations["create_notification_api_v1_notifications__post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4019,7 +4012,9 @@ export interface paths {
          *         The requested user.
          *
          *     Raises:
-         *         HTTPException: 400 if user lacks privileges to view other users.
+         *         ResourceNotFoundException: 404 if the user does not exist, or the caller
+         *             may not see it. A 403 for an existing id and a 404 for an unknown one
+         *             would let a regular user probe which ids exist.
          */
         get: operations["read_user_by_id_api_v1_users__user_id__get"];
         /**
@@ -4057,9 +4052,6 @@ export interface paths {
          *
          *     Returns:
          *         User's profile with statistics and preferences.
-         *
-         *     Raises:
-         *         HTTPException: 500 if profile retrieval/creation fails unexpectedly.
          */
         get: operations["get_my_profile_api_v1_users_me_profile_get"];
         /**
@@ -4074,8 +4066,7 @@ export interface paths {
          *         Updated profile.
          *
          *     Raises:
-         *         HTTPException: 404 if profile not found.
-         *         HTTPException: 500 if profile update fails unexpectedly.
+         *         ResourceNotFoundException: 404 if the profile does not exist.
          */
         put: operations["update_my_profile_api_v1_users_me_profile_put"];
         post?: never;
@@ -4990,11 +4981,8 @@ export interface components {
             username?: string | null;
             /** Password */
             password?: string | null;
-            /**
-             * Email
-             * Format: email
-             */
-            email?: string;
+            /** Email */
+            email?: string | null;
         };
         /** Body_verify_email_api_v1_auth_verify_email_post */
         Body_verify_email_api_v1_auth_verify_email_post: {
@@ -6684,11 +6672,11 @@ export interface components {
             exploration: components["schemas"]["ExplorationRead"];
             /**
              * Rewards Summary
-             * @description Summary of rewards: {caps: int, items: list, experience: int}
+             * @description Rewards summary, or None while the dweller is still returning
              */
-            rewards_summary: {
+            rewards_summary?: {
                 [key: string]: unknown;
-            };
+            } | null;
         };
         /**
          * ExplorationProgress
@@ -6707,6 +6695,13 @@ export interface components {
             time_remaining_seconds: number;
             /** Elapsed Time Seconds */
             elapsed_time_seconds: number;
+            /** Return Completes At */
+            return_completes_at?: string | null;
+            /**
+             * Return Time Remaining Seconds
+             * @default 0
+             */
+            return_time_remaining_seconds: number;
             /** Events */
             events: {
                 [key: string]: unknown;
@@ -6753,6 +6748,12 @@ export interface components {
             start_time: string;
             /** End Time */
             end_time: string | null;
+            /** Return Started At */
+            return_started_at: string | null;
+            /** Return Completes At */
+            return_completes_at: string | null;
+            /** Recalled Early */
+            recalled_early: boolean;
             /** Events */
             events: {
                 [key: string]: unknown;
@@ -6824,6 +6825,10 @@ export interface components {
             start_time: string;
             /** End Time */
             end_time: string | null;
+            /** Return Started At */
+            return_started_at: string | null;
+            /** Return Completes At */
+            return_completes_at: string | null;
             /** Duration */
             duration: number;
             /** Total Distance */
@@ -6871,7 +6876,7 @@ export interface components {
          * @description Status of a wasteland exploration.
          * @enum {string}
          */
-        ExplorationStatus: "active" | "completed" | "recalled";
+        ExplorationStatus: "active" | "returning" | "completed" | "recalled";
         /**
          * FactionEnum
          * @enum {string}
@@ -7660,39 +7665,6 @@ export interface components {
              */
             reason?: string | null;
         };
-        /** NotificationCreate */
-        NotificationCreate: {
-            /**
-             * User Id
-             * Format: uuid
-             */
-            user_id: string;
-            /** Vault Id */
-            vault_id?: string | null;
-            /** From Dweller Id */
-            from_dweller_id?: string | null;
-            notification_type: components["schemas"]["NotificationType"];
-            /** @default normal */
-            priority: components["schemas"]["NotificationPriority"];
-            /** Title */
-            title: string;
-            /** Message */
-            message: string;
-            /**
-             * Is Read
-             * @default false
-             */
-            is_read: boolean;
-            /**
-             * Is Dismissed
-             * @default false
-             */
-            is_dismissed: boolean;
-            /** Meta Data */
-            meta_data?: {
-                [key: string]: unknown;
-            } | null;
-        };
         /**
          * NotificationPriority
          * @enum {string}
@@ -7748,7 +7720,7 @@ export interface components {
          * @description Types of notifications
          * @enum {string}
          */
-        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "achievement_unlocked" | "radio_new_dweller" | "map_registration_failed";
+        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed";
         /** Objective */
         Objective: {
             /** Challenge */
@@ -8464,6 +8436,14 @@ export interface components {
             is_reward_ready: boolean;
             /** Started At */
             started_at?: string | null;
+            /** Return Started At */
+            return_started_at?: string | null;
+            /** Return Completes At */
+            return_completes_at?: string | null;
+            /** Completed At */
+            completed_at?: string | null;
+            /** Granted Rewards */
+            granted_rewards?: (components["schemas"]["CapsGranted"] | components["schemas"]["ItemGranted"] | components["schemas"]["DwellerGranted"] | components["schemas"]["ResourceGranted"] | components["schemas"]["ExperienceGranted"] | components["schemas"]["MedicationGranted"])[] | null;
             /** Quest Requirements */
             quest_requirements?: components["schemas"]["QuestRequirementRead"][] | null;
             /** Quest Rewards */
@@ -13106,39 +13086,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotificationRead"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_notification_api_v1_notifications__post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["NotificationCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NotificationRead"];
                 };
             };
             /** @description Validation Error */

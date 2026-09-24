@@ -20,7 +20,7 @@ from app.models.vault import Vault
 from app.models.weapon import Weapon
 from app.schemas.token import TokenPayload
 from app.services import access_service
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException
 
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/login",
@@ -61,7 +61,9 @@ async def get_current_user(
         )
         token_data = TokenPayload(**payload)
         user_id = UUID(token_data.sub)
-    except (JWTError, ValidationError) as e:
+    except (JWTError, ValidationError, ValueError, TypeError) as e:
+        # A signed token with a missing or non-UUID subject is a credential
+        # failure (403), not a server error.
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Could not validate credentials",
@@ -82,10 +84,10 @@ async def get_current_active_user(current_user: CurrentUser) -> User:
         The active user.
 
     Raises:
-        HTTPException: 400 if user is inactive.
+        AccessDeniedException: 403 if the user is inactive.
     """
     if not crud.user.is_active(current_user):
-        raise HTTPException(status_code=400, detail="Inactive user")
+        raise AccessDeniedException("Inactive user")
     return current_user
 
 
@@ -99,13 +101,10 @@ async def get_current_active_superuser(current_user: CurrentActiveUser) -> User:
         The superuser.
 
     Raises:
-        HTTPException: 400 if user lacks superuser privileges.
+        AccessDeniedException: 403 if the user lacks superuser privileges.
     """
     if not crud.user.is_superuser(current_user):
-        raise HTTPException(
-            status_code=400,
-            detail="The user doesn't have enough privileges",
-        )
+        raise AccessDeniedException("The user doesn't have enough privileges")
     return current_user
 
 

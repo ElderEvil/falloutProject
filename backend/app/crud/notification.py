@@ -1,6 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
+from sqlalchemy import func, update
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -49,15 +50,16 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
         return list(result.scalars().all())
 
     async def get_unread_count(self, db: AsyncSession, user_id: UUID) -> int:
-        """Count unread notifications"""
+        """Count visible unread notifications without loading the rows."""
         query = (
-            select(Notification)
+            select(func.count())
+            .select_from(Notification)
             .where(Notification.user_id == user_id)
             .where(~Notification.is_read)
             .where(~Notification.is_dismissed)
         )
         result = await db.execute(query)
-        return len(list(result.scalars().all()))
+        return int(result.scalar_one())
 
     async def mark_as_read(self, db: AsyncSession, notification_id: UUID, user_id: UUID) -> Notification | None:
         """Mark notification as read"""
@@ -72,20 +74,20 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
         return None
 
     async def mark_all_as_read(self, db: AsyncSession, user_id: UUID) -> int:
-        """Mark all notifications as read for a user"""
-        query = select(Notification).where(Notification.user_id == user_id).where(~Notification.is_read)
-        result = await db.execute(query)
-        notifications = result.scalars().all()
+        """Mark every visible unread notification as read; dismissed rows are left alone.
 
-        count = 0
-        for notification in notifications:
-            notification.is_read = True
-            notification.read_at = datetime.utcnow()
-            db.add(notification)
-            count += 1
-
+        Set-based so the sweep does not load and mutate every row, and scoped to
+        visible records so a dismissed notification's read state never flips.
+        """
+        result = await db.execute(
+            update(Notification)
+            .where(Notification.user_id == user_id)
+            .where(~Notification.is_read)
+            .where(~Notification.is_dismissed)
+            .values(is_read=True, read_at=datetime.utcnow())
+        )
         await db.commit()
-        return count
+        return result.rowcount or 0
 
     async def dismiss(self, db: AsyncSession, notification_id: UUID, user_id: UUID) -> Notification | None:
         """Dismiss (soft delete) a notification"""

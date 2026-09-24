@@ -12,6 +12,7 @@ from typing import Any, TypedDict
 class ExplorationStats(TypedDict, total=False):
     active_count: int
     events_generated: int
+    returning: int
     completed: int
     error: str
 
@@ -79,6 +80,11 @@ class ResourcesStats(TypedDict, total=False):
     error: str
 
 
+class RadioStats(TypedDict, total=False):
+    recruited: int
+    error: str
+
+
 class TickUpdates(TypedDict, total=False):
     resources: ResourcesStats
     explorations: ExplorationStats
@@ -89,6 +95,7 @@ class TickUpdates(TypedDict, total=False):
     happiness: dict[str, Any]
     breeding: BreedingStats
     events: EventsStats
+    radio: RadioStats
 
 
 class VaultTickResult(TypedDict, total=False):

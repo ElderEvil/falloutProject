@@ -11,6 +11,8 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import HappinessDashboard from '../components/HappinessDashboard.vue'
 import { happinessService } from '@/modules/dwellers/services/happinessService'
+import { setRadioMode } from '@/modules/radio/api/radio'
+import { Button } from '@/core/components/ui/button'
 import { Icon } from '@iconify/vue'
 
 const { isCollapsed } = useSidePanel()
@@ -83,8 +85,17 @@ const handleAssignIdle = () => {
   router.push(`/vault/${vaultId.value}/dwellers?filter=idle`)
 }
 
-const handleActivateRadio = () => {
-  router.push(`/vault/${vaultId.value}/radio`)
+const { run: runActivateRadio, isLoading: isActivatingRadio } = useAsyncAction(
+  async (currentVaultId: string, token: string) => {
+    await setRadioMode(currentVaultId, 'happiness')
+    await vaultStore.refreshVault(currentVaultId, token)
+  },
+  { context: 'Failed to activate radio mode' }
+)
+
+const handleActivateRadio = async () => {
+  if (!vaultId.value || !authStore.token || isActivatingRadio.value) return
+  await runActivateRadio(vaultId.value, authStore.token)
 }
 
 const handleViewLowHappiness = () => {
@@ -130,10 +141,14 @@ onMounted(() => {
           <Icon icon="mdi:alert-circle" class="error-icon" />
           <h3 class="error-title">Error Loading Data</h3>
           <p class="error-message">{{ errorMessage }}</p>
-          <button @click="loadData" class="retry-button">
+          <Button
+            variant="outline"
+            class="mt-1 border-2 border-theme-primary bg-transparent uppercase hover:shadow-glow-md"
+            @click="loadData"
+          >
             <Icon icon="mdi:refresh" class="mr-2" />
             Retry
-          </button>
+          </Button>
         </div>
 
         <!-- Dashboard -->
@@ -172,6 +187,7 @@ onMounted(() => {
   flex: 1;
   margin-left: 240px; /* Width of expanded side panel */
   transition: margin-left 0.3s ease;
+  font-weight: 700;
 }
 
 .main-content.collapsed {
@@ -230,28 +246,6 @@ onMounted(() => {
 
 .error-message {
   color: var(--color-danger);
-}
-
-.retry-button {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
-  padding: 0.75rem 1.5rem;
-  background: transparent;
-  border: 2px solid var(--color-theme-primary);
-  border-radius: 0.25rem;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-  font-weight: 600;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.retry-button:hover {
-  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.2);
-  box-shadow: 0 0 15px var(--color-theme-glow);
 }
 
 /* Dashboard */

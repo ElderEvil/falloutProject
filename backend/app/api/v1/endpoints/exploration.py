@@ -141,7 +141,7 @@ async def recall_dweller(
         exploration, rewards = await exploration_service.recall_exploration_with_data(db_session, exploration_id)
         return ExplorationCompleteResponse(
             exploration=exploration,
-            rewards_summary=rewards.model_dump(),
+            rewards_summary=rewards.model_dump() if rewards else None,
         )
     except ValueError as e:
         raise ValidationException(str(e)) from e
@@ -166,7 +166,7 @@ async def complete_exploration(
         exploration, rewards = await exploration_service.complete_exploration_with_data(db_session, exploration_id)
         return ExplorationCompleteResponse(
             exploration=exploration,
-            rewards_summary=rewards.model_dump(),
+            rewards_summary=rewards.model_dump() if rewards else None,
         )
     except ValueError as e:
         raise ValidationException(str(e)) from e

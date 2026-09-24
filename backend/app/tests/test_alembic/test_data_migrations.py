@@ -33,6 +33,12 @@ HAZARD_PARENT = "b7c8d9e0f1a2"
 HAZARD_REVISION = "c9d8e7f6a5b4"
 OUTFIT_PARENT = "f6e5d4c3b2a1"
 OUTFIT_REVISION = "b7c8d9e0f1a2"
+OUTFIT_RESIST_PARENT = "f0e1d2c3b4a5"
+OUTFIT_RESIST_REVISION = "e5f6a7b8c9d0"
+RELATIONSHIP_REPAIR_PARENT = "32bf7f844093"
+RELATIONSHIP_REPAIR_REVISION = "f0e1d2c3b4a5"
+QUEST_RETURN_PARENT = "d5e6f7a8b9c0"
+QUEST_COMPLETION_REVISION = "8dca68ba234c"
 
 #: Every dweller column that has no server default at this revision, plus the flags the
 #: assertions read. Plain literal (no interpolation) so the statement stays parameterised.
@@ -150,6 +156,40 @@ def _seed_dweller(harness: MigrationHarness, *, vault_id: str, first_name: str, 
         status="DEAD" if is_dead else "IDLE",
     )
     return dweller_id
+
+
+def _seed_relationship(
+    harness: MigrationHarness,
+    *,
+    dweller_1_id: str,
+    dweller_2_id: str,
+    relationship_type: str,
+    updated_at: datetime,
+    affinity: int = 50,
+) -> str:
+    """Insert a relationship row; the enum value is cast from a bound parameter."""
+    relationship_id = str(uuid.uuid4())
+    harness.execute(
+        "INSERT INTO relationship "
+        "(id, dweller_1_id, dweller_2_id, relationship_type, affinity, created_at, updated_at) "
+        "VALUES (:id, :dweller_1_id, :dweller_2_id, CAST(:relationship_type AS relationshiptypeenum), "
+        ":affinity, :updated_at, :updated_at)",
+        id=relationship_id,
+        dweller_1_id=dweller_1_id,
+        dweller_2_id=dweller_2_id,
+        relationship_type=relationship_type,
+        affinity=affinity,
+        updated_at=updated_at,
+    )
+    return relationship_id
+
+
+def _set_partner(harness: MigrationHarness, *, dweller_id: str, partner_id: str | None) -> None:
+    harness.execute(
+        "UPDATE dweller SET partner_id = :partner_id WHERE id = :dweller_id",
+        dweller_id=dweller_id,
+        partner_id=partner_id,
+    )
 
 
 class TestHazardConsolidationMigration:
@@ -270,3 +310,191 @@ class TestOutfitSpecialBackfillMigration:
 
         assert harness.scalar("SELECT strength FROM outfit WHERE id = :id", id=empty_id) == 3
         assert harness.scalar("SELECT strength FROM outfit WHERE id = :id", id=populated_id) == 9
+
+
+class TestOutfitHazardResistBackfillMigration:
+    """The hazard-resistance backfill fills only rows at each column's own default."""
+
+    def test_fills_defaulted_rows_and_leaves_populated_ones_alone(self, harness: MigrationHarness) -> None:
+        harness.upgrade(OUTFIT_RESIST_PARENT)
+        # Mixed case and padding prove the LOWER(TRIM(name)) match.
+        firefighter_id = str(uuid.uuid4())
+        legendary_id = str(uuid.uuid4())
+        hazmat_id = str(uuid.uuid4())
+        populated_id = str(uuid.uuid4())
+        harness.execute(
+            "INSERT INTO outfit (id, name, rarity, fire_resist, radiation_resist) "
+            "VALUES (:id, '  FIREFIGHTER SUIT  ', 'RARE', 0, NULL)",
+            id=firefighter_id,
+        )
+        harness.execute(
+            "INSERT INTO outfit (id, name, rarity, fire_resist, radiation_resist) "
+            "VALUES (:id, 'Firefighter Suit, Rad Helmet', 'LEGENDARY', 0, NULL)",
+            id=legendary_id,
+        )
+        harness.execute(
+            "INSERT INTO outfit (id, name, rarity, fire_resist, radiation_resist) "
+            "VALUES (:id, 'Hazmat suit', 'RARE', 0, NULL)",
+            id=hazmat_id,
+        )
+        # Already carries values under a backfilled name: both guards must skip it.
+        harness.execute(
+            "INSERT INTO outfit (id, name, rarity, fire_resist, radiation_resist) "
+            "VALUES (:id, 'Firefighter suit', 'RARE', 0.9, 0.5)",
+            id=populated_id,
+        )
+
+        harness.upgrade(OUTFIT_RESIST_REVISION)
+
+        assert harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=firefighter_id) == [
+            (0.5, 0.0)
+        ]
+        assert harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=legendary_id) == [
+            (0.75, 1.0)
+        ]
+        # Hazmat declares no fire resistance, so its fire column stays at the default.
+        assert harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=hazmat_id) == [
+            (0.0, 1.0)
+        ]
+        assert harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=populated_id) == [
+            (0.9, 0.5)
+        ]
+
+        harness.downgrade(OUTFIT_RESIST_PARENT)
+
+        # downgrade() is a documented no-op: enrichment is never reverted.
+        assert harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=firefighter_id) == [
+            (0.5, 0.0)
+        ]
+        assert harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=populated_id) == [
+            (0.9, 0.5)
+        ]
+
+
+class TestRepairDuplicateCommittedRelationshipsMigration:
+    """The repair keeps one committed link per dweller and syncs partner_id."""
+
+    def test_keeps_healthy_pair_demotes_duplicates_and_clears_stale_partner(self, harness: MigrationHarness) -> None:
+        harness.upgrade(RELATIONSHIP_REPAIR_PARENT)
+        vault_id = _seed_vault(harness, number=903)
+        dwellers = [
+            _seed_dweller(harness, vault_id=vault_id, first_name=f"Dweller{i}", is_dead=False) for i in range(7)
+        ]
+
+        # A healthy committed pair whose partner_id already points both ways.
+        _seed_relationship(
+            harness,
+            dweller_1_id=dwellers[0],
+            dweller_2_id=dwellers[1],
+            relationship_type="MARRIED",
+            updated_at=datetime(2026, 1, 1),
+        )
+        _set_partner(harness, dweller_id=dwellers[0], partner_id=dwellers[1])
+        _set_partner(harness, dweller_id=dwellers[1], partner_id=dwellers[0])
+
+        # A star: dwellers[2] is committed to both [3] and [4]. The newer link wins.
+        star_kept = _seed_relationship(
+            harness,
+            dweller_1_id=dwellers[2],
+            dweller_2_id=dwellers[3],
+            relationship_type="PARTNER",
+            updated_at=datetime(2026, 3, 1),
+        )
+        star_demoted = _seed_relationship(
+            harness,
+            dweller_1_id=dwellers[2],
+            dweller_2_id=dwellers[4],
+            relationship_type="PARTNER",
+            updated_at=datetime(2026, 2, 1),
+        )
+
+        # A stale partner_id with no committed link at all.
+        _set_partner(harness, dweller_id=dwellers[5], partner_id=dwellers[6])
+
+        harness.upgrade(RELATIONSHIP_REPAIR_REVISION)
+
+        def rel_type(relationship_id: str) -> str:
+            return str(harness.scalar("SELECT relationship_type FROM relationship WHERE id = :id", id=relationship_id))
+
+        # One side of the star is kept, the duplicate is demoted to EX.
+        assert rel_type(star_kept) == "PARTNER"
+        assert rel_type(star_demoted) == "EX"
+        assert (
+            harness.scalar(
+                "SELECT count(*) FROM relationship WHERE dweller_1_id = :d AND relationship_type = 'MARRIED'",
+                d=dwellers[0],
+            )
+            == 1
+        )
+        assert harness.scalar("SELECT partner_id::text FROM dweller WHERE id = :id", id=dwellers[0]) == dwellers[1]
+        assert harness.scalar("SELECT partner_id::text FROM dweller WHERE id = :id", id=dwellers[1]) == dwellers[0]
+
+        # partner_id is synced to the surviving committed link, cleared for the demoted side.
+        assert harness.scalar("SELECT partner_id::text FROM dweller WHERE id = :id", id=dwellers[2]) == dwellers[3]
+        assert harness.scalar("SELECT partner_id::text FROM dweller WHERE id = :id", id=dwellers[3]) == dwellers[2]
+        assert harness.scalar("SELECT partner_id FROM dweller WHERE id = :id", id=dwellers[4]) is None
+
+        # The stale partner_id is cleared.
+        assert harness.scalar("SELECT partner_id FROM dweller WHERE id = :id", id=dwellers[5]) is None
+
+        # The invariant holds: nobody keeps more than one committed link.
+        assert (
+            harness.scalar(
+                "SELECT count(*) FROM ("
+                "SELECT dweller_id FROM ("
+                "SELECT dweller_1_id AS dweller_id FROM relationship WHERE relationship_type IN ('PARTNER', 'MARRIED') "
+                "UNION ALL "
+                "SELECT dweller_2_id AS dweller_id FROM relationship WHERE relationship_type IN ('PARTNER', 'MARRIED')"
+                ") sides GROUP BY dweller_id HAVING count(*) > 1"
+                ") duplicated"
+            )
+            == 0
+        )
+
+        harness.downgrade(RELATIONSHIP_REPAIR_PARENT)
+
+        # downgrade() is a documented no-op: demoted rows stay demoted.
+        assert rel_type(star_demoted) == "EX"
+
+
+class TestQuestCompletionDetailsMigration:
+    """The completion-detail columns are nullable and preserve legacy NULLs."""
+
+    def test_adds_nullable_columns_and_downgrade_drops_them(self, harness: MigrationHarness) -> None:
+        harness.upgrade(QUEST_RETURN_PARENT)
+        vault_id = _seed_vault(harness, number=904)
+        quest_id = str(uuid.uuid4())
+        harness.execute(
+            "INSERT INTO quest (id, title, short_description, long_description, requirements, rewards, "
+            "quest_type, chain_order, created_at, updated_at) "
+            "VALUES (:id, 'Legacy Quest', 'Legacy', 'A pre-migration quest.', 'None', 'None', "
+            "CAST(:quest_type AS questtype), 0, now(), now())",
+            id=quest_id,
+            quest_type="SIDE",
+        )
+        harness.execute(
+            "INSERT INTO vaultquestcompletionlink (vault_id, quest_id, is_completed, is_reward_ready, is_visible) "
+            "VALUES (:vault_id, :quest_id, true, true, true)",
+            vault_id=vault_id,
+            quest_id=quest_id,
+        )
+
+        harness.upgrade(QUEST_COMPLETION_REVISION)
+
+        # NULL is the correct state for pre-existing rows: completed_at is not
+        # derivable from return_completes_at and granted rewards were never stored.
+        assert harness.fetch(
+            "SELECT completed_at, granted_rewards FROM vaultquestcompletionlink WHERE quest_id = :quest_id",
+            quest_id=quest_id,
+        ) == [(None, None)]
+
+        harness.downgrade(QUEST_RETURN_PARENT)
+
+        assert (
+            harness.scalar(
+                "SELECT count(*) FROM information_schema.columns "
+                "WHERE table_name = 'vaultquestcompletionlink' "
+                "AND column_name IN ('completed_at', 'granted_rewards')"
+            )
+            == 0
+        )

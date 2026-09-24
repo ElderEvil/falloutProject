@@ -116,3 +116,42 @@ def render_bio(
     pool = _RACE_VISITED_TEMPLATES[race]
     template = rng.choice(pool) if len(pool) > 1 else pool[0]
     return template.format(origin=origin, visited=_join_visited(visited))
+
+
+# Secondhand, unresolved claims about the Quiet Zone and its "anomalies": never
+# confirmed, always deniable. Appended to a small share of generated bios.
+ZONE_RUMORS: tuple[str, ...] = (
+    (
+        "I've heard the scavengers talk about the Quiet Zone, a fenced industrial site where the air "
+        "supposedly bends after a radstorm. The engineers say the scavengers drink too much."
+    ),
+    "I carry a pouch of rusty bolts for testing bad ground. I've never needed them, which proves nothing.",
+    (
+        "A scout I knew swore she saw a fireball hovering over the Quiet Zone. Her old caravan partner "
+        "says it was a gas leak and three bottles of vodka."
+    ),
+    "I keep a map with one spot crossed out and rewritten: DON'T GO BACK. Nobody will tell me what's there.",
+    (
+        "They say some ruins near the old exclusion fence grow valuables the way forests grow mushrooms. "
+        "I've only found scrap so far."
+    ),
+    (
+        "A masked guide led me through a fence line once, then vanished before I could pay. The rest of "
+        "the party says I imagined him."
+    ),
+    (
+        "My detector clicks near radiation, loose wiring, and occasionally nothing at all. It's useless. "
+        "I trust it anyway."
+    ),
+    (
+        "My cousin sold a warm stone from past the perimeter for two hundred caps. His buyer argued about "
+        "the price for three days."
+    ),
+)
+
+
+def maybe_zone_rumor(rng: random.Random | ModuleType, chance: float) -> str | None:
+    """Return one unresolved Quiet Zone rumour, or None when the chance roll misses."""
+    if chance <= 0 or rng.random() >= chance:
+        return None
+    return rng.choice(ZONE_RUMORS)

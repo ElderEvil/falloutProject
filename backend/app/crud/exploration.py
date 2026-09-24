@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
-from app.models.exploration import Exploration, ExplorationStatus
+from app.models.exploration import IN_PROGRESS_STATUSES, Exploration
 from app.schemas.exploration import ExplorationCreate, ExplorationUpdate
 
 
@@ -19,22 +19,33 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         vault_id: UUID4,
         active_only: bool = False,
     ) -> list[Exploration]:
-        """Get all explorations for a vault, optionally filtering to active only.
+        """Get all explorations for a vault, optionally filtering to ongoing only.
 
         Args:
             db_session: Database session.
             vault_id: Vault ID to filter by.
-            active_only: If True, only return explorations with ACTIVE status.
+            active_only: If True, only return explorations that are still in progress
+                (exploring or on the return leg).
         """
         query = select(Exploration).where(Exploration.vault_id == vault_id)
         if active_only:
-            query = query.where(Exploration.status == ExplorationStatus.ACTIVE)
+            query = query.where(Exploration.status.in_(IN_PROGRESS_STATUSES))
         result = await db_session.execute(query)
         return list(result.scalars().all())
 
     async def get_for_update(self, db_session: AsyncSession, exploration_id: UUID4) -> Exploration | None:
-        """One exploration locked FOR UPDATE (reward claiming serialization)."""
-        result = await db_session.execute(select(Exploration).where(Exploration.id == exploration_id).with_for_update())
+        """One exploration locked FOR UPDATE (reward claiming serialization).
+
+        ``populate_existing`` refreshes the instance even when the row is already in
+        the session's identity map, so a tick that loaded the run earlier revalidates
+        against the current committed state instead of a stale one.
+        """
+        result = await db_session.execute(
+            select(Exploration)
+            .where(Exploration.id == exploration_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         return result.scalar_one_or_none()
 
     async def get_by_dweller(
@@ -43,11 +54,11 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         *,
         dweller_id: UUID4,
     ) -> Exploration | None:
-        """Get active exploration for a dweller."""
+        """Get the in-progress exploration for a dweller (exploring or returning)."""
         result = await db_session.execute(
             select(Exploration)
             .where(Exploration.dweller_id == dweller_id)
-            .where(Exploration.status == ExplorationStatus.ACTIVE)
+            .where(Exploration.status.in_(IN_PROGRESS_STATUSES))
         )
         return result.scalar_one_or_none()
 
@@ -55,36 +66,36 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         self,
         db_session: AsyncSession,
     ) -> list[Exploration]:
-        """Get all active explorations across all vaults."""
-        result = await db_session.execute(select(Exploration).where(Exploration.status == ExplorationStatus.ACTIVE))
+        """Get all in-progress explorations across all vaults."""
+        result = await db_session.execute(select(Exploration).where(Exploration.status.in_(IN_PROGRESS_STATUSES)))
         return list(result.scalars().all())
 
-    async def complete_exploration(
+    async def start_return(
         self,
         db_session: AsyncSession,
         *,
         exploration_id: UUID4,
+        recalled: bool = False,
     ) -> Exploration:
-        """Mark an exploration as completed."""
+        """Move an exploration onto its return leg."""
         exploration = await self.get(db_session, exploration_id)
-        exploration.complete()
+        exploration.start_return(recalled=recalled)
         db_session.add(exploration)
         await db_session.commit()
         await db_session.refresh(exploration)
         return exploration
 
-    async def recall_exploration(
+    async def finalize_return(
         self,
         db_session: AsyncSession,
         *,
         exploration_id: UUID4,
     ) -> Exploration:
-        """Mark an exploration as recalled (early return)."""
+        """Stage an arrived exploration's terminal outcome for the caller's transaction."""
         exploration = await self.get(db_session, exploration_id)
-        exploration.recall()
+        exploration.finalize_return()
         db_session.add(exploration)
-        await db_session.commit()
-        await db_session.refresh(exploration)
+        await db_session.flush()
         return exploration
 
     async def add_event(

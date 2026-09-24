@@ -5,7 +5,9 @@ from uuid import UUID
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.notification_preferences import should_deliver_notification
 from app.crud.notification import notification as notification_crud
+from app.crud.user_profile import profile_crud
 from app.models.notification import NotificationCreate, NotificationPriority, NotificationType
 from app.services.stream_manager import sse_manager
 from app.services.websocket_manager import manager
@@ -44,6 +46,11 @@ class NotificationService:
         commit: bool = True,
     ):
         """Create a notification and send it via WebSocket."""
+        profile = await profile_crud.get_by_user_id(db, user_id)
+        if not should_deliver_notification(profile.preferences if profile else None, notification_type):
+            logger.info("Suppressed %s notification for user %s by preference", notification_type, user_id)
+            return None
+
         vault_prefix = await NotificationService._get_vault_prefix(db, vault_id)
         prefixed_message = f"{vault_prefix}{message}"
 
@@ -75,6 +82,8 @@ class NotificationService:
                 "priority": notification.priority,
                 "title": notification.title,
                 "message": notification.message,
+                "vault_id": str(notification.vault_id) if notification.vault_id else None,
+                "from_dweller_id": str(notification.from_dweller_id) if notification.from_dweller_id else None,
                 "meta_data": notification.meta_data,
                 "created_at": notification.created_at.isoformat(),
             },
@@ -351,6 +360,26 @@ class NotificationService:
         )
 
     @staticmethod
+    async def notify_radio_auto_switched_to_happiness(
+        db: AsyncSession,
+        user_id: UUID,
+        vault_id: UUID,
+        population: int,
+        population_max: int,
+    ):
+        """Notify the overseer that a full vault redirected its radio broadcast."""
+        return await NotificationService.create_and_send(
+            db,
+            user_id=user_id,
+            vault_id=vault_id,
+            notification_type=NotificationType.RADIO_AUTO_SWITCHED_TO_HAPPINESS,
+            priority=NotificationPriority.NORMAL,
+            title="Radio Switched to Happiness",
+            message="Vault population limit reached. Radio Studio has switched to happiness mode.",
+            meta_data={"population": population, "population_max": population_max},
+        )
+
+    @staticmethod
     async def notify_dweller_died(
         db: AsyncSession,
         user_id: UUID,
@@ -458,6 +487,34 @@ class NotificationService:
             title="Quest Completed!",
             message=f"'{quest_title}' completed! Rewards: {rewards}",
             meta_data=meta_data,
+        )
+
+    @staticmethod
+    async def notify_quest_party_returned(
+        db: AsyncSession,
+        user_id: UUID,
+        vault_id: UUID,
+        quest_id: UUID,
+        quest_title: str,
+        meta_data: dict[str, Any] | None = None,
+    ):
+        """Notify user that a quest party has returned and rewards are claimable."""
+        return await NotificationService.create_and_send(
+            db,
+            user_id=user_id,
+            vault_id=vault_id,
+            notification_type=NotificationType.QUEST_COMPLETE,
+            priority=NotificationPriority.HIGH,
+            title="Quest Party Returned",
+            message=f"'{quest_title}' party has returned! Rewards are ready to claim.",
+            meta_data={
+                "quest_id": str(quest_id),
+                "vault_id": str(vault_id),
+                "quest_title": quest_title,
+                "phase": "returned",
+                "ready_to_claim": True,
+                **(meta_data or {}),
+            },
         )
 
     @staticmethod

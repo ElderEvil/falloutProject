@@ -123,7 +123,7 @@ describe('ObjectivesView starter arc', () => {
     expect(wrapper.text()).toContain('Assign dwellers to Power')
     expect(wrapper.text()).toContain('Open the Power Generator and assign dwellers.')
     expect(wrapper.text()).not.toContain('Collect 150 Power')
-    expect(wrapper.find('.utabs').exists()).toBe(false)
+    expect(wrapper.findAll('[role="tab"]').length).toBe(0)
   })
 
   it('renders the tabbed grid when no starter step is incomplete', async () => {
@@ -145,7 +145,7 @@ describe('ObjectivesView starter arc', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.find('.next-step-hero').exists()).toBe(false)
-    expect(wrapper.find('.utabs').exists()).toBe(true)
+    expect(wrapper.findAll('[role="tab"]').length).toBe(4)
     expect(wrapper.text()).toContain('Collect 100 caps')
   })
 

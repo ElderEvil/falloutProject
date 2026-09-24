@@ -4,7 +4,6 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 // Module routes
 import { authRoutes } from '@/modules/auth/routes'
 import { vaultRoutes } from '@/modules/vault/routes'
-import { radioRoutes } from '@/modules/radio/routes'
 import { profileRoutes } from '@/modules/profile/routes'
 import { chatRoutes } from '@/modules/chat/routes'
 import { explorationRoutes } from '@/modules/exploration/routes'
@@ -36,7 +35,6 @@ const router = createRouter({
     // Progression module routes (training, quests, objectives)
     ...progressionRoutes,
     // Radio module routes
-    ...radioRoutes,
     // Social module routes (relationships)
     ...socialRoutes,
     // Profile module routes
@@ -45,6 +43,17 @@ const router = createRouter({
     ...aiSettingsRoutes,
     // Auth module routes
     ...authRoutes,
+    // Dev-only UI catalog — compiled out of production builds (import.meta.env.DEV
+    // is statically replaced with false by Vite), never linked from any nav.
+    ...(import.meta.env.DEV
+      ? [
+          {
+            path: '/dev/ui-catalog',
+            name: 'ui-catalog',
+            component: () => import('@/core/views/UiCatalogView.vue'),
+          },
+        ]
+      : []),
     {
       path: '/about',
       name: 'about',

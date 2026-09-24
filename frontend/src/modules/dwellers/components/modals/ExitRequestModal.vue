@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import UModal from '@/core/components/ui/UModal.vue'
-import UButton from '@/core/components/ui/UButton.vue'
+import { Button } from '@/core/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useExitRequestStore } from '../../stores/exitRequests'
 
@@ -50,34 +50,44 @@ const close = () => {
 </script>
 
 <template>
-  <UModal :model-value="isOpen" title="Someone Wants Out" size="md" @close="close">
-    <div v-if="current" class="exit-request-modal">
-      <div class="subject">
-        <Icon icon="mdi:exit-run" class="subject-icon" />
-        <div class="subject-details">
-          <span class="subject-name">{{ current.dweller_name }}</span>
-          <span class="subject-meta">
-            Level {{ current.level }} · Happiness {{ current.happiness }}/100
-          </span>
+  <Dialog :open="isOpen" @update:open="(open) => { if (!open) close() }">
+    <DialogContent
+      class="flex max-h-[65vh] w-full max-w-md flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-md"
+    >
+      <DialogHeader
+        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
+      >
+        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">Someone Wants Out</DialogTitle>
+      </DialogHeader>
+
+      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+        <div v-if="current" class="exit-request-modal">
+          <div class="subject">
+            <Icon icon="mdi:exit-run" class="subject-icon" />
+            <div class="subject-details">
+              <span class="subject-name">{{ current.dweller_name }}</span>
+              <span class="subject-meta">
+                Level {{ current.level }} · Happiness {{ current.happiness }}/100
+              </span>
+            </div>
+          </div>
+
+          <p class="description">
+            They have asked to go outside. The vault can refuse them, but it cannot keep them forever —
+            and if you let them go, they are not coming back.
+          </p>
+
+          <div class="modal-actions">
+            <Button variant="secondary" :disabled="isDeciding" @click="close"> Decide Later </Button>
+            <Button variant="secondary" :disabled="isDeciding" @click="decide(false)"> Refuse </Button>
+            <Button variant="destructive" :disabled="isDeciding" @click="decide(true)">
+              Let Them Go
+            </Button>
+          </div>
         </div>
       </div>
-
-      <p class="description">
-        They have asked to go outside. The vault can refuse them, but it cannot keep them forever —
-        and if you let them go, they are not coming back.
-      </p>
-
-      <div class="modal-actions">
-        <UButton variant="secondary" :disabled="isDeciding" @click="close">
-          Decide Later
-        </UButton>
-        <UButton variant="secondary" :disabled="isDeciding" @click="decide(false)"> Refuse </UButton>
-        <UButton variant="danger" :disabled="isDeciding" @click="decide(true)">
-          Let Them Go
-        </UButton>
-      </div>
-    </div>
-  </UModal>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <style scoped>

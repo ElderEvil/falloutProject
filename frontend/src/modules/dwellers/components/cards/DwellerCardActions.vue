@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
+import { Button } from '@/core/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import { useTrainingStore } from '@/modules/progression/stores/training'
+import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { isMature } from '../../models/dweller'
 import type { components } from '@/core/types/api.generated'
 
@@ -26,11 +27,16 @@ const emit = defineEmits<{
 }>()
 
 const trainingStore = useTrainingStore()
+const explorationStore = useExplorationStore()
 
 const isTraining = computed(() => trainingStore.isDwellerTraining(props.dweller.id))
 
 const isMatureDweller = computed(() => isMature(props.dweller))
 const isExploring = computed(() => props.dweller.status === 'exploring')
+const exploration = computed(() => explorationStore.getExplorationByDwellerId(props.dweller.id))
+/** Recall only applies while exploring; the dweller stays `exploring` on the return leg. */
+const isReturning = computed(() => exploration.value?.status === 'returning')
+const canRecall = computed(() => exploration.value?.status === 'active')
 /** Away dwellers are out of the vault: room, training and wasteland actions do not apply. */
 const isAway = computed(
   () => props.dweller.status === 'exploring' || props.dweller.status === 'questing'
@@ -45,81 +51,89 @@ const exploreTooltip = computed(() =>
 
 <template>
   <div class="actions-container">
-    <UButton variant="primary" size="md" block @click="emit('chat')">
+    <Button variant="default" class="w-full" @click="emit('chat')">
       <Icon icon="mdi:message-text" class="h-5 w-5 mr-2" />
       Chat
-    </UButton>
+    </Button>
 
-    <UTooltip
-      v-if="dweller.room === null && !isGone"
-      :text="isMatureDweller ? 'Assign to the best matching room' : 'Assign as an apprentice in a production room'"
-    >
-      <UButton
-        variant="secondary"
-        size="md"
-        block
-        @click="emit('assign')"
-        :disabled="loading"
-      >
-        <Icon
-          :icon="isMatureDweller ? 'mdi:office-building' : 'mdi:school-outline'"
-          class="h-5 w-5 mr-2"
-        />
-        {{ isMatureDweller ? 'Assign' : 'Apprentice' }}
-      </UButton>
-    </UTooltip>
+    <TooltipProvider :delay-duration="200">
+      <Tooltip v-if="dweller.room === null && !isGone">
+        <TooltipTrigger as-child>
+          <Button variant="outline" class="w-full" @click="emit('assign')" :disabled="loading">
+            <Icon
+              :icon="isMatureDweller ? 'mdi:office-building' : 'mdi:school-outline'"
+              class="h-5 w-5 mr-2"
+            />
+            {{ isMatureDweller ? 'Assign' : 'Apprentice' }}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top">{{
+          isMatureDweller
+            ? 'Assign to the best matching room'
+            : 'Assign as an apprentice in a production room'
+        }}</TooltipContent>
+      </Tooltip>
 
-    <UTooltip v-else-if="!isGone" text="Unassign from the current room">
-      <UButton
-        variant="secondary"
-        size="md"
-        block
-        @click="emit('unassign')"
-        :disabled="loading"
-      >
-        <Icon icon="mdi:close-circle" class="h-5 w-5 mr-2" />
-        Unassign
-      </UButton>
-    </UTooltip>
+      <Tooltip v-else-if="!isGone">
+        <TooltipTrigger as-child>
+          <Button variant="outline" class="w-full" @click="emit('unassign')" :disabled="loading">
+            <Icon icon="mdi:close-circle" class="h-5 w-5 mr-2" />
+            Unassign
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top">Unassign from the current room</TooltipContent>
+      </Tooltip>
 
-    <UTooltip v-if="!isGone" :text="exploreTooltip">
-      <UButton
-        variant="secondary"
-        size="md"
-        block
-        @click="emit('send-wasteland')"
-        :disabled="loading || !isMatureDweller"
-      >
-        <Icon icon="mdi:map-marker-radius" class="h-5 w-5 mr-2" />
-        Wasteland
-      </UButton>
-    </UTooltip>
+      <Tooltip v-if="!isGone">
+        <TooltipTrigger as-child>
+          <Button
+            variant="outline"
+            class="w-full"
+            @click="emit('send-wasteland')"
+            :disabled="loading || !isMatureDweller"
+          >
+            <Icon icon="mdi:map-marker-radius" class="h-5 w-5 mr-2" />
+            Wasteland
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top">{{ exploreTooltip }}</TooltipContent>
+      </Tooltip>
 
-    <UTooltip v-if="isExploring" text="Recall from the wasteland">
-      <UButton
-        variant="secondary"
-        size="md"
-        block
-        @click="emit('recall')"
-        :disabled="loading"
-      >
-        <Icon icon="mdi:arrow-u-left-top" class="h-5 w-5 mr-2" />
-        Recall
-      </UButton>
-    </UTooltip>
+      <Tooltip v-if="isReturning">
+        <TooltipTrigger as-child>
+          <Button variant="outline" class="w-full" disabled>
+            <Icon icon="mdi:home-import-outline" class="h-5 w-5 mr-2" />
+            Returning
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top">Heading home from the wasteland</TooltipContent>
+      </Tooltip>
 
-    <UTooltip v-if="!isGone" text="Train SPECIAL stats to improve dweller abilities">
-      <UButton
-        variant="secondary"
-        size="md"
-        block
-        @click="emit('train')"
-        :disabled="loading || isTraining"
-      >
-        <Icon icon="mdi:school" class="h-5 w-5 mr-2" />
-        {{ isTraining ? 'Training…' : 'Train' }}
-      </UButton>
-    </UTooltip>
+      <Tooltip v-else-if="canRecall">
+        <TooltipTrigger as-child>
+          <Button variant="outline" class="w-full" @click="emit('recall')" :disabled="loading">
+            <Icon icon="mdi:arrow-u-left-top" class="h-5 w-5 mr-2" />
+            Recall
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top">Recall from the wasteland</TooltipContent>
+      </Tooltip>
+
+      <Tooltip v-if="!isGone">
+        <TooltipTrigger as-child>
+          <Button
+            variant="outline"
+            class="w-full"
+            @click="emit('train')"
+            :disabled="loading || isTraining"
+          >
+            <Icon icon="mdi:school" class="h-5 w-5 mr-2" />
+            {{ isTraining ? 'Training…' : 'Train' }}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top">Train SPECIAL stats to improve dweller abilities</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   </div>
 </template>
 

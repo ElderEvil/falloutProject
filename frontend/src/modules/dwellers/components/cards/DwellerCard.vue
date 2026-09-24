@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
+import { Button } from '@/core/components/ui/button'
+import { Progress } from '@/core/components/ui/progress'
+import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
 import XPProgressBar from '../stats/XPProgressBar.vue'
 import HappinessModifierPopover from './HappinessModifierPopover.vue'
 import DwellerCardActions from './DwellerCardActions.vue'
-import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { components } from '@/core/types/api.generated'
 import { getStaticImageUrl } from '@/core/utils/image'
 import {
@@ -132,9 +132,8 @@ const canUseRadaway = computed(
           >
           <Icon
             :icon="generatingPortrait ? 'mdi:loading' : 'mdi:account-circle'"
-            class="placeholder-icon"
+            class="placeholder-icon text-theme-primary opacity-30"
             :class="{ 'animate-spin': generatingPortrait }"
-            style="color: var(--color-theme-primary); opacity: 0.3"
           />
             <span class="placeholder-hint">{{
               generatingPortrait ? 'Generating portrait…' : 'Generate portrait'
@@ -150,10 +149,11 @@ const canUseRadaway = computed(
             getHealthDisplay(dweller.health, dweller.max_health, dweller.radiation)
           }}</span>
         </div>
-        <UProgressBar
-          :model-value="healthPercentage"
+        <HealthRadiationBar
+          :value="healthPercentage"
           :radiation="radiationPercentage"
           :height="10"
+          glow
         />
 
         <div class="stat-row happiness-row">
@@ -165,7 +165,11 @@ const canUseRadaway = computed(
             <HappinessModifierPopover :dweller-id="dweller.id" />
           </div>
         </div>
-        <UProgressBar :model-value="dweller.happiness" :height="10" :color="happinessColor" />
+        <Progress
+          class="h-2.5"
+          :fill="happinessColor"
+          :model-value="dweller.happiness"
+        />
 
         <XPProgressBar :level="dweller.level" :current-x-p="dweller.experience" />
 
@@ -177,28 +181,29 @@ const canUseRadaway = computed(
               {{ dweller.stimpack || 0 }}
             </span>
             <div class="supply-actions">
-              <UButton
+              <Button
                 v-if="canUseStimpak"
-                variant="secondary"
+                variant="outline"
                 size="xs"
                 aria-label="Use Stimpack"
                 title="Use one Stimpak (heals dweller)"
-                :loading="usingStimpak"
+                :disabled="usingStimpak"
                 @click="emit('use-stimpak')"
               >
+                <Icon v-if="usingStimpak" icon="mdi:loading" class="mr-1 animate-spin" />
                 Use
-              </UButton>
-              <UButton
+              </Button>
+              <Button
                 v-if="canIssueStimpack"
-                variant="ghost"
+                variant="outline"
                 size="xs"
                 aria-label="Issue Stimpack from vault"
                 :title="`Issue one Stimpak from vault (${availableStimpaksCount} available)`"
-                :loading="issuingMedicalSupply"
+                :disabled="issuingMedicalSupply"
                 @click="emit('issue-medical-supply', 'stimpack')"
               >
                 <Icon icon="mdi:plus" class="supply-issue-icon" />
-              </UButton>
+              </Button>
             </div>
           </div>
 
@@ -209,28 +214,29 @@ const canUseRadaway = computed(
               {{ dweller.radaway || 0 }}
             </span>
             <div class="supply-actions">
-              <UButton
+              <Button
                 v-if="canUseRadaway"
-                variant="secondary"
+                variant="outline"
                 size="xs"
                 aria-label="Use RadAway"
                 title="Use one RadAway (reduces radiation)"
-                :loading="usingRadAway"
+                :disabled="usingRadAway"
                 @click="emit('use-radaway')"
               >
+                <Icon v-if="usingRadAway" icon="mdi:loading" class="mr-1 animate-spin" />
                 Use
-              </UButton>
-              <UButton
+              </Button>
+              <Button
                 v-if="canIssueRadaway"
-                variant="ghost"
+                variant="outline"
                 size="xs"
                 aria-label="Issue RadAway from vault"
                 :title="`Issue one RadAway from vault (${availableRadawaysCount} available)`"
-                :loading="issuingMedicalSupply"
+                :disabled="issuingMedicalSupply"
                 @click="emit('issue-medical-supply', 'radaway')"
               >
                 <Icon icon="mdi:plus" class="supply-issue-icon" />
-              </UButton>
+              </Button>
             </div>
           </div>
         </div>

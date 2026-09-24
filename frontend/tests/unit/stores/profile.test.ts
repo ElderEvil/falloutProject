@@ -323,6 +323,23 @@ describe('Profile Store', () => {
   })
 
   describe('savePreferences Action', () => {
+    it('persists notification category opt-outs in the versioned preference key', async () => {
+      const store = useProfileStore()
+      store.profile = mockProfile
+      const updatedProfile = {
+        ...mockProfile,
+        preferences: { theme: 'dark', notifications: { version: 1, disabled_categories: ['advancement'] } },
+      }
+      vi.mocked(axios.put).mockResolvedValueOnce({ data: updatedProfile })
+
+      await store.savePreferences({ notifications: { version: 1, disabled_categories: ['advancement'] } })
+
+      expect(axios.put).toHaveBeenCalledWith('/api/v1/users/me/profile', {
+        preferences: updatedProfile.preferences,
+      })
+      expect(store.profile).toEqual(updatedProfile)
+    })
+
     it('merges the patch into the latest confirmed preferences', async () => {
       const store = useProfileStore()
       store.profile = { ...mockProfile, preferences: { theme: 'fnv', sound: { muted: true } } }

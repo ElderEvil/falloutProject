@@ -32,7 +32,7 @@ from sqlalchemy.pool import NullPool
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
-from app.db.session import task_session
+from app.db.session import async_session_maker, task_session
 
 
 class TestTaskSessionExec:
@@ -64,3 +64,22 @@ class TestTaskSessionExec:
                 )
         finally:
             await engine.dispose()
+
+    async def test_binds_and_resets_the_objective_session_maker(self) -> None:
+        """Handlers fired during a tick open sessions on this run's engine.
+
+        The objective session maker is bound for the duration of the task session
+        and restored afterwards, so an event handler can never reuse a previous
+        event loop's engine (the InterfaceError collision in ``base.py``).
+        """
+        from app.services.progression.objectives.evaluators import current_session_maker
+
+        before = current_session_maker.get()
+
+        async with task_session() as session:
+            bound = current_session_maker.get()
+            assert bound is not None
+            assert bound is not async_session_maker, "handler would reuse the module-global pool"
+            assert bound.kw["bind"].sync_engine is session.get_bind()
+
+        assert current_session_maker.get() is before

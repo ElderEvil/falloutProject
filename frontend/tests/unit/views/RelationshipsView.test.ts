@@ -4,6 +4,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import RelationshipsView from '@/modules/social/views/RelationshipsView.vue'
 import { useRelationshipStore } from '@/modules/social/stores/relationship'
+import { usePregnancyStore } from '@/modules/social/stores/pregnancy'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
@@ -13,15 +14,6 @@ vi.mock('@iconify/vue', () => ({
     name: 'Icon',
     template: '<span class="icon-mock" :data-icon="icon"></span>',
     props: ['icon'],
-  },
-}))
-
-// Mock UButton
-vi.mock('@/core/components/ui/UButton.vue', () => ({
-  default: {
-    name: 'UButton',
-    template: '<button class="u-button-mock" @click="$emit(\'click\')"><slot /></button>',
-    props: ['variant', 'size', 'disabled'],
   },
 }))
 
@@ -63,23 +55,25 @@ vi.mock('@/core/composables/useToast', () => ({
 describe('RelationshipsView', () => {
   let router: any
   let relationshipStore: any
+  let pregnancyStore: any
   let dwellerStore: any
   let authStore: any
 
   beforeEach(async () => {
     setActivePinia(createPinia())
     relationshipStore = useRelationshipStore()
+    pregnancyStore = usePregnancyStore()
     dwellerStore = useDwellerStore().filter
     authStore = useAuthStore()
 
     // Mock store methods
     vi.spyOn(relationshipStore, 'fetchVaultRelationships').mockResolvedValue(undefined)
-    vi.spyOn(relationshipStore, 'fetchVaultPregnancies').mockResolvedValue(undefined)
+    vi.spyOn(pregnancyStore, 'fetchVaultPregnancies').mockResolvedValue(undefined)
     vi.spyOn(dwellerStore, 'fetchAllDwellers').mockResolvedValue(undefined)
 
     // Set up mock data
     relationshipStore.relationships = []
-    relationshipStore.pregnancies = []
+    pregnancyStore.pregnancies = []
     relationshipStore.token = 'mock-token'
     dwellerStore.allDwellers = []
     authStore.user = { is_superuser: false } as any
@@ -159,11 +153,11 @@ describe('RelationshipsView', () => {
 
       await flushPromises()
 
-      const tabs = wrapper.findAll('.utabs-button')
+      const tabs = wrapper.findAll('[role="tab"]')
       expect(tabs.length).toBe(4)
 
       // Check that first tab is active by default
-      expect(tabs[0].classes()).toContain('active')
+      expect(tabs[0].attributes('aria-selected')).toBe('true')
     })
   })
 
@@ -177,12 +171,12 @@ describe('RelationshipsView', () => {
 
       await flushPromises()
 
-      const tabs = wrapper.findAll('.utabs-button')
-      await tabs[1].trigger('click')
+      const tabs = wrapper.findAll('[role="tab"]')
+      await tabs[1].trigger('mousedown')
 
       await flushPromises()
 
-      expect(tabs[1].classes()).toContain('active')
+      expect(tabs[1].attributes('aria-selected')).toBe('true')
       expect(wrapper.text()).toContain('Partner Couples')
     })
 
@@ -195,12 +189,12 @@ describe('RelationshipsView', () => {
 
       await flushPromises()
 
-      const tabs = wrapper.findAll('.utabs-button')
-      await tabs[2].trigger('click')
+      const tabs = wrapper.findAll('[role="tab"]')
+      await tabs[2].trigger('mousedown')
 
       await flushPromises()
 
-      expect(tabs[2].classes()).toContain('active')
+      expect(tabs[2].attributes('aria-selected')).toBe('true')
       expect(wrapper.text()).toContain('Active Pregnancies')
     })
 
@@ -213,12 +207,12 @@ describe('RelationshipsView', () => {
 
       await flushPromises()
 
-      const tabs = wrapper.findAll('.utabs-button')
-      await tabs[3].trigger('click')
+      const tabs = wrapper.findAll('[role="tab"]')
+      await tabs[3].trigger('mousedown')
 
       await flushPromises()
 
-      expect(tabs[3].classes()).toContain('active')
+      expect(tabs[3].attributes('aria-selected')).toBe('true')
       expect(wrapper.text()).toContain('Growing Children')
     })
 
@@ -235,8 +229,8 @@ describe('RelationshipsView', () => {
       expect(wrapper.text()).toContain('Forming Relationships')
 
       // Switch to partners
-      const tabs = wrapper.findAll('.utabs-button')
-      await tabs[1].trigger('click')
+      const tabs = wrapper.findAll('[role="tab"]')
+      await tabs[1].trigger('mousedown')
       await flushPromises()
       expect(wrapper.text()).toContain('Committed partners in living quarters')
     })
@@ -262,7 +256,7 @@ describe('RelationshipsView', () => {
     })
 
     it('should display the pregnancy count in the Pregnancies tab', async () => {
-      relationshipStore.pregnancies = [{ id: '1' }, { id: '2' }]
+      pregnancyStore.pregnancies = [{ id: '1' }, { id: '2' }]
 
       const wrapper = mount(RelationshipsView, {
         global: {
@@ -307,7 +301,7 @@ describe('RelationshipsView', () => {
       await flushPromises()
 
       expect(relationshipStore.fetchVaultRelationships).toHaveBeenCalledWith('test-vault-id')
-      expect(relationshipStore.fetchVaultPregnancies).toHaveBeenCalledWith('test-vault-id')
+      expect(pregnancyStore.fetchVaultPregnancies).toHaveBeenCalledWith('test-vault-id')
       expect(dwellerStore.fetchAllDwellers).toHaveBeenCalledWith('test-vault-id', 'mock-token')
     })
   })

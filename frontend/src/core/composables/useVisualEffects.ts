@@ -1,5 +1,5 @@
 import { computed, ref, watch, onScopeDispose } from 'vue'
-import { useLocalStorage } from '@vueuse/core'
+import { useLocalStorage, usePreferredReducedMotion } from '@vueuse/core'
 
 export type EffectIntensity = 'off' | 'subtle' | 'normal' | 'strong'
 
@@ -38,8 +38,13 @@ export function useVisualEffects() {
   const scanlines = useLocalStorage('visual-effects:scanlines', true)
   const glowIntensity = useLocalStorage<EffectIntensity>('visual-effects:glow', 'normal')
 
+  // Users who request reduced motion never get the flicker animation, including
+  // the JS-driven opacity loop that a CSS media query alone cannot stop.
+  const motionPreference = usePreferredReducedMotion()
+  const prefersReducedMotion = computed(() => motionPreference.value === 'reduce')
+
   // Computed for easy binding
-  const isFlickeringEnabled = computed(() => flickering.value)
+  const isFlickeringEnabled = computed(() => flickering.value && !prefersReducedMotion.value)
   const areScanlinesEnabled = computed(() => scanlines.value)
   const isGlowEnabled = computed(() => glowIntensity.value !== 'off')
 
@@ -158,7 +163,7 @@ export function useVisualEffects() {
 
   // Watch flickering state and start/stop accordingly
   watch(
-    flickering,
+    isFlickeringEnabled,
     (enabled) => {
       if (enabled) {
         startRandomFlicker()
@@ -180,6 +185,7 @@ export function useVisualEffects() {
     scanlines: areScanlinesEnabled,
     glowIntensity: computed(() => glowIntensity.value),
     isGlowEnabled,
+    prefersReducedMotion,
     currentConfig,
     glowClass,
     flickerOpacity,

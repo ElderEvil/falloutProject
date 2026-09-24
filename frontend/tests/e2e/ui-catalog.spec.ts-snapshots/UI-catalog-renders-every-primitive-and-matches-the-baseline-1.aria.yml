@@ -1,0 +1,168 @@
+- navigation "Main navigation":
+  - link "Skip to main content":
+    - /url: "#main-content"
+  - menubar:
+    - menuitem "Navigate to vaults list": Vaults
+  - link "Go to login page":
+    - /url: /login
+    - text: Login
+  - link "Go to registration page":
+    - /url: /register
+    - text: Register
+- main:
+  - heading "UI Catalog" [level=1]
+  - paragraph:
+    - text: Dev-only regression catalog for the shadcn-vue primitives in
+    - code: "@/core/components/ui"
+    - text: ", captured by the Playwright visual net."
+  - region "Button":
+    - heading "Button" [level=2]
+    - button "default"
+    - button "outline"
+    - button "secondary"
+    - button "ghost"
+    - button "destructive"
+    - button "link"
+    - button "Size default"
+    - button "Size xs"
+    - button "Size sm"
+    - button "Size lg"
+    - button "Disabled" [disabled]
+    - button "Loading" [disabled]
+    - button "With icon"
+    - button "Icon right"
+    - button "Block"
+  - region "Input":
+    - heading "Input" [level=2]
+    - textbox "Default input"
+    - text: Dweller name
+    - textbox "Dweller name":
+      - /placeholder: e.g. Butch
+    - textbox "Disabled input" [disabled]
+    - textbox "Password"
+  - region "Badge":
+    - heading "Badge" [level=2]
+    - text: default secondary destructive outline ghost link With icon With icon
+  - region "Card":
+    - heading "Card" [level=2]
+    - paragraph: Default card
+    - paragraph: Glow enabled
+    - paragraph: CRT screen effect
+    - text: Slotted card
+    - paragraph: Header + footer composition
+    - button "Footer action"
+  - region "Alert":
+    - heading "Alert" [level=2]
+    - alert: Success Vault created successfully
+    - alert: Danger Radiation leak detected
+  - region "Dialog":
+    - heading "Dialog" [level=2]
+    - paragraph: Rendered open (header, body and footer) so capture is deterministic.
+  - region "Tabs":
+    - heading "Tabs" [level=2]
+    - tablist:
+      - tab "Overview" [selected]
+      - tab "Dwellers"
+      - tab "Storage"
+    - tabpanel "Overview":
+      - paragraph: Overview panel
+  - region "Select":
+    - heading "Select" [level=2]
+    - text: Vault
+    - combobox "Vault": /Vault \d+/
+    - combobox "Compact vault select": /Vault \d+/
+  - region "Slider":
+    - heading "Slider" [level=2]
+    - text: Value
+    - slider "Slider value"
+    - text: Fixed
+    - slider /Slider \d+/
+    - slider /Slider \d+/
+    - slider /Slider \d+/
+    - text: Disabled
+    - slider "Slider disabled" [disabled]
+  - region "Progress":
+    - heading "Progress" [level=2]
+    - text: Values
+    - progressbar "Progress 0"
+    - progressbar /Progress \d+/
+    - progressbar /Progress \d+/
+    - progressbar /Progress \d+/
+    - progressbar /Progress \d+/
+    - text: Sizes
+    - progressbar "Extra small"
+    - progressbar "Small"
+    - progressbar "Medium"
+    - text: Tones
+    - progressbar "Default tone"
+    - progressbar "Info tone"
+    - progressbar "Warning tone"
+    - progressbar "Danger tone"
+    - progressbar "Success tone"
+    - text: Dynamic fill
+    - progressbar "Dynamic fill"
+    - text: Segmented
+    - progressbar "Segmented progress"
+    - text: Radiation
+    - progressbar
+  - region "Skeleton":
+    - heading "Skeleton" [level=2]
+  - region "Tooltip":
+    - heading "Tooltip" [level=2]
+    - paragraph: The spec focuses the “Tooltip top” trigger so the teleported tooltip is visible for capture.
+    - button "Tooltip top"
+    - button "Tooltip bottom"
+    - button "Tooltip left"
+    - button "Tooltip right"
+  - region "Icon Button":
+    - heading "Icon Button" [level=2]
+    - button "Icon icon-xs"
+    - button "Icon icon-sm"
+    - button "Icon icon"
+    - button "Icon icon-lg"
+    - button "Delete" [disabled]
+  - region "Toast":
+    - heading "Toast" [level=2]
+    - paragraph: Inline fixtures; the global Toaster is populated on mount (top-right of the viewport).
+    - status:
+      - paragraph: Direct Toast — success
+      - button "Close"
+    - status:
+      - paragraph: Direct Toast — error
+      - button "Close"
+    - status:
+      - paragraph: Direct Toast — warning
+      - text: ×3
+      - button "Close"
+    - status:
+      - paragraph: Direct Toast — info
+      - button "Close"
+  - region "Toaster":
+    - heading "Toaster" [level=2]
+    - paragraph: Mounted globally in App.vue; seeded with four duration-0 toasts on mount (visible top-right).
+  - region "SettingItem":
+    - heading "SettingItem" [level=2]
+    - text: /Vault name Vault \d+ Population \d+ Happiness \d+\.\d+ % Radiation mode Yes Auto-collect No/
+- status:
+  - paragraph: Vault saved successfully
+  - button "Close"
+- status:
+  - paragraph: Radiation levels critical
+  - button "Close"
+- status:
+  - paragraph: New dweller arrived
+  - button "Close"
+- status:
+  - paragraph: Quest completed
+  - button "Close"
+- dialog "Confirm evacuation":
+  - heading "Confirm evacuation" [level=2]
+  - paragraph: Are you sure you want to evacuate this vault? All dwellers will be relocated.
+  - button "Cancel"
+  - button "Evacuate"
+  - button "Close"
+- text: Tooltip on top
+- img
+- text: Tooltip on bottom
+- img
+- text: Tooltip on left Tooltip on right

@@ -4,7 +4,7 @@ import { Icon } from '@iconify/vue'
 import { useEquipmentStore } from '@/modules/combat/stores/equipment'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import EquipmentCard from '@/modules/combat/components/equipment/EquipmentCard.vue'
-import UModal from '@/core/components/ui/UModal.vue'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 
 const ctx = useDwellerDetailContext()
@@ -80,10 +80,6 @@ const modalIcon = computed(() =>
 
 <template>
   <div class="dweller-equipment">
-    <div class="panel-header">
-      <h3 class="equipment-title panel-title">Equipment</h3>
-    </div>
-
     <div class="equipment-grid">
       <!-- Weapon Slot -->
       <div class="equipment-slot">
@@ -131,46 +127,54 @@ const modalIcon = computed(() =>
     </div>
 
     <!-- Inventory Modal -->
-    <UModal v-model="showInventoryModal" :title="modalTitle" size="wide">
-      <template #header="{ titleId }">
-        <h3 :id="titleId" class="modal-title">
-          <Icon :icon="modalIcon" />
-          {{ modalTitle }}
-        </h3>
-      </template>
+    <Dialog v-model:open="showInventoryModal">
+      <DialogContent
+        class="flex max-h-[75vh] w-full max-w-xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-xl"
+      >
+        <DialogHeader
+          class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
+        >
+          <DialogTitle class="modal-title text-theme-primary terminal-glow">
+            <Icon :icon="modalIcon" />
+            {{ modalTitle }}
+          </DialogTitle>
+        </DialogHeader>
 
-      <div class="items-list">
-        <template v-if="inventoryMode === 'weapon'">
-          <EquipmentCard
-            v-for="weapon in availableWeapons"
-            :key="weapon.id"
-            :item="weapon"
-            type="weapon"
-            :show-actions="true"
-            @equip="handleEquipWeapon(weapon.id)"
-          />
-          <div v-if="availableWeapons.length === 0" class="empty-state">
-            <Icon icon="mdi:package-variant" class="empty-state-icon" />
-            <p>No weapons available</p>
-          </div>
-        </template>
+        <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+          <div class="items-list">
+            <template v-if="inventoryMode === 'weapon'">
+              <EquipmentCard
+                v-for="weapon in availableWeapons"
+                :key="weapon.id"
+                :item="weapon"
+                type="weapon"
+                :show-actions="true"
+                @equip="handleEquipWeapon(weapon.id)"
+              />
+              <div v-if="availableWeapons.length === 0" class="empty-state">
+                <Icon icon="mdi:package-variant" class="empty-state-icon" />
+                <p>No weapons available</p>
+              </div>
+            </template>
 
-        <template v-else>
-          <EquipmentCard
-            v-for="outfit in availableOutfits"
-            :key="outfit.id"
-            :item="outfit"
-            type="outfit"
-            :show-actions="true"
-            @equip="handleEquipOutfit(outfit.id)"
-          />
-          <div v-if="availableOutfits.length === 0" class="empty-state">
-            <Icon icon="mdi:package-variant" class="empty-state-icon" />
-            <p>No outfits available</p>
+            <template v-else>
+              <EquipmentCard
+                v-for="outfit in availableOutfits"
+                :key="outfit.id"
+                :item="outfit"
+                type="outfit"
+                :show-actions="true"
+                @equip="handleEquipOutfit(outfit.id)"
+              />
+              <div v-if="availableOutfits.length === 0" class="empty-state">
+                <Icon icon="mdi:package-variant" class="empty-state-icon" />
+                <p>No outfits available</p>
+              </div>
+            </template>
           </div>
-        </template>
-      </div>
-    </UModal>
+        </div>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 

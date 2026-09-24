@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { UButton, UModal } from '@/core/components/ui'
+import { Button } from '@/core/components/ui/button'
 import QuestRewardsModal from '@/modules/progression/components/QuestRewardsModal.vue'
 import type { QuestReward, VaultQuest } from '@/modules/progression/models/quest'
 
@@ -41,7 +41,7 @@ describe('QuestRewardsModal', () => {
       global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
     })
 
-    expect(wrapper.findComponent(UModal).props('size')).toBe('wide')
+    expect(wrapper.find('[data-slot="dialog-content"]').classes()).toContain('max-w-xl')
     expect(wrapper.get('.quest-complete-header').text()).not.toContain('MISSION REPORT // COMPLETE')
     expect(wrapper.get('.quest-return-banner').classes()).toContain('border-theme-primary/30')
     expect(wrapper.get('.quest-return-banner').classes()).toContain('mb-6')
@@ -62,8 +62,8 @@ describe('QuestRewardsModal', () => {
     expect(actions.classes()).toContain('w-full')
     expect(actions.classes()).toContain('max-sm:flex-col')
     expect(actions.classes()).toContain('justify-between')
-    expect(actions.findAllComponents(UButton).every(button => button.classes().includes('max-sm:w-full'))).toBe(true)
-    expect(actions.findAllComponents(UButton).every(button => button.classes().includes('whitespace-nowrap'))).toBe(true)
+    expect(actions.findAll('button').every(button => button.classes().includes('max-sm:w-full'))).toBe(true)
+    expect(actions.findAll('button').every(button => button.classes().includes('whitespace-nowrap'))).toBe(true)
     expect(actions.text()).toContain('Review Later')
     expect(actions.text()).toContain('Confirm & Claim')
   })
@@ -80,6 +80,16 @@ describe('QuestRewardsModal', () => {
 
     expect(wrapper.emitted('close')).toHaveLength(1)
     expect(wrapper.emitted('confirm')).toHaveLength(1)
+  })
+
+  it('disables the claim action while a claim is in flight', () => {
+    const wrapper = mount(QuestRewardsModal, {
+      props: { show: true, quest, isSubmitting: true },
+      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+    })
+
+    const actions = wrapper.findComponent({ name: 'TerminalModalActions' })
+    expect(actions.props('confirmDisabled')).toBe(true)
   })
 
   it('labels authored chance rewards with their roll probability', () => {

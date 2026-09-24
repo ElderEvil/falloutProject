@@ -1,12 +1,20 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UBadge, UButton, UCard, UProgressBar } from '@/core/components/ui'
+import { Badge } from '@/core/components/ui/badge'
+import { Button } from '@/core/components/ui/button'
+import { Card } from '@/core/components/ui/card'
+import { Progress } from '@/core/components/ui/progress'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
+import { QUEST_TYPE_COLORS } from '../models/quest'
+import { isStateQuestCategory } from '../models/quest'
 import type { QuestPartyMember, QuestRequirement, VaultQuest } from '../models/quest'
+import QuestTypeBadge from './QuestTypeBadge.vue'
+import QuestRewardList from './QuestRewardList.vue'
+import QuestRequirementList from './QuestRequirementList.vue'
 
 const questStore = useQuestStore()
 const dwellerFilterStore = useDwellerFilterStore()
@@ -14,7 +22,7 @@ const dwellerFilterStore = useDwellerFilterStore()
 interface Props {
   quest: VaultQuest
   vaultId: string
-  status: 'available' | 'active' | 'ready' | 'completed' | 'locked'
+  status: 'available' | 'active' | 'returning' | 'ready' | 'completed' | 'locked'
   partyMembers?: DwellerShort[]
   isLocked?: boolean
 }
@@ -32,6 +40,29 @@ const timeRemaining = ref<string | null>(null)
 let timerInterval: ReturnType<typeof setInterval> | null = null
 
 const updateTimer = () => {
+  if (status === 'returning') {
+    if (!quest.return_completes_at) {
+      timeRemaining.value = null
+      return
+    }
+    const remaining = parseStartTimeMs(quest.return_completes_at) - Date.now()
+    if (remaining <= 0) {
+      timeRemaining.value = '00:00:00'
+      if (timerInterval) {
+        clearInterval(timerInterval)
+        timerInterval = null
+      }
+      return
+    }
+    const hours = Math.floor(remaining / (1000 * 60 * 60))
+    const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
+    const seconds = Math.floor((remaining % (1000 * 60)) / 1000)
+    timeRemaining.value = `${hours.toString().padStart(2, '0')}:${minutes
+      .toString()
+      .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+    return
+  }
+
   if (!quest.started_at || !quest.duration_minutes) {
     timeRemaining.value = null
     return
@@ -69,14 +100,35 @@ const questProgress = computed(() => {
   return Math.min(100, Math.max(0, (elapsed / (quest.duration_minutes * 60 * 1000)) * 100))
 })
 
-const displayedQuestProgress = computed(() => (status === 'ready' ? 100 : questProgress.value))
-const questProgressLabel = computed(() => `${Math.round(displayedQuestProgress.value)}% complete`)
+const returnProgress = computed(() => {
+  void timeRemaining.value
+  if (!quest.return_started_at || !quest.return_completes_at) return 0
+
+  const start = parseStartTimeMs(quest.return_started_at)
+  const total = parseStartTimeMs(quest.return_completes_at) - start
+  if (total <= 0) return 100
+  return Math.min(100, Math.max(0, ((Date.now() - start) / total) * 100))
+})
+
+const displayedQuestProgress = computed(() => {
+  if (status === 'ready') return 100
+  if (status === 'returning') return returnProgress.value
+  return questProgress.value
+})
+const questProgressLabel = computed(() => {
+  if (status === 'returning') return `${Math.round(displayedQuestProgress.value)}% home`
+  return `${Math.round(displayedQuestProgress.value)}% complete`
+})
 
 const startTimer = () => {
   if (timerInterval) {
     clearInterval(timerInterval)
   }
-  if (status === 'active' && quest.started_at && quest.duration_minutes) {
+  if (
+    (status === 'active' || status === 'returning') &&
+    quest.started_at &&
+    quest.duration_minutes
+  ) {
     updateTimer()
     timerInterval = setInterval(updateTimer, 1000)
   }
@@ -90,9 +142,13 @@ const stopTimer = () => {
 }
 
 watch(
-  () => [status, quest.started_at],
+  () => [status, quest.started_at, quest.return_completes_at],
   () => {
-    if (status === 'active' && quest.started_at && quest.duration_minutes) {
+    if (
+      (status === 'active' || status === 'returning') &&
+      quest.started_at &&
+      quest.duration_minutes
+    ) {
       startTimer()
     } else {
       stopTimer()
@@ -110,24 +166,15 @@ onUnmounted(() => {
 })
 
 const hasParty = computed(() => partyMembers && partyMembers.length > 0)
-const isStateQuest = computed(() => ['building', 'population', 'training'].includes(quest.quest_category ?? ''))
-
-const typeColors: Record<string, { bg: string; text: string; border: string }> = {
-  main: { bg: 'var(--color-quest-main)', text: '#000000', border: 'var(--color-quest-main)' },
-  side: { bg: 'var(--color-quest-side)', text: 'var(--color-theme-primary)', border: 'var(--color-quest-side)' },
-  daily: { bg: 'var(--color-quest-daily)', text: '#000000', border: 'var(--color-quest-daily)' },
-  event: { bg: 'var(--color-quest-event)', text: '#ffffff', border: 'var(--color-quest-event)' },
-  repeatable: { bg: 'var(--color-theme-primary)', text: '#000000', border: 'var(--color-theme-primary)' },
-}
+const isStateQuest = computed(() => isStateQuestCategory(quest.quest_category))
 
 const typeColor = computed(() => {
-  return typeColors[quest.quest_type] || typeColors.side
+  return QUEST_TYPE_COLORS[quest.quest_type] || QUEST_TYPE_COLORS.side
 })
 
-const typeLabel = computed(() => {
-  const questType = quest.quest_type || 'side'
-  return questType.charAt(0).toUpperCase() + questType.slice(1)
-})
+const isBorderedCategory = computed(() =>
+  ['building', 'exploration'].includes(quest.quest_category ?? '')
+)
 
 const isChainQuest = computed(() => {
   return quest.chain_id !== null
@@ -148,153 +195,29 @@ const previousQuestName = computed(() => {
   return previousQuest?.title || null
 })
 
-const formatDwellerName = (name: string) => name.replace(/(^|[\s-])\p{L}/gu, (letter) => letter.toUpperCase())
-
-// Format reward details for display
-const formatReward = (reward: {
-  reward_type: string
-  reward_data: Record<string, unknown>
-  reward_chance: number
-  item_data?: Record<string, unknown>
-}) => {
-  const data = reward.reward_data || {}
-  const itemData = reward.item_data || {}
-  const type = reward.reward_type.toLowerCase()
-
-  switch (type) {
-    case 'caps':
-      return `${data.amount || 0} Caps`
-    case 'resource': {
-      const resourceType = String(data.resource_type || 'resource')
-      return `${data.amount || 0} ${resourceType.charAt(0).toUpperCase() + resourceType.slice(1)}`
-    }
-    case 'experience':
-      return `${data.amount || 0} XP`
-    case 'item': {
-      const itemName = String(data.item_name || itemData.name || data.name || 'Unknown Item')
-      const rarity = itemData.rarity || data.rarity ? ` (${String(itemData.rarity || data.rarity)})` : ''
-      return `${itemName}${rarity}`
-    }
-    case 'dweller': {
-      const name = formatDwellerName(
-        String(data.first_name || data.name || String(data.template_id || '').replaceAll('-', ' ') || 'New Dweller')
-      )
-      const rarity = data.rarity ? ` (${String(data.rarity)})` : ''
-      return `${name}${rarity}`
-    }
-    case 'stimpak': {
-      const amt = Number(data.amount) || 1
-      return `${amt} Stimpak${amt > 1 ? 's' : ''}`
-    }
-    case 'radaway': {
-      const amt = Number(data.amount) || 1
-      return `${amt} Radaway${amt > 1 ? 's' : ''}`
-    }
-    case 'lunchbox':
-      return 'Lunchbox (3 items + 1 dweller)'
-    default:
-      return type.charAt(0).toUpperCase() + type.slice(1)
-  }
-}
-
-// Get reward icon based on type
-const getRewardIcon = (rewardType: string) => {
-  switch (rewardType.toLowerCase()) {
-    case 'caps':
-      return 'mdi:currency-usd'
-    case 'resource':
-      return 'mdi:package-variant'
-    case 'experience':
-      return 'mdi:star'
-    case 'item':
-      return 'mdi:sword'
-    case 'dweller':
-      return 'mdi:account-plus'
-    case 'stimpak':
-      return 'mdi:medical-bag'
-    case 'radaway':
-      return 'mdi:pill'
-    case 'lunchbox':
-      return 'mdi:gift'
-    default:
-      return 'mdi:gift'
-  }
-}
-
 const hasPrerequisites = computed(() => {
   return quest.quest_requirements && quest.quest_requirements.length > 0
 })
 
 const prerequisitesMet = computed(() => {
   if (!hasPrerequisites.value) return true
-  // For now, assume prerequisites are met if quest is active or completed
-  // In a real implementation, this would check actual vault state
   return status !== 'available'
 })
 
-const getRequirementCount = (requirementData: Record<string, unknown>): number => {
-  const count = requirementData.count
-  return typeof count === 'number' ? count : 0
-}
-
-const statLabel = (stat: unknown): string => {
-  const label = String(stat ?? 'stat').replace(/_/g, ' ')
-  return label.charAt(0).toUpperCase() + label.slice(1)
-}
-
-function isLevelRequirementMet(requirementData: Record<string, unknown>): boolean {
-  const level = requirementData.level
-  if (typeof level !== 'number') return false
-  if (dwellerFilterStore.dwellers.length === 0) return false
-  const required = getRequirementCount(requirementData) || 1
-  const qualified = dwellerFilterStore.dwellers.filter((d) => (d.level ?? 0) >= level).length
-  return qualified >= required
-}
-
-function isQuestRequirementMet(requirementData: Record<string, unknown>): boolean {
-  if (typeof requirementData.quest_id !== 'string') return false
-  const found = questStore.vaultQuests.find((q) => q.id === requirementData.quest_id)
-  if (!found) return false
-  return found.is_completed === true
-}
-
 function isRequirementMet(req: QuestRequirement): boolean {
-  if (req.requirement_type === 'level' && req.requirement_data) {
-    return isLevelRequirementMet(req.requirement_data)
+  const data = req.requirement_data
+  if (req.requirement_type === 'level' && data) {
+    const level = data.level
+    if (typeof level !== 'number' || dwellerFilterStore.dwellers.length === 0) return false
+    const required = (typeof data.count === 'number' ? data.count : 0) || 1
+    const qualified = dwellerFilterStore.dwellers.filter((d) => (d.level ?? 0) >= level).length
+    return qualified >= required
   }
-  if (req.requirement_type === 'quest_completed' && req.requirement_data) {
-    return isQuestRequirementMet(req.requirement_data)
+  if (req.requirement_type === 'quest_completed' && data) {
+    if (typeof data.quest_id !== 'string') return false
+    return questStore.vaultQuests.find((q) => q.id === data.quest_id)?.is_completed === true
   }
   return prerequisitesMet.value
-}
-
-function requirementIcon(req: QuestRequirement): string {
-  if (!isRequirementMet(req)) return 'mdi:lock'
-  return req.requirement_type === 'level' || req.requirement_type === 'quest_completed'
-    ? 'mdi:lock-open'
-    : 'mdi:check-circle'
-}
-
-const roomDisplayName = (requirementData: Record<string, unknown>): string => {
-  const slug = requirementData.room_type
-  if (typeof slug !== 'string' || slug.length === 0) return 'room'
-  return slug
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
-}
-
-function questRequirementName(requirementData: Record<string, unknown>): string {
-  if (typeof requirementData.quest_name === 'string' && requirementData.quest_name.length > 0) {
-    return requirementData.quest_name
-  }
-  if (typeof requirementData.quest_id === 'string') {
-    const found =
-      questStore.vaultQuests.find((q) => q.id === requirementData.quest_id) ??
-      questStore.quests.find((q) => q.id === requirementData.quest_id)
-    if (found?.title) return found.title
-  }
-  return 'Previous quest'
 }
 
 const actionButtonText = computed(() => {
@@ -302,6 +225,7 @@ const actionButtonText = computed(() => {
   return {
     available: isStateQuest.value ? 'Check Objective' : 'Start Quest',
     active: 'In Progress',
+    returning: 'Travelling Home',
     ready: 'Claim Rewards',
     completed: 'View Details',
     locked: 'Locked',
@@ -313,6 +237,7 @@ const cardBorderColor = computed(() => {
   return {
     available: typeColor.value.border,
     active: 'var(--color-theme-accent)',
+    returning: 'var(--color-theme-secondary)',
     ready: 'var(--color-rarity-legendary)',
     completed: 'var(--color-quest-muted)',
     locked: 'var(--color-quest-locked)',
@@ -320,7 +245,7 @@ const cardBorderColor = computed(() => {
 })
 
 const isButtonDisabled = computed(() => {
-  return isLocked || status === 'active'
+  return isLocked || status === 'active' || status === 'returning'
 })
 
 const handleAction = () => {
@@ -336,6 +261,7 @@ const handleAction = () => {
       }
       break
     case 'active':
+    case 'returning':
       break
     case 'ready':
       emit('claim', quest.id)
@@ -348,7 +274,7 @@ const handleAction = () => {
 </script>
 
 <template>
-  <UCard
+  <Card
     class="quest-card flex h-full flex-col"
     :style="{ borderColor: cardBorderColor }"
     :class="{ 'completed-quest': status === 'completed' }"
@@ -358,23 +284,22 @@ const handleAction = () => {
       <div class="quest-header">
       <h3 class="quest-title">{{ quest.title }}</h3>
       <div class="quest-badges">
-        <UBadge
-          :style="{ backgroundColor: typeColor.bg, color: typeColor.text }"
-          class="type-badge"
+        <QuestTypeBadge :quest-type="quest.quest_type" />
+        <Badge
+          v-if="quest.quest_category"
+          :variant="isBorderedCategory ? 'outline' : 'secondary'"
+          class="category-badge"
         >
-          {{ typeLabel }}
-        </UBadge>
-        <UBadge v-if="quest.quest_category" variant="secondary" class="category-badge">
           {{ quest.quest_category }}
-        </UBadge>
-        <UBadge v-if="isChainQuest" variant="outline" class="chain-badge">
+        </Badge>
+        <Badge v-if="isChainQuest" variant="outline" class="chain-badge">
           <Icon icon="mdi:link-variant" class="inline-icon" />
           {{ chainPosition }}
-        </UBadge>
-        <UBadge v-if="isLocked" variant="outline" class="locked-badge">
+        </Badge>
+        <Badge v-if="isLocked" variant="outline" class="locked-badge">
           <Icon icon="mdi:lock" class="inline-icon" />
           LOCKED
-        </UBadge>
+        </Badge>
       </div>
     </div>
 
@@ -391,7 +316,7 @@ const handleAction = () => {
         <Icon icon="mdi:lock" class="locked-icon" />
         {{ quest.lock_reason }}
       </div>
-      <div v-if="previousQuestName" class="locked-message">
+      <div v-if="previousQuestName && !quest.lock_reason" class="locked-message">
         <Icon icon="mdi:arrow-left" class="locked-icon" />
         Complete "{{ previousQuestName }}" to unlock
       </div>
@@ -400,87 +325,13 @@ const handleAction = () => {
     <!-- Divider -->
     <div class="quest-divider"></div>
 
-    <!-- Prerequisites (if any) -->
-    <div v-if="hasPrerequisites" class="quest-section">
-      <div class="section-label">
-        <Icon icon="mdi:clipboard-check" class="inline-icon" />
-        REQUIREMENTS
-      </div>
-      <ul class="prerequisites-list">
-          <li
-            v-for="req in quest.quest_requirements"
-            :key="req.id"
-            class="prerequisite-item"
-            :class="{ met: isRequirementMet(req), unmet: !isRequirementMet(req) }"
-          >
-            <Icon
-              :icon="requirementIcon(req)"
-              class="prerequisite-icon"
-            />
-          <span class="prerequisite-text">
-            <template v-if="req.requirement_type === 'level' && req.requirement_data">
-              Requires Level {{ req.requirement_data.level || 1 }}+ dweller
-              <span v-if="getRequirementCount(req.requirement_data) > 1">
-                (x{{ getRequirementCount(req.requirement_data) }})
-              </span>
-            </template>
-            <template v-else-if="req.requirement_type === 'item' && req.requirement_data">
-              Requires {{ req.requirement_data.item_name || req.requirement_data.name || req.requirement_data.item_id }}
-              <span v-if="getRequirementCount(req.requirement_data) > 1">
-                (x{{ getRequirementCount(req.requirement_data) }})
-              </span>
-            </template>
-            <template v-else-if="req.requirement_type === 'attack' && req.requirement_data">
-              Requires {{ req.requirement_data.attack || 1 }}+ Attack
-              <span v-if="getRequirementCount(req.requirement_data) > 1">
-                (x{{ getRequirementCount(req.requirement_data) }})
-              </span>
-            </template>
-            <template v-else-if="req.requirement_type === 'stat' && req.requirement_data">
-              Requires {{ req.requirement_data.value || 1 }}+ {{ statLabel(req.requirement_data.stat) }}
-              <span v-if="getRequirementCount(req.requirement_data) > 1">
-                (x{{ getRequirementCount(req.requirement_data) }})
-              </span>
-            </template>
-                  <template v-else-if="req.requirement_type === 'room' && req.requirement_data">
-                    Build {{ getRequirementCount(req.requirement_data) || 1 }} {{ roomDisplayName(req.requirement_data) }}
-            </template>
-            <template v-else-if="req.requirement_type === 'dweller_count' && req.requirement_data">
-              Reach {{ getRequirementCount(req.requirement_data) }} dwellers
-            </template>
-            <template
-              v-else-if="req.requirement_type === 'quest_completed' && req.requirement_data"
-            >
-              Complete: {{ questRequirementName(req.requirement_data) }}
-            </template>
-            <template v-else>
-              {{ req.requirement_type }}
-            </template>
-          </span>
-        </li>
-      </ul>
-    </div>
+    <QuestRequirementList
+      v-if="hasPrerequisites"
+      :requirements="quest.quest_requirements ?? []"
+      :is-met="isRequirementMet"
+    />
 
-    <!-- Rewards -->
-    <div class="quest-section">
-      <div class="section-label">
-        <Icon icon="mdi:treasure-chest" class="inline-icon" />
-        REWARDS
-      </div>
-      <div v-if="quest.quest_rewards && quest.quest_rewards.length > 0" class="rewards-list">
-        <div v-for="reward in quest.quest_rewards" :key="reward.id" class="reward-item">
-          <Icon :icon="getRewardIcon(reward.reward_type)" class="reward-icon" />
-          <span class="reward-text">{{ formatReward(reward) }}</span>
-          <span v-if="reward.reward_chance < 1" class="reward-chance">
-            ({{ Math.round(reward.reward_chance * 100) }}%)
-          </span>
-        </div>
-      </div>
-      <div v-else class="reward-fallback">
-        <Icon icon="mdi:text" class="reward-icon" />
-        <span>{{ quest.rewards }}</span>
-      </div>
-    </div>
+    <QuestRewardList :rewards="quest.quest_rewards ?? []" :fallback-text="quest.rewards" />
 
     <!-- Party Members (for active/available quests) -->
     <div v-if="status !== 'completed' && (partyMembers?.length ?? 0) > 0" class="quest-section">
@@ -498,15 +349,24 @@ const handleAction = () => {
     </div>
 
     <!-- Timed quest progress stays visible until its reward is claimed -->
-    <div v-if="(status === 'active' && timeRemaining) || (status === 'ready' && !isStateQuest)" class="quest-timer">
+    <div
+      v-if="
+        (status === 'active' && timeRemaining) ||
+        (status === 'returning' && timeRemaining) ||
+        (status === 'ready' && !isStateQuest)
+      "
+      class="quest-timer"
+    >
       <div class="timer-header">
         <div class="timer-status">
           <Icon icon="mdi:clock-outline" class="timer-icon" />
-          <span class="timer-label">{{ status === 'ready' ? 'Complete' : 'Time Remaining' }}</span>
+          <span class="timer-label">
+            {{ status === 'ready' ? 'Complete' : status === 'returning' ? 'Travelling Home' : 'Time Remaining' }}
+          </span>
         </div>
         <span class="timer-value">{{ status === 'ready' ? 'Ready to claim' : timeRemaining }}</span>
       </div>
-      <UProgressBar :model-value="displayedQuestProgress" :height="8" :glow="false" class="quest-progress-bar" />
+      <Progress :model-value="displayedQuestProgress" class="quest-progress-bar h-2" />
       <span class="timer-progress">{{ questProgressLabel }}</span>
     </div>
 
@@ -518,10 +378,10 @@ const handleAction = () => {
 
     </div>
 
-    <template #footer>
-      <UButton
+    <div>
+      <Button
         class="quest-action-btn"
-        :variant="status === 'completed' ? 'secondary' : 'primary'"
+        :variant="status === 'completed' ? 'secondary' : 'default'"
         :disabled="isButtonDisabled"
         @click="handleAction"
       >
@@ -531,6 +391,8 @@ const handleAction = () => {
               ? 'mdi:eye'
               : status === 'ready'
                 ? 'mdi:treasure-chest'
+              : status === 'returning'
+                ? 'mdi:home-import-outline'
               : status === 'active'
                 ? 'mdi:progress-clock'
                 : isStateQuest
@@ -542,9 +404,9 @@ const handleAction = () => {
           class="btn-icon"
         />
         {{ actionButtonText }}
-      </UButton>
-    </template>
-  </UCard>
+      </Button>
+    </div>
+  </Card>
 </template>
 
 <style scoped>
@@ -608,7 +470,6 @@ const handleAction = () => {
   justify-content: flex-end;
 }
 
-.type-badge,
 .category-badge,
 .chain-badge,
 .locked-badge {
@@ -652,65 +513,6 @@ const handleAction = () => {
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.prerequisites-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.prerequisite-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 0;
-  font-size: 0.9rem;
-}
-
-.prerequisite-item.met {
-  color: var(--color-theme-primary);
-}
-
-.prerequisite-item.unmet {
-  color: var(--color-quest-muted);
-}
-
-.prerequisite-icon {
-  font-size: 1rem;
-}
-
-.prerequisite-item.met .prerequisite-icon {
-  color: var(--color-theme-primary);
-}
-
-.prerequisite-item.unmet .prerequisite-icon {
-  color: var(--color-quest-locked);
-}
-
-.rewards-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.reward-item,
-.reward-fallback {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 0;
-  font-size: 0.9rem;
-  color: var(--color-theme-primary);
-}
-
-.reward-icon {
-  color: var(--color-theme-accent);
-}
-
-.reward-chance {
-  font-size: 0.8rem;
-  opacity: 0.7;
 }
 
 .quest-action-btn {

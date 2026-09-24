@@ -265,30 +265,7 @@ async def start_quest(
         ValidationException: If requirements not met or quest cannot be started.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    quest = await db_session.get(Quest, quest_id)
-    if quest is None:
-        from app.utils.exceptions import ResourceNotFoundException
-
-        raise ResourceNotFoundException(Quest, identifier=quest_id)
-
-    await db_session.refresh(quest, ["quest_requirements"])
-
-    availability = await quest_service.get_quest_availability(db_session, vault_id, quest)
-    if not availability.available:
-        detail = (
-            f"Missing requirements: {', '.join(availability.missing)}"
-            if availability.missing
-            else (availability.lock_reason or "Quest is not available")
-        )
-        raise ValidationException(detail=detail)
-
-    try:
-        await quest_service.start_quest(db_session, quest_id, vault_id)
-    except ValueError as e:
-        raise ValidationException(str(e)) from e
-    else:
-        await db_session.refresh(quest, ["quest_requirements", "quest_rewards"])
-        return quest
+    return await quest_service.start_quest_for_vault(db_session, vault_id, quest_id)
 
 
 @router.get("/{vault_id}/{quest_id}/eligible-dwellers", response_model=list[EligibleDwellerRead])

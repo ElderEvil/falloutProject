@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
-import UProgressBar from '@/core/components/ui/UProgressBar.vue'
+import { Progress } from '@/core/components/ui/progress'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
@@ -161,11 +161,10 @@ const apprenticeCards = computed<ApprenticeProgress[]>(() => {
               apprentice.timeRemaining
             }}</span>
           </div>
-          <UProgressBar
+          <Progress
+            class="h-2.5"
+            :fill="'linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent))'"
             :model-value="apprentice.progressPercent"
-            :height="10"
-            color="linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent))"
-            :glow="false"
           />
         </div>
       </div>

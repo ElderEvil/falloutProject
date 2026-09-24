@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import { UButton, UCard, UTabs } from '@/core/components/ui'
+import { Button } from '@/core/components/ui/button'
+import { Card } from '@/core/components/ui/card'
+import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { LifeDeathStatistics } from '@/modules/dwellers/components/death'
-import { useWebSocket } from '@/core/composables/useWebSocket'
 import { usePolling } from '@/core/composables/usePolling'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useBackNavigation } from '@/core/composables/useBackNavigation'
@@ -51,19 +52,7 @@ watch(
 )
 const { isCollapsed } = useSidePanel()
 
-// WebSocket for real-time statistical updates
-// Derive scheme and host from page origin for proper HTTPS/WSS support
-const wsUrl = computed(() => {
-  if (!authStore.user?.id) return ''
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const host = window.location.host
-  return `${protocol}//${host}/api/v1/ws/${authStore.user.id}`
-})
-
-// Register WebSocket composable at setup top-level to avoid lifecycle warning
-const { connect, on, disconnect } = useWebSocket()
-
-// Poll statistics every 30 seconds as a fallback. The polling composable
+// Poll statistics every 30 seconds. The polling composable
 // automatically pauses when this view's scope is disposed.
 usePolling(
   async () => {
@@ -76,51 +65,6 @@ onMounted(async () => {
   await fetchProfile()
   await profileStore.fetchDeathStatistics()
   await profileStore.fetchAIUsage()
-
-  if (wsUrl.value) {
-    connect(wsUrl.value)
-  }
-})
-
-onUnmounted(() => {
-  // Properly close WebSocket connection
-  disconnect()
-})
-
-// Watch for user ID changes and reconnect with proper URL
-watch(wsUrl, (newUrl, oldUrl) => {
-  if (newUrl && newUrl !== oldUrl) {
-    disconnect()
-    connect(newUrl)
-  }
-})
-
-// Watcher to handle cases where user ID arrives late or changes
-watch(
-  () => wsUrl.value,
-  (newUrl) => {
-    if (newUrl) {
-      connect()
-    } else {
-      disconnect()
-    }
-  }
-)
-
-// Register listeners
-on('dweller:born', (message) => {
-  profileStore.fetchDeathStatistics()
-})
-
-on('dweller:died', (message) => {
-  profileStore.fetchDeathStatistics()
-})
-
-on('notification', (message) => {
-  const nType = message.notification?.notification_type
-  if (nType === 'baby_born' || nType === 'dweller_died') {
-    profileStore.fetchDeathStatistics()
-  }
 })
 
 const fetchProfile = async () => {
@@ -172,7 +116,6 @@ const formatDate = (dateString: string) => {
 
 <template>
   <div class="profile-page relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div class="scanlines opacity-40" aria-hidden="true"></div>
     <div class="flex min-h-screen">
       <SidePanel :vault-id="vaultStore.activeVaultId" />
       <main
@@ -199,13 +142,16 @@ const formatDate = (dateString: string) => {
             <div class="mt-4 text-xl text-theme-primary">Loading personnel record...</div>
           </div>
 
-          <UCard v-else-if="profileStore.error && !profileStore.profile" title="ERROR: PROFILE LOAD FAILURE" glow crt>
+          <Card v-else-if="profileStore.error && !profileStore.profile" class="gap-0 shadow-glow-md crt-screen">
+            <div class="mb-4 border-b border-gray-700 pb-4">
+              <h3 class="text-xl font-bold terminal-glow text-theme-primary">ERROR: PROFILE LOAD FAILURE</h3>
+            </div>
             <div class="mb-4 text-red-500">{{ profileStore.error }}</div>
-            <UButton variant="primary" @click="fetchProfile">
+            <Button variant="default" @click="fetchProfile">
               <Icon icon="mdi:refresh" class="mr-2" />
               Retry Connection
-            </UButton>
-          </UCard>
+            </Button>
+          </Card>
 
           <div v-else-if="profileStore.profile" class="space-y-6">
             <ProfileEditor
@@ -218,11 +164,17 @@ const formatDate = (dateString: string) => {
             />
 
             <template v-else>
-              <UTabs v-model="activeTab" :tabs="tabs" class="mb-6" />
+              <Tabs :model-value="activeTab" class="mb-6" @update:model-value="activeTab = String($event)">
+                <TabsList>
+                  <TabsTrigger v-for="tab in tabs" :key="tab.key" :value="tab.key">
+                    {{ tab.label }}
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
 
               <section v-show="activeTab === 'dossier'">
-                <UCard glow crt class="profile-dossier">
-                  <template #header>
+                <Card class="profile-dossier gap-0 shadow-glow-md crt-screen">
+                  <div class="mb-4 border-b border-gray-700 pb-4">
                     <div class="flex items-center justify-between gap-3">
                       <div class="flex items-center gap-3">
                         <Icon icon="mdi:folder-account-outline" class="h-6 w-6 text-theme-accent" />
@@ -231,12 +183,12 @@ const formatDate = (dateString: string) => {
                           <h2 class="text-xl font-bold text-theme-primary terminal-glow">OVERSEER DOSSIER</h2>
                         </div>
                       </div>
-                      <UButton variant="secondary" size="sm" @click="startEditing">
+                      <Button variant="secondary" size="sm" @click="startEditing">
                         <Icon icon="mdi:pencil" class="mr-1" />
                         Edit profile
-                      </UButton>
+                      </Button>
                     </div>
-                  </template>
+                  </div>
 
                   <div class="flex flex-col gap-6 sm:flex-row sm:items-center">
                     <div class="profile-avatar flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-theme-primary bg-surface-sunken shadow-[0_0_18px_var(--color-theme-glow)]">
@@ -288,7 +240,7 @@ const formatDate = (dateString: string) => {
                       Manage display preferences
                     </RouterLink>
                   </div>
-                </UCard>
+                </Card>
 
               </section>
 
@@ -325,10 +277,6 @@ const formatDate = (dateString: string) => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .profile-page .scanlines {
-    display: none;
-  }
-
   .profile-page .flicker {
     animation: none;
   }

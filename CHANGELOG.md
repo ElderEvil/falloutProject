@@ -2,6 +2,230 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.140.0 (2026-09-24)
+
+### Features
+
+* refresh display preferences UI ([#775](https://github.com/ElderEvil/falloutProject/issues/775)) 618662e
+
+## 2.139.0 (2026-09-24)
+
+### Features
+
+* add contextual notification navigation ([#774](https://github.com/ElderEvil/falloutProject/issues/774)) e55aeae
+
+## 2.138.0 (2026-09-24)
+
+### Features
+
+* add notification delivery preferences ([#773](https://github.com/ElderEvil/falloutProject/issues/773)) 212b15e
+
+## 2.137.1 (2026-09-23)
+
+### Bug Fixes
+
+* enforce radio recruitment population cap ([#771](https://github.com/ElderEvil/falloutProject/issues/771)) 2986358
+
+## 2.137.0 (2026-09-23)
+
+### Features
+
+* the Quiet Zone — a STALKER easter egg ([#759](https://github.com/ElderEvil/falloutProject/issues/759)) 8ea9aeb
+
+## 2.136.3 (2026-09-23)
+
+### Code Refactoring
+
+* **ui:** unify the domain meters on one shared frame ([#767](https://github.com/ElderEvil/falloutProject/issues/767)) a1826f5
+
+## 2.136.2 (2026-09-23)
+
+### Bug Fixes
+
+* **rooms:** unify room menu build details ([#769](https://github.com/ElderEvil/falloutProject/issues/769)) e470edc
+
+## 2.136.1 (2026-09-23)
+
+### Code Refactoring
+
+* **ui:** migrate the remaining Progress callers off the --bar-fill hack ([#764](https://github.com/ElderEvil/falloutProject/issues/764)) 05c0df7
+
+## 2.136.0 (2026-09-23)
+
+### Features
+
+* **ui:** let Progress own its fill, tone, size and segments ([#762](https://github.com/ElderEvil/falloutProject/issues/762)) 2cab39c
+
+## 2.135.2 (2026-09-23)
+
+### Bug Fixes
+
+* **exploration:** finalize a return in one transaction ([#758](https://github.com/ElderEvil/falloutProject/issues/758)) c891a46
+
+## 2.135.1 (2026-09-23)
+
+### Code Refactoring
+
+* unify the dweller detail UI, control scale and family tree ([#757](https://github.com/ElderEvil/falloutProject/issues/757)) a9b9e1d
+
+## 2.135.0 (2026-09-23)
+
+### Features
+
+* reliable quest start/claim actions and sorted available quests ([#756](https://github.com/ElderEvil/falloutProject/issues/756)) 975cea9
+
+## 2.134.1 (2026-09-23)
+
+### Bug Fixes
+
+* clean up completed quest detail layout ([#754](https://github.com/ElderEvil/falloutProject/issues/754)) e7929a5
+
+## 2.134.0 (2026-09-23)
+
+### Features
+
+* **quests:** add return-leg fields and migration 572b389
+* **quests:** expose return ETA in quest read schema a63d5d8
+* **quests:** render travelling party in quest views and cards 940d971
+* **quests:** start and finalize return leg in quest service 3558b42
+* **quests:** surface travelling state in quest store and classifier a73cca3
+* **quests:** toast quest party arrival on the global stream 0f6a805
+
+### Bug Fixes
+
+* **quests:** refresh detail view when the return ETA passes 246e2ee
+
+## 2.133.1 (2026-09-23)
+
+### Bug Fixes
+
+* make Activate Radio Mode switch the radio instead of navigating 906dae5, closes #736
+
+## 2.133.0 (2026-09-23)
+
+### Features
+
+* **exploration:** add return leg so dwellers travel home after exploring 2eca23f
+
+### Bug Fixes
+
+* **exploration:** serialize reward claims and enforce arrival 26626ad
+* **exploration:** serialize the return transition and surface arrival globally 537f1b4
+
+## 2.132.0 (2026-09-22)
+
+### Features
+
+* **frontend:** restyle tabs as CRT terminal controls with an inverted active state c151e66
+
+### Bug Fixes
+
+* **frontend:** repair Tabs orientation layout and restore missing scanlines d8d1c00
+* **frontend:** scope DwellerChat scanlines to stop the global override edb36f4
+* **frontend:** unify vault stat tooltips and invert tooltip colors 5f0c689
+
+### Performance Improvements
+
+* **frontend:** cut the initial payload by 16% and gate it in CI f90816e
+
+### Documentation
+
+* **roadmap:** record the component-library migration epic and Phase 1 resolutions f9a9f62
+
+### Code Refactoring
+
+* **frontend:** bridge shadcn-vue semantic tokens onto the CRT theme 6651e25
+* **frontend:** finish shadcn-vue migration and remove the U* layer 74d18dd
+* **frontend:** land shadcn-vue primitives and generator hardening for Phase 2 bd32802
+* **frontend:** migrate ai-settings module from U* to shadcn-vue primitives b6cb292
+* **frontend:** migrate auth module to shadcn-vue primitives 339c606
+* **frontend:** migrate chat module to shadcn-vue primitives 92649b2
+* **frontend:** migrate crafting panel to shadcn-vue primitives 26c4eed
+* **frontend:** migrate map module to shadcn-vue primitives ed58471
+* **frontend:** migrate profile components to shadcn-vue primitives 4fa3e20
+* **frontend:** migrate profile views to shadcn-vue primitives e84f7bb
+* **frontend:** migrate progression module to shadcn-vue primitives 567d4cd
+* **frontend:** migrate remaining raw labels and account for bespoke controls 861ed87
+* **frontend:** migrate social module to shadcn-vue primitives 49e0d35
+* **frontend:** migrate storage module to shadcn-vue primitives 1c82ab4
+* **frontend:** migrate trading module to shadcn-vue primitives 6398644
+* **frontend:** migrate vault shell chrome to shadcn-vue primitives 61c040b
+* **frontend:** migrate vault views and widgets to shadcn-vue primitives 05e2260
+* **frontend:** unify the scanline overlay into a single layout-level component 621923a
+
+## 2.131.6 (2026-09-21)
+
+### Bug Fixes
+
+* give pregnancy state a single frontend owner bca8b0f
+
+## 2.131.5 (2026-09-21)
+
+### Bug Fixes
+
+* remove the superseded standalone radio route e39391f
+* restore ProfileRead as the profile endpoint wire schema 3721e82, closes #721
+* run passive radio recruitment in the game tick 930fe97
+
+### Code Refactoring
+
+* drop the orphaned radio store 0600fbb
+
+## 2.131.4 (2026-09-21)
+
+### Bug Fixes
+
+* exclude dismissed notifications from read-state operations 9d116cb
+* make training start, complete, and cancel one transaction each 798ef00
+
+### Code Refactoring
+
+* expose a public breeding entry point and annotate ORM returns c06d5fa
+* move incident queries and read assembly out of the router 2ad699d
+* move quest-start workflow into the quest service d970070
+
+## 2.131.3 (2026-09-21)
+
+### Bug Fixes
+
+* correct auth status codes and stop leaking database errors 56809bb
+* hide another user's existence from unauthorized callers 7023684
+* recover tick sessions after a failed statement 9b20cca
+* reload tick entities expired by session recovery 90823bc
+* run background ticks on UTC-pinned task sessions be60bea
+
+## 2.131.2 (2026-09-21)
+
+### Bug Fixes
+
+* backfill outfit hazard resistance for legacy rows c117fb1
+
+## 2.131.1 (2026-09-21)
+
+### Bug Fixes
+
+* retire legacy personal WS and lock down notification POST f216aef
+
+### Documentation
+
+* address CodeRabbit review comments on repair plan 82b7c03
+* implementation plan for vault experiment underlying systems 9ffdec5
+* scope prek gate to staged files, legacy ty debt out of scope 5f1b607
+* waved repair plan for audit findings e68e56b
+
+## 2.131.0 (2026-09-21)
+
+### Features
+
+* hybrid SPECIAL taglines plus shared field guide modal 48a4528
+* show item-improved SPECIAL breakdown on dweller detail aca694a
+* stacked bonus segments on SPECIAL bars with overflow and penalty states f8361ce
+
+### Bug Fixes
+
+* charisma covers radio recruits and relationship affinity df2d151
+* charisma description reflects radio recruitment mechanic 819bb4a
+
 ## 2.130.0 (2026-09-20)
 
 ### Features

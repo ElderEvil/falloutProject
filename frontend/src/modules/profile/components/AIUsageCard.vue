@@ -2,8 +2,11 @@
 import { computed, ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import { UCard, UAlert, UProgressBar } from '@/core/components/ui'
-import USkeleton from '@/core/components/ui/USkeleton.vue'
+import { Card } from '@/core/components/ui/card'
+import { Alert } from '@/core/components/ui/alert'
+import { Progress } from '@/core/components/ui/progress'
+import { Skeleton } from '@/core/components/ui/skeleton'
+import { Button } from '@/core/components/ui/button'
 import type { AIOperationStats, AIUsageStats } from '../models/aiUsage'
 
 interface Props {
@@ -101,20 +104,18 @@ const showWarningBanner = computed(() => {
 </script>
 
 <template>
-  <UCard
-    title="AI USAGE STATISTICS"
-    glow
-    crt
-    class="!border-theme-primary/40"
-  >
+  <Card class="gap-0 border-theme-primary/40 shadow-glow-md crt-screen">
+    <div class="mb-4 border-b border-gray-700 pb-4">
+      <h3 class="text-xl font-bold terminal-glow text-theme-primary">AI USAGE STATISTICS</h3>
+    </div>
     <div v-if="loading" class="space-y-4">
-      <USkeleton class="h-8 w-full" />
-      <USkeleton class="h-16 w-full" />
-      <USkeleton class="h-16 w-full" />
+      <Skeleton class="h-8 w-full" />
+      <Skeleton class="h-16 w-full" />
+      <Skeleton class="h-16 w-full" />
     </div>
 
     <div v-else-if="stats" class="space-y-6">
-      <UAlert v-if="showWarningBanner" variant="warning" dismissible @close="dismissBanner">
+      <Alert v-if="showWarningBanner" variant="default" class="border-warning bg-warning/10 text-warning">
         <div class="flex items-center justify-between gap-4 flex-wrap">
           <span>
             You've used <strong>{{ Math.round(quotaPercentage) }}%</strong> of your monthly token
@@ -127,8 +128,11 @@ const showWarningBanner = computed(() => {
             View Details
             <Icon icon="mdi:arrow-right" class="h-4 w-4" />
           </RouterLink>
+          <Button variant="ghost" size="icon-xs" aria-label="Dismiss alert" @click="dismissBanner">
+            <Icon icon="mdi:close" class="h-4 w-4" />
+          </Button>
         </div>
-      </UAlert>
+      </Alert>
 
       <div
         v-if="isEmpty"
@@ -172,11 +176,9 @@ const showWarningBanner = computed(() => {
                   formatNumber(stats.all_time.prompt_tokens)
                 }}</span>
               </div>
-              <UProgressBar
-                class="mt-1"
-                :height="4"
-                :glow="false"
-                :color="promptBarColor"
+              <Progress
+                class="mt-1 h-1"
+                :fill="promptBarColor"
                 :model-value="
                   stats.all_time.total_tokens > 0
                     ? (stats.all_time.prompt_tokens / stats.all_time.total_tokens) * 100
@@ -195,11 +197,9 @@ const showWarningBanner = computed(() => {
                   formatNumber(stats.all_time.completion_tokens)
                 }}</span>
               </div>
-              <UProgressBar
-                class="mt-1"
-                :height="4"
-                :glow="false"
-                :color="completionBarColor"
+              <Progress
+                class="mt-1 h-1"
+                :fill="completionBarColor"
                 :model-value="
                   stats.all_time.total_tokens > 0
                     ? (stats.all_time.completion_tokens / stats.all_time.total_tokens) * 100
@@ -227,11 +227,11 @@ const showWarningBanner = computed(() => {
                 {{ formatNumber(operation.total_tokens) }} · {{ requestLabel(operation.count) }} · {{ Math.round(operation.percentage) }}%
               </span>
             </div>
-            <UProgressBar
+            <!-- @vue-ignore -->
+            <Progress
               :model-value="operation.percentage"
-              :ariaLabel="`${operation.label}: ${operation.total_tokens} tokens across ${requestLabel(operation.count)}, ${Math.round(operation.percentage)}% of this month`"
-              :height="5"
-              :glow="false"
+              :aria-label="`${operation.label}: ${operation.total_tokens} tokens across ${requestLabel(operation.count)}, ${Math.round(operation.percentage)}% of this month`"
+              class="h-[5px]"
             />
           </div>
 
@@ -250,11 +250,9 @@ const showWarningBanner = computed(() => {
           <div
             class="relative h-6 bg-surface-sunken rounded border border-theme-primary/20 overflow-hidden"
           >
-            <UProgressBar
-              class="!rounded-none !border-0"
-              :height="24"
-              :glow="false"
-              :color="quotaFillColor"
+            <Progress
+              class="h-6 rounded-none border-0"
+              :fill="quotaFillColor"
               :model-value="Math.min(quotaPercentage, 100)"
             />
             <div class="absolute inset-0 flex items-center justify-center text-sm font-bold">
@@ -301,7 +299,7 @@ const showWarningBanner = computed(() => {
       <Icon icon="mdi:robot-outline" class="h-12 w-12 mx-auto mb-2 opacity-50" />
       <p>No AI usage data available</p>
     </div>
-  </UCard>
+  </Card>
 </template>
 
 <style scoped>

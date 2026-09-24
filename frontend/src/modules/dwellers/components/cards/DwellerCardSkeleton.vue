@@ -1,31 +1,31 @@
 <script setup lang="ts">
-import USkeleton from '@/core/components/ui/USkeleton.vue'
+import { Skeleton } from '@/core/components/ui/skeleton'
 </script>
 
 <template>
   <li class="dweller-card-skeleton">
     <div class="skeleton-content">
       <!-- Avatar -->
-      <USkeleton width="3rem" height="3rem" rounded="full" />
+      <Skeleton class="rounded-full" style="width: 3rem; height: 3rem;" />
 
       <!-- Info section -->
       <div class="skeleton-info">
         <div class="skeleton-header">
-          <USkeleton width="150px" height="1.25rem" />
-          <USkeleton width="60px" height="1.5rem" rounded="full" />
+          <Skeleton style="width: 150px; height: 1.25rem;" />
+          <Skeleton class="rounded-full" style="width: 60px; height: 1.5rem;" />
         </div>
 
         <div class="skeleton-details">
-          <USkeleton width="80px" height="0.875rem" />
-          <USkeleton width="100px" height="0.875rem" />
-          <USkeleton width="90px" height="0.875rem" />
+          <Skeleton style="width: 80px; height: 0.875rem;" />
+          <Skeleton style="width: 100px; height: 0.875rem;" />
+          <Skeleton style="width: 90px; height: 0.875rem;" />
         </div>
 
         <!-- Health bar -->
-        <USkeleton width="100%" height="0.5rem" rounded="full" />
+        <Skeleton class="rounded-full" style="width: 100%; height: 0.5rem;" />
 
         <!-- Room info -->
-        <USkeleton width="120px" height="0.875rem" />
+        <Skeleton style="width: 120px; height: 0.875rem;" />
       </div>
     </div>
   </li>

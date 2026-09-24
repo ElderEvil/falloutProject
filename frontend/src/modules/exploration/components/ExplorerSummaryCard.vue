@@ -2,7 +2,8 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
-import UProgressBar from '@/core/components/ui/UProgressBar.vue'
+import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
+import { Progress } from '@/core/components/ui/progress'
 import { getEffectiveMaxHealth, getHealthDisplay, getRadiationPercentage } from '@/modules/dwellers/models/dweller'
 
 const props = defineProps<{
@@ -16,11 +17,15 @@ const props = defineProps<{
   progressPercentage: number
   timeRemaining: string
   explorationDuration: number
+  isReturning?: boolean
 }>()
 
 const radiationPercentage = computed(() => getRadiationPercentage(props.radiation, props.maxHealth))
 const healthPercentage = computed(
-  () => (Math.min(props.health, getEffectiveMaxHealth(props.radiation, props.maxHealth)) / props.maxHealth) * 100
+  () =>
+    (Math.min(props.health, getEffectiveMaxHealth(props.radiation, props.maxHealth)) /
+      props.maxHealth) *
+    100
 )
 </script>
 
@@ -58,16 +63,15 @@ const healthPercentage = computed(
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2">
             <span class="min-w-[50px] text-xs text-theme-primary/80">Health</span>
-            <UProgressBar
-              :model-value="healthPercentage"
+            <HealthRadiationBar
+              :value="healthPercentage"
               :radiation="radiationPercentage"
               :height="12"
-              :glow="false"
-              ariaLabel="Health"
+              aria-label="Health"
             />
-            <span class="min-w-[60px] text-right text-xs font-bold text-theme-primary"
-              >{{ getHealthDisplay(health, maxHealth, radiation) }}</span
-            >
+            <span class="min-w-[60px] text-right text-xs font-bold text-theme-primary">{{
+              getHealthDisplay(health, maxHealth, radiation)
+            }}</span>
           </div>
         </div>
       </div>
@@ -78,65 +82,22 @@ const healthPercentage = computed(
       <h3
         class="mb-2 flex items-center text-base font-bold text-theme-primary [text-shadow:0_0_8px_var(--color-theme-glow)]"
       >
-        <Icon icon="mdi:compass" class="mr-2" />
-        Exploring Wasteland - {{ explorationDuration }}h
+        <Icon :icon="isReturning ? 'mdi:home-import-outline' : 'mdi:compass'" class="mr-2" />
+        {{ isReturning ? 'Returning Home' : 'Exploring Wasteland' }} - {{ explorationDuration }}h
       </h3>
-      <div
-        class="exploration-meter exploration-meter--progress mb-2 rounded-full"
-        role="progressbar"
-        aria-label="Exploration progress"
-        :aria-valuenow="progressPercentage"
-        aria-valuemin="0"
-        aria-valuemax="100"
-      >
-        <div
-          class="exploration-meter__fill rounded-full"
-          :style="{ width: `${progressPercentage}%` }"
-        ></div>
-        <div class="exploration-meter__segments" aria-hidden="true"></div>
-      </div>
+      <Progress
+        class="mb-2 h-5"
+        :model-value="progressPercentage"
+        segmented
+        label="Exploration progress"
+        :value-text="`${Math.round(progressPercentage)}%`"
+      />
       <div class="flex justify-between text-sm font-bold">
         <span class="text-theme-primary [text-shadow:0_0_5px_var(--color-theme-glow)]"
-          >{{ Math.round(progressPercentage) }}% Complete</span
+          >{{ Math.round(progressPercentage) }}% {{ isReturning ? 'home' : 'Complete' }}</span
         >
         <span class="text-theme-primary/80">{{ timeRemaining }}</span>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.exploration-meter {
-  position: relative;
-  display: block;
-  flex: 1;
-  overflow: hidden;
-  border: 1px solid rgb(from var(--color-theme-primary) r g b / 0.65);
-  background: var(--color-surface-sunken);
-  box-shadow: inset 0 0 8px var(--color-surface-canvas);
-}
-
-.exploration-meter--progress {
-  height: 1.25rem;
-}
-
-.exploration-meter__fill {
-  height: 100%;
-  background: var(--color-theme-primary);
-  box-shadow: inset 0 0 5px rgb(255 255 255 / 0.28), 0 0 8px var(--color-theme-glow);
-  transition: width 0.5s ease;
-}
-
-.exploration-meter__segments {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    90deg,
-    transparent 0,
-    transparent calc(12.5% - 1px),
-    rgb(0 0 0 / 0.5) calc(12.5% - 1px),
-    rgb(0 0 0 / 0.5) 12.5%
-  );
-}
-</style>

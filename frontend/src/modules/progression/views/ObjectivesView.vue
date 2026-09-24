@@ -9,7 +9,7 @@ import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Icon } from '@iconify/vue'
-import { UTabs } from '@/core/components/ui'
+import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { ObjectiveCard } from '../components'
 import ObjectiveCompleteModal from '../components/ObjectiveCompleteModal.vue'
 
@@ -81,8 +81,6 @@ function closeClaimModal(): void {
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div class="scanlines"></div>
-
     <div class="vault-layout">
       <!-- Side Panel -->
       <SidePanel />
@@ -111,8 +109,13 @@ function closeClaimModal(): void {
               />
             </div>
 
-            <UTabs v-else v-model="activeTab" :tabs="objectiveTabs">
-              <template #default>
+            <Tabs v-else :model-value="activeTab" @update:model-value="activeTab = String($event)">
+              <TabsList>
+                <TabsTrigger v-for="tab in objectiveTabs" :key="tab.key" :value="tab.key">
+                  <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
+                  {{ tab.label }}
+                </TabsTrigger>
+              </TabsList>
                 <div v-if="activeTab === 'daily'" class="tab-content">
                   <div v-if="dailyObjectives.length === 0" class="empty-state">
                     <p>No daily objectives available</p>
@@ -167,8 +170,7 @@ function closeClaimModal(): void {
                     />
                   </div>
                 </div>
-              </template>
-            </UTabs>
+            </Tabs>
           </div>
         </PageContentRail>
       </div>
@@ -193,7 +195,7 @@ function closeClaimModal(): void {
   flex: 1;
   margin-left: 240px; /* Width of expanded side panel */
   transition: margin-left 0.3s ease;
-  font-weight: 600; /* Bold font for better readability */
+  font-weight: 700; /* Bold font for better readability */
   letter-spacing: 0.025em; /* Slight letter spacing for clarity */
   line-height: 1.6; /* Better line height for readability */
 }
@@ -213,17 +215,6 @@ function closeClaimModal(): void {
 .main-content span,
 .main-content div {
   text-shadow: 0 0 2px var(--color-theme-glow);
-}
-
-.scanlines {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 50%, transparent 50%);
-  background-size: 100% 2px;
-  pointer-events: none;
 }
 
 .objectives-container {

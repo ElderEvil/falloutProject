@@ -21,7 +21,8 @@ from app.services.progression.quests import availability
 from app.services.progression.quests.availability import QuestAvailability
 from app.services.progression.quests.requirements import individual_meets_requirement, party_missing_requirements
 from app.services.reward_service import reward_service
-from app.utils.quest_duration import effective_quest_duration_minutes
+from app.utils.exceptions import ResourceNotFoundException, ValidationException
+from app.utils.quest_duration import effective_quest_duration_minutes, quest_return_leg_minutes
 from app.utils.reward_delivery import defer_reward_delivery
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,10 @@ logger = logging.getLogger(__name__)
 
 class QuestService:
     async def check_and_complete_quests(self, db_session: AsyncSession, vault_id: UUID4 | None = None) -> int:
-        """Mark elapsed quests ready for reward claiming and return their parties."""
+        """Start return legs for elapsed quests and finalize parties that arrived home.
+
+        Returns the number of quests finalized (made ready to claim) this run.
+        """
         now = datetime.utcnow()
         duration_minutes = func.coalesce(VaultQuestCompletionLink.duration_minutes, Quest.duration_minutes)
         if db_session.bind and db_session.bind.dialect.name == "sqlite":
@@ -40,12 +44,21 @@ class QuestService:
         else:
             expires_at = VaultQuestCompletionLink.started_at + func.make_interval(0, 0, 0, 0, 0, duration_minutes)
 
-        links = await crud.quest_crud.get_expired_party_links(
+        expired_links = await crud.quest_crud.get_expired_party_links(
             db_session, now=now, expires_at=expires_at, vault_id=vault_id
         )
+        for link in expired_links:
+            try:
+                await self.start_quest_return(db_session, link.quest_id, link.vault_id)
+            except Exception:
+                # Keep one quest failure isolated; the raw-session completion path is tested end to end.
+                logger.exception(f"Failed to start return for quest {link.quest_id} for vault {link.vault_id}")
+            else:
+                logger.info(f"Quest {link.quest_id} party is travelling home for vault {link.vault_id}")
 
+        arrived_links = await crud.quest_crud.get_arrived_party_links(db_session, now=now, vault_id=vault_id)
         completed_count = 0
-        for link in links:
+        for link in arrived_links:
             try:
                 await self.mark_quest_ready_to_claim(db_session, link.quest_id, link.vault_id)
             except Exception:
@@ -56,6 +69,38 @@ class QuestService:
                 logger.info(f"Quest {link.quest_id} is ready to claim for vault {link.vault_id}")
 
         return completed_count
+
+    async def start_quest_return(
+        self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4
+    ) -> VaultQuestCompletionLink:
+        """Send a finished quest party home; rewards wait until they arrive."""
+        from app.utils.exceptions import ResourceNotFoundException, ValidationException
+
+        link = await crud.quest_crud.get_link_for_update(db_session, quest_id=quest_id, vault_id=vault_id)
+        if link is None:
+            raise ResourceNotFoundException(
+                VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}"
+            )
+        if link.started_at is None:
+            raise ValidationException("Quest must be started before it can be completed")
+        if link.is_completed or link.is_reward_ready:
+            raise ValidationException("Quest party is already home")
+        if link.return_completes_at is not None:
+            raise ValidationException("Party is already travelling home")
+
+        quest = await crud.quest_crud.get_or_none(db_session, quest_id)
+        if quest is None:
+            raise ResourceNotFoundException(Quest, identifier=quest_id)
+        duration = link.duration_minutes if link.duration_minutes is not None else quest.duration_minutes
+        if datetime.utcnow() < link.started_at + timedelta(minutes=duration):
+            raise ValidationException("Quest is still in progress")
+
+        link.start_return(quest_return_leg_minutes(duration))
+        await db_session.commit()
+        await db_session.refresh(link)
+
+        logger.info(f"Quest {quest_id} party started travelling home for vault {vault_id}")
+        return link
 
     async def start_quest(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> VaultQuestCompletionLink:
         """Start a quest or ready a state objective."""
@@ -111,6 +156,35 @@ class QuestService:
         logger.info(f"Started quest {quest_id} for vault {vault_id} with duration {link.duration_minutes} minutes")
         return link
 
+    async def start_quest_for_vault(self, db_session: AsyncSession, vault_id: UUID4, quest_id: UUID4) -> Quest:
+        """Start a quest for a vault, checking availability first.
+
+        The whole start workflow lives here so the router only authorizes and
+        delegates.
+
+        Raises:
+            ResourceNotFoundException: If the quest does not exist.
+            ValidationException: If the quest is not currently available.
+        """
+        quest = await crud.quest_crud.get_or_none(db_session, quest_id)
+        if quest is None:
+            raise ResourceNotFoundException(Quest, identifier=quest_id)
+
+        await db_session.refresh(quest, ["quest_requirements"])
+
+        availability = await self.get_quest_availability(db_session, vault_id, quest)
+        if not availability.available:
+            detail = (
+                f"Missing requirements: {', '.join(availability.missing)}"
+                if availability.missing
+                else (availability.lock_reason or "Quest is not available")
+            )
+            raise ValidationException(detail=detail)
+
+        await self.start_quest(db_session, quest_id, vault_id)
+        await db_session.refresh(quest, ["quest_requirements", "quest_rewards"])
+        return quest
+
     async def get_quest_availability(
         self,
         db_session: AsyncSession,
@@ -146,7 +220,7 @@ class QuestService:
         """Return a finished party and make its rewards available to claim."""
         from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
-        link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
+        link = await crud.quest_crud.get_link_for_update(db_session, quest_id=quest_id, vault_id=vault_id)
         if link is None:
             raise ResourceNotFoundException(
                 VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}"
@@ -157,11 +231,12 @@ class QuestService:
         quest = await crud.quest_crud.get_or_none(db_session, quest_id)
         if quest is None:
             raise ResourceNotFoundException(Quest, identifier=quest_id)
-        duration = link.duration_minutes if link.duration_minutes is not None else quest.duration_minutes
-        if datetime.utcnow() < link.started_at + timedelta(minutes=duration):
-            raise ValidationException("Quest is still in progress")
         if link.is_reward_ready:
             return quest
+        if link.return_completes_at is None:
+            raise ValidationException("Party has not been sent home")
+        if datetime.utcnow() < link.return_completes_at:
+            raise ValidationException("Party is still travelling home")
 
         members = await crud.team_crud.get_quest_team(db_session, quest_id, vault_id)
         for member in members:
@@ -171,7 +246,23 @@ class QuestService:
         link.is_reward_ready = True
         await db_session.commit()
 
+        await self._announce_quest_arrival(db_session, quest, vault_id)
         return quest
+
+    async def _announce_quest_arrival(self, db_session: AsyncSession, quest: Quest, vault_id: UUID4) -> None:
+        """Best-effort arrival notification when a quest party returns home."""
+        try:
+            vault = await crud.vault.get_or_none(db_session, vault_id, include_deleted=True)
+            if vault and vault.user_id:
+                await notification_service.notify_quest_party_returned(
+                    db_session,
+                    user_id=vault.user_id,
+                    vault_id=vault_id,
+                    quest_id=quest.id,
+                    quest_title=quest.title,
+                )
+        except Exception:
+            logger.exception(f"Failed to send quest arrival notification for '{quest.title}'")
 
     async def claim_quest_rewards(
         self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4
@@ -190,8 +281,11 @@ class QuestService:
         quest = None
         try:
             quest = await crud.quest_crud.get(db_session, quest_id)
-            await crud.quest_crud.mark_completed(db_session, quest_id=quest_id, vault_id=vault_id)
+            completed_link = await crud.quest_crud.mark_completed(db_session, quest_id=quest_id, vault_id=vault_id)
             granted_rewards = await self._settle_quest_rewards(db_session, quest, vault_id)
+            completed_link.granted_rewards = [
+                granted_reward_adapter.validate_python(reward).model_dump(mode="json") for reward in granted_rewards
+            ]
             await db_session.commit()
         except Exception:
             await db_session.rollback()
@@ -275,15 +369,6 @@ class QuestService:
                         new_level=dweller.level,
                         meta_data={"old_level": dweller.level - 1, "new_level": dweller.level},
                     )
-                rewards_str = (
-                    format_reward_summary(
-                        [granted_reward_adapter.validate_python(reward) for reward in granted_rewards]
-                    )
-                    or "no rewards"
-                )
-                await notification_service.notify_quest_completed(
-                    db_session, vault.user_id, vault_id, quest.title, rewards_str
-                )
         except Exception:
             logger.exception(f"Failed to send quest completion notification for '{quest.title}'")
 

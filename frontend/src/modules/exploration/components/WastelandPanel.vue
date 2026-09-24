@@ -4,11 +4,11 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
-import { getProgressPercentage as computeProgress } from '@/modules/exploration/composables/useExplorationProgress'
+import { isReadyToComplete } from '@/modules/exploration/composables/useExplorationProgress'
+import { useExplorationFinish } from '@/modules/exploration/composables/useExplorationFinish'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
-import type { RewardsSummary } from '@/modules/exploration/stores/exploration'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 import WastelandDropzone from '@/modules/exploration/components/WastelandDropzone.vue'
 import ActiveExplorationList from '@/modules/exploration/components/ActiveExplorationList.vue'
@@ -39,11 +39,17 @@ const sendWasteland = useSendToWasteland(() => vaultId.value)
 watch(vaultId, () => sendWasteland.cancel())
 
 // Rewards modal state
-const showRewardsModal = ref(false)
-const completedExplorationRewards = ref<RewardsSummary | null>(null)
-const completedDwellerName = ref('')
-const completedExplorationId = ref('')
-const rewardsDirty = ref(false)
+const {
+  showRewardsModal,
+  completedExplorationRewards,
+  completedDwellerName,
+  completedExplorationId,
+  rewardsDirty,
+  openRewards,
+  resetRewards,
+  refreshIfDirty,
+  finishExploration: runExplorationFinish,
+} = useExplorationFinish(vaultId)
 
 // Track explorations being completed to prevent duplicate calls
 const completingExplorations = ref<Set<string>>(new Set())
@@ -84,10 +90,11 @@ watch(
       return
     }
     const dweller = getDwellerById(pending.dwellerId)
-    completedExplorationRewards.value = pending.rewards
-    completedDwellerName.value = dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller'
-    completedExplorationId.value = pending.explorationId ?? ''
-    showRewardsModal.value = true
+    openRewards(
+      pending.rewards,
+      dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller',
+      pending.explorationId ?? ''
+    )
     explorationStore.clearPendingSseRewards()
   }
 )
@@ -102,17 +109,11 @@ const pollExplorations = async () => {
 
     // Check for completed explorations and fetch detailed data for new explorers
     for (const exploration of activeExplorationsArray.value) {
-      const progress = getProgressPercentage(exploration.id)
-
       if (!dwellerStore.detailedDwellers[exploration.dweller_id]) {
         await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
       }
 
-      if (
-        progress >= 100 &&
-        exploration.status === 'active' &&
-        !completingExplorations.value.has(exploration.id)
-      ) {
+      if (isReadyToComplete(exploration) && !completingExplorations.value.has(exploration.id)) {
         await handleCompleteExploration(exploration.id)
       }
     }
@@ -129,12 +130,6 @@ const activeExplorationsArray = computed(() => {
 
 const getDwellerById = (dwellerId: string) => {
   return dwellerStore.dwellers.find((d) => d.id === dwellerId)
-}
-
-const getProgressPercentage = (explorationId: string) => {
-  const exploration = explorationStore.activeExplorations[explorationId]
-  if (!exploration) return 0
-  return computeProgress(exploration)
 }
 
 // --- Dropzone handlers ---
@@ -166,49 +161,8 @@ const handleSendWastelandConfirm = (payload: {
 
 // --- Explorer actions ---
 
-type ExplorationFinishAction = (explorationId: string, token: string) => Promise<{ rewards_summary?: RewardsSummary }>
-
-const finishExploration = async (
-  explorationId: string,
-  action: ExplorationFinishAction,
-  errorMessage: string
-) => {
-  if (!authStore.token) return
-
-  try {
-    const exploration = explorationStore.activeExplorations[explorationId]
-    if (!exploration) {
-      toast.error('Exploration not found')
-      return
-    }
-
-    const dweller = getDwellerById(exploration.dweller_id)
-    if (!dweller) {
-      toast.error('Dweller not found')
-      return
-    }
-
-    const result = await action(explorationId, authStore.token)
-
-    if (result?.rewards_summary) {
-      explorationStore.acknowledgeSseReward(dweller.id)
-      completedExplorationRewards.value = result.rewards_summary
-      completedDwellerName.value = `${dweller.first_name} ${dweller.last_name}`
-      completedExplorationId.value = explorationId
-      showRewardsModal.value = true
-    }
-
-    if (vaultId.value) {
-      await vaultStore.refreshVault(vaultId.value, authStore.token)
-      await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
-    }
-  } catch (error) {
-    toast.error(errorMessage)
-  }
-}
-
 const recallDweller = (explorationId: string) =>
-  finishExploration(explorationId, explorationStore.recallDweller, 'Failed to recall dweller')
+  runExplorationFinish(explorationId, explorationStore.recallDweller, 'Failed to recall dweller')
 
 const handleCompleteExploration = async (explorationId: string) => {
   if (!authStore.token) return
@@ -217,26 +171,19 @@ const handleCompleteExploration = async (explorationId: string) => {
   completingExplorations.value.add(explorationId)
 
   try {
-    await finishExploration(explorationId, explorationStore.completeExploration, 'Failed to complete exploration')
+    await runExplorationFinish(
+      explorationId,
+      explorationStore.completeExploration,
+      'Failed to complete exploration'
+    )
   } finally {
     completingExplorations.value.delete(explorationId)
   }
 }
 
 const closeRewardsModal = async () => {
-  if (rewardsDirty.value && vaultId.value && authStore.token) {
-    try {
-      await vaultStore.refreshVault(vaultId.value, authStore.token)
-      rewardsDirty.value = false
-    } catch {
-      toast.error('Failed to refresh vault rewards')
-      return
-    }
-  }
-  showRewardsModal.value = false
-  completedExplorationRewards.value = null
-  completedDwellerName.value = ''
-  completedExplorationId.value = ''
+  if (!(await refreshIfDirty())) return
+  resetRewards()
 }
 
 // Type assertion: dwellerStore.dwellers is DwellerShort[] at runtime but
@@ -246,17 +193,14 @@ const dwellerList = computed(() => dwellerStore.dwellers as unknown as Dweller[]
 
 // Type assertion: dwellerStore.detailedDwellers can contain null values but
 // ActiveExplorationList handles missing entries via `|| null` internally.
-const detailedDwellerMap = computed(() =>
-  dwellerStore.detailedDwellers as unknown as Record<string, Dweller>
+const detailedDwellerMap = computed(
+  () => dwellerStore.detailedDwellers as unknown as Record<string, Dweller>
 )
 </script>
 
 <template>
   <div class="relative mb-4">
-    <WastelandDropzone
-      @drop-dweller="handleDropDweller"
-      @drop-error="handleDropError"
-    >
+    <WastelandDropzone @drop-dweller="handleDropDweller" @drop-error="handleDropError">
       <ActiveExplorationList
         :explorations="activeExplorationsArray"
         :dwellers="dwellerList"

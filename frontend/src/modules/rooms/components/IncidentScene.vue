@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import UProgressBar from '@/core/components/ui/UProgressBar.vue'
+import { Progress } from '@/core/components/ui/progress'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getCombatPower } from '@/modules/dwellers/models/dweller'
 import type { Incident } from '@/modules/combat/models/incident'
@@ -60,10 +60,9 @@ const containmentGain = computed(() => Math.round(Number(latestEffect.value?.dat
           <span class="combatant-portrait">{{ dweller.first_name[0] }}</span>
           <span class="combatant-name">{{ dweller.first_name }}</span>
           <span class="combatant-power">POW {{ getCombatPower(dweller) }}</span>
-          <UProgressBar
+          <Progress
             :model-value="(dweller.health / dweller.max_health) * 100"
-            :height="7"
-            :glow="false"
+            class="h-[7px]"
           />
         </div>
         <span v-if="!responders.length" class="stage-empty">No responders assigned</span>
@@ -122,11 +121,10 @@ const containmentGain = computed(() => Math.round(Number(latestEffect.value?.dat
         <Icon v-else :icon="getIncidentIcon(incident.type)" class="hazard-icon" />
         <div>
           <strong>{{ incident.progress.label }}</strong>
-          <UProgressBar
+          <Progress
             :model-value="progressPercent"
-            :height="8"
-            :glow="false"
-            color="var(--color-warning)"
+            class="h-2"
+            tone="warning"
           />
           <span
             >{{ incident.risk.rooms_affected }} room{{
@@ -259,6 +257,7 @@ const containmentGain = computed(() => Math.round(Number(latestEffect.value?.dat
   height: 2rem;
   color: var(--color-warning);
 }
+
 .hazard-flame {
   flex-shrink: 0;
   width: 2rem;

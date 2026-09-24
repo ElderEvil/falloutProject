@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { UProgressBar } from '@/core/components/ui'
+import { Progress } from '@/core/components/ui/progress'
 import QuestPartyCard from '@/modules/exploration/components/QuestPartyCard.vue'
 import type { VaultQuest } from '@/modules/progression/models/quest'
 
@@ -43,10 +43,30 @@ describe('QuestPartyCard', () => {
       },
     })
 
-    expect(wrapper.findComponent(UProgressBar).props('modelValue')).toBeGreaterThan(0)
+    expect(wrapper.findComponent(Progress).props('modelValue')).toBeGreaterThan(0)
     expect(wrapper.text()).toContain('Quest party')
     expect(wrapper.text()).toContain('Lucy MacLean')
     expect(wrapper.text()).toContain('2 / 3 assigned')
+
+    wrapper.unmount()
+  })
+
+  it('shows a travelling badge and ETA instead of progress while the party returns', () => {
+    const wrapper = mount(QuestPartyCard, {
+      props: {
+        quest: {
+          ...quest,
+          is_reward_ready: false,
+          return_started_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+          return_completes_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+        },
+        partyMembers: [],
+      },
+    })
+
+    expect(wrapper.text()).toContain('RETURNING')
+    expect(wrapper.text()).toContain('Travelling home')
+    expect(wrapper.findComponent(Progress).exists()).toBe(false)
 
     wrapper.unmount()
   })

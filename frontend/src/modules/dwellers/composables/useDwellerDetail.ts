@@ -203,6 +203,13 @@ export function useDwellerDetail(
     if (seq !== loadSeq) return
     loading.value = false
 
+    if (fetched?.status === 'exploring') {
+      // Recall gating reads the exploration store; best-effort so the page still loads.
+      await explorationStore
+        .fetchExplorationsByVault(vaultId.value, authStore.token as string)
+        .catch(() => undefined)
+    }
+
     if (fetched?.is_dead && !fetched.is_permanently_dead) {
       revivalCost.value = await dwellerDeathStore.getRevivalCost(
         requestedId,

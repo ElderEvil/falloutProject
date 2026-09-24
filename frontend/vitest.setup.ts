@@ -73,3 +73,25 @@ beforeEach(() => {
   localStorageMock.clear()
   sessionStorageMock.clear()
 })
+
+// jsdom 29 lacks the Pointer Capture API, which reka-ui's Select/Popover pointer
+// handlers call during pointerdown. Provide no-op implementations so interactions
+// can be driven with synthetic pointer events.
+if (!HTMLElement.prototype.setPointerCapture) {
+  HTMLElement.prototype.setPointerCapture = () => {}
+}
+if (!HTMLElement.prototype.releasePointerCapture) {
+  HTMLElement.prototype.releasePointerCapture = () => {}
+}
+if (!HTMLElement.prototype.hasPointerCapture) {
+  HTMLElement.prototype.hasPointerCapture = () => false
+}
+
+// jsdom lacks ResizeObserver, which reka-ui's Slider (useSize) constructs on mount.
+if (!globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver
+}

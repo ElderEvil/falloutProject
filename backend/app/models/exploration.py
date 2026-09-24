@@ -1,6 +1,6 @@
 """Exploration models for wasteland expeditions."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import StrEnum
 
 import sqlalchemy as sa
@@ -10,6 +10,9 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
+
+# The trip home takes half the time the dweller spent exploring.
+RETURN_LEG_FRACTION = 0.5
 
 
 def get_utc_now() -> datetime:
@@ -21,8 +24,13 @@ class ExplorationStatus(StrEnum):
     """Status of a wasteland exploration."""
 
     ACTIVE = "active"
+    RETURNING = "returning"
     COMPLETED = "completed"
     RECALLED = "recalled"
+
+
+# Statuses that still occupy the dweller; the run is not finished until it leaves this set.
+IN_PROGRESS_STATUSES: tuple[ExplorationStatus, ...] = (ExplorationStatus.ACTIVE, ExplorationStatus.RETURNING)
 
 
 class ExplorationBase(SQLModel):
@@ -32,6 +40,11 @@ class ExplorationBase(SQLModel):
     start_time: datetime = Field(default_factory=get_utc_now)
     end_time: datetime | None = Field(default=None)
     status: ExplorationStatus = Field(default=ExplorationStatus.ACTIVE, index=True)
+
+    # Return leg: set when exploring ends, cleared into the terminal outcome on arrival.
+    return_started_at: datetime | None = Field(default=None)
+    return_completes_at: datetime | None = Field(default=None)
+    recalled_early: bool = Field(default=False)
 
     # Journey log and events
     events: list[dict] = Field(default_factory=list, sa_column=sa.Column(JSONB))
@@ -71,6 +84,14 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         """Check if exploration is still active."""
         return self.status == ExplorationStatus.ACTIVE
 
+    def is_returning(self) -> bool:
+        """Check if the dweller is on the way home from the wasteland."""
+        return self.status == ExplorationStatus.RETURNING
+
+    def is_in_progress(self) -> bool:
+        """Check if the run is ongoing, whether exploring or returning."""
+        return self.status in IN_PROGRESS_STATUSES
+
     def is_completed(self) -> bool:
         """Check if exploration is completed."""
         return self.status == ExplorationStatus.COMPLETED
@@ -79,6 +100,18 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         """Calculate elapsed time in seconds."""
         now = datetime.utcnow()
         return int((now - self.start_time).total_seconds())
+
+    def exploring_seconds(self) -> int:
+        """Seconds actually spent exploring, capped at the planned duration."""
+        end = self.return_started_at or datetime.utcnow()
+        return min(max(0, int((end - self.start_time).total_seconds())), self.duration * 3600)
+
+    def exploring_progress_percentage(self) -> float:
+        """Exploration progress at the moment exploring ended (0-100)."""
+        total = self.duration * 3600
+        if total <= 0:
+            return 100.0
+        return min(100.0, (self.exploring_seconds() / total) * 100)
 
     def progress_percentage(self) -> float:
         """Calculate progress as percentage (0-100)."""
@@ -95,6 +128,28 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         total_seconds = self.duration * 3600
         elapsed = self.elapsed_time_seconds()
         return max(0, total_seconds - elapsed)
+
+    def start_return(self, *, recalled: bool = False) -> None:
+        """Begin the trip home, lasting half the time spent exploring."""
+        now = datetime.utcnow()
+        exploring_seconds = self.exploring_seconds()
+        self.return_started_at = now
+        self.return_completes_at = now + timedelta(seconds=int(exploring_seconds * RETURN_LEG_FRACTION))
+        self.recalled_early = recalled
+        self.status = ExplorationStatus.RETURNING
+
+    def return_time_remaining_seconds(self) -> int:
+        """Seconds until the dweller arrives home; 0 unless returning."""
+        if not self.is_returning() or self.return_completes_at is None:
+            return 0
+        return max(0, int((self.return_completes_at - datetime.utcnow()).total_seconds()))
+
+    def finalize_return(self) -> None:
+        """Finish the run once the dweller is home, preserving the outcome."""
+        if self.recalled_early:
+            self.recall()
+        else:
+            self.complete()
 
     def should_generate_event(self, last_event_time: datetime | None = None) -> bool:
         """Check if a new event should be generated (every ~10 minutes)."""

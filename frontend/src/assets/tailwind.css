@@ -1,9 +1,12 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
 
 @theme {
     /* ============================================
      FALLOUT SHELTER DESIGN SYSTEM
-     Multi-theme support: FO3 (Green), FNV (Amber), FO4 (Teal)
+     Multi-theme support: FO3 (Teal), FNV (Amber), FO4 (Green)
      Based on THEMES.md specification
      ============================================ */
 
@@ -76,6 +79,12 @@
     /* === TYPOGRAPHY === */
     --font-family-mono: "Courier New", Courier, monospace;
     --font-family-base: var(--font-family-mono);
+    /* The font-mono/font-sans utilities must resolve to the app's mono stack;
+       Tailwind's built-in defaults are a different family, which left buttons
+       inside a font-mono container rendering in a different font than the
+       labels beside them. */
+    --font-mono: var(--font-family-mono);
+    --font-sans: var(--font-family-mono);
 
     /* Font Sizes */
     --font-size-xs: 0.75rem; /* 12px */
@@ -163,11 +172,102 @@
     --map-pane-size: max(0px, min(960px, calc(100dvh - 16rem)));
 }
 
+/* === SHADCN-VUE SEMANTIC BRIDGE (Phase 0.2) === */
+/* shadcn components read --background/--primary/--border/--radius etc. These
+   are ALIASED to the existing design tokens — never hard-coded. useTheme.ts is
+   the single palette writer: it rewrites --color-theme-* inline on <html>, and
+   every alias below re-resolves automatically on each runtime palette swap. */
+:root {
+    --background: var(--color-surface-canvas);
+    --foreground: var(--color-theme-primary);
+    --card: var(--color-surface);
+    --card-foreground: var(--color-theme-primary);
+    --popover: var(--color-surface-raised);
+    --popover-foreground: var(--color-theme-primary);
+    --primary: var(--color-theme-primary);
+    --primary-foreground: #000000;
+    --ring: var(--color-theme-primary);
+    --secondary: var(--color-surface-sunken);
+    --secondary-foreground: var(--color-theme-primary);
+    --muted: var(--color-surface-sunken);
+    --muted-foreground: color-mix(in srgb, var(--color-theme-primary) 70%, transparent);
+    --accent: var(--color-surface-hover);
+    --accent-foreground: var(--color-theme-primary);
+    --destructive: var(--color-danger);
+    --border: var(--color-theme-glow);
+    --input: var(--color-theme-glow);
+    --radius: var(--border-radius-base);
+    /* --radius-sm stays at the value the app renders today (Tailwind v4 default
+       0.25rem): --border-radius-sm (0.125rem) would change existing rounded-sm
+       elements (e.g. USkeleton sm in the ui-catalog net). md/lg/xl match the
+       existing --border-radius-* values exactly, so they alias cleanly. */
+    --radius-sm: 0.25rem;
+    --radius-md: var(--border-radius-md);
+    --radius-lg: var(--border-radius-lg);
+    --radius-xl: var(--border-radius-xl);
+    --chart-1: var(--color-theme-primary);
+    --chart-2: var(--color-theme-accent);
+    --chart-3: var(--color-surface-raised);
+    --chart-4: var(--color-warning);
+    --chart-5: var(--color-info);
+    --sidebar: var(--color-surface);
+    --sidebar-foreground: var(--color-theme-primary);
+    --sidebar-primary: var(--color-theme-primary);
+    --sidebar-primary-foreground: #000000;
+    --sidebar-accent: var(--color-surface-hover);
+    --sidebar-accent-foreground: var(--color-theme-primary);
+    --sidebar-border: var(--color-theme-glow);
+    --sidebar-ring: var(--color-theme-primary);
+}
+
+/* Map the semantic vars to Tailwind utilities (bg-primary, text-foreground,
+   border-border, rounded-md, …). `inline` keeps the vars out of :root — the
+   aliases above are the single source of truth. */
+@theme inline {
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-ring: var(--ring);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+    --radius-sm: var(--radius-sm);
+    --radius-md: var(--radius-md);
+    --radius-lg: var(--radius-lg);
+    --radius-xl: var(--radius-xl);
+    --radius: var(--radius);
+}
+
 /* === GLOBAL STYLES === */
 body {
     background-color: var(--color-terminal-background);
     color: var(--color-theme-primary);
     font-family: var(--font-family-mono);
+    font-weight: 500;
     text-shadow: 0 0 10px var(--color-theme-glow);
     min-height: 100vh;
     line-height: var(--line-height-normal);
@@ -181,11 +281,8 @@ body {
 
 /* Scanlines Effect */
 .scanlines {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    position: fixed;
+    inset: 0;
     background: repeating-linear-gradient(
         to bottom,
         rgba(0, 0, 0, 0.1),
@@ -353,18 +450,6 @@ body {
     border-bottom: 2px solid var(--color-theme-glow);
     padding-bottom: 0.5rem;
     margin-bottom: 1rem;
-}
-
-/* Panel section title — one heading treatment for every detail-panel tab
-   (dweller profile, appearance, stats, equipment, family). The separator is a
-   full-width rule owned by the tab's own header row, so the title itself draws
-   no line and panels cannot end up with two. */
-.panel-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--color-theme-primary);
-    text-shadow: 0 0 8px var(--color-theme-glow);
-    margin: 0;
 }
 
 /* Badge intents — see STYLEGUIDE → "Intent & Emphasis Semantics".

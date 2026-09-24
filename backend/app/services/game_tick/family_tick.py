@@ -22,8 +22,8 @@ from app.crud.relationship import relationship_crud as crud_relationship
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
-from app.models.pregnancy import Pregnancy
 from app.models.relationship import Relationship
+from app.services.game_tick.guard import recover_session
 from app.services.game_tick.tick_results import (
     AgeStats,
     BreedingStats,
@@ -252,6 +252,7 @@ async def update_room_relationships(
         stats["relationships_updated"] += await service._create_new_relationships(db_session, new_relationships)
 
     except SQLAlchemyError as e:
+        await recover_session(db_session)
         logger.error(f"Database error updating relationships for vault {vault_id}: {e}", exc_info=True)
     except ValueError as e:
         logger.error(f"Validation error updating relationships for vault {vault_id}: {e}", exc_info=True)
@@ -259,14 +260,16 @@ async def update_room_relationships(
     return stats
 
 
-async def _deliver_due_baby(db_session: AsyncSession, vault_id: UUID4, pregnancy: Pregnancy) -> bool:
+async def _deliver_due_baby(db_session: AsyncSession, vault_id: UUID4, pregnancy_id: UUID4) -> bool:
     """Deliver one due pregnancy; per-delivery errors are logged, not raised."""
     from app.services.family.breeding_service import breeding_service
 
     try:
-        baby = await breeding_service.deliver_baby(db_session, pregnancy.id)
+        baby = await breeding_service.deliver_baby(db_session, pregnancy_id)
     except (SQLAlchemyError, ValueError) as e:
-        logger.error(f"Error delivering baby for pregnancy {pregnancy.id}: {e}", exc_info=True)
+        if isinstance(e, SQLAlchemyError):
+            await recover_session(db_session)
+        logger.error(f"Error delivering baby for pregnancy {pregnancy_id}: {e}", exc_info=True)
         return False
     if baby:
         logger.info(f"Baby born in vault {vault_id}: {baby.first_name} {baby.last_name}")
@@ -286,6 +289,7 @@ async def process_pregnancies_and_births(db_session: AsyncSession, vault_id: UUI
         if new_pregnancies:
             logger.info(f"New pregnancies in vault {vault_id}: {len(new_pregnancies)}")
     except SQLAlchemyError as e:
+        await recover_session(db_session)
         logger.error(f"Database error checking for conception in vault {vault_id}: {e}", exc_info=True)
     except ValueError as e:
         logger.error(f"Validation error checking for conception in vault {vault_id}: {e}", exc_info=True)
@@ -293,10 +297,13 @@ async def process_pregnancies_and_births(db_session: AsyncSession, vault_id: UUI
     # Check for due pregnancies and deliver babies
     try:
         due_pregnancies = await breeding_service.check_due_pregnancies(db_session, vault_id)
-        for pregnancy in due_pregnancies:
-            if await _deliver_due_baby(db_session, vault_id, pregnancy):
+        # Deliver by id: a failed delivery recovers the session, which expires the
+        # remaining ORM instances.
+        for pregnancy_id in [pregnancy.id for pregnancy in due_pregnancies]:
+            if await _deliver_due_baby(db_session, vault_id, pregnancy_id):
                 stats["births"] += 1
     except SQLAlchemyError as e:
+        await recover_session(db_session)
         logger.error(f"Database error checking due pregnancies in vault {vault_id}: {e}", exc_info=True)
 
     return stats
@@ -314,6 +321,7 @@ async def age_children(db_session: AsyncSession, vault_id: UUID4) -> AgeStats:
         if aged_children:
             logger.info(f"Children aged to adults in vault {vault_id}: {len(aged_children)}")
     except SQLAlchemyError as e:
+        await recover_session(db_session)
         logger.error(f"Database error aging children in vault {vault_id}: {e}", exc_info=True)
     except ValueError as e:
         logger.error(f"Validation error aging children in vault {vault_id}: {e}", exc_info=True)

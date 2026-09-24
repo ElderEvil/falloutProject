@@ -117,4 +117,116 @@ describe('DwellerStats', () => {
       })
     })
   })
+
+  describe('Item-Improved Stats', () => {
+    function mountWithOutfit() {
+      const dweller = {
+        ...stats,
+        outfit: { name: 'Vault Suit', strength: 5 },
+        identity_modifiers: {},
+      } as unknown as Dweller
+      const ctx = createMockDwellerDetailContext({
+        dweller: ref(dweller) as never,
+        highlightStat: ref(undefined) as never,
+      })
+      return mountWithDwellerContext(DwellerStats, { context: ctx })
+    }
+
+    it('should show effective value when outfit improves a stat', () => {
+      const wrapper = mountWithOutfit()
+      expect(wrapper.findAll('.stat-value')[0].text()).toBe('10')
+    })
+
+    it('should render base to effective breakdown with source', () => {
+      const wrapper = mountWithOutfit()
+      const breakdowns = wrapper.findAll('.stat-breakdown')
+      expect(breakdowns).toHaveLength(1)
+      expect(breakdowns[0].text()).toBe('5 → 10 (+5 Vault Suit)')
+    })
+
+    it('should render no breakdown without bonuses', () => {
+      const { wrapper } = mountStats()
+      expect(wrapper.find('.stat-breakdown').exists()).toBe(false)
+    })
+  })
+
+  describe('Bonus Bar Segments', () => {
+    function mountWithBonus(overrides: object) {
+      const dweller = {
+        ...stats,
+        outfit: null,
+        identity_modifiers: {},
+        ...overrides,
+      } as unknown as Dweller
+      const ctx = createMockDwellerDetailContext({
+        dweller: ref(dweller) as never,
+        highlightStat: ref(undefined) as never,
+      })
+      return mountWithDwellerContext(DwellerStats, { context: ctx })
+    }
+
+    it('should render base segment only without bonuses', () => {
+      const wrapper = mountWithBonus({})
+      const base = wrapper.findAll('.stat-fill-base')[0]
+      expect(base.attributes('style')).toContain('width: 50%')
+      expect(wrapper.find('.stat-fill-bonus').exists()).toBe(false)
+      expect(wrapper.find('.stat-tick').exists()).toBe(false)
+    })
+
+    it('should stack striped bonus segment on base', () => {
+      const wrapper = mountWithBonus({ outfit: { name: 'Vault Suit', strength: 5 } })
+      const base = wrapper.findAll('.stat-fill-base')[0]
+      const bonus = wrapper.find('.stat-fill-bonus')
+      expect(base.attributes('style')).toContain('width: 50%')
+      expect(bonus.exists()).toBe(true)
+      expect(bonus.attributes('style')).toContain('width: 50%')
+      expect(bonus.classes()).not.toContain('stat-overflow')
+    })
+
+    it('should clamp bonus segment and glow on partial overflow', () => {
+      const wrapper = mountWithBonus({ S: 8, outfit: { name: 'Combat Armor', strength: 5 } })
+      const bonus = wrapper.find('.stat-fill-bonus')
+      expect(bonus.attributes('style')).toContain('width: 20%')
+      expect(bonus.classes()).toContain('stat-overflow')
+    })
+
+    it('should flag overflow when effective exceeds 10', () => {
+      const wrapper = mountWithBonus({ S: 10, outfit: { name: 'Power Armor', strength: 5 } })
+      expect(wrapper.find('.stat-overflow-bar').exists()).toBe(true)
+      expect(wrapper.find('.stat-bar').attributes('title')).toContain('= 15 effective')
+    })
+
+    it('should render effective fill plus base tick on penalty', () => {
+      const wrapper = mountWithBonus({ identity_modifiers: { strength: -3 } })
+      const base = wrapper.findAll('.stat-fill-base')[0]
+      expect(base.attributes('style')).toContain('width: 20%')
+      const tick = wrapper.find('.stat-tick')
+      expect(tick.exists()).toBe(true)
+      expect(tick.attributes('style')).toContain('left: 50%')
+    })
+
+    it('should expose breakdown in bar title and aria-label', () => {
+      const wrapper = mountWithBonus({ outfit: { name: 'Vault Suit', strength: 5 } })
+      const bar = wrapper.findAll('.stat-bar')[0]
+      expect(bar.attributes('title')).toBe('Base 5 + +5 Vault Suit = 10 effective')
+      expect(bar.attributes('aria-label')).toContain('Strength: Base 5')
+    })
+
+    it('should render taglines from the shared guide', () => {
+      const { wrapper } = mountStats()
+      const descriptions = wrapper.findAll('.stat-description').map((d) => d.text())
+      expect(descriptions[0]).toContain('power rooms')
+      expect(descriptions[3]).toContain('recruits')
+    })
+  })
+
+  describe('Field Guide', () => {
+    it('should open the guide modal from the info button', async () => {
+      const { wrapper } = mountStats()
+      const modal = wrapper.findComponent({ name: 'SpecialGuideModal' })
+      expect(modal.props('modelValue')).toBe(false)
+      await wrapper.find('button[aria-label="Open SPECIAL field guide"]').trigger('click')
+      expect(modal.props('modelValue')).toBe(true)
+    })
+  })
 })

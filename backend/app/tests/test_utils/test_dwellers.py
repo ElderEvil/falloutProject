@@ -7,7 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.core.game_config import DwellerConfig, game_config
-from app.options.bios import render_bio, render_newborn_bio
+from app.options.bios import ZONE_RUMORS, maybe_zone_rumor, render_bio, render_newborn_bio
 from app.options.factions import faction_restrictions
 from app.options.races import STATE_OF_BEING_VALUES, RaceOption
 from app.schemas.common import AgeGroupEnum, RarityEnum
@@ -211,3 +211,43 @@ def test_render_newborn_bio_never_injects_parent_names(monkeypatch: pytest.Monke
         bio = render_newborn_bio("<script>x</script>", "<b>John</b>", "m-1", "f-1", "v-1")
         assert "<script>" not in bio
         assert "<b>" not in bio
+
+
+def test_maybe_zone_rumor_returns_none_on_a_miss() -> None:
+    """A zero chance (or a missed roll) yields no rumour."""
+    assert maybe_zone_rumor(random.Random(1), 0.0) is None
+
+
+def test_maybe_zone_rumor_returns_a_known_line_on_a_hit() -> None:
+    """A certain chance yields one of the authored rumour lines."""
+    assert maybe_zone_rumor(random.Random(1), 1.0) in ZONE_RUMORS
+
+
+def test_zone_rumor_chance_zero_never_reaches_a_generated_bio(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With the chance at zero, no generated bio carries a rumour."""
+    monkeypatch.setattr(game_config.bio, "zone_rumor_chance", 0.0)
+    for seed in range(25):
+        bio = create_random_common_dweller(seed=seed)["bio"]
+        assert not any(rumor in bio for rumor in ZONE_RUMORS)
+
+
+def test_zone_rumor_chance_one_always_reaches_a_generated_bio(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With the chance at one, every generated bio carries exactly one rumour."""
+    monkeypatch.setattr(game_config.bio, "zone_rumor_chance", 1.0)
+    for seed in range(25):
+        bio = create_random_common_dweller(seed=seed)["bio"]
+        assert sum(rumor in bio for rumor in ZONE_RUMORS) == 1
+
+
+def test_zone_rumor_generation_is_seed_reproducible(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The same seed reproduces the same bio, rumour included."""
+    monkeypatch.setattr(game_config.bio, "zone_rumor_chance", 1.0)
+    assert create_random_common_dweller(seed=99)["bio"] == create_random_common_dweller(seed=99)["bio"]
+
+
+def test_zone_rumor_stays_text_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The rumour never enters the dweller's map places — it is atmosphere, not discovery."""
+    monkeypatch.setattr(game_config.bio, "zone_rumor_chance", 1.0)
+    origin, visited = create_random_common_dweller(seed=7)["_bio_places"]
+    assert "The Quiet Zone" not in visited
+    assert origin != "The Quiet Zone"

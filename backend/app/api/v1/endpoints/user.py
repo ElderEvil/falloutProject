@@ -1,6 +1,7 @@
 """User endpoints."""
 
 import logging
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException
@@ -14,11 +15,14 @@ from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_redis_client
 from app.crud.user_profile import profile_crud
 from app.db.session import get_async_session
+from app.models.user import User
+from app.models.user_profile import UserProfile
 from app.schemas.ai_usage import AIUsageResponse
 from app.schemas.user import DeathStatsResponse, UserCreate, UserRead, UserUpdate, UserWithTokens
 from app.schemas.user_profile import ProfileRead, ProfileUpdate
 from app.services.family.death_service import death_service
 from app.services.user_service import user_service
+from app.utils.exceptions import ResourceNotFoundException
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +35,7 @@ async def create_user(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user_in: UserCreate,
     _: CurrentSuperuser,
-) -> UserRead:
+) -> User:
     """Admin route to create new user.
 
     Returns:
@@ -57,7 +61,7 @@ async def read_users(
     skip: int = 0,
     limit: int = 100,
     _: CurrentSuperuser,
-) -> list[UserRead]:
+) -> Sequence[User]:
     """Retrieve users.
 
     Returns:
@@ -72,9 +76,9 @@ async def update_user_me(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     username: Annotated[str | None, Body()] = None,
     password: Annotated[str | None, Body()] = None,
-    email: Annotated[EmailStr, Body()] = None,
+    email: Annotated[EmailStr | None, Body()] = None,
     user: CurrentActiveUser,
-) -> UserRead:
+) -> User:
     """Update current user.
 
     Returns:
@@ -92,7 +96,7 @@ async def update_user_me(
 
 
 @router.get("/me", response_model=UserRead)
-async def read_user_me(user: CurrentActiveUser) -> UserRead:
+async def read_user_me(user: CurrentActiveUser) -> User:
     """Get current user.
 
     Returns:
@@ -130,24 +134,20 @@ async def read_user_by_id(
     user_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
-) -> UserRead:
+) -> User:
     """Get a specific user by id.
 
     Returns:
         The requested user.
 
     Raises:
-        HTTPException: 400 if user lacks privileges to view other users.
+        ResourceNotFoundException: 404 if the user does not exist, or the caller
+            may not see it. A 403 for an existing id and a 404 for an unknown one
+            would let a regular user probe which ids exist.
     """
-    user_in_db = await crud.user.get(db_session, id=user_id)
-    if user_in_db == user:
-        return user_in_db
-    if not crud.user.is_superuser(user):
-        raise HTTPException(
-            status_code=400,
-            detail="The user doesn't have enough privileges",
-        )
-    return user_in_db
+    if user_id != user.id and not crud.user.is_superuser(user):
+        raise ResourceNotFoundException(model=User, identifier=user_id)
+    return await crud.user.get(db_session, id=user_id)
 
 
 @router.put("/{user_id}", response_model=UserRead)
@@ -157,7 +157,7 @@ async def update_user(
     user_id: UUID4,
     user_in: UserUpdate,
     _: CurrentSuperuser,
-) -> UserRead:
+) -> User:
     """Update a user.
 
     Returns:
@@ -180,12 +180,12 @@ async def update_user(
 # =============================================================================
 
 
-@router.get("/me/profile")
+@router.get("/me/profile", response_model=ProfileRead)
 async def get_my_profile(
     *,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
-) -> ProfileRead:
+) -> UserProfile:
     """Get current user's profile.
 
     If the profile doesn't exist, it will be auto-created with default values.
@@ -194,30 +194,21 @@ async def get_my_profile(
 
     Returns:
         User's profile with statistics and preferences.
-
-    Raises:
-        HTTPException: 500 if profile retrieval/creation fails unexpectedly.
     """
-    try:
-        profile = await profile_crud.get_by_user_id(db_session, user.id)
-        if not profile:
-            # Auto-create profile if it doesn't exist
-            # create_for_user handles race conditions internally
-            profile = await profile_crud.create_for_user(db_session, user.id)
-    except Exception as e:
-        logger.exception("Failed to get/create profile for user %s", user.id)
-        raise HTTPException(status_code=500, detail=str(e)) from e
-    else:
-        return profile
+    profile = await profile_crud.get_by_user_id(db_session, user.id)
+    if not profile:
+        # create_for_user handles the concurrent-create race internally.
+        profile = await profile_crud.create_for_user(db_session, user.id)
+    return profile
 
 
-@router.put("/me/profile")
+@router.put("/me/profile", response_model=ProfileRead)
 async def update_my_profile(
     *,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     profile_data: ProfileUpdate,
     user: CurrentActiveUser,
-) -> ProfileRead:
+) -> UserProfile:
     """Update current user's profile.
 
     Only bio, avatar_url, and preferences can be updated via this endpoint.
@@ -228,23 +219,13 @@ async def update_my_profile(
         Updated profile.
 
     Raises:
-        HTTPException: 404 if profile not found.
-        HTTPException: 500 if profile update fails unexpectedly.
+        ResourceNotFoundException: 404 if the profile does not exist.
     """
-    try:
-        profile = await profile_crud.get_by_user_id(db_session, user.id)
-    except Exception as e:
-        logger.exception("Failed to get profile for user %s", user.id)
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
+    profile = await profile_crud.get_by_user_id(db_session, user.id)
     if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
+        raise ResourceNotFoundException(model=UserProfile, identifier=user.id)
 
-    try:
-        return await profile_crud.update(db_session, id=profile.id, obj_in=profile_data)
-    except Exception as e:
-        logger.exception("Failed to update profile for user %s", user.id)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+    return await profile_crud.update(db_session, id=profile.id, obj_in=profile_data)
 
 
 @router.get("/me/profile/statistics", response_model=DeathStatsResponse)

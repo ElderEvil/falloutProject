@@ -4,7 +4,7 @@ import { Icon } from '@iconify/vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoute } from 'vue-router'
 import { getRoomImageUrl } from '@/core/utils/image'
-import UProgressBar from '@/core/components/ui/UProgressBar.vue'
+import { Progress } from '@/core/components/ui/progress'
 import type { RoomTemplate } from '../models/room'
 
 const props = defineProps<{
@@ -89,36 +89,37 @@ const categoryIcon = computed(() => categoryIcons[props.room.category.toLowerCas
       </div>
 
       <div class="room-details">
-        <div class="room-category">
-          <Icon :icon="categoryIcon" class="w-4 h-4" />
-          <span>{{ room.category }}</span>
+        <div class="room-detail-row">
+          <div class="room-category text-theme-primary">
+            <Icon :icon="categoryIcon" class="w-4 h-4" />
+            <span>{{ room.category }}</span>
+          </div>
+
+          <div class="room-size text-theme-primary">
+            <Icon icon="mdi:resize" class="w-4 h-4" />
+            <span>{{ room.size_min }}-{{ room.size_max }} cells</span>
+          </div>
         </div>
 
-        <div class="room-cost">
-          <Icon icon="mdi:currency-usd" class="w-4 h-4" />
-          <span>{{ roomCost }}</span>
-        </div>
+        <div class="room-detail-row">
+          <div class="room-cost text-theme-primary">
+            <Icon icon="mdi:currency-usd" class="w-4 h-4" />
+            <span>{{ roomCost }}</span>
+          </div>
 
-        <div v-if="room.population_required" class="room-population-section">
-          <div class="room-population">
+          <div v-if="room.population_required" class="room-population text-theme-primary">
             <Icon icon="mdi:account-group" class="w-4 h-4" />
             <span>{{ currentPopulation }}/{{ room.population_required }}</span>
           </div>
-          <UProgressBar
-            v-if="isLocked"
-            :model-value="populationProgress"
-            :height="4"
-            :glow="false"
-            color="var(--color-info)"
-            ariaLabel="Population requirement progress"
-            class="population-progress"
-          />
         </div>
 
-        <div class="room-size">
-          <Icon icon="mdi:resize" class="w-4 h-4" />
-          <span>{{ room.size_min }}-{{ room.size_max }} cells</span>
-        </div>
+        <!-- @vue-ignore -->
+        <Progress
+          v-if="room.population_required"
+          :model-value="populationProgress"
+          aria-label="Population requirement progress"
+          size="xs"
+        />
       </div>
     </div>
   </li>
@@ -230,6 +231,12 @@ const categoryIcon = computed(() => categoryIcons[props.room.category.toLowerCas
   font-size: 0.8rem;
 }
 
+.room-detail-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
 .room-category,
 .room-cost,
 .room-population,
@@ -237,33 +244,9 @@ const categoryIcon = computed(() => categoryIcons[props.room.category.toLowerCas
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--color-gray-400);
 }
 
 .room-cost {
-  color: var(--color-warning);
   font-weight: bold;
-}
-
-.room-population-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.room-population {
-  color: var(--color-info);
-}
-
-.population-progress {
-  border: 0;
-  border-radius: 2px;
-  background: rgb(136 204 255 / 0.2);
-  box-shadow: none;
-}
-
-.population-progress :deep(.u-progress-bar__fill) {
-  border-radius: 2px;
-  box-shadow: 0 0 4px rgba(136, 204, 255, 0.5);
 }
 </style>

@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
-import UButton from '@/core/components/ui/UButton.vue'
+import { Alert, AlertTitle } from '@/core/components/ui/alert'
+import { Button } from '@/core/components/ui/button'
+import { Progress } from '@/core/components/ui/progress'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import ArenaFighterSlot from './ArenaFighterSlot.vue'
-import UProgressBar from '@/core/components/ui/UProgressBar.vue'
-import UIconButton from '@/core/components/ui/UIconButton.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
-import UAlert from '@/core/components/ui/UAlert.vue'
 import { useArenaStore } from '../stores/arena'
 import { useDwellerMedicalStore } from '@/modules/dwellers/stores/dwellerMedical'
 import type { ArenaFighter, ArenaRosterEntry } from '../api/arena'
@@ -254,10 +254,11 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
 
     <ComponentLoader v-if="isLoading" label="Loading arena…" />
 
-    <UAlert v-else-if="loadFailed" variant="danger" title="Arena unavailable">
+    <Alert v-else-if="loadFailed" variant="default" class="border-danger bg-danger/10 text-danger">
+      <AlertTitle>Arena unavailable</AlertTitle>
       <p>Unable to load Arena status.</p>
-      <UButton class="mt-3" variant="secondary" size="sm" @click="load()">RETRY</UButton>
-    </UAlert>
+      <Button class="mt-3" variant="secondary" size="sm" @click="load()">RETRY</Button>
+    </Alert>
 
     <div v-else class="arena-content">
       <!-- Fighters -->
@@ -316,16 +317,28 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
               <span class="roster-hp" :class="hpClass(entry)">{{ entry.health }}/{{ entry.max_health }}</span>
             </div>
             <div class="roster-hp-bar">
-              <UProgressBar :model-value="hpPercent(entry)" :height="4" :glow="false" :color="hpFillColor(entry)" />
+              <Progress
+                :model-value="hpPercent(entry)"
+                class="h-1"
+                :fill="hpFillColor(entry)"
+              />
             </div>
-            <UIconButton
-              v-if="!isFighting"
-              class="roster-remove"
-              icon="mdi:close"
-              :label="`Remove ${entry.name} from Arena`"
-              variant="danger"
-              @click="unassign(entry)"
-            />
+            <TooltipProvider v-if="!isFighting" :delay-duration="200">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    class="roster-remove"
+                    size="icon-sm"
+                    variant="ghost"
+                    :aria-label="`Remove ${entry.name} from Arena`"
+                    @click="unassign(entry)"
+                  >
+                    <Icon icon="mdi:close" class="h-4 w-4 text-danger" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Remove {{ entry.name }} from Arena</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       </div>
@@ -338,23 +351,25 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
 
       <!-- Post-battle actions -->
       <div v-if="isDone && injuredFighters.length" class="post-battle-actions">
-        <UButton
+        <Button
           variant="secondary"
           size="sm"
-          :loading="isHealing"
+          :disabled="isHealing"
           @click="healInjured"
         >
-          <Icon icon="mdi:medication" class="action-icon" />
+          <Icon v-if="isHealing" icon="mdi:loading" class="action-icon animate-spin" />
+          <Icon v-else icon="mdi:medication" class="action-icon" />
           HEAL INJURED ({{ injuredFighters.length }})
-        </UButton>
+        </Button>
       </div>
 
       <!-- Start fight -->
       <div v-if="canStart" class="fight-actions">
-        <UButton variant="primary" size="md" :loading="isStarting" @click="startFight">
-          <Icon icon="mdi:sword-cross" class="fight-button-icon" />
+        <Button variant="default" :disabled="isStarting" @click="startFight">
+          <Icon v-if="isStarting" icon="mdi:loading" class="fight-button-icon animate-spin" />
+          <Icon v-else icon="mdi:sword-cross" class="fight-button-icon" />
           START FIGHT
-        </UButton>
+        </Button>
       </div>
 
       <!-- Battle journal -->
@@ -364,7 +379,7 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
             <Icon icon="mdi:clipboard-text-clock-outline" class="section-title-icon" />
             Battle Journal
           </h3>
-          <UButton variant="ghost" size="xs" @click="clearJournal">CLEAR</UButton>
+          <Button variant="ghost" size="xs" @click="clearJournal">CLEAR</Button>
         </div>
         <div class="journal-list">
           <div v-for="event in roomState.events" :key="event.id" class="journal-entry" :class="event.kind">

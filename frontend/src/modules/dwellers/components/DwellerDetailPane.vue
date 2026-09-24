@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
-import { useFeatureFlagsStore } from '../stores/featureFlags'
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import DwellerCard from './cards/DwellerCard.vue'
@@ -18,25 +17,11 @@ import { getActivitySummary } from '../models/dweller'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 
 const ctx = useDwellerDetailContext()
-const featureFlags = useFeatureFlagsStore()
-
-onMounted(() => {
-  void featureFlags.fetchFlags()
-})
 
 const dweller = computed(() => ctx.dweller.value!)
 const isDead = computed(() => dweller.value.is_dead === true)
 const isPermanentlyDead = computed(() => !!dweller.value.is_permanently_dead)
 const activity = computed(() => getActivitySummary(dweller.value))
-const hasIdentity = computed(() => {
-  const attributes = dweller.value.visual_attributes
-  return Boolean(
-    attributes &&
-      (attributes.race ??
-        (featureFlags.factionMechanics ? attributes.faction : undefined) ??
-        attributes.state_of_being)
-  )
-})
 const breadcrumbs = computed(() => [
   { label: 'Vault', to: `/vault/${ctx.vaultId.value}` },
   { label: 'Dwellers', to: `/vault/${ctx.vaultId.value}/dwellers` },
@@ -82,7 +67,6 @@ const breadcrumbs = computed(() => [
               <DwellerGenderBadge :gender="dweller.gender" :show-label="true" />
               <DwellerRarityBadge :rarity="dweller.rarity" :show-label="true" />
             </span>
-            <span v-if="hasIdentity" class="name-divider" aria-hidden="true" />
             <DwellerIdentitySignal :visual-attributes="dweller.visual_attributes" />
           </div>
           <div class="meta-right">
@@ -221,13 +205,6 @@ const breadcrumbs = computed(() => [
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-}
-
-.name-divider {
-  width: 1px;
-  height: 1.75rem;
-  flex-shrink: 0;
-  background: color-mix(in srgb, var(--color-theme-primary) 30%, transparent);
 }
 
 .activity-caption {

@@ -93,7 +93,8 @@ async def test_catalog_writes_require_superuser(
     """Catalog mutation is an admin action, not something any account can do."""
     response = await async_client.delete(f"/weapons/{ITEM}", headers=normal_user_token_headers)
 
-    assert response.status_code == 400, "non-superuser catalog write was not rejected"
+    # Insufficient privileges is an authorization failure, not a bad request.
+    assert response.status_code == 403, "non-superuser catalog write was not rejected"
 
 
 async def test_authenticated_reads_still_work(

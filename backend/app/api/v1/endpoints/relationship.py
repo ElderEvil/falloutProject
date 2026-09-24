@@ -1,5 +1,6 @@
 """Relationship endpoints."""
 
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,12 +10,14 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403, verify_dweller_access
 from app.crud.relationship import relationship_crud
 from app.db.session import get_async_session
+from app.models.relationship import Relationship
 from app.schemas.relationship import (
     CompatibilityScore,
     RelationshipCreate,
     RelationshipRead,
 )
 from app.schemas.responses import BreedStatsResponse, RelationshipActionResponse
+from app.services.game_loop import game_loop_service
 from app.services.relationship_service import relationship_service
 
 router = APIRouter(prefix="/relationships", tags=["Relationship"])
@@ -25,7 +28,7 @@ async def get_vault_relationships(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> list[RelationshipRead]:
+) -> Sequence[Relationship]:
     """Get all relationships in a vault.
 
     Returns:
@@ -40,7 +43,7 @@ async def get_relationship(
     relationship_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> RelationshipRead:
+) -> Relationship:
     """Retrieve a relationship by ID.
 
     Returns:
@@ -63,7 +66,7 @@ async def create_relationship(
     relationship_data: RelationshipCreate,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> RelationshipRead:
+) -> Relationship:
     """Create or get a relationship between two dwellers.
 
     Returns:
@@ -84,7 +87,7 @@ async def initiate_romance(
     relationship_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> RelationshipRead:
+) -> Relationship:
     """Initiate romance between two dwellers in a relationship.
 
     Returns:
@@ -116,7 +119,7 @@ async def make_partners(
     relationship_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> RelationshipRead:
+) -> Relationship:
     """Make two dwellers in a relationship romantic partners.
 
     Returns:
@@ -148,7 +151,7 @@ async def marry(
     relationship_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> RelationshipRead:
+) -> Relationship:
     """Marry two partners in a relationship.
 
     Returns:
@@ -233,9 +236,7 @@ async def process_vault_breeding(
     """
     await get_user_vault_or_403(vault_id, user, db_session)
 
-    from app.services.game_loop import game_loop_service
-
-    result = await game_loop_service._process_breeding(db_session, vault_id)
+    result = await game_loop_service.process_vault_breeding(db_session, vault_id)
 
     return BreedStatsResponse(
         message="Breeding and relationships processed successfully",

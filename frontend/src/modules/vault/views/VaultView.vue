@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useRoomStore } from '@/modules/rooms/stores/room'
@@ -18,7 +18,12 @@ import UnassignedDwellers from '@/modules/dwellers/components/UnassignedDwellers
 import WastelandPanel from '@/modules/exploration/components/WastelandPanel.vue'
 import IncidentAlert from '@/modules/combat/components/incidents/IncidentAlert.vue'
 import TerminalLoadingState from '@/core/components/common/TerminalLoadingState.vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
@@ -41,7 +46,6 @@ const explorationStore = useExplorationStore()
 const incidentStore = useIncidentStore()
 const { playMusic } = useSound()
 const { isCollapsed } = useSidePanel()
-const scanlinesEnabled = inject('scanlines', ref(true))
 const showRoomMenu = ref(false)
 const isLoading = ref(true)
 const errorMessage = ref<string | null>(null)
@@ -314,8 +318,6 @@ const reviewActiveIncidents = () => {
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div v-if="scanlinesEnabled" class="scanlines"></div>
-
     <!-- Loading State -->
     <TerminalLoadingState v-if="isLoading" full-height message="Loading vault data..." />
 
@@ -345,26 +347,37 @@ const reviewActiveIncidents = () => {
           <div class="mb-8 flex w-full items-center justify-between space-x-8">
             <!-- Dwellers Count and Happiness -->
             <div class="flex items-center space-x-4">
-              <UTooltip
-                :text="`Total dwellers in vault: ${dwellersCount}/${populationMax}\nCapacity: ${populationMax} dwellers`"
-                position="bottom"
-              >
-                <div class="flex items-center space-x-2 cursor-help" tabindex="0">
-                  <Icon icon="mdi:account-group" class="h-8 w-8 text-terminal-green" />
-                  <p :class="`whitespace-nowrap ${populationColor}`">
-                    {{ dwellersCount }} / {{ populationMax }}
-                  </p>
-                </div>
-              </UTooltip>
-              <UTooltip
-                :text="`Vault Happiness: ${happiness}%\n${happiness >= 75 ? '😊 Excellent morale!' : happiness >= 50 ? '😐 Acceptable morale' : happiness >= 25 ? '😟 Low morale - needs attention' : '😢 Critical - dwellers are unhappy!'}`"
-                position="bottom"
-              >
-                <div class="flex items-center space-x-2 cursor-help" tabindex="0">
-                  <Icon icon="mdi:emoticon-happy" class="h-6 w-6" :class="happinessColor" />
-                  <p :class="happinessColor">{{ happiness }}%</p>
-                </div>
-              </UTooltip>
+              <!--
+                TooltipProvider delayDuration (200ms) preserves the previous
+                tooltip hover delay; reka-ui opens instantly on keyboard focus,
+                which is the stronger a11y contract for these focusable stat readouts.
+              -->
+              <TooltipProvider :delay-duration="200">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <div class="flex items-center space-x-2 cursor-help" tabindex="0">
+                      <Icon icon="mdi:account-group" class="h-8 w-8 text-terminal-green" />
+                      <p :class="`whitespace-nowrap ${populationColor}`">
+                        {{ dwellersCount }} / {{ populationMax }}
+                      </p>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" class="whitespace-pre-line">
+                    {{ `Total dwellers in vault: ${dwellersCount}/${populationMax}\nCapacity: ${populationMax} dwellers` }}
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <div class="flex items-center space-x-2 cursor-help" tabindex="0">
+                      <Icon icon="mdi:emoticon-happy" class="h-6 w-6" :class="happinessColor" />
+                      <p :class="happinessColor">{{ happiness }}%</p>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" class="whitespace-pre-line">
+                    {{ `Vault Happiness: ${happiness}%\n${happiness >= 75 ? '😊 Excellent morale!' : happiness >= 50 ? '😐 Acceptable morale' : happiness >= 25 ? '😟 Low morale - needs attention' : '😢 Critical - dwellers are unhappy!'}` }}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
 
             <!-- Resources in the Middle -->
@@ -394,15 +407,19 @@ const reviewActiveIncidents = () => {
 
             <!-- Bottle Caps and Game Controls -->
             <div class="flex min-w-0 items-center gap-2">
-              <UTooltip
-                :text="`Bottle Caps: ${bottleCaps}\nVault currency for construction and upgrades`"
-                position="bottom"
-              >
-                <div class="flex items-center space-x-2 cursor-help" tabindex="0">
-                  <Icon icon="mdi:currency-usd" class="h-6 w-6 text-terminal-green" />
-                  <p>{{ bottleCaps }}</p>
-                </div>
-              </UTooltip>
+              <TooltipProvider :delay-duration="200">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <div class="flex items-center space-x-2 cursor-help" tabindex="0">
+                      <Icon icon="mdi:currency-usd" class="h-6 w-6 text-terminal-green" />
+                      <p>{{ bottleCaps }}</p>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" class="whitespace-pre-line">
+                    {{ `Bottle Caps: ${bottleCaps}\nVault currency for construction and upgrades` }}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
 
@@ -467,7 +484,7 @@ const reviewActiveIncidents = () => {
   flex: 1;
   margin-left: 240px; /* Width of expanded side panel */
   transition: margin-left 0.3s ease;
-  font-weight: 600; /* Bold font for better readability */
+  font-weight: 700; /* Bold font for better readability */
   letter-spacing: 0.025em; /* Slight letter spacing for clarity */
   line-height: 1.6; /* Better line height for readability */
 }

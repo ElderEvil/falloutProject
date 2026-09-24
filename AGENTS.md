@@ -32,7 +32,10 @@ uv run alembic upgrade head  # apply migrations
 uv run fastapi dev main.py   # dev server :8000
 ```
 
-CI gate: `uv run prek run` (see `.github/workflows/backend-ci.yml`).
+CI gate: `uv run prek run` — commit-time/staged-files only (pre-commit.ci enforces the same
+set on PR diffs; see `.github/workflows/backend-ci.yml`). Do NOT gate on `--all-files`:
+legacy ty diagnostics outside `tests/`/`alembic/`/`crud/` keep it red, and clearing that
+debt is out of scope for feature PRs.
 
 ### Prompt registry
 

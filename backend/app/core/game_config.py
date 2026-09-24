@@ -635,6 +635,15 @@ class BioConfig(BaseSettings):
         description="Max visited map places per rarity (common/rare/legendary)",
     )
 
+    # Chance a procedurally generated bio carries an unresolved rumour about the
+    # Zone (Chernobyl easter egg). 0 disables it.
+    zone_rumor_chance: float = Field(
+        default=0.05,
+        ge=0.0,
+        le=1.0,
+        description="Chance a generated dweller bio carries a Zone rumour (0-1)",
+    )
+
     @field_validator("visited_by_rarity")
     @classmethod
     def validate_visited_by_rarity(cls, v: dict[str, int]) -> dict[str, int]:

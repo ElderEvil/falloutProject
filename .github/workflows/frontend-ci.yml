@@ -110,3 +110,8 @@ jobs:
       - name: Build check
         working-directory: frontend
         run: pnpm run build
+
+      - name: Check bundle budget
+        if: steps.filter.outputs.src == 'true'
+        working-directory: frontend
+        run: node scripts/check-bundle-budget.mjs

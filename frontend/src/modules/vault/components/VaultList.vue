@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useVaultStore } from '../stores/vault'
 import { useVaultOperations } from '../composables/useVaultOperations'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { Button } from '@/core/components/ui/button'
 
 const vaultStore = useVaultStore()
 const authStore = useAuthStore()
@@ -35,7 +36,7 @@ const handleDeleteVault = async (id: string) => {
 
 <template>
   <div v-if="sortedVaults.length" class="w-full max-w-4xl">
-    <h2 class="mb-4 text-2xl font-bold" :style="{ color: 'var(--color-theme-primary)' }">
+    <h2 class="mb-4 text-2xl font-bold text-theme-primary">
       Your Vaults
     </h2>
     <ul class="space-y-4">
@@ -47,45 +48,52 @@ const handleDeleteVault = async (id: string) => {
         :class="{ selected: selectedVaultId === vault.id }"
       >
         <div class="vault-info">
-          <h3 class="text-xl font-bold" :style="{ color: 'var(--color-theme-primary)' }">
+          <h3 class="text-xl font-bold text-theme-primary">
             Vault {{ vault.number }}
           </h3>
-          <p :style="{ color: 'var(--color-theme-accent)' }">
+          <p class="text-theme-accent">
             Last Updated: {{ new Date(vault.updated_at).toLocaleString() }}
           </p>
-          <p :style="{ color: 'var(--color-theme-accent)' }">
+          <p class="text-theme-accent">
             Bottle Caps: {{ vault.bottle_caps }}
           </p>
-          <p :style="{ color: 'var(--color-theme-accent)' }">Happiness: {{ vault.happiness }}%</p>
-          <p :style="{ color: 'var(--color-theme-accent)' }">
+          <p class="text-theme-accent">Happiness: {{ vault.happiness }}%</p>
+          <p class="text-theme-accent">
             Power: {{ vault.power }} / {{ vault.power_max }}
           </p>
-          <p :style="{ color: 'var(--color-theme-accent)' }">
+          <p class="text-theme-accent">
             Food: {{ vault.food }} / {{ vault.food_max }}
           </p>
-          <p :style="{ color: 'var(--color-theme-accent)' }">
+          <p class="text-theme-accent">
             Water: {{ vault.water }} / {{ vault.water_max }}
           </p>
-          <p :style="{ color: 'var(--color-theme-accent)' }">Rooms: {{ vault.room_count }}</p>
-          <p :style="{ color: 'var(--color-theme-accent)' }">Dwellers: {{ vault.dweller_count }}</p>
+          <p class="text-theme-accent">Rooms: {{ vault.room_count }}</p>
+          <p class="text-theme-accent">Dwellers: {{ vault.dweller_count }}</p>
         </div>
         <div v-if="selectedVaultId === vault.id" class="flex space-x-2">
-          <button @click.stop="handleLoadVault(vault.id)" class="vault-button vault-button-load">
+          <Button
+            variant="outline"
+            size="sm"
+            class="border-2 border-info bg-info/20 text-info hover:bg-info/40 hover:text-info"
+            @click.stop="handleLoadVault(vault.id)"
+          >
             Load
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            class="border-2 border-danger bg-danger/20 text-danger hover:bg-danger/40 hover:text-danger"
             @click.stop="handleDeleteVault(vault.id)"
-            class="vault-button vault-button-delete"
           >
             Delete
-          </button>
+          </Button>
         </div>
       </li>
     </ul>
   </div>
 
   <div v-else class="text-center">
-    <p class="text-lg" :style="{ color: 'var(--color-theme-primary)' }">
+    <p class="text-lg text-theme-primary">
       No vaults found. Create your first vault to get started!
     </p>
   </div>
@@ -106,35 +114,5 @@ const handleDeleteVault = async (id: string) => {
   border-color: var(--color-theme-primary);
   background: rgba(0, 0, 0, 0.5);
   box-shadow: 0 0 20px var(--color-theme-glow);
-}
-
-.vault-button {
-  padding: 0.5rem 1rem;
-  font-weight: 700;
-  border-radius: 0.5rem;
-  transition: all 0.2s;
-  border: 2px solid;
-}
-
-.vault-button-load {
-  background: color-mix(in srgb, var(--color-info) 20%, transparent);
-  border-color: var(--color-info);
-  color: var(--color-info);
-}
-
-.vault-button-load:hover {
-  background: color-mix(in srgb, var(--color-info) 40%, transparent);
-  box-shadow: 0 0 10px var(--color-info);
-}
-
-.vault-button-delete {
-  background: color-mix(in srgb, var(--color-danger) 20%, transparent);
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-}
-
-.vault-button-delete:hover {
-  background: color-mix(in srgb, var(--color-danger) 40%, transparent);
-  box-shadow: 0 0 10px var(--color-danger);
 }
 </style>

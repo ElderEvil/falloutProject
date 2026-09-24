@@ -215,6 +215,59 @@ async def test_get_multi_for_vault_with_requirements_and_rewards(async_session: 
 
 
 @pytest.mark.asyncio
+async def test_get_multi_for_vault_serializes_completion_details(async_session: AsyncSession) -> None:
+    """QuestRead carries completed_at + granted_rewards; fresh links default to None."""
+    from app.models.vault_quest import VaultQuestCompletionLink
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    completed_quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Completed Quest",
+            short_description="Done",
+            long_description="A quest whose completion details are persisted.",
+            requirements="None",
+            rewards="50 caps",
+        ),
+    )
+    fresh_quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Fresh Quest",
+            short_description="Not done",
+            long_description="A quest that has not been claimed yet.",
+            requirements="None",
+            rewards="50 caps",
+        ),
+    )
+    await crud.quest_crud.assign_to_vault(
+        db_session=async_session, quest_id=completed_quest.id, vault_id=vault.id, is_visible=True
+    )
+    await crud.quest_crud.assign_to_vault(
+        db_session=async_session, quest_id=fresh_quest.id, vault_id=vault.id, is_visible=True
+    )
+    completed_link = await crud.quest_crud.get_link(async_session, quest_id=completed_quest.id, vault_id=vault.id)
+    completed_link.is_completed = True
+    completed_link.completed_at = datetime.utcnow()
+    completed_link.granted_rewards = [{"reward_type": "caps", "amount": 50}]
+    await async_session.commit()
+
+    quests = await crud.quest_crud.get_multi_for_vault(db_session=async_session, skip=0, limit=100, vault_id=vault.id)
+    by_title = {q.title: q for q in quests}
+
+    assert by_title["Completed Quest"].completed_at is not None
+    assert [r.model_dump(mode="json") for r in by_title["Completed Quest"].granted_rewards] == [
+        {"reward_type": "caps", "amount": 50}
+    ]
+    assert by_title["Fresh Quest"].completed_at is None
+    assert by_title["Fresh Quest"].granted_rewards is None
+
+
+@pytest.mark.asyncio
 async def test_assign_party_rejects_ineligible_dwellers(async_session: AsyncSession) -> None:
     """Quest parties reject children, explorers, and deleted dwellers without changing the current party."""
     from app.models.dweller import Dweller
@@ -484,6 +537,17 @@ async def test_check_and_complete_quests_for_vault(async_session: AsyncSession) 
 
     completed = await quest_service.check_and_complete_quests(async_session, vault_id=vault.id)
 
+    assert completed == 0
+
+    await async_session.refresh(link)
+    assert link.return_completes_at is not None
+    assert link.is_reward_ready is False
+
+    link.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    await async_session.commit()
+
+    completed = await quest_service.check_and_complete_quests(async_session, vault_id=vault.id)
+
     assert completed >= 1
 
     await async_session.refresh(link)
@@ -542,6 +606,15 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
 
     link.started_at = datetime.utcnow() - timedelta(minutes=61)
     link.duration_minutes = 60
+    await async_session.commit()
+
+    assert await quest_service.check_and_complete_quests(async_session) == 0
+
+    await async_session.refresh(link)
+    assert link.return_completes_at is not None
+    assert link.is_reward_ready is False
+
+    link.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
     await async_session.commit()
 
     assert await quest_service.check_and_complete_quests(async_session) == 1
@@ -711,3 +784,154 @@ async def test_assign_party_rejects_reward_ready_or_completed_quest(
 
     with pytest.raises(ResourceConflictException, match="already in progress"):
         await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
+
+
+def test_link_return_leg_helpers() -> None:
+    """Return-leg helpers derive travelling state from return_completes_at."""
+    from uuid import uuid4
+
+    from app.models.vault_quest import VaultQuestCompletionLink
+
+    link = VaultQuestCompletionLink(vault_id=uuid4(), quest_id=uuid4())
+    assert link.is_returning() is False
+    assert link.return_time_remaining_seconds() == 0
+
+    link.start_return(30)
+    assert link.return_started_at is not None
+    assert link.return_completes_at is not None
+    assert link.is_returning() is True
+    assert 1790 <= link.return_time_remaining_seconds() <= 1800
+
+    link.is_reward_ready = True
+    assert link.is_returning() is False
+    assert link.return_time_remaining_seconds() == 0
+
+
+@pytest.mark.asyncio
+async def test_get_expired_party_links_excludes_returning(async_session: AsyncSession) -> None:
+    """A party already on its return leg is not picked up as newly expired."""
+    from sqlalchemy import func
+
+    from app.models.quest import Quest
+    from app.models.vault_quest import VaultQuestCompletionLink
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+
+    async def _expired_link(title: str, *, returning: bool) -> VaultQuestCompletionLink:
+        quest = await crud.quest_crud.create(
+            async_session,
+            obj_in=QuestCreate(
+                title=title,
+                short_description="Expiry filter",
+                long_description="Expiry filter test quest.",
+                requirements="None",
+                rewards="None",
+                duration_minutes=60,
+            ),
+        )
+        await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+        link = await crud.quest_crud.get_link(async_session, quest_id=quest.id, vault_id=vault.id)
+        link.started_at = datetime.utcnow() - timedelta(minutes=120)
+        link.duration_minutes = 60
+        if returning:
+            link.start_return(30)
+        await async_session.commit()
+        return link
+
+    expired = await _expired_link("Expired Party", returning=False)
+    returning = await _expired_link("Returning Party", returning=True)
+
+    now = datetime.utcnow()
+    duration_minutes = func.coalesce(VaultQuestCompletionLink.duration_minutes, Quest.duration_minutes)
+    expires_at = func.datetime(VaultQuestCompletionLink.started_at, func.printf("+%s minutes", duration_minutes))
+
+    links = await crud.quest_crud.get_expired_party_links(async_session, now=now, expires_at=expires_at)
+
+    assert {link.quest_id for link in links} == {expired.quest_id}
+    assert returning.quest_id not in {link.quest_id for link in links}
+
+
+@pytest.mark.asyncio
+async def test_get_arrived_party_links(async_session: AsyncSession) -> None:
+    """Arrived, unclaimed parties are returned; travelling/claimed ones are not."""
+    from app.models.vault_quest import VaultQuestCompletionLink
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+
+    async def _link(
+        title: str, *, return_completes_at: datetime, is_reward_ready: bool = False, is_completed: bool = False
+    ):
+        quest = await crud.quest_crud.create(
+            async_session,
+            obj_in=QuestCreate(
+                title=title,
+                short_description="Arrival filter",
+                long_description="Arrival filter test quest.",
+                requirements="None",
+                rewards="None",
+                duration_minutes=60,
+            ),
+        )
+        link = VaultQuestCompletionLink(
+            vault_id=vault.id,
+            quest_id=quest.id,
+            is_visible=True,
+            started_at=datetime.utcnow() - timedelta(minutes=120),
+            duration_minutes=60,
+            return_started_at=datetime.utcnow() - timedelta(minutes=30),
+            return_completes_at=return_completes_at,
+            is_reward_ready=is_reward_ready,
+            is_completed=is_completed,
+        )
+        async_session.add(link)
+        await async_session.commit()
+        return link
+
+    now = datetime.utcnow()
+    arrived = await _link("Arrived Party", return_completes_at=now - timedelta(minutes=1))
+    travelling = await _link("Travelling Party", return_completes_at=now + timedelta(minutes=30))
+    ready = await _link("Ready Party", return_completes_at=now - timedelta(minutes=1), is_reward_ready=True)
+    completed = await _link("Completed Party", return_completes_at=now - timedelta(minutes=1), is_completed=True)
+
+    links = await crud.quest_crud.get_arrived_party_links(async_session, now=now)
+
+    assert {link.quest_id for link in links} == {arrived.quest_id}
+    assert travelling.quest_id not in {link.quest_id for link in links}
+    assert ready.quest_id not in {link.quest_id for link in links}
+    assert completed.quest_id not in {link.quest_id for link in links}
+
+
+@pytest.mark.asyncio
+async def test_get_link_for_update_returns_committed_state(async_session: AsyncSession) -> None:
+    """The locked read returns the link and reflects committed state."""
+    from uuid import uuid4
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Locked Read",
+            short_description="Locked read",
+            long_description="Locked read returns the committed link.",
+            requirements="None",
+            rewards="None",
+        ),
+    )
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+
+    link = await crud.quest_crud.get_link_for_update(async_session, quest_id=quest.id, vault_id=vault.id)
+    assert link is not None
+    assert link.quest_id == quest.id
+    assert link.vault_id == vault.id
+
+    link.is_reward_ready = True
+    await async_session.commit()
+
+    refreshed = await crud.quest_crud.get_link_for_update(async_session, quest_id=quest.id, vault_id=vault.id)
+    assert refreshed is not None
+    assert refreshed.is_reward_ready is True
+
+    assert await crud.quest_crud.get_link_for_update(async_session, quest_id=uuid4(), vault_id=vault.id) is None

@@ -75,7 +75,7 @@ async def test_manual_recruit_success(
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
         db_session=async_session,
-        obj_in={"number": 995, "bottle_caps": 1000},
+        obj_in={"number": 995, "bottle_caps": 1000, "population_max": 10},
         user_id=user.id,
     )
 
@@ -222,7 +222,7 @@ async def test_manual_recruit_does_not_break_subsequent_api_calls(
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
         db_session=async_session,
-        obj_in={"number": 990, "bottle_caps": 10000},
+        obj_in={"number": 990, "bottle_caps": 10000, "population_max": 10},
         user_id=user.id,
     )
 

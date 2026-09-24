@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
+import { Button } from '@/core/components/ui/button'
 import type { Dweller } from '../../models/dweller'
+import { describeBonusSources, getSpecialBreakdown } from '../../models/specialBreakdown'
+import { SPECIAL_TAGLINES } from '../../models/specialGuide'
 import { useDwellerDetailContext } from '../DwellerDetailContext'
+import SpecialGuideModal from './SpecialGuideModal.vue'
 
 const ctx = useDwellerDetailContext()
+
+const guideOpen = ref(false)
 
 type StatKey = {
   [Key in keyof Dweller]-?: Dweller[Key] extends number ? Key : never
@@ -18,19 +24,71 @@ const statValue = (key: StatKey): number => {
 }
 
 const stats: Array<{ key: StatKey; label: string; description: string }> = [
-  { key: 'S', label: 'Strength', description: 'Physical power and melee damage' },
-  { key: 'P', label: 'Perception', description: 'Accuracy and awareness' },
-  { key: 'E', label: 'Endurance', description: 'Health and radiation resistance' },
-  { key: 'C', label: 'Charisma', description: 'Trading and breeding success' },
-  { key: 'I', label: 'Intelligence', description: 'Crafting and science efficiency' },
-  { key: 'A', label: 'Agility', description: 'Speed and weapon reload' },
-  { key: 'L', label: 'Luck', description: 'Critical hits and loot quality' },
+  { key: 'S', label: 'Strength', description: SPECIAL_TAGLINES.Strength },
+  { key: 'P', label: 'Perception', description: SPECIAL_TAGLINES.Perception },
+  { key: 'E', label: 'Endurance', description: SPECIAL_TAGLINES.Endurance },
+  { key: 'C', label: 'Charisma', description: SPECIAL_TAGLINES.Charisma },
+  { key: 'I', label: 'Intelligence', description: SPECIAL_TAGLINES.Intelligence },
+  { key: 'A', label: 'Agility', description: SPECIAL_TAGLINES.Agility },
+  { key: 'L', label: 'Luck', description: SPECIAL_TAGLINES.Luck },
 ]
 
 const statKeyByLowercase = stats.reduce<Record<string, StatKey>>((acc, stat) => {
   acc[stat.label.toLowerCase()] = stat.key
   return acc
 }, {})
+
+/**
+ * Base vs effective per stat (stored + identity + outfit, floored at 1, uncapped).
+ * Shared breakdown helper so every surface explains bonuses identically.
+ */
+const breakdowns = computed(() => getSpecialBreakdown(ctx.dweller.value))
+
+const breakdownByKey = computed(() => {
+  const map = new Map<string, (typeof breakdowns.value)[number]>()
+  for (const row of breakdowns.value) map.set(row.letter, row)
+  return map
+})
+
+const effectiveValue = (key: StatKey): number => breakdownByKey.value.get(key)?.effective ?? statValue(key)
+
+const bonusSources = (key: StatKey): string[] => {
+  const row = breakdownByKey.value.get(key)
+  return row ? describeBonusSources(row) : []
+}
+
+interface BarModel {
+  base: number
+  bonus: number
+  overflow: boolean
+  negative: boolean
+}
+
+/** Stacked bar geometry on the 0–10 scale: base solid, bonus striped, clamped at 100%. */
+const barModel = (key: StatKey): BarModel => {
+  const row = breakdownByKey.value.get(key)
+  const base = row ? row.base : statValue(key)
+  const bonus = row ? row.effective - row.base : 0
+  if (bonus <= 0) {
+    return { base: Math.max(0, Math.min(10, base + bonus)) * 10, bonus: 0, overflow: false, negative: bonus < 0 }
+  }
+  const baseWidth = Math.min(10, base) * 10
+  return {
+    base: baseWidth,
+    bonus: Math.min(10 - baseWidth / 10, bonus) * 10,
+    overflow: base + bonus > 10,
+    negative: false,
+  }
+}
+
+const barTitle = (key: StatKey): string => {
+  const row = breakdownByKey.value.get(key)
+  if (!row) return `${statValue(key)}`
+  const sources = describeBonusSources(row)
+  return sources.length > 0
+    ? `Base ${row.base} + ${sources.join(' + ')} = ${row.effective} effective`
+    : `Base ${row.base}`
+}
 
 const highlightedKey = computed<StatKey | undefined>(() => {
   const highlighted = ctx.highlightStat.value
@@ -100,9 +158,12 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
 
 <template>
   <div class="dweller-stats">
-    <div class="panel-header">
-      <h3 class="stats-title panel-title">S.P.E.C.I.A.L.</h3>
+    <div class="guide-header-row">
+      <Button variant="outline" size="sm" aria-label="Open SPECIAL field guide" @click="guideOpen = true">
+        <Icon icon="mdi:information-outline" class="guide-icon" />
+      </Button>
     </div>
+    <SpecialGuideModal v-model="guideOpen" />
     <div class="stats-grid">
       <div
         v-for="stat in stats"
@@ -113,15 +174,37 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
         <div class="stat-header">
           <span class="stat-label">{{ stat.label }}</span>
           <span class="stat-value-group">
-            <span class="stat-value">{{ statValue(stat.key) }}</span>
+            <span class="stat-value">{{ effectiveValue(stat.key) }}</span>
             <span v-if="isHighlighted(stat.key) && showBadge" class="stat-badge stat-badge-fade"
               >+1</span
             >
           </span>
         </div>
-        <div class="stat-bar">
-          <div class="stat-fill" :style="{ width: `${statValue(stat.key) * 10}%` }"></div>
+        <div
+          class="stat-bar"
+          :class="{ 'stat-overflow-bar': barModel(stat.key).overflow && barModel(stat.key).bonus === 0 }"
+          role="img"
+          :title="barTitle(stat.key)"
+          :aria-label="`${stat.label}: ${barTitle(stat.key)}`"
+        >
+          <div class="stat-track">
+            <div class="stat-fill-base" :style="{ width: `${barModel(stat.key).base}%` }"></div>
+            <div
+              v-if="barModel(stat.key).bonus > 0"
+              class="stat-fill-bonus"
+              :class="{ 'stat-overflow': barModel(stat.key).overflow }"
+              :style="{ width: `${barModel(stat.key).bonus}%` }"
+            ></div>
+          </div>
+          <div
+            v-if="barModel(stat.key).negative"
+            class="stat-tick"
+            :style="{ left: `${Math.min(10, statValue(stat.key)) * 10}%` }"
+          ></div>
         </div>
+        <p v-if="bonusSources(stat.key).length > 0" class="stat-breakdown">
+          {{ statValue(stat.key) }} → {{ effectiveValue(stat.key) }} ({{ bonusSources(stat.key).join(' · ') }})
+        </p>
         <p class="stat-description">{{ stat.description }}</p>
       </div>
     </div>
@@ -190,6 +273,18 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
   gap: 0.75rem;
 }
 
+.guide-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-bottom: 1rem;
+}
+
+.guide-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
 .stats-grid {
   display: grid;
   gap: 0.5rem;
@@ -206,6 +301,7 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
 .stat-item:hover {
   background: rgba(0, 0, 0, 0.5);
   border-left-color: var(--color-theme-primary);
+  transform: translateX(2px);
 }
 
 .stat-header {
@@ -240,13 +336,45 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
   margin-bottom: 0.25rem;
 }
 
-.stat-fill {
+.stat-track {
   position: absolute;
   top: 0;
   left: 0;
   height: 100%;
+  width: 100%;
+  display: flex;
+}
+
+.stat-fill-base {
+  height: 100%;
   background: var(--color-theme-primary);
   transition: width 0.3s ease;
+}
+
+.stat-fill-bonus {
+  height: 100%;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--color-theme-accent) 0 4px,
+    rgba(0, 0, 0, 0.35) 4px 8px
+  );
+  transition: width 0.3s ease;
+}
+
+.stat-fill-bonus.stat-overflow {
+  box-shadow: 0 0 8px var(--color-theme-glow);
+}
+
+.stat-overflow-bar {
+  box-shadow: inset -4px 0 6px var(--color-theme-glow);
+}
+
+.stat-tick {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--color-warning);
 }
 
 .stat-description {
@@ -254,6 +382,14 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
   color: var(--color-theme-primary);
   opacity: 0.6;
   line-height: 1.3;
+}
+
+.stat-breakdown {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-theme-accent);
+  line-height: 1.3;
+  margin-bottom: 0.25rem;
 }
 
 .stat-value-group {

@@ -28,6 +28,7 @@ const meta = computed(() => RARITY_CONFIG_MAP[rarity.value])
     :icon="meta.icon"
     :color="meta.color"
     :label="meta.label"
+    :category="meta.category"
     :show-label="showLabel"
     :size="size"
   />

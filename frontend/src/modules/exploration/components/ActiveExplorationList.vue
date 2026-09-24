@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UBadge, UTooltip } from '@/core/components/ui'
-import UProgressBar from '@/core/components/ui/UProgressBar.vue'
+import { Badge } from '@/core/components/ui/badge'
+import { Progress } from '@/core/components/ui/progress'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller, DetailedDweller } from '@/modules/dwellers/models/dweller'
-import { getProgressPercentage } from '@/modules/exploration/composables/useExplorationProgress'
+import {
+  canRecall,
+  getProgressPercentage,
+  isReadyToComplete,
+} from '@/modules/exploration/composables/useExplorationProgress'
 import ExplorerActions from './ExplorerActions.vue'
 
 interface Props {
@@ -47,7 +52,7 @@ const sortedExplorations = computed(() =>
   [...props.explorations].sort((a, b) => getProgressPercentage(b) - getProgressPercentage(a))
 )
 
-const isReady = (exploration: Exploration) => getProgressPercentage(exploration) >= 100
+const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
 
 // Low HP (<=30%) or heavy radiation (>=50% of max) based on live dweller vitals.
 const isAtRisk = (dwellerId: string) => {
@@ -73,11 +78,16 @@ const riskTitle = (dwellerId: string) => {
         <Icon icon="mdi:account-search" class="inline h-5 w-5" />
         Active Explorers ({{ explorations.length }})
       </h4>
-      <UTooltip text="View full exploration dashboard">
-        <router-link :to="`/vault/${vaultId}/exploration`" class="view-all-btn">
-          <Icon icon="mdi:arrow-right" class="h-4 w-4" /> View All
-        </router-link>
-      </UTooltip>
+      <TooltipProvider :delay-duration="200">
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <router-link :to="`/vault/${vaultId}/exploration`" class="view-all-btn">
+              <Icon icon="mdi:arrow-right" class="h-4 w-4" /> View All
+            </router-link>
+          </TooltipTrigger>
+          <TooltipContent>View full exploration dashboard</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
     <div class="explorer-list">
       <div
@@ -93,32 +103,43 @@ const riskTitle = (dwellerId: string) => {
                 >{{ getDwellerById(exploration.dweller_id)?.first_name }}
                 {{ getDwellerById(exploration.dweller_id)?.last_name }}</span
               >
-              <UTooltip v-if="isAtRisk(exploration.dweller_id)" :text="riskTitle(exploration.dweller_id)">
-              <span aria-label="Dweller at risk">
-                <UBadge size="sm" variant="warning">
-                  <Icon icon="mdi:heart-pulse" class="h-3 w-3" />
-                  AT RISK
-                </UBadge>
-              </span>
-              </UTooltip>
+              <TooltipProvider v-if="isAtRisk(exploration.dweller_id)" :delay-duration="200">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span aria-label="Dweller at risk">
+                      <Badge variant="outline" class="border-warning/50 bg-warning/10 text-warning">
+                        <Icon icon="mdi:heart-pulse" class="h-3 w-3" />
+                        AT RISK
+                      </Badge>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>{{ riskTitle(exploration.dweller_id) }}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <Badge v-if="exploration.status === 'returning'" variant="secondary">RETURNING</Badge>
             </div>
             <span class="flex shrink-0 items-center gap-1">
-              <UTooltip v-if="isReady(exploration)" text="Expedition finished — ready to collect">
-              <span>
-                <UBadge size="sm" variant="primary">READY</UBadge>
-              </span>
-              </UTooltip>
+              <TooltipProvider v-if="isReady(exploration)" :delay-duration="200">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span>
+                      <Badge variant="default">READY</Badge>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>Expedition finished — ready to collect</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <span class="whitespace-nowrap rounded-full border border-[rgba(205,133,63,0.35)] bg-[rgba(205,133,63,0.1)] px-1.5 py-0.5 font-mono text-[0.65rem] font-bold text-wasteland"
                 >{{ Math.round(getProgressPercentage(exploration)) }}%</span
               >
             </span>
           </div>
-          <UProgressBar
+          <!-- @vue-ignore -->
+          <Progress
             :model-value="getProgressPercentage(exploration)"
-            :height="6"
-            :glow="false"
-            color="linear-gradient(90deg, rgb(205 133 63 / 0.6), rgb(205 133 63))"
-            :ariaLabel="`Exploration progress for ${getDwellerById(exploration.dweller_id)?.first_name ?? 'dweller'}`"
+            class="h-1.5"
+            :fill="'linear-gradient(90deg, rgb(205 133 63 / 0.6), rgb(205 133 63))'"
+            :aria-label="`Exploration progress for ${getDwellerById(exploration.dweller_id)?.first_name ?? 'dweller'}`"
           />
           <div class="explorer-stats">
             <div class="stat-item">
@@ -136,9 +157,14 @@ const riskTitle = (dwellerId: string) => {
               <span>{{ exploration.total_caps_found || 0 }}</span>
             </div>
             <span class="text-[rgba(205,133,63,0.4)] text-[0.65rem]">•</span>
-            <UTooltip :text="`${exploration.enemies_encountered || 0} enemies encountered`">
-              <div class="stat-item"><Icon icon="mdi:skull" class="h-3.5 w-3.5" /><span>{{ exploration.enemies_encountered || 0 }}</span></div>
-            </UTooltip>
+            <TooltipProvider :delay-duration="200">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <div class="stat-item"><Icon icon="mdi:skull" class="h-3.5 w-3.5" /><span>{{ exploration.enemies_encountered || 0 }}</span></div>
+                </TooltipTrigger>
+                <TooltipContent>{{ `${exploration.enemies_encountered || 0} enemies encountered` }}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           <div
             v-if="
@@ -146,38 +172,40 @@ const riskTitle = (dwellerId: string) => {
             "
             class="flex min-w-0 flex-col gap-0.5 text-[0.7rem] leading-tight"
           >
-            <UTooltip
-              v-if="getDwellerWeapon(exploration.dweller_id)"
-              :text="getDwellerWeapon(exploration.dweller_id)?.name"
-            >
-            <span
-              class="stat-item min-w-0 text-amber-400"
-            >
-              <Icon icon="mdi:sword" class="h-3 w-3 shrink-0" />
-              <span class="min-w-0 flex-1 truncate">{{
-                getDwellerWeapon(exploration.dweller_id)?.name
-              }}</span>
-            </span>
-            </UTooltip>
-            <UTooltip
-              v-if="getDwellerOutfit(exploration.dweller_id)"
-              :text="getDwellerOutfit(exploration.dweller_id)?.name"
-            >
-            <span
-              class="stat-item min-w-0 text-blue-400"
-            >
-              <Icon icon="mdi:tshirt-crew" class="h-3 w-3 shrink-0" />
-              <span class="min-w-0 flex-1 truncate">{{
-                getDwellerOutfit(exploration.dweller_id)?.name
-              }}</span>
-            </span>
-            </UTooltip>
+            <TooltipProvider v-if="getDwellerWeapon(exploration.dweller_id)" :delay-duration="200">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <span class="stat-item min-w-0 text-amber-400">
+                    <Icon icon="mdi:sword" class="h-3 w-3 shrink-0" />
+                    <span class="min-w-0 flex-1 truncate">{{
+                      getDwellerWeapon(exploration.dweller_id)?.name
+                    }}</span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{{ getDwellerWeapon(exploration.dweller_id)?.name }}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider v-if="getDwellerOutfit(exploration.dweller_id)" :delay-duration="200">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <span class="stat-item min-w-0 text-blue-400">
+                    <Icon icon="mdi:tshirt-crew" class="h-3 w-3 shrink-0" />
+                    <span class="min-w-0 flex-1 truncate">{{
+                      getDwellerOutfit(exploration.dweller_id)?.name
+                    }}</span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{{ getDwellerOutfit(exploration.dweller_id)?.name }}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
         <ExplorerActions
           compact
           class="explorer-actions"
-          :can-complete="getProgressPercentage(exploration) >= 100"
+          :can-complete="isReady(exploration)"
+          :can-recall="canRecall(exploration)"
+          :is-returning="exploration.status === 'returning'"
           @complete="emit('complete', exploration.id)"
           @recall="emit('recall', exploration.id)"
         />

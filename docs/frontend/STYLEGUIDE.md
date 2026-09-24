@@ -169,6 +169,9 @@ Utility classes in `tailwind.css` make the intent enforceable by construction:
   hover emphasis either.
 - `.badge-action` — clicking the badge does something; behaves like a button (glow on hover). Use sparingly — most
   badges are facts.
+- **Shape encodes lifetime.** Live-status chips (the dweller status badge, alert chips such as "Unassigned"/"No room",
+  role match) are squared (`--border-radius-base`); informational fact badges (age group, gender, rarity, identity)
+  stay pills. The square corner marks state that can change; the pill marks a permanent attribute.
 
 ### Buttons & space budget
 
@@ -307,6 +310,13 @@ This section records the current visual decisions for vault-management screens. 
 - Rich detail content may use a narrower, centered inner column. Exploration details use `max-w-[1200px]` inside the shared outer rail so the reading flow stays centered.
 - Keep distinct sections visibly separate; timeline/event-log blocks need top spacing from the content above them.
 
+### Tabbed interfaces
+
+- Tabs only: the tab label is the header. Do not repeat the active tab name as an `h2` section title under `TabsList`.
+- Subsections inside one tab (e.g. a "rewards ready" group next to the active list) keep their own headings; per-tab titles do not.
+- Filters and toggles that belong to a tab sit in a plain row above the content, with no header row and no separator border.
+- Tab panels render through `TabsContent`, never a raw `div`, so the `tabpanel` role and its tab linkage stay intact; panels carry `py-2`.
+
 ### Information hierarchy
 
 - Keep operational summaries compact: move a metric's trend beside its value instead of spending a separate row when space is limited.
@@ -394,6 +404,47 @@ This section records the current visual decisions for vault-management screens. 
   </div>
 </div>
 ```
+
+### Progress & meters
+
+A meter is the same instrument everywhere: dark recessed track, readable fill, stable height scale, optional
+terminal divisions, and a nearby text value when the number matters. Use the owned `Progress` primitive
+(`@/core/components/ui/progress`) — never hand-roll a `role="progressbar"`.
+
+```vue
+<Progress :model-value="questProgress" size="sm" label="Quest progress" value-text="62%" />
+<Progress :model-value="populationProgress" size="xs" tone="info" label="Population" />
+<Progress :model-value="happiness" size="sm" :fill="happinessColor" label="Happiness" value-text="88%" />
+<Progress :model-value="explorationProgress" size="md" segmented label="Exploration" value-text="62%" />
+```
+
+| Meaning | Treatment |
+|---|---|
+| Generic completion, capacity, affinity, quest, training | single-fill `Progress`, default theme-primary |
+| Exploration / time progression | single-fill with terminal segment divisions (`segmented`) |
+| Health + radiation | `HealthRadiationBar` — a two-segment domain composite on the shared track |
+| Threshold / status value | semantic `tone` (`info` / `warning` / `danger` / `success`) **plus** a text label; colour is never the sole signal |
+| Resource / economy value | an explicit resource token only where it carries gameplay meaning |
+
+**Contract**
+
+- `size` — `xs` | `sm` | `md` (a small fixed height scale; `sm` is the historical bar).
+- `tone` — `default` (theme-primary) | `info` | `warning` | `danger` | `success`.
+- `fill` — an explicit CSS colour for a dynamic/domain value; **takes precedence over `tone`**.
+- `segmented` — decorative terminal divisions only; it never changes the announced numeric value.
+- `label` / `value-text` — the accessible name and value (`aria-label` / `aria-valuetext`). A meter must have
+  an accessible name; add `value-text` wherever fill length or colour alone would be ambiguous.
+
+**Theme contract**
+
+- The default fill resolves through `--primary` / `--color-theme-primary`, so it renders correctly in FO3
+  teal, FNV amber, and FO4 green. Tracks and frames use the warm-neutral surface roles, never a
+  palette-specific black/green treatment.
+- Semantic tones use their tokens. New meter code must not contain FO4 green hex values, `green-*`, or green
+  RGBA glows. `--color-theme-accent` is a terminal brand accent; shadcn's semantic `accent` is a hover
+  surface, never a fill shortcut.
+- Motion is reserved for a meaningful live state, honours `prefers-reduced-motion`, and animates the fill's
+  transform/opacity only. Informational meters do not pulse or shimmer.
 
 ### Modals
 

@@ -45,6 +45,56 @@ class TestChatWebSocketAuth:
             pass
         assert exc.value.code == 4008
 
+    def test_no_token_rejected_before_connect(self, ws_client: TestClient) -> None:
+        """Missing token → handshake rejected before the socket is registered."""
+        user_id = uuid4()
+        with (
+            pytest.raises(WebSocketDisconnect) as exc,
+            ws_client.websocket_connect(f"/api/v1/ws/chat/{user_id}/{uuid4()}"),
+        ):
+            pass
+        assert exc.value.code == 4008
+
+    def test_mismatched_subject_rejected_before_connect(self, ws_client: TestClient) -> None:
+        """A token whose subject differs from the path user_id → handshake rejected."""
+        path_user_id = uuid4()
+        other_user_id = uuid4()
+        token = create_access_token(subject=str(other_user_id))
+
+        with (
+            pytest.raises(WebSocketDisconnect) as exc,
+            ws_client.websocket_connect(f"/api/v1/ws/chat/{path_user_id}/{uuid4()}?token={token}"),
+        ):
+            pass
+        assert exc.value.code == 4008
+
+
+class TestLegacyPersonalWebSocketRetired:
+    """The unauthenticated personal notification socket is retired."""
+
+    def test_legacy_personal_websocket_route_removed(self, ws_client: TestClient) -> None:
+        """Connecting to /api/v1/ws/{user_id} must fail — the route no longer exists."""
+        user_id = uuid4()
+        with (
+            pytest.raises(WebSocketDisconnect),
+            ws_client.websocket_connect(f"/api/v1/ws/{user_id}"),
+        ):
+            pass
+
+
+class TestNotificationSseAuth:
+    """The authenticated SSE stream replaces the retired personal socket."""
+
+    def test_sse_notifications_rejects_unauthenticated(self, ws_client: TestClient) -> None:
+        """An unauthenticated SSE subscription is rejected."""
+        response = ws_client.get("/api/v1/stream/notifications")
+        assert response.status_code == 401
+
+    def test_sse_notifications_route_is_registered(self, ws_client: TestClient) -> None:
+        """The replacement stream is registered (subscription itself streams forever)."""
+        spec = ws_client.get("/api/v1/openapi.json").json()
+        assert "/api/v1/stream/notifications" in spec["paths"]
+
 
 class _FakeSessionCM:
     """Async context manager yielding a fake DB session for stream patching."""

@@ -2,8 +2,8 @@
 import { computed } from 'vue'
 import DOMPurify from 'dompurify'
 import { Icon } from '@iconify/vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
-import UButton from '@/core/components/ui/UButton.vue'
+import { Button } from '@/core/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 import type { MapPlaceLink } from '../models/dweller'
 
@@ -185,61 +185,69 @@ function entryHtml(text: string): string {
 
 <template>
   <div class="dweller-bio">
-    <div class="bio-header panel-header">
-      <h3 class="bio-title panel-title">Biography</h3>
+    <div class="bio-header">
       <div class="header-buttons">
-        <UTooltip text="Creates or replaces appearance, portrait, and biography" position="top">
-          <UButton
-            class="complete-dossier-button"
-            variant="ghost"
-            size="sm"
-            :disabled="isAnyGenerating"
-            @click="ctx.actions.generateAll()"
-          >
-            <Icon
-              :icon="ctx.generatingAI.value ? 'mdi:loading' : 'mdi:sparkles'"
-              class="h-5 w-5"
-              :class="{ 'animate-spin': ctx.generatingAI.value }"
-            />
-            <span>Complete dossier</span>
-          </UButton>
-        </UTooltip>
-        <UTooltip text="Creates or replaces this dweller's biography" position="top">
-          <UButton
-            @click="ctx.actions.generateBio()"
-            class="generate-button"
-            variant="secondary"
-            size="sm"
-            :disabled="isAnyGenerating"
-          >
-            <Icon
-              :icon="generatingBio ? 'mdi:loading' : 'mdi:pencil-plus'"
-              class="h-5 w-5"
-              :class="{ 'animate-spin': generatingBio }"
-            />
-            <span>{{ bio ? 'Regenerate biography' : 'Generate biography' }}</span>
-          </UButton>
-        </UTooltip>
-        <UTooltip
-          v-if="bio"
-          text="Adds new details while keeping the current biography"
-          position="top"
-        >
-          <UButton
-            class="extend-bio-button"
-            variant="secondary"
-            size="sm"
-            :disabled="isAnyGenerating"
-            @click="ctx.actions.extendBio()"
-          >
-            <Icon
-              :icon="generatingBio ? 'mdi:loading' : 'mdi:text-long'"
-              class="h-5 w-5"
-              :class="{ 'animate-spin': generatingBio }"
-            />
-            <span>Extend biography</span>
-          </UButton>
-        </UTooltip>
+        <TooltipProvider :delay-duration="200">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                class="complete-dossier-button"
+                variant="outline"
+                size="sm"
+                :disabled="isAnyGenerating"
+                @click="ctx.actions.generateAll()"
+              >
+                <Icon
+                  :icon="ctx.generatingAI.value ? 'mdi:loading' : 'mdi:sparkles'"
+                  class="h-5 w-5"
+                  :class="{ 'animate-spin': ctx.generatingAI.value }"
+                />
+                <span>Complete dossier</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">Creates or replaces appearance, portrait, and biography</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                @click="ctx.actions.generateBio()"
+                class="generate-button"
+                variant="outline"
+                size="sm"
+                :disabled="isAnyGenerating"
+              >
+                <Icon
+                  :icon="generatingBio ? 'mdi:loading' : 'mdi:pencil-plus'"
+                  class="h-5 w-5"
+                  :class="{ 'animate-spin': generatingBio }"
+                />
+                <span>{{ bio ? 'Regenerate biography' : 'Generate biography' }}</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">Creates or replaces this dweller's biography</TooltipContent>
+          </Tooltip>
+
+          <Tooltip v-if="bio">
+            <TooltipTrigger as-child>
+              <Button
+                class="extend-bio-button"
+                variant="outline"
+                size="sm"
+                :disabled="isAnyGenerating"
+                @click="ctx.actions.extendBio()"
+              >
+                <Icon
+                  :icon="generatingBio ? 'mdi:loading' : 'mdi:text-long'"
+                  class="h-5 w-5"
+                  :class="{ 'animate-spin': generatingBio }"
+                />
+                <span>Extend biography</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">Adds new details while keeping the current biography</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
 
@@ -303,6 +311,14 @@ function entryHtml(text: string): string {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.bio-header {
+  display: flex;
+  justify-content: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
 }
 
 .header-buttons {

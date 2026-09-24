@@ -15,7 +15,8 @@ from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.relationship import Relationship
 from app.models.vault import Vault
-from app.services.game_tick import crafting_tick, dwellers_tick, family_tick
+from app.services.game_tick import crafting_tick, dwellers_tick, family_tick, radio_tick
+from app.services.game_tick.guard import recover_session
 from app.services.game_tick.tick_results import (
     AgeStats,
     ApprenticeStats,
@@ -26,6 +27,7 @@ from app.services.game_tick.tick_results import (
     ExplorationStats,
     GameTickResult,
     PregnancyStats,
+    RadioStats,
     RelationshipsStats,
     TrainingStats,
     VaultTickResult,
@@ -62,15 +64,19 @@ class GameLoopService:
 
         # Get all active vaults
         active_vaults = await self._get_active_vaults(db_session)
+        # Iterate plain IDs: recovering a failed vault expires every loaded ORM
+        # instance, so touching vault attributes afterwards would lazy-load.
+        vault_ids = [vault.id for vault in active_vaults]
 
-        self.logger.info(f"Processing game tick for {len(active_vaults)} vaults")
+        self.logger.info(f"Processing game tick for {len(vault_ids)} vaults")
 
-        for vault in active_vaults:
+        for vault_id in vault_ids:
             try:
-                await self.process_vault_tick(db_session, vault.id)
+                await self.process_vault_tick(db_session, vault_id)
                 stats["vaults_processed"] += 1
             except (SQLAlchemyError, ResourceNotFoundException, VaultOperationException) as e:
-                self.logger.error(f"Error processing vault {vault.id}: {e}", exc_info=True)
+                await recover_session(db_session)
+                self.logger.error(f"Error processing vault {vault_id}: {e}", exc_info=True)
                 stats["errors"] += 1
 
         stats["total_time"] = (datetime.utcnow() - start_time).total_seconds()
@@ -147,8 +153,13 @@ class GameLoopService:
                 "events": resource_events.model_dump(),
             }
         except (SQLAlchemyError, ResourceNotFoundException, VaultOperationException) as e:
+            # Recover before the remaining phases: a poisoned session would fail
+            # every one of them, not just the resource update. The rollback expires
+            # game_state, so reload it before the later phases read it.
+            await recover_session(db_session)
             self.logger.error(f"Error updating resources for vault {vault_id}: {e}", exc_info=True)
             results["updates"]["resources"] = {"error": str(e)}
+            game_state = await self._get_or_create_game_state(db_session, vault_id)
 
         # Incident combat runs on its own fast cadence (incident_tick actor), not here.
 
@@ -169,6 +180,10 @@ class GameLoopService:
 
         happiness_update = await self._process_happiness(db_session, vault_id, seconds_passed)
         results["updates"]["happiness"] = happiness_update
+
+        # After happiness so the recruitment rate reads the freshest value.
+        radio_update = await self._process_radio(db_session, vault_id)
+        results["updates"]["radio"] = radio_update
 
         breeding_update = await self._process_breeding(db_session, vault_id)
         results["updates"]["breeding"] = breeding_update
@@ -267,6 +282,10 @@ class GameLoopService:
         """Process happiness updates for all dwellers in a vault."""
         return await dwellers_tick.process_happiness(db_session, vault_id, seconds_passed)
 
+    async def _process_radio(self, db_session: AsyncSession, vault_id: UUID4) -> RadioStats:
+        """Roll the radio's passive recruitment for a vault."""
+        return await radio_tick.process_radio(db_session, vault_id)
+
     async def _process_events(
         self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state: GameState | None = None
     ) -> EventsStats:
@@ -317,6 +336,14 @@ class GameLoopService:
     async def _process_breeding(self, db_session: AsyncSession, vault_id: UUID4) -> BreedingStats:
         """Process relationships and breeding for a vault."""
         return await family_tick.process_breeding(self, db_session, vault_id)
+
+    async def process_vault_breeding(self, db_session: AsyncSession, vault_id: UUID4) -> BreedingStats:
+        """Process relationships and breeding for one vault on demand.
+
+        Public entry point for callers outside the tick (e.g. the breeding
+        endpoint); delegates to the same phase the tick runs.
+        """
+        return await self._process_breeding(db_session, vault_id)
 
 
 # Global instance

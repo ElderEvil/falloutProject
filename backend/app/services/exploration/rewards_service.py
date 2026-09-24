@@ -35,6 +35,9 @@ from app.utils.item_factory import build_junk, build_outfit, build_weapon
 
 logger = logging.getLogger(__name__)
 
+_PENDING_REWARD_EVENTS = "pending_exploration_reward_events"
+_PENDING_AUTO_EQUIP = "pending_exploration_auto_equip"
+
 
 class TransferResult(TypedDict):
     """Result of transferring loot to vault storage."""
@@ -47,6 +50,48 @@ class TransferResult(TypedDict):
 
 class RewardsService:
     """Applies exploration rewards to vault and dweller."""
+
+    @staticmethod
+    def _queue_event(db_session: AsyncSession, event: GameEvent, vault_id: UUID4, payload: dict[str, Any]) -> None:
+        """Park a reward event until the finalization transaction commits."""
+        db_session.info.setdefault(_PENDING_REWARD_EVENTS, []).append((event, vault_id, payload))
+
+    async def deliver_pending_reward_events(self, db_session: AsyncSession) -> None:
+        """Emit reward events parked while a deferred finalization was in flight."""
+        for event, vault_id, payload in db_session.info.pop(_PENDING_REWARD_EVENTS, []):
+            await event_bus.emit(event, vault_id, payload)
+
+    def discard_pending_rewards(self, db_session: AsyncSession) -> None:
+        """Drop parked reward events and auto-equip work for a rolled-back finalization."""
+        db_session.info.pop(_PENDING_REWARD_EVENTS, None)
+        db_session.info.pop(_PENDING_AUTO_EQUIP, None)
+
+    async def apply_pending_auto_equip(self, db_session: AsyncSession, exploration: Exploration) -> None:
+        """Run auto-equip parked by a deferred finalization, after its commit."""
+        pending = db_session.info.pop(_PENDING_AUTO_EQUIP, None)
+        if pending is None or pending["exploration_id"] != exploration.id:
+            return
+        await self._auto_equip(db_session, exploration, pending["auto_equip_ids"])
+
+    async def _auto_equip(self, db_session: AsyncSession, exploration: Exploration, auto_equip_ids: list[dict]) -> None:
+        """Best-effort equip of found upgrades; commits internally, so callers run it post-commit."""
+        if not auto_equip_ids:
+            return
+        dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+        equipped: list[tuple[str, str]] = []
+        for entry in auto_equip_ids:
+            try:
+                crud = crud_weapon if entry["item_type"] == "weapon" else crud_outfit
+                item = await crud.equip(db_session=db_session, item_id=entry["id"], dweller_id=exploration.dweller_id)
+                equipped.append((entry["item_type"], item.name))
+            except Exception:
+                logger.exception(
+                    "Auto-equip failed during exploration completion: exploration=%s item=%s",
+                    exploration.id,
+                    entry["id"],
+                )
+        if equipped:
+            await self._notify_auto_equip(db_session, exploration, dweller_obj, equipped)
 
     @staticmethod
     def _parse_rarity_to_enum(rarity_str: str) -> RarityEnum:
@@ -166,7 +211,9 @@ class RewardsService:
                 db_session.add(item)
 
                 if item_type in {"weapon", "outfit"}:
-                    await event_bus.emit(GameEvent.ITEM_COLLECTED, vault.id, {"item_type": item_type, "amount": 1})
+                    self._queue_event(
+                        db_session, GameEvent.ITEM_COLLECTED, vault.id, {"item_type": item_type, "amount": 1}
+                    )
                     if loot_item.get("auto_equip"):
                         await db_session.flush()
                         auto_equip_ids.append({"item_type": item_type, "id": item.id})
@@ -225,7 +272,7 @@ class RewardsService:
         exploration = await crud_exploration.get_for_update(db_session, exploration_id)
         if not exploration:
             raise ResourceNotFoundException(Exploration, exploration_id)
-        if exploration.is_active():
+        if exploration.is_in_progress():
             raise ValidationException("Exploration is still in progress")
         return exploration, list(exploration.unclaimed_loot or [])
 
@@ -239,7 +286,7 @@ class RewardsService:
                 unclaimed_loot=exploration.unclaimed_loot,
             )
             for exploration in explorations
-            if not exploration.is_active() and exploration.unclaimed_loot
+            if not exploration.is_in_progress() and exploration.unclaimed_loot
         ]
 
     async def take_unclaimed_item(self, db_session: AsyncSession, exploration_id: UUID4, index: int) -> list[dict]:
@@ -285,9 +332,23 @@ class RewardsService:
         return value, unclaimed
 
     async def apply_rewards(
-        self, db_session: AsyncSession, exploration: Exploration, progress_multiplier: float = 1.0
+        self,
+        db_session: AsyncSession,
+        exploration: Exploration,
+        progress_multiplier: float = 1.0,
+        *,
+        commit: bool = True,
     ) -> RewardsSchema:
-        """Apply rewards to vault and dweller."""
+        """Apply rewards to vault and dweller.
+
+        Args:
+            db_session: Database session
+            exploration: Completed exploration
+            progress_multiplier: Scales XP for an early recall
+            commit: Commit the settlement here. False batches it into the caller's
+                single transaction; the caller then drains parked surfacing after
+                its own commit.
+        """
         from app.services.leveling_service import leveling_service
 
         # Get dweller
@@ -297,7 +358,15 @@ class RewardsService:
         total_caps = exploration.total_caps_found
         if total_caps > 0:
             vault = await crud_vault.get(db_session, exploration.vault_id)
-            await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=total_caps)
+            credited = await vault_service.deposit_caps(
+                db_session=db_session, vault_obj=vault, amount=total_caps, commit=commit, emit_event=False
+            )
+            self._queue_event(
+                db_session,
+                GameEvent.RESOURCE_COLLECTED,
+                exploration.vault_id,
+                {"resource_type": "caps", "amount": credited},
+            )
 
         # Calculate and apply experience
         full_experience = rewards_calculator.calculate_exploration_xp(exploration, dweller_obj)
@@ -307,35 +376,22 @@ class RewardsService:
         db_session.add(dweller_obj)
 
         # Check for level-up
-        leveled_up, levels_gained = await leveling_service.check_level_up(db_session, dweller_obj)
+        leveled_up, levels_gained = await leveling_service.check_level_up(db_session, dweller_obj, commit=commit)
         if leveled_up:
             await leveling_service.settle_level_up(
                 db_session,
                 dweller_obj,
                 old_level=dweller_obj.level - levels_gained,
                 levels_gained=levels_gained,
+                commit=commit,
             )
 
         # Transfer loot items to vault storage (with space validation)
         transfer_result = await self._transfer_loot_to_storage(db_session, exploration)
-
         auto_equip_ids = transfer_result.get("auto_equip_ids", [])
-        equipped: list[tuple[str, str]] = []
-        for entry in auto_equip_ids:
-            try:
-                crud = crud_weapon if entry["item_type"] == "weapon" else crud_outfit
-                item = await crud.equip(db_session=db_session, item_id=entry["id"], dweller_id=exploration.dweller_id)
-                equipped.append((entry["item_type"], item.name))
-            except Exception:
-                logger.exception(
-                    "Auto-equip failed during exploration completion: exploration=%s item=%s",
-                    exploration.id,
-                    entry["id"],
-                )
+
         if transfer_result["storage_id"] is not None:
             await crud_storage.update_used_space(db_session, transfer_result["storage_id"])
-        if equipped:
-            await self._notify_auto_equip(db_session, exploration, dweller_obj, equipped)
 
         # Return unused stimpaks and radaways to vault storage
         if exploration.stimpaks > 0 or exploration.radaways > 0:
@@ -355,22 +411,30 @@ class RewardsService:
                 )
                 db_session.add(storage_obj)
 
-        await db_session.commit()
-
-        # Emit stimpak and radaway collection events after commit
         if exploration.stimpaks > 0:
-            await event_bus.emit(
+            self._queue_event(
+                db_session,
                 GameEvent.ITEM_COLLECTED,
                 exploration.vault_id,
                 {"item_type": "stimpak", "amount": exploration.stimpaks},
             )
-
         if exploration.radaways > 0:
-            await event_bus.emit(
+            self._queue_event(
+                db_session,
                 GameEvent.ITEM_COLLECTED,
                 exploration.vault_id,
                 {"item_type": "radaway", "amount": exploration.radaways},
             )
+
+        if commit:
+            await db_session.commit()
+            await self.deliver_pending_reward_events(db_session)
+            await self._auto_equip(db_session, exploration, auto_equip_ids)
+        elif auto_equip_ids:
+            db_session.info[_PENDING_AUTO_EQUIP] = {
+                "exploration_id": exploration.id,
+                "auto_equip_ids": auto_equip_ids,
+            }
 
         return RewardsSchema(
             exploration_id=exploration.id,

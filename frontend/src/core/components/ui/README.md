@@ -1,261 +1,62 @@
 # UI Component Library
 
-Terminal-themed UI components for the Fallout Shelter Vue 3 application.
+shadcn-vue primitives (Reka UI + Tailwind v4, copy-paste ownership) restyled onto the Fallout terminal CRT theme.
 
 ## Overview
 
-This library provides pre-styled, reusable components that follow the Fallout terminal aesthetic with terminal green colors, CRT effects, and retro styling.
+Each component lives in its own folder and is imported per file — primitives are **never** globally
+registered (generic names like `Button`/`Card` would collide and defeat tree-shaking). The runtime
+palette is owned by `core/composables/useTheme.ts`; shadcn's semantic CSS vars alias the repo tokens in
+`assets/tailwind.css`, so palette swaps propagate automatically.
 
 ## Components
 
-### UButton
+| Folder | Exports |
+|---|---|
+| `alert/` | `Alert`, `AlertTitle`, `AlertDescription`, `AlertAction`, `alertVariants` |
+| `badge/` | `Badge`, `badgeVariants` |
+| `button/` | `Button`, `buttonVariants` |
+| `card/` | `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter`, `CardAction` |
+| `dialog/` | `Dialog`, `DialogTrigger`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`, `DialogClose`, `DialogOverlay`, `DialogScrollContent` |
+| `input/` | `Input` |
+| `label/` | `Label` |
+| `progress/` | `Progress` |
+| `select/` | `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem`, `SelectLabel`, `SelectGroup`, `SelectSeparator`, plus scroll buttons |
+| `skeleton/` | `Skeleton` |
+| `slider/` | `Slider` |
+| `tabs/` | `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent`, `tabsListVariants` |
+| `toast/` | `Toast`, `Toaster` (the repo's bespoke terminal toast, driven by `useToast`) |
+| `tooltip/` | `Tooltip`, `TooltipProvider`, `TooltipTrigger`, `TooltipContent` |
 
-Terminal-themed button with variants and sizes.
+`SettingItem.vue` is a small bespoke display composite that lives here alongside the primitives.
 
-**Props:**
-
-- `variant`: 'primary' | 'secondary' | 'danger' | 'ghost' (default: 'primary')
-- `size`: 'xs' | 'sm' | 'md' | 'lg' | 'xl' (default: 'md')
-- `disabled`: boolean (default: false)
-- `loading`: boolean (default: false)
-- `icon`: Component (optional)
-- `iconRight`: Component (optional)
-- `block`: boolean (default: false)
-
-**Events:**
-
-- `@click`: Emitted on button click
-
-**Usage:**
-
-```vue
-<UButton variant="primary" size="md" @click="handleClick">
-  Click Me
-</UButton>
-
-<UButton variant="secondary" :icon="PlusIcon">
-  Add Item
-</UButton>
-
-<UButton variant="danger" :loading="isDeleting">
-  Delete
-</UButton>
-```
-
-### UInput
-
-Terminal-themed input field with label and error support.
-
-**Props:**
-
-- `modelValue`: string | number
-- `type`: 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' (default: 'text')
-- `label`: string (optional)
-- `placeholder`: string (optional)
-- `helpText`: string (optional)
-- `error`: string (optional)
-- `required`: boolean (default: false)
-- `disabled`: boolean (default: false)
-- `icon`: Component (optional)
-- `iconRight`: Component (optional)
-- `size`: 'sm' | 'md' | 'lg' (default: 'md')
-
-**Events:**
-
-- `@update:modelValue`: Emitted on value change
-- `@blur`: Emitted on blur
-- `@focus`: Emitted on focus
-
-**Usage:**
-
-```vue
-<UInput
-  v-model="email"
-  type="email"
-  label="Email Address"
-  placeholder="user@vault.com"
-  :icon="EnvelopeIcon"
-  required
-/>
-
-<UInput v-model="password" type="password" label="Password" :error="passwordError" />
-```
-
-### UCard
-
-Terminal-themed card container.
-
-**Props:**
-
-- `title`: string (optional)
-- `padding`: 'none' | 'sm' | 'md' | 'lg' | 'xl' (default: 'md')
-- `glow`: boolean (default: false)
-- `crt`: boolean (default: false)
-- `bordered`: boolean (default: true)
-
-**Slots:**
-
-- `header`: Custom header content
-- `default`: Main content
-- `footer`: Footer content
-
-**Usage:**
-
-```vue
-<UCard title="Vault Stats" glow crt>
-  <p>Population: 42</p>
-  <p>Happiness: 85%</p>
-
-  <template #footer>
-    <UButton>View Details</UButton>
-  </template>
-</UCard>
-```
-
-### UModal
-
-Terminal-themed modal dialog.
-
-**Props:**
-
-- `modelValue`: boolean (required)
-- `title`: string (optional)
-- `size`: 'sm' | 'md' | 'lg' | 'xl' | 'full' (default: 'md')
-- `closeOnEscape`: boolean (default: true)
-- `closeOnClickOutside`: boolean (default: true)
-
-**Events:**
-
-- `@update:modelValue`: Emitted when modal visibility changes
-- `@close`: Emitted when modal closes
-
-**Slots:**
-
-- `header`: Custom header
-- `default`: Main content
-- `footer`: Footer with actions
-
-**Usage:**
-
-```vue
-<UModal v-model="isOpen" title="Confirm Action" size="md">
-  <p>Are you sure you want to delete this vault?</p>
-
-  <template #footer>
-    <UButton variant="secondary" @click="isOpen = false">Cancel</UButton>
-    <UButton variant="danger" @click="handleDelete">Delete</UButton>
-  </template>
-</UModal>
-```
-
-### UBadge
-
-Terminal-themed badge/tag component.
-
-**Props:**
-
-- `variant`: 'success' | 'warning' | 'danger' | 'info' | 'default' (default: 'default')
-- `size`: 'sm' | 'md' | 'lg' (default: 'md')
-- `icon`: Component (optional)
-- `dot`: boolean (default: false)
-
-**Usage:**
-
-```vue
-<UBadge variant="success">Active</UBadge>
-<UBadge variant="warning" dot>Pending</UBadge>
-<UBadge variant="danger" :icon="ExclamationIcon">Error</UBadge>
-```
-
-### UAlert
-
-Terminal-themed alert/notification component.
-
-**Props:**
-
-- `variant`: 'success' | 'warning' | 'danger' | 'info' (default: 'info')
-- `title`: string (optional)
-- `dismissible`: boolean (default: false)
-- `icon`: Component (optional)
-
-**Events:**
-
-- `@close`: Emitted when alert is dismissed
-
-**Usage:**
-
-```vue
-<UAlert variant="success" title="Success" :icon="CheckIcon" dismissible>
-  Vault created successfully!
-</UAlert>
-
-<UAlert variant="danger" title="Error">
-  Failed to connect to server.
-</UAlert>
-```
-
-### UTooltip
-
-Terminal-themed tooltip.
-
-**Props:**
-
-- `text`: string (required)
-- `position`: 'top' | 'bottom' | 'left' | 'right' (default: 'top')
-- `delay`: number (default: 200ms)
-
-**Usage:**
-
-```vue
-<UTooltip text="Build a new room">
-  <UButton>Build</UButton>
-</UTooltip>
-```
-
-The wrapped control keeps its own root element — `UTooltip` clones the slot's element (or component) vnode and merges
-the pointer/focus listeners (plus `aria-describedby` when `text` is set) onto it, so no wrapper box is introduced and
-layout classes on the control keep working. When the slot is a component, the rendered root element is resolved for
-positioning. `UIconButton` applies this pattern automatically: its required `label` is both the accessible name and
-the terminal-styled tooltip text.
-
-> `UButton` and `UIconButton` keep their `<button>` as the root when there is nothing to show (`UButton` without
-> `title`), so root-level listeners and event triggering on those components behave exactly as before.
-
-## Importing Components
-
-### Single Import
+Usage:
 
 ```vue
 <script setup lang="ts">
-import { UButton } from '@/components/ui'
+import { Button } from '@/core/components/ui/button'
+import { Card, CardContent } from '@/core/components/ui/card'
 </script>
 ```
 
-### Multiple Imports
+## Repo conventions
 
-```vue
-<script setup lang="ts">
-import { UButton, UInput, UCard } from '@/components/ui'
-</script>
-```
+- **Tooltips** need a `TooltipProvider` ancestor. Wrap a component trigger with
+  `TooltipTrigger as-child`; import `Tooltip`, `TooltipContent`, `TooltipProvider`, `TooltipTrigger`
+  together.
+- **`Progress` owns its fill.** Pass `size` (`xs`/`sm`/`md`), `tone`
+  (`default`/`info`/`warning`/`danger`/`success`), an explicit `fill` colour for a dynamic/domain value
+  (precedence over `tone`), and `segmented` for decorative terminal divisions. Name the meter with `label`
+  (or a fallthrough `aria-label`) and add `value-text` wherever fill length or colour alone would be
+  ambiguous. Do **not** reach into `[data-slot='progress-indicator']` or set `--bar-fill` from callers —
+  that pattern is retired as callers migrate.
+- **Two-segment health bars** use the shared `core/components/common/HealthRadiationBar.vue`.
+- **Overlays** (`Dialog`) render through a `Teleport`; tests stub `Teleport` and assert opening via
+  `Dialog.props('open')`.
+- Design tokens live in `assets/tailwind.css` and `docs/frontend/STYLEGUIDE.md`.
 
-## Customization
+## Adding a component
 
-All components use Tailwind v4 design tokens from `src/assets/tailwind.css`. To customize:
-
-1. Edit the @theme section in `tailwind.css`
-2. Components will automatically pick up the new values
-3. See `../../../../../docs/frontend/STYLEGUIDE.md` for complete design token reference
-
-## Accessibility
-
-All components follow WCAG 2.1 AA standards:
-
-- Keyboard navigation support
-- Proper ARIA labels
-- Focus indicators
-- Screen reader compatibility
-
-## Examples
-
-See `../../../../../docs/frontend/STYLEGUIDE.md` for comprehensive examples and best practices.
+See the repo overlay skill `.agents/skills/shadcn-vue-repo/SKILL.md` — it covers the CLI invocation, the
+mandatory `scripts/shadcn-post-add.mjs` transform (`data-slot` vs `strictTemplates`), the `cn()` /
+tailwind-merge extension, and the token bridge.

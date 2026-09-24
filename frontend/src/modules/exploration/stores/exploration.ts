@@ -44,10 +44,13 @@ export interface Exploration {
   id: string
   vault_id: string
   dweller_id: string
-  status: 'active' | 'completed' | 'recalled'
+  status: 'active' | 'returning' | 'completed' | 'recalled'
   duration: number
   start_time: string
   end_time: string | null
+  return_started_at?: string | null
+  return_completes_at?: string | null
+  recalled_early?: boolean
   events: ExplorationEvent[]
   loot_collected: LootItem[]
   total_distance: number
@@ -70,10 +73,12 @@ export interface Exploration {
 
 export interface ExplorationProgress {
   id: string
-  status: 'ACTIVE' | 'COMPLETED' | 'RECALLED'
+  status: 'ACTIVE' | 'RETURNING' | 'COMPLETED' | 'RECALLED'
   progress_percentage: number
   time_remaining_seconds: number
   elapsed_time_seconds: number
+  return_completes_at?: string | null
+  return_time_remaining_seconds?: number
   events: ExplorationEvent[]
   loot_collected: LootItem[]
   stimpaks: number
@@ -111,7 +116,11 @@ export const useExplorationStore = defineStore('exploration', () => {
   const explorations = ref<Exploration[]>([])
   const activeExplorations = ref<Record<string, Exploration>>({})
   const lastRewards = ref<RewardsSummary | null>(null)
-  const pendingSseRewards = ref<{ rewards: RewardsSummary; dwellerId: string; explorationId?: string } | null>(null)
+  const pendingSseRewards = ref<{
+    rewards: RewardsSummary
+    dwellerId: string
+    explorationId?: string
+  } | null>(null)
   const acknowledgedSseRewards = new Map<string, ReturnType<typeof setTimeout>>()
   const isLoading = ref(false)
   const error = ref<string | null>(null)
@@ -120,11 +129,28 @@ export const useExplorationStore = defineStore('exploration', () => {
   let currentVaultId = ''
 
   function getExplorationByDwellerId(dwellerId: string) {
-    return explorations.value.find((e) => e.dweller_id === dwellerId && e.status === 'active')
+    const matches = explorations.value.filter(
+      (e) => e.dweller_id === dwellerId && (e.status === 'active' || e.status === 'returning')
+    )
+    return matches.find((e) => e.status === 'active') ?? matches[0]
   }
 
   function getActiveExplorationsForVault(vaultId: string) {
-    return explorations.value.filter((e) => e.vault_id === vaultId && e.status === 'active')
+    return explorations.value.filter(
+      (e) => e.vault_id === vaultId && (e.status === 'active' || e.status === 'returning')
+    )
+  }
+
+  function upsertExploration(exploration: Exploration): void {
+    const index = explorations.value.findIndex((e) => e.id === exploration.id)
+    if (index !== -1) explorations.value[index] = exploration
+    else explorations.value.push(exploration)
+
+    if (exploration.status === 'active' || exploration.status === 'returning') {
+      activeExplorations.value[exploration.id] = exploration
+    } else {
+      delete activeExplorations.value[exploration.id]
+    }
   }
 
   function startSseSubscription(vaultId: string, token: string): void {
@@ -146,7 +172,12 @@ export const useExplorationStore = defineStore('exploration', () => {
         if (!data || typeof data.type !== 'string') return
         const explorationId = data.exploration_id as string | undefined
         if (data.type === 'exploration_complete' || data.type === 'exploration_recalled') {
-          const rewards = (data.rewards ?? { caps: 0, items: [], experience: 0, distance: 0 }) as RewardsSummary
+          const rewards = (data.rewards ?? {
+            caps: 0,
+            items: [],
+            experience: 0,
+            distance: 0,
+          }) as RewardsSummary
           const dwellerId = (data.dweller_id as string) ?? ''
           pendingSseRewards.value = {
             rewards,
@@ -157,13 +188,42 @@ export const useExplorationStore = defineStore('exploration', () => {
           if (dwellerId && explorationId) {
             const dweller = dwellerFilter.dwellers.find((d) => d.id === dwellerId)
             const dwellerName = dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller'
-            addPendingReport({ explorationId, vaultId: currentVaultId, dwellerId, dwellerName, rewards })
+            addPendingReport({
+              explorationId,
+              vaultId: currentVaultId,
+              dwellerId,
+              dwellerName,
+              rewards,
+            })
+          }
+          return
+        }
+
+        if (data.type === 'exploration_returning') {
+          const returning = explorationId
+            ? (activeExplorations.value[explorationId] ??
+              explorations.value.find((e) => e.id === explorationId))
+            : undefined
+          if (returning) {
+            returning.status = 'returning'
+            returning.return_started_at =
+              (data.return_started_at as string) ?? returning.return_started_at
+            returning.return_completes_at =
+              (data.return_completes_at as string) ?? returning.return_completes_at
+          }
+          // A manual recall already toasts from its own action; only the tick-driven
+          // finish needs a heads-up here.
+          if (!data.recalled) {
+            const dweller = dwellerFilter.dwellers.find((d) => d.id === data.dweller_id)
+            const dwellerName = dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller'
+            toast.info(`${dwellerName} is heading home`)
           }
           return
         }
 
         const exploration = explorationId
-          ? activeExplorations.value[explorationId] ?? explorations.value.find((e) => e.id === explorationId)
+          ? (activeExplorations.value[explorationId] ??
+            explorations.value.find((e) => e.id === explorationId))
           : undefined
         if (!exploration) return
 
@@ -176,8 +236,10 @@ export const useExplorationStore = defineStore('exploration', () => {
           }
         }
 
-        if (typeof data.total_caps_found === 'number') exploration.total_caps_found = data.total_caps_found
-        if (typeof data.enemies_encountered === 'number') exploration.enemies_encountered = data.enemies_encountered
+        if (typeof data.total_caps_found === 'number')
+          exploration.total_caps_found = data.total_caps_found
+        if (typeof data.enemies_encountered === 'number')
+          exploration.enemies_encountered = data.enemies_encountered
         if (typeof data.stimpaks === 'number') exploration.stimpaks = data.stimpaks
         if (typeof data.radaways === 'number') exploration.radaways = data.radaways
         if (typeof data.health === 'number') exploration.health = data.health
@@ -205,7 +267,10 @@ export const useExplorationStore = defineStore('exploration', () => {
   function acknowledgeSseReward(dwellerId: string): void {
     const existingTimer = acknowledgedSseRewards.get(dwellerId)
     if (existingTimer) clearTimeout(existingTimer)
-    acknowledgedSseRewards.set(dwellerId, setTimeout(() => acknowledgedSseRewards.delete(dwellerId), 30_000))
+    acknowledgedSseRewards.set(
+      dwellerId,
+      setTimeout(() => acknowledgedSseRewards.delete(dwellerId), 30_000)
+    )
   }
 
   function consumeAcknowledgedSseReward(dwellerId: string): boolean {
@@ -274,7 +339,7 @@ export const useExplorationStore = defineStore('exploration', () => {
       // Update active explorations map
       activeExplorations.value = {}
       response.data
-        .filter((e: Exploration) => e.status === 'active')
+        .filter((e: Exploration) => e.status === 'active' || e.status === 'returning')
         .forEach((e: Exploration) => {
           activeExplorations.value[e.id] = e
         })
@@ -300,19 +365,7 @@ export const useExplorationStore = defineStore('exploration', () => {
 
       // Update in explorations list, including direct links to completed runs
       // that are absent from the active-only collection.
-      const index = explorations.value.findIndex((e) => e.id === explorationId)
-      if (index !== -1) {
-        explorations.value[index] = response.data
-      } else {
-        explorations.value.push(response.data)
-      }
-
-      // Update in active explorations
-      if (response.data.status === 'active') {
-        activeExplorations.value[explorationId] = response.data
-      } else {
-        delete activeExplorations.value[explorationId]
-      }
+      upsertExploration(response.data)
 
       return response.data
     } catch (err) {
@@ -350,18 +403,11 @@ export const useExplorationStore = defineStore('exploration', () => {
       )
 
       const { exploration, rewards_summary } = response.data
-      lastRewards.value = rewards_summary
+      if (rewards_summary) lastRewards.value = rewards_summary
 
-      // Update exploration in state
-      const index = explorations.value.findIndex((e) => e.id === explorationId)
-      if (index !== -1) {
-        explorations.value[index] = exploration
-      }
+      upsertExploration(exploration)
 
-      // Remove from active explorations
-      delete activeExplorations.value[explorationId]
-
-      toast.success('Dweller recalled from wasteland!')
+      toast.success('Dweller recalled — heading home')
       return response.data
     } catch (err) {
       handleStoreError(err, 'Failed to recall dweller')
@@ -385,18 +431,11 @@ export const useExplorationStore = defineStore('exploration', () => {
       )
 
       const { exploration, rewards_summary } = response.data
-      lastRewards.value = rewards_summary
+      if (rewards_summary) lastRewards.value = rewards_summary
 
-      // Update exploration in state
-      const index = explorations.value.findIndex((e) => e.id === explorationId)
-      if (index !== -1) {
-        explorations.value[index] = exploration
-      }
+      upsertExploration(exploration)
 
-      // Remove from active explorations
-      delete activeExplorations.value[explorationId]
-
-      toast.success('Exploration completed successfully!')
+      if (rewards_summary) toast.success('Exploration completed successfully!')
       return response.data
     } catch (err) {
       handleStoreError(err, 'Failed to complete exploration')

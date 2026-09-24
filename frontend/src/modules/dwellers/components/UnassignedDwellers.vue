@@ -168,24 +168,21 @@ const handleDropZoneDrop = async (event: DragEvent) => {
       <template v-if="isDraggingOver">
         <Icon
           icon="mdi:arrow-down-bold"
-          class="h-12 w-12 animate-bounce"
-          :style="{ color: 'var(--color-theme-primary)' }"
+          class="h-12 w-12 animate-bounce text-theme-primary"
         />
         <p class="drop-message">Drop to unassign</p>
       </template>
       <template v-else-if="hasAnyUnassigned">
         <Icon
           icon="mdi:filter-off-outline"
-          class="h-12 w-12"
-          :style="{ color: 'var(--color-theme-primary)' }"
+          class="h-12 w-12 text-theme-primary"
         />
         <p>No dwellers match the filters</p>
       </template>
       <template v-else>
         <Icon
           icon="mdi:check-circle"
-          class="h-12 w-12"
-          :style="{ color: 'var(--color-theme-primary)' }"
+          class="h-12 w-12 text-theme-primary"
         />
         <p>All dwellers are assigned!</p>
       </template>

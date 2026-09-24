@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UBadge from '@/core/components/ui/UBadge.vue'
-import UProgressBar from '@/core/components/ui/UProgressBar.vue'
+import { Button } from '@/core/components/ui/button'
+import { Badge } from '@/core/components/ui/badge'
+import { Progress } from '@/core/components/ui/progress'
 import type { components } from '@/core/types/api.generated'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
@@ -160,26 +160,25 @@ const handleComplete = () => {
           >Training {{ training.stat_being_trained.toUpperCase() }}</span
         >
       </div>
-      <UBadge
+      <Badge
         :variant="
           training.status === 'active'
-            ? 'info'
+            ? 'default'
             : training.status === 'completed'
-              ? 'success'
-              : 'default'
+              ? 'default'
+              : 'secondary'
         "
       >
         {{ training.current_stat_value }} → {{ training.target_stat_value }}
-      </UBadge>
+      </Badge>
     </div>
 
     <div class="flex items-center gap-2">
       <div class="flex min-w-0 flex-1 items-center gap-1.5">
-        <UProgressBar
+        <Progress
+          class="h-2"
+          :fill="fillGradient"
           :model-value="progressPercentage"
-          :height="8"
-          :color="fillGradient"
-          :glow="false"
         />
         <span class="w-9 shrink-0 text-right font-mono text-xs text-theme-primary"
           >{{ progressPercentage.toFixed(0) }}%</span
@@ -197,19 +196,19 @@ const handleComplete = () => {
         </span>
       </div>
       <div class="flex shrink-0 gap-1">
-        <UButton v-if="isReadyToComplete" size="xs" variant="primary" @click="handleComplete">
+        <Button v-if="isReadyToComplete" size="xs" variant="default" @click="handleComplete">
           <Icon icon="mdi:check-circle" class="h-3.5 w-3.5" />
           Complete
-        </UButton>
-        <UButton
+        </Button>
+        <Button
           v-if="training.status === 'active'"
           size="xs"
-          variant="danger"
+          variant="destructive"
           @click="handleCancel"
         >
           <Icon icon="mdi:close-circle" class="h-3.5 w-3.5" />
           Cancel
-        </UButton>
+        </Button>
       </div>
     </div>
   </div>

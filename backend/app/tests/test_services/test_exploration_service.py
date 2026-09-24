@@ -38,6 +38,17 @@ async def _finish_exploration(async_session: AsyncSession, exploration) -> None:
     await async_session.refresh(exploration)
 
 
+async def _complete_exploration(async_session: AsyncSession, exploration):
+    """Backdate the run, walk the return leg, then finalize to collect rewards."""
+    await _finish_exploration(async_session, exploration)
+    await exploration_service.start_return(async_session, exploration.id)
+    await async_session.refresh(exploration)
+    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    async_session.add(exploration)
+    await async_session.commit()
+    return await exploration_service.finalize_return(async_session, exploration.id)
+
+
 @pytest.mark.asyncio
 async def test_send_dweller_deducts_vault_supplies_only_once(
     async_session: AsyncSession,
@@ -91,7 +102,7 @@ async def test_generate_event_not_active(
 ):
     """Test that no event is generated for inactive exploration."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    await crud.exploration.complete_exploration(async_session, exploration_id=exploration.id)
+    await crud.exploration.start_return(async_session, exploration_id=exploration.id)
     await async_session.refresh(exploration)
 
     event = exploration_service.generate_event(exploration)
@@ -193,8 +204,7 @@ async def test_complete_exploration_transfers_caps(
     expected_xp += int(base_xp * (exploration.dweller_luck * 0.02))
 
     # Complete exploration — returns RewardsSchema (Pydantic model)
-    await _finish_exploration(async_session, exploration)
-    rewards = await exploration_service.complete_exploration(async_session, exploration.id)
+    rewards = await _complete_exploration(async_session, exploration)
 
     # Verify rewards via attribute access (RewardsSchema is a Pydantic model)
     assert rewards.caps == 150
@@ -221,10 +231,10 @@ async def test_complete_exploration_not_active_raises_error(
 ):
     """Test completing non-active exploration raises error."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    await crud.exploration.complete_exploration(async_session, exploration_id=exploration.id)
+    await _complete_exploration(async_session, exploration)
 
     with pytest.raises(ValueError, match="not active"):
-        await exploration_service.complete_exploration(async_session, exploration.id)
+        await exploration_service.complete_exploration_with_data(async_session, exploration.id)
 
 
 @pytest.mark.asyncio
@@ -237,7 +247,7 @@ async def test_complete_exploration_before_duration_raises_error(
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     with pytest.raises(ValueError, match="has not finished yet"):
-        await exploration_service.complete_exploration(async_session, exploration.id)
+        await exploration_service.complete_exploration_with_data(async_session, exploration.id)
 
 
 @pytest.mark.asyncio
@@ -261,8 +271,12 @@ async def test_recall_exploration_reduced_rewards(
     await async_session.refresh(exploration)
     initial_caps = vault.bottle_caps
 
-    # Recall early (should be low progress)
-    rewards = await exploration_service.recall_exploration(async_session, exploration.id)
+    # Recall early: the run enters its return leg and rewards wait for arrival.
+    recalled, pending_rewards = await exploration_service.recall_exploration_with_data(async_session, exploration.id)
+    assert recalled.status == ExplorationStatus.RETURNING
+    assert pending_rewards is None
+
+    rewards = await exploration_service.finalize_return(async_session, exploration.id)
 
     # Verify rewards (using attribute access for Pydantic schema)
     assert rewards.caps == 100  # Caps are kept
@@ -293,10 +307,10 @@ async def test_recall_exploration_not_active_raises_error(
 ):
     """Test recalling non-active exploration raises error."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    await crud.exploration.recall_exploration(async_session, exploration_id=exploration.id)
+    await _complete_exploration(async_session, exploration)
 
     with pytest.raises(ValueError, match="not active"):
-        await exploration_service.recall_exploration(async_session, exploration.id)
+        await exploration_service.recall_exploration_with_data(async_session, exploration.id)
 
     # Note: Event collection tested separately
 

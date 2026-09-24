@@ -4,12 +4,18 @@ import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 
-vi.mock('@vueuse/core', () => ({
-  useLocalStorage: <T>(_key: string, defaultValue: T) => {
-    const { ref } = require('vue')
-    return ref<T>(defaultValue)
-  },
-}))
+// Keep the real module surface (`reactiveOmit` etc. are used by the shadcn
+// primitives SidePanel now renders) and override only the persisted ref.
+vi.mock('@vueuse/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@vueuse/core')>()
+  return {
+    ...actual,
+    useLocalStorage: <T>(_key: string, defaultValue: T) => {
+      const { ref } = require('vue')
+      return ref<T>(defaultValue)
+    },
+  }
+})
 
 describe('SidePanel', () => {
   let router: any

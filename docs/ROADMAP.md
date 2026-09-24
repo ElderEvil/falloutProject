@@ -12,6 +12,9 @@ AI-powered dweller interactions.
 **Current work:** — _backend service-layer rewrite: vault-batch (#572), game-loop split (#573), and
 incidents tick-orchestration (#574) merged; incidents batch closed with per-incident commit policy (see P0)._
 
+**Also in progress (frontend):** component-library migration to shadcn-vue (full) started 2026-09-22 — Phase 0
+spikes plus the visual-test safety net; see "Frontend Component-Library Migration" below.
+
 ---
 
 ## Active Priorities
@@ -96,6 +99,19 @@ it incrementally by domain rather than performing a risky all-at-once reorganiza
   (all >400). Use the `combat/` + `game_tick/` facade pattern; deleting a grandfathered top-level name requires
   removing its `SERVICE_NAME_GRANDFATHER` entry in the same commit. (`progression/objectives/evaluators` is no
   longer on this list — split into a `base`/`concrete`/`manager` sub-package, no file above ~270 lines.)
+- [ ] **Service topology and ownership (Area 4)** — make a domain package the default unit of discovery and
+  change. `services/` contains game-domain application operations only: `vault/`, `dwellers/`, `family/`,
+  `exploration/`, `combat/`, `progression/`, `chat/`, `simulation/`, and `notifications/`. Place external
+  adapters in `integrations/` (AI, storage, email), protocol delivery in `realtime/` (WebSocket/SSE), one-off
+  backfills/cleanup jobs in `operations/`, and cross-cutting event infrastructure in `core/`.
+  - A package may expose a small number of independently addressable public operations; it does not need a
+    mandatory aggregate facade. Its internal modules use role names (`policy`, `lifecycle`, `rewards`, `events`),
+    never catch-all `common`/`helpers`/`shared` modules. A domain may call another domain's documented public
+    operation, but never reach into its internals; use semantic post-commit events for decoupled side effects.
+  - Migrate incrementally, retaining a root compatibility facade only while callers move to the canonical path;
+    tests must target that canonical module so monkeypatches do not silently diverge. Preserve one public
+    transaction owner per operation and keep persistence queries in CRUD. Do not introduce a `BaseService`,
+    service registry, generic repository, or global shared-service package.
 - [ ] **Duplication clusters (Area 4)** — ranked: item builders (`reward_service` vs `exploration/rewards_service` vs
   vault seeding), health/radiation appliers (`event_service` trio vs `radiation_service` vs `incident_round`),
   `notify_owner` + `create_and_send` repetition, `LETTER_TO_STAT` vs `ABILITY_TO_STAT_MAP`, prod helpers duplicated
@@ -162,6 +178,10 @@ audit; objectives need deliberate in-game validation rather than relying only on
     medication `ITEM`s (Stimpak/RadAway) route to dweller stock so treatment can spend them, the Legendary Dweller
     `ITEM` materializes a canonical legendary template, and the storage view shows generic supplies in their own
     tab. Remaining: lunchbox opening (no open mechanic exists yet — a feature, not a correctness fix).
+  - **Known bug (next PR):** the quest-detail modal's Start Quest button calls `assignQuest` (link visibility) instead
+    of the start flow, so timed quests never get `started_at` and never actually start. Route the action through the
+    parent: state quests (`building`/`population`/`training`) start directly, others assign a party first. Pre-existing
+    in the deleted `QuestDetailView`; carried into `QuestDetailModal` by the modal conversion.
 - **Verified gap:** chains persist predecessor links and hide locked entries; **requirement-driven unlock feedback
   shipped** — the chain lock reason names the actual predecessor ("Complete 'Getting Started' first"), surfaced on
   both the read path and the start rejection. An explicit chain lifecycle (beyond predecessor gating) remains open.
@@ -406,6 +426,48 @@ interaction tokens instead of compensating with page-level CSS.
 **Success criteria**: new management screens can be assembled from shared primitives without custom surface fixes,
 and equivalent controls look and behave the same across the vault.
 
+### Frontend Component-Library Migration — shadcn-vue (P1, started 2026-09-22)
+
+**Focus**: replace the 16 hand-rolled primitives in `frontend/src/core/components/ui/` with
+[shadcn-vue](https://www.shadcn-vue.com/) (Reka UI + Tailwind v4, copy-paste ownership) so behaviour and
+accessibility stop being bespoke. Full migration: `U*` files are deleted as their consumers move; feature code
+imports shadcn primitives directly.
+
+**Scale (verified 2026-09-22):** 188 `.vue` / 39,655 LOC; 16 primitives (1,473 LOC); 150 raw native controls
+across 64 files; ~320 arbitrary-value utilities; 123 files with scoped `<style>`; ~48 component/view test files
+assert exact Tailwind classes; no visual-regression net. Effort: **Large (10–16 weeks)**, deliberately chosen
+over the cheaper 3–6 week "reka-ui inside the `U*` wrappers" path.
+
+**Accepted tradeoffs:** `SidePanel`, `VaultPageShell`, `TerminalMetric`, `RewardCard`, and `PageHeader` have no
+shadcn equivalent and stay bespoke; shadcn's `@layer base` reset must be trimmed, not adopted verbatim, or it
+repaints the CRT theme; the a11y payoff is per call site (each of the 150 raw elements is migrated
+individually); six new UI dependencies must be offset by a net LOC reduction.
+
+Plan: `.omo/plans/shadcn-vue-component-library-migration.md` · Skills: upstream `shadcn-vue` (generic) +
+repo overlay `.agents/skills/shadcn-vue-repo/SKILL.md` (CRT token bridge, Vite+/pnpm constraints, migration rules).
+
+- ⬜ **Phase 0** — toolchain + theme-bridge spikes on one `Button`; visual net (dev `ui-catalog` route + aria
+  snapshots); mount helper; characterisation tests for the 7 untested primitives; CI freeze on class-assertion
+  tests.
+- ⬜ **Phase 1** — deps + `cn()`/tailwind-merge extension; token-alias layer; trimmed base reset; delete the
+  legacy `--color-primary/secondary/accent` writes in `useTheme` *(done 2026-09-22)*; fix the non-scoped
+  `.scanlines` collision in `DwellerChat.css` *(done — renamed `.chat-scanlines`)*; `scripts/shadcn-post-add.mjs`
+  + pinned vite override. Legacy-alias collapse moved to Phase 4 (re-measured 50 files / ~160 occurrences;
+  repo policy is per-screen conversion and class-asserting tests make a sweep noisy).
+- ⬜ **Phase 2** — leaf primitives (`Button`, `Input`, `Badge`, `Card`, `Alert`, `Skeleton`, `ProgressBar`,
+  `IconButton`) + first module (`ai-settings`).
+- ⬜ **Phase 3** — interaction tier (`Modal`→`Dialog`, `Select`, `Tooltip`, `Tabs`, `Slider`) with behavioural
+  E2E and focus/portal QA.
+- ⬜ **Phase 4** — module rollout smallest→largest: storage, crafting, trading, auth, chat, map, social, vault,
+  profile, progression, rooms, dwellers. Each module also converts its legacy-alias classes (`terminal-*`,
+  `surface-warm/light/dark`) to canonical tokens as it is touched.
+- ⬜ **Phase 5** — cleanup: dead CSS, class-assertion conversion, delete the `main.ts` registration loop +
+  `global.d.ts`; require net LOC reduction.
+
+**Kill criteria:** no facade deletion by end of Phase 3 with >60% of features still importing `U*` → declare
+facets permanent; test rework > ~1.5× component rework for 3 consecutive primitives → freeze and batch-convert;
+base reset still regressing after 2 targeted fixes → drop the reset and go primitives-only.
+
 ### Room Detail Part Registry (Target: TBD)
 
 **Focus**: Consolidate how the room detail modal decides which sections exist. Today "does this room have part X" is
@@ -565,6 +627,39 @@ discovered per-instance or unlock as a family.
 
 **Success criteria:** exploration can encounter multiple distinct Red Rocket / Super Duper Mart instances sharing
 group lore and encounter behaviour, and adding a new site type is a data change rather than code.
+
+### Stalker Easter Eggs — the Quiet Zone (Phase 1 implemented; Phases 2–3 planned)
+
+**Focus**: a layered, **ambiguous homage** to STALKER's Zone — never a canon claim. Players should recognize the
+inspiration, never be told it literally exists in Fallout. Full design record and canon-safety rules:
+`docs/STALKER.md`. The essence: *an ugly, fenced, irradiated place somewhere in the wasteland. Some people claim
+it produces miracles. Most people who say that want to sell you something.*
+
+**Phase 1 — implemented on branch `feat/stalker-easter-eggs` (pending PR):**
+
+- `exclusion_zone` place group ("Restricted Exclusion Site") plus one seeded location, **The Quiet Zone**
+  (`roles: ["visited"]`, group `exclusion_zone`) in `data/places/`.
+- A discovery route: Moira Brown's curated `visited_places`/bio include The Quiet Zone, so recruiting her
+  registers the marker through the existing `map_service.register_bio_places` path.
+- Rare generated-bio rumours (`options/bios.ZONE_RUMORS`, 8 deniable first-person lines) gated by
+  `bio.zone_rumor_chance` (default `0.05`, env `BIO_ZONE_RUMOR_CHANCE`), seed-reproducible and text-only
+  (never touches `_bio_places`).
+
+**Planned:**
+
+- [ ] **Phase 2 — discovery flavour** — 1–2 tested exploration templates ("The Bolt Test", "The Red Sky"),
+  several discovery names ("The No-Return Fence", "The Glass Orchard"), and a few low-value curios. Any item
+  must be built through `utils/item_factory.py` (the guard test fails otherwise) and matched by
+  `schemas/quest.py`'s consumable-token list if it can be granted as a reward.
+- [ ] **Phase 3 — optional depth** — terminals, radio fragments, collectible survey notes, and the fake
+  "wish-granting" corporate terminal. Keep every explanation contradictory.
+
+**Rules:** no STALKER canon names, factions, creatures, or artifact names; "anomalies"/"artifacts" stay
+unverified local terminology; no rewards that prove reality-warping mechanics; text-only until real mechanics
+are deliberately designed.
+
+**Not part of this group:** vodka and Nuka-Cola "Non-Stop" belong to the consumables-behaviour work — vodka must
+not replace RadAway (`docs/backend/GAME_MECHANICS.md`: "RadAway is the only cure").
 
 ### Next Big Feature — Family Relations (future phases — foundation shipped)
 

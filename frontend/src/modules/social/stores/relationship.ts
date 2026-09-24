@@ -4,7 +4,6 @@ import axios from '@/core/plugins/axios'
 import { relationshipService } from '../services/relationshipService'
 import type { Relationship, RelationshipCreate, CompatibilityScore } from '../models/relationship'
 import { isRelationshipType, PARTNER_LINKED_RELATIONSHIP_TYPES } from '../models/relationship'
-import type { Pregnancy } from '../models/pregnancy'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 
@@ -24,7 +23,6 @@ export const useRelationshipStore = defineStore('relationship', () => {
 
   // State
   const relationships = ref<Relationship[]>([])
-  const pregnancies = ref<Pregnancy[]>([])
   const isLoading = ref(false)
 
   // Computed
@@ -59,16 +57,6 @@ export const useRelationshipStore = defineStore('relationship', () => {
       throw error
     } finally {
       isLoading.value = false
-    }
-  }
-
-  async function fetchVaultPregnancies(vaultId: string) {
-    try {
-      const response = await axios.get(`/api/v1/pregnancies/vault/${vaultId}`)
-      pregnancies.value = response.data
-    } catch (error: unknown) {
-      handleStoreError(error, 'Failed to fetch pregnancies')
-      throw error
     }
   }
 
@@ -231,7 +219,6 @@ export const useRelationshipStore = defineStore('relationship', () => {
     // State
     relationships,
     isLoading,
-    pregnancies,
 
     // Computed
     getRelationshipByDwellers,
@@ -240,7 +227,6 @@ export const useRelationshipStore = defineStore('relationship', () => {
 
     // Actions
     fetchVaultRelationships,
-    fetchVaultPregnancies,
     getRelationship,
     createRelationship,
     initiateRomance,

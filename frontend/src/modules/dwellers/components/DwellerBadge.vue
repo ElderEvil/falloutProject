@@ -1,34 +1,46 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     icon?: string
     monogram?: string
     color: string
     label: string
+    category?: string
     showLabel?: boolean
     size?: 'sm' | 'md'
   }>(),
   { showLabel: true, size: 'md' }
 )
+
+/** Icon-only badges carry no text, so the accessible name must state the category too. */
+const accessibleName = computed(() =>
+  props.category ? `${props.category}: ${props.label}` : props.label
+)
 </script>
 
 <template>
-  <UTooltip :text="label" position="top">
-    <span
-      class="dweller-badge"
-      :class="[`size-${size}`, { 'icon-only': !showLabel }]"
-      :style="{ '--badge-color': color }"
-      :aria-label="label"
-      role="img"
-    >
-      <Icon v-if="icon" :icon="icon" class="badge-icon" :ariaHidden="true" />
-      <span v-else-if="monogram" class="badge-monogram" aria-hidden="true">{{ monogram }}</span>
-      <span v-if="showLabel" class="badge-label">{{ label }}</span>
-    </span>
-  </UTooltip>
+  <TooltipProvider :delay-duration="200">
+    <Tooltip>
+      <TooltipTrigger as-child>
+        <span
+          class="dweller-badge"
+          :class="[`size-${size}`, { 'icon-only': !showLabel }]"
+          :style="{ '--badge-color': color }"
+          :aria-label="accessibleName"
+          role="img"
+        >
+          <Icon v-if="icon" :icon="icon" class="badge-icon" :ariaHidden="true" />
+          <span v-else-if="monogram" class="badge-monogram" aria-hidden="true">{{ monogram }}</span>
+          <span v-if="showLabel" class="badge-label">{{ label }}</span>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top">{{ category ? `${category}: ${label}` : label }}</TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
 </template>
 
 <style scoped>

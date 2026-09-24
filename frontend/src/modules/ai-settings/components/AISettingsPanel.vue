@@ -221,7 +221,7 @@ onMounted(() => {
     <!-- Error State -->
     <Card
       v-else-if="!settings && !isLoadingLoad"
-      class="mx-auto max-w-lg gap-0 border-theme-primary/20 bg-surface"
+      class="max-w-lg gap-0 border-theme-primary/20 bg-surface"
     >
       <CardHeader class="pb-5">
         <CardTitle class="text-xl font-bold text-theme-primary">AI settings unavailable</CardTitle>
@@ -236,7 +236,7 @@ onMounted(() => {
     </Card>
 
     <!-- Main Content -->
-    <div v-else-if="settings" class="mx-auto grid max-w-5xl items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(20rem,1fr)]">
+    <div v-else-if="settings" class="grid max-w-5xl items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(20rem,1fr)]">
       <!-- Form Card -->
       <Card class="gap-0 border-theme-primary/20 bg-surface">
         <CardHeader class="pb-5">

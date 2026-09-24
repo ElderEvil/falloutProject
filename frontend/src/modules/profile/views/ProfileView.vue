@@ -196,7 +196,7 @@ const formatDate = (dateString: string) => {
                 </TabsList>
               </Tabs>
 
-              <section v-show="activeTab === 'dossier'" class="mx-auto max-w-5xl space-y-6">
+              <section v-show="activeTab === 'dossier'" class="max-w-5xl space-y-6">
                 <Card class="profile-dossier gap-0 border-theme-primary/20 bg-surface">
                   <CardHeader class="pb-5">
                     <CardTitle class="text-xl font-bold text-theme-primary">Account</CardTitle>

@@ -10,15 +10,15 @@ const activeRecord = {
 }
 
 describe('VaultOperationsCard', () => {
-  it('presents all lifetime operation records in a dedicated console', () => {
+  it('presents all lifetime operation records', () => {
     const wrapper = mount(VaultOperationsCard, { props: { record: activeRecord } })
 
-    expect(wrapper.get('[aria-label="Vault operations"]').text()).toContain('VAULT OPERATIONS')
+    expect(wrapper.get('[aria-label="Vault operations"]').text()).toContain('Vault operations')
     expect(wrapper.text()).toContain('12')
     expect(wrapper.text()).toContain('5,000')
     expect(wrapper.text()).toContain('8')
     expect(wrapper.text()).toContain('4')
-    expect(wrapper.text()).toContain('RECORD LINK ACTIVE')
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('Population')
   })
 
@@ -41,6 +41,6 @@ describe('VaultOperationsCard', () => {
   it('announces when the live record is refreshing', () => {
     const wrapper = mount(VaultOperationsCard, { props: { record: activeRecord, refreshing: true } })
 
-    expect(wrapper.get('[role="status"]').text()).toContain('SYNCING RECORD')
+    expect(wrapper.get('[role="status"]').text()).toContain('Refreshing')
   })
 })

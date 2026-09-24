@@ -8,14 +8,15 @@ import type { DeathStatistics } from '@/core/types/death'
 
 interface Props {
   statistics: DeathStatistics | null
+  totalDwellersCreated: number
   loading?: boolean
 }
 
-const { loading = false, statistics } = defineProps<Props>()
+const { loading = false, statistics, totalDwellersCreated } = defineProps<Props>()
 
 const mortalityRate = computed(() => {
-  if (!statistics || statistics.total_dwellers_born === 0) return 0
-  return ((statistics.total_dwellers_died / statistics.total_dwellers_born) * 100).toFixed(1)
+  if (!statistics || totalDwellersCreated === 0 || totalDwellersCreated < statistics.total_dwellers_died) return null
+  return ((statistics.total_dwellers_died / totalDwellersCreated) * 100).toFixed(1)
 })
 
 const isEmpty = computed(() => {
@@ -34,35 +35,30 @@ const causeData = computed(() => {
       label: 'Natural Causes',
       count: causes.health,
       icon: 'mdi:heart-broken',
-      color: 'text-pink-500',
     },
     {
       id: 'radiation',
       label: 'Radiation',
       count: causes.radiation,
       icon: 'mdi:radioactive',
-      color: 'text-green-400',
     },
     {
       id: 'incident',
       label: 'Incidents',
       count: causes.incident,
       icon: 'mdi:fire',
-      color: 'text-orange-500',
     },
     {
       id: 'exploration',
       label: 'Exploration',
       count: causes.exploration,
       icon: 'mdi:compass',
-      color: 'text-yellow-500',
     },
     {
       id: 'combat',
       label: 'Combat',
       count: causes.combat,
       icon: 'mdi:sword',
-      color: 'text-red-500',
     },
   ].map((item) => ({
     ...item,
@@ -73,10 +69,10 @@ const causeData = computed(() => {
 
 <template>
   <Card
-    class="life-death-stats gap-0 rounded-lg border-2 border-theme-primary/40 p-6 shadow-glow-md ring-0 crt-screen"
+    class="life-death-stats gap-0 border-theme-primary/20 bg-surface p-6"
   >
-    <div class="mb-4 border-b border-gray-700 pb-4">
-      <h3 class="text-xl font-bold terminal-glow text-theme-primary">VITAL STATISTICS REGISTRY</h3>
+    <div class="mb-5">
+      <h3 class="text-xl font-bold text-theme-primary">Vital statistics</h3>
     </div>
     <div v-if="loading" class="space-y-4">
       <div class="grid grid-cols-3 gap-4">
@@ -102,12 +98,13 @@ const causeData = computed(() => {
             class="bg-surface-sunken border border-theme-primary/25 p-4 rounded-lg flex flex-col items-center justify-center text-center"
           >
             <div class="text-xs text-theme-primary/70 uppercase tracking-wider mb-1">
-              Total Births
+              Children Born
             </div>
             <div class="text-3xl font-bold text-theme-primary flex items-center gap-2">
-              <Icon icon="mdi:baby-carriage" class="w-6 h-6 opacity-80" />
+              <Icon icon="mdi:baby-carriage" class="w-6 h-6 text-theme-primary/70" />
               {{ statistics.total_dwellers_born }}
             </div>
+            <p class="mt-1 text-xs text-theme-primary/60">Through breeding</p>
           </div>
 
           <div
@@ -116,8 +113,8 @@ const causeData = computed(() => {
             <div class="text-xs text-theme-primary/70 uppercase tracking-wider mb-1">
               Total Deaths
             </div>
-            <div class="text-3xl font-bold text-red-500 flex items-center gap-2">
-              <Icon icon="mdi:skull" class="w-6 h-6 opacity-80" />
+            <div class="text-3xl font-bold text-theme-primary flex items-center gap-2">
+              <Icon icon="mdi:skull" class="w-6 h-6 text-theme-primary/70" />
               {{ statistics.total_dwellers_died }}
             </div>
           </div>
@@ -128,13 +125,13 @@ const causeData = computed(() => {
             <div class="text-xs text-theme-primary/70 uppercase tracking-wider mb-1">
               Mortality Rate
             </div>
-            <div
-              class="text-3xl font-bold flex items-center gap-2"
-              :class="Number(mortalityRate) > 50 ? 'text-red-500' : 'text-theme-primary'"
-            >
-              <Icon icon="mdi:chart-line" class="w-6 h-6 opacity-80" />
-              {{ mortalityRate }}%
+            <div class="text-3xl font-bold text-theme-primary flex items-center gap-2">
+              <Icon icon="mdi:chart-line" class="w-6 h-6 text-theme-primary/70" />
+              {{ mortalityRate === null ? '—' : `${mortalityRate}%` }}
             </div>
+            <p class="mt-1 text-xs text-theme-primary/60">
+              {{ mortalityRate === null ? 'Lifetime data unavailable' : 'Deaths / all dwellers created' }}
+            </p>
           </div>
         </div>
 
@@ -149,7 +146,7 @@ const causeData = computed(() => {
               <div
                 class="w-8 h-8 rounded flex items-center justify-center bg-surface-sunken border border-theme-primary/25 shrink-0"
               >
-                <Icon :icon="cause.icon" class="w-5 h-5" :class="cause.color" />
+                <Icon :icon="cause.icon" class="w-5 h-5 text-theme-primary/70" />
               </div>
 
               <div class="flex-1 min-w-0">
@@ -171,11 +168,11 @@ const causeData = computed(() => {
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4 pt-2">
+        <div class="grid grid-cols-1 gap-4 pt-2 sm:grid-cols-2">
           <div
             class="flex items-center gap-3 p-3 bg-surface-sunken rounded-lg border border-theme-primary/25"
           >
-            <Icon icon="mdi:heart-plus" class="h-6 w-6 text-theme-primary shrink-0" />
+            <Icon icon="mdi:heart-plus" class="h-6 w-6 text-theme-primary/70 shrink-0" />
             <div class="flex-1 min-w-0">
               <div class="text-xs text-theme-primary/70 uppercase tracking-wider">
                 Revivable Subjects
@@ -187,14 +184,14 @@ const causeData = computed(() => {
           </div>
 
           <div
-            class="flex items-center gap-3 p-3 bg-surface-sunken rounded-lg border border-red-500/25"
+            class="flex items-center gap-3 p-3 bg-surface-sunken rounded-lg border border-theme-primary/25"
           >
-            <Icon icon="mdi:grave-stone" class="h-6 w-6 text-red-500 shrink-0" />
+            <Icon icon="mdi:grave-stone" class="h-6 w-6 text-theme-primary/70 shrink-0" />
             <div class="flex-1 min-w-0">
-              <div class="text-xs text-red-400/80 uppercase tracking-wider">
+              <div class="text-xs text-theme-primary/70 uppercase tracking-wider">
                 Permanent Casualties
               </div>
-              <div class="text-2xl font-bold font-mono text-red-500">
+              <div class="text-2xl font-bold font-mono text-theme-primary">
                 {{ statistics.permanently_dead_count }}
               </div>
             </div>
@@ -204,7 +201,7 @@ const causeData = computed(() => {
     </div>
 
     <div v-else class="text-center py-8 text-theme-primary/40 font-mono text-sm">
-      NO MORTALITY DATA AVAILABLE
+      No vital statistics available yet.
     </div>
   </Card>
 </template>

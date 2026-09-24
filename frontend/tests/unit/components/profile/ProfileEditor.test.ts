@@ -30,7 +30,7 @@ describe('ProfileEditor', () => {
         },
       })
 
-      expect(wrapper.find('.profile-editor').classes()).toContain('bg-surface-raised')
+      expect(wrapper.find('.profile-editor').classes()).toContain('bg-surface')
       expect(wrapper.find('#bio').classes()).toContain('bg-surface-sunken')
       expect(wrapper.find('#bio').classes()).toContain('border-theme-primary/30')
     })
@@ -136,6 +136,17 @@ describe('ProfileEditor', () => {
 
       const img = wrapper.find('img[alt="Avatar preview"]')
       expect(img.exists()).toBe(false)
+    })
+
+    it('renders the avatar URL field with the Input primitive', () => {
+      const wrapper = mount(ProfileEditor, {
+        props: {
+          initialData: mockInitialData,
+        },
+      })
+
+      const avatarInput = wrapper.find('#avatar_url')
+      expect(avatarInput.attributes('data-slot')).toBe('input')
     })
 
     it('should enforce maxlength of 255 characters', () => {
@@ -246,7 +257,10 @@ describe('ProfileEditor', () => {
         },
       })
 
-      await wrapper.findAll('button')[1].trigger('click') // Cancel button
+      // The theme Select renders its trigger as a button, so locate Cancel by label.
+      const cancelButton = wrapper.findAll('button').find((button) => button.text() === 'Cancel')
+      expect(cancelButton).toBeTruthy()
+      await cancelButton!.trigger('click')
 
       expect(wrapper.emitted('cancel')).toBeTruthy()
     })

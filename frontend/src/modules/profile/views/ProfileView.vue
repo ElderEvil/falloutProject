@@ -3,8 +3,16 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { Alert, AlertDescription } from '@/core/components/ui/alert'
+import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
-import { Card } from '@/core/components/ui/card'
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/core/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { LifeDeathStatistics } from '@/modules/dwellers/components/death'
 import { usePolling } from '@/core/composables/usePolling'
@@ -24,12 +32,13 @@ import type { ProfileUpdate } from '../models/profile'
 const profileStore = useProfileStore()
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
-const backNav = useBackNavigation('Overseer Profile', () =>
+const backNav = useBackNavigation('User Profile', () =>
   vaultStore.activeVaultId ? `/vault/${vaultStore.activeVaultId}` : '/'
 )
 const isEditing = ref(false)
 const avatarLoadFailed = ref(false)
 const activeTab = ref('dossier')
+const vaultShortcut = computed(() => vaultStore.activeVault ?? vaultStore.selectedVault)
 
 const tabs = computed(() => {
   const baseTabs = [
@@ -56,7 +65,11 @@ const { isCollapsed } = useSidePanel()
 // automatically pauses when this view's scope is disposed.
 usePolling(
   async () => {
-    await Promise.all([profileStore.refreshProfile(), profileStore.fetchDeathStatistics(), profileStore.fetchAIUsage()])
+    await Promise.all([
+      profileStore.refreshProfile(),
+      profileStore.fetchDeathStatistics(),
+      profileStore.fetchAIUsage(),
+    ])
   },
   { interval: 30_000, immediate: false }
 )
@@ -72,7 +85,6 @@ const fetchProfile = async () => {
     await profileStore.fetchProfile()
   } catch {}
 }
-
 
 const startEditing = () => {
   isEditing.value = true
@@ -111,20 +123,21 @@ const formatDate = (dateString: string) => {
     minute: '2-digit',
   })
 }
-
 </script>
 
 <template>
-  <div class="profile-page relative min-h-screen bg-terminal-background font-mono text-terminal-green">
+  <div
+    class="profile-page relative min-h-screen bg-terminal-background font-mono text-theme-primary [text-shadow:none]"
+  >
     <div class="flex min-h-screen">
       <SidePanel :vault-id="vaultStore.activeVaultId" />
       <main
-        class="flex-1 flicker pb-8 transition-[margin-left] duration-300 ease [animation-duration:3.5s] max-md:ml-0"
+        class="min-w-0 flex-1 pb-8 transition-[margin-left] duration-300 ease max-md:ml-0"
         :class="isCollapsed ? 'ml-16' : 'ml-60'"
       >
         <PageContentRail>
           <PageHeader
-            title="Overseer Profile"
+            title="User Profile"
             icon="mdi:badge-account-horizontal-outline"
             subtitle="Identity, account status, and vault record."
           >
@@ -139,18 +152,25 @@ const formatDate = (dateString: string) => {
 
           <div v-if="profileStore.loading && !profileStore.profile" class="py-20 text-center">
             <Icon icon="mdi:loading" class="mx-auto h-12 w-12 animate-spin text-theme-primary" />
-            <div class="mt-4 text-xl text-theme-primary">Loading personnel record...</div>
+            <div class="mt-4 text-xl text-theme-primary">Loading your profile...</div>
           </div>
 
-          <Card v-else-if="profileStore.error && !profileStore.profile" class="gap-0 shadow-glow-md crt-screen">
-            <div class="mb-4 border-b border-gray-700 pb-4">
-              <h3 class="text-xl font-bold terminal-glow text-theme-primary">ERROR: PROFILE LOAD FAILURE</h3>
-            </div>
-            <div class="mb-4 text-red-500">{{ profileStore.error }}</div>
-            <Button variant="default" @click="fetchProfile">
-              <Icon icon="mdi:refresh" class="mr-2" />
-              Retry Connection
-            </Button>
+          <Card
+            v-else-if="profileStore.error && !profileStore.profile"
+            class="gap-0 border-theme-primary/20 bg-surface"
+          >
+            <CardHeader class="border-b border-theme-primary/20 pb-4">
+              <CardTitle class="text-xl font-bold text-theme-primary">Profile unavailable</CardTitle>
+            </CardHeader>
+            <CardContent class="pt-4">
+              <Alert variant="destructive" class="mb-4">
+                <AlertDescription>{{ profileStore.error }}</AlertDescription>
+              </Alert>
+              <Button variant="default" @click="fetchProfile">
+                <Icon icon="mdi:refresh" class="mr-2" />
+                Retry Connection
+              </Button>
+            </CardContent>
           </Card>
 
           <div v-else-if="profileStore.profile" class="space-y-6">
@@ -164,7 +184,11 @@ const formatDate = (dateString: string) => {
             />
 
             <template v-else>
-              <Tabs :model-value="activeTab" class="mb-6" @update:model-value="activeTab = String($event)">
+              <Tabs
+                :model-value="activeTab"
+                class="mb-6"
+                @update:model-value="activeTab = String($event)"
+              >
                 <TabsList>
                   <TabsTrigger v-for="tab in tabs" :key="tab.key" :value="tab.key">
                     {{ tab.label }}
@@ -172,89 +196,166 @@ const formatDate = (dateString: string) => {
                 </TabsList>
               </Tabs>
 
-              <section v-show="activeTab === 'dossier'">
-                <Card class="profile-dossier gap-0 shadow-glow-md crt-screen">
-                  <div class="mb-4 border-b border-gray-700 pb-4">
-                    <div class="flex items-center justify-between gap-3">
-                      <div class="flex items-center gap-3">
-                        <Icon icon="mdi:folder-account-outline" class="h-6 w-6 text-theme-accent" />
-                        <div>
-                          <p class="text-sm font-bold tracking-[0.16em] text-theme-primary/75">PERSONNEL FILE</p>
-                          <h2 class="text-xl font-bold text-theme-primary terminal-glow">OVERSEER DOSSIER</h2>
-                        </div>
-                      </div>
-                      <Button variant="secondary" size="sm" @click="startEditing">
+              <section v-show="activeTab === 'dossier'" class="max-w-5xl space-y-6">
+                <Card class="profile-dossier gap-0 border-theme-primary/20 bg-surface">
+                  <CardHeader class="pb-5">
+                    <CardTitle class="text-xl font-bold text-theme-primary">Account</CardTitle>
+                    <CardAction>
+                      <Button variant="outline" size="sm" @click="startEditing">
                         <Icon icon="mdi:pencil" class="mr-1" />
                         Edit profile
                       </Button>
-                    </div>
-                  </div>
+                    </CardAction>
+                  </CardHeader>
 
-                  <div class="flex flex-col gap-6 sm:flex-row sm:items-center">
-                    <div class="profile-avatar flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-theme-primary bg-surface-sunken shadow-[0_0_18px_var(--color-theme-glow)]">
-                      <img
-                        v-if="profileStore.profile.avatar_url && !avatarLoadFailed"
-                        :src="profileStore.profile.avatar_url"
-                        alt="Profile avatar"
-                        class="h-full w-full object-cover"
-                        @error="handleAvatarError"
-                      />
-                      <Icon v-else icon="mdi:account-circle" class="text-6xl text-theme-primary/60" />
-                    </div>
+                  <CardContent class="grid gap-8 pt-0 lg:grid-cols-[minmax(0,1.3fr)_minmax(14rem,0.7fr)]">
                     <div class="min-w-0">
-                      <p class="text-sm font-bold tracking-[0.16em] text-theme-accent">VAULT-TEC OVERSEER</p>
-                      <h3 class="mt-1 truncate text-2xl font-bold text-theme-primary terminal-glow">
-                        {{ authStore.user?.username || 'Vault Overseer' }}
-                      </h3>
-                      <p class="mt-2 break-all text-sm text-theme-primary/75">{{ authStore.user?.email || 'No account email on file' }}</p>
-                      <div class="mt-3 flex flex-wrap gap-2">
-                        <span class="inline-flex items-center gap-1.5 border rounded px-2 py-1.5 text-xs font-bold tracking-[0.08em]" :class="authStore.user?.email_verified ? 'border-theme-primary/30 bg-theme-primary/10 text-theme-primary' : 'border-red-500/40 bg-red-900/20 text-red-400'">
-                          <Icon :icon="authStore.user?.email_verified ? 'mdi:check-circle' : 'mdi:alert-circle-outline'" />
-                          {{ authStore.user?.email_verified ? 'VERIFIED' : 'UNVERIFIED' }}
-                        </span>
-                        <span class="inline-flex items-center gap-1.5 border rounded px-2 py-1.5 text-xs font-bold tracking-[0.08em] border-theme-accent/35 bg-theme-accent/10 text-theme-accent">
-                          <Icon :icon="authStore.isSuperuser ? 'mdi:shield-crown' : 'mdi:account'" />
-                          {{ authStore.isSuperuser ? 'ADMIN CLEARANCE' : 'STANDARD CLEARANCE' }}
-                        </span>
+                      <div class="flex flex-col gap-6 sm:flex-row sm:items-center">
+                        <div
+                          class="profile-avatar flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-theme-primary/30 bg-surface-sunken"
+                        >
+                          <img
+                            v-if="profileStore.profile.avatar_url && !avatarLoadFailed"
+                            :src="profileStore.profile.avatar_url"
+                            alt="Profile avatar"
+                            class="h-full w-full object-cover"
+                            @error="handleAvatarError"
+                          />
+                          <Icon
+                            v-else
+                            icon="mdi:account-circle"
+                            class="text-6xl text-theme-primary/60"
+                          />
+                        </div>
+                        <div class="min-w-0">
+                          <h3 class="truncate text-2xl font-bold text-theme-primary">
+                            {{ authStore.user?.username || 'User' }}
+                          </h3>
+                          <p class="mt-2 break-all text-sm text-theme-primary/75">
+                            {{ authStore.user?.email || 'No account email on file' }}
+                          </p>
+                          <div class="mt-3 flex flex-wrap gap-2">
+                            <Badge
+                              :variant="authStore.user?.email_verified ? 'default' : 'destructive'"
+                              class="gap-1.5 font-medium"
+                            >
+                              <Icon
+                                :icon="
+                                  authStore.user?.email_verified
+                                    ? 'mdi:check-circle'
+                                    : 'mdi:alert-circle-outline'
+                                "
+                              />
+                              {{ authStore.user?.email_verified ? 'Verified' : 'Unverified' }}
+                            </Badge>
+                            <Badge
+                              :variant="authStore.isSuperuser ? 'secondary' : 'outline'"
+                              class="gap-1.5 font-medium"
+                            >
+                              <Icon
+                                :icon="authStore.isSuperuser ? 'mdi:shield-crown' : 'mdi:account'"
+                              />
+                              {{ authStore.isSuperuser ? 'Administrator' : 'Standard account' }}
+                            </Badge>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
 
-                  <section class="mt-6 border-t border-theme-primary/20 pt-5">
-                    <p class="text-sm font-bold tracking-[0.16em] text-theme-primary/75">PERSONNEL NOTES</p>
-                    <p class="mt-2 whitespace-pre-wrap rounded border border-theme-primary/20 bg-surface-sunken p-4 text-sm leading-6 text-theme-primary/85">
-                      {{ profileStore.profile.bio || 'No biographical data on file.' }}
-                    </p>
-                  </section>
-
-                  <div class="mt-5 flex flex-col gap-3 border-t border-theme-primary/20 pt-5 sm:flex-row sm:items-center sm:justify-between">
-                    <div class="text-sm leading-6 text-theme-primary/75">
-                      <p>FILE CREATED: {{ formatDate(profileStore.profile.created_at) }}</p>
-                      <p>LAST MODIFIED: {{ formatDate(profileStore.profile.updated_at) }}</p>
+                      <section class="mt-8">
+                        <p class="text-sm font-semibold text-theme-primary/75">Bio</p>
+                        <p class="mt-2 whitespace-pre-wrap text-sm leading-6 text-theme-primary/85">
+                          {{ profileStore.profile.bio || 'No bio added yet.' }}
+                        </p>
+                      </section>
                     </div>
-                    <RouterLink
-                      to="/preferences"
-                      class="inline-flex items-center justify-center gap-1.5 border rounded px-2 py-1.5 text-xs font-bold tracking-[0.08em] border-theme-primary/30 bg-surface-raised text-theme-primary no-underline transition-colors duration-200 hover:bg-surface-hover hover:shadow-[0_0_10px_var(--color-theme-glow)]"
-                    >
-                      <Icon icon="mdi:tune-variant" />
-                      Manage display preferences
-                    </RouterLink>
-                  </div>
+
+                    <aside class="pt-1">
+                      <h3 class="text-sm font-semibold text-theme-primary">Account details</h3>
+                      <dl class="mt-5 space-y-4 text-sm">
+                        <div>
+                          <dt class="text-theme-primary/60">Joined</dt>
+                          <dd class="mt-1 text-theme-primary/85">{{ formatDate(profileStore.profile.created_at) }}</dd>
+                        </div>
+                        <div>
+                          <dt class="text-theme-primary/60">Profile updated</dt>
+                          <dd class="mt-1 text-theme-primary/85">{{ formatDate(profileStore.profile.updated_at) }}</dd>
+                        </div>
+                      </dl>
+                    </aside>
+                  </CardContent>
                 </Card>
 
+                <div>
+                  <h2 class="mb-3 text-sm font-semibold text-theme-primary/75">Quick access</h2>
+                  <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    <Button
+                      variant="outline"
+                      as-child
+                      class="h-auto min-h-28 flex-col items-start justify-start gap-2 whitespace-normal p-4 text-left"
+                    >
+                      <RouterLink :to="vaultShortcut ? `/vault/${vaultShortcut.id}` : '/'">
+                        <Icon icon="mdi:home-city-outline" class="size-5 text-theme-primary/60" />
+                        <span class="text-sm font-semibold text-theme-primary">
+                          {{ vaultShortcut ? `Vault ${vaultShortcut.number}` : 'Open vaults' }}
+                        </span>
+                        <span class="text-xs font-normal leading-5 text-theme-primary/60">
+                          {{ vaultShortcut ? 'Continue your active vault' : 'Choose a vault to play' }}
+                        </span>
+                      </RouterLink>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      class="h-auto min-h-28 flex-col items-start justify-start gap-2 whitespace-normal p-4 text-left"
+                      @click="activeTab = 'analytics'"
+                    >
+                      <Icon icon="mdi:chart-box-outline" class="size-5 text-theme-primary/60" />
+                      <span class="text-sm font-semibold text-theme-primary">Vault analytics</span>
+                      <span class="text-xs font-normal leading-5 text-theme-primary/60">
+                        View activity and AI usage
+                      </span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      as-child
+                      class="h-auto min-h-28 flex-col items-start justify-start gap-2 whitespace-normal p-4 text-left"
+                    >
+                      <RouterLink to="/preferences">
+                        <Icon icon="mdi:tune-variant" class="size-5 text-theme-primary/60" />
+                        <span class="text-sm font-semibold text-theme-primary">Display preferences</span>
+                        <span class="text-xs font-normal leading-5 text-theme-primary/60">
+                          Theme, notifications, and sound
+                        </span>
+                      </RouterLink>
+                    </Button>
+                  </div>
+                </div>
               </section>
 
-              <section v-show="activeTab === 'analytics'" aria-label="Vault analytics" class="grid gap-6 xl:grid-cols-2">
+              <section
+                v-show="activeTab === 'analytics'"
+                aria-label="Vault analytics"
+                class="grid gap-6 xl:grid-cols-2"
+              >
                 <VaultOperationsCard
                   class="xl:col-span-2"
                   :record="profileStore.profile"
                   :refreshing="profileStore.profileRefreshing"
                 />
-                <AIUsageCard :stats="profileStore.aiUsageStats" :loading="profileStore.aiUsageLoading" />
-                <LifeDeathStatistics :statistics="profileStore.deathStatistics" :loading="profileStore.deathStatsLoading" />
+                <AIUsageCard
+                  :stats="profileStore.aiUsageStats"
+                  :loading="profileStore.aiUsageLoading"
+                />
+                <LifeDeathStatistics
+                  :statistics="profileStore.deathStatistics"
+                  :total-dwellers-created="profileStore.profile.total_dwellers_created"
+                  :loading="profileStore.deathStatsLoading"
+                />
               </section>
 
-              <section v-if="activeTab === 'ai-settings' && authStore.isSuperuser" aria-label="AI provider configuration">
+              <section
+                v-if="activeTab === 'ai-settings' && authStore.isSuperuser"
+                aria-label="AI provider configuration"
+              >
                 <AISettingsPanel />
               </section>
             </template>
@@ -266,9 +367,7 @@ const formatDate = (dateString: string) => {
 </template>
 
 <style scoped>
-/* Accessibility-only rules that cannot be expressed as Tailwind utilities:
-   - `:deep` focus-visible rings for elements inside child components
-   - reduced-motion opt-out for the CRT scanline/flicker effects */
+/* Focus visibility for links and controls rendered by child components. */
 .profile-page :deep(a:focus-visible),
 .profile-page :deep(button:focus-visible),
 .profile-page :deep([tabindex]:focus-visible) {
@@ -276,13 +375,4 @@ const formatDate = (dateString: string) => {
   outline-offset: 2px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .profile-page .flicker {
-    animation: none;
-  }
-
-  .profile-page .terminal-glow {
-    text-shadow: 0 0 4px var(--color-theme-primary);
-  }
-}
 </style>

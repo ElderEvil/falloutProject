@@ -8,31 +8,29 @@ that the ones which intentionally remain are *accounted for* rather than silentl
 This file is that accounting. It covers `frontend/src/modules/**/*.vue` only — the dev-only
 `core/views/UiCatalogView.vue` is a fixture and is out of scope.
 
-**Snapshot:** 104 controls across 48 files, down from ~150 before the migration. No `<dialog>`
-remains; `<select>` / `<textarea>` / `<table>` are down to 1 / 2 / 1.
+**Snapshot:** 94 controls across 48 files, down from ~150 before the migration. No `<dialog>`
+remains; `<select>` / `<textarea>` / `<table>` are down to 0 / 2 / 1.
 
 ## Why they remain
 
 | Reason | Meaning | Controls |
 |---|---|---|
-| `bespoke` | Carries custom scoped CSS and/or structural test selectors (e.g. grid/drop-target/toggle visuals). Swapping in `Button` is a **redesign, not a migration**, so it is deferred to the screen that owns the styling. | 82 `<button>` across 35 files |
+| `bespoke` | Carries custom scoped CSS and/or structural test selectors (e.g. grid/drop-target/toggle visuals). Swapping in `Button` is a **redesign, not a migration**, so it is deferred to the screen that owns the styling. | 75 `<button>` across 40 files |
 | `menu` | `role="menuitem"` rows inside a custom popup (overflow menu, nav dropdown, notification list) that want a `DropdownMenu` primitive — not vendored. | 10 `<button>` (`DwellerOverflowMenu`, `NavBar`, `NotificationBell`) |
 | `checkbox` | No `Checkbox` / `Switch` primitive is vendored. These are `sr-only` peer-styled inputs driving a custom visual. | `QuestsView`, `HomeView`, `CraftingPanel` (`HomeView` is already documented inline) |
 | `textarea` | No `Textarea` primitive is vendored. | `ProfileEditor` ×2 |
 | `table` | No `Table` primitive is vendored. | `DwellersTable` |
-| `input` | A vendored `Input` exists, but the control carries bespoke terminal classes; migrate when the surrounding view is next touched. | `ChangelogView` search, `ProfileEditor` URL field |
-| `select` | A vendored `Select` exists; deferred so the `ProfileEditor` form is migrated as one unit, not piecemeal. | `ProfileEditor` theme field |
 | `label-wrap` | `<label>` wrapping a **custom control** (peer checkbox / slider), i.e. not a standalone form label. | `HomeView`, `QuestsView`, `DwellerAppearanceEditor` |
 
 ## Per-file inventory
 
 | File (`src/modules/…`) | Controls | Reason |
 |---|---|---|
-| `profile/views/PreferencesView.vue` | 10 button | bespoke |
+| `profile/views/PreferencesView.vue` | 3 button | bespoke |
 | `dwellers/components/DwellerDisplayControls.vue` | 8 button | bespoke |
 | `dwellers/components/FamilyTreePanel.vue` | 6 button | bespoke |
 | `rooms/components/RoomPreviewSection.vue` | 6 button | bespoke |
-| `profile/components/ProfileEditor.vue` | 1 input, 1 select, 2 textarea | input / select / textarea |
+| `profile/components/ProfileEditor.vue` | 2 textarea | textarea |
 | `social/components/relationships/RelationshipCard.vue` | 4 button | bespoke |
 | `vault/components/shell/NavBar.vue` | 4 button | menu |
 | `dwellers/components/DwellerOverflowMenu.vue` | 3 button | menu |
@@ -46,7 +44,7 @@ remains; `<select>` / `<textarea>` / `<table>` are down to 1 / 2 / 1.
 | `exploration/components/ExplorerCard.vue` | 2 button | bespoke |
 | `exploration/components/ExplorerNavbar.vue` | 2 button | bespoke |
 | `map/components/MarkerDetailModal.vue` | 2 button | bespoke |
-| `profile/views/ChangelogView.vue` | 1 button, 1 input | input |
+| `profile/views/ChangelogView.vue` | 1 button | bespoke |
 | `progression/views/QuestsView.vue` | 1 input, 1 label | checkbox |
 | `rooms/components/ArenaFighterSlot.vue` | 2 button | bespoke |
 | `rooms/components/RadioControls.vue` | 2 button | bespoke |

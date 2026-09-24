@@ -3,10 +3,10 @@
     class="relative min-h-screen bg-terminal-background font-mono text-theme-primary [text-shadow:none]"
   >
     <div class="flex min-h-screen">
-      <SidePanel :vault-id="vaultStore.activeVaultId" />
+      <SidePanel v-if="vaultStore.activeVaultId" :vault-id="vaultStore.activeVaultId" />
       <main
         class="min-w-0 flex-1 pb-8 transition-[margin-left] duration-300 ease max-md:ml-0"
-        :class="isCollapsed ? 'ml-16' : 'ml-60'"
+        :class="vaultStore.activeVaultId ? (isCollapsed ? 'ml-16' : 'ml-60') : ''"
       >
         <PageContentRail>
           <PageHeader

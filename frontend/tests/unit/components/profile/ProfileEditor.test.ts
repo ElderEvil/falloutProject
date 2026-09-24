@@ -148,6 +148,17 @@ describe('ProfileEditor', () => {
       const avatarInput = wrapper.find('#avatar_url')
       expect(avatarInput.attributes('data-slot')).toBe('input')
     })
+
+    it('should enforce maxlength of 255 characters', () => {
+      const wrapper = mount(ProfileEditor, {
+        props: {
+          initialData: mockInitialData,
+        },
+      })
+
+      const avatarInput = wrapper.find('#avatar_url')
+      expect(avatarInput.attributes('maxlength')).toBe('255')
+    })
   })
 
   describe('Preferences Field', () => {

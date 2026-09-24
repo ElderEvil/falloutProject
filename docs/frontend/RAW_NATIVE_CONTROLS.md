@@ -15,7 +15,7 @@ remains; `<select>` / `<textarea>` / `<table>` are down to 0 / 2 / 1.
 
 | Reason | Meaning | Controls |
 |---|---|---|
-| `bespoke` | Carries custom scoped CSS and/or structural test selectors (e.g. grid/drop-target/toggle visuals). Swapping in `Button` is a **redesign, not a migration**, so it is deferred to the screen that owns the styling. | 75 `<button>` across 35 files |
+| `bespoke` | Carries custom scoped CSS and/or structural test selectors (e.g. grid/drop-target/toggle visuals). Swapping in `Button` is a **redesign, not a migration**, so it is deferred to the screen that owns the styling. | 75 `<button>` across 40 files |
 | `menu` | `role="menuitem"` rows inside a custom popup (overflow menu, nav dropdown, notification list) that want a `DropdownMenu` primitive — not vendored. | 10 `<button>` (`DwellerOverflowMenu`, `NavBar`, `NotificationBell`) |
 | `checkbox` | No `Checkbox` / `Switch` primitive is vendored. These are `sr-only` peer-styled inputs driving a custom visual. | `QuestsView`, `HomeView`, `CraftingPanel` (`HomeView` is already documented inline) |
 | `textarea` | No `Textarea` primitive is vendored. | `ProfileEditor` ×2 |

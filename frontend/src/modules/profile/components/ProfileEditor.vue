@@ -46,6 +46,7 @@
             :model-value="formData.avatar_url ?? ''"
             @update:model-value="formData.avatar_url = $event"
             type="url"
+            maxlength="255"
             class="h-auto w-full rounded-md border-theme-primary/30 bg-surface-sunken px-3 py-2.5 text-sm text-theme-primary placeholder:text-theme-primary/35"
             placeholder="https://example.com/avatar.jpg"
           />

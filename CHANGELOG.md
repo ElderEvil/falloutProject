@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.139.0 (2026-09-24)
+
+### Features
+
+* add contextual notification navigation ([#774](https://github.com/ElderEvil/falloutProject/issues/774)) e55aeae
+
 ## 2.138.0 (2026-09-24)
 
 ### Features

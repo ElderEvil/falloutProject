@@ -29,4 +29,16 @@ describe('PageContentRail', () => {
     expect(wrapper.classes()).toContain('max-w-[1400px]')
     expect(wrapper.classes()).not.toContain('max-w-[1200px]')
   })
+
+  it('narrows to the 900px column for chat when width is narrow', () => {
+    const wrapper = mount(PageContentRail, {
+      props: { width: 'narrow' },
+      slots: { default: '<p>Chat</p>' },
+    })
+
+    expect(wrapper.classes()).toContain('max-w-[900px]')
+    expect(wrapper.classes()).not.toContain('max-w-[1400px]')
+    expect(wrapper.classes()).not.toContain('max-w-[1200px]')
+    expect(wrapper.classes()).toEqual(expect.arrayContaining(['mx-auto', 'w-full', 'px-4']))
+  })
 })

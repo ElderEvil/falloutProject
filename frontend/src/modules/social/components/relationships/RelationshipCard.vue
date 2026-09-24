@@ -118,11 +118,20 @@
       </span>
       <template v-if="children.length">
         <ChildChip
-          v-for="child in children"
+          v-for="child in visibleChildren"
           :key="child.id"
           :dweller="child"
           @select="emit('select-dweller', $event)"
         />
+        <button
+          v-if="hiddenChildCount"
+          type="button"
+          class="inline-flex items-center rounded-full border border-dashed border-theme-primary/30 px-2 py-1 text-xs text-theme-primary/70 transition-colors hover:border-theme-primary/60 hover:text-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
+          :aria-label="`Show all ${children.length} children`"
+          @click="emit('select-dweller', children[CHILD_PREVIEW_LIMIT].id)"
+        >
+          +{{ hiddenChildCount }} more
+        </button>
       </template>
       <span v-else class="text-xs text-theme-primary/40">No children yet</span>
     </div>
@@ -225,11 +234,20 @@
       </span>
       <template v-if="children.length">
         <ChildChip
-          v-for="child in children"
+          v-for="child in visibleChildren"
           :key="child.id"
           :dweller="child"
           @select="emit('select-dweller', $event)"
         />
+        <button
+          v-if="hiddenChildCount"
+          type="button"
+          class="inline-flex items-center rounded-full border border-dashed border-theme-primary/30 px-2 py-1 text-xs text-theme-primary/70 transition-colors hover:border-theme-primary/60 hover:text-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
+          :aria-label="`Show all ${children.length} children`"
+          @click="emit('select-dweller', children[CHILD_PREVIEW_LIMIT].id)"
+        >
+          +{{ hiddenChildCount }} more
+        </button>
       </template>
       <span v-else class="text-xs text-theme-primary/40">No children yet</span>
     </div>
@@ -287,6 +305,11 @@ const emit = defineEmits<{
 const dweller1Name = computed(() => formatDwellerName(props.dweller1))
 /** Display name of the second relationship member. */
 const dweller2Name = computed(() => formatDwellerName(props.dweller2))
+
+/** A couple card stays one compact strip: preview a few children, overflow the rest. */
+const CHILD_PREVIEW_LIMIT = 3
+const visibleChildren = computed(() => props.children.slice(0, CHILD_PREVIEW_LIMIT))
+const hiddenChildCount = computed(() => Math.max(0, props.children.length - CHILD_PREVIEW_LIMIT))
 
 /** Format a dweller's full name for display. */
 function formatDwellerName(dweller: DwellerShort): string {

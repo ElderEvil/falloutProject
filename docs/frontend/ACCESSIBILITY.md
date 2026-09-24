@@ -31,8 +31,16 @@ and mobile states. It is a feature-quality requirement, not a visual-polish foll
   15.3:1, not 21:1; opacity-based muted text needs separate verification.
 - Respect `prefers-reduced-motion`. CRT flicker, pulsing, spinning, transitions, and scanline effects must stop or
   become non-essential under that preference. Do not introduce flashing that could trigger a seizure.
-- Meet the WCAG 2.2 AA 24 by 24 CSS-pixel pointer-target minimum, or its spacing exception, for controls that are
-  not inline text. Larger targets are preferable for consequential actions.
+- Meet the WCAG 2.2 AA 24 by 24 CSS-pixel pointer-target minimum, or its spacing exception, for controls that
+  are not inline text. Larger targets are preferable for consequential actions.
+- **Vue prop naming for `aria-*` / `data-*`.** Declare the **camelCase** form (`ariaLabel`, `ariaExpanded`) in
+  `defineProps`, and render it explicitly (`:aria-label="props.ariaLabel"`). Vue camelizes a kebab `aria-label`
+  attribute onto the camel prop, so callers may pass either spelling — but a **quoted-hyphenated key**
+  (`'aria-label'?: string`) as the *only* declaration is not reliably populated and silently renders nothing.
+  This shipped as a real defect: `HealthRadiationBar` meters had no accessible name for a period because
+  `const { 'aria-label': ariaLabel } = defineProps(...)` binds `undefined`. If a primitive must also accept the
+  kebab spelling for a Reka child that reads raw `$attrs` (`Switch`), keep the camel prop as the source of truth
+  and resolve explicitly (`props.ariaLabel ?? props['aria-label']`) — never bind a hyphen-keyed destructure.
 
 The [style guide](./STYLEGUIDE.md#accessibility) defines the terminal-theme implementation details, including
 tooltips and visual tokens. This document defines the acceptance policy.

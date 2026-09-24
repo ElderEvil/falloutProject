@@ -12,19 +12,22 @@ interface Props {
   height?: number
   /** Container glow */
   glow?: boolean
+  /** Accessible name for the meter (rendered as aria-label). */
+  ariaLabel?: string
+  /** Kebab alias so `aria-label` template usage typechecks; Vue camelizes it onto ariaLabel. */
   'aria-label'?: string
 }
 
-const { value, radiation = 0, height = 10, glow = false, 'aria-label': ariaLabel } = defineProps<Props>()
+const props = defineProps<Props>()
 
-const clampedValue = computed(() => Math.min(100, Math.max(0, value)))
-const radiationWidth = computed(() => Math.min(clampedValue.value, Math.max(0, radiation)))
+const clampedValue = computed(() => Math.min(100, Math.max(0, props.value)))
+const radiationWidth = computed(() => Math.min(clampedValue.value, Math.max(0, props.radiation ?? 0)))
 const healthyWidth = computed(() => clampedValue.value - radiationWidth.value)
 
 // The frame owns the recessed inset; the glow adds the outer ring on top of it.
 const frameStyle = computed(() => ({
-  height: `${height}px`,
-  ...(glow
+  height: `${props.height ?? 10}px`,
+  ...(props.glow
     ? { boxShadow: 'inset 0 0 8px var(--color-surface-canvas), 0 0 6px var(--color-theme-glow)' }
     : {}),
 }))
@@ -38,7 +41,7 @@ const frameStyle = computed(() => ({
     :aria-valuenow="clampedValue"
     aria-valuemin="0"
     aria-valuemax="100"
-    :aria-label="ariaLabel"
+    :aria-label="props.ariaLabel ?? props['aria-label']"
   >
     <div class="health-radiation-bar__fill" :style="{ width: `${healthyWidth}%` }" />
     <div

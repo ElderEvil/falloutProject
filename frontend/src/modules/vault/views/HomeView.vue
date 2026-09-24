@@ -10,6 +10,7 @@ import { Card } from '@/core/components/ui/card'
 import { Progress } from '@/core/components/ui/progress'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
+import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import VaultNumberField from '../components/VaultNumberField.vue'
 
 const authStore = useAuthStore()
@@ -100,10 +101,8 @@ onMounted(async () => {
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-theme-primary">
-    <div
-      class="container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8"
-      :class="{ flicker: isFlickering }"
-    >
+    <PageContentRail width="narrow" class="flex flex-col items-center justify-center">
+      <div class="flex w-full flex-col items-center" :class="{ flicker: isFlickering }">
       <PageHeader title="Welcome to Fallout Shelter" centered />
 
       <Alert v-if="loadingVaults" class="w-full max-w-4xl border-theme-primary/30 bg-surface text-theme-primary">
@@ -269,6 +268,7 @@ onMounted(async () => {
           {{ isCreationVisible ? 'Hide new vault form' : 'Create another vault' }}
         </Button>
       </div>
-    </div>
+      </div>
+    </PageContentRail>
   </div>
 </template>

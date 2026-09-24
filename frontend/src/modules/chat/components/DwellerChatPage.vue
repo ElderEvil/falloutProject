@@ -8,6 +8,7 @@ import DwellerChat from './DwellerChat.vue'
 import { isMature, type Dweller } from '@/modules/dwellers/models/dweller'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
+import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import TerminalLoadingState from '@/core/components/common/TerminalLoadingState.vue'
 
 const route = useRoute()
@@ -55,24 +56,26 @@ onMounted(async () => {
 
     <!-- Content -->
     <template v-else-if="dweller">
-      <PageNavigation
-        v-if="vaultId"
-        back-label="Back to Dweller"
-        :back-to="`/vault/${vaultId}/dwellers/${dwellerId}`"
-        :breadcrumbs="breadcrumbs"
-      />
-      <div class="chat-container">
-        <DwellerChat
-          :dweller-id="dwellerId"
-          :dweller-name="dweller.first_name"
-          :username="username"
-          :dweller-avatar="dweller.thumbnail_url ?? undefined"
-          :vault-id="vaultId"
-          :dweller-status="dweller.status"
-          :room-name="dweller.room?.name"
-          :dweller-can-explore="isMature(dweller)"
+      <PageContentRail width="narrow" class="dweller-chat-rail">
+        <PageNavigation
+          v-if="vaultId"
+          back-label="Back to Dweller"
+          :back-to="`/vault/${vaultId}/dwellers/${dwellerId}`"
+          :breadcrumbs="breadcrumbs"
         />
-      </div>
+        <div class="chat-container">
+          <DwellerChat
+            :dweller-id="dwellerId"
+            :dweller-name="dweller.first_name"
+            :username="username"
+            :dweller-avatar="dweller.thumbnail_url ?? undefined"
+            :vault-id="vaultId"
+            :dweller-status="dweller.status"
+            :room-name="dweller.room?.name"
+            :dweller-can-explore="isMature(dweller)"
+          />
+        </div>
+      </PageContentRail>
     </template>
 
     <!-- Empty / No Data State -->
@@ -88,10 +91,17 @@ onMounted(async () => {
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
-  padding: 20px;
   box-sizing: border-box;
   background-color: var(--color-surface-dark);
   color: var(--color-theme-primary);
+}
+
+/* The rail owns horizontal padding and the 900px column; the page keeps vertical rhythm. */
+.dweller-chat-rail {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .chat-container {
@@ -99,9 +109,7 @@ onMounted(async () => {
   min-height: 0;
   display: flex;
   justify-content: center;
-  max-width: 900px;
   width: 100%;
-  margin: 0 auto;
 }
 
 /* Empty / No Data State */

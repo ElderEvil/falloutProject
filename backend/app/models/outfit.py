@@ -42,3 +42,6 @@ class Outfit(BaseUUIDModel, OutfitBase, TimeStampMixin, table=True):
     dweller: Optional["Dweller"] = Relationship(back_populates="outfit")
     storage_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="storage.id")
     storage: "Storage" = Relationship(back_populates="outfits")
+    exploration_id: UUID4 | None = Field(
+        default=None, nullable=True, foreign_key="exploration.id", index=True, ondelete="CASCADE"
+    )

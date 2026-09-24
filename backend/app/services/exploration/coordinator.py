@@ -118,7 +118,6 @@ class ExplorationCoordinator:
             "exploration_recalled" if recalled_early else "exploration_complete",
             rewards=rewards.model_dump(mode="json"),
         )
-        await rewards_service.apply_pending_auto_equip(db_session, exploration)
 
         return rewards
 

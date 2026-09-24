@@ -233,6 +233,13 @@ export const useExplorationStore = defineStore('exploration', () => {
           if (!seenEventKeys.has(key)) {
             seenEventKeys.add(key)
             exploration.events.push(eventRecord)
+            if (eventRecord.type === 'equip') {
+              const dweller = dwellerFilter.dwellers.find((d) => d.id === data.dweller_id)
+              const dwellerName = dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller'
+              const description =
+                eventRecord.description.charAt(0).toLowerCase() + eventRecord.description.slice(1)
+              toast.info(`${dwellerName} ${description}`)
+            }
           }
         }
 

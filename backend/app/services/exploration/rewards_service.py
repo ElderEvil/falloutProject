@@ -17,7 +17,6 @@ from app.crud import room as room_crud
 from app.crud import storage as crud_storage
 from app.crud import vault as crud_vault
 from app.crud import weapon as crud_weapon
-from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.junk import Junk
 from app.models.outfit import Outfit
@@ -27,7 +26,6 @@ from app.schemas.exploration_event import RewardsSchema
 from app.services.exploration import data_loader
 from app.services.exploration.rewards_calculator import rewards_calculator
 from app.services.loot_overflow_service import loot_overflow_service
-from app.services.notification_service import notification_service
 from app.services.resource_manager import compute_medical_capacity
 from app.services.vault_service import vault_service
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
@@ -36,7 +34,6 @@ from app.utils.item_factory import build_junk, build_outfit, build_weapon
 logger = logging.getLogger(__name__)
 
 _PENDING_REWARD_EVENTS = "pending_exploration_reward_events"
-_PENDING_AUTO_EQUIP = "pending_exploration_auto_equip"
 
 
 class TransferResult(TypedDict):
@@ -44,7 +41,6 @@ class TransferResult(TypedDict):
 
     transferred: list[dict]
     overflow: list[dict]
-    auto_equip_ids: list[dict]
     storage_id: UUID4 | None
 
 
@@ -62,36 +58,8 @@ class RewardsService:
             await event_bus.emit(event, vault_id, payload)
 
     def discard_pending_rewards(self, db_session: AsyncSession) -> None:
-        """Drop parked reward events and auto-equip work for a rolled-back finalization."""
+        """Drop parked reward events for a rolled-back finalization."""
         db_session.info.pop(_PENDING_REWARD_EVENTS, None)
-        db_session.info.pop(_PENDING_AUTO_EQUIP, None)
-
-    async def apply_pending_auto_equip(self, db_session: AsyncSession, exploration: Exploration) -> None:
-        """Run auto-equip parked by a deferred finalization, after its commit."""
-        pending = db_session.info.pop(_PENDING_AUTO_EQUIP, None)
-        if pending is None or pending["exploration_id"] != exploration.id:
-            return
-        await self._auto_equip(db_session, exploration, pending["auto_equip_ids"])
-
-    async def _auto_equip(self, db_session: AsyncSession, exploration: Exploration, auto_equip_ids: list[dict]) -> None:
-        """Best-effort equip of found upgrades; commits internally, so callers run it post-commit."""
-        if not auto_equip_ids:
-            return
-        dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
-        equipped: list[tuple[str, str]] = []
-        for entry in auto_equip_ids:
-            try:
-                crud = crud_weapon if entry["item_type"] == "weapon" else crud_outfit
-                item = await crud.equip(db_session=db_session, item_id=entry["id"], dweller_id=exploration.dweller_id)
-                equipped.append((entry["item_type"], item.name))
-            except Exception:
-                logger.exception(
-                    "Auto-equip failed during exploration completion: exploration=%s item=%s",
-                    exploration.id,
-                    entry["id"],
-                )
-        if equipped:
-            await self._notify_auto_equip(db_session, exploration, dweller_obj, equipped)
 
     @staticmethod
     def _parse_rarity_to_enum(rarity_str: str) -> RarityEnum:
@@ -146,35 +114,60 @@ class RewardsService:
             )
             return None
 
-    async def _transfer_loot_to_storage(self, db_session: AsyncSession, exploration: Exploration) -> TransferResult:
-        """Transfer loot items from exploration to vault storage with space validation.
+    @staticmethod
+    def _held_spec(row: Weapon | Outfit, item_type: str) -> dict:
+        return {
+            "item_name": row.name,
+            "item_type": item_type,
+            "rarity": row.rarity.value,
+            "quantity": 1,
+            "held_row_id": row.id,
+            "held_model": item_type,
+        }
 
-        Items are sorted by rarity (legendary > rare > uncommon > common) and
-        transferred in priority order. If storage is full, remaining items are
-        tracked as overflow.
+    @staticmethod
+    def _plain_spec(candidate: dict) -> dict:
+        return {key: value for key, value in candidate.items() if key not in ("held_row_id", "held_model")}
+
+    async def _transfer_loot_to_storage(self, db_session: AsyncSession, exploration: Exploration) -> TransferResult:
+        """Transfer loot and expedition-held equipment to vault storage with space validation.
+
+        Held rows (Weapon/Outfit with ``exploration_id`` set) and ordinary loot
+        entries share ONE rarity-first capacity budget: every stored unit occupies
+        one slot, so ``grant_or_hold`` splits the merged candidate list once. Entries
+        already equipped mid-run (``equipped`` truthy) are skipped entirely.
 
         :param db_session: Database session
         :param exploration: Completed exploration
         :returns: TransferResult with transferred/overflow item lists and storage_id
         """
-        if not exploration.loot_collected:
+        held_weapon_rows = await crud_weapon.get_held_for_exploration(db_session, exploration.id)
+        held_outfit_rows = await crud_outfit.get_held_for_exploration(db_session, exploration.id)
+        loot_entries = [entry for entry in exploration.loot_collected if not entry.get("equipped")]
+
+        if not loot_entries and not held_weapon_rows and not held_outfit_rows:
             exploration.unclaimed_loot = []
-            return {"transferred": [], "overflow": [], "auto_equip_ids": [], "storage_id": None}
+            return {"transferred": [], "overflow": [], "storage_id": None}
+
+        candidates = list(loot_entries)
+        candidates.extend(self._held_spec(row, "weapon") for row in held_weapon_rows)
+        candidates.extend(self._held_spec(row, "outfit") for row in held_outfit_rows)
+        held_rows: dict[UUID4, Weapon | Outfit] = {row.id: row for row in (*held_weapon_rows, *held_outfit_rows)}
 
         vault = await crud_vault.get(db_session, exploration.vault_id)
         storage = await crud_storage.get_storage_by_vault(db_session, vault.id)
         if not storage:
             logger.error("Storage not found for vault", extra={"vault_id": str(vault.id)})
-            exploration.unclaimed_loot = exploration.loot_collected
-            return {
-                "transferred": [],
-                "overflow": exploration.loot_collected,
-                "auto_equip_ids": [],
-                "storage_id": None,
-            }
+            overflow = [self._plain_spec(candidate) for candidate in candidates]
+            for candidate in candidates:
+                if "held_row_id" in candidate:
+                    await db_session.delete(held_rows[candidate["held_row_id"]])
+            exploration.unclaimed_loot = overflow
+            return {"transferred": [], "overflow": overflow, "storage_id": None}
         storage_id = storage.id
 
-        # Check available space
+        # Check available space once; held rows have storage_id IS NULL, so they
+        # are not counted and the merged list shares this single budget.
         available_space = await crud_storage.get_available_space(db_session, storage_id)
 
         logger.info(
@@ -183,20 +176,27 @@ class RewardsService:
                 "vault_id": str(vault.id),
                 "exploration_id": str(exploration.id),
                 "available_space": available_space,
-                "items_to_transfer": len(exploration.loot_collected),
+                "items_to_transfer": len(candidates),
             },
         )
 
-        granted, overflow = loot_overflow_service.grant_or_hold(exploration.loot_collected, available_space)
+        granted, overflow = loot_overflow_service.grant_or_hold(candidates, available_space)
 
         transferred: list[dict] = []
-        auto_equip_ids: list[dict] = []
 
         # Load item data for lookups
         weapons_data = await asyncio.to_thread(data_loader.load_weapons)
         outfits_data = await asyncio.to_thread(data_loader.load_outfits)
 
         for loot_item in granted:
+            if "held_row_id" in loot_item:
+                row = held_rows[loot_item["held_row_id"]]
+                row.storage_id = storage_id
+                row.exploration_id = None
+                db_session.add(row)
+                transferred.append(self._plain_spec(loot_item))
+                continue
+
             item_name = loot_item.get("item_name", "Unknown Item")
             item_type = loot_item.get("item_type", "junk")
             rarity_str = loot_item.get("rarity", "Common")
@@ -214,9 +214,6 @@ class RewardsService:
                     self._queue_event(
                         db_session, GameEvent.ITEM_COLLECTED, vault.id, {"item_type": item_type, "amount": 1}
                     )
-                    if loot_item.get("auto_equip"):
-                        await db_session.flush()
-                        auto_equip_ids.append({"item_type": item_type, "id": item.id})
 
                 stored_quantity += 1
 
@@ -232,21 +229,29 @@ class RewardsService:
                     },
                 )
 
+        overflow_specs: list[dict] = []
+        for loot_item in overflow:
+            if "held_row_id" in loot_item:
+                await db_session.delete(held_rows[loot_item["held_row_id"]])
+                overflow_specs.append(self._plain_spec(loot_item))
+            else:
+                overflow_specs.append(loot_item)
+
         await db_session.flush()
 
         # Update storage used_space counter
         await crud_storage.update_used_space(db_session, storage_id)
 
         # Log summary
-        if overflow:
+        if overflow_specs:
             logger.warning(
                 "Storage overflow occurred during transfer",
                 extra={
                     "vault_id": str(vault.id),
                     "exploration_id": str(exploration.id),
                     "transferred_count": len(transferred),
-                    "overflow_count": len(overflow),
-                    "overflow_items": [i.get("item_name") for i in overflow],
+                    "overflow_count": len(overflow_specs),
+                    "overflow_items": [i.get("item_name") for i in overflow_specs],
                 },
             )
         else:
@@ -259,12 +264,11 @@ class RewardsService:
                 },
             )
 
-        exploration.unclaimed_loot = overflow
+        exploration.unclaimed_loot = overflow_specs
 
         return {
             "transferred": transferred,
-            "overflow": overflow,
-            "auto_equip_ids": auto_equip_ids,
+            "overflow": overflow_specs,
             "storage_id": storage_id,
         }
 
@@ -388,10 +392,6 @@ class RewardsService:
 
         # Transfer loot items to vault storage (with space validation)
         transfer_result = await self._transfer_loot_to_storage(db_session, exploration)
-        auto_equip_ids = transfer_result.get("auto_equip_ids", [])
-
-        if transfer_result["storage_id"] is not None:
-            await crud_storage.update_used_space(db_session, transfer_result["storage_id"])
 
         # Return unused stimpaks and radaways to vault storage
         if exploration.stimpaks > 0 or exploration.radaways > 0:
@@ -429,12 +429,6 @@ class RewardsService:
         if commit:
             await db_session.commit()
             await self.deliver_pending_reward_events(db_session)
-            await self._auto_equip(db_session, exploration, auto_equip_ids)
-        elif auto_equip_ids:
-            db_session.info[_PENDING_AUTO_EQUIP] = {
-                "exploration_id": exploration.id,
-                "auto_equip_ids": auto_equip_ids,
-            }
 
         return RewardsSchema(
             exploration_id=exploration.id,
@@ -448,36 +442,6 @@ class RewardsService:
             stimpaks=exploration.stimpaks,
             radaways=exploration.radaways,
         )
-
-    @staticmethod
-    async def _notify_auto_equip(
-        db_session: AsyncSession,
-        exploration: Exploration,
-        dweller_obj: Dweller,
-        equipped: list[tuple[str, str]],
-    ) -> None:
-        """Best-effort: tell the vault owner which items were auto-equipped on return."""
-        try:
-            vault = await crud_vault.get(db_session, exploration.vault_id)
-            if not vault or not vault.user_id:
-                return
-            dweller_name = f"{dweller_obj.first_name} {dweller_obj.last_name or ''}".strip()
-            for item_type, item_name in equipped:
-                await notification_service.notify_exploration_update(
-                    db_session,
-                    user_id=vault.user_id,
-                    vault_id=vault.id,
-                    dweller_id=exploration.dweller_id,
-                    dweller_name=dweller_name,
-                    event_description=f"equipped a better {item_type} found in the wasteland: {item_name}",
-                    meta_data={
-                        "dweller_id": str(exploration.dweller_id),
-                        "item_name": item_name,
-                        "item_type": item_type,
-                    },
-                )
-        except Exception:
-            logger.exception("Failed to send auto-equip notification: exploration=%s", exploration.id)
 
 
 # Singleton instance

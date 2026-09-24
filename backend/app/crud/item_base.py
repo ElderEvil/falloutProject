@@ -146,7 +146,15 @@ class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSch
             raise InvalidItemAssignmentException(self.model)
         return await super().update(db_session, id=id, obj_in=obj_in)
 
-    async def equip(self, *, db_session: AsyncSession, item_id: UUID4, dweller_id: UUID4) -> ModelType:
+    async def equip(
+        self,
+        *,
+        db_session: AsyncSession,
+        item_id: UUID4,
+        dweller_id: UUID4,
+        held_exploration_id: UUID4 | None = None,
+        commit: bool = True,
+    ) -> ModelType:
         from sqlalchemy.orm import selectinload
 
         # Determine which relationship to eager load (weapon or outfit)
@@ -173,7 +181,14 @@ class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSch
             if current_item.id == item_id:
                 raise ContentNoChangeException(detail=f"Dweller {dweller_id} already has this {item_attr} equipped.")
             current_item.dweller_id = None
-            current_item.storage_id = dweller.vault.storage.id
+            if held_exploration_id is not None:
+                # Mid-expedition upgrade: the displaced item stays with the
+                # expedition (held state) instead of returning to storage.
+                current_item.storage_id = None
+                current_item.exploration_id = held_exploration_id
+            else:
+                current_item.storage_id = dweller.vault.storage.id
+                current_item.exploration_id = None
             db_session.add(current_item)
 
         # Equip the new item via FK updates only. Touching the dweller's
@@ -182,10 +197,14 @@ class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSch
         # returning it to storage.
         item.dweller_id = dweller.id
         item.storage_id = None
+        item.exploration_id = None
 
         db_session.add(item)
-        await db_session.commit()
-        await db_session.refresh(item)
+        if commit:
+            await db_session.commit()
+            await db_session.refresh(item)
+        else:
+            await db_session.flush()
 
         # Equipping is an FK-only write, so the dweller's cached relationship
         # still holds the previous value (None for a first equip). Expire it —
@@ -193,6 +212,21 @@ class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSch
         # the item just equipped — so the next read re-loads from the FK.
         db_session.expire(dweller, [item_attr])
         return item
+
+    async def get_held_for_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> Sequence[ModelType]:
+        """All items of this type held by an exploration (equipped mid-run)."""
+        result = await db_session.execute(select(self.model).where(self.model.exploration_id == exploration_id))
+        return list(result.scalars().all())
+
+    async def delete_held_for_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> int:
+        """Delete all items of this type held by an exploration; returns the deleted count.
+
+        Does not commit — the caller owns the transaction.
+        """
+        items = await self.get_held_for_exploration(db_session, exploration_id)
+        for item in items:
+            await db_session.delete(item)
+        return len(items)
 
     @staticmethod
     async def _fetch_unequip_data(

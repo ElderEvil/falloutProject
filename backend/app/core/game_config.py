@@ -859,6 +859,9 @@ class ExplorationConfig(BaseSettings):
     combat_success_base: float = Field(default=0.3, description="30% base success chance", ge=0.0, le=1.0)
     combat_success_max: float = Field(default=0.9, description="90% max success chance", ge=0.0, le=1.0)
     combat_stat_multiplier: float = Field(default=0.06, description="6% per combined combat stat point", ge=0.0)
+    combat_weapon_damage_multiplier: float = Field(
+        default=0.25, description="Combat power added per point of equipped weapon average damage", ge=0.0
+    )
 
     # Loot rarity by luck
     rarity_common_base: float = Field(default=70.0, ge=0.0)

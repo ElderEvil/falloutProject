@@ -17,6 +17,7 @@ from app.schemas.exploration_event import (
 from app.services.exploration import data_loader
 from app.services.exploration.combat_calculator import combat_calculator
 from app.services.exploration.loot_calculator import loot_calculator
+from app.utils.combat import ExpeditionCombatProfile
 
 
 class EventGenerator:
@@ -51,11 +52,14 @@ class EventGenerator:
         time_since_last_event = (now - last_event_time).total_seconds()
         return time_since_last_event >= cfg.event_interval_seconds
 
-    def generate_event(self, exploration: Exploration) -> ExplorationEvent | None:
+    def generate_event(
+        self, exploration: Exploration, profile: ExpeditionCombatProfile | None = None
+    ) -> ExplorationEvent | None:
         """Generate a random wasteland event.
 
         Args:
             exploration: Active exploration
+            profile: Live combat inputs for the explorer; None uses the departure snapshot
 
         Returns:
             Event schema or None if no event should be generated
@@ -93,19 +97,24 @@ class EventGenerator:
         )[0]
 
         # Generate event based on type
+        # Only combat reads the live equipment profile; loot odds, danger/radiation
+        # and rest healing keep the departure snapshot so an upgrade never changes
+        # loot probabilities or health/radiation rules (issue #765 boundary).
         if event_type == "combat":
-            return self._generate_combat_event(exploration)
+            return self._generate_combat_event(exploration, profile)
         if event_type == "loot":
             return self._generate_loot_event(exploration)
         if event_type == "danger":
             return self._generate_danger_event(exploration)
         return self._generate_rest_event(exploration)
 
-    def _generate_combat_event(self, exploration: Exploration) -> CombatEventSchema:
+    def _generate_combat_event(
+        self, exploration: Exploration, profile: ExpeditionCombatProfile | None = None
+    ) -> CombatEventSchema:
         """Generate combat event."""
         progress = exploration.progress_percentage()
         enemy = combat_calculator.select_enemy(progress)
-        outcome = combat_calculator.calculate_combat_outcome(exploration, enemy)
+        outcome = combat_calculator.calculate_combat_outcome(exploration, enemy, profile)
 
         return CombatEventSchema(
             description=outcome.description,

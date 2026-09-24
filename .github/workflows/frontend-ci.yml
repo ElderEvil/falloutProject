@@ -102,6 +102,11 @@ jobs:
         working-directory: frontend
         run: node scripts/check-boundaries.mjs
 
+      - name: Check hardcoded colors
+        if: steps.filter.outputs.src == 'true'
+        working-directory: frontend
+        run: node scripts/check-hardcoded-colors.mjs
+
       - name: Run tests
         if: steps.filter.outputs.src == 'true'
         working-directory: frontend

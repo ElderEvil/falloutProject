@@ -223,12 +223,8 @@ onMounted(() => {
       v-else-if="!settings && !isLoadingLoad"
       class="mx-auto max-w-lg gap-0 border-theme-primary/20 bg-surface"
     >
-      <CardHeader class="mb-4">
-        <div class="border-b border-theme-primary/20 pb-4">
-          <CardTitle class="text-xl font-bold text-theme-primary">
-            AI settings unavailable
-          </CardTitle>
-        </div>
+      <CardHeader class="pb-5">
+        <CardTitle class="text-xl font-bold text-theme-primary">AI settings unavailable</CardTitle>
       </CardHeader>
       <CardContent>
         <div class="mb-4 text-red-500">Failed to load AI settings</div>
@@ -240,22 +236,15 @@ onMounted(() => {
     </Card>
 
     <!-- Main Content -->
-    <div v-else-if="settings" class="grid gap-6 lg:grid-cols-[1fr_22rem]">
+    <div v-else-if="settings" class="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(20rem,1fr)]">
       <!-- Form Card -->
       <Card class="gap-0 border-theme-primary/20 bg-surface">
-        <CardHeader class="mb-4">
-          <div class="border-b border-theme-primary/20 pb-4">
-            <div class="flex items-center gap-3">
-              <Icon icon="mdi:cog-outline" class="h-6 w-6 text-theme-accent" />
-              <h3 class="text-xl font-bold text-theme-primary">
-                Provider Configuration
-              </h3>
-            </div>
-          </div>
+        <CardHeader class="pb-5">
+          <CardTitle class="text-xl font-bold text-theme-primary">Provider configuration</CardTitle>
         </CardHeader>
 
         <CardContent>
-          <div class="space-y-5">
+          <div class="grid gap-5 xl:grid-cols-2">
             <!-- Provider -->
             <div>
               <Label class="mb-1 text-sm font-medium text-theme-primary/70">
@@ -300,7 +289,7 @@ onMounted(() => {
             </div>
 
             <!-- Base URL -->
-            <div v-if="showBaseUrlField">
+            <div v-if="showBaseUrlField" class="xl:col-span-2">
               <Label for="ai-base-url" class="mb-1 text-sm font-medium text-theme-primary/70">
                 Base URL
                 <span
@@ -339,7 +328,7 @@ onMounted(() => {
             </div>
 
             <!-- Gateway Route -->
-            <div class="opacity-80">
+            <div class="xl:col-span-2">
               <Label for="ai-gateway-route" class="mb-1 text-sm font-medium text-theme-primary/70">
                 Gateway Route
                 <span class="text-xs text-theme-primary/50 font-normal ml-1">(Optional)</span>
@@ -417,30 +406,19 @@ onMounted(() => {
 
       <!-- Effective Config Panel -->
       <Card class="gap-0 border-theme-primary/20 bg-surface">
-        <CardHeader class="mb-4">
-          <div class="border-b border-theme-primary/20 pb-4">
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex items-center gap-3">
-                <Icon icon="mdi:information-outline" class="h-6 w-6 text-theme-accent" />
-                <h3 class="text-xl font-bold text-theme-primary">
-                  Effective Configuration
-                </h3>
-              </div>
-              <Button
-                variant="ghost"
-                size="xs"
-                class="rounded border border-theme-primary/30 bg-transparent px-2 py-1 text-xs text-theme-primary/70 transition-colors hover:border-theme-primary/60 hover:bg-transparent hover:text-theme-primary"
-                :disabled="copiedConfig"
-                @click="handleCopyConfig"
-                aria-label="Copy configuration"
-              >
-                <Icon
-                  :icon="copiedConfig ? 'mdi:check' : 'mdi:content-copy'"
-                  class="mr-1 inline h-3.5 w-3.5"
-                />
-                {{ copiedConfig ? 'Copied' : 'Copy' }}
-              </Button>
-            </div>
+        <CardHeader class="pb-5">
+          <div class="flex items-center justify-between gap-3">
+            <CardTitle class="text-xl font-bold text-theme-primary">Effective configuration</CardTitle>
+            <Button
+              variant="outline"
+              size="xs"
+              :disabled="copiedConfig"
+              @click="handleCopyConfig"
+              aria-label="Copy configuration"
+            >
+              <Icon :icon="copiedConfig ? 'mdi:check' : 'mdi:content-copy'" class="mr-1 h-3.5 w-3.5" />
+              {{ copiedConfig ? 'Copied' : 'Copy' }}
+            </Button>
           </div>
         </CardHeader>
 
@@ -452,7 +430,7 @@ onMounted(() => {
                 <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.provider }}</span>
                 <span
                   v-if="getProvenance('provider') === 'profile'"
-                  class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
+                  class="override-pill rounded border border-theme-primary/20 bg-surface-sunken px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-primary/70"
                 >
                   Override
                 </span>
@@ -464,7 +442,7 @@ onMounted(() => {
                 <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.model }}</span>
                 <span
                   v-if="getProvenance('model') === 'profile'"
-                  class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
+                  class="override-pill rounded border border-theme-primary/20 bg-surface-sunken px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-primary/70"
                 >
                   Override
                 </span>
@@ -476,7 +454,7 @@ onMounted(() => {
                 <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.base_url || '—' }}</span>
                 <span
                   v-if="settings.effective.base_url && getProvenance('base_url') === 'profile'"
-                  class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
+                  class="override-pill rounded border border-theme-primary/20 bg-surface-sunken px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-primary/70"
                 >
                   Override
                 </span>
@@ -488,7 +466,7 @@ onMounted(() => {
                 <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.gateway_route || '—' }}</span>
                 <span
                   v-if="settings.effective.gateway_route && getProvenance('gateway_route') === 'profile'"
-                  class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
+                  class="override-pill rounded border border-theme-primary/20 bg-surface-sunken px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-primary/70"
                 >
                   Override
                 </span>
@@ -510,10 +488,9 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="mt-4 border-t border-gray-700 pt-3 text-xs text-theme-primary/50">
-            <Icon icon="mdi:lightbulb-outline" class="inline h-3.5 w-3.5 mr-1" />
-            Reflects environment + profile overrides after last save.
-          </div>
+          <p class="mt-5 text-xs leading-5 text-theme-primary/60">
+            Currently active settings. Changes above apply after you save.
+          </p>
         </CardContent>
       </Card>
     </div>
@@ -521,25 +498,12 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Focus-visible rings for child-component internals (shadcn Button/Input/Select).
-   These `:deep` rules cannot be expressed as Tailwind utility classes because
-   the focusable element lives inside the component's own template. */
-:deep(button):focus-visible {
-  outline: none;
-  border-style: dashed;
-  border-color: var(--color-theme-primary);
-  box-shadow: 0 0 8px var(--color-theme-glow);
-}
-
-:deep([role='combobox']):focus-visible {
-  outline: none;
-  border-color: var(--color-theme-primary);
-  box-shadow: 0 0 0 2px var(--color-theme-glow);
-}
-
-:deep(input):focus-visible {
-  outline: none;
-  border-color: var(--color-theme-primary);
-  box-shadow: 0 0 0 2px var(--color-theme-glow);
+/* Keep focus visible on the controls rendered inside shadcn components. */
+:deep(button:focus-visible),
+:deep([role='combobox']:focus-visible),
+:deep(input:focus-visible) {
+  outline: 2px dashed var(--color-theme-primary);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 </style>

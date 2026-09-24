@@ -33,7 +33,7 @@ import type { ProfileUpdate } from '../models/profile'
 const profileStore = useProfileStore()
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
-const backNav = useBackNavigation('Overseer Profile', () =>
+const backNav = useBackNavigation('User Profile', () =>
   vaultStore.activeVaultId ? `/vault/${vaultStore.activeVaultId}` : '/'
 )
 const isEditing = ref(false)
@@ -137,7 +137,7 @@ const formatDate = (dateString: string) => {
       >
         <PageContentRail>
           <PageHeader
-            title="Overseer Profile"
+            title="User Profile"
             icon="mdi:badge-account-horizontal-outline"
             subtitle="Identity, account status, and vault record."
           >
@@ -198,106 +198,103 @@ const formatDate = (dateString: string) => {
 
               <section v-show="activeTab === 'dossier'">
                 <Card class="profile-dossier gap-0 border-theme-primary/20 bg-surface">
-                  <CardHeader class="border-b border-theme-primary/20 pb-4">
-                    <CardTitle
-                      class="flex items-center gap-2 text-xl font-bold text-theme-primary"
-                    >
-                      <Icon icon="mdi:folder-account-outline" class="h-6 w-6 text-theme-accent" />
-                      Overseer profile
-                    </CardTitle>
-                    <CardDescription>
-                      Your account details and public profile
-                    </CardDescription>
+                  <CardHeader class="pb-5">
+                    <CardTitle class="text-xl font-bold text-theme-primary">User profile</CardTitle>
+                    <CardDescription>Your identity and account details</CardDescription>
                     <CardAction>
-                      <Button variant="secondary" size="sm" @click="startEditing">
+                      <Button variant="outline" size="sm" @click="startEditing">
                         <Icon icon="mdi:pencil" class="mr-1" />
                         Edit profile
                       </Button>
                     </CardAction>
                   </CardHeader>
 
-                  <CardContent class="pt-4">
-                    <div class="flex flex-col gap-6 sm:flex-row sm:items-center">
-                      <div
-                        class="profile-avatar flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-theme-primary/30 bg-surface-sunken"
-                      >
-                        <img
-                          v-if="profileStore.profile.avatar_url && !avatarLoadFailed"
-                          :src="profileStore.profile.avatar_url"
-                          alt="Profile avatar"
-                          class="h-full w-full object-cover"
-                          @error="handleAvatarError"
-                        />
-                        <Icon
-                          v-else
-                          icon="mdi:account-circle"
-                          class="text-6xl text-theme-primary/60"
-                        />
-                      </div>
-                      <div class="min-w-0">
-                        <p class="text-sm font-medium text-theme-primary/60">
-                          Overseer account
-                        </p>
-                        <h3
-                          class="mt-1 truncate text-2xl font-bold text-theme-primary"
+                  <CardContent class="grid gap-8 pt-0 lg:grid-cols-[minmax(0,1fr)_minmax(17rem,0.55fr)]">
+                    <div class="min-w-0">
+                      <div class="flex flex-col gap-6 sm:flex-row sm:items-center">
+                        <div
+                          class="profile-avatar flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-theme-primary/30 bg-surface-sunken"
                         >
-                          {{ authStore.user?.username || 'Vault Overseer' }}
-                        </h3>
-                        <p class="mt-2 break-all text-sm text-theme-primary/75">
-                          {{ authStore.user?.email || 'No account email on file' }}
-                        </p>
-                        <div class="mt-3 flex flex-wrap gap-2">
-                          <Badge
-                            :variant="authStore.user?.email_verified ? 'default' : 'destructive'"
-                            class="gap-1.5 font-medium"
-                          >
-                            <Icon
-                              :icon="
-                                authStore.user?.email_verified
-                                  ? 'mdi:check-circle'
-                                  : 'mdi:alert-circle-outline'
-                              "
-                            />
-                            {{ authStore.user?.email_verified ? 'Verified' : 'Unverified' }}
-                          </Badge>
-                          <Badge
-                            :variant="authStore.isSuperuser ? 'secondary' : 'outline'"
-                            class="gap-1.5 font-medium"
-                          >
-                            <Icon
-                              :icon="authStore.isSuperuser ? 'mdi:shield-crown' : 'mdi:account'"
-                            />
-                            {{ authStore.isSuperuser ? 'Administrator' : 'Standard account' }}
-                          </Badge>
+                          <img
+                            v-if="profileStore.profile.avatar_url && !avatarLoadFailed"
+                            :src="profileStore.profile.avatar_url"
+                            alt="Profile avatar"
+                            class="h-full w-full object-cover"
+                            @error="handleAvatarError"
+                          />
+                          <Icon
+                            v-else
+                            icon="mdi:account-circle"
+                            class="text-6xl text-theme-primary/60"
+                          />
+                        </div>
+                        <div class="min-w-0">
+                          <p class="text-sm font-medium text-theme-primary/60">User account</p>
+                          <h3 class="mt-1 truncate text-2xl font-bold text-theme-primary">
+                            {{ authStore.user?.username || 'User' }}
+                          </h3>
+                          <p class="mt-2 break-all text-sm text-theme-primary/75">
+                            {{ authStore.user?.email || 'No account email on file' }}
+                          </p>
+                          <div class="mt-3 flex flex-wrap gap-2">
+                            <Badge
+                              :variant="authStore.user?.email_verified ? 'default' : 'destructive'"
+                              class="gap-1.5 font-medium"
+                            >
+                              <Icon
+                                :icon="
+                                  authStore.user?.email_verified
+                                    ? 'mdi:check-circle'
+                                    : 'mdi:alert-circle-outline'
+                                "
+                              />
+                              {{ authStore.user?.email_verified ? 'Verified' : 'Unverified' }}
+                            </Badge>
+                            <Badge
+                              :variant="authStore.isSuperuser ? 'secondary' : 'outline'"
+                              class="gap-1.5 font-medium"
+                            >
+                              <Icon
+                                :icon="authStore.isSuperuser ? 'mdi:shield-crown' : 'mdi:account'"
+                              />
+                              {{ authStore.isSuperuser ? 'Administrator' : 'Standard account' }}
+                            </Badge>
+                          </div>
                         </div>
                       </div>
+
+                      <section class="mt-8">
+                        <p class="text-sm font-semibold text-theme-primary/75">Bio</p>
+                        <p class="mt-2 whitespace-pre-wrap text-sm leading-6 text-theme-primary/85">
+                          {{ profileStore.profile.bio || 'No bio added yet.' }}
+                        </p>
+                      </section>
                     </div>
 
-                    <section class="mt-6 border-t border-theme-primary/20 pt-5">
-                      <p class="text-sm font-semibold text-theme-primary/75">
-                        Bio
-                      </p>
-                      <p
-                        class="mt-2 whitespace-pre-wrap rounded border border-theme-primary/20 bg-surface-sunken p-4 text-sm leading-6 text-theme-primary/85"
-                      >
-                        {{ profileStore.profile.bio || 'No bio added yet.' }}
-                      </p>
-                    </section>
-
-                    <div
-                      class="mt-5 flex flex-col gap-3 border-t border-theme-primary/20 pt-5 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div class="text-sm leading-6 text-theme-primary/75">
-                        <p>Joined {{ formatDate(profileStore.profile.created_at) }}</p>
-                        <p>Updated {{ formatDate(profileStore.profile.updated_at) }}</p>
+                    <aside class="rounded-md border border-theme-primary/15 bg-surface-sunken p-5">
+                      <h3 class="text-sm font-semibold text-theme-primary">Account details</h3>
+                      <dl class="mt-5 space-y-4 text-sm">
+                        <div>
+                          <dt class="text-theme-primary/60">Joined</dt>
+                          <dd class="mt-1 text-theme-primary/85">{{ formatDate(profileStore.profile.created_at) }}</dd>
+                        </div>
+                        <div>
+                          <dt class="text-theme-primary/60">Profile updated</dt>
+                          <dd class="mt-1 text-theme-primary/85">{{ formatDate(profileStore.profile.updated_at) }}</dd>
+                        </div>
+                      </dl>
+                      <div class="mt-6 border-t border-theme-primary/15 pt-5">
+                        <p class="mb-3 text-xs leading-5 text-theme-primary/60">
+                          Adjust how the app looks and behaves for your account.
+                        </p>
+                        <Button variant="outline" size="sm" as-child>
+                          <RouterLink to="/preferences">
+                            <Icon icon="mdi:tune-variant" class="mr-2" />
+                            Display preferences
+                          </RouterLink>
+                        </Button>
                       </div>
-                      <Button variant="outline" size="sm" as-child>
-                        <RouterLink to="/preferences">
-                          <Icon icon="mdi:tune-variant" class="mr-2" />
-                          Manage display preferences
-                        </RouterLink>
-                      </Button>
-                    </div>
+                    </aside>
                   </CardContent>
                 </Card>
               </section>

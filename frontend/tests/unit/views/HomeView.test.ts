@@ -44,11 +44,29 @@ describe('HomeView', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
     vi.clearAllMocks()
+    vi.mocked(axios.get).mockImplementation(async () => ({ data: [...vaultStore.vaults] }))
   })
 
   const findCreateButton = (wrapper: any) => {
     return wrapper.findAll('button').find((btn: any) => btn.text().includes('Create Vault'))
   }
+
+  const vaultsAtCount = (count: number) =>
+    Array.from({ length: count }, (_, index) => ({
+      id: `vault-${index + 1}`,
+      number: index + 1,
+      bottle_caps: 100,
+      happiness: 75,
+      power: 50,
+      power_max: 100,
+      food: 50,
+      food_max: 100,
+      water: 50,
+      water_max: 100,
+      room_count: 5,
+      dweller_count: 10,
+      updated_at: new Date().toISOString(),
+    }))
 
   describe('Rendering', () => {
     it('should render welcome message', async () => {
@@ -144,6 +162,42 @@ describe('HomeView', () => {
 
       await wrapper.findAll('button').find((button) => button.text().includes('Create another vault'))!.trigger('click')
       expect(wrapper.find('input[type="number"]').exists()).toBe(true)
+    })
+
+    it('offers an explicit keyboard-accessible action to select a vault', async () => {
+      vaultStore.vaults = vaultsAtCount(1)
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      const selectButton = wrapper.findAll('button').find((button) => button.text() === 'Select Vault')
+      expect(selectButton).toBeDefined()
+      await selectButton!.trigger('click')
+      expect(wrapper.text()).toContain('Load Vault')
+    })
+
+    it('hides creation at three vaults while keeping existing vaults available', async () => {
+      vaultStore.vaults = vaultsAtCount(3)
+
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      expect(wrapper.findAll('[aria-label$="terminal"]')).toHaveLength(3)
+      expect(wrapper.text()).toContain('3-vault limit')
+      expect(wrapper.text()).toContain('Creating another vault is prohibited')
+      expect(wrapper.find('input[type="number"]').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('Create another vault')
+    })
+
+    it('explains the restriction to users who already have more than three vaults', async () => {
+      vaultStore.vaults = vaultsAtCount(4)
+
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      expect(wrapper.findAll('[aria-label$="terminal"]')).toHaveLength(4)
+      expect(wrapper.text()).toContain('You have 4 vaults')
+      expect(wrapper.text()).toContain('Creating another vault is prohibited')
+      expect(wrapper.find('input[type="number"]').exists()).toBe(false)
     })
   })
 
@@ -345,6 +399,7 @@ describe('HomeView', () => {
       vi.mocked(axios.post).mockRejectedValueOnce(new Error('Vault number is unavailable'))
 
       const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await flushPromises()
       await wrapper.findAll('button').find((button) => button.text().includes('Create another vault'))!.trigger('click')
 
       const input = wrapper.find('input[type="number"]')
@@ -467,7 +522,6 @@ describe('HomeView', () => {
     it('should delete vault when confirmed', async () => {
       global.confirm = vi.fn(() => true)
       vi.mocked(axios.delete).mockResolvedValueOnce({ data: {} })
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
 
       const wrapper = mount(HomeView, {
         global: {

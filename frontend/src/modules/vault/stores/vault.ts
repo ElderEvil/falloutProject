@@ -11,6 +11,7 @@ import type { components } from '@/core/types/api.generated'
 type VaultReadWithNumbers = components['schemas']['VaultReadWithNumbers']
 
 export type VaultWithNumbers = VaultReadWithNumbers
+export const MAX_USER_VAULTS = 3
 
 type ResourceName = 'power' | 'food' | 'water'
 type ResourceRates = Record<ResourceName, number>
@@ -91,7 +92,7 @@ export const useVaultStore = defineStore('vault', () => {
   const loadedVaultIds = computed(() => Object.keys(loadedVaults.value))
 
   // Actions
-  async function fetchVaults(token: string) {
+  async function fetchVaults(token: string): Promise<boolean> {
     try {
       const response = await axios.get('/api/v1/vaults/my', {
         headers: {
@@ -99,12 +100,20 @@ export const useVaultStore = defineStore('vault', () => {
         },
       })
       vaults.value = response.data
+      return true
     } catch (error) {
       handleStoreError(error, 'Failed to fetch vaults')
+      return false
     }
   }
 
   async function createVault(number: number, boosted: boolean, token: string) {
+    if (!(await fetchVaults(token))) return false
+    if (vaults.value.length >= MAX_USER_VAULTS) {
+      toast.warning(`Creating another vault is prohibited. Limit: ${MAX_USER_VAULTS} vaults.`)
+      return false
+    }
+
     try {
       await axios.post(
         '/api/v1/vaults/initiate',
@@ -115,8 +124,7 @@ export const useVaultStore = defineStore('vault', () => {
           },
         }
       )
-      await fetchVaults(token)
-      return true
+      return await fetchVaults(token)
     } catch (error) {
       handleStoreError(error, 'Failed to create vault')
       return false

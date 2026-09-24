@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, ref } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { useVaultStore } from '../stores/vault'
-import { useRoomStore } from '@/modules/rooms/stores/room'
+import { MAX_USER_VAULTS, useVaultStore } from '../stores/vault'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { Alert } from '@/core/components/ui/alert'
 import { Button } from '@/core/components/ui/button'
+import { Card } from '@/core/components/ui/card'
 import { Progress } from '@/core/components/ui/progress'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
@@ -14,12 +14,10 @@ import VaultNumberField from '../components/VaultNumberField.vue'
 
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
-const roomStore = useRoomStore()
 const router = useRouter()
 
 // Inject visual effects
 const isFlickering = inject('isFlickering', ref(true))
-const glowClass = inject('glowClass', ref('terminal-glow'))
 
 const newVaultNumber = ref('')
 const boostedStart = ref(false)
@@ -27,6 +25,8 @@ const showCreation = ref(false)
 const selectedVaultId = ref<string | null>(null)
 const creatingVault = ref(false)
 const deletingVault = ref<string | null>(null)
+const loadingVaults = ref(true)
+const vaultsReady = ref(false)
 const vaultNumberFieldRef = ref<InstanceType<typeof VaultNumberField> | null>(null)
 
 const sortedVaults = computed(() =>
@@ -34,13 +34,22 @@ const sortedVaults = computed(() =>
     (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
   )
 )
-const isCreationVisible = computed(() => !sortedVaults.value.length || showCreation.value)
+const canCreateVault = computed(() => vaultsReady.value && sortedVaults.value.length < MAX_USER_VAULTS)
+const isCreationVisible = computed(
+  () => canCreateVault.value && (!sortedVaults.value.length || showCreation.value)
+)
+
+const refreshVaults = async () => {
+  loadingVaults.value = true
+  vaultsReady.value = await vaultStore.fetchVaults(authStore.token as string)
+  loadingVaults.value = false
+}
 
 const resourcePercentage = (current: number, maximum: number) =>
   maximum > 0 ? (current / maximum) * 100 : 0
 
 const createVault = async () => {
-  if (!vaultNumberFieldRef.value?.isValid() || creatingVault.value) {
+  if (!canCreateVault.value || !vaultNumberFieldRef.value?.isValid() || creatingVault.value) {
     return
   }
 
@@ -56,7 +65,6 @@ const createVault = async () => {
     newVaultNumber.value = ''
     boostedStart.value = false
     showCreation.value = false
-    await vaultStore.fetchVaults(authStore.token as string)
   } finally {
     creatingVault.value = false
   }
@@ -70,7 +78,7 @@ const deleteVault = async (id: string) => {
       if (selectedVaultId.value === id) {
         selectedVaultId.value = null
       }
-      await vaultStore.fetchVaults(authStore.token as string)
+      await refreshVaults()
     } finally {
       deletingVault.value = null
     }
@@ -86,9 +94,7 @@ const loadVault = async (id: string) => {
 }
 
 onMounted(async () => {
-  if (authStore.isAuthenticated && !vaultStore.vaults.length) {
-    await vaultStore.fetchVaults(authStore.token as string)
-  }
+  if (authStore.isAuthenticated) await refreshVaults()
 })
 </script>
 
@@ -100,7 +106,21 @@ onMounted(async () => {
     >
       <PageHeader title="Welcome to Fallout Shelter" centered />
 
-      <section v-if="isCreationVisible" class="order-3 relative mt-6 w-full max-w-md overflow-hidden rounded-lg border border-theme-primary/20 bg-surface p-5 shadow-glow-sm">
+      <Alert v-if="loadingVaults" class="w-full max-w-4xl border-theme-primary/30 bg-surface text-theme-primary">
+        Loading vault records...
+      </Alert>
+      <Alert v-else-if="!vaultsReady" class="w-full max-w-4xl border-danger/50 bg-danger/10 text-danger">
+        Could not load your vaults. New vault creation is unavailable until the list loads.
+        <Button variant="outline" size="sm" class="mt-2 block" @click="refreshVaults">Retry</Button>
+      </Alert>
+      <Alert v-else-if="sortedVaults.length >= MAX_USER_VAULTS" class="w-full max-w-4xl border-warning/50 bg-warning/10 text-warning">
+        <span class="font-bold">3-vault limit:</span>
+        <span v-if="sortedVaults.length > MAX_USER_VAULTS"> You have {{ sortedVaults.length }} vaults, which exceeds the limit.</span>
+        <span v-else> You have reached the limit.</span>
+        Creating another vault is prohibited. You can keep using your existing vaults.
+      </Alert>
+
+      <Card v-if="isCreationVisible" class="order-3 relative mt-6 w-full max-w-md gap-0 overflow-hidden border-theme-primary/20 bg-surface p-5 py-5 shadow-glow-sm">
         <div class="mb-4 flex items-start justify-between gap-4">
           <div>
             <p class="text-[0.65rem] font-bold tracking-[0.14em] text-theme-primary/60">VAULT-TEC // COMMISSIONING</p>
@@ -111,12 +131,12 @@ onMounted(async () => {
             READY
           </div>
         </div>
-        <div class="space-y-2">
-          <div class="flex items-start space-x-2">
+        <div class="flex flex-col gap-2">
+          <div class="flex items-start gap-2">
             <VaultNumberField v-model="newVaultNumber" ref="vaultNumberFieldRef" />
             <Button
               variant="default"
-              :disabled="creatingVault || !newVaultNumber"
+              :disabled="creatingVault || !newVaultNumber || !canCreateVault"
               @click="createVault"
               class="mt-6 shrink-0 whitespace-nowrap border-2 border-theme-primary shadow-glow-sm hover:shadow-glow-md"
             >
@@ -156,13 +176,13 @@ onMounted(async () => {
           <span class="font-bold">Experimental:</span>
           Vaults are experimental. Vault data might be deleted in a future update.
         </Alert>
-      </section>
+      </Card>
 
-      <div v-if="sortedVaults.length" class="order-1 w-full max-w-4xl">
+      <div v-if="vaultsReady && sortedVaults.length" class="order-1 w-full max-w-4xl">
         <h2 class="mb-4 text-2xl font-bold text-theme-primary">
           Your Vaults
         </h2>
-        <ul class="space-y-4">
+        <ul class="flex flex-col gap-4">
           <li
             v-for="vault in sortedVaults"
             :key="vault.id"
@@ -214,24 +234,29 @@ onMounted(async () => {
             </div>
 
             <!-- Action Buttons -->
-            <div v-if="selectedVaultId === vault.id" class="flex items-center gap-2 border-t border-theme-primary/20 px-4 pb-4 pt-4 max-sm:flex-col">
-              <Button variant="default" class="basis-3/4 border-2 border-theme-primary shadow-glow-sm hover:shadow-glow-md" @click.stop="loadVault(vault.id)">
-                Load Vault
+            <div class="flex items-center gap-2 border-t border-theme-primary/20 px-4 pb-4 pt-4 max-sm:flex-col">
+              <Button v-if="selectedVaultId !== vault.id" variant="outline" class="w-full" @click.stop="selectVault(vault.id)">
+                Select Vault
               </Button>
-              <Button
-                variant="destructive"
-                class="basis-1/4 border-dashed border-danger/70 bg-transparent text-danger hover:bg-danger/10"
-                :disabled="deletingVault === vault.id"
-                @click.stop="deleteVault(vault.id)"
-              >
-                {{ deletingVault === vault.id ? 'Deleting...' : 'Delete Vault' }}
-              </Button>
+              <template v-else>
+                <Button variant="default" class="basis-3/4 border-2 border-theme-primary shadow-glow-sm hover:shadow-glow-md" @click.stop="loadVault(vault.id)">
+                  Load Vault
+                </Button>
+                <Button
+                  variant="destructive"
+                  class="basis-1/4 border-dashed border-danger/70 bg-transparent text-danger hover:bg-danger/10"
+                  :disabled="deletingVault === vault.id"
+                  @click.stop="deleteVault(vault.id)"
+                >
+                  {{ deletingVault === vault.id ? 'Deleting...' : 'Delete Vault' }}
+                </Button>
+              </template>
             </div>
           </li>
         </ul>
       </div>
 
-      <div v-if="sortedVaults.length" class="order-2 mt-6">
+      <div v-if="canCreateVault && sortedVaults.length" class="order-2 mt-6">
         <Button
           variant="ghost"
           size="sm"

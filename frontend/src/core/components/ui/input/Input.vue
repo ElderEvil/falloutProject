@@ -10,6 +10,7 @@ const props = defineProps<{
   id?: string
   type?: string
   placeholder?: string
+  autocomplete?: string
   disabled?: boolean
   required?: boolean
 }>()
@@ -32,6 +33,7 @@ const modelValue = useVModel(props, 'modelValue', emits, {
     :id="id"
     :type="type"
     :placeholder="placeholder"
+    :autocomplete="autocomplete"
     :disabled="disabled"
     :required="required"
     :class="cn(

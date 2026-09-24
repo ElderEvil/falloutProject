@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.140.0 (2026-09-24)
+
+### Features
+
+* refresh display preferences UI ([#775](https://github.com/ElderEvil/falloutProject/issues/775)) 618662e
+
 ## 2.139.0 (2026-09-24)
 
 ### Features

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.142.2 (2026-09-24)
+
+### Bug Fixes
+
+* **theme:** make hardcoded greens follow the active theme ([#780](https://github.com/ElderEvil/falloutProject/issues/780)) 267c683, closes #hex #781 #00000080 #fff4
+
 ## 2.142.1 (2026-09-24)
 
 ### Bug Fixes

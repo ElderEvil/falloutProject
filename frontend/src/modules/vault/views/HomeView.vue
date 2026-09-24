@@ -179,7 +179,7 @@ onMounted(async () => {
         </Alert>
       </Card>
 
-      <div v-if="vaultsReady && sortedVaults.length" class="order-1 w-full max-w-4xl">
+      <div v-if="sortedVaults.length" class="order-1 w-full max-w-4xl">
         <h2 class="mb-4 text-2xl font-bold text-theme-primary">
           Your Vaults
         </h2>

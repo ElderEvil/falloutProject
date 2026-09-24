@@ -124,7 +124,9 @@ export const useVaultStore = defineStore('vault', () => {
           },
         }
       )
-      return await fetchVaults(token)
+      // Best-effort refresh: a failed GET must not fail a successful creation (a retry would duplicate the vault).
+      await fetchVaults(token)
+      return true
     } catch (error) {
       handleStoreError(error, 'Failed to create vault')
       return false

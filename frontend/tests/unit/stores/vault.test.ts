@@ -174,6 +174,17 @@ describe('Vault Store', () => {
       expect(store.vaults).toEqual([mockVault])
     })
 
+    it('reports success when the vault is created even if the refresh fails', async () => {
+      const store = useVaultStore()
+      vi.mocked(axios.post).mockResolvedValueOnce({})
+      vi.mocked(axios.get)
+        .mockResolvedValueOnce({ data: [] })
+        .mockRejectedValueOnce(new Error('Fetch failed'))
+
+      expect(await store.createVault(101, false, 'test-token')).toBe(true)
+      expect(axios.post).toHaveBeenCalled()
+    })
+
     it('should handle creation error gracefully', async () => {
       const store = useVaultStore()
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })

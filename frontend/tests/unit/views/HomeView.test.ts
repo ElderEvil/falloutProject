@@ -164,6 +164,19 @@ describe('HomeView', () => {
       expect(wrapper.find('input[type="number"]').exists()).toBe(true)
     })
 
+    it('keeps cached vaults available when the refresh fails', async () => {
+      vaultStore.vaults = vaultsAtCount(1)
+      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Fetch failed'))
+
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Could not load your vaults')
+      expect(wrapper.find('[aria-label="Vault 1 terminal"]').exists()).toBe(true)
+      expect(wrapper.text()).toContain('Your Vaults')
+      expect(wrapper.find('input[type="number"]').exists()).toBe(false)
+    })
+
     it('offers an explicit keyboard-accessible action to select a vault', async () => {
       vaultStore.vaults = vaultsAtCount(1)
       const wrapper = mount(HomeView, { global: { plugins: [router] } })

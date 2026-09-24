@@ -10,7 +10,6 @@ import {
   Card,
   CardAction,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/core/components/ui/card'
@@ -39,6 +38,7 @@ const backNav = useBackNavigation('User Profile', () =>
 const isEditing = ref(false)
 const avatarLoadFailed = ref(false)
 const activeTab = ref('dossier')
+const vaultShortcut = computed(() => vaultStore.activeVault ?? vaultStore.selectedVault)
 
 const tabs = computed(() => {
   const baseTabs = [
@@ -196,11 +196,10 @@ const formatDate = (dateString: string) => {
                 </TabsList>
               </Tabs>
 
-              <section v-show="activeTab === 'dossier'">
+              <section v-show="activeTab === 'dossier'" class="mx-auto max-w-5xl space-y-6">
                 <Card class="profile-dossier gap-0 border-theme-primary/20 bg-surface">
                   <CardHeader class="pb-5">
-                    <CardTitle class="text-xl font-bold text-theme-primary">User profile</CardTitle>
-                    <CardDescription>Your identity and account details</CardDescription>
+                    <CardTitle class="text-xl font-bold text-theme-primary">Account</CardTitle>
                     <CardAction>
                       <Button variant="outline" size="sm" @click="startEditing">
                         <Icon icon="mdi:pencil" class="mr-1" />
@@ -209,7 +208,7 @@ const formatDate = (dateString: string) => {
                     </CardAction>
                   </CardHeader>
 
-                  <CardContent class="grid gap-8 pt-0 lg:grid-cols-[minmax(0,1fr)_minmax(17rem,0.55fr)]">
+                  <CardContent class="grid gap-8 pt-0 lg:grid-cols-[minmax(0,1.3fr)_minmax(14rem,0.7fr)]">
                     <div class="min-w-0">
                       <div class="flex flex-col gap-6 sm:flex-row sm:items-center">
                         <div
@@ -229,8 +228,7 @@ const formatDate = (dateString: string) => {
                           />
                         </div>
                         <div class="min-w-0">
-                          <p class="text-sm font-medium text-theme-primary/60">User account</p>
-                          <h3 class="mt-1 truncate text-2xl font-bold text-theme-primary">
+                          <h3 class="truncate text-2xl font-bold text-theme-primary">
                             {{ authStore.user?.username || 'User' }}
                           </h3>
                           <p class="mt-2 break-all text-sm text-theme-primary/75">
@@ -271,7 +269,7 @@ const formatDate = (dateString: string) => {
                       </section>
                     </div>
 
-                    <aside class="rounded-md border border-theme-primary/15 bg-surface-sunken p-5">
+                    <aside class="pt-1">
                       <h3 class="text-sm font-semibold text-theme-primary">Account details</h3>
                       <dl class="mt-5 space-y-4 text-sm">
                         <div>
@@ -283,20 +281,54 @@ const formatDate = (dateString: string) => {
                           <dd class="mt-1 text-theme-primary/85">{{ formatDate(profileStore.profile.updated_at) }}</dd>
                         </div>
                       </dl>
-                      <div class="mt-6 border-t border-theme-primary/15 pt-5">
-                        <p class="mb-3 text-xs leading-5 text-theme-primary/60">
-                          Adjust how the app looks and behaves for your account.
-                        </p>
-                        <Button variant="outline" size="sm" as-child>
-                          <RouterLink to="/preferences">
-                            <Icon icon="mdi:tune-variant" class="mr-2" />
-                            Display preferences
-                          </RouterLink>
-                        </Button>
-                      </div>
                     </aside>
                   </CardContent>
                 </Card>
+
+                <div>
+                  <h2 class="mb-3 text-sm font-semibold text-theme-primary/75">Quick access</h2>
+                  <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    <Button
+                      variant="outline"
+                      as-child
+                      class="h-auto min-h-28 flex-col items-start justify-start gap-2 whitespace-normal p-4 text-left"
+                    >
+                      <RouterLink :to="vaultShortcut ? `/vault/${vaultShortcut.id}` : '/'">
+                        <Icon icon="mdi:home-city-outline" class="size-5 text-theme-primary/60" />
+                        <span class="text-sm font-semibold text-theme-primary">
+                          {{ vaultShortcut ? `Vault ${vaultShortcut.number}` : 'Open vaults' }}
+                        </span>
+                        <span class="text-xs font-normal leading-5 text-theme-primary/60">
+                          {{ vaultShortcut ? 'Continue your active vault' : 'Choose a vault to play' }}
+                        </span>
+                      </RouterLink>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      class="h-auto min-h-28 flex-col items-start justify-start gap-2 whitespace-normal p-4 text-left"
+                      @click="activeTab = 'analytics'"
+                    >
+                      <Icon icon="mdi:chart-box-outline" class="size-5 text-theme-primary/60" />
+                      <span class="text-sm font-semibold text-theme-primary">Vault analytics</span>
+                      <span class="text-xs font-normal leading-5 text-theme-primary/60">
+                        View activity and AI usage
+                      </span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      as-child
+                      class="h-auto min-h-28 flex-col items-start justify-start gap-2 whitespace-normal p-4 text-left"
+                    >
+                      <RouterLink to="/preferences">
+                        <Icon icon="mdi:tune-variant" class="size-5 text-theme-primary/60" />
+                        <span class="text-sm font-semibold text-theme-primary">Display preferences</span>
+                        <span class="text-xs font-normal leading-5 text-theme-primary/60">
+                          Theme, notifications, and sound
+                        </span>
+                      </RouterLink>
+                    </Button>
+                  </div>
+                </div>
               </section>
 
               <section

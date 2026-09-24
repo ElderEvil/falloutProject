@@ -236,7 +236,7 @@ onMounted(() => {
     </Card>
 
     <!-- Main Content -->
-    <div v-else-if="settings" class="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(20rem,1fr)]">
+    <div v-else-if="settings" class="mx-auto grid max-w-5xl items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(20rem,1fr)]">
       <!-- Form Card -->
       <Card class="gap-0 border-theme-primary/20 bg-surface">
         <CardHeader class="pb-5">
@@ -244,7 +244,7 @@ onMounted(() => {
         </CardHeader>
 
         <CardContent>
-          <div class="grid gap-5 xl:grid-cols-2">
+          <div class="space-y-5">
             <!-- Provider -->
             <div>
               <Label class="mb-1 text-sm font-medium text-theme-primary/70">
@@ -289,7 +289,7 @@ onMounted(() => {
             </div>
 
             <!-- Base URL -->
-            <div v-if="showBaseUrlField" class="xl:col-span-2">
+            <div v-if="showBaseUrlField">
               <Label for="ai-base-url" class="mb-1 text-sm font-medium text-theme-primary/70">
                 Base URL
                 <span
@@ -328,7 +328,7 @@ onMounted(() => {
             </div>
 
             <!-- Gateway Route -->
-            <div class="xl:col-span-2">
+            <div>
               <Label for="ai-gateway-route" class="mb-1 text-sm font-medium text-theme-primary/70">
                 Gateway Route
                 <span class="text-xs text-theme-primary/50 font-normal ml-1">(Optional)</span>

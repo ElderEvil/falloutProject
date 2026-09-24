@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { inject } from 'vue'
+import { computed, inject, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useVisualEffects, type EffectIntensity } from '@/core/composables/useVisualEffects'
@@ -8,6 +8,7 @@ import { useRoomRendering } from '@/core/composables/useRoomRendering'
 import { useBadgeStyle } from '@/core/composables/useBadgeStyle'
 import { audioManager, type AudioBus } from '@/core/audio/audioManager'
 import { useProfileStore } from '../stores/profile'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
@@ -35,6 +36,54 @@ const { currentTheme, availableThemes, setTheme } = useTheme()
 const { showRoomImages, toggleRoomImages } = useRoomRendering()
 const { isMonochrome, toggleBadgeStyle } = useBadgeStyle()
 const profileStore = useProfileStore()
+
+const notificationCategories = [
+  { key: 'exploration_updates', label: 'Exploration Updates', description: 'Routine events while a dweller explores' },
+  { key: 'arrivals_and_completions', label: 'Arrivals & Completions', description: 'Exploration and quest party returns' },
+  { key: 'advancement', label: 'Dweller Advancement', description: 'Level-ups and training progress' },
+  { key: 'social_activity', label: 'Social Activity', description: 'Relationships, pregnancies, and births' },
+  { key: 'crafting', label: 'Crafting', description: 'Crafting completion updates' },
+  { key: 'vault_activity', label: 'Vault Activity', description: 'Radio arrivals and routine radio changes' },
+] as const
+
+const disabledNotificationCategories = computed(() => {
+  const settings = profileStore.profile?.preferences?.notifications
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return []
+  const disabled = (settings as Record<string, unknown>).disabled_categories
+  return Array.isArray(disabled) ? disabled.filter((category): category is string => typeof category === 'string') : []
+})
+
+// Optimistic selection: each toggle builds on the previous click's payload
+// instead of the last confirmed server state, so rapid clicks cannot overwrite
+// each other while a save is still in flight.
+const pendingDisabledCategories = ref<Set<string> | null>(null)
+
+const effectiveDisabledCategories = computed<string[]>(
+  () => pendingDisabledCategories.value !== null ? [...pendingDisabledCategories.value] : disabledNotificationCategories.value,
+)
+
+const notificationCategoryEnabled = (category: string) => !effectiveDisabledCategories.value.includes(category)
+
+const toggleNotificationCategory = (category: string) => {
+  const disabled = new Set(effectiveDisabledCategories.value)
+  if (disabled.has(category)) disabled.delete(category)
+  else disabled.add(category)
+  const payload = [...disabled]
+  pendingDisabledCategories.value = disabled
+  void profileStore
+    .savePreferences({ notifications: { version: 1, disabled_categories: payload } })
+    .then(() => {
+      // Keep later clicks: only drop the pending state if nothing changed since this save.
+      const pending = pendingDisabledCategories.value
+      if (pending !== null && pending.size === payload.length && payload.every((c) => pending.has(c)))
+        pendingDisabledCategories.value = null
+    })
+    .catch((error: unknown) => {
+      // Revert to the last confirmed server state so the toggle reflects reality.
+      pendingDisabledCategories.value = null
+      handleStoreError(error, 'Failed to save notification preferences')
+    })
+}
 
 const soundBusOptions: { bus: AudioBus; label: string; description: string }[] = [
   { bus: 'ui', label: 'Interface', description: 'Button clicks, tab switches, popups' },
@@ -83,7 +132,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
             <PageHeader
               title="Display Preferences"
               icon="mdi:cog"
-              subtitle="Customize the terminal visual effects and theme. All settings are saved locally."
+              subtitle="Customize terminal visuals and choose which routine vault updates you receive."
             >
               <template #back>
                 <PageNavigation
@@ -131,6 +180,33 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                     <p class="theme-description">{{ theme.description }}</p>
                   </div>
                 </button>
+              </div>
+            </Card>
+
+            <Card class="mb-4 gap-0">
+              <h2 class="text-xl font-bold mb-2 flex items-center gap-2 text-theme-primary">
+                <Icon icon="mdi:bell-cog" class="text-xl" />
+                Notification Preferences
+              </h2>
+              <p class="text-gray-400 mb-4 text-xs">
+                Turn off routine alerts you do not want to receive. Deaths, injuries, critical vault
+                alerts, exit requests, and combat failures always remain enabled.
+              </p>
+              <div class="space-y-3">
+                <div v-for="category in notificationCategories" :key="category.key" class="setting-row">
+                  <div class="setting-info">
+                    <h3 class="setting-label">{{ category.label }}</h3>
+                    <p class="setting-description">{{ category.description }}</p>
+                  </div>
+                  <button
+                    @click="toggleNotificationCategory(category.key)"
+                    class="toggle-button"
+                    :class="{ active: notificationCategoryEnabled(category.key) }"
+                    :aria-label="notificationCategoryEnabled(category.key) ? `Disable ${category.label}` : `Enable ${category.label}`"
+                  >
+                    <span class="toggle-slider"></span>
+                  </button>
+                </div>
               </div>
             </Card>
 

@@ -1,18 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import AIUsageCard from '@/modules/profile/components/AIUsageCard.vue'
-import { Progress } from '@/core/components/ui/progress'
 import type { AIUsageStats } from '@/modules/profile/models/aiUsage'
-
-vi.mock('vue-router', () => ({
-  RouterLink: {
-    name: 'RouterLink',
-    template: '<a><slot /></a>',
-  },
-  useRouter: () => ({
-    push: vi.fn(),
-  }),
-}))
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {}
@@ -71,7 +60,7 @@ describe('AIUsageCard', () => {
   describe('Quota Progress Display', () => {
     it('uses semantic warm surfaces for statistic insets and the quota track', () => {
       const wrapper = mount(AIUsageCard, { props: { stats: createMockStats() } })
-      const statisticInsets = wrapper.findAll('.grid > div')
+      const statisticInsets = wrapper.findAll('.grid-cols-2 > div')
       const quotaTrack = wrapper.find('.relative.h-6')
 
       expect(statisticInsets).toHaveLength(2)

@@ -221,7 +221,7 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      expect(wrapper.text()).toContain('ERROR: PROFILE LOAD FAILURE')
+      expect(wrapper.text()).toContain('Profile unavailable')
       expect(wrapper.text()).toContain(errorMessage)
     })
 
@@ -266,8 +266,8 @@ describe('ProfileView', () => {
 
       // Verify profile was retried and succeeded (error message should be gone)
       expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me/profile')
-      expect(wrapper.text()).not.toContain('ERROR: PROFILE LOAD FAILURE')
-      expect(wrapper.text()).toContain('OVERSEER DOSSIER')
+      expect(wrapper.text()).not.toContain('Profile unavailable')
+      expect(wrapper.text()).toContain('Overseer profile')
     })
   })
 

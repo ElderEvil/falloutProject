@@ -27,11 +27,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
+  <div class="relative min-h-screen bg-terminal-background font-mono text-theme-primary [text-shadow:none]">
     <div class="flex min-h-screen">
       <SidePanel />
       <main
-        class="flex-1 flicker transition-[margin-left] duration-300 ease font-semibold tracking-[0.025em] leading-[1.6]"
+        class="flex-1 transition-[margin-left] duration-300 ease leading-[1.6]"
         :class="isCollapsed ? 'ml-16' : 'ml-60'"
       >
         <PageContentRail>

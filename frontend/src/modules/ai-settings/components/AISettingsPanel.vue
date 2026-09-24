@@ -221,18 +221,18 @@ onMounted(() => {
     <!-- Error State -->
     <Card
       v-else-if="!settings && !isLoadingLoad"
-      class="mx-auto max-w-lg rounded-lg border-2 border-theme-primary/20 shadow-glow-md crt-screen gap-0"
+      class="mx-auto max-w-lg gap-0 border-theme-primary/20 bg-surface"
     >
       <CardHeader class="mb-4">
-        <div class="border-b border-gray-700 pb-4">
-          <CardTitle class="text-xl font-bold terminal-glow text-theme-primary">
-            ERROR: LOAD FAILURE
+        <div class="border-b border-theme-primary/20 pb-4">
+          <CardTitle class="text-xl font-bold text-theme-primary">
+            AI settings unavailable
           </CardTitle>
         </div>
       </CardHeader>
       <CardContent>
         <div class="mb-4 text-red-500">Failed to load AI settings</div>
-        <Button variant="default" class="border-2 border-theme-primary hover:shadow-glow-md" @click="runLoad">
+        <Button variant="default" @click="runLoad">
           <Icon icon="mdi:refresh" class="mr-2" />
           Retry
         </Button>
@@ -242,12 +242,12 @@ onMounted(() => {
     <!-- Main Content -->
     <div v-else-if="settings" class="grid gap-6 lg:grid-cols-[1fr_22rem]">
       <!-- Form Card -->
-      <Card class="rounded-lg border-2 border-theme-primary/20 shadow-glow-md crt-screen gap-0">
+      <Card class="gap-0 border-theme-primary/20 bg-surface">
         <CardHeader class="mb-4">
-          <div class="border-b border-gray-700 pb-4">
+          <div class="border-b border-theme-primary/20 pb-4">
             <div class="flex items-center gap-3">
               <Icon icon="mdi:cog-outline" class="h-6 w-6 text-theme-accent" />
-              <h3 class="text-xl font-bold terminal-glow text-theme-primary">
+              <h3 class="text-xl font-bold text-theme-primary">
                 Provider Configuration
               </h3>
             </div>
@@ -264,7 +264,7 @@ onMounted(() => {
               </Label>
               <Select v-model="formProviderSelect">
                 <SelectTrigger
-                  class="w-full rounded border-2 border-theme-primary/50 bg-surface-raised py-2 pl-4 pr-4 text-terminal-green"
+                  class="w-full rounded-md border-theme-primary/30 bg-surface-raised py-2 pl-4 pr-4 text-theme-primary"
                 >
                   <SelectValue placeholder="Default (from env)" />
                 </SelectTrigger>
@@ -292,7 +292,7 @@ onMounted(() => {
                 id="ai-model"
                 v-model="formModel"
                 placeholder="e.g. gpt-4o-mini, claude-3-haiku, llama3"
-                class="h-auto w-full rounded border-2 border-theme-primary/20 bg-surface-raised px-4 py-2 text-terminal-green placeholder:text-theme-primary/40"
+                class="h-auto w-full rounded-md border-theme-primary/20 bg-surface-raised px-4 py-2 text-theme-primary placeholder:text-theme-primary/40"
               />
               <p class="mt-1 text-xs text-theme-primary/50">
                 Optional — Leave empty to use the provider default model.
@@ -315,7 +315,7 @@ onMounted(() => {
                 v-model="formBaseUrl"
                 type="text"
                 placeholder="e.g. http://localhost:11434/v1"
-                class="h-auto w-full rounded border-2 bg-surface-raised px-4 py-2 text-terminal-green placeholder:text-theme-primary/40"
+                class="h-auto w-full rounded-md bg-surface-raised px-4 py-2 text-theme-primary placeholder:text-theme-primary/40"
                 :class="
                   baseUrlConnected
                     ? 'border-theme-primary/60 focus:border-theme-primary'
@@ -349,7 +349,7 @@ onMounted(() => {
                 v-model="formGatewayRoute"
                 type="text"
                 placeholder="e.g. anthropic, openai"
-                class="h-auto w-full rounded border-2 border-theme-primary/30 bg-surface-raised px-4 py-2 text-terminal-green placeholder:text-theme-primary/40"
+                class="h-auto w-full rounded-md border-theme-primary/30 bg-surface-raised px-4 py-2 text-theme-primary placeholder:text-theme-primary/40"
               />
               <p class="mt-1 text-xs text-theme-primary/50">
                 Pydantic AI Gateway routing group — leave empty to use the env route.
@@ -358,10 +358,9 @@ onMounted(() => {
           </div>
 
           <!-- Actions -->
-          <div class="mt-6 flex flex-wrap items-center gap-3 border-t border-gray-700 pt-4">
+          <div class="mt-6 flex flex-wrap items-center gap-3 border-t border-theme-primary/20 pt-4">
             <Button
               variant="default"
-              class="border-2 border-theme-primary hover:shadow-glow-md"
               :disabled="!hasChanges || isLoadingSave"
               @click="handleSave"
             >
@@ -371,7 +370,6 @@ onMounted(() => {
             </Button>
             <Button
               variant="outline"
-              class="border-2 border-theme-primary bg-transparent"
               :disabled="isLoading"
               @click="handleTest"
             >
@@ -381,10 +379,7 @@ onMounted(() => {
             </Button>
             <Button
               :variant="resetArmed ? 'destructive' : 'outline'"
-              :class="[
-                resetArmed ? 'border-2 border-danger bg-transparent' : 'border-2 border-theme-primary bg-transparent',
-                'focus-visible:outline-none focus-visible:border-dashed focus-visible:shadow-[0_0_8px_var(--color-theme-glow)]',
-              ]"
+              :class="resetArmed ? 'border-danger bg-transparent' : 'border-theme-primary/30 bg-transparent'"
               :disabled="isLoading"
               @click="handleReset"
             >
@@ -397,7 +392,7 @@ onMounted(() => {
           </div>
 
           <!-- Test Result -->
-          <div v-if="testResult" class="mt-4 rounded border-2 p-3 font-mono text-sm" :class="testResult.status === 'ok' ? 'border-theme-primary/50 bg-theme-primary/5' : 'border-danger/50 bg-danger/5'">
+          <div v-if="testResult" class="mt-4 rounded-md border p-3 text-sm" :class="testResult.status === 'ok' ? 'border-theme-primary/30 bg-theme-primary/5' : 'border-danger/50 bg-danger/5'">
             <div class="flex items-start gap-2">
               <Icon
                 :icon="testResult.status === 'ok' ? 'mdi:check-circle' : 'mdi:alert'"
@@ -421,13 +416,13 @@ onMounted(() => {
       </Card>
 
       <!-- Effective Config Panel -->
-      <Card class="rounded-lg border-2 border-theme-primary/20 shadow-glow-md crt-screen gap-0">
+      <Card class="gap-0 border-theme-primary/20 bg-surface">
         <CardHeader class="mb-4">
-          <div class="border-b border-gray-700 pb-4">
+          <div class="border-b border-theme-primary/20 pb-4">
             <div class="flex items-center justify-between gap-3">
               <div class="flex items-center gap-3">
                 <Icon icon="mdi:information-outline" class="h-6 w-6 text-theme-accent" />
-                <h3 class="text-xl font-bold terminal-glow text-theme-primary">
+                <h3 class="text-xl font-bold text-theme-primary">
                   Effective Configuration
                 </h3>
               </div>
@@ -505,7 +500,7 @@ onMounted(() => {
                 <span
                   class="text-theme-primary text-right break-all min-w-0"
                   :class="{
-                    'text-terminal-green': settings.effective.mode !== 'disabled',
+                    'text-theme-primary': settings.effective.mode !== 'disabled',
                     'text-red-400': settings.effective.mode === 'disabled',
                   }"
                 >

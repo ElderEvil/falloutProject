@@ -6,6 +6,7 @@ import { ref, onMounted, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Card } from '@/core/components/ui/card'
 import { Button } from '@/core/components/ui/button'
+import { Input } from '@/core/components/ui/input'
 import { Badge } from '@/core/components/ui/badge'
 import { Skeleton } from '@/core/components/ui/skeleton'
 import {
@@ -101,12 +102,12 @@ const getCategoryInfo = (category: string) => {
     Removed: { color: 'text-red-400', icon: '🗑️' },
     Documentation: { color: 'text-purple-400', icon: '📚' },
     Testing: { color: 'text-cyan-400', icon: '🧪' },
-    Technical: { color: 'text-gray-400', icon: '⚙️' },
+    Technical: { color: 'text-theme-primary/60', icon: '⚙️' },
     Security: { color: 'text-orange-400', icon: '🔒' },
     Performance: { color: 'text-pink-400', icon: '⚡' },
   }
 
-  return categoryMap[category] || { color: 'text-gray-300', icon: '📝' }
+  return categoryMap[category] || { color: 'text-theme-primary/75', icon: '📝' }
 }
 
 const fetchChangelog = async () => {
@@ -132,36 +133,35 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-8">
+  <div class="container mx-auto px-4 py-8 [text-shadow:none]">
     <!-- Header -->
     <div class="mb-8 text-center">
       <h1
-        class="text-4xl font-bold text-theme-primary mb-4 terminal-glow flex items-center justify-center gap-3"
+        class="text-4xl font-bold text-theme-primary mb-4 flex items-center justify-center gap-3"
       >
         <Icon icon="mdi:console-line" class="w-10 h-10" />
         Changelog
       </h1>
-      <p class="text-gray-400 text-lg">
+      <p class="text-theme-primary/60 text-lg">
         Complete version history and release notes for Fallout Shelter Game
       </p>
     </div>
 
     <!-- Filters -->
-    <Card class="mb-8 gap-0 bg-surface-warm shadow-glow-md">
+    <Card class="mb-8 gap-0 border-theme-primary/20 bg-surface">
       <div class="flex flex-wrap gap-4 items-center">
-        <!-- Search: vendored Input exists, but this field carries bespoke terminal classes and migrates with the view (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
         <div class="flex-1 min-w-64">
-          <input
+          <Input
             v-model="searchQuery"
             type="text"
             placeholder="Search changelog..."
-            class="w-full px-4 py-2 bg-surface-warm-dark border border-gray-700 rounded text-terminal-green placeholder-gray-500 focus:outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary"
+            class="w-full border-theme-primary/20 bg-surface-sunken text-theme-primary placeholder:text-theme-primary/40"
           />
         </div>
 
         <!-- Category Filter -->
         <div class="flex flex-wrap items-center gap-2">
-          <span class="text-gray-400">Category:</span>
+          <span class="text-theme-primary/60">Category:</span>
           <button
             v-for="category in categories"
             :key="category"
@@ -172,7 +172,7 @@ onMounted(() => {
             :class="
               isCategorySelected(category)
                 ? 'border-theme-primary text-theme-primary bg-theme-primary/10'
-                : 'border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200'
+                : 'border-theme-primary/20 text-theme-primary/60 hover:border-theme-primary/40 hover:text-theme-primary'
             "
           >
             {{ getCategoryInfo(category).icon }} {{ category }}
@@ -196,25 +196,25 @@ onMounted(() => {
     </div>
 
     <!-- Error state -->
-    <Card v-else-if="error" class="gap-0 bg-surface-warm py-12 text-center shadow-glow-md">
+    <Card v-else-if="error" class="gap-0 border-theme-primary/20 bg-surface py-12 text-center">
       <div class="text-red-400 text-xl mb-4">{{ error }}</div>
       <Button variant="default" @click="fetchChangelog">Retry</Button>
     </Card>
 
     <!-- No results -->
-    <Card v-else-if="filteredChangelog.length === 0" class="gap-0 bg-surface-warm py-12 text-center shadow-glow-md">
-      <div class="text-gray-400 text-xl mb-2">No matching entries found</div>
-      <div class="text-gray-500">Try adjusting your search or filter criteria</div>
+    <Card v-else-if="filteredChangelog.length === 0" class="gap-0 border-theme-primary/20 bg-surface py-12 text-center">
+      <div class="text-theme-primary/60 text-xl mb-2">No matching entries found</div>
+      <div class="text-theme-primary/50">Try adjusting your search or filter criteria</div>
     </Card>
 
     <!-- Changelog content -->
     <div v-else class="space-y-8">
       <div v-for="entry in filteredChangelog" :key="entry.version" class="mb-8">
         <!-- Version header -->
-        <Card class="mb-4 gap-0 bg-surface-warm shadow-glow-md">
+        <Card class="mb-4 gap-0 border-theme-primary/20 bg-surface">
           <div class="flex items-center gap-3">
             <Badge variant="default" class="text-xl font-bold"> v{{ entry.version }} </Badge>
-            <span class="text-gray-400">{{ entry.date_display }}</span>
+            <span class="text-theme-primary/60">{{ entry.date_display }}</span>
           </div>
         </Card>
 
@@ -223,10 +223,10 @@ onMounted(() => {
           <div
             v-for="[category, changes] in groupChangesByCategory(entry.changes)"
             :key="`${entry.version}-${category}`"
-            class="bg-surface-warm-dark rounded-lg p-4 border border-gray-800"
+            class="bg-surface rounded-lg p-4 border border-theme-primary/20"
           >
             <!-- Category header -->
-            <div class="flex items-center gap-2 mb-3 pb-2 border-b border-gray-700">
+            <div class="flex items-center gap-2 mb-3 pb-2 border-b border-theme-primary/20">
               <span :class="getCategoryInfo(category).color" class="text-lg">
                 {{ getCategoryInfo(category).icon }}
               </span>
@@ -243,7 +243,7 @@ onMounted(() => {
               <li
                 v-for="(change, index) in changes"
                 :key="`${entry.version}-${category}-${index}`"
-                class="text-gray-300 text-sm leading-relaxed"
+                class="text-theme-primary/75 text-sm leading-relaxed"
               >
                 <FormattedChangeDescription :description="change.description" />
               </li>
@@ -259,7 +259,6 @@ onMounted(() => {
         variant="default"
         size="lg"
         @click="scrollToTop()"
-        class="shadow-lg shadow-theme-primary/50"
       >
         ↑ Top
       </Button>

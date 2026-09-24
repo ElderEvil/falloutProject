@@ -31,11 +31,11 @@ describe('AboutView', () => {
     vi.clearAllMocks()
   })
 
-  it('renders system information title', async () => {
+  it('renders the about title', async () => {
     const wrapper = mount(AboutView)
     await flushPromises()
 
-    expect(wrapper.text()).toContain('System Information')
+    expect(wrapper.text()).toContain('About Fallout Shelter')
   })
 
   it('displays frontend version info', async () => {

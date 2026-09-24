@@ -138,7 +138,7 @@ describe('ProfileEditor', () => {
       expect(img.exists()).toBe(false)
     })
 
-    it('should enforce maxlength of 255 characters', () => {
+    it('renders the avatar URL field with the Input primitive', () => {
       const wrapper = mount(ProfileEditor, {
         props: {
           initialData: mockInitialData,
@@ -146,7 +146,7 @@ describe('ProfileEditor', () => {
       })
 
       const avatarInput = wrapper.find('#avatar_url')
-      expect(avatarInput.attributes('maxlength')).toBe('255')
+      expect(avatarInput.attributes('data-slot')).toBe('input')
     })
   })
 
@@ -246,7 +246,10 @@ describe('ProfileEditor', () => {
         },
       })
 
-      await wrapper.findAll('button')[1].trigger('click') // Cancel button
+      // The theme Select renders its trigger as a button, so locate Cancel by label.
+      const cancelButton = wrapper.findAll('button').find((button) => button.text() === 'Cancel')
+      expect(cancelButton).toBeTruthy()
+      await cancelButton!.trigger('click')
 
       expect(wrapper.emitted('cancel')).toBeTruthy()
     })

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.138.0 (2026-09-24)
+
+### Features
+
+* add notification delivery preferences ([#773](https://github.com/ElderEvil/falloutProject/issues/773)) 212b15e
+
 ## 2.137.1 (2026-09-23)
 
 ### Bug Fixes

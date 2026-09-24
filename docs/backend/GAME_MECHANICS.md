@@ -10,6 +10,18 @@ must surface via modal/pop-up or toast **in addition to** the notification bell 
 notification-only. A new progression flow without visible surfacing is incomplete; keep existing surfacing
 intact when touching these flows.
 
+## Notification preferences
+
+Players may explicitly opt out of routine notification categories. The preference is persisted at
+`UserProfile.preferences.notifications` as `{"version": 1, "disabled_categories": [...]}` and is enforced
+server-side before persistence or real-time delivery. An opt-out intentionally overrides the progression
+visibility rule for that routine category: no bell entry, toast/modal, or SSE payload is created for future
+events. Historical notifications and game/reward settlement are unchanged.
+
+Deaths, injuries, critical resource/power alerts, exit requests, combat events, achievements, map failures,
+and hazard-team confirmations are always enabled. Every `NotificationType` must be deliberately mapped in
+`app.core.notification_preferences`; unknown future types default to enabled.
+
 ## Race and faction switches
 
 Race mechanics are **on** (`FEATURE_RACE_MECHANICS`) and faction mechanics are **off**

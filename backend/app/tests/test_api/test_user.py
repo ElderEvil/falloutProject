@@ -191,6 +191,7 @@ async def test_update_profile_preferences_nested_round_trip(
     preferences = {
         "sound": {"muted": False, "volumes": {"ui": 0.2, "sfx": 0.5, "music": 0.9}},
         "theme": "fnv",
+        "notifications": {"version": 1, "disabled_categories": ["advancement"]},
     }
     response = await async_client.put(
         "/users/me/profile",
@@ -242,6 +243,24 @@ async def test_update_profile_bio_only_preserves_preferences(
     profile = response.json()
     assert profile["bio"] == "Updated bio only"
     assert profile["preferences"] == preferences
+
+
+@pytest.mark.asyncio
+async def test_profile_rejects_unknown_notification_category(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+) -> None:
+    """Notification preferences cannot be bypassed with an arbitrary category payload."""
+    token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
+    await async_client.get("/users/me/profile", headers=token_headers)
+
+    response = await async_client.put(
+        "/users/me/profile",
+        json={"preferences": {"notifications": {"version": 1, "disabled_categories": ["combat_defeat"]}}},
+        headers=token_headers,
+    )
+
+    assert response.status_code == 422
 
 
 @pytest.mark.asyncio

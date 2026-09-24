@@ -82,6 +82,7 @@ const questPartyMembers = ref<DwellerShort[]>([])
 const questPartyMembersMap = ref<Record<string, DwellerShort[]>>({})
 const showClaimModal = ref(false)
 const claimQuest = ref<VaultQuest | null>(null)
+const claimModalOpenedFromQuery = ref(false)
 
 const vaultId = computed(() => route.params.id as string)
 
@@ -231,26 +232,41 @@ const handleStartFromModal = async (questId: string) => {
   await handleAssignParty(questId)
 }
 
-const handleClaimRewards = (questId: string) => {
+const handleClaimRewards = (questId: string, openedFromQuery = false) => {
   claimQuest.value = readyToClaimQuests.value.find((quest) => quest.id === questId) ?? null
   showClaimModal.value = claimQuest.value !== null
+  claimModalOpenedFromQuery.value = showClaimModal.value && openedFromQuery
 }
 
-watch(
-  [claimQuestId, readyToClaimQuests],
-  ([questId]) => {
-    if (questId) handleClaimRewards(questId)
-  },
-  { immediate: true }
-)
-
 const closeClaimModal = () => {
+  claimModalOpenedFromQuery.value = false
   showClaimModal.value = false
   claimQuest.value = null
   if (claimQuestId.value) {
     void router.replace({ query: { ...route.query, claimQuest: undefined } })
   }
 }
+
+watch(
+  claimQuestId,
+  (questId) => {
+    if (questId) handleClaimRewards(questId, true)
+    else if (claimModalOpenedFromQuery.value) closeClaimModal()
+  },
+  { immediate: true }
+)
+
+watch(readyToClaimQuests, (quests, previousQuests) => {
+  const questId = claimQuestId.value
+  if (
+    questId &&
+    !showClaimModal.value &&
+    quests.some((quest) => quest.id === questId) &&
+    !previousQuests.some((quest) => quest.id === questId)
+  ) {
+    handleClaimRewards(questId, true)
+  }
+})
 
 const isClaiming = ref(false)
 const confirmClaimRewards = async () => {

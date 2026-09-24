@@ -714,6 +714,141 @@ describe('QuestsView', () => {
         query: { quest: undefined, claimQuest: undefined },
       })
     })
+
+    it('keeps a manually selected reward quest when the list refreshes', async () => {
+      routeQuery.claimQuest = 'quest-a'
+      const readyQuest = {
+        title: 'Returned Quest',
+        short_description: 'Test quest',
+        long_description: 'Test quest description',
+        requirements: 'Level 5',
+        rewards: '50 caps',
+        created_at: '2025-01-01',
+        updated_at: '2025-01-01',
+        is_visible: true,
+        is_completed: false,
+        is_reward_ready: true,
+        started_at: '2025-01-02T00:00:00Z',
+        duration_minutes: 60,
+      }
+      questStore.vaultQuests = [
+        { ...readyQuest, id: 'quest-a' },
+        { ...readyQuest, id: 'quest-b' },
+      ]
+      const claimSpy = vi.spyOn(questStore, 'claimQuestRewards').mockResolvedValue()
+
+      wrapper = mount(QuestsView, {
+        global: {
+          stubs: {
+            SidePanel: true,
+            Icon: true,
+            QuestCard: {
+              template:
+                '<button class="claim-btn" :data-quest-id="quest.id" @click="$emit(\'claim\', quest.id)">Claim</button>',
+              props: ['quest', 'vaultId', 'status', 'partyMembers'],
+              emits: ['claim'],
+            },
+            QuestRewardsModal: {
+              template:
+                '<div v-if="show" class="claim-modal" :data-quest-id="quest.id"><button @click="$emit(\'confirm\')">Confirm</button></div>',
+              props: ['quest', 'show'],
+              emits: ['close', 'confirm'],
+            },
+          },
+        },
+      })
+
+      await wrapper.find('[data-quest-id="quest-b"].claim-btn').trigger('click')
+      questStore.vaultQuests = [...questStore.vaultQuests]
+      await flushPromises()
+
+      expect(wrapper.find('.claim-modal').attributes('data-quest-id')).toBe('quest-b')
+      routeQuery.claimQuest = undefined
+      await flushPromises()
+      expect(wrapper.find('.claim-modal').attributes('data-quest-id')).toBe('quest-b')
+      await wrapper.find('.claim-modal button').trigger('click')
+      expect(claimSpy).toHaveBeenCalledWith('vault-123', 'quest-b')
+    })
+
+    it('closes a query-opened reward dialog when Browser Back removes the query', async () => {
+      routeQuery.claimQuest = 'quest-a'
+      questStore.vaultQuests = [
+        {
+          id: 'quest-a',
+          title: 'Returned Quest',
+          short_description: 'Test quest',
+          long_description: 'Test quest description',
+          requirements: 'Level 5',
+          rewards: '50 caps',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          is_reward_ready: true,
+          started_at: '2025-01-02T00:00:00Z',
+          duration_minutes: 60,
+        },
+      ]
+
+      wrapper = mount(QuestsView, {
+        global: {
+          stubs: {
+            SidePanel: true,
+            Icon: true,
+            QuestCard: true,
+            QuestRewardsModal: {
+              template: '<div v-if="show" class="claim-modal">Claim Rewards</div>',
+              props: ['quest', 'show'],
+            },
+          },
+        },
+      })
+
+      expect(wrapper.find('.claim-modal').exists()).toBe(true)
+      routeQuery.claimQuest = undefined
+      await flushPromises()
+      expect(wrapper.find('.claim-modal').exists()).toBe(false)
+    })
+
+    it('opens a query-linked reward when its quest first becomes ready', async () => {
+      routeQuery.claimQuest = 'quest-a'
+      questStore.vaultQuests = [
+        {
+          id: 'quest-a',
+          title: 'Returning Quest',
+          short_description: 'Test quest',
+          long_description: 'Test quest description',
+          requirements: 'Level 5',
+          rewards: '50 caps',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          is_reward_ready: false,
+          started_at: '2025-01-02T00:00:00Z',
+          duration_minutes: 60,
+        },
+      ]
+
+      wrapper = mount(QuestsView, {
+        global: {
+          stubs: {
+            SidePanel: true,
+            Icon: true,
+            QuestCard: true,
+            QuestRewardsModal: {
+              template: '<div v-if="show" class="claim-modal">Claim Rewards</div>',
+              props: ['quest', 'show'],
+            },
+          },
+        },
+      })
+
+      expect(wrapper.find('.claim-modal').exists()).toBe(false)
+      questStore.vaultQuests = [{ ...questStore.vaultQuests[0]!, is_reward_ready: true }]
+      await flushPromises()
+      expect(wrapper.find('.claim-modal').exists()).toBe(true)
+    })
   })
 
   describe('Completed Quest Navigation', () => {

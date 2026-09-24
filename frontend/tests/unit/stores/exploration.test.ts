@@ -4,6 +4,9 @@ import { ref, nextTick } from 'vue'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import axios from '@/core/plugins/axios'
 import { addPendingReport } from '@/modules/exploration/composables/usePendingReports'
+import { useProfileStore } from '@/modules/profile/stores/profile'
+import { useToast } from '@/core/composables/useToast'
+import type { UserProfile } from '@/modules/profile/models/profile'
 
 vi.mock('@/core/plugins/axios')
 vi.mock('@/modules/exploration/composables/usePendingReports', () => ({
@@ -11,6 +14,11 @@ vi.mock('@/modules/exploration/composables/usePendingReports', () => ({
 }))
 
 const mockSseEvent = ref<Record<string, unknown> | null>(null)
+
+const mockDwellerFilter = {
+  dwellers: [{ id: 'dweller-1', first_name: 'Amata', last_name: 'Almodovar' }],
+  fetchDwellerDetails: vi.fn().mockResolvedValue(null),
+}
 
 vi.mock('@/core/composables/useEventStream', () => ({
   useSse: vi.fn(() => ({
@@ -22,17 +30,14 @@ vi.mock('@/core/composables/useEventStream', () => ({
 }))
 
 vi.mock('@/modules/dwellers/stores/dweller', () => ({
-  useDwellerStore: vi.fn(() => ({
-    filter: {
-      dwellers: [{ id: 'dweller-1', first_name: 'Amata', last_name: 'Almodovar' }],
-    },
-  })),
+  useDwellerStore: vi.fn(() => ({ filter: mockDwellerFilter })),
 }))
 
 describe('Exploration Store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    useToast().toasts.value = []
   })
 
   const mockExploration = {
@@ -659,6 +664,124 @@ describe('Exploration Store', () => {
       await nextTick()
 
       expect(store.pendingSseRewards).toBeNull()
+    })
+  })
+
+  describe('SSE Equip Event', () => {
+    const liveExploration = () => ({ ...mockExploration, events: [] as unknown[] })
+
+    const profileWithNotifications = (disabledCategories: string[]): UserProfile => ({
+      id: 'profile-1',
+      user_id: 'user-1',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      total_dwellers_created: 0,
+      total_caps_earned: 0,
+      total_explorations: 0,
+      total_rooms_built: 0,
+      total_dwellers_born: 0,
+      total_dwellers_died: 0,
+      deaths_by_health: 0,
+      deaths_by_radiation: 0,
+      deaths_by_incident: 0,
+      deaths_by_exploration: 0,
+      deaths_by_combat: 0,
+      preferences: { notifications: { version: 1, disabled_categories: disabledCategories } },
+    })
+
+    const equipFrame = {
+      event: 'exploration',
+      data: {
+        type: 'combat',
+        exploration_id: 'exploration-1',
+        dweller_id: 'dweller-1',
+        event: {
+          type: 'equip',
+          description: 'Equipped a Hunting Rifle',
+          timestamp: '2026-01-01T00:05:00Z',
+          time_elapsed_hours: 0.1,
+        },
+      },
+    }
+
+    afterEach(() => {
+      useExplorationStore().stopSseSubscription()
+      mockSseEvent.value = null
+    })
+
+    it('shows an equip toast when exploration_updates is enabled', async () => {
+      const store = useExplorationStore()
+      useProfileStore().profile = profileWithNotifications([])
+      store.explorations = [liveExploration()]
+      store.activeExplorations = { 'exploration-1': liveExploration() }
+      store.startSseSubscription('vault-1', 'test-token')
+
+      mockSseEvent.value = equipFrame
+      await nextTick()
+
+      expect(
+        useToast().toasts.value.some(
+          (t) => t.message === 'Amata Almodovar equipped a Hunting Rifle'
+        )
+      ).toBe(true)
+    })
+
+    it('does not toast when exploration_updates is disabled', async () => {
+      const store = useExplorationStore()
+      useProfileStore().profile = profileWithNotifications(['exploration_updates'])
+      store.explorations = [liveExploration()]
+      store.activeExplorations = { 'exploration-1': liveExploration() }
+      store.startSseSubscription('vault-1', 'test-token')
+
+      mockSseEvent.value = equipFrame
+      await nextTick()
+
+      expect(
+        useToast().toasts.value.some(
+          (t) => t.message === 'Amata Almodovar equipped a Hunting Rifle'
+        )
+      ).toBe(false)
+    })
+
+    it('refreshes dweller details on an equip event', async () => {
+      const store = useExplorationStore()
+      store.explorations = [liveExploration()]
+      store.activeExplorations = { 'exploration-1': liveExploration() }
+      store.startSseSubscription('vault-1', 'test-token')
+
+      mockSseEvent.value = equipFrame
+      await nextTick()
+
+      expect(mockDwellerFilter.fetchDwellerDetails).toHaveBeenCalledWith(
+        'dweller-1',
+        'test-token',
+        true
+      )
+    })
+
+    it('does not refresh dweller details for a non-equip event', async () => {
+      const store = useExplorationStore()
+      store.explorations = [liveExploration()]
+      store.activeExplorations = { 'exploration-1': liveExploration() }
+      store.startSseSubscription('vault-1', 'test-token')
+
+      mockSseEvent.value = {
+        event: 'exploration',
+        data: {
+          type: 'combat',
+          exploration_id: 'exploration-1',
+          dweller_id: 'dweller-1',
+          event: {
+            type: 'combat',
+            description: 'Raider attacked',
+            timestamp: '2026-01-01T00:05:00Z',
+            time_elapsed_hours: 0.1,
+          },
+        },
+      }
+      await nextTick()
+
+      expect(mockDwellerFilter.fetchDwellerDetails).not.toHaveBeenCalled()
     })
   })
 })

@@ -42,7 +42,8 @@ export const useProfileStore = defineStore('profile', () => {
   function applyProfile(nextProfile: UserProfile): void {
     profile.value = nextProfile
     const { loadUserTheme } = useTheme()
-    if (profile.value.preferences?.theme) loadUserTheme(profile.value.preferences.theme as ThemeName)
+    if (profile.value.preferences?.theme)
+      loadUserTheme(profile.value.preferences.theme as ThemeName)
   }
 
   async function loadProfile(): Promise<UserProfile> {
@@ -196,3 +197,17 @@ export const useProfileStore = defineStore('profile', () => {
     clearError,
   }
 })
+
+/**
+ * Whether routine exploration-update notifications are disabled by the user's
+ * notification preferences. Defaults to enabled (false) when there is no
+ * profile, notifications object, or disabled_categories list — matching the
+ * server-side default.
+ */
+export function explorationUpdatesDisabled(): boolean {
+  const profileStore = useProfileStore()
+  const settings = profileStore.profile?.preferences?.notifications
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return false
+  const disabled = (settings as Record<string, unknown>).disabled_categories
+  return Array.isArray(disabled) && disabled.includes('exploration_updates')
+}

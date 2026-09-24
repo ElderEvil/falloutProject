@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.143.0 (2026-09-24)
+
+### Features
+
+* **exploration:** equip found upgrades immediately and carry gear home ([#785](https://github.com/ElderEvil/falloutProject/issues/785)) 7491e56
+
 ## 2.142.3 (2026-09-24)
 
 ### Bug Fixes

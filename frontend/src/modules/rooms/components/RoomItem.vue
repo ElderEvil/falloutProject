@@ -72,7 +72,7 @@ const handleDestroyClick = (event: MouseEvent) => {
   color: var(--color-theme-primary);
   text-shadow:
     0 0 4px rgba(0, 0, 0, 0.8),
-    0 0 8px rgba(0, 255, 0, 0.5);
+    0 0 8px rgb(from var(--color-theme-primary) r g b / 0.5);
 }
 
 .room-overlay {

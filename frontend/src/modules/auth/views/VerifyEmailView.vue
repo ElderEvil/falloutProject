@@ -97,10 +97,10 @@ onMounted(async () => {
   inset: 0;
   background: repeating-linear-gradient(
     0deg,
-    rgba(0, 255, 0, 0.03) 0px,
+    rgb(from var(--color-theme-primary) r g b / 0.03) 0px,
     transparent 1px,
     transparent 2px,
-    rgba(0, 255, 0, 0.03) 3px
+    rgb(from var(--color-theme-primary) r g b / 0.03) 3px
   );
   pointer-events: none;
   z-index: 1;
@@ -123,7 +123,7 @@ onMounted(async () => {
   max-width: 700px;
   width: 100%;
   box-shadow:
-    0 0 20px rgba(0, 255, 0, 0.2),
+    0 0 20px rgb(from var(--color-theme-primary) r g b / 0.2),
     inset 0 0 60px rgba(0, 0, 0, 0.5);
   position: relative;
   z-index: 2;

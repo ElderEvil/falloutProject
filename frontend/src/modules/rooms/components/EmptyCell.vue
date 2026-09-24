@@ -41,7 +41,7 @@ const isHoverPreview = computed(() => {
 }
 
 .hover-preview {
-  background-color: rgba(0, 255, 0, 0.3);
+  background-color: rgb(from var(--color-theme-primary) r g b / 0.3);
   z-index: 1;
 }
 
@@ -49,11 +49,11 @@ const isHoverPreview = computed(() => {
   background-color: transparent;
   background-image: linear-gradient(
     45deg,
-    rgba(0, 255, 0, 0.5) 25%,
+    rgb(from var(--color-theme-primary) r g b / 0.5) 25%,
     transparent 25%,
     transparent 50%,
-    rgba(0, 255, 0, 0.5) 50%,
-    rgba(0, 255, 0, 0.5) 75%,
+    rgb(from var(--color-theme-primary) r g b / 0.5) 50%,
+    rgb(from var(--color-theme-primary) r g b / 0.5) 75%,
     transparent 75%,
     transparent
   );

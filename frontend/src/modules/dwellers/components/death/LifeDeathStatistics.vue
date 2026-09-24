@@ -168,7 +168,7 @@ const causeData = computed(() => {
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4 pt-2">
+        <div class="grid grid-cols-1 gap-4 pt-2 sm:grid-cols-2">
           <div
             class="flex items-center gap-3 p-3 bg-surface-sunken rounded-lg border border-theme-primary/25"
           >

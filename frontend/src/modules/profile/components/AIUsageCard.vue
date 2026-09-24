@@ -135,7 +135,7 @@ const showWarningBanner = computed(() => {
         </div>
 
         <template v-else>
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div class="text-center p-4 bg-surface-sunken rounded border border-theme-primary/20">
               <div class="text-xs text-theme-primary/70 uppercase tracking-wider mb-2">
                 All-Time Tokens
@@ -213,15 +213,15 @@ const showWarningBanner = computed(() => {
             </div>
 
             <div v-for="operation in operationBreakdown" :key="operation.operation" class="space-y-1.5">
-              <div class="flex items-baseline justify-between gap-3 text-sm">
+              <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
                 <span class="font-medium text-theme-primary">{{ operation.label }}</span>
-                <span class="shrink-0 text-theme-primary/70">
+                <span class="text-theme-primary/70">
                   {{ formatNumber(operation.total_tokens) }} · {{ requestLabel(operation.count) }} · {{ Math.round(operation.percentage) }}%
                 </span>
               </div>
               <!-- @vue-ignore -->
               <Progress
-                :model-value="operation.percentage"
+                :model-value="Math.min(operation.percentage, 100)"
                 :aria-label="`${operation.label}: ${operation.total_tokens} tokens across ${requestLabel(operation.count)}, ${Math.round(operation.percentage)}% of this month`"
                 class="h-[5px]"
               />
@@ -258,7 +258,7 @@ const showWarningBanner = computed(() => {
               </div>
             </div>
 
-            <div class="flex justify-between items-center text-sm">
+            <div class="flex flex-wrap justify-between gap-2 text-sm">
               <div class="flex items-center gap-2">
                 <Icon icon="mdi:clock-outline" class="h-4 w-4 text-theme-primary/70" />
                 <span class="text-theme-primary/70">

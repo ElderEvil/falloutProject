@@ -53,7 +53,7 @@ describe('AISettingsPanel', () => {
     expect(aiSettingsService.get).toHaveBeenCalledTimes(1)
     expect(wrapper.find('[role="combobox"]').text()).toContain('OpenAI')
     expect((wrapper.find('input[id="ai-model"]').element as HTMLInputElement).value).toBe('gpt-4o-mini')
-    expect(wrapper.text()).toContain('Effective Configuration')
+    expect(wrapper.text()).toContain('Effective configuration')
     expect(wrapper.text()).toContain('gateway')
   })
 
@@ -97,7 +97,7 @@ describe('AISettingsPanel', () => {
     const wrapper = mountWithSetup(AISettingsPanel)
     await flushPromises()
 
-    const resetButton = findButton(wrapper, 'Reset to Env Defaults')
+    const resetButton = findButton(wrapper, 'Reset to Defaults')
     await resetButton.trigger('click')
     expect(resetButton.text()).toContain('Confirm Reset?')
 

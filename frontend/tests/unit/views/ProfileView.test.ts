@@ -128,7 +128,7 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      expect(wrapper.text()).toContain('Overseer Profile')
+      expect(wrapper.text()).toContain('User Profile')
     })
 
     it('should fetch profile on mount', async () => {
@@ -190,7 +190,7 @@ describe('ProfileView', () => {
       })
 
       await wrapper.vm.$nextTick()
-      expect(wrapper.text()).toContain('Loading personnel record...')
+      expect(wrapper.text()).toContain('Loading your profile...')
     })
 
     it('should hide loading indicator after profile loads', async () => {
@@ -267,7 +267,7 @@ describe('ProfileView', () => {
       // Verify profile was retried and succeeded (error message should be gone)
       expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me/profile')
       expect(wrapper.text()).not.toContain('Profile unavailable')
-      expect(wrapper.text()).toContain('Overseer profile')
+      expect(wrapper.text()).toContain('User Profile')
     })
   })
 
@@ -320,7 +320,7 @@ describe('ProfileView', () => {
       await flushPromises()
 
       const prefsText = wrapper.text()
-      expect(prefsText).toContain('Manage display preferences')
+      expect(prefsText).toContain('Display preferences')
       expect(prefsText).not.toContain('"theme": "dark"')
     })
 
@@ -332,8 +332,8 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      expect(wrapper.text()).toContain('FILE CREATED:')
-      expect(wrapper.text()).toContain('LAST MODIFIED:')
+      expect(wrapper.text()).toContain('Joined')
+      expect(wrapper.text()).toContain('Profile updated')
     })
   })
 

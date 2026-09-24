@@ -13,6 +13,7 @@ import {
   type ChangeEntry,
 } from '@/modules/profile/services/changelogService'
 import FormattedChangeDescription from '@/modules/profile/components/FormattedChangeDescription.vue'
+import { getChangelogCategoryIcon } from '@/modules/profile/components/changelogCategoryIcons'
 import { useToast } from '@/core/composables/useToast'
 
 interface Props {
@@ -97,19 +98,6 @@ const groupChangesByCategory = (changes: ChangeEntry[]) => {
   })
 
   return Array.from(grouped.entries())
-}
-
-// Category colors and icons
-const getCategoryInfo = (category: string) => {
-  const categoryMap: Record<string, { color: string; icon: string }> = {
-    Added: { color: 'text-terminal-green', icon: 'mdi:plus-circle' },
-    Fixed: { color: 'text-red-400', icon: 'mdi:wrench' },
-    Changed: { color: 'text-yellow-400', icon: 'mdi:swap-horizontal' },
-    Removed: { color: 'text-red-400', icon: 'mdi:minus-circle' },
-    Documentation: { color: 'text-blue-400', icon: 'mdi:file-document' },
-    Testing: { color: 'text-purple-400', icon: 'mdi:test-tube' },
-  }
-  return categoryMap[category] || { color: 'text-theme-primary/60', icon: 'mdi:circle' }
 }
 
 // Fetch changelog when modal opens (with immediate:true for initial show=true)
@@ -213,11 +201,10 @@ onUnmounted(() => {
                   <!-- Category header -->
                   <div class="flex items-center gap-2 mb-3">
                     <Icon
-                      :icon="getCategoryInfo(category).icon"
-                      :class="getCategoryInfo(category).color"
-                      class="h-5 w-5"
+                      :icon="getChangelogCategoryIcon(category)"
+                      class="h-5 w-5 text-theme-primary/70"
                     />
-                    <h3 :class="getCategoryInfo(category).color" class="font-semibold font-mono">
+                    <h3 class="font-semibold font-mono text-theme-primary">
                       {{ category }}
                     </h3>
                   </div>
@@ -273,7 +260,7 @@ onUnmounted(() => {
 /* Custom scrollbar for changelog content */
 :deep(.overflow-y-auto) {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-terminal-green) transparent;
+  scrollbar-color: var(--color-theme-primary) transparent;
 }
 
 :deep(.overflow-y-auto)::-webkit-scrollbar {
@@ -285,18 +272,18 @@ onUnmounted(() => {
 }
 
 :deep(.overflow-y-auto)::-webkit-scrollbar-thumb {
-  background-color: var(--color-terminal-green);
+  background-color: var(--color-theme-primary);
   border-radius: 3px;
 }
 
 :deep(.overflow-y-auto)::-webkit-scrollbar-thumb:hover {
-  background-color: var(--color-terminal-green-glow);
+  background-color: var(--color-theme-glow);
 }
 
 /* Terminal-style bullets */
 :deep(ul li::before) {
   content: '▸';
-  color: var(--color-terminal-green);
+  color: var(--color-theme-primary);
   margin-right: 8px;
   font-weight: bold;
 }

@@ -4,18 +4,27 @@
  */
 import { ref, onMounted, computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { Card } from '@/core/components/ui/card'
+import { Card, CardContent } from '@/core/components/ui/card'
 import { Button } from '@/core/components/ui/button'
 import { Input } from '@/core/components/ui/input'
 import { Badge } from '@/core/components/ui/badge'
 import { Skeleton } from '@/core/components/ui/skeleton'
+import PageHeader from '@/core/components/common/PageHeader.vue'
+import PageNavigation from '@/core/components/common/PageNavigation.vue'
+import SidePanel from '@/core/components/common/SidePanel.vue'
+import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import {
   changelogService,
   type ChangelogEntry,
   type ChangeEntry,
 } from '@/modules/profile/services/changelogService'
 import FormattedChangeDescription from '@/modules/profile/components/FormattedChangeDescription.vue'
+import { getChangelogCategoryIcon } from '@/modules/profile/components/changelogCategoryIcons'
 
+const breadcrumbs = [{ label: 'Home', to: '/' }, { label: 'Changelog' }]
+const { isCollapsed } = useSidePanel()
+const vaultStore = useVaultStore()
 const changelog = ref<ChangelogEntry[]>([])
 const loading = ref(false)
 const error = ref('')
@@ -93,23 +102,6 @@ const groupChangesByCategory = (changes: ChangeEntry[]) => {
   return grouped
 }
 
-// Category colors and icons
-const getCategoryInfo = (category: string) => {
-  const categoryMap: Record<string, { color: string; icon: string }> = {
-    Added: { color: 'text-green-400', icon: '✨' },
-    Fixed: { color: 'text-blue-400', icon: '🔧' },
-    Changed: { color: 'text-yellow-400', icon: '🔄' },
-    Removed: { color: 'text-red-400', icon: '🗑️' },
-    Documentation: { color: 'text-purple-400', icon: '📚' },
-    Testing: { color: 'text-cyan-400', icon: '🧪' },
-    Technical: { color: 'text-theme-primary/60', icon: '⚙️' },
-    Security: { color: 'text-orange-400', icon: '🔒' },
-    Performance: { color: 'text-pink-400', icon: '⚡' },
-  }
-
-  return categoryMap[category] || { color: 'text-theme-primary/75', icon: '📝' }
-}
-
 const fetchChangelog = async () => {
   loading.value = true
   error.value = ''
@@ -133,135 +125,156 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-8 [text-shadow:none]">
-    <!-- Header -->
-    <div class="mb-8 text-center">
-      <h1
-        class="text-4xl font-bold text-theme-primary mb-4 flex items-center justify-center gap-3"
+  <div class="min-h-screen bg-terminal-background text-theme-primary [text-shadow:none]">
+    <div class="flex min-h-screen">
+      <SidePanel v-if="vaultStore.activeVaultId" :vault-id="vaultStore.activeVaultId" />
+      <main
+        class="min-w-0 flex-1 pb-8 transition-[margin-left] duration-300 ease max-md:ml-0"
+        :class="vaultStore.activeVaultId ? (isCollapsed ? 'ml-16' : 'ml-60') : ''"
       >
-        <Icon icon="mdi:console-line" class="w-10 h-10" />
-        Changelog
-      </h1>
-      <p class="text-theme-primary/60 text-lg">
-        Complete version history and release notes for Fallout Shelter Game
-      </p>
-    </div>
-
-    <!-- Filters -->
-    <Card class="mb-8 gap-0 border-theme-primary/20 bg-surface">
-      <div class="flex flex-wrap gap-4 items-center">
-        <div class="flex-1 min-w-64">
-          <Input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search changelog..."
-            class="w-full border-theme-primary/20 bg-surface-sunken text-theme-primary placeholder:text-theme-primary/40"
-          />
-        </div>
-
-        <!-- Category Filter -->
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="text-theme-primary/60">Category:</span>
-          <button
-            v-for="category in categories"
-            :key="category"
-            type="button"
-            @click="toggleCategory(category)"
-            :aria-pressed="isCategorySelected(category)"
-            class="px-3 py-1 rounded border text-sm transition-colors"
-            :class="
-              isCategorySelected(category)
-                ? 'border-theme-primary text-theme-primary bg-theme-primary/10'
-                : 'border-theme-primary/20 text-theme-primary/60 hover:border-theme-primary/40 hover:text-theme-primary'
-            "
+        <div class="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
+          <PageHeader
+            title="Changelog"
+            icon="mdi:history"
+            subtitle="Version history and release notes for Fallout Shelter."
           >
-            {{ getCategoryInfo(category).icon }} {{ category }}
-          </button>
-        </div>
+            <template #back>
+              <PageNavigation back-label="Back to Home" back-to="/" :breadcrumbs="breadcrumbs" />
+            </template>
+          </PageHeader>
 
-        <!-- Clear Filters -->
-        <Button
-          variant="secondary"
-          @click="clearFilters"
-          :disabled="!searchQuery && selectedCategories.length === 0"
-        >
-          Clear Filters
-        </Button>
-      </div>
-    </Card>
+          <!-- Filters -->
+          <Card class="mb-8 gap-0 border-theme-primary/20 bg-surface">
+            <CardContent class="flex flex-wrap items-center gap-4">
+              <div class="min-w-0 flex-1 basis-64">
+                <label for="changelog-search" class="sr-only">Search release notes</label>
+                <Input
+                  id="changelog-search"
+                  v-model="searchQuery"
+                  type="text"
+                  placeholder="Search changelog..."
+                  class="w-full border-theme-primary/20 bg-surface-sunken text-theme-primary placeholder:text-theme-primary/40"
+                />
+              </div>
 
-    <!-- Loading state -->
-    <div v-if="loading" class="space-y-8">
-      <Skeleton v-for="i in 3" :key="i" class="h-32 w-full" />
-    </div>
+              <!-- Category Filter -->
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-theme-primary/60">Category:</span>
+                <button
+                  v-for="category in categories"
+                  :key="category"
+                  type="button"
+                  @click="toggleCategory(category)"
+                  :aria-pressed="isCategorySelected(category)"
+                  class="px-3 py-1 rounded border text-sm transition-colors"
+                  :class="
+                    isCategorySelected(category)
+                      ? 'border-theme-primary text-theme-primary bg-theme-primary/10'
+                      : 'border-theme-primary/20 text-theme-primary/60 hover:border-theme-primary/40 hover:text-theme-primary'
+                  "
+                >
+                  <Icon
+                    :icon="getChangelogCategoryIcon(category)"
+                    class="mr-1 inline-block size-4 align-[-0.15em]"
+                  />
+                  {{ category }}
+                </button>
+              </div>
 
-    <!-- Error state -->
-    <Card v-else-if="error" class="gap-0 border-theme-primary/20 bg-surface py-12 text-center">
-      <div class="text-red-400 text-xl mb-4">{{ error }}</div>
-      <Button variant="default" @click="fetchChangelog">Retry</Button>
-    </Card>
-
-    <!-- No results -->
-    <Card v-else-if="filteredChangelog.length === 0" class="gap-0 border-theme-primary/20 bg-surface py-12 text-center">
-      <div class="text-theme-primary/60 text-xl mb-2">No matching entries found</div>
-      <div class="text-theme-primary/50">Try adjusting your search or filter criteria</div>
-    </Card>
-
-    <!-- Changelog content -->
-    <div v-else class="space-y-8">
-      <div v-for="entry in filteredChangelog" :key="entry.version" class="mb-8">
-        <!-- Version header -->
-        <Card class="mb-4 gap-0 border-theme-primary/20 bg-surface">
-          <div class="flex items-center gap-3">
-            <Badge variant="default" class="text-xl font-bold"> v{{ entry.version }} </Badge>
-            <span class="text-theme-primary/60">{{ entry.date_display }}</span>
-          </div>
-        </Card>
-
-        <!-- Changes grouped by category -->
-        <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <div
-            v-for="[category, changes] in groupChangesByCategory(entry.changes)"
-            :key="`${entry.version}-${category}`"
-            class="bg-surface rounded-lg p-4 border border-theme-primary/20"
-          >
-            <!-- Category header -->
-            <div class="flex items-center gap-2 mb-3 pb-2 border-b border-theme-primary/20">
-              <span :class="getCategoryInfo(category).color" class="text-lg">
-                {{ getCategoryInfo(category).icon }}
-              </span>
-              <h3 :class="getCategoryInfo(category).color" class="font-semibold text-lg">
-                {{ category }}
-              </h3>
-              <Badge variant="secondary" class="ml-auto">
-                {{ changes.length }}
-              </Badge>
-            </div>
-
-            <!-- Change items -->
-            <ul class="space-y-2">
-              <li
-                v-for="(change, index) in changes"
-                :key="`${entry.version}-${category}-${index}`"
-                class="text-theme-primary/75 text-sm leading-relaxed"
+              <!-- Clear Filters -->
+              <Button
+                variant="secondary"
+                @click="clearFilters"
+                :disabled="!searchQuery && selectedCategories.length === 0"
               >
-                <FormattedChangeDescription :description="change.description" />
-              </li>
-            </ul>
+                Clear Filters
+              </Button>
+            </CardContent>
+          </Card>
+
+          <!-- Loading state -->
+          <div v-if="loading" class="space-y-8">
+            <Skeleton v-for="i in 3" :key="i" class="h-32 w-full" />
+          </div>
+
+          <!-- Error state -->
+          <Card
+            v-else-if="error"
+            class="gap-0 border-theme-primary/20 bg-surface py-12 text-center"
+          >
+            <CardContent>
+              <div class="mb-4 text-xl text-danger" role="alert">{{ error }}</div>
+              <Button variant="default" @click="fetchChangelog">Retry</Button>
+            </CardContent>
+          </Card>
+
+          <!-- No results -->
+          <Card
+            v-else-if="filteredChangelog.length === 0"
+            class="gap-0 border-theme-primary/20 bg-surface py-12 text-center"
+          >
+            <CardContent>
+              <div class="mb-2 text-xl text-theme-primary/70">No matching entries found</div>
+              <div class="text-theme-primary/55">Try adjusting your search or filter criteria</div>
+            </CardContent>
+          </Card>
+
+          <!-- Changelog content -->
+          <div v-else class="space-y-8">
+            <section v-for="entry in filteredChangelog" :key="entry.version">
+              <!-- Version header -->
+              <Card class="mb-4 gap-0 border-theme-primary/20 bg-surface">
+                <CardContent class="flex flex-wrap items-center gap-3">
+                  <Badge variant="default" class="text-xl font-bold"> v{{ entry.version }} </Badge>
+                  <span class="text-theme-primary/60">{{ entry.date_display }}</span>
+                </CardContent>
+              </Card>
+
+              <!-- Changes grouped by category -->
+              <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <div
+                  v-for="[category, changes] in groupChangesByCategory(entry.changes)"
+                  :key="`${entry.version}-${category}`"
+                  class="rounded-lg border border-theme-primary/20 bg-surface p-5"
+                >
+                  <!-- Category header -->
+                  <div class="mb-4 flex items-center gap-2 border-b border-theme-primary/20 pb-3">
+                    <Icon
+                      :icon="getChangelogCategoryIcon(category)"
+                      class="size-5 shrink-0 text-theme-primary/70"
+                    />
+                    <h3 class="text-lg font-semibold text-theme-primary">
+                      {{ category }}
+                    </h3>
+                    <Badge variant="secondary" class="ml-auto">
+                      {{ changes.length }}
+                    </Badge>
+                  </div>
+
+                  <!-- Change items -->
+                  <ul class="space-y-2">
+                    <li
+                      v-for="(change, index) in changes"
+                      :key="`${entry.version}-${category}-${index}`"
+                      class="text-theme-primary/75 text-sm leading-relaxed"
+                    >
+                      <FormattedChangeDescription :description="change.description" />
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <!-- Back to top button -->
+          <div
+            v-if="!loading && !error && filteredChangelog.length > 0"
+            class="fixed bottom-4 right-4 sm:bottom-8 sm:right-8"
+          >
+            <Button variant="default" size="lg" @click="scrollToTop()"> ↑ Top </Button>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- Back to top button -->
-    <div v-if="!loading && !error && filteredChangelog.length > 0" class="fixed bottom-8 right-8">
-      <Button
-        variant="default"
-        size="lg"
-        @click="scrollToTop()"
-      >
-        ↑ Top
-      </Button>
+      </main>
     </div>
   </div>
 </template>
@@ -273,28 +286,5 @@ onMounted(() => {
   color: var(--color-theme-primary);
   margin-right: 8px;
   font-weight: bold;
-}
-
-/* Custom scrollbar */
-.overflow-y-auto {
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-theme-primary) transparent;
-}
-
-.overflow-y-auto::-webkit-scrollbar {
-  width: 6px;
-}
-
-.overflow-y-auto::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.overflow-y-auto::-webkit-scrollbar-thumb {
-  background-color: var(--color-theme-primary);
-  border-radius: 3px;
-}
-
-.overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background-color: var(--color-theme-glow);
 }
 </style>

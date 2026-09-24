@@ -60,7 +60,7 @@ describe('AIUsageCard', () => {
   describe('Quota Progress Display', () => {
     it('uses semantic warm surfaces for statistic insets and the quota track', () => {
       const wrapper = mount(AIUsageCard, { props: { stats: createMockStats() } })
-      const statisticInsets = wrapper.findAll('.grid-cols-2 > div')
+      const statisticInsets = wrapper.findAll('.grid > .bg-surface-sunken')
       const quotaTrack = wrapper.find('.relative.h-6')
 
       expect(statisticInsets).toHaveLength(2)
@@ -426,6 +426,7 @@ describe('AIUsageCard', () => {
 
       expect(wrapper.text()).toContain('Most AI use this month is dwelling chat')
       expect(wrapper.text()).not.toContain('quota is still available')
+      expect(wrapper.find('[aria-label^="Dweller chat:"]').attributes('aria-valuenow')).toBe('100')
     })
   })
 })

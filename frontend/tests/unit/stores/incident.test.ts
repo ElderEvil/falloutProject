@@ -523,22 +523,23 @@ describe('Incident Store', () => {
       store.stopPolling()
     })
 
-    // TODO: Fix timing issue with polling interval references
-    it.skip('should restart polling if already polling', async () => {
+    it('restarts polling when startPolling is called while already polling', async () => {
       const store = useIncidentStore()
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
       vi.mocked(incidentApi.getIncident).mockResolvedValue(mockIncident)
 
       store.startPolling('vault-1', 'token', 1000)
-      await vi.waitFor(() => expect((store as any).pollInterval).not.toBeNull())
-      const firstInterval = (store as any).pollInterval
+      expect(store.isPolling).toBe(true)
 
+      // A second call replaces the poller instead of leaving two intervals running.
       store.startPolling('vault-1', 'token', 1000)
-      await vi.waitFor(() => expect((store as any).pollInterval).not.toBe(firstInterval))
-      const secondInterval = (store as any).pollInterval
+      expect(store.isPolling).toBe(true)
 
-      expect(firstInterval).not.toBe(secondInterval)
-      expect(secondInterval).not.toBeNull()
+      const callsAfterRestart = incidentApi.getActiveIncidents.mock.calls.length
+      await vi.advanceTimersByTimeAsync(1000)
+
+      expect(incidentApi.getActiveIncidents.mock.calls.length).toBe(callsAfterRestart + 1)
+      store.stopPolling()
     })
   })
 

@@ -31,7 +31,7 @@ import { Skeleton } from '@/core/components/ui/skeleton'
 <style scoped>
 .dweller-grid-item-skeleton {
   background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(0, 255, 0, 0.2);
+  border: 1px solid rgb(from var(--color-theme-primary) r g b / 0.2);
   border-radius: 8px;
   overflow: hidden;
   display: flex;

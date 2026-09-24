@@ -150,7 +150,7 @@ const handleSubmit = async () => {
   padding: 2rem;
   box-shadow:
     0 0 20px var(--color-theme-glow, rgba(0, 255, 0, 0.3)),
-    inset 0 0 20px rgba(0, 255, 0, 0.1);
+    inset 0 0 20px rgb(from var(--color-theme-primary) r g b / 0.1);
 }
 
 .vault-header {
@@ -218,7 +218,7 @@ const handleSubmit = async () => {
 }
 
 .success-message {
-  background: rgba(0, 255, 0, 0.1);
+  background: rgb(from var(--color-theme-primary) r g b / 0.1);
   border: 2px solid var(--color-theme-primary);
   padding: 1.5rem;
   margin-bottom: 1rem;
@@ -256,7 +256,7 @@ const handleSubmit = async () => {
 .terminal-footer {
   text-align: center;
   padding-top: 1rem;
-  border-top: 1px solid rgba(0, 255, 0, 0.3);
+  border-top: 1px solid rgb(from var(--color-theme-primary) r g b / 0.3);
 }
 
 .footer-text {

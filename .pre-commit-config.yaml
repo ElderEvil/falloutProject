@@ -46,9 +46,15 @@ repos:
         language: system
         files: ^frontend/
         pass_filenames: false
+      - id: frontend-hardcoded-colors
+        name: frontend hardcoded color guard
+        entry: sh -c 'cd frontend && node scripts/check-hardcoded-colors.mjs'
+        language: system
+        files: ^frontend/src/.*\.(ts|vue|css)$
+        pass_filenames: false
 
 # sets up .pre-commit-ci.yaml to ensure pre-commit dependencies stay up to date
 ci:
   autoupdate_schedule: weekly
-  skip: [ty, frontend-lint-format]
+  skip: [ty, frontend-lint-format, frontend-hardcoded-colors]
   submodules: false

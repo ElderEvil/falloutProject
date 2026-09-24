@@ -14,7 +14,6 @@ Vault management module. Handles vault CRUD operations, home dashboard, resource
 - `views/VaultView.vue` — main vault management view
 - `views/HappinessView.vue` — happiness tracking view
 - `stores/vault.ts` — vault state management
-- `components/VaultList.vue` — vault listing component
 - `components/HappinessDashboard.vue` — happiness metrics dashboard
 - `composables/` — vault-specific composables
 - `schemas/` — Zod validation schemas for vault forms

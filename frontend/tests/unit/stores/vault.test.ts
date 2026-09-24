@@ -138,10 +138,31 @@ describe('Vault Store', () => {
   })
 
   describe('createVault Action', () => {
+    it('blocks creation when the refreshed vault list is already at the limit', async () => {
+      const store = useVaultStore()
+      store.vaults = [mockVault, { ...mockVault, id: 'vault-2' }]
+      vi.mocked(axios.get).mockResolvedValueOnce({
+        data: [mockVault, { ...mockVault, id: 'vault-2' }, { ...mockVault, id: 'vault-3' }],
+      })
+
+      expect(await store.createVault(104, false, 'test-token')).toBe(false)
+      expect(axios.post).not.toHaveBeenCalled()
+    })
+
+    it('does not create a vault when the current list cannot be checked', async () => {
+      const store = useVaultStore()
+      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Fetch failed'))
+
+      expect(await store.createVault(104, false, 'test-token')).toBe(false)
+      expect(axios.post).not.toHaveBeenCalled()
+    })
+
     it('should create vault and refresh list', async () => {
       const store = useVaultStore()
       vi.mocked(axios.post).mockResolvedValueOnce({})
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [mockVault] })
+      vi.mocked(axios.get)
+        .mockResolvedValueOnce({ data: [] })
+        .mockResolvedValueOnce({ data: [mockVault] })
 
       await store.createVault(101, false, 'test-token')
 
@@ -153,8 +174,20 @@ describe('Vault Store', () => {
       expect(store.vaults).toEqual([mockVault])
     })
 
+    it('reports success when the vault is created even if the refresh fails', async () => {
+      const store = useVaultStore()
+      vi.mocked(axios.post).mockResolvedValueOnce({})
+      vi.mocked(axios.get)
+        .mockResolvedValueOnce({ data: [] })
+        .mockRejectedValueOnce(new Error('Fetch failed'))
+
+      expect(await store.createVault(101, false, 'test-token')).toBe(true)
+      expect(axios.post).toHaveBeenCalled()
+    })
+
     it('should handle creation error gracefully', async () => {
       const store = useVaultStore()
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
       vi.mocked(axios.post).mockRejectedValueOnce(new Error('Create failed'))
 
       await store.createVault(101, false, 'test-token')

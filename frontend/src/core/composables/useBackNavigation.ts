@@ -6,7 +6,7 @@ const SCREEN_LABELS: [RegExp, string][] = [
   [/^\/vault\/[^/]+\/map/, 'Map'],
   [/^\/profile/, 'Profile'],
   [/^\/settings/, 'Settings'],
-  [/^\/preferences/, 'Display Preferences'],
+  [/^\/preferences/, 'Preferences'],
 ]
 
 const screenLabel = (path: string | null | undefined): string | null => {

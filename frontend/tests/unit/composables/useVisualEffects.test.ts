@@ -1,8 +1,11 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { ref } from 'vue'
 
+const motionState = vi.hoisted(() => ({ value: 'no-preference' }))
+
 vi.mock('@vueuse/core', () => ({
   useLocalStorage: <T>(_key: string, defaultValue: T) => ref<T>(defaultValue),
+  usePreferredReducedMotion: () => ({ value: motionState.value }),
 }))
 
 import { useVisualEffects } from '@/core/composables/useVisualEffects'
@@ -10,6 +13,7 @@ import { useVisualEffects } from '@/core/composables/useVisualEffects'
 describe('useVisualEffects', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    motionState.value = 'no-preference'
   })
 
   it('should initialize with defaults', () => {
@@ -132,5 +136,14 @@ describe('useVisualEffects', () => {
 
     setGlowIntensity('off')
     expect(isGlowEnabled.value).toBe(false)
+  })
+
+  it('suppresses flickering when reduced motion is preferred', () => {
+    motionState.value = 'reduce'
+    const { flickering, prefersReducedMotion, toggleFlickering } = useVisualEffects()
+
+    expect(prefersReducedMotion.value).toBe(true)
+    toggleFlickering()
+    expect(flickering.value).toBe(false)
   })
 })

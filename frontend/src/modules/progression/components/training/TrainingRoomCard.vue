@@ -52,24 +52,22 @@ const occupancyLabel = computed(() => {
     </div>
 
     <div class="flex min-w-0 flex-1 flex-col gap-2">
-      <div class="flex items-start justify-between gap-2">
-        <div class="flex min-w-0 flex-col gap-0.5">
-          <span
-            class="truncate font-mono text-sm font-bold uppercase tracking-[0.05em] text-theme-primary"
-            >{{ room.name }}</span
-          >
-          <span
-            v-if="ability"
-            class="flex items-center gap-1.5 font-mono text-xs text-theme-primary opacity-70"
-          >
-            <Icon :icon="ability.icon" class="text-sm" />
-            {{ ability.letter }} - {{ ability.label }}
-          </span>
-        </div>
+      <div class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-0.5">
+        <span
+          class="truncate font-mono text-sm font-bold uppercase tracking-[0.05em] text-theme-primary"
+          >{{ room.name }}</span
+        >
         <span
           class="shrink-0 rounded border border-theme-primary px-1.5 py-0.5 font-mono text-xs font-bold text-theme-primary"
           >T{{ room.tier }}</span
         >
+        <span
+          v-if="ability"
+          class="col-span-2 flex items-center gap-1.5 whitespace-nowrap font-mono text-xs text-theme-primary opacity-70"
+        >
+          <Icon :icon="ability.icon" class="text-sm" />
+          {{ ability.letter }} - {{ ability.label }}
+        </span>
       </div>
 
       <div

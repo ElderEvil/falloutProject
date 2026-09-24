@@ -25,4 +25,24 @@ describe('TrainingRoomCard', () => {
     expect(wrapper.findAll('.occupancy-slot--filled')).toHaveLength(1)
     expect(wrapper.text()).toContain('1 / 2')
   })
+
+  it('renders the ability label on a single line with the full letter - name text', () => {
+    const intelligenceRoom = {
+      ...room,
+      id: 'intelligence-room-1',
+      name: 'Classroom',
+      ability: 'intelligence',
+    } as Room
+
+    const wrapper = mount(TrainingRoomCard, {
+      props: { room: intelligenceRoom, activeCount: 0 },
+      global: { stubs: { Icon: true, UProgressBar: true } },
+    })
+
+    const abilityLine = wrapper
+      .findAll('span')
+      .find((span) => span.text().includes('Intelligence'))
+    expect(abilityLine).toBeDefined()
+    expect(abilityLine!.text()).toBe('I - Intelligence')
+  })
 })

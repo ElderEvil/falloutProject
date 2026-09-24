@@ -8,11 +8,13 @@ import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { useSound } from '@/core/composables/useSound'
 import { useToast } from '@/core/composables/useToast'
 import { addPendingReport } from '@/modules/exploration/composables/usePendingReports'
+import { getNotificationRoute } from '@/modules/vault/utils/notificationRouting'
 import axios from '@/core/plugins/axios'
 
 interface Notification {
   id: string
   vault_id?: string | null
+  from_dweller_id?: string | null
   notification_type: string
   title: string
   message: string
@@ -115,41 +117,42 @@ const currentSseEvent = computed<SseEvent | null>(() => {
 
 // Process incoming SSE notification events
 watch(currentSseEvent, (evt) => {
-    if (!evt || evt.event !== 'notification') return
-    const notificationData = (evt.data as any)?.notification
-    if (!notificationData) return
+  if (!evt || evt.event !== 'notification') return
+  const notificationData = (evt.data as any)?.notification
+  if (!notificationData) return
 
-    const newNotif: Notification = {
-      id: notificationData.id,
-      vault_id: notificationData.vault_id ?? null,
-      notification_type: notificationData.notification_type,
-      title: notificationData.title,
-      message: notificationData.message,
-      priority: notificationData.priority,
-      is_read: false,
-      created_at: notificationData.created_at,
-      meta_data: notificationData.meta_data,
-    }
-    notifications.value.unshift(newNotif)
-    unreadCount.value++
-    playSound('notification')
-    // A hazard team join surfaces beyond the bell (progression red line).
-    if (notificationData.notification_type === 'hazard_team_joined') {
-      toast.success(notificationData.message)
-    }
-    // Arrival is asynchronous, so away from the exploration routes this would be bell-only
-    // (progression red line): announce it and queue the reward report without a bell click.
-    if (notificationData.notification_type === 'exploration_complete') {
-      enqueuePendingReport(newNotif)
-      toast.success(notificationData.message)
-    }
-    // A quest party arrival is also asynchronous; toast it when the rewards are claimable.
-    if (
-      notificationData.notification_type === 'quest_complete' &&
-      notificationData.meta_data?.ready_to_claim
-    ) {
-      toast.success(notificationData.message)
-    }
+  const newNotif: Notification = {
+    id: notificationData.id,
+    vault_id: notificationData.vault_id ?? null,
+    from_dweller_id: notificationData.from_dweller_id ?? null,
+    notification_type: notificationData.notification_type,
+    title: notificationData.title,
+    message: notificationData.message,
+    priority: notificationData.priority,
+    is_read: false,
+    created_at: notificationData.created_at,
+    meta_data: notificationData.meta_data,
+  }
+  notifications.value.unshift(newNotif)
+  unreadCount.value++
+  playSound('notification')
+  // A hazard team join surfaces beyond the bell (progression red line).
+  if (notificationData.notification_type === 'hazard_team_joined') {
+    toast.success(notificationData.message)
+  }
+  // Arrival is asynchronous, so away from the exploration routes this would be bell-only
+  // (progression red line): announce it and queue the reward report without a bell click.
+  if (notificationData.notification_type === 'exploration_complete') {
+    enqueuePendingReport(newNotif)
+    toast.success(notificationData.message)
+  }
+  // A quest party arrival is also asynchronous; toast it when the rewards are claimable.
+  if (
+    notificationData.notification_type === 'quest_complete' &&
+    notificationData.meta_data?.ready_to_claim
+  ) {
+    toast.success(notificationData.message)
+  }
 })
 
 const fetchNotifications = async () => {
@@ -173,55 +176,6 @@ const markAsRead = async (notificationId: string) => {
 
 const markAllAsRead = async () => {
   if (authStore.token) await runMarkAllAsRead(authStore.token)
-}
-
-const getNotificationRoute = (notification: Notification): string | null => {
-  const vaultId = notification.vault_id ?? notification.meta_data?.vault_id
-  if (!vaultId) return null
-  const vaultPath = `/vault/${vaultId}`
-  const dwellerId = notification.meta_data?.dweller_id as string | undefined
-
-  switch (notification.notification_type) {
-    case 'exploration_complete':
-    case 'exploration_update':
-      return `${vaultPath}/exploration`
-    case 'training_complete': {
-      if (dwellerId) {
-        const statName = notification.meta_data?.stat_name as string | undefined
-        const statParam = statName ? `?tab=stats&stat=${statName}` : '?tab=stats'
-        return `${vaultPath}/dwellers/${dwellerId}${statParam}`
-      }
-      return `${vaultPath}/training`
-    }
-    case 'training_started':
-      return `${vaultPath}/training`
-    case 'quest_complete':
-      return `${vaultPath}/quests`
-    case 'level_up':
-      return dwellerId ? `${vaultPath}/dwellers/${dwellerId}` : `${vaultPath}/dwellers`
-    case 'hazard_team_joined':
-      return dwellerId ? `${vaultPath}/dwellers/${dwellerId}` : vaultPath
-    case 'combat_started':
-    case 'combat_victory':
-    case 'combat_defeat': {
-      const roomId = notification.meta_data?.room_id as string | undefined
-      return roomId ? `${vaultPath}?roomId=${roomId}` : vaultPath
-    }
-    case 'dweller_died':
-    case 'dweller_injured':
-    case 'dweller_exit_requested':
-    case 'baby_born':
-    case 'relationship_formed':
-    case 'pregnancy_detected':
-    case 'radio_new_dweller':
-      return `${vaultPath}/dwellers`
-    case 'radio_auto_switched_to_happiness':
-      return vaultPath
-    case 'achievement_unlocked':
-      return `${vaultPath}/objectives`
-    default:
-      return vaultPath
-  }
 }
 
 const enqueuePendingReport = (notification: Notification): void => {
@@ -335,9 +289,7 @@ onBeforeUnmount(() => {
       >
         <!-- Header -->
         <div class="flex items-center justify-between border-b border-surface-warm-hover px-4 py-3">
-          <h3 class="font-semibold text-theme-primary">
-            Notifications
-          </h3>
+          <h3 class="font-semibold text-theme-primary">Notifications</h3>
           <!-- Raw popup buttons: bespoke popup styling; migrate with the component (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
           <button
             v-if="notifications.length > 0"

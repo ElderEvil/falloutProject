@@ -3,8 +3,6 @@
   "src/core/components/common/RewardCard.vue": 6,
   "src/core/composables/useBackNavigation.ts": 1,
   "src/core/views/UiCatalogView.vue": 1,
-  "src/modules/auth/components/LoginFormTerminal.vue": 3,
-  "src/modules/auth/components/RegisterForm.vue": 3,
   "src/modules/auth/views/ForgotPasswordView.vue": 1,
   "src/modules/auth/views/ResetPasswordView.vue": 1,
   "src/modules/auth/views/VerifyEmailView.vue": 2,

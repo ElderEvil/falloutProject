@@ -71,7 +71,7 @@ const causeData = computed(() => {
   <Card
     class="life-death-stats gap-0 border-theme-primary/20 bg-surface p-6"
   >
-    <div class="mb-4 border-b border-theme-primary/20 pb-4">
+    <div class="mb-5">
       <h3 class="text-xl font-bold text-theme-primary">Vital statistics</h3>
     </div>
     <div v-if="loading" class="space-y-4">

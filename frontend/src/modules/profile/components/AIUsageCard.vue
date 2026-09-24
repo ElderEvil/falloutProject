@@ -103,10 +103,10 @@ const showWarningBanner = computed(() => {
 
 <template>
   <Card class="gap-0 border-theme-primary/20 bg-surface">
-    <CardHeader class="border-b border-theme-primary/20 pb-4">
+    <CardHeader class="pb-5">
       <CardTitle class="text-xl font-bold text-theme-primary">AI usage</CardTitle>
     </CardHeader>
-    <CardContent class="pt-5">
+    <CardContent>
       <div v-if="loading" class="space-y-4">
         <Skeleton class="h-8 w-full" />
         <Skeleton class="h-16 w-full" />

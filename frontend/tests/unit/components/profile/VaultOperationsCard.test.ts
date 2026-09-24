@@ -18,7 +18,7 @@ describe('VaultOperationsCard', () => {
     expect(wrapper.text()).toContain('5,000')
     expect(wrapper.text()).toContain('8')
     expect(wrapper.text()).toContain('4')
-    expect(wrapper.text()).toContain('Up to date')
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('Population')
   })
 

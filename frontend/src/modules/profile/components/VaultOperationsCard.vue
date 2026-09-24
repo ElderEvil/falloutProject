@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/core/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/core/components/ui/card'
 import type { UserProfile } from '../models/profile'
 
 type VaultRecord = Pick<
@@ -50,34 +50,23 @@ const hasActivity = computed(() => metrics.value.some((metric) => metric.value >
 <template>
   <section aria-label="Vault operations">
     <Card class="gap-0 overflow-hidden border border-theme-primary/20 bg-surface">
-      <CardHeader class="border-b border-theme-primary/20 pb-4">
-        <div class="flex flex-wrap items-start justify-between gap-4">
-          <div class="flex items-center gap-3">
-            <div class="flex h-10 w-10 items-center justify-center rounded-md border border-theme-primary/20 bg-surface-sunken">
-              <Icon icon="mdi:chart-box-outline" class="h-6 w-6 text-theme-accent" />
-            </div>
-            <div>
-              <p class="text-xs font-medium text-theme-primary/60">Account activity</p>
-              <CardTitle class="mt-0.5 text-xl font-bold text-theme-primary">Vault operations</CardTitle>
-            </div>
-          </div>
+      <CardHeader class="pb-5">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <CardTitle class="text-xl font-bold text-theme-primary">Vault operations</CardTitle>
           <p
+            v-if="props.refreshing"
             role="status"
             aria-live="polite"
-            class="inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs font-medium"
-            :class="props.refreshing ? 'border-theme-accent/50 bg-theme-accent/10 text-theme-accent' : 'border-theme-primary/30 bg-theme-primary/10 text-theme-primary'"
+            class="inline-flex items-center gap-2 text-xs text-theme-primary/60"
           >
-            <Icon :icon="props.refreshing ? 'mdi:sync' : 'mdi:access-point-check'" :class="{ 'animate-spin': props.refreshing }" />
-            {{ props.refreshing ? 'Refreshing' : 'Up to date' }}
+            <Icon icon="mdi:sync" class="animate-spin" />
+            Refreshing
           </p>
         </div>
-        <CardDescription class="max-w-2xl text-sm leading-6 text-theme-primary/70">
-          All-time activity attributed to this overseer account across every active vault.
-        </CardDescription>
       </CardHeader>
 
       <CardContent>
-        <div v-if="hasActivity" class="mt-5 grid gap-px overflow-hidden border border-theme-primary/25 bg-theme-primary/25 sm:grid-cols-2 xl:grid-cols-4">
+        <div v-if="hasActivity" class="grid gap-px overflow-hidden border border-theme-primary/25 bg-theme-primary/25 sm:grid-cols-2 xl:grid-cols-4">
           <article v-for="metric in metrics" :key="metric.label" class="bg-surface-sunken p-4 transition-colors duration-200 hover:bg-surface-hover">
             <div class="flex items-start justify-between gap-3">
               <p class="text-xs font-bold tracking-[0.14em] text-theme-primary/65">{{ metric.label }}</p>
@@ -88,7 +77,7 @@ const hasActivity = computed(() => metrics.value.some((metric) => metric.value >
           </article>
         </div>
 
-        <div v-else class="mt-5 border border-dashed border-theme-primary/30 bg-surface-sunken px-5 py-8 text-center">
+        <div v-else class="border border-dashed border-theme-primary/30 bg-surface-sunken px-5 py-8 text-center">
           <Icon icon="mdi:chart-timeline-variant-shimmer" class="mx-auto h-9 w-9 text-theme-primary/45" />
           <p class="mt-3 text-sm font-bold tracking-[0.08em] text-theme-primary/80">No vault activity reported yet.</p>
           <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-theme-primary/55">Records accumulate as your vault operates.</p>

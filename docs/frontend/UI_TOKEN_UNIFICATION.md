@@ -41,6 +41,11 @@ warning, error alert, or destructive control. Do not color otherwise equivalent
 metrics independently just to add variety. Status color should have a text
 label or icon meaning that remains clear without color.
 
+Peer analytics cards use a simple title header and spacing before their data.
+Avoid full-width header separators and redundant eyebrow labels. Show a status
+in the header only while it needs attention, such as an active refresh; omit a
+permanent "up to date" indicator.
+
 **Components and appearance are separate decisions.** Shared shadcn-vue
 primitives may be used in either part of the app for consistent behavior and
 accessibility; game screens can style them to fit the terminal treatment.

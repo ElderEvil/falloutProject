@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.141.1 (2026-09-24)
+
+### Bug Fixes
+
+* **ui:** enlarge tooltip text and breadcrumb trail ([#778](https://github.com/ElderEvil/falloutProject/issues/778)) 0cb7c08, closes #766
+
 ## 2.141.0 (2026-09-24)
 
 ### Features

@@ -182,8 +182,7 @@ describe('HomeView', () => {
       await flushPromises()
 
       expect(wrapper.findAll('[aria-label$="terminal"]')).toHaveLength(3)
-      expect(wrapper.text()).toContain('3-vault limit')
-      expect(wrapper.text()).toContain('Creating another vault is prohibited')
+      expect(wrapper.find('[data-slot="alert"]').exists()).toBe(false)
       expect(wrapper.find('input[type="number"]').exists()).toBe(false)
       expect(wrapper.text()).not.toContain('Create another vault')
     })
@@ -196,7 +195,9 @@ describe('HomeView', () => {
 
       expect(wrapper.findAll('[aria-label$="terminal"]')).toHaveLength(4)
       expect(wrapper.text()).toContain('You have 4 vaults')
-      expect(wrapper.text()).toContain('Creating another vault is prohibited')
+      expect(wrapper.text()).toContain('Delete excess vaults to return to the 3-vault limit')
+      expect(wrapper.find('[data-slot="alert"]').classes()).toContain('px-5')
+      expect(wrapper.find('[data-slot="alert"]').classes()).toContain('py-4')
       expect(wrapper.find('input[type="number"]').exists()).toBe(false)
     })
   })

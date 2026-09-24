@@ -4,7 +4,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { MAX_USER_VAULTS, useVaultStore } from '../stores/vault'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import { Alert } from '@/core/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@/core/components/ui/alert'
 import { Button } from '@/core/components/ui/button'
 import { Card } from '@/core/components/ui/card'
 import { Progress } from '@/core/components/ui/progress'
@@ -113,11 +113,12 @@ onMounted(async () => {
         Could not load your vaults. New vault creation is unavailable until the list loads.
         <Button variant="outline" size="sm" class="mt-2 block" @click="refreshVaults">Retry</Button>
       </Alert>
-      <Alert v-else-if="sortedVaults.length >= MAX_USER_VAULTS" class="w-full max-w-4xl border-warning/50 bg-warning/10 text-warning">
-        <span class="font-bold">3-vault limit:</span>
-        <span v-if="sortedVaults.length > MAX_USER_VAULTS"> You have {{ sortedVaults.length }} vaults, which exceeds the limit.</span>
-        <span v-else> You have reached the limit.</span>
-        Creating another vault is prohibited. You can keep using your existing vaults.
+      <Alert v-else-if="sortedVaults.length > MAX_USER_VAULTS" class="mb-6 w-full max-w-4xl gap-y-1 border-warning/50 bg-warning/10 px-5 py-4 text-warning">
+        <Icon icon="mdi:alert-outline" :ariaHidden="true" class="size-5" />
+        <AlertTitle class="font-bold text-warning">Vault limit exceeded</AlertTitle>
+        <AlertDescription class="text-warning/90">
+          You have {{ sortedVaults.length }} vaults. Delete excess vaults to return to the 3-vault limit. You can keep using your existing vaults.
+        </AlertDescription>
       </Alert>
 
       <Card v-if="isCreationVisible" class="order-3 relative mt-6 w-full max-w-md gap-0 overflow-hidden border-theme-primary/20 bg-surface p-5 py-5 shadow-glow-sm">

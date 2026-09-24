@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.141.0 (2026-09-24)
+
+### Features
+
+* refresh profile account surfaces ([#776](https://github.com/ElderEvil/falloutProject/issues/776)) 2aee75f
+
 ## 2.140.0 (2026-09-24)
 
 ### Features

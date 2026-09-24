@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 // Color literals are release gates. `--warn` remains available for local
@@ -14,7 +14,7 @@ const DEFINITION_FILES = new Set([
 ])
 
 const SCAN_EXT = /\.(ts|vue|css)$/
-const COLOR_FN = String.raw`(?:rgb|rgba|hsl|hsla)\((?:[^()]|\([^()]*\))*\)`
+const COLOR_FN = String.raw`(?:rgb|rgba|hsl|hsla|oklch|lab|lch|color)\((?:[^()]|\([^()]*\))*\)`
 const HEX = String.raw`#[0-9a-fA-F]{3,8}\b`
 // A color used only as a var() fallback (e.g. `var(--color-theme-primary, #00ff00)`)
 // is theme-aware intent, not a hardcoded value.
@@ -24,7 +24,9 @@ const VAR_FALLBACK = new RegExp(
 )
 const HEX_RE = new RegExp(HEX, 'g')
 const COLOR_FN_RE = new RegExp(COLOR_FN, 'g')
-const NEUTRAL_HEX = /^#(?:000|0000|000000|fff|ffff|ffffff)$/i
+// Neutral black/white with an optional alpha channel:
+// #000 / #000000 (no alpha), #0000 / #00000000 (alpha 0), #000f / #00000080 (any alpha).
+const NEUTRAL_HEX = /^#(?:(?:000|000000)(?:[0-9a-f]{2}|[0-9a-f])?|(?:fff|ffffff)(?:[0-9a-f]{2}|[0-9a-f])?)$/i
 
 export function collectFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -45,6 +47,27 @@ function isNeutralColorFn(text) {
 }
 
 /**
+ * True when the color's own channels come from a token, e.g.
+ * `rgb(from var(--color-theme-primary) r g b / var(--a))` or
+ * `rgb(var(--color-theme-primary-rgb) / 0.5)`. A token in the alpha slot only
+ * (`rgb(34 197 94 / var(--opacity))`) must NOT qualify — the channels are literal.
+ */
+function hasTokenDerivedChannels(text) {
+  const open = text.indexOf('(')
+  const name = text.slice(0, open).toLowerCase()
+  const body = text.slice(open + 1, -1)
+  if (body.trimStart().startsWith('from ')) return true
+
+  const slashIndex = body.indexOf('/')
+  let channels = slashIndex === -1 ? body : body.slice(0, slashIndex)
+  // Legacy comma syntax: rgba(r, g, b, a) — the last component is alpha, not a channel.
+  if (slashIndex === -1 && (name === 'rgba' || name === 'hsla') && channels.includes(',')) {
+    channels = channels.split(',').slice(0, -1).join(',')
+  }
+  return channels.includes('var(')
+}
+
+/**
  * Literal color values that are neither token-derived nor neutral black/white.
  * `rgb(from var(--color-theme-primary) r g b / 0.2)` and var() fallbacks pass.
  */
@@ -56,7 +79,7 @@ export function findHardcodedColors(source) {
     if (!NEUTRAL_HEX.test(match[0])) found.push(match[0])
   }
   for (const match of stripped.matchAll(COLOR_FN_RE)) {
-    if (match[0].includes('var(')) continue
+    if (hasTokenDerivedChannels(match[0])) continue
     if (isNeutralColorFn(match[0])) continue
     found.push(match[0])
   }
@@ -67,7 +90,7 @@ export function findHardcodedColors(source) {
 export function collectViolations(files, cwd) {
   const counts = {}
   for (const file of files) {
-    const relativePath = relative(cwd, file)
+    const relativePath = relative(cwd, file).split(sep).join('/')
     if (DEFINITION_FILES.has(relativePath)) continue
     const found = findHardcodedColors(readFileSync(file, 'utf8'))
     if (found.length > 0) counts[relativePath] = found.length

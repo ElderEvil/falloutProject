@@ -205,6 +205,18 @@ function getProvenance(field: 'provider' | 'model' | 'base_url' | 'gateway_route
   return 'env'
 }
 
+const effectiveFields = computed(() => {
+  if (!settings.value) return []
+  const effective = settings.value.effective
+  return [
+    { label: 'Provider', value: effective.provider, source: getProvenance('provider') },
+    { label: 'Model', value: effective.model, source: getProvenance('model') },
+    { label: 'Base URL', value: effective.base_url || '—', source: getProvenance('base_url') },
+    { label: 'Gateway route', value: effective.gateway_route || '—', source: getProvenance('gateway_route') },
+    { label: 'Mode', value: effective.mode, source: null },
+  ]
+})
+
 onMounted(() => {
   void runLoad()
 })
@@ -236,7 +248,7 @@ onMounted(() => {
     </Card>
 
     <!-- Main Content -->
-    <div v-else-if="settings" class="grid max-w-5xl items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(20rem,1fr)]">
+    <div v-else-if="settings" class="grid max-w-6xl items-start gap-6 2xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
       <!-- Form Card -->
       <Card class="gap-0 border-theme-primary/20 bg-surface">
         <CardHeader class="pb-5">
@@ -368,12 +380,13 @@ onMounted(() => {
             </Button>
             <Button
               :variant="resetArmed ? 'destructive' : 'outline'"
-              :class="resetArmed ? 'border-danger bg-transparent' : 'border-theme-primary/30 bg-transparent'"
+              class="bg-transparent"
+              :class="resetArmed ? 'border-danger' : 'border-theme-primary/30'"
               :disabled="isLoading"
               @click="handleReset"
             >
               <Icon icon="mdi:restore" class="mr-1" />
-              {{ resetArmed ? 'Confirm Reset?' : 'Reset to Env Defaults' }}
+              {{ resetArmed ? 'Confirm Reset?' : 'Reset to Defaults' }}
             </Button>
             <span v-if="!hasChanges" class="text-xs text-theme-primary/40 italic">
               No unsaved changes
@@ -423,70 +436,29 @@ onMounted(() => {
         </CardHeader>
 
         <CardContent>
-          <div class="space-y-3 text-sm font-mono">
-            <div class="flex justify-between items-baseline gap-4 min-w-0">
-              <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Provider</span>
-              <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
-                <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.provider }}</span>
-                <span
-                  v-if="getProvenance('provider') === 'profile'"
-                  class="override-pill rounded border border-theme-primary/20 bg-surface-sunken px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-primary/70"
-                >
-                  Override
-                </span>
-              </div>
+          <dl class="space-y-2">
+            <div
+              v-for="field in effectiveFields"
+              :key="field.label"
+              class="grid min-w-0 grid-cols-[minmax(0,1fr)_5.75rem] items-start gap-x-3 gap-y-1 rounded-md border border-theme-primary/15 bg-surface-sunken p-3"
+            >
+              <dt class="col-start-1 min-w-0 text-xs font-medium text-theme-primary/60">
+                {{ field.label }}
+              </dt>
+              <dd
+                class="col-start-1 min-w-0 break-all font-mono text-sm leading-5 text-theme-primary"
+                :class="field.value === 'disabled' && field.label === 'Mode' ? 'text-danger' : ''"
+              >
+                {{ field.value }}
+              </dd>
+              <span
+                v-if="field.source"
+                class="col-start-2 row-span-2 row-start-1 justify-self-end rounded border border-theme-primary/20 px-1.5 py-0.5 text-[0.65rem] font-medium text-theme-primary/65"
+              >
+                {{ field.source === 'profile' ? 'Override' : 'Environment' }}
+              </span>
             </div>
-            <div class="flex justify-between items-baseline gap-4 min-w-0">
-              <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Model</span>
-              <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
-                <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.model }}</span>
-                <span
-                  v-if="getProvenance('model') === 'profile'"
-                  class="override-pill rounded border border-theme-primary/20 bg-surface-sunken px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-primary/70"
-                >
-                  Override
-                </span>
-              </div>
-            </div>
-            <div class="flex justify-between items-baseline gap-4 min-w-0">
-              <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Base URL</span>
-              <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
-                <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.base_url || '—' }}</span>
-                <span
-                  v-if="settings.effective.base_url && getProvenance('base_url') === 'profile'"
-                  class="override-pill rounded border border-theme-primary/20 bg-surface-sunken px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-primary/70"
-                >
-                  Override
-                </span>
-              </div>
-            </div>
-            <div class="flex justify-between items-baseline gap-4 min-w-0">
-              <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Gateway Route</span>
-              <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
-                <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.gateway_route || '—' }}</span>
-                <span
-                  v-if="settings.effective.gateway_route && getProvenance('gateway_route') === 'profile'"
-                  class="override-pill rounded border border-theme-primary/20 bg-surface-sunken px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-primary/70"
-                >
-                  Override
-                </span>
-              </div>
-            </div>
-            <div class="flex justify-between items-baseline gap-4 min-w-0">
-              <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Mode</span>
-              <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
-                <span
-                  class="text-theme-primary text-right break-all min-w-0"
-                  :class="{
-                    'text-theme-primary': settings.effective.mode !== 'disabled',
-                    'text-red-400': settings.effective.mode === 'disabled',
-                  }"
-                >
-                  {{ settings.effective.mode }}
-                </span>
-              </div>
-            </div>
-          </div>
+          </dl>
 
           <p class="mt-5 text-xs leading-5 text-theme-primary/60">
             Currently active settings. Changes above apply after you save.

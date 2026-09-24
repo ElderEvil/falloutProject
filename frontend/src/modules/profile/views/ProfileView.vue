@@ -318,6 +318,7 @@ const formatDate = (dateString: string) => {
                 />
                 <LifeDeathStatistics
                   :statistics="profileStore.deathStatistics"
+                  :total-dwellers-created="profileStore.profile.total_dwellers_created"
                   :loading="profileStore.deathStatsLoading"
                 />
               </section>

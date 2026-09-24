@@ -8,14 +8,15 @@ import type { DeathStatistics } from '@/core/types/death'
 
 interface Props {
   statistics: DeathStatistics | null
+  totalDwellersCreated: number
   loading?: boolean
 }
 
-const { loading = false, statistics } = defineProps<Props>()
+const { loading = false, statistics, totalDwellersCreated } = defineProps<Props>()
 
 const mortalityRate = computed(() => {
-  if (!statistics || statistics.total_dwellers_born === 0) return 0
-  return ((statistics.total_dwellers_died / statistics.total_dwellers_born) * 100).toFixed(1)
+  if (!statistics || totalDwellersCreated === 0 || totalDwellersCreated < statistics.total_dwellers_died) return null
+  return ((statistics.total_dwellers_died / totalDwellersCreated) * 100).toFixed(1)
 })
 
 const isEmpty = computed(() => {
@@ -97,12 +98,13 @@ const causeData = computed(() => {
             class="bg-surface-sunken border border-theme-primary/25 p-4 rounded-lg flex flex-col items-center justify-center text-center"
           >
             <div class="text-xs text-theme-primary/70 uppercase tracking-wider mb-1">
-              Total Births
+              Children Born
             </div>
             <div class="text-3xl font-bold text-theme-primary flex items-center gap-2">
               <Icon icon="mdi:baby-carriage" class="w-6 h-6 text-theme-primary/70" />
               {{ statistics.total_dwellers_born }}
             </div>
+            <p class="mt-1 text-xs text-theme-primary/60">Through breeding</p>
           </div>
 
           <div
@@ -125,8 +127,11 @@ const causeData = computed(() => {
             </div>
             <div class="text-3xl font-bold text-theme-primary flex items-center gap-2">
               <Icon icon="mdi:chart-line" class="w-6 h-6 text-theme-primary/70" />
-              {{ mortalityRate }}%
+              {{ mortalityRate === null ? '—' : `${mortalityRate}%` }}
             </div>
+            <p class="mt-1 text-xs text-theme-primary/60">
+              {{ mortalityRate === null ? 'Lifetime data unavailable' : 'Deaths / all dwellers created' }}
+            </p>
           </div>
         </div>
 

@@ -1,11 +1,18 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { ref } from 'vue'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { nextTick, ref } from 'vue'
 
-const motionState = vi.hoisted(() => ({ value: 'no-preference' }))
+const motionState = vi.hoisted(() => ({
+  value: 'no-preference' as 'no-preference' | 'reduce',
+  preference: null as { value: 'no-preference' | 'reduce' } | null,
+}))
 
 vi.mock('@vueuse/core', () => ({
   useLocalStorage: <T>(_key: string, defaultValue: T) => ref<T>(defaultValue),
-  usePreferredReducedMotion: () => ({ value: motionState.value }),
+  usePreferredReducedMotion: () => {
+    const preference = ref(motionState.value)
+    motionState.preference = preference
+    return preference
+  },
 }))
 
 import { useVisualEffects } from '@/core/composables/useVisualEffects'
@@ -14,6 +21,7 @@ describe('useVisualEffects', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     motionState.value = 'no-preference'
+    motionState.preference = null
   })
 
   it('should initialize with defaults', () => {
@@ -138,12 +146,24 @@ describe('useVisualEffects', () => {
     expect(isGlowEnabled.value).toBe(false)
   })
 
-  it('suppresses flickering when reduced motion is preferred', () => {
-    motionState.value = 'reduce'
+  it('stops flickering when reduced motion becomes preferred', async () => {
+    vi.useFakeTimers()
     const { flickering, prefersReducedMotion, toggleFlickering } = useVisualEffects()
 
-    expect(prefersReducedMotion.value).toBe(true)
-    toggleFlickering()
-    expect(flickering.value).toBe(false)
+    try {
+      toggleFlickering()
+      await nextTick()
+      expect(flickering.value).toBe(true)
+      expect(vi.getTimerCount()).toBe(1)
+
+      motionState.preference!.value = 'reduce'
+      await nextTick()
+
+      expect(prefersReducedMotion.value).toBe(true)
+      expect(flickering.value).toBe(false)
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

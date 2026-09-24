@@ -93,10 +93,10 @@ withDefaults(defineProps<Props>(), {
 
 .dweller-name {
   font-size: 1.5rem;
-  color: rgb(34 197 94);
+  color: var(--color-theme-primary);
   margin: 0 0 0.5rem 0;
   font-family: 'Courier New', monospace;
-  text-shadow: 0 0 8px rgb(34 197 94 / 0.5);
+  text-shadow: 0 0 8px rgb(from var(--color-theme-primary) r g b / 0.5);
 }
 
 .level-number {
@@ -120,11 +120,11 @@ withDefaults(defineProps<Props>(), {
   align-items: center;
   gap: 0.5rem;
   font-size: 1.25rem;
-  color: rgb(134 239 172);
+  color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
   padding: 0.75rem 1.5rem;
   background: rgb(0 0 0 / 0.5);
-  border: 1px solid rgb(34 197 94 / 0.5);
+  border: 1px solid rgb(from var(--color-theme-primary) r g b / 0.5);
   border-radius: 0.25rem;
   box-shadow: inset 0 0 10px rgb(0 0 0 / 0.5);
 }

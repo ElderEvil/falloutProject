@@ -276,7 +276,7 @@ watch(
   gap: 1rem;
   padding: 1rem;
   background: linear-gradient(135deg, rgb(0 0 0 / 0.5), rgb(15 23 42 / 0.5));
-  border: 1px solid rgb(34 197 94 / 0.3);
+  border: 1px solid rgb(from var(--color-theme-primary) r g b / 0.3);
   border-radius: 0.5rem;
 }
 
@@ -288,8 +288,8 @@ watch(
 
 .info-icon {
   font-size: 1.5rem;
-  color: rgb(34 197 94);
-  filter: drop-shadow(0 0 4px rgb(34 197 94 / 0.5));
+  color: var(--color-theme-primary);
+  filter: drop-shadow(0 0 4px rgb(from var(--color-theme-primary) r g b / 0.5));
 }
 
 .info-content {
@@ -300,7 +300,7 @@ watch(
 
 .info-label {
   font-size: 0.75rem;
-  color: rgb(74 222 128);
+  color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
   text-transform: uppercase;
 }
@@ -308,7 +308,7 @@ watch(
 .info-value {
   font-size: 0.875rem;
   font-weight: bold;
-  color: rgb(134 239 172);
+  color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
 }
 
@@ -318,7 +318,7 @@ watch(
   gap: 0.5rem;
   font-size: 1rem;
   font-weight: bold;
-  color: rgb(34 197 94);
+  color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
   text-transform: uppercase;
   margin-bottom: 0.75rem;
@@ -327,11 +327,11 @@ watch(
 
 .section-icon {
   font-size: 1.25rem;
-  filter: drop-shadow(0 0 4px rgb(34 197 94 / 0.5));
+  filter: drop-shadow(0 0 4px rgb(from var(--color-theme-primary) r g b / 0.5));
 }
 
 .active-trainees {
-  border-top: 1px solid rgb(34 197 94 / 0.2);
+  border-top: 1px solid rgb(from var(--color-theme-primary) r g b / 0.2);
   padding-top: 1rem;
 }
 
@@ -342,7 +342,7 @@ watch(
 }
 
 .available-dwellers {
-  border-top: 1px solid rgb(34 197 94 / 0.2);
+  border-top: 1px solid rgb(from var(--color-theme-primary) r g b / 0.2);
   padding-top: 1rem;
 }
 
@@ -390,7 +390,7 @@ watch(
   align-items: center;
   padding: 0.75rem 1rem;
   background: linear-gradient(135deg, rgb(0 0 0 / 0.6), rgb(15 23 42 / 0.6));
-  border: 1px solid rgb(34 197 94 / 0.3);
+  border: 1px solid rgb(from var(--color-theme-primary) r g b / 0.3);
   border-radius: 0.375rem;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -398,9 +398,9 @@ watch(
 }
 
 .dweller-option:hover:not(:disabled) {
-  border-color: rgb(34 197 94 / 0.6);
+  border-color: rgb(from var(--color-theme-primary) r g b / 0.6);
   background: linear-gradient(135deg, rgb(0 0 0 / 0.7), rgb(15 23 42 / 0.7));
-  box-shadow: 0 0 10px rgb(34 197 94 / 0.3);
+  box-shadow: 0 0 10px rgb(from var(--color-theme-primary) r g b / 0.3);
   transform: translateX(4px);
 }
 
@@ -418,12 +418,12 @@ watch(
 .dweller-name {
   font-size: 0.875rem;
   font-weight: bold;
-  color: rgb(134 239 172);
+  color: var(--color-theme-primary);
 }
 
 .dweller-level {
   font-size: 0.75rem;
-  color: rgb(74 222 128);
+  color: var(--color-theme-primary);
 }
 
 .dweller-stat {
@@ -435,7 +435,7 @@ watch(
 
 .stat-label {
   font-size: 0.75rem;
-  color: rgb(74 222 128);
+  color: var(--color-theme-primary);
   text-transform: uppercase;
 }
 
@@ -451,7 +451,7 @@ watch(
 }
 
 .modal-actions {
-  border-top: 1px solid rgb(34 197 94 / 0.2);
+  border-top: 1px solid rgb(from var(--color-theme-primary) r g b / 0.2);
   padding-top: 1rem;
 }
 </style>

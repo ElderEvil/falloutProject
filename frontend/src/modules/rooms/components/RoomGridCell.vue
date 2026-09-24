@@ -237,7 +237,7 @@ const cellTitle = computed(() => {
   width: 24px;
   height: 24px;
   color: var(--color-theme-primary);
-  filter: drop-shadow(0 0 4px rgba(0, 255, 0, 0.4));
+  filter: drop-shadow(0 0 4px rgb(from var(--color-theme-primary) r g b / 0.4));
 }
 
 .room-name {

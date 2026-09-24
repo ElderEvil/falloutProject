@@ -35,7 +35,7 @@ import { Skeleton } from '@/core/components/ui/skeleton'
 .dweller-card-skeleton {
   padding: 1rem;
   background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(0, 255, 0, 0.2);
+  border: 1px solid rgb(from var(--color-theme-primary) r g b / 0.2);
   border-radius: 8px;
   list-style: none;
 }

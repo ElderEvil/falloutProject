@@ -12,12 +12,18 @@ from sqlmodel import select
 
 from app import crud
 from app.models.weapon import Weapon
+from app.services.exploration_service import exploration_service
 from app.tests.factory.items import create_fake_weapon
 from app.utils.exceptions import ContentNoChangeException, ResourceNotFoundException
 
 
 async def _create_weapon(async_session: AsyncSession) -> Weapon:
     return await crud.weapon.create(async_session, obj_in=create_fake_weapon())
+
+
+async def _held_exploration_id(async_session: AsyncSession, vault, dweller):
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    return exploration.id
 
 
 @pytest.mark.asyncio
@@ -51,11 +57,11 @@ async def test_reequip_default_returns_displaced_to_storage(async_session: Async
 
 
 @pytest.mark.asyncio
-async def test_reequip_held_moves_displaced_to_exploration(async_session: AsyncSession, dweller) -> None:
+async def test_reequip_held_moves_displaced_to_exploration(async_session: AsyncSession, dweller, vault) -> None:
     old = await _create_weapon(async_session)
     new = await _create_weapon(async_session)
     await crud.weapon.equip(db_session=async_session, item_id=old.id, dweller_id=dweller.id)
-    held_id = uuid4()
+    held_id = await _held_exploration_id(async_session, vault, dweller)
 
     await crud.weapon.equip(
         db_session=async_session, item_id=new.id, dweller_id=dweller.id, held_exploration_id=held_id
@@ -113,8 +119,8 @@ async def test_equip_missing_item_raises(async_session: AsyncSession, dweller) -
 
 
 @pytest.mark.asyncio
-async def test_get_held_for_exploration(async_session: AsyncSession, dweller) -> None:
-    held_id = uuid4()
+async def test_get_held_for_exploration(async_session: AsyncSession, dweller, vault) -> None:
+    held_id = await _held_exploration_id(async_session, vault, dweller)
     old = await _create_weapon(async_session)
     new = await _create_weapon(async_session)
     await crud.weapon.equip(db_session=async_session, item_id=old.id, dweller_id=dweller.id)
@@ -128,8 +134,8 @@ async def test_get_held_for_exploration(async_session: AsyncSession, dweller) ->
 
 
 @pytest.mark.asyncio
-async def test_delete_held_for_exploration(async_session: AsyncSession, dweller) -> None:
-    held_id = uuid4()
+async def test_delete_held_for_exploration(async_session: AsyncSession, dweller, vault) -> None:
+    held_id = await _held_exploration_id(async_session, vault, dweller)
     old = await _create_weapon(async_session)
     new = await _create_weapon(async_session)
     await crud.weapon.equip(db_session=async_session, item_id=old.id, dweller_id=dweller.id)

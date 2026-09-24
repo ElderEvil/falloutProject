@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import AboutView from '@/modules/profile/views/AboutView.vue'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 
 // Mock the axios client
 vi.mock('@/core/plugins/axios', () => ({
@@ -20,7 +22,7 @@ vi.mock('@/core/plugins/axios', () => ({
 // Mock vue-router
 vi.mock('vue-router', () => ({
   RouterLink: { template: '<a><slot /></a>' },
-  useRoute: () => ({ params: {}, meta: {} }),
+  useRoute: () => ({ path: '/about', params: {}, meta: {} }),
   useRouter: () => ({
     push: vi.fn(),
   }),
@@ -29,13 +31,30 @@ vi.mock('vue-router', () => ({
 describe('AboutView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    setActivePinia(createPinia())
   })
 
-  it('renders system information title', async () => {
+  it('offers navigation back to sections of the loaded vault', async () => {
+    useVaultStore().activeVaultId = 'vault-123'
+
     const wrapper = mount(AboutView)
     await flushPromises()
 
-    expect(wrapper.text()).toContain('System Information')
+    expect(wrapper.find('[aria-label="Dwellers 2"]').exists()).toBe(true)
+  })
+
+  it('does not show an empty vault sidebar without a loaded vault', async () => {
+    const wrapper = mount(AboutView)
+    await flushPromises()
+
+    expect(wrapper.find('[aria-label="Game navigation panel"]').exists()).toBe(false)
+  })
+
+  it('renders the about title', async () => {
+    const wrapper = mount(AboutView)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('About Fallout Shelter')
   })
 
   it('displays frontend version info', async () => {
@@ -87,5 +106,9 @@ describe('AboutView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Failed to load backend info')
+    expect(wrapper.text()).toContain('Frontend')
+    expect(wrapper.find('a[href="https://github.com/ElderEvil/falloutProject"]').exists()).toBe(
+      true
+    )
   })
 })

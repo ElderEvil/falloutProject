@@ -13,6 +13,7 @@ import {
   type ChangeEntry,
 } from '@/modules/profile/services/changelogService'
 import FormattedChangeDescription from '@/modules/profile/components/FormattedChangeDescription.vue'
+import { getChangelogCategoryIcon } from '@/modules/profile/components/changelogCategoryIcons'
 import { useToast } from '@/core/composables/useToast'
 
 interface Props {
@@ -99,19 +100,6 @@ const groupChangesByCategory = (changes: ChangeEntry[]) => {
   return Array.from(grouped.entries())
 }
 
-// Category colors and icons
-const getCategoryInfo = (category: string) => {
-  const categoryMap: Record<string, { color: string; icon: string }> = {
-    Added: { color: 'text-terminal-green', icon: 'mdi:plus-circle' },
-    Fixed: { color: 'text-red-400', icon: 'mdi:wrench' },
-    Changed: { color: 'text-yellow-400', icon: 'mdi:swap-horizontal' },
-    Removed: { color: 'text-red-400', icon: 'mdi:minus-circle' },
-    Documentation: { color: 'text-blue-400', icon: 'mdi:file-document' },
-    Testing: { color: 'text-purple-400', icon: 'mdi:test-tube' },
-  }
-  return categoryMap[category] || { color: 'text-gray-400', icon: 'mdi:circle' }
-}
-
 // Fetch changelog when modal opens (with immediate:true for initial show=true)
 watch(
   () => show,
@@ -144,21 +132,20 @@ onUnmounted(() => {
         @click="$emit('close')"
       >
         <!-- @vue-ignore -->
-        <!-- @vue-ignore -->
         <Card
-          class="w-full max-w-4xl max-h-[85vh] overflow-hidden gap-0 rounded-lg border-2 border-theme-primary/20 p-6 shadow-glow-md ring-0 crt-screen !bg-surface-warm"
+          class="w-full max-w-4xl max-h-[85vh] overflow-hidden gap-0 border-theme-primary/20 bg-surface p-6 [text-shadow:none]"
           @click.stop
         >
-          <div class="mb-4 border-b border-gray-700 pb-4">
+          <div class="mb-4 border-b border-theme-primary/20 pb-4">
             <div class="flex items-center justify-between w-full">
               <div class="flex items-center gap-3">
-                <Icon icon="mdi:history" class="h-7 w-7 text-terminal-green" />
-                <h2 class="text-2xl font-bold text-terminal-green">What's New</h2>
+                <Icon icon="mdi:history" class="h-7 w-7 text-theme-primary" />
+                <h2 class="text-2xl font-bold text-theme-primary">What's new</h2>
               </div>
               <Button
                 variant="ghost"
                 size="icon-sm"
-                class="text-gray-400 hover:bg-transparent hover:text-terminal-green transition-colors"
+                class="text-theme-primary/60 hover:text-theme-primary transition-colors"
                 aria-label="Close modal"
                 @click="$emit('close')"
               >
@@ -169,23 +156,23 @@ onUnmounted(() => {
 
           <!-- Loading state -->
           <div v-if="loading" class="flex items-center justify-center py-12">
-            <div class="terminal-glow text-terminal-green">Loading changelog...</div>
+            <div class="text-theme-primary">Loading changelog...</div>
           </div>
 
           <!-- Error state -->
           <div v-else-if="error" class="flex flex-col items-center justify-center py-12">
             <div class="text-red-400 mb-4">{{ error }}</div>
-            <Button variant="default" class="border-2 border-theme-primary hover:shadow-glow-md" @click="fetchChangelog">Retry</Button>
+            <Button variant="default" @click="fetchChangelog">Retry</Button>
           </div>
 
           <!-- No new versions -->
           <div v-else-if="!hasNewVersions" class="flex flex-col items-center justify-center py-12">
             <Icon
               icon="mdi:check-circle"
-              class="h-16 w-16 text-terminal-green mb-4"
+              class="h-16 w-16 text-theme-primary mb-4"
             />
-            <div class="text-terminal-green text-xl mb-2">All caught up!</div>
-            <div class="text-gray-400">You're running the latest version</div>
+            <div class="text-theme-primary text-xl mb-2">All caught up!</div>
+            <div class="text-theme-primary/60">You're running the latest version</div>
           </div>
 
           <!-- Changelog content -->
@@ -196,11 +183,11 @@ onUnmounted(() => {
             <div v-for="entry in entriesToShow" :key="entry.version" class="mb-8 last:mb-0">
               <!-- Version header -->
               <div
-                class="flex items-center justify-between mb-4 pb-2 border-b border-terminal-green/30"
+                class="flex items-center justify-between mb-4 pb-2 border-b border-theme-primary/20"
               >
                 <div class="flex items-center gap-3">
                   <Badge variant="default" class="text-lg"> v{{ entry.version }} </Badge>
-                  <span class="text-gray-400 text-sm font-mono">{{ entry.date_display }}</span>
+                  <span class="text-theme-primary/60 text-sm font-mono">{{ entry.date_display }}</span>
                 </div>
               </div>
 
@@ -214,11 +201,10 @@ onUnmounted(() => {
                   <!-- Category header -->
                   <div class="flex items-center gap-2 mb-3">
                     <Icon
-                      :icon="getCategoryInfo(category).icon"
-                      :class="getCategoryInfo(category).color"
-                      class="h-5 w-5"
+                      :icon="getChangelogCategoryIcon(category)"
+                      class="h-5 w-5 text-theme-primary/70"
                     />
-                    <h3 :class="getCategoryInfo(category).color" class="font-semibold font-mono">
+                    <h3 class="font-semibold font-mono text-theme-primary">
                       {{ category }}
                     </h3>
                   </div>
@@ -228,7 +214,7 @@ onUnmounted(() => {
                     <li
                       v-for="(change, idx) in changes"
                       :key="`${entry.version}-${idx}`"
-                      class="text-gray-300 text-sm leading-relaxed font-mono"
+                      class="text-theme-primary/75 text-sm leading-relaxed font-mono"
                     >
                       <FormattedChangeDescription :description="change.description" />
                     </li>
@@ -239,16 +225,16 @@ onUnmounted(() => {
           </div>
 
           <!-- Actions -->
-          <div class="mt-4 border-t border-gray-700 pt-4">
+          <div class="mt-4 border-t border-theme-primary/20 pt-4">
             <div class="flex justify-between items-center">
               <div class="flex gap-3">
-                <Button variant="outline" class="border-2 border-theme-primary bg-transparent" @click="handleViewAllChangelog">
+                <Button variant="outline" @click="handleViewAllChangelog">
                   View Full Changelog
                 </Button>
               </div>
 
               <div class="flex gap-3">
-                <Button v-if="hasNewVersions" variant="default" class="border-2 border-theme-primary hover:shadow-glow-md" @click="handleMarkAsSeen">
+                <Button v-if="hasNewVersions" variant="default" @click="handleMarkAsSeen">
                   Got it!
                 </Button>
               </div>
@@ -274,7 +260,7 @@ onUnmounted(() => {
 /* Custom scrollbar for changelog content */
 :deep(.overflow-y-auto) {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-terminal-green) transparent;
+  scrollbar-color: var(--color-theme-primary) transparent;
 }
 
 :deep(.overflow-y-auto)::-webkit-scrollbar {
@@ -286,18 +272,18 @@ onUnmounted(() => {
 }
 
 :deep(.overflow-y-auto)::-webkit-scrollbar-thumb {
-  background-color: var(--color-terminal-green);
+  background-color: var(--color-theme-primary);
   border-radius: 3px;
 }
 
 :deep(.overflow-y-auto)::-webkit-scrollbar-thumb:hover {
-  background-color: var(--color-terminal-green-glow);
+  background-color: var(--color-theme-glow);
 }
 
 /* Terminal-style bullets */
 :deep(ul li::before) {
   content: '▸';
-  color: var(--color-terminal-green);
+  color: var(--color-theme-primary);
   margin-right: 8px;
   font-weight: bold;
 }

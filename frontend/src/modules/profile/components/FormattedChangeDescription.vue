@@ -120,13 +120,13 @@ const segments = computed<Segment[]>(() => {
       <!-- Code block -->
       <code
         v-else-if="segment.type === 'code'"
-        class="bg-gray-800 px-1 rounded text-green-300 font-mono text-xs"
+        class="bg-surface-sunken px-1 rounded text-theme-primary font-mono text-xs"
       >
         {{ segment.content }}
       </code>
 
       <!-- Bold text -->
-      <strong v-else-if="segment.type === 'bold'" class="text-white font-semibold">
+      <strong v-else-if="segment.type === 'bold'" class="text-theme-primary font-semibold">
         {{ segment.content }}
       </strong>
 
@@ -136,7 +136,7 @@ const segments = computed<Segment[]>(() => {
         :href="segment.href"
         target="_blank"
         rel="noopener noreferrer"
-        class="text-green-400 hover:text-green-300 underline"
+        class="text-theme-primary underline underline-offset-2 hover:text-theme-accent"
       >
         {{ segment.content }}
       </a>

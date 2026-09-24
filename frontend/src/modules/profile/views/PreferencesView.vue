@@ -145,11 +145,11 @@ const handleGlowSelect = (value: unknown) => {
 </script>
 
 <template>
-  <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
+  <div class="relative min-h-screen bg-terminal-background font-mono text-theme-primary [text-shadow:none]">
     <div class="vault-layout">
       <SidePanel :vault-id="vaultStore.activeVaultId" />
 
-      <div class="main-content" :class="{ collapsed: isCollapsed, flicker: flickering }">
+      <div class="main-content" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto px-4 py-6 lg:px-8">
           <div class="max-w-4xl mx-auto space-y-4">
             <PageHeader
@@ -180,7 +180,7 @@ const handleGlowSelect = (value: unknown) => {
               <CardContent class="space-y-6">
                 <div>
                   <h3 class="subsection-label">Color Theme</h3>
-                  <p class="text-gray-400 mb-3 text-xs">
+                  <p class="text-theme-primary/60 mb-3 text-xs">
                     Choose a color palette inspired by different Fallout games.
                   </p>
 
@@ -215,7 +215,7 @@ const handleGlowSelect = (value: unknown) => {
 
                 <div>
                   <h3 class="subsection-label">CRT Visual Effects</h3>
-                  <p class="text-gray-400 mb-3 text-xs">
+                  <p class="text-theme-primary/60 mb-3 text-xs">
                     Configure retro terminal effects. Disable these for better accessibility or
                     performance.
                   </p>
@@ -385,7 +385,7 @@ const handleGlowSelect = (value: unknown) => {
                     >
                       <Icon
                         icon="mdi:loading"
-                        class="animate-spin text-sm text-gray-500"
+                        class="animate-spin text-sm text-theme-primary/50"
                       />
                     </span>
                     <Switch
@@ -516,7 +516,7 @@ const handleGlowSelect = (value: unknown) => {
 
 .theme-description {
   font-size: 0.75rem;
-  color: var(--color-gray-400);
+  color: color-mix(in srgb, var(--color-theme-primary) 60%, transparent);
   line-height: 1.2;
 }
 
@@ -547,7 +547,7 @@ const handleGlowSelect = (value: unknown) => {
 
 .setting-description {
   font-size: 0.875rem;
-  color: var(--color-gray-400);
+  color: color-mix(in srgb, var(--color-theme-primary) 60%, transparent);
 }
 
 /* Glow Controls */
@@ -591,7 +591,7 @@ const handleGlowSelect = (value: unknown) => {
 
 .demo-label {
   font-size: 0.75rem;
-  color: var(--color-gray-400);
+  color: color-mix(in srgb, var(--color-theme-primary) 60%, transparent);
   text-transform: uppercase;
 }
 
@@ -602,15 +602,6 @@ const handleGlowSelect = (value: unknown) => {
 }
 
 /* Volume sliders use the shared Slider component */
-
-/* Accessibility-only rules that cannot be expressed as Tailwind utilities:
-   reduced-motion opt-out for the CRT flicker effect (belt and suspenders:
-   useVisualEffects also suppresses the JS-driven opacity loop). */
-@media (prefers-reduced-motion: reduce) {
-  .main-content.flicker {
-    animation: none;
-  }
-}
 
 @media (max-width: 768px) {
   .main-content {

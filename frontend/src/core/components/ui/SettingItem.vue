@@ -31,9 +31,12 @@ const formattedValue = computed(() => {
 <style scoped>
 .setting-item {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 1rem;
+  gap: 0.25rem 1rem;
+  margin-inline: 1.5rem;
+  padding-block: 0.75rem;
   border-bottom: 1px solid var(--color-theme-accent);
   font-family: var(--font-family-mono);
 }
@@ -43,7 +46,7 @@ const formattedValue = computed(() => {
 }
 
 .setting-label {
-  color: var(--color-gray-400);
+  color: color-mix(in srgb, var(--color-theme-primary) 65%, transparent);
   font-size: 0.875rem;
 }
 
@@ -51,10 +54,12 @@ const formattedValue = computed(() => {
   color: var(--color-theme-primary);
   font-weight: 600;
   font-size: 0.875rem;
+  overflow-wrap: anywhere;
+  text-align: right;
 }
 
 .setting-unit {
-  color: var(--color-gray-500);
+  color: color-mix(in srgb, var(--color-theme-primary) 50%, transparent);
   font-weight: 400;
   margin-left: 0.25rem;
 }

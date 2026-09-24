@@ -205,6 +205,11 @@ update reduce net source LOC (features that add code must first offset it by rem
 
 ### P2 — Deferred player-facing improvements
 
+- [ ] **Lifetime statistics reliability** — define and document the difference between dwellers created and
+      children born through breeding; ensure a user profile exists before statistic events so increments are not
+      silently lost; reconcile historical birth/death counters where source records permit an accurate backfill.
+      Treat unrecoverable history as unavailable rather than zero, and verify the mortality rate against the
+      lifetime dweller denominator across existing accounts.
 - [ ] **Living biographies** — build on shipped template bios with action-driven updates for exploration, marriage,
       and dialogues. Start with the structured-entry storage decision (JSONB vs side-table).
   - **Effort:** medium–large.

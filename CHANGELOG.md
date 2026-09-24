@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.142.3 (2026-09-24)
+
+### Bug Fixes
+
+* **ui:** close UI follow-ups and guard the aria prop convention ([#784](https://github.com/ElderEvil/falloutProject/issues/784)) f74ec79, closes #782 #709 #783
+
 ## 2.142.2 (2026-09-24)
 
 ### Bug Fixes

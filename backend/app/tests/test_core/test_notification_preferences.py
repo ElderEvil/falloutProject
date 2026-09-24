@@ -35,6 +35,17 @@ def test_protected_categories_cannot_be_disabled() -> None:
         validate_notification_preferences({"notifications": {"version": 1, "disabled_categories": ["combat_defeat"]}})
 
 
+@pytest.mark.parametrize("version", [True, False, 1.0, "1", None])
+def test_non_integer_versions_are_rejected(version: object) -> None:
+    with pytest.raises(ValueError, match="version 1"):
+        validate_notification_preferences({"notifications": {"version": version, "disabled_categories": []}})
+
+
+def test_non_integer_version_defaults_to_enabled() -> None:
+    preferences = {"notifications": {"version": True, "disabled_categories": ["advancement"]}}
+    assert should_deliver_notification(preferences, NotificationType.LEVEL_UP)
+
+
 def test_all_selectable_categories_are_known() -> None:
     validate_notification_preferences(
         {"notifications": {"version": 1, "disabled_categories": [category.value for category in NotificationCategory]}}

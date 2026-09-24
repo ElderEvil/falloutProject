@@ -55,7 +55,7 @@ def validate_notification_preferences(preferences: dict[str, Any]) -> None:
         return
     if not isinstance(settings, dict):
         raise ValueError("Notification preferences must be an object")  # ruff: ignore[type-check-without-type-error] - maps to a 422 response
-    if settings.get("version") != NOTIFICATION_PREFERENCES_VERSION:
+    if type(settings.get("version")) is not int or settings["version"] != NOTIFICATION_PREFERENCES_VERSION:
         raise ValueError("Notification preferences must use version 1")
     disabled_categories = settings.get("disabled_categories", [])
     if not isinstance(disabled_categories, list) or not all(
@@ -75,7 +75,11 @@ def should_deliver_notification(preferences: dict[str, Any] | None, notification
     if category is None or not isinstance(preferences, dict):
         return True
     settings = preferences.get(NOTIFICATION_PREFERENCES_KEY)
-    if not isinstance(settings, dict) or settings.get("version") != NOTIFICATION_PREFERENCES_VERSION:
+    if (
+        not isinstance(settings, dict)
+        or type(settings.get("version")) is not int
+        or settings.get("version") != NOTIFICATION_PREFERENCES_VERSION
+    ):
         return True
     disabled_categories = settings.get("disabled_categories")
     return not isinstance(disabled_categories, list) or category not in disabled_categories

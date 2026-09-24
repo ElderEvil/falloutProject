@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject } from 'vue'
+import { computed, inject, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useVisualEffects, type EffectIntensity } from '@/core/composables/useVisualEffects'
@@ -8,6 +8,7 @@ import { useRoomRendering } from '@/core/composables/useRoomRendering'
 import { useBadgeStyle } from '@/core/composables/useBadgeStyle'
 import { audioManager, type AudioBus } from '@/core/audio/audioManager'
 import { useProfileStore } from '../stores/profile'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
@@ -52,15 +53,36 @@ const disabledNotificationCategories = computed(() => {
   return Array.isArray(disabled) ? disabled.filter((category): category is string => typeof category === 'string') : []
 })
 
-const notificationCategoryEnabled = (category: string) => !disabledNotificationCategories.value.includes(category)
+// Optimistic selection: each toggle builds on the previous click's payload
+// instead of the last confirmed server state, so rapid clicks cannot overwrite
+// each other while a save is still in flight.
+const pendingDisabledCategories = ref<Set<string> | null>(null)
+
+const effectiveDisabledCategories = computed<string[]>(
+  () => pendingDisabledCategories.value !== null ? [...pendingDisabledCategories.value] : disabledNotificationCategories.value,
+)
+
+const notificationCategoryEnabled = (category: string) => !effectiveDisabledCategories.value.includes(category)
 
 const toggleNotificationCategory = (category: string) => {
-  const disabled = new Set(disabledNotificationCategories.value)
+  const disabled = new Set(effectiveDisabledCategories.value)
   if (disabled.has(category)) disabled.delete(category)
   else disabled.add(category)
+  const payload = [...disabled]
+  pendingDisabledCategories.value = disabled
   void profileStore
-    .savePreferences({ notifications: { version: 1, disabled_categories: [...disabled] } })
-    .catch(() => {})
+    .savePreferences({ notifications: { version: 1, disabled_categories: payload } })
+    .then(() => {
+      // Keep later clicks: only drop the pending state if nothing changed since this save.
+      const pending = pendingDisabledCategories.value
+      if (pending !== null && pending.size === payload.length && payload.every((c) => pending.has(c)))
+        pendingDisabledCategories.value = null
+    })
+    .catch((error: unknown) => {
+      // Revert to the last confirmed server state so the toggle reflects reality.
+      pendingDisabledCategories.value = null
+      handleStoreError(error, 'Failed to save notification preferences')
+    })
 }
 
 const soundBusOptions: { bus: AudioBus; label: string; description: string }[] = [

@@ -69,7 +69,7 @@ const healthPercentage = computed(
               :height="12"
               aria-label="Health"
             />
-            <span class="min-w-[60px] text-right text-xs font-bold text-theme-primary">{{
+            <span class="min-w-[60px] shrink-0 whitespace-nowrap text-right text-xs font-bold text-theme-primary">{{
               getHealthDisplay(health, maxHealth, radiation)
             }}</span>
           </div>

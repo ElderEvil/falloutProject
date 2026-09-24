@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.142.1 (2026-09-24)
+
+### Bug Fixes
+
+* **ui:** polish training and exploration layout ([#779](https://github.com/ElderEvil/falloutProject/issues/779)) 53aa7c7, closes #766
+
+## 2.142.0 (2026-09-24)
+
+### Features
+
+* refresh auth and vault selection UI ([#777](https://github.com/ElderEvil/falloutProject/issues/777)) e4a62a1
+
 ## 2.141.1 (2026-09-24)
 
 ### Bug Fixes

@@ -3,6 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import ExplorationDetailView from '@/modules/exploration/views/ExplorationDetailView.vue'
+import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
@@ -179,7 +180,21 @@ describe('ExplorationDetailView', () => {
       expect(wrapper.text()).toContain('1 / 1')
       expect(wrapper.text()).toContain('Back to Exploration')
       expect(wrapper.find('.explorer-navigation').classes()).toContain('w-full')
-      expect(wrapper.find('.exploration-detail-content').classes()).toContain('max-w-[1200px]')
+      expect(wrapper.find('.exploration-detail-content').exists()).toBe(true)
+    })
+
+    it('constrains the header and detail content to the shared 1200px rail', async () => {
+      const wrapper = mount(ExplorationDetailView, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      await flushPromises()
+
+      const rail = wrapper.findComponent(PageContentRail)
+      expect(rail.props('width')).toBe('content')
+      expect(rail.classes()).toContain('max-w-[1200px]')
     })
 
     it('renders the shared vault sidebar', async () => {

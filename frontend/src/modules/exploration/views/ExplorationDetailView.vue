@@ -222,7 +222,7 @@ watch(isReady, (ready) => {
       <SidePanel />
 
       <div class="main-content flicker pb-8" :class="{ collapsed: isCollapsed }">
-        <PageContentRail>
+        <PageContentRail width="content">
           <PageNavigation
             back-label="Back to Exploration"
             :back-to="`/vault/${vaultId}/exploration`"
@@ -241,10 +241,7 @@ watch(isReady, (ready) => {
           />
 
           <!-- Main Content -->
-          <div
-            v-if="exploration && dweller"
-            class="exploration-detail-content mx-auto w-full max-w-[1200px]"
-          >
+          <div v-if="exploration && dweller" class="exploration-detail-content">
             <!-- Top Section: Dweller Info & Progress + Stats Grid -->
             <ExplorerSummaryCard
               :dweller-name="dwellerName"

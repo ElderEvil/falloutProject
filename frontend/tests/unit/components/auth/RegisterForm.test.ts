@@ -19,6 +19,7 @@ describe('RegisterForm', () => {
   let authStore: any
 
   beforeEach(() => {
+    localStorage.clear()
     setActivePinia(createPinia())
     authStore = useAuthStore()
 
@@ -93,7 +94,8 @@ describe('RegisterForm', () => {
       expect(wrapper.find('.scanlines').exists()).toBe(false)
     })
 
-    it('should have CRT flicker effect', () => {
+    it('respects the saved flicker setting', () => {
+      localStorage.setItem('visual-effects:flickering', 'true')
       const wrapper = mount(RegisterForm, {
         global: {
           plugins: [router],
@@ -381,7 +383,7 @@ describe('RegisterForm', () => {
         },
       })
 
-      expect(wrapper.find('.register-container').exists()).toBe(true)
+      expect(wrapper.find('[data-slot="card"]').exists()).toBe(true)
       expect(wrapper.find('button').exists()).toBe(true)
       expect(wrapper.find('input').exists()).toBe(true)
     })
@@ -394,7 +396,7 @@ describe('RegisterForm', () => {
       })
 
       expect(wrapper.find('.system-messages').exists()).toBe(true)
-      expect(wrapper.text()).toContain('INITIALIZING NEW OVERSEER REGISTRATION')
+      expect(wrapper.text()).toContain('SECURE TERMINAL')
       expect(wrapper.text()).toContain('AWAITING REGISTRATION DATA')
     })
 

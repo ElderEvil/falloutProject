@@ -19,6 +19,7 @@ describe('LoginFormTerminal', () => {
   let authStore: any
 
   beforeEach(() => {
+    localStorage.clear()
     setActivePinia(createPinia())
     authStore = useAuthStore()
 
@@ -53,7 +54,7 @@ describe('LoginFormTerminal', () => {
         },
       })
 
-      expect(wrapper.text()).toContain('v1.10.0')
+      expect(wrapper.text()).toMatch(/SECURE TERMINAL v\d+\.\d+\.\d+/)
     })
 
     it('should have terminal-style button with arrow icons', () => {
@@ -103,7 +104,8 @@ describe('LoginFormTerminal', () => {
       expect(wrapper.find('.scanlines').exists()).toBe(false)
     })
 
-    it('should have CRT flicker effect', () => {
+    it('respects the saved flicker setting', () => {
+      localStorage.setItem('visual-effects:flickering', 'true')
       const wrapper = mount(LoginFormTerminal, {
         global: {
           plugins: [router],
@@ -255,7 +257,7 @@ describe('LoginFormTerminal', () => {
         },
       })
 
-      expect(wrapper.find('.login-container').exists()).toBe(true)
+      expect(wrapper.find('[data-slot="card"]').exists()).toBe(true)
       expect(wrapper.find('button').exists()).toBe(true)
       expect(wrapper.find('input').exists()).toBe(true)
     })
@@ -268,7 +270,7 @@ describe('LoginFormTerminal', () => {
       })
 
       expect(wrapper.find('.system-messages').exists()).toBe(true)
-      expect(wrapper.text()).toContain('INITIALIZING VAULT-TEC SECURE LOGIN')
+      expect(wrapper.text()).toContain('SECURE TERMINAL')
       expect(wrapper.text()).toContain('AWAITING CREDENTIALS')
     })
 

@@ -1,26 +1,26 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Button } from '@/core/components/ui/button'
-import { Input } from '@/core/components/ui/input'
-import { Label } from '@/core/components/ui/label'
-import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
+import { Button } from '@/core/components/ui/button'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
+import { useAuthStore } from '../stores/auth'
+import AuthTerminalField from './AuthTerminalField.vue'
+import AuthTerminalFrame from './AuthTerminalFrame.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
-
-const username = ref('')
+const email = ref('')
 const password = ref('')
 const error = ref('')
 const { run: runLogin, isLoading } = useAsyncAction(
-  (email: string, currentPassword: string) => authStore.login(email, currentPassword),
+  (currentEmail: string, currentPassword: string) => authStore.login(currentEmail, currentPassword),
   { context: 'Unable to authenticate', showToast: false }
 )
 
 const handleSubmit = async () => {
+  if (isLoading.value) return
   error.value = ''
-  const success = await runLogin(username.value, password.value)
+  const success = await runLogin(email.value, password.value)
   if (success) {
     await router.push('/')
   } else {
@@ -30,263 +30,47 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <div class="login-container">
-    <!-- CRT effect container -->
-    <div class="crt-container flicker">
-      <div class="login-box">
-        <!-- Vault-Tec Header -->
-        <div class="vault-header">
-          <h1 class="terminal-title">VAULT-TEC INDUSTRIES</h1>
-          <p class="terminal-subtitle">Vault Network Access Terminal</p>
-          <div class="terminal-line"></div>
-        </div>
+  <AuthTerminalFrame
+    title="Vault Network Access Terminal"
+    status="AWAITING CREDENTIALS..."
+    :error="error"
+    error-detail="ACCESS DENIED - INVALID CREDENTIALS"
+  >
+    <form class="flex flex-col gap-5" @submit.prevent="handleSubmit">
+      <AuthTerminalField
+        id="login-username"
+        v-model="email"
+        label="USER IDENTIFICATION:"
+        type="email"
+        placeholder="overseer@vault-tec.com"
+        autocomplete="email"
+        required
+      />
+      <AuthTerminalField
+        id="login-password"
+        v-model="password"
+        label="SECURITY PASSPHRASE:"
+        type="password"
+        placeholder="••••••••"
+        autocomplete="current-password"
+        required
+      />
+      <Button type="submit" class="w-full border-theme-primary" :disabled="isLoading">
+        <span v-if="!isLoading" aria-hidden="true">►</span>
+        {{ isLoading ? 'AUTHENTICATING...' : 'AUTHENTICATE' }}
+        <span v-if="!isLoading" aria-hidden="true">◄</span>
+      </Button>
+    </form>
 
-        <!-- System Messages -->
-        <div class="system-messages">
-          <p class="system-msg">> INITIALIZING VAULT-TEC SECURE LOGIN v1.10.0...</p>
-          <p class="system-msg">> AWAITING CREDENTIALS...</p>
-        </div>
-
-        <!-- Login Form -->
-        <form @submit.prevent="handleSubmit" class="login-form">
-          <div class="form-group">
-            <Label for="login-username" class="mb-1 text-sm font-medium text-theme-primary/70">
-              > USER IDENTIFICATION:
-              <span class="text-danger">*</span>
-            </Label>
-            <Input
-              id="login-username"
-              v-model="username"
-              type="email"
-              placeholder="overseer@vault-tec.com"
-              required
-              class="h-auto w-full rounded border-2 border-theme-primary/50 bg-surface-sunken px-4 py-2 text-terminal-green placeholder:text-theme-primary/40 focus:border-theme-primary"
-            />
-          </div>
-
-          <div class="form-group">
-            <Label for="login-password" class="mb-1 text-sm font-medium text-theme-primary/70">
-              > SECURITY PASSPHRASE:
-              <span class="text-danger">*</span>
-            </Label>
-            <Input
-              id="login-password"
-              v-model="password"
-              type="password"
-              placeholder="••••••••"
-              required
-              class="h-auto w-full rounded border-2 border-theme-primary/50 bg-surface-sunken px-4 py-2 text-terminal-green placeholder:text-theme-primary/40 focus:border-theme-primary"
-            />
-          </div>
-
-          <Button
-            variant="default"
-            type="submit"
-            class="w-full border-2 border-theme-primary hover:shadow-glow-md"
-            :disabled="isLoading"
-          >
-            <span v-if="!isLoading" class="button-icon">►</span>
-            {{ isLoading ? 'AUTHENTICATING...' : 'AUTHENTICATE' }}
-            <span v-if="!isLoading" class="button-icon">◄</span>
-          </Button>
-        </form>
-
-        <!-- Error Message -->
-        <div v-if="error" class="error-message">
-          <p>> ERROR: {{ error.toUpperCase() }}</p>
-          <p>> ACCESS DENIED - INVALID CREDENTIALS</p>
-        </div>
-
-        <!-- Register Link -->
-        <div class="register-link">
-          <p class="terminal-text">
-            > NEW OVERSEER REGISTRATION:
-            <router-link to="/register" class="link-text">INITIATE PROTOCOL</router-link>
-          </p>
-          <p class="terminal-text">
-            > FORGOT PASSPHRASE:
-            <router-link to="/forgot-password" class="link-text">RESET ACCESS</router-link>
-          </p>
-        </div>
-
-        <!-- Footer -->
-        <div class="terminal-footer">
-          <p class="footer-text">VAULT-TEC © 2077 • PROTECTING AMERICA'S FUTURE</p>
-        </div>
-      </div>
-    </div>
-  </div>
+    <template #links>
+      <p>
+        > NEW OVERSEER REGISTRATION:
+        <router-link to="/register" class="font-bold text-theme-primary underline underline-offset-4 hover:text-theme-primary/80">INITIATE PROTOCOL</router-link>
+      </p>
+      <p>
+        > FORGOT PASSPHRASE:
+        <router-link to="/forgot-password" class="font-bold text-theme-primary underline underline-offset-4 hover:text-theme-primary/80">RESET ACCESS</router-link>
+      </p>
+    </template>
+  </AuthTerminalFrame>
 </template>
-
-<style scoped>
-.login-container {
-  position: relative;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-surface-dark);
-  font-family: 'Courier New', monospace;
-  overflow: hidden;
-}
-
-/* Flicker animation */
-.flicker {
-  animation: flicker 0.15s infinite;
-}
-
-@keyframes flicker {
-  0% {
-    opacity: 0.98;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0.98;
-  }
-}
-
-/* CRT container */
-.crt-container {
-  position: relative;
-  width: 100%;
-  max-width: 600px;
-  padding: 2rem;
-}
-
-/* Login box */
-.login-box {
-  background: rgba(0, 0, 0, 0.85);
-  border: 3px solid var(--color-theme-primary, #00ff00);
-  box-shadow:
-    0 0 20px var(--color-theme-glow, rgba(0, 255, 0, 0.5)),
-    inset 0 0 50px rgba(0, 0, 0, 0.5);
-  padding: 2rem;
-  position: relative;
-}
-
-/* Vault-Tec Header */
-.vault-header {
-  text-align: center;
-  margin-bottom: 2rem;
-  border-bottom: 2px solid var(--color-theme-primary, #00ff00);
-  padding-bottom: 1rem;
-}
-
-.terminal-title {
-  font-size: 1.75rem;
-  font-weight: bold;
-  color: var(--color-theme-primary, #00ff00);
-  text-shadow: 0 0 10px var(--color-theme-glow, rgba(0, 255, 0, 0.8));
-  letter-spacing: 0.1em;
-  margin-bottom: 0.25rem;
-}
-
-.terminal-subtitle {
-  font-size: 0.75rem;
-  color: var(--color-theme-primary, #00ff00);
-  opacity: 0.7;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-}
-
-/* System Messages */
-.system-messages {
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  background: rgba(0, 0, 0, 0.5);
-  border-left: 3px solid var(--color-theme-primary, #00ff00);
-}
-
-.system-msg {
-  font-size: 0.75rem;
-  color: var(--color-theme-primary, #00ff00);
-  opacity: 0.8;
-  margin: 0.25rem 0;
-  text-shadow: 0 0 5px var(--color-theme-glow, rgba(0, 255, 0, 0.5));
-}
-
-/* Form */
-.login-form {
-  margin-bottom: 1.5rem;
-}
-
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-.button-icon {
-  font-size: 1.25rem;
-}
-
-/* Error Message */
-.error-message {
-  background: rgba(255, 0, 0, 0.1);
-  border: 2px solid var(--color-danger);
-  padding: 1rem;
-  margin-bottom: 1rem;
-  box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
-  animation: error-pulse 0.5s ease-in-out;
-}
-
-@keyframes error-pulse {
-  0% {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.error-message p {
-  color: var(--color-danger);
-  font-size: 0.75rem;
-  margin: 0.25rem 0;
-  text-shadow: 0 0 5px rgba(255, 0, 0, 0.8);
-}
-
-/* Register Link */
-.register-link {
-  text-align: center;
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  padding-bottom: 1rem;
-  border-top: 1px dashed var(--color-theme-primary, #00ff00);
-  margin-bottom: 1rem;
-}
-
-.terminal-text {
-  color: var(--color-theme-primary, #00ff00);
-  font-size: 0.875rem;
-  opacity: 0.9;
-}
-
-.link-text {
-  color: var(--color-theme-primary, #00ff00);
-  text-decoration: underline;
-  font-weight: bold;
-  transition: all 0.2s;
-}
-
-.link-text:hover {
-  text-shadow: 0 0 10px var(--color-theme-glow, rgba(0, 255, 0, 0.8));
-  opacity: 1;
-}
-
-/* Footer */
-.terminal-footer {
-  text-align: center;
-  padding-top: 1rem;
-}
-
-.footer-text {
-  font-size: 0.625rem;
-  color: var(--color-theme-primary, #00ff00);
-  opacity: 0.5;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-</style>

@@ -36,12 +36,12 @@ function navigateBack(): void {
     <BackButton :label="backLabel" @click="navigateBack" />
 
     <nav v-if="breadcrumbs.length" aria-label="Breadcrumb">
-      <ol class="flex flex-wrap items-center gap-1.5 text-xs font-bold tracking-[0.1em] text-theme-primary/60">
+      <ol class="flex flex-wrap items-center gap-1.5 text-sm font-bold tracking-[0.1em] text-theme-primary/80">
         <li v-for="(breadcrumb, index) in breadcrumbs" :key="breadcrumb.label" class="flex items-center gap-1.5">
           <Icon
             v-if="index > 0"
             icon="mdi:chevron-right"
-            class="h-3.5 w-3.5 text-theme-primary/35"
+            class="h-3.5 w-3.5 text-theme-primary/50"
             :ariaHidden="true"
           />
           <RouterLink

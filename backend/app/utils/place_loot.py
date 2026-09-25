@@ -19,6 +19,11 @@ ITEM_TYPES = {"weapon", "outfit", "junk"}
 RARITIES = {"common", "rare", "legendary"}
 
 
+def _is_int(value: Any) -> bool:
+    """True for a real int; bools are ints in Python, but a boolean cap is an authoring error."""
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
 @lru_cache(maxsize=1)
 def load_place_loot() -> dict[str, Any]:
     """Load and validate the loot-table catalog (cached).
@@ -39,10 +44,8 @@ def load_place_loot() -> dict[str, Any]:
                 f"Loot table {key!r} must be an object"
             )
         caps = table.get("caps")
-        if not isinstance(caps, dict) or not isinstance(caps.get("min"), int) or not isinstance(caps.get("max"), int):
-            raise ValueError(  # ruff: ignore[type-check-without-type-error] - authoring errors surface as ValueError uniformly
-                f"Loot table {key!r} needs integer caps.min and caps.max"
-            )
+        if not isinstance(caps, dict) or not _is_int(caps.get("min")) or not _is_int(caps.get("max")):
+            raise ValueError(f"Loot table {key!r} needs integer caps.min and caps.max")
         if caps["min"] < 0 or caps["min"] > caps["max"]:
             raise ValueError(f"Loot table {key!r} caps must satisfy 0 <= min <= max")
         items = table.get("items")

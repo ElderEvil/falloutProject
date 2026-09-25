@@ -77,6 +77,19 @@ def test_inverted_caps_range_is_rejected(tmp_path) -> None:
         load_place_loot.cache_clear()
 
 
+def test_boolean_cap_is_rejected(tmp_path) -> None:
+    """A bool is an int in Python, but a boolean cap is an authoring error, not 1/0."""
+    data = json.loads(LOOT_FILE.read_text(encoding="utf-8"))
+    data["tables"]["low"]["caps"] = {"min": True, "max": 10}
+    monkeypatch = _write_loot(tmp_path, data)
+    try:
+        with pytest.raises(ValueError, match="integer caps"):
+            load_place_loot()
+    finally:
+        monkeypatch.undo()
+        load_place_loot.cache_clear()
+
+
 def test_empty_tables_object_is_rejected(tmp_path) -> None:
     monkeypatch = _write_loot(tmp_path, {"tables": {}})
     try:

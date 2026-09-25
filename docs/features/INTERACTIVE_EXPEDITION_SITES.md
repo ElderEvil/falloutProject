@@ -200,7 +200,7 @@ expedition_run
 ├── status: ENTERED | IN_ROOM | RETREATED | CLEARED | DIED
 ├── hp_snapshot / supplies_snapshot (for death/retreat rollback display)
 ├── flags: JSON (disarmed traps, spent caches, granted once-only bonuses)
-└── cleared_at (anti-farm timestamp; NULL until finale)
+└── finished_at (anti-farm timestamp; NULL until any terminal outcome)
 ```
 
 Static site definitions live beside the enemy/loot JSON consumed by

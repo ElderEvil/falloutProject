@@ -47,8 +47,7 @@ the gap sections below keep the problem analysis and note what changed.
    for 7 days; after 7 days the site fully resets — rooms *and* finale.
    D5-B's "reset window" is this same clock, so there is no separate
    room-refresh rule. Implement as a single `finished_at` timestamp on the
-   run, set on every terminal transition; rename the current `cleared_at`
-   field while the feature is still unmerged. The cooldown query covers all
+   run, set on every terminal transition. The cooldown query covers all
    terminal statuses.
 2. **One open run per vault/site.** Enforced by a partial unique index on
    `(vault_id, site_id)` where `status IN ('ENTERED','IN_ROOM')`. The index is

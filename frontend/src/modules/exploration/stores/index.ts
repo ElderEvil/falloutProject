@@ -6,3 +6,5 @@ export type {
   LootItem,
   RewardsSummary,
 } from './exploration'
+export { useExpeditionSiteStore, SITE_TERMINAL_STATUSES, isTerminal } from './expeditionSite'
+export type { SiteRunStatus } from './expeditionSite'

@@ -1548,6 +1548,112 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/explorations/{exploration_id}/site/enter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enter Expedition Site
+         * @description Enter an expedition site on an active exploration.
+         *
+         *     Returns:
+         *         SiteRoomView: The first room and its node prompt.
+         */
+        post: operations["enter_expedition_site_api_v1_explorations__exploration_id__site_enter_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/explorations/{exploration_id}/site/available": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Available Expedition Sites
+         * @description List expedition sites the dweller may currently enter (level + anti-farm gates).
+         */
+        get: operations["list_available_expedition_sites_api_v1_explorations__exploration_id__site_available_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/explorations/{exploration_id}/site": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Expedition Site
+         * @description Get the open expedition run view, or null when there is none (reconnect-safe).
+         */
+        get: operations["get_expedition_site_api_v1_explorations__exploration_id__site_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/explorations/{exploration_id}/site/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve Expedition Node
+         * @description Resolve the current site room node and advance.
+         *
+         *     Returns:
+         *         SiteRoomView: The next room view (or the finished run view).
+         */
+        post: operations["resolve_expedition_node_api_v1_explorations__exploration_id__site_resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/explorations/{exploration_id}/site/retreat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retreat Expedition Site
+         * @description Abandon the expedition run at a room boundary; room loot is kept.
+         */
+        post: operations["retreat_expedition_site_api_v1_explorations__exploration_id__site_retreat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/game/balance": {
         parameters: {
             query?: never;
@@ -4884,6 +4990,22 @@ export interface components {
             assignments: components["schemas"]["DwellerAssignmentItem"][];
         };
         /**
+         * AvailableSiteView
+         * @description One expedition site the dweller may currently enter.
+         */
+        AvailableSiteView: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Flavor */
+            flavor: string;
+            /** Min Dweller Level */
+            min_dweller_level: number;
+            /** Room Total */
+            room_total: number;
+        };
+        /**
          * BioAddendumAction
          * @description Suggestion to record a durable detail from the conversation into the biography.
          */
@@ -6648,6 +6770,22 @@ export interface components {
             /** Requested At */
             requested_at?: string | null;
         };
+        /**
+         * ExpeditionEnterRequest
+         * @description Enter an expedition site on an active exploration.
+         */
+        ExpeditionEnterRequest: {
+            /** Site Id */
+            site_id: string;
+        };
+        /**
+         * ExpeditionResolveRequest
+         * @description Resolve the current node; choice_id required for choice/trap-with-options nodes.
+         */
+        ExpeditionResolveRequest: {
+            /** Choice Id */
+            choice_id?: string | null;
+        };
         /** ExperienceGranted */
         ExperienceGranted: {
             /**
@@ -7664,6 +7802,42 @@ export interface components {
              * @description Optional explanation
              */
             reason?: string | null;
+        };
+        /**
+         * NodeOptionView
+         * @description Player-facing option with precomputed success odds.
+         */
+        NodeOptionView: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Stat */
+            stat: string;
+            /** Difficulty */
+            difficulty: number;
+            /** Success Odds */
+            success_odds: number;
+        };
+        /**
+         * NodeOutcome
+         * @description What the last resolution did.
+         */
+        NodeOutcome: {
+            /** Text */
+            text: string;
+            /**
+             * Damage Taken
+             * @default 0
+             */
+            damage_taken: number;
+            /**
+             * Caps Gained
+             * @default 0
+             */
+            caps_gained: number;
+            /** Loot Gained */
+            loot_gained?: string[];
         };
         /**
          * NotificationPriority
@@ -8972,6 +9146,54 @@ export interface components {
          * @enum {string}
          */
         SPECIALEnum: "strength" | "perception" | "endurance" | "charisma" | "intelligence" | "agility" | "luck";
+        /**
+         * SiteNodeView
+         * @description Player-facing node prompt.
+         */
+        SiteNodeView: {
+            /** Kind */
+            kind: string;
+            /** Prompt */
+            prompt: string;
+            /** Options */
+            options?: components["schemas"]["NodeOptionView"][];
+            /** Enemy Names */
+            enemy_names?: string[];
+        };
+        /**
+         * SiteRoomView
+         * @description Current room state returned by every expedition endpoint.
+         */
+        SiteRoomView: {
+            /**
+             * Exploration Id
+             * Format: uuid
+             */
+            exploration_id: string;
+            /** Site Id */
+            site_id: string;
+            /** Site Name */
+            site_name: string;
+            /** Room Index */
+            room_index: number;
+            /** Room Total */
+            room_total: number;
+            /** Room Name */
+            room_name: string;
+            /** Flavor */
+            flavor: string;
+            node: components["schemas"]["SiteNodeView"];
+            /** Can Retreat */
+            can_retreat: boolean;
+            /** Status */
+            status: string;
+            outcome?: components["schemas"]["NodeOutcome"] | null;
+            /**
+             * Finale Paid
+             * @default false
+             */
+            finale_paid: boolean;
+        };
         /**
          * SpeedupMultiplier
          * @description Speedup multiplier for a radio room.
@@ -12298,6 +12520,169 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExplorationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enter_expedition_site_api_v1_explorations__exploration_id__site_enter_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exploration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpeditionEnterRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteRoomView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_available_expedition_sites_api_v1_explorations__exploration_id__site_available_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exploration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailableSiteView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_expedition_site_api_v1_explorations__exploration_id__site_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exploration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteRoomView"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_expedition_node_api_v1_explorations__exploration_id__site_resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exploration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpeditionResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteRoomView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retreat_expedition_site_api_v1_explorations__exploration_id__site_retreat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exploration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteRoomView"];
                 };
             };
             /** @description Validation Error */

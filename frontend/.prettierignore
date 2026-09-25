@@ -1,2 +1,5 @@
 # Formatter skips CSS entirely (design-system files keep hand-rolled style for now).
 *.css
+# Generated API types come straight from openapi-typescript; reformatting
+# them would rewrite the whole file on every `pnpm run types:generate`.
+**/*.generated.ts

@@ -6,6 +6,7 @@ export const EXPLORATION_EVENT_TYPES = [
   'discovery',
   'item_use',
   'equip',
+  'site',
 ] as const
 
 export type ExplorationEventType = (typeof EXPLORATION_EVENT_TYPES)[number]
@@ -20,6 +21,7 @@ export const EVENT_ICON_MAP: EventMap = {
   rest: 'mdi:sleep',
   item_use: 'mdi:medical-bag',
   equip: 'mdi:sword-cross',
+  site: 'mdi:radio-tower',
   default: 'mdi:circle-medium',
 }
 
@@ -31,6 +33,7 @@ export const EVENT_COLOR_MAP: EventMap = {
   rest: 'var(--color-rarity-rare)',
   item_use: 'var(--color-rarity-rare)',
   equip: 'var(--color-warning)',
+  site: 'var(--color-theme-accent)',
   default: 'var(--color-theme-primary)',
 }
 

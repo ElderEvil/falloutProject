@@ -327,18 +327,51 @@ describe('ExpeditionSiteModal', () => {
     expect(wrapper.text()).not.toContain('Failed to resolve expedition node')
   })
 
-  it('shows the remaining time chip and the expiry warning under 300s', async () => {
+  it('shows the remaining time in the header and flags expiry under 300s', async () => {
     const wrapper = mountModal('exp-1', 'Lucy MacLean', 600)
     const store = useExpeditionSiteStore()
     store.room = choiceRoom
     await flushPromises()
 
-    expect(wrapper.text()).toContain('≈10m left')
-    expect(wrapper.text()).not.toContain('Clock expiry will force a retreat.')
+    expect(wrapper.text()).toContain('≈10m')
+    expect(wrapper.find('[title="Exploration time remaining"]').exists()).toBe(true)
 
     await wrapper.setProps({ timeRemainingSeconds: 120 })
-    expect(wrapper.text()).toContain('≈2m left')
-    expect(wrapper.text()).toContain('Clock expiry will force a retreat.')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('≈2m')
+    expect(wrapper.find('[title="Clock expiry will force a retreat"]').exists()).toBe(true)
+  })
+
+  it('dedupes combat enemies and labels failure threats separately', async () => {
+    const wrapper = mountModal('exp-1', 'Lucy MacLean')
+    const store = useExpeditionSiteStore()
+
+    store.room = {
+      ...choiceRoom,
+      node: {
+        kind: 'combat',
+        prompt: 'Ambush between the cars!',
+        options: [],
+        enemy_names: ['Radroach swarm', 'Radroach swarm', 'Raider gang'],
+      },
+    }
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Enemies: Radroach swarm ×2, Raider gang')
+
+    store.room = {
+      ...choiceRoom,
+      node: {
+        kind: 'choice',
+        prompt: 'A raider waves you over.',
+        options: [],
+        enemy_names: ['Giant Radscorpion'],
+      },
+    }
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('If it goes wrong: Giant Radscorpion')
   })
 
   it('renders a close-only recovery state on a non-active exploration', async () => {

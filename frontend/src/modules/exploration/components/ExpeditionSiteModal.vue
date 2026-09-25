@@ -51,6 +51,14 @@ const timeRemainingMinutes = computed(() => {
   return Math.max(1, Math.ceil(props.timeRemainingSeconds / 60))
 })
 const timeExpiryWarning = computed(() => (props.timeRemainingSeconds ?? Infinity) < 300)
+const isCombatRoom = computed(() => room.value?.node.kind === 'combat')
+// Dedupe the room's enemy roster so duplicates read as counts, not a repeated list.
+const enemySummary = computed(() => {
+  const names = room.value?.node.enemy_names ?? []
+  const counts = new Map<string, number>()
+  for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1)
+  return [...counts.entries()].map(([name, n]) => (n > 1 ? `${name} ×${n}` : name)).join(', ')
+})
 
 watch(
   () => props.show,
@@ -162,12 +170,32 @@ const terminalBanner = computed(() => {
       class="flex max-h-[75vh] w-full max-w-xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-xl"
     >
       <DialogHeader
-        class="flex flex-shrink-0 flex-row items-center gap-2 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
+        class="flex flex-shrink-0 flex-row items-center justify-between gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
       >
-        <Icon icon="mdi:radio-tower" class="inline h-6 w-6 text-theme-primary" />
-        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow"
-          >Expedition Site</DialogTitle
+        <div class="flex min-w-0 items-center gap-2">
+          <Icon icon="mdi:radio-tower" class="inline h-6 w-6 shrink-0 text-theme-primary" />
+          <DialogTitle class="truncate text-2xl font-bold text-theme-primary terminal-glow">
+            {{ room ? room.site_name : 'Expedition Site' }}
+          </DialogTitle>
+        </div>
+        <div
+          v-if="room && !isTerminalRun && !isRecovery && timeRemainingMinutes !== null"
+          class="flex shrink-0 items-center gap-1 rounded-[3px] border px-2 py-1 text-[0.75rem] font-semibold"
+          :class="
+            timeExpiryWarning
+              ? 'border-warning/50 bg-warning/10 text-warning'
+              : 'border-theme-primary/40 bg-theme-primary/10 text-theme-primary'
+          "
+          :title="
+            timeExpiryWarning ? 'Clock expiry will force a retreat' : 'Exploration time remaining'
+          "
         >
+          <Icon
+            :icon="timeExpiryWarning ? 'mdi:clock-alert-outline' : 'mdi:clock-outline'"
+            class="h-3.5 w-3.5"
+          />
+          ≈{{ timeRemainingMinutes }}m
+        </div>
       </DialogHeader>
 
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
@@ -239,18 +267,13 @@ const terminalBanner = computed(() => {
         <!-- ACTIVE RUN -->
         <template v-else>
           <div class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h4
-              class="text-lg font-bold text-theme-primary [text-shadow:0_0_6px_var(--color-theme-glow)]"
-            >
-              {{ room.site_name }}
-            </h4>
             <span
               class="inline-flex items-center gap-1 rounded-[3px] border border-theme-primary/40 bg-theme-primary/10 px-1.5 py-0.5 text-[0.75rem] font-semibold text-theme-primary"
             >
               <Icon icon="mdi:map-marker-path" class="h-3.5 w-3.5" />
               Room {{ room.room_index + 1 }} / {{ room.room_total }}
             </span>
-            <span class="text-sm font-semibold text-theme-primary/80">{{ room.room_name }}</span>
+            <span class="text-lg font-bold text-theme-primary">{{ room.room_name }}</span>
           </div>
 
           <p class="mb-4 text-sm leading-relaxed text-theme-primary/80">{{ room.flavor }}</p>
@@ -307,28 +330,6 @@ const terminalBanner = computed(() => {
               {{ store.error }}
             </div>
 
-            <!-- Remaining time chip (Gap 1.5) -->
-            <div
-              v-if="timeRemainingMinutes !== null"
-              class="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[3px] border px-2 py-1 text-[0.75rem] font-semibold"
-              :class="
-                timeExpiryWarning
-                  ? 'border-warning/50 bg-warning/10 text-warning'
-                  : 'border-theme-primary/40 bg-theme-primary/10 text-theme-primary'
-              "
-            >
-              <span class="inline-flex items-center gap-1">
-                <Icon
-                  :icon="timeExpiryWarning ? 'mdi:clock-alert-outline' : 'mdi:clock-outline'"
-                  class="h-3.5 w-3.5"
-                />
-                ≈{{ timeRemainingMinutes }}m left
-              </span>
-              <span v-if="timeExpiryWarning" class="text-warning"
-                >Clock expiry will force a retreat.</span
-              >
-            </div>
-
             <!-- Defeat banner (Gap 3) -->
             <div
               v-if="isDefeated"
@@ -354,11 +355,19 @@ const terminalBanner = computed(() => {
             <p class="mb-4 text-base font-semibold text-theme-primary">{{ room.node.prompt }}</p>
 
             <div
-              v-if="room.node.enemy_names && room.node.enemy_names.length > 0"
-              class="mb-4 flex items-center gap-2 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm font-semibold text-danger"
+              v-if="enemySummary"
+              class="mb-4 flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold"
+              :class="
+                isCombatRoom
+                  ? 'border-danger/40 bg-danger/10 text-danger'
+                  : 'border-warning/40 bg-warning/10 text-warning'
+              "
             >
-              <Icon icon="mdi:sword-cross" class="h-4 w-4" />
-              <span>{{ room.node.enemy_names.join(', ') }}</span>
+              <Icon
+                :icon="isCombatRoom ? 'mdi:sword-cross' : 'mdi:alert-outline'"
+                class="h-4 w-4"
+              />
+              <span>{{ isCombatRoom ? 'Enemies' : 'If it goes wrong' }}: {{ enemySummary }}</span>
             </div>
 
             <!-- DEFEAT: push on retries the fight -->

@@ -93,6 +93,18 @@ async def process_explorations(db_session: AsyncSession, vault_id: UUID4) -> Exp
 
 
 async def _process_single_exploration(db_session: AsyncSession, stats: ExplorationStats, exploration) -> None:
+    # Re-read under the shared vault claim (claim -> exploration) so the site-run
+    # check below cannot race a concurrent site entry; the bulk-loaded instance
+    # may be stale.
+    preview = await crud_exploration.get(db_session, exploration.id)
+    if preview is None:
+        return
+    await vault_crud.get_for_update(db_session, preview.vault_id)
+    locked = await crud_exploration.get_for_update(db_session, exploration.id)
+    if locked is None:
+        return
+    exploration = locked
+
     # A returning dweller only waits for arrival; no events fire on the way home.
     if exploration.is_returning():
         if exploration.return_time_remaining_seconds() <= 0:

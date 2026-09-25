@@ -96,6 +96,13 @@ class ExplorationCoordinator:
         Returns:
             dict: Rewards summary
         """
+        # Same acquisition order as site actions (claim -> exploration); a sell or
+        # finalize credits the vault, so locking exploration first could deadlock
+        # against a concurrent site action.
+        preview = await crud_exploration.get(db_session, exploration_id)
+        if preview is None:
+            raise ResourceNotFoundException(Exploration, identifier=exploration_id)
+        await crud_vault.get_for_update(db_session, preview.vault_id)
         # Locked read: concurrent tick/API callers serialize here, so only the first
         # one can see RETURNING and claim the rewards.
         exploration = await crud_exploration.get_for_update(db_session, exploration_id)

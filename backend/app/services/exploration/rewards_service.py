@@ -273,6 +273,12 @@ class RewardsService:
         }
 
     async def _load_unclaimed(self, db_session: AsyncSession, exploration_id: UUID4) -> tuple[Exploration, list[dict]]:
+        # Claim -> exploration, matching the site-action order: a sell credits the
+        # vault, so locking exploration first could deadlock against a site action.
+        preview = await crud_exploration.get(db_session, exploration_id)
+        if not preview:
+            raise ResourceNotFoundException(Exploration, exploration_id)
+        await crud_vault.get_for_update(db_session, preview.vault_id)
         exploration = await crud_exploration.get_for_update(db_session, exploration_id)
         if not exploration:
             raise ResourceNotFoundException(Exploration, exploration_id)

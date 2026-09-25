@@ -48,7 +48,6 @@ class RarityEnum(CaseInsensitiveEnum):
 class ExpeditionRunStatus(StrEnum):
     """Status of one expedition-site attempt."""
 
-    ENTERED = "entered"
     IN_ROOM = "in_room"
     RETREATED = "retreated"
     CLEARED = "cleared"

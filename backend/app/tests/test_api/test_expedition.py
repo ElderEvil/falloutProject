@@ -196,7 +196,6 @@ async def test_site_available_anti_farm_excludes_recent_clear(
         async_session,
         exploration_id=exploration.id,
         vault_id=vault.id,
-        dweller_id=dweller.id,
         site_id="red_rocket",
     )
     run.status = ExpeditionRunStatus.CLEARED

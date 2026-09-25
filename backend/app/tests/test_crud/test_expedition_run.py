@@ -36,10 +36,9 @@ async def test_create_and_fetch_open_run(async_session: AsyncSession):
         async_session,
         exploration_id=exploration.id,
         vault_id=vault.id,
-        dweller_id=dweller.id,
         site_id="red_rocket",
     )
-    assert run.status == ExpeditionRunStatus.ENTERED
+    assert run.status == ExpeditionRunStatus.IN_ROOM
     assert run.room_cursor == 0
 
     fetched = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
@@ -60,7 +59,6 @@ async def test_closed_run_is_not_open(async_session: AsyncSession):
         async_session,
         exploration_id=exploration.id,
         vault_id=vault.id,
-        dweller_id=dweller.id,
         site_id="red_rocket",
     )
     run.status = ExpeditionRunStatus.CLEARED
@@ -78,7 +76,6 @@ async def test_recent_terminal_found_for_cooldown(async_session: AsyncSession):
         async_session,
         exploration_id=exploration.id,
         vault_id=vault.id,
-        dweller_id=dweller.id,
         site_id="red_rocket",
     )
     run.status = ExpeditionRunStatus.CLEARED
@@ -108,7 +105,6 @@ async def test_recent_terminal_matches_retreat_and_death(async_session: AsyncSes
         async_session,
         exploration_id=exploration.id,
         vault_id=vault.id,
-        dweller_id=dweller.id,
         site_id="red_rocket",
     )
     run.status = status
@@ -130,7 +126,6 @@ async def test_open_run_found_for_vault_site(async_session: AsyncSession):
         async_session,
         exploration_id=exploration.id,
         vault_id=vault.id,
-        dweller_id=dweller.id,
         site_id="red_rocket",
     )
     found = await crud.expedition_run.get_open_for_vault_site(async_session, vault_id=vault.id, site_id="red_rocket")
@@ -150,7 +145,6 @@ async def test_closed_run_not_open_for_vault_site(async_session: AsyncSession):
         async_session,
         exploration_id=exploration.id,
         vault_id=vault.id,
-        dweller_id=dweller.id,
         site_id="red_rocket",
     )
     run.status = ExpeditionRunStatus.RETREATED
@@ -169,7 +163,6 @@ async def test_second_open_run_conflicts(async_session: AsyncSession):
         async_session,
         exploration_id=exploration.id,
         vault_id=vault.id,
-        dweller_id=dweller.id,
         site_id="red_rocket",
     )
     with pytest.raises(ResourceConflictException, match="already has an open expedition run"):
@@ -177,7 +170,6 @@ async def test_second_open_run_conflicts(async_session: AsyncSession):
             async_session,
             exploration_id=exploration.id,
             vault_id=vault.id,
-            dweller_id=dweller.id,
             site_id="red_rocket",
         )
 
@@ -189,7 +181,6 @@ async def test_second_exploration_same_site_conflicts(async_session: AsyncSessio
         async_session,
         exploration_id=exploration.id,
         vault_id=vault.id,
-        dweller_id=dweller.id,
         site_id="red_rocket",
     )
     dweller2 = await crud.dweller.create(
@@ -202,7 +193,6 @@ async def test_second_exploration_same_site_conflicts(async_session: AsyncSessio
             async_session,
             exploration_id=exploration2.id,
             vault_id=vault.id,
-            dweller_id=dweller2.id,
             site_id="red_rocket",
         )
 

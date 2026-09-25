@@ -113,7 +113,7 @@ class ExpeditionScenarioService:
             stimpaks=0,
             radaways=0,
         )
-        precleared = await self._preclear_site(db_session, exploration, vault, dweller, preclear_site_id)
+        precleared = await self._preclear_site(db_session, exploration, vault, preclear_site_id)
         available_sites = await expedition_service.list_available_sites(db_session, exploration.id)
         return ExpeditionScenarioResult(
             vault=vault,
@@ -175,7 +175,6 @@ class ExpeditionScenarioService:
         db_session: AsyncSession,
         exploration: Exploration,
         vault: Vault,
-        dweller: Dweller,
         preclear_site_id: str | None,
     ) -> str | None:
         """Insert a completed run so the anti-farm gate hides the site, or None."""
@@ -185,7 +184,6 @@ class ExpeditionScenarioService:
             db_session,
             exploration_id=exploration.id,
             vault_id=vault.id,
-            dweller_id=dweller.id,
             site_id=preclear_site_id,
         )
         run.status = ExpeditionRunStatus.CLEARED

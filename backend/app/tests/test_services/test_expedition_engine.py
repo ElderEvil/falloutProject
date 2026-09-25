@@ -3,12 +3,14 @@
 import random
 
 import pytest
+from pydantic import ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.models.exploration import ExpeditionRun, ExpeditionRunStatus, ExplorationStatus
 from app.schemas.dweller import DwellerCreate
-from app.schemas.expedition import EnemySpec, ExpeditionResolveRequest, NodeBranch
+from app.schemas.expedition import EnemySpec, ExpeditionResolveRequest, ItemRollSpec, NodeBranch, SiteNode
+from app.schemas.exploration_event import JunkSchema
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.exploration import data_loader
@@ -98,6 +100,21 @@ def test_roll_gear_respects_floor():
     assert item.rarity.lower() in ("rare", "legendary")
 
 
+def test_roll_gear_attempts_keep_luck_weighted_pick(monkeypatch):
+    common = JunkSchema(name="Common scrap", rarity="Common", value=1)
+    rare = JunkSchema(name="Rare scrap", rarity="Rare", value=50)
+    rolled = iter((common, rare))
+    floors: list[str | None] = []
+
+    def pick(_luck: int, _item_type: str, min_rarity: str | None = None) -> JunkSchema:
+        floors.append(min_rarity)
+        return next(rolled)
+
+    monkeypatch.setattr(expedition_module, "_roll_item", pick)
+    assert roll_gear(5, "junk", "rare", attempts=2) == rare
+    assert floors == [None, None]
+
+
 @pytest.mark.asyncio
 async def test_enter_unknown_site_rejected(async_session: AsyncSession):
     _, _, exploration = await _make_exploration(async_session)
@@ -129,7 +146,6 @@ async def test_enter_after_recent_clear_conflicts(async_session: AsyncSession):
         async_session,
         exploration_id=exploration.id,
         vault_id=vault.id,
-        dweller_id=dweller.id,
         site_id="red_rocket",
     )
     run.status = ExpeditionRunStatus.CLEARED
@@ -173,7 +189,6 @@ async def test_site_available_again_after_cooldown_window(async_session: AsyncSe
         async_session,
         exploration_id=exploration.id,
         vault_id=vault.id,
-        dweller_id=dweller.id,
         site_id="red_rocket",
     )
     run.status = ExpeditionRunStatus.RETREATED
@@ -195,6 +210,24 @@ def test_roll_gear_never_below_floor_for_any_item_type():
             assert item.rarity.lower() in ("rare", "legendary")
 
 
+def test_item_roll_rejects_ambiguous_or_ineffective_attempts():
+    with pytest.raises(ValidationError):
+        ItemRollSpec(type="junk", floor=None, rolls=2)
+    with pytest.raises(ValidationError, match="rarity floor"):
+        ItemRollSpec(type="junk", floor=None, attempts=2)
+
+
+@pytest.mark.parametrize("kind", ["cache", "skill_check"])
+def test_site_node_rejects_unshipped_standalone_kinds(kind: str):
+    with pytest.raises(ValidationError):
+        SiteNode(kind=kind, prompt="Unused node")
+
+
+def test_site_node_rejects_removed_cache_field():
+    with pytest.raises(ValidationError):
+        SiteNode(kind="choice", prompt="Unused cache", cache_tier="rich")
+
+
 def test_validate_site_content_rejects_unsatisfiable_floor(monkeypatch):
     monkeypatch.setattr(
         data_loader,
@@ -207,14 +240,9 @@ def test_validate_site_content_rejects_unsatisfiable_floor(monkeypatch):
         validate_site_content(site)
 
 
-def test_validate_site_content_checks_skill_check_branches(monkeypatch):
+def test_validate_site_content_checks_choice_branches(monkeypatch):
     site = data_loader.get_expedition_site("red_rocket").model_copy(deep=True)
-    node = site.rooms[0].node
-    node.kind = "skill_check"
-    node.options = []
-    node.stat = "perception"
-    node.difficulty = 2
-    node.success = NodeBranch(cache_tier="rich", cache_item="weapon", cache_floor="legendary")
+    site.rooms[0].node.options[0].success = NodeBranch(cache_tier="rich", cache_item="weapon", cache_floor="legendary")
     monkeypatch.setattr(expedition_module.loot_calculator, "has_eligible", lambda *_: False)
 
     with pytest.raises(ValidationException, match="no weapon at or above rarity"):
@@ -349,7 +377,6 @@ async def test_finale_payout_blocked_by_recent_terminal(async_session: AsyncSess
     terminal = ExpeditionRun(
         exploration_id=exploration.id,
         vault_id=vault.id,
-        dweller_id=dweller.id,
         site_id="red_rocket",
         status=ExpeditionRunStatus.CLEARED,
         finished_at=datetime.utcnow(),

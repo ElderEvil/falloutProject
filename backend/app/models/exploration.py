@@ -239,7 +239,7 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
 
 # Statuses that still accept room resolutions; at most one open run per exploration
 # and per vault+site (partial unique indexes below).
-OPEN_STATUSES: tuple[ExpeditionRunStatus, ...] = (ExpeditionRunStatus.ENTERED, ExpeditionRunStatus.IN_ROOM)
+OPEN_STATUSES: tuple[ExpeditionRunStatus, ...] = (ExpeditionRunStatus.IN_ROOM,)
 
 # Statuses that end a run and start the per-vault+site cooldown (D2-B).
 TERMINAL_STATUSES: tuple[ExpeditionRunStatus, ...] = (
@@ -257,25 +257,24 @@ class ExpeditionRun(BaseUUIDModel, TimeStampMixin, table=True):
             "uq_expeditionrun_open_exploration",
             "exploration_id",
             unique=True,
-            postgresql_where=sa.text("status IN ('ENTERED', 'IN_ROOM')"),
-            sqlite_where=sa.text("status IN ('ENTERED', 'IN_ROOM')"),
+            postgresql_where=sa.text("status = 'IN_ROOM'"),
+            sqlite_where=sa.text("status = 'IN_ROOM'"),
         ),
         sa.Index(
             "uq_expeditionrun_open_vault_site",
             "vault_id",
             "site_id",
             unique=True,
-            postgresql_where=sa.text("status IN ('ENTERED', 'IN_ROOM')"),
-            sqlite_where=sa.text("status IN ('ENTERED', 'IN_ROOM')"),
+            postgresql_where=sa.text("status = 'IN_ROOM'"),
+            sqlite_where=sa.text("status = 'IN_ROOM'"),
         ),
     )
 
     exploration_id: UUID4 = Field(foreign_key="exploration.id", index=True, ondelete="CASCADE")
     vault_id: UUID4 = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
-    dweller_id: UUID4 = Field(foreign_key="dweller.id", index=True, ondelete="CASCADE")
     site_id: str = Field(max_length=64, index=True)
     room_cursor: int = Field(default=0, ge=0)
-    status: ExpeditionRunStatus = Field(default=ExpeditionRunStatus.ENTERED, index=True)
+    status: ExpeditionRunStatus = Field(default=ExpeditionRunStatus.IN_ROOM, index=True)
     flags: dict = Field(default_factory=dict, sa_column=sa.Column(JSONB))
     # Terminal timestamp: set when the run reaches any terminal state
     # (CLEARED/RETREATED/DIED) and backs the 7-day per-vault+site cooldown.

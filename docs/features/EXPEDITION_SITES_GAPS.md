@@ -49,7 +49,7 @@ the gap sections below keep the problem analysis and note what changed.
    run, set on every terminal transition. The cooldown query covers all
    terminal statuses.
 2. **One open run per vault/site.** Enforced by a partial unique index on
-   `(vault_id, site_id)` where `status IN ('ENTERED','IN_ROOM')`. The index is
+   `(vault_id, site_id)` where `status = 'IN_ROOM'`. The index is
    a backstop, not the whole claim rule: entry must re-check cooldown and
    create its run under the same vault/site serialization used by terminal
    transitions. Otherwise an entry that checked before a prior run finished

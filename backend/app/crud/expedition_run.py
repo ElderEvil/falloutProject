@@ -29,14 +29,12 @@ class CRUDExpeditionRun(CRUDBase[ExpeditionRun, ExpeditionRun, ExpeditionRun]):
         *,
         exploration_id: UUID4,
         vault_id: UUID4,
-        dweller_id: UUID4,
         site_id: str,
     ) -> ExpeditionRun:
         """Insert one run row for a fresh site entry."""
         run = ExpeditionRun(
             exploration_id=exploration_id,
             vault_id=vault_id,
-            dweller_id=dweller_id,
             site_id=site_id,
         )
         db_session.add(run)

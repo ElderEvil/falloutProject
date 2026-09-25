@@ -1,9 +1,9 @@
 """Schemas for interactive expedition sites (static definitions + API views)."""
 
-from typing import Literal
+from typing import Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 RARITY_ORDER = ("common", "rare", "legendary")
 
@@ -49,20 +49,19 @@ class NodeOption(BaseModel):
 
 
 class SiteNode(BaseModel):
-    """One room node: combat, choice, skill_check, trap, cache, or finale."""
+    """One room node: combat, choice, trap, or finale."""
 
-    kind: Literal["combat", "choice", "skill_check", "trap", "cache", "finale"]
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["combat", "choice", "trap", "finale"]
     prompt: str
     enemies: list[EnemySpec] = Field(default_factory=list)
     options: list[NodeOption] = Field(default_factory=list)
     stat: str | None = None
     difficulty: int | None = Field(default=None, ge=1, le=5)
-    success: NodeBranch = Field(default_factory=NodeBranch)
-    failure: NodeBranch = Field(default_factory=NodeBranch)
     damage_min: int | None = None
     damage_max: int | None = None
     radiation: int = 0
-    cache_tier: Literal["small", "standard", "rich"] | None = None
 
 
 class SiteRoom(BaseModel):
@@ -75,11 +74,19 @@ class SiteRoom(BaseModel):
 
 
 class ItemRollSpec(BaseModel):
-    """Elevated item roll: type, bounded rerolls toward a rarity floor."""
+    """One item with bounded reroll attempts toward a rarity floor."""
+
+    model_config = ConfigDict(extra="forbid")
 
     type: Literal["weapon", "outfit", "junk"]
     floor: str | None = None
-    rolls: int = Field(default=1, ge=1, le=5)
+    attempts: int = Field(default=1, ge=1, le=5)
+
+    @model_validator(mode="after")
+    def attempts_need_floor(self) -> Self:
+        if self.floor is None and self.attempts != 1:
+            raise ValueError("multiple attempts require a rarity floor")
+        return self
 
 
 class RewardVault(BaseModel):

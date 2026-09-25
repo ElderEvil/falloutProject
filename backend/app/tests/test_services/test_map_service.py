@@ -1,5 +1,6 @@
 """Tests for MapService — registration and map assembly."""
 
+from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
@@ -9,6 +10,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import LocationTypeEnum, PlaceKindEnum
+from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.notification import Notification
 from app.models.vault import Vault
@@ -326,3 +328,108 @@ async def test_get_or_create_location_conflict_keeps_outer_transaction(async_ses
     persisted = await world_location.get_registry_by_normalized(async_session, "outer town")
     assert persisted is not None
     assert persisted.id == outer.id
+
+
+# ---------------------------------------------------------------------------
+# clear_state — per-point clear state on the map wire (issue 772, phase 1)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_clear_state_never_cleared(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A clearable, never-cleared point exposes clear_state with zeroed counters."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
+
+    map_data = await map_service.get_vault_map(async_session, vault)
+    red_rocket = next(loc for loc in map_data.locations if loc.normalized_name == "red rocket")
+
+    assert red_rocket.clear_state is not None
+    assert red_rocket.clear_state.clearable is True
+    assert red_rocket.clear_state.cleared is False
+    assert red_rocket.clear_state.clear_count == 0
+    assert red_rocket.clear_state.tier == 0
+    assert red_rocket.clear_state.time_remaining_seconds == 0
+    assert red_rocket.clear_state.loot_table == "low"
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_clear_state_cleared_pending_reclear(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A cleared point with a future reclear window reports cleared + tier capped."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
+
+    state = (
+        await async_session.execute(
+            select(VaultLocationState)
+            .join(WorldLocation, WorldLocation.id == VaultLocationState.location_id)
+            .where(VaultLocationState.vault_id == vault.id, WorldLocation.name == "Red Rocket")
+        )
+    ).scalar_one()
+    state.reclear_available_at = datetime.utcnow() + timedelta(hours=1)
+    state.clear_count = 5
+    await async_session.commit()
+
+    map_data = await map_service.get_vault_map(async_session, vault)
+    red_rocket = next(loc for loc in map_data.locations if loc.normalized_name == "red rocket")
+
+    assert red_rocket.clear_state is not None
+    assert red_rocket.clear_state.cleared is True
+    assert red_rocket.clear_state.clear_count == 5
+    assert red_rocket.clear_state.tier == game_config.exploration.dispatch.escalation_cap
+    assert red_rocket.clear_state.time_remaining_seconds > 0
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_clear_state_none_for_non_clearable_group(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """Non-clearable groups (settlement) carry no clear_state."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Megaton", visited_places=[])
+
+    map_data = await map_service.get_vault_map(async_session, vault)
+    megaton = next(loc for loc in map_data.locations if loc.normalized_name == "megaton")
+
+    assert megaton.group_key == "settlement"
+    assert megaton.clear_state is None
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_clear_state_none_without_group_key(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """Emergent places without a group key carry no clear_state."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Race Town", visited_places=[])
+
+    map_data = await map_service.get_vault_map(async_session, vault)
+    race_town = next(loc for loc in map_data.locations if loc.normalized_name == "race town")
+
+    assert race_town.group_key is None
+    assert race_town.clear_state is None
+
+
+@pytest.mark.asyncio
+async def test_get_location_detail_includes_clear_state(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """get_location_detail exposes clear_state for clearable points too."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
+
+    state = (
+        await async_session.execute(
+            select(VaultLocationState)
+            .join(WorldLocation, WorldLocation.id == VaultLocationState.location_id)
+            .where(VaultLocationState.vault_id == vault.id, WorldLocation.name == "Red Rocket")
+        )
+    ).scalar_one()
+
+    detail = await map_service.get_location_detail(async_session, vault, state.location_id)
+
+    assert detail.clear_state is not None
+    assert detail.clear_state.clearable is True
+    assert detail.clear_state.cleared is False
+    assert detail.clear_state.clear_count == 0
+    assert detail.clear_state.tier == 0
+    assert detail.clear_state.loot_table == "low"

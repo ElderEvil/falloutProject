@@ -13,6 +13,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from app.utils.place_loot import loot_table
 from app.utils.place_seed import load_seed_entries
 from app.utils.places import normalize_place_name
 
@@ -24,7 +25,9 @@ def load_place_groups() -> list[dict[str, Any]]:
     """Load and validate the group catalog (cached).
 
     Every group needs a unique key, a label, and a description, and every group
-    referenced by the seed roster must exist here.
+    referenced by the seed roster must exist here. Clearable groups additionally
+    need a reclear window, a base difficulty, and a loot table that exists in
+    ``place_loot.json``; non-clearable groups must carry none of those.
     """
     with GROUPS_FILE.open(encoding="utf-8") as f:
         groups: list[dict[str, Any]] = json.load(f)
@@ -37,6 +40,26 @@ def load_place_groups() -> list[dict[str, Any]]:
         keys.add(key)
         if not group.get("label") or not group.get("description"):
             raise ValueError(f"Place group {key!r} needs a label and description")
+
+        clearable = group.get("clearable", False)
+        if not isinstance(clearable, bool):
+            raise ValueError(  # ruff: ignore[type-check-without-type-error] - authoring errors surface as ValueError uniformly
+                f"Place group {key!r} needs a boolean 'clearable'"
+            )
+        if clearable:
+            reclear_hours = group.get("reclear_hours")
+            base_difficulty = group.get("base_difficulty")
+            loot_key = group.get("loot_table")
+            if not isinstance(reclear_hours, int) or isinstance(reclear_hours, bool) or reclear_hours < 1:
+                raise ValueError(f"Clearable place group {key!r} needs reclear_hours >= 1")
+            if not isinstance(base_difficulty, int) or isinstance(base_difficulty, bool) or base_difficulty < 1:
+                raise ValueError(f"Clearable place group {key!r} needs base_difficulty >= 1")
+            if not isinstance(loot_key, str) or loot_table(loot_key) is None:
+                raise ValueError(f"Clearable place group {key!r} references unknown loot table {loot_key!r}")
+        else:
+            for field in ("reclear_hours", "base_difficulty", "loot_table"):
+                if group.get(field) is not None:
+                    raise ValueError(f"Non-clearable place group {key!r} must not carry {field}")
 
     referenced = {entry["group"] for entry in load_seed_entries() if entry.get("group")}
     if unknown := referenced - keys:

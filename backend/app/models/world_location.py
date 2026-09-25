@@ -8,6 +8,8 @@ layer is rewired onto these in phase 2.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import sqlalchemy as sa
 from pydantic import UUID4
 from sqlmodel import Field, SQLModel
@@ -80,7 +82,27 @@ class VaultLocationState(BaseUUIDModel, VaultLocationStateBase, TimeStampMixin, 
     location_id: UUID4 = Field(foreign_key="worldlocation.id", index=True, ondelete="CASCADE")
     exploration_id: UUID4 | None = Field(default=None, foreign_key="exploration.id", nullable=True, ondelete="SET NULL")
 
+    # Map-point clear state (issue 772). NULL / 0 is the "never cleared" state;
+    # reclear_available_at is cleared_at + the place group's reclear_hours.
+    cleared_at: datetime | None = Field(default=None)
+    reclear_available_at: datetime | None = Field(default=None)
+    clear_count: int = Field(default=0, ge=0, description="Successful clears; drives escalation tier")
+
     __table_args__ = (sa.UniqueConstraint("vault_id", "location_id", name="uq_vault_location_state"),)
+
+    def is_cleared(self, now: datetime) -> bool:
+        """True while the point is cleared and not yet available for re-looting."""
+        return self.reclear_available_at is not None and now < self.reclear_available_at
+
+    def time_remaining_seconds(self, now: datetime) -> int:
+        """Seconds until the point can be re-looted; 0 when never cleared or already available."""
+        if self.reclear_available_at is None:
+            return 0
+        return max(0, int((self.reclear_available_at - now).total_seconds()))
+
+    def is_dispatchable(self, *, clearable: bool, now: datetime) -> bool:
+        """True when the place group allows clears and the point is not currently cleared."""
+        return clearable and not self.is_cleared(now)
 
 
 class DwellerLocationBase(SQLModel):

@@ -1,5 +1,6 @@
 """Tests for WorldLocation, VaultLocationState and DwellerLocation models."""
 
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -226,6 +227,88 @@ class TestVaultLocationStateModel:
         async_session.add(state2)
         with pytest.raises(IntegrityError):
             await async_session.commit()
+
+
+class TestVaultLocationStateClearHelpers:
+    """Truth table for the map-point clear helpers (issue 772)."""
+
+    def test_defaults_are_never_cleared(self) -> None:
+        """A fresh row is never cleared: NULL timestamps and zero count."""
+        state = VaultLocationState(
+            vault_id=uuid4(),
+            location_id=uuid4(),
+            type=LocationTypeEnum.DISCOVERY,
+        )
+        assert state.cleared_at is None
+        assert state.reclear_available_at is None
+        assert state.clear_count == 0
+
+    def test_clear_count_has_ge_constraint(self) -> None:
+        """clear_count must not accept negative values."""
+        field = VaultLocationState.model_fields["clear_count"]
+        assert any(hasattr(m, "ge") and m.ge == 0 for m in field.metadata), (
+            f"No ge=0 constraint found in clear_count metadata: {field.metadata}"
+        )
+
+    def test_never_cleared_helpers(self) -> None:
+        """reclear_available_at is None: not cleared, no time remaining."""
+        state = VaultLocationState(
+            vault_id=uuid4(),
+            location_id=uuid4(),
+            type=LocationTypeEnum.DISCOVERY,
+        )
+        now = datetime(2026, 9, 26, 12, 0, 0)
+        assert state.is_cleared(now) is False
+        assert state.time_remaining_seconds(now) == 0
+        assert state.is_dispatchable(clearable=True, now=now) is True
+        assert state.is_dispatchable(clearable=False, now=now) is False
+
+    def test_cleared_before_available(self) -> None:
+        """now < reclear_available_at: cleared, positive time remaining, not dispatchable."""
+        now = datetime(2026, 9, 26, 12, 0, 0)
+        state = VaultLocationState(
+            vault_id=uuid4(),
+            location_id=uuid4(),
+            type=LocationTypeEnum.DISCOVERY,
+            cleared_at=now - timedelta(hours=1),
+            reclear_available_at=now + timedelta(hours=5),
+            clear_count=1,
+        )
+        assert state.is_cleared(now) is True
+        assert state.time_remaining_seconds(now) == 5 * 3600
+        assert state.is_dispatchable(clearable=True, now=now) is False
+        assert state.is_dispatchable(clearable=False, now=now) is False
+
+    def test_cleared_at_available_boundary(self) -> None:
+        """now == reclear_available_at: no longer cleared, zero time remaining."""
+        now = datetime(2026, 9, 26, 12, 0, 0)
+        state = VaultLocationState(
+            vault_id=uuid4(),
+            location_id=uuid4(),
+            type=LocationTypeEnum.DISCOVERY,
+            cleared_at=now - timedelta(hours=5),
+            reclear_available_at=now,
+            clear_count=1,
+        )
+        assert state.is_cleared(now) is False
+        assert state.time_remaining_seconds(now) == 0
+        assert state.is_dispatchable(clearable=True, now=now) is True
+
+    def test_cleared_after_available(self) -> None:
+        """now > reclear_available_at: available again, dispatchable when group allows."""
+        now = datetime(2026, 9, 26, 12, 0, 0)
+        state = VaultLocationState(
+            vault_id=uuid4(),
+            location_id=uuid4(),
+            type=LocationTypeEnum.DISCOVERY,
+            cleared_at=now - timedelta(hours=10),
+            reclear_available_at=now - timedelta(hours=1),
+            clear_count=2,
+        )
+        assert state.is_cleared(now) is False
+        assert state.time_remaining_seconds(now) == 0
+        assert state.is_dispatchable(clearable=True, now=now) is True
+        assert state.is_dispatchable(clearable=False, now=now) is False
 
 
 class TestDwellerLocationModel:

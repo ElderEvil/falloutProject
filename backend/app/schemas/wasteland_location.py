@@ -11,6 +11,21 @@ from sqlmodel import SQLModel
 from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum
 
 
+class LocationClearStateRead(SQLModel):
+    """Per-point clear state for a clearable map point (issue 772, phase 1).
+
+    Read-only projection of ``VaultLocationState`` clear fields; availability is
+    derived from ``now`` at read time and never persisted by this phase.
+    """
+
+    clearable: bool
+    cleared: bool
+    clear_count: int
+    tier: int
+    time_remaining_seconds: int
+    loot_table: str | None = None
+
+
 class WastelandLocationRead(SQLModel):
     """All row fields for a WastelandLocation, serialized for the API."""
 
@@ -25,6 +40,7 @@ class WastelandLocationRead(SQLModel):
     vault_id: UUID4
     exploration_id: UUID4 | None
     created_at: datetime | None
+    clear_state: LocationClearStateRead | None = None
 
 
 class PlaceGroupRead(SQLModel):
@@ -35,6 +51,10 @@ class PlaceGroupRead(SQLModel):
     icon: str
     risk: str
     description: str
+    clearable: bool = False
+    reclear_hours: int | None = None
+    loot_table: str | None = None
+    base_difficulty: int | None = None
 
 
 class DwellerRef(SQLModel):

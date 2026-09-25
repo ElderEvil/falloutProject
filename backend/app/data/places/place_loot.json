@@ -1,0 +1,30 @@
+{
+  "tables": {
+    "low": {
+      "caps": {"min": 15, "max": 40},
+      "items": [
+        {"type": "junk", "rarity": "common"},
+        {"type": "junk", "rarity": "common"},
+        {"type": "outfit", "rarity": "common"}
+      ]
+    },
+    "medium": {
+      "caps": {"min": 40, "max": 90},
+      "items": [
+        {"type": "junk", "rarity": "common"},
+        {"type": "junk", "rarity": "rare"},
+        {"type": "outfit", "rarity": "common"},
+        {"type": "outfit", "rarity": "rare"}
+      ]
+    },
+    "high": {
+      "caps": {"min": 100, "max": 200},
+      "items": [
+        {"type": "weapon", "rarity": "rare"},
+        {"type": "outfit", "rarity": "rare"},
+        {"type": "junk", "rarity": "rare"},
+        {"type": "weapon", "rarity": "legendary"}
+      ]
+    }
+  }
+}

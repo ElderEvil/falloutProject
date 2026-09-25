@@ -9,6 +9,7 @@ from sqlalchemy import orm
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
+from app.core.enums import ExpeditionRunStatus
 from app.models.base import BaseUUIDModel, TimeStampMixin
 
 # The trip home takes half the time the dweller spent exploring.
@@ -234,3 +235,52 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         )
         # Flag the field as modified so SQLAlchemy tracks the change
         orm.attributes.flag_modified(self, "loot_collected")
+
+
+# Statuses that still accept room resolutions; at most one open run per exploration
+# and per vault+site (partial unique indexes below).
+OPEN_STATUSES: tuple[ExpeditionRunStatus, ...] = (ExpeditionRunStatus.ENTERED, ExpeditionRunStatus.IN_ROOM)
+
+# Statuses that end a run and start the per-vault+site cooldown (D2-B).
+TERMINAL_STATUSES: tuple[ExpeditionRunStatus, ...] = (
+    ExpeditionRunStatus.CLEARED,
+    ExpeditionRunStatus.RETREATED,
+    ExpeditionRunStatus.DIED,
+)
+
+
+class ExpeditionRun(BaseUUIDModel, TimeStampMixin, table=True):
+    """One attempt at an expedition site: room cursor plus cooldown record."""
+
+    __table_args__ = (
+        sa.Index(
+            "uq_expeditionrun_open_exploration",
+            "exploration_id",
+            unique=True,
+            postgresql_where=sa.text("status IN ('ENTERED', 'IN_ROOM')"),
+            sqlite_where=sa.text("status IN ('ENTERED', 'IN_ROOM')"),
+        ),
+        sa.Index(
+            "uq_expeditionrun_open_vault_site",
+            "vault_id",
+            "site_id",
+            unique=True,
+            postgresql_where=sa.text("status IN ('ENTERED', 'IN_ROOM')"),
+            sqlite_where=sa.text("status IN ('ENTERED', 'IN_ROOM')"),
+        ),
+    )
+
+    exploration_id: UUID4 = Field(foreign_key="exploration.id", index=True, ondelete="CASCADE")
+    vault_id: UUID4 = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
+    dweller_id: UUID4 = Field(foreign_key="dweller.id", index=True, ondelete="CASCADE")
+    site_id: str = Field(max_length=64, index=True)
+    room_cursor: int = Field(default=0, ge=0)
+    status: ExpeditionRunStatus = Field(default=ExpeditionRunStatus.ENTERED, index=True)
+    flags: dict = Field(default_factory=dict, sa_column=sa.Column(JSONB))
+    # Terminal timestamp: set when the run reaches any terminal state
+    # (CLEARED/RETREATED/DIED) and backs the 7-day per-vault+site cooldown.
+    finished_at: datetime | None = Field(default=None)
+
+    def is_open(self) -> bool:
+        """Return whether the run still accepts room resolutions."""
+        return self.status in OPEN_STATUSES

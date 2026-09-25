@@ -24,11 +24,12 @@ from app.models.weapon import Weapon
 from app.schemas.exploration import PendingOverflowRead
 from app.schemas.exploration_event import RewardsSchema
 from app.services.exploration import data_loader
+from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration.rewards_calculator import rewards_calculator
 from app.services.loot_overflow_service import loot_overflow_service
 from app.services.resource_manager import compute_medical_capacity
 from app.services.vault_service import vault_service
-from app.utils.exceptions import ResourceNotFoundException, ValidationException
+from app.utils.exceptions import ValidationException
 from app.utils.item_factory import build_junk, build_outfit, build_weapon
 
 logger = logging.getLogger(__name__)
@@ -273,9 +274,7 @@ class RewardsService:
         }
 
     async def _load_unclaimed(self, db_session: AsyncSession, exploration_id: UUID4) -> tuple[Exploration, list[dict]]:
-        exploration = await crud_exploration.get_for_update(db_session, exploration_id)
-        if not exploration:
-            raise ResourceNotFoundException(Exploration, exploration_id)
+        exploration = await lock_exploration_with_vault_claim(db_session, exploration_id)
         if exploration.is_in_progress():
             raise ValidationException("Exploration is still in progress")
         return exploration, list(exploration.unclaimed_loot or [])

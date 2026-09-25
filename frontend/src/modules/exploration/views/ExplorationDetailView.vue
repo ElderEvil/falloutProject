@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
+import { Button } from '@/core/components/ui/button'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { usePolling } from '@/core/composables/usePolling'
@@ -10,10 +11,12 @@ import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useExplorationStore } from '../stores/exploration'
+import { useExpeditionSiteStore } from '../stores/expeditionSite'
 import { useExplorationProgress } from '../composables/useExplorationProgress'
 import { useExplorationFinish } from '../composables/useExplorationFinish'
 import { useExplorationHealthJourney } from '../composables/useExplorationHealthJourney'
 import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
+import ExpeditionSiteModal from '../components/ExpeditionSiteModal.vue'
 import ExplorerNavbar from '../components/ExplorerNavbar.vue'
 import ExplorerSummaryCard from '../components/ExplorerSummaryCard.vue'
 import ExplorerStatsGrid from '../components/ExplorerStatsGrid.vue'
@@ -27,7 +30,10 @@ const router = useRouter()
 const authStore = useAuthStore()
 const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
+const siteStore = useExpeditionSiteStore()
 const { isCollapsed } = useSidePanel()
+
+const showSiteModal = ref(false)
 
 const vaultId = computed(() => route.params.id as string)
 const explorationId = computed(() => route.params.explorationId as string)
@@ -125,6 +131,14 @@ const {
   canRecall,
 } = useExplorationProgress(() => exploration.value)
 
+// Seconds left on the exploration clock, for the site modal's expiry chip.
+const timeRemainingSeconds = computed(() => {
+  const exp = exploration.value
+  if (!exp || exp.status !== 'active') return undefined
+  const remaining = exp.duration * 3600 * (1 - progressPercentage.value / 100)
+  return Math.max(0, Math.round(remaining))
+})
+
 // Equipment computed
 const weaponName = computed(() => detailedDweller.value?.weapon?.name ?? null)
 const outfitName = computed(() => detailedDweller.value?.outfit?.name ?? null)
@@ -172,6 +186,21 @@ const refreshExploration = async () => {
   }
 }
 
+const isActiveExploration = computed(() => exploration.value?.status === 'active')
+
+// Reconnect-safe: if a site run is already open server-side, surface the modal
+// on mount so the player can pick up where they left off. A null room (no open
+// run) is a normal answer, not an error.
+const reconnectToSite = async () => {
+  if (!explorationId.value || !authStore.token || !isActiveExploration.value) return
+  try {
+    const currentRoom = await siteStore.fetchCurrentRoom(explorationId.value)
+    if (currentRoom?.exploration_id === explorationId.value) showSiteModal.value = true
+  } catch {
+    // Network failure — the entry CTA still works; don't block the page.
+  }
+}
+
 // Auto-refresh every 10 seconds. usePolling cleans up with this view scope.
 usePolling(refreshExploration, { interval: 10_000, immediate: false })
 
@@ -188,11 +217,27 @@ onMounted(async () => {
     }
 
     explorationStore.startSseSubscription(vaultId.value, authStore.token)
+
+    await reconnectToSite()
   }
 })
 
 onUnmounted(() => {
   explorationStore.stopSseSubscription()
+})
+
+// Switching explorers reuses this view (router.push without a remount), so the
+// mount-time reconnect never runs again. Re-scope the site store and reconnect.
+watch(explorationId, async (id, previousId) => {
+  if (!id || id === previousId) return
+  siteStore.reset()
+  showSiteModal.value = false
+  if (!authStore.token) return
+  await explorationStore.fetchExplorationDetails(id, authStore.token)
+  if (exploration.value) {
+    await dwellerStore.fetchDwellerDetails(exploration.value.dweller_id, authStore.token)
+  }
+  await reconnectToSite()
 })
 
 // Surface rewards when the game loop auto-completes an exploration server-side
@@ -258,6 +303,17 @@ watch(isReady, (ready) => {
             />
 
             <ExplorerStatsGrid v-if="exploration" :exploration="exploration" />
+
+            <!-- Expedition site entry CTA (active explorations only) -->
+            <Button
+              v-if="isActiveExploration"
+              class="mt-4 w-full"
+              size="lg"
+              @click="showSiteModal = true"
+            >
+              <Icon icon="mdi:radio-tower" class="h-5 w-5" />
+              Expedition site
+            </Button>
 
             <!-- Vitals journey: cumulative health/radiation change (not an absolute history). -->
             <div
@@ -362,6 +418,17 @@ watch(isReady, (ready) => {
             :exploration-id="completedExplorationId"
             @close="closeRewardsModal"
             @resolved="rewardsDirty = true"
+          />
+
+          <!-- Expedition Site Modal -->
+          <ExpeditionSiteModal
+            :show="showSiteModal"
+            :exploration-id="explorationId"
+            :dweller-name="dwellerName"
+            :time-remaining-seconds="timeRemainingSeconds"
+            :exploration-active="isActiveExploration"
+            @close="showSiteModal = false"
+            @updated="refreshExploration"
           />
         </PageContentRail>
       </div>

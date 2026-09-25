@@ -3,7 +3,7 @@ from .arena_match_event import ArenaMatchEvent
 from .chat_message import ChatMessage, ChatMessageCreate, ChatMessageRead
 from .crafting_order import CraftingOrder, CraftingOrderStatus
 from .dweller import Dweller
-from .exploration import Exploration
+from .exploration import ExpeditionRun, ExpeditionRunStatus, Exploration
 from .game_state import GameState
 from .incident import Incident, IncidentParticipant, IncidentStatus, IncidentType
 from .incident_event import IncidentEvent

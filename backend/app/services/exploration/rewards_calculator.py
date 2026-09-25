@@ -27,7 +27,8 @@ class RewardsCalculator:
         # Base XP sources
         distance_xp = exploration.total_distance * cfg.exploration_xp_per_distance
         combat_xp = exploration.enemies_encountered * cfg.exploration_xp_per_enemy
-        event_xp = len(exploration.events) * cfg.exploration_xp_per_event
+        # Site events are journey-log noise (one per resolution); site XP comes from enemies_encountered.
+        event_xp = sum(1 for e in exploration.events if e.get("type") != "site") * cfg.exploration_xp_per_event
 
         base_xp = distance_xp + combat_xp + event_xp
 

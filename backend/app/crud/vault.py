@@ -51,6 +51,23 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         )
         return result.scalars().one()
 
+    async def get_for_update(self, db_session: AsyncSession, vault_id: UUID4) -> Vault | None:
+        """One vault row locked FOR UPDATE, or None when missing.
+
+        The shared vault/site claim for expedition sites: entry, terminal
+        transitions, and the finale payout serialize on this row so a cooldown
+        check and a run insert cannot interleave with a run finishing.
+        ``populate_existing`` refreshes the instance even when the row is already
+        in the session's identity map.
+        """
+        result = await db_session.execute(
+            select(self.model)
+            .where(self.model.id == vault_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return result.scalar_one_or_none()
+
     async def update_storage(self, db_session: AsyncSession, vault_id: UUID4, new_space_max: int) -> Storage:
         """Update the storage max space for a vault (delegates to storage CRUD)."""
         from app.crud.storage import storage as storage_crud

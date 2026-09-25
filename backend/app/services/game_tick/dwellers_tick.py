@@ -16,9 +16,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.enums import RoomTypeEnum
 from app.core.game_config import game_config
 from app.crud import dweller as crud_dweller
+from app.crud import expedition_run as crud_expedition_run
 from app.crud import exploration as crud_exploration
 from app.crud import room as crud_room
 from app.crud.vault import vault as vault_crud
+from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration_service import exploration_service
 from app.services.game_tick.guard import guard_phase, recover_session, refresh_after_recovery
 from app.services.game_tick.tick_results import (
@@ -92,6 +94,14 @@ async def process_explorations(db_session: AsyncSession, vault_id: UUID4) -> Exp
 
 
 async def _process_single_exploration(db_session: AsyncSession, stats: ExplorationStats, exploration) -> None:
+    # Re-read under the shared vault claim (claim -> exploration) so the site-run
+    # check below cannot race a concurrent site entry; the bulk-loaded instance
+    # may be stale.
+    locked = await lock_exploration_with_vault_claim(db_session, exploration.id, missing_ok=True)
+    if locked is None:
+        return
+    exploration = locked
+
     # A returning dweller only waits for arrival; no events fire on the way home.
     if exploration.is_returning():
         if exploration.return_time_remaining_seconds() <= 0:
@@ -105,6 +115,11 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
         await exploration_service.start_return(db_session, exploration.id)
         stats["returning"] += 1
         logger.info(f"Exploration {exploration.id} finished; dweller {exploration.dweller_id} is returning home")
+        return
+
+    # D1-A: while a site run is open, random events pause; the wall clock keeps
+    # running, so the expiry branch above still fires the auto-retreat.
+    if await crud_expedition_run.get_open_for_exploration(db_session, exploration.id) is not None:
         return
 
     # Try to generate an event

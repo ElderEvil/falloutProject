@@ -6,11 +6,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app import crud
 from app.models.dweller import Dweller
-from app.models.exploration import ExplorationStatus
+from app.models.exploration import ExpeditionRunStatus, ExplorationStatus
 from app.models.vault import Vault
 from app.schemas.common import DwellerStatusEnum
 from app.services.exploration.coordinator import exploration_coordinator
+from app.services.exploration.expedition import expedition_service
 from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
 from app.services.game_tick.dwellers_tick import process_explorations
@@ -214,3 +216,63 @@ async def test_finalize_return_rolls_back_terminal_transition_when_rewards_fail(
     await async_session.refresh(vault)
     assert exploration.status == ExplorationStatus.COMPLETED
     assert vault.bottle_caps == 250
+
+
+def _spy_lock_order(monkeypatch) -> list[str]:
+    """Record the order of vault-claim and exploration-lock acquisitions."""
+    order: list[str] = []
+    real_vault = crud.vault.get_for_update
+    real_exploration = crud.exploration.get_for_update
+
+    async def spy_vault(*args, **kwargs):
+        order.append("vault")
+        return await real_vault(*args, **kwargs)
+
+    async def spy_exploration(*args, **kwargs):
+        order.append("exploration")
+        return await real_exploration(*args, **kwargs)
+
+    monkeypatch.setattr(crud.vault, "get_for_update", spy_vault)
+    monkeypatch.setattr(crud.exploration, "get_for_update", spy_exploration)
+    return order
+
+
+@pytest.mark.asyncio
+async def test_finalize_return_claims_vault_before_exploration(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    monkeypatch,
+):
+    """Reward settlement must take the vault claim before the exploration lock,
+    matching site actions, so a sell/finalize cannot deadlock."""
+    exploration = await _expired_exploration(async_session, vault, dweller)
+    await exploration_coordinator.start_return(async_session, exploration.id)
+    await async_session.refresh(exploration)
+    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    async_session.add(exploration)
+    await async_session.commit()
+
+    order = _spy_lock_order(monkeypatch)
+    await exploration_coordinator.finalize_return(async_session, exploration.id)
+
+    assert order[0] == "vault"
+    assert order[1] == "exploration"
+
+
+@pytest.mark.asyncio
+async def test_tick_claims_vault_before_reading_the_run(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    monkeypatch,
+):
+    """The tick must re-read under the shared claim before its open-run check,
+    so a site entry committed concurrently cannot slip an event through."""
+    await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+
+    order = _spy_lock_order(monkeypatch)
+    await process_explorations(async_session, vault.id)
+
+    assert order[0] == "vault"
+    assert order[1] == "exploration"

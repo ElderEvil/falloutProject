@@ -9193,6 +9193,11 @@ export interface components {
              * @default false
              */
             finale_paid: boolean;
+            /**
+             * Defeated
+             * @default false
+             */
+            defeated: boolean;
         };
         /**
          * SpeedupMultiplier

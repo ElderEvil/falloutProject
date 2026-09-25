@@ -17,6 +17,17 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
   const room = ref<SiteRoomView | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  const currentExplorationId = ref<string | null>(null)
+
+  // Gap 4.3: room state is scoped to the exploration that loaded it. Acting on
+  // a different exploration must never render a stale room from a previous one.
+  function scopeToExploration(explorationId: string): void {
+    if (explorationId !== currentExplorationId.value) {
+      room.value = null
+      error.value = null
+      currentExplorationId.value = explorationId
+    }
+  }
 
   async function fetchAvailableSites(explorationId: string): Promise<AvailableSiteView[]> {
     isLoading.value = true
@@ -35,6 +46,7 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
   }
 
   async function enterSite(explorationId: string, siteId: string): Promise<SiteRoomView> {
+    scopeToExploration(explorationId)
     isLoading.value = true
     error.value = null
     try {
@@ -51,6 +63,7 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
   }
 
   async function resolveNode(explorationId: string, choiceId?: string): Promise<SiteRoomView> {
+    scopeToExploration(explorationId)
     isLoading.value = true
     error.value = null
     try {
@@ -67,6 +80,7 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
   }
 
   async function retreat(explorationId: string): Promise<SiteRoomView> {
+    scopeToExploration(explorationId)
     isLoading.value = true
     error.value = null
     try {
@@ -83,6 +97,7 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
   }
 
   async function fetchCurrentRoom(explorationId: string): Promise<SiteRoomView | null> {
+    scopeToExploration(explorationId)
     isLoading.value = true
     error.value = null
     try {
@@ -106,6 +121,7 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
     room.value = null
     availableSites.value = []
     error.value = null
+    currentExplorationId.value = null
   }
 
   return {
@@ -113,6 +129,7 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
     room,
     isLoading,
     error,
+    currentExplorationId,
     fetchAvailableSites,
     enterSite,
     resolveNode,

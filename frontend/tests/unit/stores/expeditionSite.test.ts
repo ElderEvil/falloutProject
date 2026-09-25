@@ -152,6 +152,60 @@ describe('Expedition Site Store', () => {
     expect(store.error).toBeNull()
   })
 
+  it('scopes room state to the exploration id and resets on a different one', async () => {
+    vi.mocked(expeditionSiteApi.enterSite).mockResolvedValue(mockRoom)
+    const store = useExpeditionSiteStore()
+
+    await store.enterSite('exploration-1', 'red_rocket')
+    expect(store.room).toEqual(mockRoom)
+    expect(store.currentExplorationId).toBe('exploration-1')
+
+    const otherRoom = { ...mockRoom, exploration_id: 'exploration-2' }
+    vi.mocked(expeditionSiteApi.enterSite).mockResolvedValue(otherRoom)
+    store.error = 'stale error'
+    await store.enterSite('exploration-2', 'red_rocket')
+
+    expect(store.room).toEqual(otherRoom)
+    expect(store.error).toBeNull()
+    expect(store.currentExplorationId).toBe('exploration-2')
+  })
+
+  it('clears a stale room before acting on a different exploration even on failure', async () => {
+    vi.mocked(expeditionSiteApi.enterSite).mockResolvedValue(mockRoom)
+    const store = useExpeditionSiteStore()
+    await store.enterSite('exploration-1', 'red_rocket')
+    expect(store.room).toEqual(mockRoom)
+
+    vi.mocked(expeditionSiteApi.resolveNode).mockRejectedValue(new Error('boom'))
+    await expect(store.resolveNode('exploration-2')).rejects.toThrow('boom')
+
+    expect(store.room).toBeNull()
+    expect(store.error).toBe('Failed to resolve expedition node')
+    expect(store.currentExplorationId).toBe('exploration-2')
+  })
+
+  it('scopes fetchCurrentRoom to the exploration id', async () => {
+    vi.mocked(expeditionSiteApi.enterSite).mockResolvedValue(mockRoom)
+    const store = useExpeditionSiteStore()
+    await store.enterSite('exploration-1', 'red_rocket')
+
+    vi.mocked(expeditionSiteApi.getCurrentRoom).mockResolvedValue(null)
+    await store.fetchCurrentRoom('exploration-2')
+
+    expect(store.room).toBeNull()
+    expect(store.currentExplorationId).toBe('exploration-2')
+  })
+
+  it('reset clears the scoped exploration id', async () => {
+    vi.mocked(expeditionSiteApi.enterSite).mockResolvedValue(mockRoom)
+    const store = useExpeditionSiteStore()
+    await store.enterSite('exploration-1', 'red_rocket')
+
+    store.reset()
+
+    expect(store.currentExplorationId).toBeNull()
+  })
+
   it('isTerminal flags terminal statuses', () => {
     expect(SITE_TERMINAL_STATUSES).toEqual(['retreated', 'cleared', 'died'])
     expect(isTerminal('retreated')).toBe(true)

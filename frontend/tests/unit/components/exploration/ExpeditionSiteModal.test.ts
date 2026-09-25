@@ -95,9 +95,26 @@ const inRoomOutcome: SiteRoomView = {
   },
 }
 
-const mountModal = (explorationId = 'exp-1', dwellerName = 'Lucy MacLean') =>
+const defeatedRoom: SiteRoomView = {
+  ...choiceRoom,
+  status: 'in_room',
+  defeated: true,
+  outcome: {
+    text: 'The raider pack overpowers you.',
+    damage_taken: 12,
+    caps_gained: 0,
+    loot_gained: [],
+  },
+}
+
+const mountModal = (
+  explorationId = 'exp-1',
+  dwellerName = 'Lucy MacLean',
+  timeRemainingSeconds?: number,
+  explorationActive = true
+) =>
   mount(ExpeditionSiteModal, {
-    props: { show: true, explorationId, dwellerName },
+    props: { show: true, explorationId, dwellerName, timeRemainingSeconds, explorationActive },
     global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
   })
 
@@ -248,5 +265,106 @@ describe('ExpeditionSiteModal', () => {
 
     expect(wrapper.emitted('close')).toHaveLength(1)
     expect(wrapper.emitted('updated')).toBeUndefined()
+  })
+
+  it('shows push-on and retreat instead of option buttons when defeated', async () => {
+    const wrapper = mountModal()
+    const store = useExpeditionSiteStore()
+    store.room = defeatedRoom
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Defeated')
+    expect(wrapper.text()).toContain('The raider pack overpowers you.')
+    expect(wrapper.text()).toContain('12 damage taken')
+    expect(buttonByText(wrapper, 'Push on')).toBeDefined()
+    expect(buttonByText(wrapper, 'Retreat')).toBeDefined()
+    expect(buttonByText(wrapper, 'Talk it out')).toBeUndefined()
+  })
+
+  it('push-on retries the fight through resolveNode without a choice id', async () => {
+    mockResolve.mockResolvedValue({ ...choiceRoom, room_index: 1 })
+    const wrapper = mountModal()
+    const store = useExpeditionSiteStore()
+    store.room = defeatedRoom
+    await flushPromises()
+
+    await buttonByText(wrapper, 'Push on')!.trigger('click')
+    await flushPromises()
+
+    expect(mockResolve).toHaveBeenCalledWith('exp-1', undefined)
+  })
+
+  it('retreats from a defeat through the confirm step', async () => {
+    mockRetreat.mockResolvedValue(retreatedRoom)
+    const wrapper = mountModal()
+    const store = useExpeditionSiteStore()
+    store.room = defeatedRoom
+    await flushPromises()
+
+    await buttonByText(wrapper, 'Retreat')!.trigger('click')
+    expect(wrapper.text()).toContain('Keep Exploring')
+
+    await buttonByText(wrapper, 'Retreat')!.trigger('click')
+    await flushPromises()
+
+    expect(mockRetreat).toHaveBeenCalledWith('exp-1')
+    expect(wrapper.text()).toContain('Retreated with whatever was carried.')
+  })
+
+  it('renders room-pane errors and clears them on the next action', async () => {
+    const wrapper = mountModal()
+    const store = useExpeditionSiteStore()
+    store.room = choiceRoom
+    store.error = 'Failed to resolve expedition node'
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Failed to resolve expedition node')
+
+    mockResolve.mockResolvedValue({ ...choiceRoom, room_index: 1 })
+    await buttonByText(wrapper, 'Talk it out')!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Failed to resolve expedition node')
+  })
+
+  it('shows the remaining time chip and the expiry warning under 300s', async () => {
+    const wrapper = mountModal('exp-1', 'Lucy MacLean', 600)
+    const store = useExpeditionSiteStore()
+    store.room = choiceRoom
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('≈10m left')
+    expect(wrapper.text()).not.toContain('Clock expiry will force a retreat.')
+
+    await wrapper.setProps({ timeRemainingSeconds: 120 })
+    expect(wrapper.text()).toContain('≈2m left')
+    expect(wrapper.text()).toContain('Clock expiry will force a retreat.')
+  })
+
+  it('renders a close-only recovery state on a non-active exploration', async () => {
+    const wrapper = mountModal('exp-1', 'Lucy MacLean', undefined, false)
+    const store = useExpeditionSiteStore()
+    store.room = choiceRoom
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('This expedition has ended')
+    expect(buttonByText(wrapper, 'Talk it out')).toBeUndefined()
+    expect(buttonByText(wrapper, 'Push on')).toBeUndefined()
+    expect(buttonByText(wrapper, 'Retreat')).toBeUndefined()
+
+    await buttonByText(wrapper, 'Close')!.trigger('click')
+    expect(wrapper.emitted('close')).toHaveLength(1)
+    expect(wrapper.emitted('updated')).toBeUndefined()
+  })
+
+  it('shows the terminal banner in the recovery state for a terminal run', async () => {
+    const wrapper = mountModal('exp-1', 'Lucy MacLean', undefined, false)
+    const store = useExpeditionSiteStore()
+    store.room = retreatedRoom
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('This expedition has ended')
+    expect(wrapper.text()).toContain('Retreated with whatever was carried.')
+    expect(buttonByText(wrapper, 'Close')).toBeDefined()
   })
 })

@@ -131,6 +131,14 @@ const {
   canRecall,
 } = useExplorationProgress(() => exploration.value)
 
+// Seconds left on the exploration clock, for the site modal's expiry chip.
+const timeRemainingSeconds = computed(() => {
+  const exp = exploration.value
+  if (!exp || exp.status !== 'active') return undefined
+  const remaining = exp.duration * 3600 * (1 - progressPercentage.value / 100)
+  return Math.max(0, Math.round(remaining))
+})
+
 // Equipment computed
 const weaponName = computed(() => detailedDweller.value?.weapon?.name ?? null)
 const outfitName = computed(() => detailedDweller.value?.outfit?.name ?? null)
@@ -403,6 +411,8 @@ watch(isReady, (ready) => {
             :show="showSiteModal"
             :exploration-id="explorationId"
             :dweller-name="dwellerName"
+            :time-remaining-seconds="timeRemainingSeconds"
+            :exploration-active="isActiveExploration"
             @close="showSiteModal = false"
             @updated="refreshExploration"
           />

@@ -12,7 +12,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.enums import LocationTypeEnum, PlaceKindEnum
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
-from app.models.notification import Notification
+from app.models.notification import Notification, NotificationType
 from app.models.vault import Vault
 from app.models.world_location import DwellerLocation, VaultLocationState, WorldLocation
 from app.schemas.common import RarityEnum
@@ -433,3 +433,95 @@ async def test_get_location_detail_includes_clear_state(
     assert detail.clear_state.clear_count == 0
     assert detail.clear_state.tier == 0
     assert detail.clear_state.loot_table == "low"
+
+
+# ---------------------------------------------------------------------------
+# sweep_reclears — reclear reset sweep (issue 772, phase 4a)
+# ---------------------------------------------------------------------------
+
+
+async def _red_rocket_state(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> VaultLocationState:
+    """Register Red Rocket and return its vault state."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
+    return (
+        await async_session.execute(
+            select(VaultLocationState)
+            .join(WorldLocation, WorldLocation.id == VaultLocationState.location_id)
+            .where(VaultLocationState.vault_id == vault.id, WorldLocation.name == "Red Rocket")
+        )
+    ).scalar_one()
+
+
+@pytest.mark.asyncio
+async def test_sweep_reclears_nulls_elapsed_and_notifies_once(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """An elapsed reclear is nulled and emits exactly one LOCATION_READY; a second sweep is a no-op."""
+    state = await _red_rocket_state(async_session, vault, dweller)
+    state.reclear_available_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    assert await map_service.sweep_reclears(async_session) == 1
+
+    await async_session.refresh(state)
+    assert state.reclear_available_at is None
+    notifications = (
+        (
+            await async_session.execute(
+                select(Notification).where(Notification.notification_type == NotificationType.LOCATION_READY)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(notifications) == 1
+    assert notifications[0].user_id == vault.user_id
+    assert notifications[0].vault_id == vault.id
+    assert "Red Rocket" in notifications[0].title
+
+    assert await map_service.sweep_reclears(async_session) == 0
+    notifications = (
+        (
+            await async_session.execute(
+                select(Notification).where(Notification.notification_type == NotificationType.LOCATION_READY)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(notifications) == 1
+
+
+@pytest.mark.asyncio
+async def test_sweep_reclears_skips_not_yet_elapsed(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A reclear window still in the future is untouched: neither nulled nor notified."""
+    state = await _red_rocket_state(async_session, vault, dweller)
+    state.reclear_available_at = datetime.utcnow() + timedelta(hours=1)
+    await async_session.commit()
+
+    assert await map_service.sweep_reclears(async_session) == 0
+
+    await async_session.refresh(state)
+    assert state.reclear_available_at is not None
+    notifications = (await async_session.execute(select(Notification))).scalars().all()
+    assert notifications == []
+
+
+@pytest.mark.asyncio
+async def test_sweep_reclears_skips_missing_vault_owner(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A vault whose owner row is missing is skipped without aborting the sweep."""
+    state = await _red_rocket_state(async_session, vault, dweller)
+    state.reclear_available_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    with patch("app.services.map_service.vault_crud.get_or_none", new=AsyncMock(return_value=None)):
+        assert await map_service.sweep_reclears(async_session) == 1
+
+    await async_session.refresh(state)
+    assert state.reclear_available_at is None
+    notifications = (await async_session.execute(select(Notification))).scalars().all()
+    assert notifications == []

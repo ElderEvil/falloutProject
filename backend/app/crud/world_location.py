@@ -16,6 +16,7 @@ from app.utils.place_groups import group_for_place_name
 from app.utils.places import collision_nudge, normalize_place_name, schematic_coords
 
 if TYPE_CHECKING:
+    from datetime import datetime
     from uuid import UUID
 
     from pydantic import UUID4
@@ -227,6 +228,20 @@ class CRUDWorldLocation:
             select(WorldLocation, VaultLocationState)
             .join(VaultLocationState, VaultLocationState.location_id == WorldLocation.id)
             .where(VaultLocationState.vault_id == vault_id)
+        )
+        return [(row[0], row[1]) for row in result.all()]
+
+    async def get_elapsed_reclears(
+        self, db_session: AsyncSession, now: datetime
+    ) -> list[tuple[WorldLocation, VaultLocationState]]:
+        """States whose reclear window has elapsed, joined to their location."""
+        result = await db_session.execute(
+            select(WorldLocation, VaultLocationState)
+            .join(VaultLocationState, VaultLocationState.location_id == WorldLocation.id)
+            .where(
+                VaultLocationState.reclear_available_at.is_not(None),
+                VaultLocationState.reclear_available_at <= now,
+            )
         )
         return [(row[0], row[1]) for row in result.all()]
 

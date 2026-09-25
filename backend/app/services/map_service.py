@@ -425,6 +425,34 @@ class MapService:
             clear_state=self._clear_state_for(state, location),
         )
 
+    async def sweep_reclears(self, db_session: AsyncSession) -> int:
+        """Null elapsed reclear windows and notify owners the point is ready again.
+
+        The null is the idempotency guard: a second sweep finds nothing. A vault
+        whose owner row is missing is skipped without aborting the sweep.
+        """
+        pairs = await wl_crud.get_elapsed_reclears(db_session, datetime.utcnow())
+        for location, state in pairs:
+            state.reclear_available_at = None
+            db_session.add(state)
+            vault = await vault_crud.get_or_none(db_session, state.vault_id)
+            if vault is None:
+                logger.error("Cannot notify reclear ready: vault=%s not found", state.vault_id)
+                continue
+            await notification_service.create_and_send(
+                db_session,
+                user_id=vault.user_id,
+                vault_id=vault.id,
+                notification_type=NotificationType.LOCATION_READY,
+                priority=NotificationPriority.NORMAL,
+                title=f"{location.name} ready",
+                message=f"{location.name} is ready to be cleared again.",
+                commit=False,
+            )
+        await db_session.commit()
+        await notification_service.deliver_deferred_notifications(db_session)
+        return len(pairs)
+
     async def get_vault_map(
         self, db_session: AsyncSession, vault: Vault, *, unlocked_only: bool = False
     ) -> VaultMapResponse:

@@ -40,6 +40,15 @@ Code: `frontend/src/modules/exploration/` — `ExpeditionSiteModal.vue`,
   view for another explorer.
 - **The time chip exists because expiry force-retreats.** Below 300s it warns
   that clock expiry will end the run.
+- **The fight reads as a transcript, not rounds.** A resolve returns
+  `outcome.combat[]` (per-enemy results) plus live `dweller_health`; the modal
+  renders the pack as enemy entries with per-enemy outcomes and flashes damage
+  on the HP bar. Site combat stays an atomic per-enemy roll — no rounds and no
+  per-enemy HP — so it reuses `Progress` and the CRT tokens rather than the
+  incident/arena battle UI, which requires combatants and round events the site
+  does not model.
+- **Retreat is warned.** The confirm step states that retreating puts the site
+  on a 7-day cooldown (rule D2-B), which the player would otherwise not know.
 
 ## Open
 

@@ -5229,6 +5229,21 @@ export interface components {
             created_at: string;
         };
         /**
+         * CombatEntry
+         * @description One enemy engagement inside a room fight.
+         */
+        CombatEntry: {
+            /** Enemy */
+            enemy: string;
+            /** Victory */
+            victory: boolean;
+            /**
+             * Damage Taken
+             * @default 0
+             */
+            damage_taken: number;
+        };
+        /**
          * CompatibilityScore
          * @description Compatibility score between two dwellers.
          */
@@ -7838,6 +7853,8 @@ export interface components {
             caps_gained: number;
             /** Loot Gained */
             loot_gained?: string[];
+            /** Combat */
+            combat?: components["schemas"]["CombatEntry"][];
         };
         /**
          * NotificationPriority
@@ -9198,6 +9215,16 @@ export interface components {
              * @default false
              */
             defeated: boolean;
+            /**
+             * Dweller Health
+             * @default 0
+             */
+            dweller_health: number;
+            /**
+             * Dweller Max Health
+             * @default 0
+             */
+            dweller_max_health: number;
         };
         /**
          * SpeedupMultiplier

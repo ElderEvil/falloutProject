@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import {
@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/core/components/ui/dialog'
+import { Progress } from '@/core/components/ui/progress'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
 import { isTerminal, useExpeditionSiteStore } from '../stores/expeditionSite'
 
@@ -59,6 +60,53 @@ const enemySummary = computed(() => {
   for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1)
   return [...counts.entries()].map(([name, n]) => (n > 1 ? `${name} ×${n}` : name)).join(', ')
 })
+
+// Per-enemy engagement results, in fight order (present only after a resolve).
+const combatOutcome = computed(() => room.value?.outcome?.combat ?? [])
+
+// Dweller HP readout in the header. Hidden when the backend reports no max health.
+const showHealthBar = computed(() => (room.value?.dweller_max_health ?? 0) > 0)
+const healthRatio = computed(() => {
+  const max = room.value?.dweller_max_health ?? 0
+  if (max <= 0) return 0
+  return Math.min(1, (room.value?.dweller_health ?? 0) / max)
+})
+const healthPercent = computed(() => Math.round(healthRatio.value * 100))
+const healthTone = computed<'default' | 'warning' | 'danger'>(() => {
+  if (healthRatio.value < 0.3) return 'danger'
+  if (healthRatio.value < 0.6) return 'warning'
+  return 'default'
+})
+const healthToneText = computed(() => {
+  switch (healthTone.value) {
+    case 'danger':
+      return 'text-danger'
+    case 'warning':
+      return 'text-warning'
+    default:
+      return 'text-theme-primary'
+  }
+})
+
+// Brief "-N" flash on the HP bar whenever a resolve lands damage.
+const damageFlash = ref<number | null>(null)
+let damageFlashTimer: ReturnType<typeof setTimeout> | undefined
+
+watch(
+  () => room.value?.outcome,
+  (outcome) => {
+    if (outcome && outcome.damage_taken > 0) {
+      damageFlash.value = outcome.damage_taken
+      clearTimeout(damageFlashTimer)
+      damageFlashTimer = setTimeout(() => {
+        damageFlash.value = null
+      }, 1600)
+    }
+  },
+  { immediate: true }
+)
+
+onUnmounted(() => clearTimeout(damageFlashTimer))
 
 watch(
   () => props.show,
@@ -178,23 +226,45 @@ const terminalBanner = computed(() => {
             {{ room ? room.site_name : 'Expedition Site' }}
           </DialogTitle>
         </div>
-        <div
-          v-if="room && !isTerminalRun && !isRecovery && timeRemainingMinutes !== null"
-          class="flex shrink-0 items-center gap-1 rounded-[3px] border px-2 py-1 text-[0.75rem] font-semibold"
-          :class="
-            timeExpiryWarning
-              ? 'border-warning/50 bg-warning/10 text-warning'
-              : 'border-theme-primary/40 bg-theme-primary/10 text-theme-primary'
-          "
-          :title="
-            timeExpiryWarning ? 'Clock expiry will force a retreat' : 'Exploration time remaining'
-          "
-        >
-          <Icon
-            :icon="timeExpiryWarning ? 'mdi:clock-alert-outline' : 'mdi:clock-outline'"
-            class="h-3.5 w-3.5"
-          />
-          ≈{{ timeRemainingMinutes }}m
+        <div class="flex shrink-0 items-center gap-3">
+          <div v-if="room && showHealthBar" class="relative flex flex-col items-end gap-1">
+            <span class="text-[0.6875rem] font-semibold" :class="healthToneText">
+              HP {{ room.dweller_health }}/{{ room.dweller_max_health }}
+            </span>
+            <Progress
+              :model-value="healthPercent"
+              size="xs"
+              :tone="healthTone"
+              class="w-24"
+              :label="`Dweller health ${room.dweller_health}/${room.dweller_max_health}`"
+              :value-text="`${healthPercent}%`"
+            />
+            <span
+              v-if="damageFlash !== null"
+              class="damage-flash absolute -top-1 right-0 text-[0.6875rem] font-bold text-danger"
+              aria-hidden="true"
+            >
+              -{{ damageFlash }}
+            </span>
+          </div>
+          <div
+            v-if="room && !isTerminalRun && !isRecovery && timeRemainingMinutes !== null"
+            class="flex shrink-0 items-center gap-1 rounded-[3px] border px-2 py-1 text-[0.75rem] font-semibold"
+            :class="
+              timeExpiryWarning
+                ? 'border-warning/50 bg-warning/10 text-warning'
+                : 'border-theme-primary/40 bg-theme-primary/10 text-theme-primary'
+            "
+            :title="
+              timeExpiryWarning ? 'Clock expiry will force a retreat' : 'Exploration time remaining'
+            "
+          >
+            <Icon
+              :icon="timeExpiryWarning ? 'mdi:clock-alert-outline' : 'mdi:clock-outline'"
+              class="h-3.5 w-3.5"
+            />
+            ≈{{ timeRemainingMinutes }}m
+          </div>
         </div>
       </DialogHeader>
 
@@ -355,19 +425,61 @@ const terminalBanner = computed(() => {
             <p class="mb-4 text-base font-semibold text-theme-primary">{{ room.node.prompt }}</p>
 
             <div
-              v-if="enemySummary"
-              class="mb-4 flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold"
+              v-if="enemySummary || combatOutcome.length > 0"
+              class="mb-4 rounded-md border px-3 py-2 text-sm font-semibold"
               :class="
                 isCombatRoom
                   ? 'border-danger/40 bg-danger/10 text-danger'
                   : 'border-warning/40 bg-warning/10 text-warning'
               "
             >
-              <Icon
-                :icon="isCombatRoom ? 'mdi:sword-cross' : 'mdi:alert-outline'"
-                class="h-4 w-4"
-              />
-              <span>{{ isCombatRoom ? 'Enemies' : 'If it goes wrong' }}: {{ enemySummary }}</span>
+              <!-- COMBAT: pre-fight deduped pack preview -->
+              <div
+                v-if="isCombatRoom && combatOutcome.length === 0"
+                class="flex items-center gap-2"
+              >
+                <Icon icon="mdi:sword-cross" class="h-4 w-4" />
+                <span>Enemies: {{ enemySummary }}</span>
+              </div>
+
+              <!-- COMBAT: per-enemy results after a resolve -->
+              <ul v-else-if="isCombatRoom" class="flex flex-col gap-1.5">
+                <li
+                  v-for="entry in combatOutcome"
+                  :key="entry.enemy"
+                  class="flex items-center gap-2"
+                >
+                  <Icon
+                    :icon="entry.victory ? 'mdi:skull-outline' : 'mdi:sword-cross'"
+                    class="h-4 w-4 shrink-0"
+                    :class="entry.victory ? 'text-theme-primary/50' : 'text-danger'"
+                  />
+                  <span
+                    class="text-sm font-semibold"
+                    :class="entry.victory ? 'text-theme-primary/50 line-through' : 'text-danger'"
+                  >
+                    {{ entry.enemy }}
+                  </span>
+                  <span
+                    class="text-[0.75rem] font-semibold"
+                    :class="entry.victory ? 'text-theme-primary/50' : 'text-danger'"
+                  >
+                    {{ entry.victory ? 'defeated' : 'overpowered' }}
+                  </span>
+                  <span
+                    v-if="entry.damage_taken > 0"
+                    class="ml-auto text-[0.75rem] font-bold text-danger"
+                  >
+                    -{{ entry.damage_taken }}
+                  </span>
+                </li>
+              </ul>
+
+              <!-- NON-COMBAT: failure-branch threat -->
+              <div v-else class="flex items-center gap-2">
+                <Icon icon="mdi:alert-outline" class="h-4 w-4" />
+                <span>If it goes wrong: {{ enemySummary }}</span>
+              </div>
             </div>
 
             <!-- DEFEAT: push on retries the fight -->
@@ -454,15 +566,20 @@ const terminalBanner = computed(() => {
 
         <!-- ROOM footer: retreat with confirm step -->
         <template v-else>
-          <TerminalModalActions
-            v-if="confirmingRetreat"
-            cancel-label="Keep Exploring"
-            confirm-label="Retreat"
-            confirm-icon="mdi:arrow-u-left-top"
-            :confirm-disabled="store.isLoading"
-            @cancel="confirmingRetreat = false"
-            @confirm="handleRetreat"
-          />
+          <div v-if="confirmingRetreat" class="flex w-full flex-col items-end gap-2">
+            <p class="flex items-center gap-1.5 text-xs font-semibold text-warning">
+              <Icon icon="mdi:calendar-clock" class="h-3.5 w-3.5" />
+              Retreating puts the site on a 7-day cooldown.
+            </p>
+            <TerminalModalActions
+              cancel-label="Keep Exploring"
+              confirm-label="Retreat"
+              confirm-icon="mdi:arrow-u-left-top"
+              :confirm-disabled="store.isLoading"
+              @cancel="confirmingRetreat = false"
+              @confirm="handleRetreat"
+            />
+          </div>
           <Button
             v-else-if="room.can_retreat"
             variant="secondary"
@@ -478,3 +595,27 @@ const terminalBanner = computed(() => {
     </DialogContent>
   </Dialog>
 </template>
+
+<style scoped>
+/* Brief "-N" damage flash on the dweller HP bar: rises and fades out. */
+.damage-flash {
+  animation: damage-flash 1.6s ease-out forwards;
+}
+
+@keyframes damage-flash {
+  0% {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  15% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+</style>

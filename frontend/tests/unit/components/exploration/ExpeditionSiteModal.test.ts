@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import { nextTick } from 'vue'
 import { Dialog } from '@/core/components/ui/dialog'
+import { Progress } from '@/core/components/ui/progress'
 import ExpeditionSiteModal from '@/modules/exploration/components/ExpeditionSiteModal.vue'
 import { useExpeditionSiteStore } from '@/modules/exploration/stores/expeditionSite'
 import type { AvailableSiteView, SiteRoomView } from '@/modules/exploration/api/expeditionSite'
@@ -60,6 +62,8 @@ const choiceRoom: SiteRoomView = {
   status: 'entered',
   outcome: null,
   finale_paid: false,
+  dweller_health: 45,
+  dweller_max_health: 60,
 }
 
 const clearedRoom: SiteRoomView = {
@@ -372,6 +376,112 @@ describe('ExpeditionSiteModal', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('If it goes wrong: Giant Radscorpion')
+  })
+
+  it('renders the dweller HP bar in the header from health fields', async () => {
+    const wrapper = mountModal()
+    const store = useExpeditionSiteStore()
+    store.room = { ...choiceRoom, dweller_health: 15, dweller_max_health: 60 }
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('HP 15/60')
+    const progress = wrapper.findComponent(Progress)
+    expect(progress.exists()).toBe(true)
+    expect(progress.props('modelValue')).toBe(25)
+    expect(progress.props('tone')).toBe('danger')
+  })
+
+  it('tones the HP bar by ratio and hides it when max health is unknown', async () => {
+    const wrapper = mountModal()
+    const store = useExpeditionSiteStore()
+
+    store.room = { ...choiceRoom, dweller_health: 30, dweller_max_health: 60 }
+    await flushPromises()
+    expect(wrapper.findComponent(Progress).props('tone')).toBe('warning')
+
+    store.room = { ...choiceRoom, dweller_health: 48, dweller_max_health: 60 }
+    await flushPromises()
+    expect(wrapper.findComponent(Progress).props('tone')).toBe('default')
+
+    store.room = { ...choiceRoom, dweller_health: 0, dweller_max_health: 0 }
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('HP ')
+    expect(wrapper.findComponent(Progress).exists()).toBe(false)
+  })
+
+  it('renders per-enemy combat results after a resolve', async () => {
+    const wrapper = mountModal()
+    const store = useExpeditionSiteStore()
+    store.room = {
+      ...choiceRoom,
+      node: {
+        kind: 'combat',
+        prompt: 'Ambush between the cars!',
+        options: [],
+        enemy_names: ['Radroach swarm', 'Raider gang'],
+      },
+      outcome: {
+        text: 'The pack scatters.',
+        damage_taken: 8,
+        caps_gained: 0,
+        loot_gained: [],
+        combat: [
+          { enemy: 'Radroach swarm', victory: true, damage_taken: 2 },
+          { enemy: 'Raider gang', victory: false, damage_taken: 6 },
+        ],
+      },
+    }
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Radroach swarm')
+    expect(wrapper.text()).toContain('defeated')
+    expect(wrapper.text()).toContain('Raider gang')
+    expect(wrapper.text()).toContain('overpowered')
+    expect(wrapper.text()).toContain('-2')
+    expect(wrapper.text()).toContain('-6')
+    // The pre-fight deduped preview is replaced by the per-enemy results.
+    expect(wrapper.text()).not.toContain('Enemies: Radroach swarm')
+  })
+
+  it('flashes the damage taken on the HP bar after a damaging resolve', async () => {
+    vi.useFakeTimers()
+    try {
+      const wrapper = mountModal()
+      const store = useExpeditionSiteStore()
+      store.room = { ...choiceRoom, dweller_health: 45, dweller_max_health: 60 }
+      await nextTick()
+
+      expect(wrapper.text()).not.toContain('-8')
+
+      store.room = {
+        ...choiceRoom,
+        dweller_health: 37,
+        dweller_max_health: 60,
+        outcome: { text: 'Ouch.', damage_taken: 8, caps_gained: 0, loot_gained: [] },
+      }
+      await nextTick()
+
+      expect(wrapper.text()).toContain('-8')
+
+      vi.advanceTimersByTime(1700)
+      await nextTick()
+
+      expect(wrapper.text()).not.toContain('-8')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('warns about the 7-day cooldown in the retreat confirm step', async () => {
+    const wrapper = mountModal()
+    const store = useExpeditionSiteStore()
+    store.room = choiceRoom
+    await flushPromises()
+
+    await buttonByText(wrapper, 'Retreat')!.trigger('click')
+
+    expect(wrapper.text()).toContain('7-day cooldown')
+    expect(wrapper.text()).toContain('Keep Exploring')
   })
 
   it('renders a close-only recovery state on a non-active exploration', async () => {

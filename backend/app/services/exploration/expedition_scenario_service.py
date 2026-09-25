@@ -81,6 +81,7 @@ class ExpeditionScenarioService:
         dweller_level: int = 5,
         duration_hours: int = 8,
         preclear_site_id: str | None = None,
+        special: int = 5,
     ) -> ExpeditionScenarioResult:
         """Provision a vault with one dweller on an active exploration.
 
@@ -88,7 +89,9 @@ class ExpeditionScenarioService:
         superuser (or ``user_email`` when given). ``duration_hours`` is clamped
         to the exploration model's 1-24 hour range. ``preclear_site_id`` inserts
         a completed run so the 7-day anti-farm gate hides the site from the
-        picker, demonstrating the lock.
+        picker, demonstrating the lock. ``special`` sets every SPECIAL stat
+        (1-10); 5 keeps site checks differentiated (95/85/75) while still
+        winning most fights, 1 tests defeat/death, 7+ trivialises checks.
         """
         duration_hours = max(1, min(24, duration_hours))
         dweller_level = max(1, min(50, dweller_level))
@@ -96,7 +99,7 @@ class ExpeditionScenarioService:
         vault, created_vault, owner_email = await self._resolve_vault(
             db_session, vault_id=vault_id, user_email=user_email
         )
-        dweller = await self._create_scenario_dweller(db_session, vault)
+        dweller = await self._create_scenario_dweller(db_session, vault, special=special)
         levels = dweller_level - dweller.level
         if levels > 0:
             await leveling_service.level_up_dweller(db_session, dweller, levels=levels)
@@ -141,8 +144,9 @@ class ExpeditionScenarioService:
         return vault, True, owner.email
 
     @staticmethod
-    async def _create_scenario_dweller(db_session: AsyncSession, vault: Vault) -> Dweller:
-        """Create the recognisable scenario dweller through the real service."""
+    async def _create_scenario_dweller(db_session: AsyncSession, vault: Vault, *, special: int = 5) -> Dweller:
+        """Create the scenario dweller with every SPECIAL stat set to ``special`` (1-10)."""
+        value = max(1, min(10, special))
         return await dweller_service.create_dweller(
             db_session,
             DwellerCreate(
@@ -154,6 +158,13 @@ class ExpeditionScenarioService:
                 age_group=AgeGroupEnum.ADULT,
                 birth_date=_now(),
                 vault_id=vault.id,
+                strength=value,
+                perception=value,
+                endurance=value,
+                charisma=value,
+                intelligence=value,
+                agility=value,
+                luck=value,
             ),
         )
 

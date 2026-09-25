@@ -60,6 +60,13 @@ def setup(
         str | None,
         typer.Option("--preclear", help="Site id to pre-clear (demonstrates the 7-day anti-farm lock)"),
     ] = None,
+    special: Annotated[
+        int,
+        typer.Option(
+            "--special",
+            help="Every SPECIAL stat for the dweller (1-10). 5 keeps checks differentiated; 1 for defeat/death.",
+        ),
+    ] = 5,
 ) -> None:
     """Create a vault with one dweller on an active exploration and a populated site picker."""
 
@@ -74,6 +81,7 @@ def setup(
                 dweller_level=dweller_level,
                 duration_hours=duration_hours,
                 preclear_site_id=preclear,
+                special=special,
             )
             _print_setup(result)
 

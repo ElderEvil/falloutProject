@@ -82,3 +82,25 @@ async def test_get_status_none_before_setup_and_populated_after(async_session: A
 async def test_setup_unknown_vault_raises_not_found(async_session: AsyncSession) -> None:
     with pytest.raises(ResourceNotFoundException):
         await expedition_scenario_service.setup(async_session, vault_id=uuid4(), dweller_level=5, duration_hours=8)
+
+
+@pytest.mark.asyncio
+async def test_setup_default_dweller_special_keeps_checks_differentiated(
+    async_session: AsyncSession, vault: Vault
+) -> None:
+    """Default SPECIAL 5 gives varied check odds (95/85/75), not the 95% cap a high stat pins."""
+    result = await expedition_scenario_service.setup(async_session, vault_id=vault.id, dweller_level=5)
+
+    dweller = result.dweller
+    assert (dweller.strength, dweller.agility, dweller.endurance) == (5, 5, 5)
+    assert (dweller.perception, dweller.charisma, dweller.intelligence, dweller.luck) == (5, 5, 5, 5)
+
+
+@pytest.mark.asyncio
+async def test_setup_special_override_and_clamp(async_session: AsyncSession, vault: Vault) -> None:
+    weak = await expedition_scenario_service.setup(async_session, vault_id=vault.id, dweller_level=5, special=1)
+    assert weak.dweller.strength == 1
+    assert weak.dweller.endurance == 1
+
+    clamped = await expedition_scenario_service.setup(async_session, vault_id=vault.id, dweller_level=5, special=99)
+    assert clamped.dweller.strength == 10

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.144.0 (2026-09-25)
+
+### Features
+
+* **exploration:** interactive expedition sites ([#790](https://github.com/ElderEvil/falloutProject/issues/790)) 69229ce, closes #786
+
 ## 2.143.0 (2026-09-24)
 
 ### Features

@@ -63,6 +63,13 @@ export function getNotificationRoute(notification: NotificationNavigationContext
     }
     case 'radio_auto_switched_to_happiness':
       return vaultPath
+    case 'location_cleared':
+    case 'location_ready': {
+      const locationId = metadataString(notification, 'location_id')
+      return locationId
+        ? `${vaultPath}/map?place=${encodeURIComponent(locationId)}`
+        : `${vaultPath}/map`
+    }
     case 'achievement_unlocked':
       return `${vaultPath}/objectives`
     default:

@@ -50,4 +50,43 @@ describe('PartySelectionModal', () => {
 
     expect(wrapper.find('.dweller-status').text()).toBe('Socializing')
   })
+
+  it('lists the dwellers prop directly and emits assign without start when quest is absent', async () => {
+    const questStore = useQuestStore()
+    const getEligibleSpy = vi.spyOn(questStore, 'getEligibleDwellers')
+    const wrapper = mount(PartySelectionModal, {
+      props: {
+        modelValue: false,
+        quest: null,
+        vaultId: 'vault-1',
+        dwellers: [socializingDweller],
+        currentParty: [],
+        maxPartySize: 1,
+      },
+      global: {
+        stubs: {
+          Teleport: { template: '<div><slot /></div>' },
+        },
+      },
+    })
+
+    await wrapper.setProps({ modelValue: true })
+    await flushPromises()
+
+    // Dispatch mode skips the eligibility fetch and lists the caller's dwellers.
+    expect(getEligibleSpy).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Lucy MacLean')
+    expect(wrapper.text()).not.toContain('Level Requirements Met')
+
+    // Select the dweller and confirm the dispatch.
+    await wrapper.find('.dweller-item').trigger('click')
+    const dispatchButton = wrapper
+      .findAll('button')
+      .find((b) => b.text().includes('Dispatch'))
+    expect(dispatchButton?.attributes('disabled')).toBeUndefined()
+    await dispatchButton!.trigger('click')
+
+    expect(wrapper.emitted('assign')).toEqual([[['dweller-1']]])
+    expect(wrapper.emitted('start')).toBeUndefined()
+  })
 })

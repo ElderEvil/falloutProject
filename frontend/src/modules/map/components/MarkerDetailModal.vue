@@ -3,8 +3,10 @@ import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { Badge } from '@/core/components/ui/badge'
+import { Button } from '@/core/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
+import { formatRemaining } from '@/modules/exploration/composables/useExplorationProgress'
 import type { WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
 import { useMapStore } from '../stores/map'
 
@@ -18,6 +20,7 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
+  (e: 'dispatch'): void
 }>()
 
 const router = useRouter()
@@ -99,6 +102,19 @@ const isLocked = computed(
   () =>
     props.location !== null && props.location.type !== 'home_vault' && !props.location.is_unlocked
 )
+
+// Clear-state projection for clearable map points (issue 772).
+const clearState = computed(() => props.location?.clear_state ?? null)
+const isClearable = computed(() => clearState.value?.clearable ?? false)
+const isCleared = computed(() => clearState.value?.cleared ?? false)
+const reclearReady = computed(
+  () => isCleared.value && (clearState.value?.time_remaining_seconds ?? 0) <= 0
+)
+const reclearCountdown = computed(() => {
+  const seconds = clearState.value?.time_remaining_seconds ?? 0
+  return seconds > 0 ? formatRemaining(seconds) : ''
+})
+const lootTableLabel = computed(() => clearState.value?.loot_table ?? '')
 
 const modalTitle = computed(() => {
   if (isLocked.value) return 'Unknown Location'
@@ -186,6 +202,49 @@ function dwellerDisplayName(first: string, last: string | null) {
       <section class="border-l-2 border-theme-primary/50 bg-surface p-4">
         <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">SITE NOTES</p>
         <p class="mt-2 text-sm leading-6 text-theme-primary/85">{{ description }}</p>
+      </section>
+
+      <section v-if="isClearable" class="border-t border-theme-primary/20 pt-4">
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex flex-col gap-2">
+            <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">CLEAR STATUS</p>
+            <div class="flex flex-wrap items-center gap-2">
+              <Badge
+                v-if="isCleared"
+                variant="default"
+                class="border-theme-primary bg-theme-primary/10 text-theme-primary terminal-glow"
+              >
+                CLEARED ×{{ clearState?.clear_count }}
+              </Badge>
+              <Badge v-else variant="outline" class="border-warning/60 text-warning">
+                UNCLAIMED
+              </Badge>
+              <span
+                class="flex items-center gap-1 text-xs text-theme-primary/70"
+                :title="lootTableLabel || undefined"
+              >
+                <Icon icon="mdi:shield-alert" class="h-3.5 w-3.5" />
+                Tier {{ clearState?.tier }}
+              </span>
+            </div>
+          </div>
+          <Button
+            v-if="!isCleared || reclearReady"
+            size="sm"
+            class="border-theme-primary/40 bg-theme-primary/10 text-theme-primary hover:bg-theme-primary/20"
+            @click="emit('dispatch')"
+          >
+            <Icon icon="mdi:send" class="h-4 w-4" />
+            Dispatch
+          </Button>
+        </div>
+        <p
+          v-if="isCleared && reclearCountdown"
+          class="mt-2 flex items-center gap-1.5 text-xs text-theme-primary/70"
+        >
+          <Icon icon="mdi:clock-outline" class="h-3.5 w-3.5" />
+          Re-clear available: {{ reclearCountdown }}
+        </p>
       </section>
 
       <section v-if="dwellers" class="border-t border-theme-primary/20 pt-4">

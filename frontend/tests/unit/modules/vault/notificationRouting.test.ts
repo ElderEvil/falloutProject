@@ -31,4 +31,23 @@ describe('getNotificationRoute', () => {
       })
     ).toBe('/vault/vault-1/quests')
   })
+
+  it('routes a location_cleared notification to the map', () => {
+    expect(
+      getNotificationRoute({
+        vault_id: 'vault-1',
+        notification_type: 'location_cleared',
+      })
+    ).toBe('/vault/vault-1/map')
+  })
+
+  it('routes a location_ready notification to the map with the place deep link', () => {
+    expect(
+      getNotificationRoute({
+        vault_id: 'vault-1',
+        notification_type: 'location_ready',
+        meta_data: { location_id: 'loc-1' },
+      })
+    ).toBe('/vault/vault-1/map?place=loc-1')
+  })
 })

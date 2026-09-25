@@ -61,16 +61,14 @@
             "kind": "finale",
             "prompt": "The bunker cache. Crack the terminal for the full payout.",
             "stat": "intelligence",
-            "difficulty": 2,
-            "success": {},
-            "failure": {}
+            "difficulty": 2
           }
         }
       ],
       "reward_vault": {
         "caps_min": 80,
         "caps_max": 140,
-        "item": {"type": "junk", "floor": null, "rolls": 2},
+        "item": {"type": "junk", "floor": null},
         "junk_bundles": 1,
         "stimpaks": 1
       }
@@ -144,16 +142,14 @@
           "flavor": "Behind the boss: the intact prize cage, still locked, still full.",
           "node": {
             "kind": "finale",
-            "prompt": "The prize cage. Take it all.",
-            "success": {},
-            "failure": {}
+            "prompt": "The prize cage. Take it all."
           }
         }
       ],
       "reward_vault": {
         "caps_min": 150,
         "caps_max": 250,
-        "item": {"type": "weapon", "floor": "rare", "rolls": 3},
+        "item": {"type": "weapon", "floor": "rare", "attempts": 3},
         "junk_bundles": 2,
         "stimpaks": 0
       }

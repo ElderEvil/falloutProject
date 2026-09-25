@@ -4,7 +4,7 @@ import { expeditionSiteApi } from '../api/expeditionSite'
 import type { AvailableSiteView, SiteRoomView } from '../api/expeditionSite'
 import { handleStoreError } from '@/core/utils/errorHandler'
 
-export type SiteRunStatus = 'entered' | 'in_room' | 'retreated' | 'cleared' | 'died'
+export type SiteRunStatus = 'in_room' | 'retreated' | 'cleared' | 'died'
 
 export const SITE_TERMINAL_STATUSES: SiteRunStatus[] = ['retreated', 'cleared', 'died']
 

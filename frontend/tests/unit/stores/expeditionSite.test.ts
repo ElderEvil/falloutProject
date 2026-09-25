@@ -253,7 +253,6 @@ describe('Expedition Site Store', () => {
     expect(isTerminal('retreated')).toBe(true)
     expect(isTerminal('cleared')).toBe(true)
     expect(isTerminal('died')).toBe(true)
-    expect(isTerminal('entered')).toBe(false)
     expect(isTerminal('in_room')).toBe(false)
     expect(isTerminal('unknown')).toBe(false)
   })

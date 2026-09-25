@@ -59,7 +59,7 @@ const choiceRoom: SiteRoomView = {
     ],
   },
   can_retreat: true,
-  status: 'entered',
+  status: 'in_room',
   outcome: null,
   finale_paid: false,
   dweller_health: 45,
@@ -159,6 +159,19 @@ describe('ExpeditionSiteModal', () => {
     expect(wrapper.text()).toContain('Talk it out')
     expect(wrapper.text()).toContain('charisma')
     expect(wrapper.text()).toContain('75%')
+  })
+
+  it('hides the previous explorer room before the store is reset', async () => {
+    const wrapper = mountModal()
+    const store = useExpeditionSiteStore()
+    store.room = choiceRoom
+    await flushPromises()
+    expect(wrapper.text()).toContain('A raider waves you over.')
+
+    await wrapper.setProps({ explorationId: 'exp-2' })
+
+    expect(wrapper.text()).not.toContain('A raider waves you over.')
+    expect(buttonByText(wrapper, 'Talk it out')).toBeUndefined()
   })
 
   it('shows the empty state when no sites are available', async () => {

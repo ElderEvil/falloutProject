@@ -115,9 +115,7 @@ def validate_site_content(site: SiteDefinition) -> None:
                 raise ValidationException(f"Unknown stat {stat!r} in site {site.id}")
         for spec in node.enemies:
             resolve_enemy_spec(spec)
-        branches = [node.success, node.failure]
-        branches.extend(branch for option in node.options for branch in (option.success, option.failure))
-        for branch in branches:
+        for branch in (branch for option in node.options for branch in (option.success, option.failure)):
             for spec in branch.combat_enemies or []:
                 resolve_enemy_spec(spec)
             if branch.cache_item is not None and branch.cache_floor is not None:
@@ -313,15 +311,6 @@ async def _resolve_node(
             await _apply_branch(db_session, exploration, luck, option.failure, result)
         else:
             await _resolve_choice_branch(db_session, exploration, option, result)
-    elif node.kind == "skill_check":
-        if node.stat is None or node.difficulty is None:
-            raise ValidationException(f"Skill check in room {room.id!r} is missing stat/difficulty")
-        if roll_check(_stat_value(exploration, node.stat), node.difficulty):
-            result.texts.append("Skill check passed!")
-            await _apply_branch(db_session, exploration, luck, node.success, result)
-        else:
-            result.texts.append("Skill check failed.")
-            await _apply_branch(db_session, exploration, luck, node.failure, result)
     elif node.kind == "trap":
         if node.options:
             option = _find_option(node.options, choice_id, required=True)
@@ -331,14 +320,6 @@ async def _resolve_node(
             await _take_damage(db_session, exploration, damage, result)
         if node.radiation:
             await apply_exploration_radiation(db_session, exploration, node.radiation)
-    elif node.kind == "cache":
-        await _apply_branch(
-            db_session,
-            exploration,
-            luck,
-            NodeBranch(cache_tier=node.cache_tier or "small", cache_item="junk"),
-            result,
-        )
     elif node.kind == "finale":
         full_vault = True
         if node.stat is not None and node.difficulty is not None:
@@ -365,7 +346,7 @@ async def _pay_reward_vault(
     result.caps_gained += caps
     result.texts.append(f"Reward vault: +{caps} caps.")
     if vault.item is not None:
-        attempts = vault.item.rolls if full else 1
+        attempts = vault.item.attempts if full else 1
         item = roll_gear(_stat_value(exploration, "luck"), vault.item.type, vault.item.floor, attempts)
         apply_loot_find(exploration, item_name=item.name, rarity=item.rarity, item_type=vault.item.type, caps=0)
         result.loot_gained.append(f"{item.name} ({item.rarity})")
@@ -464,7 +445,6 @@ class ExpeditionService:
             db_session,
             exploration_id=exploration_id,
             vault_id=exploration.vault_id,
-            dweller_id=exploration.dweller_id,
             site_id=site_id,
         )
         await _log_site_event(db_session, exploration, f"Entered {site.name}: {site.rooms[0].flavor}")

@@ -41,7 +41,8 @@ no changes to the random-event economy.
 While exploring, a dweller can discover an **expedition site** (a named building with
 2–4 rooms) instead of a generic discovery. Entering pauses random event
 generation while the exploration clock keeps running. Each room presents one
-**node**: a fight, a choice/riddle, a skill check, a trap, or a loot cache.
+**node**: combat, choice, trap, or finale. Choices can run stat checks and
+branches can award caches.
 Resolving nodes advances a room cursor; the finale room pays
 a **reward vault** (caps + XP + one rolled item at elevated rarity). The player can
 retreat at any room boundary (keeping room loot, forfeiting the finale) or die trying
@@ -55,7 +56,7 @@ Site (static definition, JSON-seeded like enemies/loot)
 ├── rooms: ordered list (linear for v0; branching is a later phase)
 │   └── Room
 │       ├── id, name, description seed
-│       └── node: Combat | Choice | SkillCheck | Trap | Cache | Finale
+│       └── node: Combat | Choice | Trap | Finale
 └── reward_vault: budget + loot table overrides for the finale
 ```
 
@@ -69,13 +70,9 @@ Site (static definition, JSON-seeded like enemies/loot)
   Example: "Sneak past (Agility)", "Reason with them (Charisma)", "Kick the door
   (Strength)". Roll: `d20 + stat*2 >= 10 + difficulty*2`. Failure routes to a
   fallback branch (usually a combat or a trap), never a dead end.
-- **SkillCheck**: single-stat variant of Choice for locks/terminals/first-aid
-  (Perception, Intelligence, Agility). Success opens a cache; failure triggers the
-  trap attached to the same room.
-- **Trap**: automatic on entry unless disarmed by a preceding SkillCheck. Fixed
+- **Trap**: fixed
   damage range + optional radiation (reuses `apply_radiation_gain` semantics).
-- **Cache**: free loot roll from the site table (no check). Keeps momentum between
-  hard rooms.
+- **Cache rewards** live in choice branches; they are not standalone nodes.
 - **Finale**: locked until all prior rooms resolve; pays the reward vault (§8) and
   marks the site cleared.
 
@@ -199,11 +196,10 @@ state:
 
 ```text
 expedition_run
-├── id, exploration_id (FK), dweller_id, vault_id, site_id
+├── id, exploration_id (FK), vault_id, site_id
 ├── room_cursor: int (index into site.rooms)
-├── status: ENTERED | IN_ROOM | RETREATED | CLEARED | DIED
-├── hp_snapshot / supplies_snapshot (for death/retreat rollback display)
-├── flags: JSON (disarmed traps, spent caches, granted once-only bonuses)
+├── status: IN_ROOM | RETREATED | CLEARED | DIED
+├── flags: JSON (pending fight and credited rooms)
 └── finished_at (anti-farm timestamp; NULL until any terminal outcome)
 ```
 
@@ -349,6 +345,6 @@ Caveats:
   expiry, forced retreat, return leg, rewards — observable in one sitting;
   raise `--duration-hours` for longer play.
 - Shipped sites exercise `combat`, `choice`, `trap`-with-options and `finale`
-  nodes only — no bare `skill_check`/`trap`/`cache` nodes exist yet.
+  nodes. Cache rewards and stat checks are authored through choice branches.
 - `--preclear <site>` inserts a completed run so the 7-day per-vault anti-farm
   lock hides the site from the picker — the demonstration of the lock.

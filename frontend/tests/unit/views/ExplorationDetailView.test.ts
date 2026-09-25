@@ -10,6 +10,8 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useExpeditionSiteStore } from '@/modules/exploration/stores/expeditionSite'
+import ExpeditionSiteModal from '@/modules/exploration/components/ExpeditionSiteModal.vue'
+import type { SiteRoomView } from '@/modules/exploration/api/expeditionSite'
 
 // Mock Iconify
 vi.mock('@iconify/vue', () => ({
@@ -526,6 +528,30 @@ describe('ExplorationDetailView', () => {
 
       expect(resetSpy).toHaveBeenCalled()
       expect(fetchCurrentRoomSpy).toHaveBeenCalledWith('expl-2')
+      wrapper.unmount()
+    })
+
+    it('does not reopen the modal when the previous explorer reconnect finishes late', async () => {
+      const siteStore = useExpeditionSiteStore()
+      let finishOld!: (room: SiteRoomView | null) => void
+      vi.spyOn(siteStore, 'fetchCurrentRoom')
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finishOld = resolve
+            })
+        )
+        .mockResolvedValueOnce(null)
+      explorationStore.activeExplorations['expl-2'] = { ...mockExploration, id: 'expl-2' }
+
+      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
+      await flushPromises()
+      await router.push('/vault/test-vault/exploration/expl-2')
+      await flushPromises()
+      finishOld({ exploration_id: 'expl-1' } as SiteRoomView)
+      await flushPromises()
+
+      expect(wrapper.findComponent(ExpeditionSiteModal).props('show')).toBe(false)
       wrapper.unmount()
     })
   })

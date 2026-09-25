@@ -29,7 +29,7 @@
                 "label": "Detour around back (Luck)",
                 "stat": "luck",
                 "difficulty": 2,
-                "success": {"nothing": true},
+                "success": {},
                 "failure": {"trap_damage_min": 4, "trap_damage_max": 7}
               },
               {
@@ -62,8 +62,8 @@
             "prompt": "The bunker cache. Crack the terminal for the full payout.",
             "stat": "intelligence",
             "difficulty": 2,
-            "success": {"nothing": true},
-            "failure": {"nothing": true}
+            "success": {},
+            "failure": {}
           }
         }
       ],
@@ -145,8 +145,8 @@
           "node": {
             "kind": "finale",
             "prompt": "The prize cage. Take it all.",
-            "success": {"nothing": true},
-            "failure": {"nothing": true}
+            "success": {},
+            "failure": {}
           }
         }
       ],

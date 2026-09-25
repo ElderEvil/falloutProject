@@ -76,6 +76,18 @@ async def apply_exploration_damage(db_session: AsyncSession, exploration: Explor
         await db_session.flush()
 
 
+async def apply_exploration_radiation(db_session: AsyncSession, exploration: Exploration, rads: int) -> None:
+    """Apply radiation to a living explorer for timed events and site traps."""
+    if rads <= 0:
+        return
+    dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+    if dweller_obj.is_dead:
+        return
+    apply_radiation_gain(dweller_obj, rads)
+    db_session.add(dweller_obj)
+    await db_session.flush()
+
+
 def apply_loot_find(
     exploration: Exploration,
     *,
@@ -294,12 +306,7 @@ class EventService:
 
     async def _apply_radiation_gain(self, db_session: AsyncSession, exploration: Exploration, rads: int) -> None:
         """Apply radiation gain to dweller."""
-        if (dweller_obj := await self._get_living_dweller(db_session, exploration)) is None:
-            return
-
-        apply_radiation_gain(dweller_obj, rads)
-        db_session.add(dweller_obj)
-        await db_session.flush()
+        await apply_exploration_radiation(db_session, exploration, rads)
 
     async def _apply_health_restoration(self, db_session: AsyncSession, exploration: Exploration, healing: int) -> int:
         """Apply health restoration to dweller; return the HP actually restored."""

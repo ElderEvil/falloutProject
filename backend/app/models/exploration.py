@@ -9,6 +9,7 @@ from sqlalchemy import orm
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
+from app.core.enums import ExpeditionRunStatus
 from app.models.base import BaseUUIDModel, TimeStampMixin
 
 # The trip home takes half the time the dweller spent exploring.
@@ -234,16 +235,6 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         )
         # Flag the field as modified so SQLAlchemy tracks the change
         orm.attributes.flag_modified(self, "loot_collected")
-
-
-class ExpeditionRunStatus(StrEnum):
-    """Status of one expedition-site attempt."""
-
-    ENTERED = "entered"
-    IN_ROOM = "in_room"
-    RETREATED = "retreated"
-    CLEARED = "cleared"
-    DIED = "died"
 
 
 # Statuses that still accept room resolutions; at most one open run per exploration

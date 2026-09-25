@@ -1,16 +1,15 @@
 # Expedition Sites — Resolved Rules and Implementation Spec
 
-Status: **decisions resolved; implementation in progress.**
+Status: **decisions resolved; implemented in PR #790.**
 
-Context: the expedition-sites feature is on three stacked PRs — backend
-(#786), frontend (#787), scenario CLI (#788). This document records the
-gaps found in review, the decisions taken, and the rules implementation
-must follow. Analysis only previously; the "Resolved model" below is the
-authoritative spec.
+Context: the expedition-sites work began in three stacked PRs — backend
+(#786), frontend (#787), scenario CLI (#788) — and is consolidated in #790.
+This document records the review decisions and the rules implementation
+must follow. The "Resolved model" below is the authoritative spec.
 
-Related: `docs/features/INTERACTIVE_EXPEDITION_SITES.md` (design doc). Its
-§10 ("freeze the event clock") and §8 ("rooms yield nothing on revisit")
-were not implemented; the rules here supersede them where they differ.
+Related: `docs/features/INTERACTIVE_EXPEDITION_SITES.md` is the original
+design sketch. This document is authoritative for the implemented lifecycle,
+cooldown, and room-reset rules.
 
 ## Decisions
 

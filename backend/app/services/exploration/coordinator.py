@@ -13,10 +13,10 @@ from app.crud import vault as crud_vault
 from app.models.exploration import ExpeditionRunStatus, Exploration
 from app.schemas.exploration_event import RewardsSchema
 from app.services.exploration.event_service import event_service
+from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration.rewards_service import rewards_service
 from app.services.leveling_service import leveling_service
 from app.services.notification_service import notification_service
-from app.utils.exceptions import ResourceNotFoundException
 
 logger = logging.getLogger(__name__)
 
@@ -42,16 +42,7 @@ class ExplorationCoordinator:
         Returns:
             Exploration: The exploration now in RETURNING state
         """
-        # Locked read: a concurrent tick finish and player recall serialize here, so the
-        # later caller revalidates against the written state instead of overwriting it.
-        # Lock order: claim (vault row) → exploration row → run row.
-        preview = await crud_exploration.get(db_session, exploration_id)
-        if preview is None:
-            raise ResourceNotFoundException(Exploration, identifier=exploration_id)
-        await crud_vault.get_for_update(db_session, preview.vault_id)
-        exploration = await crud_exploration.get_for_update(db_session, exploration_id)
-        if exploration is None:
-            raise ResourceNotFoundException(Exploration, identifier=exploration_id)
+        exploration = await lock_exploration_with_vault_claim(db_session, exploration_id)
 
         if not exploration.is_active():
             raise ValueError(ERROR_NOT_ACTIVE)
@@ -96,18 +87,7 @@ class ExplorationCoordinator:
         Returns:
             dict: Rewards summary
         """
-        # Same acquisition order as site actions (claim -> exploration); a sell or
-        # finalize credits the vault, so locking exploration first could deadlock
-        # against a concurrent site action.
-        preview = await crud_exploration.get(db_session, exploration_id)
-        if preview is None:
-            raise ResourceNotFoundException(Exploration, identifier=exploration_id)
-        await crud_vault.get_for_update(db_session, preview.vault_id)
-        # Locked read: concurrent tick/API callers serialize here, so only the first
-        # one can see RETURNING and claim the rewards.
-        exploration = await crud_exploration.get_for_update(db_session, exploration_id)
-        if exploration is None:
-            raise ResourceNotFoundException(Exploration, identifier=exploration_id)
+        exploration = await lock_exploration_with_vault_claim(db_session, exploration_id)
 
         if not exploration.is_returning():
             raise ValueError(ERROR_NOT_RETURNING)

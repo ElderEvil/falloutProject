@@ -20,6 +20,7 @@ from app.crud import expedition_run as crud_expedition_run
 from app.crud import exploration as crud_exploration
 from app.crud import room as crud_room
 from app.crud.vault import vault as vault_crud
+from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration_service import exploration_service
 from app.services.game_tick.guard import guard_phase, recover_session, refresh_after_recovery
 from app.services.game_tick.tick_results import (
@@ -96,11 +97,7 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
     # Re-read under the shared vault claim (claim -> exploration) so the site-run
     # check below cannot race a concurrent site entry; the bulk-loaded instance
     # may be stale.
-    preview = await crud_exploration.get(db_session, exploration.id)
-    if preview is None:
-        return
-    await vault_crud.get_for_update(db_session, preview.vault_id)
-    locked = await crud_exploration.get_for_update(db_session, exploration.id)
+    locked = await lock_exploration_with_vault_claim(db_session, exploration.id, missing_ok=True)
     if locked is None:
         return
     exploration = locked

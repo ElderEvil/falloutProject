@@ -11,6 +11,7 @@ import {
 } from '@/core/components/ui/dialog'
 import { Progress } from '@/core/components/ui/progress'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
+import ExpeditionOutcomeLines from './ExpeditionOutcomeLines.vue'
 import { isTerminal, useExpeditionSiteStore } from '../stores/expeditionSite'
 
 interface Props {
@@ -139,20 +140,16 @@ const handleRetreat = () => {
   store.retreat(props.explorationId).catch(() => {})
 }
 
-const handleTerminalClose = () => {
+const closeRun = (updated: boolean) => {
   if (closing.value) return
   closing.value = true
   store.reset()
   emit('close')
-  emit('updated')
+  if (updated) emit('updated')
 }
 
-const handleRecoveryClose = () => {
-  if (closing.value) return
-  closing.value = true
-  store.reset()
-  emit('close')
-}
+const handleTerminalClose = () => closeRun(true)
+const handleRecoveryClose = () => closeRun(false)
 
 const handleDialogClose = () => {
   if (closing.value) return
@@ -368,16 +365,7 @@ const terminalBanner = computed(() => {
             class="mb-4 rounded-md border border-theme-primary/30 bg-surface-sunken p-4 text-sm leading-relaxed text-theme-primary/90"
           >
             <p>{{ room.outcome?.text }}</p>
-            <ul v-if="outcomeLines.length > 0" class="mt-2 flex flex-col gap-1">
-              <li
-                v-for="(line, index) in outcomeLines"
-                :key="index"
-                class="flex items-center gap-1.5 text-[0.8125rem] font-semibold text-theme-primary"
-              >
-                <Icon icon="mdi:chevron-right" class="h-4 w-4" />
-                {{ line }}
-              </li>
-            </ul>
+            <ExpeditionOutcomeLines :lines="outcomeLines" />
           </div>
 
           <ul
@@ -451,16 +439,7 @@ const terminalBanner = computed(() => {
                 Defeated
               </p>
               <p>{{ room.outcome?.text }}</p>
-              <ul v-if="outcomeLines.length > 0" class="mt-2 flex flex-col gap-1">
-                <li
-                  v-for="(line, index) in outcomeLines"
-                  :key="index"
-                  class="flex items-center gap-1.5 text-[0.8125rem] font-semibold"
-                >
-                  <Icon icon="mdi:chevron-right" class="h-4 w-4" />
-                  {{ line }}
-                </li>
-              </ul>
+              <ExpeditionOutcomeLines :lines="outcomeLines" subdued />
             </div>
 
             <p class="mb-4 text-base font-semibold text-theme-primary">{{ room.node.prompt }}</p>

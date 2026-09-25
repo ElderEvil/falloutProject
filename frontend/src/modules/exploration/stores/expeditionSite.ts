@@ -112,10 +112,6 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
     )
   }
 
-  function clearError(): void {
-    error.value = null
-  }
-
   function reset(): void {
     scopeVersion++
     room.value = null
@@ -136,7 +132,6 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
     resolveNode,
     retreat,
     fetchCurrentRoom,
-    clearError,
     reset,
   }
 })

@@ -128,13 +128,15 @@ describe('Expedition Site Store', () => {
     expect(store.isLoading).toBe(false)
   })
 
-  it('clearError clears the error', () => {
+  it('clears a previous error when retrying', async () => {
+    vi.mocked(expeditionSiteApi.listAvailableSites).mockResolvedValue([mockSite])
     const store = useExpeditionSiteStore()
     store.error = 'Some error'
 
-    store.clearError()
+    await store.fetchAvailableSites('exploration-1')
 
     expect(store.error).toBeNull()
+    expect(store.availableSites).toEqual([mockSite])
   })
 
   it('reset clears room, availableSites, and error', async () => {

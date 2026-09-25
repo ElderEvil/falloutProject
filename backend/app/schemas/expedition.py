@@ -5,8 +5,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-STAT_NAMES = ("strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck")
-
 RARITY_ORDER = ("common", "rare", "legendary")
 
 
@@ -37,7 +35,6 @@ class NodeBranch(BaseModel):
     trap_damage_min: int | None = None
     trap_damage_max: int | None = None
     trade_cost_caps: int | None = None
-    nothing: bool = False
 
 
 class NodeOption(BaseModel):

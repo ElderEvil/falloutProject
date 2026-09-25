@@ -5,14 +5,16 @@ original game (Super Duper Mart, Red Rocket gas station): a dweller discovers a
 hand-authored building, the player clears it room by room through combat and
 question nodes, and a finale pays a reward above the random-event budget.
 
-Status: **backend + frontend slices experimentally implemented** (site JSON +
+Status: **backend + frontend slices experimentally implemented in PR #790** (site JSON +
 `ExpeditionRun` model/migration + resolution engine + enter/resolve/retreat/current
 and available-sites endpoints, all test-backed; `ExpeditionSiteModal` + expedition
 site store + journal `site` icon branch). **Deferred**: automatic site-entry from
 discovery events and SSE `site_prompt` (entering is explicit from the exploration
 detail view for now).
-All names, numbers, and schemas below are proposals until the rollout plan in §13
-lands them; nothing here changes the random-event economy.
+This is the original design sketch. The implemented lifecycle, cooldown, and
+room-reset rules are specified in [EXPEDITION_SITES_GAPS.md](EXPEDITION_SITES_GAPS.md).
+Mockup room descriptions and future integration ideas below remain proposals;
+nothing here changes the random-event economy.
 
 ## 1. Why
 
@@ -37,9 +39,10 @@ no changes to the random-event economy.
 ## 2. Concept in one paragraph
 
 While exploring, a dweller can discover an **expedition site** (a named building with
-2–4 rooms) instead of a generic discovery. Entering pauses the normal timed event
-stream. Each room presents one **node**: a fight, a choice/riddle, a skill check, a
-trap, or a loot cache. Resolving nodes advances a room cursor; the finale room pays
+2–4 rooms) instead of a generic discovery. Entering pauses random event
+generation while the exploration clock keeps running. Each room presents one
+**node**: a fight, a choice/riddle, a skill check, a trap, or a loot cache.
+Resolving nodes advances a room cursor; the finale room pays
 a **reward vault** (caps + XP + one rolled item at elevated rarity). The player can
 retreat at any room boundary (keeping room loot, forfeiting the finale) or die trying
 (existing dweller-death flow, no special cases).
@@ -147,8 +150,9 @@ bunker. Smaller and earlier than the Mart — the tutorial site.
 
 1. Discovery event fires as today (map link, journal entry), but flagged
    `site_id`. The event description ends with an **Enter / Ignore** prompt.
-2. Enter pauses the timed event generator for that exploration (cooldown clock
-   freezes; no ambushes while reading). Ignore continues exactly as today.
+2. Enter pauses random event generation for that exploration. The exploration
+   clock keeps running; expiry force-retreats the site run. Ignore continues
+   exactly as today.
 3. Each room renders a modal: room art/flavor, node prompt, legal actions
    (fight is automatic on confirm; choices show stat + odds; retreat always
    visible at room boundaries, never mid-combat-roll).
@@ -180,8 +184,8 @@ events, paid once:
 
 Anti-farm rules:
 
-- Cleared sites go quiet per vault: finale cannot retrigger for 7 days (timestamp
-  on the run record); rooms still yield nothing on revisit (no loot regen).
+- Every terminal run (clear, retreat, death, or expiry-driven retreat) makes
+  that site quiet for the vault for 7 days. Afterward, rooms and finale reset.
 - Site discovery weighting respects level gates; gray (trivial) sites for
   overleveled dwellers pay caps only, no item roll.
 - Reward budgets live in server config (`game_config.exploration` sibling block),
@@ -211,8 +215,8 @@ Static site definitions live beside the enemy/loot JSON consumed by
 - `exploration/event_generator.py`: discovery draw gains a site-entry variant
   (level-gated, weighted like the discovery flat roll); generator stays random,
   sites stay authored.
-- `exploration/event_service.py::process_event`: when the event is a site entry,
-  freeze the event clock and emit the Enter/Ignore prompt instead of loot/combat
+- `exploration/event_service.py::process_event`: a future discovery-driven entry
+  could emit the Enter/Ignore prompt instead of loot/combat
   handling. New `exploration/expedition.py` service owns room resolution; it may
   call `combat_calculator`, `loot_calculator`, `radiation` helpers, and
   `exploration.add_event` — no new persistence paths.

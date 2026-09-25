@@ -444,3 +444,28 @@ async def test_enemies_encountered_credited_once_across_defeat_and_push_on(async
 
     refreshed = await crud.exploration.get(async_session, exploration.id)
     assert refreshed.enemies_encountered == 3
+
+
+@pytest.mark.asyncio
+async def test_combat_reports_per_enemy_entries_and_live_dweller_hp(async_session: AsyncSession):
+    """A resolved combat room reports each engagement and the dweller's live HP."""
+    random.seed(42)
+    _, dweller, exploration = await _make_exploration(async_session)
+    # The factory randomises radiation; zero it so effective max health is deterministic.
+    dweller.radiation = 0
+    async_session.add(dweller)
+    await async_session.commit()
+
+    await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
+    await expedition_service.resolve_node(
+        async_session, exploration.id, ExpeditionResolveRequest(choice_id="disarm")
+    )
+
+    random.seed(570)
+    view = await _push_on_until(async_session, exploration.id, room_index=2)
+
+    assert view.outcome is not None
+    assert len(view.outcome.combat) == 3
+    assert all(entry.enemy and isinstance(entry.victory, bool) for entry in view.outcome.combat)
+    assert view.dweller_max_health == 100
+    assert 0 < view.dweller_health < view.dweller_max_health

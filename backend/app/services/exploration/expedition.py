@@ -17,6 +17,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.crud import dweller as dweller_crud
+from app.models.dweller import Dweller
 from app.models.exploration import ExpeditionRun, ExpeditionRunStatus, Exploration
 from app.schemas.expedition import (
     STAT_NAMES,
@@ -59,6 +60,8 @@ class BranchResult:
     defeated: bool = False
     # Serialized EnemySpec dicts of the full pack fought; persisted into run.flags for retry + XP credit.
     fought_enemies: list[dict] = field(default_factory=list)
+    # Per-enemy outcomes in fight order; surfaced to the client as the battle feed.
+    combat: list[dict] = field(default_factory=list)
 
 
 def success_odds(stat_value: int, difficulty: int) -> float:
@@ -242,6 +245,7 @@ async def _fight_enemy(
         result.texts.append(f"Defeated {enemy.name}!")
     else:
         result.texts.append(f"Overpowered by {enemy.name}!")
+    result.combat.append({"enemy": enemy.name, "victory": outcome.victory, "damage_taken": outcome.health_loss})
     await _take_damage(db_session, exploration, outcome.health_loss, result)
     return outcome
 
@@ -378,6 +382,7 @@ def build_view(
     outcome: NodeOutcome | None = None,
     finale_paid: bool = False,
     defeated: bool | None = None,
+    dweller: Dweller | None = None,
 ) -> SiteRoomView:
     """Project the run row plus site JSON into the player-facing room view."""
     room_index = min(run.room_cursor, len(site.rooms) - 1)
@@ -412,6 +417,8 @@ def build_view(
         outcome=outcome,
         finale_paid=finale_paid,
         defeated=defeated,
+        dweller_health=dweller.health if dweller is not None else 0,
+        dweller_max_health=dweller.effective_max_health if dweller is not None else 0,
     )
 
 
@@ -467,7 +474,7 @@ class ExpeditionService:
         )
         await _log_site_event(db_session, exploration, f"Entered {site.name}: {site.rooms[0].flavor}")
         await db_session.commit()
-        return build_view(exploration_id, site, run, exploration)
+        return build_view(exploration_id, site, run, exploration, dweller=dweller_obj)
 
     async def list_available_sites(self, db_session: AsyncSession, exploration_id: UUID4) -> list[AvailableSiteView]:
         """List expedition sites the dweller may currently enter (level + anti-farm gates)."""
@@ -516,7 +523,8 @@ class ExpeditionService:
         site = data_loader.get_expedition_site(run.site_id)
         if site is None:
             raise ValidationException(f"Unknown expedition site: {run.site_id!r}")
-        return build_view(exploration_id, site, run, exploration)
+        dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+        return build_view(exploration_id, site, run, exploration, dweller=dweller_obj)
 
     async def resolve_node(
         self, db_session: AsyncSession, exploration_id: UUID4, request: ExpeditionResolveRequest
@@ -574,6 +582,7 @@ class ExpeditionService:
             damage_taken=result.damage_taken,
             caps_gained=result.caps_gained,
             loot_gained=result.loot_gained,
+            combat=result.combat,
         )
         await _log_site_event(db_session, exploration, f"{site.name} — {room.name}: {outcome.text}")
 
@@ -610,6 +619,7 @@ class ExpeditionService:
             outcome=outcome,
             finale_paid=finale_paid,
             defeated=result.defeated,
+            dweller=dweller_obj,
         )
 
     async def retreat_run(self, db_session: AsyncSession, exploration_id: UUID4) -> SiteRoomView:
@@ -626,7 +636,8 @@ class ExpeditionService:
         run = await _refresh_run(db_session, run)
         await _log_site_event(db_session, exploration, f"Retreated from {site.name} with whatever was carried.")
         await db_session.commit()
-        return build_view(exploration_id, site, run, exploration)
+        dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+        return build_view(exploration_id, site, run, exploration, dweller=dweller_obj)
 
 
 expedition_service = ExpeditionService()

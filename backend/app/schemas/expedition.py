@@ -131,6 +131,14 @@ class SiteNodeView(BaseModel):
     enemy_names: list[str] = Field(default_factory=list)
 
 
+class CombatEntry(BaseModel):
+    """One enemy engagement inside a room fight."""
+
+    enemy: str
+    victory: bool
+    damage_taken: int = 0
+
+
 class NodeOutcome(BaseModel):
     """What the last resolution did."""
 
@@ -138,6 +146,8 @@ class NodeOutcome(BaseModel):
     damage_taken: int = 0
     caps_gained: int = 0
     loot_gained: list[str] = Field(default_factory=list)
+    # Per-enemy engagements, in fight order, so the client can present a battle.
+    combat: list[CombatEntry] = Field(default_factory=list)
 
 
 class SiteRoomView(BaseModel):
@@ -156,6 +166,9 @@ class SiteRoomView(BaseModel):
     outcome: NodeOutcome | None = None
     finale_paid: bool = False
     defeated: bool = False
+    # Live dweller condition, so the client can show the stake of push-on vs retreat.
+    dweller_health: int = 0
+    dweller_max_health: int = 0
 
 
 class AvailableSiteView(BaseModel):

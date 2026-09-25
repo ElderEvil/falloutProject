@@ -1,76 +1,55 @@
 # Expedition Site UI
 
-State of the interactive expedition-site UI. Only current state lives here —
-release history is in `CHANGELOG.md`; the gameplay rules are in
-[`docs/features/EXPEDITION_SITES_GAPS.md`](../features/EXPEDITION_SITES_GAPS.md)
-and [`docs/features/INTERACTIVE_EXPEDITION_SITES.md`](../features/INTERACTIVE_EXPEDITION_SITES.md).
+Living state of the interactive expedition-site UI. Release history is in
+`CHANGELOG.md`; the gameplay rules live in
+[`docs/features/EXPEDITION_SITES_GAPS.md`](../features/EXPEDITION_SITES_GAPS.md).
 
-Where it lives: `frontend/src/modules/exploration/` — `ExpeditionSiteModal.vue`,
-`stores/expeditionSite.ts`, `api/expeditionSite.ts`, plus the entry CTA and
-reconnect in `views/ExplorationDetailView.vue` and the `site` journal branch in
+Code: `frontend/src/modules/exploration/` — `ExpeditionSiteModal.vue`,
+`stores/expeditionSite.ts`, `api/expeditionSite.ts`; entry CTA and reconnect in
+`views/ExplorationDetailView.vue`; the `site` journal branch in
 `models/exploration.ts`.
 
-## Done
+## Contract
 
-- **Entry CTA** ("Expedition site") on an active exploration, plus
-  **reconnect-on-mount**: a reload mid-run reopens the modal via `GET .../site`
-  instead of stranding the player.
-- **Picker**: level- and cooldown-filtered site cards (name, flavor, level and
-  room-count chips) with an empty state, loading state, and inline error.
-- **Room pane**: site/room progress header, flavor, node prompt, combat enemy
-  preview, and choice buttons carrying a stat chip and a `success_odds`
-  percentage for each option.
-- **Outcome readout** sits above the next node's actions after a resolve. It is
-  deliberately *not* a separate step: the backend returns the next room's node
-  with the previous room's outcome, so the player reads the result and acts on
-  the next node in one pane.
-- **Defeat (push on / retreat)**: when `room.defeated` is set, the option
-  buttons are replaced by a **Push on** action plus **Retreat** (via the shared
-  confirm step). Push on replays the same pack; the room does not advance while
-  defeated. This is the risk/choice loop the backend enforces.
-- **Retreat confirm** uses `TerminalModalActions` ("Keep Exploring" / "Retreat").
-- **Terminal banner** for `cleared` / `retreated` / `died`, with a finale-paid
-  note on a clear. Closing a terminal run emits `updated` so the exploration
-  haul refreshes in the normal rewards surface.
-- **Remaining-time chip** (`≈Xm left`) in the room pane; below 300s it flips to
-  a warning that clock expiry will force a retreat.
-- **Room-pane errors**: `store.error` renders where the failed action happened
-  (not only in the picker) and clears on the next action.
-- **Recovery state**: a run open on a non-active exploration renders close-only
-  ("This expedition has ended") with no resolve/retreat affordances — the
-  backend rejects both on a non-active exploration.
-- **Room scoping**: `store.room` is keyed to the exploration id; navigating
-  between explorers cannot render a stale room.
-- **Journal**: the `site` event type has an icon/color branch; events render
-  through the shared `getEventIcon`/`getEventColor` maps.
+`ExpeditionSiteModal`
+- props: `show`, `explorationId`, `dwellerName?`, `timeRemainingSeconds?`,
+  `explorationActive?` (default `true`)
+- emits: `close`, `updated` (the parent refreshes the exploration so finale loot
+  reaches the normal rewards surface)
 
-## Rules the UI reflects (set by the backend)
+`useExpeditionSiteStore`
+- state: `availableSites`, `room`, `isLoading`, `error`, `currentExplorationId`
+- actions: `fetchAvailableSites`, `enterSite`, `resolveNode`, `retreat`,
+  `fetchCurrentRoom`, `clearError`, `reset`
 
-- Resolve/retreat require an **active** exploration.
-- A combat **defeat** leaves the run in the room (`defeated`), it does not
-  advance.
-- Any **terminal** run (cleared / retreated / died) puts the site on a **7-day
-  per-vault cooldown**; after the window the site fully resets.
-- One **open run per vault/site** — a second dweller cannot enter the same site.
-- Clock expiry **force-retreats** an open run and starts the return leg, so
-  remaining time is shown before the player commits.
+## Decisions worth knowing
+
+- **The outcome readout is not a separate step.** Resolve returns the next
+  room's node together with the previous room's outcome, so the readout renders
+  above the next node's actions — one pane, no "continue" round-trip.
+- **Defeat hides the option buttons.** `room.defeated` swaps them for Push on /
+  Retreat; push-on replays the same pack and the cursor never advances while
+  defeated.
+- **Recovery is close-only.** A run on a non-active exploration renders "This
+  expedition has ended" with no resolve/retreat, because the backend rejects
+  both — the UI must not offer an action that can only fail.
+- **The room is guarded, not cleared.** The store is a singleton that survives a
+  close, so the modal renders `room` only when
+  `room.exploration_id === props.explorationId`. `ExplorationDetailView` watches
+  `explorationId` to re-scope the store and reconnect when the router reuses the
+  view for another explorer.
+- **The time chip exists because expiry force-retreats.** Below 300s it warns
+  that clock expiry will end the run.
 
 ## Open
 
-- **Discovery prompt (the original-game flow)**: a site should be offered as a
-  time-limited exploration event (Enter / Ignore with a countdown), delivered
-  over SSE (`site_prompt`), rather than only the manual picker. Not built; the
-  backend has no offer state yet and deferred it deliberately. Decide whether an
-  offer is a run state or a separate one-use opportunity before wiring the UI.
-- **Map / journal deep-link**: site discoveries could register a map marker and
-  deep-link into the modal. The `site` journal event carries no `site_id` today,
-  so a per-event CTA is not possible yet.
-- **Accessibility pass**: give the option buttons a proper group semantic
-  (`radiogroup`/`radio` or a list with `aria-describedby` for the odds), ensure
-  the countdown is announced politely (`aria-live`), and confirm focus is trapped
-  and restored by the dialog.
-- **Mobile layout**: the room pane's chip row and two-action defeat row are tight
-  at narrow widths; verify wrapping and 44px touch targets.
-- **Progression surfacing**: site entry/clear/death should surface through the
-  standard modal/toast path in addition to the journal entry, per the
-  progression-visibility rule in `docs/backend/GAME_MECHANICS.md`.
+- **Map / journal deep-link** — blocked: the `site` journal event carries no
+  `site_id`, so a per-event CTA cannot be built yet.
+- **Accessibility** — option buttons need a group semantic (`radiogroup`/`radio`,
+  or a list with `aria-describedby` for the odds), a polite `aria-live` for the
+  countdown, and verified focus trap/restore.
+- **Progression surfacing** — site entry/clear/death should also surface via
+  modal/toast, not journal-only (the `GAME_MECHANICS.md` red line).
+
+The remaining gameplay gap — a time-limited Enter/Ignore discovery prompt over
+SSE — is a backend offer-state decision, tracked in the gaps doc, not a UI task.

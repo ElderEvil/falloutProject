@@ -170,7 +170,7 @@ const terminalBanner = computed(() => {
       class="flex max-h-[75vh] w-full max-w-xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-xl"
     >
       <DialogHeader
-        class="flex flex-shrink-0 flex-row items-center justify-between gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
+        class="flex flex-shrink-0 flex-row items-center justify-between gap-3 border-b border-theme-primary/25 bg-theme-primary/5 pt-6 pr-14 pb-4 pl-6"
       >
         <div class="flex min-w-0 items-center gap-2">
           <Icon icon="mdi:radio-tower" class="inline h-6 w-6 shrink-0 text-theme-primary" />

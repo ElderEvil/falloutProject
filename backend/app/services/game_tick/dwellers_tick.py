@@ -20,6 +20,7 @@ from app.crud import expedition_run as crud_expedition_run
 from app.crud import exploration as crud_exploration
 from app.crud import room as crud_room
 from app.crud.vault import vault as vault_crud
+from app.services.exploration.dispatch_resolution import resolve_dispatch_arrival
 from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration_service import exploration_service
 from app.services.game_tick.guard import guard_phase, recover_session, refresh_after_recovery
@@ -112,9 +113,16 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
 
     # Exploring is done: send the dweller home; loot and rewards wait for arrival.
     if exploration.time_remaining_seconds() <= 0:
-        await exploration_service.start_return(db_session, exploration.id)
+        if exploration.is_dispatch_run():
+            await resolve_dispatch_arrival(db_session, exploration.id)
+        else:
+            await exploration_service.start_return(db_session, exploration.id)
         stats["returning"] += 1
         logger.info(f"Exploration {exploration.id} finished; dweller {exploration.dweller_id} is returning home")
+        return
+
+    # A targeted dispatch suppresses random events entirely; it resolves once on arrival.
+    if exploration.is_dispatch_run():
         return
 
     # D1-A: while a site run is open, random events pause; the wall clock keeps

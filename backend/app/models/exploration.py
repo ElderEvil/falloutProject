@@ -101,6 +101,10 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         """Check if the run is ongoing, whether exploring or returning."""
         return self.status in IN_PROGRESS_STATUSES
 
+    def is_dispatch_run(self) -> bool:
+        """True when this run targets a specific map point (issue 772)."""
+        return self.target_location_id is not None
+
     def is_completed(self) -> bool:
         """Check if exploration is completed."""
         return self.status == ExplorationStatus.COMPLETED

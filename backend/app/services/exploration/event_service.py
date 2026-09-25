@@ -40,6 +40,67 @@ logger = logging.getLogger(__name__)
 _PENDING_EQUIP_NOTIFICATIONS = "pending_exploration_equip_notifications"
 
 
+async def apply_exploration_damage(db_session: AsyncSession, exploration: Exploration, damage: int) -> None:
+    """Apply damage to the explorer, marking death when health hits zero.
+
+    Shared by timed events and expedition sites so both kill exactly the same way.
+    """
+
+    async def _get_living_dweller() -> Dweller | None:
+        dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+        return None if dweller_obj.is_dead else dweller_obj
+
+    if (dweller_obj := await _get_living_dweller()) is None:
+        return
+
+    new_health = dweller_obj.health - damage
+
+    if new_health <= 0:
+        # Dweller dies in the wasteland. Delete held mid-run upgrades BEFORE
+        # mark_as_dead so its commit lands the death and the cleanup atomically;
+        # the equipped upgrade stays on the corpse.
+        from app.core.enums import DeathCauseEnum
+        from app.crud import outfit as outfit_crud
+        from app.crud import weapon as weapon_crud
+        from app.services.family.death_service import death_service
+
+        await weapon_crud.delete_held_for_exploration(db_session, exploration.id)
+        await outfit_crud.delete_held_for_exploration(db_session, exploration.id)
+        await death_service.mark_as_dead(db_session, dweller_obj, DeathCauseEnum.EXPLORATION)
+    else:
+        # Just apply damage (cap at 1 to give player chance to recall)
+        dweller_obj.health = max(1, new_health)
+        db_session.add(dweller_obj)
+        # Flush so follow-up healing sees updated health
+        await db_session.flush()
+
+
+def apply_loot_find(
+    exploration: Exploration,
+    *,
+    item_name: str,
+    rarity: str,
+    item_type: str,
+    caps: int,
+) -> None:
+    """Record one loot find: stash the item, add caps, count medical supplies."""
+    exploration.add_loot(
+        item_name=item_name,
+        quantity=1,
+        rarity=rarity,
+        item_type=item_type,
+    )
+
+    # Update stats
+    exploration.total_caps_found += caps
+
+    # Counter only: the find is already logged by the single loot entry above
+    if item_type == "stimpak":
+        exploration.stimpaks += 1
+    elif item_type == "radaway":
+        exploration.radaways += 1
+
+
 class EventService:
     """Applies generated wasteland events to explorations and dwellers."""
 
@@ -195,22 +256,14 @@ class EventService:
         caps = loot_data.caps
 
         # Add item to collected loot
-        exploration.add_loot(
+        apply_loot_find(
+            exploration,
             item_name=item.name,
-            quantity=1,
             rarity=item.rarity,
             item_type=item_type,
+            caps=caps,
         )
-
-        # Update stats
-        exploration.total_caps_found += caps
         exploration.total_distance += random.randint(1, 5)
-
-        # Counter only: the find is already logged by the single loot entry above
-        if item_type == "stimpak":
-            exploration.stimpaks += 1
-        elif item_type == "radaway":
-            exploration.radaways += 1
 
         followups: list[dict] = []
         if item_type in {"weapon", "outfit"}:
@@ -229,29 +282,7 @@ class EventService:
 
         If damage would be fatal (health <= 0), the dweller dies from exploration.
         """
-        if (dweller_obj := await self._get_living_dweller(db_session, exploration)) is None:
-            return
-
-        new_health = dweller_obj.health - damage
-
-        if new_health <= 0:
-            # Dweller dies in the wasteland. Delete held mid-run upgrades BEFORE
-            # mark_as_dead so its commit lands the death and the cleanup atomically;
-            # the equipped upgrade stays on the corpse.
-            from app.core.enums import DeathCauseEnum
-            from app.crud import outfit as outfit_crud
-            from app.crud import weapon as weapon_crud
-            from app.services.family.death_service import death_service
-
-            await weapon_crud.delete_held_for_exploration(db_session, exploration.id)
-            await outfit_crud.delete_held_for_exploration(db_session, exploration.id)
-            await death_service.mark_as_dead(db_session, dweller_obj, DeathCauseEnum.EXPLORATION)
-        else:
-            # Just apply damage (cap at 1 to give player chance to recall)
-            dweller_obj.health = max(1, new_health)
-            db_session.add(dweller_obj)
-            # Flush so _handle_auto_heal sees updated health
-            await db_session.flush()
+        await apply_exploration_damage(db_session, exploration, damage)
 
     async def _apply_radiation_gain(self, db_session: AsyncSession, exploration: Exploration, rads: int) -> None:
         """Apply radiation gain to dweller."""

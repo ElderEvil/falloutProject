@@ -1,6 +1,5 @@
 """Exploration endpoints."""
 
-from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -11,6 +10,12 @@ from app.api.deps import CurrentActiveUser, get_user_vault_or_403, verify_explor
 from app.crud import exploration as crud_exploration
 from app.db.session import get_async_session
 from app.models.exploration import Exploration
+from app.schemas.expedition import (
+    AvailableSiteView,
+    ExpeditionEnterRequest,
+    ExpeditionResolveRequest,
+    SiteRoomView,
+)
 from app.schemas.exploration import (
     ExplorationCompleteResponse,
     ExplorationProgress,
@@ -20,6 +25,7 @@ from app.schemas.exploration import (
     PendingOverflowRead,
 )
 from app.schemas.overflow import OverflowActionRequest, OverflowActionResponse
+from app.services.exploration.expedition import expedition_service
 from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
 from app.utils.exceptions import ValidationException
@@ -62,7 +68,7 @@ async def list_explorations_by_vault(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     active_only: bool = True,
-) -> Sequence[Exploration]:
+) -> list[Exploration]:
     """List all explorations for a vault.
 
     Returns:
@@ -212,3 +218,68 @@ async def generate_event(
         return await exploration_service.process_event_for_exploration(db_session, exploration_id)
     except ValueError as e:
         raise ValidationException(str(e)) from e
+
+
+@router.post("/{exploration_id}/site/enter", response_model=SiteRoomView)
+async def enter_expedition_site(
+    exploration_id: UUID4,
+    request: ExpeditionEnterRequest,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> SiteRoomView:
+    """Enter an expedition site on an active exploration.
+
+    Returns:
+        SiteRoomView: The first room and its node prompt.
+    """
+    await verify_exploration_access(exploration_id, user, db_session)
+    return await expedition_service.enter_run(db_session, exploration_id, request.site_id)
+
+
+@router.get("/{exploration_id}/site/available", response_model=list[AvailableSiteView])
+async def list_available_expedition_sites(
+    exploration_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> list[AvailableSiteView]:
+    """List expedition sites the dweller may currently enter (level + anti-farm gates)."""
+    await verify_exploration_access(exploration_id, user, db_session)
+    return await expedition_service.list_available_sites(db_session, exploration_id)
+
+
+@router.get("/{exploration_id}/site", response_model=SiteRoomView | None)
+async def get_expedition_site(
+    exploration_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> SiteRoomView | None:
+    """Get the open expedition run view, or null when there is none (reconnect-safe)."""
+    await verify_exploration_access(exploration_id, user, db_session)
+    return await expedition_service.current_view(db_session, exploration_id)
+
+
+@router.post("/{exploration_id}/site/resolve", response_model=SiteRoomView)
+async def resolve_expedition_node(
+    exploration_id: UUID4,
+    request: ExpeditionResolveRequest,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> SiteRoomView:
+    """Resolve the current site room node and advance.
+
+    Returns:
+        SiteRoomView: The next room view (or the finished run view).
+    """
+    await verify_exploration_access(exploration_id, user, db_session)
+    return await expedition_service.resolve_node(db_session, exploration_id, request)
+
+
+@router.post("/{exploration_id}/site/retreat", response_model=SiteRoomView)
+async def retreat_expedition_site(
+    exploration_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> SiteRoomView:
+    """Abandon the expedition run at a room boundary; room loot is kept."""
+    await verify_exploration_access(exploration_id, user, db_session)
+    return await expedition_service.retreat_run(db_session, exploration_id)

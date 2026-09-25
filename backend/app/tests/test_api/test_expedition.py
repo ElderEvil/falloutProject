@@ -200,7 +200,7 @@ async def test_site_available_anti_farm_excludes_recent_clear(
         site_id="red_rocket",
     )
     run.status = ExpeditionRunStatus.CLEARED
-    run.cleared_at = datetime.utcnow()
+    run.finished_at = datetime.utcnow()
     async_session.add(run)
     await async_session.commit()
 

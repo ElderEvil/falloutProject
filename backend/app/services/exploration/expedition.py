@@ -29,12 +29,14 @@ from app.schemas.expedition import (
     SiteDefinition,
     SiteNodeView,
     SiteRoomView,
+    rarity_meets_floor,
 )
-from app.schemas.exploration_event import EnemySchema
+from app.schemas.exploration_event import CombatOutcomeSchema, EnemySchema, LootItemSchema
 from app.services.exploration import data_loader
 from app.services.exploration.combat_calculator import combat_calculator
 from app.services.exploration.event_service import apply_exploration_damage, apply_loot_find
 from app.services.exploration.loot_calculator import loot_calculator
+from app.services.notification_service import notification_service
 from app.services.radiation_service import apply_radiation_gain
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 
@@ -54,6 +56,9 @@ class BranchResult:
     caps_gained: int = 0
     loot_gained: list[str] = field(default_factory=list)
     dweller_died: bool = False
+    defeated: bool = False
+    # Serialized EnemySpec dicts of the full pack fought; persisted into run.flags for retry + XP credit.
+    fought_enemies: list[dict] = field(default_factory=list)
 
 
 def success_odds(stat_value: int, difficulty: int) -> float:
@@ -83,8 +88,14 @@ def resolve_enemy_spec(spec: EnemySpec) -> EnemySchema:
     return EnemySchema(**entry)
 
 
+def _require_floor_eligible(site: SiteDefinition, item_type: str, floor: str) -> None:
+    """Reject site content whose reward floor has no catalog item at or above it (authoring error)."""
+    if not loot_calculator.has_eligible(item_type, floor):
+        raise ValidationException(f"Site {site.id}: no {item_type} at or above rarity {floor!r} in the catalog")
+
+
 def validate_site_content(site: SiteDefinition) -> None:
-    """Fail fast on authoring errors (bad stats, bad enemies) at entry time."""
+    """Fail fast on authoring errors (bad stats, bad enemies, unsatisfiable floors) at entry time."""
     for room in site.rooms:
         node = room.node
         for stat in [option.stat for option in node.options] + ([node.stat] if node.stat else []):
@@ -96,6 +107,11 @@ def validate_site_content(site: SiteDefinition) -> None:
             for branch in (option.success, option.failure):
                 for spec in branch.combat_enemies or []:
                     resolve_enemy_spec(spec)
+                if branch.cache_item is not None and branch.cache_floor is not None:
+                    _require_floor_eligible(site, branch.cache_item, branch.cache_floor)
+    vault = site.reward_vault
+    if vault.item is not None and vault.item.floor is not None:
+        _require_floor_eligible(site, vault.item.type, vault.item.floor)
 
 
 def _stat_value(exploration: Exploration, stat: str) -> int:
@@ -104,6 +120,22 @@ def _stat_value(exploration: Exploration, stat: str) -> int:
 
 async def _get_exploration(db_session: AsyncSession, exploration_id: UUID4) -> Exploration:
     exploration = await crud.exploration.get(db_session, exploration_id)
+    if exploration is None:
+        raise ResourceNotFoundException(Exploration, identifier=exploration_id)
+    return exploration
+
+
+async def _claim_and_lock_exploration(db_session: AsyncSession, exploration_id: UUID4) -> Exploration:
+    """Acquire the shared vault/site claim, then lock the exploration row.
+
+    Lock order on every site-mutating path: claim (vault row) → exploration row
+    → run row. The vault claim serializes entry, terminal transitions, and the
+    finale payout at one vault/site key; the exploration lock revalidates ACTIVE
+    under the lock. SQLite ignores FOR UPDATE, which is fine for tests.
+    """
+    preview = await _get_exploration(db_session, exploration_id)
+    await crud.vault.get_for_update(db_session, preview.vault_id)
+    exploration = await crud.exploration.get_for_update(db_session, exploration_id)
     if exploration is None:
         raise ResourceNotFoundException(Exploration, identifier=exploration_id)
     return exploration
@@ -134,23 +166,24 @@ async def _apply_radiation(db_session: AsyncSession, exploration: Exploration, r
     await db_session.flush()
 
 
-def roll_gear(luck: int, item_type: str, floor: str | None, attempts: int = 3):
-    """Roll an item with bounded rerolls toward a rarity floor; keep the best."""
-    from app.schemas.expedition import rarity_meets_floor
+def _roll_item(luck: int, item_type: str, min_rarity: str | None = None) -> LootItemSchema:
+    """One luck-weighted item roll, or a floor-guaranteed pick when min_rarity is set."""
+    if item_type == "weapon":
+        return loot_calculator.select_random_weapon(luck, min_rarity=min_rarity)
+    if item_type == "outfit":
+        return loot_calculator.select_random_outfit(luck, min_rarity=min_rarity)
+    return loot_calculator.select_random_junk(luck, min_rarity=min_rarity)
 
-    best = None
+
+def roll_gear(luck: int, item_type: str, floor: str | None, attempts: int = 3) -> LootItemSchema:
+    """Roll an item with a guaranteed rarity floor (bounded rerolls, eligible-pool fallback)."""
+    if floor is None:
+        return _roll_item(luck, item_type)
     for _ in range(max(1, attempts)):
-        if item_type == "weapon":
-            candidate = loot_calculator.select_random_weapon(luck)
-        elif item_type == "outfit":
-            candidate = loot_calculator.select_random_outfit(luck)
-        else:
-            candidate = loot_calculator.select_random_junk(luck)
-        if best is None:
-            best = candidate
+        candidate = _roll_item(luck, item_type)
         if rarity_meets_floor(candidate.rarity, floor):
             return candidate
-    return best
+    return _roll_item(luck, item_type, min_rarity=floor)
 
 
 async def _apply_branch(
@@ -173,8 +206,13 @@ async def _apply_branch(
             apply_loot_find(exploration, item_name=item.name, rarity=item.rarity, item_type=item_type, caps=0)
             result.loot_gained.append(f"{item.name} ({item.rarity})")
             result.texts.append(f"Found {item.name} ({item.rarity}).")
+    if branch.combat_enemies:
+        result.fought_enemies = [spec.model_dump() for spec in branch.combat_enemies]
     for spec in branch.combat_enemies or []:
-        await _fight_enemy(db_session, exploration, resolve_enemy_spec(spec), result)
+        outcome = await _fight_enemy(db_session, exploration, resolve_enemy_spec(spec), result)
+        if not outcome.victory:
+            result.defeated = True
+            return
         if result.dweller_died:
             return
     if branch.trap_damage_min is not None:
@@ -198,14 +236,14 @@ async def _take_damage(db_session: AsyncSession, exploration: Exploration, damag
 
 async def _fight_enemy(
     db_session: AsyncSession, exploration: Exploration, enemy: EnemySchema, result: BranchResult
-) -> None:
+) -> CombatOutcomeSchema:
     outcome = combat_calculator.calculate_combat_outcome(exploration, enemy)
-    exploration.enemies_encountered += 1
     if outcome.victory:
         result.texts.append(f"Defeated {enemy.name}!")
     else:
         result.texts.append(f"Overpowered by {enemy.name}!")
     await _take_damage(db_session, exploration, outcome.health_loss, result)
+    return outcome
 
 
 def _find_option(node_options: list, choice_id: str | None, *, required: bool):
@@ -251,8 +289,12 @@ async def _resolve_node(
     luck = _stat_value(exploration, "luck")
 
     if node.kind == "combat":
+        result.fought_enemies = [spec.model_dump() for spec in node.enemies]
         for spec in node.enemies:
-            await _fight_enemy(db_session, exploration, resolve_enemy_spec(spec), result)
+            outcome = await _fight_enemy(db_session, exploration, resolve_enemy_spec(spec), result)
+            if not outcome.victory:
+                result.defeated = True
+                return False
             if result.dweller_died:
                 return False
     elif node.kind == "choice":
@@ -335,10 +377,14 @@ def build_view(
     exploration: Exploration,
     outcome: NodeOutcome | None = None,
     finale_paid: bool = False,
+    defeated: bool | None = None,
 ) -> SiteRoomView:
     """Project the run row plus site JSON into the player-facing room view."""
     room_index = min(run.room_cursor, len(site.rooms) - 1)
     room = site.rooms[room_index]
+    if defeated is None:
+        pending = run.flags.get("pending_fight")
+        defeated = bool(run.is_open() and pending is not None and pending.get("room_id") == room.id)
     options = [
         NodeOptionView(
             id=option.id,
@@ -365,6 +411,7 @@ def build_view(
         status=run.status.value,
         outcome=outcome,
         finale_paid=finale_paid,
+        defeated=defeated,
     )
 
 
@@ -380,7 +427,7 @@ class ExpeditionService:
 
     async def enter_run(self, db_session: AsyncSession, exploration_id: UUID4, site_id: str) -> SiteRoomView:
         """Start a site run on an active exploration (anti-farm + level gates enforced)."""
-        exploration = await _get_exploration(db_session, exploration_id)
+        exploration = await _claim_and_lock_exploration(db_session, exploration_id)
         if not exploration.is_active():
             raise ValidationException("Expedition sites need an active exploration")
         site = data_loader.get_expedition_site(site_id)
@@ -396,14 +443,21 @@ class ExpeditionService:
             )
         if await crud.expedition_run.get_open_for_exploration(db_session, exploration_id) is not None:
             raise ResourceConflictException("This exploration already has an open expedition run")
-        recent = await crud.expedition_run.get_recent_clear(
+        if (
+            await crud.expedition_run.get_open_for_vault_site(
+                db_session, vault_id=exploration.vault_id, site_id=site_id
+            )
+            is not None
+        ):
+            raise ResourceConflictException(f"{site_id} already has an open expedition run")
+        recent = await crud.expedition_run.get_recent_terminal(
             db_session,
             vault_id=exploration.vault_id,
             site_id=site_id,
             since=datetime.utcnow() - timedelta(days=ANTI_FARM_DAYS),
         )
         if recent is not None:
-            raise ResourceConflictException(f"{site.name} was cleared recently and is quiet")
+            raise ResourceConflictException(f"{site.name} is quiet after a recent expedition")
         run = await crud.expedition_run.create_run(
             db_session,
             exploration_id=exploration_id,
@@ -427,7 +481,14 @@ class ExpeditionService:
         for site in data_loader.load_expedition_sites():
             if dweller_obj.level < site.min_dweller_level:
                 continue
-            recent = await crud.expedition_run.get_recent_clear(
+            if (
+                await crud.expedition_run.get_open_for_vault_site(
+                    db_session, vault_id=exploration.vault_id, site_id=site.id
+                )
+                is not None
+            ):
+                continue
+            recent = await crud.expedition_run.get_recent_terminal(
                 db_session,
                 vault_id=exploration.vault_id,
                 site_id=site.id,
@@ -461,11 +522,15 @@ class ExpeditionService:
         self, db_session: AsyncSession, exploration_id: UUID4, request: ExpeditionResolveRequest
     ) -> SiteRoomView:
         """Resolve the current room node and advance the cursor (or finish the run)."""
-        exploration = await _get_exploration(db_session, exploration_id)
+        db_session.info.pop("deferred_notification_deliveries", None)
+        exploration = await _claim_and_lock_exploration(db_session, exploration_id)
+        if not exploration.is_active():
+            raise ValidationException("Expedition sites need an active exploration")
         run = await _get_open_run(db_session, exploration_id)
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
         if dweller_obj.is_dead:
             run.status = ExpeditionRunStatus.DIED
+            run.finished_at = datetime.utcnow()
             await _refresh_run(db_session, run)
             await db_session.commit()
             raise ValidationException("The exploring dweller is dead")
@@ -474,8 +539,36 @@ class ExpeditionService:
             raise ValidationException(f"Unknown expedition site: {run.site_id!r}")
         room = site.rooms[run.room_cursor]
 
+        # The finale pays the reward vault; re-check the cooldown under the claim
+        # so a run that outlived a terminal sibling cannot pay into a locked site.
+        if room.node.kind == "finale":
+            recent = await crud.expedition_run.get_recent_terminal(
+                db_session,
+                vault_id=exploration.vault_id,
+                site_id=run.site_id,
+                since=datetime.utcnow() - timedelta(days=ANTI_FARM_DAYS),
+            )
+            if recent is not None:
+                raise ValidationException(f"{site.name} is quiet after a recent expedition")
+
         result = BranchResult()
-        finale_paid = await _resolve_node(db_session, exploration, site, run.room_cursor, request.choice_id, result)
+        pending = run.flags.get("pending_fight")
+        if pending is not None and pending.get("room_id") == room.id:
+            # Push-on after a defeat: replay the recorded pack; never re-roll the
+            # original choice/check that led to the failed branch.
+            result.fought_enemies = list(pending["enemies"])
+            for spec_dict in result.fought_enemies:
+                outcome = await _fight_enemy(
+                    db_session, exploration, resolve_enemy_spec(EnemySpec(**spec_dict)), result
+                )
+                if not outcome.victory:
+                    result.defeated = True
+                    break
+                if result.dweller_died:
+                    break
+            finale_paid = False
+        else:
+            finale_paid = await _resolve_node(db_session, exploration, site, run.room_cursor, request.choice_id, result)
         outcome = NodeOutcome(
             text=" ".join(result.texts),
             damage_taken=result.damage_taken,
@@ -486,24 +579,50 @@ class ExpeditionService:
 
         if result.dweller_died:
             run.status = ExpeditionRunStatus.DIED
+            run.finished_at = datetime.utcnow()
         elif finale_paid:
             run.status = ExpeditionRunStatus.CLEARED
-            run.cleared_at = datetime.utcnow()
+            run.finished_at = datetime.utcnow()
+        elif result.defeated:
+            # Defeat stops the pack: stay in the room, offer push-on/retreat.
+            run.status = ExpeditionRunStatus.IN_ROOM
+            flags = dict(run.flags)
+            flags["pending_fight"] = {"room_id": room.id, "enemies": result.fought_enemies}
+            run.flags = flags
         else:
             run.status = ExpeditionRunStatus.IN_ROOM
+            flags = dict(run.flags)
+            flags.pop("pending_fight", None)
+            credited = flags.get("credited_rooms", [])
+            if result.fought_enemies and room.id not in credited:
+                exploration.enemies_encountered += len(result.fought_enemies)
+                flags["credited_rooms"] = [*credited, room.id]
+            run.flags = flags
             run.room_cursor = min(run.room_cursor + 1, len(site.rooms) - 1)
         run = await _refresh_run(db_session, run)
         await db_session.commit()
-        return build_view(exploration_id, site, run, exploration, outcome=outcome, finale_paid=finale_paid)
+        await notification_service.deliver_deferred_notifications(db_session)
+        return build_view(
+            exploration_id,
+            site,
+            run,
+            exploration,
+            outcome=outcome,
+            finale_paid=finale_paid,
+            defeated=result.defeated,
+        )
 
     async def retreat_run(self, db_session: AsyncSession, exploration_id: UUID4) -> SiteRoomView:
         """Abandon the run at a room boundary: room loot kept, finale forfeited."""
-        exploration = await _get_exploration(db_session, exploration_id)
+        exploration = await _claim_and_lock_exploration(db_session, exploration_id)
+        if not exploration.is_active():
+            raise ValidationException("Expedition sites need an active exploration")
         run = await _get_open_run(db_session, exploration_id)
         site = data_loader.get_expedition_site(run.site_id)
         if site is None:
             raise ValidationException(f"Unknown expedition site: {run.site_id!r}")
         run.status = ExpeditionRunStatus.RETREATED
+        run.finished_at = datetime.utcnow()
         run = await _refresh_run(db_session, run)
         await _log_site_event(db_session, exploration, f"Retreated from {site.name} with whatever was carried.")
         await db_session.commit()

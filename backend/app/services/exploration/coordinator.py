@@ -1,14 +1,16 @@
 """Exploration coordinator - orchestrates exploration completion and recall."""
 
 import logging
+from datetime import datetime
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud import dweller as dweller_crud
+from app.crud import expedition_run as crud_expedition_run
 from app.crud import exploration as crud_exploration
 from app.crud import vault as crud_vault
-from app.models.exploration import Exploration
+from app.models.exploration import ExpeditionRunStatus, Exploration
 from app.schemas.exploration_event import RewardsSchema
 from app.services.exploration.event_service import event_service
 from app.services.exploration.rewards_service import rewards_service
@@ -42,6 +44,11 @@ class ExplorationCoordinator:
         """
         # Locked read: a concurrent tick finish and player recall serialize here, so the
         # later caller revalidates against the written state instead of overwriting it.
+        # Lock order: claim (vault row) → exploration row → run row.
+        preview = await crud_exploration.get(db_session, exploration_id)
+        if preview is None:
+            raise ResourceNotFoundException(Exploration, identifier=exploration_id)
+        await crud_vault.get_for_update(db_session, preview.vault_id)
         exploration = await crud_exploration.get_for_update(db_session, exploration_id)
         if exploration is None:
             raise ResourceNotFoundException(Exploration, identifier=exploration_id)
@@ -51,7 +58,17 @@ class ExplorationCoordinator:
         if not recalled and exploration.time_remaining_seconds() > 0:
             raise ValueError("Exploration has not finished yet; recall the dweller to end it early")
 
+        # Clock expiry and recall both force-retreat an open site run before the
+        # return leg starts, all in this one transaction.
+        run = await crud_expedition_run.get_open_for_exploration_for_update(db_session, exploration_id)
+        if run is not None:
+            run.status = ExpeditionRunStatus.RETREATED
+            run.finished_at = datetime.utcnow()
+            db_session.add(run)
+            await db_session.flush()
+
         exploration = await crud_exploration.start_return(db_session, exploration_id=exploration_id, recalled=recalled)
+        await db_session.commit()
 
         await event_service.publish_sse(
             exploration,

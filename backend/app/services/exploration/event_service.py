@@ -57,8 +57,9 @@ async def apply_exploration_damage(db_session: AsyncSession, exploration: Explor
 
     if new_health <= 0:
         # Dweller dies in the wasteland. Delete held mid-run upgrades BEFORE
-        # mark_as_dead so its commit lands the death and the cleanup atomically;
-        # the equipped upgrade stays on the corpse.
+        # mark_as_dead so the death and the cleanup land in the caller's
+        # transaction; the equipped upgrade stays on the corpse. The death
+        # notification is parked and delivered after the caller commits.
         from app.core.enums import DeathCauseEnum
         from app.crud import outfit as outfit_crud
         from app.crud import weapon as weapon_crud
@@ -66,7 +67,7 @@ async def apply_exploration_damage(db_session: AsyncSession, exploration: Explor
 
         await weapon_crud.delete_held_for_exploration(db_session, exploration.id)
         await outfit_crud.delete_held_for_exploration(db_session, exploration.id)
-        await death_service.mark_as_dead(db_session, dweller_obj, DeathCauseEnum.EXPLORATION)
+        await death_service.mark_as_dead(db_session, dweller_obj, DeathCauseEnum.EXPLORATION, commit=False)
     else:
         # Just apply damage (cap at 1 to give player chance to recall)
         dweller_obj.health = max(1, new_health)
@@ -115,6 +116,9 @@ class EventService:
             Updated exploration
         """
         db_session.info.pop(_PENDING_EQUIP_NOTIFICATIONS, None)
+        # Drop death notifications parked by a failed earlier operation on this
+        # session; the current operation's are delivered after its commit.
+        db_session.info.pop("deferred_notification_deliveries", None)
         dweller_with_equipment = await dweller_crud.get_with_equipment(db_session, exploration.dweller_id)
         profile = None
         if dweller_with_equipment is not None and not dweller_with_equipment.is_dead:
@@ -206,6 +210,10 @@ class EventService:
         db_session.add(exploration)
         await db_session.commit()
         await db_session.refresh(exploration)
+
+        # Death notifications parked by mark_as_dead(commit=False) ride the
+        # caller's commit; deliver them now that the death is durable.
+        await notification_service.deliver_deferred_notifications(db_session)
 
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
 

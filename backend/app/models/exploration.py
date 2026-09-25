@@ -246,13 +246,33 @@ class ExpeditionRunStatus(StrEnum):
     DIED = "died"
 
 
+# Statuses that still accept room resolutions; at most one open run per exploration
+# and per vault+site (partial unique indexes below).
+OPEN_STATUSES: tuple[ExpeditionRunStatus, ...] = (ExpeditionRunStatus.ENTERED, ExpeditionRunStatus.IN_ROOM)
+
+# Statuses that end a run and start the per-vault+site cooldown (D2-B).
+TERMINAL_STATUSES: tuple[ExpeditionRunStatus, ...] = (
+    ExpeditionRunStatus.CLEARED,
+    ExpeditionRunStatus.RETREATED,
+    ExpeditionRunStatus.DIED,
+)
+
+
 class ExpeditionRun(BaseUUIDModel, TimeStampMixin, table=True):
-    """One attempt at an expedition site: room cursor plus anti-farm record."""
+    """One attempt at an expedition site: room cursor plus cooldown record."""
 
     __table_args__ = (
         sa.Index(
             "uq_expeditionrun_open_exploration",
             "exploration_id",
+            unique=True,
+            postgresql_where=sa.text("status IN ('ENTERED', 'IN_ROOM')"),
+            sqlite_where=sa.text("status IN ('ENTERED', 'IN_ROOM')"),
+        ),
+        sa.Index(
+            "uq_expeditionrun_open_vault_site",
+            "vault_id",
+            "site_id",
             unique=True,
             postgresql_where=sa.text("status IN ('ENTERED', 'IN_ROOM')"),
             sqlite_where=sa.text("status IN ('ENTERED', 'IN_ROOM')"),
@@ -266,8 +286,10 @@ class ExpeditionRun(BaseUUIDModel, TimeStampMixin, table=True):
     room_cursor: int = Field(default=0, ge=0)
     status: ExpeditionRunStatus = Field(default=ExpeditionRunStatus.ENTERED, index=True)
     flags: dict = Field(default_factory=dict, sa_column=sa.Column(JSONB))
-    cleared_at: datetime | None = Field(default=None)
+    # Terminal timestamp: set when the run reaches any terminal state
+    # (CLEARED/RETREATED/DIED) and backs the 7-day per-vault+site cooldown.
+    finished_at: datetime | None = Field(default=None)
 
     def is_open(self) -> bool:
         """Return whether the run still accepts room resolutions."""
-        return self.status in (ExpeditionRunStatus.ENTERED, ExpeditionRunStatus.IN_ROOM)
+        return self.status in OPEN_STATUSES

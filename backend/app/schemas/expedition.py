@@ -155,6 +155,7 @@ class SiteRoomView(BaseModel):
     status: str
     outcome: NodeOutcome | None = None
     finale_paid: bool = False
+    defeated: bool = False
 
 
 class AvailableSiteView(BaseModel):

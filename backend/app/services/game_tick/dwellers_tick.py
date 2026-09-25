@@ -16,6 +16,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.enums import RoomTypeEnum
 from app.core.game_config import game_config
 from app.crud import dweller as crud_dweller
+from app.crud import expedition_run as crud_expedition_run
 from app.crud import exploration as crud_exploration
 from app.crud import room as crud_room
 from app.crud.vault import vault as vault_crud
@@ -105,6 +106,11 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
         await exploration_service.start_return(db_session, exploration.id)
         stats["returning"] += 1
         logger.info(f"Exploration {exploration.id} finished; dweller {exploration.dweller_id} is returning home")
+        return
+
+    # D1-A: while a site run is open, random events pause; the wall clock keeps
+    # running, so the expiry branch above still fires the auto-retreat.
+    if await crud_expedition_run.get_open_for_exploration(db_session, exploration.id) is not None:
         return
 
     # Try to generate an event

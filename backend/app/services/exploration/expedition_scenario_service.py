@@ -179,7 +179,7 @@ class ExpeditionScenarioService:
             site_id=preclear_site_id,
         )
         run.status = ExpeditionRunStatus.CLEARED
-        run.cleared_at = _now()
+        run.finished_at = _now()
         db_session.add(run)
         await db_session.commit()
         return preclear_site_id

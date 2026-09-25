@@ -70,7 +70,7 @@ async def test_closed_run_is_not_open(async_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_recent_clear_found_for_anti_farm(async_session: AsyncSession):
+async def test_recent_terminal_found_for_cooldown(async_session: AsyncSession):
     from datetime import datetime, timedelta
 
     vault, dweller, exploration = await _make_exploration(async_session)
@@ -82,20 +82,84 @@ async def test_recent_clear_found_for_anti_farm(async_session: AsyncSession):
         site_id="red_rocket",
     )
     run.status = ExpeditionRunStatus.CLEARED
-    run.cleared_at = datetime.utcnow()
+    run.finished_at = datetime.utcnow()
     async_session.add(run)
     await async_session.commit()
 
-    found = await crud.expedition_run.get_recent_clear(
+    found = await crud.expedition_run.get_recent_terminal(
         async_session, vault_id=vault.id, site_id="red_rocket", since=datetime.utcnow() - timedelta(days=7)
     )
     assert found is not None
     assert found.id == run.id
 
-    old = await crud.expedition_run.get_recent_clear(
+    old = await crud.expedition_run.get_recent_terminal(
         async_session, vault_id=vault.id, site_id="red_rocket", since=datetime.utcnow() + timedelta(days=1)
     )
     assert old is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [ExpeditionRunStatus.RETREATED, ExpeditionRunStatus.DIED])
+async def test_recent_terminal_matches_retreat_and_death(async_session: AsyncSession, status: ExpeditionRunStatus):
+    from datetime import datetime, timedelta
+
+    vault, dweller, exploration = await _make_exploration(async_session)
+    run = await crud.expedition_run.create_run(
+        async_session,
+        exploration_id=exploration.id,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        site_id="red_rocket",
+    )
+    run.status = status
+    run.finished_at = datetime.utcnow()
+    async_session.add(run)
+    await async_session.commit()
+
+    found = await crud.expedition_run.get_recent_terminal(
+        async_session, vault_id=vault.id, site_id="red_rocket", since=datetime.utcnow() - timedelta(days=7)
+    )
+    assert found is not None
+    assert found.id == run.id
+
+
+@pytest.mark.asyncio
+async def test_open_run_found_for_vault_site(async_session: AsyncSession):
+    vault, dweller, exploration = await _make_exploration(async_session)
+    run = await crud.expedition_run.create_run(
+        async_session,
+        exploration_id=exploration.id,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        site_id="red_rocket",
+    )
+    found = await crud.expedition_run.get_open_for_vault_site(async_session, vault_id=vault.id, site_id="red_rocket")
+    assert found is not None
+    assert found.id == run.id
+
+    other_site = await crud.expedition_run.get_open_for_vault_site(
+        async_session, vault_id=vault.id, site_id="super_duper_mart"
+    )
+    assert other_site is None
+
+
+@pytest.mark.asyncio
+async def test_closed_run_not_open_for_vault_site(async_session: AsyncSession):
+    vault, dweller, exploration = await _make_exploration(async_session)
+    run = await crud.expedition_run.create_run(
+        async_session,
+        exploration_id=exploration.id,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        site_id="red_rocket",
+    )
+    run.status = ExpeditionRunStatus.RETREATED
+    async_session.add(run)
+    await async_session.commit()
+    assert (
+        await crud.expedition_run.get_open_for_vault_site(async_session, vault_id=vault.id, site_id="red_rocket")
+        is None
+    )
 
 
 @pytest.mark.asyncio
@@ -114,6 +178,31 @@ async def test_second_open_run_conflicts(async_session: AsyncSession):
             exploration_id=exploration.id,
             vault_id=vault.id,
             dweller_id=dweller.id,
+            site_id="red_rocket",
+        )
+
+
+@pytest.mark.asyncio
+async def test_second_exploration_same_site_conflicts(async_session: AsyncSession):
+    vault, dweller, exploration = await _make_exploration(async_session)
+    await crud.expedition_run.create_run(
+        async_session,
+        exploration_id=exploration.id,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        site_id="red_rocket",
+    )
+    dweller2 = await crud.dweller.create(
+        async_session,
+        obj_in=DwellerCreate(**create_fake_adult_dweller(), vault_id=str(vault.id)),
+    )
+    exploration2 = await exploration_service.send_dweller(async_session, vault.id, dweller2.id, duration=4)
+    with pytest.raises(ResourceConflictException, match="red_rocket already has an open expedition run"):
+        await crud.expedition_run.create_run(
+            async_session,
+            exploration_id=exploration2.id,
+            vault_id=vault.id,
+            dweller_id=dweller2.id,
             site_id="red_rocket",
         )
 

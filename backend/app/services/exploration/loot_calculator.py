@@ -3,12 +3,28 @@
 import random
 
 from app.core.game_config import game_config
+from app.schemas.expedition import rarity_meets_floor
 from app.schemas.exploration_event import ItemSchema, JunkSchema, OutfitSchema, WeaponSchema
 from app.services.exploration import data_loader
+from app.utils.exceptions import ValidationException
 
 
 class LootCalculator:
     """Handles loot selection and caps rewards."""
+
+    def _eligible_items(self, item_type: str, min_rarity: str) -> list[dict]:
+        """Return catalog entries of this type at or above the rarity floor."""
+        if item_type == "weapon":
+            items = data_loader.load_weapons()
+        elif item_type == "outfit":
+            items = data_loader.load_outfits()
+        else:
+            items = data_loader.load_junk_items()
+        return [item for item in items if rarity_meets_floor(item.get("rarity", "common"), min_rarity)]
+
+    def has_eligible(self, item_type: str, min_rarity: str) -> bool:
+        """Return whether the catalog has any item of this type at or above the rarity floor."""
+        return bool(self._eligible_items(item_type, min_rarity))
 
     def calculate_luck_multiplier(self, luck: int) -> float:
         """Calculate loot quality multiplier based on luck stat.
@@ -47,8 +63,13 @@ class LootCalculator:
             }
         return {"Common": 80.0, "Rare": 18.0, "Legendary": 2.0}
 
-    def select_random_weapon(self, luck: int) -> WeaponSchema:
-        """Select a random weapon based on luck-adjusted rarity."""
+    def select_random_weapon(self, luck: int, min_rarity: str | None = None) -> WeaponSchema:
+        """Select a random weapon based on luck-adjusted rarity, or at/above a rarity floor."""
+        if min_rarity is not None:
+            eligible = self._eligible_items("weapon", min_rarity)
+            if not eligible:
+                raise ValidationException(f"No weapon at or above rarity {min_rarity!r} in the catalog")
+            return WeaponSchema(**random.choice(eligible))
         weapons = data_loader.load_weapons()
         if not weapons:
             return WeaponSchema(
@@ -75,8 +96,13 @@ class LootCalculator:
 
         return WeaponSchema(**random.choice(weapons_of_rarity))
 
-    def select_random_outfit(self, luck: int) -> OutfitSchema:
-        """Select a random outfit based on luck-adjusted rarity."""
+    def select_random_outfit(self, luck: int, min_rarity: str | None = None) -> OutfitSchema:
+        """Select a random outfit based on luck-adjusted rarity, or at/above a rarity floor."""
+        if min_rarity is not None:
+            eligible = self._eligible_items("outfit", min_rarity)
+            if not eligible:
+                raise ValidationException(f"No outfit at or above rarity {min_rarity!r} in the catalog")
+            return OutfitSchema(**random.choice(eligible))
         outfits = data_loader.load_outfits()
         if not outfits:
             return OutfitSchema(name="Vault Suit", rarity="Common", value=10, outfit_type="Common Outfit")
@@ -94,8 +120,13 @@ class LootCalculator:
 
         return OutfitSchema(**random.choice(outfits_of_rarity))
 
-    def select_random_junk(self, luck: int) -> JunkSchema:
-        """Select a random junk item based on luck-adjusted rarity."""
+    def select_random_junk(self, luck: int, min_rarity: str | None = None) -> JunkSchema:
+        """Select a random junk item based on luck-adjusted rarity, or at/above a rarity floor."""
+        if min_rarity is not None:
+            eligible = self._eligible_items("junk", min_rarity)
+            if not eligible:
+                raise ValidationException(f"No junk at or above rarity {min_rarity!r} in the catalog")
+            return JunkSchema(**random.choice(eligible))
         junk_items = data_loader.load_junk_items()
         if not junk_items:
             return JunkSchema(name="Bottle Cap", value=1, rarity="Common")

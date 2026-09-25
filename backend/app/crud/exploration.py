@@ -77,11 +77,11 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         exploration_id: UUID4,
         recalled: bool = False,
     ) -> Exploration:
-        """Move an exploration onto its return leg."""
+        """Move an exploration onto its return leg; the caller owns the commit."""
         exploration = await self.get(db_session, exploration_id)
         exploration.start_return(recalled=recalled)
         db_session.add(exploration)
-        await db_session.commit()
+        await db_session.flush()
         await db_session.refresh(exploration)
         return exploration
 

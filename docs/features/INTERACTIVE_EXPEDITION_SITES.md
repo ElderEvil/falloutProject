@@ -122,7 +122,7 @@ bunker. Smaller and earlier than the Mart — the tutorial site.
 
 ### Room 1 — Forecourt (Trap + Choice)
 
-- Seed: "The pumps still tick over. The concrete is mined — someoneImprovised."
+- Seed: "The pumps still tick over. The concrete is mined — someone improvised."
 - Entry trap (4–7 damage) unless disarmed.
 - Options:
   - **Disarm (Perception, difficulty 1)**: success → no damage + 10–20 caps in
@@ -251,12 +251,36 @@ map exceptions); service never issues raw `select()` (CRUD owns queries).
 - `ExpeditionSiteModal.vue`: room card (flavor + node prompt), option buttons with
   stat/odds chips, retreat button at boundaries; resolution swaps to outcome pane
   (damage taken, loot gained) with Continue.
-- Finale reuses `ExplorationRewardsModal` with a site banner — one rewards surface,
-  per the granted-reward display contract.
-- Store: `useExpeditionSite` (enter/resolve/retreat/current), SSE listener flips
-  the modal open on `site_prompt`. CRT styling, existing `UButton/UModal`.
+- The finale shows a site outcome immediately. The existing exploration return
+  rewards modal shows what was actually delivered to the vault when the dweller
+  gets home; site loot stays in the exploration haul until then.
+- Store: `useExpeditionSiteStore` (enter/resolve/retreat/current). A future
+  `site_prompt` SSE event can open this same modal when discovery offers land.
 - Journal: site rooms render in `ExplorationEventLog` via the new `site` type +
   icon/color branch; loot lines reuse `getLootDisplay`.
+
+### First playable UI scope
+
+Keep the player flow in **Exploration detail → site modal → existing event log
+and return rewards**. The map can link to the same flow when site discoveries
+exist; this release does not need another dashboard or navigation section.
+The lifecycle and cooldown rules are recorded in `EXPEDITION_SITES_GAPS.md`.
+Effort below is incremental to those backend rules, including focused frontend
+checks, not a full-project estimate.
+
+| Surface | First playable behavior | Effort |
+| --- | --- | --- |
+| Exploration detail | One contextual **Enter site / Continue site** action and current-run status. Fetch for this explorer only; no badges across the entire exploration list. | Small, about half a day |
+| Site modal header | Site name, room number/total, remaining exploration time, and current health after refreshing it on actions. Warn when the running clock may force retreat. Keep existing stat/odds chips; defer exact damage forecasts until the API can provide reliable values. | Small for progress/time; medium for refreshed health |
+| Room outcome | After an action, show health/caps/loot changes before the next room's choices. Offer **Next room** on success, **Push on / Retreat** after a surviving combat defeat, and visible errors with a recovery path. A local acknowledgement step needs no extra resolve request. | Medium, about a day |
+| Return rewards | Say **Added to exploration haul; collected on return** at site clear. Show the eventual payout in the existing return rewards modal, without implying the vault received it immediately. | Small, a few hours |
+| Site picker | Show unavailable sites with a short reason: level, another explorer inside, or cooldown remaining. Add this when the backend exposes availability reasons; until then use a clear general empty state. Keep disabled sites in this picker only. | Medium, alongside the cooldown API change |
+| Reconnect and expiry | Closing an open room means **Continue later**. Reopening fetches the server room for the current exploration; switching explorers never reuses another room. Show an expiry-driven retreat in the modal or toast and event log. | Medium, alongside lifecycle work |
+| Notifications | Use the existing bell plus a modal or toast for entry, clear, and death. Show retreat and forced expiry in the modal or toast and event log; avoid a bell alert for every room. | Medium, alongside backend terminal events |
+
+This keeps major progression visible under the repo's notification rule.
+Defer automatic discovery prompts, map markers, exploration-list badges, and
+detailed damage previews until their underlying backend state exists.
 
 ## 13. Rollout plan
 

@@ -6,11 +6,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app import crud
 from app.models.dweller import Dweller
-from app.models.exploration import ExplorationStatus
+from app.models.exploration import ExpeditionRunStatus, ExplorationStatus
 from app.models.vault import Vault
 from app.schemas.common import DwellerStatusEnum
 from app.services.exploration.coordinator import exploration_coordinator
+from app.services.exploration.expedition import expedition_service
 from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
 from app.services.game_tick.dwellers_tick import process_explorations

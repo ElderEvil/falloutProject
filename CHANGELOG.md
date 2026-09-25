@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.144.1 (2026-09-25)
+
+### Bug Fixes
+
+* **exploration:** simplify expedition site authoring and run state ([#792](https://github.com/ElderEvil/falloutProject/issues/792)) 83c7d41
+
 ## 2.144.0 (2026-09-25)
 
 ### Features

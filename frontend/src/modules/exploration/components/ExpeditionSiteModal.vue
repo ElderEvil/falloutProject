@@ -87,6 +87,9 @@ const healthToneText = computed(() => {
       return 'text-theme-primary'
   }
 })
+const showTimer = computed(
+  () => !isTerminalRun.value && !isRecovery.value && timeRemainingMinutes.value !== null
+)
 
 // Brief "-N" flash on the HP bar whenever a resolve lands damage.
 const damageFlash = ref<number | null>(null)
@@ -218,55 +221,57 @@ const terminalBanner = computed(() => {
       class="flex max-h-[75vh] w-full max-w-xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-xl"
     >
       <DialogHeader
-        class="flex flex-shrink-0 flex-row items-center justify-between gap-3 border-b border-theme-primary/25 bg-theme-primary/5 pt-6 pr-14 pb-4 pl-6"
+        class="flex flex-shrink-0 flex-row items-center gap-2 border-b border-theme-primary/25 bg-theme-primary/5 pt-6 pr-14 pb-4 pl-6"
       >
-        <div class="flex min-w-0 items-center gap-2">
-          <Icon icon="mdi:radio-tower" class="inline h-6 w-6 shrink-0 text-theme-primary" />
-          <DialogTitle class="truncate text-2xl font-bold text-theme-primary terminal-glow">
-            {{ room ? room.site_name : 'Expedition Site' }}
-          </DialogTitle>
-        </div>
-        <div class="flex shrink-0 items-center gap-3">
-          <div v-if="room && showHealthBar" class="relative flex flex-col items-end gap-1">
-            <span class="text-[0.6875rem] font-semibold" :class="healthToneText">
-              HP {{ room.dweller_health }}/{{ room.dweller_max_health }}
-            </span>
-            <Progress
-              :model-value="healthPercent"
-              size="xs"
-              :tone="healthTone"
-              class="w-24"
-              :label="`Dweller health ${room.dweller_health}/${room.dweller_max_health}`"
-              :value-text="`${healthPercent}%`"
-            />
-            <span
-              v-if="damageFlash !== null"
-              class="damage-flash absolute -top-1 right-0 text-[0.6875rem] font-bold text-danger"
-              aria-hidden="true"
-            >
-              -{{ damageFlash }}
-            </span>
-          </div>
-          <div
-            v-if="room && !isTerminalRun && !isRecovery && timeRemainingMinutes !== null"
-            class="flex shrink-0 items-center gap-1 rounded-[3px] border px-2 py-1 text-[0.75rem] font-semibold"
-            :class="
-              timeExpiryWarning
-                ? 'border-warning/50 bg-warning/10 text-warning'
-                : 'border-theme-primary/40 bg-theme-primary/10 text-theme-primary'
-            "
-            :title="
-              timeExpiryWarning ? 'Clock expiry will force a retreat' : 'Exploration time remaining'
-            "
-          >
-            <Icon
-              :icon="timeExpiryWarning ? 'mdi:clock-alert-outline' : 'mdi:clock-outline'"
-              class="h-3.5 w-3.5"
-            />
-            ≈{{ timeRemainingMinutes }}m
-          </div>
-        </div>
+        <Icon icon="mdi:radio-tower" class="inline h-6 w-6 shrink-0 text-theme-primary" />
+        <DialogTitle class="truncate text-2xl font-bold text-theme-primary terminal-glow">
+          {{ room ? room.site_name : 'Expedition Site' }}
+        </DialogTitle>
       </DialogHeader>
+
+      <div
+        v-if="room && (showHealthBar || showTimer)"
+        class="flex flex-shrink-0 items-center gap-4 border-b border-theme-primary/25 bg-surface-sunken/40 px-6 py-2"
+      >
+        <div v-if="showHealthBar" class="flex items-center gap-2">
+          <span class="text-[0.6875rem] font-semibold" :class="healthToneText">
+            HP {{ room.dweller_health }}/{{ room.dweller_max_health }}
+          </span>
+          <Progress
+            :model-value="healthPercent"
+            size="xs"
+            :tone="healthTone"
+            class="w-28"
+            :label="`Dweller health ${room.dweller_health}/${room.dweller_max_health}`"
+            :value-text="`${healthPercent}%`"
+          />
+          <span
+            v-if="damageFlash !== null"
+            class="damage-flash text-[0.6875rem] font-bold text-danger"
+            aria-hidden="true"
+          >
+            -{{ damageFlash }}
+          </span>
+        </div>
+        <div
+          v-if="showTimer"
+          class="ml-auto flex items-center gap-1 rounded-[3px] border px-2 py-1 text-[0.75rem] font-semibold"
+          :class="
+            timeExpiryWarning
+              ? 'border-warning/50 bg-warning/10 text-warning'
+              : 'border-theme-primary/40 bg-theme-primary/10 text-theme-primary'
+          "
+          :title="
+            timeExpiryWarning ? 'Clock expiry will force a retreat' : 'Exploration time remaining'
+          "
+        >
+          <Icon
+            :icon="timeExpiryWarning ? 'mdi:clock-alert-outline' : 'mdi:clock-outline'"
+            class="h-3.5 w-3.5"
+          />
+          ≈{{ timeRemainingMinutes }}m
+        </div>
+      </div>
 
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
         <!-- PICKER: no active run -->

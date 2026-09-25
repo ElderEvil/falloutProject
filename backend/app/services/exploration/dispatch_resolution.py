@@ -8,7 +8,6 @@ point cleared, then start the return leg so the haul travels home.
 import logging
 import random
 from datetime import datetime, timedelta
-from operator import itemgetter
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -16,8 +15,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
 from app.crud import world_location as crud_world_location
-from app.schemas.exploration_event import EnemySchema
-from app.services.exploration import data_loader
 from app.services.exploration.combat_calculator import combat_calculator
 from app.services.exploration.coordinator import exploration_coordinator
 from app.services.exploration.event_service import apply_exploration_damage, apply_loot_find
@@ -27,28 +24,6 @@ from app.utils.place_groups import get_place_group
 from app.utils.place_loot import loot_table
 
 logger = logging.getLogger(__name__)
-
-
-def _select_enemy_at_difficulty(difficulty: int) -> EnemySchema:
-    """Pick the enemy at the requested difficulty, or the nearest at-or-below."""
-    enemies = data_loader.load_enemies()
-    if not enemies:
-        return EnemySchema(name="Wasteland Creature", difficulty=1, min_damage=5, max_damage=15)
-    at_or_below = [enemy for enemy in enemies if enemy["difficulty"] <= difficulty]
-    if not at_or_below:
-        at_or_below = [min(enemies, key=itemgetter("difficulty"))]
-    return EnemySchema(**max(at_or_below, key=itemgetter("difficulty")))
-
-
-def _roll_item(entry: dict, luck: int):
-    """Roll one loot-table entry into an item schema at its rarity floor."""
-    item_type = entry["type"]
-    rarity = entry["rarity"]
-    if item_type == "weapon":
-        return loot_calculator.select_random_weapon(luck, min_rarity=rarity)
-    if item_type == "outfit":
-        return loot_calculator.select_random_outfit(luck, min_rarity=rarity)
-    return loot_calculator.select_random_junk(luck, min_rarity=rarity)
 
 
 async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUID4) -> None:
@@ -75,7 +50,7 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
 
     tier = min(state.clear_count, game_config.exploration.dispatch.escalation_cap)
     difficulty = min(5, group["base_difficulty"] + tier)
-    enemy = _select_enemy_at_difficulty(difficulty)
+    enemy = combat_calculator.select_enemy_by_difficulty(difficulty)
     outcome = combat_calculator.calculate_combat_outcome(exploration, enemy)
     await apply_exploration_damage(db_session, exploration, outcome.health_loss)
 
@@ -87,7 +62,7 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
             caps = int(caps * (1 + game_config.exploration.dispatch.reward_per_tier * tier))
             exploration.total_caps_found += caps
             for entry in table["items"]:
-                item = _roll_item(entry, exploration.dweller_luck)
+                item = loot_calculator.roll_item(exploration.dweller_luck, entry["type"], entry["rarity"])
                 apply_loot_find(
                     exploration,
                     item_name=item.name,

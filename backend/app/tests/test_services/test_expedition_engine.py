@@ -110,7 +110,7 @@ def test_roll_gear_attempts_keep_luck_weighted_pick(monkeypatch):
         floors.append(min_rarity)
         return next(rolled)
 
-    monkeypatch.setattr(expedition_module, "_roll_item", pick)
+    monkeypatch.setattr(expedition_module.loot_calculator, "roll_item", pick)
     assert roll_gear(5, "junk", "rare", attempts=2) == rare
     assert floors == [None, None]
 

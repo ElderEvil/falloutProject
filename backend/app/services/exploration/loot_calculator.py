@@ -4,13 +4,25 @@ import random
 
 from app.core.game_config import game_config
 from app.schemas.expedition import rarity_meets_floor
-from app.schemas.exploration_event import ItemSchema, JunkSchema, OutfitSchema, WeaponSchema
+from app.schemas.exploration_event import ItemSchema, JunkSchema, LootItemSchema, OutfitSchema, WeaponSchema
 from app.services.exploration import data_loader
 from app.utils.exceptions import ValidationException
 
 
 class LootCalculator:
     """Handles loot selection and caps rewards."""
+
+    def roll_item(self, luck: int, item_type: str, min_rarity: str | None = None) -> LootItemSchema:
+        """One item of the given type, honoring an optional rarity floor.
+
+        The single entry point for "roll one item by type" so the site engine and
+        targeted dispatch share one selection implementation.
+        """
+        if item_type == "weapon":
+            return self.select_random_weapon(luck, min_rarity=min_rarity)
+        if item_type == "outfit":
+            return self.select_random_outfit(luck, min_rarity=min_rarity)
+        return self.select_random_junk(luck, min_rarity=min_rarity)
 
     def _eligible_items(self, item_type: str, min_rarity: str) -> list[dict]:
         """Return catalog entries of this type at or above the rarity floor."""

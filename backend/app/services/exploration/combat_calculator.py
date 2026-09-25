@@ -1,6 +1,7 @@
 """Combat calculations for wasteland exploration."""
 
 import random
+from operator import itemgetter
 
 from app.core.game_config import game_config
 from app.models.exploration import Exploration
@@ -33,6 +34,20 @@ class CombatCalculator:
             available_enemies = enemies
 
         return EnemySchema(**random.choice(available_enemies))
+
+    def select_enemy_by_difficulty(self, difficulty: int) -> EnemySchema:
+        """One enemy at the requested difficulty, or the nearest at-or-below.
+
+        The single entry point for "enemy of tier N" so targeted dispatch (and any
+        future caller) shares the enemy-table shaping instead of re-deriving it.
+        """
+        enemies = data_loader.load_enemies()
+        if not enemies:
+            return EnemySchema(name="Wasteland Creature", difficulty=1, min_damage=5, max_damage=15)
+        at_or_below = [enemy for enemy in enemies if enemy["difficulty"] <= difficulty]
+        if not at_or_below:
+            at_or_below = [min(enemies, key=itemgetter("difficulty"))]
+        return EnemySchema(**max(at_or_below, key=itemgetter("difficulty")))
 
     def calculate_combat_outcome(
         self,

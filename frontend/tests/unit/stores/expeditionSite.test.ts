@@ -196,6 +196,46 @@ describe('Expedition Site Store', () => {
     expect(store.currentExplorationId).toBe('exploration-2')
   })
 
+  it('ignores an old explorer response that arrives after the new one', async () => {
+    let finishOld!: (room: SiteRoomView | null) => void
+    vi.mocked(expeditionSiteApi.getCurrentRoom)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishOld = resolve
+          })
+      )
+      .mockResolvedValueOnce({ ...mockRoom, exploration_id: 'exploration-2' })
+    const store = useExpeditionSiteStore()
+
+    const oldRequest = store.fetchCurrentRoom('exploration-1')
+    await store.fetchCurrentRoom('exploration-2')
+    finishOld(mockRoom)
+    await oldRequest
+
+    expect(store.currentExplorationId).toBe('exploration-2')
+    expect(store.room?.exploration_id).toBe('exploration-2')
+  })
+
+  it('ignores a pending response after reset', async () => {
+    let finish!: (room: SiteRoomView | null) => void
+    vi.mocked(expeditionSiteApi.getCurrentRoom).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
+    )
+    const store = useExpeditionSiteStore()
+    const request = store.fetchCurrentRoom('exploration-1')
+
+    store.reset()
+    finish(mockRoom)
+    await request
+
+    expect(store.room).toBeNull()
+    expect(store.currentExplorationId).toBeNull()
+  })
+
   it('reset clears the scoped exploration id', async () => {
     vi.mocked(expeditionSiteApi.enterSite).mockResolvedValue(mockRoom)
     const store = useExpeditionSiteStore()

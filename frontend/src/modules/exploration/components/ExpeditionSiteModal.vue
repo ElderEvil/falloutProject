@@ -380,6 +380,42 @@ const terminalBanner = computed(() => {
             </ul>
           </div>
 
+          <ul
+            v-if="combatOutcome.length > 0"
+            class="mb-4 flex flex-col gap-1.5 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm font-semibold"
+            aria-label="Fight results"
+          >
+            <li
+              v-for="(entry, index) in combatOutcome"
+              :key="index"
+              class="flex items-center gap-2"
+            >
+              <Icon
+                :icon="entry.victory ? 'mdi:skull-outline' : 'mdi:sword-cross'"
+                class="h-4 w-4 shrink-0"
+                :class="entry.victory ? 'text-theme-primary/50' : 'text-danger'"
+              />
+              <span
+                class="text-sm font-semibold"
+                :class="entry.victory ? 'text-theme-primary/50 line-through' : 'text-danger'"
+              >
+                {{ entry.enemy }}
+              </span>
+              <span
+                class="text-[0.75rem] font-semibold"
+                :class="entry.victory ? 'text-theme-primary/50' : 'text-danger'"
+              >
+                {{ entry.victory ? 'defeated' : 'overpowered' }}
+              </span>
+              <span
+                v-if="entry.damage_taken > 0"
+                class="ml-auto text-[0.75rem] font-bold text-danger"
+              >
+                -{{ entry.damage_taken }}
+              </span>
+            </li>
+          </ul>
+
           <!-- Terminal banner (terminal runs, incl. recovery) -->
           <div
             v-if="terminalBanner"
@@ -430,7 +466,7 @@ const terminalBanner = computed(() => {
             <p class="mb-4 text-base font-semibold text-theme-primary">{{ room.node.prompt }}</p>
 
             <div
-              v-if="enemySummary || combatOutcome.length > 0"
+              v-if="enemySummary && (!isCombatRoom || combatOutcome.length === 0)"
               class="mb-4 rounded-md border px-3 py-2 text-sm font-semibold"
               :class="
                 isCombatRoom
@@ -438,49 +474,10 @@ const terminalBanner = computed(() => {
                   : 'border-warning/40 bg-warning/10 text-warning'
               "
             >
-              <!-- COMBAT: pre-fight deduped pack preview -->
-              <div
-                v-if="isCombatRoom && combatOutcome.length === 0"
-                class="flex items-center gap-2"
-              >
+              <div v-if="isCombatRoom" class="flex items-center gap-2">
                 <Icon icon="mdi:sword-cross" class="h-4 w-4" />
                 <span>Enemies: {{ enemySummary }}</span>
               </div>
-
-              <!-- COMBAT: per-enemy results after a resolve -->
-              <ul v-else-if="isCombatRoom" class="flex flex-col gap-1.5">
-                <li
-                  v-for="entry in combatOutcome"
-                  :key="entry.enemy"
-                  class="flex items-center gap-2"
-                >
-                  <Icon
-                    :icon="entry.victory ? 'mdi:skull-outline' : 'mdi:sword-cross'"
-                    class="h-4 w-4 shrink-0"
-                    :class="entry.victory ? 'text-theme-primary/50' : 'text-danger'"
-                  />
-                  <span
-                    class="text-sm font-semibold"
-                    :class="entry.victory ? 'text-theme-primary/50 line-through' : 'text-danger'"
-                  >
-                    {{ entry.enemy }}
-                  </span>
-                  <span
-                    class="text-[0.75rem] font-semibold"
-                    :class="entry.victory ? 'text-theme-primary/50' : 'text-danger'"
-                  >
-                    {{ entry.victory ? 'defeated' : 'overpowered' }}
-                  </span>
-                  <span
-                    v-if="entry.damage_taken > 0"
-                    class="ml-auto text-[0.75rem] font-bold text-danger"
-                  >
-                    -{{ entry.damage_taken }}
-                  </span>
-                </li>
-              </ul>
-
-              <!-- NON-COMBAT: failure-branch threat -->
               <div v-else class="flex items-center gap-2">
                 <Icon icon="mdi:alert-outline" class="h-4 w-4" />
                 <span>If it goes wrong: {{ enemySummary }}</span>

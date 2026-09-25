@@ -443,6 +443,32 @@ describe('ExpeditionSiteModal', () => {
     expect(wrapper.text()).not.toContain('Enemies: Radroach swarm')
   })
 
+  it('keeps a won fight visible after advancing to a non-combat room', async () => {
+    const wrapper = mountModal()
+    const store = useExpeditionSiteStore()
+    store.room = {
+      ...choiceRoom,
+      room_name: 'Prize Stock',
+      node: { kind: 'finale', prompt: 'Open the vault.', options: [], enemy_names: [] },
+      outcome: {
+        text: 'Defeated the pack!',
+        damage_taken: 3,
+        caps_gained: 0,
+        loot_gained: [],
+        combat: [
+          { enemy: 'Mole Rat pack', victory: true, damage_taken: 1 },
+          { enemy: 'Mole Rat pack', victory: true, damage_taken: 2 },
+        ],
+      },
+    }
+    await flushPromises()
+
+    expect(wrapper.findAll('[aria-label="Fight results"] li')).toHaveLength(2)
+    expect(wrapper.text()).toContain('Mole Rat pack')
+    expect(wrapper.text()).not.toContain('If it goes wrong:')
+    expect(wrapper.text()).toContain('Open the vault.')
+  })
+
   it('flashes the damage taken on the HP bar after a damaging resolve', async () => {
     vi.useFakeTimers()
     try {

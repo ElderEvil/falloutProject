@@ -95,6 +95,8 @@ class ExpeditionScenarioService:
         """
         duration_hours = max(1, min(24, duration_hours))
         dweller_level = max(1, min(50, dweller_level))
+        if preclear_site_id is not None and data_loader.get_expedition_site(preclear_site_id) is None:
+            raise ValueError(f"Unknown expedition site: {preclear_site_id!r}")
 
         vault, created_vault, owner_email = await self._resolve_vault(
             db_session, vault_id=vault_id, user_email=user_email
@@ -179,9 +181,6 @@ class ExpeditionScenarioService:
         """Insert a completed run so the anti-farm gate hides the site, or None."""
         if preclear_site_id is None:
             return None
-        site = data_loader.get_expedition_site(preclear_site_id)
-        if site is None:
-            raise ValueError(f"Unknown expedition site: {preclear_site_id!r}")
         run = await crud.expedition_run.create_run(
             db_session,
             exploration_id=exploration.id,

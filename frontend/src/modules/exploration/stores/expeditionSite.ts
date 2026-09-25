@@ -18,99 +18,98 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const currentExplorationId = ref<string | null>(null)
+  let scopeVersion = 0
 
   // Gap 4.3: room state is scoped to the exploration that loaded it. Acting on
   // a different exploration must never render a stale room from a previous one.
   function scopeToExploration(explorationId: string): void {
     if (explorationId !== currentExplorationId.value) {
+      scopeVersion++
       room.value = null
+      availableSites.value = []
       error.value = null
       currentExplorationId.value = explorationId
     }
   }
 
-  async function fetchAvailableSites(explorationId: string): Promise<AvailableSiteView[]> {
+  async function runRequest<T>(
+    explorationId: string,
+    request: () => Promise<T>,
+    failureMessage: string,
+    apply: (value: T) => void
+  ): Promise<T> {
+    scopeToExploration(explorationId)
+    const version = scopeVersion
     isLoading.value = true
     error.value = null
     try {
-      const sites = await expeditionSiteApi.listAvailableSites(explorationId)
-      availableSites.value = sites
-      return sites
+      const value = await request()
+      if (version === scopeVersion) apply(value)
+      return value
     } catch (err) {
-      handleStoreError(err, 'Failed to load available expedition sites')
-      error.value = 'Failed to load available expedition sites'
+      if (version === scopeVersion) {
+        handleStoreError(err, failureMessage)
+        error.value = failureMessage
+      }
       throw err
     } finally {
-      isLoading.value = false
+      if (version === scopeVersion) isLoading.value = false
     }
+  }
+
+  function fetchAvailableSites(explorationId: string): Promise<AvailableSiteView[]> {
+    return runRequest(
+      explorationId,
+      () => expeditionSiteApi.listAvailableSites(explorationId),
+      'Failed to load available expedition sites',
+      (sites) => {
+        availableSites.value = sites
+      }
+    )
   }
 
   async function enterSite(explorationId: string, siteId: string): Promise<SiteRoomView> {
-    scopeToExploration(explorationId)
-    isLoading.value = true
-    error.value = null
-    try {
-      const nextRoom = await expeditionSiteApi.enterSite(explorationId, siteId)
-      room.value = nextRoom
-      return nextRoom
-    } catch (err) {
-      handleStoreError(err, 'Failed to enter expedition site')
-      error.value = 'Failed to enter expedition site'
-      throw err
-    } finally {
-      isLoading.value = false
-    }
+    return runRequest(
+      explorationId,
+      () => expeditionSiteApi.enterSite(explorationId, siteId),
+      'Failed to enter expedition site',
+      (nextRoom) => {
+        room.value = nextRoom
+      }
+    )
   }
 
   async function resolveNode(explorationId: string, choiceId?: string): Promise<SiteRoomView> {
-    scopeToExploration(explorationId)
-    isLoading.value = true
-    error.value = null
-    try {
-      const nextRoom = await expeditionSiteApi.resolveNode(explorationId, choiceId)
-      room.value = nextRoom
-      return nextRoom
-    } catch (err) {
-      handleStoreError(err, 'Failed to resolve expedition node')
-      error.value = 'Failed to resolve expedition node'
-      throw err
-    } finally {
-      isLoading.value = false
-    }
+    return runRequest(
+      explorationId,
+      () => expeditionSiteApi.resolveNode(explorationId, choiceId),
+      'Failed to resolve expedition node',
+      (nextRoom) => {
+        room.value = nextRoom
+      }
+    )
   }
 
   async function retreat(explorationId: string): Promise<SiteRoomView> {
-    scopeToExploration(explorationId)
-    isLoading.value = true
-    error.value = null
-    try {
-      const nextRoom = await expeditionSiteApi.retreatSite(explorationId)
-      room.value = nextRoom
-      return nextRoom
-    } catch (err) {
-      handleStoreError(err, 'Failed to retreat from expedition site')
-      error.value = 'Failed to retreat from expedition site'
-      throw err
-    } finally {
-      isLoading.value = false
-    }
+    return runRequest(
+      explorationId,
+      () => expeditionSiteApi.retreatSite(explorationId),
+      'Failed to retreat from expedition site',
+      (nextRoom) => {
+        room.value = nextRoom
+      }
+    )
   }
 
   async function fetchCurrentRoom(explorationId: string): Promise<SiteRoomView | null> {
-    scopeToExploration(explorationId)
-    isLoading.value = true
-    error.value = null
-    try {
-      const currentRoom = await expeditionSiteApi.getCurrentRoom(explorationId)
-      room.value = currentRoom
-      return currentRoom
-    } catch (err) {
-      handleStoreError(err, 'Failed to load current expedition room')
-      error.value = 'Failed to load current expedition room'
-      throw err
-    } finally {
-      isLoading.value = false
-    }
+    return runRequest(
+      explorationId,
+      () => expeditionSiteApi.getCurrentRoom(explorationId),
+      'Failed to load current expedition room',
+      (currentRoom) => {
+        room.value = currentRoom
+      }
+    )
   }
 
   function clearError(): void {
@@ -118,10 +117,12 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
   }
 
   function reset(): void {
+    scopeVersion++
     room.value = null
     availableSites.value = []
     error.value = null
     currentExplorationId.value = null
+    isLoading.value = false
   }
 
   return {

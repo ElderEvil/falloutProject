@@ -8,7 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.models.exploration import ExpeditionRun, ExpeditionRunStatus, ExplorationStatus
 from app.schemas.dweller import DwellerCreate
-from app.schemas.expedition import EnemySpec, ExpeditionResolveRequest
+from app.schemas.expedition import EnemySpec, ExpeditionResolveRequest, NodeBranch
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.exploration import data_loader
@@ -203,6 +203,20 @@ def test_validate_site_content_rejects_unsatisfiable_floor(monkeypatch):
     )
     site = data_loader.get_expedition_site("super_duper_mart")
     assert site is not None
+    with pytest.raises(ValidationException, match="no weapon at or above rarity"):
+        validate_site_content(site)
+
+
+def test_validate_site_content_checks_skill_check_branches(monkeypatch):
+    site = data_loader.get_expedition_site("red_rocket").model_copy(deep=True)
+    node = site.rooms[0].node
+    node.kind = "skill_check"
+    node.options = []
+    node.stat = "perception"
+    node.difficulty = 2
+    node.success = NodeBranch(cache_tier="rich", cache_item="weapon", cache_floor="legendary")
+    monkeypatch.setattr(expedition_module.loot_calculator, "has_eligible", lambda *_: False)
+
     with pytest.raises(ValidationException, match="no weapon at or above rarity"):
         validate_site_content(site)
 

@@ -195,7 +195,7 @@ const reconnectToSite = async () => {
   if (!explorationId.value || !authStore.token || !isActiveExploration.value) return
   try {
     const currentRoom = await siteStore.fetchCurrentRoom(explorationId.value)
-    if (currentRoom) showSiteModal.value = true
+    if (currentRoom?.exploration_id === explorationId.value) showSiteModal.value = true
   } catch {
     // Network failure — the entry CTA still works; don't block the page.
   }

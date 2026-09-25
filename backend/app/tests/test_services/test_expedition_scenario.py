@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app import crud
 from app.models.exploration import ExplorationStatus
 from app.models.vault import Vault
 from app.services.exploration.expedition_scenario_service import expedition_scenario_service
@@ -56,6 +57,7 @@ async def test_setup_unknown_preclear_site_raises(async_session: AsyncSession, v
         await expedition_scenario_service.setup(
             async_session, vault_id=vault.id, dweller_level=5, duration_hours=8, preclear_site_id="nope"
         )
+    assert await crud.exploration.get_by_vault(async_session, vault_id=vault.id, active_only=True) == []
 
 
 @pytest.mark.asyncio

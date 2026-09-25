@@ -40,8 +40,10 @@ def _print_setup(result) -> None:
     if result.precleared_site_id:
         typer.echo(f"Pre-cleared site (hidden by 7-day anti-farm): {result.precleared_site_id}")
     typer.echo(f"Frontend: http://localhost:5173/vault/{result.vault.id}/exploration/{result.exploration.id}")
-    login_email = result.owner_email or settings.FIRST_SUPERUSER_EMAIL
-    typer.echo(f"Login: {login_email} (superuser — use the FIRST_SUPERUSER_PASSWORD from your .env)")
+    if result.owner_email == settings.FIRST_SUPERUSER_EMAIL:
+        typer.echo(f"Login: {result.owner_email} (superuser — use the FIRST_SUPERUSER_PASSWORD from your .env)")
+    elif result.owner_email:
+        typer.echo(f"Login: {result.owner_email}")
 
 
 @app.command()

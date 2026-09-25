@@ -106,12 +106,13 @@ def validate_site_content(site: SiteDefinition) -> None:
                 raise ValidationException(f"Unknown stat {stat!r} in site {site.id}")
         for spec in node.enemies:
             resolve_enemy_spec(spec)
-        for option in node.options:
-            for branch in (option.success, option.failure):
-                for spec in branch.combat_enemies or []:
-                    resolve_enemy_spec(spec)
-                if branch.cache_item is not None and branch.cache_floor is not None:
-                    _require_floor_eligible(site, branch.cache_item, branch.cache_floor)
+        branches = [node.success, node.failure]
+        branches.extend(branch for option in node.options for branch in (option.success, option.failure))
+        for branch in branches:
+            for spec in branch.combat_enemies or []:
+                resolve_enemy_spec(spec)
+            if branch.cache_item is not None and branch.cache_floor is not None:
+                _require_floor_eligible(site, branch.cache_item, branch.cache_floor)
     vault = site.reward_vault
     if vault.item is not None and vault.item.floor is not None:
         _require_floor_eligible(site, vault.item.type, vault.item.floor)
@@ -210,13 +211,8 @@ async def _apply_branch(
             result.loot_gained.append(f"{item.name} ({item.rarity})")
             result.texts.append(f"Found {item.name} ({item.rarity}).")
     if branch.combat_enemies:
-        result.fought_enemies = [spec.model_dump() for spec in branch.combat_enemies]
-    for spec in branch.combat_enemies or []:
-        outcome = await _fight_enemy(db_session, exploration, resolve_enemy_spec(spec), result)
-        if not outcome.victory:
-            result.defeated = True
-            return
-        if result.dweller_died:
+        await _fight_pack(db_session, exploration, branch.combat_enemies, result)
+        if result.defeated or result.dweller_died:
             return
     if branch.trap_damage_min is not None:
         damage = random.randint(branch.trap_damage_min, branch.trap_damage_max or branch.trap_damage_min)
@@ -248,6 +244,20 @@ async def _fight_enemy(
     result.combat.append({"enemy": enemy.name, "victory": outcome.victory, "damage_taken": outcome.health_loss})
     await _take_damage(db_session, exploration, outcome.health_loss, result)
     return outcome
+
+
+async def _fight_pack(
+    db_session: AsyncSession, exploration: Exploration, enemies: list[EnemySpec], result: BranchResult
+) -> None:
+    """Fight a pack in order, stopping at defeat or death and retaining it for retries."""
+    result.fought_enemies = [spec.model_dump() for spec in enemies]
+    for spec in enemies:
+        outcome = await _fight_enemy(db_session, exploration, resolve_enemy_spec(spec), result)
+        if not outcome.victory:
+            result.defeated = True
+            return
+        if result.dweller_died:
+            return
 
 
 def _find_option(node_options: list, choice_id: str | None, *, required: bool):
@@ -293,14 +303,9 @@ async def _resolve_node(
     luck = _stat_value(exploration, "luck")
 
     if node.kind == "combat":
-        result.fought_enemies = [spec.model_dump() for spec in node.enemies]
-        for spec in node.enemies:
-            outcome = await _fight_enemy(db_session, exploration, resolve_enemy_spec(spec), result)
-            if not outcome.victory:
-                result.defeated = True
-                return False
-            if result.dweller_died:
-                return False
+        await _fight_pack(db_session, exploration, node.enemies, result)
+        if result.defeated or result.dweller_died:
+            return False
     elif node.kind == "choice":
         option = _find_option(node.options, choice_id, required=True)
         if option.success.trade_cost_caps and exploration.total_caps_found < option.success.trade_cost_caps:
@@ -564,16 +569,9 @@ class ExpeditionService:
         if pending is not None and pending.get("room_id") == room.id:
             # Push-on after a defeat: replay the recorded pack; never re-roll the
             # original choice/check that led to the failed branch.
-            result.fought_enemies = list(pending["enemies"])
-            for spec_dict in result.fought_enemies:
-                outcome = await _fight_enemy(
-                    db_session, exploration, resolve_enemy_spec(EnemySpec(**spec_dict)), result
-                )
-                if not outcome.victory:
-                    result.defeated = True
-                    break
-                if result.dweller_died:
-                    break
+            await _fight_pack(
+                db_session, exploration, [EnemySpec(**spec_dict) for spec_dict in pending["enemies"]], result
+            )
             finale_paid = False
         else:
             finale_paid = await _resolve_node(db_session, exploration, site, run.room_cursor, request.choice_id, result)

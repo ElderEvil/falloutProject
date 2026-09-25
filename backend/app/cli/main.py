@@ -8,6 +8,7 @@ Usage:
     uv run fo-cli version-prompt chat --template-file /path/to/chat-v2.txt
     uv run fo-cli family-scenario --help
     uv run fo-cli apprentice-scenario --help
+    uv run fo-cli expedition-scenario --help
     uv run fo-cli backfill --help
     uv run fo-cli ops --help
     uv run fo-cli simulate-exploration --help
@@ -25,6 +26,7 @@ from app.cli.apprentice_scenario import app as apprentice_scenario
 from app.cli.backfills import app as backfills
 from app.cli.debug import app as debug
 from app.cli.dweller_bios import dweller_bios as _dweller_bios
+from app.cli.expedition_scenario import app as expedition_scenario
 from app.cli.family_scenario import app as family_scenario
 from app.cli.ops import app as ops
 from app.cli.pregen_dwellers import pregen_dwellers as _pregen_dwellers
@@ -48,6 +50,11 @@ cli = typer.Typer(
 # Register sub-command groups
 cli.add_typer(family_scenario, name="family-scenario", help="Dev/QA: build family/breeding test scenarios")
 cli.add_typer(apprentice_scenario, name="apprentice-scenario", help="Dev/QA: build youth apprenticeship test scenarios")
+cli.add_typer(
+    expedition_scenario,
+    name="expedition-scenario",
+    help="Dev/QA: build a playable interactive expedition-site scenario",
+)
 cli.add_typer(backfills, name="backfill", help="Retroactive backfill commands")
 cli.add_typer(debug, name="debug", help="Dev/QA: emit game events, inspect objectives/evaluators, simulate builds")
 cli.add_typer(ops, name="ops", help="One-off operations and infrastructure tasks")
@@ -104,23 +111,20 @@ def createsuperuser(
     --no-input with --username/--email/--password to run non-interactively.
     Falls back to settings.FIRST_SUPERUSER_* values when not provided.
     """
-    if no_input:
-        if not all([username, email, password]):
-            typer.echo(
-                "Error: --no-input requires --username, --email, and --password to be provided.",
-                err=True,
-            )
-            raise typer.Exit(code=1)
-    else:
-        # Prompt interactively
-        if not username:
-            username = typer.prompt("Admin username", default=settings.FIRST_SUPERUSER_USERNAME)
-        if not email:
-            email = typer.prompt("Admin email address", default=settings.FIRST_SUPERUSER_EMAIL)
-        if not password:
-            password = typer.prompt(
-                "Admin password", confirmation_prompt=True, hide_input=True, default=settings.FIRST_SUPERUSER_PASSWORD
-            )
+    if no_input and (not username or not email or not password):
+        typer.echo(
+            "Error: --no-input requires --username, --email, and --password to be provided.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    if not username:
+        username = typer.prompt("Admin username", default=settings.FIRST_SUPERUSER_USERNAME)
+    if not email:
+        email = typer.prompt("Admin email address", default=settings.FIRST_SUPERUSER_EMAIL)
+    if not password:
+        password = typer.prompt(
+            "Admin password", confirmation_prompt=True, hide_input=True, default=settings.FIRST_SUPERUSER_PASSWORD
+        )
 
     async def _create() -> None:
         async with async_session_maker() as session:

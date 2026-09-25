@@ -288,3 +288,30 @@ retreat keeps room loot only, SSE reconnect mid-site recovers via `GET site`.
 Real-time or animated combat; consumable ammo; site editor UI (JSON + review);
 trading site clears; leaderboard; changes to random-event weights, enemy table,
 or loot tables (sites only shift weights within their own vault budget).
+
+## 16. Dev scenario (QA playground)
+
+`fo-cli` ships a one-shot scenario builder so a human can open the running app
+and exercise the whole feature without hand-building state:
+
+```bash
+uv run fo-cli expedition-scenario setup
+uv run fo-cli expedition-scenario status --vault-id <vault-id>
+```
+
+`setup` provisions a vault (a new boosted vault by default, or `--vault-id` to
+reuse one), creates one level-5 dweller ("Scout Scenario") on an ACTIVE
+wasteland exploration, and prints the populated site picker plus a frontend
+deep-link (`http://localhost:5173/vault/<vault>/exploration/<exploration>`).
+Options: `--vault-id`, `--user-email`, `--dweller-level` (default 5),
+`--duration-hours` (default 8, clamped 1-24), `--preclear <site-id>`.
+
+Caveats:
+
+- The game tick does **not** pause while a site run is open — the normal event
+  stream keeps running and the exploration can start its return leg, so keep
+  `--duration-hours` high while testing.
+- Shipped sites exercise `combat`, `choice`, `trap`-with-options and `finale`
+  nodes only — no bare `skill_check`/`trap`/`cache` nodes exist yet.
+- `--preclear <site>` inserts a completed run so the 7-day per-vault anti-farm
+  lock hides the site from the picker — the demonstration of the lock.

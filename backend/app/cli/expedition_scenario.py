@@ -55,7 +55,7 @@ def setup(
         typer.Option("--user-email", help="Owner email for a new vault (default: FIRST_SUPERUSER_EMAIL)"),
     ] = None,
     dweller_level: Annotated[int, typer.Option("--dweller-level", help="Level for the scenario dweller")] = 5,
-    duration_hours: Annotated[int, typer.Option("--duration-hours", help="Exploration duration in hours (1-24)")] = 8,
+    duration_hours: Annotated[int, typer.Option("--duration-hours", help="Exploration duration in hours (1-24)")] = 1,
     preclear: Annotated[
         str | None,
         typer.Option("--preclear", help="Site id to pre-clear (demonstrates the 7-day anti-farm lock)"),

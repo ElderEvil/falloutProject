@@ -328,7 +328,7 @@ reuse one), creates one level-5 dweller ("Scout Scenario") on an ACTIVE
 wasteland exploration, and prints the populated site picker plus a frontend
 deep-link (`http://localhost:5173/vault/<vault>/exploration/<exploration>`).
 Options: `--vault-id`, `--user-email`, `--dweller-level` (default 5),
-`--duration-hours` (default 8, clamped 1-24), `--preclear <site-id>`,
+`--duration-hours` (default 1, clamped 1-24), `--preclear <site-id>`,
 `--special <1-10>`.
 
 The dweller's every SPECIAL is set by `--special` (default **5**). Five keeps
@@ -341,7 +341,9 @@ Caveats:
 
 - The game tick **pauses random events** while a site run is open, but the
   wall clock keeps running; when it expires the open run is force-retreated and
-  the dweller heads home. Keep `--duration-hours` high while testing.
+  the dweller heads home. The default 1 hour keeps that full cycle — site,
+  expiry, forced retreat, return leg, rewards — observable in one sitting;
+  raise `--duration-hours` for longer play.
 - Shipped sites exercise `combat`, `choice`, `trap`-with-options and `finale`
   nodes only — no bare `skill_check`/`trap`/`cache` nodes exist yet.
 - `--preclear <site>` inserts a completed run so the 7-day per-vault anti-farm

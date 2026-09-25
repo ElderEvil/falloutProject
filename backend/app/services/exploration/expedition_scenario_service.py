@@ -79,7 +79,7 @@ class ExpeditionScenarioService:
         vault_id: UUID4 | None = None,
         user_email: str | None = None,
         dweller_level: int = 5,
-        duration_hours: int = 8,
+        duration_hours: int = 1,
         preclear_site_id: str | None = None,
         special: int = 5,
     ) -> ExpeditionScenarioResult:

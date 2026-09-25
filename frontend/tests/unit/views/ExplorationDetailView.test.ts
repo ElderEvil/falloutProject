@@ -9,6 +9,7 @@ import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useExpeditionSiteStore } from '@/modules/exploration/stores/expeditionSite'
 
 // Mock Iconify
 vi.mock('@iconify/vue', () => ({
@@ -230,7 +231,9 @@ describe('ExplorationDetailView', () => {
 
       await flushPromises()
 
-      expect(wrapper.find('.dweller-portrait').attributes('src')).toBe('http://example.com/amata.png')
+      expect(wrapper.find('.dweller-portrait').attributes('src')).toBe(
+        'http://example.com/amata.png'
+      )
       expect(wrapper.find('.dweller-portrait').attributes('alt')).toBe('Amata Almodovar portrait')
     })
 
@@ -245,7 +248,9 @@ describe('ExplorationDetailView', () => {
       const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
       await flushPromises()
 
-      expect(wrapper.find('.dweller-portrait').attributes('src')).toBe('http://example.com/amata-thumb.png')
+      expect(wrapper.find('.dweller-portrait').attributes('src')).toBe(
+        'http://example.com/amata-thumb.png'
+      )
     })
 
     it('renders dweller level', async () => {
@@ -495,6 +500,33 @@ describe('ExplorationDetailView', () => {
       expect(wrapper.text()).toContain('Amata Almodovar')
       expect(wrapper.text()).toContain('Event Log')
       expect(wrapper.find('.loading-state').exists()).toBe(false)
+    })
+  })
+
+  describe('Site reconnect on explorer switch', () => {
+    it('re-scopes the site store and reconnects when the exploration changes', async () => {
+      const siteStore = useExpeditionSiteStore()
+      const resetSpy = vi.spyOn(siteStore, 'reset')
+      const fetchCurrentRoomSpy = vi.spyOn(siteStore, 'fetchCurrentRoom').mockResolvedValue(null)
+      vi.spyOn(explorationStore, 'fetchExplorationDetails').mockImplementation(
+        async (id: string) => ({
+          ...mockExploration,
+          id,
+        })
+      )
+      explorationStore.activeExplorations['expl-2'] = { ...mockExploration, id: 'expl-2' }
+
+      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
+      await flushPromises()
+      resetSpy.mockClear()
+      fetchCurrentRoomSpy.mockClear()
+
+      await router.push('/vault/test-vault/exploration/expl-2')
+      await flushPromises()
+
+      expect(resetSpy).toHaveBeenCalled()
+      expect(fetchCurrentRoomSpy).toHaveBeenCalledWith('expl-2')
+      wrapper.unmount()
     })
   })
 })

@@ -226,6 +226,20 @@ onUnmounted(() => {
   explorationStore.stopSseSubscription()
 })
 
+// Switching explorers reuses this view (router.push without a remount), so the
+// mount-time reconnect never runs again. Re-scope the site store and reconnect.
+watch(explorationId, async (id, previousId) => {
+  if (!id || id === previousId) return
+  siteStore.reset()
+  showSiteModal.value = false
+  if (!authStore.token) return
+  await explorationStore.fetchExplorationDetails(id, authStore.token)
+  if (exploration.value) {
+    await dwellerStore.fetchDwellerDetails(exploration.value.dweller_id, authStore.token)
+  }
+  await reconnectToSite()
+})
+
 // Surface rewards when the game loop auto-completes an exploration server-side
 watch(
   () => explorationStore.pendingSseRewards,

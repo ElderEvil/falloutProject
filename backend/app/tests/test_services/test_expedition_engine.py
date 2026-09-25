@@ -457,9 +457,7 @@ async def test_combat_reports_per_enemy_entries_and_live_dweller_hp(async_sessio
     await async_session.commit()
 
     await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
-    await expedition_service.resolve_node(
-        async_session, exploration.id, ExpeditionResolveRequest(choice_id="disarm")
-    )
+    await expedition_service.resolve_node(async_session, exploration.id, ExpeditionResolveRequest(choice_id="disarm"))
 
     random.seed(570)
     view = await _push_on_until(async_session, exploration.id, room_index=2)

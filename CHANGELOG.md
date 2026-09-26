@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.150.0 (2026-09-26)
+
+### Features
+
+* **map:** explorer tracking, cleared sites, and unified item icons ([#802](https://github.com/ElderEvil/falloutProject/issues/802)) 0b9d0dd
+
 ## 2.149.2 (2026-09-26)
 
 ### Bug Fixes

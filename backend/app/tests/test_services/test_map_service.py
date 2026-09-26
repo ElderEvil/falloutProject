@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import LocationTypeEnum, PlaceKindEnum
+from app.core.enums import ExpeditionRunStatus, LocationTypeEnum, PlaceKindEnum
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.notification import Notification, NotificationType
@@ -598,6 +598,34 @@ async def test_get_vault_map_expedition_sites_cooldown(async_session: AsyncSessi
     by_id = {site.id: site for site in map_data.expedition_sites}
     assert by_id["red_rocket"].block_reason == "cooldown"
     assert by_id["red_rocket"].cleared is True
+    assert by_id["red_rocket"].cooldown_remaining_seconds > 0
+    assert by_id["super_duper_mart"].block_reason is None
+    assert by_id["super_duper_mart"].cleared is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [ExpeditionRunStatus.RETREATED, ExpeditionRunStatus.DIED])
+async def test_get_vault_map_expedition_sites_cooldown_not_cleared(
+    async_session: AsyncSession, vault: Vault, status: ExpeditionRunStatus
+) -> None:
+    """A retreat/death within the anti-farm window blocks re-entry but is NOT 'cleared'."""
+    from app.models.exploration import ExpeditionRun
+
+    async_session.add(
+        ExpeditionRun(
+            exploration_id=uuid4(),
+            vault_id=vault.id,
+            site_id="red_rocket",
+            status=status,
+            finished_at=datetime.utcnow() - timedelta(days=1),
+        )
+    )
+    await async_session.commit()
+
+    map_data = await map_service.get_vault_map(async_session, vault)
+    by_id = {site.id: site for site in map_data.expedition_sites}
+    assert by_id["red_rocket"].block_reason == "cooldown"
+    assert by_id["red_rocket"].cleared is False
     assert by_id["red_rocket"].cooldown_remaining_seconds > 0
     assert by_id["super_duper_mart"].block_reason is None
     assert by_id["super_duper_mart"].cleared is False

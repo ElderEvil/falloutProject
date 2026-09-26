@@ -53,7 +53,14 @@ const dwellerNames = computed(() => {
 })
 
 const explorerTracks = computed<ExplorerTrack[]>(() =>
-  buildExplorerTracks(explorationStore.explorations, mapStore.discoveryRoutes, dwellerNames.value)
+  buildExplorerTracks(
+    // The store can still hold the previous vault's active runs after a vault
+    // switch; target_location_id references shared WorldLocation rows, so a
+    // stale run could match a location on the new map. Scope to this vault.
+    explorationStore.explorations.filter((e) => e.vault_id === vaultId.value),
+    mapStore.discoveryRoutes,
+    dwellerNames.value
+  )
 )
 
 // Dispatch picker state (issue 772, phase 4b)

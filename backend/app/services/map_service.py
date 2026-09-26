@@ -541,7 +541,7 @@ class MapService:
                     coord_y=round(site.coord_y * WORLD_SCALE, 1),
                     min_dweller_level=site.min_dweller_level,
                     room_total=len(site.rooms),
-                    cleared=block.reason == "cooldown",
+                    cleared=block.cleared,
                     cooldown_remaining_seconds=block.cooldown_remaining_seconds,
                     block_reason=block.reason,
                 )

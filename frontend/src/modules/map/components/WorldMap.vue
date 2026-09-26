@@ -88,7 +88,7 @@ function siteStatus(site: ExpeditionSiteMarkerRead): string {
   const level = `LVL ${site.min_dweller_level}`
   const rooms = `${site.room_total} ROOMS`
   if (site.block_reason === 'open') return `IN PROGRESS · ${level} · ${rooms}`
-  if (site.block_reason === 'cooldown' || site.cleared) {
+  if (site.cleared) {
     const cooldown =
       site.cooldown_remaining_seconds > 0
         ? `COOLDOWN ${formatRemaining(site.cooldown_remaining_seconds)} · `
@@ -240,7 +240,7 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
           :name="site.name"
           type="expedition_site"
           :icon="EXPEDITION_SITE_ICON"
-          :cleared="site.block_reason === 'cooldown' || site.cleared"
+          :cleared="site.cleared"
           :status="siteStatus(site)"
           :selected="selectedMarkerId === `site-${site.id}`"
           @click="onSiteClick(site)"

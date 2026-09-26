@@ -69,6 +69,18 @@ describe('ItemIcon', () => {
     expect(unnamed.get('img').attributes('alt')).toBe('Unknown Item')
   })
 
+  it('preserves an explicit empty alt for decorative images', () => {
+    const wrapper = mount(ItemIcon, {
+      props: {
+        item: { image_url: 'https://example.com/knife.png', name: 'Combat Knife' },
+        itemType: 'weapon',
+        alt: '',
+      },
+    })
+
+    expect(wrapper.get('img').attributes('alt')).toBe('')
+  })
+
   it('passes through extra attrs to the rendered element', () => {
     const wrapper = mount(ItemIcon, {
       props: { item: { weapon_subtype: 'edged' }, itemType: 'weapon' },

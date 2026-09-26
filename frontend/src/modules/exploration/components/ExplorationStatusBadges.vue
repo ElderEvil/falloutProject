@@ -5,7 +5,7 @@ import { Badge } from '@/core/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import { getStatusConfig } from '@/modules/dwellers/models/dweller'
-import type { DetailedDweller, Dweller } from '@/modules/dwellers/models/dweller'
+import type { DetailedDweller, Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
 import {
   getProgressPercentage,
   getTimeRemaining,
@@ -14,7 +14,7 @@ import {
 
 interface Props {
   exploration: Exploration
-  dweller?: DetailedDweller | Dweller | null
+  dweller?: DetailedDweller | Dweller | DwellerShort | null
 }
 
 const props = defineProps<Props>()

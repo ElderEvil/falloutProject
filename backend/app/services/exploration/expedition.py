@@ -75,6 +75,7 @@ class SiteBlockState:
 
     reason: Literal["open", "cooldown"] | None = None
     cooldown_remaining_seconds: int = 0
+    cleared: bool = False
 
 
 def success_odds(stat_value: int, difficulty: int) -> float:
@@ -169,11 +170,12 @@ async def site_block_state(
     )
     if recent is None:
         return SiteBlockState()
+    cleared = recent.status == ExpeditionRunStatus.CLEARED
     if recent.finished_at is None:
-        return SiteBlockState(reason="cooldown")
+        return SiteBlockState(reason="cooldown", cleared=cleared)
     window_end = recent.finished_at + timedelta(days=ANTI_FARM_DAYS)
     remaining = max(0, int((window_end - datetime.utcnow()).total_seconds()))
-    return SiteBlockState(reason="cooldown", cooldown_remaining_seconds=remaining)
+    return SiteBlockState(reason="cooldown", cooldown_remaining_seconds=remaining, cleared=cleared)
 
 
 async def _site_block_reason(

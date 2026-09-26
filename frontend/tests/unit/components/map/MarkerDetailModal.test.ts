@@ -554,6 +554,16 @@ describe('MarkerDetailModal', () => {
       expect(wrapper.text()).toContain('Cooldown: 1h 0m remaining')
     })
 
+    it('shows READY (not CLEARED) for a cooldown-only site that was not cleared', () => {
+      const wrapper = mountWithSite(
+        createSite({ cleared: false, block_reason: 'cooldown', cooldown_remaining_seconds: 3600 })
+      )
+
+      expect(wrapper.text()).toContain('READY')
+      expect(wrapper.text()).not.toContain('CLEARED')
+      expect(wrapper.text()).not.toContain('CLEAR STATUS')
+    })
+
     it('advances the site cooldown countdown while the modal stays open', async () => {
       vi.useFakeTimers()
       try {

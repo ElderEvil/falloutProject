@@ -159,7 +159,7 @@ const siteStatus = computed(() => {
   const site = props.site
   if (!site) return ''
   if (site.block_reason === 'open') return 'IN PROGRESS'
-  if (site.block_reason === 'cooldown' || site.cleared) return 'CLEARED'
+  if (site.cleared) return 'CLEARED'
   return 'READY'
 })
 const siteCleared = computed(() => siteStatus.value === 'CLEARED')

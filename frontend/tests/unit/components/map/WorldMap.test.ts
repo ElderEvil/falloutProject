@@ -649,6 +649,28 @@ describe('WorldMap', () => {
       expect(site.props('status')).toContain('COOLDOWN 1h 0m remaining')
     })
 
+    it('does not show CLEARED for a cooldown-only site that was not cleared', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [],
+          vaultMarkers: [],
+          expeditionSites: [
+            createSite({
+              cleared: false,
+              block_reason: 'cooldown',
+              cooldown_remaining_seconds: 3600,
+            }),
+          ],
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const site = wrapper.findAllComponents(MapMarkerStub)[0]
+      expect(site.props('cleared')).toBe(false)
+      expect(site.props('status')).toBe('READY · LVL 5 · 3 ROOMS')
+      expect(site.props('status')).not.toContain('CLEARED')
+    })
+
     it('passes an in-progress status for a site with an open run', () => {
       const wrapper = mount(WorldMap, {
         props: {

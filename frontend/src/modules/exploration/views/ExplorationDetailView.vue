@@ -301,7 +301,7 @@ watch(isReady, (ready) => {
               :exploration-duration="exploration.duration"
               :is-returning="isReturning"
               :exploration="exploration"
-              :dweller="detailedDweller"
+              :dweller="detailedDweller ?? dweller"
             />
 
             <ExplorerStatsGrid v-if="exploration" :exploration="exploration" />

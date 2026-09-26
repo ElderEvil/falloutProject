@@ -29,7 +29,7 @@ const { imageUrl, onImageError } = useItemImage(() => item.image_url)
   <img
     v-if="imageUrl"
     :src="imageUrl"
-    :alt="alt || item.name || 'Unknown Item'"
+    :alt="alt ?? item.name ?? 'Unknown Item'"
     :class="imgClass"
     @error="onImageError"
   />

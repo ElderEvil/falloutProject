@@ -61,7 +61,7 @@ describe('describeGrantedReward', () => {
   it('renders an item with quantity prefix and type-specific icon and label', () => {
     const reward: GrantedReward = { reward_type: 'item', item_type: 'weapon', name: 'Rifle', amount: 3 }
     expect(describeGrantedReward(reward)).toEqual({
-      icon: 'mdi:sword-cross',
+      icon: 'mdi:pistol',
       label: 'Weapon',
       value: '3x Rifle',
     })

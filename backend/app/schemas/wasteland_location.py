@@ -100,6 +100,26 @@ class DiscoveryRouteRead(SQLModel):
     points: list[DiscoveryRoutePoint]
 
 
+class ExpeditionSiteMarkerRead(SQLModel):
+    """One interactive expedition site on the world map, with per-vault state.
+
+    ``block_reason`` mirrors the expedition anti-farm gate: ``"open"`` while a
+    run for this vault+site is in progress, ``"cooldown"`` while a recent
+    terminal run's anti-farm window is still active, else ``None`` (ready).
+    """
+
+    id: str
+    name: str
+    flavor: str
+    coord_x: float
+    coord_y: float
+    min_dweller_level: int
+    room_total: int
+    cleared: bool
+    cooldown_remaining_seconds: int
+    block_reason: Literal["open", "cooldown"] | None = None
+
+
 class VaultMapResponse(SQLModel):
     """Full world-map payload: persisted locations + computed vault markers."""
 
@@ -107,3 +127,4 @@ class VaultMapResponse(SQLModel):
     vault_markers: list[VaultMarkerRead]
     discovery_routes: list[DiscoveryRouteRead] = []
     place_groups: list[PlaceGroupRead] = []
+    expedition_sites: list[ExpeditionSiteMarkerRead] = []

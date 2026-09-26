@@ -464,6 +464,24 @@ describe('ExplorationDetailView', () => {
       expect(wrapper.text()).toContain('Loading exploration data...')
       expect(wrapper.find('.loading-state').exists()).toBe(true)
     })
+
+    it('shows the AT RISK badge from roster vitals before the detailed record loads', async () => {
+      // No detailed record yet (the beforeEach one is removed); the roster
+      // dweller carries the low-health vitals the badge must surface.
+      delete dwellerStore.detailedDwellers['dweller-1']
+      dwellerStore.dwellers = [{ ...mockDweller, health: 10 }]
+
+      const wrapper = mount(ExplorationDetailView, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      await flushPromises()
+
+      expect(wrapper.find('[aria-label="Dweller at risk"]').exists()).toBe(true)
+      expect(wrapper.text()).toContain('AT RISK')
+    })
   })
 
   describe('Empty / no events', () => {

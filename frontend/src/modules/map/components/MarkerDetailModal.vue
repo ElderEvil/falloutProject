@@ -7,13 +7,18 @@ import { Button } from '@/core/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import { formatRemaining } from '@/modules/exploration/composables/useExplorationProgress'
-import type { WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
+import type {
+  ExpeditionSiteMarkerRead,
+  WastelandLocationWithDwellers,
+  VaultMarkerRead,
+} from '../models/map'
 import { useMapStore } from '../stores/map'
 
 interface Props {
   modelValue: boolean
   location: WastelandLocationWithDwellers | null
   vaultMarker: VaultMarkerRead | null
+  site?: ExpeditionSiteMarkerRead | null
 }
 
 const props = defineProps<Props>()
@@ -42,26 +47,33 @@ const isOpen = computed({
 
 const isVaultMarker = computed(() => props.vaultMarker !== null && props.location === null)
 
+const isSite = computed(
+  () => props.site != null && props.location === null && props.vaultMarker === null
+)
+
 const placeName = computed(() => {
   if (props.location) return props.location.name
   if (props.vaultMarker) return props.vaultMarker.name
+  if (props.site) return props.site.name
   return ''
 })
 
 const placeType = computed(() => {
   if (props.location) return props.location.type
   if (props.vaultMarker) return 'vault'
+  if (props.site) return 'expedition_site'
   return ''
 })
 
 const description = computed(() => {
   if (props.location) return props.location.description ?? 'No description available.'
   if (props.vaultMarker) return props.vaultMarker.description
+  if (props.site) return props.site.flavor
   return ''
 })
 
 const coordinates = computed(() => {
-  const marker = props.location ?? props.vaultMarker
+  const marker = props.location ?? props.vaultMarker ?? props.site
   return marker ? `${marker.coord_x}, ${marker.coord_y}` : 'Unavailable'
 })
 
@@ -89,6 +101,7 @@ const badgeVariant = computed(() => {
     visited: 'secondary',
     discovery: 'outline',
     vault: 'destructive',
+    expedition_site: 'outline',
   }
   return map[placeType.value] ?? 'secondary'
 })
@@ -141,6 +154,46 @@ const reclearCountdown = computed(() => {
 })
 const lootTableLabel = computed(() => clearState.value?.loot_table ?? '')
 
+// Expedition-site status projection (mirrors the marker's block_reason).
+const siteStatus = computed(() => {
+  const site = props.site
+  if (!site) return ''
+  if (site.block_reason === 'open') return 'IN PROGRESS'
+  if (site.cleared) return 'CLEARED'
+  return 'READY'
+})
+const siteCleared = computed(() => siteStatus.value === 'CLEARED')
+// Local countdown seeded from the backend snapshot (same staleness rationale
+// as the location reclear timer above).
+const siteCooldownSeconds = ref(0)
+let siteCooldownTimer: ReturnType<typeof setInterval> | null = null
+
+function stopSiteCooldownTimer() {
+  if (siteCooldownTimer !== null) clearInterval(siteCooldownTimer)
+  siteCooldownTimer = null
+}
+
+watch(
+  () => props.site?.cooldown_remaining_seconds,
+  (seconds) => {
+    stopSiteCooldownTimer()
+    siteCooldownSeconds.value = Math.max(0, seconds ?? 0)
+    if (siteCooldownSeconds.value > 0) {
+      siteCooldownTimer = setInterval(() => {
+        siteCooldownSeconds.value = Math.max(0, siteCooldownSeconds.value - 1)
+        if (siteCooldownSeconds.value === 0) stopSiteCooldownTimer()
+      }, 1000)
+    }
+  },
+  { immediate: true }
+)
+onUnmounted(stopSiteCooldownTimer)
+
+const siteCooldownCountdown = computed(() => {
+  const seconds = siteCooldownSeconds.value
+  return seconds > 0 ? formatRemaining(seconds) : ''
+})
+
 const modalTitle = computed(() => {
   if (isLocked.value) return 'Unknown Location'
   return placeName.value
@@ -191,6 +244,57 @@ function dwellerDisplayName(first: string, last: string | null) {
           <Icon icon="mdi:message-text-outline" class="h-4 w-4 text-theme-primary/60" />
         </button>
       </div>
+    </div>
+    <div v-else-if="isSite" class="space-y-5">
+      <section class="rounded border border-theme-primary/20 bg-surface-sunken p-4">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="text-xs font-bold tracking-[0.14em] text-theme-primary/60">EXPEDITION SITE</p>
+            <p class="mt-1 text-sm font-bold text-theme-primary">{{ siteStatus }}</p>
+          </div>
+          <Badge variant="outline">expedition_site</Badge>
+        </div>
+        <div class="mt-4 grid grid-cols-2 gap-3">
+          <TerminalMetric icon="mdi:map-marker" label="MAP COORDINATES" :value="coordinates" compact />
+          <TerminalMetric
+            icon="mdi:shield-star"
+            label="MIN DWELLER LEVEL"
+            :value="props.site?.min_dweller_level ?? 0"
+            compact
+          />
+          <TerminalMetric
+            icon="mdi:door"
+            label="ROOMS"
+            :value="props.site?.room_total ?? 0"
+            compact
+          />
+          <TerminalMetric icon="mdi:radar" label="STATUS" :value="siteStatus" compact />
+        </div>
+      </section>
+
+      <section class="border-l-2 border-theme-primary/50 bg-surface p-4">
+        <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">SITE NOTES</p>
+        <p class="mt-2 text-sm leading-6 text-theme-primary/85">{{ description }}</p>
+      </section>
+
+      <section v-if="siteCleared" class="border-t border-theme-primary/20 pt-4">
+        <div class="flex flex-col gap-2">
+          <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">CLEAR STATUS</p>
+          <Badge
+            variant="default"
+            class="w-fit border-theme-primary bg-theme-primary/10 text-theme-primary terminal-glow"
+          >
+            CLEARED
+          </Badge>
+          <p
+            v-if="siteCooldownCountdown"
+            class="flex items-center gap-1.5 text-xs text-theme-primary/70"
+          >
+            <Icon icon="mdi:clock-outline" class="h-3.5 w-3.5" />
+            Cooldown: {{ siteCooldownCountdown }}
+          </p>
+        </div>
+      </section>
     </div>
     <div v-else class="space-y-5">
       <section class="rounded border border-theme-primary/20 bg-surface-sunken p-4">

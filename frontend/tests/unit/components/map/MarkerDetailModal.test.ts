@@ -3,7 +3,11 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import MarkerDetailModal from '@/modules/map/components/MarkerDetailModal.vue'
 import { useMapStore } from '@/modules/map/stores/map'
-import type { WastelandLocationWithDwellers, VaultMarkerRead } from '@/modules/map/models/map'
+import type {
+  ExpeditionSiteMarkerRead,
+  WastelandLocationWithDwellers,
+  VaultMarkerRead,
+} from '@/modules/map/models/map'
 
 // Mock vue-router
 const mockPush = vi.fn()
@@ -479,6 +483,111 @@ describe('MarkerDetailModal', () => {
       await dispatchButton!.trigger('click')
 
       expect(wrapper.emitted('dispatch')).toBeTruthy()
+    })
+  })
+
+  describe('Expedition site display', () => {
+    function createSite(
+      overrides: Partial<ExpeditionSiteMarkerRead> = {}
+    ): ExpeditionSiteMarkerRead {
+      return {
+        id: 'site-1',
+        name: 'Red Rocket Gas Station',
+        flavor: 'A roadside fuel stop with a working pump.',
+        coord_x: 60,
+        coord_y: 70,
+        min_dweller_level: 5,
+        room_total: 3,
+        cleared: false,
+        cooldown_remaining_seconds: 0,
+        block_reason: null,
+        ...overrides,
+      }
+    }
+
+    function mountWithSite(site: ExpeditionSiteMarkerRead) {
+      return mount(MarkerDetailModal, {
+        props: { modelValue: true, location: null, vaultMarker: null, site },
+        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+      })
+    }
+
+    it('does not render the site section when the site prop is omitted', () => {
+      const wrapper = mount(MarkerDetailModal, {
+        props: { modelValue: true, location: null, vaultMarker: null },
+        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+      })
+
+      expect(wrapper.text()).not.toContain('EXPEDITION SITE')
+    })
+
+    it('renders the site name, flavor, level and room count', () => {
+      const wrapper = mountWithSite(createSite())
+
+      expect(wrapper.text()).toContain('Red Rocket Gas Station')
+      expect(wrapper.text()).toContain('A roadside fuel stop with a working pump.')
+      expect(wrapper.text()).toContain('MIN DWELLER LEVEL')
+      expect(wrapper.text()).toContain('ROOMS')
+      expect(wrapper.text()).toContain('60, 70')
+    })
+
+    it('shows READY status for a ready site', () => {
+      const wrapper = mountWithSite(createSite())
+
+      expect(wrapper.text()).toContain('READY')
+      expect(wrapper.text()).not.toContain('CLEARED')
+      expect(wrapper.text()).not.toContain('IN PROGRESS')
+    })
+
+    it('shows IN PROGRESS status while a run is open', () => {
+      const wrapper = mountWithSite(createSite({ block_reason: 'open' }))
+
+      expect(wrapper.text()).toContain('IN PROGRESS')
+    })
+
+    it('shows CLEARED status with the cooldown for a cooling-down site', () => {
+      const wrapper = mountWithSite(
+        createSite({ cleared: true, block_reason: 'cooldown', cooldown_remaining_seconds: 3600 })
+      )
+
+      expect(wrapper.text()).toContain('CLEARED')
+      expect(wrapper.text()).toContain('Cooldown: 1h 0m remaining')
+    })
+
+    it('shows READY (not CLEARED) for a cooldown-only site that was not cleared', () => {
+      const wrapper = mountWithSite(
+        createSite({ cleared: false, block_reason: 'cooldown', cooldown_remaining_seconds: 3600 })
+      )
+
+      expect(wrapper.text()).toContain('READY')
+      expect(wrapper.text()).not.toContain('CLEARED')
+      expect(wrapper.text()).not.toContain('CLEAR STATUS')
+    })
+
+    it('advances the site cooldown countdown while the modal stays open', async () => {
+      vi.useFakeTimers()
+      try {
+        const wrapper = mountWithSite(
+          createSite({ cleared: true, block_reason: 'cooldown', cooldown_remaining_seconds: 5 })
+        )
+        expect(wrapper.text()).toContain('Cooldown:')
+
+        await vi.advanceTimersByTimeAsync(5000)
+
+        expect(wrapper.text()).not.toContain('Cooldown:')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('does not offer a Dispatch or Enter action for sites', () => {
+      const wrapper = mountWithSite(createSite())
+
+      const buttons = wrapper.findAll('button').filter((b) => {
+        const text = b.text()
+        return text.includes('Dispatch') || text.includes('Enter')
+      })
+      expect(buttons).toHaveLength(0)
     })
   })
 })

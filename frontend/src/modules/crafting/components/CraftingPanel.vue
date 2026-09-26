@@ -20,7 +20,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/core/components/ui/tooltip'
-import { getRarityTextClass } from '@/core/models/items'
+import { getItemIcon, getRarityTextClass } from '@/core/models/items'
 import { useToast } from '@/core/composables/useToast'
 import { getErrorMessage } from '@/core/utils/errorHandler'
 import { craftingService } from '../services/craftingService'
@@ -49,9 +49,7 @@ let ticker: number | null = null
 let lastRecheck = 0
 const RECHECK_MS = 5000
 
-const itemIcon = computed(() =>
-  props.itemType === 'weapon' ? 'mdi:sword-cross' : 'mdi:tshirt-crew'
-)
+const itemIcon = computed(() => getItemIcon(props.itemType, {}))
 const workshopLabel = computed(() =>
   props.itemType === 'weapon' ? 'Weapon workshop' : 'Outfit workshop'
 )

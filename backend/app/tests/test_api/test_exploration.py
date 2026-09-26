@@ -107,12 +107,48 @@ async def test_dispatch_dweller_success(
     assert data["dweller_id"] == str(dweller.id)
     assert data["vault_id"] == str(vault.id)
     assert data["status"] == ExplorationStatus.ACTIVE
+    assert data["target_location_id"] == str(state.location_id)
 
     exploration = await crud.exploration.get_by_dweller(async_session, dweller_id=dweller.id)
     assert exploration is not None
     assert exploration.target_location_id == state.location_id
     assert exploration.clear_tier == 0
     assert exploration.team_id is not None
+
+
+@pytest.mark.asyncio
+async def test_list_explorations_includes_target_location_id(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """The short list payload exposes target_location_id for dispatched runs."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
+    state = (
+        await async_session.execute(
+            select(VaultLocationState)
+            .join(WorldLocation, WorldLocation.id == VaultLocationState.location_id)
+            .where(VaultLocationState.vault_id == vault.id, WorldLocation.name == "Red Rocket")
+        )
+    ).scalar_one()
+
+    response = await async_client.post(
+        f"/explorations/dispatch?vault_id={vault.id}",
+        json={"dweller_ids": [str(dweller.id)], "location_id": str(state.location_id)},
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 200
+
+    listed = await async_client.get(
+        f"/explorations/vault/{vault.id}?active_only=true",
+        headers=superuser_token_headers,
+    )
+    assert listed.status_code == 200
+    payload = listed.json()
+    assert len(payload) == 1
+    assert payload[0]["target_location_id"] == str(state.location_id)
 
 
 @pytest.mark.asyncio

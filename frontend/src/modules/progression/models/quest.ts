@@ -5,6 +5,7 @@
  * Quests are only accessible when the Overseer's Office is built.
  */
 import type { components } from '@/core/types/api.generated'
+import { getItemIcon } from '@/core/models/items'
 
 export type GrantedReward = components['schemas']['QuestCompleteResponse']['granted_rewards'][number]
 export interface Quest {
@@ -147,14 +148,9 @@ export function formatQuestReward(reward: QuestReward): string {
   }
 }
 
-/** Item-category icons for quest rewards. Weapons use the gun icon per quest UI convention. */
-const QUEST_ITEM_ICONS: Record<string, string> = {
-  weapon: 'mdi:pistol',
-  outfit: 'mdi:tshirt-crew',
-  junk: 'mdi:cog',
-  pet: 'mdi:paw',
-  consumable: 'mdi:bottle-tonic',
-  lunchbox: 'mdi:gift',
+/** Item-category icon for quest rewards, derived from the shared item icon source. */
+export function questCategoryIcon(category: string): string {
+  return getItemIcon(category, {})
 }
 
 function rewardText(value: unknown): string {
@@ -226,7 +222,7 @@ export function questRewardIcon(reward: QuestReward): string {
   const type = reward.reward_type.toLowerCase()
   if (type === 'item') {
     const category = rewardText(reward.item_data?.item_type ?? reward.reward_data?.item_type).toLowerCase()
-    if (category && QUEST_ITEM_ICONS[category]) return QUEST_ITEM_ICONS[category]
+    if (category && category in QUEST_ITEM_LABELS) return questCategoryIcon(category)
     const itemName = rewardText(
       reward.reward_data?.item_name || reward.item_data?.name || reward.reward_data?.name
     ).toLowerCase()
@@ -296,16 +292,7 @@ const GRANTED_LABELS: Record<GrantedReward['reward_type'], string> = {
   radaway: 'RadAway',
 }
 
-const GRANTED_ITEM_ICONS: Record<string, string> = {
-  weapon: 'mdi:sword-cross',
-  outfit: 'mdi:tshirt-crew',
-  junk: 'mdi:cog',
-  pet: 'mdi:paw',
-  consumable: 'mdi:bottle-tonic',
-  lunchbox: 'mdi:gift',
-}
-
-const GRANTED_ITEM_LABELS: Record<string, string> = {
+export const QUEST_ITEM_LABELS: Record<string, string> = {
   weapon: 'Weapon',
   outfit: 'Outfit',
   junk: 'Junk',
@@ -366,8 +353,8 @@ export function describeGrantedReward(reward: GrantedReward): GrantedRewardDispl
     case 'item': {
       const quantity = reward.amount > 1 ? `${reward.amount}x ` : ''
       return {
-        icon: GRANTED_ITEM_ICONS[reward.item_type] ?? GRANTED_ICONS.item,
-        label: GRANTED_ITEM_LABELS[reward.item_type] ?? GRANTED_LABELS.item,
+        icon: questCategoryIcon(reward.item_type),
+        label: QUEST_ITEM_LABELS[reward.item_type] ?? GRANTED_LABELS.item,
         value: `${quantity}${reward.name}`,
       }
     }

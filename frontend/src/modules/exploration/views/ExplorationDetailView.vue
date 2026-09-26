@@ -300,6 +300,8 @@ watch(isReady, (ready) => {
               :time-remaining="timeRemaining"
               :exploration-duration="exploration.duration"
               :is-returning="isReturning"
+              :exploration="exploration"
+              :dweller="detailedDweller ?? dweller"
             />
 
             <ExplorerStatsGrid v-if="exploration" :exploration="exploration" />
@@ -389,7 +391,12 @@ watch(isReady, (ready) => {
             />
 
             <!-- Equipment Section -->
-            <ExplorerEquipmentSlots :weapon-name="weaponName" :outfit-name="outfitName" />
+            <ExplorerEquipmentSlots
+              :weapon-name="weaponName"
+              :outfit-name="outfitName"
+              :weapon="detailedDweller?.weapon"
+              :outfit="detailedDweller?.outfit"
+            />
 
             <!-- Action Buttons -->
             <ExplorerActions

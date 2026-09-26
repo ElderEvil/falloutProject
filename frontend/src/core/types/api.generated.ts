@@ -6844,6 +6844,36 @@ export interface components {
             /** Choice Id */
             choice_id?: string | null;
         };
+        /**
+         * ExpeditionSiteMarkerRead
+         * @description One interactive expedition site on the world map, with per-vault state.
+         *
+         *     ``block_reason`` mirrors the expedition anti-farm gate: ``"open"`` while a
+         *     run for this vault+site is in progress, ``"cooldown"`` while a recent
+         *     terminal run's anti-farm window is still active, else ``None`` (ready).
+         */
+        ExpeditionSiteMarkerRead: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Flavor */
+            flavor: string;
+            /** Coord X */
+            coord_x: number;
+            /** Coord Y */
+            coord_y: number;
+            /** Min Dweller Level */
+            min_dweller_level: number;
+            /** Room Total */
+            room_total: number;
+            /** Cleared */
+            cleared: boolean;
+            /** Cooldown Remaining Seconds */
+            cooldown_remaining_seconds: number;
+            /** Block Reason */
+            block_reason?: ("open" | "cooldown") | null;
+        };
         /** ExperienceGranted */
         ExperienceGranted: {
             /**
@@ -6936,6 +6966,8 @@ export interface components {
              * Format: uuid4
              */
             dweller_id: string;
+            /** Target Location Id */
+            target_location_id?: string | null;
             status: components["schemas"]["ExplorationStatus"];
             /**
              * Start Time
@@ -7013,6 +7045,8 @@ export interface components {
              * Format: uuid4
              */
             dweller_id: string;
+            /** Target Location Id */
+            target_location_id?: string | null;
             status: components["schemas"]["ExplorationStatus"];
             /**
              * Start Time
@@ -10011,6 +10045,11 @@ export interface components {
              * @default []
              */
             place_groups: components["schemas"]["PlaceGroupRead"][];
+            /**
+             * Expedition Sites
+             * @default []
+             */
+            expedition_sites: components["schemas"]["ExpeditionSiteMarkerRead"][];
         };
         /**
          * VaultMarkerRead

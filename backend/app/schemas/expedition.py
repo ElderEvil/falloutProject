@@ -105,6 +105,9 @@ class SiteDefinition(BaseModel):
     id: str
     name: str
     flavor: str
+    # World-map position on the same 0-100 grid as WorldLocation.coord_x/coord_y.
+    coord_x: float = Field(ge=0, le=100)
+    coord_y: float = Field(ge=0, le=100)
     min_dweller_level: int = Field(ge=1)
     rooms: list[SiteRoom] = Field(min_length=1)
     reward_vault: RewardVault

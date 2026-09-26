@@ -8,10 +8,11 @@ import { useExplorationProgress } from '@/modules/exploration/composables/useExp
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
-import { Badge } from '@/core/components/ui/badge'
 import { Card } from '@/core/components/ui/card'
 import { Progress } from '@/core/components/ui/progress'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import { getItemIcon } from '@/core/models/items'
+import ExplorationStatusBadges from './ExplorationStatusBadges.vue'
 import ExplorerActions from './ExplorerActions.vue'
 
 interface Props {
@@ -48,19 +49,6 @@ const {
   canRecall,
 } = useExplorationProgress(() => props.exploration)
 
-// Low HP (<=30%) or heavy radiation (>=50% of max) based on live dweller vitals.
-const isAtRisk = computed(() => {
-  const d = props.dweller
-  if (!d || !d.max_health) return false
-  return d.health / d.max_health <= 0.3 || d.radiation / d.max_health >= 0.5
-})
-
-const riskTitle = computed(() =>
-  props.dweller
-    ? `Health ${props.dweller.health}/${props.dweller.max_health}, radiation ${props.dweller.radiation}`
-    : ''
-)
-
 const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse() ?? [])
 </script>
 
@@ -88,36 +76,11 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
               <div>
                 <div class="dweller-name">{{ dwellerName }}</div>
                 <div class="exploration-duration">{{ exploration.duration }}h expedition</div>
-                <div v-if="isReturning || isReady || isAtRisk" class="badge-row">
-                  <TooltipProvider v-if="isReturning" :delay-duration="200">
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <span><Badge variant="secondary">RETURNING</Badge></span>
-                      </TooltipTrigger>
-                      <TooltipContent>{{ timeRemaining }}</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <TooltipProvider v-if="isReady" :delay-duration="200">
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <span><Badge variant="default">READY</Badge></span>
-                      </TooltipTrigger>
-                      <TooltipContent>Expedition finished — ready to collect</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <TooltipProvider v-if="isAtRisk" :delay-duration="200">
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <span aria-label="Dweller at risk"
-                          ><Badge variant="outline" class="border-warning/50 bg-warning/10 text-warning"
-                            ><Icon icon="mdi:heart-pulse" class="h-3 w-3" /> AT RISK</Badge
-                          ></span
-                        >
-                      </TooltipTrigger>
-                      <TooltipContent>{{ riskTitle }}</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
+                <ExplorationStatusBadges
+                  :exploration="exploration"
+                  :dweller="dweller ?? null"
+                  class="mt-1.5"
+                />
                 <DwellerIdentitySignal :visual-attributes="dweller?.visual_attributes" compact class="mt-1" />
               </div>
             </button>
@@ -158,11 +121,11 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
     <!-- Equipment Slots -->
     <div class="equipment-section">
       <div class="equipment-slot min-w-0">
-        <Icon icon="mdi:sword" class="equip-icon" />
+        <Icon :icon="getItemIcon('weapon', dweller?.weapon ?? {})" class="equip-icon" />
         <span class="equip-name min-w-0">{{ dweller?.weapon?.name || 'Unarmed' }}</span>
       </div>
       <div class="equipment-slot min-w-0">
-        <Icon icon="mdi:tshirt-crew" class="equip-icon" />
+        <Icon :icon="getItemIcon('outfit', dweller?.outfit ?? {})" class="equip-icon" />
         <span class="equip-name min-w-0">{{ dweller?.outfit?.name || 'Vault Suit' }}</span>
       </div>
     </div>
@@ -219,13 +182,6 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 .explorer-card.selected {
   border-color: var(--color-theme-primary);
   box-shadow: 0 0 16px var(--color-theme-glow);
-}
-
-.badge-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-  margin-top: 0.375rem;
 }
 
 .card-header {

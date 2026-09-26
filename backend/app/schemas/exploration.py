@@ -40,6 +40,9 @@ class ExplorationRead(ExplorationBase):
     id: UUID4
     vault_id: UUID4
     dweller_id: UUID4
+    # Targeted dispatch (issue 772): the map point this run was sent to clear,
+    # or None for free-roam runs.
+    target_location_id: UUID4 | None = None
     status: ExplorationStatus
     start_time: datetime
     end_time: datetime | None
@@ -72,6 +75,7 @@ class ExplorationReadShort(SQLModel):
     id: UUID4
     vault_id: UUID4
     dweller_id: UUID4
+    target_location_id: UUID4 | None = None
     status: ExplorationStatus
     start_time: datetime
     end_time: datetime | None

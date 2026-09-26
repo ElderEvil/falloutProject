@@ -47,6 +47,7 @@ export interface Exploration {
   id: string
   vault_id: string
   dweller_id: string
+  target_location_id?: string | null
   status: 'active' | 'returning' | 'completed' | 'recalled'
   duration: number
   start_time: string

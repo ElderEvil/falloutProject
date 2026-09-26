@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import RewardCard from '@/core/components/common/RewardCard.vue'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
 import type { QuestReward, VaultQuest } from '../models/quest'
+import { questCategoryIcon, QUEST_ITEM_LABELS } from '../models/quest'
 
 interface Props {
   quest: VaultQuest | null
@@ -27,15 +28,6 @@ const REWARD_META: Record<QuestReward['reward_type'], { icon: string, label: str
   experience: { icon: 'mdi:star', label: 'Experience' },
   stimpak: { icon: 'mdi:medical-bag', label: 'Stimpak' },
   radaway: { icon: 'mdi:radiation', label: 'RadAway' },
-  lunchbox: { icon: 'mdi:gift', label: 'Lunchbox' },
-}
-
-const ITEM_META: Record<string, { icon: string, label: string }> = {
-  weapon: { icon: 'mdi:pistol', label: 'Weapon' },
-  outfit: { icon: 'mdi:tshirt-crew', label: 'Outfit' },
-  junk: { icon: 'mdi:cog', label: 'Junk' },
-  pet: { icon: 'mdi:paw', label: 'Pet' },
-  consumable: { icon: 'mdi:bottle-tonic', label: 'Consumable' },
   lunchbox: { icon: 'mdi:gift', label: 'Lunchbox' },
 }
 
@@ -64,7 +56,7 @@ const rewardLabel = (reward: QuestReward): string => {
 
 const inferItemCategory = (reward: QuestReward): string => {
   const explicit = String(reward.item_data?.item_type ?? reward.reward_data.item_type ?? '').toLowerCase()
-  return explicit && ITEM_META[explicit] ? explicit : ''
+  return explicit && QUEST_ITEM_LABELS[explicit] ? explicit : ''
 }
 
 const rewardMeta = (reward: QuestReward): { icon: string, label: string } => {
@@ -73,7 +65,7 @@ const rewardMeta = (reward: QuestReward): { icon: string, label: string } => {
 
   if (reward.reward_type === 'item') {
     const category = inferItemCategory(reward)
-    return ITEM_META[category] ?? base
+    return { icon: questCategoryIcon(category), label: QUEST_ITEM_LABELS[category] ?? base.label }
   }
 
   if (reward.reward_type === 'resource') {

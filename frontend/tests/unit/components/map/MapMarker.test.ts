@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { Icon } from '@iconify/vue'
 import MapMarker from '@/modules/map/components/MapMarker.vue'
 
 /**
@@ -232,5 +233,144 @@ describe('MapMarker', () => {
     })
 
     expect(wrapper.findAll('.marker-select-ping')).toHaveLength(1)
+  })
+
+  describe('Expedition site markers', () => {
+    it('renders a custom icon and label override for a site', () => {
+      const wrapper = mount(MapMarker, {
+        props: {
+          x: 10,
+          y: 20,
+          name: 'Red Rocket Gas Station',
+          type: 'expedition_site',
+          icon: 'mdi:gas-station',
+          label: 'Expedition Site',
+        },
+        global: {
+          stubs: { Icon: true },
+        },
+      })
+
+      expect(wrapper.findComponent(Icon).props('icon')).toBe('mdi:gas-station')
+      expect(wrapper.attributes('aria-label')).toBe('Red Rocket Gas Station (Expedition Site)')
+    })
+
+    it('appends the status line to the tooltip', () => {
+      const wrapper = mount(MapMarker, {
+        props: {
+          x: 10,
+          y: 20,
+          name: 'Red Rocket Gas Station',
+          type: 'expedition_site',
+          status: 'READY · LVL 5 · 3 ROOMS',
+        },
+        global: { stubs: { Icon: true } },
+      })
+
+      expect(wrapper.attributes('aria-label')).toBe(
+        'Red Rocket Gas Station (Expedition Sites) — READY · LVL 5 · 3 ROOMS'
+      )
+      expect(wrapper.find('title').text()).toContain('READY · LVL 5 · 3 ROOMS')
+    })
+
+    it('renders the cleared badge when cleared', () => {
+      const wrapper = mount(MapMarker, {
+        props: {
+          x: 10,
+          y: 20,
+          name: 'Red Rocket Gas Station',
+          type: 'expedition_site',
+          cleared: true,
+        },
+        global: { stubs: { Icon: true } },
+      })
+
+      expect(wrapper.find('.marker-cleared-badge').exists()).toBe(true)
+    })
+
+    it('renders no cleared badge when not cleared', () => {
+      const wrapper = mount(MapMarker, {
+        props: {
+          x: 10,
+          y: 20,
+          name: 'Red Rocket Gas Station',
+          type: 'expedition_site',
+          cleared: false,
+        },
+        global: { stubs: { Icon: true } },
+      })
+
+      expect(wrapper.find('.marker-cleared-badge').exists()).toBe(false)
+    })
+  })
+
+  describe('Explorer tracking', () => {
+    it('renders the pulsing exploring ring on a dispatched target', () => {
+      const wrapper = mount(MapMarker, {
+        props: {
+          x: 10,
+          y: 20,
+          name: 'Rusty Depot',
+          type: 'visited',
+          exploring: true,
+          status: 'Exploring — Ada',
+        },
+        global: { stubs: { Icon: true } },
+      })
+
+      expect(wrapper.find('.marker-exploring-ring').exists()).toBe(true)
+      expect(wrapper.attributes('aria-label')).toContain('Exploring — Ada')
+    })
+
+    it('renders no exploring ring when not exploring', () => {
+      const wrapper = mount(MapMarker, {
+        props: {
+          x: 10,
+          y: 20,
+          name: 'Rusty Depot',
+          type: 'visited',
+          exploring: false,
+        },
+        global: { stubs: { Icon: true } },
+      })
+
+      expect(wrapper.find('.marker-exploring-ring').exists()).toBe(false)
+    })
+
+    it('renders a non-interactive explorer marker without focus/role semantics', () => {
+      const wrapper = mount(MapMarker, {
+        props: {
+          x: 42,
+          y: 43,
+          name: 'Bob',
+          type: 'explorer',
+          icon: 'mdi:walk',
+          label: 'Explorer',
+          interactive: false,
+        },
+        global: { stubs: { Icon: true } },
+      })
+
+      expect(wrapper.attributes('tabindex')).toBeUndefined()
+      expect(wrapper.attributes('role')).toBeUndefined()
+      expect(wrapper.attributes('aria-label')).toBeUndefined()
+      expect(wrapper.find('title').text()).toBe('Bob (Explorer)')
+    })
+
+    it('does not emit click for a non-interactive marker', async () => {
+      const wrapper = mount(MapMarker, {
+        props: {
+          x: 42,
+          y: 43,
+          name: 'Bob',
+          type: 'explorer',
+          interactive: false,
+        },
+        global: { stubs: { Icon: true } },
+      })
+
+      await wrapper.trigger('click')
+      expect(wrapper.emitted('click')).toBeUndefined()
+    })
   })
 })

@@ -25,12 +25,15 @@ from app.schemas.wasteland_location import (
     DiscoveryRoutePoint,
     DiscoveryRouteRead,
     DwellerRef,
+    ExpeditionSiteMarkerRead,
     LocationClearStateRead,
     PlaceGroupRead,
     VaultMapResponse,
     VaultMarkerRead,
     WastelandLocationWithDwellers,
 )
+from app.services.exploration.data_loader import load_expedition_sites
+from app.services.exploration.expedition import site_block_state
 from app.services.notification_service import notification_service
 from app.utils.place_groups import get_place_group, load_place_groups
 from app.utils.places import GENERIC_ORIGIN_SKIP, WORLD_SCALE, normalize_place_name
@@ -524,11 +527,32 @@ class MapService:
         ]
 
         discovery_routes = await self._get_discovery_routes(db_session, vault.id)
+
+        # --- interactive expedition sites (per-vault anti-farm state) ---
+        expedition_sites: list[ExpeditionSiteMarkerRead] = []
+        for site in load_expedition_sites():
+            block = await site_block_state(db_session, vault.id, site.id)
+            expedition_sites.append(
+                ExpeditionSiteMarkerRead(
+                    id=site.id,
+                    name=site.name,
+                    flavor=site.flavor,
+                    coord_x=round(site.coord_x * WORLD_SCALE, 1),
+                    coord_y=round(site.coord_y * WORLD_SCALE, 1),
+                    min_dweller_level=site.min_dweller_level,
+                    room_total=len(site.rooms),
+                    cleared=block.cleared,
+                    cooldown_remaining_seconds=block.cooldown_remaining_seconds,
+                    block_reason=block.reason,
+                )
+            )
+
         return VaultMapResponse(
             locations=locations,
             vault_markers=vault_markers,
             discovery_routes=discovery_routes,
             place_groups=[PlaceGroupRead(**group) for group in load_place_groups()],
+            expedition_sites=expedition_sites,
         )
 
 

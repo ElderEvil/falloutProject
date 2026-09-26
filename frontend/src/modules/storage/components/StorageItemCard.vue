@@ -5,13 +5,12 @@ import { Button } from '@/core/components/ui/button'
 import { Card } from '@/core/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import {
-  getItemIcon,
   getOutfitStats,
   getRarityBorderClass,
   getRarityTextClass,
   getWeaponStats,
 } from '@/core/models/items'
-import { useItemImage } from '@/core/composables/useItemImage'
+import ItemIcon from '@/core/components/common/ItemIcon.vue'
 interface Props {
   item: any
   itemType: string
@@ -27,13 +26,9 @@ const emit = defineEmits<{
   open: []
 }>()
 
-const itemIcon = computed(() => getItemIcon(itemType, item as any))
-
 const rarityBorderClass = computed(() => getRarityBorderClass((item as any).rarity))
 
 const rarityTextClass = computed(() => getRarityTextClass((item as any).rarity))
-
-const { imageUrl, onImageError } = useItemImage(() => (item as any).image_url)
 
 const itemTypeDisplay = computed(() => {
   if (itemType === 'weapon') return `${(item as any).weapon_subtype || ''} • ${(item as any).rarity || 'common'}`
@@ -62,17 +57,11 @@ const isOpenable = computed(() => itemType === 'lunchbox')
     <div class="flex h-full flex-col gap-3">
       <!-- Header: icon + name + count badge -->
       <div class="flex items-start gap-3">
-        <img
-          v-if="imageUrl"
-          :src="imageUrl"
-          :alt="item.name || 'Unknown Item'"
-          class="h-16 w-16 shrink-0 object-contain drop-shadow-[0_0_4px_var(--color-theme-glow)]"
-          @error="onImageError"
-        />
-        <Icon
-          v-else
-          :icon="itemIcon"
-          class="h-16 w-16 shrink-0 text-(--color-theme-primary) drop-shadow-[0_0_4px_var(--color-theme-glow)]"
+        <ItemIcon
+          :item="item"
+          :item-type="itemType"
+          imgClass="h-16 w-16 shrink-0 object-contain drop-shadow-[0_0_4px_var(--color-theme-glow)]"
+          iconClass="h-16 w-16 shrink-0 text-(--color-theme-primary) drop-shadow-[0_0_4px_var(--color-theme-glow)]"
         />
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-1.5">

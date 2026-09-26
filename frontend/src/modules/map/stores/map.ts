@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { useIntervalFn, useLocalStorage } from '@vueuse/core'
 import type {
   DiscoveryRouteRead,
+  ExpeditionSiteMarkerRead,
   PlaceGroup,
   WastelandLocationWithDwellers,
   VaultMarkerRead,
@@ -17,6 +18,7 @@ export const useMapStore = defineStore('map', () => {
   const locations = ref<WastelandLocationWithDwellers[]>([])
   const vaultMarkers = ref<VaultMarkerRead[]>([])
   const discoveryRoutes = ref<DiscoveryRouteRead[]>([])
+  const expeditionSites = ref<ExpeditionSiteMarkerRead[]>([])
   const placeGroups = ref<PlaceGroup[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
@@ -50,6 +52,7 @@ export const useMapStore = defineStore('map', () => {
           locations.value = data.locations
           vaultMarkers.value = data.vault_markers
           discoveryRoutes.value = data.discovery_routes ?? []
+          expeditionSites.value = data.expedition_sites ?? []
           placeGroups.value = data.place_groups ?? []
         } catch (err) {
           if (gen !== _pollGeneration || vaultId !== _pollVaultId.value) return
@@ -100,6 +103,7 @@ export const useMapStore = defineStore('map', () => {
       locations.value = data.locations
       vaultMarkers.value = data.vault_markers
       discoveryRoutes.value = data.discovery_routes ?? []
+      expeditionSites.value = data.expedition_sites ?? []
       placeGroups.value = data.place_groups ?? []
     } catch (err) {
       if (gen !== _pollGeneration) return
@@ -140,6 +144,7 @@ export const useMapStore = defineStore('map', () => {
       locations.value = data.locations
       vaultMarkers.value = data.vault_markers
       discoveryRoutes.value = data.discovery_routes ?? []
+      expeditionSites.value = data.expedition_sites ?? []
       placeGroups.value = data.place_groups ?? []
     } catch (err) {
       if (gen !== _pollGeneration) return
@@ -151,6 +156,7 @@ export const useMapStore = defineStore('map', () => {
     locations,
     vaultMarkers,
     discoveryRoutes,
+    expeditionSites,
     placeGroups,
     placeGroupByKey,
     isLoading,

@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import MarkerListPanel from '@/modules/map/components/MarkerListPanel.vue'
-import type { WastelandLocationWithDwellers, VaultMarkerRead } from '@/modules/map/models/map'
+import type {
+  ExpeditionSiteMarkerRead,
+  WastelandLocationWithDwellers,
+  VaultMarkerRead,
+} from '@/modules/map/models/map'
 
 function createLocation(
   type: string,
@@ -30,6 +34,22 @@ function createVault(name: string): VaultMarkerRead {
     coord_y: 40,
     type: 'vault',
     description: 'Unexplored vault signal',
+  }
+}
+
+function createSite(overrides: Partial<ExpeditionSiteMarkerRead> = {}): ExpeditionSiteMarkerRead {
+  return {
+    id: 'site-1',
+    name: 'Red Rocket Gas Station',
+    flavor: 'A roadside fuel stop.',
+    coord_x: 60,
+    coord_y: 70,
+    min_dweller_level: 5,
+    room_total: 3,
+    cleared: false,
+    cooldown_remaining_seconds: 0,
+    block_reason: null,
+    ...overrides,
   }
 }
 
@@ -303,6 +323,70 @@ describe('MarkerListPanel', () => {
       const groups = wrapper.findAll('.marker-group')
       const lastGroup = groups[groups.length - 1]
       expect(lastGroup.classes()).not.toContain('marker-group-vault')
+    })
+  })
+
+  describe('Expedition sites group', () => {
+    it('groups expedition sites under their own group', () => {
+      const wrapper = mount(MarkerListPanel, {
+        props: {
+          locations: [],
+          vaultMarkers: [],
+          expeditionSites: [createSite()],
+          open: true,
+        },
+        global: { stubs: { Icon: IconStub } },
+      })
+
+      expect(wrapper.text()).toContain('Expedition Sites')
+      expect(wrapper.text()).toContain('Red Rocket Gas Station')
+    })
+
+    it('counts expedition sites in the panel total', () => {
+      const wrapper = mount(MarkerListPanel, {
+        props: {
+          locations: [createLocation('origin', 'Megaton')],
+          vaultMarkers: [createVault('Vault 88')],
+          expeditionSites: [createSite()],
+          open: true,
+        },
+        global: { stubs: { Icon: IconStub } },
+      })
+
+      expect(wrapper.find('.panel-count').text()).toBe('3')
+    })
+
+    it('emits marker-select with kind=site when a site row is clicked', async () => {
+      const site = createSite()
+      const wrapper = mount(MarkerListPanel, {
+        props: {
+          locations: [],
+          vaultMarkers: [],
+          expeditionSites: [site],
+          open: true,
+        },
+        global: { stubs: { Icon: IconStub } },
+      })
+
+      await wrapper.findAll('.marker-row')[0].trigger('click')
+
+      expect(wrapper.emitted('marker-select')![0][0]).toEqual({
+        kind: 'site',
+        data: site,
+      })
+    })
+
+    it('renders no expedition group when no sites exist', () => {
+      const wrapper = mount(MarkerListPanel, {
+        props: {
+          locations: [createLocation('origin', 'Megaton')],
+          vaultMarkers: [],
+          open: true,
+        },
+        global: { stubs: { Icon: IconStub } },
+      })
+
+      expect(wrapper.text()).not.toContain('Expedition Sites')
     })
   })
 })

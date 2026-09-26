@@ -1,6 +1,33 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ExplorerSummaryCard from '@/modules/exploration/components/ExplorerSummaryCard.vue'
+import type { Exploration } from '@/modules/exploration/stores/exploration'
+
+const exploration = {
+  id: 'exploration-1',
+  vault_id: 'vault-1',
+  dweller_id: 'dweller-1',
+  status: 'active',
+  duration: 8,
+  start_time: '2026-01-01T00:00:00Z',
+  end_time: null,
+  events: [],
+  loot_collected: [],
+  total_distance: 0,
+  total_caps_found: 0,
+  enemies_encountered: 0,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+  dweller_strength: 1,
+  dweller_perception: 1,
+  dweller_endurance: 1,
+  dweller_charisma: 1,
+  dweller_intelligence: 1,
+  dweller_agility: 1,
+  dweller_luck: 1,
+  stimpaks: 0,
+  radaways: 0,
+} as Exploration
 
 const baseProps = {
   dwellerName: 'Lucy MacLean',
@@ -10,6 +37,7 @@ const baseProps = {
   progressPercentage: 40,
   timeRemaining: '4h 48m',
   explorationDuration: 8,
+  exploration,
 }
 
 function mountCard(props: Record<string, unknown> = {}) {

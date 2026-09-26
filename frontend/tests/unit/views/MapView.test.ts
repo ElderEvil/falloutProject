@@ -6,6 +6,8 @@ import MapView from '@/modules/map/views/MapView.vue'
 import { useMapStore, VIEWED_LOCATIONS_STORAGE_KEY } from '@/modules/map/stores/map'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import type { Exploration } from '@/modules/exploration/stores/exploration'
+import type { ExplorerTrack } from '@/modules/map/models/map'
 
 vi.mock('@/modules/map/services/mapService', () => ({
   getVaultMap: vi.fn().mockResolvedValue({ locations: [], vault_markers: [] }),
@@ -62,6 +64,35 @@ const mockLocation2 = {
 describe('MapView', () => {
   let mapStore: ReturnType<typeof useMapStore>
 
+  function exploration(overrides: Partial<Exploration> = {}): Exploration {
+    return {
+      id: 'expl-1',
+      vault_id: 'vault-1',
+      dweller_id: 'dweller-1',
+      status: 'active',
+      duration: 4,
+      start_time: '2026-01-01T00:00:00Z',
+      end_time: null,
+      events: [],
+      loot_collected: [],
+      total_distance: 0,
+      total_caps_found: 0,
+      enemies_encountered: 0,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      dweller_strength: 1,
+      dweller_perception: 1,
+      dweller_endurance: 1,
+      dweller_charisma: 1,
+      dweller_intelligence: 1,
+      dweller_agility: 1,
+      dweller_luck: 1,
+      stimpaks: 0,
+      radaways: 0,
+      ...overrides,
+    }
+  }
+
   beforeEach(() => {
     localStorage.setItem('token', 'test-token')
     localStorage.setItem(
@@ -86,7 +117,7 @@ describe('MapView', () => {
           WorldMap: {
             name: 'WorldMap',
             template: '<div class="world-map-stub"></div>',
-            props: ['locations', 'vaultMarkers'],
+            props: ['locations', 'vaultMarkers', 'explorerTracks'],
           },
           MarkerDetailModal: {
             name: 'MarkerDetailModal',
@@ -301,6 +332,39 @@ describe('MapView', () => {
       resolveDispatch({ id: 'expl-1' })
       await flushPromises()
       expect(mapStore.refreshMap).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('Explorer tracking scoping', () => {
+    it('excludes active explorations from other vaults', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      const explorationStore = useExplorationStore()
+      // A stale run from the previous vault targets a location that exists on
+      // this map; it must not surface as an "exploring" track.
+      explorationStore.explorations = [
+        exploration({
+          id: 'expl-other',
+          vault_id: 'vault-2',
+          dweller_id: 'dweller-9',
+          target_location_id: 'loc-1',
+        }),
+        exploration({
+          id: 'expl-own',
+          vault_id: 'vault-1',
+          dweller_id: 'dweller-1',
+          target_location_id: 'loc-1',
+        }),
+      ]
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      const worldMap = wrapper.findComponent({ name: 'WorldMap' })
+      const tracks = worldMap.props('explorerTracks') as ExplorerTrack[]
+      expect(tracks).toHaveLength(1)
+      expect(tracks[0].explorationId).toBe('expl-own')
     })
   })
 })

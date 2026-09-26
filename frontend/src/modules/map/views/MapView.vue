@@ -16,7 +16,13 @@ import WorldMap from '../components/WorldMap.vue'
 import MarkerDetailModal from '../components/MarkerDetailModal.vue'
 import PartySelectionModal from '@/modules/progression/components/PartySelectionModal.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
-import type { WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
+import type {
+  ExpeditionSiteMarkerRead,
+  ExplorerTrack,
+  WastelandLocationWithDwellers,
+  VaultMarkerRead,
+} from '../models/map'
+import { buildExplorerTracks } from '../utils/explorerTracks'
 
 const authStore = useAuthStore()
 const mapStore = useMapStore()
@@ -33,6 +39,29 @@ const vaultId = computed(() => route.params.id as string)
 const showModal = ref(false)
 const selectedLocation = ref<WastelandLocationWithDwellers | null>(null)
 const selectedVaultMarker = ref<VaultMarkerRead | null>(null)
+const selectedSite = ref<ExpeditionSiteMarkerRead | null>(null)
+
+// Explorer tracking: active runs projected onto the map. Dispatched runs mark
+// their target location; free-roam runs surface at the last discovery point.
+const dwellerNames = computed(() => {
+  const names = new Map<string, string>()
+  for (const dweller of dwellerStore.dwellers) {
+    if (!dweller.first_name) continue
+    names.set(dweller.id, `${dweller.first_name} ${dweller.last_name ?? ''}`.trim())
+  }
+  return names
+})
+
+const explorerTracks = computed<ExplorerTrack[]>(() =>
+  buildExplorerTracks(
+    // The store can still hold the previous vault's active runs after a vault
+    // switch; target_location_id references shared WorldLocation rows, so a
+    // stale run could match a location on the new map. Scope to this vault.
+    explorationStore.explorations.filter((e) => e.vault_id === vaultId.value),
+    mapStore.discoveryRoutes,
+    dwellerNames.value
+  )
+)
 
 // Dispatch picker state (issue 772, phase 4b)
 const showDispatchModal = ref(false)
@@ -82,19 +111,27 @@ function handleMarkerClick(
   payload:
     | { kind: 'location'; data: WastelandLocationWithDwellers }
     | { kind: 'vault'; data: VaultMarkerRead }
+    | { kind: 'site'; data: ExpeditionSiteMarkerRead }
 ) {
   if (payload.kind === 'location') {
     selectedLocation.value = payload.data
     selectedVaultMarker.value = null
+    selectedSite.value = null
     mapStore.markLocationViewed(payload.data.vault_id, payload.data.id)
     // Symmetric deep-link: a clicked marker owns ?place= so the URL is
     // shareable and survives reload; the ?place= watcher opens the modal.
     if (route.query.place !== payload.data.id) {
       void router.push({ query: { ...route.query, place: payload.data.id } })
     }
+  } else if (payload.kind === 'site') {
+    selectedLocation.value = null
+    selectedVaultMarker.value = null
+    selectedSite.value = payload.data
+    clearPlaceQuery()
   } else {
     selectedLocation.value = null
     selectedVaultMarker.value = payload.data
+    selectedSite.value = null
     clearPlaceQuery()
   }
   showModal.value = true
@@ -140,6 +177,18 @@ watch(
   () => route.query.place,
   () => {
     tryOpenPlaceFromQuery()
+  }
+)
+
+// Explorer tracking rides the existing 30s map poll: every poll replaces the
+// locations array, so this watcher re-syncs active explorations (targets and
+// discovery trails) without any new polling or SSE wiring.
+watch(
+  () => mapStore.locations,
+  () => {
+    if (vaultId.value && authStore.token) {
+      explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token).catch(() => {})
+    }
   }
 )
 
@@ -219,6 +268,8 @@ const mapPaneHeight = 'var(--map-pane-size)'
             :locations="mapStore.locations"
             :vault-markers="mapStore.vaultMarkers"
             :discovery-routes="mapStore.discoveryRoutes"
+            :expedition-sites="mapStore.expeditionSites"
+            :explorer-tracks="explorerTracks"
             @marker-click="handleMarkerClick"
           />
 
@@ -227,6 +278,7 @@ const mapPaneHeight = 'var(--map-pane-size)'
             v-model="showModal"
             :location="selectedLocation"
             :vault-marker="selectedVaultMarker"
+            :site="selectedSite"
             @dispatch="handleDispatchRequest"
           />
 

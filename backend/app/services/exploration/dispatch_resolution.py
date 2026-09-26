@@ -117,27 +117,31 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
                 )
             if deaths:
                 apply_party_haul_loss(exploration, party_size, deaths)
-        state.cleared_at = now
-        state.reclear_available_at = now + timedelta(hours=group["reclear_hours"])
-        state.clear_count += 1
-        db_session.add(state)
+        # Aggregate power can clear the victory threshold while the lethal tier
+        # still wipes the party, so a wipe means nobody is left to hold the
+        # clear: the point stays uncleared and the loot rolls are dropped below.
+        if deaths < party_size:
+            state.cleared_at = now
+            state.reclear_available_at = now + timedelta(hours=group["reclear_hours"])
+            state.clear_count += 1
+            db_session.add(state)
 
-        vault = await vault_crud.get_or_none(db_session, exploration.vault_id)
-        if vault is not None:
-            await notification_service.create_and_send(
-                db_session,
-                user_id=vault.user_id,
-                vault_id=vault.id,
-                notification_type=NotificationType.LOCATION_CLEARED,
-                priority=NotificationPriority.NORMAL,
-                title=f"{location.name} cleared",
-                message=f"{location.name} has been cleared. It will be ready to loot again soon.",
-                meta_data={
-                    "location_id": str(state.location_id),
-                    "location_name": location.name,
-                },
-                commit=False,
-            )
+            vault = await vault_crud.get_or_none(db_session, exploration.vault_id)
+            if vault is not None:
+                await notification_service.create_and_send(
+                    db_session,
+                    user_id=vault.user_id,
+                    vault_id=vault.id,
+                    notification_type=NotificationType.LOCATION_CLEARED,
+                    priority=NotificationPriority.NORMAL,
+                    title=f"{location.name} cleared",
+                    message=f"{location.name} has been cleared. It will be ready to loot again soon.",
+                    meta_data={
+                        "location_id": str(state.location_id),
+                        "location_name": location.name,
+                    },
+                    commit=False,
+                )
 
     db_session.add(exploration)
     # Flush the loot/clear-state work before the return leg re-locks the run:

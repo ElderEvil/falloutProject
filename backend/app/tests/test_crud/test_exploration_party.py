@@ -120,3 +120,33 @@ async def test_get_in_progress_for_dwellers_empty_for_unknown_ids(async_session:
 
     assert await crud.exploration.get_in_progress_for_dwellers(async_session, [uuid4()]) == []
     assert await crud.exploration.get_in_progress_for_dwellers(async_session, []) == []
+
+
+@pytest.mark.asyncio
+async def test_get_in_progress_for_dwellers_finds_run_for_non_anchor_member(async_session: AsyncSession) -> None:
+    """A party member stored only in the team roster still resolves their open run."""
+    vault, dwellers = await _vault_with_dwellers(async_session, 3)
+    exploration = await _create_exploration(async_session, vault, dwellers[0])
+    team = await _dispatch_team(async_session, vault, exploration, dwellers)
+    exploration.team_id = team.id
+    async_session.add(exploration)
+    await async_session.commit()
+
+    assert exploration.dweller_id == dwellers[0].id
+    runs = await crud.exploration.get_in_progress_for_dwellers(async_session, [dwellers[2].id])
+
+    assert [run.id for run in runs] == [exploration.id]
+
+
+@pytest.mark.asyncio
+async def test_get_in_progress_for_dwellers_skips_finished_party_run(async_session: AsyncSession) -> None:
+    """Party membership does not resurrect a run that already left the open statuses."""
+    vault, dwellers = await _vault_with_dwellers(async_session, 2)
+    exploration = await _create_exploration(async_session, vault, dwellers[0])
+    team = await _dispatch_team(async_session, vault, exploration, dwellers)
+    exploration.team_id = team.id
+    exploration.status = ExplorationStatus.COMPLETED
+    async_session.add(exploration)
+    await async_session.commit()
+
+    assert await crud.exploration.get_in_progress_for_dwellers(async_session, [dwellers[1].id]) == []

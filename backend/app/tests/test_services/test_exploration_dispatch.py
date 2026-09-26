@@ -107,6 +107,11 @@ async def _make_dweller(async_session: AsyncSession, vault: Vault, dweller_data:
     )
 
 
+async def _reloaded(async_session: AsyncSession, dwellers: list[Dweller]) -> list[Dweller]:
+    """Re-read dwellers with equipment eager-loaded so combat_power resolves off-session."""
+    return [await crud.dweller.get_with_equipment(async_session, dweller.id) for dweller in dwellers]
+
+
 # ---------------------------------------------------------------------------
 # dispatch_travel_hours
 # ---------------------------------------------------------------------------
@@ -652,6 +657,49 @@ async def test_dispatch_arrival_party_wipe(
     assert exploration.total_caps_found == 0
     assert dweller.is_dead
     assert partner.is_dead
+
+
+@pytest.mark.asyncio
+async def test_dispatch_arrival_winning_party_wiped_leaves_point_uncleared(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
+) -> None:
+    """A party that wins the fight but dies to the lethal tier never clears the point.
+
+    Aggregate power can clear the victory threshold while every member still
+    drops to 0 health, so ``victory`` alone is not evidence the place was looted.
+    """
+    location, state = await _register_clearable(async_session, vault, dweller)
+    await _boost_dweller(async_session, dweller, **{**STRONG_STATS, "health": 1})
+    partner = await _make_dweller(async_session, vault, dweller_data, **{**STRONG_STATS, "health": 1})
+    state.clear_count = 2  # tier 2: lethal, yet two strong members still beat the threat
+    async_session.add(state)
+    await async_session.commit()
+    exploration = await _expired_party_dispatch(async_session, vault, [dweller, partner], location.id)
+
+    difficulty = min(5, 2 + 2)  # gas_station base_difficulty 2 + tier 2
+    assert resolve_party_combat(await _reloaded(async_session, [dweller, partner]), difficulty)[0] is True
+
+    await resolve_dispatch_arrival(async_session, exploration.id)
+
+    await async_session.refresh(exploration)
+    await async_session.refresh(state)
+    assert dweller.is_dead
+    assert partner.is_dead
+    assert state.cleared_at is None
+    assert state.reclear_available_at is None
+    assert state.clear_count == 2
+    assert exploration.loot_collected == []
+    assert exploration.total_caps_found == 0
+    notifications = (
+        (
+            await async_session.execute(
+                select(Notification).where(Notification.notification_type == NotificationType.LOCATION_CLEARED)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert notifications == []
 
 
 # ---------------------------------------------------------------------------

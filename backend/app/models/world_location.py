@@ -100,9 +100,13 @@ class VaultLocationState(BaseUUIDModel, VaultLocationStateBase, TimeStampMixin, 
             return 0
         return max(0, int((self.reclear_available_at - now).total_seconds()))
 
-    def is_dispatchable(self, *, clearable: bool, now: datetime) -> bool:
-        """True when the place group allows clears and the point is not currently cleared."""
-        return clearable and not self.is_cleared(now)
+    def is_dispatchable(self, now: datetime) -> bool:
+        """True when the point is not currently cleared.
+
+        Group clearability is the caller's concern (checked against the place
+        group before dispatch); this only reflects the per-vault clear window.
+        """
+        return not self.is_cleared(now)
 
 
 class DwellerLocationBase(SQLModel):

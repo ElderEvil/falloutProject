@@ -13,6 +13,7 @@ vi.mock('@/modules/map/services/mapService', () => ({
 }))
 
 const mockPush = vi.fn()
+const mockReplace = vi.fn()
 
 // Reactive route mock so tests can mutate route.query.place after mount and
 // exercise the `watch(() => route.query.place, ...)` in MapView.vue.
@@ -23,7 +24,7 @@ const mockRoute = reactive({
 
 vi.mock('vue-router', () => ({
   useRoute: () => mockRoute,
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace }),
 }))
 
 vi.mock('@/core/composables/useSidePanel', () => ({
@@ -83,6 +84,7 @@ describe('MapView', () => {
           PageHeader: true,
           USkeleton: true,
           WorldMap: {
+            name: 'WorldMap',
             template: '<div class="world-map-stub"></div>',
             props: ['locations', 'vaultMarkers'],
           },
@@ -187,6 +189,81 @@ describe('MapView', () => {
 
       expect(mapStore.isLocationViewed('vault-1', 'loc-1')).toBe(true)
       expect(mapStore.hasUnseenDiscoveries).toBe(false)
+    })
+
+    it('should push ?place= when a marker is clicked and ignore the watcher echo', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation, mockLocation2]
+      mapStore.isLoading = false
+      const viewedSpy = vi.spyOn(mapStore, 'markLocationViewed')
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      const worldMap = wrapper.findComponent({ name: 'WorldMap' })
+      worldMap.vm.$emit('marker-click', { kind: 'location', data: mockLocation })
+      await flushPromises()
+
+      expect(mockPush).toHaveBeenCalledWith({ query: { place: 'loc-1' } })
+      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      expect(modal.props('modelValue')).toBe(true)
+
+      // Simulate the router applying the pushed query: the watcher echo must
+      // not re-open or double-count the already-open location.
+      mockRoute.query = { place: 'loc-1' }
+      await flushPromises()
+
+      expect(viewedSpy).toHaveBeenCalledTimes(1)
+      expect(mockPush).toHaveBeenCalledTimes(1)
+    })
+
+    it('should not push a duplicate entry when ?place= already matches', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation, mockLocation2]
+      mapStore.isLoading = false
+
+      mockRoute.query = { place: 'loc-1' }
+      mountView()
+      await flushPromises()
+
+      expect(mockPush).not.toHaveBeenCalled()
+    })
+
+    it('should clear ?place= when the modal closes', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation, mockLocation2]
+      mapStore.isLoading = false
+
+      mockRoute.query = { place: 'loc-1' }
+      const wrapper = mountView()
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      expect(modal.props('modelValue')).toBe(true)
+
+      modal.vm.$emit('update:modelValue', false)
+      await flushPromises()
+
+      expect(mockReplace).toHaveBeenCalledWith({ query: {} })
+    })
+
+    it('should clear ?place= when a vault marker is clicked', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation, mockLocation2]
+      mapStore.isLoading = false
+
+      mockRoute.query = { place: 'loc-1' }
+      const wrapper = mountView()
+      await flushPromises()
+
+      const worldMap = wrapper.findComponent({ name: 'WorldMap' })
+      worldMap.vm.$emit('marker-click', { kind: 'vault', data: { id: 'vm-1' } })
+      await flushPromises()
+
+      expect(mockReplace).toHaveBeenCalledWith({ query: {} })
+      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      expect(modal.props('modelValue')).toBe(true)
+      expect(modal.props('vaultMarker')).toEqual({ id: 'vm-1' })
     })
   })
 

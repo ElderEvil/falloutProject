@@ -447,6 +447,10 @@ class MapService:
                 priority=NotificationPriority.NORMAL,
                 title=f"{location.name} ready",
                 message=f"{location.name} is ready to be cleared again.",
+                meta_data={
+                    "location_id": str(state.location_id),
+                    "location_name": location.name,
+                },
                 commit=False,
             )
         await db_session.commit()

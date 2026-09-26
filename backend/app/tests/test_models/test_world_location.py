@@ -260,8 +260,7 @@ class TestVaultLocationStateClearHelpers:
         now = datetime(2026, 9, 26, 12, 0, 0)
         assert state.is_cleared(now) is False
         assert state.time_remaining_seconds(now) == 0
-        assert state.is_dispatchable(clearable=True, now=now) is True
-        assert state.is_dispatchable(clearable=False, now=now) is False
+        assert state.is_dispatchable(now) is True
 
     def test_cleared_before_available(self) -> None:
         """now < reclear_available_at: cleared, positive time remaining, not dispatchable."""
@@ -276,8 +275,7 @@ class TestVaultLocationStateClearHelpers:
         )
         assert state.is_cleared(now) is True
         assert state.time_remaining_seconds(now) == 5 * 3600
-        assert state.is_dispatchable(clearable=True, now=now) is False
-        assert state.is_dispatchable(clearable=False, now=now) is False
+        assert state.is_dispatchable(now) is False
 
     def test_cleared_at_available_boundary(self) -> None:
         """now == reclear_available_at: no longer cleared, zero time remaining."""
@@ -292,10 +290,10 @@ class TestVaultLocationStateClearHelpers:
         )
         assert state.is_cleared(now) is False
         assert state.time_remaining_seconds(now) == 0
-        assert state.is_dispatchable(clearable=True, now=now) is True
+        assert state.is_dispatchable(now) is True
 
     def test_cleared_after_available(self) -> None:
-        """now > reclear_available_at: available again, dispatchable when group allows."""
+        """now > reclear_available_at: available again, dispatchable."""
         now = datetime(2026, 9, 26, 12, 0, 0)
         state = VaultLocationState(
             vault_id=uuid4(),
@@ -307,8 +305,7 @@ class TestVaultLocationStateClearHelpers:
         )
         assert state.is_cleared(now) is False
         assert state.time_remaining_seconds(now) == 0
-        assert state.is_dispatchable(clearable=True, now=now) is True
-        assert state.is_dispatchable(clearable=False, now=now) is False
+        assert state.is_dispatchable(now) is True
 
 
 class TestDwellerLocationModel:

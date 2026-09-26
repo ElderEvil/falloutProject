@@ -833,10 +833,9 @@ class DispatchConfig(BaseSettings):
 
     max_party_size: int = Field(default=3, ge=1, description="Max dwellers per dispatch")
     escalation_cap: int = Field(default=3, ge=0, description="Max difficulty/reward escalation tiers")
-    difficulty_per_tier: float = Field(default=0.5, ge=0.0, description="Difficulty added per escalation tier")
     reward_per_tier: float = Field(default=0.35, ge=0.0, description="Reward multiplier added per escalation tier")
-    base_travel_seconds: int = Field(default=1800, ge=0, description="Base travel time for a dispatch")
-    travel_seconds_per_unit: int = Field(default=120, ge=0, description="Travel time per distance unit")
+    base_travel_hours: int = Field(default=1, ge=0, description="Base travel time for a dispatch, in whole hours")
+    travel_hours_per_unit: float = Field(default=0.1, ge=0.0, description="Travel hours added per distance unit")
 
     # Deterministic combat (issue 772): threat = difficulty * power_per_difficulty,
     # victory when the party's total combat power meets it; damage = difficulty *

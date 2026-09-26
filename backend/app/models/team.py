@@ -62,6 +62,13 @@ class Team(BaseUUIDModel, TimeStampMixin, table=True):
         index=True,
         description="Standing hazard team this roster holds, when hazard-purposed",
     )
+    # ADR: dispatch parties reuse the Team roster instead of a JSON party list.
+    # One party mechanism for every purpose (quest/incident/hazard/dispatch)
+    # keeps slot order (slot_number 1..N, anchor first) and the existing schema
+    # guards (one dweller per slot, one team per exploration) for free. Cost:
+    # the anchor is tracked twice (exploration.dweller_id + team slot 1), a team
+    # row exists per dispatch even for solo runs, and the team is deleted at
+    # finalize.
     # Deliberately a plain UUID, NOT a foreign key: a real FK would create a
     # team -> exploration -> team cycle that breaks SQLModel.metadata.create_all
     # on SQLite (the test suite's schema builder). Integrity is app-enforced —

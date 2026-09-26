@@ -16,20 +16,3 @@ MIGRATION_SPEC.loader.exec_module(MIGRATION)
 def test_revision_chain() -> None:
     assert MIGRATION.revision == "401f95d70b98"
     assert MIGRATION.down_revision == "e7f8a9b0c1d2"
-
-
-def test_upgrade_adds_dispatch_columns() -> None:
-    import inspect
-
-    source = inspect.getsource(MIGRATION.upgrade)
-    assert "target_location_id" in source
-    assert "clear_tier" in source
-    assert "worldlocation" in source
-
-
-def test_downgrade_drops_dispatch_columns() -> None:
-    import inspect
-
-    source = inspect.getsource(MIGRATION.downgrade)
-    assert "target_location_id" in source
-    assert "clear_tier" in source

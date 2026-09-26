@@ -56,14 +56,17 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
     if group is None or not group.get("clearable"):
         await exploration_coordinator.start_return(db_session, exploration_id)
         return
-    if not state.is_dispatchable(clearable=True, now=datetime.utcnow()):
+    now = datetime.utcnow()
+    if not state.is_dispatchable(now):
         await exploration_coordinator.start_return(db_session, exploration_id)
         return
 
-    if exploration.clear_tier is not None:
-        tier = exploration.clear_tier
-    else:
-        tier = min(state.clear_count, game_config.exploration.dispatch.escalation_cap)
+    # Dispatch always snapshots clear_tier; fall back to the escalation cap for legacy NULL rows.
+    tier = (
+        exploration.clear_tier
+        if exploration.clear_tier is not None
+        else min(state.clear_count, game_config.exploration.dispatch.escalation_cap)
+    )
     difficulty = min(5, group["base_difficulty"] + tier)
 
     if exploration.team_id is not None:
@@ -114,7 +117,6 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
                 )
             if deaths:
                 apply_party_haul_loss(exploration, party_size, deaths)
-        now = datetime.utcnow()
         state.cleared_at = now
         state.reclear_available_at = now + timedelta(hours=group["reclear_hours"])
         state.clear_count += 1
@@ -130,6 +132,10 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
                 priority=NotificationPriority.NORMAL,
                 title=f"{location.name} cleared",
                 message=f"{location.name} has been cleared. It will be ready to loot again soon.",
+                meta_data={
+                    "location_id": str(state.location_id),
+                    "location_name": location.name,
+                },
                 commit=False,
             )
 

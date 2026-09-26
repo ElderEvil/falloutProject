@@ -169,6 +169,10 @@ class ExplorationCoordinator:
 
         dweller_obj = await dweller_crud.get(db_session, dweller_id)
 
+        if dweller_obj.is_dead:
+            # Dead dwellers never get a status restore (a wipe must not revive the anchor's status).
+            return
+
         if dweller_obj.room_id:
             # Dweller has a room - set status based on room type
             from app.crud.room import room as room_crud
@@ -185,11 +189,10 @@ class ExplorationCoordinator:
         """Restore the dweller's room-appropriate status after exploration."""
         if exploration.team_id is not None:
             members = await team_crud.get_exploration_team_dwellers(db_session, exploration.id)
-            living_ids = [member.id for member in members if not member.is_dead]
-            if living_ids:
-                for dweller_id in living_ids:
-                    await self._restore_dweller_status(db_session, dweller_id)
-                return
+            for member in members:
+                if not member.is_dead:
+                    await self._restore_dweller_status(db_session, member.id)
+            return
         await self._restore_dweller_status(db_session, exploration.dweller_id)
 
 

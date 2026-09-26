@@ -23,11 +23,21 @@ def resolve_party_combat(members: list[Dweller], difficulty: int) -> tuple[bool,
 
 
 def distribute_damage(total_damage: int, party_size: int) -> list[int]:
-    """Split damage across the party; the anchor absorbs any remainder."""
+    """Split damage across the party; shares always sum to exactly total_damage.
+
+    Base share is ``total // size``; the first ``remainder`` members take one
+    extra point so the split is as even as possible, and the anchor (slot 0)
+    absorbs any leftover so the sum is exact even when ``total < size``.
+    Shares are non-negative ints; ``total == 0`` yields all zeros.
+    """
     size = max(1, party_size)
-    per_member = max(1, total_damage // size)
-    shares = [per_member] * size
-    shares[0] = max(0, shares[0] + (total_damage - per_member * size))
+    if total_damage <= 0:
+        return [0] * size
+    base = total_damage // size
+    remainder = total_damage - base * size
+    shares = [base] * size
+    for i in range(remainder):
+        shares[i] += 1
     return shares
 
 

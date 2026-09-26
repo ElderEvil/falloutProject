@@ -20,7 +20,7 @@ from app.models.world_location import VaultLocationState, WorldLocation
 from app.schemas.dweller import DwellerCreate
 from app.schemas.exploration_event import CombatOutcomeSchema
 from app.services.exploration.dispatch_resolution import resolve_dispatch_arrival
-from app.services.exploration.party_resolution import resolve_party_combat
+from app.services.exploration.party_resolution import distribute_damage, resolve_party_combat
 from app.services.exploration_service import dispatch_travel_hours, exploration_service
 from app.services.game_tick.dwellers_tick import process_explorations
 from app.services.map_service import map_service
@@ -113,12 +113,14 @@ async def _make_dweller(async_session: AsyncSession, vault: Vault, dweller_data:
 
 
 def test_dispatch_travel_hours_floor_and_cap() -> None:
-    """Travel is whole hours: 1h floor, 24h cap, ceil on the raw seconds."""
+    """Travel is whole hours: 1h floor, 24h cap, ceil on the raw hours."""
     assert dispatch_travel_hours(0) == 1
-    assert dispatch_travel_hours(1) == 1
-    assert dispatch_travel_hours(15) == 1  # 1800 + 15*120 = 3600s exactly
-    assert dispatch_travel_hours(16) == 2  # 3720s -> ceil(1.03)
-    assert dispatch_travel_hours(690) == 24  # 84600s -> ceil(23.5)
+    assert dispatch_travel_hours(1) == 2  # 1 + 0.1*1 = 1.1h -> ceil(1.1)
+    assert dispatch_travel_hours(9) == 2  # 1 + 0.1*9 = 1.9h -> ceil(1.9)
+    assert dispatch_travel_hours(10) == 2  # 1 + 0.1*10 = 2.0h exactly
+    assert dispatch_travel_hours(11) == 3  # 2.1h -> ceil(2.1)
+    assert dispatch_travel_hours(230) == 24  # 1 + 0.1*230 = 24.0h exactly
+    assert dispatch_travel_hours(231) == 24  # 24.1h -> capped
     assert dispatch_travel_hours(1000) == 24  # capped
 
 
@@ -294,6 +296,10 @@ async def test_dispatch_arrival_win_notifies_location_cleared(
     assert notifications[0].user_id == vault.user_id
     assert notifications[0].vault_id == vault.id
     assert "Red Rocket" in notifications[0].title
+    assert notifications[0].meta_data == {
+        "location_id": str(location.id),
+        "location_name": "Red Rocket",
+    }
 
 
 @pytest.mark.asyncio
@@ -670,6 +676,59 @@ async def test_dispatch_arrival_party_wipe(
     assert exploration.total_caps_found == 0
     assert dweller.is_dead
     assert partner.is_dead
+
+
+# ---------------------------------------------------------------------------
+# party damage distribution (phase 3)
+# ---------------------------------------------------------------------------
+
+
+def test_distribute_damage_sums_to_total() -> None:
+    """Shares always sum to exactly the total, even when total < size."""
+    for total, size in [(1, 3), (2, 3), (5, 3), (0, 3), (7, 3), (10, 4), (3, 1)]:
+        shares = distribute_damage(total, size)
+        assert len(shares) == size
+        assert sum(shares) == total
+        assert all(share >= 0 for share in shares)
+
+
+def test_distribute_damage_zero_total_is_all_zeros() -> None:
+    """total=0 yields a zero share for every member."""
+    assert distribute_damage(0, 3) == [0, 0, 0]
+
+
+@pytest.mark.asyncio
+async def test_finalize_wipe_restores_no_one(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
+) -> None:
+    """A wiped party finalizes without restoring any dead dweller's status."""
+    location, state = await _register_clearable(async_session, vault, dweller)
+    await _boost_dweller(async_session, dweller, **{**WEAK_STATS, "health": 1})
+    partner = await _make_dweller(async_session, vault, dweller_data, **{**WEAK_STATS, "health": 1})
+    state.clear_count = 5  # tier snaps to the cap: far beyond a weak party
+    async_session.add(state)
+    await async_session.commit()
+    exploration = await _expired_party_dispatch(async_session, vault, [dweller, partner], location.id)
+
+    await resolve_dispatch_arrival(async_session, exploration.id)
+
+    await async_session.refresh(dweller)
+    await async_session.refresh(partner)
+    assert dweller.is_dead
+    assert partner.is_dead
+
+    exploration.return_started_at = datetime.utcnow() - timedelta(hours=10)
+    exploration.return_completes_at = datetime.utcnow() - timedelta(hours=1)
+    async_session.add(exploration)
+    await async_session.commit()
+    await exploration_service.finalize_return(async_session, exploration.id)
+
+    await async_session.refresh(dweller)
+    await async_session.refresh(partner)
+    assert dweller.is_dead
+    assert partner.is_dead
+    assert dweller.status.value == "dead"
+    assert partner.status.value == "dead"
 
 
 @pytest.mark.asyncio

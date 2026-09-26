@@ -45,8 +45,8 @@ def dispatch_travel_hours(distance: float) -> int:
     distance cost, rounded up, and clamped to the exploration duration bounds.
     """
     cfg = game_config.exploration.dispatch
-    total_seconds = cfg.base_travel_seconds + cfg.travel_seconds_per_unit * distance
-    return max(1, min(24, math.ceil(total_seconds / 3600)))
+    total_hours = cfg.base_travel_hours + cfg.travel_hours_per_unit * distance
+    return max(1, min(24, math.ceil(total_hours)))
 
 
 class ExplorationService:
@@ -318,7 +318,7 @@ class ExplorationService:
         if group is None or not group.get("clearable"):
             raise ValidationException("This location cannot be cleared")
 
-        if not state.is_dispatchable(clearable=True, now=datetime.utcnow()):
+        if not state.is_dispatchable(datetime.utcnow()):
             raise ValidationException("This location is currently cleared")
 
         distance = math.dist(VAULT_HOME_POINT, (location.coord_x, location.coord_y))

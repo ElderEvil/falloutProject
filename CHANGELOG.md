@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.145.0 (2026-09-26)
+
+### Features
+
+* **map:** clear-state data, config, and wire for clearable map points ([#793](https://github.com/ElderEvil/falloutProject/issues/793)) 411ca67
+
 ## 2.144.1 (2026-09-25)
 
 ### Bug Fixes

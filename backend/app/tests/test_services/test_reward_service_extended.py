@@ -15,9 +15,11 @@ from app.models.quest import Quest
 from app.models.quest_reward import QuestReward, RewardType
 from app.models.storage import Storage
 from app.schemas.common import GenderEnum, RarityEnum
+from app.schemas.dweller import DwellerCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.reward_service import reward_service
+from app.tests.factory.dwellers import create_fake_adult_dweller
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
@@ -672,3 +674,58 @@ async def test_lunchbox_template_picks_are_distinct(async_session: AsyncSession)
     assert first["dweller"]["name"] != second["dweller"]["name"]
     remaining = (await async_session.execute(select(Item))).scalars().all()
     assert [item.item_type for item in remaining] == []
+
+
+async def _vault_at_capacity(async_session: AsyncSession):
+    """A vault holding exactly one living dweller at a cap of one."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    vault.population_max = 1
+    async_session.add(vault)
+    await crud.dweller.create(async_session, obj_in=DwellerCreate(**create_fake_adult_dweller(), vault_id=vault.id))
+    await async_session.commit()
+    return vault
+
+
+@pytest.mark.asyncio
+async def test_dweller_reward_at_capacity_is_refused(async_session: AsyncSession) -> None:
+    """A quest/objective dweller reward is refused at the cap, leaving the vault unchanged."""
+    vault = await _vault_at_capacity(async_session)
+
+    with pytest.raises(ResourceConflictException, match="population capacity"):
+        await reward_service._process_single_reward(
+            async_session, vault.id, RewardType.DWELLER, {"first_name": "Newcomer", "rarity": "common"}
+        )
+
+    assert await crud.dweller.count_living_in_vault(async_session, vault.id) == 1
+
+
+@pytest.mark.asyncio
+async def test_item_to_dweller_reward_at_capacity_is_refused(async_session: AsyncSession) -> None:
+    """A dweller item reward is refused at the cap."""
+    vault = await _vault_at_capacity(async_session)
+
+    with pytest.raises(ResourceConflictException, match="population capacity"):
+        await reward_service.grant_item(
+            async_session, vault.id, {"item_type": "dweller", "item_name": "Sarah Lyons", "rarity": "legendary"}
+        )
+
+    assert await crud.dweller.count_living_in_vault(async_session, vault.id) == 1
+
+
+@pytest.mark.asyncio
+async def test_lunchbox_dweller_at_capacity_is_refused_and_box_kept(async_session: AsyncSession) -> None:
+    """Opening a lunchbox at the cap is refused and the box survives the rollback."""
+    vault = await _vault_at_capacity(async_session)
+    vault_id = vault.id
+    async_session.add(Storage(vault_id=vault_id, max_space=100))
+    await async_session.commit()
+    minted = await reward_service.grant_lunchbox(async_session, vault_id)
+
+    with pytest.raises(ResourceConflictException, match="population capacity"):
+        await reward_service.open_lunchbox(async_session, vault_id, UUID(minted["item_id"]))
+
+    await async_session.rollback()
+    assert await crud.dweller.count_living_in_vault(async_session, vault_id) == 1
+    remaining = (await async_session.execute(select(Item))).scalars().all()
+    assert [item.item_type for item in remaining] == ["lunchbox"]

@@ -235,8 +235,13 @@ class RewardService:
         self, db_session: AsyncSession, vault_id: UUID4, dweller_template: dict[str, Any]
     ) -> dict[str, Any]:
         from app.core.enums import RarityEnum
+        from app.crud.vault import vault as vault_crud
         from app.schemas.dweller import STATS_RANGE_BY_RARITY
         from app.utils.static_data import game_data_store
+
+        vault, population = await vault_crud.lock_population_for_update(db_session, vault_id)
+        if vault_crud.population_limit_reached(vault.population_max, population):
+            raise ResourceConflictException(f"Vault population capacity reached ({population}/{vault.population_max})")
 
         if template_id := dweller_template.get("template_id"):
             template = game_data_store.get_dweller(template_id)

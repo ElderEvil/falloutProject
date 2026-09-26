@@ -91,6 +91,8 @@ interface RunOptions {
   errorMessage?: string
   refreshVault?: boolean
   onSuccess?: () => void
+  /** Skip the post-action detail refetch (destructive actions: the record is gone). */
+  refetch?: boolean
 }
 
 /**
@@ -184,7 +186,7 @@ export function useDwellerDetail(
     if (opts.flag) opts.flag.value = true
     try {
       await action()
-      await refetch()
+      if (opts.refetch !== false) await refetch()
       if (opts.refreshVault) await vaultStore.refreshVault(vaultId.value, authStore.token as string)
       opts.onSuccess?.()
     } catch {
@@ -442,6 +444,8 @@ export function useDwellerDetail(
       {
         flag: softDeleting,
         errorMessage: 'Failed to soft-delete dweller',
+        // The record is gone: refetching would 404 and toast.
+        refetch: false,
         onSuccess: onBack,
       }
     )

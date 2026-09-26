@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.149.0 (2026-09-26)
+
+### Features
+
+* **map:** party dispatch and settlement ([#797](https://github.com/ElderEvil/falloutProject/issues/797)) 5470667
+
 ## 2.148.0 (2026-09-26)
 
 ### Features

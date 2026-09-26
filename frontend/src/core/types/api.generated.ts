@@ -1341,6 +1341,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/explorations/dispatch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dispatch Dweller
+         * @description Send a dweller to clear a specific map point.
+         *
+         *     Returns:
+         *         ExplorationRead: The created targeted exploration.
+         *
+         *     Raises:
+         *         ResourceNotFoundException: If the dweller or location is unknown to this vault.
+         *         ValidationException: If the dweller cannot go or the point cannot be cleared.
+         */
+        post: operations["dispatch_dweller_api_v1_explorations_dispatch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/explorations/vault/{vault_id}": {
         parameters: {
             query?: never;
@@ -6786,6 +6813,22 @@ export interface components {
             requested_at?: string | null;
         };
         /**
+         * ExpeditionDispatchRequest
+         * @description Schema for dispatching a dweller to clear a specific map point.
+         */
+        ExpeditionDispatchRequest: {
+            /**
+             * Dweller Id
+             * Format: uuid4
+             */
+            dweller_id: string;
+            /**
+             * Location Id
+             * Format: uuid4
+             */
+            location_id: string;
+        };
+        /**
          * ExpeditionEnterRequest
          * @description Enter an expedition site on an active exploration.
          */
@@ -7676,6 +7719,27 @@ export interface components {
             partners: components["schemas"]["LineageMember"][];
         };
         /**
+         * LocationClearStateRead
+         * @description Per-point clear state for a clearable map point (issue 772, phase 1).
+         *
+         *     Read-only projection of ``VaultLocationState`` clear fields; availability is
+         *     derived from ``now`` at read time and never persisted by this phase.
+         */
+        LocationClearStateRead: {
+            /** Clearable */
+            clearable: boolean;
+            /** Cleared */
+            cleared: boolean;
+            /** Clear Count */
+            clear_count: number;
+            /** Tier */
+            tier: number;
+            /** Time Remaining Seconds */
+            time_remaining_seconds: number;
+            /** Loot Table */
+            loot_table?: string | null;
+        };
+        /**
          * LocationTypeEnum
          * @description Type of wasteland location — per-vault fog classification.
          * @enum {string}
@@ -7911,7 +7975,7 @@ export interface components {
          * @description Types of notifications
          * @enum {string}
          */
-        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed";
+        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready";
         /** Objective */
         Objective: {
             /** Challenge */
@@ -8328,6 +8392,17 @@ export interface components {
             risk: string;
             /** Description */
             description: string;
+            /**
+             * Clearable
+             * @default false
+             */
+            clearable: boolean;
+            /** Reclear Hours */
+            reclear_hours?: number | null;
+            /** Loot Table */
+            loot_table?: string | null;
+            /** Base Difficulty */
+            base_difficulty?: number | null;
         };
         /**
          * PregnancyRead
@@ -10275,6 +10350,7 @@ export interface components {
             exploration_id: string | null;
             /** Created At */
             created_at: string | null;
+            clear_state?: components["schemas"]["LocationClearStateRead"] | null;
             /** Dwellers */
             dwellers: components["schemas"]["DwellerRef"][];
             /**
@@ -12253,6 +12329,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ExplorationSendRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplorationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dispatch_dweller_api_v1_explorations_dispatch_post: {
+        parameters: {
+            query: {
+                vault_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpeditionDispatchRequest"];
             };
         };
         responses: {

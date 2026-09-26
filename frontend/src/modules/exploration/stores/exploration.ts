@@ -6,7 +6,9 @@ import { useToast } from '@/core/composables/useToast'
 import { useSse } from '@/core/composables/useEventStream'
 import { addPendingReport } from '../composables/usePendingReports'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import { explorationUpdatesDisabled } from '@/modules/profile/stores/profile'
+import { explorationApi } from '../api/exploration'
 import type { ExplorationEventType } from '@/modules/exploration/models/exploration'
 
 export interface ExplorationEvent {
@@ -113,6 +115,7 @@ export interface PendingOverflow {
 export const useExplorationStore = defineStore('exploration', () => {
   const toast = useToast()
   const { filter: dwellerFilter } = useDwellerStore()
+  const authStore = useAuthStore()
 
   const explorations = ref<Exploration[]>([])
   const activeExplorations = ref<Record<string, Exploration>>({})
@@ -336,6 +339,33 @@ export const useExplorationStore = defineStore('exploration', () => {
     }
   }
 
+  async function dispatchToLocation(
+    vaultId: string,
+    dwellerId: string,
+    locationId: string
+  ): Promise<Exploration> {
+    isLoading.value = true
+    error.value = null
+    try {
+      const token = authStore.token
+      if (!token) throw new Error('Not authenticated')
+      // The generated schema types events/loot as loose records; the wire payload
+      // is the same exploration shape the store already consumes everywhere.
+      const exploration = (await explorationApi.dispatchToLocation(token, vaultId, {
+        dwellerId,
+        locationId,
+      })) as unknown as Exploration
+      upsertExploration(exploration)
+      return exploration
+    } catch (err) {
+      handleStoreError(err, 'Failed to dispatch dweller')
+      error.value = 'Failed to dispatch dweller'
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   async function fetchExplorationsByVault(
     vaultId: string,
     token: string,
@@ -512,6 +542,7 @@ export const useExplorationStore = defineStore('exploration', () => {
     getActiveExplorationsForVault,
     // Actions
     sendDwellerToWasteland,
+    dispatchToLocation,
     fetchExplorationsByVault,
     fetchExplorationDetails,
     fetchExplorationProgress,

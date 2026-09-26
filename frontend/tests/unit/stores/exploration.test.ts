@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { ref, nextTick } from 'vue'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
+import { explorationApi } from '@/modules/exploration/api/exploration'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import axios from '@/core/plugins/axios'
 import { addPendingReport } from '@/modules/exploration/composables/usePendingReports'
 import { useProfileStore } from '@/modules/profile/stores/profile'
@@ -9,6 +11,11 @@ import { useToast } from '@/core/composables/useToast'
 import type { UserProfile } from '@/modules/profile/models/profile'
 
 vi.mock('@/core/plugins/axios')
+vi.mock('@/modules/exploration/api/exploration', () => ({
+  explorationApi: {
+    dispatchToLocation: vi.fn(),
+  },
+}))
 vi.mock('@/modules/exploration/composables/usePendingReports', () => ({
   addPendingReport: vi.fn(),
 }))
@@ -226,6 +233,55 @@ describe('Exploration Store', () => {
       ).rejects.toThrow('Failed to send dweller')
 
       expect(store.error).toBe('Failed to send dweller to wasteland')
+      expect(store.isLoading).toBe(false)
+    })
+  })
+
+  describe('dispatchToLocation Action', () => {
+    it('should dispatch a dweller to a location successfully', async () => {
+      const store = useExplorationStore()
+      useAuthStore().token = 'test-token'
+      vi.mocked(explorationApi.dispatchToLocation).mockResolvedValueOnce(mockExploration)
+
+      const result = await store.dispatchToLocation('vault-1', 'dweller-1', 'loc-1')
+
+      expect(explorationApi.dispatchToLocation).toHaveBeenCalledWith('test-token', 'vault-1', {
+        dwellerId: 'dweller-1',
+        locationId: 'loc-1',
+      })
+      expect(result).toEqual(mockExploration)
+      expect(store.explorations).toContainEqual(mockExploration)
+      expect(store.activeExplorations['exploration-1']).toEqual(mockExploration)
+      expect(store.isLoading).toBe(false)
+      expect(store.error).toBeNull()
+    })
+
+    it('should upsert an existing exploration instead of duplicating it', async () => {
+      const store = useExplorationStore()
+      useAuthStore().token = 'test-token'
+      store.explorations = [mockExploration]
+      store.activeExplorations = { 'exploration-1': mockExploration }
+
+      const updatedExploration = { ...mockExploration, total_caps_found: 100 }
+      vi.mocked(explorationApi.dispatchToLocation).mockResolvedValueOnce(updatedExploration)
+
+      await store.dispatchToLocation('vault-1', 'dweller-1', 'loc-1')
+
+      expect(store.explorations).toHaveLength(1)
+      expect(store.explorations[0].total_caps_found).toBe(100)
+    })
+
+    it('should handle error', async () => {
+      const store = useExplorationStore()
+      useAuthStore().token = 'test-token'
+      const error = new Error('Dispatch failed')
+      vi.mocked(explorationApi.dispatchToLocation).mockRejectedValueOnce(error)
+
+      await expect(store.dispatchToLocation('vault-1', 'dweller-1', 'loc-1')).rejects.toThrow(
+        'Dispatch failed'
+      )
+
+      expect(store.error).toBe('Failed to dispatch dweller')
       expect(store.isLoading).toBe(false)
     })
   })

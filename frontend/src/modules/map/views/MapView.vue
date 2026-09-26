@@ -3,6 +3,10 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useMapStore } from '../stores/map'
+import { useExplorationStore } from '@/modules/exploration/stores/exploration'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useToast } from '@/core/composables/useToast'
+import { getErrorMessage } from '@/core/utils/errorHandler'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
@@ -10,13 +14,17 @@ import { Skeleton } from '@/core/components/ui/skeleton'
 import { Button } from '@/core/components/ui/button'
 import WorldMap from '../components/WorldMap.vue'
 import MarkerDetailModal from '../components/MarkerDetailModal.vue'
+import PartySelectionModal from '@/modules/progression/components/PartySelectionModal.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import type { WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
 
 const authStore = useAuthStore()
 const mapStore = useMapStore()
+const explorationStore = useExplorationStore()
+const { filter: dwellerStore } = useDwellerStore()
 const route = useRoute()
 const { isCollapsed } = useSidePanel()
+const toast = useToast()
 
 const vaultId = computed(() => route.params.id as string)
 
@@ -24,6 +32,44 @@ const vaultId = computed(() => route.params.id as string)
 const showModal = ref(false)
 const selectedLocation = ref<WastelandLocationWithDwellers | null>(null)
 const selectedVaultMarker = ref<VaultMarkerRead | null>(null)
+
+// Dispatch picker state (issue 772, phase 4b)
+const showDispatchModal = ref(false)
+const dispatchLocation = ref<WastelandLocationWithDwellers | null>(null)
+// Blocks repeated Dispatch confirms while the request is in flight.
+const isDispatching = ref(false)
+
+function handleDispatchRequest() {
+  if (selectedLocation.value) void openDispatchPicker(selectedLocation.value)
+}
+
+async function openDispatchPicker(location: WastelandLocationWithDwellers) {
+  dispatchLocation.value = location
+  showDispatchModal.value = true
+  if (vaultId.value && authStore.token && dwellerStore.dwellers.length === 0) {
+    await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
+  }
+}
+
+async function handleDispatch(dwellerIds: string[]) {
+  const location = dispatchLocation.value
+  const dwellerId = dwellerIds[0]
+  if (isDispatching.value || !location || !dwellerId || !vaultId.value || !authStore.token) return
+  isDispatching.value = true
+  try {
+    await explorationStore.dispatchToLocation(vaultId.value, dwellerId, location.id)
+    showDispatchModal.value = false
+    dispatchLocation.value = null
+    await mapStore.refreshMap(vaultId.value, authStore.token)
+    const refreshed = mapStore.locations.find((l) => l.id === location.id)
+    if (refreshed) selectedLocation.value = refreshed
+    toast.success(`${location.name} — dispatch sent`)
+  } catch (err) {
+    toast.error(getErrorMessage(err))
+  } finally {
+    isDispatching.value = false
+  }
+}
 
 function handleMarkerClick(
   payload:
@@ -154,6 +200,18 @@ const mapPaneHeight = 'var(--map-pane-size)'
             v-model="showModal"
             :location="selectedLocation"
             :vault-marker="selectedVaultMarker"
+            @dispatch="handleDispatchRequest"
+          />
+
+          <!-- Dispatch dweller picker (solo; parties arrive in a later phase) -->
+          <PartySelectionModal
+            v-model="showDispatchModal"
+            :quest="null"
+            :vault-id="vaultId"
+            :dwellers="dwellerStore.dwellers"
+            :current-party="[]"
+            :max-party-size="1"
+            @assign="handleDispatch"
           />
         </PageContentRail>
       </div>

@@ -374,4 +374,111 @@ describe('MarkerDetailModal', () => {
       expect(wrapper.text()).toContain('origin')
     })
   })
+
+  describe('Clear state (issue 772)', () => {
+    const clearableState = {
+      clearable: true,
+      cleared: false,
+      clear_count: 0,
+      tier: 2,
+      time_remaining_seconds: 0,
+      loot_table: 'raider_camp_loot',
+    }
+
+    function mountWithClearState(clearState: unknown) {
+      return mount(MarkerDetailModal, {
+        props: {
+          modelValue: true,
+          location: createLocation({ clear_state: clearState }),
+          vaultMarker: null,
+        },
+        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+      })
+    }
+
+    it('renders nothing when clear_state is null', () => {
+      const wrapper = mountWithClearState(null)
+
+      expect(wrapper.text()).not.toContain('CLEAR STATUS')
+      expect(wrapper.text()).not.toContain('CLEARED')
+      expect(wrapper.text()).not.toContain('Dispatch')
+    })
+
+    it('shows a Dispatch button for a clearable, not-yet-cleared point', () => {
+      const wrapper = mountWithClearState(clearableState)
+
+      expect(wrapper.text()).toContain('CLEAR STATUS')
+      expect(wrapper.text()).toContain('UNCLAIMED')
+      expect(wrapper.text()).toContain('Tier 2')
+      const dispatchButtons = wrapper
+        .findAll('button')
+        .filter((b) => b.text().includes('Dispatch'))
+      expect(dispatchButtons).toHaveLength(1)
+      expect(wrapper.text()).not.toContain('CLEARED')
+    })
+
+    it('shows a CLEARED badge with the clear count and a reclear countdown while cooling down', () => {
+      const wrapper = mountWithClearState({
+        ...clearableState,
+        cleared: true,
+        clear_count: 3,
+        time_remaining_seconds: 3600,
+      })
+
+      expect(wrapper.text()).toContain('CLEARED ×3')
+      expect(wrapper.text()).toContain('Re-clear available: 1h 0m remaining')
+      expect(wrapper.text()).not.toContain('Dispatch')
+    })
+
+    it('advances the reclear countdown while the modal stays open', async () => {
+      vi.useFakeTimers()
+      try {
+        const wrapper = mountWithClearState({
+          ...clearableState,
+          cleared: true,
+          clear_count: 3,
+          time_remaining_seconds: 5,
+        })
+        expect(wrapper.text()).toContain('Re-clear available')
+        expect(wrapper.text()).not.toContain('Dispatch')
+
+        await vi.advanceTimersByTimeAsync(5000)
+
+        expect(wrapper.text()).not.toContain('Re-clear available')
+        const dispatchButtons = wrapper
+          .findAll('button')
+          .filter((b) => b.text().includes('Dispatch'))
+        expect(dispatchButtons).toHaveLength(1)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('shows a Dispatch button again once the reclear window has elapsed', () => {
+      const wrapper = mountWithClearState({
+        ...clearableState,
+        cleared: true,
+        clear_count: 3,
+        time_remaining_seconds: 0,
+      })
+
+      expect(wrapper.text()).toContain('CLEARED ×3')
+      expect(wrapper.text()).not.toContain('Re-clear available')
+      const dispatchButtons = wrapper
+        .findAll('button')
+        .filter((b) => b.text().includes('Dispatch'))
+      expect(dispatchButtons).toHaveLength(1)
+    })
+
+    it('emits dispatch when the Dispatch button is clicked', async () => {
+      const wrapper = mountWithClearState(clearableState)
+
+      const dispatchButton = wrapper
+        .findAll('button')
+        .find((b) => b.text().includes('Dispatch'))
+      await dispatchButton!.trigger('click')
+
+      expect(wrapper.emitted('dispatch')).toBeTruthy()
+    })
+  })
 })

@@ -78,9 +78,14 @@ const canSubmit = computed(() => selectedDwellerIds.value.length > 0)
 const STATUS_ORDER: Record<string, number> = { idle: 0, resting: 1, working: 2 }
 
 const availableDwellers = computed(() => {
-  // FIX: Only show eligible dwellers from API - no fallback to all dwellers
-  // This enforces quest requirements (level, items, etc.)
-  const baseDwellers = eligibleDwellers.value.length > 0 ? eligibleDwellers.value : []
+  // Quest mode: only eligible dwellers from the API - no fallback to all dwellers.
+  // This enforces quest requirements (level, items, etc.).
+  // Dispatch mode (no quest): the caller's dweller list is the candidate pool.
+  const baseDwellers = quest
+    ? eligibleDwellers.value.length > 0
+      ? eligibleDwellers.value
+      : []
+    : dwellers
 
   return baseDwellers
     .filter((dweller) => {
@@ -154,12 +159,12 @@ const handleAssignAndStart = () => {
       <DialogHeader
         class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
       >
-        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">{{ quest ? `Start Quest: ${quest.title}` : 'Start Quest' }}</DialogTitle>
+        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">{{ quest ? `Start Quest: ${quest.title}` : 'Dispatch Dweller' }}</DialogTitle>
       </DialogHeader>
 
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
 
-    <div v-if="quest" class="party-modal-content">
+    <div class="party-modal-content">
       <!-- Party Slots -->
       <div class="party-slots">
         <div class="slots-label">
@@ -199,7 +204,7 @@ const handleAssignAndStart = () => {
           <Icon icon="mdi:account-search" class="inline-icon" />
           Available Dwellers
           <span v-if="isLoadingEligible" class="loading-text">(Loading...)</span>
-          <span v-else-if="eligibleDwellers.length > 0" class="eligible-badge"
+          <span v-else-if="quest && eligibleDwellers.length > 0" class="eligible-badge"
             >(Level Requirements Met)</span
           >
         </div>
@@ -249,7 +254,7 @@ const handleAssignAndStart = () => {
       </div>
 
       <!-- Quest Duration Info -->
-      <div v-if="quest.duration_minutes" class="quest-duration">
+      <div v-if="quest && quest.duration_minutes" class="quest-duration">
         <Icon icon="mdi:clock-outline" class="inline-icon" />
         Estimated Duration: {{ quest.duration_minutes }} minutes
       </div>
@@ -260,9 +265,9 @@ const handleAssignAndStart = () => {
       >
         <div class="modal-actions">
           <Button variant="secondary" @click="close"> Cancel </Button>
-          <Button variant="default" :disabled="!canSubmit" @click="handleAssignAndStart">
+          <Button variant="default" :disabled="!canSubmit" @click="quest ? handleAssignAndStart() : handleAssign()">
             <Icon icon="mdi:check" class="btn-icon" />
-            Start Quest
+            {{ quest ? 'Start Quest' : 'Dispatch' }}
           </Button>
         </div>
       </DialogFooter>

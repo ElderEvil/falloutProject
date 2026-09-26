@@ -153,6 +153,20 @@ watch(currentSseEvent, (evt) => {
   ) {
     toast.success(notificationData.message)
   }
+  // A cleared point's loot haul is asynchronous; announce it (progression red line).
+  if (notificationData.notification_type === 'location_cleared') {
+    const locationName = notificationData.meta_data?.location_name
+    toast.success(
+      locationName ? `${locationName} cleared — loot hauled` : notificationData.message
+    )
+  }
+  // A point is re-lootable; announce it (progression red line).
+  if (notificationData.notification_type === 'location_ready') {
+    const locationName = notificationData.meta_data?.location_name
+    toast.info(
+      locationName ? `${locationName} is ready to be cleared again` : notificationData.message
+    )
+  }
 })
 
 const fetchNotifications = async () => {
@@ -217,6 +231,8 @@ const getNotificationIcon = (type: string): string => {
     radio_new_dweller: 'mdi:radio',
     radio_auto_switched_to_happiness: 'mdi:radio-tower',
     resource_low: 'mdi:alert',
+    location_cleared: 'mdi:flag-checkered',
+    location_ready: 'mdi:map-marker-refresh',
   }
   return iconMap[type] || 'mdi:information'
 }

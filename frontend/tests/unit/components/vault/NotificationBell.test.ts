@@ -412,4 +412,88 @@ describe('NotificationBell SSE watcher null-safety', () => {
 
     wrapper.unmount()
   })
+
+  it('toasts and adds a bell entry when a location is cleared', async () => {
+    // ARRANGE: authenticated user, SSE delivers a location_cleared notification
+    const authStore = useAuthStore()
+    authStore.token = 'test-token'
+    const { toasts } = useToast()
+    toasts.value = []
+
+    const clearedData = JSON.stringify({
+      notification: {
+        id: 'n6',
+        notification_type: 'location_cleared',
+        title: 'Megaton cleared',
+        message: 'Megaton has been cleared. It will be ready to loot again soon.',
+        priority: 'normal',
+        created_at: '2026-08-11T13:00:00',
+        vault_id: 'vault-1',
+        meta_data: {},
+      },
+    })
+    fetchMock.mockResolvedValue(
+      createMockResponse([encodeSse(clearedData, 'notification')], { hang: true })
+    )
+
+    // ACT: mount (onMounted starts SSE) and let the stream flush
+    const wrapper = mount(NotificationBell)
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+
+    // ASSERT: announced immediately (progression red line)
+    expect(
+      toasts.value.some((t) => t.message === 'Megaton has been cleared. It will be ready to loot again soon.')
+    ).toBe(true)
+
+    // ASSERT: the event also produced a bell entry with the cleared icon
+    await wrapper.find('button[title="Notifications"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Megaton cleared')
+    expect(wrapper.find('[data-icon="mdi:flag-checkered"]').exists()).toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('toasts and adds a bell entry when a point is ready to re-loot', async () => {
+    // ARRANGE: authenticated user, SSE delivers a location_ready notification
+    const authStore = useAuthStore()
+    authStore.token = 'test-token'
+    const { toasts } = useToast()
+    toasts.value = []
+
+    const readyData = JSON.stringify({
+      notification: {
+        id: 'n7',
+        notification_type: 'location_ready',
+        title: 'Megaton ready',
+        message: 'Megaton is ready to be cleared again.',
+        priority: 'normal',
+        created_at: '2026-08-11T14:00:00',
+        vault_id: 'vault-1',
+        meta_data: { location_id: 'loc-1' },
+      },
+    })
+    fetchMock.mockResolvedValue(
+      createMockResponse([encodeSse(readyData, 'notification')], { hang: true })
+    )
+
+    // ACT: mount (onMounted starts SSE) and let the stream flush
+    const wrapper = mount(NotificationBell)
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+
+    // ASSERT: announced immediately (progression red line)
+    expect(toasts.value.some((t) => t.message === 'Megaton is ready to be cleared again.')).toBe(
+      true
+    )
+
+    // ASSERT: the event also produced a bell entry with the ready icon
+    await wrapper.find('button[title="Notifications"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Megaton ready')
+    expect(wrapper.find('[data-icon="mdi:map-marker-refresh"]').exists()).toBe(true)
+
+    wrapper.unmount()
+  })
 })

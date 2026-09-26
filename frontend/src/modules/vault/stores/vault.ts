@@ -170,6 +170,7 @@ export const useVaultStore = defineStore('vault', () => {
       })
       loadedVaults.value[id] = response.data
       activeVaultId.value = id
+      selectedVaultId.value = id
       startGameTickSse(id, token)
     } catch (error) {
       handleStoreError(error, 'Failed to load vault')
@@ -186,6 +187,7 @@ export const useVaultStore = defineStore('vault', () => {
       })
       loadedVaults.value[id] = response.data
       activeVaultId.value = id
+      selectedVaultId.value = id
       startGameTickSse(id, token)
     } catch (error) {
       handleStoreError(error, 'Failed to refresh vault')
@@ -196,6 +198,7 @@ export const useVaultStore = defineStore('vault', () => {
   function setActiveVault(id: string) {
     if (loadedVaults.value[id]) {
       activeVaultId.value = id
+      selectedVaultId.value = id
     }
   }
 

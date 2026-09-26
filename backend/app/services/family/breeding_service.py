@@ -132,20 +132,14 @@ class BreedingService:
         if not living_quarters:
             return []
 
-        # Capacity reservation: a full vault cannot start new conceptions, and
-        # already-committed pregnancies reserve one population slot each, so at
-        # most (population_max - population - active_pregnancies) new babies may
-        # be conceived this tick. population_max=None means unbounded (legacy).
-        population_max = await vault_crud.get_population_max(db_session=db_session, vault_id=vault_id)
+        vault, population = await vault_crud.lock_population_for_update(db_session, vault_id)
+        if vault_crud.population_limit_reached(vault.population_max, population):
+            return []
 
-        if population_max is not None:
-            population = await vault_crud.get_population(db_session=db_session, vault_id=vault_id)
-            if population >= population_max:
-                return []
-            active_pregnancies = await BreedingService.get_active_pregnancies(db_session, vault_id)
-            available_slots = max(0, population_max - population - len(active_pregnancies))
-        else:
-            available_slots = None
+        active_pregnancies = await BreedingService.get_active_pregnancies(db_session, vault_id)
+        available_slots = vault_crud.available_population_slots(
+            vault.population_max, population, reserved=len(active_pregnancies)
+        )
 
         living_quarters_ids = [room.id for room in living_quarters]
         dwellers = await dweller_crud.get_adults_with_partners_in_rooms(db_session, vault_id, living_quarters_ids)

@@ -86,6 +86,8 @@ class BreedingService:
         dweller: Dweller,
         partner: Dweller,
         conception_chance: float,
+        *,
+        commit: bool = True,
     ) -> Pregnancy | None:
         """Roll random chance and create pregnancy if successful.
 
@@ -113,7 +115,7 @@ class BreedingService:
             father_id = dweller.id
 
         # Create pregnancy
-        pregnancy = await BreedingService.create_pregnancy(db_session, mother_id, father_id)
+        pregnancy = await BreedingService.create_pregnancy(db_session, mother_id, father_id, commit=commit)
         logger.info(f"Conception with {conception_chance * 100:.0f}% chance: Mother={mother_id}, Father={father_id}")
         return pregnancy
 
@@ -180,12 +182,19 @@ class BreedingService:
                 continue
 
             conception_chance = await BreedingService._get_relationship_affinity(db_session, dweller, partner)
-            pregnancy = await BreedingService._roll_for_conception(db_session, dweller, partner, conception_chance)
+            pregnancy = await BreedingService._roll_for_conception(
+                db_session, dweller, partner, conception_chance, commit=False
+            )
 
             if pregnancy:
                 new_pregnancies.append(pregnancy)
                 if available_slots is not None:
                     available_slots -= 1
+
+        if new_pregnancies:
+            await db_session.commit()
+            for pregnancy in new_pregnancies:
+                await db_session.refresh(pregnancy)
 
         return new_pregnancies
 
@@ -194,6 +203,8 @@ class BreedingService:
         db_session: AsyncSession,
         mother_id: UUID4,
         father_id: UUID4,
+        *,
+        commit: bool = True,
     ) -> Pregnancy:
         """Create a new pregnancy record.
 
@@ -239,8 +250,11 @@ class BreedingService:
         )
 
         db_session.add(pregnancy)
-        await db_session.commit()
-        await db_session.refresh(pregnancy)
+        if commit:
+            await db_session.commit()
+            await db_session.refresh(pregnancy)
+        else:
+            await db_session.flush()
 
         logger.info(f"Created pregnancy: Mother={mother_id}, Father={father_id}, Due at {due_at.isoformat()}")
 

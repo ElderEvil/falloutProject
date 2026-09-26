@@ -83,10 +83,11 @@ class TransferService:
                 raise ValidationException(msg)
             dwellers.append(d)
 
+        incoming_living = sum(1 for dweller in dwellers if not dweller.is_dead)
         dest_vault, dest_pop = await vault_crud.lock_population_for_update(db_session, dest_vault_id)
         available_slots = vault_crud.available_population_slots(dest_vault.population_max, dest_pop)
-        if available_slots is not None and available_slots < len(dwellers):
-            msg = f"Destination vault full: {dest_pop}/{dest_vault.population_max} with {len(dwellers)} incoming"
+        if available_slots is not None and available_slots < incoming_living:
+            msg = f"Destination vault full: {dest_pop}/{dest_vault.population_max} with {incoming_living} incoming"
             raise ValidationException(msg)
 
         for dweller in dwellers:

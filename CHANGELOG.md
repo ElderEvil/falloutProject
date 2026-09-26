@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.149.2 (2026-09-26)
+
+### Bug Fixes
+
+* **vault:** count living dwellers in population and capacity checks ([#799](https://github.com/ElderEvil/falloutProject/issues/799)) 703c833
+
 ## 2.149.1 (2026-09-26)
 
 ### Bug Fixes

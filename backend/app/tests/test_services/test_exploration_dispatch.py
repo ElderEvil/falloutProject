@@ -288,3 +288,70 @@ async def test_tick_resolves_dispatch_arrival(async_session: AsyncSession, vault
     await async_session.refresh(state)
     assert exploration.status == ExplorationStatus.RETURNING
     assert state.clear_count == 1
+
+
+# ---------------------------------------------------------------------------
+# arrival consistency (review: tier snapshot + competing clears)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_dispatch_arrival_uses_departure_tier_snapshot(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
+) -> None:
+    """A run fights and earns at its departure tier even if the count moved mid-travel."""
+    location, state = await _register_clearable(async_session, vault, dweller)
+    exploration = await _expired_dispatch(async_session, vault, dweller, location.id)
+    assert exploration.clear_tier == 0
+
+    await async_session.refresh(state)
+    state.clear_count = 5
+    async_session.add(state)
+    await async_session.commit()
+
+    random.seed(99)
+    with patch.object(combat_calculator, "calculate_combat_outcome", return_value=WIN):
+        await resolve_dispatch_arrival(async_session, exploration.id)
+    await async_session.refresh(exploration)
+    snapshot_caps = exploration.total_caps_found
+
+    dweller2 = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
+    await async_session.refresh(state)
+    state.clear_count = 0
+    state.cleared_at = None
+    state.reclear_available_at = None
+    async_session.add(state)
+    await async_session.commit()
+    control = await _expired_dispatch(async_session, vault, dweller2, location.id)
+    random.seed(99)
+    with patch.object(combat_calculator, "calculate_combat_outcome", return_value=WIN):
+        await resolve_dispatch_arrival(async_session, control.id)
+    await async_session.refresh(control)
+
+    assert snapshot_caps == control.total_caps_found
+
+
+@pytest.mark.asyncio
+async def test_dispatch_arrival_skips_point_cleared_by_competitor(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """An arrival that finds the point already cleared returns without loot or a second clear."""
+    location, state = await _register_clearable(async_session, vault, dweller)
+    exploration = await _expired_dispatch(async_session, vault, dweller, location.id)
+
+    await async_session.refresh(state)
+    state.cleared_at = datetime.utcnow()
+    state.reclear_available_at = datetime.utcnow() + timedelta(hours=1)
+    state.clear_count = 1
+    async_session.add(state)
+    await async_session.commit()
+
+    with patch.object(combat_calculator, "calculate_combat_outcome", return_value=WIN):
+        await resolve_dispatch_arrival(async_session, exploration.id)
+
+    await async_session.refresh(exploration)
+    await async_session.refresh(state)
+    assert exploration.status == ExplorationStatus.RETURNING
+    assert exploration.loot_collected == []
+    assert exploration.total_caps_found == 0
+    assert state.clear_count == 1

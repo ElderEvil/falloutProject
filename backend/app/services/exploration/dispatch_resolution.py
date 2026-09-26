@@ -47,8 +47,14 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
     if group is None or not group.get("clearable"):
         await exploration_coordinator.start_return(db_session, exploration_id)
         return
+    if not state.is_dispatchable(clearable=True, now=datetime.utcnow()):
+        await exploration_coordinator.start_return(db_session, exploration_id)
+        return
 
-    tier = min(state.clear_count, game_config.exploration.dispatch.escalation_cap)
+    if exploration.clear_tier is not None:
+        tier = exploration.clear_tier
+    else:
+        tier = min(state.clear_count, game_config.exploration.dispatch.escalation_cap)
     difficulty = min(5, group["base_difficulty"] + tier)
     enemy = combat_calculator.select_enemy_by_difficulty(difficulty)
     outcome = combat_calculator.calculate_combat_outcome(exploration, enemy)

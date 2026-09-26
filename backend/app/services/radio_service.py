@@ -25,24 +25,6 @@ class RadioService:
     """Service for managing radio room recruitment."""
 
     @staticmethod
-    async def _lock_vault_for_recruitment(
-        db_session: AsyncSession,
-        vault_id: UUID4,
-    ) -> tuple[Vault, int]:
-        """Lock a vault and return its current living population.
-
-        The lock is held until recruitment persists its dweller. That makes the
-        capacity check and either a fresh or recycled recruit one transaction.
-        """
-        vault = await crud.vault.lock_for_update(db_session, vault_id)
-        population = await crud.dweller.count_living_in_vault(db_session, vault_id)
-        return vault, population
-
-    @staticmethod
-    def _population_limit_reached(vault: Vault, population: int) -> bool:
-        return vault.population_max is not None and population >= vault.population_max
-
-    @staticmethod
     def _population_limit_message(vault: Vault, population: int) -> str:
         return f"Vault population capacity reached ({population}/{vault.population_max})"
 
@@ -165,7 +147,7 @@ class RadioService:
             return None
 
         population = await crud.dweller.count_living_in_vault(db_session, vault_id)
-        if RadioService._population_limit_reached(vault, population):
+        if crud.vault.population_limit_reached(vault.population_max, population):
             await RadioService._switch_full_vault_to_happiness(db_session, vault, population)
             return None
 
@@ -175,8 +157,10 @@ class RadioService:
         # Roll for recruitment
         if rng.random() < rate:
             async with db_session.begin_nested() as capacity_check:
-                vault, population = await RadioService._lock_vault_for_recruitment(db_session, vault_id)
-                if vault.radio_mode != "recruitment" or RadioService._population_limit_reached(vault, population):
+                vault, population = await crud.vault.lock_population_for_update(db_session, vault_id)
+                if vault.radio_mode != "recruitment" or crud.vault.population_limit_reached(
+                    vault.population_max, population
+                ):
                     await capacity_check.rollback()
                     return None
             dweller, _ = await RadioService._recruit_dweller(db_session, vault_id)
@@ -212,8 +196,8 @@ class RadioService:
             Tuple of (dweller, recycled) where recycled=True means a soft-deleted
             dweller was restored rather than a new one created.
         """
-        vault, population = await RadioService._lock_vault_for_recruitment(db_session, vault_id)
-        if RadioService._population_limit_reached(vault, population):
+        vault, population = await crud.vault.lock_population_for_update(db_session, vault_id)
+        if crud.vault.population_limit_reached(vault.population_max, population):
             raise VaultOperationException(detail=RadioService._population_limit_message(vault, population))
 
         return await RadioService._recruit_dweller(db_session, vault_id, override)
@@ -348,8 +332,8 @@ class RadioService:
             msg = "No residents assigned to radio room"
             raise ValueError(msg)
 
-        vault, population = await RadioService._lock_vault_for_recruitment(db_session, vault_id)
-        if RadioService._population_limit_reached(vault, population):
+        vault, population = await crud.vault.lock_population_for_update(db_session, vault_id)
+        if crud.vault.population_limit_reached(vault.population_max, population):
             raise ValueError(RadioService._population_limit_message(vault, population))
 
         if vault.bottle_caps < caps_cost:

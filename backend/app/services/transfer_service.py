@@ -70,8 +70,6 @@ class TransferService:
             msg = "No dwellers specified for transfer"
             raise ValidationException(msg)
 
-        dest_vault = await vault_crud.get(db_session, dest_vault_id)
-
         unique_ids = list(dict.fromkeys(dweller_ids))
         transferring_ids = set(unique_ids)
         dwellers: list[Dweller] = []
@@ -85,11 +83,12 @@ class TransferService:
                 raise ValidationException(msg)
             dwellers.append(d)
 
-        if dest_vault.population_max is not None:
-            dest_pop = await vault_crud.get_population(db_session=db_session, vault_id=dest_vault_id)
-            if dest_pop + len(dwellers) > dest_vault.population_max:
-                msg = f"Destination vault full: {dest_pop}/{dest_vault.population_max} with {len(dwellers)} incoming"
-                raise ValidationException(msg)
+        incoming_living = sum(1 for dweller in dwellers if not dweller.is_dead)
+        dest_vault, dest_pop = await vault_crud.lock_population_for_update(db_session, dest_vault_id)
+        available_slots = vault_crud.available_population_slots(dest_vault.population_max, dest_pop)
+        if available_slots is not None and available_slots < incoming_living:
+            msg = f"Destination vault full: {dest_pop}/{dest_vault.population_max} with {incoming_living} incoming"
+            raise ValidationException(msg)
 
         for dweller in dwellers:
             for rel in await relationship_crud.get_by_dweller(db_session, dweller.id):

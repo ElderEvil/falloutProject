@@ -5,10 +5,12 @@ from app import crud
 from app.crud.room import room as room_crud
 from app.crud.user_profile import profile_crud
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
+from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.room_service import RoomService
+from app.tests.factory.dwellers import create_fake_adult_dweller
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 
@@ -254,6 +256,37 @@ async def test_upgrading_living_room_grows_population_capacity(async_session: As
     await async_session.refresh(vault)
     assert room.capacity == 10, "tier 2 follows 2*S/3*(L+4)-2 at L=2"
     assert vault.population_max == initial_population_max + 10, "the room replaces its old 8, not adds to it"
+
+
+@pytest.mark.asyncio
+async def test_vault_dweller_count_matches_living_population(async_session: AsyncSession) -> None:
+    """The displayed population counts living dwellers only, like the recruitment cap.
+
+    A vault at its cap holding a dead and a soft-deleted dweller must not render
+    over capacity: ``dweller_count`` equals ``count_living_in_vault``.
+    """
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+
+    await crud.dweller.create(async_session, obj_in=DwellerCreate(**create_fake_adult_dweller(), vault_id=vault.id))
+    dead = await crud.dweller.create(
+        async_session, obj_in=DwellerCreate(**create_fake_adult_dweller(), vault_id=vault.id)
+    )
+    soft_deleted = await crud.dweller.create(
+        async_session, obj_in=DwellerCreate(**create_fake_adult_dweller(), vault_id=vault.id)
+    )
+
+    dead.is_dead = True
+    soft_deleted.is_deleted = True
+    async_session.add(dead)
+    async_session.add(soft_deleted)
+    await async_session.commit()
+
+    row = await crud.vault.get_vault_count_row(db_session=async_session, vault_id=vault.id)
+    living_count = await crud.dweller.count_living_in_vault(async_session, vault.id)
+
+    assert living_count == 1, "only the living dweller counts"
+    assert row.dweller_count == living_count, "displayed population must exclude the dead and soft-deleted"
 
 
 def _storage_room(vault_id, x: int = 1, y: int = 1) -> RoomCreate:

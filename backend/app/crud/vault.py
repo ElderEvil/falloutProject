@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from logging import getLogger
 
 from pydantic import UUID4
-from sqlalchemy import Row, func
+from sqlalchemy import Row, and_, func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -82,8 +82,44 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
     @staticmethod
     async def get_population(*, db_session: AsyncSession, vault_id: UUID4) -> int:
-        count = await db_session.execute(select(func.count(Vault.dwellers)).where(Vault.id == vault_id))
-        return count.scalar()
+        """Current living population (dead and soft-deleted dwellers excluded).
+
+        The one population definition shared by breeding, transfers, objectives and
+        the vault display, matching the radio recruitment cap.
+        """
+        from app.crud.dweller import dweller as dweller_crud
+
+        return await dweller_crud.count_living_in_vault(db_session, vault_id)
+
+    @staticmethod
+    def population_limit_reached(population_max: int | None, population: int) -> bool:
+        """True when a vault at ``population_max`` cannot take another dweller.
+
+        ``None`` is an unbounded (legacy) cap; ``0`` means no living space at all.
+        """
+        return population_max is not None and population >= population_max
+
+    @staticmethod
+    def available_population_slots(population_max: int | None, population: int, *, reserved: int = 0) -> int | None:
+        """Free dweller slots, or None when the vault is unbounded (legacy data).
+
+        ``reserved`` holds slots claimed by in-flight arrivals (e.g. active
+        pregnancies) so callers cannot over-book the same slot twice.
+        """
+        if population_max is None:
+            return None
+        return max(0, population_max - population - reserved)
+
+    async def lock_population_for_update(self, db_session: AsyncSession, vault_id: UUID4) -> tuple[Vault, int]:
+        """Lock the vault row and return ``(vault, living population)``.
+
+        One atomic read for every capacity-sensitive mutation — recruitment, reward
+        grants, breeding and transfers serialize on this row lock against the same
+        living-population definition.
+        """
+        vault = await self.lock_for_update(db_session, vault_id)
+        population = await self.get_population(db_session=db_session, vault_id=vault_id)
+        return vault, population
 
     @staticmethod
     async def get_rooms_count(*, db_session: AsyncSession, vault_id: UUID4) -> int:
@@ -132,7 +168,11 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             )
             .select_from(Vault)
             .join(Room, Room.vault_id == self.model.id, isouter=True)
-            .join(Dweller, Dweller.vault_id == self.model.id, isouter=True)
+            .join(
+                Dweller,
+                and_(Dweller.vault_id == self.model.id, ~Dweller.is_deleted, ~Dweller.is_dead),
+                isouter=True,
+            )
             .join(Storage, Storage.vault_id == self.model.id, isouter=True)
             .where(Vault.user_id == user_id)
             .where(Vault.deleted_at.is_(None))
@@ -152,7 +192,11 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             )
             .select_from(Vault)
             .join(Room, Room.vault_id == self.model.id, isouter=True)
-            .join(Dweller, Dweller.vault_id == self.model.id, isouter=True)
+            .join(
+                Dweller,
+                and_(Dweller.vault_id == self.model.id, ~Dweller.is_deleted, ~Dweller.is_dead),
+                isouter=True,
+            )
             .join(Storage, Storage.vault_id == self.model.id, isouter=True)
             .where(Vault.id == vault_id)
             .group_by(Vault.id)

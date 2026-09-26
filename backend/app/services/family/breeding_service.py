@@ -86,6 +86,8 @@ class BreedingService:
         dweller: Dweller,
         partner: Dweller,
         conception_chance: float,
+        *,
+        commit: bool = True,
     ) -> Pregnancy | None:
         """Roll random chance and create pregnancy if successful.
 
@@ -113,7 +115,7 @@ class BreedingService:
             father_id = dweller.id
 
         # Create pregnancy
-        pregnancy = await BreedingService.create_pregnancy(db_session, mother_id, father_id)
+        pregnancy = await BreedingService.create_pregnancy(db_session, mother_id, father_id, commit=commit)
         logger.info(f"Conception with {conception_chance * 100:.0f}% chance: Mother={mother_id}, Father={father_id}")
         return pregnancy
 
@@ -132,20 +134,14 @@ class BreedingService:
         if not living_quarters:
             return []
 
-        # Capacity reservation: a full vault cannot start new conceptions, and
-        # already-committed pregnancies reserve one population slot each, so at
-        # most (population_max - population - active_pregnancies) new babies may
-        # be conceived this tick. population_max=None means unbounded (legacy).
-        population_max = await vault_crud.get_population_max(db_session=db_session, vault_id=vault_id)
+        vault, population = await vault_crud.lock_population_for_update(db_session, vault_id)
+        if vault_crud.population_limit_reached(vault.population_max, population):
+            return []
 
-        if population_max is not None:
-            population = await vault_crud.get_population(db_session=db_session, vault_id=vault_id)
-            if population >= population_max:
-                return []
-            active_pregnancies = await BreedingService.get_active_pregnancies(db_session, vault_id)
-            available_slots = max(0, population_max - population - len(active_pregnancies))
-        else:
-            available_slots = None
+        active_pregnancies = await BreedingService.get_active_pregnancies(db_session, vault_id)
+        available_slots = vault_crud.available_population_slots(
+            vault.population_max, population, reserved=len(active_pregnancies)
+        )
 
         living_quarters_ids = [room.id for room in living_quarters]
         dwellers = await dweller_crud.get_adults_with_partners_in_rooms(db_session, vault_id, living_quarters_ids)
@@ -186,12 +182,19 @@ class BreedingService:
                 continue
 
             conception_chance = await BreedingService._get_relationship_affinity(db_session, dweller, partner)
-            pregnancy = await BreedingService._roll_for_conception(db_session, dweller, partner, conception_chance)
+            pregnancy = await BreedingService._roll_for_conception(
+                db_session, dweller, partner, conception_chance, commit=False
+            )
 
             if pregnancy:
                 new_pregnancies.append(pregnancy)
                 if available_slots is not None:
                     available_slots -= 1
+
+        if new_pregnancies:
+            await db_session.commit()
+            for pregnancy in new_pregnancies:
+                await db_session.refresh(pregnancy)
 
         return new_pregnancies
 
@@ -200,6 +203,8 @@ class BreedingService:
         db_session: AsyncSession,
         mother_id: UUID4,
         father_id: UUID4,
+        *,
+        commit: bool = True,
     ) -> Pregnancy:
         """Create a new pregnancy record.
 
@@ -245,8 +250,11 @@ class BreedingService:
         )
 
         db_session.add(pregnancy)
-        await db_session.commit()
-        await db_session.refresh(pregnancy)
+        if commit:
+            await db_session.commit()
+            await db_session.refresh(pregnancy)
+        else:
+            await db_session.flush()
 
         logger.info(f"Created pregnancy: Mother={mother_id}, Father={father_id}, Due at {due_at.isoformat()}")
 

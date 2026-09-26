@@ -6,6 +6,7 @@ import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import VaultPageShell from '@/core/components/common/VaultPageShell.vue'
+import { getItemIcon } from '@/core/models/items'
 import TradingPostPanel from '../components/TradingPostPanel.vue'
 
 const route = useRoute()
@@ -48,7 +49,7 @@ const tabs = [
             <div
               class="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-theme-glow p-8 text-center"
             >
-              <Icon icon="mdi:sword" class="text-5xl text-theme-primary opacity-30" />
+              <Icon :icon="getItemIcon('weapon', {})" class="text-5xl text-theme-primary opacity-30" />
               <p class="m-0 font-mono text-sm text-theme-primary opacity-70">Weapon trading coming soon</p>
               <p class="m-0 font-mono text-xs text-theme-primary opacity-50">
                 Trade weapons with other vaults in a future update
@@ -60,7 +61,7 @@ const tabs = [
             <div
               class="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-theme-glow p-8 text-center"
             >
-              <Icon icon="mdi:tshirt-crew" class="text-5xl text-theme-primary opacity-30" />
+              <Icon :icon="getItemIcon('outfit', {})" class="text-5xl text-theme-primary opacity-30" />
               <p class="m-0 font-mono text-sm text-theme-primary opacity-70">Outfit trading coming soon</p>
               <p class="m-0 font-mono text-xs text-theme-primary opacity-50">
                 Trade outfits with other vaults in a future update

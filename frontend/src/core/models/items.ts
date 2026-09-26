@@ -27,16 +27,21 @@ export const OUTFIT_TYPE_ICONS: Record<string, string> = {
 
 export const JUNK_ICON = 'mdi:wrench'
 
-// Generic storage items share the quest-reward icon language (see QuestRewardsModal ITEM_META)
+// Generic storage items share the quest-reward icon language (see getItemIcon)
 export const GENERIC_ITEM_ICONS: Record<string, string> = {
   consumable: 'mdi:bottle-tonic',
   lunchbox: 'mdi:gift',
   pet: 'mdi:paw',
 }
 
-type IconSource = { weapon_subtype?: string; outfit_type?: string }
+export interface ItemIconSource {
+  image_url?: string | null
+  name?: string
+  weapon_subtype?: string
+  outfit_type?: string
+}
 
-export function getItemIcon(itemType: string, item: IconSource): string {
+export function getItemIcon(itemType: string, item: ItemIconSource): string {
   if (itemType === 'weapon') {
     return WEAPON_SUBTYPE_ICONS[item.weapon_subtype?.toLowerCase() ?? ''] ?? 'mdi:pistol'
   }

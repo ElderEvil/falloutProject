@@ -10,9 +10,11 @@ import {
   DialogTitle,
 } from '@/core/components/ui/dialog'
 import RewardCard from '@/core/components/common/RewardCard.vue'
+import { getItemIcon } from '@/core/models/items'
 import type { components } from '@/core/types/api.generated'
 
 type LunchboxOpened = components['schemas']['LunchboxOpened']
+type LunchboxOpenedItem = components['schemas']['LunchboxOpenedItem']
 
 interface Props {
   show: boolean
@@ -34,7 +36,7 @@ watch(() => props.show, (open) => {
 const items = computed(() => props.result?.items ?? [])
 const dwellerName = computed(() => props.result?.dweller.name ?? 'New Dweller')
 
-const itemIcon = (type: string): string => type === 'weapon' ? 'mdi:sword-cross' : 'mdi:tshirt-crew'
+const itemIcon = (item: LunchboxOpenedItem): string => getItemIcon(item.type, item)
 const itemLabel = (type: string): string => type === 'weapon' ? 'Weapon' : 'Outfit'
 </script>
 
@@ -71,7 +73,7 @@ const itemLabel = (type: string): string => type === 'weapon' ? 'Weapon' : 'Outf
           <RewardCard
             v-for="(item, index) in items"
             :key="index"
-            :icon="itemIcon(item.type)"
+            :icon="itemIcon(item)"
             :label="itemLabel(item.type)"
             :value="`${item.name} · ${item.rarity}`"
           />

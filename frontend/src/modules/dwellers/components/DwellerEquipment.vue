@@ -5,6 +5,7 @@ import { useEquipmentStore } from '@/modules/combat/stores/equipment'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import EquipmentCard from '@/modules/combat/components/equipment/EquipmentCard.vue'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
+import { getItemIcon } from '@/core/models/items'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 
 const ctx = useDwellerDetailContext()
@@ -74,7 +75,9 @@ const modalTitle = computed(() =>
   inventoryMode.value === 'weapon' ? 'Select Weapon' : 'Select Outfit'
 )
 const modalIcon = computed(() =>
-  inventoryMode.value === 'weapon' ? 'mdi:pistol' : 'mdi:tshirt-crew'
+  inventoryMode.value === 'weapon'
+    ? getItemIcon('weapon', equippedWeapon.value ?? {})
+    : getItemIcon('outfit', equippedOutfit.value ?? {})
 )
 </script>
 
@@ -84,7 +87,7 @@ const modalIcon = computed(() =>
       <!-- Weapon Slot -->
       <div class="equipment-slot">
         <div class="slot-header">
-          <Icon icon="mdi:pistol" class="slot-icon" />
+          <Icon :icon="getItemIcon('weapon', equippedWeapon ?? {})" class="slot-icon" />
           <h4 class="slot-title">Weapon</h4>
         </div>
 
@@ -106,7 +109,7 @@ const modalIcon = computed(() =>
       <!-- Outfit Slot -->
       <div class="equipment-slot">
         <div class="slot-header">
-          <Icon icon="mdi:tshirt-crew" class="slot-icon" />
+          <Icon :icon="getItemIcon('outfit', equippedOutfit ?? {})" class="slot-icon" />
           <h4 class="slot-title">Outfit</h4>
         </div>
 

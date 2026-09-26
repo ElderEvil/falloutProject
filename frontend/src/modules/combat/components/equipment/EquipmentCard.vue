@@ -3,13 +3,12 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Weapon, Outfit } from '@/modules/combat/models/equipment'
 import {
-  getItemIcon,
   getOutfitStats,
   getRarityTextClass,
   getWeaponStats,
   type ItemStat,
 } from '@/core/models/items'
-import { useItemImage } from '@/core/composables/useItemImage'
+import ItemIcon from '@/core/components/common/ItemIcon.vue'
 import { Button } from '@/core/components/ui/button'
 
 interface Props {
@@ -26,8 +25,6 @@ const emit = defineEmits<{
   (e: 'unequip'): void
 }>()
 
-const itemIcon = computed(() => getItemIcon(type, item))
-
 const rarityTextClass = computed(() => getRarityTextClass(item.rarity))
 
 const stats = computed<ItemStat[]>(() => {
@@ -38,8 +35,6 @@ const stats = computed<ItemStat[]>(() => {
 const itemTypeLabel = computed(() =>
   type === 'weapon' ? (item as Weapon).weapon_subtype : (item as Outfit).outfit_type
 )
-
-const { imageUrl, onImageError } = useItemImage(() => item.image_url)
 </script>
 
 <template>
@@ -53,14 +48,7 @@ const { imageUrl, onImageError } = useItemImage(() => item.image_url)
     ]"
   >
     <div class="flex items-center gap-3">
-      <img
-        v-if="imageUrl"
-        :src="imageUrl"
-        :alt="item.name"
-        class="h-16 w-16 object-contain"
-        @error="onImageError"
-      />
-      <Icon v-else :icon="itemIcon" class="h-16 w-16 text-theme-primary" />
+      <ItemIcon :item="item" :item-type="type" />
       <div class="min-w-0 flex-1">
         <h4 class="truncate text-lg font-bold text-shadow-[0_0_4px_currentColor]" :class="rarityTextClass">
           {{ item.name }}

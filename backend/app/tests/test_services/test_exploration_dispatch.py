@@ -672,6 +672,33 @@ async def test_dispatch_arrival_party_wipe(
     assert partner.is_dead
 
 
+@pytest.mark.asyncio
+async def test_dispatch_arrival_skips_point_cleared_by_competitor(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
+) -> None:
+    """A party arrival that finds the point already cleared returns without loot or a second clear."""
+    location, state = await _register_clearable(async_session, vault, dweller)
+    await _boost_dweller(async_session, dweller, **STRONG_STATS)
+    partner = await _make_dweller(async_session, vault, dweller_data, **STRONG_STATS)
+    exploration = await _expired_party_dispatch(async_session, vault, [dweller, partner], location.id)
+
+    await async_session.refresh(state)
+    state.cleared_at = datetime.utcnow()
+    state.reclear_available_at = datetime.utcnow() + timedelta(hours=1)
+    state.clear_count = 1
+    async_session.add(state)
+    await async_session.commit()
+
+    await resolve_dispatch_arrival(async_session, exploration.id)
+
+    await async_session.refresh(exploration)
+    await async_session.refresh(state)
+    assert exploration.status == ExplorationStatus.RETURNING
+    assert exploration.loot_collected == []
+    assert exploration.total_caps_found == 0
+    assert state.clear_count == 1
+
+
 # ---------------------------------------------------------------------------
 # party return, rewards, and boundaries (phase 3)
 # ---------------------------------------------------------------------------

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.149.1 (2026-09-26)
+
+### Bug Fixes
+
+* **dwellers:** skip detail refetch after soft-delete ([#798](https://github.com/ElderEvil/falloutProject/issues/798)) 9ed7582
+
 ## 2.149.0 (2026-09-26)
 
 ### Features

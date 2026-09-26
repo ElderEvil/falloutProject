@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.148.0 (2026-09-26)
+
+### Features
+
+* **map:** clearable point UI and dispatch picker ([#796](https://github.com/ElderEvil/falloutProject/issues/796)) 44dd6c9
+
 ## 2.147.0 (2026-09-26)
 
 ### Features

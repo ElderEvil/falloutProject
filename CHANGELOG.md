@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.147.0 (2026-09-26)
+
+### Features
+
+* **map:** reclear sweep and location notifications (issue 772 phase 4a) ([#795](https://github.com/ElderEvil/falloutProject/issues/795)) 782c23b
+
 ## 2.146.0 (2026-09-26)
 
 ### Features

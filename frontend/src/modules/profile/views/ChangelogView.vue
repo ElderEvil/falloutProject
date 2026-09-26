@@ -127,10 +127,10 @@ onMounted(() => {
 <template>
   <div class="min-h-screen bg-terminal-background text-theme-primary [text-shadow:none]">
     <div class="flex min-h-screen">
-      <SidePanel v-if="vaultStore.activeVaultId" :vault-id="vaultStore.activeVaultId" />
+      <SidePanel v-if="vaultStore.currentVaultId" :vault-id="vaultStore.currentVaultId" />
       <main
         class="min-w-0 flex-1 pb-8 transition-[margin-left] duration-300 ease max-md:ml-0"
-        :class="vaultStore.activeVaultId ? (isCollapsed ? 'ml-16' : 'ml-60') : ''"
+        :class="vaultStore.currentVaultId ? (isCollapsed ? 'ml-16' : 'ml-60') : ''"
       >
         <div class="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
           <PageHeader

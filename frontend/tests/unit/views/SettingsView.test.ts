@@ -23,11 +23,21 @@ vi.mock('vue-router', () => ({
 describe('SettingsView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear()
     setActivePinia(createPinia())
   })
 
   it('shows the vault sidebar when a vault is loaded', async () => {
     useVaultStore().activeVaultId = 'vault-123'
+
+    const wrapper = mount(SettingsView)
+    await flushPromises()
+
+    expect(wrapper.find('[aria-label="Game navigation panel"]').exists()).toBe(true)
+  })
+
+  it('keeps the vault sidebar after a refresh (persisted selection, no active vault)', async () => {
+    useVaultStore().selectedVaultId = 'vault-123'
 
     const wrapper = mount(SettingsView)
     await flushPromises()

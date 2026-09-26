@@ -5,6 +5,7 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import ProfileView from '@/modules/profile/views/ProfileView.vue'
 import ProfileEditor from '@/modules/profile/components/ProfileEditor.vue'
 import { LifeDeathStatistics } from '@/modules/dwellers/components/death'
+import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -55,6 +56,7 @@ describe('ProfileView', () => {
   }
 
   beforeEach(() => {
+    localStorage.clear()
     // Create fresh Pinia instance for each test
     const pinia = createPinia()
     setActivePinia(pinia)
@@ -114,6 +116,27 @@ describe('ProfileView', () => {
       await flushPromises()
 
       expect(router.currentRoute.value.path).toBe('/vault/vault-1')
+    })
+
+    it('keeps vault navigation after a direct /profile load without an active vault', async () => {
+      mockBothApis()
+      // Simulate a refresh: the in-memory active vault is unset, but the
+      // persisted selection survives — the sidebar must still show vault nav.
+      vaultStore.activeVaultId = null
+      vaultStore.selectedVaultId = 'vault-1'
+      await router.push('/profile')
+      await router.isReady()
+
+      const wrapper = mount(ProfileView, {
+        global: {
+          plugins: [router],
+        },
+      })
+      await flushPromises()
+
+      const sidePanel = wrapper.findComponent(SidePanel)
+      expect(sidePanel.exists()).toBe(true)
+      expect(sidePanel.props('vaultId')).toBe('vault-1')
     })
   })
 

@@ -32,7 +32,6 @@ const { partyMembers, isLocked = false, quest, status, vaultId } = defineProps<P
 const emit = defineEmits<{
   start: [questId: string]
   claim: [questId: string]
-  view: [questId: string]
   assignParty: [questId: string]
 }>()
 
@@ -222,12 +221,12 @@ function isRequirementMet(req: QuestRequirement): boolean {
 
 const actionButtonText = computed(() => {
   if (isLocked) return 'Locked'
+  if (status === 'completed') return ''
   return {
     available: isStateQuest.value ? 'Check Objective' : 'Start Quest',
     active: 'In Progress',
     returning: 'Travelling Home',
     ready: 'Claim Rewards',
-    completed: 'View Details',
     locked: 'Locked',
   }[status]
 })
@@ -265,9 +264,6 @@ const handleAction = () => {
       break
     case 'ready':
       emit('claim', quest.id)
-      break
-    case 'completed':
-      emit('view', quest.id)
       break
   }
 }
@@ -379,18 +375,21 @@ const handleAction = () => {
     </div>
 
     <div>
+      <div v-if="status === 'completed'" class="completed-stamp">
+        <Icon icon="mdi:check-circle" class="stamp-icon" />
+        Completed
+      </div>
       <Button
+        v-else
         class="quest-action-btn"
-        :variant="status === 'completed' ? 'secondary' : 'default'"
+        variant="default"
         :disabled="isButtonDisabled"
         @click="handleAction"
       >
         <Icon
           :icon="
-            status === 'completed'
-              ? 'mdi:eye'
-              : status === 'ready'
-                ? 'mdi:treasure-chest'
+            status === 'ready'
+              ? 'mdi:treasure-chest'
               : status === 'returning'
                 ? 'mdi:home-import-outline'
               : status === 'active'
@@ -517,6 +516,27 @@ const handleAction = () => {
 
 .quest-action-btn {
   width: 100%;
+}
+
+.completed-stamp {
+  width: 100%;
+  padding: 10px 16px;
+  background: color-mix(in srgb, var(--color-theme-primary) 10%, transparent);
+  border: 2px dashed var(--color-quest-muted);
+  border-radius: 4px;
+  color: var(--color-theme-primary);
+  font-weight: bold;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.stamp-icon {
+  font-size: 1.2rem;
 }
 
 .inline-icon {

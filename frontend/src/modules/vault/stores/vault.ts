@@ -90,6 +90,9 @@ export const useVaultStore = defineStore('vault', () => {
     activeVaultId.value ? loadedVaults.value[activeVaultId.value] : null
   )
   const loadedVaultIds = computed(() => Object.keys(loadedVaults.value))
+  // activeVaultId is in-memory only; fall back to the persisted selection so
+  // navigation survives a reload.
+  const currentVaultId = computed(() => activeVaultId.value ?? selectedVaultId.value)
 
   // Actions
   async function fetchVaults(token: string): Promise<boolean> {
@@ -170,6 +173,7 @@ export const useVaultStore = defineStore('vault', () => {
       })
       loadedVaults.value[id] = response.data
       activeVaultId.value = id
+      selectedVaultId.value = id
       startGameTickSse(id, token)
     } catch (error) {
       handleStoreError(error, 'Failed to load vault')
@@ -186,6 +190,7 @@ export const useVaultStore = defineStore('vault', () => {
       })
       loadedVaults.value[id] = response.data
       activeVaultId.value = id
+      selectedVaultId.value = id
       startGameTickSse(id, token)
     } catch (error) {
       handleStoreError(error, 'Failed to refresh vault')
@@ -196,6 +201,7 @@ export const useVaultStore = defineStore('vault', () => {
   function setActiveVault(id: string) {
     if (loadedVaults.value[id]) {
       activeVaultId.value = id
+      selectedVaultId.value = id
     }
   }
 
@@ -348,6 +354,7 @@ export const useVaultStore = defineStore('vault', () => {
     // Getters
     selectedVault,
     activeVault,
+    currentVaultId,
     loadedVaultIds,
     // Actions
     fetchVaults,

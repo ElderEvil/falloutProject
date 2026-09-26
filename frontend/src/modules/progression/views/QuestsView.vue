@@ -50,7 +50,9 @@ const questTabs = [
 
 // Filtered available quests based on toggle
 const filteredAvailableQuests = computed(() => {
-  const isAvailableQuest = (q: VaultQuest) => !q.started_at && !q.is_completed
+  // State quests start with is_reward_ready=true and started_at=null, so reward
+  // readiness must also exclude a quest from Available.
+  const isAvailableQuest = (q: VaultQuest) => !q.started_at && !q.is_completed && !q.is_reward_ready
 
   if (showAllQuests.value) {
     return questStore.vaultQuests.filter(isAvailableQuest)
@@ -460,7 +462,6 @@ onMounted(async () => {
                       :quest="quest"
                       :vault-id="vaultId"
                       status="completed"
-                      @view="openQuest"
                     />
                   </div>
                 </div>

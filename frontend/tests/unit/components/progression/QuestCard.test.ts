@@ -36,6 +36,23 @@ const quest = {
 } as VaultQuest
 
 describe('QuestCard', () => {
+  it('renders a completed quest with a non-interactive Completed mark instead of a Details action', () => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: { ...quest, is_completed: true },
+        vaultId: 'vault-1',
+        status: 'completed',
+        partyMembers: [],
+      },
+    })
+
+    expect(wrapper.find('.quest-card button').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Completed')
+    expect(wrapper.text()).not.toContain('View Details')
+    expect(wrapper.emitted('view')).toBeUndefined()
+  })
+
   it('keeps the primary action in a card footer below variable quest content', () => {
     setActivePinia(createPinia())
     const wrapper = mount(QuestCard, {

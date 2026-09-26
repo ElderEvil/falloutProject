@@ -104,3 +104,6 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
     # which would otherwise discard the staged haul.
     await db_session.flush()
     await exploration_coordinator.start_return(db_session, exploration_id)
+    # start_return commits (persisting the LOCATION_CLEARED row and any parked
+    # death notice); drain the deferred queue so they also go out live.
+    await notification_service.deliver_deferred_notifications(db_session)

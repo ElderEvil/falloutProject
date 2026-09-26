@@ -10,6 +10,7 @@ from app.crud import dweller as dweller_crud
 from app.crud import expedition_run as crud_expedition_run
 from app.crud import exploration as crud_exploration
 from app.crud import vault as crud_vault
+from app.crud.team import team_crud
 from app.models.exploration import ExpeditionRunStatus, Exploration
 from app.schemas.exploration_event import RewardsSchema
 from app.services.exploration.event_service import event_service
@@ -105,6 +106,10 @@ class ExplorationCoordinator:
                 rewards = rewards.model_copy(update={"progress_percentage": progress, "recalled_early": True})
             else:
                 rewards = await rewards_service.apply_rewards(db_session, exploration, commit=False)
+            if exploration.team_id is not None:
+                team = await team_crud.get_exploration_team(db_session, exploration.id)
+                if team is not None:
+                    await db_session.delete(team)
             await db_session.commit()
         except Exception:
             notification_service.discard_deferred_notifications(db_session)
@@ -156,13 +161,17 @@ class ExplorationCoordinator:
                 exploration.dweller_id,
             )
 
-    async def _update_dweller_status_after_return(self, db_session: AsyncSession, exploration: Exploration) -> None:
-        """Restore the dweller's room-appropriate status after exploration."""
+    async def _restore_dweller_status(self, db_session: AsyncSession, dweller_id: UUID4) -> None:
+        """Restore one dweller's room-appropriate status after exploration."""
         from app.core.enums import DwellerStatusEnum
         from app.crud.dweller import determine_status_for_room
         from app.schemas.dweller import DwellerUpdate
 
-        dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+        dweller_obj = await dweller_crud.get(db_session, dweller_id)
+
+        if dweller_obj.is_dead:
+            # Dead dwellers never get a status restore (a wipe must not revive the anchor's status).
+            return
 
         if dweller_obj.room_id:
             # Dweller has a room - set status based on room type
@@ -174,7 +183,17 @@ class ExplorationCoordinator:
             # No room - set to IDLE
             new_status = DwellerStatusEnum.IDLE
 
-        await dweller_crud.update(db_session, exploration.dweller_id, DwellerUpdate(status=new_status), commit=False)
+        await dweller_crud.update(db_session, dweller_id, DwellerUpdate(status=new_status), commit=False)
+
+    async def _update_dweller_status_after_return(self, db_session: AsyncSession, exploration: Exploration) -> None:
+        """Restore the dweller's room-appropriate status after exploration."""
+        if exploration.team_id is not None:
+            members = await team_crud.get_exploration_team_dwellers(db_session, exploration.id)
+            for member in members:
+                if not member.is_dead:
+                    await self._restore_dweller_status(db_session, member.id)
+            return
+        await self._restore_dweller_status(db_session, exploration.dweller_id)
 
 
 # Singleton instance

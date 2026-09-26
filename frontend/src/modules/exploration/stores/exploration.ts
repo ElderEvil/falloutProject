@@ -341,7 +341,7 @@ export const useExplorationStore = defineStore('exploration', () => {
 
   async function dispatchToLocation(
     vaultId: string,
-    dwellerId: string,
+    dwellerIds: string[],
     locationId: string
   ): Promise<Exploration> {
     isLoading.value = true
@@ -352,7 +352,7 @@ export const useExplorationStore = defineStore('exploration', () => {
       // The generated schema types events/loot as loose records; the wire payload
       // is the same exploration shape the store already consumes everywhere.
       const exploration = (await explorationApi.dispatchToLocation(token, vaultId, {
-        dwellerId,
+        dwellerIds,
         locationId,
       })) as unknown as Exploration
       upsertExploration(exploration)

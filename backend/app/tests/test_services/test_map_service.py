@@ -478,6 +478,10 @@ async def test_sweep_reclears_nulls_elapsed_and_notifies_once(
     assert notifications[0].user_id == vault.user_id
     assert notifications[0].vault_id == vault.id
     assert "Red Rocket" in notifications[0].title
+    assert notifications[0].meta_data == {
+        "location_id": str(state.location_id),
+        "location_name": "Red Rocket",
+    }
 
     assert await map_service.sweep_reclears(async_session) == 0
     notifications = (

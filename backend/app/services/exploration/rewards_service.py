@@ -17,6 +17,7 @@ from app.crud import room as room_crud
 from app.crud import storage as crud_storage
 from app.crud import vault as crud_vault
 from app.crud import weapon as crud_weapon
+from app.crud.team import team_crud
 from app.models.exploration import Exploration
 from app.models.junk import Junk
 from app.models.outfit import Outfit
@@ -334,6 +335,35 @@ class RewardsService:
         await db_session.commit()
         return value, unclaimed
 
+    async def _grant_member_xp(
+        self,
+        db_session: AsyncSession,
+        exploration: Exploration,
+        dweller_obj,
+        *,
+        experience_scale: float = 1.0,
+        commit: bool = False,
+    ) -> int:
+        """Grant exploration XP to one living member, settling any level-up."""
+        from app.services.leveling_service import leveling_service
+
+        full_experience = rewards_calculator.calculate_exploration_xp(exploration, dweller_obj)
+        experience = int(full_experience * experience_scale)
+
+        dweller_obj.experience = max(0, dweller_obj.experience + experience)
+        db_session.add(dweller_obj)
+
+        leveled_up, levels_gained = await leveling_service.check_level_up(db_session, dweller_obj, commit=commit)
+        if leveled_up:
+            await leveling_service.settle_level_up(
+                db_session,
+                dweller_obj,
+                old_level=dweller_obj.level - levels_gained,
+                levels_gained=levels_gained,
+                commit=commit,
+            )
+        return experience
+
     async def apply_rewards(
         self,
         db_session: AsyncSession,
@@ -352,8 +382,6 @@ class RewardsService:
                 single transaction; the caller then drains parked surfacing after
                 its own commit.
         """
-        from app.services.leveling_service import leveling_service
-
         # Get dweller
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
 
@@ -372,21 +400,18 @@ class RewardsService:
             )
 
         # Calculate and apply experience
-        full_experience = rewards_calculator.calculate_exploration_xp(exploration, dweller_obj)
-        experience = int(full_experience * progress_multiplier)
-
-        dweller_obj.experience = max(0, dweller_obj.experience + experience)
-        db_session.add(dweller_obj)
-
-        # Check for level-up
-        leveled_up, levels_gained = await leveling_service.check_level_up(db_session, dweller_obj, commit=commit)
-        if leveled_up:
-            await leveling_service.settle_level_up(
-                db_session,
-                dweller_obj,
-                old_level=dweller_obj.level - levels_gained,
-                levels_gained=levels_gained,
-                commit=commit,
+        if exploration.team_id is not None:
+            members = await team_crud.get_exploration_team_dwellers(db_session, exploration.id)
+            experience = 0
+            for member in members:
+                if member.is_dead:
+                    continue
+                experience += await self._grant_member_xp(
+                    db_session, exploration, member, experience_scale=progress_multiplier, commit=commit
+                )
+        else:
+            experience = await self._grant_member_xp(
+                db_session, exploration, dweller_obj, experience_scale=progress_multiplier, commit=commit
             )
 
         # Transfer loot items to vault storage (with space validation)

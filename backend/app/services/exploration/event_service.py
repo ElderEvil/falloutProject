@@ -5,6 +5,7 @@ import logging
 import random
 from typing import Any
 
+from pydantic import UUID4
 from sqlalchemy import orm
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -40,20 +41,39 @@ logger = logging.getLogger(__name__)
 _PENDING_EQUIP_NOTIFICATIONS = "pending_exploration_equip_notifications"
 
 
-async def apply_exploration_damage(db_session: AsyncSession, exploration: Exploration, damage: int) -> None:
+async def apply_exploration_damage(
+    db_session: AsyncSession,
+    exploration: Exploration,
+    damage: int,
+    *,
+    dweller_id: UUID4 | None = None,
+    lethal: bool = True,
+    delete_held: bool = True,
+) -> None:
     """Apply damage to the explorer, marking death when health hits zero.
 
     Shared by timed events and expedition sites so both kill exactly the same way.
+    The keyword-only overrides exist for party dispatch: a member other than the
+    anchor takes the hit, ``lethal=False`` clamps below-tier damage at 1 instead
+    of killing, and ``delete_held=False`` leaves the shared haul alone so one
+    member's death does not wipe what the survivors carry.
     """
+    target_id = dweller_id if dweller_id is not None else exploration.dweller_id
 
     async def _get_living_dweller() -> Dweller | None:
-        dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+        dweller_obj = await dweller_crud.get(db_session, target_id)
         return None if dweller_obj.is_dead else dweller_obj
 
     if (dweller_obj := await _get_living_dweller()) is None:
         return
 
     new_health = dweller_obj.health - damage
+
+    if new_health <= 0 and not lethal:
+        dweller_obj.health = 1
+        db_session.add(dweller_obj)
+        await db_session.flush()
+        return
 
     if new_health <= 0:
         # Dweller dies in the wasteland. Delete held mid-run upgrades BEFORE
@@ -65,8 +85,9 @@ async def apply_exploration_damage(db_session: AsyncSession, exploration: Explor
         from app.crud import weapon as weapon_crud
         from app.services.family.death_service import death_service
 
-        await weapon_crud.delete_held_for_exploration(db_session, exploration.id)
-        await outfit_crud.delete_held_for_exploration(db_session, exploration.id)
+        if delete_held:
+            await weapon_crud.delete_held_for_exploration(db_session, exploration.id)
+            await outfit_crud.delete_held_for_exploration(db_session, exploration.id)
         await death_service.mark_as_dead(db_session, dweller_obj, DeathCauseEnum.EXPLORATION, commit=False)
     else:
         # Just apply damage (cap at 1 to give player chance to recall)

@@ -121,9 +121,9 @@ class ExplorationSendRequest(SQLModel):
 
 
 class ExpeditionDispatchRequest(SQLModel):
-    """Schema for dispatching a dweller to clear a specific map point."""
+    """Schema for dispatching a party to clear a specific map point."""
 
-    dweller_id: UUID4
+    dweller_ids: list[UUID4] = Field(min_length=1, description="Party of 1-3 dwellers, no leader")
     location_id: UUID4
 
 

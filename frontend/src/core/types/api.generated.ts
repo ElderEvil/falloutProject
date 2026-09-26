@@ -1352,14 +1352,14 @@ export interface paths {
         put?: never;
         /**
          * Dispatch Dweller
-         * @description Send a dweller to clear a specific map point.
+         * @description Send a party to clear a specific map point.
          *
          *     Returns:
          *         ExplorationRead: The created targeted exploration.
          *
          *     Raises:
-         *         ResourceNotFoundException: If the dweller or location is unknown to this vault.
-         *         ValidationException: If the dweller cannot go or the point cannot be cleared.
+         *         ResourceNotFoundException: If a dweller or the location is unknown to this vault.
+         *         ValidationException: If a dweller cannot go or the point cannot be cleared.
          */
         post: operations["dispatch_dweller_api_v1_explorations_dispatch_post"];
         delete?: never;
@@ -6814,14 +6814,14 @@ export interface components {
         };
         /**
          * ExpeditionDispatchRequest
-         * @description Schema for dispatching a dweller to clear a specific map point.
+         * @description Schema for dispatching a party to clear a specific map point.
          */
         ExpeditionDispatchRequest: {
             /**
-             * Dweller Id
-             * Format: uuid4
+             * Dweller Ids
+             * @description Party of 1-3 dwellers, no leader
              */
-            dweller_id: string;
+            dweller_ids: string[];
             /**
              * Location Id
              * Format: uuid4

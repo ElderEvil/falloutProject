@@ -1,11 +1,12 @@
 """CRUD operations for explorations."""
 
 from pydantic import UUID4
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
 from app.models.exploration import IN_PROGRESS_STATUSES, Exploration
+from app.models.team import TeamMember
 from app.schemas.exploration import ExplorationCreate, ExplorationUpdate
 
 
@@ -61,6 +62,27 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
             .where(Exploration.status.in_(IN_PROGRESS_STATUSES))
         )
         return result.scalar_one_or_none()
+
+    async def get_in_progress_for_dwellers(
+        self,
+        db_session: AsyncSession,
+        dweller_ids: list[UUID4],
+    ) -> list[Exploration]:
+        """Any open (exploring or returning) run for any of the given dwellers.
+
+        A dispatch party spans the anchor (``Exploration.dweller_id``) and the
+        ``TeamMember`` roster, so both are matched — otherwise a non-anchor
+        member reads as free.
+        """
+        if not dweller_ids:
+            return []
+        member_team_ids = select(TeamMember.team_id).where(TeamMember.dweller_id.in_(dweller_ids))
+        result = await db_session.execute(
+            select(Exploration)
+            .where(or_(Exploration.dweller_id.in_(dweller_ids), Exploration.team_id.in_(member_team_ids)))
+            .where(Exploration.status.in_(IN_PROGRESS_STATUSES))
+        )
+        return list(result.scalars().all())
 
     async def get_all_active(
         self,

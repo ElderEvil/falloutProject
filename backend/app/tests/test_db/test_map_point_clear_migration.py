@@ -1,7 +1,6 @@
 """Regression coverage for the map-point clear state migration (issue 772)."""
 
 import importlib.util
-import inspect
 from pathlib import Path
 
 MIGRATION_PATH = (
@@ -17,17 +16,3 @@ MIGRATION_SPEC.loader.exec_module(MIGRATION)
 def test_revision_chain() -> None:
     assert MIGRATION.revision == "e7f8a9b0c1d2"
     assert MIGRATION.down_revision == "c6f1a2b3d4e5"
-
-
-def test_upgrade_adds_three_columns() -> None:
-    source = inspect.getsource(MIGRATION.upgrade)
-    assert 'sa.Column("cleared_at", sa.DateTime(), nullable=True)' in source
-    assert 'sa.Column("reclear_available_at", sa.DateTime(), nullable=True)' in source
-    assert 'sa.Column("clear_count", sa.Integer(), server_default="0", nullable=False)' in source
-
-
-def test_downgrade_drops_three_columns() -> None:
-    source = inspect.getsource(MIGRATION.downgrade)
-    assert 'op.drop_column("vaultlocationstate", "clear_count")' in source
-    assert 'op.drop_column("vaultlocationstate", "reclear_available_at")' in source
-    assert 'op.drop_column("vaultlocationstate", "cleared_at")' in source

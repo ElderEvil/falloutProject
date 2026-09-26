@@ -414,6 +414,8 @@ class ExpeditionService:
         exploration = await lock_exploration_with_vault_claim(db_session, exploration_id)
         if not exploration.is_active():
             raise ValidationException("Expedition sites need an active exploration")
+        if exploration.team_id is not None:
+            raise ValidationException("Party dispatches cannot enter expedition sites")
         site = data_loader.get_expedition_site(site_id)
         if site is None:
             raise ValidationException(f"Unknown expedition site: {site_id!r}")

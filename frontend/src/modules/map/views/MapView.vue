@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useMapStore } from '../stores/map'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
@@ -23,6 +23,7 @@ const mapStore = useMapStore()
 const explorationStore = useExplorationStore()
 const { filter: dwellerStore } = useDwellerStore()
 const route = useRoute()
+const router = useRouter()
 const { isCollapsed } = useSidePanel()
 const toast = useToast()
 
@@ -53,11 +54,17 @@ async function openDispatchPicker(location: WastelandLocationWithDwellers) {
 
 async function handleDispatch(dwellerIds: string[]) {
   const location = dispatchLocation.value
-  const dwellerId = dwellerIds[0]
-  if (isDispatching.value || !location || !dwellerId || !vaultId.value || !authStore.token) return
+  if (
+    isDispatching.value ||
+    !location ||
+    dwellerIds.length === 0 ||
+    !vaultId.value ||
+    !authStore.token
+  )
+    return
   isDispatching.value = true
   try {
-    await explorationStore.dispatchToLocation(vaultId.value, dwellerId, location.id)
+    await explorationStore.dispatchToLocation(vaultId.value, dwellerIds, location.id)
     showDispatchModal.value = false
     dispatchLocation.value = null
     await mapStore.refreshMap(vaultId.value, authStore.token)
@@ -80,9 +87,15 @@ function handleMarkerClick(
     selectedLocation.value = payload.data
     selectedVaultMarker.value = null
     mapStore.markLocationViewed(payload.data.vault_id, payload.data.id)
+    // Symmetric deep-link: a clicked marker owns ?place= so the URL is
+    // shareable and survives reload; the ?place= watcher opens the modal.
+    if (route.query.place !== payload.data.id) {
+      void router.push({ query: { ...route.query, place: payload.data.id } })
+    }
   } else {
     selectedLocation.value = null
     selectedVaultMarker.value = payload.data
+    clearPlaceQuery()
   }
   showModal.value = true
 }
@@ -99,10 +112,19 @@ async function loadMap() {
 function tryOpenPlaceFromQuery() {
   const placeId = route.query.place
   if (typeof placeId !== 'string' || !placeId) return
+  // Loop guard: the click handler writes ?place=, which re-fires this watcher.
+  if (showModal.value && selectedLocation.value?.id === placeId) return
   const loc = mapStore.locations.find((l) => l.id === placeId)
   if (loc) {
     handleMarkerClick({ kind: 'location', data: loc })
   }
+}
+
+function clearPlaceQuery() {
+  if (route.query.place === undefined) return
+  const query = { ...route.query }
+  delete query.place
+  void router.replace({ query })
 }
 
 watch(
@@ -120,6 +142,11 @@ watch(
     tryOpenPlaceFromQuery()
   }
 )
+
+// Closing the modal releases ?place= so a dismissed location never reopens on reload.
+watch(showModal, (open) => {
+  if (!open) clearPlaceQuery()
+})
 
 onUnmounted(() => {
   mapStore.stopPolling()
@@ -210,7 +237,7 @@ const mapPaneHeight = 'var(--map-pane-size)'
             :vault-id="vaultId"
             :dwellers="dwellerStore.dwellers"
             :current-party="[]"
-            :max-party-size="1"
+            :max-party-size="3"
             @assign="handleDispatch"
           />
         </PageContentRail>

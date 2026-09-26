@@ -99,7 +99,7 @@ async def test_dispatch_dweller_success(
 
     response = await async_client.post(
         f"/explorations/dispatch?vault_id={vault.id}",
-        json={"dweller_id": str(dweller.id), "location_id": str(state.location_id)},
+        json={"dweller_ids": [str(dweller.id)], "location_id": str(state.location_id)},
         headers=superuser_token_headers,
     )
     assert response.status_code == 200
@@ -112,6 +112,7 @@ async def test_dispatch_dweller_success(
     assert exploration is not None
     assert exploration.target_location_id == state.location_id
     assert exploration.clear_tier == 0
+    assert exploration.team_id is not None
 
 
 @pytest.mark.asyncio

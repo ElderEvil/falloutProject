@@ -1,11 +1,12 @@
 """Reusable team roster primitive: a named squad of dwellers for one purpose.
 
-A ``Team`` serves exactly one purpose — a quest, an incident, or a standing
-hazard team — enforced by ``ck_team_one_purpose``. Quest teams are one per
-``(vault_id, quest_id)`` (``uq_team_vault_quest``); incident teams are one per
-``(vault_id, incident_id)`` (``uq_team_vault_incident``) and cascade with their
-incident; hazard teams are one per ``(vault_id, hazard_team)``
-(``uq_team_vault_hazard``) and hold the earned fire/radiation rosters.
+A ``Team`` serves exactly one purpose — a quest, an incident, a standing
+hazard team, or an exploration dispatch — enforced by ``ck_team_one_purpose``.
+Quest teams are one per ``(vault_id, quest_id)`` (``uq_team_vault_quest``);
+incident teams are one per ``(vault_id, incident_id)`` (``uq_team_vault_incident``)
+and cascade with their incident; hazard teams are one per ``(vault_id, hazard_team)``
+(``uq_team_vault_hazard``) and hold the earned fire/radiation rosters; dispatch
+teams are one per ``(vault_id, exploration_id)`` (``uq_team_vault_exploration``).
 """
 
 from typing import TYPE_CHECKING, Optional
@@ -32,7 +33,7 @@ RESERVE_STATUS = "reserve"
 
 
 class Team(BaseUUIDModel, TimeStampMixin, table=True):
-    """A roster of dwellers gathered for one quest, incident, or hazard team."""
+    """A roster of dwellers gathered for one quest, incident, hazard team, or dispatch."""
 
     __tablename__ = "team"
 
@@ -61,6 +62,16 @@ class Team(BaseUUIDModel, TimeStampMixin, table=True):
         index=True,
         description="Standing hazard team this roster holds, when hazard-purposed",
     )
+    # Deliberately a plain UUID, NOT a foreign key: a real FK would create a
+    # team -> exploration -> team cycle that breaks SQLModel.metadata.create_all
+    # on SQLite (the test suite's schema builder). Integrity is app-enforced —
+    # the team is created with the exploration in one transaction and deleted at
+    # finalize — plus the uq_team_vault_exploration unique constraint.
+    exploration_id: UUID4 | None = Field(
+        default=None,
+        index=True,
+        description="Exploration this team is dispatched on, when exploration-purposed",
+    )
     name: str | None = Field(default=None, max_length=64, description="Optional display name")
 
     # Relationships
@@ -72,16 +83,18 @@ class Team(BaseUUIDModel, TimeStampMixin, table=True):
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
 
-    # One team per (vault, quest), per (vault, incident), and per (vault, hazard);
-    # exactly one purpose.
+    # One team per (vault, quest), per (vault, incident), per (vault, hazard),
+    # and per (vault, exploration); exactly one purpose.
     __table_args__ = (
         sa.UniqueConstraint("vault_id", "quest_id", name="uq_team_vault_quest"),
         sa.UniqueConstraint("vault_id", "incident_id", name="uq_team_vault_incident"),
         sa.UniqueConstraint("vault_id", "hazard_team", name="uq_team_vault_hazard"),
+        sa.UniqueConstraint("vault_id", "exploration_id", name="uq_team_vault_exploration"),
         sa.CheckConstraint(
             "(CASE WHEN quest_id IS NOT NULL THEN 1 ELSE 0 END + "
             "CASE WHEN incident_id IS NOT NULL THEN 1 ELSE 0 END + "
-            "CASE WHEN hazard_team IS NOT NULL THEN 1 ELSE 0 END) = 1",
+            "CASE WHEN hazard_team IS NOT NULL THEN 1 ELSE 0 END + "
+            "CASE WHEN exploration_id IS NOT NULL THEN 1 ELSE 0 END) = 1",
             name="ck_team_one_purpose",
         ),
     )

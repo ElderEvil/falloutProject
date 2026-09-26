@@ -243,10 +243,10 @@ describe('Exploration Store', () => {
       useAuthStore().token = 'test-token'
       vi.mocked(explorationApi.dispatchToLocation).mockResolvedValueOnce(mockExploration)
 
-      const result = await store.dispatchToLocation('vault-1', 'dweller-1', 'loc-1')
+      const result = await store.dispatchToLocation('vault-1', ['dweller-1'], 'loc-1')
 
       expect(explorationApi.dispatchToLocation).toHaveBeenCalledWith('test-token', 'vault-1', {
-        dwellerId: 'dweller-1',
+        dwellerIds: ['dweller-1'],
         locationId: 'loc-1',
       })
       expect(result).toEqual(mockExploration)
@@ -265,7 +265,7 @@ describe('Exploration Store', () => {
       const updatedExploration = { ...mockExploration, total_caps_found: 100 }
       vi.mocked(explorationApi.dispatchToLocation).mockResolvedValueOnce(updatedExploration)
 
-      await store.dispatchToLocation('vault-1', 'dweller-1', 'loc-1')
+      await store.dispatchToLocation('vault-1', ['dweller-1', 'dweller-2'], 'loc-1')
 
       expect(store.explorations).toHaveLength(1)
       expect(store.explorations[0].total_caps_found).toBe(100)
@@ -277,7 +277,7 @@ describe('Exploration Store', () => {
       const error = new Error('Dispatch failed')
       vi.mocked(explorationApi.dispatchToLocation).mockRejectedValueOnce(error)
 
-      await expect(store.dispatchToLocation('vault-1', 'dweller-1', 'loc-1')).rejects.toThrow(
+      await expect(store.dispatchToLocation('vault-1', ['dweller-1'], 'loc-1')).rejects.toThrow(
         'Dispatch failed'
       )
 

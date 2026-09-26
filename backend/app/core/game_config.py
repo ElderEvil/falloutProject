@@ -838,6 +838,18 @@ class DispatchConfig(BaseSettings):
     base_travel_seconds: int = Field(default=1800, ge=0, description="Base travel time for a dispatch")
     travel_seconds_per_unit: int = Field(default=120, ge=0, description="Travel time per distance unit")
 
+    # Deterministic combat (issue 772): threat = difficulty * power_per_difficulty,
+    # victory when the party's total combat power meets it; damage = difficulty *
+    # damage_per_difficulty, raised up to 2x by the power shortfall ratio (derived,
+    # no extra knob). `combat.base_raider_power` (=10) is deliberately NOT reused:
+    # it is calibrated for in-vault incident waves fought by multiple defenders,
+    # and would be far too harsh for a 1-3 dweller dispatch.
+    power_per_difficulty: float = Field(default=3.0, ge=0.0, description="Threat power per difficulty level")
+    damage_per_difficulty: float = Field(default=1.0, ge=0.0, description="Damage per difficulty level")
+    # Tier at/above which a member reduced to 0 health dies instead of being
+    # clamped at 1 (below it, dispatch losses are non-lethal).
+    lethal_tier: int = Field(default=2, ge=0, description="Tier at which dispatch damage can kill")
+
 
 class ExplorationConfig(BaseSettings):
     """Wasteland exploration configuration."""

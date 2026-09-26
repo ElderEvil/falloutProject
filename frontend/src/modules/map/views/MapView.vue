@@ -53,11 +53,17 @@ async function openDispatchPicker(location: WastelandLocationWithDwellers) {
 
 async function handleDispatch(dwellerIds: string[]) {
   const location = dispatchLocation.value
-  const dwellerId = dwellerIds[0]
-  if (isDispatching.value || !location || !dwellerId || !vaultId.value || !authStore.token) return
+  if (
+    isDispatching.value ||
+    !location ||
+    dwellerIds.length === 0 ||
+    !vaultId.value ||
+    !authStore.token
+  )
+    return
   isDispatching.value = true
   try {
-    await explorationStore.dispatchToLocation(vaultId.value, dwellerId, location.id)
+    await explorationStore.dispatchToLocation(vaultId.value, dwellerIds, location.id)
     showDispatchModal.value = false
     dispatchLocation.value = null
     await mapStore.refreshMap(vaultId.value, authStore.token)
@@ -210,7 +216,7 @@ const mapPaneHeight = 'var(--map-pane-size)'
             :vault-id="vaultId"
             :dwellers="dwellerStore.dwellers"
             :current-party="[]"
-            :max-party-size="1"
+            :max-party-size="3"
             @assign="handleDispatch"
           />
         </PageContentRail>

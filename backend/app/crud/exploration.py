@@ -62,6 +62,21 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         )
         return result.scalar_one_or_none()
 
+    async def get_in_progress_for_dwellers(
+        self,
+        db_session: AsyncSession,
+        dweller_ids: list[UUID4],
+    ) -> list[Exploration]:
+        """Any open (exploring or returning) run for any of the given dwellers."""
+        if not dweller_ids:
+            return []
+        result = await db_session.execute(
+            select(Exploration)
+            .where(Exploration.dweller_id.in_(dweller_ids))
+            .where(Exploration.status.in_(IN_PROGRESS_STATUSES))
+        )
+        return list(result.scalars().all())
+
     async def get_all_active(
         self,
         db_session: AsyncSession,

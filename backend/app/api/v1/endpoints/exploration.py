@@ -70,20 +70,20 @@ async def dispatch_dweller(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Exploration:
-    """Send a dweller to clear a specific map point.
+    """Send a party to clear a specific map point.
 
     Returns:
         ExplorationRead: The created targeted exploration.
 
     Raises:
-        ResourceNotFoundException: If the dweller or location is unknown to this vault.
-        ValidationException: If the dweller cannot go or the point cannot be cleared.
+        ResourceNotFoundException: If a dweller or the location is unknown to this vault.
+        ValidationException: If a dweller cannot go or the point cannot be cleared.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
     return await exploration_service.dispatch(
         db_session,
         vault_id=vault_id,
-        dweller_id=request.dweller_id,
+        dweller_ids=request.dweller_ids,
         location_id=request.location_id,
     )
 

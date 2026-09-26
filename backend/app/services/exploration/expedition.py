@@ -69,6 +69,14 @@ class BranchResult:
     combat: list[dict] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class SiteBlockState:
+    """Per-vault+site expedition gate: block reason plus remaining anti-farm seconds."""
+
+    reason: Literal["open", "cooldown"] | None = None
+    cooldown_remaining_seconds: int = 0
+
+
 def success_odds(stat_value: int, difficulty: int) -> float:
     """Display odds for d20 + stat*2 >= 10 + difficulty*2, clamped to 5%-95%."""
     need = _check_threshold(stat_value, difficulty)
@@ -143,23 +151,36 @@ async def _get_open_run(db_session: AsyncSession, exploration_id: UUID4) -> Expe
     return run
 
 
-async def _site_block_reason(
+async def site_block_state(
     db_session: AsyncSession, vault_id: UUID4, site_id: str, *, include_open: bool = True
-) -> Literal["open", "cooldown"] | None:
-    """Return the vault/site gate that prevents a new entry or finale payout."""
+) -> SiteBlockState:
+    """Return the vault/site expedition gate with the remaining anti-farm window."""
     if (
         include_open
         and await crud.expedition_run.get_open_for_vault_site(db_session, vault_id=vault_id, site_id=site_id)
         is not None
     ):
-        return "open"
+        return SiteBlockState(reason="open")
     recent = await crud.expedition_run.get_recent_terminal(
         db_session,
         vault_id=vault_id,
         site_id=site_id,
         since=datetime.utcnow() - timedelta(days=ANTI_FARM_DAYS),
     )
-    return "cooldown" if recent is not None else None
+    if recent is None:
+        return SiteBlockState()
+    if recent.finished_at is None:
+        return SiteBlockState(reason="cooldown")
+    window_end = recent.finished_at + timedelta(days=ANTI_FARM_DAYS)
+    remaining = max(0, int((window_end - datetime.utcnow()).total_seconds()))
+    return SiteBlockState(reason="cooldown", cooldown_remaining_seconds=remaining)
+
+
+async def _site_block_reason(
+    db_session: AsyncSession, vault_id: UUID4, site_id: str, *, include_open: bool = True
+) -> Literal["open", "cooldown"] | None:
+    """Return the vault/site gate that prevents a new entry or finale payout."""
+    return (await site_block_state(db_session, vault_id, site_id, include_open=include_open)).reason
 
 
 async def _log_site_event(db_session: AsyncSession, exploration: Exploration, description: str) -> None:

@@ -4,6 +4,8 @@
       "id": "red_rocket",
       "name": "Red Rocket Gas Station",
       "flavor": "The pumps still tick over. Someone has kept this place running — and mined it.",
+      "coord_x": 30.0,
+      "coord_y": 25.0,
       "min_dweller_level": 3,
       "rooms": [
         {
@@ -77,6 +79,8 @@
       "id": "super_duper_mart",
       "name": "Super Duper Mart",
       "flavor": "Raiders squat the aisles of a pre-war supermarket. The prize stock is in back.",
+      "coord_x": 72.0,
+      "coord_y": 68.0,
       "min_dweller_level": 5,
       "rooms": [
         {

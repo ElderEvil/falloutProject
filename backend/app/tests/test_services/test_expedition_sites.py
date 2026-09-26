@@ -42,12 +42,15 @@ def test_unknown_site_returns_none():
 
 
 def test_invalid_site_definition_rejected():
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError) as exc_info:
         SiteDefinition(
             id="bad",
             name="Bad",
             flavor="Bad",
+            coord_x=50,
+            coord_y=50,
             min_dweller_level=1,
             rooms=[],
             reward_vault={"caps_min": 0, "caps_max": 10},
         )
+    assert any("rooms" in error["loc"] for error in exc_info.value.errors())

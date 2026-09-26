@@ -91,6 +91,7 @@ class CRUDExpeditionRun(CRUDBase[ExpeditionRun, ExpeditionRun, ExpeditionRun]):
             .where(ExpeditionRun.site_id == site_id)
             .where(ExpeditionRun.status.in_(TERMINAL_STATUSES))
             .where(ExpeditionRun.finished_at >= since)
+            .order_by(ExpeditionRun.finished_at.desc())
         )
         return result.scalars().first()
 

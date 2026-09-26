@@ -17,7 +17,7 @@ from app.models.vault import Vault
 from app.models.world_location import DwellerLocation, VaultLocationState, WorldLocation
 from app.schemas.common import RarityEnum
 from app.services.map_service import map_service
-from app.utils.places import normalize_place_name
+from app.utils.places import WORLD_SCALE, normalize_place_name
 
 # ---------------------------------------------------------------------------
 # register_bio_places
@@ -529,3 +529,75 @@ async def test_sweep_reclears_skips_missing_vault_owner(
     assert state.reclear_available_at is None
     notifications = (await async_session.execute(select(Notification))).scalars().all()
     assert notifications == []
+
+
+# ---------------------------------------------------------------------------
+# expedition_sites — interactive site markers on the map wire
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_expedition_sites_ready(async_session: AsyncSession, vault: Vault) -> None:
+    """No runs yet: every site is ready with zeroed cooldown and scaled coords."""
+    from app.services.exploration import data_loader
+
+    map_data = await map_service.get_vault_map(async_session, vault)
+    by_id = {site.id: site for site in map_data.expedition_sites}
+    assert set(by_id) == {"red_rocket", "super_duper_mart"}
+    for site in data_loader.load_expedition_sites():
+        marker = by_id[site.id]
+        assert marker.block_reason is None
+        assert marker.cleared is False
+        assert marker.cooldown_remaining_seconds == 0
+        assert marker.coord_x == round(site.coord_x * WORLD_SCALE, 1)
+        assert marker.coord_y == round(site.coord_y * WORLD_SCALE, 1)
+        assert marker.min_dweller_level == site.min_dweller_level
+        assert marker.room_total == len(site.rooms)
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_expedition_sites_open(async_session: AsyncSession, vault: Vault) -> None:
+    """An open run for a vault+site marks that site as blocked by 'open'."""
+    from app.models.exploration import ExpeditionRun, ExpeditionRunStatus
+
+    async_session.add(
+        ExpeditionRun(
+            exploration_id=uuid4(),
+            vault_id=vault.id,
+            site_id="red_rocket",
+            status=ExpeditionRunStatus.IN_ROOM,
+        )
+    )
+    await async_session.commit()
+
+    map_data = await map_service.get_vault_map(async_session, vault)
+    by_id = {site.id: site for site in map_data.expedition_sites}
+    assert by_id["red_rocket"].block_reason == "open"
+    assert by_id["red_rocket"].cleared is False
+    assert by_id["red_rocket"].cooldown_remaining_seconds == 0
+    assert by_id["super_duper_mart"].block_reason is None
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_expedition_sites_cooldown(async_session: AsyncSession, vault: Vault) -> None:
+    """A recent terminal run puts the site in cooldown with remaining seconds."""
+    from app.models.exploration import ExpeditionRun, ExpeditionRunStatus
+
+    async_session.add(
+        ExpeditionRun(
+            exploration_id=uuid4(),
+            vault_id=vault.id,
+            site_id="red_rocket",
+            status=ExpeditionRunStatus.CLEARED,
+            finished_at=datetime.utcnow() - timedelta(days=1),
+        )
+    )
+    await async_session.commit()
+
+    map_data = await map_service.get_vault_map(async_session, vault)
+    by_id = {site.id: site for site in map_data.expedition_sites}
+    assert by_id["red_rocket"].block_reason == "cooldown"
+    assert by_id["red_rocket"].cleared is True
+    assert by_id["red_rocket"].cooldown_remaining_seconds > 0
+    assert by_id["super_duper_mart"].block_reason is None
+    assert by_id["super_duper_mart"].cleared is False

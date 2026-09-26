@@ -826,6 +826,19 @@ class VaultStartConfig(BaseSettings):
     boosted_rare_chance: float = Field(default=0.12, ge=0.0, le=1.0, description="RARE roll chance, boosted seeding")
 
 
+class DispatchConfig(BaseSettings):
+    """Expedition dispatch tuning for clearable map points."""
+
+    model_config = SettingsConfigDict(env_prefix="EXPLORATION_DISPATCH_")
+
+    max_party_size: int = Field(default=3, ge=1, description="Max dwellers per dispatch")
+    escalation_cap: int = Field(default=3, ge=0, description="Max difficulty/reward escalation tiers")
+    difficulty_per_tier: float = Field(default=0.5, ge=0.0, description="Difficulty added per escalation tier")
+    reward_per_tier: float = Field(default=0.35, ge=0.0, description="Reward multiplier added per escalation tier")
+    base_travel_seconds: int = Field(default=900, ge=0, description="Base travel time for a dispatch")
+    travel_seconds_per_unit: int = Field(default=30, ge=0, description="Travel time per distance unit")
+
+
 class ExplorationConfig(BaseSettings):
     """Wasteland exploration configuration."""
 
@@ -892,6 +905,9 @@ class ExplorationConfig(BaseSettings):
     junk_value_common: int = Field(default=2, description="Value of common junk", ge=0)
     junk_value_rare: int = Field(default=50, description="Value of rare junk", ge=0)
     junk_value_legendary: int = Field(default=200, description="Value of legendary junk", ge=0)
+
+    # Dispatch (clearable map points)
+    dispatch: DispatchConfig = Field(default_factory=DispatchConfig)
 
     # Scrap probabilities
     same_rarity_junk_probability: float = Field(

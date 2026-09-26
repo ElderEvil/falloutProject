@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING, Protocol
 
 from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
@@ -19,18 +20,19 @@ from app.crud.exploration import exploration as exploration_crud
 from app.crud.vault import vault as vault_crud
 from app.crud.world_location import world_location as wl_crud
 from app.models.notification import NotificationPriority, NotificationType
-from app.models.world_location import WorldLocation
+from app.models.world_location import VaultLocationState, WorldLocation
 from app.schemas.wasteland_location import (
     DiscoveryRoutePoint,
     DiscoveryRouteRead,
     DwellerRef,
+    LocationClearStateRead,
     PlaceGroupRead,
     VaultMapResponse,
     VaultMarkerRead,
     WastelandLocationWithDwellers,
 )
 from app.services.notification_service import notification_service
-from app.utils.place_groups import load_place_groups
+from app.utils.place_groups import get_place_group, load_place_groups
 from app.utils.places import GENERIC_ORIGIN_SKIP, WORLD_SCALE, normalize_place_name
 
 if TYPE_CHECKING:
@@ -358,6 +360,26 @@ class MapService:
     # map assembly
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _clear_state_for(state: VaultLocationState, location: WorldLocation) -> LocationClearStateRead | None:
+        """Derive the read-only clear state for a map point, or None when not clearable.
+
+        Availability is computed from ``now`` and never persisted; non-clearable
+        groups and ungrouped points carry no clear state on the wire.
+        """
+        group = get_place_group(location.group_key)
+        if group is None or not group.get("clearable"):
+            return None
+        now = datetime.utcnow()
+        return LocationClearStateRead(
+            clearable=True,
+            cleared=state.is_cleared(now),
+            clear_count=state.clear_count,
+            tier=min(state.clear_count, game_config.exploration.dispatch.escalation_cap),
+            time_remaining_seconds=state.time_remaining_seconds(now),
+            loot_table=group.get("loot_table"),
+        )
+
     async def get_location_detail(
         self,
         db_session: AsyncSession,
@@ -400,6 +422,7 @@ class MapService:
             created_at=state.created_at,
             dwellers=dweller_refs,
             is_unlocked=any(r.is_unlocked for r in dweller_refs),
+            clear_state=self._clear_state_for(state, location),
         )
 
     async def get_vault_map(
@@ -451,6 +474,7 @@ class MapService:
                     created_at=state.created_at,
                     dwellers=dweller_refs,
                     is_unlocked=location_unlocked,
+                    clear_state=self._clear_state_for(state, location),
                 )
             )
 

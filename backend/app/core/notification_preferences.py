@@ -30,6 +30,8 @@ NOTIFICATION_CATEGORY_BY_TYPE: dict[NotificationType, NotificationCategory | Non
     NotificationType.BABY_BORN: NotificationCategory.SOCIAL_ACTIVITY,
     NotificationType.RADIO_NEW_DWELLER: NotificationCategory.VAULT_ACTIVITY,
     NotificationType.RADIO_AUTO_SWITCHED_TO_HAPPINESS: NotificationCategory.VAULT_ACTIVITY,
+    NotificationType.LOCATION_CLEARED: NotificationCategory.ARRIVALS_AND_COMPLETIONS,
+    NotificationType.LOCATION_READY: NotificationCategory.EXPLORATION_UPDATES,
     # These are intentionally always enabled: they are urgent, actionable, or
     # progression-critical. Unknown future types also default to enabled.
     NotificationType.COMBAT_STARTED: None,

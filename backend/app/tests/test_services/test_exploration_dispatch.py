@@ -3,7 +3,7 @@
 import math
 import random
 from datetime import datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
@@ -14,6 +14,7 @@ from app import crud
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.exploration import ExplorationStatus
+from app.models.notification import Notification, NotificationType
 from app.models.vault import Vault
 from app.models.world_location import VaultLocationState, WorldLocation
 from app.schemas.dweller import DwellerCreate
@@ -23,6 +24,7 @@ from app.services.exploration.dispatch_resolution import resolve_dispatch_arriva
 from app.services.exploration_service import dispatch_travel_hours, exploration_service
 from app.services.game_tick.dwellers_tick import process_explorations
 from app.services.map_service import map_service
+from app.services.notification_service import NotificationService
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 WIN = CombatOutcomeSchema(victory=True, health_loss=0, description="win")
@@ -209,6 +211,74 @@ async def test_dispatch_arrival_loss_no_clear_no_loot(
     assert exploration.loot_collected == []
     assert exploration.total_caps_found == 0
     assert dweller.health == max(1, health_before - 5)
+
+
+@pytest.mark.asyncio
+async def test_dispatch_arrival_win_notifies_location_cleared(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A winning arrival emits a LOCATION_CLEARED notification naming the location."""
+    location, state = await _register_clearable(async_session, vault, dweller)
+    exploration = await _expired_dispatch(async_session, vault, dweller, location.id)
+
+    with patch.object(combat_calculator, "calculate_combat_outcome", return_value=WIN):
+        await resolve_dispatch_arrival(async_session, exploration.id)
+
+    notifications = (
+        (
+            await async_session.execute(
+                select(Notification).where(Notification.notification_type == NotificationType.LOCATION_CLEARED)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(notifications) == 1
+    assert notifications[0].user_id == vault.user_id
+    assert notifications[0].vault_id == vault.id
+    assert "Red Rocket" in notifications[0].title
+
+
+@pytest.mark.asyncio
+async def test_dispatch_arrival_win_delivers_location_cleared_live(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A winning arrival drains the deferred LOCATION_CLEARED over WS/SSE, not just the row."""
+    location, state = await _register_clearable(async_session, vault, dweller)
+    exploration = await _expired_dispatch(async_session, vault, dweller, location.id)
+
+    with (
+        patch.object(combat_calculator, "calculate_combat_outcome", return_value=WIN),
+        patch.object(NotificationService, "_deliver", new_callable=AsyncMock) as deliver,
+    ):
+        await resolve_dispatch_arrival(async_session, exploration.id)
+
+    assert deliver.await_count == 1
+    payload = deliver.await_args.args[1]
+    assert payload["notification"]["notification_type"] == NotificationType.LOCATION_CLEARED
+
+
+@pytest.mark.asyncio
+async def test_dispatch_arrival_loss_no_notification(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A losing arrival does not emit a LOCATION_CLEARED notification."""
+    location, state = await _register_clearable(async_session, vault, dweller)
+    exploration = await _expired_dispatch(async_session, vault, dweller, location.id)
+
+    with patch.object(combat_calculator, "calculate_combat_outcome", return_value=LOSS):
+        await resolve_dispatch_arrival(async_session, exploration.id)
+
+    notifications = (
+        (
+            await async_session.execute(
+                select(Notification).where(Notification.notification_type == NotificationType.LOCATION_CLEARED)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert notifications == []
 
 
 @pytest.mark.asyncio

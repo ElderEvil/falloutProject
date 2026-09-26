@@ -55,6 +55,10 @@ class NotificationType(StrEnum):
     RADIO_AUTO_SWITCHED_TO_HAPPINESS = "radio_auto_switched_to_happiness"
     MAP_REGISTRATION_FAILED = "map_registration_failed"
 
+    # Map point events
+    LOCATION_CLEARED = "location_cleared"
+    LOCATION_READY = "location_ready"
+
 
 class NotificationPriority(StrEnum):
     INFO = "info"  # FYI, dismissible

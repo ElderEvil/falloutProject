@@ -88,6 +88,8 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
         "RADIO_NEW_DWELLER",
         "RADIO_AUTO_SWITCHED_TO_HAPPINESS",
         "MAP_REGISTRATION_FAILED",
+        "LOCATION_CLEARED",
+        "LOCATION_READY",
     },
     "outfittypeenum": {"COMMON", "RARE", "LEGENDARY", "POWER_ARMOR", "TIERED"},
     "placekind": {"PLACE", "VAULT"},

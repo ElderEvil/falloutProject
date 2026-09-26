@@ -220,6 +220,35 @@ def check_quest_completion():
         return {"quests_completed": count}
 
 
+async def _check_location_reclears() -> int:
+    """Null elapsed reclear windows and notify owners the point is ready again."""
+    from app.services.map_service import map_service
+
+    async with task_session() as session:
+        try:
+            return await map_service.sweep_reclears(session)
+        except Exception:
+            await recover_session(session)
+            raise
+
+
+@dramatiq.actor(actor_name="check_location_reclears", max_retries=3, min_backoff=300000)
+def check_location_reclears():
+    """Check for map points whose reclear window has elapsed and notify their owners.
+
+    Returns:
+        dict: Count of map points swept.
+    """
+    try:
+        count = asyncio.run(_check_location_reclears())
+    except Exception:
+        logger.exception("Location reclear check failed")
+        raise
+    else:
+        logger.info(f"Location reclear check completed: {count} points ready")
+        return {"reclears_swept": count}
+
+
 async def _refresh_objectives(*, weekly: bool) -> dict:
     """Assign daily or weekly objectives to every non-deleted vault."""
     from sqlmodel import col, select
@@ -320,6 +349,9 @@ def cleanup_old_records():
 game_tick.options["periodic"] = periodiq.cron("* * * * *")
 incident_tick.options["periodic"] = periodiq.cron("*/2 * * * *")
 check_quest_completion.options["periodic"] = periodiq.cron("* * * * *")
+
+# Every 5 minutes
+check_location_reclears.options["periodic"] = periodiq.cron("*/5 * * * *")
 
 # Daily at midnight
 check_permanent_deaths.options["periodic"] = periodiq.cron("0 0 * * *")

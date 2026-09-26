@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { getItemIcon } from '@/core/models/items'
 
 defineProps<{
   weaponName: string | null
   outfitName: string | null
+  weapon?: { weapon_subtype?: string } | null
+  outfit?: { outfit_type?: string } | null
 }>()
 </script>
 
@@ -13,7 +16,7 @@ defineProps<{
       class="flex items-center gap-4 rounded-md border border-theme-primary bg-terminal-background p-3 shadow-[0_0_10px_rgba(var(--color-theme-primary-rgb),0.1)]"
     >
       <Icon
-        icon="mdi:pistol"
+        :icon="getItemIcon('weapon', weapon ?? {})"
         class="h-8 w-8 shrink-0 text-theme-primary drop-shadow-[0_0_5px_var(--color-theme-glow)]"
       />
       <div class="flex min-w-0 flex-col">
@@ -30,7 +33,7 @@ defineProps<{
       class="flex items-center gap-4 rounded-md border border-theme-primary bg-terminal-background p-3 shadow-[0_0_10px_rgba(var(--color-theme-primary-rgb),0.1)]"
     >
       <Icon
-        icon="mdi:tshirt-crew"
+        :icon="getItemIcon('outfit', outfit ?? {})"
         class="h-8 w-8 shrink-0 text-theme-primary drop-shadow-[0_0_5px_var(--color-theme-glow)]"
       />
       <div class="flex min-w-0 flex-col">

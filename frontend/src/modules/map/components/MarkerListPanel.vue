@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import type {
+  ExpeditionSiteMarkerRead,
   MarkerClickPayload,
   PlaceGroup,
   WastelandLocationWithDwellers,
@@ -12,12 +13,14 @@ import { MARKER_TYPES } from '../models/markerTypeMeta'
 interface Props {
   locations: WastelandLocationWithDwellers[]
   vaultMarkers: VaultMarkerRead[]
+  expeditionSites?: ExpeditionSiteMarkerRead[]
   placeGroups?: PlaceGroup[]
   selectedMarkerId?: string | null
   docked?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  expeditionSites: () => [],
   placeGroups: () => [],
   selectedMarkerId: null,
   docked: false,
@@ -33,8 +36,8 @@ const isOpen = defineModel<boolean>('open', { default: false })
 interface MarkerGroupItem {
   id: string
   name: string
-  kind: 'location' | 'vault'
-  data: WastelandLocationWithDwellers | VaultMarkerRead
+  kind: 'location' | 'vault' | 'site'
+  data: WastelandLocationWithDwellers | VaultMarkerRead | ExpeditionSiteMarkerRead
   group?: { icon: string; label: string }
 }
 
@@ -68,6 +71,16 @@ const groups = computed<MarkerGroup[]>(() => {
     byType.get(vm.type)!.push({ id: `vault-${i}`, name: vm.name, kind: 'vault', data: vm })
   }
 
+  for (const site of props.expeditionSites) {
+    if (!byType.has('expedition_site')) byType.set('expedition_site', [])
+    byType.get('expedition_site')!.push({
+      id: `site-${site.id}`,
+      name: site.name,
+      kind: 'site',
+      data: site,
+    })
+  }
+
   return MARKER_TYPES.filter((t) => byType.has(t.type) && byType.get(t.type)!.length > 0).map(
     (t) => ({
       type: t.type,
@@ -78,7 +91,9 @@ const groups = computed<MarkerGroup[]>(() => {
   )
 })
 
-const totalCount = computed(() => props.locations.length + props.vaultMarkers.length)
+const totalCount = computed(
+  () => props.locations.length + props.vaultMarkers.length + props.expeditionSites.length
+)
 
 // Per-group collapse state (expanded by default)
 const collapsedGroups = ref(new Set<string>())

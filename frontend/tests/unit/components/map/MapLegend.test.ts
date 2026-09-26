@@ -44,7 +44,7 @@ describe('MapLegend', () => {
     expect(wrapper.text()).toContain('MAP KEY')
   })
 
-  it('should render all five marker type entries', () => {
+  it('should render all six marker type entries', () => {
     const wrapper = mountLegend()
 
     expect(wrapper.text()).toContain('Home Vault')
@@ -52,6 +52,7 @@ describe('MapLegend', () => {
     expect(wrapper.text()).toContain('Visited')
     expect(wrapper.text()).toContain('Discovery')
     expect(wrapper.text()).toContain('Vault Signal')
+    expect(wrapper.text()).toContain('Expedition Sites')
   })
 
   it('should have the correct role and aria-label', () => {
@@ -62,18 +63,18 @@ describe('MapLegend', () => {
     expect(legend.attributes('aria-label')).toBe('Map legend')
   })
 
-  it('should render exactly 5 legend items', () => {
+  it('should render exactly 6 legend items', () => {
     const wrapper = mountLegend()
 
     const items = wrapper.findAll('.legend-item')
-    expect(items).toHaveLength(5)
+    expect(items).toHaveLength(6)
   })
 
   it('should render an icon for each marker type', () => {
     const wrapper = mountLegend()
 
     const icons = wrapper.findAll('.legend-icon-wrapper')
-    expect(icons).toHaveLength(5)
+    expect(icons).toHaveLength(6)
   })
 
   it('pulses the discovery icon while an unseen discovery exists', () => {

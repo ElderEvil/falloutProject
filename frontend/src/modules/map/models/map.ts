@@ -7,7 +7,16 @@ export type DiscoveryRouteRead = components['schemas']['DiscoveryRouteRead']
 export type VaultMapResponse = components['schemas']['VaultMapResponse']
 export type DwellerRef = components['schemas']['DwellerRef']
 export type PlaceGroup = components['schemas']['PlaceGroupRead']
+export type ExpeditionSiteMarkerRead = components['schemas']['ExpeditionSiteMarkerRead']
+
+export interface ExplorerTrack {
+  explorationId: string
+  dwellerName: string
+  targetLocationId: string | null
+  lastKnown: { coord_x: number; coord_y: number } | null
+}
 
 export type MarkerClickPayload =
   | { kind: 'location'; data: WastelandLocationWithDwellers }
   | { kind: 'vault'; data: VaultMarkerRead }
+  | { kind: 'site'; data: ExpeditionSiteMarkerRead }

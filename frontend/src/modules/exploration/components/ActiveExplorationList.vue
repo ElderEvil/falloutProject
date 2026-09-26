@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { Badge } from '@/core/components/ui/badge'
 import { Progress } from '@/core/components/ui/progress'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import { getItemIcon } from '@/core/models/items'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller, DetailedDweller } from '@/modules/dwellers/models/dweller'
 import {
@@ -11,6 +11,7 @@ import {
   getProgressPercentage,
   isReadyToComplete,
 } from '@/modules/exploration/composables/useExplorationProgress'
+import ExplorationStatusBadges from './ExplorationStatusBadges.vue'
 import ExplorerActions from './ExplorerActions.vue'
 
 interface Props {
@@ -47,28 +48,17 @@ const getDwellerOutfit = (dwellerId: string) => {
   return null
 }
 
+// Status badges prefer the detailed record (live vitals) but fall back to the
+// roster dweller so the AT RISK chip still works before details load.
+const getDwellerForBadges = (dwellerId: string): DetailedDweller | Dweller | null =>
+  getDetailedDweller(dwellerId) ?? getDwellerById(dwellerId) ?? null
+
 // Ready-to-collect first, then highest progress — keeps the actionable cards on top.
 const sortedExplorations = computed(() =>
   [...props.explorations].sort((a, b) => getProgressPercentage(b) - getProgressPercentage(a))
 )
 
 const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
-
-// Low HP (<=30%) or heavy radiation (>=50% of max) based on live dweller vitals.
-const isAtRisk = (dwellerId: string) => {
-  const detailed = getDetailedDweller(dwellerId)
-  if (!detailed || !detailed.max_health) return false
-  return (
-    detailed.health / detailed.max_health <= 0.3 ||
-    detailed.radiation / detailed.max_health >= 0.5
-  )
-}
-
-const riskTitle = (dwellerId: string) => {
-  const detailed = getDetailedDweller(dwellerId)
-  if (!detailed) return ''
-  return `Health ${detailed.health}/${detailed.max_health}, radiation ${detailed.radiation}`
-}
 </script>
 
 <template>
@@ -103,32 +93,12 @@ const riskTitle = (dwellerId: string) => {
                 >{{ getDwellerById(exploration.dweller_id)?.first_name }}
                 {{ getDwellerById(exploration.dweller_id)?.last_name }}</span
               >
-              <TooltipProvider v-if="isAtRisk(exploration.dweller_id)" :delay-duration="200">
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <span aria-label="Dweller at risk">
-                      <Badge variant="outline" class="border-warning/50 bg-warning/10 text-warning">
-                        <Icon icon="mdi:heart-pulse" class="h-3 w-3" />
-                        AT RISK
-                      </Badge>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>{{ riskTitle(exploration.dweller_id) }}</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <Badge v-if="exploration.status === 'returning'" variant="secondary">RETURNING</Badge>
+              <ExplorationStatusBadges
+                :exploration="exploration"
+                :dweller="getDwellerForBadges(exploration.dweller_id)"
+              />
             </div>
             <span class="flex shrink-0 items-center gap-1">
-              <TooltipProvider v-if="isReady(exploration)" :delay-duration="200">
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <span>
-                      <Badge variant="default">READY</Badge>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>Expedition finished — ready to collect</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
               <span class="whitespace-nowrap rounded-full border border-[rgba(205,133,63,0.35)] bg-[rgba(205,133,63,0.1)] px-1.5 py-0.5 font-mono text-[0.65rem] font-bold text-wasteland"
                 >{{ Math.round(getProgressPercentage(exploration)) }}%</span
               >
@@ -176,7 +146,10 @@ const riskTitle = (dwellerId: string) => {
               <Tooltip>
                 <TooltipTrigger as-child>
                   <span class="stat-item min-w-0 text-amber-400">
-                    <Icon icon="mdi:sword" class="h-3 w-3 shrink-0" />
+                    <Icon
+                      :icon="getItemIcon('weapon', getDwellerWeapon(exploration.dweller_id) ?? {})"
+                      class="h-3 w-3 shrink-0"
+                    />
                     <span class="min-w-0 flex-1 truncate">{{
                       getDwellerWeapon(exploration.dweller_id)?.name
                     }}</span>
@@ -189,7 +162,10 @@ const riskTitle = (dwellerId: string) => {
               <Tooltip>
                 <TooltipTrigger as-child>
                   <span class="stat-item min-w-0 text-blue-400">
-                    <Icon icon="mdi:tshirt-crew" class="h-3 w-3 shrink-0" />
+                    <Icon
+                      :icon="getItemIcon('outfit', getDwellerOutfit(exploration.dweller_id) ?? {})"
+                      class="h-3 w-3 shrink-0"
+                    />
                     <span class="min-w-0 flex-1 truncate">{{
                       getDwellerOutfit(exploration.dweller_id)?.name
                     }}</span>

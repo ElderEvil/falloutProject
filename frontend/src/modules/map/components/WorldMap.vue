@@ -2,12 +2,16 @@
 import { computed, ref, toRef } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
+import { formatRemaining } from '@/modules/exploration/composables/useExplorationProgress'
 import type {
   DiscoveryRouteRead,
+  ExpeditionSiteMarkerRead,
+  ExplorerTrack,
   MarkerClickPayload,
   WastelandLocationWithDwellers,
   VaultMarkerRead,
 } from '../models/map'
+import { EXPEDITION_SITE_ICON } from '../models/markerTypeMeta'
 import MapMarker from './MapMarker.vue'
 import MapLegend from './MapLegend.vue'
 import MarkerListPanel from './MarkerListPanel.vue'
@@ -22,9 +26,15 @@ interface Props {
   locations: WastelandLocationWithDwellers[]
   vaultMarkers: VaultMarkerRead[]
   discoveryRoutes?: DiscoveryRouteRead[]
+  expeditionSites?: ExpeditionSiteMarkerRead[]
+  explorerTracks?: ExplorerTrack[]
 }
 
-const props = withDefaults(defineProps<Props>(), { discoveryRoutes: () => [] })
+const props = withDefaults(defineProps<Props>(), {
+  discoveryRoutes: () => [],
+  expeditionSites: () => [],
+  explorerTracks: () => [],
+})
 
 const emit = defineEmits<{
   (e: 'marker-click', payload: MarkerClickPayload): void
@@ -54,6 +64,40 @@ const discoveryRouteLines = computed(() =>
   )
 )
 
+// ── Explorer tracking ────────────────────────────────────────────────────
+// Dispatched runs mark their target location as "exploring"; free-roam runs
+// get a small last-known-position marker at the end of their discovery trail.
+const exploringByLocation = computed(() => {
+  const byLocation = new Map<string, string>()
+  for (const track of props.explorerTracks) {
+    if (!track.targetLocationId) continue
+    byLocation.set(
+      track.targetLocationId,
+      track.dwellerName ? `Exploring — ${track.dwellerName}` : 'Dispatching'
+    )
+  }
+  return byLocation
+})
+
+const freeRoamTracks = computed(() =>
+  props.explorerTracks.filter((track) => !track.targetLocationId && track.lastKnown)
+)
+
+// ── Expedition site state ────────────────────────────────────────────────
+function siteStatus(site: ExpeditionSiteMarkerRead): string {
+  const level = `LVL ${site.min_dweller_level}`
+  const rooms = `${site.room_total} ROOMS`
+  if (site.block_reason === 'open') return `IN PROGRESS · ${level} · ${rooms}`
+  if (site.block_reason === 'cooldown' || site.cleared) {
+    const cooldown =
+      site.cooldown_remaining_seconds > 0
+        ? `COOLDOWN ${formatRemaining(site.cooldown_remaining_seconds)} · `
+        : ''
+    return `CLEARED · ${cooldown}${level} · ${rooms}`
+  }
+  return `READY · ${level} · ${rooms}`
+}
+
 // ── Zoom & Pan ────────────────────────────────────────────────────────
 const {
   zoom,
@@ -76,7 +120,7 @@ const vaultMarkers = toRef(props, 'vaultMarkers')
 
 const { spreadMap, getSpread } = useMapSpread(visibleLocations, vaultMarkers)
 
-const { selectedMarkerId, hasDragMoved, onLocationClick, onVaultClick, onPanelMarkerSelect } =
+const { selectedMarkerId, hasDragMoved, onLocationClick, onVaultClick, onSiteClick, onPanelMarkerSelect } =
   useMarkerSelection(vaultMarkers, spreadMap, focusOnMarker, emit)
 
 function getSvgRect(): DOMRect {
@@ -169,6 +213,9 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
           :is_unlocked="loc.is_unlocked"
           :unseen="mapStore.isUnseenDiscovery(loc)"
           :selected="selectedMarkerId === `loc-${loc.id}`"
+          :cleared="loc.clear_state?.cleared ?? false"
+          :exploring="exploringByLocation.has(loc.id)"
+          :status="exploringByLocation.get(loc.id)"
           @click="onLocationClick(loc)"
         />
 
@@ -182,6 +229,35 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
           :type="vm.type"
           :selected="selectedMarkerId === `vault-${idx}`"
           @click="onVaultClick(vm)"
+        />
+
+        <!-- Expedition site markers (fixed coordinates, already viewBox-scaled) -->
+        <MapMarker
+          v-for="site in expeditionSites"
+          :key="`site-${site.id}`"
+          :x="site.coord_x"
+          :y="site.coord_y"
+          :name="site.name"
+          type="expedition_site"
+          :icon="EXPEDITION_SITE_ICON"
+          :cleared="site.block_reason === 'cooldown' || site.cleared"
+          :status="siteStatus(site)"
+          :selected="selectedMarkerId === `site-${site.id}`"
+          @click="onSiteClick(site)"
+        />
+
+        <!-- Free-roam explorer last-known positions (non-interactive) -->
+        <MapMarker
+          v-for="track in freeRoamTracks"
+          :key="`explorer-${track.explorationId}`"
+          :x="track.lastKnown!.coord_x"
+          :y="track.lastKnown!.coord_y"
+          :name="track.dwellerName || 'Explorer'"
+          type="explorer"
+          icon="mdi:walk"
+          label="Explorer"
+          :status="track.dwellerName ? `Last known — ${track.dwellerName}` : 'Last known position'"
+          :interactive="false"
         />
       </svg>
 
@@ -221,6 +297,7 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
       :docked="true"
       :locations="knownLocations"
       :vault-markers="vaultMarkers"
+      :expedition-sites="expeditionSites"
       :place-groups="mapStore.placeGroups"
       :selected-marker-id="selectedMarkerId"
       @marker-select="onPanelMarkerSelect"

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import type { LootItem } from '../stores/exploration'
-import { getRarityBorderClass, getRarityTextClass } from '@/core/models/items'
+import { getItemIcon, getRarityBorderClass, getRarityTextClass } from '@/core/models/items'
 
 withDefaults(defineProps<{ items: LootItem[] }>(), { items: () => [] })
 </script>
@@ -24,7 +24,7 @@ withDefaults(defineProps<{ items: LootItem[] }>(), { items: () => [] })
       >
         <div class="flex min-w-0 items-center gap-2">
           <Icon
-            icon="mdi:treasure-chest"
+            :icon="getItemIcon(item.item_type ?? 'junk', {})"
             class="h-5 w-5 shrink-0"
             :class="getRarityTextClass(item.rarity)"
           />

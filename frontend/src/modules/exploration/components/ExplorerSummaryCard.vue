@@ -5,6 +5,9 @@ import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
 import { Progress } from '@/core/components/ui/progress'
 import { getEffectiveMaxHealth, getHealthDisplay, getRadiationPercentage } from '@/modules/dwellers/models/dweller'
+import type { Dweller, DetailedDweller } from '@/modules/dwellers/models/dweller'
+import type { Exploration } from '@/modules/exploration/stores/exploration'
+import ExplorationStatusBadges from './ExplorationStatusBadges.vue'
 
 const props = defineProps<{
   dwellerName: string
@@ -18,6 +21,8 @@ const props = defineProps<{
   timeRemaining: string
   explorationDuration: number
   isReturning?: boolean
+  exploration: Exploration
+  dweller?: Dweller | DetailedDweller | null
 }>()
 
 const radiationPercentage = computed(() => getRadiationPercentage(props.radiation, props.maxHealth))
@@ -60,6 +65,7 @@ const healthPercentage = computed(
         >
           {{ dwellerName }}
         </h2>
+        <ExplorationStatusBadges :exploration="exploration" :dweller="dweller" class="mb-2" />
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2">
             <span class="min-w-[50px] text-xs text-theme-primary/80">Health</span>

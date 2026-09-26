@@ -1,5 +1,6 @@
 import { ref, type ComputedRef, type Ref } from 'vue'
 import type {
+  ExpeditionSiteMarkerRead,
   MarkerClickPayload,
   VaultMarkerRead,
   WastelandLocationWithDwellers,
@@ -16,9 +17,9 @@ export function useMarkerSelection(
   const hasDragMoved = ref(false)
 
   function markerId(payload: MarkerClickPayload): string {
-    return payload.kind === 'location'
-      ? `loc-${payload.data.id}`
-      : `vault-${vaultMarkers.value.indexOf(payload.data)}`
+    if (payload.kind === 'location') return `loc-${payload.data.id}`
+    if (payload.kind === 'site') return `site-${payload.data.id}`
+    return `vault-${vaultMarkers.value.indexOf(payload.data)}`
   }
 
   function onLocationClick(loc: WastelandLocationWithDwellers) {
@@ -33,6 +34,12 @@ export function useMarkerSelection(
     emit('marker-click', { kind: 'vault', data: marker })
   }
 
+  function onSiteClick(site: ExpeditionSiteMarkerRead) {
+    if (hasDragMoved.value) return
+    selectedMarkerId.value = `site-${site.id}`
+    emit('marker-click', { kind: 'site', data: site })
+  }
+
   function onPanelMarkerSelect(payload: MarkerClickPayload) {
     const id = markerId(payload)
     const pos = spreadMap.value.get(id)
@@ -41,5 +48,12 @@ export function useMarkerSelection(
     emit('marker-click', payload)
   }
 
-  return { selectedMarkerId, hasDragMoved, onLocationClick, onVaultClick, onPanelMarkerSelect }
+  return {
+    selectedMarkerId,
+    hasDragMoved,
+    onLocationClick,
+    onVaultClick,
+    onSiteClick,
+    onPanelMarkerSelect,
+  }
 }

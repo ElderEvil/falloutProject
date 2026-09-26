@@ -36,6 +36,8 @@ const selectedVaultMarker = ref<VaultMarkerRead | null>(null)
 // Dispatch picker state (issue 772, phase 4b)
 const showDispatchModal = ref(false)
 const dispatchLocation = ref<WastelandLocationWithDwellers | null>(null)
+// Blocks repeated Dispatch confirms while the request is in flight.
+const isDispatching = ref(false)
 
 function handleDispatchRequest() {
   if (selectedLocation.value) void openDispatchPicker(selectedLocation.value)
@@ -52,7 +54,8 @@ async function openDispatchPicker(location: WastelandLocationWithDwellers) {
 async function handleDispatch(dwellerIds: string[]) {
   const location = dispatchLocation.value
   const dwellerId = dwellerIds[0]
-  if (!location || !dwellerId || !vaultId.value || !authStore.token) return
+  if (isDispatching.value || !location || !dwellerId || !vaultId.value || !authStore.token) return
+  isDispatching.value = true
   try {
     await explorationStore.dispatchToLocation(vaultId.value, dwellerId, location.id)
     showDispatchModal.value = false
@@ -63,6 +66,8 @@ async function handleDispatch(dwellerIds: string[]) {
     toast.success(`${location.name} — dispatch sent`)
   } catch (err) {
     toast.error(getErrorMessage(err))
+  } finally {
+    isDispatching.value = false
   }
 }
 

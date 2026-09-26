@@ -4,6 +4,8 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import MapView from '@/modules/map/views/MapView.vue'
 import { useMapStore, VIEWED_LOCATIONS_STORAGE_KEY } from '@/modules/map/stores/map'
+import { useExplorationStore } from '@/modules/exploration/stores/exploration'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 
 vi.mock('@/modules/map/services/mapService', () => ({
   getVaultMap: vi.fn().mockResolvedValue({ locations: [], vault_markers: [] }),
@@ -88,6 +90,13 @@ describe('MapView', () => {
             name: 'MarkerDetailModal',
             template: '<div class="modal-stub"></div>',
             props: ['modelValue', 'location', 'vaultMarker'],
+            emits: ['update:modelValue', 'dispatch'],
+          },
+          PartySelectionModal: {
+            name: 'PartySelectionModal',
+            template: '<div class="picker-stub"></div>',
+            props: ['modelValue', 'quest', 'vaultId', 'dwellers', 'currentParty', 'maxPartySize'],
+            emits: ['update:modelValue', 'assign', 'start'],
           },
           teleport: true,
         },
@@ -178,6 +187,43 @@ describe('MapView', () => {
 
       expect(mapStore.isLocationViewed('vault-1', 'loc-1')).toBe(true)
       expect(mapStore.hasUnseenDiscoveries).toBe(false)
+    })
+  })
+
+  describe('dispatch in-flight guard', () => {
+    it('sends only one dispatch when confirmed twice while the first is still running', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      const explorationStore = useExplorationStore()
+      let resolveDispatch!: (value: unknown) => void
+      const gate = new Promise((resolve) => {
+        resolveDispatch = resolve
+      })
+      const dispatchSpy = vi
+        .spyOn(explorationStore, 'dispatchToLocation')
+        .mockReturnValue(gate as never)
+      vi.spyOn(mapStore, 'refreshMap').mockResolvedValue(undefined)
+      const { filter: dwellerFilter } = useDwellerStore()
+      vi.spyOn(dwellerFilter, 'fetchDwellersByVault').mockResolvedValue(undefined)
+
+      mockRoute.query = { place: 'loc-1' }
+      const wrapper = mountView()
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      modal.vm.$emit('dispatch')
+      await flushPromises()
+
+      const picker = wrapper.findComponent({ name: 'PartySelectionModal' })
+      picker.vm.$emit('assign', ['dweller-1'])
+      picker.vm.$emit('assign', ['dweller-1'])
+      await flushPromises()
+
+      expect(dispatchSpy).toHaveBeenCalledTimes(1)
+      resolveDispatch({ id: 'expl-1' })
+      await flushPromises()
+      expect(mapStore.refreshMap).toHaveBeenCalledTimes(1)
     })
   })
 })

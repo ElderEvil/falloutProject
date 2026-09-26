@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { Badge } from '@/core/components/ui/badge'
@@ -107,11 +107,36 @@ const isLocked = computed(
 const clearState = computed(() => props.location?.clear_state ?? null)
 const isClearable = computed(() => clearState.value?.clearable ?? false)
 const isCleared = computed(() => clearState.value?.cleared ?? false)
-const reclearReady = computed(
-  () => isCleared.value && (clearState.value?.time_remaining_seconds ?? 0) <= 0
+// Local countdown seeded from the backend snapshot: the polled locations array
+// is replaced, but the modal keeps its own selected object, so without this the
+// displayed countdown (and the Dispatch button) would go stale while open.
+const reclearSeconds = ref(0)
+let reclearTimer: ReturnType<typeof setInterval> | null = null
+
+function stopReclearTimer() {
+  if (reclearTimer !== null) clearInterval(reclearTimer)
+  reclearTimer = null
+}
+
+watch(
+  () => clearState.value?.time_remaining_seconds,
+  (seconds) => {
+    stopReclearTimer()
+    reclearSeconds.value = Math.max(0, seconds ?? 0)
+    if (reclearSeconds.value > 0) {
+      reclearTimer = setInterval(() => {
+        reclearSeconds.value = Math.max(0, reclearSeconds.value - 1)
+        if (reclearSeconds.value === 0) stopReclearTimer()
+      }, 1000)
+    }
+  },
+  { immediate: true },
 )
+onUnmounted(stopReclearTimer)
+
+const reclearReady = computed(() => isCleared.value && reclearSeconds.value <= 0)
 const reclearCountdown = computed(() => {
-  const seconds = clearState.value?.time_remaining_seconds ?? 0
+  const seconds = reclearSeconds.value
   return seconds > 0 ? formatRemaining(seconds) : ''
 })
 const lootTableLabel = computed(() => clearState.value?.loot_table ?? '')

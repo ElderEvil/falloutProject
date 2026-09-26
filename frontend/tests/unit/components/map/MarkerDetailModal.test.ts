@@ -430,6 +430,30 @@ describe('MarkerDetailModal', () => {
       expect(wrapper.text()).not.toContain('Dispatch')
     })
 
+    it('advances the reclear countdown while the modal stays open', async () => {
+      vi.useFakeTimers()
+      try {
+        const wrapper = mountWithClearState({
+          ...clearableState,
+          cleared: true,
+          clear_count: 3,
+          time_remaining_seconds: 5,
+        })
+        expect(wrapper.text()).toContain('Re-clear available')
+        expect(wrapper.text()).not.toContain('Dispatch')
+
+        await vi.advanceTimersByTimeAsync(5000)
+
+        expect(wrapper.text()).not.toContain('Re-clear available')
+        const dispatchButtons = wrapper
+          .findAll('button')
+          .filter((b) => b.text().includes('Dispatch'))
+        expect(dispatchButtons).toHaveLength(1)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
     it('shows a Dispatch button again once the reclear window has elapsed', () => {
       const wrapper = mountWithClearState({
         ...clearableState,

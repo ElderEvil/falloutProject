@@ -835,8 +835,8 @@ class DispatchConfig(BaseSettings):
     escalation_cap: int = Field(default=3, ge=0, description="Max difficulty/reward escalation tiers")
     difficulty_per_tier: float = Field(default=0.5, ge=0.0, description="Difficulty added per escalation tier")
     reward_per_tier: float = Field(default=0.35, ge=0.0, description="Reward multiplier added per escalation tier")
-    base_travel_seconds: int = Field(default=900, ge=0, description="Base travel time for a dispatch")
-    travel_seconds_per_unit: int = Field(default=30, ge=0, description="Travel time per distance unit")
+    base_travel_seconds: int = Field(default=1800, ge=0, description="Base travel time for a dispatch")
+    travel_seconds_per_unit: int = Field(default=120, ge=0, description="Travel time per distance unit")
 
 
 class ExplorationConfig(BaseSettings):

@@ -80,6 +80,14 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
 
     vault_id: UUID4 = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
     dweller_id: UUID4 = Field(foreign_key="dweller.id", index=True, ondelete="CASCADE")
+    # Targeted dispatch (issue 772): set only on a run sent to clear a known map
+    # point; null keeps today's free-roam behaviour. SET NULL so retiring a
+    # location never deletes the run's history.
+    target_location_id: UUID4 | None = Field(
+        default=None, foreign_key="worldlocation.id", nullable=True, ondelete="SET NULL"
+    )
+    # Escalation tier this run faced, snapshotted for deterministic rewards/display.
+    clear_tier: int | None = Field(default=None, ge=0)
 
     def is_active(self) -> bool:
         """Check if exploration is still active."""
@@ -92,6 +100,10 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
     def is_in_progress(self) -> bool:
         """Check if the run is ongoing, whether exploring or returning."""
         return self.status in IN_PROGRESS_STATUSES
+
+    def is_dispatch_run(self) -> bool:
+        """True when this run targets a specific map point (issue 772)."""
+        return self.target_location_id is not None
 
     def is_completed(self) -> bool:
         """Check if exploration is completed."""

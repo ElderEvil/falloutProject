@@ -17,6 +17,7 @@ from app.schemas.expedition import (
     SiteRoomView,
 )
 from app.schemas.exploration import (
+    ExpeditionDispatchRequest,
     ExplorationCompleteResponse,
     ExplorationProgress,
     ExplorationRead,
@@ -60,6 +61,31 @@ async def send_dweller_to_wasteland(
         )
     except ValueError as e:
         raise ValidationException(str(e)) from e
+
+
+@router.post("/dispatch", response_model=ExplorationRead)
+async def dispatch_dweller(
+    request: ExpeditionDispatchRequest,
+    vault_id: Annotated[UUID4, Query()],
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> Exploration:
+    """Send a dweller to clear a specific map point.
+
+    Returns:
+        ExplorationRead: The created targeted exploration.
+
+    Raises:
+        ResourceNotFoundException: If the dweller or location is unknown to this vault.
+        ValidationException: If the dweller cannot go or the point cannot be cleared.
+    """
+    await get_user_vault_or_403(vault_id, user, db_session)
+    return await exploration_service.dispatch(
+        db_session,
+        vault_id=vault_id,
+        dweller_id=request.dweller_id,
+        location_id=request.location_id,
+    )
 
 
 @router.get("/vault/{vault_id}", response_model=list[ExplorationReadShort])

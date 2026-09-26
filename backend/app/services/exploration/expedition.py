@@ -168,24 +168,15 @@ async def _log_site_event(db_session: AsyncSession, exploration: Exploration, de
     await db_session.flush()
 
 
-def _roll_item(luck: int, item_type: str, min_rarity: str | None = None) -> LootItemSchema:
-    """One luck-weighted item roll, or a floor-guaranteed pick when min_rarity is set."""
-    if item_type == "weapon":
-        return loot_calculator.select_random_weapon(luck, min_rarity=min_rarity)
-    if item_type == "outfit":
-        return loot_calculator.select_random_outfit(luck, min_rarity=min_rarity)
-    return loot_calculator.select_random_junk(luck, min_rarity=min_rarity)
-
-
 def roll_gear(luck: int, item_type: str, floor: str | None, attempts: int = 3) -> LootItemSchema:
     """Roll an item with a guaranteed rarity floor (bounded rerolls, eligible-pool fallback)."""
     if floor is None:
-        return _roll_item(luck, item_type)
+        return loot_calculator.roll_item(luck, item_type)
     for _ in range(max(1, attempts)):
-        candidate = _roll_item(luck, item_type)
+        candidate = loot_calculator.roll_item(luck, item_type)
         if rarity_meets_floor(candidate.rarity, floor):
             return candidate
-    return _roll_item(luck, item_type, min_rarity=floor)
+    return loot_calculator.roll_item(luck, item_type, min_rarity=floor)
 
 
 async def _apply_branch(

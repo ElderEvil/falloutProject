@@ -4,18 +4,23 @@ This service provides a clean API for exploration operations and delegates to
 the modular exploration system in services/exploration/ modules.
 """
 
+import math
 from datetime import datetime
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import DwellerStatusEnum
+from app.core.game_config import game_config
 from app.crud import exploration as crud_exploration
 from app.crud import training as training_crud
+from app.crud import world_location as crud_world_location
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.storage import storage as crud_storage
+from app.models.dweller import Dweller
 from app.models.exploration import Exploration, ExplorationStatus
 from app.models.training import TrainingStatus
+from app.models.world_location import WorldLocation
 from app.schemas.dweller import DwellerUpdate
 from app.schemas.exploration import ExplorationProgress
 from app.schemas.exploration_event import ExplorationEvent, RewardsSchema
@@ -24,6 +29,22 @@ from app.services.exploration.event_generator import event_generator
 from app.services.exploration.event_service import event_service
 from app.services.user_service import user_service
 from app.utils.dweller_availability import availability_error
+from app.utils.exceptions import ResourceNotFoundException, ValidationException
+from app.utils.place_groups import get_place_group
+
+#: The vault home point in the registry's 0..100 coordinate space.
+VAULT_HOME_POINT = (50.0, 50.0)
+
+
+def dispatch_travel_hours(distance: float) -> int:
+    """Whole-hour travel time for a dispatch to a map point (issue 772).
+
+    Travel is quantized to whole hours: the base travel time plus a per-unit
+    distance cost, rounded up, and clamped to the exploration duration bounds.
+    """
+    cfg = game_config.exploration.dispatch
+    total_seconds = cfg.base_travel_seconds + cfg.travel_seconds_per_unit * distance
+    return max(1, min(24, math.ceil(total_seconds / 3600)))
 
 
 class ExplorationService:
@@ -157,8 +178,6 @@ class ExplorationService:
             active_training.status = TrainingStatus.CANCELLED
             active_training.completed_at = datetime.utcnow()
             db_session.add(active_training)
-        # Room clearing goes through CRUD: direct assignment trips the ORM type contract.
-        await dweller_crud.update(db_session, dweller_id, {"room_id": None}, commit=False)
 
         # Calculate how much to take from vault vs dweller
         stimpaks_from_vault = min(stimpaks, vault_stimpaks)
@@ -204,11 +223,28 @@ class ExplorationService:
             start_time=datetime.utcnow(),
             status=ExplorationStatus.ACTIVE,
         )
+        return await self._persist_departure(db_session, vault_id=vault_id, dweller=dweller, exploration=exploration)
+
+    async def _persist_departure(
+        self,
+        db_session: AsyncSession,
+        *,
+        vault_id: UUID4,
+        dweller: Dweller,
+        exploration: Exploration,
+    ) -> Exploration:
+        """Shared departure tail: clear the room, mark EXPLORING, commit, record statistic.
+
+        Used by both free-roam sends and targeted dispatches so the dweller's
+        departure bookkeeping stays in one place.
+        """
+        # Room clearing goes through CRUD: direct assignment trips the ORM type contract.
+        await dweller_crud.update(db_session, dweller.id, {"room_id": None}, commit=False)
         db_session.add(exploration)
 
         await dweller_crud.update(
             db_session,
-            dweller_id,
+            dweller.id,
             DwellerUpdate(status=DwellerStatusEnum.EXPLORING),
             commit=False,
         )
@@ -217,6 +253,79 @@ class ExplorationService:
         await db_session.refresh(exploration)
         await user_service.record_vault_statistic(db_session, vault_id, "total_explorations")
         return exploration
+
+    async def dispatch(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        dweller_id: UUID4,
+        location_id: UUID4,
+    ) -> Exploration:
+        """Send a single dweller to clear a specific map point (issue 772).
+
+        A targeted run travels for a whole number of hours based on the distance
+        from the vault home point, suppresses random events, and resolves exactly
+        once on arrival (see ``dispatch_resolution.resolve_dispatch_arrival``).
+
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param vault_id: Vault ID
+        :type vault_id: UUID4
+        :param dweller_id: Dweller ID
+        :type dweller_id: UUID4
+        :param location_id: Target world-location ID
+        :type location_id: UUID4
+        :return: Created exploration
+        :rtype: Exploration
+        :raises ResourceNotFoundException: If the dweller or location is unknown
+        :raises ValidationException: If the dweller cannot go or the point cannot be cleared
+        """
+        existing = await crud_exploration.get_by_dweller(db_session, dweller_id=dweller_id)
+        if existing:
+            raise ValidationException("Dweller is already on an exploration")
+
+        dweller = await dweller_crud.get(db_session, dweller_id)
+        if dweller.vault_id != vault_id:
+            raise ValidationException("Dweller does not belong to this vault")
+        reason = availability_error(dweller, require_healthy=True)
+        if reason is not None:
+            raise ValidationException(reason)
+
+        pair = await crud_world_location.get_state_with_location(db_session, vault_id, location_id)
+        if pair is None:
+            raise ResourceNotFoundException(WorldLocation, identifier=location_id)
+        location, state = pair
+
+        group = get_place_group(location.group_key)
+        if group is None or not group.get("clearable"):
+            raise ValidationException("This location cannot be cleared")
+
+        if not state.is_dispatchable(clearable=True, now=datetime.utcnow()):
+            raise ValidationException("This location is currently cleared")
+
+        distance = math.dist(VAULT_HOME_POINT, (location.coord_x, location.coord_y))
+        duration = dispatch_travel_hours(distance)
+        tier = min(state.clear_count, game_config.exploration.dispatch.escalation_cap)
+
+        exploration = Exploration(
+            vault_id=vault_id,
+            dweller_id=dweller_id,
+            duration=duration,
+            stimpaks=0,
+            radaways=0,
+            dweller_strength=dweller.strength,
+            dweller_perception=dweller.perception,
+            dweller_endurance=dweller.endurance,
+            dweller_charisma=dweller.charisma,
+            dweller_intelligence=dweller.intelligence,
+            dweller_agility=dweller.agility,
+            dweller_luck=dweller.luck,
+            target_location_id=location_id,
+            clear_tier=tier,
+            start_time=datetime.utcnow(),
+            status=ExplorationStatus.ACTIVE,
+        )
+        return await self._persist_departure(db_session, vault_id=vault_id, dweller=dweller, exploration=exploration)
 
     async def get_exploration_progress(self, db_session: AsyncSession, exploration_id: UUID4) -> ExplorationProgress:
         """Get current progress of an exploration.

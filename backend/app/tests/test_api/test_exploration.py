@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -11,9 +12,11 @@ from app.models.dweller import Dweller
 from app.models.exploration import ExplorationStatus
 from app.models.room import Room
 from app.models.vault import Vault
+from app.models.world_location import VaultLocationState, WorldLocation
 from app.schemas.common import AgeGroupEnum
 from app.schemas.exploration import ExplorationCreate
 from app.services.exploration_service import exploration_service
+from app.services.map_service import map_service
 
 
 @pytest.mark.smoke
@@ -75,6 +78,40 @@ async def test_list_explorations_empty(
     )
     assert response.status_code == 200
     assert response.json() == []
+
+
+@pytest.mark.asyncio
+async def test_dispatch_dweller_success(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """The dispatch endpoint accepts a clearable location and creates a targeted run."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
+    result = await async_session.execute(
+        select(VaultLocationState)
+        .join(WorldLocation, WorldLocation.id == VaultLocationState.location_id)
+        .where(VaultLocationState.vault_id == vault.id, WorldLocation.name == "Red Rocket")
+    )
+    state = result.scalar_one()
+
+    response = await async_client.post(
+        f"/explorations/dispatch?vault_id={vault.id}",
+        json={"dweller_id": str(dweller.id), "location_id": str(state.location_id)},
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["dweller_id"] == str(dweller.id)
+    assert data["vault_id"] == str(vault.id)
+    assert data["status"] == ExplorationStatus.ACTIVE
+
+    exploration = await crud.exploration.get_by_dweller(async_session, dweller_id=dweller.id)
+    assert exploration is not None
+    assert exploration.target_location_id == state.location_id
+    assert exploration.clear_tier == 0
 
 
 @pytest.mark.asyncio

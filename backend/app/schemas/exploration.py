@@ -120,6 +120,13 @@ class ExplorationSendRequest(SQLModel):
     radaways: int = Field(default=0, ge=0, le=25, description="Number of Radaways to bring")
 
 
+class ExpeditionDispatchRequest(SQLModel):
+    """Schema for dispatching a dweller to clear a specific map point."""
+
+    dweller_id: UUID4
+    location_id: UUID4
+
+
 class ExplorationRecallRequest(SQLModel):
     """Schema for recalling a dweller from wasteland."""
 

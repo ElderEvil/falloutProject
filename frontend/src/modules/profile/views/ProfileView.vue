@@ -130,7 +130,7 @@ const formatDate = (dateString: string) => {
     class="profile-page relative min-h-screen bg-terminal-background font-mono text-theme-primary [text-shadow:none]"
   >
     <div class="flex min-h-screen">
-      <SidePanel :vault-id="vaultStore.activeVaultId" />
+      <SidePanel :vault-id="vaultStore.activeVaultId ?? vaultStore.selectedVaultId" />
       <main
         class="min-w-0 flex-1 pb-8 transition-[margin-left] duration-300 ease max-md:ml-0"
         :class="isCollapsed ? 'ml-16' : 'ml-60'"

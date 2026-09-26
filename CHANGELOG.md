@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.146.0 (2026-09-26)
+
+### Features
+
+* **map:** targeted dispatch loop for clearable map points (solo) ([#794](https://github.com/ElderEvil/falloutProject/issues/794)) e007a11
+
 ## 2.145.0 (2026-09-26)
 
 ### Features

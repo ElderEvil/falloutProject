@@ -108,6 +108,22 @@ describe('Vault Store', () => {
 
       expect(store.loadedVaultIds).toEqual(['vault-1', 'vault-2'])
     })
+
+    it('currentVaultId falls back to the persisted selection when no vault is active', () => {
+      const store = useVaultStore()
+      store.selectedVaultId = 'vault-1'
+
+      expect(store.activeVaultId).toBeNull()
+      expect(store.currentVaultId).toBe('vault-1')
+    })
+
+    it('currentVaultId prefers the active vault over the persisted selection', () => {
+      const store = useVaultStore()
+      store.selectedVaultId = 'vault-1'
+      store.activeVaultId = 'vault-2'
+
+      expect(store.currentVaultId).toBe('vault-2')
+    })
   })
 
   describe('fetchVaults Action', () => {

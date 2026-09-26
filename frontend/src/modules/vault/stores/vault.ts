@@ -90,6 +90,9 @@ export const useVaultStore = defineStore('vault', () => {
     activeVaultId.value ? loadedVaults.value[activeVaultId.value] : null
   )
   const loadedVaultIds = computed(() => Object.keys(loadedVaults.value))
+  // activeVaultId is in-memory only; fall back to the persisted selection so
+  // navigation survives a reload.
+  const currentVaultId = computed(() => activeVaultId.value ?? selectedVaultId.value)
 
   // Actions
   async function fetchVaults(token: string): Promise<boolean> {
@@ -351,6 +354,7 @@ export const useVaultStore = defineStore('vault', () => {
     // Getters
     selectedVault,
     activeVault,
+    currentVaultId,
     loadedVaultIds,
     // Actions
     fetchVaults,

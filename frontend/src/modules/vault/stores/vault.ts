@@ -59,7 +59,14 @@ export const useVaultStore = defineStore('vault', () => {
   const isLoading = ref(false)
   const gameState = ref<GameState | null>(null)
   let gameTickSse: ReturnType<typeof useSse> | null = null
+  let stopTickWatch: (() => void) | null = null
   let sessionGeneration = 0
+  // Vault the live SSE belongs to, so re-asserting the same stream is a no-op.
+  let streamingVaultId: string | null = null
+  // Most recently requested vault id; a stale GET for an older id only caches.
+  let mostRecentlyRequestedVaultId: string | null = null
+  // Deduplicates concurrent loads for the same vault id.
+  const inFlightLoads = new Map<string, Promise<void>>()
 
   // Polling control
   const {
@@ -68,11 +75,12 @@ export const useVaultStore = defineStore('vault', () => {
     isActive: isPollingActive,
   } = useIntervalFn(
     async () => {
-      if (activeVaultId.value) {
+      const vaultId = activeVaultId.value
+      if (vaultId) {
         try {
-          const response = await axios.get(`/api/v1/vaults/${activeVaultId.value}`)
-          if (loadedVaults.value[activeVaultId.value]) {
-            loadedVaults.value[activeVaultId.value] = response.data
+          const response = await axios.get(`/api/v1/vaults/${vaultId}`)
+          if (activeVaultId.value === vaultId && loadedVaults.value[vaultId]) {
+            loadedVaults.value[vaultId] = response.data
           }
         } catch (error) {
           handleStoreError(error, 'Failed to poll resources')
@@ -171,23 +179,62 @@ export const useVaultStore = defineStore('vault', () => {
     }
   }
 
-  async function loadVault(id: string, token: string) {
+  async function ensureVaultLoaded(id: string, token: string): Promise<void> {
+    return loadVault(id, token, false)
+  }
+
+  async function revalidateVault(id: string, token: string): Promise<void> {
+    return loadVault(id, token, true)
+  }
+
+  async function loadVault(id: string, token: string, revalidate: boolean): Promise<void> {
+    if (!id || !token) return
+    mostRecentlyRequestedVaultId = id
+
+    const inFlight = inFlightLoads.get(id)
+    if (inFlight) return inFlight
+
+    if (!revalidate && loadedVaults.value[id]) {
+      adoptVault(id, token)
+      return
+    }
+
     const requestGeneration = sessionGeneration
     isLoading.value = true
-    try {
-      const response = await axios.get(`/api/v1/vaults/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (requestGeneration !== sessionGeneration) return
-      loadedVaults.value[id] = response.data
-      activeVaultId.value = id
-      selectedVaultId.value = id
-      startGameTickSse(id, token)
-    } catch (error) {
-      handleStoreError(error, 'Failed to load vault')
-      throw error
-    } finally {
-      isLoading.value = false
+    const loadPromise = (async () => {
+      try {
+        const response = await axios.get(`/api/v1/vaults/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (requestGeneration !== sessionGeneration) return
+        loadedVaults.value[id] = response.data
+        if (mostRecentlyRequestedVaultId === id) {
+          adoptVault(id, token)
+        }
+      } catch (error) {
+        const isCurrent =
+          requestGeneration === sessionGeneration && mostRecentlyRequestedVaultId === id
+        handleStoreError(error, 'Failed to load vault', isCurrent)
+        throw error
+      } finally {
+        if (requestGeneration === sessionGeneration) {
+          inFlightLoads.delete(id)
+          isLoading.value = inFlightLoads.size > 0
+        }
+      }
+    })()
+    inFlightLoads.set(id, loadPromise)
+    return loadPromise
+  }
+
+  function adoptVault(id: string, token: string): void {
+    if (activeVaultId.value !== id) {
+      gameState.value = null
+    }
+    activeVaultId.value = id
+    selectedVaultId.value = id
+    if (!gameState.value?.is_paused) {
+      startResourcePolling(id, token)
     }
   }
 
@@ -199,9 +246,12 @@ export const useVaultStore = defineStore('vault', () => {
       })
       if (requestGeneration !== sessionGeneration) return
       loadedVaults.value[id] = response.data
-      activeVaultId.value = id
-      selectedVaultId.value = id
-      startGameTickSse(id, token)
+      if (
+        (activeVaultId.value === id || activeVaultId.value === null) &&
+        (!mostRecentlyRequestedVaultId || mostRecentlyRequestedVaultId === id)
+      ) {
+        adoptVault(id, token)
+      }
     } catch (error) {
       handleStoreError(error, 'Failed to refresh vault')
       throw error
@@ -228,6 +278,8 @@ export const useVaultStore = defineStore('vault', () => {
   function clearSession(): void {
     ++sessionGeneration
     stopResourcePolling()
+    inFlightLoads.clear()
+    mostRecentlyRequestedVaultId = null
     vaults.value = []
     loadedVaults.value = {}
     resourceRates.value = {}
@@ -242,7 +294,14 @@ export const useVaultStore = defineStore('vault', () => {
       const response = await axios.get(`/api/v1/game/vaults/${vaultId}/game-state`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      gameState.value = response.data
+      if (activeVaultId.value === vaultId) {
+        gameState.value = response.data
+        if (response.data.is_paused) {
+          stopResourcePolling()
+        } else {
+          startResourcePolling(vaultId, token)
+        }
+      }
       return response.data
     } catch (error) {
       handleStoreError(error, 'Failed to fetch game state')
@@ -259,11 +318,14 @@ export const useVaultStore = defineStore('vault', () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       )
-      if (gameState.value) {
-        gameState.value.is_paused = true
-        gameState.value.paused_at = response.data.paused_at
+      if (activeVaultId.value === vaultId) {
+        gameState.value = {
+          ...gameState.value,
+          is_paused: true,
+          paused_at: response.data.paused_at,
+        }
+        stopResourcePolling()
       }
-      stopResourcePolling()
       return response.data
     } catch (error) {
       handleStoreError(error, 'Failed to pause vault')
@@ -280,11 +342,14 @@ export const useVaultStore = defineStore('vault', () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       )
-      if (gameState.value) {
-        gameState.value.is_paused = false
-        gameState.value.resumed_at = response.data.resumed_at
+      if (activeVaultId.value === vaultId) {
+        gameState.value = {
+          ...gameState.value,
+          is_paused: false,
+          resumed_at: response.data.resumed_at,
+        }
+        startResourcePolling(vaultId, token)
       }
-      startResourcePolling(vaultId, token)
       return response.data
     } catch (error) {
       handleStoreError(error, 'Failed to resume vault')
@@ -295,13 +360,15 @@ export const useVaultStore = defineStore('vault', () => {
   function startGameTickSse(vaultId: string, token: string): void {
     stopGameTickSse()
     const apiBase = import.meta.env.VITE_API_BASE_URL ?? ''
-    gameTickSse = useSse(`${apiBase}/api/v1/stream/game/${vaultId}/ticks`, {
+    const stream = useSse(`${apiBase}/api/v1/stream/game/${vaultId}/ticks`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-    void gameTickSse.start()
+    gameTickSse = stream
+    streamingVaultId = vaultId
+    void stream.start()
 
-    watch(
-      () => gameTickSse?.event.value,
+    stopTickWatch = watch(
+      () => stream.event.value,
       (evt) => {
         if (!evt || evt.event !== 'tick') return
         const tickData = evt.data as GameTickUpdate | undefined
@@ -341,12 +408,21 @@ export const useVaultStore = defineStore('vault', () => {
     )
   }
 
+  function ensureVaultStream(vaultId: string, token: string): void {
+    if (streamingVaultId !== vaultId) {
+      startGameTickSse(vaultId, token)
+    }
+  }
+
   function stopGameTickSse(): void {
+    stopTickWatch?.()
+    stopTickWatch = null
     if (gameTickSse) {
       gameTickSse.stopReconnect()
       gameTickSse.close()
       gameTickSse = null
     }
+    streamingVaultId = null
   }
 
   function startResourcePolling(vaultId?: string, token?: string) {
@@ -354,7 +430,7 @@ export const useVaultStore = defineStore('vault', () => {
       resumePolling()
     }
     if (vaultId && token) {
-      startGameTickSse(vaultId, token)
+      ensureVaultStream(vaultId, token)
     }
   }
 
@@ -383,7 +459,8 @@ export const useVaultStore = defineStore('vault', () => {
     fetchVaults,
     createVault,
     deleteVault,
-    loadVault,
+    ensureVaultLoaded,
+    revalidateVault,
     refreshVault,
     setActiveVault,
     closeVaultTab,

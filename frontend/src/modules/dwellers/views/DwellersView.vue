@@ -249,9 +249,11 @@ onMounted(async () => {
     isIncidentsLoading.value = true
     await Promise.all([
       fetchDwellers(),
-      vaultStore.loadVault(vaultId.value, authStore.token as string).catch((error: unknown) => {
-        vaultLoadError.value = error instanceof Error ? error.message : 'Failed to load vault'
-      }),
+      vaultStore
+        .ensureVaultLoaded(vaultId.value, authStore.token as string)
+        .catch((error: unknown) => {
+          vaultLoadError.value = error instanceof Error ? error.message : 'Failed to load vault'
+        }),
       dwellerStore.fetchAllDwellers(vaultId.value, authStore.token as string).finally(() => {
         isAllDwellersLoading.value = false
       }),
@@ -416,10 +418,7 @@ const handleTreatIrradiated = async () => {
 
           <!-- Happiness Dashboard -->
           <div class="mb-6">
-            <Skeleton
-              v-if="!currentVault && !vaultLoadError"
-              class="h-[120px] w-full rounded-lg"
-            />
+            <Skeleton v-if="!currentVault && !vaultLoadError" class="h-[120px] w-full rounded-lg" />
             <p v-else-if="vaultLoadError" role="alert" class="text-danger">{{ vaultLoadError }}</p>
             <details v-else-if="happinessDashboardData" class="happiness-overview">
               <summary

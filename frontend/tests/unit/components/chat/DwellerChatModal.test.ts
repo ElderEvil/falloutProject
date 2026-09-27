@@ -127,7 +127,7 @@ describe('DwellerChatModal', () => {
 
   it('does not switch the selected vault when chatting with a dweller from another vault', async () => {
     const vaultStore = useVaultStore()
-    const loadVault = vi.spyOn(vaultStore, 'loadVault')
+    const ensureVaultLoaded = vi.spyOn(vaultStore, 'ensureVaultLoaded')
     const dwellerStore = useDwellerStore().filter
     vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue({
       ...fakeDweller,
@@ -137,7 +137,7 @@ describe('DwellerChatModal', () => {
     mountModal()
     await flushPromises()
 
-    expect(loadVault).not.toHaveBeenCalled()
+    expect(ensureVaultLoaded).not.toHaveBeenCalled()
     expect(vaultStore.activeVaultId).toBe('vault-1')
     expect(vaultStore.selectedVaultId).toBe('vault-1')
   })

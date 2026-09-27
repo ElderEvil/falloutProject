@@ -3,7 +3,12 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSidePanel } from '@/core/composables/useSidePanel'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 
 const route = useRoute()
 const router = useRouter()
@@ -119,11 +124,15 @@ const comingSoonItems = computed((): NavItem[] => [
   },
 ])
 
-const activePath = computed(() =>
-  navItems.value
-    .map((item) => item.path)
-    .filter((path): path is string => Boolean(path) && (route.path === path || route.path.startsWith(`${path}/`)))
-    .sort((first, second) => second.length - first.length)[0]
+const activePath = computed(
+  () =>
+    navItems.value
+      .map((item) => item.path)
+      .filter(
+        (path): path is string =>
+          Boolean(path) && (route.path === path || route.path.startsWith(`${path}/`))
+      )
+      .sort((first, second) => second.length - first.length)[0]
 )
 
 const isActive = (path: string | undefined) => path === activePath.value
@@ -175,11 +184,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <nav
-    class="side-panel"
-    :class="{ collapsed: isCollapsed }"
-    aria-label="Game navigation panel"
-  >
+  <nav class="side-panel" :class="{ collapsed: isCollapsed }" aria-label="Game navigation panel">
     <!-- Toggle Button -->
     <TooltipProvider :delay-duration="200">
       <Tooltip>
@@ -212,9 +217,12 @@ onUnmounted(() => {
               :aria-keyshortcuts="item.hotkey"
             >
               <Icon :icon="item.icon" class="nav-icon" />
-              <span v-if="!isCollapsed" class="nav-label" :class="{ 'locked-label': item.comingSoon }">{{
-                item.label
-              }}</span>
+              <span
+                v-if="!isCollapsed"
+                class="nav-label"
+                :class="{ 'locked-label': item.comingSoon }"
+                >{{ item.label }}</span
+              >
               <span v-if="!isCollapsed && item.comingSoon" class="lock-icon-wrap">
                 <Icon icon="mdi:lock" class="lock-icon" />
               </span>
@@ -226,9 +234,12 @@ onUnmounted(() => {
                   <TooltipContent>Work in progress</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              <span v-else-if="!isCollapsed && item.hotkey" class="hotkey-badge" aria-hidden="true">{{
-                item.hotkey
-              }}</span>
+              <span
+                v-else-if="!isCollapsed && item.hotkey"
+                class="hotkey-badge"
+                aria-hidden="true"
+                >{{ item.hotkey }}</span
+              >
             </button>
           </TooltipTrigger>
           <TooltipContent>{{
@@ -256,7 +267,9 @@ onUnmounted(() => {
               </span>
             </div>
           </TooltipTrigger>
-          <TooltipContent v-if="isCollapsed">{{ `${item.label} - ${item.comingSoon?.phase}` }}</TooltipContent>
+          <TooltipContent v-if="isCollapsed">{{
+            `${item.label} - ${item.comingSoon?.phase}`
+          }}</TooltipContent>
         </Tooltip>
       </TooltipProvider>
     </div>
@@ -267,7 +280,7 @@ onUnmounted(() => {
 .side-panel {
   position: fixed;
   left: 0;
-  top: 64px; /* Below fixed navbar (NavBar height is ~64px with padding) */
+  top: var(--chrome-height); /* Below the fixed navbar, including its vault status row */
   bottom: 0;
   width: 240px;
   background: rgba(0, 0, 0, 0.95);

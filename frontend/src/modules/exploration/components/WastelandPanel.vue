@@ -57,10 +57,8 @@ const completingExplorations = ref<Set<string>>(new Set())
 // Fetch active explorations on mount
 onMounted(async () => {
   if (vaultId.value && authStore.token) {
-    // Ensure vault is loaded for medical supplies
-    if (!vaultStore.loadedVaults[vaultId.value]) {
-      await vaultStore.loadVault(vaultId.value, authStore.token)
-    }
+    // Ensure vault is loaded for medical supplies (idempotent shared action)
+    await vaultStore.ensureVaultLoaded(vaultId.value, authStore.token)
     try {
       await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
 

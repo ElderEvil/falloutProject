@@ -21,9 +21,16 @@ const iconName = computed(() => (props.buildModeActive ? 'mdi:close' : 'mdi:hamm
       <TooltipTrigger as-child>
         <Button
           :variant="buildModeActive ? 'destructive' : 'secondary'"
+          size="lg"
+          class="h-14 gap-3 border-2 px-6 text-base font-bold uppercase tracking-wide"
+          :class="
+            buildModeActive
+              ? 'border-danger bg-surface-warm'
+              : 'border-theme-primary bg-surface-warm text-theme-primary shadow-glow-md hover:shadow-glow-lg'
+          "
           @click="emit('toggleBuildMode')"
         >
-          <Icon :icon="iconName" class="h-5 w-5" />
+          <Icon :icon="iconName" class="size-6" />
           <span class="inline-flex items-center gap-2">
             {{ buildModeActive ? 'Cancel Building' : 'Build' }}
             <span

@@ -134,7 +134,7 @@ describe('DwellersView', () => {
         return new Promise<void>((resolve) => resolvers.push(resolve))
       }
 
-      vi.spyOn(vaultStore, 'loadVault').mockImplementation(() => deferredRequest('vault'))
+      vi.spyOn(vaultStore, 'ensureVaultLoaded').mockImplementation(() => deferredRequest('vault'))
       vi.spyOn(_dwellerStore.filter, 'fetchWithCurrentFilters').mockImplementation(() =>
         deferredRequest('filtered dwellers')
       )
@@ -174,7 +174,7 @@ describe('DwellersView', () => {
 
     it('shows an error when the vault cannot be loaded', async () => {
       delete vaultStore.loadedVaults['vault-1']
-      vi.spyOn(vaultStore, 'loadVault').mockRejectedValue(new Error('Vault unavailable'))
+      vi.spyOn(vaultStore, 'ensureVaultLoaded').mockRejectedValue(new Error('Vault unavailable'))
       vi.spyOn(_dwellerStore.filter, 'fetchDwellersByVault').mockResolvedValue()
       vi.spyOn(_dwellerStore.filter, 'fetchAllDwellers').mockResolvedValue()
       vi.spyOn(incidentStore, 'fetchIncidents').mockResolvedValue()

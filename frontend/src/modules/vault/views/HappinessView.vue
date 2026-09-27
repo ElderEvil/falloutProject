@@ -29,7 +29,7 @@ const isInitialLoad = ref(true)
 const errorMessage = ref<string | null>(null)
 const { run: runLoadData, isLoading: isLoadingRequest } = useAsyncAction(
   async (currentVaultId: string, token: string) => {
-    await vaultStore.refreshVault(currentVaultId, token)
+    await vaultStore.revalidateVault(currentVaultId, token)
     await dwellerStore.fetchDwellersByVault(currentVaultId, token)
     await incidentStore.fetchIncidents(currentVaultId, token)
     return true
@@ -102,7 +102,9 @@ const handleViewLowHappiness = () => {
   router.push(`/vault/${vaultId.value}/dwellers?sortBy=happiness&order=asc`)
 }
 
-const irradiatedDwellerCount = computed(() => dwellerStore.dwellers.filter((d) => d.radiation > 0).length)
+const irradiatedDwellerCount = computed(
+  () => dwellerStore.dwellers.filter((d) => d.radiation > 0).length
+)
 const isTreatingDwellers = ref(false)
 
 const handleTreatIrradiated = async () => {

@@ -1,7 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
@@ -76,10 +81,6 @@ const initializeGameState = async () => {
   if (authStore.token) {
     try {
       await vaultStore.fetchGameState(props.vaultId, authStore.token)
-
-      if (!isPaused.value) {
-        vaultStore.startResourcePolling()
-      }
     } catch (error) {
       handleStoreError(error, 'Failed to load game state')
     }
@@ -88,11 +89,6 @@ const initializeGameState = async () => {
 
 onMounted(() => {
   void initializeGameState()
-})
-
-onUnmounted(() => {
-  // Clean up polling when component unmounts
-  vaultStore.stopResourcePolling()
 })
 </script>
 
@@ -141,7 +137,10 @@ onUnmounted(() => {
         <span class="text-xs font-semibold text-yellow-500">PAUSED</span>
       </div>
 
-      <div v-if="isSuperuser" class="admin-incident-controls flex shrink-0 flex-nowrap items-center gap-1">
+      <div
+        v-if="isSuperuser"
+        class="admin-incident-controls flex shrink-0 flex-nowrap items-center gap-1"
+      >
         <span class="mr-1 hidden text-xs font-semibold text-red-400 lg:inline">TEST INCIDENTS</span>
         <TooltipProvider :delay-duration="200">
           <Tooltip v-for="incident in testIncidents" :key="incident.type">

@@ -1,8 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import NavBar from '@/modules/vault/components/shell/NavBar.vue'
+import NotificationBell from '@/modules/vault/components/shell/NotificationBell.vue'
+import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
+import ResourceBar from '@/modules/vault/components/shell/ResourceBar.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import type { IncidentTeamMember } from '@/modules/combat/models/incident'
@@ -15,6 +19,44 @@ vi.mock('@/core/composables/useVersionDetection', () => ({
     showChangelog: vi.fn(),
   }),
 }))
+
+const vaultHeader = vi.hoisted(() => ({
+  vault: null as { value: { number: number } | null } | null,
+  isVaultRoute: null as { value: boolean } | null,
+  isReady: null as { value: boolean } | null,
+  loadFailed: null as { value: boolean } | null,
+}))
+vi.mock('@/modules/vault/composables/useVaultHeaderContext', () => {
+  const vault = ref<{ number: number } | null>(null)
+  const isVaultRoute = ref(false)
+  const isReady = ref(true)
+  const loadFailed = ref(false)
+  vaultHeader.vault = vault
+  vaultHeader.isVaultRoute = isVaultRoute
+  vaultHeader.isReady = isReady
+  vaultHeader.loadFailed = loadFailed
+  return {
+    useVaultHeaderContext: () => ({
+      vault,
+      isVaultRoute,
+      isReady,
+      loadFailed,
+      dwellersCount: ref(10),
+      populationMax: ref(20),
+      populationColor: ref('text-terminal-green'),
+      happiness: ref(80),
+      happinessColor: ref('text-terminal-green'),
+      energy: ref({ current: 50, max: 100 }),
+      food: ref({ current: 60, max: 100 }),
+      water: ref({ current: 70, max: 100 }),
+      resourceRates: ref({ power: 1, food: 2, water: 3 }),
+      bottleCaps: ref(500),
+      dwellersTooltip: ref('10 of 20 dwellers'),
+      happinessTooltip: ref('80% happiness'),
+      capsTooltip: ref('500 bottle caps'),
+    }),
+  }
+})
 
 const testUser: User = {
   id: 'user-1',
@@ -30,10 +72,132 @@ const testUser: User = {
 describe('NavBar', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    vaultHeader.vault!.value = null
+    vaultHeader.isVaultRoute!.value = false
+    vaultHeader.isReady!.value = true
+    vaultHeader.loadFailed!.value = false
     audioManager.setMuted(true)
     audioManager.setVolume('ui', 0.6)
     audioManager.setVolume('sfx', 0.8)
     audioManager.setVolume('music', 0.4)
+  })
+
+  it('keeps the Vaults link aria-label verbatim', async () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/vault/:id', component: { template: '<div />' } }],
+    })
+    await router.push('/vault/vault-1')
+    await router.isReady()
+
+    const wrapper = mount(NavBar, {
+      global: {
+        plugins: [router],
+        stubs: { Icon: true, NotificationBell: true },
+      },
+    })
+
+    const link = wrapper.find('a[aria-label="Navigate to vaults list"]')
+    expect(link.exists()).toBe(true)
+    expect(link.attributes('aria-label')).toBe('Navigate to vaults list')
+    expect(link.text()).toContain('Vaults')
+  })
+
+  it('shows a prominent vault number beside the list link above the sidebar', async () => {
+    vaultHeader.vault!.value = { number: 42 }
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/vault/:id', component: { template: '<div />' } }],
+    })
+    await router.push('/vault/vault-1')
+    await router.isReady()
+
+    const wrapper = mount(NavBar, {
+      global: {
+        plugins: [router],
+        stubs: { Icon: true, NotificationBell: true },
+      },
+    })
+
+    const link = wrapper.find('a[aria-label="Navigate to vaults list"]')
+    expect(link.text()).not.toContain('Vault 42')
+    expect(wrapper.find('[aria-label="Vaults and current vault"]').text()).toContain('Vault 42')
+  })
+
+  it('keeps the five navbar groups in order with currency separate from account controls', async () => {
+    useAuthStore().token = 'test-token'
+    vaultHeader.isVaultRoute!.value = true
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/vault/:id', component: { template: '<div />' } }],
+    })
+    await router.push('/vault/vault-1')
+    await router.isReady()
+
+    const wrapper = mount(NavBar, {
+      global: {
+        plugins: [router],
+        stubs: { Icon: true, NotificationBell: true },
+      },
+    })
+
+    const vaults = wrapper.find('[aria-label="Vaults and current vault"]')
+    const population = wrapper.find('[aria-label="Vault population"]')
+    const resources = wrapper.find('[aria-label="Vault resources"]')
+    const currency = wrapper.find('[aria-label="Vault currency"]')
+    const account = wrapper.find('[aria-label="Account and notifications"]')
+    expect(vaults.element.nextElementSibling).toBe(account.element.parentElement)
+    expect(population.element.nextElementSibling).toBe(resources.element)
+    expect(resources.element.nextElementSibling).toBe(currency.element)
+    expect(currency.element.parentElement?.nextElementSibling).toBe(account.element)
+    expect(account.classes()).toContain('ml-auto')
+    expect(population.findAllComponents(PageHeaderMetric).map((metric) => metric.props('label'))).toEqual([
+      'Dwellers',
+      'Happiness',
+    ])
+    expect(resources.findAllComponents(ResourceBar).map((bar) => bar.props('label'))).toEqual([
+      'Power',
+      'Food',
+      'Water',
+    ])
+    expect(resources.findAllComponents(ResourceBar).map((bar) => bar.props('productionRate'))).toEqual([
+      1,
+      2,
+      3,
+    ])
+    const [bottles, caps] = currency.findAllComponents(PageHeaderMetric)
+    const bell = account.findComponent(NotificationBell)
+    expect(bottles?.props('label')).toBe('Nuka bottles')
+    expect(bottles?.props('value')).toBe('—')
+    expect(caps?.props('label')).toBe('Caps')
+    expect(bell.exists()).toBe(true)
+    expect(currency.element.textContent).toContain('500')
+  })
+
+  it('shows loading and failure states without placeholder status values', async () => {
+    useAuthStore().token = 'test-token'
+    vaultHeader.isVaultRoute!.value = true
+    vaultHeader.isReady!.value = false
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/vault/:id', component: { template: '<div />' } }],
+    })
+    await router.push('/vault/vault-1')
+    await router.isReady()
+
+    const wrapper = mount(NavBar, {
+      global: { plugins: [router], stubs: { Icon: true, NotificationBell: true } },
+    })
+
+    expect(wrapper.text()).toContain('Syncing vault status')
+    expect(wrapper.findAllComponents(ResourceBar)).toHaveLength(0)
+    expect(wrapper.text()).not.toContain('0 / 0')
+
+    vaultHeader.loadFailed!.value = true
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('Vault status unavailable')
+    expect(wrapper.findAllComponents(ResourceBar)).toHaveLength(0)
   })
 
   it('uses a terminal-green highlight for user menu items', async () => {

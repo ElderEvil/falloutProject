@@ -37,7 +37,6 @@ const vaultFixture = {
 const stubs = {
   SidePanel: { template: '<aside data-testid="side-panel" />' },
   RoomGrid: { template: '<div data-testid="room-grid" />' },
-  ResourceBar: true,
   GameControlPanel: true,
   IncidentAlert: true,
   UnassignedDwellers: true,
@@ -56,7 +55,7 @@ async function mountLoadedVault() {
   vaultStore.loadedVaults['vault-1'] = vaultFixture
 
   vi.spyOn(vaultStore, 'fetchVaults').mockResolvedValue(true)
-  vi.spyOn(vaultStore, 'refreshVault').mockResolvedValue()
+  vi.spyOn(vaultStore, 'revalidateVault').mockResolvedValue()
   vi.spyOn(vaultStore, 'fetchGameState').mockResolvedValue()
   vi.spyOn(vaultStore, 'startResourcePolling').mockImplementation(() => {})
   vi.spyOn(roomStore, 'fetchRooms').mockResolvedValue()
@@ -111,19 +110,19 @@ describe('VaultView', () => {
   })
 
   describe('Build control', () => {
-    it('renders the build control below the room grid so it never covers rooms', async () => {
+    it('renders the build control in the room grid container', async () => {
       const { wrapper } = await mountLoadedVault()
 
       const grid = wrapper.find('[data-testid="room-grid"]')
       const buildButton = wrapper.findComponent(BuildModeButton)
+      const buildControl = wrapper.find('.build-control')
 
       expect(grid.exists()).toBe(true)
       expect(buildButton.exists()).toBe(true)
       expect(buildButton.isVisible()).toBe(true)
-      // In-flow sibling rendered after the grid (bottom placement), not overlaid on it.
+      expect(buildControl.element.parentElement).toBe(grid.element.parentElement)
       expect(
-        grid.element.compareDocumentPosition(buildButton.element) &
-          Node.DOCUMENT_POSITION_FOLLOWING
+        buildButton.element.compareDocumentPosition(grid.element) & Node.DOCUMENT_POSITION_FOLLOWING
       ).toBeTruthy()
     })
 

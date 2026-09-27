@@ -42,10 +42,6 @@ const stubs = {
   IncidentAlert: true,
   UnassignedDwellers: true,
   WastelandPanel: true,
-  Tooltip: true,
-  TooltipContent: true,
-  TooltipProvider: true,
-  TooltipTrigger: true,
 }
 
 async function mountLoadedVault() {

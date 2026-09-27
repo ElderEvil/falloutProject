@@ -1,35 +1,32 @@
 <template>
   <div class="pregnancy-tracker">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl font-mono text-theme-primary">
-        Pregnancies
-      </h2>
-      <div class="flex gap-2">
-        <Badge v-if="dueCount > 0" variant="outline" class="animate-pulse bg-warning text-black border-warning">
-          {{ dueCount }} Due!
-        </Badge>
-        <Button variant="default" size="sm" class="border-2 border-theme-primary hover:shadow-glow-md" :disabled="isLoading" @click="refreshPregnancies"> Refresh </Button>
-      </div>
-    </div>
-
     <div v-if="isLoading" class="text-center py-8">
       <div class="text-4xl animate-pulse">👶</div>
       <p class="mt-2 text-theme-primary">Loading pregnancies...</p>
     </div>
 
     <div v-else-if="error" class="text-center py-8">
-      <Card class="gap-0 rounded-lg border-2 border-theme-primary/20 p-6 shadow-glow-md ring-0 crt-screen">
+      <Card
+        class="gap-0 rounded-lg border-2 border-theme-primary/20 p-6 shadow-glow-md ring-0 crt-screen"
+      >
         <p class="text-red-400 mb-4">{{ error }}</p>
-        <Button variant="outline" class="border-2 border-theme-primary bg-transparent" @click="retryFetch()">Retry</Button>
+        <Button
+          variant="outline"
+          class="border-2 border-theme-primary bg-transparent"
+          @click="refreshPregnancies"
+          >Retry</Button
+        >
       </Card>
     </div>
 
-    <div v-else-if="pregnancies.length === 0" class="text-center py-8 text-gray-400">
-      <p>No active pregnancies in this vault.</p>
-      <p class="text-sm mt-2">Assign partners to living quarters to start families!</p>
-    </div>
+    <TerminalEmptyState
+      v-else-if="pregnancies.length === 0"
+      icon="mdi:baby-carriage"
+      title="No active pregnancies in this vault."
+      description="Assign partners to Living Quarters to start families."
+    />
 
-    <div v-else class="space-y-2">
+    <div v-else class="grid grid-cols-1 gap-4 2xl:grid-cols-2">
       <PregnancyCard
         v-for="pregnancy in sortedPregnancies"
         :key="pregnancy.id"
@@ -48,9 +45,9 @@ import { computed, onMounted, ref } from 'vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
 import { Card } from '@/core/components/ui/card'
+import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 import { usePolling } from '@/core/composables/usePolling'
 import { usePregnancyStore } from '@/modules/social/stores/pregnancy'
 import PregnancyCard from './PregnancyCard.vue'
@@ -71,11 +68,6 @@ const pregnancies = computed(() => pregnancyStore.activePregnancies)
 const isLoading = computed(() => pregnancyStore.isLoading)
 const deliveringId = ref<string | null>(null)
 const error = ref<string | null>(null)
-
-/** Number of pregnancies that are currently due for delivery. */
-const dueCount = computed(() => {
-  return pregnancies.value.filter((p) => p.is_due).length
-})
 
 /** Active pregnancies sorted with due ones first, then by progress. */
 const sortedPregnancies = computed(() => {
@@ -108,11 +100,6 @@ async function refreshPregnancies() {
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load pregnancies'
   }
-}
-
-/** Re-run the initial pregnancy load after an error. */
-function retryFetch() {
-  refreshPregnancies()
 }
 
 /** Deliver a baby, refreshing the dweller roster so the newborn appears. */

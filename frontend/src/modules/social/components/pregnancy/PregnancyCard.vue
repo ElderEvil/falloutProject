@@ -1,69 +1,3 @@
-<template>
-  <Card class="mb-2 gap-0 rounded-lg border-2 border-theme-primary/20 p-6 shadow-none ring-0">
-    <div class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_14rem_auto] items-center gap-4">
-      <!-- Parent names -->
-      <div class="min-w-0">
-        <div class="flex items-center gap-2 min-w-0">
-          <DwellerPortrait
-            :thumbnail-url="mother?.thumbnail_url"
-            :alt="motherName"
-            prefer-thumbnail
-            image-class="h-8 w-8 shrink-0 rounded object-cover" fallback-class="h-8 w-8 shrink-0 text-theme-primary/60"
-          />
-          <span class="font-mono text-sm truncate">{{ motherName }}</span>
-          <span class="shrink-0 text-pink-400">+</span>
-          <span class="font-mono text-sm truncate">{{ fatherName }}</span>
-          <DwellerPortrait
-            :thumbnail-url="father?.thumbnail_url"
-            :alt="fatherName"
-            prefer-thumbnail
-            image-class="h-8 w-8 shrink-0 rounded object-cover" fallback-class="h-8 w-8 shrink-0 text-theme-primary/60"
-          />
-        </div>
-
-        <!-- Status badge -->
-        <Badge :variant="badgeVariant" class="mt-1" :class="badgeClass">
-          {{ pregnancy.status }}
-        </Badge>
-      </div>
-
-      <!-- Progress bar (fixed column position) -->
-      <div class="w-full md:w-56">
-        <div
-          class="flex items-center justify-between text-xs mb-1 text-theme-primary"
-        >
-          <span>Progress: {{ Math.round(pregnancy.progress_percentage) }}%</span>
-          <span v-if="!pregnancy.is_due">{{ timeRemaining }}</span>
-          <span v-else class="text-yellow-400 font-bold">DUE NOW!</span>
-        </div>
-        <div class="h-3 bg-black/80 border border-theme-primary/40 rounded-sm overflow-hidden">
-          <div
-            class="h-full rounded-sm transition-all duration-500"
-            :class="pregnancy.is_due ? 'bg-yellow-500 animate-pulse' : ''"
-            :style="{
-              width: `${pregnancy.progress_percentage}%`,
-              backgroundColor: pregnancy.is_due ? undefined : 'var(--color-theme-primary)',
-            }"
-          ></div>
-        </div>
-      </div>
-
-      <!-- Deliver button -->
-      <div class="flex justify-end">
-        <Button
-          v-if="pregnancy.is_due"
-          variant="default"
-          :disabled="isDelivering"
-          class="animate-pulse border-2 border-theme-primary hover:shadow-glow-md"
-          @click="$emit('deliver')"
-        >
-          {{ isDelivering ? 'Delivering...' : 'Deliver Baby' }}
-        </Button>
-      </div>
-    </div>
-  </Card>
-</template>
-
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Pregnancy } from '../../models/pregnancy'
@@ -73,6 +7,7 @@ import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
 import { Card } from '@/core/components/ui/card'
+import { Progress } from '@/core/components/ui/progress'
 
 interface Props {
   pregnancy: Pregnancy
@@ -81,46 +16,93 @@ interface Props {
   isDelivering?: boolean
 }
 
-const { isDelivering = false, father, mother, pregnancy } = defineProps<Props>()
-
-defineEmits<{
-  deliver: []
-}>()
+const props = withDefaults(defineProps<Props>(), { isDelivering: false })
+defineEmits<{ deliver: [] }>()
 
 const pregnancyStore = usePregnancyStore()
-
-/** Display name of the mother, falling back to "Unknown" when not loaded. */
-const motherName = computed(() => formatDwellerName(mother))
-
-/** Display name of the father, falling back to "Unknown" when not loaded. */
-const fatherName = computed(() => formatDwellerName(father))
-
-/** Format a dweller's full name, or "Unknown" when the dweller is absent. */
-function formatDwellerName(dweller: DwellerShort | null | undefined): string {
-  return dweller ? `${dweller.first_name} ${dweller.last_name ?? ''}`.trim() : 'Unknown'
-}
-
-/** Badge variant reflecting the pregnancy status and due state (shadcn names). */
-const badgeVariant = computed((): 'default' | 'secondary' | 'destructive' | 'outline' => {
-  switch (pregnancy.status) {
-    case 'pregnant':
-      return pregnancy.is_due ? 'outline' : 'default'
-    case 'delivered':
-      return 'outline'
-    case 'miscarried':
-      return 'destructive'
-    default:
-      return 'secondary'
-  }
-})
-
-// `pregnant` + due has no shadcn amber equivalent; preserve its warning colour explicitly.
-const badgeClass = computed(() =>
-  pregnancy.status === 'pregnant' && pregnancy.is_due ? 'bg-warning text-black border-warning' : ''
+const parents = computed(() =>
+  (
+    [
+      { role: 'Mother', dweller: props.mother },
+      { role: 'Father', dweller: props.father },
+    ] as const
+  ).map(({ role, dweller }) => ({
+    role,
+    dweller,
+    name: dweller ? `${dweller.first_name} ${dweller.last_name ?? ''}`.trim() : 'Unknown',
+  }))
 )
-
-/** Human-readable time remaining until the pregnancy is due. */
-const timeRemaining = computed(() => {
-  return pregnancyStore.formatTimeRemaining(pregnancy.time_remaining_seconds)
-})
+const progress = computed(() => Math.round(props.pregnancy.progress_percentage))
+const timeRemaining = computed(() =>
+  pregnancyStore.formatTimeRemaining(props.pregnancy.time_remaining_seconds)
+)
 </script>
+
+<template>
+  <Card
+    class="h-full min-h-64 gap-0 rounded-lg border-2 border-theme-primary/20 p-4 shadow-none ring-0"
+  >
+    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div
+        v-for="parent in parents"
+        :key="parent.role"
+        class="flex min-h-20 min-w-0 items-center gap-2 rounded border border-theme-primary/20 bg-surface-sunken px-2 py-2"
+      >
+        <span
+          class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded bg-black/30"
+        >
+          <DwellerPortrait
+            :thumbnail-url="parent.dweller?.thumbnail_url"
+            :alt="parent.name"
+            prefer-thumbnail
+            image-class="h-full w-full object-cover"
+            fallback-class="h-9 w-9 text-theme-primary/60"
+          />
+        </span>
+        <span class="min-w-0 flex-1">
+          <span
+            class="block text-[0.65rem] font-bold uppercase tracking-[0.08em] text-theme-primary/55"
+          >
+            {{ parent.role }}
+          </span>
+          <span class="block truncate text-sm font-bold text-theme-primary">{{ parent.name }}</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="mt-3 rounded border border-theme-primary/20 bg-surface-sunken p-3">
+      <div class="flex items-center justify-between gap-2 text-xs">
+        <span class="font-bold tracking-[0.08em] text-theme-primary/60">BIRTH PROGRESS</span>
+        <span class="font-bold text-theme-primary">{{ progress }}%</span>
+      </div>
+      <Progress
+        :model-value="pregnancy.progress_percentage"
+        :tone="pregnancy.is_due ? 'warning' : 'default'"
+        label="Birth progress"
+        :value-text="`${progress}% complete`"
+        class="mt-2 h-2"
+      />
+      <p v-if="!pregnancy.is_due" class="mt-2 text-xs text-theme-primary/65">
+        {{ timeRemaining }} remaining
+      </p>
+    </div>
+
+    <div class="mt-auto flex items-center justify-between gap-2 pt-3">
+      <Badge
+        :variant="pregnancy.is_due ? 'outline' : 'secondary'"
+        :class="pregnancy.is_due ? 'border-warning bg-warning text-black' : ''"
+      >
+        {{ pregnancy.is_due ? 'Due now' : 'Expecting' }}
+      </Badge>
+      <Button
+        v-if="pregnancy.is_due"
+        variant="default"
+        :disabled="isDelivering"
+        class="border-2 border-theme-primary hover:shadow-glow-md"
+        @click="$emit('deliver')"
+      >
+        {{ isDelivering ? 'Delivering...' : 'Deliver Baby' }}
+      </Button>
+    </div>
+  </Card>
+</template>

@@ -1,20 +1,6 @@
 <template>
   <div class="relationship-list">
-    <div class="flex items-center justify-between mb-4">
-      <h2 v-if="!stageFilter" class="text-xl font-mono text-theme-primary">Relationships</h2>
-      <div class="flex items-center gap-2">
-        <Button
-          variant="default"
-          size="sm"
-          class="border-2 border-theme-primary hover:shadow-glow-md"
-          :disabled="isLoading"
-          @click="refreshRelationships"
-        >
-          <Icon icon="mdi:refresh" class="mr-1" />
-          Refresh
-        </Button>
-      </div>
-    </div>
+    <h2 v-if="!stageFilter" class="mb-4 text-xl font-mono text-theme-primary">Relationships</h2>
 
     <div v-if="isLoading" class="text-center py-8">
       <div class="text-4xl animate-pulse">💕</div>
@@ -29,7 +15,7 @@
         <Button
           variant="outline"
           class="border-2 border-theme-primary bg-transparent"
-          @click="retryFetch()"
+          @click="loadRelationships"
           >Retry</Button
         >
       </Card>
@@ -68,7 +54,6 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Icon } from '@iconify/vue'
 import { useRelationshipStore } from '../../stores/relationship'
 import { usePregnancyStore } from '../../stores/pregnancy'
 import {
@@ -215,19 +200,14 @@ function isPartnerLinked(relationship: Relationship): boolean {
   return isRelationshipType(relationship.relationship_type, PARTNER_LINKED_RELATIONSHIP_TYPES)
 }
 
-/** Reload the vault's relationships, capturing any failure into `error`. */
-async function refreshRelationships() {
+/** Load the vault's relationships, capturing any failure into `error`. */
+async function loadRelationships() {
   error.value = null
   try {
     await relationshipStore.fetchVaultRelationships(props.vaultId)
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load relationships'
   }
-}
-
-/** Re-run the initial relationship load after an error. */
-function retryFetch() {
-  refreshRelationships()
 }
 
 /** Promote the relationship to a romantic one. */
@@ -253,6 +233,6 @@ async function breakUp(relationshipId: string) {
 }
 
 onMounted(() => {
-  refreshRelationships()
+  loadRelationships()
 })
 </script>

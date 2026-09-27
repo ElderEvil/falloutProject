@@ -1,25 +1,26 @@
 <template>
   <Card
-    class="relationship-card relationship-record--grid h-full gap-0 rounded-lg border-2 border-theme-primary/20 p-6 shadow-none ring-0"
+    class="relationship-card relationship-record--grid h-full min-h-96 gap-0 rounded-lg border-2 border-theme-primary/20 p-4 shadow-none ring-0"
   >
     <div class="flex flex-col gap-4">
-      <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-3">
+      <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-2">
         <button
           type="button"
           :title="`View ${dweller1Name}`"
-          class="group flex h-full min-w-0 flex-col items-center gap-1.5 rounded border border-theme-primary/20 bg-surface-sunken px-3 py-2 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
+          class="group flex min-h-40 min-w-0 flex-col items-center justify-center gap-1.5 rounded border border-theme-primary/20 bg-surface-sunken px-2 py-2 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
           @click="emit('select-dweller', relationship.dweller_1_id)"
         >
-          <span class="block text-[0.65rem] font-bold tracking-[0.12em] text-theme-primary/55"
-            >DWELLER 01</span
+          <span
+            class="dweller-portrait-frame flex size-20 shrink-0 items-center justify-center overflow-hidden rounded bg-black/30"
           >
-          <DwellerPortrait
-            :thumbnail-url="dweller1.thumbnail_url"
-            :alt="dweller1Name"
-            prefer-thumbnail
-            image-class="min-h-24 w-full flex-1 object-cover"
-            fallback-class="h-16 w-16 shrink-0 text-theme-primary/60"
-          />
+            <DwellerPortrait
+              :thumbnail-url="dweller1.thumbnail_url"
+              :alt="dweller1Name"
+              prefer-thumbnail
+              image-class="h-full w-full object-cover"
+              fallback-class="h-12 w-12 text-theme-primary/60"
+            />
+          </span>
           <span
             class="block w-full truncate text-center text-sm font-bold text-theme-primary group-hover:underline"
             >{{ dweller1Name }}</span
@@ -55,19 +56,20 @@
         <button
           type="button"
           :title="`View ${dweller2Name}`"
-          class="group flex h-full min-w-0 flex-col items-center gap-1.5 rounded border border-theme-primary/20 bg-surface-sunken px-3 py-2 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
+          class="group flex min-h-40 min-w-0 flex-col items-center justify-center gap-1.5 rounded border border-theme-primary/20 bg-surface-sunken px-2 py-2 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
           @click="emit('select-dweller', relationship.dweller_2_id)"
         >
-          <span class="block text-[0.65rem] font-bold tracking-[0.12em] text-theme-primary/55"
-            >DWELLER 02</span
+          <span
+            class="dweller-portrait-frame flex size-20 shrink-0 items-center justify-center overflow-hidden rounded bg-black/30"
           >
-          <DwellerPortrait
-            :thumbnail-url="dweller2.thumbnail_url"
-            :alt="dweller2Name"
-            prefer-thumbnail
-            image-class="min-h-24 w-full flex-1 object-cover"
-            fallback-class="h-16 w-16 shrink-0 text-theme-primary/60"
-          />
+            <DwellerPortrait
+              :thumbnail-url="dweller2.thumbnail_url"
+              :alt="dweller2Name"
+              prefer-thumbnail
+              image-class="h-full w-full object-cover"
+              fallback-class="h-12 w-12 text-theme-primary/60"
+            />
+          </span>
           <span
             class="block w-full truncate text-center text-sm font-bold text-theme-primary group-hover:underline"
             >{{ dweller2Name }}</span
@@ -80,7 +82,6 @@
           </span>
         </button>
       </div>
-
       <div class="rounded border border-theme-primary/20 bg-surface-sunken p-3">
         <div class="flex items-center justify-between gap-2 text-xs">
           <span class="font-bold tracking-[0.08em] text-theme-primary/60">AFFINITY</span>
@@ -90,45 +91,6 @@
         <p v-if="nextMilestone" class="mt-2 text-xs leading-4 text-theme-primary/60">
           {{ nextMilestone }}
         </p>
-      </div>
-
-      <div class="flex flex-wrap justify-end gap-2">
-        <Button
-          v-if="relationship.relationship_type === 'acquaintance' && relationship.affinity >= 70"
-          variant="default"
-          size="sm"
-          class="border-2 border-theme-primary hover:shadow-glow-md"
-          @click="$emit('initiate-romance')"
-        >
-          Romance
-        </Button>
-        <Button
-          v-if="relationship.relationship_type === 'romantic'"
-          variant="default"
-          size="sm"
-          class="border-2 border-theme-primary hover:shadow-glow-md"
-          @click="$emit('make-partners')"
-        >
-          Partner
-        </Button>
-        <Button
-          v-if="relationship.relationship_type === 'partner' && relationship.affinity >= 85"
-          variant="default"
-          size="sm"
-          class="border-2 border-theme-primary hover:shadow-glow-md"
-          @click="$emit('marry')"
-        >
-          Marry
-        </Button>
-        <Button
-          v-if="isRelationshipType(relationship.relationship_type, COMMITTED_RELATIONSHIP_TYPES)"
-          variant="destructive"
-          size="sm"
-          class="border-2 border-danger bg-transparent"
-          @click="$emit('break-up')"
-        >
-          Break Up
-        </Button>
       </div>
     </div>
     <div
@@ -174,6 +136,44 @@
         </button>
       </template>
       <span v-else class="text-xs text-theme-primary/40">No children yet</span>
+    </div>
+    <div class="mt-auto flex min-h-8 flex-wrap justify-end gap-2 pt-3">
+      <Button
+        v-if="relationship.relationship_type === 'acquaintance' && relationship.affinity >= 70"
+        variant="default"
+        size="sm"
+        class="border-2 border-theme-primary hover:shadow-glow-md"
+        @click="$emit('initiate-romance')"
+      >
+        Romance
+      </Button>
+      <Button
+        v-if="relationship.relationship_type === 'romantic'"
+        variant="default"
+        size="sm"
+        class="border-2 border-theme-primary hover:shadow-glow-md"
+        @click="$emit('make-partners')"
+      >
+        Partner
+      </Button>
+      <Button
+        v-if="relationship.relationship_type === 'partner' && relationship.affinity >= 85"
+        variant="default"
+        size="sm"
+        class="border-2 border-theme-primary hover:shadow-glow-md"
+        @click="$emit('marry')"
+      >
+        Marry
+      </Button>
+      <Button
+        v-if="isRelationshipType(relationship.relationship_type, COMMITTED_RELATIONSHIP_TYPES)"
+        variant="destructive"
+        size="sm"
+        class="border-2 border-danger bg-transparent"
+        @click="$emit('break-up')"
+      >
+        Break Up
+      </Button>
     </div>
   </Card>
 </template>

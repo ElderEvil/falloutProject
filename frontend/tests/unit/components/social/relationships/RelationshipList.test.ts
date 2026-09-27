@@ -95,6 +95,7 @@ describe('RelationshipList', () => {
     expect(cards).toHaveLength(1)
     expect(cards[0].props('dweller1')).toEqual(dweller1)
     expect(cards[0].props('dweller2')).toEqual(dweller2)
+    expect(wrapper.text()).not.toContain('Refresh')
   })
 
   it('omits relationships whose dwellers are not loaded yet', async () => {

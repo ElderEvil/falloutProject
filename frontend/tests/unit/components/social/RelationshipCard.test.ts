@@ -70,6 +70,8 @@ describe('RelationshipCard', () => {
     })
 
     expect(wrapper.find('.relationship-record--grid').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('DWELLER 01')
+    expect(wrapper.text()).not.toContain('DWELLER 02')
   })
 
   it('renders both dweller portraits', () => {
@@ -85,6 +87,29 @@ describe('RelationshipCard', () => {
     expect(portraits).toHaveLength(2)
     expect(portraits[0].attributes('data-alt')).toBe('Alice Smith')
     expect(portraits[1].attributes('data-alt')).toBe('Bob Jones')
+  })
+
+  it('gives an image and a fallback icon the same portrait frame', () => {
+    const wrapper = mount(RelationshipCard, {
+      props: {
+        relationship: {
+          id: '1',
+          dweller_1_id: 'd1',
+          dweller_2_id: 'd2',
+          relationship_type: 'friend',
+          affinity: 50,
+        },
+        dweller1: { ...dweller1, thumbnail_url: '/static/alice.png' },
+        dweller2,
+      },
+      global: { stubs: { DwellerGenderBadge: true } },
+    })
+
+    const frames = wrapper.findAll('.dweller-portrait-frame')
+    expect(frames).toHaveLength(2)
+    expect(frames.every((frame) => frame.classes().includes('size-20'))).toBe(true)
+    expect(frames[0].find('img').exists()).toBe(true)
+    expect(frames[1].find('[role="img"]').exists()).toBe(true)
   })
 
   describe('paired identity presentation', () => {

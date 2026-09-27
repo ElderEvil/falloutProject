@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.153.0 (2026-09-27)
+
+### Features
+
+* show vault status in the navbar 92e4ca3
+
+### Bug Fixes
+
+* align resource bar styling assertion cbf1488
+* float build control over room grid d21d54f
+* keep build control tests behavior focused d1c5eef
+* make floating build button prominent 5f26e08
+* revalidate vault route data and suppress stale errors 341fa45
+* show build control at top of vault view c1694a9
+
 ## 2.152.1 (2026-09-27)
 
 ### Bug Fixes

@@ -52,7 +52,7 @@ describe('GameControlPanel', () => {
 
     expect(wrapper.findAll('.admin-incident-button')).toHaveLength(7)
     expect(wrapper.find('.admin-incident-button span.hidden').exists()).toBe(true)
-    await wrapper.get('[title="Spawn Fire incident"]').trigger('click')
+    await wrapper.findAll('.admin-incident-button')[0].trigger('click')
 
     expect(incidentStore.spawnDebugIncident).toHaveBeenCalledWith('vault-1', 'test-token', 'fire')
   })

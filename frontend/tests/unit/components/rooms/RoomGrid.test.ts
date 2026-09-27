@@ -13,6 +13,14 @@ vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { id: 'vault-1' } }),
 }))
 
+// TooltipLabel is a thin presentational wrapper; stubbing it lets isolated cell
+// mounts skip the TooltipProvider ancestor and exposes each label as text.
+const tooltipLabelStub = {
+  name: 'TooltipLabel',
+  props: ['label'],
+  template: '<div><slot /><span class="tooltip-label">{{ label }}</span></div>',
+}
+
 describe('RoomGrid', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -203,6 +211,7 @@ describe('RoomGrid', () => {
             highlighted: false,
             incident: mockIncident as any,
           },
+          global: { stubs: { TooltipLabel: tooltipLabelStub } },
         })
 
         const badge = wrapper.find('.incident-badge')
@@ -694,6 +703,7 @@ describe('RoomGrid', () => {
           isDraggingOver: false,
           highlighted: false,
         },
+        global: { stubs: { TooltipLabel: tooltipLabelStub } },
       })
 
       expect(wrapper.find('.room-info-overlay').exists()).toBe(true)
@@ -701,7 +711,7 @@ describe('RoomGrid', () => {
       expect(wrapper.find('.room-name').text()).toBe('Power Generator')
     })
 
-    it('exposes room name and tier as a native title tooltip', () => {
+    it('exposes room name and tier as the root accessible name with no native title', () => {
       const wrapper = mount(RoomGridCell, {
         props: {
           room: { ...mockRoom, tier: 2 },
@@ -711,9 +721,35 @@ describe('RoomGrid', () => {
           isDraggingOver: false,
           highlighted: false,
         },
+        global: { stubs: { TooltipLabel: tooltipLabelStub } },
       })
 
-      expect(wrapper.find('.built-room').attributes('title')).toBe('Power Generator (Tier 2)')
+      const root = wrapper.find('.built-room')
+      expect(root.attributes('aria-label')).toBe('Power Generator (Tier 2)')
+      expect(root.attributes('title')).toBeUndefined()
+      // The overlay tooltip conveys the same name and tier.
+      expect(wrapper.find('.tooltip-label').text()).toBe('Power Generator (Tier 2)')
+    })
+
+    it('conveys the upgrade, destroy and incident tooltip strings', () => {
+      const wrapper = mount(RoomGridCell, {
+        props: {
+          room: { ...mockRoom, tier: 1, t2_upgrade_cost: 200 },
+          showRoomImages: false,
+          isPowerOutage: false,
+          selected: true,
+          isDraggingOver: false,
+          highlighted: false,
+          incident: { id: 'incident-1', room_id: 'room-123', type: 'FIRE', severity: 'medium' } as any,
+        },
+        global: { stubs: { TooltipLabel: tooltipLabelStub } },
+      })
+
+      const labels = wrapper.findAll('.tooltip-label').map((w) => w.text())
+      expect(labels).toContain('Power Generator (Tier 1)')
+      expect(labels).toContain('Upgrade to Tier 2 (200 caps)')
+      expect(labels).toContain('Destroy Room')
+      expect(labels).toContain('Fight FIRE')
     })
   })
 

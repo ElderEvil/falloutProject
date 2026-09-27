@@ -8,6 +8,7 @@ import type { Room } from '../models/room'
 import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
 import { getRoomImageUrl } from '@/core/utils/image'
 import { getRoomSegmentCount } from '../utils/room'
+import TooltipLabel from './TooltipLabel.vue'
 interface Props {
   room: Room
   showRoomImages: boolean
@@ -92,10 +93,11 @@ const cellTitle = computed(() => {
       selected,
       'drag-over': isDraggingOver,
       'has-incident': !!incident,
+      'has-tier': !!room.tier,
       highlighted,
       'power-outage': isRoomAffectedByOutage(),
     }"
-    :title="cellTitle"
+    :aria-label="cellTitle"
     draggable="false"
     role="button"
     tabindex="0"
@@ -120,13 +122,15 @@ const cellTitle = computed(() => {
         <Icon icon="mdi:elevator" class="small-cell-icon-svg" />
       </div>
       <!-- Regular rooms: compact single-line overlay -->
-      <div v-else class="room-info-overlay">
-        <div class="room-header">
-          <h3 class="room-name">{{ room.name }}</h3>
-          <Icon v-if="room.ability" :icon="getAbilityIcon(room.ability)" class="ability-icon" />
+      <TooltipLabel v-else :label="cellTitle">
+        <div class="room-info-overlay">
+          <div class="room-header">
+            <h3 class="room-name">{{ room.name }}</h3>
+            <Icon v-if="room.ability" :icon="getAbilityIcon(room.ability)" class="ability-icon" />
+          </div>
+          <div v-if="room.tier" class="room-tier">T{{ room.tier }}</div>
         </div>
-        <div v-if="room.tier" class="room-tier">T{{ room.tier }}</div>
-      </div>
+      </TooltipLabel>
       <div v-if="isDraggingOver" class="drop-indicator">
         <Icon icon="mdi:account-plus" class="h-6 w-6" />
         <span>Drop to assign</span>
@@ -136,23 +140,27 @@ const cellTitle = computed(() => {
         <span class="sr-only">items need attention</span>
       </span>
       <div v-if="selected" class="room-actions">
-        <button
+        <TooltipLabel
           v-if="canUpgrade(room)"
-          @click="emit('upgrade', room.id, $event)"
-          class="upgrade-button"
-          :title="`Upgrade to Tier ${room.tier + 1} (${getUpgradeCost(room)} caps)`"
+          :label="`Upgrade to Tier ${room.tier + 1} (${getUpgradeCost(room)} caps)`"
         >
-          <Icon icon="mdi:arrow-up-circle" class="h-5 w-5" />
-          <span class="upgrade-cost">{{ getUpgradeCost(room) }}</span>
-        </button>
-        <button
-          @click="emit('destroy', room.id, $event)"
-          class="destroy-button"
-          aria-label="Destroy room"
-          title="Destroy Room"
-        >
-          <Icon icon="mdi:delete" class="h-5 w-5" />
-        </button>
+          <button
+            @click="emit('upgrade', room.id, $event)"
+            class="upgrade-button"
+          >
+            <Icon icon="mdi:arrow-up-circle" class="h-5 w-5" />
+            <span class="upgrade-cost">{{ getUpgradeCost(room) }}</span>
+          </button>
+        </TooltipLabel>
+        <TooltipLabel label="Destroy Room">
+          <button
+            @click="emit('destroy', room.id, $event)"
+            class="destroy-button"
+            aria-label="Destroy room"
+          >
+            <Icon icon="mdi:delete" class="h-5 w-5" />
+          </button>
+        </TooltipLabel>
       </div>
 
       <!-- Display dwellers in room -->
@@ -161,19 +169,19 @@ const cellTitle = computed(() => {
       </div>
 
       <!-- Incident action -->
-      <button
-        v-if="incident"
-        type="button"
-        class="incident-badge"
-        :aria-label="`Fight ${incident.type.replace(/_/g, ' ')} in ${room.name}`"
-        :title="`Fight ${incident.type.replace(/_/g, ' ')}`"
-        @click="handleIncidentClick"
-        @keydown.enter.stop.prevent="handleIncidentClick"
-        @keydown.space.stop.prevent="handleIncidentClick"
-      >
-        <Icon :icon="getIncidentIcon(incident.type)" class="incident-badge-icon" />
-        <span class="incident-badge-label">FIGHT</span>
-      </button>
+      <TooltipLabel v-if="incident" :label="`Fight ${incident.type.replace(/_/g, ' ')}`">
+        <button
+          type="button"
+          class="incident-badge"
+          :aria-label="`Fight ${incident.type.replace(/_/g, ' ')} in ${room.name}`"
+          @click="handleIncidentClick"
+          @keydown.enter.stop.prevent="handleIncidentClick"
+          @keydown.space.stop.prevent="handleIncidentClick"
+        >
+          <Icon :icon="getIncidentIcon(incident.type)" class="incident-badge-icon" />
+          <span class="incident-badge-label">FIGHT</span>
+        </button>
+      </TooltipLabel>
     </div>
   </div>
 </template>
@@ -245,6 +253,9 @@ const cellTitle = computed(() => {
   color: var(--color-theme-primary);
   font-weight: 600;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  /* The cell centres its content; the name reads better anchored to the tile's
+     left edge, next to the tier badge on the right. */
+  text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -322,7 +333,14 @@ const cellTitle = computed(() => {
   z-index: 6;
 }
 
-/* Selected rooms show the action row top-right; drop the badge below it */
+/* The alert badge shares the top-right corner with the tier badge, so drop it
+   below the tier. */
+.built-room.has-tier .overseer-alert-badge {
+  top: 1.25rem;
+}
+
+/* Selected rooms show the action row top-right; drop the badge below it.
+   Declared after the tier rule so its larger offset wins on a tiered room. */
 .built-room.selected .overseer-alert-badge {
   top: 2.5rem;
 }

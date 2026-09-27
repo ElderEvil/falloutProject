@@ -2,6 +2,7 @@
 import { ref, shallowRef, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSse, type SseEvent } from '@/core/composables/useEventStream'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
@@ -276,26 +277,33 @@ onBeforeUnmount(() => {
 <template>
   <div class="relative">
     <!-- Bell Button -->
-    <button
-      @click="togglePopup"
-      class="relative flex items-center justify-center rounded p-2 transition-all duration-200 hover:bg-surface-warm-hover"
-      :class="{ 'bg-surface-warm-dark': showPopup }"
-      title="Notifications"
-    >
-      <Icon
-        icon="mdi:bell"
-        class="h-5 w-5"
-        :class="hasUnread ? 'text-theme-primary' : 'text-gray-400'"
-      />
+    <TooltipProvider :delay-duration="200">
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <button
+            @click="togglePopup"
+            class="relative flex items-center justify-center rounded p-2 transition-all duration-200 hover:bg-surface-warm-hover"
+            :class="{ 'bg-surface-warm-dark': showPopup }"
+            aria-label="Notifications"
+          >
+            <Icon
+              icon="mdi:bell"
+              class="h-5 w-5"
+              :class="hasUnread ? 'text-theme-primary' : 'text-gray-400'"
+            />
 
-      <!-- Unread Badge -->
-      <span
-        v-if="hasUnread"
-        class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white shadow-lg"
-      >
-        {{ unreadCount > 99 ? '99+' : unreadCount }}
-      </span>
-    </button>
+            <!-- Unread Badge -->
+            <span
+              v-if="hasUnread"
+              class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white shadow-lg"
+            >
+              {{ unreadCount > 99 ? '99+' : unreadCount }}
+            </span>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>Notifications</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
 
     <!-- Notification Pop-up -->
     <Transition name="fade">

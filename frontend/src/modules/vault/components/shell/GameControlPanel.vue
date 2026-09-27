@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
@@ -107,23 +108,29 @@ onUnmounted(() => {
 
     <div class="game-control-actions flex min-w-max flex-nowrap items-center gap-2">
       <!-- Pause/Resume Button -->
-      <button
-        @click="togglePause"
-        :disabled="isLoading"
-        class="flex shrink-0 items-center gap-2 rounded px-3 py-1 transition-all duration-200"
-        :class="{
-          'bg-yellow-700 hover:bg-yellow-800': !isPaused && !isLoading,
-          'bg-green-600 hover:bg-green-700': isPaused && !isLoading,
-          'bg-gray-600 cursor-not-allowed': isLoading,
-        }"
-        :title="isPaused ? 'Resume game' : 'Pause game'"
-      >
-        <Icon v-if="!isPaused" icon="mdi:pause" class="h-4 w-4 text-white" />
-        <Icon v-else icon="mdi:play" class="h-4 w-4 text-white" />
-        <span class="text-sm font-semibold text-white">
-          {{ isPaused ? 'Resume' : 'Pause' }}
-        </span>
-      </button>
+      <TooltipProvider :delay-duration="200">
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <button
+              @click="togglePause"
+              :disabled="isLoading"
+              class="flex shrink-0 items-center gap-2 rounded px-3 py-1 transition-all duration-200"
+              :class="{
+                'bg-yellow-700 hover:bg-yellow-800': !isPaused && !isLoading,
+                'bg-green-600 hover:bg-green-700': isPaused && !isLoading,
+                'bg-gray-600 cursor-not-allowed': isLoading,
+              }"
+            >
+              <Icon v-if="!isPaused" icon="mdi:pause" class="h-4 w-4 text-white" />
+              <Icon v-else icon="mdi:play" class="h-4 w-4 text-white" />
+              <span class="text-sm font-semibold text-white">
+                {{ isPaused ? 'Resume' : 'Pause' }}
+              </span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>{{ isPaused ? 'Resume game' : 'Pause game' }}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       <!-- Paused Indicator -->
       <div
@@ -136,17 +143,21 @@ onUnmounted(() => {
 
       <div v-if="isSuperuser" class="admin-incident-controls flex shrink-0 flex-nowrap items-center gap-1">
         <span class="mr-1 hidden text-xs font-semibold text-red-400 lg:inline">TEST INCIDENTS</span>
-        <button
-          v-for="incident in testIncidents"
-          :key="incident.type"
-          class="admin-incident-button flex shrink-0 items-center gap-1 rounded border border-red-500/50 px-2 py-1 text-xs font-semibold text-red-100 transition-colors hover:bg-red-700/60 disabled:cursor-not-allowed disabled:opacity-50"
-          :disabled="isLoading || isSpawningIncident"
-          :title="`Spawn ${incident.label} incident`"
-          @click="spawnIncident(incident.type)"
-        >
-          <Icon :icon="incident.icon" class="h-3.5 w-3.5" />
-          <span class="hidden sm:inline">{{ incident.label }}</span>
-        </button>
+        <TooltipProvider :delay-duration="200">
+          <Tooltip v-for="incident in testIncidents" :key="incident.type">
+            <TooltipTrigger as-child>
+              <button
+                class="admin-incident-button flex shrink-0 items-center gap-1 rounded border border-red-500/50 px-2 py-1 text-xs font-semibold text-red-100 transition-colors hover:bg-red-700/60 disabled:cursor-not-allowed disabled:opacity-50"
+                :disabled="isLoading || isSpawningIncident"
+                @click="spawnIncident(incident.type)"
+              >
+                <Icon :icon="incident.icon" class="h-3.5 w-3.5" />
+                <span class="hidden sm:inline">{{ incident.label }}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{{ `Spawn ${incident.label} incident` }}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
   </div>

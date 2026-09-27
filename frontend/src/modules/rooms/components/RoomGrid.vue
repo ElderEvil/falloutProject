@@ -12,6 +12,7 @@ import { useHoverPreview } from '../composables/useHoverPreview'
 import { useRoomRendering } from '@/core/composables/useRoomRendering'
 import { useToast } from '@/core/composables/useToast'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
+import { TooltipProvider } from '@/core/components/ui/tooltip'
 import { Icon } from '@iconify/vue'
 import type { Incident } from '@/modules/combat/models/incident'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
@@ -312,7 +313,8 @@ const closeDetailModal = () => {
 </script>
 
 <template>
-  <div class="room-grid-container">
+  <TooltipProvider :delay-duration="200">
+    <div class="room-grid-container">
     <!-- Room Detail Modal -->
     <RoomDetailModal
       :room="selectedRoomForDetail"
@@ -414,7 +416,8 @@ const closeDetailModal = () => {
         >
       </div>
     </div>
-  </div>
+    </div>
+  </TooltipProvider>
 </template>
 
 <style src="./RoomGrid.css" scoped></style>

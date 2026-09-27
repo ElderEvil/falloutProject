@@ -158,7 +158,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     expect(errorSpy).not.toHaveBeenCalled()
 
     // ASSERT: the SSE event was processed — popup shows the notification
-    await wrapper.find('button[title="Notifications"]').trigger('click')
+    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Level Up!')
     expect(wrapper.text()).toContain('A dweller reached a new level')
@@ -204,7 +204,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     expect(toasts.value.some((t) => t.message === 'Jane Doe joined the fire team')).toBe(true)
 
     // ASSERT: the event also produced a normal bell entry
-    await wrapper.find('button[title="Notifications"]').trigger('click')
+    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Hazard Team Joined')
     expect(wrapper.text()).toContain('Jane Doe joined the fire team')
@@ -295,7 +295,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     expect(toasts.value.some((t) => t.message.includes('party has returned'))).toBe(true)
 
     // ASSERT: the event also produced a bell entry with the treasure-chest icon
-    await wrapper.find('button[title="Notifications"]').trigger('click')
+    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Quest Party Returned')
     expect(wrapper.find('[data-icon="mdi:treasure-chest"]').exists()).toBe(true)
@@ -339,7 +339,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
 
     // ASSERT: no toast, but the bell entry still exists
     expect(toasts.value.some((t) => t.message.includes('party has returned'))).toBe(false)
-    await wrapper.find('button[title="Notifications"]').trigger('click')
+    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Quest Party Returned')
 
@@ -379,7 +379,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     expect(errorSpy).not.toHaveBeenCalled()
 
     // ASSERT: no notification was added (early return), popup shows empty state
-    await wrapper.find('button[title="Notifications"]').trigger('click')
+    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('No notifications yet')
 
@@ -406,7 +406,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     expect(fetchMock).toHaveBeenCalled()
     expect(errorSpy).not.toHaveBeenCalled()
 
-    await wrapper.find('button[title="Notifications"]').trigger('click')
+    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Level Up!')
 
@@ -447,7 +447,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     ).toBe(true)
 
     // ASSERT: the event also produced a bell entry with the cleared icon
-    await wrapper.find('button[title="Notifications"]').trigger('click')
+    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Megaton cleared')
     expect(wrapper.find('[data-icon="mdi:flag-checkered"]').exists()).toBe(true)
@@ -489,7 +489,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     )
 
     // ASSERT: the event also produced a bell entry with the ready icon
-    await wrapper.find('button[title="Notifications"]').trigger('click')
+    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Megaton ready')
     expect(wrapper.find('[data-icon="mdi:map-marker-refresh"]').exists()).toBe(true)

@@ -39,7 +39,7 @@ const dweller = {
   experience: 0,
   stimpack: 0,
   radaway: 0,
-  room: { id: 'room-1', name: 'Power Generator' },
+  room: { id: 'room-1', name: 'Power Generator', category: 'production' },
   visual_attributes: { race: 'ghoul', faction: 'raiders', state_of_being: 'sane' },
 } as unknown as Dweller
 

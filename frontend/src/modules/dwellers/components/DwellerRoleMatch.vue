@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import { producesResources } from '@/modules/rooms/models/roomParts'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 import { ABILITY_CONFIG, getHighestSpecial, isMature } from '../models/dweller'
 
@@ -12,9 +13,11 @@ const bestStat = computed(() => (dweller.value ? getHighestSpecial(dweller.value
 const bestLabel = computed(() => (bestStat.value ? ABILITY_CONFIG[bestStat.value].label : ''))
 
 // Youth are apprenticed to the room's ability by construction, so the match is
-// only informative for adults who were assigned as workers.
+// only informative for adults who were assigned as workers. It only says
+// anything where the ability drives output: living quarters, training rooms and
+// apprentices take whoever they are given, so a "mismatch" there is noise.
 const applies = computed(
-  () => !!dweller.value && !!dweller.value.room?.ability && isMature(dweller.value)
+  () => !!dweller.value && producesResources(dweller.value.room ?? null) && isMature(dweller.value)
 )
 const matched = computed(() => dweller.value?.room?.ability === bestStat.value)
 const tooltip = computed(() =>

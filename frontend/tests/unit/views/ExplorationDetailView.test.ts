@@ -145,10 +145,10 @@ describe('ExplorationDetailView', () => {
     vi.spyOn(explorationStore, 'stopSseSubscription').mockImplementation(() => {})
 
     // Set up mock data
+    authStore.token = 'mock-token'
     explorationStore.activeExplorations['expl-1'] = mockExploration
     dwellerStore.dwellers = [mockDweller]
     dwellerStore.detailedDwellers['dweller-1'] = mockDweller as any
-    authStore.token = 'mock-token'
 
     router = createRouter({
       history: createMemoryHistory(),

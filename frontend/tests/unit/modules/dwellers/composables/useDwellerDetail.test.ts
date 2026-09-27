@@ -82,7 +82,9 @@ describe('useDwellerDetail soft-delete', () => {
     await flushPromises()
     expect(fetchSpy).toHaveBeenCalledTimes(1)
 
-    const detail = (wrapper.vm as unknown as { detail: { actions: { confirmSoftDelete: () => Promise<void> } } }).detail
+    const detail = (
+      wrapper.vm as unknown as { detail: { actions: { confirmSoftDelete: () => Promise<void> } } }
+    ).detail
     await detail.actions.confirmSoftDelete()
     await flushPromises()
 
@@ -90,5 +92,68 @@ describe('useDwellerDetail soft-delete', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1)
     expect(toastError).not.toHaveBeenCalled()
     expect(router.currentRoute.value.path).toBe('/vault/vault-1/dwellers')
+  })
+})
+
+describe('useDwellerDetail chat deep-link', () => {
+  let router: ReturnType<typeof createRouter>
+
+  beforeEach(async () => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    useAuthStore().token = 'mock-token'
+
+    router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/vault/:id/dwellers/:dwellerId', name: 'dweller-detail', component: Harness },
+        { path: '/vault/:id/dwellers', name: 'dwellers', component: { template: '<div />' } },
+      ],
+    })
+    await router.push('/vault/vault-1/dwellers/dweller-1')
+    await router.isReady()
+  })
+
+  it('opens chat as a query param on the same route instead of navigating to /dweller/:id/chat', async () => {
+    const { filter: dwellerStore } = useDwellerStore()
+    vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockImplementation(async (id: string) => {
+      dwellerStore.detailedDwellers[id] = fakeDweller
+      return fakeDweller
+    })
+
+    const wrapper = mount(Harness, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const detail = (
+      wrapper.vm as unknown as { detail: { actions: { navigateToChat: () => void } } }
+    ).detail
+    detail.actions.navigateToChat()
+    await flushPromises()
+
+    // The detail route stays mounted; only the query gains ?chat=<dwellerId>.
+    expect(router.currentRoute.value.path).toBe('/vault/vault-1/dwellers/dweller-1')
+    expect(router.currentRoute.value.query.chat).toBe('dweller-1')
+  })
+
+  it('preserves existing query params when opening chat', async () => {
+    const { filter: dwellerStore } = useDwellerStore()
+    vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockImplementation(async (id: string) => {
+      dwellerStore.detailedDwellers[id] = fakeDweller
+      return fakeDweller
+    })
+
+    await router.push('/vault/vault-1/dwellers/dweller-1?tab=SPECIAL&stat=luck')
+    const wrapper = mount(Harness, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const detail = (
+      wrapper.vm as unknown as { detail: { actions: { navigateToChat: () => void } } }
+    ).detail
+    detail.actions.navigateToChat()
+    await flushPromises()
+
+    expect(router.currentRoute.value.query.chat).toBe('dweller-1')
+    expect(router.currentRoute.value.query.tab).toBe('SPECIAL')
+    expect(router.currentRoute.value.query.stat).toBe('luck')
   })
 })

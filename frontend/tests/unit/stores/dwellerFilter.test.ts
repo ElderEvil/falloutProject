@@ -17,6 +17,7 @@ import {
   ALL_DWELLERS_FETCH_LIMIT,
 } from '@/modules/dwellers/stores/dwellerFilter'
 import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import { DEFAULT_TABLE_COLUMNS } from '@/modules/dwellers/models/dwellerTable'
 
 describe('DwellerFilter Store', () => {
@@ -397,6 +398,44 @@ describe('DwellerFilter Store', () => {
   })
 
   describe('fetchDwellerDetails', () => {
+    it("does not reuse a previous account's cached dweller", async () => {
+      const authStore = useAuthStore()
+      const store = useDwellerFilterStore()
+      const id = '550e8400-e29b-41d4-a716-446655440000'
+      authStore.user = { id: 'user-a', username: 'Alice' }
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: { id, first_name: 'Private' } })
+      await store.fetchDwellerDetails(id, 'token-a')
+
+      authStore.user = { id: 'user-b', username: 'Bob' }
+      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Forbidden'))
+      const result = await store.fetchDwellerDetails(id, 'token-b')
+
+      expect(result).toBeNull()
+      expect(store.detailedDwellers[id]).toBeUndefined()
+      expect(axios.get).toHaveBeenCalledTimes(2)
+    })
+
+    it('discards a detail request that finishes after the account changes', async () => {
+      const authStore = useAuthStore()
+      const store = useDwellerFilterStore()
+      const id = '550e8400-e29b-41d4-a716-446655440000'
+      let finishRequest: (value: { data: { id: string; first_name: string } }) => void = () => {}
+      vi.mocked(axios.get).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishRequest = resolve
+          })
+      )
+
+      authStore.user = { id: 'user-a', username: 'Alice' }
+      const pending = store.fetchDwellerDetails(id, 'token-a')
+      authStore.user = { id: 'user-b', username: 'Bob' }
+      finishRequest({ data: { id, first_name: 'Private' } })
+
+      expect(await pending).toBeNull()
+      expect(store.detailedDwellers[id]).toBeUndefined()
+    })
+
     it('should fetch and cache dweller details', async () => {
       const mockDweller = {
         id: 'd1',

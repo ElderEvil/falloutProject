@@ -21,7 +21,6 @@
   "src/modules/profile/components/AIUsageCard.vue": 2,
   "src/modules/progression/components/PartySelectionModal.vue": 1,
   "src/modules/progression/components/QuestCard.vue": 1,
-  "src/modules/progression/components/QuestDetailModal.vue": 1,
   "src/modules/progression/components/training/TrainingRoomModal.vue": 9,
   "src/modules/rooms/components/ArenaFighterSlot.vue": 1,
   "src/modules/rooms/components/ArenaModal.vue": 1,

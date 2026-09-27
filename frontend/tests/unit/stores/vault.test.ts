@@ -90,6 +90,7 @@ describe('Vault Store', () => {
       const store = useVaultStore()
       store.loadedVaults = { 'vault-1': mockVault }
       store.activeVaultId = 'vault-1'
+      store.selectedVaultId = 'vault-1'
 
       expect(store.activeVault).toEqual(mockVault)
     })
@@ -107,6 +108,22 @@ describe('Vault Store', () => {
       }
 
       expect(store.loadedVaultIds).toEqual(['vault-1', 'vault-2'])
+    })
+
+    it('currentVaultId falls back to the persisted selection when no vault is active', () => {
+      const store = useVaultStore()
+      store.selectedVaultId = 'vault-1'
+
+      expect(store.activeVaultId).toBeNull()
+      expect(store.currentVaultId).toBe('vault-1')
+    })
+
+    it('currentVaultId prefers the active vault over the persisted selection', () => {
+      const store = useVaultStore()
+      store.selectedVaultId = 'vault-1'
+      store.activeVaultId = 'vault-2'
+
+      expect(store.currentVaultId).toBe('vault-2')
     })
   })
 
@@ -202,6 +219,7 @@ describe('Vault Store', () => {
       store.vaults = [mockVault, { ...mockVault, id: 'vault-2' }]
       store.loadedVaults = { 'vault-1': mockVault }
       store.activeVaultId = 'vault-1'
+      store.selectedVaultId = 'vault-1'
 
       vi.mocked(axios.delete).mockResolvedValueOnce({})
 
@@ -211,6 +229,8 @@ describe('Vault Store', () => {
       expect(store.vaults[0].id).toBe('vault-2')
       expect(store.loadedVaults['vault-1']).toBeUndefined()
       expect(store.activeVaultId).toBeNull()
+      expect(store.selectedVaultId).toBeNull()
+      expect(store.currentVaultId).toBeNull()
     })
 
     it('should set new active vault when deleting current active vault', async () => {
@@ -219,12 +239,14 @@ describe('Vault Store', () => {
       store.vaults = [mockVault, vault2]
       store.loadedVaults = { 'vault-1': mockVault, 'vault-2': vault2 }
       store.activeVaultId = 'vault-1'
+      store.selectedVaultId = 'vault-1'
 
       vi.mocked(axios.delete).mockResolvedValueOnce({})
 
       await store.deleteVault('vault-1', 'test-token')
 
       expect(store.activeVaultId).toBe('vault-2')
+      expect(store.selectedVaultId).toBe('vault-2')
     })
 
     it('should handle delete error gracefully', async () => {
@@ -247,6 +269,7 @@ describe('Vault Store', () => {
 
       expect(store.loadedVaults['vault-1']).toEqual(mockVault)
       expect(store.activeVaultId).toBe('vault-1')
+      expect(store.selectedVaultId).toBe('vault-1')
       expect(store.isLoading).toBe(false)
     })
 
@@ -272,6 +295,22 @@ describe('Vault Store', () => {
 
       await expect(store.loadVault('vault-1', 'test-token')).rejects.toThrow('Load failed')
       expect(store.isLoading).toBe(false)
+    })
+  })
+
+  describe('refreshVault Action', () => {
+    it('persists the vault as the selected vault so navigation survives a reload', async () => {
+      const store = useVaultStore()
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockVault })
+
+      await store.refreshVault('vault-1', 'test-token')
+
+      expect(store.activeVaultId).toBe('vault-1')
+      expect(store.selectedVaultId).toBe('vault-1')
+
+      // A fresh store instance (as after a page reload) still knows the selection.
+      setActivePinia(createPinia())
+      expect(useVaultStore().selectedVaultId).toBe('vault-1')
     })
   })
 

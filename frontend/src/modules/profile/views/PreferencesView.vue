@@ -147,7 +147,7 @@ const handleGlowSelect = (value: unknown) => {
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-theme-primary [text-shadow:none]">
     <div class="vault-layout">
-      <SidePanel :vault-id="vaultStore.activeVaultId" />
+      <SidePanel :vault-id="vaultStore.currentVaultId" />
 
       <div class="main-content" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto px-4 py-6 lg:px-8">

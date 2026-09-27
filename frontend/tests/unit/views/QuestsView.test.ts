@@ -7,10 +7,9 @@ import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
-const routerPushMock = vi.hoisted(() => vi.fn())
 const routerReplaceMock = vi.hoisted(() => vi.fn())
 
-// Reactive query so tests can drive the deep-linked quest detail modal.
+// Reactive query for claim reward links.
 const routeQuery = reactive<Record<string, string | undefined>>({})
 
 vi.mock('vue-router', () => ({
@@ -19,7 +18,6 @@ vi.mock('vue-router', () => ({
     query: routeQuery,
   }),
   useRouter: () => ({
-    push: routerPushMock,
     replace: routerReplaceMock,
   }),
 }))
@@ -38,7 +36,6 @@ describe('QuestsView', () => {
     _vaultStore = useVaultStore()
 
     vi.clearAllMocks()
-    routeQuery.quest = undefined
     routeQuery.claimQuest = undefined
 
     // Prevent unhandled rejections from real HTTP calls during onMounted
@@ -360,6 +357,48 @@ describe('QuestsView', () => {
       expect(wrapper.text()).toContain('Available Quest')
     })
 
+    it('keeps a started check-objective quest out of the Available tab', async () => {
+      // State quests (building/population/training) start with is_reward_ready=true
+      // and started_at=null, so they must be excluded from Available by reward state.
+      questStore.vaultQuests = [
+        {
+          id: 'quest-1',
+          title: 'Started State Quest',
+          short_description: 'Test quest',
+          long_description: 'Test quest description',
+          requirements: 'Level 5',
+          rewards: '50 caps',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          is_reward_ready: true,
+          started_at: null,
+          duration_minutes: null,
+          quest_category: 'training',
+        },
+      ]
+
+      wrapper = mount(QuestsView, {
+        global: {
+          stubs: {
+            SidePanel: true,
+            Icon: true,
+          },
+        },
+      })
+
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.text()).toContain('Started State Quest')
+
+      const availableTab = wrapper.findAll('[role="tab"]')[1]
+      await availableTab.trigger('mousedown')
+      await flushPromises()
+
+      expect(wrapper.text()).not.toContain('Started State Quest')
+    })
+
     it('should reveal locked quests only when Show All is enabled and render their lock reason', async () => {
       questStore.vaultQuests = [
         {
@@ -448,7 +487,8 @@ describe('QuestsView', () => {
       await flushPromises()
 
       expect(wrapper.text()).toContain('Completed Quest')
-      expect(wrapper.text()).toContain('View Details')
+      expect(wrapper.text()).toContain('Completed')
+      expect(wrapper.text()).not.toContain('View Details')
     })
 
     it('should show empty state when no active quests', async () => {
@@ -851,7 +891,7 @@ describe('QuestsView', () => {
     })
   })
 
-  describe('Completed Quest Navigation', () => {
+  describe('Quest card actions', () => {
     beforeEach(() => {
       roomStore.rooms = [
         {
@@ -878,92 +918,25 @@ describe('QuestsView', () => {
       ]
     })
 
-    it('opens the quest detail modal from the ?quest= query param', async () => {
+    it('starts an available state quest from its card', async () => {
+      const startSpy = vi.spyOn(questStore, 'startQuest').mockResolvedValue()
       questStore.vaultQuests = [
         {
           id: 'quest-9',
-          title: 'Finished Quest',
-          short_description: 'Test quest',
-          long_description: 'Test quest description',
-          requirements: 'Level 5',
-          rewards: '50 caps',
+          title: 'Training Quest',
+          short_description: 'Train a dweller',
+          long_description: 'Training objective description.',
+          requirements: '',
+          rewards: '',
           created_at: '2025-01-01',
           updated_at: '2025-01-01',
           is_visible: true,
-          is_completed: true,
-          started_at: '2025-01-02T00:00:00Z',
+          is_completed: false,
+          started_at: null,
           duration_minutes: 60,
+          quest_category: 'training',
         },
       ]
-
-      routeQuery.quest = 'quest-9'
-
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-            QuestDetailModal: {
-              template:
-                '<div class="mock-quest-modal" :data-quest-id="questId"><button class="mock-quest-modal-close" @click="$emit(\'close\')">Close</button></div>',
-              props: ['questId', 'vaultId'],
-              emits: ['close', 'select'],
-            },
-          },
-        },
-      })
-
-      await wrapper.vm.$nextTick()
-
-      const modal = wrapper.find('.mock-quest-modal')
-      expect(modal.exists()).toBe(true)
-      expect(modal.attributes('data-quest-id')).toBe('quest-9')
-    })
-
-    it('closes the quest detail modal by clearing the quest query param', async () => {
-      routeQuery.quest = 'quest-9'
-
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-            QuestDetailModal: {
-              template:
-                '<div class="mock-quest-modal" :data-quest-id="questId"><button class="mock-quest-modal-close" @click="$emit(\'close\')">Close</button></div>',
-              props: ['questId', 'vaultId'],
-              emits: ['close', 'select'],
-            },
-          },
-        },
-      })
-
-      await wrapper.vm.$nextTick()
-      expect(wrapper.find('.mock-quest-modal').exists()).toBe(true)
-
-      await wrapper.find('.mock-quest-modal-close').trigger('click')
-
-      expect(routerReplaceMock).toHaveBeenCalledWith({ query: { quest: undefined } })
-    })
-
-    it('routes a completed quest to its detail modal on View Details', async () => {
-      questStore.vaultQuests = [
-        {
-          id: 'quest-9',
-          title: 'Finished Quest',
-          short_description: 'Test quest',
-          long_description: 'Test quest description',
-          requirements: 'Level 5',
-          rewards: '50 caps',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: true,
-          started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60,
-        },
-      ]
-
       wrapper = mount(QuestsView, {
         global: {
           stubs: {
@@ -971,163 +944,18 @@ describe('QuestsView', () => {
             Icon: true,
             QuestCard: {
               template:
-                '<div><button class="view-btn" @click="$emit(\'view\', quest.id)">View Details</button></div>',
+                '<button class="start-quest" @click="$emit(\'start\', quest.id)">Start</button>',
               props: ['quest', 'vaultId', 'status', 'partyMembers'],
-              emits: ['view'],
+              emits: ['start'],
             },
           },
         },
       })
-
-      await wrapper.vm.$nextTick()
-
-      const completedTab = wrapper.findAll('[role="tab"]')[2]
-      await completedTab.trigger('mousedown')
+      await wrapper.findAll('[role="tab"]')[1]!.trigger('mousedown')
       await flushPromises()
-      await wrapper.find('.view-btn').trigger('click')
-
-      expect(routerPushMock).toHaveBeenCalledWith({ query: { quest: 'quest-9' } })
-    })
-
-    it('starts a state quest directly from the modal and closes it', async () => {
-      const startSpy = vi.spyOn(questStore, 'startQuest').mockResolvedValue()
-      questStore.vaultQuests = [
-        {
-          id: 'quest-9',
-          title: 'Training Quest',
-          short_description: 'Train a dweller',
-          long_description: 'Training objective description.',
-          requirements: '',
-          rewards: '',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          started_at: null,
-          duration_minutes: 60,
-          quest_category: 'training',
-        },
-      ]
-      routeQuery.quest = 'quest-9'
-
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-            QuestDetailModal: {
-              template:
-                '<div class="mock-quest-modal"><button class="mock-quest-modal-start" @click="$emit(\'start\', questId)">Start</button></div>',
-              props: ['questId', 'vaultId'],
-              emits: ['close', 'select', 'start'],
-            },
-          },
-        },
-      })
-
-      await wrapper.vm.$nextTick()
-      await wrapper.find('.mock-quest-modal-start').trigger('click')
-      await flushPromises()
+      await wrapper.find('.start-quest').trigger('click')
 
       expect(startSpy).toHaveBeenCalledWith('vault-123', 'quest-9')
-      expect(routerReplaceMock).toHaveBeenCalledWith({ query: { quest: undefined } })
-    })
-
-    it('starts a state quest once when the start action repeats', async () => {
-      let resolveStart: () => void = () => {}
-      const startSpy = vi.spyOn(questStore, 'startQuest').mockImplementation(
-        () =>
-          new Promise<void>((resolve) => {
-            resolveStart = resolve
-          })
-      )
-      questStore.vaultQuests = [
-        {
-          id: 'quest-9',
-          title: 'Training Quest',
-          short_description: 'Train a dweller',
-          long_description: 'Training objective description.',
-          requirements: '',
-          rewards: '',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          started_at: null,
-          duration_minutes: 60,
-          quest_category: 'training',
-        },
-      ]
-      routeQuery.quest = 'quest-9'
-
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-            QuestDetailModal: {
-              template:
-                '<div class="mock-quest-modal"><button class="mock-quest-modal-start" @click="$emit(\'start\', questId)">Start</button></div>',
-              props: ['questId', 'vaultId'],
-              emits: ['close', 'select', 'start'],
-            },
-          },
-        },
-      })
-
-      await wrapper.vm.$nextTick()
-      await wrapper.find('.mock-quest-modal-start').trigger('click')
-      await wrapper.find('.mock-quest-modal-start').trigger('click')
-
-      expect(startSpy).toHaveBeenCalledTimes(1)
-
-      resolveStart()
-      await flushPromises()
-    })
-
-    it('opens party selection instead of starting a normal quest from the modal', async () => {
-      const startSpy = vi.spyOn(questStore, 'startQuest').mockResolvedValue()
-      const partySpy = vi.spyOn(questStore, 'getParty').mockResolvedValue([])
-      questStore.vaultQuests = [
-        {
-          id: 'quest-9',
-          title: 'Exploration Quest',
-          short_description: 'Explore the wastes',
-          long_description: 'Exploration description.',
-          requirements: '',
-          rewards: '',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          started_at: null,
-          duration_minutes: 60,
-          quest_category: 'exploration',
-        },
-      ]
-      routeQuery.quest = 'quest-9'
-
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-            QuestDetailModal: {
-              template:
-                '<div class="mock-quest-modal"><button class="mock-quest-modal-start" @click="$emit(\'start\', questId)">Start</button></div>',
-              props: ['questId', 'vaultId'],
-              emits: ['close', 'select', 'start'],
-            },
-          },
-        },
-      })
-
-      await wrapper.vm.$nextTick()
-      await wrapper.find('.mock-quest-modal-start').trigger('click')
-      await flushPromises()
-
-      expect(partySpy).toHaveBeenCalledWith('vault-123', 'quest-9')
-      expect(startSpy).not.toHaveBeenCalled()
     })
   })
 

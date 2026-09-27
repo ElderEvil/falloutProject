@@ -440,8 +440,8 @@ const reviewActiveIncidents = () => {
             <WastelandPanel />
           </div>
 
-          <!-- Room Grid with Floating Build Button -->
-          <div class="relative w-full">
+          <!-- Room Grid with Build Control -->
+          <div class="w-full">
             <RoomGrid
               :incidents="activeIncidents"
               :highlightedRoomId="highlightedRoomId"
@@ -452,8 +452,8 @@ const reviewActiveIncidents = () => {
               @review-incidents="reviewActiveIncidents"
             />
 
-            <!-- Floating Build Button -->
-            <div class="floating-build-button">
+            <!-- Build Control: in-flow below the grid so it never covers rooms -->
+            <div class="build-control mt-4 flex justify-center">
               <BuildModeButton
                 :buildModeActive="buildModeActive"
                 @toggleBuildMode="toggleBuildMode"
@@ -507,12 +507,8 @@ const reviewActiveIncidents = () => {
   text-shadow: 0 0 2px var(--color-theme-glow);
 }
 
-/* Floating Build Button */
-.floating-build-button {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  z-index: 10;
+/* Build Control */
+.build-control {
   animation: subtlePulse 3s ease-in-out infinite;
 }
 

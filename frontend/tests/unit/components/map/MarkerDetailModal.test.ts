@@ -13,7 +13,7 @@ import type {
 const mockPush = vi.fn()
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: mockPush }),
-  useRoute: () => ({ params: { id: 'vault-1' } }),
+  useRoute: () => ({ params: { id: 'vault-1' }, query: {} }),
 }))
 
 function createLocation(
@@ -341,7 +341,9 @@ describe('MarkerDetailModal', () => {
       })
 
       expect(wrapper.text()).toContain('Unknown Location')
-      expect(wrapper.text()).toContain('Chat with a dweller who has been here to uncover this place.')
+      expect(wrapper.text()).toContain(
+        'Chat with a dweller who has been here to uncover this place.'
+      )
       expect(wrapper.text()).toContain('John Doe')
       expect(wrapper.findAll('button.dweller-contact')).toHaveLength(2)
       expect(wrapper.text()).not.toContain('origin')
@@ -359,7 +361,11 @@ describe('MarkerDetailModal', () => {
 
       await wrapper.find('button.dweller-contact').trigger('click')
 
-      expect(mockPush).toHaveBeenCalledWith('/dweller/dweller-1/chat')
+      // Chat opens as a global modal via ?chat= on the map route; the marker
+      // modal closes first so the two dialogs do not stack.
+      expect(mockPush).toHaveBeenCalledWith({ query: { chat: 'dweller-1' } })
+      expect(wrapper.emitted('update:modelValue')).toBeTruthy()
+      expect(wrapper.emitted('update:modelValue')![0][0]).toBe(false)
     })
 
     it('should NOT show locked placeholder when location is unlocked', () => {
@@ -414,9 +420,7 @@ describe('MarkerDetailModal', () => {
       expect(wrapper.text()).toContain('CLEAR STATUS')
       expect(wrapper.text()).toContain('UNCLAIMED')
       expect(wrapper.text()).toContain('Tier 2')
-      const dispatchButtons = wrapper
-        .findAll('button')
-        .filter((b) => b.text().includes('Dispatch'))
+      const dispatchButtons = wrapper.findAll('button').filter((b) => b.text().includes('Dispatch'))
       expect(dispatchButtons).toHaveLength(1)
       expect(wrapper.text()).not.toContain('CLEARED')
     })
@@ -468,18 +472,14 @@ describe('MarkerDetailModal', () => {
 
       expect(wrapper.text()).toContain('CLEARED ×3')
       expect(wrapper.text()).not.toContain('Re-clear available')
-      const dispatchButtons = wrapper
-        .findAll('button')
-        .filter((b) => b.text().includes('Dispatch'))
+      const dispatchButtons = wrapper.findAll('button').filter((b) => b.text().includes('Dispatch'))
       expect(dispatchButtons).toHaveLength(1)
     })
 
     it('emits dispatch when the Dispatch button is clicked', async () => {
       const wrapper = mountWithClearState(clearableState)
 
-      const dispatchButton = wrapper
-        .findAll('button')
-        .find((b) => b.text().includes('Dispatch'))
+      const dispatchButton = wrapper.findAll('button').find((b) => b.text().includes('Dispatch'))
       await dispatchButton!.trigger('click')
 
       expect(wrapper.emitted('dispatch')).toBeTruthy()

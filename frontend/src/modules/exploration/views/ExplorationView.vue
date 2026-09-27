@@ -186,11 +186,14 @@ const getPartyMembersForQuest = (questId: string) => {
     .filter((d): d is NonNullable<typeof d> => d !== undefined)
 }
 
+// Travelling parties stay visible on Exploration until they arrive home.
 const activeQuestsWithParty = computed(() => {
-  return questStore.questCategories.active.filter((q) => {
-    const party = questStore.questPartyMap[q.id]
-    return party && party.length > 0
-  })
+  return [...questStore.questCategories.active, ...questStore.questCategories.returning].filter(
+    (q) => {
+      const party = questStore.questPartyMap[q.id]
+      return party && party.length > 0
+    }
+  )
 })
 
 const handleCompleteExploration = (explorationId: string) => {

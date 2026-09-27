@@ -3,10 +3,10 @@
     class="relative min-h-screen bg-terminal-background font-mono text-theme-primary [text-shadow:none]"
   >
     <div class="flex min-h-screen">
-      <SidePanel v-if="vaultStore.activeVaultId" :vault-id="vaultStore.activeVaultId" />
+      <SidePanel v-if="vaultStore.currentVaultId" :vault-id="vaultStore.currentVaultId" />
       <main
         class="min-w-0 flex-1 pb-8 transition-[margin-left] duration-300 ease max-md:ml-0"
-        :class="vaultStore.activeVaultId ? (isCollapsed ? 'ml-16' : 'ml-60') : ''"
+        :class="vaultStore.currentVaultId ? (isCollapsed ? 'ml-16' : 'ml-60') : ''"
       >
         <PageContentRail>
           <PageHeader
@@ -621,7 +621,7 @@ import SettingItem from '@/core/components/ui/SettingItem.vue'
 
 const vaultStore = useVaultStore()
 const backNav = useBackNavigation('Settings', () =>
-  vaultStore.activeVaultId ? `/vault/${vaultStore.activeVaultId}` : '/'
+  vaultStore.currentVaultId ? `/vault/${vaultStore.currentVaultId}` : '/'
 )
 const { isCollapsed } = useSidePanel()
 

@@ -3,6 +3,7 @@ import { flushPromises, mount, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import PreferencesView from '@/modules/profile/views/PreferencesView.vue'
 import { useProfileStore } from '@/modules/profile/stores/profile'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useToast } from '@/core/composables/useToast'
 import axios from '@/core/plugins/axios'
 import type { UserProfile } from '@/models/profile'
@@ -61,6 +62,25 @@ describe('PreferencesView', () => {
       },
     })
   }
+
+  it('passes the persisted selection to the vault sidebar after a refresh', () => {
+    useVaultStore().selectedVaultId = 'vault-123'
+
+    const wrapper = mount(PreferencesView, {
+      global: {
+        stubs: {
+          SidePanel: {
+            props: ['vaultId'],
+            template: '<div data-testid="side-panel" :data-vault="vaultId" />',
+          },
+          Icon: true,
+          PageNavigation: true,
+        },
+      },
+    })
+
+    expect(wrapper.get('[data-testid="side-panel"]').attributes('data-vault')).toBe('vault-123')
+  })
 
   it('renders the grouped preferences page', () => {
     const store = useProfileStore()

@@ -36,6 +36,23 @@ const quest = {
 } as VaultQuest
 
 describe('QuestCard', () => {
+  it('renders a completed quest with a non-interactive Completed mark instead of a Details action', () => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: { ...quest, is_completed: true },
+        vaultId: 'vault-1',
+        status: 'completed',
+        partyMembers: [],
+      },
+    })
+
+    expect(wrapper.find('.quest-card button').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Completed')
+    expect(wrapper.text()).not.toContain('View Details')
+    expect(wrapper.emitted('view')).toBeUndefined()
+  })
+
   it('keeps the primary action in a card footer below variable quest content', () => {
     setActivePinia(createPinia())
     const wrapper = mount(QuestCard, {
@@ -48,23 +65,28 @@ describe('QuestCard', () => {
     expect(actionButton.text()).toContain('Start Quest')
     // Footer action renders below the variable quest content in DOM order.
     const contentEl = wrapper.find('.quest-card-content').element
-    expect(contentEl.compareDocumentPosition(actionButton.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(
+      contentEl.compareDocumentPosition(actionButton.element) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
   })
 
-  it.each(['building', 'population', 'training'])('renders %s quests as vault objectives', async quest_category => {
-    setActivePinia(createPinia())
-    const wrapper = mount(QuestCard, {
-      props: { quest: { ...quest, quest_category }, vaultId: 'vault-1', status: 'available' },
-    })
+  it.each(['building', 'population', 'training'])(
+    'renders %s quests as vault objectives',
+    async (quest_category) => {
+      setActivePinia(createPinia())
+      const wrapper = mount(QuestCard, {
+        props: { quest: { ...quest, quest_category }, vaultId: 'vault-1', status: 'available' },
+      })
 
-    await wrapper.get('button').trigger('click')
+      await wrapper.get('button').trigger('click')
 
-    expect(wrapper.emitted('start')).toEqual([['quest-1']])
-    expect(wrapper.emitted('assignParty')).toBeUndefined()
-    expect(wrapper.text()).not.toContain('Assign party to start')
-    expect(wrapper.text()).not.toContain('Duration:')
-    expect(wrapper.text()).toContain('Check Objective')
-  })
+      expect(wrapper.emitted('start')).toEqual([['quest-1']])
+      expect(wrapper.emitted('assignParty')).toBeUndefined()
+      expect(wrapper.text()).not.toContain('Assign party to start')
+      expect(wrapper.text()).not.toContain('Duration:')
+      expect(wrapper.text()).toContain('Check Objective')
+    }
+  )
 
   it('capitalizes a dweller reward template name', () => {
     setActivePinia(createPinia())
@@ -135,7 +157,9 @@ describe('QuestCard', () => {
       props: { quest, vaultId: 'vault-1', status: 'ready', partyMembers: [] },
     })
 
-    expect(wrapper.findAllComponents(Icon).some((icon) => icon.props('icon') === 'mdi:treasure-chest')).toBe(true)
+    expect(
+      wrapper.findAllComponents(Icon).some((icon) => icon.props('icon') === 'mdi:treasure-chest')
+    ).toBe(true)
   })
 
   it('renders a travelling quest disabled with a return ETA', () => {
@@ -501,20 +525,33 @@ describe('QuestCard', () => {
   it('renders the side quest type chip with the bordered outline styling', () => {
     setActivePinia(createPinia())
     const wrapper = mount(QuestCard, {
-      props: { quest: { ...quest, quest_type: 'side' }, vaultId: 'vault-1', status: 'available', partyMembers: [] },
+      props: {
+        quest: { ...quest, quest_type: 'side' },
+        vaultId: 'vault-1',
+        status: 'available',
+        partyMembers: [],
+      },
     })
 
     expect(wrapper.find('.type-badge').attributes('style')).toBeUndefined()
     expect(wrapper.findComponent(QuestTypeBadge).props('questType')).toBe('side')
   })
 
-  it.each(['building', 'exploration'])('renders the %s category chip with the bordered outline styling', (category) => {
-    setActivePinia(createPinia())
-    const wrapper = mount(QuestCard, {
-      props: { quest: { ...quest, quest_category: category }, vaultId: 'vault-1', status: 'available', partyMembers: [] },
-    })
+  it.each(['building', 'exploration'])(
+    'renders the %s category chip with the bordered outline styling',
+    (category) => {
+      setActivePinia(createPinia())
+      const wrapper = mount(QuestCard, {
+        props: {
+          quest: { ...quest, quest_category: category },
+          vaultId: 'vault-1',
+          status: 'available',
+          partyMembers: [],
+        },
+      })
 
-    expect(wrapper.find('.category-badge').text()).toBe(category)
-    expect(wrapper.text()).toContain(category)
-  })
+      expect(wrapper.find('.category-badge').text()).toBe(category)
+      expect(wrapper.text()).toContain(category)
+    }
+  )
 })

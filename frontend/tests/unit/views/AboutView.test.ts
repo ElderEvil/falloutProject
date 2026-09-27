@@ -31,6 +31,7 @@ vi.mock('vue-router', () => ({
 describe('AboutView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear()
     setActivePinia(createPinia())
   })
 
@@ -41,6 +42,15 @@ describe('AboutView', () => {
     await flushPromises()
 
     expect(wrapper.find('[aria-label="Dwellers 2"]').exists()).toBe(true)
+  })
+
+  it('keeps the vault sidebar after a refresh (persisted selection, no active vault)', async () => {
+    useVaultStore().selectedVaultId = 'vault-123'
+
+    const wrapper = mount(AboutView)
+    await flushPromises()
+
+    expect(wrapper.find('[aria-label="Game navigation panel"]').exists()).toBe(true)
   })
 
   it('does not show an empty vault sidebar without a loaded vault', async () => {

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import axios from '@/core/plugins/axios'
 
 vi.mock('@/core/plugins/axios')
@@ -52,6 +53,7 @@ describe('Auth Store', () => {
 
       localStorage.setItem('token', mockToken)
       localStorage.setItem('refreshToken', mockRefreshToken)
+      localStorage.setItem('selectedVaultId', 'previous-account-vault')
       // User is NOT in localStorage (simulating the bug)
 
       vi.mocked(axios.get).mockResolvedValueOnce(mockUserResponse)
@@ -63,6 +65,7 @@ describe('Auth Store', () => {
 
       expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me')
       expect(store.user).toEqual(mockUserResponse.data)
+      expect(localStorage.getItem('selectedVaultId')).toBeNull()
     })
 
     it('should not fetch user if both token and user exist in localStorage', () => {
@@ -271,6 +274,8 @@ describe('Auth Store', () => {
   describe('Logout Action', () => {
     it('should logout successfully and clear all data', async () => {
       const store = useAuthStore()
+      const vaultStore = useVaultStore()
+      vaultStore.selectedVaultId = 'vault-1'
       store.token = 'test-token'
       store.refreshToken = 'test-refresh-token'
       store.user = { id: '1', username: 'test', email: 'test@test.com' }
@@ -288,6 +293,8 @@ describe('Auth Store', () => {
       expect(localStorage.getItem('token')).toBeNull()
       expect(localStorage.getItem('refreshToken')).toBeNull()
       expect(localStorage.getItem('user')).toBeNull()
+      expect(vaultStore.selectedVaultId).toBeNull()
+      expect(localStorage.getItem('selectedVaultId')).toBeNull()
     })
 
     it('should clear data even if logout API call fails', async () => {

@@ -6,13 +6,7 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 import { Alert, AlertDescription } from '@/core/components/ui/alert'
 import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/core/components/ui/card'
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/core/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { LifeDeathStatistics } from '@/modules/dwellers/components/death'
 import { usePolling } from '@/core/composables/usePolling'
@@ -33,12 +27,19 @@ const profileStore = useProfileStore()
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
 const backNav = useBackNavigation('User Profile', () =>
-  vaultStore.activeVaultId ? `/vault/${vaultStore.activeVaultId}` : '/'
+  vaultStore.currentVaultId ? `/vault/${vaultStore.currentVaultId}` : '/'
 )
 const isEditing = ref(false)
 const avatarLoadFailed = ref(false)
 const activeTab = ref('dossier')
-const vaultShortcut = computed(() => vaultStore.activeVault ?? vaultStore.selectedVault)
+
+type VaultShortcut = { id: string; number?: number }
+const vaultShortcut = computed<VaultShortcut | null>(() => {
+  const vault = vaultStore.activeVault ?? vaultStore.selectedVault
+  if (vault) return { id: vault.id, number: vault.number }
+  const id = vaultStore.currentVaultId
+  return id ? { id } : null
+})
 
 const tabs = computed(() => {
   const baseTabs = [
@@ -130,7 +131,7 @@ const formatDate = (dateString: string) => {
     class="profile-page relative min-h-screen bg-terminal-background font-mono text-theme-primary [text-shadow:none]"
   >
     <div class="flex min-h-screen">
-      <SidePanel :vault-id="vaultStore.activeVaultId" />
+      <SidePanel :vault-id="vaultStore.currentVaultId" />
       <main
         class="min-w-0 flex-1 pb-8 transition-[margin-left] duration-300 ease max-md:ml-0"
         :class="isCollapsed ? 'ml-16' : 'ml-60'"
@@ -160,7 +161,9 @@ const formatDate = (dateString: string) => {
             class="gap-0 border-theme-primary/20 bg-surface"
           >
             <CardHeader class="border-b border-theme-primary/20 pb-4">
-              <CardTitle class="text-xl font-bold text-theme-primary">Profile unavailable</CardTitle>
+              <CardTitle class="text-xl font-bold text-theme-primary"
+                >Profile unavailable</CardTitle
+              >
             </CardHeader>
             <CardContent class="pt-4">
               <Alert variant="destructive" class="mb-4">
@@ -208,7 +211,9 @@ const formatDate = (dateString: string) => {
                     </CardAction>
                   </CardHeader>
 
-                  <CardContent class="grid gap-8 pt-0 lg:grid-cols-[minmax(0,1.3fr)_minmax(14rem,0.7fr)]">
+                  <CardContent
+                    class="grid gap-8 pt-0 lg:grid-cols-[minmax(0,1.3fr)_minmax(14rem,0.7fr)]"
+                  >
                     <div class="min-w-0">
                       <div class="flex flex-col gap-6 sm:flex-row sm:items-center">
                         <div
@@ -274,11 +279,15 @@ const formatDate = (dateString: string) => {
                       <dl class="mt-5 space-y-4 text-sm">
                         <div>
                           <dt class="text-theme-primary/60">Joined</dt>
-                          <dd class="mt-1 text-theme-primary/85">{{ formatDate(profileStore.profile.created_at) }}</dd>
+                          <dd class="mt-1 text-theme-primary/85">
+                            {{ formatDate(profileStore.profile.created_at) }}
+                          </dd>
                         </div>
                         <div>
                           <dt class="text-theme-primary/60">Profile updated</dt>
-                          <dd class="mt-1 text-theme-primary/85">{{ formatDate(profileStore.profile.updated_at) }}</dd>
+                          <dd class="mt-1 text-theme-primary/85">
+                            {{ formatDate(profileStore.profile.updated_at) }}
+                          </dd>
                         </div>
                       </dl>
                     </aside>
@@ -296,10 +305,18 @@ const formatDate = (dateString: string) => {
                       <RouterLink :to="vaultShortcut ? `/vault/${vaultShortcut.id}` : '/'">
                         <Icon icon="mdi:home-city-outline" class="size-5 text-theme-primary/60" />
                         <span class="text-sm font-semibold text-theme-primary">
-                          {{ vaultShortcut ? `Vault ${vaultShortcut.number}` : 'Open vaults' }}
+                          {{
+                            vaultShortcut
+                              ? vaultShortcut.number
+                                ? `Vault ${vaultShortcut.number}`
+                                : 'Open your vault'
+                              : 'Open vaults'
+                          }}
                         </span>
                         <span class="text-xs font-normal leading-5 text-theme-primary/60">
-                          {{ vaultShortcut ? 'Continue your active vault' : 'Choose a vault to play' }}
+                          {{
+                            vaultShortcut ? 'Continue your active vault' : 'Choose a vault to play'
+                          }}
                         </span>
                       </RouterLink>
                     </Button>
@@ -321,7 +338,9 @@ const formatDate = (dateString: string) => {
                     >
                       <RouterLink to="/preferences">
                         <Icon icon="mdi:tune-variant" class="size-5 text-theme-primary/60" />
-                        <span class="text-sm font-semibold text-theme-primary">Display preferences</span>
+                        <span class="text-sm font-semibold text-theme-primary"
+                          >Display preferences</span
+                        >
                         <span class="text-xs font-normal leading-5 text-theme-primary/60">
                           Theme, notifications, and sound
                         </span>
@@ -374,5 +393,4 @@ const formatDate = (dateString: string) => {
   outline: 2px dashed var(--color-theme-primary);
   outline-offset: 2px;
 }
-
 </style>

@@ -115,16 +115,6 @@ export const useQuestStore = defineStore('quest', () => {
     questPartyMap.value = nextPartyMap
   }
 
-  async function getQuest(vaultId: string, questId: string): Promise<Quest> {
-    try {
-      const response = await axios.get<Quest>(`/api/v1/quests/${vaultId}/${questId}`)
-      return response.data
-    } catch (error: unknown) {
-      toast.error('Failed to load quest details')
-      throw error
-    }
-  }
-
   async function assignQuest(vaultId: string, questId: string, isVisible = true): Promise<void> {
     try {
       await axios.post(`/api/v1/quests/${vaultId}/${questId}/assign`, null, {
@@ -255,7 +245,6 @@ export const useQuestStore = defineStore('quest', () => {
     fetchAllQuests,
     fetchVaultQuests,
     fetchPartiesForActiveQuests,
-    getQuest,
     assignQuest,
     claimQuestRewards,
     assignParty,

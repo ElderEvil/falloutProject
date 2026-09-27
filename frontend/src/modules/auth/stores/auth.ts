@@ -8,6 +8,7 @@ import {
 } from '@/core/utils/authSessionEvents'
 import { authService } from '../services/authService'
 import type { User } from '../types/user'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 
 export const useAuthStore = defineStore('auth', () => {
   // State (using VueUse for reactive localStorage)
@@ -45,6 +46,8 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await authService.login({ username, password })
 
+      useVaultStore().clearSession()
+      user.value = null
       token.value = response.data.access_token
       refreshToken.value = response.data.refresh_token
 
@@ -64,6 +67,8 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await authService.register({ username, email, password })
 
+      useVaultStore().clearSession()
+      user.value = null
       token.value = response.data.access_token
       refreshToken.value = response.data.refresh_token
 
@@ -92,6 +97,9 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       const response = await authService.getCurrentUser()
+      if (user.value?.id && user.value.id !== response.data.id) {
+        useVaultStore().clearSession()
+      }
       user.value = response.data
     } catch (error) {
       handleStoreError(error, 'Failed to fetch user')
@@ -124,6 +132,7 @@ export const useAuthStore = defineStore('auth', () => {
       handleStoreError(error, 'Logout failed')
     } finally {
       // Clear all stored data (VueUse handles localStorage automatically)
+      useVaultStore().clearSession()
       token.value = null
       refreshToken.value = null
       user.value = null
@@ -132,6 +141,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Initialize: fetch user if we have a token but no user data
   if (token.value && !user.value) {
+    useVaultStore().clearSession()
     void fetchUser()
   }
 

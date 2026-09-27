@@ -3,94 +3,32 @@
     class="relationship-card relationship-record--grid h-full min-h-96 gap-0 rounded-lg border-2 border-theme-primary/20 p-4 shadow-none ring-0"
   >
     <div class="flex flex-col gap-3">
-      <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-2">
-        <button
-          type="button"
-          :title="`View ${dweller1Name}`"
-          class="group flex min-h-40 min-w-0 flex-col items-center justify-center gap-1 rounded border border-theme-primary/20 bg-surface-sunken px-2 py-1.5 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
-          @click="emit('select-dweller', relationship.dweller_1_id)"
+      <div class="grid min-w-0 grid-cols-1 items-stretch gap-2 sm:grid-cols-2">
+        <RelationshipDweller :dweller="dweller1" @select="emit('select-dweller', $event)" />
+        <RelationshipDweller :dweller="dweller2" @select="emit('select-dweller', $event)" />
+      </div>
+      <div class="flex items-center justify-center gap-2 text-theme-primary/70">
+        <span class="h-px flex-1 bg-theme-primary/15" aria-hidden="true" />
+        <Icon
+          icon="mdi:heart"
+          class="h-4 w-4 [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
+        />
+        <Badge
+          :variant="badgeVariant"
+          class="relationship-badge text-[0.625rem]"
+          :class="badgeClass"
         >
-          <span
-            class="dweller-portrait-frame flex size-18 shrink-0 items-center justify-center overflow-hidden rounded bg-black/30"
-          >
-            <DwellerPortrait
-              :thumbnail-url="dweller1.thumbnail_url"
-              :alt="dweller1Name"
-              prefer-thumbnail
-              image-class="h-full w-full object-cover"
-              fallback-class="h-12 w-12 text-theme-primary/60"
-            />
-          </span>
-          <span
-            class="block w-full truncate text-center text-sm font-bold text-theme-primary group-hover:underline"
-            >{{ dweller1Name }}</span
-          >
-          <span class="flex w-full flex-wrap items-center justify-center gap-1">
-            <DwellerRaceBadge
-              :race="dweller1.visual_attributes?.race ?? 'human'"
-              show-label
-              size="sm"
-            />
-            <DwellerGenderBadge :gender="dweller1.gender" size="sm" />
-          </span>
-          <span class="text-[0.65rem] font-bold text-theme-primary/65" title="Charisma"
-            >C {{ dweller1.charisma }}</span
-          >
-        </button>
-        <div class="flex flex-col items-center justify-center gap-1 text-theme-primary/70">
           <Icon
+            v-if="relationship.relationship_type === 'MARRIED'"
             icon="mdi:heart"
-            class="h-5 w-5 [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
+            class="h-3.5 w-3.5"
           />
-          <Badge
-            :variant="badgeVariant"
-            class="relationship-badge mt-1 text-[0.625rem]"
-            :class="badgeClass"
-          >
-            <Icon
-              v-if="relationship.relationship_type === 'MARRIED'"
-              icon="mdi:heart"
-              class="h-3.5 w-3.5"
-            />
-            {{
-              RELATIONSHIP_TYPE_LABEL[relationship.relationship_type] ??
-              relationship.relationship_type
-            }}
-          </Badge>
-        </div>
-        <button
-          type="button"
-          :title="`View ${dweller2Name}`"
-          class="group flex min-h-40 min-w-0 flex-col items-center justify-center gap-1 rounded border border-theme-primary/20 bg-surface-sunken px-2 py-1.5 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
-          @click="emit('select-dweller', relationship.dweller_2_id)"
-        >
-          <span
-            class="dweller-portrait-frame flex size-18 shrink-0 items-center justify-center overflow-hidden rounded bg-black/30"
-          >
-            <DwellerPortrait
-              :thumbnail-url="dweller2.thumbnail_url"
-              :alt="dweller2Name"
-              prefer-thumbnail
-              image-class="h-full w-full object-cover"
-              fallback-class="h-12 w-12 text-theme-primary/60"
-            />
-          </span>
-          <span
-            class="block w-full truncate text-center text-sm font-bold text-theme-primary group-hover:underline"
-            >{{ dweller2Name }}</span
-          >
-          <span class="flex w-full flex-wrap items-center justify-center gap-1">
-            <DwellerRaceBadge
-              :race="dweller2.visual_attributes?.race ?? 'human'"
-              show-label
-              size="sm"
-            />
-            <DwellerGenderBadge :gender="dweller2.gender" size="sm" />
-          </span>
-          <span class="text-[0.65rem] font-bold text-theme-primary/65" title="Charisma"
-            >C {{ dweller2.charisma }}</span
-          >
-        </button>
+          {{
+            RELATIONSHIP_TYPE_LABEL[relationship.relationship_type] ??
+            relationship.relationship_type
+          }}
+        </Badge>
+        <span class="h-px flex-1 bg-theme-primary/15" aria-hidden="true" />
       </div>
       <div class="rounded border border-theme-primary/20 bg-surface-sunken p-3">
         <div class="flex items-center justify-between gap-2 text-xs">
@@ -242,9 +180,7 @@ import {
 import { useRelationshipMilestone } from '../../composables/useRelationshipMilestone'
 import type { Pregnancy } from '../../models/pregnancy'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
-import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
-import DwellerGenderBadge from '@/modules/dwellers/components/DwellerGenderBadge.vue'
-import DwellerRaceBadge from '@/modules/dwellers/components/DwellerRaceBadge.vue'
+import RelationshipDweller from './RelationshipDweller.vue'
 import ChildChip from './ChildChip.vue'
 import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
@@ -274,20 +210,10 @@ const emit = defineEmits<{
   'select-dweller': [dwellerId: string]
 }>()
 
-/** Display name of the first relationship member. */
-const dweller1Name = computed(() => formatDwellerName(props.dweller1))
-/** Display name of the second relationship member. */
-const dweller2Name = computed(() => formatDwellerName(props.dweller2))
-
 /** Preview a few children in the family strip, with access to the rest. */
 const CHILD_PREVIEW_LIMIT = 3
 const visibleChildren = computed(() => props.children.slice(0, CHILD_PREVIEW_LIMIT))
 const hiddenChildCount = computed(() => Math.max(0, props.children.length - CHILD_PREVIEW_LIMIT))
-
-/** Format a dweller's full name for display. */
-function formatDwellerName(dweller: DwellerShort): string {
-  return `${dweller.first_name} ${dweller.last_name ?? ''}`.trim()
-}
 
 /** shadcn Badge variant for the relationship type (previous badge names mapped). */
 const badgeVariant = computed((): 'default' | 'secondary' | 'destructive' | 'outline' => {

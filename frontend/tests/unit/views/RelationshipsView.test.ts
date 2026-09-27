@@ -129,7 +129,13 @@ describe('RelationshipsView', () => {
 
     it('should render the total relationships count in the header', async () => {
       relationshipStore.relationships = [
-        { id: 'r1', dweller_1_id: 'd1', dweller_2_id: 'd2', relationship_type: 'friend', affinity: 50 },
+        {
+          id: 'r1',
+          dweller_1_id: 'd1',
+          dweller_2_id: 'd2',
+          relationship_type: 'friend',
+          affinity: 50,
+        },
       ]
 
       const wrapper = mount(RelationshipsView, {
@@ -140,7 +146,7 @@ describe('RelationshipsView', () => {
 
       await flushPromises()
 
-      expect(wrapper.find('.total-relationships-count').text()).toBe('1')
+      expect(wrapper.find('.total-relationships-count .page-header-metric-value').text()).toBe('1')
       expect(wrapper.text()).toContain('relationship')
     })
 

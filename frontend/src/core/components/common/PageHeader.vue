@@ -64,7 +64,14 @@ const { glowClass } = useVisualEffects()
       <slot name="back" />
     </div>
 
-    <div :class="['flex', centered ? 'flex-col items-center' : 'items-start justify-between']">
+    <div
+      :class="[
+        'flex',
+        centered
+          ? 'flex-col items-center'
+          : 'flex-col items-start gap-4 lg:flex-row lg:justify-between',
+      ]"
+    >
       <!-- Left: icon + text -->
       <div :class="['flex', centered ? 'flex-col items-center' : 'items-start gap-4']">
         <Icon
@@ -96,7 +103,10 @@ const { glowClass } = useVisualEffects()
       <!-- Right: actions slot -->
       <div
         v-if="$slots.actions"
-        :class="['flex items-center gap-2 shrink-0', centered ? 'mt-4' : '']"
+        :class="[
+          'flex flex-wrap items-center gap-2',
+          centered ? 'mt-4 justify-center' : 'w-full lg:w-auto lg:justify-end',
+        ]"
       >
         <slot name="actions" />
       </div>

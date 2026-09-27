@@ -49,7 +49,7 @@ vi.mock('@/modules/social/components/relationships/RelationshipCard.vue', () => 
   default: {
     name: 'RelationshipCard',
     template: '<div class="relationship-card-stub" />',
-    props: ['relationship', 'dweller1', 'dweller2', 'children', 'pregnancy', 'generation', 'viewMode'],
+    props: ['relationship', 'dweller1', 'dweller2', 'children', 'pregnancy', 'generation'],
     emits: ['select-dweller', 'initiate-romance', 'make-partners', 'marry', 'break-up'],
   },
 }))

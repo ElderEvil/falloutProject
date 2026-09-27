@@ -1,22 +1,15 @@
 <template>
   <div class="relationship-list">
     <div class="flex items-center justify-between mb-4">
-      <h2
-        v-if="!stageFilter"
-        class="text-xl font-mono text-theme-primary"
-      >
-        Relationships
-      </h2>
+      <h2 v-if="!stageFilter" class="text-xl font-mono text-theme-primary">Relationships</h2>
       <div class="flex items-center gap-2">
-        <div class="flex rounded border border-theme-primary/20 p-0.5">
-          <Button variant="ghost" size="xs" :class="viewMode === 'list' ? 'bg-theme-glow/20!' : ''" title="List view" @click="viewMode = 'list'">
-            <Icon icon="mdi:format-list-bulleted" />
-          </Button>
-          <Button variant="ghost" size="xs" :class="viewMode === 'grid' ? 'bg-theme-glow/20!' : ''" title="Grid view" @click="viewMode = 'grid'">
-            <Icon icon="mdi:view-grid-outline" />
-          </Button>
-        </div>
-        <Button variant="default" size="sm" class="border-2 border-theme-primary hover:shadow-glow-md" :disabled="isLoading" @click="refreshRelationships">
+        <Button
+          variant="default"
+          size="sm"
+          class="border-2 border-theme-primary hover:shadow-glow-md"
+          :disabled="isLoading"
+          @click="refreshRelationships"
+        >
           <Icon icon="mdi:refresh" class="mr-1" />
           Refresh
         </Button>
@@ -29,9 +22,16 @@
     </div>
 
     <div v-else-if="error" class="error-state text-center py-8">
-      <Card class="gap-0 rounded-lg border-2 border-theme-primary/20 p-6 shadow-glow-md ring-0 crt-screen">
+      <Card
+        class="gap-0 rounded-lg border-2 border-theme-primary/20 p-6 shadow-glow-md ring-0 crt-screen"
+      >
         <p class="text-red-400 mb-4">{{ error }}</p>
-        <Button variant="outline" class="border-2 border-theme-primary bg-transparent" @click="retryFetch()">Retry</Button>
+        <Button
+          variant="outline"
+          class="border-2 border-theme-primary bg-transparent"
+          @click="retryFetch()"
+          >Retry</Button
+        >
       </Card>
     </div>
 
@@ -42,7 +42,7 @@
       :description="emptyHint"
     />
 
-    <div v-else :class="viewMode === 'grid' ? 'grid grid-cols-1 gap-4 xl:grid-cols-2' : 'space-y-2'">
+    <div v-else class="grid grid-cols-1 gap-4 2xl:grid-cols-2">
       <div
         v-for="entry in resolvedRelationships"
         :key="entry.relationship.id"
@@ -55,7 +55,6 @@
           :children="getChildren(entry.relationship)"
           :pregnancy="getPregnancy(entry.relationship)"
           :generation="getGeneration(entry.relationship)"
-          :view-mode="viewMode"
           @select-dweller="emit('select-dweller', $event)"
           @initiate-romance="initiateRomance(entry.relationship.id)"
           @make-partners="makePartners(entry.relationship.id)"
@@ -103,7 +102,6 @@ const { filter: dwellerStore } = useDwellerStore()
 const relationships = computed(() => relationshipStore.relationships)
 const isLoading = computed(() => relationshipStore.isLoading)
 const error = ref<string | null>(null)
-const viewMode = ref<'list' | 'grid'>('list')
 
 /** A relationship paired with its two resolved dweller records. */
 interface ResolvedRelationship {

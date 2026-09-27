@@ -31,7 +31,6 @@ const dweller2 = {
 
 function createWrapper(
   relationship: Record<string, unknown>,
-  viewMode?: 'list' | 'grid',
   children: unknown[] = [],
   pregnancy: unknown = null,
   generation = 1
@@ -41,7 +40,6 @@ function createWrapper(
       relationship,
       dweller1,
       dweller2,
-      viewMode,
       children,
       pregnancy,
       generation,
@@ -62,7 +60,7 @@ function createWrapper(
 }
 
 describe('RelationshipCard', () => {
-  it('uses the compact relationship row by default', () => {
+  it('uses a paired relationship card', () => {
     const wrapper = createWrapper({
       id: '1',
       dweller_1_id: 'd1',
@@ -71,10 +69,10 @@ describe('RelationshipCard', () => {
       affinity: 50,
     })
 
-    expect(wrapper.find('.relationship-record--list').exists()).toBe(true)
+    expect(wrapper.find('.relationship-record--grid').exists()).toBe(true)
   })
 
-  it('renders dweller thumbnails in list mode', () => {
+  it('renders both dweller portraits', () => {
     const wrapper = createWrapper({
       id: '1',
       dweller_1_id: 'd1',
@@ -89,18 +87,15 @@ describe('RelationshipCard', () => {
     expect(portraits[1].attributes('data-alt')).toBe('Bob Jones')
   })
 
-  describe('grid mode identity presentation', () => {
+  describe('paired identity presentation', () => {
     it('renders portraits, level, and gender badge for both dwellers', () => {
-      const wrapper = createWrapper(
-        {
-          id: '1',
-          dweller_1_id: 'd1',
-          dweller_2_id: 'd2',
-          relationship_type: 'friend',
-          affinity: 50,
-        },
-        'grid'
-      )
+      const wrapper = createWrapper({
+        id: '1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'friend',
+        affinity: 50,
+      })
 
       expect(wrapper.find('.relationship-record--grid').exists()).toBe(true)
 
@@ -266,7 +261,6 @@ describe('RelationshipCard', () => {
           relationship_type: 'partner',
           affinity: 50,
         },
-        undefined,
         [child]
       )
 
@@ -295,7 +289,6 @@ describe('RelationshipCard', () => {
           relationship_type: 'friend',
           affinity: 50,
         },
-        undefined,
         [child]
       )
 
@@ -312,7 +305,6 @@ describe('RelationshipCard', () => {
           relationship_type: 'partner',
           affinity: 50,
         },
-        undefined,
         [child],
         { id: 'p1', mother_id: 'd1', father_id: 'd2', status: 'pregnant', is_due: false }
       )
@@ -331,7 +323,6 @@ describe('RelationshipCard', () => {
           relationship_type: 'partner',
           affinity: 50,
         },
-        undefined,
         [],
         { id: 'p1', mother_id: 'd1', father_id: 'd2', status: 'pregnant', is_due: true }
       )

@@ -12,6 +12,7 @@ import { useToast } from '@/core/composables/useToast'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
+import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import TerminalLoadingState from '@/core/components/common/TerminalLoadingState.vue'
 import ExplorerCard from '../components/ExplorerCard.vue'
 import QuestPartyCard from '../components/QuestPartyCard.vue'
@@ -19,7 +20,12 @@ import ExplorationEventLog from '@/modules/exploration/components/ExplorationEve
 import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
 import { Button } from '@/core/components/ui/button'
 import { Card } from '@/core/components/ui/card'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import { useExplorationStore } from '../stores/exploration'
 import type { PendingOverflow } from '../stores/exploration'
 import { usePendingReports, removePendingReport } from '../composables/usePendingReports'
@@ -243,7 +249,15 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
           title="Wasteland Exploration"
           icon="mdi:compass"
           subtitle="Monitor active explorations and quest parties"
-        />
+        >
+          <template #actions>
+            <PageHeaderMetric
+              icon="mdi:account-arrow-right"
+              :value="activeExplorationsArray.length"
+              label="Active explorers"
+            />
+          </template>
+        </PageHeader>
 
         <!-- Main Content -->
         <div class="exploration-content">
@@ -253,33 +267,33 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
             message="Scanning wasteland frequencies..."
           />
 
-        <!-- Error State -->
-        <div v-else-if="explorationError" class="error-state">
-          <Card class="gap-0 rounded-lg border-2 border-theme-primary/20 p-8 ring-0">
-            <div class="error-content">
-              <Icon icon="mdi:alert-circle" class="error-icon" />
-              <h3 class="error-title">Signal Lost</h3>
-              <p class="error-message">{{ explorationError }}</p>
-              <Button variant="secondary" @click="loadData">
-                <Icon icon="mdi:refresh" class="mr-2" />
-                Retry Connection
-              </Button>
-            </div>
-          </Card>
-        </div>
-
-        <!-- Explorer Cards List -->
-        <div v-else class="explorers-section">
-          <div
-            v-if="activeExplorationsArray.length === 0 && activeQuestsWithParty.length === 0"
-            class="empty-state"
-          >
-            <Icon icon="mdi:compass-off" class="empty-icon" />
-            <h3 class="empty-title">No Active Activities</h3>
-            <p class="empty-text">
-              Send dwellers to the wasteland or assign quest parties to see them here.
-            </p>
+          <!-- Error State -->
+          <div v-else-if="explorationError" class="error-state">
+            <Card class="gap-0 rounded-lg border-2 border-theme-primary/20 p-8 ring-0">
+              <div class="error-content">
+                <Icon icon="mdi:alert-circle" class="error-icon" />
+                <h3 class="error-title">Signal Lost</h3>
+                <p class="error-message">{{ explorationError }}</p>
+                <Button variant="secondary" @click="loadData">
+                  <Icon icon="mdi:refresh" class="mr-2" />
+                  Retry Connection
+                </Button>
+              </div>
+            </Card>
           </div>
+
+          <!-- Explorer Cards List -->
+          <div v-else class="explorers-section">
+            <div
+              v-if="activeExplorationsArray.length === 0 && activeQuestsWithParty.length === 0"
+              class="empty-state"
+            >
+              <Icon icon="mdi:compass-off" class="empty-icon" />
+              <h3 class="empty-title">No Active Activities</h3>
+              <p class="empty-text">
+                Send dwellers to the wasteland or assign quest parties to see them here.
+              </p>
+            </div>
 
             <div v-else class="activity-groups">
               <section v-if="activeExplorationsArray.length > 0" class="activity-group">
@@ -288,7 +302,6 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
                     <span class="activity-kicker">Wasteland</span>
                     <h2>Active explorers</h2>
                   </div>
-                  <span>{{ activeExplorationsArray.length }} deployed</span>
                 </div>
                 <div class="explorers-grid">
                   <ExplorerCard
@@ -336,7 +349,11 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
               <TooltipProvider :delay-duration="200">
                 <Tooltip>
                   <TooltipTrigger as-child>
-                    <button @click="selectedExplorerId = null" class="close-timeline-btn" aria-label="Close event log">
+                    <button
+                      @click="selectedExplorerId = null"
+                      class="close-timeline-btn"
+                      aria-label="Close event log"
+                    >
                       <Icon icon="mdi:close" />
                     </button>
                   </TooltipTrigger>

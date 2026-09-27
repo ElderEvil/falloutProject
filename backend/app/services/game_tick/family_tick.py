@@ -146,11 +146,6 @@ def build_relationships_map(relationships: list[Relationship]) -> dict[tuple[UUI
     return relationships_map
 
 
-def affinity_gain(dweller1: Dweller, dweller2: Dweller) -> int:
-    """Give a small bonus when both dwellers are highly charismatic."""
-    return game_config.relationship.affinity_increase_per_tick + min(dweller1.charisma, dweller2.charisma) // 10
-
-
 async def update_pair_affinity(
     db_session: AsyncSession,
     dweller1: Dweller,
@@ -159,7 +154,7 @@ async def update_pair_affinity(
     new_relationships: list[tuple[Relationship, int]],
 ) -> int:
     """Update affinity for a pair of dwellers, creating relationship if needed."""
-    from app.services.relationship_service import relationship_service
+    from app.services.relationship_service import affinity_gain, relationship_service
 
     key = (dweller1.id, dweller2.id)
     relationship = relationships_map.get(key)

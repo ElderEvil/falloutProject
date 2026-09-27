@@ -10327,6 +10327,38 @@ export interface components {
              */
             user_id: string;
         };
+        /**
+         * VaultRelationshipRead
+         * @description Relationship with its current bond growth in the vault.
+         */
+        VaultRelationshipRead: {
+            /**
+             * Dweller 1 Id
+             * Format: uuid4
+             */
+            dweller_1_id: string;
+            /**
+             * Dweller 2 Id
+             * Format: uuid4
+             */
+            dweller_2_id: string;
+            /** @default acquaintance */
+            relationship_type: components["schemas"]["RelationshipTypeEnum"];
+            /**
+             * Affinity
+             * @default 0
+             */
+            affinity: number;
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /** Bond Growth Per Tick */
+            bond_growth_per_tick: number;
+            /** Bond Tick Seconds */
+            bond_tick_seconds: number;
+        };
         /** VaultUpdate */
         VaultUpdate: {
             /** Number */
@@ -15141,7 +15173,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RelationshipRead"][];
+                    "application/json": components["schemas"]["VaultRelationshipRead"][];
                 };
             };
             /** @description Validation Error */

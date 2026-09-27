@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud
 from app.core.config import settings
 from app.schemas.dweller import DwellerCreateCommonOverride
+from app.schemas.relationship import VaultRelationshipRead
 from app.services.dweller_service import dweller_service
 from app.utils.exceptions import AccessDeniedException, ValidationException
 
@@ -124,6 +125,31 @@ def _make_mock_relationship(**overrides: object) -> MagicMock:
 
 
 # --- GET /relationships/vault/{vault_id} -----------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_vault_relationships_includes_bond_progress(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+):
+    """The vault list exposes the current bond pace without changing other relationship responses."""
+    vault_id = uuid4()
+    relationship = VaultRelationshipRead.model_validate(
+        _make_mock_relationship(),
+        update={"bond_growth_per_tick": 3, "bond_tick_seconds": 60},
+    )
+    with (
+        patch("app.api.v1.endpoints.relationship.get_user_vault_or_403", AsyncMock()),
+        patch(
+            "app.api.v1.endpoints.relationship.relationship_service.get_vault_relationships_with_progress",
+            AsyncMock(return_value=[relationship]),
+        ),
+    ):
+        response = await async_client.get(f"/relationships/vault/{vault_id}", headers=superuser_token_headers)
+
+    assert response.status_code == 200
+    assert response.json()[0]["bond_growth_per_tick"] == 3
+    assert response.json()[0]["bond_tick_seconds"] == 60
 
 
 # --- GET /relationships/{relationship_id} ----------------------------------

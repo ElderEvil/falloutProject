@@ -1,7 +1,8 @@
 """Pydantic schemas for relationship management."""
 
-from pydantic import UUID4, ConfigDict
+from pydantic import UUID4
 from sqlmodel import SQLModel
+from sqlmodel.main import SQLModelConfig
 
 from app.core.enums import RelationshipTypeEnum
 from app.models.relationship import RelationshipBase
@@ -20,7 +21,7 @@ class RelationshipUpdate(SQLModel):
     relationship_type: RelationshipTypeEnum | None = None
     affinity: int | None = None
 
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = SQLModelConfig(use_enum_values=True)
 
 
 class RelationshipRead(RelationshipBase):
@@ -28,7 +29,14 @@ class RelationshipRead(RelationshipBase):
 
     id: UUID4
 
-    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+    model_config = SQLModelConfig(from_attributes=True, use_enum_values=True)
+
+
+class VaultRelationshipRead(RelationshipRead):
+    """Relationship with its current bond growth in the vault."""
+
+    bond_growth_per_tick: int
+    bond_tick_seconds: int
 
 
 class CompatibilityScore(SQLModel):

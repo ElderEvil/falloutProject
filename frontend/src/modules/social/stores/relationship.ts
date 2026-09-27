@@ -46,9 +46,19 @@ export const useRelationshipStore = defineStore('relationship', () => {
     return relationships.value.filter((r) => r.relationship_type === 'romantic')
   })
 
+  function updateRelationship(updated: Relationship) {
+    const index = relationships.value.findIndex((relationship) => relationship.id === updated.id)
+    if (index !== -1) {
+      relationships.value[index] = { ...relationships.value[index], ...updated }
+    }
+  }
+
   // Actions
-  async function fetchVaultRelationships(vaultId: string) {
-    isLoading.value = true
+  async function fetchVaultRelationships(
+    vaultId: string,
+    { silent = false }: { silent?: boolean } = {}
+  ) {
+    if (!silent) isLoading.value = true
     try {
       const response = await axios.get(`/api/v1/relationships/vault/${vaultId}`)
       relationships.value = response.data
@@ -56,7 +66,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
       handleStoreError(error, 'Failed to fetch relationships')
       throw error
     } finally {
-      isLoading.value = false
+      if (!silent) isLoading.value = false
     }
   }
 
@@ -98,11 +108,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
       const response = await axios.put(`/api/v1/relationships/${relationshipId}/romance`)
       const updated = response.data
 
-      // Update local state
-      const index = relationships.value.findIndex((r) => r.id === relationshipId)
-      if (index !== -1) {
-        relationships.value[index] = updated
-      }
+      updateRelationship(updated)
 
       toast.success('Romance initiated!')
       return updated
@@ -120,11 +126,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
       const response = await axios.put(`/api/v1/relationships/${relationshipId}/partner`)
       const updated = response.data
 
-      // Update local state
-      const index = relationships.value.findIndex((r) => r.id === relationshipId)
-      if (index !== -1) {
-        relationships.value[index] = updated
-      }
+      updateRelationship(updated)
 
       toast.success('Dwellers are now partners!')
       return updated
@@ -141,11 +143,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
     try {
       const updated = await relationshipService.marry(relationshipId)
 
-      // Update local state
-      const index = relationships.value.findIndex((r) => r.id === relationshipId)
-      if (index !== -1) {
-        relationships.value[index] = updated
-      }
+      updateRelationship(updated)
 
       toast.success('Dwellers are now married!')
       return updated

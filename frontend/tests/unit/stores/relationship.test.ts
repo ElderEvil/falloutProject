@@ -60,6 +60,19 @@ describe('Relationship Store', () => {
       expect(store.relationships).toEqual([])
       expect(store.isLoading).toBe(false)
     })
+
+    it('refreshes bond progress without replacing the list with a loading state', async () => {
+      vi.mocked(axios.get).mockResolvedValueOnce({
+        data: [{ ...mockRelationship, bond_growth_per_tick: 3, bond_tick_seconds: 60 }],
+      })
+
+      const store = useRelationshipStore()
+      const refresh = store.fetchVaultRelationships('vault-1', { silent: true })
+
+      expect(store.isLoading).toBe(false)
+      await refresh
+      expect(store.relationships[0].bond_growth_per_tick).toBe(3)
+    })
   })
 
   describe('createRelationship', () => {
@@ -99,13 +112,16 @@ describe('Relationship Store', () => {
       vi.mocked(axios.put).mockResolvedValueOnce({ data: romanticRelationship })
 
       const store = useRelationshipStore()
-      store.relationships = [mockRelationship]
+      store.relationships = [
+        { ...mockRelationship, bond_growth_per_tick: 3, bond_tick_seconds: 60 },
+      ]
 
       const result = await store.initiateRomance('rel-1')
 
       expect(axios.put).toHaveBeenCalledWith('/api/v1/relationships/rel-1/romance')
       expect(result?.relationship_type).toBe('romantic')
       expect(store.relationships[0].relationship_type).toBe('romantic')
+      expect(store.relationships[0].bond_growth_per_tick).toBe(3)
     })
 
     it('should handle romance error', async () => {

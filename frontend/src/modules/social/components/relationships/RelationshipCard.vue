@@ -29,6 +29,9 @@
             <span class="text-[0.65rem] font-bold tracking-[0.08em] text-theme-primary/55"
               >LVL {{ dweller1.level }}</span
             >
+            <span class="text-[0.65rem] font-bold text-theme-primary/70" title="Charisma"
+              >C {{ dweller1.charisma }}</span
+            >
             <DwellerGenderBadge :gender="dweller1.gender" size="sm" />
           </span>
         </button>
@@ -78,6 +81,9 @@
             <span class="text-[0.65rem] font-bold tracking-[0.08em] text-theme-primary/55"
               >LVL {{ dweller2.level }}</span
             >
+            <span class="text-[0.65rem] font-bold text-theme-primary/70" title="Charisma"
+              >C {{ dweller2.charisma }}</span
+            >
             <DwellerGenderBadge :gender="dweller2.gender" size="sm" />
           </span>
         </button>
@@ -88,6 +94,24 @@
           <span class="font-bold text-theme-primary">{{ relationship.affinity }}/100</span>
         </div>
         <Progress :model-value="relationship.affinity" class="mt-2 h-2" />
+        <div
+          v-if="relationship.bond_growth_per_tick !== undefined"
+          class="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs"
+        >
+          <span v-if="relationship.affinity >= 100" class="text-theme-primary/70"
+            >Bond at full strength</span
+          >
+          <template v-else-if="relationship.bond_growth_per_tick > 0">
+            <span class="flex items-center gap-1 text-theme-primary/80">
+              <Icon icon="mdi:heart-pulse" class="h-3.5 w-3.5" :ariaHidden="true" />
+              Growing closer
+            </span>
+            <span v-if="bondCadence" class="font-bold text-theme-primary"
+              >+{{ relationship.bond_growth_per_tick }} hearts every {{ bondCadence }}</span
+            >
+          </template>
+          <span v-else class="text-theme-primary/60">Bond resting · meet in Living Quarters</span>
+        </div>
         <p v-if="nextMilestone" class="mt-2 text-xs leading-4 text-theme-primary/60">
           {{ nextMilestone }}
         </p>
@@ -267,4 +291,12 @@ const isPartnerLinked = computed(() =>
 )
 
 const { nextMilestone } = useRelationshipMilestone(() => props.relationship)
+
+const bondCadence = computed(() => {
+  const seconds = props.relationship.bond_tick_seconds
+  if (!seconds) return null
+  if (seconds === 60) return 'minute'
+  if (seconds % 60 === 0) return `${seconds / 60} minutes`
+  return `${seconds} seconds`
+})
 </script>

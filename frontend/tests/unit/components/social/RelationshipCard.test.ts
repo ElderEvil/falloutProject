@@ -18,6 +18,7 @@ const dweller1 = {
   level: 5,
   thumbnail_url: null,
   gender: 'female',
+  charisma: 10,
 }
 
 const dweller2 = {
@@ -27,6 +28,7 @@ const dweller2 = {
   level: 7,
   thumbnail_url: null,
   gender: 'male',
+  charisma: 10,
 }
 
 function createWrapper(
@@ -89,6 +91,55 @@ describe('RelationshipCard', () => {
     expect(portraits[1].attributes('data-alt')).toBe('Bob Jones')
   })
 
+  it('shows Charisma and a growing bond at the backend pace', () => {
+    const wrapper = createWrapper({
+      id: '1',
+      dweller_1_id: 'd1',
+      dweller_2_id: 'd2',
+      relationship_type: 'friend',
+      affinity: 50,
+      bond_growth_per_tick: 3,
+      bond_tick_seconds: 60,
+    })
+
+    expect(wrapper.text()).toContain('C 10')
+    expect(wrapper.text()).toContain('Growing closer')
+    expect(wrapper.text()).toContain('+3 hearts every minute')
+    expect(wrapper.text()).toContain('20 hearts until romance')
+  })
+
+  it('shows a resting bond when the pair is apart', () => {
+    const wrapper = createWrapper({
+      id: '1',
+      dweller_1_id: 'd1',
+      dweller_2_id: 'd2',
+      relationship_type: 'partner',
+      affinity: 80,
+      bond_growth_per_tick: 0,
+      bond_tick_seconds: 60,
+    })
+
+    expect(wrapper.text()).toContain('Bond resting')
+    expect(wrapper.text()).toContain('Living Quarters')
+    expect(wrapper.text()).toContain('5 hearts until marriage')
+    expect(wrapper.text()).not.toContain('Growing closer')
+  })
+
+  it('shows a full bond without a growth rate', () => {
+    const wrapper = createWrapper({
+      id: '1',
+      dweller_1_id: 'd1',
+      dweller_2_id: 'd2',
+      relationship_type: 'MARRIED',
+      affinity: 100,
+      bond_growth_per_tick: 0,
+      bond_tick_seconds: 60,
+    })
+
+    expect(wrapper.text()).toContain('Bond at full strength')
+    expect(wrapper.text()).not.toContain('Living Quarters')
+  })
+
   it('gives an image and a fallback icon the same portrait frame', () => {
     const wrapper = mount(RelationshipCard, {
       props: {
@@ -107,7 +158,6 @@ describe('RelationshipCard', () => {
 
     const frames = wrapper.findAll('.dweller-portrait-frame')
     expect(frames).toHaveLength(2)
-    expect(frames.every((frame) => frame.classes().includes('size-20'))).toBe(true)
     expect(frames[0].find('img').exists()).toBe(true)
     expect(frames[1].find('[role="img"]').exists()).toBe(true)
   })

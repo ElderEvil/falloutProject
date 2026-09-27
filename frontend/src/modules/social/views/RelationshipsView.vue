@@ -6,6 +6,7 @@ import { useRelationshipStore } from '../stores/relationship'
 import { usePregnancyStore } from '../stores/pregnancy'
 import { isRelationshipType, PARTNER_LINKED_RELATIONSHIP_TYPES } from '../models/relationship'
 import { allChildren } from '../models/dwellerFamily'
+import { usePolling } from '@/core/composables/usePolling'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
@@ -92,6 +93,15 @@ onMounted(async () => {
     ])
   }
 })
+
+usePolling(
+  () => {
+    if (vaultId.value && authStore.token) {
+      return relationshipStore.fetchVaultRelationships(vaultId.value, { silent: true })
+    }
+  },
+  { interval: 30_000, immediate: false }
+)
 
 /** Navigate to the dweller detail page for the given dweller. */
 const navigateToDweller = (dwellerId: string) => {

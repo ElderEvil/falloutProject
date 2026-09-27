@@ -17,7 +17,7 @@ from app.crud.relationship import relationship_crud
 from app.models.dweller import Dweller
 from app.models.notification import NotificationType
 from app.models.relationship import Relationship
-from app.schemas.relationship import CompatibilityScore
+from app.schemas.relationship import CompatibilityScore, VaultRelationshipRead
 from app.services.bio_service import bio_service
 from app.services.notification_service import NotificationService
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
@@ -25,8 +25,39 @@ from app.utils.exceptions import ResourceNotFoundException, ValidationException
 logger = logging.getLogger(__name__)
 
 
+def affinity_gain(dweller1: Dweller, dweller2: Dweller) -> int:
+    """Affinity gained per tick when a pair shares Living Quarters."""
+    return game_config.relationship.affinity_increase_per_tick + min(dweller1.charisma, dweller2.charisma) // 10
+
+
 class RelationshipService:
     """Service for managing relationships between dwellers."""
+
+    @staticmethod
+    async def get_vault_relationships_with_progress(
+        db_session: AsyncSession, vault_id: UUID4
+    ) -> list[VaultRelationshipRead]:
+        """Describe bond growth using the same room and rate rules as the game tick."""
+        relationships = await relationship_crud.get_by_vault(db_session, vault_id)
+        living_quarters_dwellers = await dweller_crud.get_living_quarters_dwellers(db_session, vault_id)
+        dwellers_by_id = {dweller.id: dweller for dweller in living_quarters_dwellers}
+
+        result = []
+        for relationship in relationships:
+            first = dwellers_by_id.get(relationship.dweller_1_id)
+            second = dwellers_by_id.get(relationship.dweller_2_id)
+            growing_together = first is not None and second is not None and first.room_id == second.room_id
+            growth = affinity_gain(first, second) if growing_together and relationship.affinity < 100 else 0
+            result.append(
+                VaultRelationshipRead.model_validate(
+                    relationship,
+                    update={
+                        "bond_growth_per_tick": growth,
+                        "bond_tick_seconds": game_config.game_loop.tick_interval,
+                    },
+                )
+            )
+        return result
 
     @staticmethod
     async def get_relationship(

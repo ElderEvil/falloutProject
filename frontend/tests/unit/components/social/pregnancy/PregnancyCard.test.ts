@@ -78,11 +78,13 @@ describe('PregnancyCard', () => {
     expect(portraits[1].attributes('data-alt')).toBe('Bob Jones')
   })
 
-  it('renders the status badge and progress meter', () => {
+  it('shows birth progress and an expecting status', () => {
     const wrapper = createWrapper()
 
-    expect(wrapper.text()).toContain('pregnant')
-    expect(wrapper.text()).toContain('Progress: 50%')
+    expect(wrapper.text()).toContain('Expecting')
+    expect(wrapper.text()).toContain('BIRTH PROGRESS')
+    expect(wrapper.text()).toContain('50%')
+    expect(wrapper.get('[role="progressbar"]').attributes('aria-label')).toBe('Birth progress')
   })
 
   it('shows the deliver button when the pregnancy is due', () => {
@@ -100,7 +102,9 @@ describe('PregnancyCard', () => {
   it('emits deliver when the deliver button is clicked', async () => {
     const wrapper = createWrapper({ pregnancy: { ...pregnancy, is_due: true } })
 
-    const deliverButton = wrapper.findAll('button').find((button) => button.text().includes('Deliver'))
+    const deliverButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Deliver'))
     await deliverButton!.trigger('click')
 
     expect(wrapper.emitted('deliver')).toBeTruthy()

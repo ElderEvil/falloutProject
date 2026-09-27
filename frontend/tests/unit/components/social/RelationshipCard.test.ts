@@ -18,6 +18,7 @@ const dweller1 = {
   level: 5,
   thumbnail_url: null,
   gender: 'female',
+  charisma: 10,
 }
 
 const dweller2 = {
@@ -27,21 +28,22 @@ const dweller2 = {
   level: 7,
   thumbnail_url: null,
   gender: 'male',
+  charisma: 10,
 }
 
 function createWrapper(
   relationship: Record<string, unknown>,
-  viewMode?: 'list' | 'grid',
   children: unknown[] = [],
   pregnancy: unknown = null,
-  generation = 1
+  generation = 1,
+  dweller1Override: Record<string, unknown> = {},
+  dweller2Override: Record<string, unknown> = {}
 ) {
   return mount(RelationshipCard, {
     props: {
       relationship,
-      dweller1,
-      dweller2,
-      viewMode,
+      dweller1: { ...dweller1, ...dweller1Override },
+      dweller2: { ...dweller2, ...dweller2Override },
       children,
       pregnancy,
       generation,
@@ -62,7 +64,7 @@ function createWrapper(
 }
 
 describe('RelationshipCard', () => {
-  it('uses the compact relationship row by default', () => {
+  it('uses a paired relationship card', () => {
     const wrapper = createWrapper({
       id: '1',
       dweller_1_id: 'd1',
@@ -71,10 +73,12 @@ describe('RelationshipCard', () => {
       affinity: 50,
     })
 
-    expect(wrapper.find('.relationship-record--list').exists()).toBe(true)
+    expect(wrapper.find('.relationship-record--grid').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('DWELLER 01')
+    expect(wrapper.text()).not.toContain('DWELLER 02')
   })
 
-  it('renders dweller thumbnails in list mode', () => {
+  it('renders both dweller portraits', () => {
     const wrapper = createWrapper({
       id: '1',
       dweller_1_id: 'd1',
@@ -89,18 +93,120 @@ describe('RelationshipCard', () => {
     expect(portraits[1].attributes('data-alt')).toBe('Bob Jones')
   })
 
-  describe('grid mode identity presentation', () => {
-    it('renders portraits, level, and gender badge for both dwellers', () => {
-      const wrapper = createWrapper(
-        {
+  it('shows Charisma and a growing bond at the backend pace', () => {
+    const wrapper = createWrapper({
+      id: '1',
+      dweller_1_id: 'd1',
+      dweller_2_id: 'd2',
+      relationship_type: 'friend',
+      affinity: 50,
+      bond_growth_per_tick: 3,
+      bond_tick_seconds: 60,
+    })
+
+    expect(wrapper.text()).toContain('C 10')
+    expect(wrapper.text()).toContain('Growing closer')
+    expect(wrapper.text()).toContain('+3 hearts every minute')
+    expect(wrapper.text()).toContain('20 hearts until romance')
+  })
+
+  it('shows a resting bond when the pair is apart', () => {
+    const wrapper = createWrapper({
+      id: '1',
+      dweller_1_id: 'd1',
+      dweller_2_id: 'd2',
+      relationship_type: 'partner',
+      affinity: 80,
+      bond_growth_per_tick: 0,
+      bond_tick_seconds: 60,
+    })
+
+    expect(wrapper.text()).toContain('Bond resting')
+    expect(wrapper.text()).toContain('Living Quarters')
+    expect(wrapper.text()).toContain('5 hearts until marriage')
+    expect(wrapper.text()).not.toContain('Growing closer')
+  })
+
+  it('shows race and family potential in a forming relationship', () => {
+    const wrapper = createWrapper({
+      id: '1',
+      dweller_1_id: 'd1',
+      dweller_2_id: 'd2',
+      relationship_type: 'friend',
+      affinity: 50,
+      conception_potential: 'possible',
+    })
+
+    expect(wrapper.text()).toContain('Human')
+    expect(wrapper.text()).toContain('Could start a family')
+  })
+
+  it('explains when race rules prevent conception', () => {
+    const wrapper = createWrapper(
+      {
+        id: '1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'friend',
+        affinity: 50,
+        conception_potential: 'race',
+      },
+      [],
+      null,
+      1,
+      { visual_attributes: { race: 'ghoul' } }
+    )
+
+    expect(wrapper.text()).toContain('Ghoul')
+    expect(wrapper.text()).toContain('Only Human pairs can have children')
+  })
+
+  it('shows a full bond without a growth rate', () => {
+    const wrapper = createWrapper({
+      id: '1',
+      dweller_1_id: 'd1',
+      dweller_2_id: 'd2',
+      relationship_type: 'MARRIED',
+      affinity: 100,
+      bond_growth_per_tick: 0,
+      bond_tick_seconds: 60,
+    })
+
+    expect(wrapper.text()).toContain('Bond at full strength')
+    expect(wrapper.text()).not.toContain('Living Quarters')
+  })
+
+  it('gives an image and a fallback icon the same portrait frame', () => {
+    const wrapper = mount(RelationshipCard, {
+      props: {
+        relationship: {
           id: '1',
           dweller_1_id: 'd1',
           dweller_2_id: 'd2',
           relationship_type: 'friend',
           affinity: 50,
         },
-        'grid'
-      )
+        dweller1: { ...dweller1, thumbnail_url: '/static/alice.png' },
+        dweller2,
+      },
+      global: { stubs: { DwellerGenderBadge: true } },
+    })
+
+    const frames = wrapper.findAll('.dweller-portrait-frame')
+    expect(frames).toHaveLength(2)
+    expect(frames[0].find('img').exists()).toBe(true)
+    expect(frames[1].find('[role="img"]').exists()).toBe(true)
+  })
+
+  describe('paired identity presentation', () => {
+    it('renders portraits, Charisma, race, and gender for both dwellers', () => {
+      const wrapper = createWrapper({
+        id: '1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'friend',
+        affinity: 50,
+      })
 
       expect(wrapper.find('.relationship-record--grid').exists()).toBe(true)
 
@@ -109,8 +215,8 @@ describe('RelationshipCard', () => {
       expect(portraits[0].attributes('data-alt')).toBe('Alice Smith')
       expect(portraits[1].attributes('data-alt')).toBe('Bob Jones')
 
-      expect(wrapper.text()).toContain('LVL 5')
-      expect(wrapper.text()).toContain('LVL 7')
+      expect(wrapper.text()).toContain('C 10')
+      expect(wrapper.text()).toContain('Human')
 
       const genderBadges = wrapper.findAll('.dweller-gender-stub')
       expect(genderBadges).toHaveLength(2)
@@ -266,7 +372,6 @@ describe('RelationshipCard', () => {
           relationship_type: 'partner',
           affinity: 50,
         },
-        undefined,
         [child]
       )
 
@@ -286,6 +391,19 @@ describe('RelationshipCard', () => {
       expect(wrapper.text()).toContain('No children yet')
     })
 
+    it('shows family potential for partners', () => {
+      const wrapper = createWrapper({
+        id: '1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'partner',
+        affinity: 50,
+        conception_potential: 'possible',
+      })
+
+      expect(wrapper.text()).toContain('Could start a family')
+    })
+
     it('does not render the family strip for non-partner relationships', () => {
       const wrapper = createWrapper(
         {
@@ -295,7 +413,6 @@ describe('RelationshipCard', () => {
           relationship_type: 'friend',
           affinity: 50,
         },
-        undefined,
         [child]
       )
 
@@ -312,7 +429,6 @@ describe('RelationshipCard', () => {
           relationship_type: 'partner',
           affinity: 50,
         },
-        undefined,
         [child],
         { id: 'p1', mother_id: 'd1', father_id: 'd2', status: 'pregnant', is_due: false }
       )
@@ -331,7 +447,6 @@ describe('RelationshipCard', () => {
           relationship_type: 'partner',
           affinity: 50,
         },
-        undefined,
         [],
         { id: 'p1', mother_id: 'd1', father_id: 'd2', status: 'pregnant', is_due: true }
       )

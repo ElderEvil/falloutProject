@@ -355,6 +355,7 @@ describe('QuestsView', () => {
       await flushPromises()
 
       expect(wrapper.text()).toContain('Available Quest')
+      expect(wrapper.get('.page-header-metric-value').text()).toBe('1')
     })
 
     it('keeps a started check-objective quest out of the Available tab', async () => {
@@ -397,6 +398,7 @@ describe('QuestsView', () => {
       await flushPromises()
 
       expect(wrapper.text()).not.toContain('Started State Quest')
+      expect(wrapper.get('.page-header-metric-value').text()).toBe('0')
     })
 
     it('should reveal locked quests only when Show All is enabled and render their lock reason', async () => {

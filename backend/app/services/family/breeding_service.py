@@ -3,7 +3,7 @@
 import logging
 import random
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -32,6 +32,17 @@ from app.services.notification_service import notification_service
 from app.utils.dwellers import elder_birth_threshold
 
 logger = logging.getLogger(__name__)
+
+
+def conception_potential(first: Dweller, second: Dweller) -> Literal["possible", "race", "age", "gender"]:
+    """Report the stable pair traits that permit conception, before room and vault conditions."""
+    if not can_breed(first) or not can_breed(second):
+        return "race"
+    if first.age_group != AgeGroupEnum.ADULT or second.age_group != AgeGroupEnum.ADULT:
+        return "age"
+    if {first.gender, second.gender} != {GenderEnum.MALE, GenderEnum.FEMALE}:
+        return "gender"
+    return "possible"
 
 
 class BreedingService:
@@ -167,18 +178,10 @@ class BreedingService:
                 else None
             )
 
-            if (
-                not partner
-                or partner.is_deleted
-                or partner.room_id not in living_quarters_ids
-                or partner.age_group != AgeGroupEnum.ADULT
-            ):
+            if not partner or partner.is_deleted or partner.room_id not in living_quarters_ids:
                 continue
 
-            if partner.gender == dweller.gender:
-                continue
-
-            if not can_breed(dweller) or not can_breed(partner):
+            if conception_potential(dweller, partner) != "possible":
                 continue
 
             conception_chance = await BreedingService._get_relationship_affinity(db_session, dweller, partner)

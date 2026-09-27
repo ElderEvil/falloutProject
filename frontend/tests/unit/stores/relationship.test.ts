@@ -2,8 +2,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useRelationshipStore } from '@/modules/social/stores/relationship'
 import axios from '@/core/plugins/axios'
+import { handleStoreError } from '@/core/utils/errorHandler'
 
 vi.mock('@/core/plugins/axios')
+vi.mock('@/core/utils/errorHandler', () => ({ handleStoreError: vi.fn() }))
 
 describe('Relationship Store', () => {
   beforeEach(() => {
@@ -60,6 +62,59 @@ describe('Relationship Store', () => {
       expect(store.relationships).toEqual([])
       expect(store.isLoading).toBe(false)
     })
+
+    it('refreshes bond progress without replacing the list with a loading state', async () => {
+      vi.mocked(axios.get).mockResolvedValueOnce({
+        data: [{ ...mockRelationship, bond_growth_per_tick: 3, bond_tick_seconds: 60 }],
+      })
+
+      const store = useRelationshipStore()
+      const refresh = store.fetchVaultRelationships('vault-1', { silent: true })
+
+      expect(store.isLoading).toBe(false)
+      await refresh
+      expect(store.relationships[0].bond_growth_per_tick).toBe(3)
+    })
+
+    it('rethrows silent fetch errors without showing a store notification', async () => {
+      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network error'))
+
+      const store = useRelationshipStore()
+      await expect(store.fetchVaultRelationships('vault-1', { silent: true })).rejects.toThrow(
+        'Network error'
+      )
+
+      expect(handleStoreError).toHaveBeenCalledWith(
+        expect.any(Error),
+        'Failed to fetch relationships',
+        false
+      )
+    })
+
+    it('keeps a completed romance when an older fetch resolves later', async () => {
+      let resolveFetch!: (value: { data: (typeof mockRelationship)[] }) => void
+      vi.mocked(axios.get).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFetch = resolve
+          })
+      )
+      const romantic = { ...mockRelationship, relationship_type: 'romantic' }
+      vi.mocked(axios.put).mockResolvedValueOnce({ data: romantic })
+
+      const store = useRelationshipStore()
+      store.relationships = [mockRelationship]
+      const pendingFetch = store.fetchVaultRelationships('vault-1', { silent: true })
+      await store.initiateRomance('rel-1')
+      resolveFetch({ data: [mockRelationship] })
+      await pendingFetch
+
+      expect(store.relationships[0].relationship_type).toBe('romantic')
+
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: [romantic] })
+      await store.fetchVaultRelationships('vault-1', { silent: true })
+      expect(store.relationships[0]).toEqual(romantic)
+    })
   })
 
   describe('createRelationship', () => {
@@ -99,13 +154,16 @@ describe('Relationship Store', () => {
       vi.mocked(axios.put).mockResolvedValueOnce({ data: romanticRelationship })
 
       const store = useRelationshipStore()
-      store.relationships = [mockRelationship]
+      store.relationships = [
+        { ...mockRelationship, bond_growth_per_tick: 3, bond_tick_seconds: 60 },
+      ]
 
       const result = await store.initiateRomance('rel-1')
 
       expect(axios.put).toHaveBeenCalledWith('/api/v1/relationships/rel-1/romance')
       expect(result?.relationship_type).toBe('romantic')
       expect(store.relationships[0].relationship_type).toBe('romantic')
+      expect(store.relationships[0].bond_growth_per_tick).toBe(3)
     })
 
     it('should handle romance error', async () => {

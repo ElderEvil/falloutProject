@@ -1,6 +1,5 @@
 """Relationship endpoints."""
 
-from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -15,6 +14,7 @@ from app.schemas.relationship import (
     CompatibilityScore,
     RelationshipCreate,
     RelationshipRead,
+    VaultRelationshipRead,
 )
 from app.schemas.responses import BreedStatsResponse, RelationshipActionResponse
 from app.services.game_loop import game_loop_service
@@ -23,19 +23,19 @@ from app.services.relationship_service import relationship_service
 router = APIRouter(prefix="/relationships", tags=["Relationship"])
 
 
-@router.get("/vault/{vault_id}", response_model=list[RelationshipRead])
+@router.get("/vault/{vault_id}", response_model=list[VaultRelationshipRead])
 async def get_vault_relationships(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> Sequence[Relationship]:
+) -> list[VaultRelationshipRead]:
     """Get all relationships in a vault.
 
     Returns:
         List of relationships in the vault.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await relationship_crud.get_by_vault(db_session, vault_id)
+    return await relationship_service.get_vault_relationships_with_progress(db_session, vault_id)
 
 
 @router.get("/{relationship_id}", response_model=RelationshipRead)

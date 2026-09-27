@@ -27,9 +27,10 @@ describe('usePolling', () => {
   it('does not overlap a slow refresh', async () => {
     let resolveRefresh!: () => void
     const refresh = vi.fn(
-      () => new Promise<void>((resolve) => {
-        resolveRefresh = resolve
-      })
+      () =>
+        new Promise<void>((resolve) => {
+          resolveRefresh = resolve
+        })
     )
     const { run, isRefreshing } = usePolling(refresh, { immediate: false })
 
@@ -50,6 +51,29 @@ describe('usePolling', () => {
 
     await vi.advanceTimersByTimeAsync(100)
 
-    expect(handleStoreError).toHaveBeenCalledWith(expect.any(Error), 'Failed to refresh polled data')
+    expect(handleStoreError).toHaveBeenCalledWith(
+      expect.any(Error),
+      'Failed to refresh polled data'
+    )
+  })
+
+  it('reports one error per consecutive failure episode', async () => {
+    vi.useFakeTimers()
+    vi.mocked(handleStoreError).mockClear()
+    const refresh = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Offline'))
+      .mockRejectedValueOnce(new Error('Offline'))
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('Offline again'))
+    const scope = effectScope()
+    scope.run(() => usePolling(refresh, { interval: 100, immediate: false }))
+
+    await vi.advanceTimersByTimeAsync(200)
+    expect(handleStoreError).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(200)
+    expect(handleStoreError).toHaveBeenCalledTimes(2)
+    scope.stop()
   })
 })

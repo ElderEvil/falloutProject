@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/core/components/ui/t
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
+import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import StorageItemCard from '../components/StorageItemCard.vue'
 import LunchboxOpenModal from '../components/LunchboxOpenModal.vue'
 import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
@@ -57,7 +58,9 @@ const { run: runFetchStorageData, isLoading } = useAsyncAction(
 
 const activeTab = ref<'weapons' | 'outfits' | 'junk' | 'supplies'>('weapons')
 type StorageTab = typeof activeTab.value
-type StorageItem = StorageItemsResponse[Exclude<StorageTab, 'supplies'>][number] | StorageItemsResponse['items'][number]
+type StorageItem =
+  | StorageItemsResponse[Exclude<StorageTab, 'supplies'>][number]
+  | StorageItemsResponse['items'][number]
 interface DisplayStorageItem {
   id: string
   item: StorageItem
@@ -66,7 +69,8 @@ interface DisplayStorageItem {
 }
 
 const selectTab = (tab: string) => {
-  if (tab === 'weapons' || tab === 'outfits' || tab === 'junk' || tab === 'supplies') activeTab.value = tab
+  if (tab === 'weapons' || tab === 'outfits' || tab === 'junk' || tab === 'supplies')
+    activeTab.value = tab
 }
 
 const tabs = computed<Array<{ key: StorageTab; label: string }>>(() => [
@@ -100,7 +104,9 @@ const outfits = computed(() => storageItems.value.outfits || [])
 const junk = computed(() => storageItems.value.junk || [])
 const supplies = computed(() => storageItems.value.items || [])
 
-const totalItems = computed(() => weapons.value.length + outfits.value.length + junk.value.length + supplies.value.length)
+const totalItems = computed(
+  () => weapons.value.length + outfits.value.length + junk.value.length + supplies.value.length
+)
 
 // Group junk items by name and add count
 const groupedJunk = computed(() => {
@@ -173,10 +179,7 @@ const activeItems = computed<DisplayStorageItem[]>(() => {
 })
 
 // Sell item handler
-const handleSellItem = async (
-  itemId: string | string[],
-  itemType: string
-) => {
+const handleSellItem = async (itemId: string | string[], itemType: string) => {
   try {
     // Normalize type
     const normalizedType =
@@ -271,84 +274,67 @@ const closeLunchboxModal = async () => {
   <div class="relative min-h-screen bg-terminal-background font-mono text-theme-primary">
     <SidePanel />
 
-    <div
-      class="flex-1 transition-[margin] duration-300"
-      :class="isCollapsed ? 'ml-16' : 'ml-60'"
-    >
+    <div class="flex-1 transition-[margin] duration-300" :class="isCollapsed ? 'ml-16' : 'ml-60'">
       <PageContentRail>
         <PageHeader
           title="Vault Storage"
           icon="mdi:package-variant"
           subtitle="Organize equipment, supplies & recovered wasteland loot."
-        />
-
-      <!-- Storage & Medical Supplies -->
-      <div v-if="storageSpace" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div
-          class="md:col-span-2 p-6 border-2 border-theme-primary/50 rounded-lg shadow-[0_0_10px_var(--color-theme-glow)] crt-screen"
         >
-          <div class="flex items-center gap-3 mb-2 font-mono">
-            <Icon icon="mdi:package-variant" class="w-5 h-5 text-theme-primary" />
-            <span class="text-theme-accent text-xs font-semibold uppercase tracking-wider">
-              {{ storageSpace.used_space }}/{{ storageSpace.max_space }} slots used
-            </span>
-            <span
-              class="ml-auto text-xs"
-              :class="
-                storageSpace.utilization_pct > 100
-                  ? 'font-semibold text-danger'
-                  : 'text-theme-accent'
-              "
-            >
-              {{ storageSpace.utilization_pct.toFixed(0) }}%<template
-                v-if="storageSpace.utilization_pct > 100"
-              >
-                · OVER CAPACITY</template
-              >
-            </span>
-          </div>
-          <div class="h-4 bg-black/80 border border-theme-primary/50 rounded-sm overflow-hidden">
-            <div
-              class="h-full bg-theme-primary transition-[width] duration-300 shadow-[0_0_8px_var(--color-theme-glow)]"
-              :style="{
-                '--progress': `${Math.min(100, storageSpace.utilization_pct)}%`,
-                width: 'var(--progress)',
-              }"
-            ></div>
-          </div>
-          <div class="text-theme-accent/60 text-xs text-right font-mono mt-1">
-            {{ storageSpace.available_space }} free
-          </div>
-        </div>
+          <template v-if="storageSpace" #actions>
+            <PageHeaderMetric
+              icon="mdi:package-variant"
+              :value="`${storageSpace.used_space} / ${storageSpace.max_space}`"
+              label="Slots used"
+            />
+            <PageHeaderMetric
+              icon="mdi:medical-bag"
+              :value="storageSpace.stimpack"
+              label="Stimpaks"
+            />
+            <PageHeaderMetric icon="mdi:pill" :value="storageSpace.radaway" label="RadAway" />
+          </template>
+        </PageHeader>
 
-        <div
-          class="p-6 border-2 border-theme-primary/50 rounded-lg shadow-[0_0_10px_var(--color-theme-glow)] crt-screen"
-        >
-          <div class="flex items-center gap-4 h-full">
-            <div class="flex items-center gap-2 flex-1">
-              <Icon icon="mdi:medical-bag" class="w-5 h-5 text-green-500 shrink-0" />
-              <div>
-                <div class="text-theme-primary font-bold text-lg leading-tight">
-                  {{ storageSpace.stimpack }}
-                </div>
-                <div class="text-theme-accent/60 text-sm">Stimpaks</div>
-              </div>
+        <!-- Storage utilization -->
+        <div v-if="storageSpace" class="mb-6">
+          <div class="rounded-lg border border-theme-primary/30 bg-surface-sunken p-4">
+            <div class="flex items-center gap-3 mb-2 font-mono">
+              <Icon icon="mdi:package-variant" class="w-5 h-5 text-theme-primary" />
+              <span class="text-theme-accent text-xs font-semibold uppercase tracking-wider">
+                Storage utilization
+              </span>
+              <span
+                class="ml-auto text-xs"
+                :class="
+                  storageSpace.utilization_pct > 100
+                    ? 'font-semibold text-danger'
+                    : 'text-theme-accent'
+                "
+              >
+                {{ storageSpace.utilization_pct.toFixed(0) }}%<template
+                  v-if="storageSpace.utilization_pct > 100"
+                >
+                  · OVER CAPACITY</template
+                >
+              </span>
             </div>
-            <div class="w-px h-8 bg-theme-primary/20"></div>
-            <div class="flex items-center gap-2 flex-1">
-              <Icon icon="mdi:pill" class="w-5 h-5 text-(--color-caps) shrink-0" />
-              <div>
-                <div class="text-theme-primary font-bold text-lg leading-tight">
-                  {{ storageSpace.radaway }}
-                </div>
-                <div class="text-theme-accent/60 text-sm">Radaways</div>
-              </div>
+            <div class="h-4 bg-black/80 border border-theme-primary/50 rounded-sm overflow-hidden">
+              <div
+                class="h-full bg-theme-primary transition-[width] duration-300 shadow-[0_0_8px_var(--color-theme-glow)]"
+                :style="{
+                  '--progress': `${Math.min(100, storageSpace.utilization_pct)}%`,
+                  width: 'var(--progress)',
+                }"
+              ></div>
+            </div>
+            <div class="text-theme-accent/60 text-xs text-right font-mono mt-1">
+              {{ storageSpace.available_space }} free
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Tabs -->
+        <!-- Tabs -->
         <Tabs :model-value="activeTab" @update:model-value="(value) => selectTab(String(value))">
           <TabsList>
             <TabsTrigger v-for="tab in tabs" :key="tab.key" :value="tab.key">

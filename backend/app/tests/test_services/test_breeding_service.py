@@ -1,6 +1,7 @@
 """Tests for breeding service logic."""
 
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -23,9 +24,25 @@ from app.schemas.common import (
 )
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
-from app.services.family.breeding_service import BreedingService
+from app.services.family.breeding_service import BreedingService, conception_potential
 from app.utils.dwellers import elder_birth_threshold
 from app.utils.exceptions import ResourceNotFoundException
+
+
+@pytest.mark.parametrize(
+    ("first_race", "first_age", "second_gender", "expected"),
+    [
+        ("human", AgeGroupEnum.ADULT, GenderEnum.FEMALE, "possible"),
+        (None, AgeGroupEnum.ADULT, GenderEnum.FEMALE, "possible"),
+        ("ghoul", AgeGroupEnum.ADULT, GenderEnum.FEMALE, "race"),
+        ("human", AgeGroupEnum.TEEN, GenderEnum.FEMALE, "age"),
+        ("human", AgeGroupEnum.ADULT, GenderEnum.MALE, "gender"),
+    ],
+)
+def test_conception_potential_matches_pair_rules(first_race, first_age, second_gender, expected):
+    first = SimpleNamespace(visual_attributes={"race": first_race}, age_group=first_age, gender=GenderEnum.MALE)
+    second = SimpleNamespace(visual_attributes={"race": "human"}, age_group=AgeGroupEnum.ADULT, gender=second_gender)
+    assert conception_potential(first, second) == expected
 
 
 @pytest_asyncio.fixture(name="living_quarters")

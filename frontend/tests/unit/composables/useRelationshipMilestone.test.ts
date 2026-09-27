@@ -8,27 +8,27 @@ function rel(relationship_type: string, affinity: number) {
 describe('useRelationshipMilestone', () => {
   it('shows distance to romance for a low-affinity acquaintance', () => {
     const { nextMilestone } = useRelationshipMilestone(() => rel('acquaintance', 50))
-    expect(nextMilestone.value).toBe('20 to romance')
+    expect(nextMilestone.value).toBe('20 hearts until romance')
   })
 
-  it('shows no milestone for an acquaintance at/above the romance threshold', () => {
+  it('shows romance as available at the threshold', () => {
     const { nextMilestone } = useRelationshipMilestone(() => rel('acquaintance', 70))
-    expect(nextMilestone.value).toBeNull()
+    expect(nextMilestone.value).toBe('Romance is within reach')
   })
 
   it('prompts to make partners for a romantic relationship', () => {
     const { nextMilestone } = useRelationshipMilestone(() => rel('romantic', 75))
-    expect(nextMilestone.value).toContain('make partners')
+    expect(nextMilestone.value).toBe('Ready to become partners')
   })
 
   it('shows distance to marriage for a partner below the threshold', () => {
     const { nextMilestone } = useRelationshipMilestone(() => rel('partner', 80))
-    expect(nextMilestone.value).toBe('5 to marry')
+    expect(nextMilestone.value).toBe('5 hearts until marriage')
   })
 
   it('reports ready to marry for a partner at the threshold', () => {
     const { nextMilestone } = useRelationshipMilestone(() => rel('partner', 85))
-    expect(nextMilestone.value).toBe('ready to marry')
+    expect(nextMilestone.value).toBe('Ready to marry')
   })
 
   it('returns null for married and ex relationships', () => {

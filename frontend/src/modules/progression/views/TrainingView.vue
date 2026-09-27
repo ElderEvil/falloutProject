@@ -13,6 +13,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import PageHeader from '@/core/components/common/PageHeader.vue'
+import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import { getTrainingRoomCapacity } from '@/modules/rooms/utils/room'
 
 const route = useRoute()
@@ -67,35 +68,32 @@ onMounted(async () => {
           title="Training Center"
           icon="mdi:dumbbell"
           subtitle="Monitor and manage SPECIAL stat training across your vault"
-        />
+        >
+          <template #actions>
+            <PageHeaderMetric
+              icon="mdi:account-multiple"
+              :value="activeTrainings.length"
+              label="Training"
+            />
+            <PageHeaderMetric
+              icon="mdi:progress-clock"
+              :value="`${roomsInUse} / ${trainingRooms.length}`"
+              label="Rooms in use"
+            />
+          </template>
+        </PageHeader>
 
         <section class="flex w-full flex-col gap-4">
-          <div class="flex flex-wrap items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-              <Icon
-                icon="mdi:office-building"
-                class="text-2xl text-theme-primary [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
-              />
-              <h3
-                class="m-0 font-mono text-xl font-bold uppercase tracking-[0.05em] text-theme-primary"
-              >
-                Training Rooms ({{ trainingRooms.length }})
-              </h3>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-              <span
-                class="flex items-center gap-1.5 rounded border border-theme-glow bg-black/30 px-2.5 py-1 font-mono text-xs text-theme-primary"
-              >
-                <Icon icon="mdi:account-multiple" class="text-sm" />
-                {{ activeTrainings.length }} training
-              </span>
-              <span
-                class="flex items-center gap-1.5 rounded border border-theme-glow bg-black/30 px-2.5 py-1 font-mono text-xs text-theme-primary"
-              >
-                <Icon icon="mdi:progress-clock" class="text-sm" />
-                {{ roomsInUse }} / {{ trainingRooms.length }} in use
-              </span>
-            </div>
+          <div class="flex items-center gap-3">
+            <Icon
+              icon="mdi:office-building"
+              class="text-2xl text-theme-primary [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
+            />
+            <h3
+              class="m-0 font-mono text-xl font-bold uppercase tracking-[0.05em] text-theme-primary"
+            >
+              Training Rooms
+            </h3>
           </div>
 
           <div
@@ -164,8 +162,8 @@ onMounted(async () => {
               <h3 class="info-title">About Training</h3>
               <div class="info-text">
                 <p>
-                    Dwellers can train their SPECIAL stats in dedicated training rooms. Each stat
-                    has its own training room type:
+                  Dwellers can train their SPECIAL stats in dedicated training rooms. Each stat has
+                  its own training room type:
                 </p>
                 <ul class="stat-list">
                   <li><Icon icon="mdi:arm-flex" /> <strong>Strength</strong> - Weight Room</li>
@@ -193,8 +191,7 @@ onMounted(async () => {
                 <p class="example">
                   <Icon icon="mdi:lightbulb" />
                   <em
-                      >Example: Training from 5→6 takes 4.5 hours (or 2.7 hours in a Tier 3
-                      room)</em
+                    >Example: Training from 5→6 takes 4.5 hours (or 2.7 hours in a Tier 3 room)</em
                   >
                 </p>
               </div>

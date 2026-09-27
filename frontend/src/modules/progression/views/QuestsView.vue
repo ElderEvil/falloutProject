@@ -12,6 +12,7 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import PageHeader from '@/core/components/common/PageHeader.vue'
+import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import { Icon } from '@iconify/vue'
 import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import {
@@ -43,16 +44,20 @@ const questTabs = [
   { key: 'completed', label: 'Completed', icon: 'mdi:check-circle' },
 ]
 
-// Filtered available quests based on toggle
-const filteredAvailableQuests = computed(() => {
-  // State quests start with is_reward_ready=true and started_at=null, so reward
-  // readiness must also exclude a quest from Available.
-  const isAvailableQuest = (q: VaultQuest) => !q.started_at && !q.is_completed && !q.is_reward_ready
+// State quests can be reward-ready before they start, so they are not available.
+const isUnstartedQuest = (quest: VaultQuest) =>
+  !quest.started_at && !quest.is_completed && !quest.is_reward_ready
+const availableQuests = computed(() =>
+  questStore.vaultQuests.filter(
+    (quest) => quest.is_visible && !quest.is_locked && isUnstartedQuest(quest)
+  )
+)
 
+const filteredAvailableQuests = computed(() => {
   if (showAllQuests.value) {
-    return questStore.vaultQuests.filter(isAvailableQuest)
+    return questStore.vaultQuests.filter(isUnstartedQuest)
   }
-  return questStore.vaultQuests.filter((q) => q.is_visible && isAvailableQuest(q) && !q.is_locked)
+  return availableQuests.value
 })
 
 const availableSort = useLocalStorage<QuestAvailableSortBy>('questAvailableSort', 'level')
@@ -292,7 +297,15 @@ onMounted(async () => {
               title="Quests"
               icon="mdi:book-open-page-variant"
               subtitle="Deploy teams, track missions & collect rewards."
-            />
+            >
+              <template #actions>
+                <PageHeaderMetric
+                  icon="mdi:book-open-page-variant"
+                  :value="availableQuests.length"
+                  label="Available quests"
+                />
+              </template>
+            </PageHeader>
 
             <Tabs :model-value="activeTab" @update:model-value="activeTab = String($event)">
               <TabsList>

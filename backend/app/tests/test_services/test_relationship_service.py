@@ -1,5 +1,9 @@
 """Tests for relationship service logic."""
 
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+from uuid import uuid4
+
 import pytest
 import pytest_asyncio
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -12,8 +16,78 @@ from app.models.relationship import Relationship
 from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum, RelationshipTypeEnum
 from app.schemas.dweller import DwellerCreate
-from app.services.relationship_service import RelationshipService
+from app.services.relationship_service import RelationshipService, affinity_gain
 from app.utils.exceptions import ValidationException
+
+
+@pytest.mark.asyncio
+async def test_vault_relationship_progress_uses_living_quarters_and_charisma(monkeypatch: pytest.MonkeyPatch):
+    """Only a co-located pair gains affinity, with the tick's Charisma bonus."""
+    room_id = uuid4()
+    first = SimpleNamespace(
+        id=uuid4(),
+        room_id=room_id,
+        charisma=10,
+        gender=GenderEnum.FEMALE,
+        age_group=AgeGroupEnum.ADULT,
+        visual_attributes={"race": "human"},
+    )
+    second = SimpleNamespace(
+        id=uuid4(),
+        room_id=room_id,
+        charisma=10,
+        gender=GenderEnum.MALE,
+        age_group=AgeGroupEnum.ADULT,
+        visual_attributes={"race": "human"},
+    )
+    elsewhere = SimpleNamespace(
+        id=uuid4(),
+        room_id=uuid4(),
+        charisma=10,
+        gender=GenderEnum.MALE,
+        age_group=AgeGroupEnum.ADULT,
+        visual_attributes={"race": "human"},
+    )
+    outside_living_quarters = SimpleNamespace(
+        id=uuid4(),
+        room_id=room_id,
+        charisma=10,
+        gender=GenderEnum.MALE,
+        age_group=AgeGroupEnum.ADULT,
+        visual_attributes={"race": "human"},
+    )
+    growing = Relationship(dweller_1_id=first.id, dweller_2_id=second.id, affinity=50)
+    nearly_full = Relationship(dweller_1_id=first.id, dweller_2_id=second.id, affinity=99)
+    apart = Relationship(dweller_1_id=first.id, dweller_2_id=elsewhere.id, affinity=50)
+    outside = Relationship(dweller_1_id=first.id, dweller_2_id=outside_living_quarters.id, affinity=50)
+    full = Relationship(dweller_1_id=first.id, dweller_2_id=second.id, affinity=100)
+
+    monkeypatch.setattr(
+        relationship_crud, "get_by_vault", AsyncMock(return_value=[growing, nearly_full, apart, outside, full])
+    )
+    monkeypatch.setattr(
+        crud.dweller,
+        "get_living_quarters_dwellers",
+        AsyncMock(return_value=[first, second, elsewhere]),
+    )
+    monkeypatch.setattr(
+        crud.dweller,
+        "get_by_ids_in_vault",
+        AsyncMock(return_value=[first, second, elsewhere, outside_living_quarters]),
+    )
+
+    progress = await RelationshipService.get_vault_relationships_with_progress(AsyncMock(), uuid4())
+
+    assert [item.bond_growth_per_tick for item in progress] == [affinity_gain(first, second), 1, 0, 0, 0]
+    assert progress[0].bond_growth_per_tick == game_config.relationship.affinity_increase_per_tick + 1
+    assert all(item.bond_tick_seconds == game_config.game_loop.tick_interval for item in progress)
+    assert all(item.conception_potential == "possible" for item in progress)
+
+
+def test_affinity_gain_needs_both_dwellers_at_ten_charisma():
+    assert affinity_gain(SimpleNamespace(charisma=10), SimpleNamespace(charisma=9)) == (
+        game_config.relationship.affinity_increase_per_tick
+    )
 
 
 @pytest_asyncio.fixture(name="dweller_2")

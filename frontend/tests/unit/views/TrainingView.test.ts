@@ -81,7 +81,6 @@ describe('TrainingView', () => {
         plugins: [router],
         stubs: {
           Icon: true,
-          PageHeader: true,
           SidePanel: true,
           TrainingQueuePanel: true,
           TrainingRoomCard: true,
@@ -90,6 +89,7 @@ describe('TrainingView', () => {
     })
 
     expect(wrapper.text()).toContain('0 / 2')
+    expect(wrapper.findAll('.page-header-metric-value').map((metric) => metric.text())).toEqual(['0', '0 / 1'])
     expect(wrapper.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('0')
   })
 })

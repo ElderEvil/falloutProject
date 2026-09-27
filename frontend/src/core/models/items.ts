@@ -158,15 +158,24 @@ const OUTFIT_BONUS_KEYS = [
   'luck',
 ] as const satisfies readonly (keyof BonusSource)[]
 
-function capitalize(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1)
+/**
+ * Render a catalog enum value as one label. The catalogs are inconsistent —
+ * weapon types ship Capitalized ("Energy") while outfit types ship snake_case
+ * ("rare_outfit") — so both go through here to read the same way.
+ */
+export function formatItemLabel(value: string | null | undefined): string {
+  if (!value) return ''
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ')
 }
 
 export function getOutfitBonuses(outfit: BonusSource): { stat: string; bonus: number }[] {
   const bonuses: { stat: string; bonus: number }[] = []
   for (const key of OUTFIT_BONUS_KEYS) {
     const bonus = outfit[key]
-    if (bonus) bonuses.push({ stat: capitalize(key), bonus })
+    if (bonus) bonuses.push({ stat: formatItemLabel(key), bonus })
   }
   return bonuses
 }
@@ -176,7 +185,7 @@ interface CommonItemStats {
   durability?: number
 }
 
-interface WeaponStatsSource extends DamageSource, CommonItemStats {
+export interface WeaponStatsSource extends DamageSource, CommonItemStats {
   stat?: string
   accuracy?: number | null
   weapon_type?: string
@@ -185,18 +194,20 @@ interface WeaponStatsSource extends DamageSource, CommonItemStats {
 
 export function getWeaponStats(weapon: WeaponStatsSource): ItemStat[] {
   const stats: ItemStat[] = [{ label: 'Damage', value: getDamageRange(weapon), icon: 'mdi:sword-cross' }]
-  if (weapon.stat) stats.push({ label: 'Uses', value: weapon.stat.toUpperCase(), icon: 'mdi:alphabet-latin' })
+  if (weapon.stat) stats.push({ label: 'Uses', value: formatItemLabel(weapon.stat), icon: 'mdi:alphabet-latin' })
   if (weapon.accuracy != null) stats.push({ label: 'Accuracy', value: `${weapon.accuracy}%`, icon: 'mdi:target' })
-  if (weapon.weapon_type) stats.push({ label: 'Type', value: weapon.weapon_type, icon: 'mdi:tag' })
+  if (weapon.weapon_type) {
+    stats.push({ label: 'Type', value: formatItemLabel(weapon.weapon_type), icon: 'mdi:tag' })
+  }
   if (weapon.weapon_subtype) {
-    stats.push({ label: 'Subtype', value: capitalize(weapon.weapon_subtype), icon: 'mdi:tag-outline' })
+    stats.push({ label: 'Subtype', value: formatItemLabel(weapon.weapon_subtype), icon: 'mdi:tag-outline' })
   }
   if (weapon.weight !== undefined) stats.push({ label: 'Weight', value: weapon.weight, icon: 'mdi:scale' })
   if (weapon.durability !== undefined) stats.push({ label: 'Durability', value: weapon.durability, icon: 'mdi:shield-check' })
   return stats
 }
 
-interface OutfitStatsSource extends BonusSource, CommonItemStats, ResistSource {
+export interface OutfitStatsSource extends BonusSource, CommonItemStats, ResistSource {
   gender?: string | null
 }
 
@@ -214,4 +225,28 @@ export function getOutfitStats(outfit: OutfitStatsSource): ItemStat[] {
   if (outfit.weight !== undefined) stats.push({ label: 'Weight', value: outfit.weight, icon: 'mdi:scale' })
   if (outfit.durability !== undefined) stats.push({ label: 'Durability', value: outfit.durability, icon: 'mdi:shield-check' })
   return stats
+}
+
+/**
+ * Permissive structural shape of anything an item card renders. Declared here
+ * instead of imported from a feature module because `core/` may not depend on
+ * `@/modules/` — `scripts/check-boundaries.mjs` hard-fails that direction, and
+ * the allowlist is deliberately empty. Every field is optional so one prop type
+ * admits a weapon, an outfit, junk and a supply.
+ */
+export interface ItemCardSource
+  extends ItemIconSource,
+    BonusSource,
+    ResistSource,
+    CommonItemStats {
+  description?: string | null
+  rarity?: string | null
+  value?: number | null
+  gender?: string | null
+  // Present on weapons only, hence optional rather than DamageSource's required pair.
+  damage_min?: number
+  damage_max?: number
+  stat?: string
+  accuracy?: number | null
+  weapon_type?: string
 }

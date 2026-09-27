@@ -59,6 +59,7 @@ export const useVaultStore = defineStore('vault', () => {
   const isLoading = ref(false)
   const gameState = ref<GameState | null>(null)
   let gameTickSse: ReturnType<typeof useSse> | null = null
+  let sessionGeneration = 0
 
   // Polling control
   const {
@@ -96,12 +97,14 @@ export const useVaultStore = defineStore('vault', () => {
 
   // Actions
   async function fetchVaults(token: string): Promise<boolean> {
+    const requestGeneration = sessionGeneration
     try {
       const response = await axios.get('/api/v1/vaults/my', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       })
+      if (requestGeneration !== sessionGeneration) return false
       vaults.value = response.data
       return true
     } catch (error) {
@@ -153,6 +156,9 @@ export const useVaultStore = defineStore('vault', () => {
       if (activeVaultId.value === id) {
         activeVaultId.value = Object.keys(loadedVaults.value)[0] || null
       }
+      if (selectedVaultId.value === id) {
+        selectedVaultId.value = activeVaultId.value
+      }
 
       // Show appropriate notification
       if (hardDelete) {
@@ -166,11 +172,13 @@ export const useVaultStore = defineStore('vault', () => {
   }
 
   async function loadVault(id: string, token: string) {
+    const requestGeneration = sessionGeneration
     isLoading.value = true
     try {
       const response = await axios.get(`/api/v1/vaults/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
+      if (requestGeneration !== sessionGeneration) return
       loadedVaults.value[id] = response.data
       activeVaultId.value = id
       selectedVaultId.value = id
@@ -184,10 +192,12 @@ export const useVaultStore = defineStore('vault', () => {
   }
 
   async function refreshVault(id: string, token: string) {
+    const requestGeneration = sessionGeneration
     try {
       const response = await axios.get(`/api/v1/vaults/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
+      if (requestGeneration !== sessionGeneration) return
       loadedVaults.value[id] = response.data
       activeVaultId.value = id
       selectedVaultId.value = id
@@ -213,6 +223,18 @@ export const useVaultStore = defineStore('vault', () => {
         stopGameTickSse()
       }
     }
+  }
+
+  function clearSession(): void {
+    ++sessionGeneration
+    stopResourcePolling()
+    vaults.value = []
+    loadedVaults.value = {}
+    resourceRates.value = {}
+    activeVaultId.value = null
+    selectedVaultId.value = null
+    gameState.value = null
+    isLoading.value = false
   }
 
   async function fetchGameState(vaultId: string, token: string) {
@@ -327,7 +349,8 @@ export const useVaultStore = defineStore('vault', () => {
     }
   }
 
-  function startResourcePolling(vaultId?: string, token?: string) {    if (!isPollingActive.value) {
+  function startResourcePolling(vaultId?: string, token?: string) {
+    if (!isPollingActive.value) {
       resumePolling()
     }
     if (vaultId && token) {
@@ -364,6 +387,7 @@ export const useVaultStore = defineStore('vault', () => {
     refreshVault,
     setActiveVault,
     closeVaultTab,
+    clearSession,
     fetchGameState,
     pauseVault,
     resumeVault,

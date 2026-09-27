@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
-import { useVaultStore } from '@/modules/vault/stores/vault'
 import DwellerChat from './DwellerChat.vue'
 import { isMature, type Dweller } from '@/modules/dwellers/models/dweller'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
@@ -28,10 +27,9 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore()
 const { filter: dwellerStore } = useDwellerStore()
-const vaultStore = useVaultStore()
 
 const dweller = ref<Dweller | null>(null)
-const username = ref(authStore.user?.username || 'User')
+const username = computed(() => authStore.user?.username || 'User')
 const vaultId = computed(() => props.vaultId ?? dweller.value?.vault?.id ?? null)
 
 const title = computed(() => {
@@ -39,17 +37,17 @@ const title = computed(() => {
   return `${dweller.value.first_name} ${dweller.value.last_name ?? ''}`.trim()
 })
 
-// Mirrors DwellerChatPage's data loading: fetch the dweller, derive the vault,
-// and hydrate the vault store so chat actions can refresh it after the fact.
+// Fetch the dweller and pass its vault ID to chat actions without changing the selected vault.
 const { run: runLoadDweller, isLoading } = useAsyncAction(
   async (currentDwellerId: string, token: string) => {
+    const requestedUserId = authStore.user?.id
     const result = await dwellerStore.fetchDwellerDetails(currentDwellerId, token)
     if (!result) throw new Error('Failed to fetch dweller data')
+    if (!authStore.token || (requestedUserId && requestedUserId !== authStore.user?.id)) {
+      return result
+    }
 
     dweller.value = result
-    if (result.vault?.id && vaultStore.activeVaultId !== result.vault.id) {
-      await vaultStore.loadVault(result.vault.id, token)
-    }
     return result
   },
   { context: 'Error fetching dweller data', showToast: false }
@@ -58,6 +56,28 @@ const { run: runLoadDweller, isLoading } = useAsyncAction(
 onMounted(async () => {
   if (authStore.token) await runLoadDweller(props.dwellerId, authStore.token)
 })
+
+watch(
+  () => authStore.token,
+  (token) => {
+    if (!token) {
+      dweller.value = null
+      emit('close')
+    }
+  },
+  { flush: 'sync' }
+)
+
+watch(
+  () => authStore.user?.id,
+  (userId, previousUserId) => {
+    if (previousUserId && userId !== previousUserId) {
+      dweller.value = null
+      emit('close')
+    }
+  },
+  { flush: 'sync' }
+)
 </script>
 
 <template>

@@ -17,6 +17,7 @@ import {
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { useFeatureFlagsStore } from './featureFlags'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 
 /**
  * Non-null limit for complete-fetch requests (fetchAllDwellers). The backend
@@ -119,11 +120,23 @@ type DwellerFetchOptions = {
 }
 
 export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
+  const authStore = useAuthStore()
   // State
   const dwellers = ref<DwellerShort[]>([])
   const allDwellers = ref<DwellerShort[]>([])
   const detailedDwellers = ref<Record<string, Dweller | null>>({})
   let dwellersRequestSeq = 0
+  let cacheGeneration = 0
+  const cacheIdentity = computed(() => authStore.user?.id ?? authStore.token)
+
+  watch(
+    cacheIdentity,
+    () => {
+      detailedDwellers.value = {}
+      ++cacheGeneration
+    },
+    { flush: 'sync' }
+  )
 
   function toQueryParams(options: DwellerFetchOptions = {}): DwellerQueryParams {
     return {
@@ -339,8 +352,10 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       return null
     }
     if (detailedDwellers.value[id] && !forceRefresh) return detailedDwellers.value[id] ?? null
+    const requestGeneration = cacheGeneration
     try {
       const dweller = await getDweller(id, token)
+      if (cacheGeneration !== requestGeneration) return null
       detailedDwellers.value[id] = dweller
       return dweller
     } catch (error) {

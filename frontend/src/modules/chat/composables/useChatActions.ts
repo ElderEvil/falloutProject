@@ -65,7 +65,7 @@ export function useChatActions(options: UseChatActionsOptions) {
         return false
       }
 
-      const vaultId = vaultStore.activeVaultId
+      const vaultId = options.vaultId ?? vaultStore.activeVaultId
       if (!vaultId) {
         toast.error('Unable to access vault data')
         return false
@@ -140,7 +140,7 @@ export function useChatActions(options: UseChatActionsOptions) {
   const handleStartExploration = async (action: StartExplorationAction): Promise<boolean> => {
     if (!authStore.token) return false
 
-    const vaultId = vaultStore.activeVaultId
+    const vaultId = options.vaultId ?? vaultStore.activeVaultId
     if (!vaultId) {
       toast.error('No vault selected')
       return false

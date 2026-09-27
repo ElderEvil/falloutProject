@@ -90,6 +90,7 @@ describe('Vault Store', () => {
       const store = useVaultStore()
       store.loadedVaults = { 'vault-1': mockVault }
       store.activeVaultId = 'vault-1'
+      store.selectedVaultId = 'vault-1'
 
       expect(store.activeVault).toEqual(mockVault)
     })
@@ -218,6 +219,7 @@ describe('Vault Store', () => {
       store.vaults = [mockVault, { ...mockVault, id: 'vault-2' }]
       store.loadedVaults = { 'vault-1': mockVault }
       store.activeVaultId = 'vault-1'
+      store.selectedVaultId = 'vault-1'
 
       vi.mocked(axios.delete).mockResolvedValueOnce({})
 
@@ -227,6 +229,8 @@ describe('Vault Store', () => {
       expect(store.vaults[0].id).toBe('vault-2')
       expect(store.loadedVaults['vault-1']).toBeUndefined()
       expect(store.activeVaultId).toBeNull()
+      expect(store.selectedVaultId).toBeNull()
+      expect(store.currentVaultId).toBeNull()
     })
 
     it('should set new active vault when deleting current active vault', async () => {
@@ -235,12 +239,14 @@ describe('Vault Store', () => {
       store.vaults = [mockVault, vault2]
       store.loadedVaults = { 'vault-1': mockVault, 'vault-2': vault2 }
       store.activeVaultId = 'vault-1'
+      store.selectedVaultId = 'vault-1'
 
       vi.mocked(axios.delete).mockResolvedValueOnce({})
 
       await store.deleteVault('vault-1', 'test-token')
 
       expect(store.activeVaultId).toBe('vault-2')
+      expect(store.selectedVaultId).toBe('vault-2')
     })
 
     it('should handle delete error gracefully', async () => {

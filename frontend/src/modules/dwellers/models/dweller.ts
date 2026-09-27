@@ -54,6 +54,29 @@ export const GENDER_CONFIG_MAP: Record<components['schemas']['GenderEnum'], Badg
   female: { color: 'var(--badge-gender-female)', icon: 'mdi:gender-female', label: 'Female', category: 'Gender' },
 }
 
+/**
+ * Faction → display config — single source of truth for faction chips.
+ * Only icon + label: like races, factions carry no accent color.
+ */
+export const FACTION_CONFIG_MAP: Record<
+  components['schemas']['FactionEnum'],
+  Pick<BadgeConfig, 'icon' | 'label'>
+> = {
+  none: { icon: 'mdi:close-circle-outline', label: 'None' },
+  vault_dweller: { icon: 'mdi:home-account', label: 'Vault Dweller' },
+  brotherhood_of_steel: { icon: 'mdi:anvil', label: 'Brotherhood Of Steel' },
+  enclave: { icon: 'mdi:castle', label: 'Enclave' },
+  minutemen: { icon: 'mdi:clock-time-four-outline', label: 'Minutemen' },
+  raiders: { icon: 'mdi:axe', label: 'Raiders' },
+  super_mutant_tribe: { icon: 'mdi:arm-flex', label: 'Super Mutant Tribe' },
+  children_of_atom: { icon: 'mdi:atom', label: 'Children Of Atom' },
+  the_institute: { icon: 'mdi:flask-outline', label: 'The Institute' },
+  railroad: { icon: 'mdi:train', label: 'Railroad' },
+  // 'NCR' diverges from formatIdentityLabel's title case ('Ncr') — the acronym reads wrong.
+  ncr: { icon: 'mdi:shield-star-outline', label: 'NCR' },
+  caesars_legion: { icon: 'mdi:roman-numerals', label: 'Caesars Legion' },
+}
+
 export const RARITY_CONFIG_MAP: Record<components['schemas']['RarityEnum'], BadgeConfig> = {
   common: { color: 'var(--badge-rarity-common)', icon: 'mdi:star-outline', label: 'Common', category: 'Rarity' },
   rare: { color: 'var(--badge-rarity-rare)', icon: 'mdi:star', label: 'Rare', category: 'Rarity' },

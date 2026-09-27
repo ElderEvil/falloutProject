@@ -119,7 +119,10 @@ describe('DwellerFilterPanel', () => {
 })
 
 describe('Identity filters', () => {
-  it('hides the faction select while the switch is off', async () => {
+  const chipByLabel = (wrapper: ReturnType<typeof mount>, label: string) =>
+    wrapper.findAll('.filter-chip').find((chip) => chip.text().includes(label))!
+
+  it('hides the faction chips while the switch is off', async () => {
     const flags = useFeatureFlagsStore()
     flags.factionMechanics = false
     // Mark flags loaded so mounting does not refetch and re-enable the switch.
@@ -127,7 +130,9 @@ describe('Identity filters', () => {
     const wrapper = mount(DwellerFilterPanel, { props: { showIdentityFilters: true } })
     await flushPromises()
 
+    expect(wrapper.text()).not.toContain('Filter by Faction')
     expect(wrapper.text()).not.toContain('All Factions')
+    expect(wrapper.text()).toContain('Filter by Race')
     expect(wrapper.text()).toContain('All Races')
     wrapper.unmount()
   })
@@ -162,14 +167,14 @@ describe('Identity filters', () => {
     })
     await flushPromises()
 
-    // One change per tick, the way a user clicks the two selects.
-    store.setFilterRace('ghoul')
+    // One change per tick, the way a user clicks the two chip groups.
+    await chipByLabel(wrapper, 'Ghoul').trigger('click')
     await flushPromises()
-    store.setFilterFaction('children_of_atom')
+    await chipByLabel(wrapper, 'Children Of Atom').trigger('click')
     await flushPromises()
     expect(store.filterFaction).toBe('children_of_atom')
 
-    store.setFilterRace('super_mutant')
+    await chipByLabel(wrapper, 'Super Mutant').trigger('click')
     await flushPromises()
 
     expect(store.filterFaction).toBe('all')

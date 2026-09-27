@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.152.1 (2026-09-27)
+
+### Bug Fixes
+
+* correct room tile overlays and scope its tooltip to the info bar c2bf841
+* keep the shared item card off the forbidden core -> module edge 6970ee7
+* normalize item type, subtype and uses casing 63c3444
+
+### Code Refactoring
+
+* drop the status badge from room dweller avatars d67f64a
+* share one item presentation between the dweller and storage cards 1556549
+* use a styled tooltip on the notification bell e4aeb1b
+* use styled tooltips on the game control panel b826e26
+* use the styled tooltip on the build control 1c6c2e5
+
 ## 2.152.0 (2026-09-27)
 
 ### Features

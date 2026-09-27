@@ -110,16 +110,18 @@ describe('VaultView', () => {
   })
 
   describe('Build control', () => {
-    it('renders the build control before the room grid so it is visible on entry', async () => {
+    it('floats the build control over the top right of the room grid', async () => {
       const { wrapper } = await mountLoadedVault()
 
       const grid = wrapper.find('[data-testid="room-grid"]')
       const buildButton = wrapper.findComponent(BuildModeButton)
+      const buildControl = wrapper.find('.build-control')
 
       expect(grid.exists()).toBe(true)
       expect(buildButton.exists()).toBe(true)
       expect(buildButton.isVisible()).toBe(true)
-      // The control appears before the panels and grid, near the top of the vault view.
+      expect(buildControl.classes()).toEqual(expect.arrayContaining(['absolute', 'right-4', 'top-4']))
+      expect(buildControl.element.parentElement).toBe(grid.element.parentElement)
       expect(
         buildButton.element.compareDocumentPosition(grid.element) & Node.DOCUMENT_POSITION_FOLLOWING
       ).toBeTruthy()

@@ -306,13 +306,6 @@ const reviewActiveIncidents = () => {
         <div class="container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8">
           <GameControlPanel v-if="vaultId" :vaultId="vaultId" />
 
-          <div class="build-control mb-4 flex w-full justify-end">
-            <BuildModeButton
-              :buildModeActive="buildModeActive"
-              @toggleBuildMode="toggleBuildMode"
-            />
-          </div>
-
           <!-- Incident Alert Banner -->
           <div v-if="activeIncidents.length > 0" class="w-full mb-4">
             <IncidentAlert :incidents="activeIncidents" @click="handleIncidentClicked" />
@@ -329,7 +322,13 @@ const reviewActiveIncidents = () => {
           </div>
 
           <!-- Room Grid -->
-          <div class="w-full">
+          <div class="relative w-full">
+            <div class="build-control absolute right-4 top-4 z-30">
+              <BuildModeButton
+                :buildModeActive="buildModeActive"
+                @toggleBuildMode="toggleBuildMode"
+              />
+            </div>
             <RoomGrid
               :incidents="activeIncidents"
               :highlightedRoomId="highlightedRoomId"

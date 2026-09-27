@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.151.0 (2026-09-27)
+
+### Features
+
+* align pregnancy stage with relationship cards 0b6510c
+* show race and family potential in relationships 82d4110
+* show relationship bond growth and charisma 6b78776
+* unify management page metrics and relationship cards 6f7f354
+
+### Bug Fixes
+
+* address relationship review findings 01f5b0b
+* align relationship cards and remove redundant controls 2df513e
+* balance relationship dweller details 59c7caa
+
+### Code Refactoring
+
+* reuse relationship dweller profile 4c71480
+
 ## 2.150.1 (2026-09-27)
 
 ### Bug Fixes

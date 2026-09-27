@@ -19,6 +19,7 @@ from app.models.notification import NotificationType
 from app.models.relationship import Relationship
 from app.schemas.relationship import CompatibilityScore, VaultRelationshipRead
 from app.services.bio_service import bio_service
+from app.services.family.breeding_service import conception_potential
 from app.services.notification_service import NotificationService
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
@@ -39,14 +40,30 @@ class RelationshipService:
     ) -> list[VaultRelationshipRead]:
         """Describe bond growth using the same room and rate rules as the game tick."""
         relationships = await relationship_crud.get_by_vault(db_session, vault_id)
+        if not relationships:
+            return []
         living_quarters_dwellers = await dweller_crud.get_living_quarters_dwellers(db_session, vault_id)
-        dwellers_by_id = {dweller.id: dweller for dweller in living_quarters_dwellers}
+        dwellers = await dweller_crud.get_by_ids_in_vault(
+            db_session,
+            list(
+                {
+                    dweller_id
+                    for relationship in relationships
+                    for dweller_id in (relationship.dweller_1_id, relationship.dweller_2_id)
+                }
+            ),
+            vault_id,
+        )
+        dwellers_by_id = {dweller.id: dweller for dweller in dwellers}
+        living_quarters_ids = {dweller.id for dweller in living_quarters_dwellers}
 
         result = []
         for relationship in relationships:
-            first = dwellers_by_id.get(relationship.dweller_1_id)
-            second = dwellers_by_id.get(relationship.dweller_2_id)
-            growing_together = first is not None and second is not None and first.room_id == second.room_id
+            first = dwellers_by_id[relationship.dweller_1_id]
+            second = dwellers_by_id[relationship.dweller_2_id]
+            growing_together = (
+                first.id in living_quarters_ids and second.id in living_quarters_ids and first.room_id == second.room_id
+            )
             growth = affinity_gain(first, second) if growing_together and relationship.affinity < 100 else 0
             result.append(
                 VaultRelationshipRead.model_validate(
@@ -54,6 +71,7 @@ class RelationshipService:
                     update={
                         "bond_growth_per_tick": growth,
                         "bond_tick_seconds": game_config.game_loop.tick_interval,
+                        "conception_potential": conception_potential(first, second),
                     },
                 )
             )

@@ -7,18 +7,18 @@
         <button
           type="button"
           :title="`View ${dweller1Name}`"
-          class="group flex min-h-40 min-w-0 flex-col items-center justify-center gap-1.5 rounded border border-theme-primary/20 bg-surface-sunken px-2 py-2 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
+          class="group flex min-h-36 min-w-0 flex-col items-center justify-center gap-1 rounded border border-theme-primary/20 bg-surface-sunken px-2 py-1.5 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
           @click="emit('select-dweller', relationship.dweller_1_id)"
         >
           <span
-            class="dweller-portrait-frame flex size-20 shrink-0 items-center justify-center overflow-hidden rounded bg-black/30"
+            class="dweller-portrait-frame flex size-16 shrink-0 items-center justify-center overflow-hidden rounded bg-black/30"
           >
             <DwellerPortrait
               :thumbnail-url="dweller1.thumbnail_url"
               :alt="dweller1Name"
               prefer-thumbnail
               image-class="h-full w-full object-cover"
-              fallback-class="h-12 w-12 text-theme-primary/60"
+              fallback-class="h-10 w-10 text-theme-primary/60"
             />
           </span>
           <span
@@ -26,14 +26,16 @@
             >{{ dweller1Name }}</span
           >
           <span class="flex items-center justify-center gap-1.5">
-            <span class="text-[0.65rem] font-bold tracking-[0.08em] text-theme-primary/55"
-              >LVL {{ dweller1.level }}</span
-            >
             <span class="text-[0.65rem] font-bold text-theme-primary/70" title="Charisma"
               >C {{ dweller1.charisma }}</span
             >
             <DwellerGenderBadge :gender="dweller1.gender" size="sm" />
           </span>
+          <DwellerRaceBadge
+            :race="dweller1.visual_attributes?.race ?? 'human'"
+            show-label
+            size="sm"
+          />
         </button>
         <div class="flex flex-col items-center justify-center gap-1 text-theme-primary/70">
           <Icon
@@ -59,18 +61,18 @@
         <button
           type="button"
           :title="`View ${dweller2Name}`"
-          class="group flex min-h-40 min-w-0 flex-col items-center justify-center gap-1.5 rounded border border-theme-primary/20 bg-surface-sunken px-2 py-2 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
+          class="group flex min-h-36 min-w-0 flex-col items-center justify-center gap-1 rounded border border-theme-primary/20 bg-surface-sunken px-2 py-1.5 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
           @click="emit('select-dweller', relationship.dweller_2_id)"
         >
           <span
-            class="dweller-portrait-frame flex size-20 shrink-0 items-center justify-center overflow-hidden rounded bg-black/30"
+            class="dweller-portrait-frame flex size-16 shrink-0 items-center justify-center overflow-hidden rounded bg-black/30"
           >
             <DwellerPortrait
               :thumbnail-url="dweller2.thumbnail_url"
               :alt="dweller2Name"
               prefer-thumbnail
               image-class="h-full w-full object-cover"
-              fallback-class="h-12 w-12 text-theme-primary/60"
+              fallback-class="h-10 w-10 text-theme-primary/60"
             />
           </span>
           <span
@@ -78,14 +80,16 @@
             >{{ dweller2Name }}</span
           >
           <span class="flex items-center justify-center gap-1.5">
-            <span class="text-[0.65rem] font-bold tracking-[0.08em] text-theme-primary/55"
-              >LVL {{ dweller2.level }}</span
-            >
             <span class="text-[0.65rem] font-bold text-theme-primary/70" title="Charisma"
               >C {{ dweller2.charisma }}</span
             >
             <DwellerGenderBadge :gender="dweller2.gender" size="sm" />
           </span>
+          <DwellerRaceBadge
+            :race="dweller2.visual_attributes?.race ?? 'human'"
+            show-label
+            size="sm"
+          />
         </button>
       </div>
       <div class="rounded border border-theme-primary/20 bg-surface-sunken p-3">
@@ -119,7 +123,7 @@
     </div>
     <div
       v-if="isPartnerLinked"
-      class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-theme-primary/15 pt-2"
+      class="mt-auto flex flex-wrap items-center gap-1.5 border-t border-theme-primary/15 pt-2"
     >
       <span class="text-[0.65rem] font-bold uppercase tracking-[0.1em] text-theme-primary/55"
         >GEN {{ generation }}</span
@@ -160,8 +164,30 @@
         </button>
       </template>
       <span v-else class="text-xs text-theme-primary/40">No children yet</span>
+      <span v-if="familyPotentialLabel" class="text-xs text-theme-primary/60">
+        {{ familyPotentialLabel }}
+      </span>
     </div>
-    <div class="mt-auto flex min-h-8 flex-wrap justify-end gap-2 pt-3">
+    <div
+      v-else-if="familyPotentialLabel"
+      class="mt-auto flex items-start gap-2 border-t border-theme-primary/15 pt-2 text-xs text-theme-primary/70"
+    >
+      <Icon
+        :icon="relationship.relationship_type === 'ex' ? 'mdi:heart-broken' : 'mdi:human-child'"
+        class="h-4 w-4 shrink-0"
+        :ariaHidden="true"
+      />
+      <div>
+        <p class="font-bold text-theme-primary/80">{{ familyPotentialLabel }}</p>
+        <p
+          v-if="relationship.conception_potential === 'possible'"
+          class="mt-1 text-theme-primary/55"
+        >
+          Partnership, Living Quarters and vault space needed
+        </p>
+      </div>
+    </div>
+    <div v-if="hasActions" class="flex flex-wrap justify-end gap-2 pt-3">
       <Button
         v-if="relationship.relationship_type === 'acquaintance' && relationship.affinity >= 70"
         variant="default"
@@ -218,6 +244,7 @@ import type { Pregnancy } from '../../models/pregnancy'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import DwellerGenderBadge from '@/modules/dwellers/components/DwellerGenderBadge.vue'
+import DwellerRaceBadge from '@/modules/dwellers/components/DwellerRaceBadge.vue'
 import ChildChip from './ChildChip.vue'
 import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
@@ -289,6 +316,29 @@ const badgeClass = computed(() => {
 const isPartnerLinked = computed(() =>
   isRelationshipType(props.relationship.relationship_type, PARTNER_LINKED_RELATIONSHIP_TYPES)
 )
+
+const hasActions = computed(
+  () =>
+    (props.relationship.relationship_type === 'acquaintance' &&
+      props.relationship.affinity >= 70) ||
+    isRelationshipType(props.relationship.relationship_type, COMMITTED_RELATIONSHIP_TYPES)
+)
+
+const familyPotentialLabel = computed(() => {
+  if (props.relationship.relationship_type === 'ex') return 'Former couple'
+  switch (props.relationship.conception_potential) {
+    case 'possible':
+      return 'Could start a family'
+    case 'race':
+      return 'Only Human pairs can have children'
+    case 'age':
+      return 'Both need to be adults'
+    case 'gender':
+      return 'This pair cannot have children'
+    default:
+      return null
+  }
+})
 
 const { nextMilestone } = useRelationshipMilestone(() => props.relationship)
 

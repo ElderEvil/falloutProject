@@ -1,5 +1,7 @@
 """Pydantic schemas for relationship management."""
 
+from typing import Literal
+
 from pydantic import UUID4
 from sqlmodel import SQLModel
 from sqlmodel.main import SQLModelConfig
@@ -37,6 +39,7 @@ class VaultRelationshipRead(RelationshipRead):
 
     bond_growth_per_tick: int
     bond_tick_seconds: int
+    conception_potential: Literal["possible", "race", "age", "gender"]
 
 
 class CompatibilityScore(SQLModel):

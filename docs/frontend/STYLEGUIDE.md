@@ -338,6 +338,7 @@ This section records the current visual decisions for vault-management screens. 
 - Relationship stages communicate gameplay state; do not encode couple orientation with colors, icons, labels, or mechanics.
 - The relationship list uses one responsive paired-identity grid, with matching portrait frames for image and fallback states.
 - Bond cards show each dweller's Charisma and the backend's current bond growth; resting bonds point players toward Living Quarters.
+- Relationship cards show race and family potential from the same eligibility rules used by conception checks. A potential cue describes the pair; room, partnership, space, and cooldowns still control pregnancy.
 - Do not add decorative relationship animation by default.
 - CRT scanlines belong to intentional terminal components, never as a page-wide overlay on the Relationships & Family screen.
 

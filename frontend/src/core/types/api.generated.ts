@@ -10358,6 +10358,11 @@ export interface components {
             bond_growth_per_tick: number;
             /** Bond Tick Seconds */
             bond_tick_seconds: number;
+            /**
+             * Conception Potential
+             * @enum {string}
+             */
+            conception_potential: "possible" | "race" | "age" | "gender";
         };
         /** VaultUpdate */
         VaultUpdate: {

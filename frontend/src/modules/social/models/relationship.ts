@@ -54,6 +54,7 @@ export interface Relationship {
   affinity: number // 0-100
   bond_growth_per_tick?: number
   bond_tick_seconds?: number
+  conception_potential?: 'possible' | 'race' | 'age' | 'gender'
   created_at?: string
   updated_at?: string
 }

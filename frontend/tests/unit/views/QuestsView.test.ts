@@ -989,7 +989,7 @@ describe('QuestsView', () => {
       expect(routerReplaceMock).toHaveBeenCalledWith({ query: { quest: undefined } })
     })
 
-    it('does not route a completed quest to its detail modal from the card', async () => {
+    it('opens completed quest details from its title', async () => {
       questStore.vaultQuests = [
         {
           id: 'quest-9',
@@ -1014,7 +1014,7 @@ describe('QuestsView', () => {
             Icon: true,
             QuestCard: {
               template:
-                '<div><button class="view-btn" @click="$emit(\'view\', quest.id)">View Details</button></div>',
+                '<div><button class="view-btn" @click="$emit(\'view\', quest.id)">Finished Quest</button></div>',
               props: ['quest', 'vaultId', 'status', 'partyMembers'],
               emits: ['view'],
             },
@@ -1029,7 +1029,9 @@ describe('QuestsView', () => {
       await flushPromises()
       await wrapper.find('.view-btn').trigger('click')
 
-      expect(routerPushMock).not.toHaveBeenCalled()
+      expect(routerPushMock).toHaveBeenCalledWith({
+        query: { quest: 'quest-9', claimQuest: undefined },
+      })
     })
 
     it('starts a state quest directly from the modal and closes it', async () => {
@@ -1074,6 +1076,66 @@ describe('QuestsView', () => {
 
       expect(startSpy).toHaveBeenCalledWith('vault-123', 'quest-9')
       expect(routerReplaceMock).toHaveBeenCalledWith({ query: { quest: undefined } })
+    })
+
+    it('uses the store refresh after starting a state quest so it leaves the Available tab', async () => {
+      // startQuest owns the quest refresh; simulate its server result here.
+      const fetchSpy = vi.spyOn(questStore, 'fetchVaultQuests').mockImplementation(async () => {
+        questStore.vaultQuests = [{ ...questStore.vaultQuests[0]!, is_reward_ready: true }]
+      })
+      const startSpy = vi.spyOn(questStore, 'startQuest').mockImplementation(async (vaultId) => {
+        await questStore.fetchVaultQuests(vaultId, { silent: true })
+      })
+      questStore.vaultQuests = [
+        {
+          id: 'quest-9',
+          title: 'Training Quest',
+          short_description: 'Train a dweller',
+          long_description: 'Training objective description.',
+          requirements: '',
+          rewards: '',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          started_at: null,
+          duration_minutes: 60,
+          quest_category: 'training',
+        },
+      ]
+      routeQuery.quest = 'quest-9'
+
+      wrapper = mount(QuestsView, {
+        global: {
+          stubs: {
+            SidePanel: true,
+            Icon: true,
+            QuestDetailModal: {
+              template:
+                '<div class="mock-quest-modal"><button class="mock-quest-modal-start" @click="$emit(\'start\', questId)">Start</button></div>',
+              props: ['questId', 'vaultId'],
+              emits: ['close', 'select', 'start'],
+            },
+          },
+        },
+      })
+
+      await wrapper.vm.$nextTick()
+      // Ignore the mount-time fetch; only the post-start refetch proves the fix.
+      fetchSpy.mockClear()
+
+      await wrapper.find('.mock-quest-modal-start').trigger('click')
+      await flushPromises()
+
+      expect(startSpy).toHaveBeenCalledWith('vault-123', 'quest-9')
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+      expect(fetchSpy).toHaveBeenCalledWith('vault-123', { silent: true })
+
+      const availableTab = wrapper.findAll('[role="tab"]')[1]
+      await availableTab.trigger('mousedown')
+      await flushPromises()
+
+      expect(wrapper.text()).not.toContain('Training Quest')
     })
 
     it('starts a state quest once when the start action repeats', async () => {

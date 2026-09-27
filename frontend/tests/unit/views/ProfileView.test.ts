@@ -138,6 +138,51 @@ describe('ProfileView', () => {
       expect(sidePanel.exists()).toBe(true)
       expect(sidePanel.props('vaultId')).toBe('vault-1')
     })
+
+    it('points back navigation at the persisted vault after a direct /profile load', async () => {
+      mockBothApis()
+      // Simulate a refresh: only the persisted selection survives, so the
+      // back fallback must resolve to that vault instead of `/`.
+      vaultStore.activeVaultId = null
+      vaultStore.selectedVaultId = 'vault-1'
+      await router.push('/profile')
+      await router.isReady()
+
+      const wrapper = mount(ProfileView, {
+        global: {
+          plugins: [router],
+        },
+      })
+      await flushPromises()
+
+      const backButton = wrapper.findAll('button').find((btn) => btn.text().includes('Back'))
+      expect(backButton?.exists()).toBe(true)
+      await backButton?.trigger('click')
+      await flushPromises()
+
+      expect(router.currentRoute.value.path).toBe('/vault/vault-1')
+    })
+
+    it('resolves the vault shortcut to the persisted vault after a direct /profile load', async () => {
+      mockBothApis()
+      // Simulate a refresh: neither the loaded vaults nor the fetched vault
+      // list survive, so the shortcut must resolve from the persisted id.
+      vaultStore.activeVaultId = null
+      vaultStore.selectedVaultId = 'vault-1'
+      await router.push('/profile')
+      await router.isReady()
+
+      const wrapper = mount(ProfileView, {
+        global: {
+          plugins: [router],
+        },
+      })
+      await flushPromises()
+
+      const shortcut = wrapper.find('a[href="/vault/vault-1"]')
+      expect(shortcut.exists()).toBe(true)
+      expect(wrapper.text()).not.toContain('Vault undefined')
+    })
   })
 
   describe('Component Mounting', () => {
@@ -177,13 +222,17 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      expect(vi.mocked(axios.get).mock.calls.filter(([url]) => url === '/api/v1/users/me/profile')).toHaveLength(1)
+      expect(
+        vi.mocked(axios.get).mock.calls.filter(([url]) => url === '/api/v1/users/me/profile')
+      ).toHaveLength(1)
 
       const refresh = usePollingMock.mock.calls[0]?.[0]
       expect(refresh).toBeTypeOf('function')
       await refresh?.()
 
-      expect(vi.mocked(axios.get).mock.calls.filter(([url]) => url === '/api/v1/users/me/profile')).toHaveLength(2)
+      expect(
+        vi.mocked(axios.get).mock.calls.filter(([url]) => url === '/api/v1/users/me/profile')
+      ).toHaveLength(2)
     })
 
     it('should fetch death statistics on mount', async () => {

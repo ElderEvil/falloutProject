@@ -223,11 +223,18 @@ const handleStartFromModal = async (questId: string) => {
     isStarting.value = true
     try {
       await questStore.startQuest(vaultId.value, quest.id)
+    } catch {
+      // startQuest reports the failure; keep the detail modal open for a retry.
+      isStarting.value = false
+      return
+    }
+    try {
+      await loadPartyMembers()
+      // A chain click during the await can select a different quest; only close that one's modal.
+      if (selectedQuestId.value === questId) closeQuest()
     } finally {
       isStarting.value = false
     }
-    // A chain click during the await can select a different quest; only close that one's modal.
-    if (selectedQuestId.value === questId) closeQuest()
     return
   }
 
@@ -462,6 +469,7 @@ onMounted(async () => {
                       :quest="quest"
                       :vault-id="vaultId"
                       status="completed"
+                      @view="openQuest"
                     />
                   </div>
                 </div>

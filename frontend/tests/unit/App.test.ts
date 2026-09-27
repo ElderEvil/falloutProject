@@ -1,8 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
-import { mount } from '@vue/test-utils'
-import { createPinia } from 'pinia'
+import { reactive, ref } from 'vue'
+import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import App from '@/App.vue'
+import DwellerChatModal from '@/modules/chat/components/DwellerChatModal.vue'
+import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+
+// App hosts the global chat modal via the ?chat= query param; without a router
+// installed the composables would throw, so stub them for the mount smoke tests.
+const routeQuery = reactive<Record<string, string | undefined>>({})
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ query: routeQuery }),
+  useRouter: () => ({ replace: vi.fn() }),
+}))
 
 const profileStoreMock = vi.hoisted(() => ({
   ensureProfileLoaded: vi.fn(),
@@ -48,7 +59,9 @@ vi.mock('@/core/composables/useVersionDetection', () => ({
     hideChangelog: vi.fn(),
   }),
 }))
-vi.mock('@/core/composables/useGaryMode', () => ({ useGaryMode: () => ({ isGaryMode: ref(false) }) }))
+vi.mock('@/core/composables/useGaryMode', () => ({
+  useGaryMode: () => ({ isGaryMode: ref(false) }),
+}))
 vi.mock('@/core/composables/useFakeCrash', () => ({
   useFakeCrash: () => ({ isCrashing: ref(false), resetCrash: vi.fn() }),
 }))
@@ -56,6 +69,7 @@ vi.mock('@/core/composables/useFakeCrash', () => ({
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    routeQuery.chat = undefined
   })
 
   afterEach(() => {
@@ -66,7 +80,7 @@ describe('App', () => {
   it('mounts without unresolved-component warnings after Nuxt UI removal', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-    mount(App, {
+    const wrapper = mount(App, {
       global: {
         plugins: [createPinia()],
         stubs: {
@@ -82,12 +96,13 @@ describe('App', () => {
 
     expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('Failed to resolve component'))
     expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('UApp'))
+    wrapper.unmount()
   })
 
   it('loads the profile when authenticated', () => {
     localStorage.setItem('token', 'test-token')
 
-    mount(App, {
+    const wrapper = mount(App, {
       global: {
         plugins: [createPinia()],
         stubs: {
@@ -103,10 +118,11 @@ describe('App', () => {
 
     expect(profileStoreMock.ensureProfileLoaded).toHaveBeenCalled()
     expect(profileStoreMock.clearProfile).not.toHaveBeenCalled()
+    wrapper.unmount()
   })
 
   it('clears the profile when not authenticated', () => {
-    mount(App, {
+    const wrapper = mount(App, {
       global: {
         plugins: [createPinia()],
         stubs: {
@@ -122,5 +138,39 @@ describe('App', () => {
 
     expect(profileStoreMock.clearProfile).toHaveBeenCalled()
     expect(profileStoreMock.ensureProfileLoaded).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('remounts chat when the query switches directly to another dweller', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useAuthStore().token = 'mock-token'
+    const fetchDweller = vi
+      .spyOn(useDwellerStore().filter, 'fetchDwellerDetails')
+      .mockResolvedValue(null)
+    routeQuery.chat = 'dweller-1'
+    const wrapper = mount(App, {
+      global: {
+        plugins: [pinia],
+        stubs: {
+          DefaultLayout: { template: '<main><slot /></main>' },
+          GaryOverlay: true,
+          FakeCrashOverlay: true,
+          'router-view': true,
+        },
+      },
+    })
+    await flushPromises()
+    const firstChat = wrapper.findComponent(DwellerChatModal)
+    expect(firstChat.exists()).toBe(true)
+    expect(fetchDweller).toHaveBeenCalledWith('dweller-1', 'mock-token')
+
+    routeQuery.chat = 'dweller-2'
+    await flushPromises()
+
+    const secondChat = wrapper.findComponent(DwellerChatModal)
+    expect(secondChat.props('dwellerId')).toBe('dweller-2')
+    expect(fetchDweller).toHaveBeenCalledWith('dweller-2', 'mock-token')
+    wrapper.unmount()
   })
 })

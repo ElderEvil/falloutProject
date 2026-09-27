@@ -33,6 +33,7 @@ const emit = defineEmits<{
   start: [questId: string]
   claim: [questId: string]
   assignParty: [questId: string]
+  view: [questId: string]
 }>()
 
 const timeRemaining = ref<string | null>(null)
@@ -278,100 +279,124 @@ const handleAction = () => {
     <div class="quest-card-content flex-1">
       <!-- Header -->
       <div class="quest-header">
-      <h3 class="quest-title">{{ quest.title }}</h3>
-      <div class="quest-badges">
-        <QuestTypeBadge :quest-type="quest.quest_type" />
-        <Badge
-          v-if="quest.quest_category"
-          :variant="isBorderedCategory ? 'outline' : 'secondary'"
-          class="category-badge"
-        >
-          {{ quest.quest_category }}
-        </Badge>
-        <Badge v-if="isChainQuest" variant="outline" class="chain-badge">
-          <Icon icon="mdi:link-variant" class="inline-icon" />
-          {{ chainPosition }}
-        </Badge>
-        <Badge v-if="isLocked" variant="outline" class="locked-badge">
-          <Icon icon="mdi:lock" class="inline-icon" />
+        <h3 class="quest-title">
+          <button
+            v-if="status === 'completed'"
+            type="button"
+            class="text-left underline decoration-theme-primary/50 underline-offset-4 hover:decoration-theme-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary"
+            :aria-label="`View ${quest.title} details`"
+            @click="emit('view', quest.id)"
+          >
+            {{ quest.title }}
+          </button>
+          <template v-else>{{ quest.title }}</template>
+        </h3>
+        <div class="quest-badges">
+          <QuestTypeBadge :quest-type="quest.quest_type" />
+          <Badge
+            v-if="quest.quest_category"
+            :variant="isBorderedCategory ? 'outline' : 'secondary'"
+            class="category-badge"
+          >
+            {{ quest.quest_category }}
+          </Badge>
+          <Badge v-if="isChainQuest" variant="outline" class="chain-badge">
+            <Icon icon="mdi:link-variant" class="inline-icon" />
+            {{ chainPosition }}
+          </Badge>
+          <Badge v-if="isLocked" variant="outline" class="locked-badge">
+            <Icon icon="mdi:lock" class="inline-icon" />
+            LOCKED
+          </Badge>
+        </div>
+      </div>
+
+      <!-- Description -->
+      <p class="quest-description">{{ quest.short_description }}</p>
+
+      <!-- Lock Reason (backend-owned, e.g. Overseer's Office / chain / requirements) -->
+      <div
+        v-if="isLocked && (quest.lock_reason || previousQuestName)"
+        class="quest-section locked-info"
+      >
+        <div class="section-label">
+          <Icon icon="mdi:lock-alert" class="inline-icon" />
           LOCKED
-        </Badge>
-      </div>
-    </div>
-
-    <!-- Description -->
-    <p class="quest-description">{{ quest.short_description }}</p>
-
-    <!-- Lock Reason (backend-owned, e.g. Overseer's Office / chain / requirements) -->
-    <div v-if="isLocked && (quest.lock_reason || previousQuestName)" class="quest-section locked-info">
-      <div class="section-label">
-        <Icon icon="mdi:lock-alert" class="inline-icon" />
-        LOCKED
-      </div>
-      <div v-if="quest.lock_reason" class="locked-message">
-        <Icon icon="mdi:lock" class="locked-icon" />
-        {{ quest.lock_reason }}
-      </div>
-      <div v-if="previousQuestName && !quest.lock_reason" class="locked-message">
-        <Icon icon="mdi:arrow-left" class="locked-icon" />
-        Complete "{{ previousQuestName }}" to unlock
-      </div>
-    </div>
-
-    <!-- Divider -->
-    <div class="quest-divider"></div>
-
-    <QuestRequirementList
-      v-if="hasPrerequisites"
-      :requirements="quest.quest_requirements ?? []"
-      :is-met="isRequirementMet"
-    />
-
-    <QuestRewardList :rewards="quest.quest_rewards ?? []" :fallback-text="quest.rewards" />
-
-    <!-- Party Members (for active/available quests) -->
-    <div v-if="status !== 'completed' && (partyMembers?.length ?? 0) > 0" class="quest-section">
-      <div class="section-label">
-        <Icon icon="mdi:account-group" class="inline-icon" />
-        PARTY
-      </div>
-      <div class="party-members">
-        <div v-for="member in partyMembers ?? []" :key="member.id" class="party-member">
-          <Icon icon="mdi:account" class="member-icon" />
-          <span class="member-name">{{ member.first_name }} {{ member.last_name }}</span>
-          <span class="member-level">Lv.{{ member.level || 1 }}</span>
+        </div>
+        <div v-if="quest.lock_reason" class="locked-message">
+          <Icon icon="mdi:lock" class="locked-icon" />
+          {{ quest.lock_reason }}
+        </div>
+        <div v-if="previousQuestName && !quest.lock_reason" class="locked-message">
+          <Icon icon="mdi:arrow-left" class="locked-icon" />
+          Complete "{{ previousQuestName }}" to unlock
         </div>
       </div>
-    </div>
 
-    <!-- Timed quest progress stays visible until its reward is claimed -->
-    <div
-      v-if="
-        (status === 'active' && timeRemaining) ||
-        (status === 'returning' && timeRemaining) ||
-        (status === 'ready' && !isStateQuest)
-      "
-      class="quest-timer"
-    >
-      <div class="timer-header">
-        <div class="timer-status">
-          <Icon icon="mdi:clock-outline" class="timer-icon" />
-          <span class="timer-label">
-            {{ status === 'ready' ? 'Complete' : status === 'returning' ? 'Travelling Home' : 'Time Remaining' }}
-          </span>
+      <!-- Divider -->
+      <div class="quest-divider"></div>
+
+      <QuestRequirementList
+        v-if="hasPrerequisites"
+        :requirements="quest.quest_requirements ?? []"
+        :is-met="isRequirementMet"
+      />
+
+      <QuestRewardList :rewards="quest.quest_rewards ?? []" :fallback-text="quest.rewards" />
+
+      <!-- Party Members (for active/available quests) -->
+      <div v-if="status !== 'completed' && (partyMembers?.length ?? 0) > 0" class="quest-section">
+        <div class="section-label">
+          <Icon icon="mdi:account-group" class="inline-icon" />
+          PARTY
         </div>
-        <span class="timer-value">{{ status === 'ready' ? 'Ready to claim' : timeRemaining }}</span>
+        <div class="party-members">
+          <div v-for="member in partyMembers ?? []" :key="member.id" class="party-member">
+            <Icon icon="mdi:account" class="member-icon" />
+            <span class="member-name">{{ member.first_name }} {{ member.last_name }}</span>
+            <span class="member-level">Lv.{{ member.level || 1 }}</span>
+          </div>
+        </div>
       </div>
-      <Progress :model-value="displayedQuestProgress" class="quest-progress-bar h-2" />
-      <span class="timer-progress">{{ questProgressLabel }}</span>
-    </div>
 
-    <div v-if="status === 'available' && quest.duration_minutes && !isStateQuest" class="quest-duration">
-      <Icon icon="mdi:clock-outline" class="duration-icon" />
-      <span>Duration: {{ quest.duration_minutes }} min</span>
-      <span v-if="!hasParty && !isStateQuest" class="duration-hint">(Assign party to start)</span>
-    </div>
+      <!-- Timed quest progress stays visible until its reward is claimed -->
+      <div
+        v-if="
+          (status === 'active' && timeRemaining) ||
+          (status === 'returning' && timeRemaining) ||
+          (status === 'ready' && !isStateQuest)
+        "
+        class="quest-timer"
+      >
+        <div class="timer-header">
+          <div class="timer-status">
+            <Icon icon="mdi:clock-outline" class="timer-icon" />
+            <span class="timer-label">
+              {{
+                status === 'ready'
+                  ? 'Complete'
+                  : status === 'returning'
+                    ? 'Travelling Home'
+                    : 'Time Remaining'
+              }}
+            </span>
+          </div>
+          <span class="timer-value">{{
+            status === 'ready' ? 'Ready to claim' : timeRemaining
+          }}</span>
+        </div>
+        <Progress :model-value="displayedQuestProgress" class="quest-progress-bar h-2" />
+        <span class="timer-progress">{{ questProgressLabel }}</span>
+      </div>
 
+      <div
+        v-if="status === 'available' && quest.duration_minutes && !isStateQuest"
+        class="quest-duration"
+      >
+        <Icon icon="mdi:clock-outline" class="duration-icon" />
+        <span>Duration: {{ quest.duration_minutes }} min</span>
+        <span v-if="!hasParty && !isStateQuest" class="duration-hint">(Assign party to start)</span>
+      </div>
     </div>
 
     <div>
@@ -392,13 +417,13 @@ const handleAction = () => {
               ? 'mdi:treasure-chest'
               : status === 'returning'
                 ? 'mdi:home-import-outline'
-              : status === 'active'
-                ? 'mdi:progress-clock'
-                : isStateQuest
-                  ? 'mdi:clipboard-check'
-                : hasParty
-                  ? 'mdi:play'
-                  : 'mdi:account-plus'
+                : status === 'active'
+                  ? 'mdi:progress-clock'
+                  : isStateQuest
+                    ? 'mdi:clipboard-check'
+                    : hasParty
+                      ? 'mdi:play'
+                      : 'mdi:account-plus'
           "
           class="btn-icon"
         />

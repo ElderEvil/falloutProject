@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { defineAsyncComponent, provide, watch } from 'vue'
+import { computed, defineAsyncComponent, provide, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import DefaultLayout from '@/modules/vault/components/shell/DefaultLayout.vue'
 import { Toaster } from '@/core/components/ui/toast'
 import GaryOverlay from '@/core/components/easter-eggs/GaryOverlay.vue'
@@ -18,7 +19,29 @@ import { useSoundProfileSync } from '@/modules/profile/composables/useSoundProfi
 
 // Kept out of the initial payload: the changelog only ever appears when a new
 // version is detected, so its chunk must not be preloaded on every boot.
-const ChangelogModal = defineAsyncComponent(() => import('@/modules/profile/components/ChangelogModal.vue'))
+const ChangelogModal = defineAsyncComponent(
+  () => import('@/modules/profile/components/ChangelogModal.vue')
+)
+
+// Dweller chat opens as a modal over the current view (dweller detail, map,
+// roster) via `?chat=<dwellerId>`; the chunk loads only when chat is requested.
+const DwellerChatModal = defineAsyncComponent(
+  () => import('@/modules/chat/components/DwellerChatModal.vue')
+)
+
+const route = useRoute()
+const router = useRouter()
+
+// Deep-linked dweller chat: a non-empty `?chat=` query opens the modal while the
+// underlying route stays mounted, so closing it resumes the previous view.
+const chatDwellerId = computed(() => {
+  const chat = route.query.chat
+  return typeof chat === 'string' && chat.length > 0 ? chat : ''
+})
+
+const closeChat = () => {
+  void router.replace({ query: { ...route.query, chat: undefined } })
+}
 
 // Visual effects (replaces old useFlickering)
 const visualEffects = useVisualEffects()
@@ -97,6 +120,14 @@ provide('availableThemes', availableThemes)
       :last-seen-version="versionInfo.lastSeen ?? undefined"
       @close="hideChangelog"
       @mark-as-seen="markVersionAsSeen"
+    />
+
+    <!-- Dweller chat modal: deep-linked via ?chat=<dwellerId>; the underlying view stays mounted. -->
+    <DwellerChatModal
+      v-if="chatDwellerId"
+      :key="chatDwellerId"
+      :dweller-id="chatDwellerId"
+      @close="closeChat"
     />
 
     <!-- Easter Egg Overlays -->

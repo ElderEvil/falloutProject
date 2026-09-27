@@ -5,16 +5,16 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
 import { Icon } from '@iconify/vue'
 import type { components } from '@/core/types/api.generated'
-import type { DwellerShort } from '../models/dweller'
+import { GENDER_CONFIG_MAP, type DwellerShort } from '../models/dweller'
 import DwellerAgeBadge from './DwellerAgeBadge.vue'
 import DwellerGenderBadge from './DwellerGenderBadge.vue'
 import DwellerRarityBadge from './DwellerRarityBadge.vue'
 import DwellerFilterPanel from './DwellerFilterPanel.vue'
-import DwellerDisplayControls from './DwellerDisplayControls.vue'
 import DwellerFilterGroup from './DwellerFilterGroup.vue'
 import DwellerPortrait from './DwellerPortrait.vue'
 
 type RarityFilter = 'all' | components['schemas']['RarityEnum']
+type GenderFilter = 'all' | components['schemas']['GenderEnum']
 
 const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
 const authStore = useAuthStore()
@@ -22,9 +22,10 @@ const toast = useToast()
 
 // Filter preferences are now automatically loaded via useLocalStorage in the store
 
-// Rarity is specific to this compact assignment panel; age and sorting use
-// the shared preferences from the Dwellers view.
+// Rarity and gender are specific to this compact assignment panel; age and
+// sorting use the shared preferences from the Dwellers view.
 const filterRarity = ref<RarityFilter>('all')
+const filterGender = ref<GenderFilter>('all')
 
 const RARITY_ACCENT: Record<string, string> = {
   common: 'var(--color-rarity-common)',
@@ -47,6 +48,16 @@ const RARITY_FILTERS: { value: RarityFilter; label: string; icon: string; accent
 const rarityColor = (rarity?: string | null): string =>
   RARITY_ACCENT[String(rarity ?? '').toLowerCase()] ?? 'var(--color-rarity-common)'
 
+const GENDER_FILTERS: { value: GenderFilter; label: string; icon: string; accent?: string }[] = [
+  { value: 'all', label: 'All', icon: 'mdi:account-multiple' },
+  ...Object.entries(GENDER_CONFIG_MAP).map(([value, config]) => ({
+    value: value as GenderFilter,
+    label: config.label,
+    icon: config.icon,
+    accent: config.color,
+  })),
+]
+
 // Must not have a room assignment, and must not be out of the vault
 // (exploring or on a quest) or dead.
 const isUnassignable = (dweller: DwellerShort): boolean =>
@@ -61,7 +72,8 @@ const unassignedDwellers = computed(() => {
     (dweller) =>
       isUnassignable(dweller) &&
       matchesAgeGroup(dweller, dwellerStore.filterAgeGroup) &&
-      (filterRarity.value === 'all' || dweller.rarity === filterRarity.value)
+      (filterRarity.value === 'all' || dweller.rarity === filterRarity.value) &&
+      (filterGender.value === 'all' || dweller.gender === filterGender.value)
   )
 
   return filtered.sort((a, b) =>
@@ -140,7 +152,7 @@ const handleDropZoneDrop = async (event: DragEvent) => {
           <p class="panel-subtitle">Drag dwellers here to unassign them from rooms</p>
         </div>
 
-        <!-- Shared filter and sort controls -->
+        <!-- Shared filter controls; age and sorting come from the Dwellers view -->
         <DwellerFilterPanel class="w-full" :show-status-filter="false" :show-age-filter="true">
           <template #additional-filters>
             <DwellerFilterGroup
@@ -150,10 +162,15 @@ const handleDropZoneDrop = async (event: DragEvent) => {
               :model-value="filterRarity"
               @update:model-value="filterRarity = $event as RarityFilter"
             />
+            <DwellerFilterGroup
+              label="Filter by Gender"
+              icon="mdi:gender-male-female"
+              :options="GENDER_FILTERS"
+              :model-value="filterGender"
+              @update:model-value="filterGender = $event as GenderFilter"
+            />
           </template>
         </DwellerFilterPanel>
-
-        <DwellerDisplayControls />
       </div>
     </div>
 

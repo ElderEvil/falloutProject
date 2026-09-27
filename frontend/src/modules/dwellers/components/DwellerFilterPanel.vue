@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
-import { Icon } from '@iconify/vue'
 import {
   useDwellerStore,
   DWELLER_STATUSES,
   type DwellerStatus,
   type DwellerAgeGroup,
 } from '@/modules/dwellers/stores/dweller'
-import { formatIdentityLabel } from '../models/dweller'
+import type { components } from '@/core/types/api.generated'
+import { formatIdentityLabel, getRaceConfig, FACTION_CONFIG_MAP } from '../models/dweller'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
 import { useIdentityOptions } from '../composables/useIdentityOptions'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/core/components/ui/select'
 import DwellerFilterGroup from './DwellerFilterGroup.vue'
 
 interface Props {
@@ -52,8 +51,11 @@ onMounted(async () => {
 })
 
 const raceSelectOptions = computed(() => [
-  { value: 'all', label: 'All Races' },
-  ...races.value.map((race) => ({ value: race, label: formatIdentityLabel(race) })),
+  { value: 'all', label: 'All Races', icon: 'mdi:account-multiple' },
+  ...races.value.map((race) => {
+    const config = getRaceConfig(race)
+    return { value: race, label: config.label, icon: config.icon }
+  }),
 ])
 
 /** Faction choices follow the chosen race, so only combinations the game allows are offered. */
@@ -65,8 +67,11 @@ const factionSelectOptions = computed(() => {
       : (factionsByRace.value[selectedRace] ?? [])
 
   return [
-    { value: 'all', label: 'All Factions' },
-    ...allowed.map((faction) => ({ value: faction, label: formatIdentityLabel(faction) })),
+    { value: 'all', label: 'All Factions', icon: 'mdi:account-multiple' },
+    ...allowed.map((faction) => {
+      const config = FACTION_CONFIG_MAP[faction as components['schemas']['FactionEnum']]
+      return { value: faction, label: config.label, icon: config.icon }
+    }),
   ]
 })
 
@@ -119,9 +124,6 @@ const currentFilterFaction = computed({
   get: () => dwellerStore.filterFaction,
   set: (value: string) => dwellerStore.setFilterFaction(value),
 })
-
-const onRaceChange = (value: unknown) => dwellerStore.setFilterRace(String(value))
-const onFactionChange = (value: unknown) => dwellerStore.setFilterFaction(String(value))
 
 /** Chips preview their own result set, so counts follow only the filters on screen. */
 const statusCounts = computed<Record<string, number> | undefined>(() => {
@@ -205,44 +207,23 @@ function clearFilters(): void {
         @update:model-value="currentFilterAgeGroup = $event as DwellerAgeGroup"
       />
 
-      <div v-if="showIdentityFilters" class="filter-section">
-        <div class="section-header">
-          <Icon icon="mdi:account-star" />
-          <span>Filter by Identity</span>
-        </div>
-        <div class="identity-controls">
-          <Select :model-value="currentFilterRace" @update:model-value="onRaceChange">
-            <SelectTrigger
-              size="sm"
-              class="min-w-[8.5rem] border-theme-glow rounded-md px-3 py-2 text-[0.8125rem] opacity-[0.85] hover:opacity-100 hover:shadow-[0_0_8px_var(--color-theme-glow)]"
-            >
-              <SelectValue placeholder="All Races" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="option in raceSelectOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            v-if="featureFlags.factionMechanics"
-            :model-value="currentFilterFaction"
-            @update:model-value="onFactionChange"
-          >
-            <SelectTrigger
-              size="sm"
-              class="min-w-[8.5rem] border-theme-glow rounded-md px-3 py-2 text-[0.8125rem] opacity-[0.85] hover:opacity-100 hover:shadow-[0_0_8px_var(--color-theme-glow)]"
-            >
-              <SelectValue placeholder="All Factions" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="option in factionSelectOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <DwellerFilterGroup
+        v-if="showIdentityFilters"
+        label="Filter by Race"
+        icon="mdi:account-star"
+        :options="raceSelectOptions"
+        :model-value="currentFilterRace"
+        @update:model-value="currentFilterRace = $event"
+      />
+
+      <DwellerFilterGroup
+        v-if="showIdentityFilters && featureFlags.factionMechanics"
+        label="Filter by Faction"
+        icon="mdi:shield-account"
+        :options="factionSelectOptions"
+        :model-value="currentFilterFaction"
+        @update:model-value="currentFilterFaction = $event"
+      />
 
       <slot v-if="$slots['additional-filters']" name="additional-filters"></slot>
     </div>
@@ -306,41 +287,9 @@ function clearFilters(): void {
   outline-offset: 2px;
 }
 
-.filter-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-theme-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  text-shadow: 0 0 4px var(--color-theme-glow);
-}
-
 .filter-section-row {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
-}
-
-.identity-controls {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.flex-grow {
-  flex-grow: 1;
-}
-
-.bulk-action-controls {
-  display: flex;
-  gap: 0.5rem;
 }
 </style>

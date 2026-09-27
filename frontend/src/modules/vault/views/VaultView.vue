@@ -306,6 +306,13 @@ const reviewActiveIncidents = () => {
         <div class="container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8">
           <GameControlPanel v-if="vaultId" :vaultId="vaultId" />
 
+          <div class="build-control mb-4 flex w-full justify-end">
+            <BuildModeButton
+              :buildModeActive="buildModeActive"
+              @toggleBuildMode="toggleBuildMode"
+            />
+          </div>
+
           <!-- Incident Alert Banner -->
           <div v-if="activeIncidents.length > 0" class="w-full mb-4">
             <IncidentAlert :incidents="activeIncidents" @click="handleIncidentClicked" />
@@ -321,7 +328,7 @@ const reviewActiveIncidents = () => {
             <WastelandPanel />
           </div>
 
-          <!-- Room Grid with Build Control -->
+          <!-- Room Grid -->
           <div class="w-full">
             <RoomGrid
               :incidents="activeIncidents"
@@ -332,14 +339,6 @@ const reviewActiveIncidents = () => {
               @room-opened="openRoomId = null"
               @review-incidents="reviewActiveIncidents"
             />
-
-            <!-- Build Control: in-flow below the grid so it never covers rooms -->
-            <div class="build-control mt-4 flex justify-center">
-              <BuildModeButton
-                :buildModeActive="buildModeActive"
-                @toggleBuildMode="toggleBuildMode"
-              />
-            </div>
           </div>
 
           <!-- Build Menu -->

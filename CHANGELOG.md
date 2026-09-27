@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.152.0 (2026-09-27)
+
+### Features
+
+* convert identity filters to chip groups b35b1cf
+* filter unassigned dwellers by gender and drop redundant sort control d75ec44
+
+### Bug Fixes
+
+* restrict dweller role-match badge to production rooms 4076607
+
 ## 2.151.0 (2026-09-27)
 
 ### Features

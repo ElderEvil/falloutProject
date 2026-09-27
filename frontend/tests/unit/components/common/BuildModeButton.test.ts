@@ -22,6 +22,9 @@ describe('BuildModeButton', () => {
     expect(wrapper.text()).toContain('Build')
     expect(wrapper.text()).not.toContain('Build Mode')
     expect(wrapper.text()).toContain('B')
+    expect(wrapper.find('button').classes()).toEqual(
+      expect.arrayContaining(['h-14', 'border-2', 'border-theme-primary'])
+    )
   })
 
   it('should show cancel mode when active', () => {
@@ -31,6 +34,7 @@ describe('BuildModeButton', () => {
 
     expect(wrapper.text()).toContain('Cancel Building')
     expect(wrapper.text()).toContain('ESC')
+    expect(wrapper.find('button').classes()).toContain('border-danger')
   })
 
   it('should emit toggleBuildMode on click', async () => {

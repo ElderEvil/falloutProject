@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import type { Weapon, Outfit } from '@/modules/combat/models/equipment'
 import {
   formatItemLabel,
   getOutfitStats,
   getRarityTextClass,
   getWeaponStats,
+  type ItemCardSource,
   type ItemStat,
+  type OutfitStatsSource,
+  type WeaponStatsSource,
 } from '@/core/models/items'
 import ItemIcon from '@/core/components/common/ItemIcon.vue'
 
 interface Props {
-  item: Weapon | Outfit
+  item: ItemCardSource
   // Widened from 'weapon' | 'outfit' because StorageItemCard feeds junk/supplies
   // through this shell too; those item types simply produce no stats.
   itemType: string
@@ -23,11 +25,14 @@ interface Props {
 
 const { item, itemType, variant = 'grid', count = 1, showValueAsStat = false } = defineProps<Props>()
 
-const rarityTextClass = computed(() => getRarityTextClass(item.rarity))
+const rarityTextClass = computed(() => getRarityTextClass(item.rarity ?? undefined))
 
 const stats = computed<ItemStat[]>(() => {
   if (itemType !== 'weapon' && itemType !== 'outfit') return []
-  const base = itemType === 'weapon' ? getWeaponStats(item as Weapon) : getOutfitStats(item as Outfit)
+  const base =
+    itemType === 'weapon'
+      ? getWeaponStats(item as WeaponStatsSource)
+      : getOutfitStats(item as OutfitStatsSource)
   return showValueAsStat && item.value != null
     ? [...base, { label: 'Value', value: item.value, icon: 'mdi:currency-usd' }]
     : base
@@ -35,10 +40,10 @@ const stats = computed<ItemStat[]>(() => {
 
 const itemTypeDisplay = computed(() => {
   if (itemType === 'weapon') {
-    return `${formatItemLabel((item as Weapon).weapon_subtype)} • ${item.rarity ?? 'common'}`
+    return `${formatItemLabel(item.weapon_subtype)} • ${item.rarity ?? 'common'}`
   }
   if (itemType === 'outfit') {
-    return `${formatItemLabel((item as Outfit).outfit_type)} • ${item.rarity ?? 'common'}`
+    return `${formatItemLabel(item.outfit_type)} • ${item.rarity ?? 'common'}`
   }
   return item.rarity ?? 'common'
 })

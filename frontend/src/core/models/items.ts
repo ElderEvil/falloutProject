@@ -185,7 +185,7 @@ interface CommonItemStats {
   durability?: number
 }
 
-interface WeaponStatsSource extends DamageSource, CommonItemStats {
+export interface WeaponStatsSource extends DamageSource, CommonItemStats {
   stat?: string
   accuracy?: number | null
   weapon_type?: string
@@ -207,7 +207,7 @@ export function getWeaponStats(weapon: WeaponStatsSource): ItemStat[] {
   return stats
 }
 
-interface OutfitStatsSource extends BonusSource, CommonItemStats, ResistSource {
+export interface OutfitStatsSource extends BonusSource, CommonItemStats, ResistSource {
   gender?: string | null
 }
 
@@ -225,4 +225,28 @@ export function getOutfitStats(outfit: OutfitStatsSource): ItemStat[] {
   if (outfit.weight !== undefined) stats.push({ label: 'Weight', value: outfit.weight, icon: 'mdi:scale' })
   if (outfit.durability !== undefined) stats.push({ label: 'Durability', value: outfit.durability, icon: 'mdi:shield-check' })
   return stats
+}
+
+/**
+ * Permissive structural shape of anything an item card renders. Declared here
+ * instead of imported from a feature module because `core/` may not depend on
+ * `@/modules/` — `scripts/check-boundaries.mjs` hard-fails that direction, and
+ * the allowlist is deliberately empty. Every field is optional so one prop type
+ * admits a weapon, an outfit, junk and a supply.
+ */
+export interface ItemCardSource
+  extends ItemIconSource,
+    BonusSource,
+    ResistSource,
+    CommonItemStats {
+  description?: string | null
+  rarity?: string | null
+  value?: number | null
+  gender?: string | null
+  // Present on weapons only, hence optional rather than DamageSource's required pair.
+  damage_min?: number
+  damage_max?: number
+  stat?: string
+  accuracy?: number | null
+  weapon_type?: string
 }

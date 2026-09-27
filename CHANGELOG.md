@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.150.1 (2026-09-27)
+
+### Bug Fixes
+
+* **frontend:** finish player UI follow-ups and surface Build ([#804](https://github.com/ElderEvil/falloutProject/issues/804)) 47b3df1
+
 ## 2.150.0 (2026-09-26)
 
 ### Features

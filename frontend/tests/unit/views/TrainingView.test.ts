@@ -16,7 +16,7 @@ describe('TrainingView', () => {
     const authStore = useAuthStore()
     const vaultStore = useVaultStore()
     authStore.token = 'test-token'
-    vi.spyOn(vaultStore, 'loadVault').mockResolvedValue()
+    vi.spyOn(vaultStore, 'ensureVaultLoaded').mockResolvedValue()
 
     const router = createRouter({
       history: createMemoryHistory(),
@@ -66,7 +66,7 @@ describe('TrainingView', () => {
         size: 3,
       },
     ] as typeof roomStore.rooms
-    vi.spyOn(vaultStore, 'loadVault').mockResolvedValue()
+    vi.spyOn(vaultStore, 'ensureVaultLoaded').mockResolvedValue()
     vi.spyOn(roomStore, 'fetchRooms').mockResolvedValue()
 
     const router = createRouter({
@@ -89,7 +89,10 @@ describe('TrainingView', () => {
     })
 
     expect(wrapper.text()).toContain('0 / 2')
-    expect(wrapper.findAll('.page-header-metric-value').map((metric) => metric.text())).toEqual(['0', '0 / 1'])
+    expect(wrapper.findAll('.page-header-metric-value').map((metric) => metric.text())).toEqual([
+      '0',
+      '0 / 1',
+    ])
     expect(wrapper.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('0')
   })
 })

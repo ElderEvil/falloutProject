@@ -120,7 +120,9 @@
     --spacing-16: 4rem; /* 64px */
 
     /* === LAYOUT === */
-    --navbar-height: 4rem; /* Matches DefaultLayout pt-16 (4rem) */
+    /* The fixed NavBar measures its height when vault status wraps inside it. */
+    --navbar-height: 4.25rem;
+    --chrome-height: var(--navbar-height);
 
     /* === BORDERS === */
     --border-width-thin: 1px;
@@ -170,6 +172,11 @@
 
 :root {
     --map-pane-size: max(0px, min(960px, calc(100dvh - 16rem)));
+}
+
+/* Skip link (#main-content) must land below the fixed navbar. */
+#main-content {
+    scroll-margin-top: var(--chrome-height);
 }
 
 /* === SHADCN-VUE SEMANTIC BRIDGE (Phase 0.2) === */

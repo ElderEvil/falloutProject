@@ -10,6 +10,7 @@ interface Props {
   label?: string
   productionRate?: number // Optional: production/consumption rate per minute
   tooltipInfo?: string // Optional: additional tooltip information
+  navbar?: boolean
 }
 
 const props = defineProps<Props>()
@@ -153,7 +154,8 @@ const ariaLabel = computed(
 
       <div class="relative">
         <div
-          class="relative h-6 w-40 rounded-full border-2 border-stone-600 bg-stone-800 overflow-hidden"
+          class="relative h-6 rounded-full border-2 border-stone-600 bg-stone-800 overflow-hidden"
+          :class="props.navbar ? 'w-20 xl:w-24 2xl:w-28' : 'w-40'"
         >
           <!-- Filled part of the bar with smooth transition -->
           <div

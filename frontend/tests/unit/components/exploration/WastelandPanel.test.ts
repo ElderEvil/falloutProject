@@ -71,7 +71,7 @@ describe('WastelandPanel', () => {
     vi.spyOn(explorationStore, 'completeExploration').mockResolvedValue({})
     vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue(null)
     vi.spyOn(dwellerStore, 'fetchDwellersByVault').mockResolvedValue(undefined)
-    vi.spyOn(vaultStore, 'loadVault').mockResolvedValue(undefined)
+    vi.spyOn(vaultStore, 'ensureVaultLoaded').mockResolvedValue(undefined)
     vi.spyOn(vaultStore, 'refreshVault').mockResolvedValue(undefined)
 
     // Clear state
@@ -165,7 +165,11 @@ describe('WastelandPanel', () => {
         },
       })
       const dropzone = wrapper.findComponent({ name: 'WastelandDropzone' })
-      await dropzone.vm.$emit('drop-dweller', { dwellerId: 'dweller-1', firstName: 'Test', lastName: 'Dweller' })
+      await dropzone.vm.$emit('drop-dweller', {
+        dwellerId: 'dweller-1',
+        firstName: 'Test',
+        lastName: 'Dweller',
+      })
       await wrapper.findComponent({ name: 'ExplorationDurationModal' }).vm.$emit('confirm', {
         duration: 4,
         stimpaks: 1,
@@ -222,16 +226,21 @@ describe('WastelandPanel', () => {
 
   it('does not reopen a manually acknowledged completion report from its SSE event', async () => {
     const rewards = { caps: 100, items: [], experience: 25, distance: 8 }
-    explorationStore.activeExplorations = { 'exploration-1': { id: 'exploration-1', dweller_id: 'dweller-1' } as never }
+    explorationStore.activeExplorations = {
+      'exploration-1': { id: 'exploration-1', dweller_id: 'dweller-1' } as never,
+    }
     dwellerStore.dwellers = [{ id: 'dweller-1', first_name: 'Test', last_name: 'Dweller' }] as never
-    vi.spyOn(explorationStore, 'completeExploration').mockResolvedValue({ rewards_summary: rewards })
+    vi.spyOn(explorationStore, 'completeExploration').mockResolvedValue({
+      rewards_summary: rewards,
+    })
     const wrapper = mount(WastelandPanel, {
       global: {
         plugins: [router],
         stubs: {
           ActiveExplorationList: {
             emits: ['complete'],
-            template: '<button class="complete-exploration" @click="$emit(\'complete\', \'exploration-1\')" />',
+            template:
+              '<button class="complete-exploration" @click="$emit(\'complete\', \'exploration-1\')" />',
           },
           ExplorationRewardsModal: {
             props: ['show', 'rewards', 'dwellerName'],

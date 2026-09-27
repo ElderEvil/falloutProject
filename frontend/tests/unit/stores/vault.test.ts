@@ -260,12 +260,12 @@ describe('Vault Store', () => {
     })
   })
 
-  describe('loadVault Action', () => {
+  describe('ensureVaultLoaded Action', () => {
     it('should load vault and set active vault', async () => {
       const store = useVaultStore()
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockVault })
 
-      await store.loadVault('vault-1', 'test-token')
+      await store.ensureVaultLoaded('vault-1', 'test-token')
 
       expect(store.loadedVaults['vault-1']).toEqual(mockVault)
       expect(store.activeVaultId).toBe('vault-1')
@@ -282,7 +282,7 @@ describe('Vault Store', () => {
         return { data: mockVault }
       })
 
-      await store.loadVault('vault-1', 'test-token')
+      await store.ensureVaultLoaded('vault-1', 'test-token')
 
       expect(loadingDuringFetch).toBe(true)
       expect(store.isLoading).toBe(false)
@@ -293,8 +293,89 @@ describe('Vault Store', () => {
       const error = new Error('Load failed')
       vi.mocked(axios.get).mockRejectedValueOnce(error)
 
-      await expect(store.loadVault('vault-1', 'test-token')).rejects.toThrow('Load failed')
+      await expect(store.ensureVaultLoaded('vault-1', 'test-token')).rejects.toThrow('Load failed')
       expect(store.isLoading).toBe(false)
+    })
+
+    it('deduplicates concurrent loads for the same vault', async () => {
+      const store = useVaultStore()
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockVault })
+
+      const first = store.ensureVaultLoaded('vault-1', 'test-token')
+      const second = store.ensureVaultLoaded('vault-1', 'test-token')
+      await Promise.all([first, second])
+
+      expect(axios.get).toHaveBeenCalledTimes(1)
+      expect(sseMock.start).toHaveBeenCalledTimes(1)
+      expect(store.loadedVaults['vault-1']).toEqual(mockVault)
+    })
+
+    it('returns without a GET for an already-loaded vault but re-asserts the stream', async () => {
+      const store = useVaultStore()
+      store.loadedVaults = { 'vault-1': mockVault }
+
+      await store.ensureVaultLoaded('vault-1', 'test-token')
+      await store.ensureVaultLoaded('vault-1', 'test-token')
+
+      expect(axios.get).not.toHaveBeenCalled()
+      expect(store.activeVaultId).toBe('vault-1')
+      expect(store.selectedVaultId).toBe('vault-1')
+      // The stream is already for vault-1, so re-asserting it starts no second SSE.
+      expect(sseMock.start).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not adopt a stale response for a superseded vault', async () => {
+      const store = useVaultStore()
+      let resolveVaultA: (value: unknown) => void
+      vi.mocked(axios.get).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveVaultA = resolve
+          })
+      )
+
+      const loadA = store.ensureVaultLoaded('vault-1', 'test-token')
+      const vaultB = { ...mockVault, id: 'vault-2' }
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: vaultB })
+      await store.ensureVaultLoaded('vault-2', 'test-token')
+
+      expect(store.activeVaultId).toBe('vault-2')
+
+      resolveVaultA({ data: mockVault })
+      await loadA
+
+      // A is still cached, but B remains active and its stream is untouched.
+      expect(store.loadedVaults['vault-1']).toEqual(mockVault)
+      expect(store.activeVaultId).toBe('vault-2')
+      expect(store.selectedVaultId).toBe('vault-2')
+      expect(sseMock.start).toHaveBeenCalledTimes(1)
+    })
+
+    it('starts the new vault stream when the previous vault was paused', async () => {
+      const store = useVaultStore()
+      store.loadedVaults = {
+        'vault-1': mockVault,
+        'vault-2': { ...mockVault, id: 'vault-2' },
+      }
+      await store.ensureVaultLoaded('vault-1', 'test-token')
+      store.gameState = { is_paused: true }
+      store.stopResourcePolling()
+
+      await store.ensureVaultLoaded('vault-2', 'test-token')
+
+      expect(store.activeVaultId).toBe('vault-2')
+      expect(store.gameState).toBeNull()
+      expect(sseMock.start).toHaveBeenCalledTimes(2)
+    })
+
+    it('is a no-op without an id or token', async () => {
+      const store = useVaultStore()
+
+      await store.ensureVaultLoaded('', 'test-token')
+      await store.ensureVaultLoaded('vault-1', '')
+
+      expect(axios.get).not.toHaveBeenCalled()
+      expect(store.activeVaultId).toBeNull()
     })
   })
 
@@ -312,9 +393,81 @@ describe('Vault Store', () => {
       setActivePinia(createPinia())
       expect(useVaultStore().selectedVaultId).toBe('vault-1')
     })
+
+    it('only caches a late refresh after another vault becomes active', async () => {
+      const store = useVaultStore()
+      store.loadedVaults = { 'vault-1': mockVault }
+      await store.ensureVaultLoaded('vault-1', 'test-token')
+      let resolveRefresh!: (value: unknown) => void
+      vi.mocked(axios.get).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveRefresh = resolve
+          })
+      )
+      const refresh = store.refreshVault('vault-1', 'test-token')
+
+      store.loadedVaults['vault-2'] = { ...mockVault, id: 'vault-2' }
+      await store.ensureVaultLoaded('vault-2', 'test-token')
+      resolveRefresh({ data: { ...mockVault, bottle_caps: 1200 } })
+      await refresh
+
+      expect(store.loadedVaults['vault-1'].bottle_caps).toBe(1200)
+      expect(store.activeVaultId).toBe('vault-2')
+      expect(store.selectedVaultId).toBe('vault-2')
+      expect(sseMock.start).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  describe('resource polling', () => {
+    it('does not write an old vault response into the newly selected vault', async () => {
+      vi.useFakeTimers()
+      try {
+        const store = useVaultStore()
+        const vaultB = { ...mockVault, id: 'vault-2', power: 70 }
+        store.loadedVaults = { 'vault-1': mockVault, 'vault-2': vaultB }
+        store.setActiveVault('vault-1')
+        let resolvePoll!: (value: unknown) => void
+        vi.mocked(axios.get).mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolvePoll = resolve
+            })
+        )
+
+        store.startResourcePolling()
+        vi.advanceTimersByTime(10000)
+        store.setActiveVault('vault-2')
+        resolvePoll({ data: { ...mockVault, power: 10 } })
+        await nextTick()
+
+        expect(store.loadedVaults['vault-2']).toEqual(vaultB)
+        store.stopResourcePolling()
+      } finally {
+        vi.useRealTimers()
+      }
+    })
   })
 
   describe('game tick updates', () => {
+    it('handles each tick once after replacing a vault stream', async () => {
+      const store = useVaultStore()
+      const { toasts } = useToast()
+      toasts.value = []
+
+      store.startGameTickSse('vault-1', 'test-token')
+      store.startGameTickSse('vault-2', 'test-token')
+      ;(sseMock.event as Ref<{ event: string; data: unknown } | null>).value = {
+        event: 'tick',
+        data: { updates: { crafting: { completed: 1 } } },
+      }
+      await nextTick()
+
+      expect(
+        toasts.value.filter((toast) => toast.message === 'A workshop order is ready to collect')
+      ).toHaveLength(1)
+    })
+
     it('merges tick resources and exposes the net rate per minute', async () => {
       const store = useVaultStore()
       store.loadedVaults = { 'vault-1': mockVault }

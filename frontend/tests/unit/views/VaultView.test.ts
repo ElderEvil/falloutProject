@@ -37,7 +37,6 @@ const vaultFixture = {
 const stubs = {
   SidePanel: { template: '<aside data-testid="side-panel" />' },
   RoomGrid: { template: '<div data-testid="room-grid" />' },
-  ResourceBar: true,
   GameControlPanel: true,
   IncidentAlert: true,
   UnassignedDwellers: true,
@@ -56,7 +55,7 @@ async function mountLoadedVault() {
   vaultStore.loadedVaults['vault-1'] = vaultFixture
 
   vi.spyOn(vaultStore, 'fetchVaults').mockResolvedValue(true)
-  vi.spyOn(vaultStore, 'refreshVault').mockResolvedValue()
+  vi.spyOn(vaultStore, 'ensureVaultLoaded').mockResolvedValue()
   vi.spyOn(vaultStore, 'fetchGameState').mockResolvedValue()
   vi.spyOn(vaultStore, 'startResourcePolling').mockImplementation(() => {})
   vi.spyOn(roomStore, 'fetchRooms').mockResolvedValue()
@@ -122,8 +121,7 @@ describe('VaultView', () => {
       expect(buildButton.isVisible()).toBe(true)
       // In-flow sibling rendered after the grid (bottom placement), not overlaid on it.
       expect(
-        grid.element.compareDocumentPosition(buildButton.element) &
-          Node.DOCUMENT_POSITION_FOLLOWING
+        grid.element.compareDocumentPosition(buildButton.element) & Node.DOCUMENT_POSITION_FOLLOWING
       ).toBeTruthy()
     })
 

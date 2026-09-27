@@ -17,10 +17,14 @@ const scanlinesEnabled = inject('scanlines', ref(true))
 <template>
   <div class="flex min-h-screen flex-col">
     <div v-if="scanlinesEnabled" class="scanlines" aria-hidden="true"></div>
-    <NavBar />
+    <NavBar
+      :is-flickering="isFlickering"
+      :flicker-opacity="flickerOpacity"
+      :scanlines-enabled="scanlinesEnabled"
+    />
     <main
       id="main-content"
-      class="flex-grow pt-16"
+      class="flex-grow pt-[var(--chrome-height)]"
       :class="{ flicker: isFlickering && flickerOpacity === undefined }"
       :style="flickerOpacity !== undefined ? { opacity: flickerOpacity } : {}"
       role="main"

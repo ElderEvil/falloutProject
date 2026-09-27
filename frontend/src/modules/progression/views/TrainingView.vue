@@ -52,8 +52,9 @@ const capacityPercent = computed(() => {
 
 onMounted(async () => {
   if (authStore.token && vaultId) {
-    // Ensure vault is loaded - loadVault handles the check internally
-    await vaultStore.loadVault(vaultId, authStore.token)
+    // Ensure vault is loaded - the shared action is idempotent, so this is
+    // safe to call alongside the shell's own hydration on every route entry
+    await vaultStore.ensureVaultLoaded(vaultId, authStore.token)
     await roomStore.fetchRooms(vaultId, authStore.token)
     await trainingStore.fetchVaultTrainings(vaultId, authStore.token)
   }

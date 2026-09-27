@@ -28,4 +28,5 @@ describe('DefaultLayout', () => {
   it('defaults the overlay to enabled when no preference is provided', () => {
     expect(mountLayout().findAll('.scanlines')).toHaveLength(1)
   })
+
 })

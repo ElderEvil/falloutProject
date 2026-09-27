@@ -57,7 +57,7 @@ describe('TrainingQueuePanel', () => {
       // Clear the initial call count
       fetchSpy.mockClear()
 
-      // Simulate vault loading after mount (as TrainingView.loadVault would do)
+      // Simulate vault loading after mount (as TrainingView's ensureVaultLoaded would do)
       vaultStore.loadedVaults = {
         'vault-1': { id: 'vault-1', number: 1, name: 'Vault 1' } as any,
       }

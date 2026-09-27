@@ -91,9 +91,9 @@ const fetchStorageData = async () => {
 }
 
 onMounted(async () => {
-  // Load vault if not already loaded
-  if (vaultId.value && authStore.token && !vaultStore.loadedVaults[vaultId.value]) {
-    await vaultStore.loadVault(vaultId.value, authStore.token)
+  // Load vault if not already loaded (the shared action is idempotent)
+  if (vaultId.value && authStore.token) {
+    await vaultStore.ensureVaultLoaded(vaultId.value, authStore.token)
   }
   fetchStorageData()
 })

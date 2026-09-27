@@ -1,33 +1,52 @@
 <script setup lang="ts">
-import { ref, computed, inject, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, useTemplateRef } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRouter, useRoute } from 'vue-router'
 import NotificationBell from './NotificationBell.vue'
+import ResourceBar from './ResourceBar.vue'
+import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import { useVersionDetection } from '@/core/composables/useVersionDetection'
 import { audioManager } from '@/core/audio/audioManager'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
+import { useVaultHeaderContext } from '@/modules/vault/composables/useVaultHeaderContext'
+
+defineProps<{
+  isFlickering?: boolean
+  flickerOpacity?: number
+  scanlinesEnabled?: boolean
+}>()
 
 const authStore = useAuthStore()
-const vaultStore = useVaultStore()
 const incidentStore = useIncidentStore()
 const router = useRouter()
 const route = useRoute()
+const {
+  vault,
+  isVaultRoute,
+  isReady,
+  loadFailed,
+  dwellersCount,
+  populationMax,
+  populationColor,
+  happiness,
+  happinessColor,
+  energy,
+  food,
+  water,
+  resourceRates,
+  bottleCaps,
+  dwellersTooltip,
+  happinessTooltip,
+  capsTooltip,
+} = useVaultHeaderContext()
+const vaultNumber = computed(() => vault.value?.number)
 const { versionBadgeVisible, showChangelog } = useVersionDetection({
   isAuthenticated: () => authStore.isAuthenticated,
 })
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const user = computed(() => authStore.user)
 const isProfileRoute = computed(() => route.path === '/profile')
-const currentVaultId = computed(() => {
-  // For chat routes, use activeVaultId from store
-  // For vault routes, use route param
-  if (route.name === 'DwellerChatPage') {
-    return vaultStore.activeVaultId
-  }
-  return route.params.id as string | undefined
-})
 
 const logout = async () => {
   await authStore.logout()
@@ -51,12 +70,18 @@ const toggleSound = () => {
   audioManager.setMuted(!audioManager.muted)
 }
 
-const isFlickering = inject('isFlickering')
-const toggleFlickering = inject('toggleFlickering')
-
 // User Dropdown
 const isDropdownOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
+const navRoot = useTemplateRef<HTMLElement>('navRoot')
+let navObserver: ResizeObserver | null = null
+
+const publishNavbarHeight = () => {
+  const height = navRoot.value?.offsetHeight
+  if (height) {
+    document.documentElement.style.setProperty('--navbar-height', `${height}px`)
+  }
+}
 
 const toggleDropdown = () => {
   isDropdownOpen.value = !isDropdownOpen.value
@@ -75,19 +100,34 @@ const handleClickOutside = (event: MouseEvent) => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  if (typeof ResizeObserver !== 'undefined' && navRoot.value) {
+    navObserver = new ResizeObserver(publishNavbarHeight)
+    navObserver.observe(navRoot.value)
+  }
+  publishNavbarHeight()
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  navObserver?.disconnect()
+  document.documentElement.style.removeProperty('--navbar-height')
 })
 </script>
 
 <template>
   <nav
-    class="fixed left-0 right-0 top-0 z-50 bg-surface-warm p-4 shadow-lg"
+    ref="navRoot"
+    class="fixed left-0 right-0 top-0 z-50 bg-surface-warm p-3 shadow-lg sm:px-0 sm:py-4"
+    :class="{ flicker: isFlickering && flickerOpacity === undefined }"
+    :style="flickerOpacity !== undefined ? { opacity: flickerOpacity } : {}"
     role="navigation"
     aria-label="Main navigation"
   >
+    <div
+      v-if="scanlinesEnabled"
+      class="pointer-events-none absolute inset-0 z-10 bg-[repeating-linear-gradient(to_bottom,rgba(0,0,0,0.1)_0px,rgba(0,0,0,0.1)_1px,transparent_1px,transparent_2px)]"
+      aria-hidden="true"
+    ></div>
     <!-- Skip to main content link for accessibility -->
     <a
       href="#main-content"
@@ -96,168 +136,281 @@ onUnmounted(() => {
       Skip to main content
     </a>
 
-    <div class="container mx-auto flex items-center justify-between">
-      <div class="flex space-x-4 items-center" role="menubar">
-        <!-- Vault List Button (main navigation) -->
+    <div class="flex w-full items-center gap-3 sm:gap-0">
+      <div
+        class="flex shrink-0 items-center gap-2 sm:w-60 sm:px-4"
+        role="group"
+        aria-label="Vaults and current vault"
+      >
         <router-link
           to="/"
-          class="text-theme-primary hover:underline font-bold focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-surface-warm rounded px-2 py-1"
-          role="menuitem"
+          class="flex shrink-0 items-center gap-1.5 rounded px-1 py-1 font-bold text-theme-primary hover:underline focus:outline-none focus:ring-2 focus:ring-theme-primary"
           aria-label="Navigate to vaults list"
         >
-          Vaults
+          <Icon icon="mdi:format-list-bulleted" class="h-5 w-5" :ariaHidden="true" />
+          <span class="hidden sm:inline">Vaults</span>
         </router-link>
-      </div>
-      <div class="flex items-center space-x-4">
-        <!-- Version Update Badge (only when authenticated and there's an update) -->
-        <button
-          v-if="isAuthenticated && versionBadgeVisible"
-          @click="showChangelog()"
-          :class="[
-            'relative text-theme-primary hover:text-theme-glow',
-            'focus:outline-none focus:ring-2 focus:ring-theme-primary',
-            'focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1 transition-colors',
-          ]"
-          aria-label="View changelog for new version"
-        >
-          <Icon icon="mdi:newspaper" class="h-5 w-5" />
-          <span
-            class="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full animate-pulse"
-          ></span>
-        </button>
-
-        <!-- Sound toggle (only while an incident is active) -->
-        <button
-          v-if="hasActiveIncidents"
-          @click="toggleSound"
-          :class="[
-            'relative text-theme-primary hover:text-theme-glow',
-            'focus:outline-none focus:ring-2 focus:ring-theme-primary',
-            'focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1 transition-colors',
-          ]"
-          :aria-label="soundMuted ? 'Unmute sounds' : 'Mute sounds'"
-          :aria-pressed="!soundMuted"
-        >
-          <Icon :icon="soundMuted ? 'mdi:volume-off' : 'mdi:volume-high'" class="h-5 w-5" />
-        </button>
-
-        <!-- Responder count (informational, only while incidents are active) -->
         <span
-          v-if="hasActiveIncidents"
-          class="badge-info flex items-center gap-1 rounded-full border border-theme-primary/30 px-2 py-1 text-xs text-theme-primary"
-          :aria-label="responderCountLabel"
-          :title="responderCountLabel"
+          v-if="vaultNumber !== undefined"
+          class="shrink-0 whitespace-nowrap font-mono text-base font-black tracking-tight text-theme-primary terminal-glow sm:text-xl"
+          :aria-label="`Current vault ${vaultNumber}`"
         >
-          <Icon icon="mdi:account-group" class="h-4 w-4" />
-          {{ incidentStore.totalResponderCount }}
+          <span class="hidden sm:inline">Vault </span>{{ vaultNumber }}
         </span>
-
-        <!-- Notification Bell (only when authenticated) -->
-        <NotificationBell v-if="isAuthenticated" />
-
-        <!-- User-related actions on the right -->
-        <router-link
-          to="/login"
-          v-if="!isAuthenticated"
-          class="text-theme-primary hover:underline focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
-          aria-label="Go to login page"
-        >
-          Login
-        </router-link>
-        <router-link
-          to="/register"
-          v-if="!isAuthenticated"
-          class="text-theme-primary hover:underline focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
-          aria-label="Go to registration page"
-        >
-          Register
-        </router-link>
-
-        <!-- User Dropdown -->
-        <div v-if="isAuthenticated" class="relative" ref="dropdownRef">
-          <button
-            @click="toggleDropdown"
-            @keydown.escape="closeDropdown"
-            :class="[
-              'text-theme-primary hover:underline hover:bg-theme-primary/10 focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-surface-warm rounded px-2 py-1 border-2 border-theme-primary/30',
-              isProfileRoute ? 'bg-theme-primary/10 shadow-glow-sm' : '',
-            ]"
-            :aria-expanded="isDropdownOpen"
-            aria-haspopup="true"
-            :aria-label="`User menu for ${user?.username || 'user'}`"
+      </div>
+      <div class="container mx-auto flex min-w-0 flex-1 items-center gap-5 px-0 sm:gap-6 sm:px-4 lg:px-8">
+        <div class="flex min-w-0 flex-1 items-center justify-between gap-5 overflow-x-auto sm:gap-6">
+          <div
+            v-if="isVaultRoute && isAuthenticated"
+            class="flex shrink-0 items-center gap-2 sm:gap-3"
+            role="group"
+            aria-label="Vault population"
           >
-            {{ user?.username }}
-          </button>
-          <Transition name="dropdown">
-            <!-- Raw role="menuitem" rows: a DropdownMenu primitive is not vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
-            <div
-              v-if="isDropdownOpen"
-              class="absolute right-0 mt-2 w-48 bg-black shadow-[0_0_20px_var(--color-theme-glow)] rounded border border-theme-primary z-50"
-              role="menu"
-              aria-label="User menu"
-            >
-              <router-link
-                to="/profile"
-                class="block px-4 py-2 text-theme-primary hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
-                role="menuitem"
-                aria-label="View profile"
-                @click="isDropdownOpen = false"
-              >
-                <Icon icon="mdi:account" class="inline h-4 w-4 mr-2" />
-                Profile
-              </router-link>
-              <router-link
-                to="/preferences"
-                class="block px-4 py-2 text-theme-primary hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
-                role="menuitem"
-                aria-label="Display preferences"
-                @click="isDropdownOpen = false"
-              >
-                <Icon icon="mdi:palette" class="inline h-4 w-4 mr-2" />
-                Preferences
-              </router-link>
-              <router-link
-                to="/settings"
-                class="block px-4 py-2 text-theme-primary hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
-                role="menuitem"
-                aria-label="Settings"
-                @click="isDropdownOpen = false"
-              >
-                <Icon icon="mdi:cog" class="inline h-4 w-4 mr-2" />
-                Settings
-              </router-link>
-              <router-link
-                to="/about"
-                class="block px-4 py-2 text-theme-primary hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
-                role="menuitem"
-                aria-label="About this application"
-                @click="isDropdownOpen = false"
-              >
-                <Icon icon="mdi:information" class="inline h-4 w-4 mr-2" />
-                About
-              </router-link>
-              <router-link
-                to="/changelog"
-                class="block px-4 py-2 text-theme-primary hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
-                role="menuitem"
-                aria-label="View changelog"
-                @click="isDropdownOpen = false"
-              >
-                <Icon icon="mdi:newspaper" class="inline h-4 w-4 mr-2" />
-                Changelog
-              </router-link>
-              <hr class="border-gray-700 my-1" />
-              <button
-                @click="logout"
-                class="block w-full px-4 py-2 text-left text-theme-primary hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 rounded-b transition-colors"
-                role="menuitem"
-                aria-label="Logout"
-              >
-                <Icon icon="mdi:logout" class="inline h-4 w-4 mr-2" />
-                Logout
-              </button>
+            <div v-if="isReady" class="flex items-center gap-3">
+              <PageHeaderMetric
+                compact
+                icon="mdi:account-group"
+                :value="`${dwellersCount} / ${populationMax}`"
+                label="Dwellers"
+                :tooltip="dwellersTooltip"
+                :value-class="populationColor"
+              />
+              <PageHeaderMetric
+                compact
+                icon="mdi:emoticon-happy"
+                :value="`${happiness}%`"
+                label="Happiness"
+                :tooltip="happinessTooltip"
+                :value-class="happinessColor"
+              />
             </div>
-          </Transition>
+          </div>
+          <div
+            v-if="isVaultRoute && isAuthenticated"
+            class="shrink-0"
+            role="region"
+            aria-label="Vault resources"
+          >
+            <div
+              v-if="!isReady"
+              class="flex min-h-8 items-center gap-2 text-xs text-theme-primary/70"
+              role="status"
+              aria-live="polite"
+            >
+              <Icon
+                :icon="loadFailed ? 'mdi:alert' : 'mdi:loading'"
+                class="h-4 w-4"
+                :class="{ 'animate-spin': !loadFailed }"
+                :ariaHidden="true"
+              />
+              {{ loadFailed ? 'Vault status unavailable' : 'Syncing vault status' }}
+            </div>
+            <div v-else class="flex items-center gap-4">
+              <ResourceBar
+                navbar
+                :current="energy.current"
+                :max="energy.max"
+                icon="mdi:lightning-bolt"
+                label="Power"
+                :production-rate="resourceRates?.power"
+              />
+              <ResourceBar
+                navbar
+                :current="food.current"
+                :max="food.max"
+                icon="mdi:food-apple"
+                label="Food"
+                :production-rate="resourceRates?.food"
+              />
+              <ResourceBar
+                navbar
+                :current="water.current"
+                :max="water.max"
+                icon="mdi:water"
+                label="Water"
+                :production-rate="resourceRates?.water"
+              />
+            </div>
+          </div>
+          <div
+            v-if="isVaultRoute && isAuthenticated && isReady"
+            class="flex shrink-0 items-center gap-3 tabular-nums"
+            role="group"
+            aria-label="Vault currency"
+          >
+            <PageHeaderMetric
+              compact
+              icon="mdi:bottle-soda-classic"
+              value="—"
+              label="Nuka bottles"
+              tooltip="Nuka bottles are a preview; balances are not tracked yet."
+              value-class="text-theme-primary/55"
+            />
+            <PageHeaderMetric
+              compact
+              icon="mdi:currency-usd"
+              :value="bottleCaps.toLocaleString('en-US')"
+              label="Caps"
+              :tooltip="capsTooltip"
+            />
+          </div>
+        </div>
+        <div
+          class="ml-auto flex shrink-0 items-center gap-2 sm:gap-4"
+          role="group"
+          aria-label="Account and notifications"
+        >
+          <!-- Version Update Badge (only when authenticated and there's an update) -->
+          <button
+            v-if="isAuthenticated && versionBadgeVisible"
+            @click="showChangelog()"
+            :class="[
+              'relative text-theme-primary hover:text-theme-glow',
+              'focus:outline-none focus:ring-2 focus:ring-theme-primary',
+              'focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1 transition-colors',
+            ]"
+            aria-label="View changelog for new version"
+          >
+            <Icon icon="mdi:newspaper" class="h-5 w-5" />
+            <span
+              class="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full animate-pulse"
+            ></span>
+          </button>
+
+          <!-- Sound toggle (only while an incident is active) -->
+          <button
+            v-if="hasActiveIncidents"
+            @click="toggleSound"
+            :class="[
+              'relative text-theme-primary hover:text-theme-glow',
+              'focus:outline-none focus:ring-2 focus:ring-theme-primary',
+              'focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1 transition-colors',
+            ]"
+            :aria-label="soundMuted ? 'Unmute sounds' : 'Mute sounds'"
+            :aria-pressed="!soundMuted"
+          >
+            <Icon :icon="soundMuted ? 'mdi:volume-off' : 'mdi:volume-high'" class="h-5 w-5" />
+          </button>
+
+          <!-- Responder count (informational, only while incidents are active) -->
+          <span
+            v-if="hasActiveIncidents"
+            class="badge-info flex items-center gap-1 rounded-full border border-theme-primary/30 px-2 py-1 text-xs text-theme-primary"
+            :aria-label="responderCountLabel"
+            :title="responderCountLabel"
+          >
+            <Icon icon="mdi:account-group" class="h-4 w-4" />
+            {{ incidentStore.totalResponderCount }}
+          </span>
+
+          <!-- Notification Bell (only when authenticated) -->
+          <NotificationBell v-if="isAuthenticated" />
+
+          <!-- User-related actions on the right -->
+          <router-link
+            to="/login"
+            v-if="!isAuthenticated"
+            class="text-theme-primary hover:underline focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
+            aria-label="Go to login page"
+          >
+            Login
+          </router-link>
+          <router-link
+            to="/register"
+            v-if="!isAuthenticated"
+            class="text-theme-primary hover:underline focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
+            aria-label="Go to registration page"
+          >
+            Register
+          </router-link>
+
+          <!-- User Dropdown -->
+          <div v-if="isAuthenticated" class="relative" ref="dropdownRef">
+            <button
+              @click="toggleDropdown"
+              @keydown.escape="closeDropdown"
+              :class="[
+                'inline-flex items-center gap-2 text-theme-primary hover:underline hover:bg-theme-primary/10 focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-surface-warm rounded px-2 py-1 border-2 border-theme-primary/30',
+                isProfileRoute ? 'bg-theme-primary/10 shadow-glow-sm' : '',
+              ]"
+              :aria-expanded="isDropdownOpen"
+              aria-haspopup="true"
+              :aria-label="`User menu for ${user?.username || 'user'}`"
+            >
+              <Icon icon="mdi:account-circle" class="h-5 w-5" :ariaHidden="true" />
+              <span class="hidden sm:inline">{{ user?.username }}</span>
+            </button>
+            <Transition name="dropdown">
+              <!-- Raw role="menuitem" rows: a DropdownMenu primitive is not vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
+              <div
+                v-if="isDropdownOpen"
+                class="absolute right-0 mt-2 w-48 bg-black shadow-[0_0_20px_var(--color-theme-glow)] rounded border border-theme-primary z-50"
+                role="menu"
+                aria-label="User menu"
+              >
+                <router-link
+                  to="/profile"
+                  class="block px-4 py-2 text-theme-primary hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
+                  role="menuitem"
+                  aria-label="View profile"
+                  @click="isDropdownOpen = false"
+                >
+                  <Icon icon="mdi:account" class="inline h-4 w-4 mr-2" />
+                  Profile
+                </router-link>
+                <router-link
+                  to="/preferences"
+                  class="block px-4 py-2 text-theme-primary hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
+                  role="menuitem"
+                  aria-label="Display preferences"
+                  @click="isDropdownOpen = false"
+                >
+                  <Icon icon="mdi:palette" class="inline h-4 w-4 mr-2" />
+                  Preferences
+                </router-link>
+                <router-link
+                  to="/settings"
+                  class="block px-4 py-2 text-theme-primary hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
+                  role="menuitem"
+                  aria-label="Settings"
+                  @click="isDropdownOpen = false"
+                >
+                  <Icon icon="mdi:cog" class="inline h-4 w-4 mr-2" />
+                  Settings
+                </router-link>
+                <router-link
+                  to="/about"
+                  class="block px-4 py-2 text-theme-primary hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
+                  role="menuitem"
+                  aria-label="About this application"
+                  @click="isDropdownOpen = false"
+                >
+                  <Icon icon="mdi:information" class="inline h-4 w-4 mr-2" />
+                  About
+                </router-link>
+                <router-link
+                  to="/changelog"
+                  class="block px-4 py-2 text-theme-primary hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
+                  role="menuitem"
+                  aria-label="View changelog"
+                  @click="isDropdownOpen = false"
+                >
+                  <Icon icon="mdi:newspaper" class="inline h-4 w-4 mr-2" />
+                  Changelog
+                </router-link>
+                <hr class="border-gray-700 my-1" />
+                <button
+                  @click="logout"
+                  class="block w-full px-4 py-2 text-left text-theme-primary hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 rounded-b transition-colors"
+                  role="menuitem"
+                  aria-label="Logout"
+                >
+                  <Icon icon="mdi:logout" class="inline h-4 w-4 mr-2" />
+                  Logout
+                </button>
+              </div>
+            </Transition>
+          </div>
         </div>
       </div>
     </div>

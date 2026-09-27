@@ -25,7 +25,10 @@ const breadcrumbs = computed(() => {
   return [
     { label: 'Vault', to: `/vault/${vaultId.value}` },
     { label: 'Dwellers', to: `/vault/${vaultId.value}/dwellers` },
-    { label: `${dweller.value.first_name} ${dweller.value.last_name ?? ''}`.trim(), to: `/vault/${vaultId.value}/dwellers/${dwellerId.value}` },
+    {
+      label: `${dweller.value.first_name} ${dweller.value.last_name ?? ''}`.trim(),
+      to: `/vault/${vaultId.value}/dwellers/${dwellerId.value}`,
+    },
     { label: 'Conversation' },
   ]
 })
@@ -36,8 +39,7 @@ const { run: runLoadDweller, isLoading } = useAsyncAction(
 
     dweller.value = result
     if (result.vault?.id) {
-      vaultStore.activeVaultId = result.vault.id
-      await vaultStore.loadVault(result.vault.id, token)
+      await vaultStore.ensureVaultLoaded(result.vault.id, token)
     }
     return result
   },
@@ -52,7 +54,11 @@ onMounted(async () => {
 <template>
   <div class="dweller-chat-page">
     <!-- Loading State -->
-    <TerminalLoadingState v-if="isLoading" full-height message="Establishing connection to dweller..." />
+    <TerminalLoadingState
+      v-if="isLoading"
+      full-height
+      message="Establishing connection to dweller..."
+    />
 
     <!-- Content -->
     <template v-else-if="dweller">
@@ -122,5 +128,4 @@ onMounted(async () => {
   color: var(--color-theme-primary);
   opacity: 0.6;
 }
-
 </style>

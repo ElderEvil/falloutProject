@@ -18,7 +18,7 @@ const { toasts, remove } = useToast()
 <style scoped>
 .toast-container {
   position: fixed;
-  top: calc(var(--navbar-height) + 1rem);
+  top: calc(var(--chrome-height) + 1rem);
   right: 1rem;
   z-index: var(--z-index-toast);
   display: flex;
@@ -35,7 +35,9 @@ const { toasts, remove } = useToast()
 .toast-list-move,
 .toast-list-enter-active,
 .toast-list-leave-active {
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    opacity 0.3s ease;
 }
 
 .toast-list-enter-from {

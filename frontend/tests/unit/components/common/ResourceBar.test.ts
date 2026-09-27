@@ -157,7 +157,7 @@ describe('ResourceBar', () => {
       })
 
       const barContainer = wrapper.find(
-        '.h-6.w-40.rounded-full.border-2.border-stone-600.bg-stone-800'
+        '.h-6.w-full.max-w-40.rounded-full.border-2.border-stone-600.bg-stone-800'
       )
       expect(barContainer.exists()).toBe(true)
     })

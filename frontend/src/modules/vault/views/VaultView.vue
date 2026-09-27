@@ -11,25 +11,17 @@ import { useSound } from '@/core/composables/useSound'
 import RoomGrid from '@/modules/rooms/components/RoomGrid.vue'
 import BuildModeButton from '@/core/components/common/BuildModeButton.vue'
 import RoomMenu from '@/modules/rooms/components/RoomMenu.vue'
-import ResourceBar from '@/modules/vault/components/shell/ResourceBar.vue'
 import GameControlPanel from '@/modules/vault/components/shell/GameControlPanel.vue'
 import { getOverseerAttentionCount } from '@/modules/vault/models/overseerBriefing'
 import UnassignedDwellers from '@/modules/dwellers/components/UnassignedDwellers.vue'
 import WastelandPanel from '@/modules/exploration/components/WastelandPanel.vue'
 import IncidentAlert from '@/modules/combat/components/incidents/IncidentAlert.vue'
 import TerminalLoadingState from '@/core/components/common/TerminalLoadingState.vue'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/core/components/ui/tooltip'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import type { RoomTemplate } from '@/modules/rooms/models/room'
-import { Icon } from '@iconify/vue'
 
 interface Position {
   x: number
@@ -62,7 +54,6 @@ const currentVault = computed(() => {
   return vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null
 })
 
-const bottleCaps = computed(() => currentVault.value?.bottle_caps ?? 0)
 const dwellersCount = computed(() => currentVault.value?.dweller_count ?? 0)
 const populationMax = computed(() => currentVault.value?.population_max ?? 0)
 const populationUtilization = computed(() => {
@@ -75,41 +66,14 @@ const populationUtilization = computed(() => {
   return (current / max) * 100
 })
 
-const populationColor = computed(() => {
-  if (populationUtilization.value >= 90) return 'text-red-500'
-  if (populationUtilization.value >= 75) return 'text-yellow-400'
-  return 'text-terminal-green'
-})
-
 const happiness = computed(() => currentVault.value?.happiness ?? 0)
-
-const happinessColor = computed(() => {
-  const h = happiness.value
-  if (h >= 75) return 'text-terminal-green'
-  if (h >= 50) return 'text-green-400'
-  if (h >= 25) return 'text-yellow-400'
-  return 'text-red-500'
-})
-
-const energy = computed(() => ({
-  current: currentVault.value?.power ?? 0,
-  max: currentVault.value?.power_max ?? 100,
-}))
-const food = computed(() => ({
-  current: currentVault.value?.food ?? 0,
-  max: currentVault.value?.food_max ?? 100,
-}))
-const water = computed(() => ({
-  current: currentVault.value?.water ?? 0,
-  max: currentVault.value?.water_max ?? 100,
-}))
-const resourceRates = computed(() =>
-  vaultId.value ? vaultStore.resourceRates[vaultId.value] : undefined
-)
 
 const resourceWarnings = computed(() => currentVault.value?.resource_warnings ?? [])
 const activeExplorationCount = computed(
-  () => Object.values(explorationStore.activeExplorations).filter((item) => item.vault_id === vaultId.value).length
+  () =>
+    Object.values(explorationStore.activeExplorations).filter(
+      (item) => item.vault_id === vaultId.value
+    ).length
 )
 const trainingCount = computed(
   () => dwellerStore.dwellers.filter((dweller) => dweller.status === 'training').length
@@ -168,8 +132,8 @@ const loadVaultData = async (id: string) => {
     // Fetch vault list
     await vaultStore.fetchVaults(authStore.token)
 
-    // Load the specific vault data
-    await vaultStore.refreshVault(id, authStore.token)
+    // Load the specific vault data (idempotent shared action)
+    await vaultStore.ensureVaultLoaded(id, authStore.token)
 
     // Verify vault was loaded
     if (!vaultStore.loadedVaults[id]) {
@@ -190,12 +154,9 @@ const loadVaultData = async (id: string) => {
       // Don't fail the whole page load if explorations fail
     }
 
-    // Fetch game state and start polling
+    // Fetch game state (the shared vault action owns the tick stream)
     try {
       await vaultStore.fetchGameState(id, authStore.token)
-      if (!vaultStore.gameState?.is_paused) {
-        vaultStore.startResourcePolling()
-      }
     } catch (error) {
       // Game state not available, continuing without it
     }
@@ -232,7 +193,6 @@ watch(
   () => vaultId.value,
   (newId) => {
     if (newId) {
-      vaultStore.stopResourcePolling()
       incidentStore.stopPolling()
       loadVaultData(newId)
     }
@@ -279,10 +239,10 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  // Clean up polling when component is unmounted. Music is intentionally NOT
-  // stopped: audioManager is a global singleton, so the ambient loop keeps
-  // playing across navigation (issue #620).
-  vaultStore.stopResourcePolling()
+  // Stop incident polling; the resource tick stream is owned by the shell
+  // (useVaultHeaderContext) so it survives navigation between vault routes.
+  // Music is intentionally NOT stopped: audioManager is a global singleton,
+  // so the ambient loop keeps playing across navigation (issue #620).
   incidentStore.stopPolling()
   window.removeEventListener('keydown', handleKeyPress)
 })
@@ -344,85 +304,6 @@ const reviewActiveIncidents = () => {
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8">
-          <div class="mb-8 flex w-full items-center justify-between space-x-8">
-            <!-- Dwellers Count and Happiness -->
-            <div class="flex items-center space-x-4">
-              <!--
-                TooltipProvider delayDuration (200ms) preserves the previous
-                tooltip hover delay; reka-ui opens instantly on keyboard focus,
-                which is the stronger a11y contract for these focusable stat readouts.
-              -->
-              <TooltipProvider :delay-duration="200">
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <div class="flex items-center space-x-2 cursor-help" tabindex="0">
-                      <Icon icon="mdi:account-group" class="h-8 w-8 text-terminal-green" />
-                      <p :class="`whitespace-nowrap ${populationColor}`">
-                        {{ dwellersCount }} / {{ populationMax }}
-                      </p>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" class="whitespace-pre-line">
-                    {{ `Total dwellers in vault: ${dwellersCount}/${populationMax}\nCapacity: ${populationMax} dwellers` }}
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <div class="flex items-center space-x-2 cursor-help" tabindex="0">
-                      <Icon icon="mdi:emoticon-happy" class="h-6 w-6" :class="happinessColor" />
-                      <p :class="happinessColor">{{ happiness }}%</p>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" class="whitespace-pre-line">
-                    {{ `Vault Happiness: ${happiness}%\n${happiness >= 75 ? '😊 Excellent morale!' : happiness >= 50 ? '😐 Acceptable morale' : happiness >= 25 ? '😟 Low morale - needs attention' : '😢 Critical - dwellers are unhappy!'}` }}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-
-            <!-- Resources in the Middle -->
-            <div class="flex justify-center space-x-8">
-              <ResourceBar
-                :current="energy.current"
-                :max="energy.max"
-                icon="mdi:lightning-bolt"
-                label="Power"
-                :production-rate="resourceRates?.power"
-              />
-              <ResourceBar
-                :current="food.current"
-                :max="food.max"
-                icon="mdi:food-apple"
-                label="Food"
-                :production-rate="resourceRates?.food"
-              />
-              <ResourceBar
-                :current="water.current"
-                :max="water.max"
-                icon="mdi:water"
-                label="Water"
-                :production-rate="resourceRates?.water"
-              />
-            </div>
-
-            <!-- Bottle Caps and Game Controls -->
-            <div class="flex min-w-0 items-center gap-2">
-              <TooltipProvider :delay-duration="200">
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <div class="flex items-center space-x-2 cursor-help" tabindex="0">
-                      <Icon icon="mdi:currency-usd" class="h-6 w-6 text-terminal-green" />
-                      <p>{{ bottleCaps }}</p>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" class="whitespace-pre-line">
-                    {{ `Bottle Caps: ${bottleCaps}\nVault currency for construction and upgrades` }}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          </div>
-
           <GameControlPanel v-if="vaultId" :vaultId="vaultId" />
 
           <!-- Incident Alert Banner -->
@@ -470,7 +351,6 @@ const reviewActiveIncidents = () => {
         </div>
       </div>
     </div>
-
   </div>
 </template>
 

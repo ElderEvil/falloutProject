@@ -2,40 +2,40 @@
   <Card
     class="relationship-card relationship-record--grid h-full min-h-96 gap-0 rounded-lg border-2 border-theme-primary/20 p-4 shadow-none ring-0"
   >
-    <div class="flex flex-col gap-4">
+    <div class="flex flex-col gap-3">
       <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-2">
         <button
           type="button"
           :title="`View ${dweller1Name}`"
-          class="group flex min-h-36 min-w-0 flex-col items-center justify-center gap-1 rounded border border-theme-primary/20 bg-surface-sunken px-2 py-1.5 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
+          class="group flex min-h-40 min-w-0 flex-col items-center justify-center gap-1 rounded border border-theme-primary/20 bg-surface-sunken px-2 py-1.5 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
           @click="emit('select-dweller', relationship.dweller_1_id)"
         >
           <span
-            class="dweller-portrait-frame flex size-16 shrink-0 items-center justify-center overflow-hidden rounded bg-black/30"
+            class="dweller-portrait-frame flex size-18 shrink-0 items-center justify-center overflow-hidden rounded bg-black/30"
           >
             <DwellerPortrait
               :thumbnail-url="dweller1.thumbnail_url"
               :alt="dweller1Name"
               prefer-thumbnail
               image-class="h-full w-full object-cover"
-              fallback-class="h-10 w-10 text-theme-primary/60"
+              fallback-class="h-12 w-12 text-theme-primary/60"
             />
           </span>
           <span
             class="block w-full truncate text-center text-sm font-bold text-theme-primary group-hover:underline"
             >{{ dweller1Name }}</span
           >
-          <span class="flex items-center justify-center gap-1.5">
-            <span class="text-[0.65rem] font-bold text-theme-primary/70" title="Charisma"
-              >C {{ dweller1.charisma }}</span
-            >
+          <span class="flex w-full flex-wrap items-center justify-center gap-1">
+            <DwellerRaceBadge
+              :race="dweller1.visual_attributes?.race ?? 'human'"
+              show-label
+              size="sm"
+            />
             <DwellerGenderBadge :gender="dweller1.gender" size="sm" />
           </span>
-          <DwellerRaceBadge
-            :race="dweller1.visual_attributes?.race ?? 'human'"
-            show-label
-            size="sm"
-          />
+          <span class="text-[0.65rem] font-bold text-theme-primary/65" title="Charisma"
+            >C {{ dweller1.charisma }}</span
+          >
         </button>
         <div class="flex flex-col items-center justify-center gap-1 text-theme-primary/70">
           <Icon
@@ -61,35 +61,35 @@
         <button
           type="button"
           :title="`View ${dweller2Name}`"
-          class="group flex min-h-36 min-w-0 flex-col items-center justify-center gap-1 rounded border border-theme-primary/20 bg-surface-sunken px-2 py-1.5 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
+          class="group flex min-h-40 min-w-0 flex-col items-center justify-center gap-1 rounded border border-theme-primary/20 bg-surface-sunken px-2 py-1.5 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
           @click="emit('select-dweller', relationship.dweller_2_id)"
         >
           <span
-            class="dweller-portrait-frame flex size-16 shrink-0 items-center justify-center overflow-hidden rounded bg-black/30"
+            class="dweller-portrait-frame flex size-18 shrink-0 items-center justify-center overflow-hidden rounded bg-black/30"
           >
             <DwellerPortrait
               :thumbnail-url="dweller2.thumbnail_url"
               :alt="dweller2Name"
               prefer-thumbnail
               image-class="h-full w-full object-cover"
-              fallback-class="h-10 w-10 text-theme-primary/60"
+              fallback-class="h-12 w-12 text-theme-primary/60"
             />
           </span>
           <span
             class="block w-full truncate text-center text-sm font-bold text-theme-primary group-hover:underline"
             >{{ dweller2Name }}</span
           >
-          <span class="flex items-center justify-center gap-1.5">
-            <span class="text-[0.65rem] font-bold text-theme-primary/70" title="Charisma"
-              >C {{ dweller2.charisma }}</span
-            >
+          <span class="flex w-full flex-wrap items-center justify-center gap-1">
+            <DwellerRaceBadge
+              :race="dweller2.visual_attributes?.race ?? 'human'"
+              show-label
+              size="sm"
+            />
             <DwellerGenderBadge :gender="dweller2.gender" size="sm" />
           </span>
-          <DwellerRaceBadge
-            :race="dweller2.visual_attributes?.race ?? 'human'"
-            show-label
-            size="sm"
-          />
+          <span class="text-[0.65rem] font-bold text-theme-primary/65" title="Charisma"
+            >C {{ dweller2.charisma }}</span
+          >
         </button>
       </div>
       <div class="rounded border border-theme-primary/20 bg-surface-sunken p-3">

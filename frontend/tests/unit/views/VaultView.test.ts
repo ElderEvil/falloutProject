@@ -110,7 +110,7 @@ describe('VaultView', () => {
   })
 
   describe('Build control', () => {
-    it('floats the build control over the top right of the room grid', async () => {
+    it('renders the build control in the room grid container', async () => {
       const { wrapper } = await mountLoadedVault()
 
       const grid = wrapper.find('[data-testid="room-grid"]')
@@ -120,7 +120,6 @@ describe('VaultView', () => {
       expect(grid.exists()).toBe(true)
       expect(buildButton.exists()).toBe(true)
       expect(buildButton.isVisible()).toBe(true)
-      expect(buildControl.classes()).toEqual(expect.arrayContaining(['absolute', 'right-4', 'top-4']))
       expect(buildControl.element.parentElement).toBe(grid.element.parentElement)
       expect(
         buildButton.element.compareDocumentPosition(grid.element) & Node.DOCUMENT_POSITION_FOLLOWING

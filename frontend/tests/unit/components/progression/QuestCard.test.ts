@@ -36,7 +36,7 @@ const quest = {
 } as VaultQuest
 
 describe('QuestCard', () => {
-  it('keeps completed details reachable through the title without a footer action', async () => {
+  it('renders a completed quest with a non-interactive Completed mark instead of a Details action', () => {
     setActivePinia(createPinia())
     const wrapper = mount(QuestCard, {
       props: {
@@ -47,12 +47,10 @@ describe('QuestCard', () => {
       },
     })
 
-    expect(wrapper.find('.completed-stamp button').exists()).toBe(false)
-    expect(wrapper.find('.quest-action-btn').exists()).toBe(false)
+    expect(wrapper.find('.quest-card button').exists()).toBe(false)
     expect(wrapper.text()).toContain('Completed')
     expect(wrapper.text()).not.toContain('View Details')
-    await wrapper.get('.quest-title button').trigger('click')
-    expect(wrapper.emitted('view')).toEqual([['quest-1']])
+    expect(wrapper.emitted('view')).toBeUndefined()
   })
 
   it('keeps the primary action in a card footer below variable quest content', () => {

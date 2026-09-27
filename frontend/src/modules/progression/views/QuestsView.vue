@@ -23,13 +23,8 @@ import {
 } from '@/core/components/ui/select'
 import { QuestCard, PartySelectionModal } from '../components'
 import QuestRewardsModal from '../components/QuestRewardsModal.vue'
-import QuestDetailModal from '../components/QuestDetailModal.vue'
 import type { QuestAvailableSortBy, VaultQuest } from '../models/quest'
-import {
-  compareQuestsByAvailableSort,
-  isQuestReturning,
-  isStateQuestCategory,
-} from '../models/quest'
+import { compareQuestsByAvailableSort, isQuestReturning } from '../models/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 
 const route = useRoute()
@@ -88,18 +83,7 @@ const claimModalOpenedFromQuery = ref(false)
 
 const vaultId = computed(() => route.params.id as string)
 
-// Deep-linkable quest detail modal: `?quest=<id>` opens it while the list stays mounted.
-const selectedQuestId = computed(() => (route.query.quest as string) || '')
 const claimQuestId = computed(() => (route.query.claimQuest as string) || '')
-
-const openQuest = (questId: string) => {
-  if (!vaultId.value) return
-  void router.push({ query: { ...route.query, quest: questId } })
-}
-
-const closeQuest = () => {
-  void router.replace({ query: { ...route.query, quest: undefined } })
-}
 
 // The backend owns quest locking; the full-screen gate shows while the Overseer's Office is missing.
 const officeLocked = computed(() =>
@@ -207,38 +191,6 @@ const handleAssignAndStart = async (dwellerIds: string[]) => {
   showPartyModal.value = false
   selectedQuest.value = null
   questPartyMembers.value = []
-  closeQuest()
-}
-
-const isStateQuest = (quest: VaultQuest) => isStateQuestCategory(quest.quest_category)
-
-// State quests settle from vault progress and start with no party; others must assign one first.
-const isStarting = ref(false)
-const handleStartFromModal = async (questId: string) => {
-  if (isStarting.value) return
-  const quest = questStore.vaultQuests.find((q) => q.id === questId)
-  if (!quest || !vaultId.value) return
-
-  if (isStateQuest(quest)) {
-    isStarting.value = true
-    try {
-      await questStore.startQuest(vaultId.value, quest.id)
-    } catch {
-      // startQuest reports the failure; keep the detail modal open for a retry.
-      isStarting.value = false
-      return
-    }
-    try {
-      await loadPartyMembers()
-      // A chain click during the await can select a different quest; only close that one's modal.
-      if (selectedQuestId.value === questId) closeQuest()
-    } finally {
-      isStarting.value = false
-    }
-    return
-  }
-
-  await handleAssignParty(questId)
 }
 
 const handleClaimRewards = (questId: string, openedFromQuery = false) => {
@@ -469,7 +421,6 @@ onMounted(async () => {
                       :quest="quest"
                       :vault-id="vaultId"
                       status="completed"
-                      @view="openQuest"
                     />
                   </div>
                 </div>
@@ -493,16 +444,6 @@ onMounted(async () => {
             :is-submitting="isClaiming"
             @close="closeClaimModal"
             @confirm="confirmClaimRewards"
-          />
-
-          <!-- Quest detail modal: deep-linked via ?quest=<id>; the list stays mounted behind it. -->
-          <QuestDetailModal
-            v-if="selectedQuestId"
-            :quest-id="selectedQuestId"
-            :vault-id="vaultId"
-            @close="closeQuest"
-            @select="openQuest"
-            @start="handleStartFromModal"
           />
         </PageContentRail>
       </div>

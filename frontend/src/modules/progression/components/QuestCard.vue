@@ -33,7 +33,6 @@ const emit = defineEmits<{
   start: [questId: string]
   claim: [questId: string]
   assignParty: [questId: string]
-  view: [questId: string]
 }>()
 
 const timeRemaining = ref<string | null>(null)
@@ -279,18 +278,7 @@ const handleAction = () => {
     <div class="quest-card-content flex-1">
       <!-- Header -->
       <div class="quest-header">
-        <h3 class="quest-title">
-          <button
-            v-if="status === 'completed'"
-            type="button"
-            class="text-left underline decoration-theme-primary/50 underline-offset-4 hover:decoration-theme-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary"
-            :aria-label="`View ${quest.title} details`"
-            @click="emit('view', quest.id)"
-          >
-            {{ quest.title }}
-          </button>
-          <template v-else>{{ quest.title }}</template>
-        </h3>
+        <h3 class="quest-title">{{ quest.title }}</h3>
         <div class="quest-badges">
           <QuestTypeBadge :quest-type="quest.quest_type" />
           <Badge

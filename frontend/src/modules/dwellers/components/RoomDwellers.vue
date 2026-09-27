@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import { useDwellerStore } from '../stores/dweller'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '../models/dweller'
-import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
 import DwellerPortrait from './DwellerPortrait.vue'
 
 interface Props {
@@ -63,9 +62,6 @@ const handleDragEnd = () => {
         fallback-class="h-10 w-10 icon-primary"
       />
       <div class="dweller-level">{{ dweller.level }}</div>
-      <div class="status-indicator">
-        <DwellerStatusBadge :status="dwellerStore.getDwellerStatus(dweller.id)" size="small" />
-      </div>
     </div>
   </div>
 </template>
@@ -124,19 +120,6 @@ const handleDragEnd = () => {
   padding: 0 2px;
   line-height: 1;
   border-top-left-radius: 2px;
-}
-
-.status-indicator {
-  position: absolute;
-  top: 0;
-  left: 0;
-  opacity: 0;
-  transition: opacity 0.2s;
-  z-index: 10;
-}
-
-.dweller-avatar:hover .status-indicator {
-  opacity: 1;
 }
 
 .icon-primary {

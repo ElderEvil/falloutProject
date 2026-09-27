@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  formatItemLabel,
   getItemIcon,
   getOutfitBonuses,
   getOutfitFireResist,
@@ -10,6 +11,27 @@ import {
   getRarityTextClass,
   getWeaponStats,
 } from '@/core/models/items'
+
+describe('formatItemLabel', () => {
+  it('renders snake_case catalog values as words', () => {
+    expect(formatItemLabel('rare_outfit')).toBe('Rare Outfit')
+    expect(formatItemLabel('power_armor')).toBe('Power Armor')
+    expect(formatItemLabel('two_handed_pistol')).toBe('Two Handed Pistol')
+  })
+
+  it('normalizes the inconsistent casing the catalogs ship', () => {
+    expect(formatItemLabel('Energy')).toBe('Energy')
+    expect(formatItemLabel('gun')).toBe('Gun')
+    expect(formatItemLabel('perception')).toBe('Perception')
+    expect(formatItemLabel('ENERGY')).toBe('Energy')
+  })
+
+  it('renders a missing value as empty', () => {
+    expect(formatItemLabel(undefined)).toBe('')
+    expect(formatItemLabel(null)).toBe('')
+    expect(formatItemLabel('')).toBe('')
+  })
+})
 
 describe('item icon mapping', () => {
   it('maps every weapon subtype to an icon', () => {
@@ -65,9 +87,9 @@ describe('stat rows', () => {
 
     expect(stats).toEqual([
       { label: 'Damage', value: '3-7', icon: 'mdi:sword-cross' },
-      { label: 'Uses', value: 'STRENGTH', icon: 'mdi:alphabet-latin' },
+      { label: 'Uses', value: 'Strength', icon: 'mdi:alphabet-latin' },
       { label: 'Accuracy', value: '75%', icon: 'mdi:target' },
-      { label: 'Type', value: 'gun', icon: 'mdi:tag' },
+      { label: 'Type', value: 'Gun', icon: 'mdi:tag' },
       { label: 'Subtype', value: 'Rifle', icon: 'mdi:tag-outline' },
       { label: 'Weight', value: 2.5, icon: 'mdi:scale' },
       { label: 'Durability', value: 90, icon: 'mdi:shield-check' },

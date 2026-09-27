@@ -44,7 +44,7 @@ const mapDiscoveryTitle = (places: MapDiscovery[]) =>
   `Map intel: ${places.map((place) => place.name).join(', ')} unlocked`
 
 const mapPlaceHref = (vaultId: string | null | undefined, locationId: string) =>
-  vaultId ? `/vault/${vaultId}/map?place=${locationId}` : undefined
+  vaultId ? `/vault/${vaultId}/map?place=${encodeURIComponent(locationId)}` : undefined
 
 const actionIcon = (action: ActionSuggestion) => {
   switch (action.action_type) {

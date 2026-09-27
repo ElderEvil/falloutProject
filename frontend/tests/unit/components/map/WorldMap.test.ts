@@ -234,7 +234,11 @@ describe('WorldMap', () => {
       })
 
       const svg = wrapper.find('svg')
-      expect(svg.attributes('viewBox')).toBe('0 0 160 160')
+      const [x, y, width, height] = svg.attributes('viewBox')!.split(' ').map(Number)
+      expect(width).toBeCloseTo(160 / 1.2)
+      expect(height).toBeCloseTo(width)
+      expect(x).toBeCloseTo((160 - width) / 2)
+      expect(y).toBeCloseTo(x)
     })
 
     it('should NOT have role="img" on the SVG (children must be accessible)', () => {
@@ -329,8 +333,7 @@ describe('WorldMap', () => {
         global: { stubs: defaultStubs },
       })
 
-      // Initially no zoom level display
-      expect(wrapper.find('.zoom-level').exists()).toBe(false)
+      expect(wrapper.find('.zoom-level').text()).toContain('120%')
 
       // Trigger zoom in via VM
       const vm = wrapper.vm as any

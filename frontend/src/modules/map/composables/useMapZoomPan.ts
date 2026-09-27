@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 
 // ── Constants ──────────────────────────────────────────────────────────
 export const MIN_ZOOM = 1
+export const INITIAL_ZOOM = 1.2
 export const MAX_ZOOM = 4
 export const WHEEL_STEP = 0.12
 export const MAP_SIZE = 160
@@ -87,9 +88,10 @@ export function computeZoomAtPoint(
 // ── Composable ─────────────────────────────────────────────────────────
 
 export function useMapZoomPan() {
-  const zoom = ref(MIN_ZOOM)
-  const panX = ref(0)
-  const panY = ref(0)
+  const zoom = ref(INITIAL_ZOOM)
+  const initialPan = computeFocusPan(MAP_SIZE / 2, MAP_SIZE / 2, INITIAL_ZOOM)
+  const panX = ref(initialPan.panX)
+  const panY = ref(initialPan.panY)
 
   // Drag state
   const isDragging = ref(false)

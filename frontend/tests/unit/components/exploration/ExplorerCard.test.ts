@@ -64,6 +64,18 @@ describe('ExplorerCard', () => {
     vi.useRealTimers()
   })
 
+  it('links dispatched explorers to their target on the map', () => {
+    const wrapper = mount(ExplorerCard, {
+      props: { exploration: { ...exploration, target_location_id: 'place-1' }, dweller },
+    })
+    expect(wrapper.find('a.view-on-map').attributes('href')).toBe('/vault/vault-1/map?place=place-1')
+  })
+
+  it('links free-roaming explorers to the map', () => {
+    const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
+    expect(wrapper.find('a.view-on-map').attributes('href')).toBe('/vault/vault-1/map')
+  })
+
   it('shows the exploring dweller portrait', () => {
     const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
 

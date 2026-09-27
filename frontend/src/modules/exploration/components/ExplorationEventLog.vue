@@ -20,7 +20,7 @@ const router = useRouter()
 const route = useRoute()
 
 const goToLocation = (locationId: string) => {
-  router.push(`/vault/${route.params.id}/map?place=${locationId}`)
+  router.push(`/vault/${route.params.id}/map?place=${encodeURIComponent(locationId)}`)
 }
 
 const orderedEvents = computed(() => {

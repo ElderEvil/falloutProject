@@ -160,7 +160,7 @@ function linkifyText(text: string): string {
       const locationId = lookup.get(match[0].toLowerCase())
       if (locationId) {
         const anchor = document.createElement('a')
-        anchor.setAttribute('href', `/vault/${vaultId.value}/map?place=${locationId}`)
+        anchor.setAttribute('href', `/vault/${vaultId.value}/map?place=${encodeURIComponent(locationId)}`)
         anchor.className = 'bio-place-link'
         anchor.textContent = match[0]
         fragment.appendChild(anchor)

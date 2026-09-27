@@ -153,6 +153,15 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
       </div>
     </div>
 
+    <a
+      class="view-on-map inline-flex w-fit items-center gap-1 text-sm text-theme-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary"
+      :href="`/vault/${route.params.id}/map${exploration.target_location_id ? `?place=${encodeURIComponent(exploration.target_location_id)}` : ''}`"
+      @click.stop
+    >
+      <Icon icon="mdi:map-marker-radius" :ariaHidden="true" />
+      View on Map
+    </a>
+
     <!-- Actions -->
     <ExplorerActions
       compact

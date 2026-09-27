@@ -209,8 +209,6 @@ const hasNoData = computed(
   () => !mapStore.isLoading && mapStore.locations.length === 0 && mapStore.vaultMarkers.length === 0
 )
 
-const mapPaneSize = 'min(var(--map-pane-size), calc(100vw - 2rem))'
-const mapPaneHeight = 'var(--map-pane-size)'
 </script>
 
 <template>
@@ -230,8 +228,8 @@ const mapPaneHeight = 'var(--map-pane-size)'
 
           <!-- Loading skeleton -->
           <div v-if="mapStore.isLoading" class="map-skeleton">
-            <Skeleton :style="{ width: mapPaneSize, height: mapPaneSize }" class="rounded-lg" />
-            <Skeleton :style="{ width: '100%', height: mapPaneHeight }" class="rounded-lg" />
+            <Skeleton class="aspect-square w-(--map-pane-size) max-w-full rounded-lg" />
+            <Skeleton class="h-(--map-pane-size) w-full rounded-lg" />
           </div>
 
           <!-- Error state -->

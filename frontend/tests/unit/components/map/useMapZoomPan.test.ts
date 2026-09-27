@@ -7,9 +7,20 @@ import {
   computeZoomAtPoint,
   MIN_ZOOM,
   MAX_ZOOM,
+  useMapZoomPan,
 } from '@/modules/map/composables/useMapZoomPan'
 
 describe('useMapZoomPan — pure functions', () => {
+  it('starts close in and resets to the whole world', () => {
+    const { zoom, panX, panY, resetZoom } = useMapZoomPan()
+    expect(zoom.value).toBe(1.2)
+    expect(panX.value).toBeCloseTo((160 - 160 / 1.2) / 2)
+    expect(panY.value).toBeCloseTo(panX.value)
+    resetZoom()
+    expect(zoom.value).toBe(1)
+    expect(panX.value).toBe(0)
+    expect(panY.value).toBe(0)
+  })
   describe('clampPan', () => {
     it('should return 0,0 at zoom=1 regardless of input', () => {
       const result = clampPan(50, 50, 1)

@@ -64,7 +64,11 @@ class RelationshipService:
             growing_together = (
                 first.id in living_quarters_ids and second.id in living_quarters_ids and first.room_id == second.room_id
             )
-            growth = affinity_gain(first, second) if growing_together and relationship.affinity < 100 else 0
+            growth = (
+                min(affinity_gain(first, second), 100 - relationship.affinity)
+                if growing_together and relationship.affinity < 100
+                else 0
+            )
             result.append(
                 VaultRelationshipRead.model_validate(
                     relationship,

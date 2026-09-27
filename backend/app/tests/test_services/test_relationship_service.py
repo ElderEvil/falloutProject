@@ -57,11 +57,14 @@ async def test_vault_relationship_progress_uses_living_quarters_and_charisma(mon
         visual_attributes={"race": "human"},
     )
     growing = Relationship(dweller_1_id=first.id, dweller_2_id=second.id, affinity=50)
+    nearly_full = Relationship(dweller_1_id=first.id, dweller_2_id=second.id, affinity=99)
     apart = Relationship(dweller_1_id=first.id, dweller_2_id=elsewhere.id, affinity=50)
     outside = Relationship(dweller_1_id=first.id, dweller_2_id=outside_living_quarters.id, affinity=50)
     full = Relationship(dweller_1_id=first.id, dweller_2_id=second.id, affinity=100)
 
-    monkeypatch.setattr(relationship_crud, "get_by_vault", AsyncMock(return_value=[growing, apart, outside, full]))
+    monkeypatch.setattr(
+        relationship_crud, "get_by_vault", AsyncMock(return_value=[growing, nearly_full, apart, outside, full])
+    )
     monkeypatch.setattr(
         crud.dweller,
         "get_living_quarters_dwellers",
@@ -75,7 +78,7 @@ async def test_vault_relationship_progress_uses_living_quarters_and_charisma(mon
 
     progress = await RelationshipService.get_vault_relationships_with_progress(AsyncMock(), uuid4())
 
-    assert [item.bond_growth_per_tick for item in progress] == [affinity_gain(first, second), 0, 0, 0]
+    assert [item.bond_growth_per_tick for item in progress] == [affinity_gain(first, second), 1, 0, 0, 0]
     assert progress[0].bond_growth_per_tick == game_config.relationship.affinity_increase_per_tick + 1
     assert all(item.bond_tick_seconds == game_config.game_loop.tick_interval for item in progress)
     assert all(item.conception_potential == "possible" for item in progress)

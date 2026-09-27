@@ -164,6 +164,8 @@ describe('RelationshipsView', () => {
 
       // Check that first tab is active by default
       expect(tabs[0].attributes('aria-selected')).toBe('true')
+      const panel = wrapper.get('[role="tabpanel"]')
+      expect(panel.attributes('aria-labelledby')).toBe(tabs[0].attributes('id'))
     })
   })
 

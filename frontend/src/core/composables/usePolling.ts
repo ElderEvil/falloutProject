@@ -17,6 +17,7 @@ export function usePolling(
 ) {
   const isRefreshing = ref(false)
   let generation = 0
+  let hasReportedError = false
 
   async function run() {
     if (isRefreshing.value) return
@@ -25,6 +26,7 @@ export function usePolling(
     isRefreshing.value = true
     try {
       await refresh()
+      hasReportedError = false
     } finally {
       // A late completion from a prior generation must not clear a newer run.
       if (activeGeneration === generation) isRefreshing.value = false
@@ -32,7 +34,11 @@ export function usePolling(
   }
 
   const runScheduledRefresh = () => {
-    void run().catch((error) => handleStoreError(error, 'Failed to refresh polled data'))
+    void run().catch((error) => {
+      if (hasReportedError) return
+      hasReportedError = true
+      handleStoreError(error, 'Failed to refresh polled data')
+    })
   }
 
   const { pause, resume, isActive } = useIntervalFn(runScheduledRefresh, interval, {

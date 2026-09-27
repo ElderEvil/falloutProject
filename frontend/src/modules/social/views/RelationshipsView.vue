@@ -16,7 +16,7 @@ import VaultPageShell from '@/core/components/common/VaultPageShell.vue'
 import RelationshipList from '../components/relationships/RelationshipList.vue'
 import PregnancyTracker from '../components/pregnancy/PregnancyTracker.vue'
 import ChildrenList from '../components/relationships/ChildrenList.vue'
-import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 
 const route = useRoute()
 const router = useRouter()
@@ -138,76 +138,90 @@ const navigateToDweller = (dwellerId: string) => {
               {{ tab.label }}
             </TabsTrigger>
           </TabsList>
-          <section class="min-w-0">
-            <!-- Stage 1: All Dwellers / Forming Relationships -->
-            <div v-if="activeStage === 'forming'" class="space-y-5">
-              <div>
-                <h2 class="flex items-center gap-2 text-lg font-bold text-theme-primary">
-                  <Icon icon="mdi:account-group" class="h-5 w-5" />
-                  Forming Relationships
-                </h2>
-                <p class="mt-1 text-sm leading-6 text-theme-primary/60">
-                  Dwellers in the same room will gradually increase their affinity. Romance can
-                  begin at 70+ affinity.
-                </p>
-              </div>
-              <RelationshipList
-                v-if="vaultId"
-                :vaultId="vaultId"
-                stageFilter="forming"
-                @select-dweller="navigateToDweller"
-              />
+          <!-- Stage 1: All Dwellers / Forming Relationships -->
+          <TabsContent
+            v-if="activeStage === 'forming'"
+            value="forming"
+            class="min-w-0 space-y-5 py-2"
+          >
+            <div>
+              <h2 class="flex items-center gap-2 text-lg font-bold text-theme-primary">
+                <Icon icon="mdi:account-group" class="h-5 w-5" />
+                Forming Relationships
+              </h2>
+              <p class="mt-1 text-sm leading-6 text-theme-primary/60">
+                Dwellers in the same room will gradually increase their affinity. Romance can begin
+                at 70+ affinity.
+              </p>
             </div>
+            <RelationshipList
+              v-if="vaultId"
+              :vaultId="vaultId"
+              stageFilter="forming"
+              @select-dweller="navigateToDweller"
+            />
+          </TabsContent>
 
-            <!-- Stage 2: Partners -->
-            <div v-if="activeStage === 'partners'" class="space-y-5">
-              <div>
-                <h2 class="flex items-center gap-2 text-lg font-bold text-theme-primary">
-                  <Icon icon="mdi:human-male-female" class="h-5 w-5" />
-                  Partner Couples
-                </h2>
-                <p class="mt-1 text-sm leading-6 text-theme-primary/60">
-                  Committed partners in living quarters have a chance to conceive (configurable via
-                  game settings).
-                </p>
-              </div>
-              <RelationshipList
-                v-if="vaultId"
-                :vaultId="vaultId"
-                stageFilter="partners"
-                @select-dweller="navigateToDweller"
-              />
+          <!-- Stage 2: Partners -->
+          <TabsContent
+            v-if="activeStage === 'partners'"
+            value="partners"
+            class="min-w-0 space-y-5 py-2"
+          >
+            <div>
+              <h2 class="flex items-center gap-2 text-lg font-bold text-theme-primary">
+                <Icon icon="mdi:human-male-female" class="h-5 w-5" />
+                Partner Couples
+              </h2>
+              <p class="mt-1 text-sm leading-6 text-theme-primary/60">
+                Committed partners in living quarters have a chance to conceive (configurable via
+                game settings).
+              </p>
             </div>
+            <RelationshipList
+              v-if="vaultId"
+              :vaultId="vaultId"
+              stageFilter="partners"
+              @select-dweller="navigateToDweller"
+            />
+          </TabsContent>
 
-            <!-- Stage 3: Pregnancies -->
-            <div v-if="activeStage === 'pregnancies'" class="space-y-5">
-              <div>
-                <h2 class="flex items-center gap-2 text-lg font-bold text-theme-primary">
-                  <Icon icon="mdi:baby-carriage" class="h-5 w-5" />
-                  Active Pregnancies
-                </h2>
-                <p class="mt-1 text-sm leading-6 text-theme-primary/60">
-                  Pregnancies last 3 hours. Babies inherit traits from both parents.
-                </p>
-              </div>
-              <PregnancyTracker v-if="vaultId" :vaultId="vaultId" :autoRefresh="true" />
+          <!-- Stage 3: Pregnancies -->
+          <TabsContent
+            v-if="activeStage === 'pregnancies'"
+            value="pregnancies"
+            class="min-w-0 space-y-5 py-2"
+          >
+            <div>
+              <h2 class="flex items-center gap-2 text-lg font-bold text-theme-primary">
+                <Icon icon="mdi:baby-carriage" class="h-5 w-5" />
+                Active Pregnancies
+              </h2>
+              <p class="mt-1 text-sm leading-6 text-theme-primary/60">
+                Pregnancies last 3 hours. Babies inherit traits from both parents.
+              </p>
             </div>
+            <PregnancyTracker v-if="vaultId" :vaultId="vaultId" :autoRefresh="true" />
+          </TabsContent>
 
-            <!-- Stage 4: Children -->
-            <div v-if="activeStage === 'children'" class="space-y-5">
-              <div>
-                <h2 class="flex items-center gap-2 text-lg font-bold text-theme-primary">
-                  <Icon icon="mdi:human-child" class="h-5 w-5" />
-                  Growing Children
-                </h2>
-                <p class="mt-1 text-sm leading-6 text-theme-primary/60">
-                  Children grow to adults after 3 hours. They consume resources but cannot work
-                  until grown.
-                </p>
-              </div>
-              <ChildrenList v-if="vaultId" :vaultId="vaultId" @select="navigateToDweller" />
+          <!-- Stage 4: Children -->
+          <TabsContent
+            v-if="activeStage === 'children'"
+            value="children"
+            class="min-w-0 space-y-5 py-2"
+          >
+            <div>
+              <h2 class="flex items-center gap-2 text-lg font-bold text-theme-primary">
+                <Icon icon="mdi:human-child" class="h-5 w-5" />
+                Growing Children
+              </h2>
+              <p class="mt-1 text-sm leading-6 text-theme-primary/60">
+                Children grow to adults after 3 hours. They consume resources but cannot work until
+                grown.
+              </p>
             </div>
-          </section>
+            <ChildrenList v-if="vaultId" :vaultId="vaultId" @select="navigateToDweller" />
+          </TabsContent>
         </Tabs>
       </PageContentRail>
     </VaultPageShell>

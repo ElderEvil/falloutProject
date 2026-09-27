@@ -24,6 +24,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
   // State
   const relationships = ref<Relationship[]>([])
   const isLoading = ref(false)
+  let mutationVersion = 0
 
   // Computed
   const getRelationshipByDwellers = computed(() => {
@@ -47,6 +48,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
   })
 
   function updateRelationship(updated: Relationship) {
+    mutationVersion++
     const index = relationships.value.findIndex((relationship) => relationship.id === updated.id)
     if (index !== -1) {
       relationships.value[index] = { ...relationships.value[index], ...updated }
@@ -59,11 +61,12 @@ export const useRelationshipStore = defineStore('relationship', () => {
     { silent = false }: { silent?: boolean } = {}
   ) {
     if (!silent) isLoading.value = true
+    const versionAtStart = mutationVersion
     try {
       const response = await axios.get(`/api/v1/relationships/vault/${vaultId}`)
-      relationships.value = response.data
+      if (versionAtStart === mutationVersion) relationships.value = response.data
     } catch (error: unknown) {
-      handleStoreError(error, 'Failed to fetch relationships')
+      handleStoreError(error, 'Failed to fetch relationships', !silent)
       throw error
     } finally {
       if (!silent) isLoading.value = false
@@ -85,6 +88,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
     try {
       const response = await axios.post('/api/v1/relationships/', data)
       const relationship = response.data
+      mutationVersion++
 
       // Add to local state if not already present
       const existing = relationships.value.find((r) => r.id === relationship.id)
@@ -159,6 +163,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
     isLoading.value = true
     try {
       await axios.delete(`/api/v1/relationships/${relationshipId}`)
+      mutationVersion++
 
       // Update local state
       const index = relationships.value.findIndex((r) => r.id === relationshipId)
@@ -210,6 +215,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
   }
 
   function clearRelationships() {
+    mutationVersion++
     relationships.value = []
   }
 

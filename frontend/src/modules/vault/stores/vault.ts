@@ -180,16 +180,24 @@ export const useVaultStore = defineStore('vault', () => {
   }
 
   async function ensureVaultLoaded(id: string, token: string): Promise<void> {
+    return loadVault(id, token, false)
+  }
+
+  async function revalidateVault(id: string, token: string): Promise<void> {
+    return loadVault(id, token, true)
+  }
+
+  async function loadVault(id: string, token: string, revalidate: boolean): Promise<void> {
     if (!id || !token) return
     mostRecentlyRequestedVaultId = id
 
-    if (loadedVaults.value[id]) {
+    const inFlight = inFlightLoads.get(id)
+    if (inFlight) return inFlight
+
+    if (!revalidate && loadedVaults.value[id]) {
       adoptVault(id, token)
       return
     }
-
-    const inFlight = inFlightLoads.get(id)
-    if (inFlight) return inFlight
 
     const requestGeneration = sessionGeneration
     isLoading.value = true
@@ -204,7 +212,9 @@ export const useVaultStore = defineStore('vault', () => {
           adoptVault(id, token)
         }
       } catch (error) {
-        handleStoreError(error, 'Failed to load vault')
+        const isCurrent =
+          requestGeneration === sessionGeneration && mostRecentlyRequestedVaultId === id
+        handleStoreError(error, 'Failed to load vault', isCurrent)
         throw error
       } finally {
         if (requestGeneration === sessionGeneration) {
@@ -450,6 +460,7 @@ export const useVaultStore = defineStore('vault', () => {
     createVault,
     deleteVault,
     ensureVaultLoaded,
+    revalidateVault,
     refreshVault,
     setActiveVault,
     closeVaultTab,

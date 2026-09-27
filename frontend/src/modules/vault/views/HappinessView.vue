@@ -29,7 +29,7 @@ const isInitialLoad = ref(true)
 const errorMessage = ref<string | null>(null)
 const { run: runLoadData, isLoading: isLoadingRequest } = useAsyncAction(
   async (currentVaultId: string, token: string) => {
-    await vaultStore.ensureVaultLoaded(currentVaultId, token)
+    await vaultStore.revalidateVault(currentVaultId, token)
     await dwellerStore.fetchDwellersByVault(currentVaultId, token)
     await incidentStore.fetchIncidents(currentVaultId, token)
     return true

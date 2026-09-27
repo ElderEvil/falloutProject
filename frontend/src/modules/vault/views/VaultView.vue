@@ -129,11 +129,11 @@ const loadVaultData = async (id: string) => {
     isLoading.value = true
     errorMessage.value = null
 
-    // Fetch vault list
-    await vaultStore.fetchVaults(authStore.token)
-
-    // Load the specific vault data (idempotent shared action)
-    await vaultStore.ensureVaultLoaded(id, authStore.token)
+    // Revalidate on overview entry; the shell's header load shares this request.
+    await Promise.all([
+      vaultStore.fetchVaults(authStore.token),
+      vaultStore.revalidateVault(id, authStore.token),
+    ])
 
     // Verify vault was loaded
     if (!vaultStore.loadedVaults[id]) {

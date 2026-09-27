@@ -379,6 +379,62 @@ describe('Vault Store', () => {
     })
   })
 
+  describe('revalidateVault Action', () => {
+    it('fetches fresh data for a cached vault on each route entry', async () => {
+      const store = useVaultStore()
+      store.loadedVaults = { 'vault-1': mockVault }
+      vi.mocked(axios.get)
+        .mockResolvedValueOnce({ data: { ...mockVault, bottle_caps: 1200 } })
+        .mockResolvedValueOnce({ data: { ...mockVault, bottle_caps: 1400 } })
+
+      await store.revalidateVault('vault-1', 'test-token')
+      await store.revalidateVault('vault-1', 'test-token')
+
+      expect(axios.get).toHaveBeenCalledTimes(2)
+      expect(store.loadedVaults['vault-1'].bottle_caps).toBe(1400)
+    })
+
+    it('shares an in-flight header load rather than requesting the same vault twice', async () => {
+      const store = useVaultStore()
+      let resolveLoad!: (value: unknown) => void
+      vi.mocked(axios.get).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveLoad = resolve
+          })
+      )
+
+      const headerLoad = store.ensureVaultLoaded('vault-1', 'test-token')
+      const routeLoad = store.revalidateVault('vault-1', 'test-token')
+      resolveLoad({ data: mockVault })
+      await Promise.all([headerLoad, routeLoad])
+
+      expect(axios.get).toHaveBeenCalledTimes(1)
+      expect(store.loadedVaults['vault-1']).toEqual(mockVault)
+    })
+
+    it('does not toast when a superseded vault load fails, but still rejects', async () => {
+      const store = useVaultStore()
+      const { toasts } = useToast()
+      toasts.value = []
+      let rejectOldLoad!: (reason: Error) => void
+      vi.mocked(axios.get).mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            rejectOldLoad = reject
+          })
+      )
+
+      const oldLoad = store.ensureVaultLoaded('vault-1', 'test-token')
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: { ...mockVault, id: 'vault-2' } })
+      await store.ensureVaultLoaded('vault-2', 'test-token')
+      rejectOldLoad(new Error('Old vault failed'))
+
+      await expect(oldLoad).rejects.toThrow('Old vault failed')
+      expect(toasts.value.some((toast) => toast.message.includes('Old vault failed'))).toBe(false)
+    })
+  })
+
   describe('refreshVault Action', () => {
     it('persists the vault as the selected vault so navigation survives a reload', async () => {
       const store = useVaultStore()

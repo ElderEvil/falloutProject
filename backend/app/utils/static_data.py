@@ -12,6 +12,7 @@ from app.schemas.outfit import OutfitCreate
 from app.schemas.quest import QuestChainJSON
 from app.schemas.room import RoomCreateWithoutVaultID
 from app.schemas.weapon import WeaponCreate
+from app.utils.junk_assets import get_junk_image_url
 from app.utils.legendary_dweller_assets import get_legendary_dweller_image_url
 from app.utils.outfit_assets import get_outfit_image_url
 from app.utils.room_assets import get_room_image_url
@@ -50,6 +51,9 @@ class StaticGameData:
     def junk_items(self) -> list[JunkCreate]:
         if self._junk_items is None:
             self._junk_items = self.load_data(DATA_DIR / "items/junk.json", JunkCreate)
+            for junk in self._junk_items:
+                if not junk.image_url:
+                    junk.image_url = get_junk_image_url(junk.name)
         return self._junk_items
 
     @property

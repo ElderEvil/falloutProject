@@ -17,6 +17,7 @@ from app.schemas.rewards import LunchboxOpened, LunchboxOpenRequest
 from app.schemas.storage import StorageItemsResponse, StorageSpaceResponse
 from app.schemas.vault import MedicalDistributionResponse, MedicalTransferRequest, MedicalTransferResponse
 from app.schemas.weapon import WeaponRead
+from app.utils.junk_assets import get_junk_image_url
 
 router = APIRouter(prefix="/storage", tags=["Storage"])
 logger = logging.getLogger(__name__)
@@ -103,10 +104,17 @@ async def get_storage_items(
         },
     )
 
+    junk_reads = []
+    for j in items["junk"]:
+        read = JunkRead.model_validate(j)
+        if not read.image_url:
+            read.image_url = get_junk_image_url(read.name)
+        junk_reads.append(read)
+
     return StorageItemsResponse(
         weapons=[WeaponRead.model_validate(w) for w in items["weapons"]],
         outfits=[OutfitRead.model_validate(o) for o in items["outfits"]],
-        junk=[JunkRead.model_validate(j) for j in items["junk"]],
+        junk=junk_reads,
         items=[ItemRead.model_validate(item) for item in items["items"]],
     )
 

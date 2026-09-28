@@ -126,6 +126,43 @@ async def test_get_storage_items_success(
 
 
 @pytest.mark.asyncio
+async def test_get_storage_items_backfills_junk_art(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """Legacy junk rows stored without image_url still render art in storage."""
+    from app.models.junk import JunkTypeEnum
+
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault_in = VaultCreateWithUserID(**vault_data)
+    vault = await crud.vault.create(async_session, vault_in)
+    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+
+    async_session.add(
+        Junk(
+            name="Teddy bear",
+            junk_type=JunkTypeEnum.VALUABLES,
+            rarity="common",
+            description="A well-loved bear.",
+            image_url=None,
+            storage_id=storage.id,
+        )
+    )
+    await async_session.flush()
+
+    response = await async_client.get(
+        f"/storage/vault/{vault.id}/items",
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 200
+    (entry,) = response.json()["junk"]
+    assert entry["image_url"] == "/static/junk_images/FOS Teddy bear.png"
+
+
+@pytest.mark.asyncio
 async def test_open_lunchbox_success(
     async_client: AsyncClient,
     async_session: AsyncSession,

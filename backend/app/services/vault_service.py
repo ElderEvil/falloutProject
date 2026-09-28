@@ -62,6 +62,7 @@ from app.utils.exceptions import (
     ResourceNotFoundException,
 )
 from app.utils.item_factory import build_outfit, build_weapon
+from app.utils.junk_assets import get_junk_image_url
 from app.utils.resource_warnings import get_resource_warnings
 
 
@@ -581,6 +582,7 @@ class VaultService:
                         rarity=rarity,
                         value=entry.get("value"),
                         description=str(entry.get("description") or entry["name"]),
+                        image_url=entry.get("image_url") or get_junk_image_url(str(entry["name"])),
                         storage_id=storage_id,
                     )
                 )

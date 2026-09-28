@@ -146,7 +146,7 @@ class DwellerTemplate(DwellerCreateWithoutVaultID):
     ``origin_place`` / ``visited_places`` are not Dweller columns and must not
     be persisted directly — callers pass them to ``map_service.register_bio_places``.
     ``visual_attributes`` is typed so identity validation runs at load time; ``null``
-    is allowed for companion templates (CX404, Snip Snip).
+    is allowed for companion templates (Snip Snip).
     """
 
     template_id: str = Field(min_length=2, max_length=64, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")

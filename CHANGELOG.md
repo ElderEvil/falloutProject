@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.156.0 (2026-09-28)
+
+### Features
+
+* **audio:** wire the audio library, air-raid incident alarm, and room ambience ([#825](https://github.com/ElderEvil/falloutProject/issues/825)) 698276d
+
 ## 2.155.0 (2026-09-28)
 
 ### Features

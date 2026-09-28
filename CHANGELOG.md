@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.154.0 (2026-09-28)
+
+### Features
+
+* add ageless non-human state effects ([#823](https://github.com/ElderEvil/falloutProject/issues/823)) d14df02
+
 ## 2.153.0 (2026-09-27)
 
 ### Features

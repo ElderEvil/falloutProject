@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { onClickOutside } from '@vueuse/core'
 import { Icon } from '@iconify/vue'
+import { audioManager } from '@/core/audio/audioManager'
 import { useDwellerStore, type DwellerSortBy } from '@/modules/dwellers/stores/dweller'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/core/components/ui/select'
 import { DWELLER_TABLE_COLUMNS, DWELLER_TABLE_PRESETS } from '../models/dwellerTable'
@@ -64,6 +65,12 @@ watch(
 
 const visibleColumnCount = computed(() => dwellerStore.tableColumns.length)
 
+function setViewMode(mode: 'list' | 'grid' | 'table') {
+  if (dwellerStore.viewMode === mode) return
+  audioManager.play('tabSwitch', 'ui')
+  dwellerStore.setViewMode(mode)
+}
+
 function applyPreset(presetId: string) {
   dwellerStore.applyTablePreset(presetId)
   columnsMenuOpen.value = false
@@ -102,7 +109,7 @@ function applyPreset(presetId: string) {
       <button
         type="button"
         :class="['view-toggle-btn', dwellerStore.viewMode === 'list' ? 'active' : '']"
-        @click="dwellerStore.setViewMode('list')"
+        @click="setViewMode('list')"
       >
         <Icon icon="mdi:view-list" width="18" height="18" />
         <span>List</span>
@@ -110,7 +117,7 @@ function applyPreset(presetId: string) {
       <button
         type="button"
         :class="['view-toggle-btn', dwellerStore.viewMode === 'grid' ? 'active' : '']"
-        @click="dwellerStore.setViewMode('grid')"
+        @click="setViewMode('grid')"
       >
         <Icon icon="mdi:view-grid" width="18" height="18" />
         <span>Grid</span>
@@ -118,7 +125,7 @@ function applyPreset(presetId: string) {
       <button
         type="button"
         :class="['view-toggle-btn', dwellerStore.viewMode === 'table' ? 'active' : '']"
-        @click="dwellerStore.setViewMode('table')"
+        @click="setViewMode('table')"
       >
         <Icon icon="mdi:table" width="18" height="18" />
         <span>Table</span>

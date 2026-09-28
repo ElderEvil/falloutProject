@@ -9,8 +9,8 @@
  */
 export const SOUND_MANIFEST = {
   notification: '/audio/ui/notification.wav',
-  // Synthesized in-repo: soft two-note sine ping, kept gentle so the looping
-  // incident alarm stays calm rather than a bright siren.
+  // Curated from the library: an air-raid style invasion siren, looped while an
+  // incident is active (was a gentle synthesized two-note ping).
   alarm: '/audio/ui/incident-alarm.wav',
   success: '/audio/ui/success.wav',
   select: '/audio/ui/select.wav',
@@ -20,6 +20,21 @@ export const SOUND_MANIFEST = {
   modalOpen: '/audio/ui/modal-open.wav',
   typeKey: '/audio/ui/typewriter-key.mp3',
   messageReceive: '/audio/ui/message-receive.wav',
+  lunchboxOpen: '/audio/ui/lunchbox-open.wav',
+  cardWeapon: '/audio/ui/card-weapon.wav',
+  cardOutfit: '/audio/ui/card-outfit.wav',
+  cardLegendary: '/audio/ui/card-legendary.mp3',
+  craftStart: '/audio/ui/craft-start.wav',
+  vaultBuild: '/audio/ui/vault-build.wav',
+  incidentRaider: '/audio/ui/incident-raider.wav',
+  incidentRadroach: '/audio/ui/incident-radroach.wav',
+  incidentMolerat: '/audio/ui/incident-molerat.wav',
+  incidentFeralGhoul: '/audio/ui/incident-feral-ghoul.wav',
+  incidentRadscorpion: '/audio/ui/incident-radscorpion.wav',
+  incidentDeathclaw: '/audio/ui/incident-deathclaw.wav',
+  incidentFire: '/audio/ui/incident-fire.wav',
+  incidentDefeat: '/audio/ui/incident-defeat.wav',
+  incidentHit: '/audio/ui/incident-hit.wav',
 } as const
 
 export type SoundKey = keyof typeof SOUND_MANIFEST

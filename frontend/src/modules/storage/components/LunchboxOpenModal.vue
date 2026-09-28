@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useSound } from '@/core/composables/useSound'
 import { Button } from '@/core/components/ui/button'
 import {
   Dialog,
@@ -28,10 +29,37 @@ const emit = defineEmits<{
 }>()
 
 const revealed = ref(false)
+const { playSound } = useSound()
+
+const revealTimers: number[] = []
+
+const clearRevealTimers = () => {
+  revealTimers.forEach((id) => window.clearTimeout(id))
+  revealTimers.length = 0
+}
+
+const revealContents = () => {
+  revealed.value = true
+  clearRevealTimers()
+  items.value.forEach((item, index) => {
+    const key = item.type === 'weapon' ? 'cardWeapon' : 'cardOutfit'
+    revealTimers.push(window.setTimeout(() => playSound(key, 'ui'), index * 250))
+  })
+  if (items.value.some((item) => item.rarity === 'legendary')) {
+    revealTimers.push(
+      window.setTimeout(() => playSound('cardLegendary', 'sfx'), items.value.length * 250)
+    )
+  }
+}
 
 watch(() => props.show, (open) => {
-  if (open) revealed.value = false
+  if (open) {
+    revealed.value = false
+    clearRevealTimers()
+  }
 })
+
+onUnmounted(clearRevealTimers)
 
 const items = computed(() => props.result?.items ?? [])
 const dwellerName = computed(() => props.result?.dweller.name ?? 'New Dweller')
@@ -64,7 +92,7 @@ const itemLabel = (type: string): string => type === 'weapon' ? 'Weapon' : 'Outf
             </div>
           </div>
           <p class="text-theme-primary/70">Something rattles inside…</p>
-          <Button variant="default" class="border-2 border-theme-primary hover:shadow-glow-md" @click="revealed = true">
+          <Button variant="default" class="border-2 border-theme-primary hover:shadow-glow-md" @click="revealContents">
             Reveal Contents
           </Button>
         </div>

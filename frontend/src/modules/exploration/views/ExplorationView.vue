@@ -9,6 +9,7 @@ import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { usePolling } from '@/core/composables/usePolling'
 import { useToast } from '@/core/composables/useToast'
+import { useSound } from '@/core/composables/useSound'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
@@ -38,6 +39,7 @@ const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const questStore = useQuestStore()
 const toast = useToast()
+const { playMusic } = useSound()
 
 const vaultId = computed(() => route.params.id as string)
 const selectedExplorerId = ref<string | null>(null)
@@ -117,6 +119,7 @@ const loadData = async () => {
 }
 
 onMounted(async () => {
+  playMusic('exploration')
   await loadData()
   if (vaultId.value && authStore.token) {
     explorationStore.startSseSubscription(vaultId.value, authStore.token)
@@ -132,6 +135,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  playMusic('vaultAmbient')
   explorationStore.stopSseSubscription()
 })
 

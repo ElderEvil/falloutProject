@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { incidentApi } from '../api/incident'
-import { IncidentStatus } from '../models/incident'
+import { IncidentStatus, getIncidentSound } from '../models/incident'
 import type {
   Incident,
   IncidentAftermath,
@@ -26,6 +26,8 @@ export const useIncidentStore = defineStore('incident', () => {
   let sseInstance: ReturnType<typeof useSse> | null = null
   let incidentPolling: ReturnType<typeof usePolling> | null = null
   const announcedResolutions = new Set<string>()
+  const announcedIncidentSounds = new Set<string>()
+  const seenEventCounts = new Map<string, number>()
 
   const { success: showSuccess, error: showError } = useToast()
 
@@ -195,6 +197,10 @@ export const useIncidentStore = defineStore('incident', () => {
           const incident = response.incidents.find((inc) => inc.id === id)
           if (incident) {
             showError(`Incident Alert! ${incident.type.replace('_', ' ').toUpperCase()} in vault!`)
+            if (!announcedIncidentSounds.has(id)) {
+              announcedIncidentSounds.add(id)
+              audioManager.play(getIncidentSound(incident.type), 'sfx')
+            }
           }
         })
       }
@@ -214,6 +220,11 @@ export const useIncidentStore = defineStore('incident', () => {
         newIds.map(async (id) => {
           try {
             const incident = await incidentApi.getIncident(vaultId, id, token)
+            const previousCount = seenEventCounts.get(id)
+            if (previousCount !== undefined && incident.events.length > previousCount) {
+              audioManager.play('incidentHit', 'sfx')
+            }
+            seenEventCounts.set(id, incident.events.length)
             incidents.value.set(id, incident)
           } catch (error) {
             handleStoreError(error, 'Failed to refresh incident details')
@@ -334,10 +345,12 @@ export const useIncidentStore = defineStore('incident', () => {
                     : 'Incident resolved — responders earned experience.'
               )
             } else if (resolved) {
+              audioManager.play('incidentDefeat', 'sfx')
               showError(
                 `Incident lost — ${resolved.type.replace(/_/g, ' ')} overran ${resolved.room_name ?? 'the vault'}.`
               )
             } else {
+              audioManager.play('incidentDefeat', 'sfx')
               showError('Incident lost — the threat was not contained.')
             }
             break
@@ -403,6 +416,7 @@ export const useIncidentStore = defineStore('incident', () => {
     isPolling.value = false
     // Clearing the active set unwinds the alarm and music through the watcher.
     activeIncidentIds.value = []
+    seenEventCounts.clear()
   }
 
   function clearIncidents(): void {
@@ -410,6 +424,8 @@ export const useIncidentStore = defineStore('incident', () => {
     activeIncidentIds.value = []
     aftermaths.value.clear()
     incidentTeams.value.clear()
+    announcedIncidentSounds.clear()
+    seenEventCounts.clear()
   }
 
   function getIncidentById(id: string): Incident | undefined {

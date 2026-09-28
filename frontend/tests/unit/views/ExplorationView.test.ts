@@ -34,6 +34,16 @@ vi.mock('@/core/composables/usePolling', () => ({
   }),
 }))
 
+const soundMock = vi.hoisted(() => ({
+  playMusic: vi.fn(),
+  playSound: vi.fn(),
+  stopMusic: vi.fn(),
+}))
+
+vi.mock('@/core/composables/useSound', () => ({
+  useSound: () => soundMock,
+}))
+
 const returningQuest = {
   id: 'quest-returning',
   title: 'Returning Quest',
@@ -150,5 +160,23 @@ describe('ExplorationView', () => {
     expect(wrapper.find('[data-quest-id="quest-returning"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Returning Quest')
     expect(wrapper.find('.empty-state').exists()).toBe(false)
+  })
+
+  it('plays exploration music on mount and restores the vault loop on unmount', async () => {
+    wrapper = mount(ExplorationView, {
+      global: {
+        stubs: {
+          SidePanel: true,
+          QuestPartyCard: true,
+          ExplorationRewardsModal: true,
+        },
+      },
+    })
+    await flushPromises()
+
+    expect(soundMock.playMusic).toHaveBeenCalledWith('exploration')
+
+    wrapper.unmount()
+    expect(soundMock.playMusic).toHaveBeenCalledWith('vaultAmbient')
   })
 })

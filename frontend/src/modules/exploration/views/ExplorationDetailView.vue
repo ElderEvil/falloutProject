@@ -7,6 +7,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { usePolling } from '@/core/composables/usePolling'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useSound } from '@/core/composables/useSound'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
@@ -32,6 +33,7 @@ const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const siteStore = useExpeditionSiteStore()
 const { isCollapsed } = useSidePanel()
+const { playMusic } = useSound()
 
 const showSiteModal = ref(false)
 
@@ -205,6 +207,7 @@ const reconnectToSite = async () => {
 usePolling(refreshExploration, { interval: 10_000, immediate: false })
 
 onMounted(async () => {
+  playMusic('exploration')
   if (vaultId.value && authStore.token) {
     await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
 
@@ -223,6 +226,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  playMusic('vaultAmbient')
   explorationStore.stopSseSubscription()
 })
 

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import axios from '@/core/plugins/axios'
+import { audioManager } from '@/core/audio/audioManager'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import { useDwellerManagementStore } from '@/modules/dwellers/stores/dwellerManagement'
 import { useRoomStore } from '@/modules/rooms/stores/room'
@@ -8,7 +9,12 @@ import { useRoomStore } from '@/modules/rooms/stores/room'
 vi.mock('@/core/plugins/axios', () => ({
   default: {
     post: vi.fn(),
+    put: vi.fn(),
   },
+}))
+
+vi.mock('@/core/audio/audioManager', () => ({
+  audioManager: { play: vi.fn() },
 }))
 
 vi.mock('@/core/composables/useToast', () => ({
@@ -83,5 +89,27 @@ describe('useDwellerManagementStore', () => {
 
     expect(result).toBeNull()
     expect(axios.post).not.toHaveBeenCalled()
+  })
+
+  it('plays the card drop sound when a dweller is assigned to a room', async () => {
+    const managementStore = useDwellerManagementStore()
+    vi.mocked(axios.post).mockResolvedValue({ data: { id: 'dweller-1', room_id: 'room-2' } })
+
+    const result = await managementStore.assignDwellerToRoom('dweller-1', 'room-2', 'token-1')
+
+    expect(result).toEqual({ id: 'dweller-1', room_id: 'room-2' })
+    expect(audioManager.play).toHaveBeenCalledWith('cardDrop', 'ui')
+  })
+
+  it('plays the card drop sound when a dweller is unassigned from a room', async () => {
+    const managementStore = useDwellerManagementStore()
+    vi.mocked(axios.put).mockResolvedValue({
+      data: { id: 'dweller-1', room_id: null, status: 'idle' },
+    })
+
+    const result = await managementStore.unassignDwellerFromRoom('dweller-1', 'token-1')
+
+    expect(result).toEqual({ id: 'dweller-1', room_id: null, status: 'idle' })
+    expect(audioManager.play).toHaveBeenCalledWith('cardDrop', 'ui')
   })
 })

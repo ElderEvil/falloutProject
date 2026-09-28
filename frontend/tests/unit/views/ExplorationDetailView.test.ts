@@ -52,6 +52,16 @@ vi.mock('@/core/composables/usePolling', () => ({
   }),
 }))
 
+const soundMock = vi.hoisted(() => ({
+  playMusic: vi.fn(),
+  playSound: vi.fn(),
+  stopMusic: vi.fn(),
+}))
+
+vi.mock('@/core/composables/useSound', () => ({
+  useSound: () => soundMock,
+}))
+
 describe('ExplorationDetailView', () => {
   let router: ReturnType<typeof createRouter>
   let explorationStore: ReturnType<typeof useExplorationStore>
@@ -171,6 +181,22 @@ describe('ExplorationDetailView', () => {
   })
 
   describe('Rendering', () => {
+    it('plays exploration music on mount and restores the vault loop on unmount', async () => {
+      soundMock.playMusic.mockClear()
+      const wrapper = mount(ExplorationDetailView, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      await flushPromises()
+
+      expect(soundMock.playMusic).toHaveBeenCalledWith('exploration')
+
+      wrapper.unmount()
+      expect(soundMock.playMusic).toHaveBeenCalledWith('vaultAmbient')
+    })
+
     it('renders navbar with explorer counter', async () => {
       const wrapper = mount(ExplorationDetailView, {
         global: {

@@ -20,6 +20,7 @@ from app.models.quest_reward import QuestReward, RewardType
 from app.models.storage import Storage
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.weapon import Weapon
+from app.options.races import can_use_radaway
 from app.services.user_service import user_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 from app.utils.item_factory import build_outfit, build_weapon
@@ -405,14 +406,24 @@ class RewardService:
             logger.warning(f"No dwellers found in vault {vault_id} to grant {reward_type}s")
             return {"reward_type": reward_type, "amount": 0, "message": "No dwellers found"}
 
-        dweller = random.choice(dwellers)
-        setattr(dweller, stock_field, (getattr(dweller, stock_field) or 0) + amount)
-        await persist_reward_change(db_session, dweller)
+        if stock_field == "radaway":
+            dwellers = [dweller for dweller in dwellers if can_use_radaway(dweller)]
+
+        if dwellers:
+            recipient = random.choice(dwellers)
+            setattr(recipient, stock_field, (getattr(recipient, stock_field) or 0) + amount)
+            result = {"reward_type": reward_type, "amount": amount, "dweller_id": str(recipient.id)}
+        else:
+            recipient = await storage_crud.get_by_vault(db_session, vault_id) or Storage(vault_id=vault_id)
+            recipient.radaway = (recipient.radaway or 0) + amount
+            result = {"reward_type": reward_type, "amount": amount, "vault_id": str(vault_id)}
+
+        await persist_reward_change(db_session, recipient)
         if emit_event and not reward_delivery_is_deferred(db_session):
             await event_bus.emit(GameEvent.ITEM_COLLECTED, vault_id, {"item_type": reward_type, "amount": amount})
 
-        logger.info(f"Granted {amount} {reward_type}s to dweller {dweller.first_name} in vault {vault_id}")
-        return {"reward_type": reward_type, "amount": amount, "dweller_id": str(dweller.id)}
+        logger.info("Granted %s %ss in vault %s", amount, reward_type, vault_id)
+        return result
 
     @staticmethod
     def _lunchbox_common_dweller_data(level: int, rarity: RarityEnum) -> dict[str, Any]:

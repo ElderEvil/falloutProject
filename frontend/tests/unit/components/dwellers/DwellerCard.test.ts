@@ -303,6 +303,16 @@ describe('DwellerCard', () => {
     })
   })
   describe('Inventory Display', () => {
+    it('does not offer RadAway to a non-human dweller', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: { ...mockDweller, visual_attributes: { race: 'synth' }, radiation: 30 },
+          availableRadaways: 5,
+        },
+      })
+
+      expect(wrapper.find('.supply-radaway').exists()).toBe(false)
+    })
     it('lets the overseer issue one supply from the counter', async () => {
       const wrapper = mount(DwellerCard, {
         props: {

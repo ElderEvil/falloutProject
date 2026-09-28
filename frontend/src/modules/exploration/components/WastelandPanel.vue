@@ -9,7 +9,7 @@ import { useExplorationFinish } from '@/modules/exploration/composables/useExplo
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
-import type { Dweller } from '@/modules/dwellers/models/dweller'
+import { canUseRadaway, type Dweller } from '@/modules/dwellers/models/dweller'
 import WastelandDropzone from '@/modules/exploration/components/WastelandDropzone.vue'
 import ActiveExplorationList from '@/modules/exploration/components/ActiveExplorationList.vue'
 import ExplorationDurationModal from '@/modules/exploration/components/ExplorationDurationModal.vue'
@@ -215,6 +215,9 @@ const detailedDwellerMap = computed(
       :dweller-name="sendWasteland.pendingDweller.value?.firstName ?? ''"
       :max-stimpaks="vaultMedicalSupplies.stimpaks"
       :max-radaways="vaultMedicalSupplies.radaways"
+      :allow-radaway="
+        canUseRadaway(getDwellerById(sendWasteland.pendingDweller.value?.dwellerId ?? ''))
+      "
       @confirm="handleSendWastelandConfirm"
       @cancel="sendWasteland.cancel"
     />

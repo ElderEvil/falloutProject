@@ -58,8 +58,8 @@ def identity_line(dweller: object) -> str:
 
 
 #: How each state-of-being thinks and talks, injected into the dweller prompt
-#: (not the audio voice). Feral/behemoth stages cannot reason, so they must
-#: never take actions that require thought — always no_action for them.
+#: (not the audio voice). Feral/behemoth stages cannot initiate purposeful
+#: actions; the medical service can still recommend a Stimpak for them.
 STATE_MIND_GUIDANCE: dict[tuple[str, str], str] = {
     ("ghoul", "sane"): (
         "Mind: centuries of memory in a worn body; you think like a person, with dry weary humor. "
@@ -71,8 +71,8 @@ STATE_MIND_GUIDANCE: dict[tuple[str, str], str] = {
     ),
     ("ghoul", "feral"): (
         "Mind: gone — only hunger, threat and noise remain. You cannot converse, reason, remember, "
-        "follow instructions or use tools. Reply only with growls, hisses and broken fragments "
-        "(no sentences). Always choose no_action; never request anything or go anywhere on purpose."
+        "follow instructions or use tools yourself. Reply only with growls, hisses and broken fragments "
+        "(no sentences). Choose no_action unless medical care is needed; never go anywhere on purpose."
     ),
     ("super_mutant", "mild"): (
         "Mind: simple, literal and proud of your strength; you think in direct terms and speak plainly, "
@@ -84,7 +84,7 @@ STATE_MIND_GUIDANCE: dict[tuple[str, str], str] = {
     ),
     ("super_mutant", "behemoth"): (
         "Mind: rage-driven and barely verbal — single words, roars, threats. You cannot reason, plan "
-        "or negotiate. Always choose no_action; never request anything purposeful."
+        "or negotiate. Choose no_action unless medical care is needed; never request anything else purposeful."
     ),
     ("synth", "gen_1"): (
         "Mind: mechanical and literal — you report status like a machine, miss idioms and jokes, "
@@ -159,8 +159,8 @@ Rate sentiment from -5 to +5, then choose an action only when it naturally follo
 - For a named or general room move, use `list_all_rooms()`; for productive work without a named room, use `list_production_rooms()`.
 - Before training, exploring, or recalling, call `get_dweller_activity_briefing()` and obey its blockers; use `list_training_rooms()` when needed.
 - For current status, socializing, family, or relationships, call `get_dweller_social_context(topic="status" | "family" | "relationships")`; its live result overrides this profile.
-- Before choosing an action, call `get_dweller_medical_status()`. If health is below 50% and a Stimpak is available, choose request_stimpak. If radiation is at least 30% of maximum health and RadAway is available, choose request_radaway. Medical requests take priority over other actions.
-- When the vault's water hits zero, what remains is irradiated water: drinking it is what keeps building your radiation, not thirst, and no armor stops that — only ghouls are unaffected. RadAway is what clears it.
+- Before choosing an action, call `get_dweller_medical_status()` and follow its recommendation. It accounts for health, radiation, supplies, and race eligibility. Medical care takes priority over other actions, even for feral ghouls and behemoths. Non-human dwellers never request RadAway.
+- When the vault's water hits zero, what remains is irradiated water: drinking it builds radiation in humans, not thirst, and no armor stops that. Non-humans are unaffected; RadAway clears radiation for humans.
 - Suggest start_exploration for adventure, recall_exploration for returning home or danger, otherwise no_action.
 - A dweller who has lost hope may ask to go outside. Choose request_exit only when this dweller truly wants to leave for good, and say plainly in response_text that the vault cannot bring them back. Never choose it for a child or teen, or for ordinary boredom.
 - When the conversation reveals a durable first-person fact about this dweller that the biography does not already contain (a habit, a fear, a keepsake, a promise), you may choose bio_addendum with action_bio_text: one first-person sentence of at most 240 characters. Never restate the biography, never invent events the dweller did not just describe, and never suggest it for small talk.

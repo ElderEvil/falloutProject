@@ -65,8 +65,8 @@ def identity_modifiers_for(entity: object) -> IdentityModifiers:
 
     Race and faction are gated separately: ``features.race_mechanics`` covers stat
     deltas and racial resistances, ``features.faction_mechanics`` covers perks.
-    Ghoul radiation immunity survives either switch, because it predates both and is
-    documented behaviour.
+    Non-human radiation immunity survives either switch, so RadAway is never
+    required for races that cannot use it.
     """
     race = modifiers_for_race(entity)
     state_deltas = state_stat_deltas_for(entity)

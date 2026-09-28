@@ -2,7 +2,7 @@
 
 import logging
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import UUID4
@@ -14,8 +14,10 @@ from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import training as training_crud
 from app.crud.dweller import determine_status_for_room
+from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
 from app.models.room import Room
+from app.models.storage import Storage
 from app.options.appearance import (
     background_options,
     body_type_options,
@@ -29,7 +31,7 @@ from app.options.appearance import (
     skin_tone_options,
 )
 from app.options.factions import faction_restrictions
-from app.options.races import STATE_OF_BEING_VALUES, RaceOption
+from app.options.races import STATE_OF_BEING_VALUES, RaceOption, is_ageless, race_of
 from app.schemas.dweller import (
     DwellerAppearanceOptions,
     DwellerCreate,
@@ -50,6 +52,7 @@ from app.services.room_assignment_policy import (
 from app.services.training_service import training_service
 from app.services.user_service import user_service
 from app.services.vault_service import vault_service
+from app.utils.dwellers import elder_birth_threshold
 from app.utils.exceptions import (
     ContentNoChangeException,
     FeatureDisabledException,
@@ -238,6 +241,27 @@ class DwellerService:
                 data["status"] = determine_status_for_room(room_obj.category, room_obj.name)
 
         updated = await crud.dweller.update(db_session, dweller_id, DwellerUpdate(**data), commit=False)
+
+        if "visual_attributes" in data:
+            if is_ageless(race_of(updated)):
+                if updated.age_group == AgeGroupEnum.ELDER:
+                    updated.age_group = AgeGroupEnum.ADULT
+                updated.radiation = 0
+                if updated.radaway > 0:
+                    storage = await storage_crud.get_by_vault_for_update(db_session, updated.vault_id)
+                    if storage is None:
+                        storage = Storage(vault_id=updated.vault_id)
+                    storage.radaway += updated.radaway
+                    updated.radaway = 0
+                    db_session.add(storage)
+            elif updated.age_group in (AgeGroupEnum.ADULT, AgeGroupEnum.ELDER):
+                updated.age_group = (
+                    AgeGroupEnum.ELDER
+                    if updated.birth_date is not None
+                    and updated.birth_date <= elder_birth_threshold(datetime.now(UTC).replace(tzinfo=None))
+                    else AgeGroupEnum.ADULT
+                )
+            db_session.add(updated)
 
         if "room_id" in data and room_id != dweller.room_id:
             from app.services.combat.arena_service import arena_service

@@ -30,6 +30,7 @@ from app.crud.vault import vault as vault_crud
 from app.models import Dweller, Room, Storage
 from app.models.outfit import Outfit
 from app.models.vault import Vault
+from app.options.races import can_use_radaway
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate, RoomCreateWithoutVaultID
 from app.schemas.vault import MedicalTransferResponse, VaultNumber, VaultReadWithNumbers, VaultUpdate
@@ -782,6 +783,9 @@ class VaultService:
             from app.utils.exceptions import AccessDeniedException
 
             raise AccessDeniedException(detail="Dweller does not belong to this vault")
+
+        if radaways > 0 and not can_use_radaway(dweller):
+            raise ResourceConflictException(detail="This dweller cannot carry RadAway.")
 
         dweller_stimpaks = dweller.stimpack or 0
         dweller_radaways = dweller.radaway or 0

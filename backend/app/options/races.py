@@ -6,7 +6,7 @@ modifiers, breeding eligibility).
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -64,8 +64,8 @@ class RaceModifiers:
 RACE_MODIFIERS: dict[RaceOption, RaceModifiers] = {
     RaceOption.HUMAN: RaceModifiers(),
     RaceOption.GHOUL: RaceModifiers(endurance=2, radiation_immune=True),
-    RaceOption.SUPER_MUTANT: RaceModifiers(strength=3, endurance=2, perception=-2),
-    RaceOption.SYNTH: RaceModifiers(perception=1, intelligence=1, radiation_resist_pct=0.5),
+    RaceOption.SUPER_MUTANT: RaceModifiers(strength=3, endurance=2, perception=-2, radiation_immune=True),
+    RaceOption.SYNTH: RaceModifiers(perception=1, intelligence=1, radiation_immune=True),
 }
 
 
@@ -109,6 +109,20 @@ def is_ageless(race: RaceOption | str | None) -> bool:
         return False
 
 
+def can_use_radaway(entity: object) -> bool:
+    """Only races that can accumulate radiation can use RadAway."""
+    return not modifiers_for_race(entity).radiation_immune
+
+
+def can_take_purposeful_action(entity: object) -> bool:
+    """Feral ghouls and behemoths cannot initiate intentional chat actions."""
+    race = race_of(entity)
+    return (race, state_of_being_of(entity)) not in {
+        (RaceOption.GHOUL, GhoulFeralnessEnum.FERAL.value),
+        (RaceOption.SUPER_MUTANT, SuperMutantMutationEnum.BEHEMOTH.value),
+    }
+
+
 def chronological_years(birth_date: datetime | None, now: datetime | None = None) -> float | None:
     """Real age in years from ``birth_date``; None when unknown.
 
@@ -119,8 +133,11 @@ def chronological_years(birth_date: datetime | None, now: datetime | None = None
     """
     if birth_date is None:
         return None
-    ref = now or datetime.utcnow()
-    return max(0.0, (ref - birth_date).total_seconds() / 31_556_952.0)
+    ref = now if now is not None else datetime.now(UTC)
+    # Persisted dates are naive UTC; explicit aware dates are normalized to the same convention.
+    birth_utc = birth_date.astimezone(UTC).replace(tzinfo=None) if birth_date.tzinfo else birth_date
+    ref_utc = ref.astimezone(UTC).replace(tzinfo=None) if ref.tzinfo else ref
+    return max(0.0, (ref_utc - birth_utc).total_seconds() / 31_556_952.0)
 
 
 def visual_vs_real_age(entity: object, now: datetime | None = None) -> dict[str, Any]:

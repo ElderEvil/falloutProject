@@ -441,7 +441,9 @@ async def test_generate_avatar_updates_and_generates_photo(
         patch.object(dweller_ai, "storage_service", mock_storage),
         patch.object(dweller_ai, "ai_service", mock_openai),
         patch("app.services.dweller_ai.llm_interaction_crud", mock_llm),
+        patch("app.services.dweller_ai.dweller_service.update_dweller", new_callable=AsyncMock) as mock_update,
     ):
+        mock_update.return_value = mock_dweller
         result = await dweller_ai.generate_dweller_avatar(
             dweller_id=mock_dweller.id,
             dweller_first_name="Jane",
@@ -453,8 +455,8 @@ async def test_generate_avatar_updates_and_generates_photo(
 
     assert result is mock_dweller
     # First update: name + visual attributes
-    mock_crud.update.assert_called()
-    first_update_call = mock_crud.update.call_args_list[0]
+    mock_update.assert_called_once()
+    first_update_call = mock_update.call_args
     assert first_update_call[0][2].first_name == "Jane"
     assert first_update_call[0][2].last_name == "Doe"
 
@@ -504,7 +506,9 @@ async def test_generate_avatar_with_voice_line(mock_crud: MagicMock) -> None:
         patch.object(dweller_ai, "ai_service", mock_openai),
         patch("app.services.dweller_ai.llm_interaction_crud", mock_llm),
         patch("app.services.dweller_ai.quota_service", mock_quota),
+        patch("app.services.dweller_ai.dweller_service.update_dweller", new_callable=AsyncMock) as mock_update,
     ):
+        mock_update.return_value = mock_dweller
         result = await dweller_ai.generate_dweller_avatar(
             dweller_id=mock_dweller.id,
             dweller_first_name="Jane",

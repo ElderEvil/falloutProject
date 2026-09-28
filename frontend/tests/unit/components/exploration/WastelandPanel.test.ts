@@ -124,6 +124,37 @@ describe('WastelandPanel', () => {
   })
 
   describe('drop flow', () => {
+    it('marks a non-human explorer ineligible for RadAway', async () => {
+      dwellerStore.dwellers = [
+        {
+          id: 'dweller-1',
+          first_name: 'Test',
+          is_adult: true,
+          age_group: 'adult',
+          visual_attributes: { race: 'super_mutant' },
+        },
+      ] as never
+      const wrapper = mount(WastelandPanel, {
+        global: {
+          plugins: [router],
+          stubs: {
+            ActiveExplorationList: { template: '<div />' },
+            ExplorationRewardsModal: { template: '<div />' },
+          },
+        },
+      })
+
+      await wrapper.findComponent({ name: 'WastelandDropzone' }).vm.$emit('drop-dweller', {
+        dwellerId: 'dweller-1',
+        firstName: 'Test',
+      })
+      await flushPromises()
+
+      expect(
+        wrapper.findComponent({ name: 'ExplorationDurationModal' }).props('allowRadaway')
+      ).toBe(false)
+    })
+
     it('opens the duration modal on drop-dweller', async () => {
       const wrapper = mount(WastelandPanel, {
         global: {

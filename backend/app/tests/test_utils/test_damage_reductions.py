@@ -49,8 +49,12 @@ class TestChannelSourceSelection:
         assert reductions.shares == ()
 
     def test_radiation_combines_identity_and_outfit(self) -> None:
-        synth = _dweller(race="synth", outfit=_outfit(outfit_type="power_armor", name="T-51d power armor"))
-        reductions = damage_reductions(synth, DamageChannel.RADIATION)
+        human = _dweller(
+            race="human",
+            faction="children_of_atom",
+            outfit=_outfit(outfit_type="power_armor", name="T-51d power armor"),
+        )
+        reductions = damage_reductions(human, DamageChannel.RADIATION)
         assert reductions.shares == (0.5, 0.75)
 
     def test_radiation_ignores_fire_outfit(self) -> None:
@@ -98,9 +102,10 @@ class TestCombinedShareMath:
 
 
 class TestImmunity:
-    def test_immune_returns_zero(self) -> None:
-        ghoul = _dweller(race="ghoul")
-        reductions = damage_reductions(ghoul, DamageChannel.RADIATION)
+    @pytest.mark.parametrize("race", ["ghoul", "super_mutant", "synth"])
+    def test_immune_returns_zero(self, race: str) -> None:
+        dweller = _dweller(race=race)
+        reductions = damage_reductions(dweller, DamageChannel.RADIATION)
         assert reductions.immune is True
         assert reductions.apply(100) == 0
 
@@ -113,13 +118,21 @@ class TestImmunity:
 
 class TestResistedByOutfit:
     def test_false_keeps_identity_resist(self) -> None:
-        synth = _dweller(race="synth", outfit=_outfit(outfit_type="power_armor", name="T-51d power armor"))
-        reductions = damage_reductions(synth, DamageChannel.RADIATION, resisted_by_outfit=False)
+        human = _dweller(
+            race="human",
+            faction="children_of_atom",
+            outfit=_outfit(outfit_type="power_armor", name="T-51d power armor"),
+        )
+        reductions = damage_reductions(human, DamageChannel.RADIATION, resisted_by_outfit=False)
         assert reductions.shares == (0.5,)
         assert reductions.apply(10) == 5
 
     def test_true_adds_outfit_resist(self) -> None:
-        synth = _dweller(race="synth", outfit=_outfit(outfit_type="power_armor", name="T-51d power armor"))
-        reductions = damage_reductions(synth, DamageChannel.RADIATION, resisted_by_outfit=True)
+        human = _dweller(
+            race="human",
+            faction="children_of_atom",
+            outfit=_outfit(outfit_type="power_armor", name="T-51d power armor"),
+        )
+        reductions = damage_reductions(human, DamageChannel.RADIATION, resisted_by_outfit=True)
         assert reductions.shares == (0.5, 0.75)
         assert reductions.apply(10) == 1  # int(10 * 0.5 * 0.25)

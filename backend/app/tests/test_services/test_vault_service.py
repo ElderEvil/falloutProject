@@ -622,6 +622,16 @@ class TestCreateBoostedLegendaryDwellers:
 
 
 @pytest.mark.asyncio
+async def test_transfer_rejects_radaway_for_nonhuman(async_session, vault: Vault, dweller: Dweller) -> None:
+    dweller.visual_attributes = {"race": "synth", "state_of_being": "gen_3"}
+    async_session.add_all([dweller, Storage(vault_id=vault.id, stimpack=5, radaway=5)])
+    await async_session.commit()
+
+    with pytest.raises(ResourceConflictException, match="cannot carry RadAway"):
+        await VaultService().transfer_medical_supplies(async_session, vault, dweller.id, stimpaks=0, radaways=1)
+
+
+@pytest.mark.asyncio
 class TestTransferMedicalSupplies:
     """Tests for medical supply transfer."""
 

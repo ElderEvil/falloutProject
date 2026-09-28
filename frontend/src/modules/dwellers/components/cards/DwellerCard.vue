@@ -10,6 +10,7 @@ import DwellerCardActions from './DwellerCardActions.vue'
 import type { components } from '@/core/types/api.generated'
 import { getStaticImageUrl } from '@/core/utils/image'
 import {
+  canUseRadaway as isRadawayEligible,
   getEffectiveMaxHealth,
   getHappinessColor,
   getHappinessLevel,
@@ -75,7 +76,8 @@ const availableRadawaysCount = computed(() => props.availableRadaways ?? 0)
 // the item, or they need it and the vault can supply it. A healthy dweller with
 // empty pockets sees nothing.
 const isInjured = computed(
-  () => props.dweller.health < getEffectiveMaxHealth(props.dweller.radiation, props.dweller.max_health)
+  () =>
+    props.dweller.health < getEffectiveMaxHealth(props.dweller.radiation, props.dweller.max_health)
 )
 const isRadiated = computed(() => (props.dweller.radiation || 0) > 0)
 
@@ -83,7 +85,9 @@ const showStimpackSection = computed(
   () => (props.dweller.stimpack || 0) > 0 || (isInjured.value && availableStimpaksCount.value > 0)
 )
 const showRadawaySection = computed(
-  () => (props.dweller.radaway || 0) > 0 || (isRadiated.value && availableRadawaysCount.value > 0)
+  () =>
+    isRadawayEligible(props.dweller) &&
+    ((props.dweller.radaway || 0) > 0 || (isRadiated.value && availableRadawaysCount.value > 0))
 )
 const showInventory = computed(() => showStimpackSection.value || showRadawaySection.value)
 
@@ -91,7 +95,10 @@ const canIssueStimpack = computed(
   () => (props.dweller.stimpack || 0) < 15 && availableStimpaksCount.value > 0
 )
 const canIssueRadaway = computed(
-  () => (props.dweller.radaway || 0) < 15 && availableRadawaysCount.value > 0
+  () =>
+    isRadawayEligible(props.dweller) &&
+    (props.dweller.radaway || 0) < 15 &&
+    availableRadawaysCount.value > 0
 )
 
 const canUseStimpak = computed(
@@ -100,7 +107,10 @@ const canUseStimpak = computed(
     props.dweller.health < getEffectiveMaxHealth(props.dweller.radiation, props.dweller.max_health)
 )
 const canUseRadaway = computed(
-  () => (props.dweller.radaway || 0) > 0 && (props.dweller.radiation || 0) > 0
+  () =>
+    isRadawayEligible(props.dweller) &&
+    (props.dweller.radaway || 0) > 0 &&
+    (props.dweller.radiation || 0) > 0
 )
 </script>
 
@@ -130,11 +140,11 @@ const canUseRadaway = computed(
             :disabled="loading"
             @click="emit('generate-portrait')"
           >
-          <Icon
-            :icon="generatingPortrait ? 'mdi:loading' : 'mdi:account-circle'"
-            class="placeholder-icon text-theme-primary opacity-30"
-            :class="{ 'animate-spin': generatingPortrait }"
-          />
+            <Icon
+              :icon="generatingPortrait ? 'mdi:loading' : 'mdi:account-circle'"
+              class="placeholder-icon text-theme-primary opacity-30"
+              :class="{ 'animate-spin': generatingPortrait }"
+            />
             <span class="placeholder-hint">{{
               generatingPortrait ? 'Generating portrait…' : 'Generate portrait'
             }}</span>
@@ -165,11 +175,7 @@ const canUseRadaway = computed(
             <HappinessModifierPopover :dweller-id="dweller.id" />
           </div>
         </div>
-        <Progress
-          class="h-2.5"
-          :fill="happinessColor"
-          :model-value="dweller.happiness"
-        />
+        <Progress class="h-2.5" :fill="happinessColor" :model-value="dweller.happiness" />
 
         <XPProgressBar :level="dweller.level" :current-x-p="dweller.experience" />
 

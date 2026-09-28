@@ -325,6 +325,45 @@ async def test_medical_action_requires_live_threshold_and_supply() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(("race", "state"), [("ghoul", "feral"), ("super_mutant", "behemoth")])
+async def test_non_reasoning_dweller_cannot_request_purposeful_action(race: str, state: str) -> None:
+    dweller = _make_dweller()
+    dweller.visual_attributes = {"race": race, "state_of_being": state}
+    dweller.stimpack = 0
+    output = _output(action_type="request_exit", action_reason="I want to leave.")
+
+    result = await parse_action_suggestion(output, _medical_session(), dweller)
+
+    assert isinstance(result, NoAction)
+
+
+@pytest.mark.asyncio
+async def test_non_reasoning_dweller_still_gets_needed_stimpak() -> None:
+    dweller = _make_dweller()
+    dweller.visual_attributes = {"race": "ghoul", "state_of_being": "feral"}
+    dweller.health = 20
+    output = _output(action_type="request_exit", action_reason="I want to leave.")
+
+    result = await parse_action_suggestion(output, _medical_session(), dweller)
+
+    assert isinstance(result, RequestStimpakAction)
+
+
+@pytest.mark.asyncio
+async def test_nonhuman_cannot_get_radaway_action_from_model_output() -> None:
+    dweller = _make_dweller()
+    dweller.visual_attributes = {"race": "synth", "state_of_being": "gen_3"}
+    dweller.radiation = 35  # Legacy state before immunity migration.
+    dweller.health = 65
+    dweller.stimpack = 0
+    output = _output(action_type="request_radaway")
+
+    result = await parse_action_suggestion(output, _medical_session(radaway=5), dweller)
+
+    assert isinstance(result, NoAction)
+
+
+@pytest.mark.asyncio
 async def test_test_model_invokes_social_context_for_family_questions() -> None:
     """The chat agent can ground status and family answers in current vault data."""
     deps = DwellerChatDeps(db_session=_family_free_session(), dweller=_make_dweller(), vault_id=uuid4())

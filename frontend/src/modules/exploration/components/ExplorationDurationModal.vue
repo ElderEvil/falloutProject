@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/core/components/ui/dialog'
 import { Label } from '@/core/components/ui/label'
 import { Slider } from '@/core/components/ui/slider'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
@@ -11,9 +17,10 @@ interface Props {
   dwellerName: string
   maxStimpaks: number
   maxRadaways: number
+  allowRadaway?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), { allowRadaway: true })
 
 const emit = defineEmits<{
   confirm: [payload: { duration: number; stimpaks: number; radaways: number }]
@@ -35,7 +42,9 @@ watch(
     if (isVisible && !wasVisible) {
       selectedDuration.value = DURATION_DEFAULT
       selectedStimpaks.value = Math.min(DEFAULT_STIMPAKS, props.maxStimpaks, DWELLER_MAX_SUPPLIES)
-      selectedRadaways.value = Math.min(DEFAULT_RADAWAYS, props.maxRadaways, DWELLER_MAX_SUPPLIES)
+      selectedRadaways.value = props.allowRadaway
+        ? Math.min(DEFAULT_RADAWAYS, props.maxRadaways, DWELLER_MAX_SUPPLIES)
+        : 0
     }
   },
   { immediate: true }
@@ -45,7 +54,7 @@ const handleConfirm = () => {
   emit('confirm', {
     duration: selectedDuration.value,
     stimpaks: selectedStimpaks.value,
-    radaways: selectedRadaways.value,
+    radaways: props.allowRadaway ? selectedRadaways.value : 0,
   })
 }
 
@@ -58,7 +67,14 @@ const setRadaways = (value: number[] | undefined) => {
 </script>
 
 <template>
-  <Dialog :open="show" @update:open="(open) => { if (!open) emit('cancel') }">
+  <Dialog
+    :open="show"
+    @update:open="
+      (open) => {
+        if (!open) emit('cancel')
+      }
+    "
+  >
     <DialogContent
       class="flex max-h-[75vh] w-full max-w-xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-xl"
     >
@@ -79,9 +95,11 @@ const setRadaways = (value: number[] | undefined) => {
             :key="duration"
             @click="selectedDuration = duration"
             class="duration-button cursor-pointer rounded-md border-2 border-theme-primary/30 bg-theme-primary/10 p-3 font-mono text-base font-bold text-theme-primary transition-all duration-200 hover:border-theme-primary/60 hover:bg-theme-primary/20"
-            :class="selectedDuration === duration
-              ? 'active border-theme-primary bg-theme-primary/25 shadow-glow-md'
-              : ''"
+            :class="
+              selectedDuration === duration
+                ? 'active border-theme-primary bg-theme-primary/25 shadow-glow-md'
+                : ''
+            "
           >
             {{ duration }}h
           </button>
@@ -108,7 +126,7 @@ const setRadaways = (value: number[] | undefined) => {
                 @update:model-value="setStimpaks"
               />
             </div>
-            <div class="flex flex-col">
+            <div v-if="allowRadaway" class="flex flex-col">
               <div class="flex items-center justify-between mb-1">
                 <Label class="text-xs text-theme-primary/80">RadAway (Removes Rads)</Label>
                 <span class="text-xs font-bold text-theme-primary"
@@ -129,13 +147,17 @@ const setRadaways = (value: number[] | undefined) => {
             wasteland.
           </p>
         </div>
-
       </div>
 
       <DialogFooter
         class="flex flex-shrink-0 justify-end border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
       >
-        <TerminalModalActions cancel-label="Cancel" confirm-label="Send to Wasteland" @cancel="emit('cancel')" @confirm="handleConfirm" />
+        <TerminalModalActions
+          cancel-label="Cancel"
+          confirm-label="Send to Wasteland"
+          @cancel="emit('cancel')"
+          @confirm="handleConfirm"
+        />
       </DialogFooter>
     </DialogContent>
   </Dialog>

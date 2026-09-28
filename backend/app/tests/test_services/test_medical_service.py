@@ -18,6 +18,30 @@ async def _set_dweller_state(async_session: AsyncSession, dweller: Dweller, **st
     await async_session.refresh(dweller)
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("race", ["ghoul", "super_mutant", "synth"])
+async def test_non_humans_are_offered_stimpaks_but_not_radaway(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, race: str
+) -> None:
+    dweller.visual_attributes = {"race": race}
+    dweller.health = 20
+    dweller.radiation = 35  # Legacy state before immunity was introduced.
+    dweller.stimpack = 1
+    dweller.radaway = 1
+    async_session.add(dweller)
+    await async_session.commit()
+
+    status = await medical_service.get_dweller_medical_status(async_session, dweller, vault.id)
+    assert status.recommended_action == "request_stimpak"
+    assert status.available_radaways == 0
+
+    with pytest.raises(ResourceConflictException, match="cannot use RadAway"):
+        await medical_service.use_radaway(async_session, dweller.id)
+
+    healed = await medical_service.use_stimpack(async_session, dweller.id)
+    assert healed.health > 20
+
+
 class TestUseRadaway:
     @pytest.mark.asyncio
     async def test_removes_share_of_max_health(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):

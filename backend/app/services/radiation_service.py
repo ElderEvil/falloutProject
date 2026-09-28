@@ -38,7 +38,7 @@ def apply_radiation_gain(
 
     Also pulls current health down to the radiation-reduced ceiling, so callers
     only need to persist the dweller afterwards. Returns True if radiation changed.
-    Ghouls are immune and never gain radiation.
+    Ghouls, super mutants and synths are immune and never gain radiation.
 
     Outfits only resist **external** radiation (incidents, wasteland events).
     Radiation drunk as irradiated water enters through ingestion, so that caller

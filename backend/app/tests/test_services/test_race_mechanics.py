@@ -1,6 +1,7 @@
 """Race and faction mechanics: modifiers, perks, breeding, ghoul immunity."""
 
 import random
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -21,6 +22,8 @@ from app.options.races import (
     RaceModifiers,
     RaceOption,
     can_breed,
+    can_take_purposeful_action,
+    can_use_radaway,
     chronological_years,
     is_ageless,
     modifiers_for_race,
@@ -140,6 +143,14 @@ class TestAgelessRaces:
             if race != RaceOption.HUMAN.value:
                 assert dweller["age_group"] != "elder", f"seed {seed} spawned {race} elder"
 
+    def test_chronological_age_accepts_aware_birth_date_with_implicit_now(self) -> None:
+        assert chronological_years(datetime.now(UTC) - timedelta(days=365)) == pytest.approx(1.0, abs=0.01)
+
+    def test_chronological_age_normalizes_mixed_timezones(self) -> None:
+        birth = datetime(2000, 1, 1, tzinfo=UTC)
+        now = datetime(2001, 1, 1)
+        assert chronological_years(birth, now) == pytest.approx(366 / 365.2425)
+
 
 class TestStateOfBeingDeltas:
     def test_state_reader(self) -> None:
@@ -177,6 +188,29 @@ class TestStateOfBeingDeltas:
 
     def test_chronological_years_needs_a_birth_date(self) -> None:
         assert chronological_years(None) is None
+
+
+@pytest.mark.parametrize("race", ["ghoul", "super_mutant", "synth"])
+def test_non_humans_are_radiation_immune_and_cannot_use_radaway(race: str) -> None:
+    entity = _dweller(race)
+    assert identity_modifiers_for(entity).radiation_immune is True
+    assert can_use_radaway(entity) is False
+    entity.is_dead = False
+    entity.max_health = entity.health = 100
+    entity.radiation = 0
+    assert apply_radiation_gain(entity, 25, resisted_by_outfit=False) is False
+    assert entity.radiation == 0
+
+
+def test_humans_can_use_radaway() -> None:
+    assert can_use_radaway(_dweller("human")) is True
+
+
+@pytest.mark.parametrize(("race", "state"), [("ghoul", "feral"), ("super_mutant", "behemoth")])
+def test_non_reasoning_states_cannot_take_purposeful_actions(race: str, state: str) -> None:
+    entity = _dweller(race)
+    entity.visual_attributes["state_of_being"] = state
+    assert can_take_purposeful_action(entity) is False
 
 
 class TestNewbornIdentity:
@@ -251,10 +285,9 @@ class TestRaceModifiers:
         mutant = RACE_MODIFIERS[RaceOption.SUPER_MUTANT]
         assert (mutant.strength, mutant.endurance, mutant.perception) == (3, 2, -2)
 
-    def test_synth_gets_stats_and_radiation_resistance(self) -> None:
+    def test_synth_gets_stats_and_radiation_immunity(self) -> None:
         synth = RACE_MODIFIERS[RaceOption.SYNTH]
-        assert (synth.perception, synth.intelligence, synth.radiation_resist_pct) == (1, 1, 0.5)
-        assert synth.radiation_immune is False
+        assert (synth.perception, synth.intelligence, synth.radiation_immune) == (1, 1, True)
 
     def test_missing_or_unknown_race_defaults_to_human(self) -> None:
         assert modifiers_for_race(_dweller(None)) == RACE_MODIFIERS[RaceOption.HUMAN]
@@ -361,14 +394,14 @@ class TestCombatAndProductionApplication:
         assert mixed == pytest.approx(10 * (5 * 1.05 + 5 * 1.0) * 0.1 * 1.0 * 60)
         assert mixed < 10 * (5 + 5) * 0.1 * 1.0 * 1.05 * 60
 
-    def test_radiation_resist_scales_the_dose(self) -> None:
+    def test_synth_immunity_blocks_the_dose(self) -> None:
         synth = _dweller("synth")
         synth.is_dead = False
         synth.radiation, synth.max_health, synth.health = 10, 120, 100
         synth.effective_max_health = 100
 
-        assert apply_radiation_gain(synth, 10) is True
-        assert synth.radiation == 15  # 50% racial resist
+        assert apply_radiation_gain(synth, 10) is False
+        assert synth.radiation == 10
 
     def test_radiation_immunity_comes_from_the_table(self) -> None:
         ghoul = _dweller("ghoul")
@@ -423,8 +456,8 @@ class TestFeatureFlag:
         mutant.strength = 5
         assert effective_stat(mutant, "strength") == (8 if race_flag else 5)
 
-    def test_racial_resistance_follows_race_switch(self, race_flag: bool) -> None:
-        assert identity_modifiers_for(_dweller("synth")).radiation_resist_pct == (0.5 if race_flag else 0.0)
+    def test_radiation_immunity_survives_race_switch(self, race_flag: bool) -> None:
+        assert identity_modifiers_for(_dweller("synth")).radiation_immune is True
 
     def test_faction_perks_follow_faction_switch(self, faction_flag: bool) -> None:
         assert weapon_damage_pct(_dweller("human", faction="brotherhood_of_steel"), "energy") == (

@@ -141,6 +141,9 @@ const setRadaways = (value: number[] | undefined) => {
                 @update:model-value="setRadaways"
               />
             </div>
+            <p v-else class="text-xs leading-relaxed text-theme-primary/80">
+              RadAway isn't needed: this dweller is radiation immune.
+            </p>
           </div>
           <p class="mt-2 text-[10px] text-theme-primary/55">
             * Selected items will be removed from vault storage and used automatically in the

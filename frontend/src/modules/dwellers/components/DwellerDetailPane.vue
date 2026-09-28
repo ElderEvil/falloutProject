@@ -9,11 +9,12 @@ import DwellerAlertLine from './DwellerAlertLine.vue'
 import DwellerGenderBadge from './DwellerGenderBadge.vue'
 import DwellerRarityBadge from './DwellerRarityBadge.vue'
 import DwellerAgeBadge from './DwellerAgeBadge.vue'
+import DwellerBadge from './DwellerBadge.vue'
 import DwellerIdentitySignal from './DwellerIdentitySignal.vue'
 import DwellerOverflowMenu from './DwellerOverflowMenu.vue'
 import DwellerRoleMatch from './DwellerRoleMatch.vue'
 import { RevivalSection } from './death'
-import { getActivitySummary } from '../models/dweller'
+import { canUseRadaway, getActivitySummary } from '../models/dweller'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 
 const ctx = useDwellerDetailContext()
@@ -68,6 +69,14 @@ const breadcrumbs = computed(() => [
               <DwellerRarityBadge :rarity="dweller.rarity" :show-label="true" />
             </span>
             <DwellerIdentitySignal :visual-attributes="dweller.visual_attributes" />
+            <DwellerBadge
+              v-if="!canUseRadaway(dweller)"
+              icon="mdi:radiation"
+              color="var(--color-theme-primary)"
+              label="Ageless · Radiation Immune"
+              category="Race traits"
+              size="sm"
+            />
           </div>
           <div class="meta-right">
             <span v-if="activity" class="activity-caption">{{ activity }}</span>

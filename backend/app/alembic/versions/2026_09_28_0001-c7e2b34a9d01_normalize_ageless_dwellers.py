@@ -33,8 +33,9 @@ def upgrade() -> None:
         "UPDATE dweller SET radaway = 0 WHERE radaway > 0 "
         "AND visual_attributes ->> 'race' IN ('ghoul', 'super_mutant', 'synth')"
     )
+    # A fresh transactional upgrade added ELDER earlier; compare as text until that value is committed.
     op.execute(
-        "UPDATE dweller SET age_group = 'ADULT' WHERE age_group = 'ELDER' "
+        "UPDATE dweller SET age_group = 'ADULT' WHERE age_group::text = 'ELDER' "
         "AND visual_attributes ->> 'race' IN ('ghoul', 'super_mutant', 'synth')"
     )
     op.execute(

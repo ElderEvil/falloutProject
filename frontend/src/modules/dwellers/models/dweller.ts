@@ -14,7 +14,7 @@ export function canUseRadaway(
   dweller: { visual_attributes?: { race?: string | null } | null } | null | undefined
 ): boolean {
   const race = dweller?.visual_attributes?.race
-  return race == null || race === 'human'
+  return race !== 'ghoul' && race !== 'super_mutant' && race !== 'synth'
 }
 
 export function formatIdentityLabel(value: string): string {

@@ -39,6 +39,7 @@ describe('ExplorationDurationModal', () => {
     })
 
     expect(wrapper.text()).not.toContain('RadAway (Removes Rads)')
+    expect(wrapper.text()).toContain("RadAway isn't needed: this dweller is radiation immune.")
     await wrapper.find('.modal-button.confirm').trigger('click')
     expect(wrapper.emitted('confirm')?.[0]).toEqual([{ duration: 4, stimpaks: 5, radaways: 0 }])
   })
@@ -72,6 +73,7 @@ describe('ExplorationDurationModal', () => {
       expect(wrapper.text()).toContain('Select Exploration Duration')
       expect(wrapper.text()).toContain('Amata')
       expect(wrapper.text()).toContain('Send to Wasteland')
+      expect(wrapper.text()).not.toContain("RadAway isn't needed")
     })
 
     it('renders all six duration options', () => {

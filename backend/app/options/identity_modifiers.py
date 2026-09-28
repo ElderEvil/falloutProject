@@ -39,7 +39,9 @@ class IdentityModifiers:
     production_pct: float = 0.0
 
 
-def _combine(race: RaceModifiers, faction: FactionPerks, state_deltas: dict[str, int] | None = None) -> IdentityModifiers:
+def _combine(
+    race: RaceModifiers, faction: FactionPerks, state_deltas: dict[str, int] | None = None
+) -> IdentityModifiers:
     deltas = state_deltas or {}
     return IdentityModifiers(
         strength=race.strength + deltas.get("strength", 0),

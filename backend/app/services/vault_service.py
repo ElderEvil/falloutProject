@@ -30,6 +30,7 @@ from app.crud.vault import vault as vault_crud
 from app.models import Dweller, Room, Storage
 from app.models.outfit import Outfit
 from app.models.vault import Vault
+from app.models.weapon import Weapon
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate, RoomCreateWithoutVaultID
 from app.schemas.vault import MedicalTransferResponse, VaultNumber, VaultReadWithNumbers, VaultUpdate
@@ -37,7 +38,7 @@ from app.services.resource_manager import ResourceManager, compute_medical_capac
 from app.services.training_service import training_service
 from app.services.vault_seed import (
     BOOSTED_CRAFTING_ROOM_SPECS,
-    BOOSTED_LOADOUTS,
+    BOOSTED_LEGENDARY_DWELLER_COUNT,
     BOOSTED_MERGED_LIVING_ROOM,
     BOOSTED_SEED_JUNK,
     BOOSTED_SEED_OUTFITS,
@@ -59,7 +60,7 @@ from app.utils.exceptions import (
     ResourceConflictException,
     ResourceNotFoundException,
 )
-from app.utils.item_factory import build_outfit, build_weapon
+from app.utils.item_factory import build_catalog_item, build_outfit, build_weapon
 from app.utils.junk_assets import get_junk_image_url
 from app.utils.resource_warnings import get_resource_warnings
 
@@ -605,42 +606,53 @@ class VaultService:
         self.logger.info(f"Created initial items for vault {vault_id}")
 
     async def _create_boosted_legendary_dwellers(self, db_session: AsyncSession, vault_id: UUID4) -> None:
-        """Add a small, equipped legendary roster for boosted-vault testing via shared flow."""
-        from app.core.enums import RarityEnum, WeaponTypeEnum
-        from app.models.weapon import Weapon
+        """Add a random, equipped legendary roster to boosted vaults."""
         from app.services.dweller_service import dweller_service
-        from app.services.exploration.data_loader import load_outfits
-        from app.utils.weapon_assets import get_weapon_image_url
+        from app.services.exploration.data_loader import load_outfits, load_weapons
 
-        catalog = {str(entry["name"]).strip().lower(): entry for entry in load_outfits()}
-        legendary_weapons = []
-        legendary_outfits = []
-        for template_id, weapon_name, outfit_name, weapon_subtype in BOOSTED_LOADOUTS:
+        game_data = await get_static_game_data()
+        weapons_data = load_weapons()
+        outfits_data = load_outfits()
+        weapon_names = {str(entry["name"]).casefold() for entry in weapons_data}
+        outfit_names = {str(entry["name"]).casefold() for entry in outfits_data}
+        candidates = [
+            template
+            for template in game_data.get_dwellers_by_rarity(RarityEnum.LEGENDARY.value)
+            if template.weapon
+            and template.outfit
+            and template.weapon.casefold() in weapon_names
+            and template.outfit.casefold() in outfit_names
+        ]
+        selected = random.sample(candidates, k=min(BOOSTED_LEGENDARY_DWELLER_COUNT, len(candidates)))
+        legendary_weapons: list[Weapon] = []
+        legendary_outfits: list[Outfit] = []
+        for template in selected:
+            if not template.weapon or not template.outfit:
+                continue
             try:
-                dweller = await dweller_service.create_dweller_from_template(db_session, vault_id, template_id)
+                dweller = await dweller_service.create_dweller_from_template(db_session, vault_id, template.template_id)
             except ResourceConflictException:
-                self.logger.info("Boosted template %s already active in vault %s, skipping", template_id, vault_id)
-                continue
-            legendary_weapons.append(
-                Weapon(
-                    name=weapon_name,
-                    rarity=RarityEnum.LEGENDARY,
-                    weapon_type=WeaponTypeEnum.GUN,
-                    weapon_subtype=weapon_subtype,
-                    stat="perception",
-                    damage_min=12,
-                    damage_max=20,
-                    image_url=get_weapon_image_url(weapon_name),
-                    dweller_id=dweller.id,
+                self.logger.info(
+                    "Boosted template %s already active in vault %s, skipping", template.template_id, vault_id
                 )
-            )
-            entry = catalog.get(outfit_name.strip().lower())
-            if entry is None:
-                self.logger.warning("Boosted outfit %r missing from catalog, skipping", outfit_name)
                 continue
-            outfit = build_outfit(entry, entry["rarity"], storage_id=None)
-            outfit.dweller_id = dweller.id
-            legendary_outfits.append(outfit)
+
+            for item_type, name in (("weapon", template.weapon), ("outfit", template.outfit)):
+                item = build_catalog_item(
+                    item_type,
+                    name,
+                    RarityEnum.LEGENDARY,
+                    weapons_data=weapons_data,
+                    outfits_data=outfits_data,
+                )
+                if item is None:
+                    self.logger.warning("Boosted %s %r missing from catalog, skipping", item_type, name)
+                    continue
+                item.dweller_id = dweller.id
+                if isinstance(item, Weapon):
+                    legendary_weapons.append(item)
+                else:
+                    legendary_outfits.append(item)
 
         if legendary_weapons:
             await weapon_crud.create_many(db_session, legendary_weapons)

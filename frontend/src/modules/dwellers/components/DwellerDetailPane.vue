@@ -75,7 +75,6 @@ const breadcrumbs = computed(() => [
               color="var(--color-theme-primary)"
               label="Ageless · Radiation Immune"
               category="Race traits"
-              size="sm"
             />
           </div>
           <div class="meta-right">

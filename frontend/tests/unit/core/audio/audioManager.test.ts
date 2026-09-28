@@ -178,6 +178,22 @@ describe('audioManager alarm', () => {
     manager.setMuted(false)
     expect(music.play).not.toHaveBeenCalled()
   })
+
+  it('keeps duck state without audio so a pending loop waits for restore', async () => {
+    const manager = await freshManager()
+    manager.playLoop('vaultAmbient')
+    manager.duckMusic(500)
+    manager.setMuted(false)
+
+    window.dispatchEvent(new Event('pointerdown'))
+    expect(MockAudio.instances.find((audio) => audio.src.includes('vault-ambient'))).toBeUndefined()
+
+    manager.restoreMusic(1000, 500)
+    vi.advanceTimersByTime(1000)
+
+    const music = MockAudio.instances.find((audio) => audio.src.includes('vault-ambient'))
+    expect(music?.play).toHaveBeenCalled()
+  })
 })
 
 describe('audioManager ambience', () => {
@@ -258,6 +274,32 @@ describe('audioManager ambience', () => {
 
     manager.setMuted(false)
     expect(ambience.play).toHaveBeenCalled()
+  })
+
+  it('defers ambience while music is ducked and starts the wanted key on restore', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    manager.playLoop('vaultAmbient')
+    manager.playAmbience('production')
+    const paused = ambienceElement()!
+
+    manager.duckMusic(500)
+    vi.advanceTimersByTime(600)
+    expect(paused.pause).toHaveBeenCalled()
+
+    // A different key requested mid-incident must not start over the alarm.
+    manager.playAmbience('training')
+    expect(ambienceElement()).toBe(paused)
+    expect(paused.play).toHaveBeenCalledTimes(1)
+
+    manager.restoreMusic(1000, 500)
+    vi.advanceTimersByTime(1000)
+
+    const training = MockAudio.instances.find((audio) => audio.src.includes('training'))
+    expect(training).toBeDefined()
+    expect(training?.play).toHaveBeenCalled()
+    expect(paused.pause).toHaveBeenCalledTimes(2)
   })
 })
 

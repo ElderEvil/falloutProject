@@ -7,6 +7,7 @@ import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
+import { audioManager } from '@/core/audio/audioManager'
 
 // Mock @iconify/vue
 vi.mock('@iconify/vue', () => ({
@@ -1338,6 +1339,35 @@ describe('RoomDetailModal', () => {
 
       expect(wrapper.text()).toContain('RAIDER ATTACK')
       expect(wrapper.text()).not.toContain('INCIDENT ENDED')
+    })
+  })
+
+  describe('Ambience', () => {
+    it('starts ambience for an initially-open modal', () => {
+      const ambienceSpy = vi.spyOn(audioManager, 'playAmbience')
+      mount(RoomDetailModal, {
+        props: { room: mockRoom, modelValue: true },
+      })
+
+      expect(ambienceSpy).toHaveBeenCalledWith('production')
+      ambienceSpy.mockRestore()
+    })
+
+    it('switches ambience when the room category changes while open', async () => {
+      const ambienceSpy = vi.spyOn(audioManager, 'playAmbience')
+      const playSpy = vi.spyOn(audioManager, 'play')
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRoom, modelValue: true },
+      })
+      expect(ambienceSpy).toHaveBeenCalledWith('production')
+
+      await wrapper.setProps({ room: { ...mockRoom, category: 'training' } })
+
+      expect(ambienceSpy).toHaveBeenCalledWith('training')
+      const modalOpenCalls = playSpy.mock.calls.filter(([key]) => key === 'modalOpen')
+      expect(modalOpenCalls).toHaveLength(1)
+      ambienceSpy.mockRestore()
+      playSpy.mockRestore()
     })
   })
 })

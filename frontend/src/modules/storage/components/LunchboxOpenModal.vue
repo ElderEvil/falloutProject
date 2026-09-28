@@ -53,9 +53,9 @@ const revealContents = () => {
 }
 
 watch(() => props.show, (open) => {
+  clearRevealTimers()
   if (open) {
     revealed.value = false
-    clearRevealTimers()
   }
 })
 

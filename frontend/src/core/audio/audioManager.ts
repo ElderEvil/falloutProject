@@ -102,12 +102,12 @@ class AudioManager {
         this.unlocked = true
         window.removeEventListener('pointerdown', unlock)
         window.removeEventListener('keydown', unlock)
-        if (this.pendingLoop) {
+        if (this.pendingLoop && !this.musicDucked) {
           this.playLoop(this.pendingLoop)
           this.pendingLoop = null
         }
         if (this.alarmWanted) this.startAlarmLoop()
-        if (this.ambienceWanted) this.playAmbience(this.ambienceWanted)
+        if (this.ambienceWanted && !this.musicDucked) this.playAmbience(this.ambienceWanted)
       }
       window.addEventListener('pointerdown', unlock)
       window.addEventListener('keydown', unlock)
@@ -264,7 +264,7 @@ class AudioManager {
   playAmbience(key: AmbienceKey): void {
     this.stopPreview()
     this.ambienceWanted = key
-    if (this.settings.muted || !this.unlocked) return
+    if (this.settings.muted || !this.unlocked || this.musicDucked) return
     if (this.ambienceKey === key && this.ambienceAudio) {
       if (!this.ambienceAudio.paused) return
       this.ambienceAudio.volume = this.settings.volumes.ambience
@@ -368,10 +368,9 @@ class AudioManager {
   duckMusic(fadeMs = 2000): void {
     this.cancelMusicRestore()
     if (this.musicDucked) return
+    this.musicDucked = true
     const loop = this.currentLoop
     const ambience = this.ambienceAudio
-    if (!loop && !ambience) return
-    this.musicDucked = true
     if (loop) this.fadeElement(loop.audio, 0, fadeMs, () => loop.audio.pause())
     if (ambience) this.fadeElement(ambience, 0, fadeMs, () => ambience.pause())
   }
@@ -384,17 +383,30 @@ class AudioManager {
       this.resumeTimer = null
       this.musicDucked = false
       if (this.settings.muted || !this.unlocked) return
-      const loop = this.currentLoop
-      if (loop) {
-        loop.audio.volume = 0
-        void loop.audio.play().catch(() => {})
-        this.fadeElement(loop.audio, this.settings.volumes.music, fadeMs)
+      if (this.pendingLoop) {
+        const pending = this.pendingLoop
+        this.pendingLoop = null
+        this.playLoop(pending)
+      } else {
+        const loop = this.currentLoop
+        if (loop) {
+          loop.audio.volume = 0
+          void loop.audio.play().catch(() => {})
+          this.fadeElement(loop.audio, this.settings.volumes.music, fadeMs)
+        }
       }
       const ambience = this.ambienceAudio
-      if (ambience) {
+      if (ambience && this.ambienceKey === this.ambienceWanted) {
         ambience.volume = 0
         void ambience.play().catch(() => {})
         this.fadeElement(ambience, this.settings.volumes.ambience, fadeMs)
+      } else if (this.ambienceWanted) {
+        this.playAmbience(this.ambienceWanted)
+        const started = this.ambienceAudio
+        if (started) {
+          started.volume = 0
+          this.fadeElement(started, this.settings.volumes.ambience, fadeMs)
+        }
       }
     }, delayMs)
   }

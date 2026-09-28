@@ -111,21 +111,24 @@ const {
 
 const { playSound, playAmbience, stopAmbience } = useSound()
 
-// Clear error when modal closes
+// Clear error when modal closes; start ambience on open and when the room category changes.
 watch(
-  () => props.modelValue,
-  (newValue, oldValue) => {
-    if (!newValue) {
+  [() => props.modelValue, () => props.room?.category],
+  ([open], oldValues) => {
+    if (!open) {
       actionError.value = null
       assignmentMode.value = null
       stopAmbience()
+      return
     }
-    if (newValue && newValue !== oldValue) {
+    if (open !== oldValues?.[0]) {
       playSound('modalOpen')
-      const ambience = getRoomAmbienceKey(props.room?.category)
-      if (ambience) playAmbience(ambience)
     }
-  }
+    const ambience = getRoomAmbienceKey(props.room?.category)
+    if (ambience) playAmbience(ambience)
+    else stopAmbience()
+  },
+  { immediate: true }
 )
 
 onUnmounted(stopAmbience)

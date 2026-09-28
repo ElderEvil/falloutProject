@@ -103,6 +103,19 @@ describe('LunchboxOpenModal', () => {
     expect(soundMock.playSound).toHaveBeenCalledTimes(4)
   })
 
+  it('clears pending reveal timers when the modal closes', async () => {
+    vi.useFakeTimers()
+    wrapper = mountModal()
+
+    const reveal = findButton(wrapper, 'Reveal Contents')
+    await reveal!.trigger('click')
+
+    await wrapper.setProps({ show: false })
+    await vi.advanceTimersByTimeAsync(1000)
+
+    expect(soundMock.playSound).not.toHaveBeenCalled()
+  })
+
   it('emits close from the Done action', async () => {
     wrapper = mountModal()
 

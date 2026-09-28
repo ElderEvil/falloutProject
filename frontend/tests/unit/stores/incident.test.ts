@@ -1014,6 +1014,44 @@ describe('Incident Store', () => {
       await store.fetchIncidents('vault-1', 'token')
       expect(sseMock.playSound).toHaveBeenCalledWith('incidentHit', 'sfx')
     })
+
+    it('does not replay the hit sound or lower the count when a stale response resolves late', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
+
+      const round1 = { id: 'e1', kind: 'round', message: 'Round 1', data: null }
+      const round2 = { id: 'e2', kind: 'round', message: 'Round 2', data: null }
+
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce({ ...mockIncident, events: [round1] })
+      await store.fetchIncidents('vault-1', 'token')
+      expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentHit', 'sfx')
+
+      // Two overlapping polls race; the stale (1-event) response resolves after the fresh (2-event) one.
+      let resolveFresh!: (incident: Incident) => void
+      let resolveStale!: (incident: Incident) => void
+      vi.mocked(incidentApi.getIncident)
+        .mockImplementationOnce(() => new Promise((resolve) => { resolveFresh = resolve }))
+        .mockImplementationOnce(() => new Promise((resolve) => { resolveStale = resolve }))
+
+      const pollA = store.fetchIncidents('vault-1', 'token')
+      const pollB = store.fetchIncidents('vault-1', 'token')
+      await flushPromises()
+
+      resolveFresh({ ...mockIncident, events: [round1, round2] })
+      await flushPromises()
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentHit', 'sfx')
+      sseMock.playSound.mockClear()
+
+      resolveStale({ ...mockIncident, events: [round1] })
+      await flushPromises()
+      await Promise.all([pollA, pollB])
+      expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentHit', 'sfx')
+
+      // The count was never lowered, so a later fresh response must not replay the hit.
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce({ ...mockIncident, events: [round1, round2] })
+      await store.fetchIncidents('vault-1', 'token')
+      expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentHit', 'sfx')
+    })
   })
 
   describe('SSE notifications', () => {

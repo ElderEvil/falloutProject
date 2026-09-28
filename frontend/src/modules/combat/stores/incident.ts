@@ -224,7 +224,7 @@ export const useIncidentStore = defineStore('incident', () => {
             if (previousCount !== undefined && incident.events.length > previousCount) {
               audioManager.play('incidentHit', 'sfx')
             }
-            seenEventCounts.set(id, incident.events.length)
+            seenEventCounts.set(id, Math.max(previousCount ?? 0, incident.events.length))
             incidents.value.set(id, incident)
           } catch (error) {
             handleStoreError(error, 'Failed to refresh incident details')

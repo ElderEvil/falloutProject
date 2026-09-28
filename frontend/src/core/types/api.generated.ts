@@ -448,6 +448,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/contamination-team/vault/{vault_id}/{team}/{dweller_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Hazard Team Place
+         * @description Move a team member between Active and Reserve, returning the updated roster.
+         */
+        put: operations["set_hazard_team_place_api_v1_contamination_team_vault__vault_id___team___dweller_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/crafting/vault/{vault_id}/recipes/{item_type}": {
         parameters: {
             query?: never;
@@ -7291,6 +7311,18 @@ export interface components {
             dweller_id: string;
             /** Status */
             status: string;
+            /** Name */
+            name: string;
+            /** Level */
+            level: number;
+        };
+        /**
+         * HazardTeamPlaceUpdate
+         * @description Manual Active/Reserve move for one hazard-team member.
+         */
+        HazardTeamPlaceUpdate: {
+            /** Active */
+            active: boolean;
         };
         /** HazardTeamRosterRead */
         HazardTeamRosterRead: {
@@ -11103,6 +11135,43 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContaminationTeamRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_hazard_team_place_api_v1_contamination_team_vault__vault_id___team___dweller_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                team: components["schemas"]["HazardTeam"];
+                dweller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HazardTeamPlaceUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

@@ -613,15 +613,15 @@ class VaultService:
         game_data = await get_static_game_data()
         weapons_data = load_weapons()
         outfits_data = load_outfits()
-        weapon_names = {str(entry["name"]).casefold() for entry in weapons_data}
-        outfit_names = {str(entry["name"]).casefold() for entry in outfits_data}
+        weapon_names = {str(entry["name"]) for entry in weapons_data}
+        outfit_names = {str(entry["name"]) for entry in outfits_data}
         candidates = [
             template
             for template in game_data.get_dwellers_by_rarity(RarityEnum.LEGENDARY.value)
             if template.weapon
             and template.outfit
-            and template.weapon.casefold() in weapon_names
-            and template.outfit.casefold() in outfit_names
+            and template.weapon in weapon_names
+            and template.outfit in outfit_names
         ]
         selected = random.sample(candidates, k=min(BOOSTED_LEGENDARY_DWELLER_COUNT, len(candidates)))
         legendary_weapons: list[Weapon] = []

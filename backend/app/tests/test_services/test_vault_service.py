@@ -546,6 +546,18 @@ class TestCreateBoostedLegendaryDwellers:
         assert all(item.rarity == RarityEnum.LEGENDARY for item in (*outfits.values(), *weapons.values()))
         assert all(item.image_url for item in (*outfits.values(), *weapons.values()))
 
+    async def test_roster_selects_only_exact_catalog_equipment_names(self) -> None:
+        """Every candidate's equipment must resolve through the case-sensitive item factory."""
+        from app.services.exploration.data_loader import load_outfits, load_weapons
+
+        weapon_names = {entry["name"] for entry in load_weapons()}
+        outfit_names = {entry["name"] for entry in load_outfits()}
+        with patch("app.services.vault_service.random.sample", return_value=[]) as sample:
+            await VaultService()._create_boosted_legendary_dwellers(AsyncMock(), VAULT_ID)
+
+        candidates = sample.call_args.args[0]
+        assert all(template.weapon in weapon_names and template.outfit in outfit_names for template in candidates)
+
     async def test_legendary_roster_persists_with_catalog_special(self, async_session, vault, dweller_data) -> None:
         """Real insert path persists sampled legendary equipment and catalog SPECIAL."""
         from app.crud.item_base import get_items_by_vault

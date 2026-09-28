@@ -1,9 +1,17 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import LunchboxOpenModal from '@/modules/storage/components/LunchboxOpenModal.vue'
 import type { components } from '@/core/types/api.generated'
 
 type LunchboxOpened = components['schemas']['LunchboxOpened']
+
+const soundMock = vi.hoisted(() => ({
+  playSound: vi.fn(),
+}))
+
+vi.mock('@/core/composables/useSound', () => ({
+  useSound: () => ({ playSound: soundMock.playSound }),
+}))
 
 vi.mock('@iconify/vue', () => ({
   Icon: {
@@ -36,9 +44,14 @@ const findButton = (wrapper: VueWrapper, label: string) =>
 describe('LunchboxOpenModal', () => {
   let wrapper: VueWrapper | null = null
 
+  beforeEach(() => {
+    soundMock.playSound.mockClear()
+  })
+
   afterEach(() => {
     wrapper?.unmount()
     wrapper = null
+    vi.useRealTimers()
   })
 
   it('renders a labelled dialog with sealed placeholders before revealing', () => {
@@ -65,6 +78,42 @@ describe('LunchboxOpenModal', () => {
     expect(wrapper.text()).toContain('rare')
     expect(wrapper.text()).toContain('Vault Suit')
     expect(wrapper.text()).toContain('Jane Doe')
+  })
+
+  it('plays staggered card sounds on reveal and a legendary fanfare after', async () => {
+    vi.useFakeTimers()
+    wrapper = mountModal()
+
+    const reveal = findButton(wrapper, 'Reveal Contents')
+    await reveal!.trigger('click')
+
+    expect(soundMock.playSound).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(250)
+    expect(soundMock.playSound).toHaveBeenNthCalledWith(1, 'cardWeapon', 'ui')
+
+    await vi.advanceTimersByTimeAsync(250)
+    expect(soundMock.playSound).toHaveBeenNthCalledWith(2, 'cardOutfit', 'ui')
+
+    await vi.advanceTimersByTimeAsync(250)
+    expect(soundMock.playSound).toHaveBeenNthCalledWith(3, 'cardOutfit', 'ui')
+
+    await vi.advanceTimersByTimeAsync(250)
+    expect(soundMock.playSound).toHaveBeenNthCalledWith(4, 'cardLegendary', 'sfx')
+    expect(soundMock.playSound).toHaveBeenCalledTimes(4)
+  })
+
+  it('clears pending reveal timers when the modal closes', async () => {
+    vi.useFakeTimers()
+    wrapper = mountModal()
+
+    const reveal = findButton(wrapper, 'Reveal Contents')
+    await reveal!.trigger('click')
+
+    await wrapper.setProps({ show: false })
+    await vi.advanceTimersByTimeAsync(1000)
+
+    expect(soundMock.playSound).not.toHaveBeenCalled()
   })
 
   it('emits close from the Done action', async () => {

@@ -1,3 +1,5 @@
+import type { SoundKey } from '@/core/audio/soundManifest'
+
 export enum IncidentType {
   RAIDER_ATTACK = 'raider_attack',
   RADROACH_INFESTATION = 'radroach_infestation',
@@ -102,6 +104,20 @@ export const INCIDENT_ICON_MAP: Record<IncidentType, string> = {
 
 export function getIncidentIcon(type: IncidentType): string {
   return INCIDENT_ICON_MAP[type] ?? 'mdi:alert-octagon'
+}
+
+export const INCIDENT_SOUND_MAP: Record<IncidentType, SoundKey> = {
+  [IncidentType.RAIDER_ATTACK]: 'incidentRaider',
+  [IncidentType.RADROACH_INFESTATION]: 'incidentRadroach',
+  [IncidentType.MOLE_RAT_ATTACK]: 'incidentMolerat',
+  [IncidentType.FERAL_GHOUL_ATTACK]: 'incidentFeralGhoul',
+  [IncidentType.RADSCORPION_ATTACK]: 'incidentRadscorpion',
+  [IncidentType.DEATHCLAW_ATTACK]: 'incidentDeathclaw',
+  [IncidentType.FIRE]: 'incidentFire',
+}
+
+export function getIncidentSound(type: IncidentType): SoundKey {
+  return INCIDENT_SOUND_MAP[type] ?? 'incidentRadroach'
 }
 
 export type IncidentOutcome = 'victory' | 'defeat' | 'unknown'

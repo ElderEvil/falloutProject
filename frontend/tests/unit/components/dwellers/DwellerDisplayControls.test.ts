@@ -1,17 +1,23 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import DwellerDisplayControls from '@/modules/dwellers/components/DwellerDisplayControls.vue'
 import displayControlsSource from '@/modules/dwellers/components/DwellerDisplayControls.vue?raw'
 import filterPanelSource from '@/modules/dwellers/components/DwellerFilterPanel.vue?raw'
 import filterGroupSource from '@/modules/dwellers/components/DwellerFilterGroup.vue?raw'
+import { audioManager } from '@/core/audio/audioManager'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { DEFAULT_TABLE_COLUMNS } from '@/modules/dwellers/models/dwellerTable'
+
+vi.mock('@/core/audio/audioManager', () => ({
+  audioManager: { play: vi.fn() },
+}))
 
 describe('DwellerDisplayControls', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     localStorage.clear()
+    vi.clearAllMocks()
   })
 
   it('renders the sort control and no view toggle by default', () => {
@@ -66,6 +72,32 @@ describe('DwellerDisplayControls', () => {
     await tableButton!.trigger('click')
 
     expect(store.viewMode).toBe('table')
+  })
+
+  it('plays the tab switch sound when the view mode changes', async () => {
+    const wrapper = mount(DwellerDisplayControls, { props: { showView: true } })
+    const store = useDwellerStore().filter
+
+    const gridButton = wrapper
+      .findAll('.view-toggle-btn')
+      .find((btn) => btn.text().includes('Grid'))
+    await gridButton!.trigger('click')
+
+    expect(store.viewMode).toBe('grid')
+    expect(audioManager.play).toHaveBeenCalledWith('tabSwitch', 'ui')
+  })
+
+  it('does not play the tab switch sound when the mode is unchanged', async () => {
+    const wrapper = mount(DwellerDisplayControls, { props: { showView: true } })
+    const store = useDwellerStore().filter
+
+    const listButton = wrapper
+      .findAll('.view-toggle-btn')
+      .find((btn) => btn.text().includes('List'))
+    await listButton!.trigger('click')
+
+    expect(store.viewMode).toBe('list')
+    expect(audioManager.play).not.toHaveBeenCalled()
   })
 
   it('shows the column picker only in table mode and toggles a column', async () => {

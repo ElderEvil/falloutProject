@@ -6,6 +6,7 @@ import type { components } from '@/core/types/api.generated'
 import type { Room, RoomBuild, RoomTemplate } from '../models/room'
 import { FLOOR_UNITS, ROOM_SLOT_STARTS, SHAFT_X, UNITS_PER_ROOM, BUILD_Y_MAX, Y_MAX } from '../models/grid'
 import { handleStoreError } from '@/core/utils/errorHandler'
+import { audioManager } from '@/core/audio/audioManager'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
 type GridConfig = components['schemas']['GridConfig']
@@ -109,6 +110,7 @@ export const useRoomStore = defineStore('room', () => {
     await refreshVaultSafely(vaultId, token, 'Failed to refresh vault after building room')
     // A merge can absorb several rooms, so resync the list instead of trusting one response.
     await fetchRooms(vaultId, token)
+    audioManager.play('vaultBuild', 'sfx')
     return result
   }
 
@@ -155,6 +157,7 @@ export const useRoomStore = defineStore('room', () => {
       }
       throw error
     }
+    audioManager.play('upgrade', 'sfx')
     // Refresh vault to update caps (non-throwing)
     await refreshVaultSafely(vaultId, token, 'Failed to refresh vault after upgrading room')
   }

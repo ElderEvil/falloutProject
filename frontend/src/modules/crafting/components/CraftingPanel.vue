@@ -22,6 +22,7 @@ import {
 } from '@/core/components/ui/tooltip'
 import { getItemIcon, getRarityTextClass } from '@/core/models/items'
 import { useToast } from '@/core/composables/useToast'
+import { useSound } from '@/core/composables/useSound'
 import { getErrorMessage } from '@/core/utils/errorHandler'
 import { craftingService } from '../services/craftingService'
 import type { CraftableItemType, CraftingOrder, CraftingRecipe } from '../models/crafting'
@@ -38,6 +39,7 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
+const { playSound } = useSound()
 
 const recipes = ref<CraftingRecipe[]>([])
 const orders = ref<CraftingOrder[]>([])
@@ -172,6 +174,7 @@ async function handleStart(recipe: CraftingRecipe) {
   busyKey.value = recipe.name
   try {
     const order = await craftingService.startOrder(props.vaultId, recipe.name, props.itemType)
+    playSound('craftStart', 'sfx')
     toast.success(
       `Queued ${order.item_name} (${order.junk_spent} materials, ${order.caps_spent} caps)`
     )
@@ -189,6 +192,7 @@ async function handleCollect(order: CraftingOrder) {
   busyKey.value = order.id
   try {
     const result = await craftingService.collectOrder(props.vaultId, order.id)
+    playSound('success', 'ui')
     toast.success(`Crafted ${result.name}`)
     await loadAll()
     emit('crafted')

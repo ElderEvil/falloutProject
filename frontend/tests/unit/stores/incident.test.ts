@@ -926,6 +926,134 @@ describe('Incident Store', () => {
     })
   })
 
+  describe('Combat SFX', () => {
+    it('plays the per-incident spawn sound once per incident id', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValue(mockIncident)
+
+      await store.fetchIncidents('vault-1', 'token')
+      await store.fetchIncidents('vault-1', 'token')
+
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentRaider', 'sfx')
+      const raiderCalls = sseMock.playSound.mock.calls.filter(([key]) => key === 'incidentRaider')
+      expect(raiderCalls).toHaveLength(1)
+    })
+
+    it('maps each incident type to its own spawn sound', async () => {
+      const store = useIncidentStore()
+      const fireList: IncidentListResponse = {
+        ...mockIncidentList,
+        incidents: [{ ...mockIncidentList.incidents[0], id: 'incident-2', type: IncidentType.FIRE }],
+      }
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(fireList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce({
+        ...mockIncident,
+        id: 'incident-2',
+        type: IncidentType.FIRE,
+      })
+
+      await store.fetchIncidents('vault-1', 'token')
+
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentFire', 'sfx')
+    })
+
+    it('does not double-play the spawn sound when SSE and poll both see the incident', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValue(mockIncident)
+      store.startPolling('vault-1', 'token', 10_000)
+      await Promise.resolve()
+
+      sseMock.instance.event.value = {
+        event: 'incident',
+        data: { type: 'incident_spawned', incident_id: 'incident-1', incident_type: 'raider_attack' },
+      }
+      await nextTick()
+      await flushPromises()
+
+      await store.fetchIncidents('vault-1', 'token')
+
+      const raiderCalls = sseMock.playSound.mock.calls.filter(([key]) => key === 'incidentRaider')
+      expect(raiderCalls).toHaveLength(1)
+      store.stopPolling()
+    })
+
+    it('plays the defeat sound when an incident is lost', async () => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+      store.startPolling('vault-1', 'token', 10_000)
+      await Promise.resolve()
+
+      sseMock.instance.event.value = {
+        event: 'incident',
+        data: { type: 'incident_resolved', incident_id: 'incident-1', success: false },
+      }
+      await nextTick()
+
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentDefeat', 'sfx')
+      store.stopPolling()
+    })
+
+    it('plays a hit sound on a new round but not on first sight', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
+      vi.mocked(incidentApi.getIncident)
+        .mockResolvedValueOnce(mockIncident)
+        .mockResolvedValueOnce({
+          ...mockIncident,
+          events: [{ id: 'e1', kind: 'round', message: 'Round 1', data: null }],
+        })
+
+      await store.fetchIncidents('vault-1', 'token')
+      expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentHit', 'sfx')
+
+      await store.fetchIncidents('vault-1', 'token')
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentHit', 'sfx')
+    })
+
+    it('does not replay the hit sound or lower the count when a stale response resolves late', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
+
+      const round1 = { id: 'e1', kind: 'round', message: 'Round 1', data: null }
+      const round2 = { id: 'e2', kind: 'round', message: 'Round 2', data: null }
+
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce({ ...mockIncident, events: [round1] })
+      await store.fetchIncidents('vault-1', 'token')
+      expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentHit', 'sfx')
+
+      // Two overlapping polls race; the stale (1-event) response resolves after the fresh (2-event) one.
+      let resolveFresh!: (incident: Incident) => void
+      let resolveStale!: (incident: Incident) => void
+      vi.mocked(incidentApi.getIncident)
+        .mockImplementationOnce(() => new Promise((resolve) => { resolveFresh = resolve }))
+        .mockImplementationOnce(() => new Promise((resolve) => { resolveStale = resolve }))
+
+      const pollA = store.fetchIncidents('vault-1', 'token')
+      const pollB = store.fetchIncidents('vault-1', 'token')
+      await flushPromises()
+
+      resolveFresh({ ...mockIncident, events: [round1, round2] })
+      await flushPromises()
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentHit', 'sfx')
+      sseMock.playSound.mockClear()
+
+      resolveStale({ ...mockIncident, events: [round1] })
+      await flushPromises()
+      await Promise.all([pollA, pollB])
+      expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentHit', 'sfx')
+
+      // The count was never lowered, so a later fresh response must not replay the hit.
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce({ ...mockIncident, events: [round1, round2] })
+      await store.fetchIncidents('vault-1', 'token')
+      expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentHit', 'sfx')
+    })
+  })
+
   describe('SSE notifications', () => {
     it('announces a successful incident resolution', async () => {
       const store = useIncidentStore()

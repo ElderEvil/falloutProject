@@ -5,8 +5,12 @@ import { craftingService } from '@/modules/crafting/services/craftingService'
 import type { CraftingOrder, CraftingRecipe } from '@/modules/crafting/models/crafting'
 
 const mockToast = { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }
+const mockPlaySound = vi.fn()
 
 vi.mock('@/core/composables/useToast', () => ({ useToast: () => mockToast }))
+vi.mock('@/core/composables/useSound', () => ({
+  useSound: () => ({ playSound: mockPlaySound }),
+}))
 vi.mock('@/modules/crafting/services/craftingService', () => ({
   craftingService: {
     listRecipes: vi.fn(),
@@ -154,6 +158,7 @@ describe('CraftingPanel', () => {
 
     expect(craftingService.startOrder).toHaveBeenCalledWith('vault-1', 'Pipe pistol', 'weapon')
     expect(mockToast.success).toHaveBeenCalledWith(expect.stringContaining('Pipe pistol'))
+    expect(mockPlaySound).toHaveBeenCalledWith('craftStart', 'sfx')
     expect(wrapper.emitted('crafted')).toHaveLength(1)
   })
 
@@ -166,6 +171,7 @@ describe('CraftingPanel', () => {
     await flushPromises()
 
     expect(mockToast.error).toHaveBeenCalled()
+    expect(mockPlaySound).not.toHaveBeenCalled()
     expect(wrapper.emitted('crafted')).toBeUndefined()
   })
 
@@ -212,7 +218,22 @@ describe('CraftingPanel', () => {
     await flushPromises()
 
     expect(craftingService.collectOrder).toHaveBeenCalledWith('vault-1', 'order-1')
+    expect(mockPlaySound).toHaveBeenCalledWith('success', 'ui')
     expect(wrapper.emitted('crafted')).toHaveLength(1)
+  })
+
+  it('stays silent when collecting fails', async () => {
+    vi.mocked(craftingService.listOrders).mockResolvedValue([order({ status: 'completed', progress: 1 })])
+    vi.mocked(craftingService.collectOrder).mockRejectedValue(new Error('Order vanished'))
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    const collect = wrapper.findAll('button').find(button => button.text().includes('Collect'))
+    await collect!.trigger('click')
+    await flushPromises()
+
+    expect(mockToast.error).toHaveBeenCalled()
+    expect(mockPlaySound).not.toHaveBeenCalled()
   })
 
   it('shows the empty state when nothing is craftable', async () => {

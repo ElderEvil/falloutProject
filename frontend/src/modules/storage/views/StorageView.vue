@@ -5,6 +5,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
+import { useSound } from '@/core/composables/useSound'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { storageService, type StorageItemsResponse } from '../services/storageService'
 import type { components } from '@/core/types/api.generated'
@@ -24,6 +25,7 @@ const authStore = useAuthStore()
 const vaultStore = useVaultStore()
 const { isCollapsed } = useSidePanel()
 const toast = useToast()
+const { playSound } = useSound()
 
 const vaultId = computed(() => route.params.id as string)
 const storageSpace = ref<{
@@ -254,6 +256,7 @@ const handleOpenLunchbox = async (itemId: string) => {
   if (!vaultId.value) return
   try {
     lunchboxResult.value = await storageService.openLunchbox(vaultId.value, itemId)
+    playSound('lunchboxOpen', 'ui')
     showLunchboxModal.value = true
   } catch (error: unknown) {
     handleStoreError(error, 'Failed to open lunchbox')

@@ -4,6 +4,7 @@ import axios from '@/core/plugins/axios'
 import type { components } from '@/core/types/api.generated'
 import type { Dweller } from '../models/dweller'
 import { handleStoreError } from '@/core/utils/errorHandler'
+import { audioManager } from '@/core/audio/audioManager'
 import { useToast } from '@/core/composables/useToast'
 import { useGaryMode } from '@/core/composables/useGaryMode'
 import { useDwellerFilterStore } from './dwellerFilter'
@@ -46,6 +47,8 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       if (filterStore.detailedDwellers[dwellerId]) {
         filterStore.detailedDwellers[dwellerId] = response.data
       }
+
+      audioManager.play('cardDrop', 'ui')
 
       return response.data
     } catch (error) {
@@ -105,6 +108,8 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       if (filterStore.detailedDwellers[dwellerId]) {
         filterStore.detailedDwellers[dwellerId] = response.data
       }
+
+      audioManager.play('cardDrop', 'ui')
 
       return response.data
     } catch (error) {

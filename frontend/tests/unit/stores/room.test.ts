@@ -2,11 +2,16 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { audioManager } from '@/core/audio/audioManager'
 import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
 import type { Room } from '@/modules/rooms/models/room'
 
 vi.mock('@/core/plugins/axios')
+
+vi.mock('@/core/audio/audioManager', () => ({
+  audioManager: { play: vi.fn() },
+}))
 
 function makeRoom(overrides: Partial<Room> = {}): Room {
   return {
@@ -231,6 +236,7 @@ describe('Room Store', () => {
       )
       expect(store.rooms).toHaveLength(1)
       expect(store.rooms[0]).toEqual(newRoom)
+      expect(audioManager.play).toHaveBeenCalledWith('vaultBuild', 'sfx')
     })
 
     it('should replace an existing room when the response id is already present', async () => {
@@ -292,6 +298,8 @@ describe('Room Store', () => {
       await expect(
         store.buildRoom('Power Generator', 0, 0, 'test-token', 'vault-1')
       ).rejects.toThrow('Insufficient caps')
+
+      expect(audioManager.play).not.toHaveBeenCalled()
     })
   })
 
@@ -370,6 +378,7 @@ describe('Room Store', () => {
       expect(store.rooms[0].tier).toBe(2)
       expect(store.rooms[0].capacity).toBe(12)
       expect(store.rooms[0].output).toBe(24)
+      expect(audioManager.play).toHaveBeenCalledWith('upgrade', 'sfx')
     })
 
     it('should throw error when insufficient caps', async () => {

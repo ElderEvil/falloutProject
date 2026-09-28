@@ -7,7 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.core.game_config import DwellerConfig, game_config
-from app.options.bios import ZONE_RUMORS, maybe_zone_rumor, render_bio, render_newborn_bio
+from app.options.bios import ZONE_RUMORS, maybe_zone_rumor, render_adopted_child_bio, render_bio, render_newborn_bio
 from app.options.factions import faction_restrictions
 from app.options.races import STATE_OF_BEING_VALUES, RaceOption
 from app.schemas.common import AgeGroupEnum, RarityEnum
@@ -215,6 +215,16 @@ def test_render_newborn_bio_never_injects_parent_names(monkeypatch: pytest.Monke
         bio = render_newborn_bio("<script>x</script>", "<b>John</b>", "m-1", "f-1", "v-1")
         assert "<script>" not in bio
         assert "<b>" not in bio
+
+
+def test_render_adopted_child_bio_links_and_escapes_parent_names() -> None:
+    bio = render_adopted_child_bio("<script>x</script>", "John", "p-1", "p-2", "v-1")
+
+    assert "adopted" in bio
+    assert 'href="/vault/v-1/dwellers/p-1"' in bio
+    assert 'href="/vault/v-1/dwellers/p-2"' in bio
+    assert "<script>" not in bio
+    assert "&lt;script&gt;" in bio
 
 
 def test_maybe_zone_rumor_returns_none_on_a_miss() -> None:

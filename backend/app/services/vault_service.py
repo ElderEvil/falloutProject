@@ -34,6 +34,7 @@ from app.options.races import can_use_radaway
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate, RoomCreateWithoutVaultID
 from app.schemas.vault import MedicalTransferResponse, VaultNumber, VaultReadWithNumbers, VaultUpdate
+from app.services.family.breeding_service import conception_potential
 from app.services.resource_manager import ResourceManager, compute_medical_capacity
 from app.services.training_service import training_service
 from app.services.vault_seed import (
@@ -418,7 +419,7 @@ class VaultService:
         is_boosted: bool,
     ) -> Dweller:
         """Create a child linked to both parents; teens apprentice at the working parent's production room."""
-        from app.options.bios import render_newborn_bio
+        from app.options.bios import render_adopted_child_bio, render_newborn_bio
         from app.services.bio_service import bio_service, make_entry
         from app.services.dweller_service import dweller_service
 
@@ -432,7 +433,17 @@ class VaultService:
         child_name = f"{child.first_name} {surname or ''}".strip()
         mother_name = f"{mother.first_name} {mother.last_name or ''}".strip()
         father_name = f"{father.first_name} {father.last_name or ''}".strip()
-        newborn = render_newborn_bio(mother_name, father_name, str(mother.id), str(father.id), str(vault_id))
+        biological = conception_potential(mother, father) == "possible"
+        origin = (
+            render_newborn_bio(mother_name, father_name, str(mother.id), str(father.id), str(vault_id))
+            if biological
+            else render_adopted_child_bio(mother_name, father_name, str(mother.id), str(father.id), str(vault_id))
+        )
+        origin_ref = (
+            {"mother_id": str(mother.id), "father_id": str(father.id)}
+            if biological
+            else {"parent_1_id": str(mother.id), "parent_2_id": str(father.id), "adopted": True}
+        )
         await dweller_crud.update(
             db_session,
             child.id,
@@ -444,12 +455,12 @@ class VaultService:
                 "age_group": AgeGroupEnum.TEEN if room else AgeGroupEnum.CHILD,
                 "birth_date": datetime.utcnow()
                 - timedelta(hours=YOUTH_APPRENTICE_BIRTH_AGE_HOURS if room else SEEDED_CHILD_AGE_HOURS),
-                "bio": newborn,
+                "bio": origin,
                 "bio_entries": [
                     make_entry(
                         "template",
-                        newborn,
-                        {"mother_id": str(mother.id), "father_id": str(father.id)},
+                        origin,
+                        origin_ref,
                     )
                 ],
             },
@@ -464,8 +475,13 @@ class VaultService:
                 db_session,
                 parent.id,
                 "family",
-                f"Became a parent: {child_name} was born.",
-                ref={"child_id": str(child.id), "partner_id": str(partner.id), "partner_name": partner_name},
+                f"Became a parent: {child_name} was born." if biological else f"Adopted {child_name}.",
+                ref={
+                    "child_id": str(child.id),
+                    "partner_id": str(partner.id),
+                    "partner_name": partner_name,
+                    **({"adopted": True} if not biological else {}),
+                },
             )
         return child
 

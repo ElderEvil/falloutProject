@@ -1147,6 +1147,43 @@ def _family_texts(dweller: Dweller) -> list[str]:
 class TestSeededFamilies:
     """Seeded households: couples, children, and family apprentices."""
 
+    @pytest.mark.parametrize(("mother_race", "family_event"), [("ghoul", "Adopted"), ("human", "was born")])
+    async def test_seeded_family_story_matches_conception(
+        self, async_session, vault, mother_race, family_event
+    ) -> None:
+        """Seeded couples keep their household with an accurate birth or adoption story."""
+        from app.schemas.dweller import DwellerVisualAttributes
+        from app.services.dweller_service import dweller_service
+
+        mother = await dweller_service.create_random_dweller(
+            async_session,
+            vault.id,
+            DwellerCreateCommonOverride(
+                gender=GenderEnum.FEMALE, visual_attributes=DwellerVisualAttributes(race=mother_race)
+            ),
+        )
+        father = await dweller_service.create_random_dweller(
+            async_session,
+            vault.id,
+            DwellerCreateCommonOverride(
+                gender=GenderEnum.MALE, visual_attributes=DwellerVisualAttributes(race="human")
+            ),
+        )
+        mother.age_group = father.age_group = AgeGroupEnum.ADULT
+        async_session.add_all([mother, father])
+        await async_session.commit()
+
+        await VaultService()._seed_seeded_families(async_session, vault.id, [], [mother, father], [], is_boosted=False)
+
+        children = await crud.dweller.get_children_of(async_session, vault_id=vault.id, parent_ids=[mother.id])
+        assert len(children) == 1
+        child = children[0]
+        assert {child.parent_1_id, child.parent_2_id} == {mother.id, father.id}
+        assert ("adopted" in child.bio.lower()) is (mother_race == "ghoul")
+        for parent in (mother, father):
+            updated = await crud.dweller.get(async_session, parent.id)
+            assert any(family_event in text for text in _family_texts(updated))
+
     async def test_standard_vault_seeds_one_committed_family(self, async_session, vault) -> None:
         """Standard vaults seed a married couple, their teen apprentice, and family lore."""
         from app.crud.relationship import relationship_crud
@@ -1208,7 +1245,9 @@ class TestSeededFamilies:
         assert any(child.first_name in text for text in _family_texts(second))
         origin_refs = [entry.get("ref") or {} for entry in child.bio_entries or [] if entry.get("source") == "template"]
         assert any(
-            {ref.get("mother_id"), ref.get("father_id")} == {str(first.id), str(second.id)} for ref in origin_refs
+            {ref.get("mother_id") or ref.get("parent_1_id"), ref.get("father_id") or ref.get("parent_2_id")}
+            == {str(first.id), str(second.id)}
+            for ref in origin_refs
         )
 
     async def test_boosted_vault_seeds_three_families_in_distinct_rooms(self, async_session, vault) -> None:

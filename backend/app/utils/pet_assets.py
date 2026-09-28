@@ -11,7 +11,7 @@ from pathlib import Path
 # Maps canonical lower-cased pet names to the actual filename in
 # backend/app/static/pet_images/. Keep this sorted alphabetically by key.
 PET_NAME_TO_IMAGE_FILE: dict[str, str] = {
-    "[[rollerbrain]]": "FOS [[Rollerbrain]].png",
+    "rollerbrain": "FOS Rollerbrain.png",
     "abyssinian": "FOS Abyssinian.png",
     "akita": "FOS Akita.png",
     "alien drone": "FOS Alien Drone.png",

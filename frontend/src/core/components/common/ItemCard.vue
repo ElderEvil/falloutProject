@@ -45,7 +45,10 @@ const itemTypeDisplay = computed(() => {
   if (itemType === 'outfit') {
     return `${formatItemLabel(item.outfit_type)} • ${item.rarity ?? 'common'}`
   }
-  return item.rarity ?? 'common'
+  if (itemType === 'junk' && item.junk_type) {
+    return `Junk • ${formatItemLabel(item.junk_type)} • ${item.rarity ?? 'common'}`
+  }
+  return `${formatItemLabel(itemType)} • ${item.rarity ?? 'common'}`
 })
 </script>
 

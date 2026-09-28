@@ -249,4 +249,6 @@ export interface ItemCardSource
   stat?: string
   accuracy?: number | null
   weapon_type?: string
+  outfit_type?: string
+  junk_type?: string | null
 }

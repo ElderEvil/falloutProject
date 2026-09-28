@@ -9,7 +9,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import AgeGroupEnum, DwellerStatusEnum, FactionEnum, RaceEnum, RarityEnum, RoomTypeEnum
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum, FactionEnum, GenderEnum, RaceEnum, RarityEnum, RoomTypeEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import training as training_crud
@@ -181,6 +181,7 @@ class DwellerService:
         limit: int = 100,
         status: DwellerStatusEnum | None = None,
         age_group: AgeGroupEnum | None = None,
+        gender: GenderEnum | None = None,
         search: str | None = None,
         race: RaceEnum | None = None,
         faction: FactionEnum | None = None,
@@ -201,6 +202,7 @@ class DwellerService:
             limit=limit,
             status=status,
             age_group=age_group,
+            gender=gender,
             search=search,
             race=race.value if race else None,
             faction=faction.value if faction else None,

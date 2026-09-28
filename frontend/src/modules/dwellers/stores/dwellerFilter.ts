@@ -109,6 +109,7 @@ export type DwellerViewMode = 'list' | 'grid' | 'table'
 type DwellerFetchOptions = {
   status?: DwellerStatus | 'all'
   ageGroup?: DwellerAgeGroup
+  gender?: string
   race?: string
   faction?: string
   search?: string
@@ -142,6 +143,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     return {
       status: options.status !== 'all' ? options.status : undefined,
       ageGroup: options.ageGroup !== 'all' ? options.ageGroup : undefined,
+      gender: options.gender !== 'all' ? options.gender : undefined,
       race: options.race !== 'all' ? options.race : undefined,
       faction: options.faction !== 'all' ? options.faction : undefined,
       search: options.search,
@@ -174,6 +176,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   // Filter and sort state (persisted in localStorage)
   const filterStatus = useLocalStorage<DwellerStatus | 'all'>('dwellerFilterStatus', 'all')
   const filterAgeGroup = useLocalStorage<DwellerAgeGroup>('dwellerFilterAgeGroup', 'all')
+  const filterGender = useLocalStorage<string>('dwellerFilterGender', 'all')
   // Identity lives in visual_attributes; 'all' means unfiltered.
   const filterRace = useLocalStorage<string>('dwellerFilterRace', 'all')
   const filterFaction = useLocalStorage<string>('dwellerFilterFaction', 'all')
@@ -199,6 +202,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     (status) => {
       if (status !== 'dead') return
       filterAgeGroup.value = 'all'
+      filterGender.value = 'all'
       filterRace.value = 'all'
       filterFaction.value = 'all'
     },
@@ -272,6 +276,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
    */
   function countByStatus(filters: {
     ageGroup: DwellerAgeGroup
+    gender: string
     race: string
     faction: string
   }): DwellerStatusCounts {
@@ -284,6 +289,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
 
     for (const dweller of allDwellers.value) {
       if (!matchesAgeGroup(dweller, filters.ageGroup)) continue
+      if (filters.gender !== 'all' && dweller.gender !== filters.gender) continue
       if (filters.race !== 'all' && dweller.visual_attributes?.race !== filters.race) continue
       if (factionActive && dweller.visual_attributes?.faction !== filters.faction) continue
 
@@ -312,6 +318,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       ...options,
       status: filterStatus.value,
       ageGroup: filterAgeGroup.value,
+      gender: filterGender.value,
       race: filterRace.value,
       // The API rejects a faction filter while the switch is off, so never send it.
       faction: featureFlags.factionMechanics ? filterFaction.value : 'all',
@@ -372,6 +379,10 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     filterAgeGroup.value = ageGroup
   }
 
+  function setFilterGender(gender: string): void {
+    filterGender.value = gender
+  }
+
   function setFilterRace(race: string): void {
     filterRace.value = race
   }
@@ -417,6 +428,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     isLoading,
     filterStatus,
     filterAgeGroup,
+    filterGender,
     filterRace,
     filterFaction,
     sortBy,
@@ -433,6 +445,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     fetchDwellerDetails,
     setFilterStatus,
     setFilterAgeGroup,
+    setFilterGender,
     setFilterRace,
     setFilterFaction,
     setSortBy,

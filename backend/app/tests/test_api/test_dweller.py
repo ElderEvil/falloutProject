@@ -552,6 +552,37 @@ async def test_filter_dwellers_by_race_and_faction(
 
 
 @pytest.mark.asyncio
+async def test_filter_dwellers_by_gender(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+) -> None:
+    """Roster filters narrow by gender, a real enum column on the dweller."""
+    from app.schemas.dweller import DwellerCreate
+    from app.tests.factory.dwellers import create_fake_dweller
+
+    def dweller_of_gender(gender: GenderEnum) -> DwellerCreate:
+        data = create_fake_dweller()
+        data.update({"vault_id": vault.id, "gender": gender})
+        return DwellerCreate(**data)
+
+    male = await crud.dweller.create(async_session, dweller_of_gender(GenderEnum.MALE))
+    female = await crud.dweller.create(async_session, dweller_of_gender(GenderEnum.FEMALE))
+
+    by_male = await async_client.get(f"/dwellers/vault/{vault.id}/?gender=male", headers=superuser_token_headers)
+    assert by_male.status_code == 200
+    assert [row["id"] for row in by_male.json()] == [str(male.id)]
+
+    by_female = await async_client.get(f"/dwellers/vault/{vault.id}/?gender=female", headers=superuser_token_headers)
+    assert by_female.status_code == 200
+    assert [row["id"] for row in by_female.json()] == [str(female.id)]
+
+    invalid = await async_client.get(f"/dwellers/vault/{vault.id}/?gender=invalid", headers=superuser_token_headers)
+    assert invalid.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_unknown_race_filter_is_rejected(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],

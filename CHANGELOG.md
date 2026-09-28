@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.155.0 (2026-09-28)
+
+### Features
+
+* restore FOS item/dweller art backfill ([#822](https://github.com/ElderEvil/falloutProject/issues/822)) and legendary roster ([#821](https://github.com/ElderEvil/falloutProject/issues/821)) ([#824](https://github.com/ElderEvil/falloutProject/issues/824)) 966fb6e
+
 ## 2.154.0 (2026-09-28)
 
 ### Features

@@ -88,6 +88,15 @@ def dweller_combat_power(dwellers: list[Dweller]) -> float:
     return total_combat_power(dwellers)
 
 
+def split_damage(incoming: int, count: int) -> list[int]:
+    """Split integer damage across `count` defenders: base each, remainder to the first ones."""
+    if count <= 0:
+        return []
+    incoming = max(0, int(incoming))
+    base, remainder = divmod(incoming, count)
+    return [base + (1 if index < remainder else 0) for index in range(count)]
+
+
 def raider_power(difficulty: int) -> float:
     """Calculate raider power based on difficulty."""
     return difficulty * game_config.combat.base_raider_power

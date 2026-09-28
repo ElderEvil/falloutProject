@@ -212,6 +212,7 @@ class AudioManager {
 
   /** Start a looping music track (one loop at a time; restarts if same key). */
   playLoop(key: MusicKey): void {
+    this.stopPreview()
     if (this.currentLoop?.key === key) return
     this.stopLoop()
     if (this.settings.muted || !this.unlocked) {
@@ -231,6 +232,7 @@ class AudioManager {
   }
 
   stopLoop(): void {
+    this.stopPreview()
     this.pendingLoop = null
     this.musicDucked = false
     this.cancelMusicRestore()
@@ -242,6 +244,7 @@ class AudioManager {
 
   /** Start a looping room-category ambience track (one at a time). */
   playAmbience(key: AmbienceKey): void {
+    this.stopPreview()
     this.ambienceWanted = key
     if (this.settings.muted || !this.unlocked) return
     if (this.ambienceKey === key && this.ambienceAudio) {
@@ -273,6 +276,10 @@ class AudioManager {
     }
     this.ambienceAudio = null
     this.ambienceKey = null
+  }
+
+  private stopPreview(): void {
+    this.musicPreview?.pause()
   }
 
   /** Incident alarm loop + music ducking. All entry points are idempotent. */
@@ -389,7 +396,9 @@ class AudioManager {
       return
     }
     if (this.pendingLoop && !this.musicDucked) {
-      this.playLoop(this.pendingLoop)
+      const pending = this.pendingLoop
+      this.pendingLoop = null
+      this.playLoop(pending)
     } else if (this.currentLoop && !this.musicDucked) {
       this.currentLoop.audio.volume = this.settings.volumes.music
       void this.currentLoop.audio.play().catch(() => {})

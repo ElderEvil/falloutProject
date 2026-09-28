@@ -260,3 +260,74 @@ describe('audioManager ambience', () => {
     expect(ambience.play).toHaveBeenCalled()
   })
 })
+
+describe('audioManager navigation regression', () => {
+  beforeEach(() => {
+    MockAudio.instances = []
+    localStorage.clear()
+    vi.stubGlobal('Audio', MockAudio)
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  const playing = () => MockAudio.instances.filter((a) => a.loop && !a.paused)
+
+  it('keeps one music loop across vault->exploration->vault (unmuted)', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+
+    manager.playLoop('vaultAmbient')
+    manager.playLoop('exploration')
+    manager.playLoop('vaultAmbient')
+    manager.playLoop('vaultAmbient')
+
+    expect(playing()).toHaveLength(1)
+  })
+
+  it('keeps one music loop when starting muted, then unmuting + hydrating', async () => {
+    const manager = await freshManager()
+    manager.playLoop('vaultAmbient')
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    manager.applySettings({ muted: false })
+
+    manager.playLoop('exploration')
+    manager.playLoop('vaultAmbient')
+
+    expect(playing()).toHaveLength(1)
+  })
+})
+
+describe('audioManager preview overlap', () => {
+  beforeEach(() => {
+    MockAudio.instances = []
+    localStorage.clear()
+    vi.stubGlobal('Audio', MockAudio)
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it('stops the music preview when a loop starts', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+
+    manager.previewMusic()
+    const preview = MockAudio.instances.find((a) => a.src.includes('vault-ambient') && !a.loop)!
+    expect(preview.play).toHaveBeenCalled()
+
+    manager.playLoop('vaultAmbient')
+
+    expect(preview.pause).toHaveBeenCalled()
+    expect(MockAudio.instances.filter((a) => !a.paused)).toHaveLength(1)
+  })
+})

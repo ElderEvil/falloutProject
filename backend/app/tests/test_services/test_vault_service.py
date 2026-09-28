@@ -504,7 +504,7 @@ class TestCreateBoostedLegendaryDwellers:
                 rarity=RarityEnum.COMMON,
                 level=1,
             )
-            for i in range(1, 4)
+            for i in range(1, 7)
         ]
 
         with (
@@ -526,14 +526,21 @@ class TestCreateBoostedLegendaryDwellers:
         bittercup = outfits["Bittercup's outfit"]
         assert (bittercup.strength, bittercup.perception, bittercup.endurance, bittercup.charisma) == (2, 2, 2, 1)
         assert bittercup.dweller_id == dwellers[2].id
+        valentine = outfits["Valentine's trench coat"]
+        assert valentine.dweller_id == dwellers[3].id
 
         weapons = mock_weapons.call_args.args[1]
-        assert len(weapons) == 3
+        assert len(weapons) == 6
         assert all(
             w.rarity == RarityEnum.LEGENDARY and w.damage_min == 12 and w.damage_max == 20 and w.stat == "perception"
             for w in weapons
         )
         assert [w.dweller_id for w in weapons] == [d.id for d in dwellers]
+        assert [w.name for w in weapons[3:]] == [
+            "Hardened Gauss pistol",
+            "Amplified laser rifle",
+            "Hardened 10mm pistol",
+        ]
 
     async def test_legendary_outfits_persist_with_catalog_special(self, async_session, vault, dweller_data) -> None:
         """Real insert path: boosted legendary outfits persist with catalog SPECIAL and rarity."""
@@ -542,7 +549,7 @@ class TestCreateBoostedLegendaryDwellers:
         from app.schemas.dweller import DwellerCreate
 
         dwellers = []
-        for i in range(1, 4):
+        for i in range(1, 7):
             data = dict(dweller_data, first_name=f"Legend{i}")
             dwellers.append(
                 await crud.dweller.create(db_session=async_session, obj_in=DwellerCreate(**data, vault_id=vault.id))
@@ -580,7 +587,7 @@ class TestCreateBoostedLegendaryDwellers:
                 rarity=RarityEnum.COMMON,
                 level=1,
             )
-            for i in range(1, 4)
+            for i in range(1, 7)
         ]
 
         with (
@@ -598,8 +605,8 @@ class TestCreateBoostedLegendaryDwellers:
 
         outfit_names = [o.name for o in mock_outfits.call_args.args[1]]
         assert "Bittercup's outfit" not in outfit_names
-        assert len(outfit_names) == 2
-        assert len(mock_weapons.call_args.args[1]) == 3
+        assert len(outfit_names) == 5
+        assert len(mock_weapons.call_args.args[1]) == 6
         assert "Bittercup's outfit" in caplog.text
 
 

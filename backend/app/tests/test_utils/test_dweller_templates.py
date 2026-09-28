@@ -56,9 +56,9 @@ def test_template_rejects_blank_origin() -> None:
 def test_companion_template_allows_null_visuals() -> None:
     t = DwellerTemplate.model_validate(
         {
-            "first_name": "CX404",
+            "first_name": "Snip Snip",
             "last_name": "",
-            "template_id": "cx404",
+            "template_id": "snip-snip",
             "gender": "Male",
             "rarity": "Legendary",
             "strength": 5,

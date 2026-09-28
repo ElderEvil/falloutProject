@@ -490,24 +490,40 @@ class TestCreateInitialItems:
 # ---------------------------------------------------------------------------
 
 
+def _boosted_legendary_templates():
+    from app.utils.static_data import game_data_store
+
+    return [
+        game_data_store.get_dweller(template_id)
+        for template_id in (
+            "old-longfellow",
+            "preston-garvey",
+            "betty",
+            "cooper-howard",
+        )
+    ]
+
+
 class TestCreateBoostedLegendaryDwellers:
     """Tests for boosted-vault legendary dweller equipment."""
 
-    async def test_legendary_outfits_carry_catalog_special(self) -> None:
-        """Boosted legendary outfits keep catalog SPECIAL and attach to their dweller."""
+    async def test_random_legendary_roster_uses_catalog_equipment(self) -> None:
+        """Boosted vaults get a sampled roster with each template's real catalog gear."""
+        templates = _boosted_legendary_templates()
         dwellers = [
             Dweller(
                 id=_dweller_id(i),
                 first_name=f"Legend{i}",
                 last_name="Test",
                 gender=GenderEnum.MALE,
-                rarity=RarityEnum.COMMON,
+                rarity=RarityEnum.LEGENDARY,
                 level=1,
             )
-            for i in range(1, 7)
+            for i in range(1, 5)
         ]
 
         with (
+            patch("app.services.vault_service.random.sample", return_value=templates) as mock_sample,
             patch(
                 "app.services.dweller_service.dweller_service.create_dweller_from_template",
                 new_callable=AsyncMock,
@@ -516,98 +532,87 @@ class TestCreateBoostedLegendaryDwellers:
             patch("app.services.vault_service.weapon_crud.create_many", new_callable=AsyncMock) as mock_weapons,
             patch("app.services.vault_service.outfit_crud.create_many", new_callable=AsyncMock) as mock_outfits,
         ):
-            db_session = AsyncMock()
-            await VaultService()._create_boosted_legendary_dwellers(db_session, VAULT_ID)
+            await VaultService()._create_boosted_legendary_dwellers(AsyncMock(), VAULT_ID)
 
-        outfits = {o.name: o for o in mock_outfits.call_args.args[1]}
-        abraham = outfits["Abraham's relaxedwear"]
-        assert (abraham.strength, abraham.perception, abraham.endurance, abraham.charisma) == (1, 2, 2, 1)
-        assert abraham.dweller_id == dwellers[0].id
-        bittercup = outfits["Bittercup's outfit"]
-        assert (bittercup.strength, bittercup.perception, bittercup.endurance, bittercup.charisma) == (2, 2, 2, 1)
-        assert bittercup.dweller_id == dwellers[2].id
-        valentine = outfits["Valentine's trench coat"]
-        assert valentine.dweller_id == dwellers[3].id
+        mock_sample.assert_called_once()
+        assert mock_sample.call_args.kwargs["k"] == 4
+        assert len(mock_sample.call_args.args[0]) >= 4
+        expected_outfits = {template.outfit: dwellers[i].id for i, template in enumerate(templates)}
+        expected_weapons = {template.weapon: dwellers[i].id for i, template in enumerate(templates)}
+        outfits = {item.name: item for item in mock_outfits.call_args.args[1]}
+        weapons = {item.name: item for item in mock_weapons.call_args.args[1]}
+        assert {name: item.dweller_id for name, item in outfits.items()} == expected_outfits
+        assert {name: item.dweller_id for name, item in weapons.items()} == expected_weapons
+        assert all(item.rarity == RarityEnum.LEGENDARY for item in (*outfits.values(), *weapons.values()))
+        assert all(item.image_url for item in (*outfits.values(), *weapons.values()))
 
-        weapons = mock_weapons.call_args.args[1]
-        assert len(weapons) == 6
-        assert all(
-            w.rarity == RarityEnum.LEGENDARY and w.damage_min == 12 and w.damage_max == 20 and w.stat == "perception"
-            for w in weapons
-        )
-        assert [w.dweller_id for w in weapons] == [d.id for d in dwellers]
-        assert [w.name for w in weapons[3:]] == [
-            "Hardened Gauss pistol",
-            "Amplified laser rifle",
-            "Hardened 10mm pistol",
-        ]
-
-    async def test_legendary_outfits_persist_with_catalog_special(self, async_session, vault, dweller_data) -> None:
-        """Real insert path: boosted legendary outfits persist with catalog SPECIAL and rarity."""
+    async def test_legendary_roster_persists_with_catalog_special(self, async_session, vault, dweller_data) -> None:
+        """Real insert path persists sampled legendary equipment and catalog SPECIAL."""
         from app.crud.item_base import get_items_by_vault
         from app.models.outfit import Outfit
+        from app.models.weapon import Weapon
         from app.schemas.dweller import DwellerCreate
 
+        templates = _boosted_legendary_templates()
         dwellers = []
-        for i in range(1, 7):
+        for i in range(1, 5):
             data = dict(dweller_data, first_name=f"Legend{i}")
             dwellers.append(
                 await crud.dweller.create(db_session=async_session, obj_in=DwellerCreate(**data, vault_id=vault.id))
             )
 
-        with patch(
-            "app.services.dweller_service.dweller_service.create_dweller_from_template",
-            new_callable=AsyncMock,
-            side_effect=dwellers,
+        with (
+            patch("app.services.vault_service.random.sample", return_value=templates),
+            patch(
+                "app.services.dweller_service.dweller_service.create_dweller_from_template",
+                new_callable=AsyncMock,
+                side_effect=dwellers,
+            ),
         ):
             await VaultService()._create_boosted_legendary_dwellers(async_session, vault.id)
 
         outfits = await get_items_by_vault(async_session, Outfit, vault.id)
-        by_name = {o.name: o for o in outfits}
-        abraham = by_name["Abraham's relaxedwear"]
-        assert (abraham.strength, abraham.perception, abraham.endurance, abraham.charisma) == (1, 2, 2, 1)
-        assert abraham.rarity == RarityEnum.LEGENDARY
-        assert abraham.dweller_id == dwellers[0].id
-        bittercup = by_name["Bittercup's outfit"]
-        assert (bittercup.strength, bittercup.perception, bittercup.endurance, bittercup.charisma) == (2, 2, 2, 1)
-        assert bittercup.rarity == RarityEnum.LEGENDARY
-        assert bittercup.dweller_id == dwellers[2].id
+        weapons = await get_items_by_vault(async_session, Weapon, vault.id)
+        assert {item.name for item in outfits} == {template.outfit for template in templates}
+        assert {item.name for item in weapons} == {template.weapon for template in templates}
+        assert all(item.rarity == RarityEnum.LEGENDARY and item.dweller_id is not None for item in outfits + weapons)
 
-    async def test_legendary_outfit_missing_from_catalog_skipped(self, caplog) -> None:
-        """A loadout outfit absent from the catalog is skipped; dweller and weapon survive."""
+    async def test_roster_excludes_templates_with_missing_catalog_equipment(self) -> None:
+        """Templates missing a weapon or outfit asset are not selected for the showcase roster."""
         from app.services.exploration.data_loader import load_outfits
 
-        catalog = [entry for entry in load_outfits() if entry["name"] != "Bittercup's outfit"]
+        templates = _boosted_legendary_templates()
+        catalog = [entry for entry in load_outfits() if entry["name"] != "Vault 33 suit"]
         dwellers = [
             Dweller(
                 id=_dweller_id(i),
                 first_name=f"Legend{i}",
                 last_name="Test",
                 gender=GenderEnum.MALE,
-                rarity=RarityEnum.COMMON,
+                rarity=RarityEnum.LEGENDARY,
                 level=1,
             )
-            for i in range(1, 7)
+            for i in range(1, 5)
         ]
 
         with (
             patch("app.services.exploration.data_loader.load_outfits", return_value=catalog),
             patch(
+                "app.services.vault_service.random.sample", side_effect=lambda population, k: population[:k]
+            ) as sample,
+            patch(
                 "app.services.dweller_service.dweller_service.create_dweller_from_template",
                 new_callable=AsyncMock,
                 side_effect=dwellers,
             ),
-            patch("app.services.vault_service.weapon_crud.create_many", new_callable=AsyncMock) as mock_weapons,
+            patch("app.services.vault_service.weapon_crud.create_many", new_callable=AsyncMock),
             patch("app.services.vault_service.outfit_crud.create_many", new_callable=AsyncMock) as mock_outfits,
         ):
-            db_session = AsyncMock()
-            await VaultService()._create_boosted_legendary_dwellers(db_session, VAULT_ID)
+            await VaultService()._create_boosted_legendary_dwellers(AsyncMock(), VAULT_ID)
 
-        outfit_names = [o.name for o in mock_outfits.call_args.args[1]]
-        assert "Bittercup's outfit" not in outfit_names
-        assert len(outfit_names) == 5
-        assert len(mock_weapons.call_args.args[1]) == 6
-        assert "Bittercup's outfit" in caplog.text
+        assert all(template.template_id != "betty" for template in sample.call_args.args[0])
+        assert len(mock_outfits.call_args.args[1]) == 4
+        assert all(item.name != "Vault 33 suit" for item in mock_outfits.call_args.args[1])
 
 
 # ---------------------------------------------------------------------------

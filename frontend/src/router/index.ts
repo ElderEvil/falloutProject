@@ -52,6 +52,11 @@ const router = createRouter({
             name: 'ui-catalog',
             component: () => import('@/core/views/UiCatalogView.vue'),
           },
+          {
+            path: '/dev/asset-gallery',
+            name: 'asset-gallery',
+            component: () => import('@/core/views/AssetGalleryView.vue'),
+          },
         ]
       : []),
     {

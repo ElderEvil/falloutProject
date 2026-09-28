@@ -32,7 +32,7 @@ async function freshManager() {
 
 const alarmElement = () => MockAudio.instances.find((audio) => audio.loop)
 
-const DEFAULTS = { muted: true, volumes: { ui: 0.6, sfx: 0.8, music: 0.4 } }
+const DEFAULTS = { muted: true, volumes: { ui: 0.6, sfx: 0.8, music: 0.4, ambience: 0.4 } }
 
 describe('audioManager', () => {
   beforeEach(() => {
@@ -67,12 +67,12 @@ describe('audioManager', () => {
       audioManager.applySettings(raw)
     }
     expect(audioManager.muted).toBe(true)
-    expect(audioManager.volumes).toEqual({ ui: 0.6, sfx: 0.8, music: 0.4 })
+    expect(audioManager.volumes).toEqual({ ui: 0.6, sfx: 0.8, music: 0.4, ambience: 0.4 })
   })
 
   it('ignores unknown keys and unknown buses', () => {
     audioManager.applySettings({ muted: false, volumes: { ui: 0.3, bass: 0.9 }, extra: 'x' })
-    expect(audioManager.volumes).toEqual({ ui: 0.3, sfx: 0.8, music: 0.4 })
+    expect(audioManager.volumes).toEqual({ ui: 0.3, sfx: 0.8, music: 0.4, ambience: 0.4 })
   })
 
   it('notifies the change handler for local edits only, never for hydration', () => {
@@ -329,5 +329,49 @@ describe('audioManager preview overlap', () => {
 
     expect(preview.pause).toHaveBeenCalled()
     expect(MockAudio.instances.filter((a) => !a.paused)).toHaveLength(1)
+  })
+})
+
+describe('audioManager ambience bus', () => {
+  beforeEach(() => {
+    MockAudio.instances = []
+    localStorage.clear()
+    vi.stubGlobal('Audio', MockAudio)
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it('routes the ambience slider to the ambience element, not the music loop', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    manager.playLoop('vaultAmbient')
+    manager.playAmbience('production')
+
+    const loop = MockAudio.instances.find((a) => a.loop && a.src.includes('vault-ambient'))!
+    const ambience = MockAudio.instances.find((a) => a.loop && a.src.includes('/audio/ambience/'))!
+
+    manager.setVolume('ambience', 0.2)
+
+    expect(ambience.volume).toBeCloseTo(0.2)
+    expect(loop.volume).toBeCloseTo(0.4)
+  })
+
+  it('stops the ambience preview when a room ambience loop starts', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+
+    manager.previewAmbience()
+    const preview = MockAudio.instances.find((a) => a.src.includes('/audio/ambience/') && !a.loop)!
+    expect(preview.play).toHaveBeenCalled()
+
+    manager.playAmbience('production')
+
+    expect(preview.pause).toHaveBeenCalled()
   })
 })

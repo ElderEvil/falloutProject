@@ -12,11 +12,11 @@ import {
  * Bus names group sounds so players can tune them independently.
  * `ui` covers interface feedback, `sfx` gameplay effects, `music` loops.
  */
-export type AudioBus = 'ui' | 'sfx' | 'music'
+export type AudioBus = 'ui' | 'sfx' | 'music' | 'ambience'
 
 const STORAGE_KEY = 'audioSettings'
 
-const AUDIO_BUSES: readonly AudioBus[] = ['ui', 'sfx', 'music']
+const AUDIO_BUSES: readonly AudioBus[] = ['ui', 'sfx', 'music', 'ambience']
 
 export interface AudioSettings {
   muted: boolean
@@ -30,7 +30,7 @@ export interface SoundSettingsInput {
 
 const DEFAULT_SETTINGS: AudioSettings = {
   muted: true,
-  volumes: { ui: 0.6, sfx: 0.8, music: 0.4 },
+  volumes: { ui: 0.6, sfx: 0.8, music: 0.4, ambience: 0.4 },
 }
 
 /**
@@ -88,6 +88,7 @@ class AudioManager {
   private unlocked = false
   private sfxBuffers = new Map<SoundKey, HTMLAudioElement>()
   private musicPreview: HTMLAudioElement | null = null
+  private ambiencePreview: HTMLAudioElement | null = null
   private currentLoop: { audio: HTMLAudioElement; key: MusicKey } | null = null
   private pendingLoop: MusicKey | null = null
   private ambienceAudio: HTMLAudioElement | null = null
@@ -142,9 +143,11 @@ class AudioManager {
 
   setVolume(bus: AudioBus, volume: number): void {
     this.settings.volumes[bus] = Math.min(1, Math.max(0, volume))
-    if (bus === 'music') {
-      if (this.currentLoop) this.currentLoop.audio.volume = this.settings.volumes.music
-      if (this.ambienceAudio) this.ambienceAudio.volume = this.settings.volumes.music
+    if (bus === 'music' && this.currentLoop) {
+      this.currentLoop.audio.volume = this.settings.volumes.music
+    }
+    if (bus === 'ambience' && this.ambienceAudio) {
+      this.ambienceAudio.volume = this.settings.volumes.ambience
     }
     this.persist()
     this.notifyChange()
@@ -210,6 +213,21 @@ class AudioManager {
     this.musicPreview.play().catch(() => {})
   }
 
+  /** One-shot sample of the ambience bus at its current volume (volume sliders). */
+  previewAmbience(): void {
+    if (this.settings.muted || !this.unlocked) return
+    const src = AMBIENCE_MANIFEST.production
+    if (!src) return
+
+    if (!this.ambiencePreview) {
+      this.ambiencePreview = new Audio(src)
+      this.ambiencePreview.preload = 'auto'
+    }
+    this.ambiencePreview.currentTime = 0
+    this.ambiencePreview.volume = this.settings.volumes.ambience
+    this.ambiencePreview.play().catch(() => {})
+  }
+
   /** Start a looping music track (one loop at a time; restarts if same key). */
   playLoop(key: MusicKey): void {
     this.stopPreview()
@@ -249,7 +267,7 @@ class AudioManager {
     if (this.settings.muted || !this.unlocked) return
     if (this.ambienceKey === key && this.ambienceAudio) {
       if (!this.ambienceAudio.paused) return
-      this.ambienceAudio.volume = this.settings.volumes.music
+      this.ambienceAudio.volume = this.settings.volumes.ambience
       void this.ambienceAudio.play().catch(() => {})
       return
     }
@@ -258,7 +276,7 @@ class AudioManager {
     if (!src) return
     const audio = new Audio(src)
     audio.loop = true
-    audio.volume = this.settings.volumes.music
+    audio.volume = this.settings.volumes.ambience
     audio.play().catch(() => {})
     this.ambienceAudio = audio
     this.ambienceKey = key
@@ -280,6 +298,7 @@ class AudioManager {
 
   private stopPreview(): void {
     this.musicPreview?.pause()
+    this.ambiencePreview?.pause()
   }
 
   /** Incident alarm loop + music ducking. All entry points are idempotent. */
@@ -375,7 +394,7 @@ class AudioManager {
       if (ambience) {
         ambience.volume = 0
         void ambience.play().catch(() => {})
-        this.fadeElement(ambience, this.settings.volumes.music, fadeMs)
+        this.fadeElement(ambience, this.settings.volumes.ambience, fadeMs)
       }
     }, delayMs)
   }
@@ -391,6 +410,7 @@ class AudioManager {
     if (this.settings.muted) {
       this.currentLoop?.audio.pause()
       this.musicPreview?.pause()
+      this.ambiencePreview?.pause()
       this.alarmAudio?.pause()
       this.ambienceAudio?.pause()
       return

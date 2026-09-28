@@ -8,7 +8,7 @@ import type { UserProfile } from '@/models/profile'
 const audioMock = vi.hoisted(() => {
   const state = {
     muted: true,
-    volumes: { ui: 0.6, sfx: 0.8, music: 0.4 } as Record<string, number>,
+    volumes: { ui: 0.6, sfx: 0.8, music: 0.4, ambience: 0.4 } as Record<string, number>,
     handler: null as (() => void) | null,
   }
   return {
@@ -68,7 +68,7 @@ describe('useSoundProfileSync', () => {
     savePreferences.mockClear()
     audioMock.applySettings.mockClear()
     audioMock.state.muted = true
-    audioMock.state.volumes = { ui: 0.6, sfx: 0.8, music: 0.4 }
+    audioMock.state.volumes = { ui: 0.6, sfx: 0.8, music: 0.4, ambience: 0.4 }
     scope = effectScope()
     scope.run(() => useSoundProfileSync())
   })
@@ -107,7 +107,7 @@ describe('useSoundProfileSync', () => {
 
     expect(savePreferences).toHaveBeenCalledTimes(1)
     expect(savePreferences).toHaveBeenCalledWith({
-      sound: { muted: false, volumes: { ui: 0.6, sfx: 0.8, music: 0.4 } },
+      sound: { muted: false, volumes: { ui: 0.6, sfx: 0.8, music: 0.4, ambience: 0.4 } },
     })
   })
 

@@ -104,6 +104,7 @@ const soundBusOptions: { bus: AudioBus; label: string; description: string }[] =
   { bus: 'ui', label: 'Interface', description: 'Button clicks, tab switches, popups' },
   { bus: 'sfx', label: 'Game Effects', description: 'Incidents, completions, rewards' },
   { bus: 'music', label: 'Music', description: 'Vault ambient and exploration loops' },
+  { bus: 'ambience', label: 'Room Ambience', description: 'Per-room ambience loops' },
 ]
 
 const toggleSound = () => {
@@ -115,6 +116,7 @@ const setBusVolume = (bus: AudioBus, volume: number) => {
   audioManager.setVolume(bus, volume)
   // Audible feedback: play that bus's sample so the change is heard live.
   if (bus === 'music') audioManager.previewMusic()
+  else if (bus === 'ambience') audioManager.previewAmbience()
   else audioManager.play(bus === 'sfx' ? 'success' : 'select', bus)
 }
 

@@ -137,18 +137,25 @@ class CRUDTeam(CRUDBase[Team, None, None]):
         return team
 
     async def add_incident_team_members(
-        self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4, dweller_ids: list[UUID4]
+        self,
+        db_session: AsyncSession,
+        incident_id: UUID4,
+        vault_id: UUID4,
+        dweller_ids: list[UUID4],
+        status: str = "assigned",
     ) -> list[TeamMember]:
         """Append dwellers to the vault's incident roster; never removes members.
 
         The roster is the set of responders sent for the incident; combat presence
         stays derived from the room, so appending keeps them consistent. Dwellers
         already on the roster are skipped (no ``uq_team_member_dweller`` violation).
+        ``status`` defaults to the player-assignment marker; hazard auto-dispatch
+        passes ``DISPATCHED_STATUS`` so the return-to-work pass can find its own.
         """
         team = await self.get_or_create_incident_team(db_session, incident_id, vault_id)
         existing_ids = {member.dweller_id for member in team.members}
         members = [
-            TeamMember(team_id=team.id, dweller_id=dweller_id, slot_number=None, status="assigned")
+            TeamMember(team_id=team.id, dweller_id=dweller_id, slot_number=None, status=status)
             for dweller_id in dweller_ids
             if dweller_id not in existing_ids
         ]
@@ -182,6 +189,7 @@ class CRUDTeam(CRUDBase[Team, None, None]):
     ) -> list[TeamMember]:
         """Living hazard-team members, most senior first."""
         query = self._hazard_members_query(vault_id, team, status=status).order_by(TeamMember.created_at)
+        query = query.options(selectinload(TeamMember.dweller))
         return list((await db_session.execute(query)).scalars().all())
 
     async def get_hazard_team(self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam) -> list[TeamMember]:

@@ -31,7 +31,6 @@ ITEM_CONSTRUCTION_BASELINE: dict[tuple[str, str], int] = {
     ("services/reward_service.py", "Item"): 1,  # generic reward item
     ("services/reward_service.py", "Junk"): 1,  # duplicate of item_factory.build_junk
     ("services/vault_service.py", "Junk"): 1,  # _seed_boosted_junk
-    ("services/vault_service.py", "Weapon"): 1,  # boosted loadout, hardcoded damage
 }
 
 

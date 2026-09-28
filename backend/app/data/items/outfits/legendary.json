@@ -1,231 +1,1455 @@
 [
-  {
-    "name": "Abraham's relaxedwear",
-    "outfit_type": "legendary_outfit",
-    "warn_by": "Abraham Washington",
-    "rarity": "Legendary",
-    "value": 500,
-    "total": 7,
-    "gender": "Male",
-    "craftable": true,
-    "strength": 1,
-    "perception": 2,
-    "endurance": 2,
-    "charisma": 1,
-    "intelligence": 0,
-    "agility": 0,
-    "luck": 0,
-    "stat": "perception",
-    "craft": {
-      "types": [
-        "cloth",
-        "leather"
-      ],
-      "unlock": null
+    {
+        "name": "Abraham's relaxedwear",
+        "outfit_type": "legendary_outfit",
+        "warn_by": "Abraham Washington",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": "Male",
+        "craftable": true,
+        "strength": 1,
+        "perception": 2,
+        "endurance": 2,
+        "charisma": 1,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "perception",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Tattered longcoat",
+        "outfit_type": "legendary_outfit",
+        "warn_by": "Old Longfellow",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 8,
+        "gender": "Male",
+        "craftable": true,
+        "strength": 2,
+        "perception": 0,
+        "endurance": 2,
+        "charisma": 2,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 2,
+        "stat": "strength",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Autumn's uniform",
+        "outfit_type": "legendary_outfit",
+        "warn_by": "Augustus Autumn",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": "Male",
+        "craftable": true,
+        "strength": 2,
+        "perception": 2,
+        "endurance": 2,
+        "charisma": 1,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "strength",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Bittercup's outfit",
+        "outfit_type": "legendary_outfit",
+        "warn_by": "Bittercup",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": "Female",
+        "craftable": true,
+        "strength": 2,
+        "perception": 2,
+        "endurance": 2,
+        "charisma": 1,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "strength",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Confessor Cromwell's rags",
+        "outfit_type": "legendary_outfit",
+        "warn_by": "Confessor Cromwell",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": "Male",
+        "craftable": true,
+        "strength": 0,
+        "perception": 2,
+        "endurance": 2,
+        "charisma": 1,
+        "intelligence": 1,
+        "agility": 0,
+        "luck": 2,
+        "stat": "perception",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Elder robe",
+        "outfit_type": "legendary_outfit",
+        "warn_by": "Elder Lyons",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": "Male",
+        "craftable": true,
+        "strength": 0,
+        "perception": 0,
+        "endurance": 0,
+        "charisma": 4,
+        "intelligence": 0,
+        "agility": 3,
+        "luck": 0,
+        "stat": "charisma",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Eulogy Jones' suit",
+        "outfit_type": "legendary_outfit",
+        "warn_by": "Eulogy Jones",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": "Male",
+        "craftable": true,
+        "strength": 2,
+        "perception": 2,
+        "endurance": 1,
+        "charisma": 2,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "strength",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Heavy synth armor",
+        "outfit_type": "legendary_outfit",
+        "warn_by": null,
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 0,
+        "perception": 0,
+        "endurance": 4,
+        "charisma": 3,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "endurance",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Firefighter suit, rad helmet",
+        "outfit_type": "legendary_outfit",
+        "warn_by": null,
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 1,
+        "gender": null,
+        "craftable": true,
+        "strength": 0,
+        "perception": 0,
+        "endurance": 5,
+        "charisma": 0,
+        "intelligence": 2,
+        "agility": 0,
+        "luck": 0,
+        "stat": "endurance",
+        "fire_resist": 0.75,
+        "radiation_resist": 1.0,
+        "craft": {
+            "types": [
+                "cloth",
+                "leather",
+                "steel",
+                "science"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Alien space suit",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 8,
+        "gender": null,
+        "craftable": false,
+        "strength": 0,
+        "perception": 2,
+        "endurance": 0,
+        "charisma": 0,
+        "intelligence": 4,
+        "agility": 2,
+        "luck": 0,
+        "stat": "intelligence",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "BoS paladin jacket",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 8,
+        "gender": null,
+        "craftable": true,
+        "strength": 2,
+        "perception": 4,
+        "endurance": 0,
+        "charisma": 2,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "perception",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Commander fatigues",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 7,
+        "perception": 0,
+        "endurance": 0,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "strength",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Commander uniform",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 0,
+        "perception": 0,
+        "endurance": 0,
+        "charisma": 3,
+        "intelligence": 4,
+        "agility": 0,
+        "luck": 0,
+        "stat": "intelligence",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Courser uniform",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 10,
+        "gender": null,
+        "craftable": false,
+        "strength": 0,
+        "perception": 5,
+        "endurance": 5,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "perception",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Death's jacket",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 16,
+        "gender": null,
+        "craftable": false,
+        "strength": 0,
+        "perception": 4,
+        "endurance": 4,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 4,
+        "luck": 4,
+        "stat": "perception",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Enclave officer uniform",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 12,
+        "gender": null,
+        "craftable": false,
+        "strength": 0,
+        "perception": 4,
+        "endurance": 2,
+        "charisma": 4,
+        "intelligence": 2,
+        "agility": 0,
+        "luck": 0,
+        "stat": "perception",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Expert BoS uniform",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 0,
+        "perception": 4,
+        "endurance": 0,
+        "charisma": 3,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "perception",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Expert Institute jumper",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 0,
+        "perception": 0,
+        "endurance": 0,
+        "charisma": 0,
+        "intelligence": 4,
+        "agility": 3,
+        "luck": 0,
+        "stat": "intelligence",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Expert flight suit",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 0,
+        "perception": 0,
+        "endurance": 3,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 4,
+        "luck": 0,
+        "stat": "agility",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Expert jumpsuit",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 0,
+        "perception": 0,
+        "endurance": 0,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 7,
+        "luck": 0,
+        "stat": "agility",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Expert lab coat",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 0,
+        "perception": 0,
+        "endurance": 0,
+        "charisma": 0,
+        "intelligence": 7,
+        "agility": 0,
+        "luck": 0,
+        "stat": "intelligence",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Expert radiation suit",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 0,
+        "perception": 3,
+        "endurance": 4,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "endurance",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Famine's vestment",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 16,
+        "gender": null,
+        "craftable": false,
+        "strength": 4,
+        "perception": 0,
+        "endurance": 4,
+        "charisma": 0,
+        "intelligence": 4,
+        "agility": 0,
+        "luck": 4,
+        "stat": "strength",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Heavy battle armor",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 4,
+        "perception": 0,
+        "endurance": 3,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "strength",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Heavy combat armor",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 4,
+        "perception": 0,
+        "endurance": 0,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 3,
+        "luck": 0,
+        "stat": "strength",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Heavy leather armor",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 3,
+        "perception": 0,
+        "endurance": 4,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "endurance",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Heavy merc gear",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 0,
+        "perception": 2,
+        "endurance": 0,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 3,
+        "luck": 2,
+        "stat": "agility",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Heavy metal armor",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 4,
+        "perception": 0,
+        "endurance": 0,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 3,
+        "stat": "strength",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Heavy raider armor",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 0,
+        "perception": 3,
+        "endurance": 0,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 4,
+        "luck": 0,
+        "stat": "agility",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Heavy wasteland gear",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 0,
+        "perception": 0,
+        "endurance": 7,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "endurance",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Incognito leisurewear",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 8,
+        "gender": null,
+        "craftable": true,
+        "strength": 0,
+        "perception": 0,
+        "endurance": 0,
+        "charisma": 2,
+        "intelligence": 2,
+        "agility": 2,
+        "luck": 2,
+        "stat": "charisma",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Jailhouse Rocker",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 8,
+        "gender": null,
+        "craftable": true,
+        "strength": 0,
+        "perception": 0,
+        "endurance": 0,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 4,
+        "luck": 4,
+        "stat": "agility",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Kellogg's armor",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 12,
+        "gender": "Male",
+        "craftable": false,
+        "strength": 2,
+        "perception": 0,
+        "endurance": 4,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 6,
+        "luck": 0,
+        "stat": "agility",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Legate armor",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 10,
+        "gender": "Male",
+        "craftable": true,
+        "strength": 0,
+        "perception": 0,
+        "endurance": 6,
+        "charisma": 4,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "endurance",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Lucky formal wear",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 0,
+        "perception": 0,
+        "endurance": 0,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 7,
+        "stat": "luck",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Lucky nightwear",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 0,
+        "perception": 0,
+        "endurance": 0,
+        "charisma": 7,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "charisma",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Lucy's vault suit",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 8,
+        "gender": "Female",
+        "craftable": false,
+        "strength": 0,
+        "perception": 3,
+        "endurance": 2,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 3,
+        "stat": "perception",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Maximus's jacket",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 12,
+        "gender": null,
+        "craftable": true,
+        "strength": 2,
+        "perception": 0,
+        "endurance": 0,
+        "charisma": 2,
+        "intelligence": 0,
+        "agility": 4,
+        "luck": 4,
+        "stat": "agility",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Minuteman uniform",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 8,
+        "gender": "Male",
+        "craftable": true,
+        "strength": 2,
+        "perception": 2,
+        "endurance": 0,
+        "charisma": 0,
+        "intelligence": 2,
+        "agility": 2,
+        "luck": 0,
+        "stat": "strength",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Mojave wasteland survivor",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 8,
+        "gender": null,
+        "craftable": false,
+        "strength": 0,
+        "perception": 1,
+        "endurance": 5,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 2,
+        "stat": "endurance",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Moldaver's armor",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 12,
+        "gender": null,
+        "craftable": false,
+        "strength": 2,
+        "perception": 2,
+        "endurance": 4,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 4,
+        "stat": "endurance",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Mr. House's suit",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 8,
+        "gender": "Male",
+        "craftable": false,
+        "strength": 0,
+        "perception": 0,
+        "endurance": 0,
+        "charisma": 4,
+        "intelligence": 2,
+        "agility": 0,
+        "luck": 2,
+        "stat": "charisma",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Mutant hunter gear",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 4,
+        "perception": 3,
+        "endurance": 0,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "strength",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Original Santa suit",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 11,
+        "gender": null,
+        "craftable": false,
+        "strength": 0,
+        "perception": 4,
+        "endurance": 3,
+        "charisma": 4,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "perception",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Orion's explorer gear",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 12,
+        "gender": null,
+        "craftable": false,
+        "strength": 3,
+        "perception": 5,
+        "endurance": 4,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "perception",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Pestilence's plating",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 16,
+        "gender": null,
+        "craftable": false,
+        "strength": 0,
+        "perception": 0,
+        "endurance": 4,
+        "charisma": 4,
+        "intelligence": 4,
+        "agility": 4,
+        "luck": 0,
+        "stat": "endurance",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Pioneer overseer suit",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 14,
+        "gender": null,
+        "craftable": false,
+        "strength": 0,
+        "perception": 2,
+        "endurance": 3,
+        "charisma": 4,
+        "intelligence": 5,
+        "agility": 0,
+        "luck": 0,
+        "stat": "intelligence",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Piper's outfit",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 8,
+        "gender": "Female",
+        "craftable": true,
+        "strength": 0,
+        "perception": 2,
+        "endurance": 2,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 2,
+        "luck": 2,
+        "stat": "perception",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Regs' dirty black suit",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 10,
+        "gender": null,
+        "craftable": false,
+        "strength": 0,
+        "perception": 6,
+        "endurance": 0,
+        "charisma": 0,
+        "intelligence": 4,
+        "agility": 0,
+        "luck": 0,
+        "stat": "perception",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Scribe Rothchild's robe",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": "Male",
+        "craftable": true,
+        "strength": 0,
+        "perception": 2,
+        "endurance": 1,
+        "charisma": 2,
+        "intelligence": 2,
+        "agility": 0,
+        "luck": 0,
+        "stat": "perception",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Sheriff's duster",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": "Male",
+        "craftable": true,
+        "strength": 0,
+        "perception": 2,
+        "endurance": 5,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "endurance",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Sleek suit",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 12,
+        "gender": null,
+        "craftable": false,
+        "strength": 0,
+        "perception": 0,
+        "endurance": 0,
+        "charisma": 2,
+        "intelligence": 2,
+        "agility": 4,
+        "luck": 4,
+        "stat": "agility",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Tenpenny's suit",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": "Male",
+        "craftable": true,
+        "strength": 0,
+        "perception": 2,
+        "endurance": 0,
+        "charisma": 2,
+        "intelligence": 2,
+        "agility": 0,
+        "luck": 1,
+        "stat": "perception",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "The Ghoul's coat",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 8,
+        "gender": null,
+        "craftable": false,
+        "strength": 0,
+        "perception": 2,
+        "endurance": 2,
+        "charisma": 2,
+        "intelligence": 0,
+        "agility": 2,
+        "luck": 0,
+        "stat": "perception",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Three Dog's outfit",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": "Male",
+        "craftable": true,
+        "strength": 0,
+        "perception": 2,
+        "endurance": 0,
+        "charisma": 5,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "charisma",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Tunnel Snakes' outfit",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": "Male",
+        "craftable": true,
+        "strength": 0,
+        "perception": 2,
+        "endurance": 1,
+        "charisma": 2,
+        "intelligence": 0,
+        "agility": 2,
+        "luck": 0,
+        "stat": "perception",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Valentine's trench coat",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 14,
+        "gender": "Male",
+        "craftable": false,
+        "strength": 0,
+        "perception": 6,
+        "endurance": 0,
+        "charisma": 0,
+        "intelligence": 4,
+        "agility": 4,
+        "luck": 0,
+        "stat": "perception",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "War's armor",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 16,
+        "gender": null,
+        "craftable": false,
+        "strength": 4,
+        "perception": 4,
+        "endurance": 4,
+        "charisma": 4,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 0,
+        "stat": "strength",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Wasteland surgeon",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 7,
+        "gender": null,
+        "craftable": true,
+        "strength": 0,
+        "perception": 4,
+        "endurance": 0,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 0,
+        "luck": 3,
+        "stat": "perception",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
+    },
+    {
+        "name": "Wilzig's travelwear",
+        "outfit_type": "legendary_outfit",
+        "rarity": "Legendary",
+        "value": 500,
+        "total": 12,
+        "gender": null,
+        "craftable": false,
+        "strength": 0,
+        "perception": 4,
+        "endurance": 2,
+        "charisma": 0,
+        "intelligence": 0,
+        "agility": 2,
+        "luck": 4,
+        "stat": "perception",
+        "craft": {
+            "types": [
+                "cloth",
+                "leather"
+            ],
+            "unlock": null
+        }
     }
-  },
-  {
-    "name": "Tattered longcoat",
-    "outfit_type": "legendary_outfit",
-    "warn_by": "Old Longfellow",
-    "rarity": "Legendary",
-    "value": 500,
-    "total": 8,
-    "gender": "Male",
-    "craftable": true,
-    "strength": 2,
-    "perception": 0,
-    "endurance": 2,
-    "charisma": 2,
-    "intelligence": 0,
-    "agility": 0,
-    "luck": 2,
-    "stat": "strength",
-    "craft": {
-      "types": [
-        "cloth",
-        "leather"
-      ],
-      "unlock": null
-    }
-  },
-  {
-    "name": "Autumn's uniform",
-    "outfit_type": "legendary_outfit",
-    "warn_by": "Augustus Autumn",
-    "rarity": "Legendary",
-    "value": 500,
-    "total": 7,
-    "gender": "Male",
-    "craftable": true,
-    "strength": 2,
-    "perception": 2,
-    "endurance": 2,
-    "charisma": 1,
-    "intelligence": 0,
-    "agility": 0,
-    "luck": 0,
-    "stat": "strength",
-    "craft": {
-      "types": [
-        "cloth",
-        "leather"
-      ],
-      "unlock": null
-    }
-  },
-  {
-    "name": "Bittercup's outfit",
-    "outfit_type": "legendary_outfit",
-    "warn_by": "Bittercup",
-    "rarity": "Legendary",
-    "value": 500,
-    "total": 7,
-    "gender": "Female",
-    "craftable": true,
-    "strength": 2,
-    "perception": 2,
-    "endurance": 2,
-    "charisma": 1,
-    "intelligence": 0,
-    "agility": 0,
-    "luck": 0,
-    "stat": "strength",
-    "craft": {
-      "types": [
-        "cloth",
-        "leather"
-      ],
-      "unlock": null
-    }
-  },
-  {
-    "name": "Confessor Cromwell's rags",
-    "outfit_type": "legendary_outfit",
-    "warn_by": "Confessor Cromwell",
-    "rarity": "Legendary",
-    "value": 500,
-    "total": 7,
-    "gender": "Male",
-    "craftable": true,
-    "strength": 0,
-    "perception": 2,
-    "endurance": 2,
-    "charisma": 1,
-    "intelligence": 1,
-    "agility": 0,
-    "luck": 2,
-    "stat": "perception",
-    "craft": {
-      "types": [
-        "cloth",
-        "leather"
-      ],
-      "unlock": null
-    }
-  },
-  {
-    "name": "Elder robe",
-    "outfit_type": "legendary_outfit",
-    "warn_by": "Elder Lyons",
-    "rarity": "Legendary",
-    "value": 500,
-    "total": 7,
-    "gender": "Male",
-    "craftable": true,
-    "strength": 0,
-    "perception": 0,
-    "endurance": 0,
-    "charisma": 4,
-    "intelligence": 0,
-    "agility": 3,
-    "luck": 0,
-    "stat": "charisma",
-    "craft": {
-      "types": [
-        "cloth",
-        "leather"
-      ],
-      "unlock": null
-    }
-  },
-  {
-    "name": "Eulogy Jones' suit",
-    "outfit_type": "legendary_outfit",
-    "warn_by": "Eulogy Jones",
-    "rarity": "Legendary",
-    "value": 500,
-    "total": 7,
-    "gender": "Male",
-    "craftable": true,
-    "strength": 2,
-    "perception": 2,
-    "endurance": 1,
-    "charisma": 2,
-    "intelligence": 0,
-    "agility": 0,
-    "luck": 0,
-    "stat": "strength",
-    "craft": {
-      "types": [
-        "cloth",
-        "leather"
-      ],
-      "unlock": null
-    }
-  },
-  {
-    "name": "Heavy synth armor",
-    "outfit_type": "legendary_outfit",
-    "warn_by": null,
-    "rarity": "Legendary",
-    "value": 500,
-    "total": 7,
-    "gender": null,
-    "craftable": true,
-    "strength": 0,
-    "perception": 0,
-    "endurance": 4,
-    "charisma": 3,
-    "intelligence": 0,
-    "agility": 0,
-    "luck": 0,
-    "stat": "endurance",
-    "craft": {
-      "types": [
-        "cloth",
-        "leather"
-      ],
-      "unlock": null
-    }
-  },
-  {
-    "name": "Firefighter suit, rad helmet",
-    "outfit_type": "legendary_outfit",
-    "warn_by": null,
-    "rarity": "Legendary",
-    "value": 500,
-    "total": 1,
-    "gender": null,
-    "craftable": true,
-    "strength": 0,
-    "perception": 0,
-    "endurance": 5,
-    "charisma": 0,
-    "intelligence": 2,
-    "agility": 0,
-    "luck": 0,
-    "stat": "endurance",
-    "fire_resist": 0.75,
-    "radiation_resist": 1.0,
-    "craft": {
-      "types": [
-        "cloth",
-        "leather",
-        "steel",
-        "science"
-      ],
-      "unlock": null
-    }
-  }
 ]

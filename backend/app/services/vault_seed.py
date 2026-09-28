@@ -147,6 +147,9 @@ BOOSTED_LOADOUTS = (
     ("abraham-washington", "Lever-action rifle", "Abraham's relaxedwear", WeaponSubtypeEnum.RIFLE),
     ("allistair-tenpenny", "Hunting rifle", "Eulogy Jones' suit", WeaponSubtypeEnum.RIFLE),
     ("bittercup", "10mm pistol", "Bittercup's outfit", WeaponSubtypeEnum.PISTOL),
+    ("nick-valentine", "Hardened Gauss pistol", "Valentine's trench coat", WeaponSubtypeEnum.PISTOL),
+    ("paladin-danse", "Amplified laser rifle", "Paladin Danse's power armor", WeaponSubtypeEnum.RIFLE),
+    ("betty", "Hardened 10mm pistol", "Vault 33 suit", WeaponSubtypeEnum.PISTOL),
 )
 
 

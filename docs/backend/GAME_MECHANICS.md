@@ -31,7 +31,9 @@ evolves gradually.
 "Off" means faction is unavailable, not hidden from the data model: stored factions are preserved untouched, so
 flipping the switch back on restores them. While it is off the roster filter rejects `faction` with 422,
 `identity-options` returns no factions (races still offered), and `GET /system/features` tells clients the state
-so nothing rejected is ever offered. Ghoul radiation immunity predates both switches and survives them.
+so nothing rejected is ever offered. Non-human radiation immunity survives both switches. Ghouls,
+super mutants and synths cannot accumulate radiation or use RadAway; all races can use Stimpaks
+(including Gen 1/2 synths until a repair system exists).
 
 **Do not gate faction on the shared identity schema.** `DwellerVisualAttributes` validates curated
 `DwellerTemplate` seeds, AI generation and partial updates, which legitimately carry a faction; a schema-level
@@ -63,8 +65,8 @@ Radiation is either **ingested** or **external**, and outfits only resist the ex
 
 - **Ingested** — irradiated water drunk while the vault has no water. It bypasses outfit
   resistance (`apply_radiation_gain(..., resisted_by_outfit=False)`): a hazmat suit or power
-  armor does not help, because the radiation enters through drinking. Ghouls stay immune and
-  RadAway is the only cure.
+armor does not help, because the radiation enters through drinking. Non-humans stay immune and
+RadAway is the only cure for humans.
 - **External** — radscorpion incidents and wasteland danger events. Outfit resistance applies
   (see `OUTFIT_RADIATION_RESIST_BY_TYPE` / `OUTFIT_RADIATION_RESIST_BY_NAME` in
   `services/radiation_service.py`): hazmat suits block it fully, power armor blocks most.

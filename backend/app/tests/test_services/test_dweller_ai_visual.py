@@ -6,6 +6,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic_ai.exceptions import UnexpectedModelBehavior
 
+from app.core.enums import AgeGroupEnum
+from app.crud.storage import storage as storage_crud
+from app.schemas.dweller import DwellerVisualAttributes
 from app.services.dweller_ai import dweller_ai, restrict_equipment_fields
 from app.utils.exceptions import AIProviderException
 
@@ -16,6 +19,32 @@ def test_substantial_with_height() -> None:
         dweller_ai._has_substantial_visual_attributes({"race": "human", "faction": "vault_dweller", "height": "tall"})
         is True
     )
+
+
+async def test_avatar_race_change_normalizes_age_and_medical_inventory(async_session, dweller) -> None:
+    dweller.age_group = AgeGroupEnum.ELDER
+    dweller.radiation = 30
+    dweller.radaway = 2
+    async_session.add(dweller)
+    await async_session.commit()
+
+    with patch.object(dweller_ai, "generate_photo", new=AsyncMock(return_value=dweller)):
+        await dweller_ai.generate_dweller_avatar(
+            dweller_id=dweller.id,
+            dweller_first_name=dweller.first_name,
+            dweller_last_name=dweller.last_name,
+            visual_attributes_input=DwellerVisualAttributes(race="synth", state_of_being="gen_3"),
+            db_session=async_session,
+            user=MagicMock(),
+        )
+
+    await async_session.refresh(dweller)
+    storage = await storage_crud.get_by_vault(async_session, dweller.vault_id)
+    assert dweller.age_group == AgeGroupEnum.ADULT
+    assert dweller.radiation == 0
+    assert dweller.radaway == 0
+    assert storage is not None
+    assert storage.radaway >= 2
 
 
 @patch("app.services.dweller_ai.llm_interaction_crud")
@@ -47,7 +76,9 @@ async def test_generate_replaces_substantial_attrs(
     mock_dweller.bio = "A test dweller."
     mock_dweller.id = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
-    output = DwellerVisualAttributes(height="average", hair_color="red")
+    output = DwellerVisualAttributes(
+        race="synth", faction="the_institute", state_of_being="gen_3", height="average", hair_color="red"
+    )
     result = MagicMock()
     result.output = output
     result.usage.return_value = MagicMock(input_tokens=100, output_tokens=50, total_tokens=150)

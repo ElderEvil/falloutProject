@@ -83,6 +83,18 @@ async def test_send_dweller_deducts_vault_supplies_only_once(
 
 
 @pytest.mark.asyncio
+async def test_nonhuman_explorer_cannot_pack_radaway(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    dweller.visual_attributes = {"race": "super_mutant"}
+    async_session.add_all([dweller, Storage(vault_id=vault.id, stimpack=5, radaway=5)])
+    await async_session.commit()
+
+    with pytest.raises(ValueError, match="cannot carry RadAway"):
+        await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4, stimpaks=1, radaways=1)
+
+
+@pytest.mark.asyncio
 async def test_send_dweller_rejects_a_dweller_from_another_vault(
     async_session: AsyncSession,
     dweller: Dweller,

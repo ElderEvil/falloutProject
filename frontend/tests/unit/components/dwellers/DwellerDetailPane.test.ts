@@ -43,8 +43,8 @@ const dweller = {
   visual_attributes: { race: 'ghoul', faction: 'raiders', state_of_being: 'sane' },
 } as unknown as Dweller
 
-function mountPane() {
-  const ctx = createMockDwellerDetailContext({ dweller: ref(dweller) as never })
+function mountPane(currentDweller: Dweller = dweller) {
+  const ctx = createMockDwellerDetailContext({ dweller: ref(currentDweller) as never })
   return mountWithDwellerContext(DwellerDetailPane, {
     context: ctx,
     global: { plugins: [pinia], stubs: { RouterLink: true } },
@@ -83,5 +83,22 @@ describe('DwellerDetailPane header lockup', () => {
     expect(identity.text()).toContain('Ghoul')
     expect(identity.text()).toContain('Raiders')
     expect(identity.text()).toContain('Sane')
+  })
+
+  it.each(['ghoul', 'super_mutant', 'synth'])(
+    'identifies %s as ageless and radiation immune',
+    (race) => {
+      const wrapper = mountPane({ ...dweller, visual_attributes: { race } } as Dweller)
+
+      expect(wrapper.find('[aria-label="Race traits: Ageless · Radiation Immune"]').exists()).toBe(
+        true
+      )
+    }
+  )
+
+  it('does not show nonhuman traits for a human', () => {
+    const wrapper = mountPane({ ...dweller, visual_attributes: { race: 'human' } } as Dweller)
+
+    expect(wrapper.text()).not.toContain('Ageless · Radiation Immune')
   })
 })

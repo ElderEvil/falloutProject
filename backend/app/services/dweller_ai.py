@@ -20,6 +20,7 @@ from app.schemas.dweller import DwellerReadFull, DwellerUpdate, DwellerVisualAtt
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.ai_service import get_ai_service
 from app.services.bio_service import bio_service, compile_bio, truncate_bio
+from app.services.dweller_service import dweller_service
 from app.services.map_service import map_service
 from app.services.prompt_service import get_instructions, get_provider_model_snapshot
 from app.services.quota_service import quota_service
@@ -343,7 +344,12 @@ class DwellerAIService:
         restrict_equipment_fields(visual_attributes, equipped_items)
 
         if isinstance(existing_attrs, dict):
-            for key in ("race", "faction", "age", "state_of_being", "voice_line_text", "voice_line_url"):
+            for key in ("race", "faction", "age", "state_of_being"):
+                if key in existing_attrs:
+                    visual_attributes[key] = existing_attrs[key]
+                else:
+                    visual_attributes.pop(key, None)
+            for key in ("voice_line_text", "voice_line_url"):
                 if key in existing_attrs and key not in visual_attributes:
                     visual_attributes[key] = existing_attrs[key]
 
@@ -526,7 +532,7 @@ class DwellerAIService:
             last_name=dweller_last_name,
             visual_attributes=visual_attributes_input,
         )
-        updated_dweller = await dweller_crud.update(db_session, dweller_id, update_data)
+        updated_dweller = await dweller_service.update_dweller(db_session, dweller_id, update_data)
 
         dweller_obj = await self.generate_photo(db_session=db_session, dweller_id=updated_dweller.id, user=user)
         if visual_attributes_input.voice_line_text:

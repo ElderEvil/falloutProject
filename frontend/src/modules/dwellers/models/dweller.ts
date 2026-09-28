@@ -9,6 +9,14 @@ export type DetailedDweller = DwellerFull
 export type DwellerShort = components['schemas']['DwellerReadLess']
 export type DwellerCreate = components['schemas']['DwellerCreate']
 
+/** Match the server's medical eligibility rule for supply controls. */
+export function canUseRadaway(
+  dweller: { visual_attributes?: { race?: string | null } | null } | null | undefined
+): boolean {
+  const race = dweller?.visual_attributes?.race
+  return race !== 'ghoul' && race !== 'super_mutant' && race !== 'synth'
+}
+
 export function formatIdentityLabel(value: string): string {
   return value
     .split('_')
@@ -43,15 +51,45 @@ export interface BadgeConfig {
 
 /** Age, gender and rarity display config — the badge wrappers read these, never their own copy. */
 export const AGE_CONFIG_MAP: Record<components['schemas']['AgeGroupEnum'], BadgeConfig> = {
-  child: { color: 'var(--badge-age-child)', icon: 'mdi:baby-face-outline', label: 'Child', category: 'Age group' },
-  teen: { color: 'var(--badge-age-teen)', icon: 'mdi:account-school', label: 'Teen', category: 'Age group' },
-  adult: { color: 'var(--badge-age-adult)', icon: 'mdi:account', label: 'Adult', category: 'Age group' },
-  elder: { color: 'var(--badge-age-elder)', icon: 'mdi:account-cowboy-hat', label: 'Elder', category: 'Age group' },
+  child: {
+    color: 'var(--badge-age-child)',
+    icon: 'mdi:baby-face-outline',
+    label: 'Child',
+    category: 'Age group',
+  },
+  teen: {
+    color: 'var(--badge-age-teen)',
+    icon: 'mdi:account-school',
+    label: 'Teen',
+    category: 'Age group',
+  },
+  adult: {
+    color: 'var(--badge-age-adult)',
+    icon: 'mdi:account',
+    label: 'Adult',
+    category: 'Age group',
+  },
+  elder: {
+    color: 'var(--badge-age-elder)',
+    icon: 'mdi:account-cowboy-hat',
+    label: 'Elder',
+    category: 'Age group',
+  },
 }
 
 export const GENDER_CONFIG_MAP: Record<components['schemas']['GenderEnum'], BadgeConfig> = {
-  male: { color: 'var(--badge-gender-male)', icon: 'mdi:gender-male', label: 'Male', category: 'Gender' },
-  female: { color: 'var(--badge-gender-female)', icon: 'mdi:gender-female', label: 'Female', category: 'Gender' },
+  male: {
+    color: 'var(--badge-gender-male)',
+    icon: 'mdi:gender-male',
+    label: 'Male',
+    category: 'Gender',
+  },
+  female: {
+    color: 'var(--badge-gender-female)',
+    icon: 'mdi:gender-female',
+    label: 'Female',
+    category: 'Gender',
+  },
 }
 
 /**
@@ -78,7 +116,12 @@ export const FACTION_CONFIG_MAP: Record<
 }
 
 export const RARITY_CONFIG_MAP: Record<components['schemas']['RarityEnum'], BadgeConfig> = {
-  common: { color: 'var(--badge-rarity-common)', icon: 'mdi:star-outline', label: 'Common', category: 'Rarity' },
+  common: {
+    color: 'var(--badge-rarity-common)',
+    icon: 'mdi:star-outline',
+    label: 'Common',
+    category: 'Rarity',
+  },
   rare: { color: 'var(--badge-rarity-rare)', icon: 'mdi:star', label: 'Rare', category: 'Rarity' },
   legendary: {
     color: 'var(--badge-rarity-legendary)',

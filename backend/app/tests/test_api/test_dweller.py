@@ -7,6 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.v1.endpoints.dweller import extend_bio
+from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.vault import Vault
@@ -439,6 +440,37 @@ async def test_update_dweller_accepts_player_editable_fields(
 
 
 @pytest.mark.asyncio
+async def test_changing_to_ageless_race_clears_old_age_and_radiation(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    dweller: Dweller,
+) -> None:
+    dweller.age_group = AgeGroupEnum.ELDER
+    dweller.radiation = 30
+    dweller.radaway = 2
+    original_storage = await storage_crud.get_by_vault(async_session, dweller.vault_id)
+    original_radaway = original_storage.radaway if original_storage is not None else 0
+    async_session.add(dweller)
+    await async_session.commit()
+
+    response = await async_client.put(
+        f"/dwellers/{dweller.id}",
+        json={"visual_attributes": {"race": "synth", "state_of_being": "gen_3"}},
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    await async_session.refresh(dweller)
+    assert dweller.age_group == AgeGroupEnum.ADULT
+    assert dweller.radiation == 0
+    assert dweller.radaway == 0
+    storage = await storage_crud.get_by_vault(async_session, dweller.vault_id)
+    assert storage is not None
+    assert storage.radaway == original_radaway + 2
+
+
+@pytest.mark.asyncio
 async def test_update_dweller_can_unassign_a_room(
     async_client: AsyncClient,
     async_session: AsyncSession,
@@ -571,7 +603,7 @@ async def test_dweller_detail_exposes_identity_modifiers(
     modifiers = response.json()["identity_modifiers"]
     assert modifiers["strength"] == 3
     assert modifiers["perception"] == -2
-    assert modifiers["radiation_immune"] is False
+    assert modifiers["radiation_immune"] is True
     assert modifiers["melee_damage_pct"] == 0.15
 
 

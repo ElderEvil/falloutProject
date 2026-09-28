@@ -14,6 +14,7 @@ from app.models.item import Item
 from app.models.quest import Quest
 from app.models.quest_reward import QuestReward, RewardType
 from app.models.storage import Storage
+from app.models.vault import Vault
 from app.schemas.common import GenderEnum, RarityEnum
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
@@ -394,6 +395,25 @@ async def test_grant_radaway_success(async_session: AsyncSession) -> None:
 
     assert result["reward_type"] == RewardType.RADAWAY
     assert result["amount"] == 3
+
+
+@pytest.mark.asyncio
+async def test_radaway_reward_goes_to_storage_when_vault_has_only_nonhumans(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    dweller.visual_attributes = {"race": "ghoul", "state_of_being": "sane"}
+    dweller.radaway = 0
+    storage = Storage(vault_id=vault.id, radaway=2)
+    async_session.add_all([dweller, storage])
+    await async_session.commit()
+
+    result = await reward_service.grant_radaway(async_session, vault.id, 3)
+
+    await async_session.refresh(storage)
+    await async_session.refresh(dweller)
+    assert result["amount"] == 3
+    assert storage.radaway == 5
+    assert dweller.radaway == 0
 
 
 @pytest.mark.asyncio

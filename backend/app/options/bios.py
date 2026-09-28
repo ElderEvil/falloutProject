@@ -54,6 +54,22 @@ NEWBORN_EVENTS = (
 )
 
 
+def _linked_parent_names(
+    first_name: str,
+    second_name: str,
+    first_id: str,
+    second_id: str,
+    vault_id: str,
+) -> tuple[str, str]:
+    """Escape parent names and link their dossier pages."""
+    max_name_len = 30
+    safe_first_name = html.escape(first_name[:max_name_len])
+    safe_second_name = html.escape(second_name[:max_name_len])
+    first_link = f'<a href="/vault/{vault_id}/dwellers/{first_id}" class="dweller-link">{safe_first_name}</a>'
+    second_link = f'<a href="/vault/{vault_id}/dwellers/{second_id}" class="dweller-link">{safe_second_name}</a>'
+    return first_link, second_link
+
+
 def render_newborn_bio(
     mother_name: str,
     father_name: str,
@@ -64,12 +80,22 @@ def render_newborn_bio(
     """Render a newborn's arrival bio, linking both parents."""
     template = random.choice(NEWBORN_BIO_TEMPLATES)
     event = random.choice(NEWBORN_EVENTS)
-    max_name_len = 30
-    safe_mother_name = html.escape(mother_name[:max_name_len])
-    safe_father_name = html.escape(father_name[:max_name_len])
-    mother_link = f'<a href="/vault/{vault_id}/dwellers/{mother_id}" class="dweller-link">{safe_mother_name}</a>'
-    father_link = f'<a href="/vault/{vault_id}/dwellers/{father_id}" class="dweller-link">{safe_father_name}</a>'
+    mother_link, father_link = _linked_parent_names(mother_name, father_name, mother_id, father_id, vault_id)
     return template.format(mother=mother_link, father=father_link, event=event)
+
+
+def render_adopted_child_bio(
+    first_parent_name: str,
+    second_parent_name: str,
+    first_parent_id: str,
+    second_parent_id: str,
+    vault_id: str,
+) -> str:
+    """Render a seeded child's adoptive arrival without a biological birth claim."""
+    first_link, second_link = _linked_parent_names(
+        first_parent_name, second_parent_name, first_parent_id, second_parent_id, vault_id
+    )
+    return f"I was adopted by {first_link} and {second_link} when I came to the vault."
 
 
 def _join_visited(visited: list[str]) -> str:

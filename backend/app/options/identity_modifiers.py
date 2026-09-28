@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from app.core.enums import SPECIAL_STATS
 from app.core.game_config import game_config
 from app.options.factions import FactionPerks, perks_for_faction
-from app.options.races import RaceModifiers, modifiers_for_race
+from app.options.races import RaceModifiers, modifiers_for_race, state_stat_deltas_for
 from app.utils.equipped import equipped_outfit
 
 #: Weapon types whose faction perk is a damage bonus, keyed by the weapon-type value.
@@ -39,15 +39,18 @@ class IdentityModifiers:
     production_pct: float = 0.0
 
 
-def _combine(race: RaceModifiers, faction: FactionPerks) -> IdentityModifiers:
+def _combine(
+    race: RaceModifiers, faction: FactionPerks, state_deltas: dict[str, int] | None = None
+) -> IdentityModifiers:
+    deltas = state_deltas or {}
     return IdentityModifiers(
-        strength=race.strength,
-        perception=race.perception,
-        endurance=race.endurance,
-        charisma=race.charisma,
-        intelligence=race.intelligence,
-        agility=race.agility,
-        luck=race.luck,
+        strength=race.strength + deltas.get("strength", 0),
+        perception=race.perception + deltas.get("perception", 0),
+        endurance=race.endurance + deltas.get("endurance", 0),
+        charisma=race.charisma + deltas.get("charisma", 0),
+        intelligence=race.intelligence + deltas.get("intelligence", 0),
+        agility=race.agility + deltas.get("agility", 0),
+        luck=race.luck + deltas.get("luck", 0),
         radiation_immune=race.radiation_immune,
         radiation_resist_pct=min(1.0, race.radiation_resist_pct + faction.radiation_resist_pct),
         energy_weapon_damage_pct=faction.energy_weapon_damage_pct,
@@ -62,15 +65,17 @@ def identity_modifiers_for(entity: object) -> IdentityModifiers:
 
     Race and faction are gated separately: ``features.race_mechanics`` covers stat
     deltas and racial resistances, ``features.faction_mechanics`` covers perks.
-    Ghoul radiation immunity survives either switch, because it predates both and is
-    documented behaviour.
+    Non-human radiation immunity survives either switch, so RadAway is never
+    required for races that cannot use it.
     """
     race = modifiers_for_race(entity)
+    state_deltas = state_stat_deltas_for(entity)
     if not game_config.features.race_mechanics:
         race = RaceModifiers(radiation_immune=race.radiation_immune)
+        state_deltas = {}
 
     faction = perks_for_faction(entity) if game_config.features.faction_mechanics else FactionPerks()
-    return _combine(race, faction)
+    return _combine(race, faction, state_deltas)
 
 
 def effective_stat(entity: object, stat: str) -> int:

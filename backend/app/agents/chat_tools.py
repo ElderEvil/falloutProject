@@ -19,6 +19,7 @@ from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.relationship import Relationship
 from app.models.room import Room
+from app.options.races import can_take_purposeful_action
 from app.schemas.chat import (
     AssignToRoomAction,
     BioAddendumAction,
@@ -307,6 +308,9 @@ async def parse_action_suggestion(
     if medical_status.recommended_action == "request_radaway":
         reason = output.action_reason if output.action_type == "request_radaway" else None
         return RequestRadawayAction(reason=reason or "Radiation is at least 30% of maximum health")
+
+    if not can_take_purposeful_action(dweller):
+        return NoAction(reason="This dweller cannot take purposeful actions")
 
     if output.action_type == "no_action":
         return NoAction(reason=output.action_reason)

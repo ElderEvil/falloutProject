@@ -17,6 +17,7 @@ from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.outfit import Outfit
 from app.models.weapon import Weapon
+from app.options.races import can_use_radaway
 from app.schemas.exploration_event import (
     CombatEventSchema,
     DangerEventSchema,
@@ -345,7 +346,7 @@ class EventService:
         records: list[dict] = []
 
         radaway_threshold = game_config.health.radaway_auto_use_threshold
-        if exploration.radaways > 0 and dweller_obj.radiation > radaway_threshold:
+        if exploration.radaways > 0 and can_use_radaway(dweller_obj) and dweller_obj.radiation > radaway_threshold:
             reduction = radiation_removal_amount(dweller_obj.radiation, dweller_obj.max_health)
             dweller_obj.radiation -= reduction
             exploration.radaways -= 1

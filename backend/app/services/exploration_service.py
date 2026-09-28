@@ -23,6 +23,7 @@ from app.models.exploration import Exploration, ExplorationStatus
 from app.models.team import Team, TeamMember
 from app.models.training import TrainingStatus
 from app.models.world_location import WorldLocation
+from app.options.races import can_use_radaway
 from app.schemas.dweller import DwellerUpdate
 from app.schemas.exploration import ExplorationProgress
 from app.schemas.exploration_event import ExplorationEvent, RewardsSchema
@@ -155,6 +156,8 @@ class ExplorationService:
         dweller = await dweller_crud.get(db_session, dweller_id)
         if dweller.vault_id != vault_id:
             raise ValueError("Dweller does not belong to this vault")
+        if radaways > 0 and not can_use_radaway(dweller):
+            raise ValueError("This dweller cannot carry RadAway")
         reason = availability_error(dweller, require_healthy=True)
         if reason is not None:
             raise ValueError(reason)

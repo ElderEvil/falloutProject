@@ -27,6 +27,23 @@ afterEach(() => {
 })
 
 describe('ExplorationDurationModal', () => {
+  it('does not pack RadAway when the explorer cannot use it', async () => {
+    const wrapper = mount(ExplorationDurationModal, {
+      props: {
+        show: true,
+        dwellerName: 'Synth',
+        maxStimpaks: 10,
+        maxRadaways: 10,
+        allowRadaway: false,
+      },
+    })
+
+    expect(wrapper.text()).not.toContain('RadAway (Removes Rads)')
+    expect(wrapper.text()).toContain("RadAway isn't needed: this dweller is radiation immune.")
+    await wrapper.find('.modal-button.confirm').trigger('click')
+    expect(wrapper.emitted('confirm')?.[0]).toEqual([{ duration: 4, stimpaks: 5, radaways: 0 }])
+  })
+
   describe('rendering', () => {
     it('renders nothing when show is false', () => {
       const wrapper = mount(ExplorationDurationModal, {
@@ -56,6 +73,7 @@ describe('ExplorationDurationModal', () => {
       expect(wrapper.text()).toContain('Select Exploration Duration')
       expect(wrapper.text()).toContain('Amata')
       expect(wrapper.text()).toContain('Send to Wasteland')
+      expect(wrapper.text()).not.toContain("RadAway isn't needed")
     })
 
     it('renders all six duration options', () => {
@@ -101,8 +119,14 @@ describe('ExplorationDurationModal', () => {
 
       expect(actions.exists()).toBe(true)
       expect(actions.findAllComponents(Button)).toHaveLength(2)
-      expect(actions.findAllComponents(Button)[0]?.props()).toMatchObject({ variant: 'secondary', size: 'lg' })
-      expect(actions.findAllComponents(Button)[1]?.props()).toMatchObject({ variant: 'default', size: 'lg' })
+      expect(actions.findAllComponents(Button)[0]?.props()).toMatchObject({
+        variant: 'secondary',
+        size: 'lg',
+      })
+      expect(actions.findAllComponents(Button)[1]?.props()).toMatchObject({
+        variant: 'default',
+        size: 'lg',
+      })
     })
   })
 
@@ -239,9 +263,7 @@ describe('ExplorationDurationModal', () => {
 
       const confirmEvents = wrapper.emitted('confirm')
       expect(confirmEvents).toHaveLength(1)
-      expect(confirmEvents![0]).toEqual([
-        { duration: 8, stimpaks: 5, radaways: 5 },
-      ])
+      expect(confirmEvents![0]).toEqual([{ duration: 8, stimpaks: 5, radaways: 5 }])
     })
 
     it('confirm respects default stimpak clamp with low maxRadaways', async () => {
@@ -258,10 +280,7 @@ describe('ExplorationDurationModal', () => {
 
       const confirmEvents = wrapper.emitted('confirm')
       // radaways clamped to min(5, 2, 15) = 2
-      expect(confirmEvents![0]).toEqual([
-        { duration: 4, stimpaks: 5, radaways: 2 },
-      ])
+      expect(confirmEvents![0]).toEqual([{ duration: 4, stimpaks: 5, radaways: 2 }])
     })
   })
-
 })

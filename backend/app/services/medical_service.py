@@ -8,6 +8,7 @@ from app.core.game_config import game_config
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
+from app.options.races import can_use_radaway
 from app.schemas.chat import MedicalAidStatus, MedicalRecommendation
 from app.schemas.dweller import DwellerReadFull, DwellerUpdate
 from app.schemas.vault import MedicalDistributionResponse
@@ -30,7 +31,8 @@ async def get_available_medical_supplies(
     storage = await storage_crud.get_by_vault(db_session, vault_id)
     storage_stimpaks = (storage.stimpack or 0) if storage else 0
     storage_radaways = (storage.radaway or 0) if storage else 0
-    return (dweller.stimpack or 0) + storage_stimpaks, (dweller.radaway or 0) + storage_radaways
+    available_radaways = (dweller.radaway or 0) + storage_radaways if can_use_radaway(dweller) else 0
+    return (dweller.stimpack or 0) + storage_stimpaks, available_radaways
 
 
 async def get_dweller_medical_status(
@@ -86,6 +88,9 @@ async def use_radaway(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
     if dweller_obj is None:
         raise ResourceNotFoundException(Dweller, identifier=dweller_id)
 
+    if not can_use_radaway(dweller_obj):
+        raise ResourceConflictException(detail="This dweller cannot use RadAway.")
+
     if dweller_obj.radaway <= 0:
         raise ResourceConflictException(detail="No radaways available to use.")
 
@@ -119,7 +124,7 @@ async def distribute_recovery_supplies(db_session: AsyncSession, vault_id: UUID4
     if radaway_doses > 0 and stimpak_doses > 0 and radaway_stock > 0 and stimpak_stock > 0:
         dwellers = await dweller_crud.get_all_in_vault(db_session, vault_id)
         for dweller in dwellers:
-            if dweller.is_dead or dweller.is_deleted or dweller.radiation <= 0:
+            if dweller.is_dead or dweller.is_deleted or dweller.radiation <= 0 or not can_use_radaway(dweller):
                 continue
             if dweller.status in (DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING):
                 continue

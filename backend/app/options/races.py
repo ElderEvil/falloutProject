@@ -6,7 +6,9 @@ modifiers, breeding eligibility).
 """
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Any
 
 from app.core.enums import (
     GhoulFeralnessEnum,
@@ -62,8 +64,8 @@ class RaceModifiers:
 RACE_MODIFIERS: dict[RaceOption, RaceModifiers] = {
     RaceOption.HUMAN: RaceModifiers(),
     RaceOption.GHOUL: RaceModifiers(endurance=2, radiation_immune=True),
-    RaceOption.SUPER_MUTANT: RaceModifiers(strength=3, endurance=2, perception=-2),
-    RaceOption.SYNTH: RaceModifiers(perception=1, intelligence=1, radiation_resist_pct=0.5),
+    RaceOption.SUPER_MUTANT: RaceModifiers(strength=3, endurance=2, perception=-2, radiation_immune=True),
+    RaceOption.SYNTH: RaceModifiers(perception=1, intelligence=1, radiation_immune=True),
 }
 
 
@@ -82,6 +84,104 @@ def race_of(entity: object) -> RaceOption | None:
         return RaceOption(raw)
     except ValueError:
         return None
+
+
+def state_of_being_of(entity: object) -> str | None:
+    """Read an entity's state-of-being string from ``visual_attributes``, if present."""
+    attrs = getattr(entity, "visual_attributes", None)
+    raw = attrs.get("state_of_being") if isinstance(attrs, dict) else None
+    return raw if isinstance(raw, str) and raw else None
+
+
+#: Fallout-universe senescence rule: only humans grow old. Ghouls are
+#: radiation-scarred ageless (they wear and may go feral, but never become
+#: elders), super mutants are FEV-sterile ageless (they mutate toward behemoth
+#: instead), synths are machines. Youth maturation still runs for every race so
+#: a mutated newborn can reach adulthood; only the ADULT -> ELDER step is gated.
+AGELESS_RACES: frozenset[RaceOption] = frozenset({RaceOption.GHOUL, RaceOption.SUPER_MUTANT, RaceOption.SYNTH})
+
+
+def is_ageless(race: RaceOption | str | None) -> bool:
+    """Whether a race never senesces into the elder age group (calculation-only, no columns)."""
+    try:
+        return RaceOption(race) in AGELESS_RACES if race is not None else False
+    except ValueError:
+        return False
+
+
+def can_use_radaway(entity: object) -> bool:
+    """Only races that can accumulate radiation can use RadAway."""
+    return not modifiers_for_race(entity).radiation_immune
+
+
+def can_take_purposeful_action(entity: object) -> bool:
+    """Feral ghouls and behemoths cannot initiate intentional chat actions."""
+    race = race_of(entity)
+    return (race, state_of_being_of(entity)) not in {
+        (RaceOption.GHOUL, GhoulFeralnessEnum.FERAL.value),
+        (RaceOption.SUPER_MUTANT, SuperMutantMutationEnum.BEHEMOTH.value),
+    }
+
+
+def chronological_years(birth_date: datetime | None, now: datetime | None = None) -> float | None:
+    """Real age in years from ``birth_date``; None when unknown.
+
+    This is the *real* age. ``age_group`` is the *visual* age the UI shows.
+    For ghouls the two diverge on purpose: a ghoul can look worn at a visual
+    adult/elder while the real span covers centuries, and feral risk must read
+    the real span, never the visual group. No persistence — derive on read.
+    """
+    if birth_date is None:
+        return None
+    ref = now if now is not None else datetime.now(UTC)
+    # Persisted dates are naive UTC; explicit aware dates are normalized to the same convention.
+    birth_utc = birth_date.astimezone(UTC).replace(tzinfo=None) if birth_date.tzinfo else birth_date
+    ref_utc = ref.astimezone(UTC).replace(tzinfo=None) if ref.tzinfo else ref
+    return max(0.0, (ref_utc - birth_utc).total_seconds() / 31_556_952.0)
+
+
+def visual_vs_real_age(entity: object, now: datetime | None = None) -> dict[str, Any]:
+    """Visual (``age_group``) vs real (``birth_date``) age for one entity.
+
+    Documented seam for the future radiation -> feral-pressure calculation:
+    when that lands it must take ``real_years`` plus cumulative exposure into
+    account, because ghoul ``radiation`` stays 0 (immunity) and cannot drive it
+    from the stored value. Currently pure description, no behavior change.
+    """
+    return {
+        "visual": getattr(entity, "age_group", None),
+        "real_years": chronological_years(getattr(entity, "birth_date", None), now),
+        "ageless": is_ageless(race_of(entity)),
+    }
+
+
+#: State-of-being SPECIAL deltas applied on read beside the racial baseline.
+#: Small by design; a balance pass follows play-testing. Keys are
+#: (race value, state value); absent pairs mean no extra delta.
+STATE_STAT_DELTAS: dict[tuple[str, str], dict[str, int]] = {
+    ("ghoul", "wild"): {"charisma": -2, "intelligence": -2, "perception": 1, "agility": 1},
+    ("ghoul", "feral"): {
+        "strength": 1,
+        "perception": 2,
+        "endurance": 1,
+        "agility": 1,
+        "charisma": -4,
+        "intelligence": -4,
+    },
+    ("super_mutant", "average"): {"strength": 1},
+    ("super_mutant", "behemoth"): {"strength": 2, "endurance": 1, "intelligence": -2, "charisma": -2},
+    ("synth", "gen_1"): {"strength": 1, "charisma": -2, "intelligence": -1},
+    ("synth", "gen_2"): {"strength": 1, "charisma": -1},
+}
+
+
+def state_stat_deltas_for(entity: object) -> dict[str, int]:
+    """Extra SPECIAL deltas for an entity's state-of-being; empty when none apply."""
+    race = race_of(entity)
+    state = state_of_being_of(entity)
+    if race is None or state is None:
+        return {}
+    return dict(STATE_STAT_DELTAS.get((race.value, state), {}))
 
 
 #: Synth models whose artificial nature is visible; the rest pass as human.

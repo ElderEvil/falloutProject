@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ADULT_AGE_GROUPS, isMature } from '@/modules/dwellers/models/dweller'
+import { ADULT_AGE_GROUPS, canUseRadaway, isMature } from '@/modules/dwellers/models/dweller'
 
 /**
  * Regression: `isMature` checked `age_group === 'adult'` while the backend's
@@ -26,5 +26,19 @@ describe('isMature', () => {
 
   it('still requires the is_adult flag', () => {
     expect(isMature({ is_adult: false, age_group: 'adult' })).toBe(false)
+  })
+})
+
+describe('canUseRadaway', () => {
+  it.each(['ghoul', 'super_mutant', 'synth'])('blocks %s', (race) => {
+    expect(canUseRadaway({ visual_attributes: { race } })).toBe(false)
+  })
+
+  it.each(['human', 'unknown'])('allows %s using the backend fallback', (race) => {
+    expect(canUseRadaway({ visual_attributes: { race } })).toBe(true)
+  })
+
+  it('defaults missing race to human eligibility', () => {
+    expect(canUseRadaway({ visual_attributes: null })).toBe(true)
   })
 })

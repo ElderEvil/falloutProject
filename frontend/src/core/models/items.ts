@@ -193,17 +193,27 @@ export interface WeaponStatsSource extends DamageSource, CommonItemStats {
 }
 
 export function getWeaponStats(weapon: WeaponStatsSource): ItemStat[] {
-  const stats: ItemStat[] = [{ label: 'Damage', value: getDamageRange(weapon), icon: 'mdi:sword-cross' }]
-  if (weapon.stat) stats.push({ label: 'Uses', value: formatItemLabel(weapon.stat), icon: 'mdi:alphabet-latin' })
-  if (weapon.accuracy != null) stats.push({ label: 'Accuracy', value: `${weapon.accuracy}%`, icon: 'mdi:target' })
+  const stats: ItemStat[] = [
+    { label: 'Damage', value: getDamageRange(weapon), icon: 'mdi:sword-cross' },
+  ]
+  if (weapon.stat)
+    stats.push({ label: 'Uses', value: formatItemLabel(weapon.stat), icon: 'mdi:alphabet-latin' })
+  if (weapon.accuracy != null)
+    stats.push({ label: 'Accuracy', value: `${weapon.accuracy}%`, icon: 'mdi:target' })
   if (weapon.weapon_type) {
     stats.push({ label: 'Type', value: formatItemLabel(weapon.weapon_type), icon: 'mdi:tag' })
   }
   if (weapon.weapon_subtype) {
-    stats.push({ label: 'Subtype', value: formatItemLabel(weapon.weapon_subtype), icon: 'mdi:tag-outline' })
+    stats.push({
+      label: 'Subtype',
+      value: formatItemLabel(weapon.weapon_subtype),
+      icon: 'mdi:tag-outline',
+    })
   }
-  if (weapon.weight !== undefined) stats.push({ label: 'Weight', value: weapon.weight, icon: 'mdi:scale' })
-  if (weapon.durability !== undefined) stats.push({ label: 'Durability', value: weapon.durability, icon: 'mdi:shield-check' })
+  if (weapon.weight !== undefined)
+    stats.push({ label: 'Weight', value: weapon.weight, icon: 'mdi:scale' })
+  if (weapon.durability !== undefined)
+    stats.push({ label: 'Durability', value: weapon.durability, icon: 'mdi:shield-check' })
   return stats
 }
 
@@ -218,12 +228,25 @@ export function getOutfitStats(outfit: OutfitStatsSource): ItemStat[] {
     icon: 'mdi:chevron-up',
   }))
   const resist = getOutfitRadiationResist(outfit)
-  if (resist > 0) stats.push({ label: 'RAD resist', value: `${Math.round(resist * 100)}%`, icon: 'mdi:radiation' })
+  if (resist > 0)
+    stats.push({
+      label: 'RAD resist',
+      value: `${Math.round(resist * 100)}%`,
+      icon: 'mdi:radiation',
+    })
   const fireResist = getOutfitFireResist(outfit)
-  if (fireResist > 0) stats.push({ label: 'Fire resist', value: `${Math.round(fireResist * 100)}%`, icon: 'mdi:fire' })
-  if (outfit.gender) stats.push({ label: 'Gender', value: outfit.gender, icon: 'mdi:human-male-female' })
-  if (outfit.weight !== undefined) stats.push({ label: 'Weight', value: outfit.weight, icon: 'mdi:scale' })
-  if (outfit.durability !== undefined) stats.push({ label: 'Durability', value: outfit.durability, icon: 'mdi:shield-check' })
+  if (fireResist > 0)
+    stats.push({
+      label: 'Fire resist',
+      value: `${Math.round(fireResist * 100)}%`,
+      icon: 'mdi:fire',
+    })
+  if (outfit.gender)
+    stats.push({ label: 'Gender', value: outfit.gender, icon: 'mdi:human-male-female' })
+  if (outfit.weight !== undefined)
+    stats.push({ label: 'Weight', value: outfit.weight, icon: 'mdi:scale' })
+  if (outfit.durability !== undefined)
+    stats.push({ label: 'Durability', value: outfit.durability, icon: 'mdi:shield-check' })
   return stats
 }
 
@@ -234,11 +257,7 @@ export function getOutfitStats(outfit: OutfitStatsSource): ItemStat[] {
  * the allowlist is deliberately empty. Every field is optional so one prop type
  * admits a weapon, an outfit, junk and a supply.
  */
-export interface ItemCardSource
-  extends ItemIconSource,
-    BonusSource,
-    ResistSource,
-    CommonItemStats {
+export interface ItemCardSource extends ItemIconSource, BonusSource, ResistSource, CommonItemStats {
   description?: string | null
   rarity?: string | null
   value?: number | null

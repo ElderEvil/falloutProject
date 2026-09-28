@@ -23,7 +23,13 @@ interface Props {
   showValueAsStat?: boolean
 }
 
-const { item, itemType, variant = 'grid', count = 1, showValueAsStat = false } = defineProps<Props>()
+const {
+  item,
+  itemType,
+  variant = 'grid',
+  count = 1,
+  showValueAsStat = false,
+} = defineProps<Props>()
 
 const rarityTextClass = computed(() => getRarityTextClass(item.rarity ?? undefined))
 
@@ -58,7 +64,10 @@ const itemTypeDisplay = computed(() => {
     <div v-if="variant === 'list'" class="flex items-center gap-3">
       <ItemIcon :item="item" :item-type="itemType" />
       <div class="min-w-0 flex-1">
-        <h4 class="truncate text-lg font-bold text-shadow-[0_0_4px_currentColor]" :class="rarityTextClass">
+        <h4
+          class="truncate text-lg font-bold text-shadow-[0_0_4px_currentColor]"
+          :class="rarityTextClass"
+        >
           {{ item.name }}
         </h4>
         <p class="truncate text-xs capitalize text-theme-primary opacity-70">

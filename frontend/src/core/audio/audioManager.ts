@@ -1,5 +1,12 @@
 import { reactive } from 'vue'
-import { MUSIC_MANIFEST, SOUND_MANIFEST, type MusicKey, type SoundKey } from './soundManifest'
+import {
+  AMBIENCE_MANIFEST,
+  MUSIC_MANIFEST,
+  SOUND_MANIFEST,
+  type AmbienceKey,
+  type MusicKey,
+  type SoundKey,
+} from './soundManifest'
 
 /**
  * Bus names group sounds so players can tune them independently.
@@ -83,6 +90,9 @@ class AudioManager {
   private musicPreview: HTMLAudioElement | null = null
   private currentLoop: { audio: HTMLAudioElement; key: MusicKey } | null = null
   private pendingLoop: MusicKey | null = null
+  private ambienceAudio: HTMLAudioElement | null = null
+  private ambienceKey: AmbienceKey | null = null
+  private ambienceWanted: AmbienceKey | null = null
   private changeHandler: ((settings: AudioSettings) => void) | null = null
 
   constructor() {
@@ -96,6 +106,7 @@ class AudioManager {
           this.pendingLoop = null
         }
         if (this.alarmWanted) this.startAlarmLoop()
+        if (this.ambienceWanted) this.playAmbience(this.ambienceWanted)
       }
       window.addEventListener('pointerdown', unlock)
       window.addEventListener('keydown', unlock)
@@ -131,8 +142,9 @@ class AudioManager {
 
   setVolume(bus: AudioBus, volume: number): void {
     this.settings.volumes[bus] = Math.min(1, Math.max(0, volume))
-    if (bus === 'music' && this.currentLoop) {
-      this.currentLoop.audio.volume = this.settings.volumes.music
+    if (bus === 'music') {
+      if (this.currentLoop) this.currentLoop.audio.volume = this.settings.volumes.music
+      if (this.ambienceAudio) this.ambienceAudio.volume = this.settings.volumes.music
     }
     this.persist()
     this.notifyChange()
@@ -228,6 +240,41 @@ class AudioManager {
     this.currentLoop = null
   }
 
+  /** Start a looping room-category ambience track (one at a time). */
+  playAmbience(key: AmbienceKey): void {
+    this.ambienceWanted = key
+    if (this.settings.muted || !this.unlocked) return
+    if (this.ambienceKey === key && this.ambienceAudio) {
+      if (!this.ambienceAudio.paused) return
+      this.ambienceAudio.volume = this.settings.volumes.music
+      void this.ambienceAudio.play().catch(() => {})
+      return
+    }
+    this.stopAmbiencePlayback()
+    const src = AMBIENCE_MANIFEST[key]
+    if (!src) return
+    const audio = new Audio(src)
+    audio.loop = true
+    audio.volume = this.settings.volumes.music
+    audio.play().catch(() => {})
+    this.ambienceAudio = audio
+    this.ambienceKey = key
+  }
+
+  stopAmbience(): void {
+    this.ambienceWanted = null
+    this.stopAmbiencePlayback()
+  }
+
+  private stopAmbiencePlayback(): void {
+    if (this.ambienceAudio) {
+      this.ambienceAudio.pause()
+      this.ambienceAudio.currentTime = 0
+    }
+    this.ambienceAudio = null
+    this.ambienceKey = null
+  }
+
   /** Incident alarm loop + music ducking. All entry points are idempotent. */
 
   private alarmAudio: HTMLAudioElement | null = null
@@ -294,10 +341,13 @@ class AudioManager {
   /** Fade the music loop out over 2s so the alarm takes over. */
   duckMusic(fadeMs = 2000): void {
     this.cancelMusicRestore()
+    if (this.musicDucked) return
     const loop = this.currentLoop
-    if (!loop || this.musicDucked) return
+    const ambience = this.ambienceAudio
+    if (!loop && !ambience) return
     this.musicDucked = true
-    this.fadeElement(loop.audio, 0, fadeMs, () => loop.audio.pause())
+    if (loop) this.fadeElement(loop.audio, 0, fadeMs, () => loop.audio.pause())
+    if (ambience) this.fadeElement(ambience, 0, fadeMs, () => ambience.pause())
   }
 
   /** Resume a ducked music loop after a delay (5s — mid-range of the 2–8s window). */
@@ -307,11 +357,19 @@ class AudioManager {
     this.resumeTimer = window.setTimeout(() => {
       this.resumeTimer = null
       this.musicDucked = false
+      if (this.settings.muted || !this.unlocked) return
       const loop = this.currentLoop
-      if (!loop || this.settings.muted || !this.unlocked) return
-      loop.audio.volume = 0
-      loop.audio.play().catch(() => {})
-      this.fadeElement(loop.audio, this.settings.volumes.music, fadeMs)
+      if (loop) {
+        loop.audio.volume = 0
+        void loop.audio.play().catch(() => {})
+        this.fadeElement(loop.audio, this.settings.volumes.music, fadeMs)
+      }
+      const ambience = this.ambienceAudio
+      if (ambience) {
+        ambience.volume = 0
+        void ambience.play().catch(() => {})
+        this.fadeElement(ambience, this.settings.volumes.music, fadeMs)
+      }
     }, delayMs)
   }
 
@@ -327,6 +385,7 @@ class AudioManager {
       this.currentLoop?.audio.pause()
       this.musicPreview?.pause()
       this.alarmAudio?.pause()
+      this.ambienceAudio?.pause()
       return
     }
     if (this.pendingLoop && !this.musicDucked) {
@@ -336,6 +395,7 @@ class AudioManager {
       void this.currentLoop.audio.play().catch(() => {})
     }
     if (this.alarmWanted) this.startAlarmLoop()
+    if (this.ambienceWanted && !this.musicDucked) this.playAmbience(this.ambienceWanted)
   }
 
   private persist(): void {

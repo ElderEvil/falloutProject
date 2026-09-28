@@ -179,3 +179,84 @@ describe('audioManager alarm', () => {
     expect(music.play).not.toHaveBeenCalled()
   })
 })
+
+describe('audioManager ambience', () => {
+  const ambienceElement = () =>
+    MockAudio.instances.find((audio) => audio.src.includes('/audio/ambience/'))
+
+  beforeEach(() => {
+    MockAudio.instances = []
+    localStorage.clear()
+    vi.stubGlobal('Audio', MockAudio)
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it('starts a room-category ambience loop at the music volume', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+
+    manager.playAmbience('production')
+
+    const ambience = ambienceElement()
+    expect(ambience?.loop).toBe(true)
+    expect(ambience?.volume).toBeCloseTo(0.4)
+    expect(ambience?.play).toHaveBeenCalled()
+  })
+
+  it('defers ambience until audio unlocks', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+
+    manager.playAmbience('training')
+    expect(ambienceElement()).toBeUndefined()
+
+    window.dispatchEvent(new Event('pointerdown'))
+    expect(ambienceElement()?.play).toHaveBeenCalled()
+  })
+
+  it('does not recreate the loop when the same key is re-requested', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+
+    manager.playAmbience('capacity')
+    const first = ambienceElement()!
+    manager.playAmbience('capacity')
+
+    expect(ambienceElement()).toBe(first)
+    expect(MockAudio.instances.filter((audio) => audio.src.includes('/audio/ambience/'))).toHaveLength(1)
+  })
+
+  it('stops ambience on request', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+
+    manager.playAmbience('crafting')
+    const ambience = ambienceElement()!
+    manager.stopAmbience()
+
+    expect(ambience.pause).toHaveBeenCalled()
+  })
+
+  it('resumes a muted ambience loop when unmuted', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    manager.playAmbience('production')
+    const ambience = ambienceElement()!
+    ambience.play.mockClear()
+
+    manager.setMuted(true)
+    expect(ambience.pause).toHaveBeenCalled()
+
+    manager.setMuted(false)
+    expect(ambience.play).toHaveBeenCalled()
+  })
+})

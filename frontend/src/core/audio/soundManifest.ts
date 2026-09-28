@@ -46,3 +46,18 @@ export const MUSIC_MANIFEST = {
 } as const
 
 export type MusicKey = keyof typeof MUSIC_MANIFEST
+
+/** Room-category ambience loops, keyed by the room's lowercased category. */
+export const AMBIENCE_MANIFEST = {
+  production: '/audio/ambience/production.wav',
+  crafting: '/audio/ambience/crafting.wav',
+  capacity: '/audio/ambience/capacity.wav',
+  training: '/audio/ambience/training.wav',
+} as const
+
+export type AmbienceKey = keyof typeof AMBIENCE_MANIFEST
+
+export function getRoomAmbienceKey(category: string | null | undefined): AmbienceKey | undefined {
+  const key = String(category ?? '').toLowerCase()
+  return key in AMBIENCE_MANIFEST ? (key as AmbienceKey) : undefined
+}

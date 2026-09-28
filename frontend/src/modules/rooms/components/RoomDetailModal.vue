@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch, ref, toRef } from 'vue'
+import { computed, watch, ref, toRef, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
 import { getRoomDetailParts, hasPart, producesResources, craftingItemType, isElevator, type RoomPart } from '../models/roomParts'
@@ -22,6 +22,7 @@ import CraftingPanel from '@/modules/crafting/components/CraftingPanel.vue'
 import OverseerBriefing from '@/modules/vault/components/shell/OverseerBriefing.vue'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
 import { useSound } from '@/core/composables/useSound'
+import { getRoomAmbienceKey } from '@/core/audio/soundManifest'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 
@@ -108,7 +109,7 @@ const {
   handleRecruitDweller,
 } = useRadioRoom(roomRef, modelValueRef, assignedDwellers)
 
-const { playSound } = useSound()
+const { playSound, playAmbience, stopAmbience } = useSound()
 
 // Clear error when modal closes
 watch(
@@ -117,10 +118,17 @@ watch(
     if (!newValue) {
       actionError.value = null
       assignmentMode.value = null
+      stopAmbience()
     }
-    if (newValue && newValue !== oldValue) playSound('modalOpen')
+    if (newValue && newValue !== oldValue) {
+      playSound('modalOpen')
+      const ambience = getRoomAmbienceKey(props.room?.category)
+      if (ambience) playAmbience(ambience)
+    }
   }
 )
+
+onUnmounted(stopAmbience)
 </script>
 
 <template>

@@ -5,6 +5,7 @@ import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import DwellerCard from './cards/DwellerCard.vue'
 import DwellerPanel from './DwellerPanel.vue'
 import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
+import DwellerResponseTeamStatus from './DwellerResponseTeamStatus.vue'
 import DwellerAlertLine from './DwellerAlertLine.vue'
 import DwellerGenderBadge from './DwellerGenderBadge.vue'
 import DwellerRarityBadge from './DwellerRarityBadge.vue'
@@ -52,6 +53,7 @@ const breadcrumbs = computed(() => [
           </div>
           <div class="status-line">
             <DwellerAlertLine />
+            <DwellerResponseTeamStatus :dweller-id="dweller.id" :vault-id="ctx.vaultId.value" />
             <DwellerStatusBadge :status="dweller.status" :show-label="true" size="large" />
             <DwellerOverflowMenu
               v-if="!isDead"

@@ -25,7 +25,7 @@ from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
 from app.models.pregnancy import Pregnancy
 from app.options.bios import render_newborn_bio
-from app.options.races import can_breed
+from app.options.races import can_breed, is_ageless, race_of
 from app.schemas.dweller import DwellerCreate
 from app.services.bio_service import bio_service
 from app.services.notification_service import notification_service
@@ -495,7 +495,12 @@ class BreedingService:
         vault_id: UUID4,
     ) -> list[Dweller]:
         """Advance children to teens halfway through maturity, teens to adults at completion,
-        and adults past the elder threshold to elders."""
+        and human adults past the elder threshold to elders.
+
+        Fallout rule: non-human races never senesce, so ageless adults are left
+        untouched even with an ancient ``birth_date``. Youth maturation still
+        runs for every race so a mutated newborn can reach adulthood.
+        """
         now = datetime.now(UTC).replace(tzinfo=None)
         maturity_hours = game_config.breeding.child_growth_duration_hours
         teen_threshold = now - timedelta(hours=maturity_hours // 2)
@@ -537,6 +542,8 @@ class BreedingService:
             logger.info(f"Teen became adult: {teen.first_name} {teen.last_name} ({teen.id})")
 
         for elder in elders:
+            if is_ageless(race_of(elder)):
+                continue
             elder.age_group = AgeGroupEnum.ELDER
             elder.updated_at = now
             aged_dwellers.append(elder)

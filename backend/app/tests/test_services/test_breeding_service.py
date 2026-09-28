@@ -841,6 +841,48 @@ async def test_age_children_promotes_only_old_adults_to_elders(
 
 
 @pytest.mark.asyncio
+async def test_age_children_leaves_ageless_adults_as_adults(
+    async_session: AsyncSession,
+    vault: Vault,
+):
+    """Fallout rule: ghouls, super mutants and synths never senesce into elders."""
+    base_stats = dict.fromkeys(SPECIAL_STATS, 3)
+    ancient_birth = elder_birth_threshold(datetime.utcnow()) - timedelta(days=365 * 10)
+    for race, faction in [
+        ("ghoul", "vault_dweller"),
+        ("super_mutant", "super_mutant_tribe"),
+        ("synth", "the_institute"),
+    ]:
+        await crud.dweller.create(
+            db_session=async_session,
+            obj_in=DwellerCreate(
+                first_name=race.title().replace("_", ""),
+                last_name="Ageless",
+                gender=GenderEnum.MALE,
+                rarity=RarityEnum.COMMON,
+                age_group=AgeGroupEnum.ADULT,
+                is_adult=True,
+                birth_date=ancient_birth,
+                level=1,
+                experience=0,
+                max_health=100,
+                health=100,
+                radiation=0,
+                happiness=50,
+                vault_id=vault.id,
+                visual_attributes={"race": race, "faction": faction},
+                **base_stats,
+            ),
+        )
+
+    aged = await BreedingService.age_children(async_session, vault.id)
+
+    assert aged == []
+    for dweller in await crud.dweller.get_all_in_vault(async_session, vault.id):
+        assert dweller.age_group == AgeGroupEnum.ADULT
+
+
+@pytest.mark.asyncio
 async def test_deliver_baby_records_family_entries(
     async_session: AsyncSession,
     male_dweller: Dweller,

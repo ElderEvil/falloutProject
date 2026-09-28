@@ -13,6 +13,7 @@ from app.agents.chat_prompts import (
     family_prompt_line,
     happiness_mood_line,
     identity_line,
+    state_mind_line,
 )
 from app.agents.chat_tools import load_family_members
 from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
@@ -89,6 +90,38 @@ def test_synth_race_alone_does_not_leak_into_chat_instructions() -> None:
     """A passing synth's prompt reads as an ordinary dweller profile."""
     instructions = build_chat_instructions(_dweller(visual_attributes={"race": "synth", "state_of_being": "gen_3"}))
     assert "synth" not in instructions.lower()
+
+
+def test_state_mind_line_makes_feral_ghouls_incoherent() -> None:
+    """Feral ghouls lose reasoning: no conversation, no purposeful action."""
+    line = state_mind_line(_dweller(visual_attributes={"race": "ghoul", "state_of_being": "feral"}))
+    assert "growl" in line
+    assert "no_action" in line
+
+
+def test_state_mind_line_makes_wild_ghouls_fragmented() -> None:
+    line = state_mind_line(_dweller(visual_attributes={"race": "ghoul", "state_of_being": "wild"}))
+    assert "fragment" in line
+
+
+def test_state_mind_line_grades_mutant_and_synth_models() -> None:
+    behemoth = state_mind_line(_dweller(visual_attributes={"race": "super_mutant", "state_of_being": "behemoth"}))
+    assert "no_action" in behemoth
+    mild = state_mind_line(_dweller(visual_attributes={"race": "super_mutant", "state_of_being": "mild"}))
+    assert "no_action" not in mild
+    gen_1 = state_mind_line(_dweller(visual_attributes={"race": "synth", "state_of_being": "gen_1"}))
+    assert "literal" in gen_1
+
+
+def test_state_mind_line_hides_passing_synths() -> None:
+    assert state_mind_line(_dweller(visual_attributes={"race": "synth", "state_of_being": "gen_3"})) == ""
+    assert state_mind_line(_dweller(visual_attributes={"race": "human"})) == ""
+
+
+def test_dweller_trait_lines_carry_the_state_of_being_mind() -> None:
+    lines = dweller_trait_lines(_dweller(visual_attributes={"race": "ghoul", "state_of_being": "feral"}))
+    assert "Species: ghoul" in lines
+    assert "growl" in lines
 
 
 @pytest.mark.parametrize("age_group", [AgeGroupEnum.CHILD, AgeGroupEnum.TEEN, AgeGroupEnum.ELDER])

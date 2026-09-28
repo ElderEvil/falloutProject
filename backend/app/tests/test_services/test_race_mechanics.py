@@ -21,8 +21,13 @@ from app.options.races import (
     RaceModifiers,
     RaceOption,
     can_breed,
+    chronological_years,
+    is_ageless,
     modifiers_for_race,
     race_of,
+    state_of_being_of,
+    state_stat_deltas_for,
+    visual_vs_real_age,
 )
 from app.services.radiation_service import apply_radiation_gain
 from app.services.resource_manager import ResourceManager
@@ -66,6 +71,18 @@ def _dweller(race: str | None, faction: str | None = None) -> SimpleNamespace:
     return SimpleNamespace(visual_attributes=attrs)
 
 
+def _feral_ghoul() -> SimpleNamespace:
+    entity = _dweller("ghoul")
+    entity.visual_attributes["state_of_being"] = "feral"
+    return entity
+
+
+def _feral_ghoul_with_stat() -> SimpleNamespace:
+    entity = _feral_ghoul()
+    entity.charisma = 5
+    return entity
+
+
 class TestRaceHelpers:
     def test_race_of_reads_valid_race(self) -> None:
         assert race_of(_dweller("ghoul")) == RaceOption.GHOUL
@@ -89,6 +106,77 @@ class TestRaceHelpers:
 
     def test_entity_without_race_defaults_to_human(self) -> None:
         assert can_breed(_dweller(None)) is True
+
+
+class TestAgelessRaces:
+    def test_only_humans_senesce(self) -> None:
+        assert is_ageless(RaceOption.HUMAN) is False
+        assert is_ageless(RaceOption.GHOUL) is True
+        assert is_ageless(RaceOption.SUPER_MUTANT) is True
+        assert is_ageless(RaceOption.SYNTH) is True
+        assert is_ageless(None) is False
+        assert is_ageless("reptilian") is False
+
+    def test_visual_vs_real_age_keeps_ghoul_birth_date(self) -> None:
+        from datetime import datetime
+
+        ancient = datetime(1800, 1, 1)
+        ghoul = SimpleNamespace(
+            visual_attributes={"race": "ghoul", "state_of_being": "sane"},
+            age_group="adult",
+            birth_date=ancient,
+        )
+        view = visual_vs_real_age(ghoul, now=datetime(2000, 1, 1))
+        assert view["visual"] == "adult"
+        assert view["real_years"] == pytest.approx(200.0, abs=1.0)
+        assert view["ageless"] is True
+
+    def test_pregen_non_humans_never_spawn_as_elders(self) -> None:
+        from app.utils.dwellers import create_random_common_dweller
+
+        for seed in range(50):
+            dweller = create_random_common_dweller(seed=seed)
+            race = (dweller["visual_attributes"] or {}).get("race")
+            if race != RaceOption.HUMAN.value:
+                assert dweller["age_group"] != "elder", f"seed {seed} spawned {race} elder"
+
+
+class TestStateOfBeingDeltas:
+    def test_state_reader(self) -> None:
+        assert state_of_being_of(_dweller("ghoul")) is None
+        entity = _dweller("ghoul")
+        entity.visual_attributes["state_of_being"] = "feral"
+        assert state_of_being_of(entity) == "feral"
+
+    def test_feral_ghoul_trades_mind_for_body(self) -> None:
+        deltas = state_stat_deltas_for(_feral_ghoul())
+        assert deltas["charisma"] < 0
+        assert deltas["intelligence"] < 0
+        assert deltas["strength"] > 0
+
+    def test_behemoth_hits_harder_and_thinks_less(self) -> None:
+        entity = _dweller("super_mutant")
+        entity.visual_attributes["state_of_being"] = "behemoth"
+        deltas = state_stat_deltas_for(entity)
+        assert deltas["strength"] > 0
+        assert deltas["intelligence"] < 0
+
+    def test_gen_3_passing_synth_has_no_delta(self) -> None:
+        entity = _dweller("synth")
+        entity.visual_attributes["state_of_being"] = "gen_3"
+        assert state_stat_deltas_for(entity) == {}
+
+    def test_effective_stat_includes_state_delta(self) -> None:
+        feral = _feral_ghoul()
+        feral.charisma = 5
+        assert effective_stat(feral, "charisma") == 1  # 5 - 4, floored at 1
+
+    def test_state_delta_follows_race_switch(self, monkeypatch) -> None:
+        monkeypatch.setattr(game_config.features, "race_mechanics", False)
+        assert effective_stat(_feral_ghoul_with_stat(), "charisma") == 5
+
+    def test_chronological_years_needs_a_birth_date(self) -> None:
+        assert chronological_years(None) is None
 
 
 class TestNewbornIdentity:

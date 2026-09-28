@@ -5,7 +5,7 @@ from typing import Any
 
 from app.core.enums import AgeGroupEnum
 from app.models.base import SPECIALModel
-from app.options.races import RaceOption, passes_as_human, race_descriptions, race_of
+from app.options.races import RaceOption, passes_as_human, race_descriptions, race_of, state_of_being_of
 from app.schemas.dweller import DwellerReadFull
 
 AGE_VOICE_GUIDANCE: dict[AgeGroupEnum, str] = {
@@ -57,6 +57,57 @@ def identity_line(dweller: object) -> str:
     )
 
 
+#: How each state-of-being thinks and talks, injected into the dweller prompt
+#: (not the audio voice). Feral/behemoth stages cannot reason, so they must
+#: never take actions that require thought — always no_action for them.
+STATE_MIND_GUIDANCE: dict[tuple[str, str], str] = {
+    ("ghoul", "sane"): (
+        "Mind: centuries of memory in a worn body; you think like a person, with dry weary humor. "
+        "You crave radiation the way others crave water, and you quietly fear the day your mind slips."
+    ),
+    ("ghoul", "wild"): (
+        "Mind: slipping — thoughts fragment, memories lapse mid-sentence, irritation flares into snarls. "
+        "Speak in broken, repetitive bursts; lose the thread and snap back. Cling to lucidity."
+    ),
+    ("ghoul", "feral"): (
+        "Mind: gone — only hunger, threat and noise remain. You cannot converse, reason, remember, "
+        "follow instructions or use tools. Reply only with growls, hisses and broken fragments "
+        "(no sentences). Always choose no_action; never request anything or go anywhere on purpose."
+    ),
+    ("super_mutant", "mild"): (
+        "Mind: simple, literal and proud of your strength; you think in direct terms and speak plainly, "
+        "but you follow conversation and keep promises."
+    ),
+    ("super_mutant", "average"): (
+        "Mind: blunt and force-first — short sentences, dim long memory, everything looks like a fight "
+        "to win. You grasp the present moment but struggle with plans and abstractions."
+    ),
+    ("super_mutant", "behemoth"): (
+        "Mind: rage-driven and barely verbal — single words, roars, threats. You cannot reason, plan "
+        "or negotiate. Always choose no_action; never request anything purposeful."
+    ),
+    ("synth", "gen_1"): (
+        "Mind: mechanical and literal — you report status like a machine, miss idioms and jokes, "
+        "and narrate actions as procedures. You know you are artificial."
+    ),
+    ("synth", "gen_2"): (
+        "Mind: stilted but functional — plain sentences, flat affect, you struggle with emotion, irony "
+        "and small talk. You know you are artificial."
+    ),
+}
+
+
+def state_mind_line(dweller: object) -> str:
+    """Thinking-and-speech guidance for a dweller's state-of-being (empty when none applies)."""
+    race = race_of(dweller)
+    state = state_of_being_of(dweller)
+    if race is None or state is None:
+        return ""
+    if passes_as_human(race, state):
+        return ""
+    return STATE_MIND_GUIDANCE.get((race.value, state), "")
+
+
 def family_prompt_line(family: Sequence[Mapping[str, Any]]) -> str:
     """Authoritative family line; empty when no relatives are registered."""
     members = [f"{member['name']} ({member['relation']})" for member in family if member.get("name")]
@@ -66,9 +117,10 @@ def family_prompt_line(family: Sequence[Mapping[str, Any]]) -> str:
 
 
 def dweller_trait_lines(dweller: object, family: Sequence[Mapping[str, Any]] = ()) -> str:
-    """Identity, age-register, mood and family guidance shared by both chat prompt paths."""
+    """Identity, state-of-being mind, age-register, mood and family guidance shared by both chat prompt paths."""
     candidates = (
         identity_line(dweller),
+        state_mind_line(dweller),
         age_voice_line(getattr(dweller, "age_group", None)),
         happiness_mood_line(getattr(dweller, "happiness", 50)),
         family_prompt_line(family),

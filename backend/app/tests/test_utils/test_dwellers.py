@@ -79,7 +79,7 @@ def test_create_random_common_dweller_state_of_being_for_non_humans() -> None:
 
 
 def test_create_random_common_dweller_marks_elders_from_birth_date() -> None:
-    """Adults old enough to reach the elder threshold are generated as elders."""
+    """Only humans senesce: old humans generate as elders, old non-humans stay adult."""
     seeded_now = datetime(2000, 1, 1)
     threshold = _calendar_years_ago(seeded_now, game_config.dweller.elder_age_years)
     groups = set()
@@ -87,7 +87,11 @@ def test_create_random_common_dweller_marks_elders_from_birth_date() -> None:
         dweller = create_random_common_dweller(seed=seed)
         groups.add(dweller["age_group"])
         assert dweller["is_adult"] is True
-        expected = AgeGroupEnum.ELDER if dweller["birth_date"] <= threshold else AgeGroupEnum.ADULT
+        race = RaceOption((dweller["visual_attributes"] or {}).get("race", "human"))
+        if race == RaceOption.HUMAN:
+            expected = AgeGroupEnum.ELDER if dweller["birth_date"] <= threshold else AgeGroupEnum.ADULT
+        else:
+            expected = AgeGroupEnum.ADULT
         assert dweller["age_group"] == expected
     assert groups == {AgeGroupEnum.ADULT, AgeGroupEnum.ELDER}
 

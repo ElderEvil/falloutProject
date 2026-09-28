@@ -10,7 +10,7 @@ from app.core.enums import AgeGroupEnum, GenderEnum
 from app.core.game_config import game_config
 from app.options.bios import maybe_zone_rumor, render_bio
 from app.options.factions import FactionOption, faction_restrictions
-from app.options.races import STATE_OF_BEING_OPTIONS, RaceOption, race_of
+from app.options.races import STATE_OF_BEING_OPTIONS, RaceOption, is_ageless, race_of
 from app.schemas.dweller import LETTER_TO_STAT, STATS_RANGE_BY_RARITY, RarityEnum
 
 if TYPE_CHECKING:
@@ -156,9 +156,14 @@ def create_random_common_dweller(
     oldest_birth_date = _calendar_years_ago(now, 80)
     youngest_birth_date = _calendar_years_ago(now, 18)
     birth_date = oldest_birth_date + timedelta(days=rng.randint(0, (youngest_birth_date - oldest_birth_date).days))
-    age_group = AgeGroupEnum.ELDER if birth_date <= elder_birth_threshold(now) else AgeGroupEnum.ADULT
-    origin, visited = _procedural_bio_places(rng, rarity)
     identity = _roll_identity(rng)
+    # Non-humans never senesce: visual freezes at adult while birth_date keeps
+    # the real span for future feral-pressure math.
+    if is_ageless(_race_from_attributes(identity)):
+        age_group = AgeGroupEnum.ADULT
+    else:
+        age_group = AgeGroupEnum.ELDER if birth_date <= elder_birth_threshold(now) else AgeGroupEnum.ADULT
+    origin, visited = _procedural_bio_places(rng, rarity)
     bio = render_bio(origin, visited, race=_race_from_attributes(identity), rng=rng)
     if rumor := maybe_zone_rumor(rng, game_config.bio.zone_rumor_chance):
         bio = f"{bio} {rumor}"

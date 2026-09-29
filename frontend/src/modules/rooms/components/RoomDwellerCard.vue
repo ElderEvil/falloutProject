@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller'
+import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 import DwellerAgeBadge from '@/modules/dwellers/components/DwellerAgeBadge.vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 
@@ -31,7 +32,7 @@ const statValue = (ability: string) => {
         fallback-class="h-10 w-10 icon-primary"
       />
       <div class="dweller-info">
-        <div class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</div>
+        <div class="dweller-name">{{ getDwellerDisplayName(dweller) }}</div>
         <div class="dweller-badges">
           <DwellerAgeBadge :age-group="dweller.age_group" size="sm" />
         </div>

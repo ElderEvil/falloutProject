@@ -9,7 +9,7 @@ import { useExplorationFinish } from '@/modules/exploration/composables/useExplo
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
-import { canUseRadaway, type Dweller } from '@/modules/dwellers/models/dweller'
+import { canUseRadaway, getDwellerDisplayName, type Dweller } from '@/modules/dwellers/models/dweller'
 import WastelandDropzone from '@/modules/exploration/components/WastelandDropzone.vue'
 import ActiveExplorationList from '@/modules/exploration/components/ActiveExplorationList.vue'
 import ExplorationDurationModal from '@/modules/exploration/components/ExplorationDurationModal.vue'
@@ -90,7 +90,7 @@ watch(
     const dweller = getDwellerById(pending.dwellerId)
     openRewards(
       pending.rewards,
-      dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller',
+      getDwellerDisplayName(dweller) || 'Dweller',
       pending.explorationId ?? ''
     )
     explorationStore.clearPendingSseRewards()

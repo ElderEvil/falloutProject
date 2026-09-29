@@ -24,6 +24,14 @@ export function formatIdentityLabel(value: string): string {
     .join(' ')
 }
 
+/** Dweller display name; last names are nullable, so this never renders `"null"`. */
+export function getDwellerDisplayName(
+  dweller: { first_name?: string | null; last_name?: string | null } | null | undefined
+): string {
+  if (!dweller?.first_name) return ''
+  return [dweller.first_name, dweller.last_name].filter(Boolean).join(' ')
+}
+
 /** Race → display config — single source of truth for race badges and the identity signal. */
 export const RACE_CONFIG_MAP: Record<string, { icon: string; label: string; color: string }> = {
   human: { icon: 'mdi:account', label: 'Human', color: 'var(--badge-race-human)' },

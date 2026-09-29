@@ -66,7 +66,7 @@ RadAway removes it, which keeps inventory a real decision.
 | `recovery_radaways_per_dweller` | RadAway used per dweller by the one-shot recovery action. |
 | `recovery_stimpaks_per_dweller` | Stimpack used per dweller by the one-shot recovery action. |
 | `radaway_removal_percent` | Share of max health one RadAway clears (at least one point). |
-| `radaway_auto_use_threshold` | Radiation level above which an explorer may auto-use a RadAway. |
+| `radaway_auto_use_threshold_pct` | Share of max health lost to RAD that triggers auto RadAway in the wasteland. |
 | `stimpack_heal_percent` | Share of max health one Stimpack restores. |
 
 `HappinessConfig.radiation_penalty_threshold` / `radiation_penalty` own the happiness effect. There is no radiation

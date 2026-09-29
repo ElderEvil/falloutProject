@@ -508,3 +508,77 @@ async def test_combat_reports_per_enemy_entries_and_live_dweller_hp(async_sessio
     assert all(entry.enemy and isinstance(entry.victory, bool) for entry in view.outcome.combat)
     assert view.dweller_max_health == 100
     assert 0 < view.dweller_health < view.dweller_max_health
+
+
+@pytest.mark.asyncio
+async def test_site_damage_triggers_auto_use_supplies(async_session: AsyncSession):
+    """Resolving a damaging site room consumes carried stimpak/radaway via the shared auto-heal."""
+    random.seed(42)
+    _, dweller, exploration = await _make_exploration(async_session, stats=WEAK_STATS)
+    dweller.health = 30
+    dweller.max_health = 100
+    dweller.radiation = 40
+    async_session.add(dweller)
+    exploration.stimpaks = 1
+    exploration.radaways = 1
+    async_session.add(exploration)
+    await async_session.commit()
+
+    await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
+    # "tank" always succeeds with endurance 10, dealing 1-3 damage.
+    view = await expedition_service.resolve_node(
+        async_session, exploration.id, ExpeditionResolveRequest(choice_id="tank")
+    )
+
+    assert view.outcome is not None
+    assert view.outcome.damage_taken > 0
+    refreshed = await crud.exploration.get(async_session, exploration.id)
+    assert refreshed.stimpaks == 0
+    assert refreshed.radaways == 0
+    dweller_refreshed = await crud.dweller.get(async_session, dweller.id)
+    assert dweller_refreshed.radiation == 0  # 40 rad >= 25% of 100: one RadAway clears 50% of max health
+    assert dweller_refreshed.health > 30
+    assert view.dweller_health > 30  # build_view reflects the healed dweller
+
+
+@pytest.mark.asyncio
+async def test_site_event_logs_health_loss(async_session: AsyncSession):
+    """The logged site event carries the room's damage as health_loss."""
+    random.seed(42)
+    _, dweller, exploration = await _make_exploration(async_session, stats=WEAK_STATS)
+    dweller.radiation = 0
+    async_session.add(dweller)
+    await async_session.commit()
+
+    await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
+    view = await expedition_service.resolve_node(
+        async_session, exploration.id, ExpeditionResolveRequest(choice_id="tank")
+    )
+
+    assert view.outcome is not None
+    assert view.outcome.damage_taken > 0
+    refreshed = await crud.exploration.get(async_session, exploration.id)
+    site_events = [event for event in refreshed.events if event["type"] == "site"]
+    assert site_events[-1]["health_loss"] == view.outcome.damage_taken
+
+
+@pytest.mark.asyncio
+async def test_site_event_logs_no_health_loss_when_undamaged(async_session: AsyncSession):
+    """A room that deals no damage logs a site event with health_loss None."""
+    random.seed(42)
+    _, dweller, exploration = await _make_exploration(async_session, stats={"perception": 10})
+    dweller.radiation = 0
+    async_session.add(dweller)
+    await async_session.commit()
+
+    await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
+    # "disarm" always succeeds with perception 10: cache only, no damage.
+    view = await expedition_service.resolve_node(
+        async_session, exploration.id, ExpeditionResolveRequest(choice_id="disarm")
+    )
+
+    assert view.outcome is not None
+    assert view.outcome.damage_taken == 0
+    refreshed = await crud.exploration.get(async_session, exploration.id)
+    site_events = [event for event in refreshed.events if event["type"] == "site"]
+    assert "health_loss" not in site_events[-1]  # add_event omits None-valued fields

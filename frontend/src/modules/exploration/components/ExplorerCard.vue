@@ -3,10 +3,13 @@ import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
-import type { Dweller } from '@/modules/dwellers/models/dweller'
+import { getDwellerDisplayName, type Dweller } from '@/modules/dwellers/models/dweller'
 import { useExplorationProgress } from '@/modules/exploration/composables/useExplorationProgress'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
+import DwellerAgeBadge from '@/modules/dwellers/components/DwellerAgeBadge.vue'
+import DwellerGenderBadge from '@/modules/dwellers/components/DwellerGenderBadge.vue'
+import DwellerRarityBadge from '@/modules/dwellers/components/DwellerRarityBadge.vue'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import { Card } from '@/core/components/ui/card'
 import { Progress } from '@/core/components/ui/progress'
@@ -37,9 +40,7 @@ const openDetailView = () =>
 const openDwellerDetail = () =>
   router.push(`/vault/${route.params.id}/dwellers/${props.exploration.dweller_id}`)
 
-const dwellerName = computed(() =>
-  props.dweller ? `${props.dweller.first_name} ${props.dweller.last_name}` : 'Unknown Dweller'
-)
+const dwellerName = computed(() => getDwellerDisplayName(props.dweller) || 'Unknown Dweller')
 
 const {
   progress: progressPercentage,
@@ -59,7 +60,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
     :class="{ selected }"
     @click="openDetailView"
   >
-    <!-- Header -->
+    <!-- Header: identity left, status top-right -->
     <div class="card-header">
       <TooltipProvider :delay-duration="200">
         <Tooltip>
@@ -76,26 +77,29 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
               <div>
                 <div class="dweller-name">{{ dwellerName }}</div>
                 <div class="exploration-duration">{{ exploration.duration }}h expedition</div>
-                <ExplorationStatusBadges
-                  :exploration="exploration"
-                  :dweller="dweller ?? null"
-                  class="mt-1.5"
-                />
-                <DwellerIdentitySignal :visual-attributes="dweller?.visual_attributes" compact class="mt-1" />
+                <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                  <DwellerIdentitySignal :visual-attributes="dweller?.visual_attributes" compact />
+                  <DwellerAgeBadge :age-group="dweller?.age_group" size="sm" />
+                  <DwellerGenderBadge :gender="dweller?.gender" size="sm" />
+                  <DwellerRarityBadge :rarity="dweller?.rarity" size="sm" />
+                </div>
               </div>
             </button>
           </TooltipTrigger>
           <TooltipContent>Open dweller detail page</TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <TooltipProvider v-if="selected" :delay-duration="200">
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <button class="expand-indicator" aria-label="Event timeline open"><Icon icon="mdi:timeline-text" /></button>
-          </TooltipTrigger>
-          <TooltipContent>Event timeline open</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <div class="card-status">
+        <ExplorationStatusBadges :exploration="exploration" :dweller="dweller ?? null" />
+        <TooltipProvider v-if="selected" :delay-duration="200">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <button class="expand-indicator" aria-label="Event timeline open"><Icon icon="mdi:timeline-text" /></button>
+            </TooltipTrigger>
+            <TooltipContent>Event timeline open</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
     </div>
 
     <!-- Progress Bar -->
@@ -112,9 +116,9 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
     <div class="stats-grid">
       <TerminalMetric icon="mdi:map-marker-distance" label="Distance" :value="`${exploration.total_distance} mi`" />
       <TerminalMetric icon="mdi:treasure-chest" label="Items" :value="exploration.loot_collected?.length || 0" />
-      <TerminalMetric icon="mdi:currency-usd" label="Caps" :value="exploration.total_caps_found" tone="caps" />
+      <TerminalMetric icon="mdi:currency-usd" label="Caps" :value="exploration.total_caps_found" />
       <TerminalMetric icon="mdi:medical-bag" label="Stimpaks" :value="exploration.stimpaks || 0" />
-      <TerminalMetric icon="mdi:pill" label="RadAway" :value="exploration.radaways || 0" tone="caps" />
+      <TerminalMetric icon="mdi:pill" label="RadAway" :value="exploration.radaways || 0" />
       <TerminalMetric icon="mdi:skull" label="Enemies" :value="exploration.enemies_encountered" />
     </div>
 
@@ -170,7 +174,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   cursor: pointer;
   transition: all 0.3s ease;
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .explorer-card:hover {
@@ -187,7 +191,15 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.card-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .dweller-info {
@@ -204,10 +216,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   color: inherit;
   text-align: left;
   cursor: pointer;
-}
-
-.dweller-link:hover .dweller-name {
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 .dweller-name {
@@ -275,22 +284,21 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
+  gap: 0.375rem;
 }
-
 
 .equipment-section {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0.5rem;
-  margin-top: 0.25rem;
+  gap: 0.375rem;
+  margin-top: 0.125rem;
 }
 
 .equipment-slot {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem;
+  padding: 0.375rem;
   background: rgb(from var(--color-surface-sunken) r g b / 0.8);
   border: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.15);
   border-radius: 4px;
@@ -309,7 +317,6 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 
 .recent-events {
   padding: 0.75rem;
@@ -354,5 +361,4 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   flex: 1;
   line-height: 1.3;
 }
-
 </style>

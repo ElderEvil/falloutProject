@@ -45,13 +45,14 @@ describe('QuestPartyCard', () => {
 
     expect(wrapper.findComponent(Progress).props('modelValue')).toBeGreaterThan(0)
     expect(wrapper.text()).toContain('Quest party')
+    expect(wrapper.text()).toContain('QUESTING')
     expect(wrapper.text()).toContain('Lucy MacLean')
     expect(wrapper.text()).toContain('2 / 3 assigned')
 
     wrapper.unmount()
   })
 
-  it('shows a travelling badge and ETA instead of progress while the party returns', () => {
+  it('shows a returning badge and return progress while the party travels home', () => {
     const wrapper = mount(QuestPartyCard, {
       props: {
         quest: {
@@ -66,7 +67,8 @@ describe('QuestPartyCard', () => {
 
     expect(wrapper.text()).toContain('RETURNING')
     expect(wrapper.text()).toContain('Travelling home')
-    expect(wrapper.findComponent(Progress).exists()).toBe(false)
+    expect(wrapper.findComponent(Progress).exists()).toBe(true)
+    expect(wrapper.findComponent(Progress).props('modelValue')).toBeGreaterThan(0)
 
     wrapper.unmount()
   })

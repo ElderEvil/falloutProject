@@ -6,6 +6,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core
 import { getItemIcon } from '@/core/models/items'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller, DetailedDweller } from '@/modules/dwellers/models/dweller'
+import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 import {
   canRecall,
   getProgressPercentage,
@@ -90,12 +91,12 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
             <div class="flex min-w-0 items-center gap-1.5">
               <Icon icon="mdi:account" class="h-4 w-4 shrink-0 text-wasteland" />
               <span class="truncate text-xs font-bold text-wasteland"
-                >{{ getDwellerById(exploration.dweller_id)?.first_name }}
-                {{ getDwellerById(exploration.dweller_id)?.last_name }}</span
+                >{{ getDwellerDisplayName(getDwellerById(exploration.dweller_id)) }}</span
               >
               <ExplorationStatusBadges
                 :exploration="exploration"
                 :dweller="getDwellerForBadges(exploration.dweller_id)"
+                compact
               />
             </div>
             <span class="flex shrink-0 items-center gap-1">

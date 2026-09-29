@@ -9,7 +9,7 @@ import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
 import { Card } from '@/core/components/ui/card'
 import type { DwellerDead } from '@/modules/dwellers/models/dweller'
-import { getDeathCauseIcon } from '@/modules/dwellers/models/dweller'
+import { getDeathCauseIcon, getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 
 interface Props {
   dweller: DwellerDead
@@ -112,7 +112,7 @@ const handleViewDetails = () => {
               @keydown.enter.prevent="handleViewDetails"
               @keydown.space.prevent="handleViewDetails"
             >
-              {{ dweller.first_name }} {{ dweller.last_name }}
+              {{ getDwellerDisplayName(dweller) }}
             </h3>
 
             <div class="flex items-center gap-2 mt-1">

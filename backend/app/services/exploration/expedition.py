@@ -40,6 +40,7 @@ from app.services.exploration.event_service import (
     apply_exploration_damage,
     apply_exploration_radiation,
     apply_loot_find,
+    auto_use_supplies,
 )
 from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration.loot_calculator import loot_calculator
@@ -185,8 +186,10 @@ async def _site_block_reason(
     return (await site_block_state(db_session, vault_id, site_id, include_open=include_open)).reason
 
 
-async def _log_site_event(db_session: AsyncSession, exploration: Exploration, description: str) -> None:
-    exploration.add_event(event_type="site", description=description)
+async def _log_site_event(
+    db_session: AsyncSession, exploration: Exploration, description: str, *, health_loss: int = 0
+) -> None:
+    exploration.add_event(event_type="site", description=description, health_loss=health_loss or None)
     db_session.add(exploration)
     await db_session.flush()
 
@@ -550,7 +553,13 @@ class ExpeditionService:
             loot_gained=result.loot_gained,
             combat=result.combat,
         )
-        await _log_site_event(db_session, exploration, f"{site.name} — {room.name}: {outcome.text}")
+        await _log_site_event(
+            db_session,
+            exploration,
+            f"{site.name} — {room.name}: {outcome.text}",
+            health_loss=result.damage_taken,
+        )
+        await auto_use_supplies(db_session, exploration)
 
         if result.dweller_died:
             run.status = ExpeditionRunStatus.DIED

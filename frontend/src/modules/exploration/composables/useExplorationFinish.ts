@@ -1,6 +1,7 @@
 import { ref, toValue, type MaybeRefOrGetter } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useToast } from '@/core/composables/useToast'
 import { useExplorationStore, type RewardsSummary } from '../stores/exploration'
@@ -75,9 +76,7 @@ export function useExplorationFinish(vaultId?: MaybeRefOrGetter<string | undefin
 
       if (result?.rewards_summary) {
         const dweller = dwellerStore.dwellers.find((d) => d.id === exploration.dweller_id)
-        const dwellerName =
-          options.dwellerName ??
-          (dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller')
+        const dwellerName = options.dwellerName ?? (getDwellerDisplayName(dweller) || 'Dweller')
         explorationStore.acknowledgeSseReward(exploration.dweller_id)
         openRewards(result.rewards_summary, dwellerName, explorationId)
       }

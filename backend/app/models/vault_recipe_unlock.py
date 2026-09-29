@@ -14,7 +14,7 @@ class VaultRecipeUnlock(SQLModel, table=True):
 
     __tablename__ = "vault_recipe_unlock"
 
-    vault_id: UUID4 = Field(foreign_key="vault.id", primary_key=True)
+    vault_id: UUID4 = Field(foreign_key="vault.id", primary_key=True, ondelete="CASCADE")
     item_type: str = Field(primary_key=True, max_length=16)
     recipe_name: str = Field(primary_key=True, max_length=128)
     progress: int = Field(default=0, ge=0)

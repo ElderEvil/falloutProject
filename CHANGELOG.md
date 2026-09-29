@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.158.0 (2026-09-29)
+
+### Features
+
+* **dwellers:** add rarity filter, race colours, and chip counts to the roster ([#829](https://github.com/ElderEvil/falloutProject/issues/829)) afdab2c
+
 ## 2.157.0 (2026-09-29)
 
 ### Features

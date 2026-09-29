@@ -1,26 +1,26 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useLocalStorage, useNow } from '@vueuse/core'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useExitRequestStore } from '../../stores/exitRequests'
 
+const SNOOZE_MS = 60 * 60 * 1000
+
 const vaultStore = useVaultStore()
 const store = useExitRequestStore()
 
-const isOpen = ref(false)
 const isDeciding = ref(false)
+const snoozedUntil = useLocalStorage<number | null>('exitRequestSnoozedUntil', null)
+const now = useNow({ interval: 30_000 })
 
 const current = computed(() => store.requests[0] ?? null)
-
-watch(
-  current,
-  (request) => {
-    isOpen.value = request !== null
-  },
-  { immediate: true }
+const isSnoozed = computed(
+  () => snoozedUntil.value !== null && now.value.getTime() < snoozedUntil.value
 )
+const isOpen = computed(() => current.value !== null && !isSnoozed.value)
 
 const refresh = async () => {
   if (!vaultStore.activeVaultId) return
@@ -44,8 +44,8 @@ const decide = async (grant: boolean) => {
   }
 }
 
-const close = () => {
-  isOpen.value = false
+const decideLater = () => {
+  snoozedUntil.value = Date.now() + SNOOZE_MS
 }
 </script>
 
@@ -54,7 +54,7 @@ const close = () => {
     :open="isOpen"
     @update:open="
       (open) => {
-        if (!open) close()
+        if (!open) decideLater()
       }
     "
   >
@@ -88,7 +88,7 @@ const close = () => {
           </p>
 
           <div class="modal-actions">
-            <Button variant="secondary" :disabled="isDeciding" @click="close">
+            <Button variant="secondary" :disabled="isDeciding" @click="decideLater">
               <Icon icon="mdi:clock-outline" />
               Decide Later
             </Button>

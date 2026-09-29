@@ -120,6 +120,7 @@ describe('ExitRequestModal', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    localStorage.clear()
   })
 
   it('opens for a pending request and closes without deciding when dismissed', async () => {
@@ -148,5 +149,6 @@ describe('ExitRequestModal', () => {
 
     expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
     expect(useExitRequestStore().requests).toEqual([pendingRequest])
+    expect(Number(localStorage.getItem('exitRequestSnoozedUntil'))).toBeGreaterThan(Date.now())
   })
 })

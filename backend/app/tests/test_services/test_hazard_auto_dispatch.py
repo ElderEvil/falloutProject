@@ -189,6 +189,63 @@ async def test_unavailable_member_skipped_others_dispatched(
 
 
 @pytest.mark.asyncio
+async def test_dispatch_skips_responder_committed_to_another_incident(
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+):
+    """A hazard-team member already rostered on another active incident is skipped and named in the event."""
+    room = room_with_dwellers["room"]
+    vault = room_with_dwellers["vault"]
+    dwellers = room_with_dwellers["dwellers"]
+    room_b = await crud.room.create(
+        async_session,
+        RoomCreate(
+            name="Diner",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=None,
+            base_cost=100,
+            incremental_cost=50,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=3,
+            size_max=6,
+            size=3,
+            tier=1,
+            coordinate_x=5,
+            coordinate_y=5,
+            vault_id=vault.id,
+        ),
+    )
+    for dweller in dwellers:
+        await dweller_service.move_to_room(async_session, dweller.id, room_b.id)
+    await async_session.commit()
+    for dweller in dwellers:
+        await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
+
+    # The first incident commits one team member via manual assignment.
+    first = await crud.incident_crud.create(
+        async_session, vault_id=vault.id, room_id=room.id, incident_type=IncidentType.FIRE, difficulty=2
+    )
+    committed = dwellers[0]
+    await incident_service.assign_responders(async_session, first, [committed.id])
+
+    # Auto-dispatch to a second incident must skip the committed member.
+    second = await crud.incident_crud.create(
+        async_session, vault_id=vault.id, room_id=room_b.id, incident_type=IncidentType.FIRE, difficulty=2
+    )
+    dispatched = await hazard_team_service.dispatch_to_incident(async_session, second)
+
+    assert committed.id not in dispatched
+    assert sorted(dispatched) == sorted(d.id for d in dwellers[1:])
+    members = await crud.team_crud.get_incident_team(async_session, second.id, vault.id)
+    assert sorted(member.dweller_id for member in members) == sorted(d.id for d in dwellers[1:])
+    assert all(member.status == DISPATCHED_STATUS for member in members)
+
+    events = await crud.incident_crud.get_recent_events(async_session, second.id)
+    dispatch_event = next(event for event in events if event.kind == "responders_dispatched")
+    assert dispatch_event.data == {"skipped": [committed.first_name]}
+
+
+@pytest.mark.asyncio
 async def test_return_dispatched_responders_after_resolution(async_session: AsyncSession, room_with_dwellers: dict):
     """Resolving the incident puts dispatched members back to work and marks them completed."""
     vault = room_with_dwellers["vault"]
@@ -244,3 +301,36 @@ async def test_return_dispatched_responders_is_idempotent(async_session: AsyncSe
 
     assert first == len(dwellers)
     assert second == 0
+
+
+@pytest.mark.asyncio
+async def test_return_marks_dead_dispatched_completed_without_returning(
+    async_session: AsyncSession, room_with_dwellers: dict
+):
+    """A dispatched responder who died still closes the ledger: completed, not re-assigned."""
+    vault = room_with_dwellers["vault"]
+    dwellers = room_with_dwellers["dwellers"]
+    for index, dweller in enumerate(dwellers):
+        await crud.room.create(
+            async_session,
+            _work_room(vault.id, f"Work Room {index}", get_highest_special(dweller), index + 1, 9),
+        )
+    await async_session.commit()
+    for dweller in dwellers:
+        await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
+
+    incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
+    assert incident is not None
+
+    fallen = dwellers[0]
+    fallen.is_dead = True
+    fallen.health = 0
+    async_session.add(fallen)
+    await async_session.commit()
+
+    await crud.incident_crud.resolve(async_session, incident.id, success=False)
+    returned = await hazard_team_service.return_dispatched_responders(async_session, incident)
+
+    assert returned == len(dwellers) - 1
+    members = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
+    assert all(member.status == "completed" for member in members)

@@ -295,7 +295,7 @@ class HazardTeamService:
                 return []
 
             # Respect the responder cap: only fill the room left on the roster.
-            from app.services.combat.incident_service import MAX_INCIDENT_RESPONDERS
+            from app.services.combat.incident_service import MAX_INCIDENT_RESPONDERS, committed_responder_ids
 
             existing = await team_crud.get_incident_team(db_session, incident.id, incident.vault_id)
             room = MAX_INCIDENT_RESPONDERS - len(existing)
@@ -305,10 +305,16 @@ class HazardTeamService:
             member_ids = [member.dweller_id for member in active_members]
             dwellers = list(await crud_dweller.get_by_ids_in_vault(db_session, member_ids, incident.vault_id))
             existing_ids = {member.dweller_id for member in existing}
+            committed_ids = await committed_responder_ids(
+                db_session, incident.vault_id, exclude_incident_id=incident.id
+            )
+            skipped = [dweller for dweller in dwellers if dweller.id in committed_ids]
             candidates = [
                 dweller
                 for dweller in dwellers
-                if dweller.id not in existing_ids and availability_error(dweller, require_healthy=True) is None
+                if dweller.id not in existing_ids
+                and dweller.id not in committed_ids
+                and availability_error(dweller, require_healthy=True) is None
             ][:room]
             if not candidates:
                 return []
@@ -335,6 +341,7 @@ class HazardTeamService:
                     incident,
                     "responders_dispatched",
                     f"{len(dispatched)} hazard-team responder(s) dispatched.",
+                    data={"skipped": [dweller.first_name for dweller in skipped]} if skipped else None,
                 )
                 await db_session.commit()
         except Exception:
@@ -360,9 +367,16 @@ class HazardTeamService:
             from app.services.dweller_service import dweller_service
 
             returned = 0
+            closed = 0
             for member in dispatched:
                 dweller = member.dweller
                 if dweller is None or availability_error(dweller, require_healthy=True) is not None:
+                    # Terminal state (dead, wounded, gone): nobody to send back
+                    # to work, but the ledger still closes so "dispatched"
+                    # never lingers on a finished incident.
+                    member.status = "completed"
+                    db_session.add(member)
+                    closed += 1
                     continue
                 try:
                     await dweller_service.auto_assign_to_best_room(db_session, member.dweller_id)
@@ -381,7 +395,8 @@ class HazardTeamService:
                 member.status = "completed"
                 db_session.add(member)
                 returned += 1
-            if returned:
+                closed += 1
+            if closed:
                 await db_session.commit()
         except Exception:
             logger.exception("Failed to return dispatched responders for incident %s", incident.id)

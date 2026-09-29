@@ -55,5 +55,9 @@ function navigateBack(): void {
         </li>
       </ol>
     </nav>
+
+    <div v-if="$slots.actions" class="ml-auto flex items-center gap-2">
+      <slot name="actions" />
+    </div>
   </div>
 </template>

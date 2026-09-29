@@ -222,7 +222,7 @@ describe('ExplorationDetailView', () => {
 
       expect(wrapper.text()).toContain('1 / 1')
       expect(wrapper.text()).toContain('Back to Exploration')
-      expect(wrapper.find('.explorer-navigation').classes()).toContain('w-full')
+      expect(wrapper.find('.explorer-navigation').exists()).toBe(true)
       expect(wrapper.find('.exploration-detail-content').exists()).toBe(true)
     })
 

@@ -290,18 +290,18 @@ watch(isReady, (ready) => {
             back-label="Back to Exploration"
             :back-to="`/vault/${vaultId}/exploration`"
             :breadcrumbs="breadcrumbs"
-          />
-
-          <!-- Explorer paging controls -->
-          <ExplorerNavbar
-            class="mt-4 mb-6"
-            :current-index="currentIndex"
-            :total="allExplorations.length"
-            :has-previous="hasPrevious"
-            :has-next="hasNext"
-            @previous="navigatePrevious"
-            @next="navigateNext"
-          />
+          >
+            <template #actions>
+              <ExplorerNavbar
+                :current-index="currentIndex"
+                :total="allExplorations.length"
+                :has-previous="hasPrevious"
+                :has-next="hasNext"
+                @previous="navigatePrevious"
+                @next="navigateNext"
+              />
+            </template>
+          </PageNavigation>
 
           <!-- Main Content -->
           <div v-if="exploration && dweller" class="exploration-detail-content">

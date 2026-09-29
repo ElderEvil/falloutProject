@@ -1081,10 +1081,12 @@ Reuse map (all of this already exists — reach for it first):
   `backend/app/alembic/versions/2026_09_17_0002-e7c8d9a0b1f2_*` (EXILE) is the template — autogenerate
   does not detect enum changes, and an unmigrated member poisons the connection pool.
 - **Intent/pending state**: `dweller.exit_requested_at` is the pattern for "this dweller intends something"
-  — one nullable column, withdrawn when the cause passes, no cooldown column. A grievance/vendetta would
-  mirror it.
-- **Eligibility policy**: `exit_request_service.blocking_reason` (grown dwellers only, not away from the
-  vault, population floor) and `crud.dweller.count_living_in_vault` are directly reusable guards.
+  — one nullable column, cleared when the cause passes. Exit requests also carry a grace window
+  (`dweller.despair_since`) and a rolling daily cap (`vault.last_exit_request_at`); reuse those rather than
+  a per-dweller cooldown. A grievance/vendetta would mirror the nullable-intent column.
+- **Eligibility policy**: `exit_request_service._eligibility_reason` (grown dwellers only, not away from the
+  vault, population floor) and `crud.dweller.count_living_in_vault` / `get_living_in_vault` are directly
+  reusable guards.
 - **Tick phase**: `process_exit_requests` in `backend/app/services/game_tick/dwellers_tick.py` plus the
   `DwellersStats` counters in `tick_results.py` show how to add a per-tick dweller pass.
 - **Player-facing event**: `NotificationType` + `notification_service.notify_*` + the

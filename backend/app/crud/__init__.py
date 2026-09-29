@@ -20,6 +20,7 @@ from .room import room
 from .team import team_crud
 from .user import user
 from .vault import vault
+from .vault_recipe_unlock import vault_recipe_unlock
 from .world_location import world_location
 
 # Create CRUD instances directly using CRUDItem

@@ -29,6 +29,8 @@ class CraftingRecipeRead(SQLModel):
     caps_cost: int
     can_craft: bool
     missing_junk: int = 0
+    unlocked: bool = True
+    unlock_hint: str | None = None
 
 
 class CraftRequest(SQLModel):

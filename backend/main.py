@@ -52,6 +52,7 @@ from app.services.health_check import HealthCheckService
 from app.services.place_seed_service import seed_places_from_json
 from app.services.progression.objectives.evaluators import evaluator_manager
 from app.services.progression.objectives.notifications import register_objective_event_handlers
+from app.services.recipe_unlock_service import register_recipe_unlock_handlers
 from app.services.websocket_manager import manager
 from app.utils.exceptions import DomainError, QuotaExceededException
 from app.utils.seed_objectives import seed_objectives_from_json
@@ -125,6 +126,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     # Initialize objective evaluators
     evaluator_manager.initialize()
     register_objective_event_handlers()
+    register_recipe_unlock_handlers()
 
     yield
 

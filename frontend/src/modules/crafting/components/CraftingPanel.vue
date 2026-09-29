@@ -328,7 +328,7 @@ watch(() => [props.vaultId, props.itemType], loadAll)
           a11y-correct association.
         -->
         <Label class="gap-1.5 text-xs text-theme-primary/80">
-          <input v-model="onlyCraftable" type="checkbox" />
+          <input v-model="onlyCraftable" type="checkbox" class="craftable-checkbox" />
           Craftable now
         </Label>
       </div>
@@ -454,5 +454,39 @@ watch(() => [props.vaultId, props.itemType], loadAll)
 .locked-recipe {
   opacity: 0.65;
   border-style: dashed;
+}
+
+.craftable-checkbox {
+  appearance: none;
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 60%, transparent);
+  border-radius: 2px;
+  background: var(--color-surface-sunken);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.craftable-checkbox:hover {
+  border-color: var(--color-theme-primary);
+}
+
+.craftable-checkbox:checked {
+  background-color: var(--color-theme-primary);
+  border-color: var(--color-theme-primary);
+  box-shadow: 0 0 8px var(--color-theme-glow);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 0.7rem;
+}
+
+.craftable-checkbox:focus-visible {
+  outline: 2px solid var(--color-theme-primary);
+  outline-offset: 2px;
 }
 </style>

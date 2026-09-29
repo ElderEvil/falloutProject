@@ -418,7 +418,7 @@ body {
 /* === THEME-AWARE COMPONENT CLASSES === */
 /* These are plain CSS classes that use theme variables */
 
-/* Badge accents — the informational palette (gender, age, rarity).
+/* Badge accents — the informational palette (gender, age, rarity, race).
    One source of truth for every badge tone: monochrome mode repoints the lot at
    the theme colour instead of each component branching on a flag. */
 :root {
@@ -431,6 +431,10 @@ body {
     --badge-rarity-common: var(--color-rarity-common);
     --badge-rarity-rare: var(--color-rarity-rare);
     --badge-rarity-legendary: var(--color-rarity-legendary);
+    --badge-race-human: #f59e0b;
+    --badge-race-ghoul: #94a3b8;
+    --badge-race-super-mutant: #84cc16;
+    --badge-race-synth: #22d3ee;
 }
 
 [data-badge-style="mono"] {
@@ -443,6 +447,10 @@ body {
     --badge-rarity-common: var(--color-theme-primary);
     --badge-rarity-rare: var(--color-theme-primary);
     --badge-rarity-legendary: var(--color-theme-primary);
+    --badge-race-human: var(--color-theme-primary);
+    --badge-race-ghoul: var(--color-theme-primary);
+    --badge-race-super-mutant: var(--color-theme-primary);
+    --badge-race-synth: var(--color-theme-primary);
 }
 
 /* Panel header row — the single owner of the section separator. Every detail

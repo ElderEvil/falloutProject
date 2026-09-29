@@ -887,6 +887,71 @@ describe('DwellerFilter Store', () => {
     })
   })
 
+  describe('countByRace', () => {
+    const roster = [
+      {
+        id: '1',
+        status: 'idle',
+        age_group: 'adult',
+        gender: 'male',
+        rarity: 'common',
+        visual_attributes: { race: 'ghoul', faction: 'children_of_atom' },
+      },
+      {
+        id: '2',
+        status: 'working',
+        age_group: 'adult',
+        gender: 'female',
+        rarity: 'legendary',
+        visual_attributes: { race: 'human', faction: 'vault_dweller' },
+      },
+      {
+        id: '3',
+        status: 'idle',
+        age_group: 'child',
+        gender: 'male',
+        rarity: 'common',
+        visual_attributes: { race: 'ghoul', faction: 'children_of_atom' },
+      },
+    ] as never
+
+    it('counts every race from allDwellers under the non-race filters', () => {
+      const store = useDwellerFilterStore()
+      store.allDwellers = roster
+
+      const { all, byRace } = store.countByRace({
+        status: 'all',
+        ageGroup: 'all',
+        gender: 'all',
+        rarity: 'all',
+        faction: 'all',
+      })
+
+      expect(all).toBe(3)
+      expect(byRace.ghoul).toBe(2)
+      expect(byRace.human).toBe(1)
+      expect(byRace.super_mutant).toBe(0)
+      expect(byRace.synth).toBe(0)
+    })
+
+    it('respects the status and age facets while ignoring race itself', () => {
+      const store = useDwellerFilterStore()
+      store.allDwellers = roster
+
+      const { all, byRace } = store.countByRace({
+        status: 'idle',
+        ageGroup: 'adult',
+        gender: 'all',
+        rarity: 'all',
+        faction: 'all',
+      })
+
+      expect(all).toBe(1)
+      expect(byRace.ghoul).toBe(1)
+      expect(byRace.human).toBe(0)
+    })
+  })
+
   describe('getDwellerStatus', () => {
     it('should return status for existing dweller', () => {
       const store = useDwellerFilterStore()

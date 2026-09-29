@@ -344,6 +344,29 @@ describe('Rarity counts', () => {
   })
 })
 
+describe('Race counts', () => {
+  const chipByLabel = (wrapper: ReturnType<typeof mount>, label: string) =>
+    wrapper.findAll('.filter-chip').find((chip) => chip.text().includes(label))!
+
+  it('shows a count per race and a total', async () => {
+    const store = useDwellerStore().filter
+    store.allDwellers = [
+      { id: '1', status: 'idle', visual_attributes: { race: 'ghoul' } },
+      { id: '2', status: 'idle', visual_attributes: { race: 'ghoul' } },
+      { id: '3', status: 'working', visual_attributes: { race: 'human' } },
+    ] as never
+
+    const wrapper = mount(DwellerFilterPanel, { props: { showIdentityFilters: true } })
+    await flushPromises()
+
+    expect(chipByLabel(wrapper, 'Ghoul').find('.filter-count').text()).toBe('2')
+    expect(chipByLabel(wrapper, 'Human').find('.filter-count').text()).toBe('1')
+    expect(chipByLabel(wrapper, 'All Races').find('.filter-count').text()).toBe('3')
+
+    wrapper.unmount()
+  })
+})
+
 describe('Active filter summary', () => {
   it('stays hidden while no filters are active', () => {
     const wrapper = mount(DwellerFilterPanel, { props: { showActiveFilterSummary: true } })

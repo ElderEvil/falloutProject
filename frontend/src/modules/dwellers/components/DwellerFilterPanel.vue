@@ -65,7 +65,7 @@ const raceSelectOptions = computed(() => [
   { value: 'all', label: 'All Races', icon: 'mdi:account-multiple' },
   ...races.value.map((race) => {
     const config = getRaceConfig(race)
-    return { value: race, label: config.label, icon: config.icon }
+    return { value: race, label: config.label, icon: config.icon, accent: config.color }
   }),
 ])
 
@@ -97,7 +97,7 @@ function dropStrandedFaction() {
 watch(() => dwellerStore.filterRace, dropStrandedFaction)
 
 const statusOptions = [
-  { value: 'all', label: 'All', icon: 'mdi:account-multiple' },
+  { value: 'all', label: 'All Statuses', icon: 'mdi:account-multiple' },
   { value: 'idle', label: 'Idle', icon: 'mdi:coffee-outline' },
   { value: 'resting', label: 'Socializing', icon: 'mdi:heart-outline' },
   { value: 'working', label: 'Working', icon: 'mdi:hammer-wrench' },
@@ -222,6 +222,21 @@ const rarityCounts = computed<Record<string, number> | undefined>(() => {
   return { all, ...byRarity }
 })
 
+/** Race chips preview their own result set, following every filter except race itself. */
+const raceCounts = computed<Record<string, number> | undefined>(() => {
+  if (!showIdentityFilters || dwellerStore.allDwellers.length === 0) return undefined
+
+  const { all, byRace } = dwellerStore.countByRace({
+    status: showStatusFilter ? dwellerStore.filterStatus : 'all',
+    ageGroup: showAgeFilter ? dwellerStore.filterAgeGroup : 'all',
+    gender: showGenderFilter ? dwellerStore.filterGender : 'all',
+    rarity: showRarityFilter ? dwellerStore.filterRarity : 'all',
+    faction: showIdentityFilters ? dwellerStore.filterFaction : 'all',
+  })
+
+  return { all, ...byRace }
+})
+
 function labelFor(options: readonly { value: string; label: string }[], value: string): string {
   return options.find((option) => option.value === value)?.label ?? value
 }
@@ -318,6 +333,7 @@ function clearFilters(): void {
         label="Filter by Race"
         icon="mdi:account-star"
         :options="raceSelectOptions"
+        :counts="raceCounts"
         :model-value="currentFilterRace"
         @update:model-value="currentFilterRace = $event"
       />

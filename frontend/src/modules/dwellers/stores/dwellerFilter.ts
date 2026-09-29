@@ -2,7 +2,7 @@ import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
-import { GENDER_CONFIG_MAP, RARITY_CONFIG_MAP } from '@/modules/dwellers/models/dweller'
+import { GENDER_CONFIG_MAP, RACE_CONFIG_MAP, RARITY_CONFIG_MAP } from '@/modules/dwellers/models/dweller'
 import {
   DEFAULT_TABLE_COLUMNS,
   DWELLER_TABLE_PRESETS,
@@ -65,6 +65,13 @@ export interface DwellerRarityCounts {
   all: number
   /** Matched dwellers per rarity; every known rarity key is present and zero-initialized. */
   byRarity: Record<string, number>
+}
+
+export interface DwellerRaceCounts {
+  /** Matched dwellers across every race. */
+  all: number
+  /** Matched dwellers per race; every known race key is present and zero-initialized. */
+  byRace: Record<string, number>
 }
 
 export const DWELLER_SORT_KEYS = [
@@ -392,6 +399,38 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     return { all, byRarity }
   }
 
+  /**
+   * Count every race under the given non-race filters, from the unfiltered
+   * allDwellers collection. Mirrors countByStatus so a chip previews its own result.
+   */
+  function countByRace(filters: {
+    status: DwellerStatus | 'all'
+    ageGroup: DwellerAgeGroup
+    gender: string
+    rarity: string
+    faction: string
+  }): DwellerRaceCounts {
+    const byRace: Record<string, number> = Object.fromEntries(
+      Object.keys(RACE_CONFIG_MAP).map((race) => [race, 0])
+    )
+    const factionActive = featureFlags.factionMechanics && filters.faction !== 'all'
+    let all = 0
+
+    for (const dweller of allDwellers.value) {
+      if (filters.status !== 'all' && dweller.status !== filters.status) continue
+      if (!matchesAgeGroup(dweller, filters.ageGroup)) continue
+      if (filters.gender !== 'all' && dweller.gender !== filters.gender) continue
+      if (filters.rarity !== 'all' && dweller.rarity !== filters.rarity) continue
+      if (factionActive && dweller.visual_attributes?.faction !== filters.faction) continue
+
+      const race = dweller.visual_attributes?.race ?? 'unknown'
+      byRace[race] = (byRace[race] ?? 0) + 1
+      all += 1
+    }
+
+    return { all, byRace }
+  }
+
   async function fetchDwellersByVault(
     vaultId: string,
     token: string,
@@ -538,6 +577,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     countByStatus,
     countByGender,
     countByRarity,
+    countByRace,
     fetchDwellersByVault,
     fetchWithCurrentFilters,
     fetchAllDwellers,

@@ -455,3 +455,28 @@ async def test_auto_stimpak_gate_uses_full_max_health(
 
     assert exploration.stimpaks == 0
     assert dweller.health == 70  # 45 + 40, capped at effective_max_health (100 - 30)
+
+
+@pytest.mark.asyncio
+async def test_auto_stimpak_skips_at_radiation_capped_health(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """A dweller at the radiation-reduced ceiling must not spend a Stimpak on 0 healing."""
+    dweller.health = 40
+    dweller.max_health = 100
+    dweller.radiation = 60
+    async_session.add(dweller)
+    await async_session.flush()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4, stimpaks=1)
+    item = ItemSchema(name="Wonderglue", rarity="Common", value=5)
+    loot_event = LootEventSchema(
+        description="Found some Wonderglue", loot=LootSchema(item=item, item_type="junk", caps=0)
+    )
+    await _process_loot_event(async_session, exploration, loot_event)
+
+    assert exploration.stimpaks == 1
+    assert dweller.health == 40
+    assert not [e for e in exploration.events if e["type"] == "item_use"]

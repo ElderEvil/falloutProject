@@ -11,7 +11,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useExpeditionSiteStore } from '@/modules/exploration/stores/expeditionSite'
 import ExpeditionSiteModal from '@/modules/exploration/components/ExpeditionSiteModal.vue'
-import type { SiteRoomView } from '@/modules/exploration/api/expeditionSite'
+import type { AvailableSiteView, SiteRoomView } from '@/modules/exploration/api/expeditionSite'
 
 // Mock Iconify
 vi.mock('@iconify/vue', () => ({
@@ -542,6 +542,44 @@ describe('ExplorationDetailView', () => {
       await flushPromises()
 
       expect(wrapper.findComponent(ExpeditionSiteModal).props('show')).toBe(false)
+      wrapper.unmount()
+    })
+
+    it('does not let a stale site-options response disable the new explorer CTA', async () => {
+      const siteStore = useExpeditionSiteStore()
+      let resolveFirstSites!: (sites: AvailableSiteView[]) => void
+      // First call (expl-1) stays pending; the second (expl-2) rejects.
+      vi.spyOn(siteStore, 'fetchAvailableSites')
+        .mockImplementationOnce(
+          () =>
+            new Promise<AvailableSiteView[]>((resolve) => {
+              resolveFirstSites = resolve
+            })
+        )
+        .mockRejectedValueOnce(new Error('network failure'))
+      vi.spyOn(explorationStore, 'fetchExplorationDetails').mockImplementation(
+        async (id: string) => ({
+          ...mockExploration,
+          id,
+        })
+      )
+      explorationStore.activeExplorations['expl-2'] = { ...mockExploration, id: 'expl-2' }
+
+      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
+      await flushPromises()
+      await router.push('/vault/test-vault/exploration/expl-2')
+      await flushPromises()
+
+      // The stale expl-1 response lands after the switch; it must not mark the
+      // current explorer's options as loaded (which would disable the CTA).
+      resolveFirstSites([])
+      await flushPromises()
+
+      const siteButton = wrapper
+        .findAll('button')
+        .find((b) => b.text().includes('Expedition site'))
+      expect(siteButton?.attributes('disabled')).toBeUndefined()
+      expect((wrapper.vm as any).siteOptionsLoaded).toBe(false)
       wrapper.unmount()
     })
   })

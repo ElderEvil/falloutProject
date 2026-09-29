@@ -173,17 +173,18 @@ async def auto_use_supplies(db_session: AsyncSession, exploration: Exploration) 
     if exploration.stimpaks > 0 and dweller_obj.health < max_health * 0.5:
         healing = max(1, int(max_health * game_config.health.stimpack_heal_percent))
         actual_healing = min(dweller_obj.effective_max_health, dweller_obj.health + healing) - dweller_obj.health
-        dweller_obj.health += actual_healing
-        exploration.stimpaks -= 1
-        records.append(
-            exploration.add_event(
-                event_type=ExplorationEventType.ITEM_USE,
-                description=f"Dweller used a Stimpak. Healed {actual_healing} HP. {exploration.stimpaks} left.",
-                health_restored=actual_healing,
+        if actual_healing > 0:
+            dweller_obj.health += actual_healing
+            exploration.stimpaks -= 1
+            records.append(
+                exploration.add_event(
+                    event_type=ExplorationEventType.ITEM_USE,
+                    description=f"Dweller used a Stimpak. Healed {actual_healing} HP. {exploration.stimpaks} left.",
+                    health_restored=actual_healing,
+                )
             )
-        )
-        db_session.add(dweller_obj)
-        db_session.add(exploration)
+            db_session.add(dweller_obj)
+            db_session.add(exploration)
     return records
 
 

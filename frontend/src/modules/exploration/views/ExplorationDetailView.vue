@@ -186,10 +186,11 @@ const canOpenSite = computed(
 )
 
 const loadSiteOptions = async () => {
-  if (!explorationId.value || !authStore.token || !isActiveExploration.value) return
+  const requestedId = explorationId.value
+  if (!requestedId || !authStore.token || !isActiveExploration.value) return
   try {
-    await siteStore.fetchAvailableSites(explorationId.value)
-    siteOptionsLoaded.value = true
+    await siteStore.fetchAvailableSites(requestedId)
+    if (explorationId.value === requestedId) siteOptionsLoaded.value = true
   } catch {
     // Leave the CTA enabled so opening the modal can surface the error.
   }

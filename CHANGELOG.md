@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.160.0 (2026-09-29)
+
+### Features
+
+* **exploration:** unify wasteland explorer cards and fix supply use ([#834](https://github.com/ElderEvil/falloutProject/issues/834)) e45e012
+
 ## 2.159.0 (2026-09-29)
 
 ### Features

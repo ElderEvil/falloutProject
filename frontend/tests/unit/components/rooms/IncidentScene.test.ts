@@ -121,9 +121,48 @@ describe('IncidentScene', () => {
     expect(wrapper.find('.hazard-icon').exists()).toBe(true)
   })
 
+  it('shows roster responders even when their stored room is stale', () => {
+    const wrapper = mountScene({
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice', room_id: 'room-9' })],
+      team: [
+        {
+          id: 't1',
+          team_id: 'team-1',
+          dweller_id: 'd1',
+          slot_number: 1,
+          status: 'dispatched',
+          created_at: null,
+          updated_at: null,
+        },
+      ],
+    })
+
+    expect(wrapper.text()).toContain('Alice')
+    expect(wrapper.text()).toContain('DISPATCHED')
+  })
+
+  it('prefers an empty roster over room occupants', () => {
+    const wrapper = mountScene({
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice', room_id: 'room-1' })],
+      team: [],
+    })
+
+    expect(wrapper.text()).toContain('No responders assigned')
+    expect(wrapper.text()).not.toContain('Alice')
+  })
+
   it('stops the flame animation under prefers-reduced-motion', () => {
     expect(sceneSource).toMatch(
       /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\.flame-outer,\s*\.flame-inner \{\s*animation: none;/
     )
+  })
+
+  it('shows the level of each combatant alongside their power', () => {
+    const wrapper = mountScene({
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice', level: 12 })],
+    })
+
+    expect(wrapper.text()).toContain('POW 42')
+    expect(wrapper.text()).toContain('Lv 12')
   })
 })

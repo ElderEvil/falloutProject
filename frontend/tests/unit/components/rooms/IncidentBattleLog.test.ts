@@ -69,6 +69,16 @@ describe('IncidentBattleLog', () => {
     expect(wrapper.text()).not.toContain('4.5200000000000005')
   })
 
+  it('labels each entry with its event kind', () => {
+    const wrapper = mountLog([
+      event({ id: 'e1', kind: 'responders_dispatched', message: 'Hazard team dispatched.' }),
+      event({ id: 'e2', kind: 'spread', message: 'Fire spreads.' }),
+    ])
+
+    expect(wrapper.text()).toContain('DISPATCHED')
+    expect(wrapper.text()).toContain('SPREAD')
+  })
+
   it('does not move focus when new rounds arrive', async () => {
     const wrapper = mountLog([event({ id: 'e1' })])
     const log = wrapper.find('[aria-label="Battle log"]').element
@@ -117,5 +127,59 @@ describe('IncidentBattleLog', () => {
 
     expect(log.scrollTop).toBe(0)
     expect(wrapper.text()).toContain('New rounds below')
+  })
+
+  it('collapses consecutive identical entries into one row with a count badge', () => {
+    const wrapper = mountLog([
+      event({ id: 'e1', kind: 'round', message: 'Trade fire.' }),
+      event({ id: 'e2', kind: 'round', message: 'Trade fire.' }),
+      event({ id: 'e3', kind: 'round', message: 'Trade fire.' }),
+    ])
+
+    const items = wrapper.findAll('li')
+    expect(items).toHaveLength(1)
+    expect(items[0].text()).toContain('Trade fire.')
+    expect(items[0].text()).toContain('×3')
+  })
+
+  it('keeps non-consecutive identical entries as separate rows', () => {
+    const wrapper = mountLog([
+      event({ id: 'e1', kind: 'round', message: 'Trade fire.' }),
+      event({ id: 'e2', kind: 'spread', message: 'Fire spreads.' }),
+      event({ id: 'e3', kind: 'round', message: 'Trade fire.' }),
+    ])
+
+    expect(wrapper.findAll('li')).toHaveLength(3)
+  })
+
+  it('omits the count badge for a single entry', () => {
+    const wrapper = mountLog([event({ id: 'e1', kind: 'round', message: 'Trade fire.' })])
+
+    expect(wrapper.text()).not.toContain('×')
+  })
+
+  it('keeps the first delta when collapsing identical entries', () => {
+    const wrapper = mountLog([
+      event({ id: 'e1', kind: 'round', message: 'Trade fire.', data: { damage_to_threat: 12 } }),
+      event({ id: 'e2', kind: 'round', message: 'Trade fire.', data: { damage_to_threat: 8 } }),
+    ])
+
+    expect(wrapper.text()).toContain('-12 threat')
+  })
+
+  it('lists unavailable responders by first name', () => {
+    const wrapper = mountLog([
+      event({ id: 'e1', kind: 'round', message: 'Trade fire.', data: { skipped: ['Alice', 'Bob'] } }),
+    ])
+
+    expect(wrapper.text()).toContain('Unavailable: Alice, Bob')
+  })
+
+  it('omits the unavailable suffix when nobody was skipped', () => {
+    const wrapper = mountLog([
+      event({ id: 'e1', kind: 'round', message: 'Trade fire.', data: { skipped: [] } }),
+    ])
+
+    expect(wrapper.text()).not.toContain('Unavailable')
   })
 })

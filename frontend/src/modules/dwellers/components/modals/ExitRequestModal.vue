@@ -95,6 +95,7 @@ const close = () => {
             <Button variant="secondary" :disabled="isDeciding" @click="decide(false)">
               <Icon icon="mdi:hand-back-right-outline" />
               Refuse — vault −10
+              <Icon icon="mdi:emoticon-sad-outline" />
             </Button>
             <Button variant="destructive" :disabled="isDeciding" @click="decide(true)">
               <Icon icon="mdi:exit-run" />

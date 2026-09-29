@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useLocalStorage, useNow } from '@vueuse/core'
+import { useIntervalFn, useLocalStorage, useNow } from '@vueuse/core'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
@@ -29,6 +29,9 @@ const refresh = async () => {
 
 onMounted(refresh)
 watch(() => vaultStore.activeVaultId, refresh)
+// The ask is raised server-side on a tick, so the open session has to re-check;
+// otherwise the modal only appears after a reload.
+useIntervalFn(refresh, 60_000)
 
 const decide = async (grant: boolean) => {
   const request = current.value

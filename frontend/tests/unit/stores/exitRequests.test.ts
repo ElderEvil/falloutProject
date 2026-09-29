@@ -168,6 +168,30 @@ describe('ExitRequestModal', () => {
     expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
   })
 
+  it('re-checks for a raised ask on an interval', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+
+      const wrapper = mount(ExitRequestModal, {
+        global: {
+          plugins: [createPinia()],
+          stubs: { Teleport: { template: '<div class="mock-modal"><slot /></div>' } },
+        },
+      })
+      await flushPromises()
+      vi.mocked(axios.get).mockClear()
+
+      vi.advanceTimersByTime(60_000)
+      await flushPromises()
+
+      expect(axios.get).toHaveBeenCalledWith(expect.stringContaining('/exit-requests'))
+      wrapper.unmount()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('opens for a pending request and closes without deciding when dismissed', async () => {
     vi.mocked(axios.get).mockResolvedValue({
       data: [pendingRequest],

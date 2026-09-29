@@ -168,6 +168,10 @@ watch(currentSseEvent, (evt) => {
       locationName ? `${locationName} is ready to be cleared again` : notificationData.message
     )
   }
+  // A recipe unlock is asynchronous (scrapping happens elsewhere); announce it (progression red line).
+  if (notificationData.notification_type === 'recipe_unlocked') {
+    toast.success(notificationData.message)
+  }
 })
 
 const fetchNotifications = async () => {

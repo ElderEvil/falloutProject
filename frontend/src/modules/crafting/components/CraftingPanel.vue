@@ -104,6 +104,8 @@ const filteredRecipes = computed(() =>
   })
 )
 
+const isLocked = (recipe: CraftingRecipe) => recipe.unlocked === false
+
 function formatDuration(seconds: number): string {
   if (seconds >= 3600) {
     const hours = Math.floor(seconds / 3600)
@@ -336,6 +338,7 @@ watch(() => [props.vaultId, props.itemType], loadAll)
           v-for="recipe in filteredRecipes"
           :key="recipe.name"
           class="flex items-center gap-3 rounded-sm border border-theme-primary/20 bg-surface-sunken/60 px-3 py-2"
+          :class="{ 'locked-recipe': isLocked(recipe) }"
         >
           <!--
             TooltipProvider delayDuration (200ms) preserves the previous tooltip
@@ -345,6 +348,11 @@ watch(() => [props.vaultId, props.itemType], loadAll)
           <TooltipProvider :delay-duration="200">
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">
+                <Icon
+                  v-if="isLocked(recipe)"
+                  icon="mdi:lock"
+                  class="h-3.5 w-3.5 shrink-0 text-warning"
+                />
                 <span class="truncate text-sm font-bold" :class="getRarityTextClass(recipe.rarity)">
                   {{ recipe.name }}
                 </span>
@@ -384,6 +392,13 @@ watch(() => [props.vaultId, props.itemType], loadAll)
                   <Icon icon="mdi:clock-outline" class="h-3.5 w-3.5 shrink-0" />
                   {{ formatDuration(recipe.duration_seconds) }}
                 </span>
+                <span
+                  v-if="isLocked(recipe) && recipe.unlock_hint"
+                  class="flex items-center gap-1 text-warning"
+                >
+                  <Icon icon="mdi:hammer-wrench" class="h-3.5 w-3.5 shrink-0" />
+                  {{ recipe.unlock_hint }}
+                </span>
               </div>
             </div>
             <Tooltip>
@@ -392,7 +407,7 @@ watch(() => [props.vaultId, props.itemType], loadAll)
                   variant="default"
                   size="sm"
                   class="shrink-0 border-2 border-theme-primary font-mono"
-                  :disabled="!recipe.can_craft || busyKey !== null"
+                  :disabled="isLocked(recipe) || !recipe.can_craft || busyKey !== null"
                   @click="handleStart(recipe)"
                 >
                   <Icon
@@ -404,7 +419,11 @@ watch(() => [props.vaultId, props.itemType], loadAll)
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{{
-                recipe.can_craft ? `Queue ${recipe.name}` : materialsLabel(recipe)
+                isLocked(recipe)
+                  ? (recipe.unlock_hint ?? 'Recipe locked')
+                  : recipe.can_craft
+                    ? `Queue ${recipe.name}`
+                    : materialsLabel(recipe)
               }}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -430,5 +449,10 @@ watch(() => [props.vaultId, props.itemType], loadAll)
 
 .queue-ready {
   border-color: color-mix(in srgb, var(--color-theme-accent) 60%, transparent);
+}
+
+.locked-recipe {
+  opacity: 0.65;
+  border-style: dashed;
 }
 </style>

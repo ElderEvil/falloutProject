@@ -59,7 +59,7 @@ const close = () => {
     "
   >
     <DialogContent
-      class="flex max-h-[65vh] w-full max-w-md flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-md"
+      class="flex max-h-[65vh] w-full max-w-xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-xl"
     >
       <DialogHeader
         class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
@@ -83,18 +83,21 @@ const close = () => {
 
           <p class="description">
             They have asked to go outside. Refusing keeps them here: the whole vault loses 10
-            happiness, and {{ current.dweller_name }} loses 20. They will not ask again for a day.
-            Letting them go means they are not coming back.
+            happiness. They will not ask again for a day. Letting them go means they are not coming
+            back.
           </p>
 
           <div class="modal-actions">
             <Button variant="secondary" :disabled="isDeciding" @click="close">
+              <Icon icon="mdi:clock-outline" />
               Decide Later
             </Button>
             <Button variant="secondary" :disabled="isDeciding" @click="decide(false)">
+              <Icon icon="mdi:hand-back-right-outline" />
               Refuse — vault −10
             </Button>
             <Button variant="destructive" :disabled="isDeciding" @click="decide(true)">
+              <Icon icon="mdi:exit-run" />
               Let Them Go
             </Button>
           </div>
@@ -151,6 +154,7 @@ const close = () => {
 
 .modal-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.75rem;
 }

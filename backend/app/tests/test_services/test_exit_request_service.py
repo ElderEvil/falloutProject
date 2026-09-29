@@ -125,10 +125,9 @@ async def test_refuse_exit_resolves_the_request_and_costs_the_whole_vault(
     refused = await exit_request_service.refuse_exit(async_session, vault, dwellers[0].id)
 
     vault_penalty = game_config.exit_request.vault_refusal_happiness_penalty
-    personal_penalty = game_config.exit_request.refusal_happiness_penalty
     assert refused.exit_requested_at is None
     assert await exit_request_service.list_pending(async_session, vault.id) == []
-    assert refused.happiness == max(10, max(10, starts[dwellers[0].id] - vault_penalty) - personal_penalty)
+    assert refused.happiness == max(10, starts[dwellers[0].id] - vault_penalty)
     for other in dwellers[1:]:
         await async_session.refresh(other)
         assert other.happiness == max(10, starts[other.id] - vault_penalty)

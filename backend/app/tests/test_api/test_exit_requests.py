@@ -115,11 +115,7 @@ async def test_refuse_exit_resolves_the_request_and_costs_the_vault(
     assert response.status_code == 200
     body = response.json()
     assert body["granted"] is False
-    assert body["happiness"] == (
-        80
-        - game_config.exit_request.vault_refusal_happiness_penalty
-        - game_config.exit_request.refusal_happiness_penalty
-    )
+    assert body["happiness"] == 80 - game_config.exit_request.vault_refusal_happiness_penalty
 
     await async_session.refresh(dwelling)
     assert dwelling.exit_requested_at is None

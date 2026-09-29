@@ -35,8 +35,8 @@ is real, not a rerollable button:
   (`request_exit`) enforces the same cap, so it cannot slip a second ask in.
 - **Refusal is final for that ask and costs the vault** — refusing answers the request
   (`exit_requested_at` cleared) and takes `EXIT_VAULT_REFUSAL_HAPPINESS_PENALTY` (10) from every living
-  dweller, plus `EXIT_REFUSAL_HAPPINESS_PENALTY` (10) more from the refused dweller. It must never leave
-  the request standing, or the action becomes repeatable for free.
+  dweller (the refused dweller included). It must never leave the request standing, or the action becomes
+  repeatable for free.
 - **Granting** stays one-way: permanent death by `EXILE` — the entry point for the wasteland-pool idea in
   issue #831.
 

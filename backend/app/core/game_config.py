@@ -1073,12 +1073,6 @@ class ExitConfig(BaseSettings):
         le=100,
         description="Happiness at or below which a dweller starts asking to leave",
     )
-    refusal_happiness_penalty: int = Field(
-        default=10,
-        ge=0,
-        le=100,
-        description="Happiness the asking dweller loses when the vault refuses",
-    )
     min_population: int = Field(
         default=2,
         ge=1,

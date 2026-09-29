@@ -92,7 +92,6 @@ class ExitRequestService:
         for member in await dweller_crud.get_living_in_vault(db_session, vault.id):
             member.happiness = max(10, member.happiness - vault_penalty)
 
-        dweller.happiness = max(10, dweller.happiness - game_config.exit_request.refusal_happiness_penalty)
         dweller.exit_requested_at = None
         db_session.add(dweller)
         await db_session.commit()

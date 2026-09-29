@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.157.0 (2026-09-29)
+
+### Features
+
+* **dwellers:** add a server-side gender filter to the roster ([#826](https://github.com/ElderEvil/falloutProject/issues/826)) 32ab705
+
 ## 2.156.0 (2026-09-28)
 
 ### Features

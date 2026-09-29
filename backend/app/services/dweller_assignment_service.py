@@ -71,6 +71,11 @@ class DwellerAssignmentService:
         stat_name = ABILITY_TO_STAT_MAP[ability]
         return sorted(dwellers, key=lambda d: getattr(d, stat_name), reverse=reverse)
 
+    @staticmethod
+    def _total_special(dweller: Dweller) -> int:
+        """Sum of all 7 SPECIAL stats (crafting rooms have no fixed ability)."""
+        return sum(int(getattr(dweller, name) or 0) for name in ABILITY_TO_STAT_MAP.values())
+
     async def _assign_dweller_to_room(
         self,
         dweller: Dweller,
@@ -196,6 +201,41 @@ class DwellerAssignmentService:
             )
 
         return list(unassigned_dwellers)
+
+    async def _assign_crafting_rooms(
+        self,
+        db_session: AsyncSession,
+        rooms: list[Room],
+        unassigned_dwellers: Sequence[Dweller],
+        assignments: list[dict[str, str]],
+        assigned_dweller_ids: set,
+    ) -> list[Dweller]:
+        """Fill crafting rooms with unassigned adults ranked by total SPECIAL (highest first).
+
+        Crafting rooms have no fixed SPECIAL ability (it varies per recipe), so the
+        total SPECIAL sum is the ranking heuristic. Returns the still-unassigned dwellers.
+        """
+        if not rooms or not unassigned_dwellers:
+            return list(unassigned_dwellers)
+
+        ranked = sorted(
+            (d for d in unassigned_dwellers if d.id not in assigned_dweller_ids),
+            key=self._total_special,
+            reverse=True,
+        )
+
+        for room in rooms:
+            if not ranked:
+                break
+            available_slots = await self._get_available_slots(room, db_session)
+            if available_slots <= 0:
+                continue
+            for dweller in ranked[:available_slots]:
+                await self._persist_room_assignment(db_session, dweller.id, room)
+                self._record_assignment(assignments, assigned_dweller_ids, dweller.id, room)
+            ranked = ranked[available_slots:]
+
+        return [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids]
 
     async def _assign_room_apprentices(
         self,
@@ -362,6 +402,20 @@ class DwellerAssignmentService:
         )
         return {"assigned_count": len(assignments), "assignments": assignments}
 
+    async def auto_assign_crafting_rooms(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        age_group: AgeGroupEnum | None = None,
+    ) -> dict[str, int | list[dict[str, str]]]:
+        """Fill crafting rooms with unassigned adults ranked by total SPECIAL (highest first)."""
+        crafting_rooms = await crud.room.get_by_category(db_session, vault_id, RoomTypeEnum.CRAFTING)
+        unassigned_dwellers = await crud.dweller.get_unassigned_adults(db_session, vault_id, age_group)
+        assignments: list[dict[str, str]] = []
+
+        await self._assign_crafting_rooms(db_session, crafting_rooms, unassigned_dwellers, assignments, set())
+        return {"assigned_count": len(assignments), "assignments": assignments}
+
     async def auto_assign_all_rooms(
         self,
         db_session: AsyncSession,
@@ -369,10 +423,12 @@ class DwellerAssignmentService:
         age_group: AgeGroupEnum | None = None,
     ) -> dict[str, int | list[dict[str, str]]]:
         """Intelligently assign unassigned dwellers to ALL room types based on SPECIAL stats.
-        Priority: Production -> Med/Science -> Radio -> Training.
+        Priority: Production -> Med/Science -> Radio -> Training -> Crafting.
         """
         all_rooms = await crud.room.get_by_categories(
-            db_session, vault_id, [RoomTypeEnum.PRODUCTION, RoomTypeEnum.MISC, RoomTypeEnum.TRAINING]
+            db_session,
+            vault_id,
+            [RoomTypeEnum.PRODUCTION, RoomTypeEnum.MISC, RoomTypeEnum.TRAINING, RoomTypeEnum.CRAFTING],
         )
 
         production_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.PRODUCTION]
@@ -381,6 +437,7 @@ class DwellerAssignmentService:
         ]
         radio_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.MISC and r.ability == SPECIALEnum.CHARISMA]
         training_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.TRAINING]
+        crafting_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.CRAFTING]
 
         unassigned_dwellers = await crud.dweller.get_unassigned_adults(db_session, vault_id, age_group)
 
@@ -402,6 +459,10 @@ class DwellerAssignmentService:
                 assigned_dweller_ids,
                 prefer_lowest_stat,
             )
+
+        unassigned_dwellers = await self._assign_crafting_rooms(
+            db_session, crafting_rooms, unassigned_dwellers, assignments, assigned_dweller_ids
+        )
 
         await self._assign_room_apprentices(
             db_session, vault_id, production_rooms, assignments, assigned_dweller_ids, age_group

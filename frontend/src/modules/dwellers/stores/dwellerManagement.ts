@@ -316,7 +316,11 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
 
   /** Shared auto-assign request: POST with optional filters, refetch, toast. */
   async function autoAssignDwellers(
-    endpoint: 'auto-assign-production' | 'auto-assign-training' | 'auto-assign-all',
+    endpoint:
+      | 'auto-assign-production'
+      | 'auto-assign-training'
+      | 'auto-assign-all'
+      | 'auto-assign-crafting',
     vaultId: string,
     token: string,
     filters: { ageGroup?: AutoAssignAgeGroup } | undefined,
@@ -377,6 +381,21 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     )
   }
 
+  function autoAssignCraftingDwellers(
+    vaultId: string,
+    token: string,
+    filters?: { ageGroup?: AutoAssignAgeGroup }
+  ) {
+    return autoAssignDwellers(
+      'auto-assign-crafting',
+      vaultId,
+      token,
+      filters,
+      'to crafting rooms!',
+      'Failed to auto-assign dwellers to crafting rooms'
+    )
+  }
+
   function autoAssignAllDwellers(
     vaultId: string,
     token: string,
@@ -425,6 +444,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     unassignAllDwellers,
     autoAssignProductionDwellers,
     autoAssignTrainingDwellers,
+    autoAssignCraftingDwellers,
     autoAssignAllDwellers,
     lineage,
     isLoadingLineage,

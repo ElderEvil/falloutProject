@@ -96,6 +96,7 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
               <ExplorationStatusBadges
                 :exploration="exploration"
                 :dweller="getDwellerForBadges(exploration.dweller_id)"
+                compact
               />
             </div>
             <span class="flex shrink-0 items-center gap-1">

@@ -16,7 +16,6 @@ import { useExplorationStore } from '../stores/exploration'
 import { useExpeditionSiteStore } from '../stores/expeditionSite'
 import { useExplorationProgress } from '../composables/useExplorationProgress'
 import { useExplorationFinish } from '../composables/useExplorationFinish'
-import { useExplorationHealthJourney } from '../composables/useExplorationHealthJourney'
 import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
 import ExpeditionSiteModal from '../components/ExpeditionSiteModal.vue'
 import ExplorerNavbar from '../components/ExplorerNavbar.vue'
@@ -143,16 +142,6 @@ const timeRemainingSeconds = computed(() => {
 const weaponName = computed(() => detailedDweller.value?.weapon?.name ?? null)
 const outfitName = computed(() => detailedDweller.value?.outfit?.name ?? null)
 
-const {
-  healthJourney,
-  totalDamage,
-  totalHealed,
-  healthTrendPoints,
-  radiationJourney,
-  totalRadiationRemoved,
-  radiationTrendPoints,
-} = useExplorationHealthJourney(() => exploration.value?.events)
-
 // Actions
 const handleCompleteExploration = () => {
   if (!exploration.value) return
@@ -188,6 +177,30 @@ const refreshExploration = async () => {
 
 const isActiveExploration = computed(() => exploration.value?.status === 'active')
 
+const siteOptionsLoaded = ref(false)
+
+// Enabled until we have a confirmed empty list; a failed load or an open run
+// must never trap the player behind a disabled button.
+const canOpenSite = computed(
+  () => !siteOptionsLoaded.value || siteStore.availableSites.length > 0 || !!siteStore.room
+)
+
+const loadSiteOptions = async () => {
+  if (!explorationId.value || !authStore.token || !isActiveExploration.value) return
+  try {
+    await siteStore.fetchAvailableSites(explorationId.value)
+    siteOptionsLoaded.value = true
+  } catch {
+    // Leave the CTA enabled so opening the modal can surface the error.
+  }
+}
+
+const handleSiteUpdated = async () => {
+  siteOptionsLoaded.value = false
+  await refreshExploration()
+  await loadSiteOptions()
+}
+
 // Reconnect-safe: if a site run is already open server-side, surface the modal
 // on mount so the player can pick up where they left off. A null room (no open
 // run) is a normal answer, not an error.
@@ -220,6 +233,7 @@ onMounted(async () => {
     explorationStore.startSseSubscription(vaultId.value, authStore.token)
 
     await reconnectToSite()
+    await loadSiteOptions()
   }
 })
 
@@ -234,12 +248,14 @@ watch(explorationId, async (id, previousId) => {
   if (!id || id === previousId) return
   siteStore.reset()
   showSiteModal.value = false
+  siteOptionsLoaded.value = false
   if (!authStore.token) return
   await explorationStore.fetchExplorationDetails(id, authStore.token)
   if (exploration.value) {
     await dwellerStore.fetchDwellerDetails(exploration.value.dweller_id, authStore.token)
   }
   await reconnectToSite()
+  await loadSiteOptions()
 })
 
 // Surface rewards when the game loop auto-completes an exploration server-side
@@ -306,81 +322,19 @@ watch(isReady, (ready) => {
               :dweller="detailedDweller ?? dweller"
             />
 
-            <ExplorerStatsGrid v-if="exploration" :exploration="exploration" />
-
             <!-- Expedition site entry CTA (active explorations only) -->
             <Button
               v-if="isActiveExploration"
-              class="mt-4 w-full"
+              class="mb-4 w-full"
               size="lg"
+              :disabled="!canOpenSite"
               @click="showSiteModal = true"
             >
               <Icon icon="mdi:radio-tower" class="h-5 w-5" />
               Expedition site
             </Button>
 
-            <!-- Vitals journey: cumulative health/radiation change (not an absolute history). -->
-            <div
-              v-if="healthJourney.length > 0 || radiationJourney.length > 0"
-              class="health-trend mt-4 mb-4 flex flex-wrap items-center gap-4 rounded-lg border-2 border-theme-primary/40 bg-terminal-background p-3 text-sm"
-            >
-              <template v-if="healthJourney.length > 0">
-                <span class="flex items-center gap-1.5">
-                  <Icon icon="mdi:heart-broken" class="h-5 w-5 text-danger" />
-                  <span class="font-bold text-danger">-{{ totalDamage }}</span>
-                  <span class="text-theme-primary/70">damage</span>
-                </span>
-                <span class="flex items-center gap-1.5">
-                  <Icon icon="mdi:heart-plus" class="h-5 w-5 text-theme-primary" />
-                  <span class="font-bold text-theme-primary">+{{ totalHealed }}</span>
-                  <span class="text-theme-primary/70">healed</span>
-                </span>
-                <span class="text-theme-primary/50">over {{ healthJourney.length }} events</span>
-              </template>
-              <span v-if="totalRadiationRemoved > 0" class="flex items-center gap-1.5">
-                <Icon icon="mdi:radioactive" class="h-5 w-5 text-warning" />
-                <span class="font-bold text-warning">-{{ totalRadiationRemoved }}</span>
-                <span class="text-theme-primary/70">rad</span>
-              </span>
-              <div class="ml-auto flex gap-2">
-                <div
-                  v-if="healthJourney.length > 0"
-                  class="health-sparkline-frame rounded border border-theme-primary/30 bg-surface-sunken px-2 py-1"
-                >
-                  <svg
-                    class="h-7 w-[240px] max-w-full overflow-visible"
-                    viewBox="0 0 120 28"
-                    role="img"
-                    aria-label="Cumulative health change during this expedition"
-                  >
-                    <polyline
-                      :points="healthTrendPoints"
-                      fill="none"
-                      stroke="var(--color-theme-accent)"
-                      stroke-width="2"
-                    />
-                  </svg>
-                </div>
-                <div
-                  v-if="radiationJourney.length > 0"
-                  class="radiation-sparkline-frame rounded border border-theme-primary/30 bg-surface-sunken px-2 py-1"
-                >
-                  <svg
-                    class="h-7 w-[240px] max-w-full overflow-visible"
-                    viewBox="0 0 120 28"
-                    role="img"
-                    aria-label="Cumulative radiation change during this expedition"
-                  >
-                    <polyline
-                      :points="radiationTrendPoints"
-                      fill="none"
-                      stroke="var(--color-warning)"
-                      stroke-width="2"
-                    />
-                  </svg>
-                </div>
-              </div>
-            </div>
+            <ExplorerStatsGrid v-if="exploration" :exploration="exploration" />
 
             <!-- Loot found mid-journey -->
             <ExplorationLootList :items="exploration.loot_collected" />
@@ -437,7 +391,7 @@ watch(isReady, (ready) => {
             :time-remaining-seconds="timeRemainingSeconds"
             :exploration-active="isActiveExploration"
             @close="showSiteModal = false"
-            @updated="refreshExploration"
+            @updated="handleSiteUpdated"
           />
         </PageContentRail>
       </div>

@@ -15,6 +15,8 @@ import {
 interface Props {
   exploration: Exploration
   dweller?: DetailedDweller | Dweller | DwellerShort | null
+  /** Icon-only chips (list surfaces); false keeps the labeled form (detail page). */
+  compact?: boolean
 }
 
 const props = defineProps<Props>()
@@ -44,6 +46,8 @@ const timeRemaining = computed(() => getTimeRemaining(props.exploration))
 const exploringConfig = getStatusConfig('exploring')
 // Every non-alert state shares one colour treatment so the chip reads consistently.
 const statusBadgeClass = [exploringConfig.color, exploringConfig.bgColor, exploringConfig.borderColor]
+// Compact chips drop the text label and tighten padding, like the small icon-only dweller badges.
+const compactClass = computed(() => (props.compact ? 'gap-0 px-1.5 py-0.5' : ''))
 </script>
 
 <template>
@@ -51,10 +55,10 @@ const statusBadgeClass = [exploringConfig.color, exploringConfig.bgColor, explor
     <TooltipProvider v-if="isExploring" :delay-duration="200">
       <Tooltip>
         <TooltipTrigger as-child>
-          <span>
-            <Badge variant="outline" :class="statusBadgeClass">
+          <span :aria-label="compact ? 'EXPLORING' : undefined">
+            <Badge variant="outline" :class="[statusBadgeClass, compactClass]">
               <Icon :icon="exploringConfig.icon" class="h-3 w-3" />
-              EXPLORING
+              <span v-if="!compact">EXPLORING</span>
             </Badge>
           </span>
         </TooltipTrigger>
@@ -65,10 +69,10 @@ const statusBadgeClass = [exploringConfig.color, exploringConfig.bgColor, explor
     <TooltipProvider v-if="isReturning" :delay-duration="200">
       <Tooltip>
         <TooltipTrigger as-child>
-          <span>
-            <Badge variant="outline" :class="statusBadgeClass">
+          <span :aria-label="compact ? 'RETURNING' : undefined">
+            <Badge variant="outline" :class="[statusBadgeClass, compactClass]">
               <Icon icon="mdi:home-import-outline" class="h-3 w-3" />
-              RETURNING
+              <span v-if="!compact">RETURNING</span>
             </Badge>
           </span>
         </TooltipTrigger>
@@ -79,10 +83,10 @@ const statusBadgeClass = [exploringConfig.color, exploringConfig.bgColor, explor
     <TooltipProvider v-if="isReady" :delay-duration="200">
       <Tooltip>
         <TooltipTrigger as-child>
-          <span>
-            <Badge variant="outline" :class="statusBadgeClass">
+          <span :aria-label="compact ? 'READY' : undefined">
+            <Badge variant="outline" :class="[statusBadgeClass, compactClass]">
               <Icon icon="mdi:checkbox-marked-circle-outline" class="h-3 w-3" />
-              READY
+              <span v-if="!compact">READY</span>
             </Badge>
           </span>
         </TooltipTrigger>
@@ -93,10 +97,13 @@ const statusBadgeClass = [exploringConfig.color, exploringConfig.bgColor, explor
     <TooltipProvider v-if="isAtRisk" :delay-duration="200">
       <Tooltip>
         <TooltipTrigger as-child>
-          <span aria-label="Dweller at risk">
-            <Badge variant="outline" class="border-warning/50 bg-warning/10 text-warning">
+          <span :aria-label="compact ? 'AT RISK' : 'Dweller at risk'">
+            <Badge
+              variant="outline"
+              :class="['border-warning/50 bg-warning/10 text-warning', compactClass]"
+            >
               <Icon icon="mdi:heart-pulse" class="h-3 w-3" />
-              AT RISK
+              <span v-if="!compact">AT RISK</span>
             </Badge>
           </span>
         </TooltipTrigger>

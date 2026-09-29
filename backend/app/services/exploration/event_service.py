@@ -136,6 +136,57 @@ def apply_loot_find(
         exploration.radaways += 1
 
 
+async def auto_use_supplies(db_session: AsyncSession, exploration: Exploration) -> list[dict]:
+    """Auto-use a RadAway then a Stimpak when the explorer needs them; returns the item_use records.
+
+    RadAway fires first once radiation has cut the ceiling by at least
+    radaway_auto_use_threshold_pct of max health — it raises the ceiling so the
+    Stimpak can heal into it. The Stimpak gate uses FULL max health, so radiation
+    never hides a wound.
+    """
+    dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+    if dweller_obj.is_dead:
+        return []
+    records: list[dict] = []
+    max_health = dweller_obj.max_health
+
+    radaway_floor = max_health * game_config.health.radaway_auto_use_threshold_pct
+    if (
+        exploration.radaways > 0
+        and dweller_obj.radiation > 0
+        and can_use_radaway(dweller_obj)
+        and dweller_obj.radiation >= radaway_floor
+    ):
+        reduction = radiation_removal_amount(dweller_obj.radiation, max_health)
+        dweller_obj.radiation -= reduction
+        exploration.radaways -= 1
+        records.append(
+            exploration.add_event(
+                event_type=ExplorationEventType.ITEM_USE,
+                description=f"Dweller used a RadAway. Removed {reduction} radiation. {exploration.radaways} left.",
+                radiation_removed=reduction,
+            )
+        )
+        db_session.add(dweller_obj)
+        db_session.add(exploration)
+
+    if exploration.stimpaks > 0 and dweller_obj.health < max_health * 0.5:
+        healing = max(1, int(max_health * game_config.health.stimpack_heal_percent))
+        actual_healing = min(dweller_obj.effective_max_health, dweller_obj.health + healing) - dweller_obj.health
+        dweller_obj.health += actual_healing
+        exploration.stimpaks -= 1
+        records.append(
+            exploration.add_event(
+                event_type=ExplorationEventType.ITEM_USE,
+                description=f"Dweller used a Stimpak. Healed {actual_healing} HP. {exploration.stimpaks} left.",
+                health_restored=actual_healing,
+            )
+        )
+        db_session.add(dweller_obj)
+        db_session.add(exploration)
+    return records
+
+
 class EventService:
     """Applies generated wasteland events to explorations and dwellers."""
 
@@ -231,7 +282,7 @@ class EventService:
                 orm.attributes.flag_modified(exploration, "events")
 
         # Trigger auto-heal check (if health low or radiation high)
-        event_records.extend(await self._handle_auto_heal(db_session, exploration))
+        event_records.extend(await auto_use_supplies(db_session, exploration))
 
         # Update distance traveled for all events
         exploration.total_distance += random.randint(1, 3)
@@ -337,47 +388,6 @@ class EventService:
         dweller_obj.health = min(dweller_obj.effective_max_health, old_health + healing)
         db_session.add(dweller_obj)
         return dweller_obj.health - old_health
-
-    async def _handle_auto_heal(self, db_session: AsyncSession, exploration: Exploration) -> list[dict]:
-        """Automatically use stimpaks/radaways if needed; returns the item_use event records."""
-        if (dweller_obj := await self._get_living_dweller(db_session, exploration)) is None:
-            return []
-
-        records: list[dict] = []
-
-        radaway_threshold = game_config.health.radaway_auto_use_threshold
-        if exploration.radaways > 0 and can_use_radaway(dweller_obj) and dweller_obj.radiation > radaway_threshold:
-            reduction = radiation_removal_amount(dweller_obj.radiation, dweller_obj.max_health)
-            dweller_obj.radiation -= reduction
-            exploration.radaways -= 1
-            records.append(
-                exploration.add_event(
-                    event_type=ExplorationEventType.ITEM_USE,
-                    description=f"Dweller used a RadAway. Removed {reduction} radiation. {exploration.radaways} left.",
-                    radiation_removed=reduction,
-                )
-            )
-            db_session.add(dweller_obj)
-            db_session.add(exploration)
-
-        # Auto-use Stimpak if health < 50%
-        health_percentage = (dweller_obj.health / dweller_obj.effective_max_health) * 100
-        if exploration.stimpaks > 0 and health_percentage < 50:
-            healing = max(1, int(dweller_obj.max_health * game_config.health.stimpack_heal_percent))
-            actual_healing = min(dweller_obj.effective_max_health, dweller_obj.health + healing) - dweller_obj.health
-            dweller_obj.health += actual_healing
-            exploration.stimpaks -= 1
-            records.append(
-                exploration.add_event(
-                    event_type=ExplorationEventType.ITEM_USE,
-                    description=f"Dweller used a Stimpak. Healed {actual_healing} HP. {exploration.stimpaks} left.",
-                    health_restored=actual_healing,
-                )
-            )
-            db_session.add(dweller_obj)
-            db_session.add(exploration)
-
-        return records
 
     async def _handle_auto_equip(
         self,

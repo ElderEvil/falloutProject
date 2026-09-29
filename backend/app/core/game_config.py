@@ -305,8 +305,11 @@ class HealthConfig(BaseSettings):
         gt=0.0,
         le=1.0,
     )
-    radaway_auto_use_threshold: int = Field(
-        default=30, description="RAD level that triggers auto RadAway use in the wasteland", ge=1
+    radaway_auto_use_threshold_pct: float = Field(
+        default=0.25,
+        description="Share of max health lost to RAD that triggers auto RadAway use in the wasteland",
+        gt=0.0,
+        le=1.0,
     )
     stimpack_heal_percent: float = Field(
         default=0.4, description="Share of max health restored per stimpack", gt=0.0, le=1.0

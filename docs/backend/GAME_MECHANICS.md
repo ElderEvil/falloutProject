@@ -97,7 +97,10 @@ Drought radiation accrues at 1% of max health per tick after `dehydration_grace_
 water, counting only the ticks past the grace boundary. Radiation saturates at the dweller's own
 `max_health` — never a flat cap — so the health ceiling bottoms out at 1 HP and radiation alone
 never kills. Recovery is the one-shot **Treat Irradiated Dwellers** action: RadAway first (raises
-the ceiling), then a Stimpack heals into it.
+the ceiling), then a Stimpack heals into it. Wasteland auto-use mirrors that order: RadAway fires
+first once radiation has cut the ceiling by 25% of max health, then a Stimpak heals into it (gate:
+health below 50% of full max health, so radiation never hides a wound); expedition-site damage is
+recorded in the journey log.
 
 ## Damage and radiation reductions
 

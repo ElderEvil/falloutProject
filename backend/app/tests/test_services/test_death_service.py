@@ -137,6 +137,23 @@ class TestDeathService:
         assert result.caps_spent == death_service.get_revival_cost(dead_dweller.level)
         assert result.remaining_caps == 10000 - result.caps_spent
 
+    async def test_revive_clears_radiation(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+        dead_dweller: Dweller,
+    ):
+        """Radiation does not survive revival — the dweller comes back clean."""
+        vault.bottle_caps = 10000
+        async_session.add(vault)
+        await crud.dweller.update(async_session, dead_dweller.id, {"radiation": 40})
+        await async_session.commit()
+        owner = await crud.user.get(async_session, vault.user_id)
+
+        result = await death_service.revive_dweller(async_session, dead_dweller.id, owner)
+
+        assert result.dweller.radiation == 0
+
     async def test_revive_rejects_foreign_vault_owner(
         self,
         async_session: AsyncSession,

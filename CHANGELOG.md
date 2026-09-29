@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.158.1 (2026-09-29)
+
+### Bug Fixes
+
+* **dwellers:** clear radiation when a dweller is revived ([#833](https://github.com/ElderEvil/falloutProject/issues/833)) 1e641fe
+
 ## 2.158.0 (2026-09-29)
 
 ### Features

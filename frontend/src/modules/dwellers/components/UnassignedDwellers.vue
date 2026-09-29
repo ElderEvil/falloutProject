@@ -5,7 +5,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
 import { Icon } from '@iconify/vue'
 import type { components } from '@/core/types/api.generated'
-import { GENDER_CONFIG_MAP, type DwellerShort } from '../models/dweller'
+import { GENDER_CONFIG_MAP, getDwellerDisplayName, type DwellerShort } from '../models/dweller'
 import DwellerAgeBadge from './DwellerAgeBadge.vue'
 import DwellerGenderBadge from './DwellerGenderBadge.vue'
 import DwellerRarityBadge from './DwellerRarityBadge.vue'
@@ -230,14 +230,14 @@ const handleDropZoneDrop = async (event: DragEvent) => {
             <div class="dweller-avatar" :style="{ '--rarity-ring': rarityColor(dweller.rarity) }">
               <DwellerPortrait
                 :thumbnail-url="dweller.thumbnail_url"
-                :alt="`${dweller.first_name} ${dweller.last_name}`"
+                :alt="getDwellerDisplayName(dweller)"
                 image-class="avatar-image"
                 fallback-class="h-14 w-14 text-theme-primary/60"
               />
             </div>
 
             <div class="dweller-heading">
-              <p class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</p>
+              <p class="dweller-name">{{ getDwellerDisplayName(dweller) }}</p>
               <div class="dweller-meta">
                 <span class="dweller-level">Lv {{ dweller.level }}</span>
                 <DwellerAgeBadge :age-group="dweller.age_group" size="sm" />

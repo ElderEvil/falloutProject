@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { useLineage } from '../composables/useLineage'
 import type { LineageMember } from '../services/lineageService'
 import { useDwellerDetailContext } from './DwellerDetailContext'
+import { getDwellerDisplayName } from '../models/dweller'
 
 const ctx = useDwellerDetailContext()
 
@@ -58,7 +59,7 @@ const selfAge = computed(() => {
             <span class="member-info">
               <span class="member-name">
                 <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
-                {{ member.first_name }} {{ member.last_name }}
+                {{ getDwellerDisplayName(member) }}
                 <span v-if="isDead(member)" class="sr-only">(deceased)</span>
               </span>
               <span class="member-age">{{ ageLabel(member.age_group) }}</span>
@@ -96,7 +97,7 @@ const selfAge = computed(() => {
                 <span class="member-info">
                   <span class="member-name">
                 <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
-                {{ member.first_name }} {{ member.last_name }}
+                {{ getDwellerDisplayName(member) }}
                 <span v-if="isDead(member)" class="sr-only">(deceased)</span>
               </span>
                   <span class="member-age">{{ ageLabel(member.age_group) }}</span>
@@ -127,7 +128,7 @@ const selfAge = computed(() => {
               <span class="member-info">
                 <span class="member-name">
                 <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
-                {{ member.first_name }} {{ member.last_name }}
+                {{ getDwellerDisplayName(member) }}
                 <span v-if="isDead(member)" class="sr-only">(deceased)</span>
               </span>
                 <span class="member-age">{{ ageLabel(member.age_group) }}</span>
@@ -153,7 +154,7 @@ const selfAge = computed(() => {
             <span class="member-info">
               <span class="member-name">
                 <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
-                {{ member.first_name }} {{ member.last_name }}
+                {{ getDwellerDisplayName(member) }}
                 <span v-if="isDead(member)" class="sr-only">(deceased)</span>
               </span>
               <span class="member-age">{{ ageLabel(member.age_group) }}</span>

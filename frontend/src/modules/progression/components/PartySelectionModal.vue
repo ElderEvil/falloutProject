@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Button } from '@/core/components/ui/button'
 import { Badge } from '@/core/components/ui/badge'
 import { useQuestStore } from '@/modules/progression/stores/quest'
-import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import { getDwellerDisplayName, type DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { VaultQuest } from '../models/quest'
 
 interface Props {
@@ -126,7 +126,7 @@ const isSelected = (dwellerId: string) => {
 }
 
 const getDwellerName = (dweller: DwellerShort) => {
-  return `${dweller.first_name} ${dweller.last_name}`
+  return getDwellerDisplayName(dweller)
 }
 
 const getDwellerLevel = (dweller: DwellerShort) => {

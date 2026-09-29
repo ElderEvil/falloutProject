@@ -38,7 +38,9 @@ const openDwellerDetail = () =>
   router.push(`/vault/${route.params.id}/dwellers/${props.exploration.dweller_id}`)
 
 const dwellerName = computed(() =>
-  props.dweller ? `${props.dweller.first_name} ${props.dweller.last_name}` : 'Unknown Dweller'
+  props.dweller
+    ? `${props.dweller.first_name} ${props.dweller.last_name ?? ''}`.trim()
+    : 'Unknown Dweller'
 )
 
 const {
@@ -59,7 +61,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
     :class="{ selected }"
     @click="openDetailView"
   >
-    <!-- Header -->
+    <!-- Header: identity left, status top-right -->
     <div class="card-header">
       <TooltipProvider :delay-duration="200">
         <Tooltip>
@@ -76,11 +78,6 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
               <div>
                 <div class="dweller-name">{{ dwellerName }}</div>
                 <div class="exploration-duration">{{ exploration.duration }}h expedition</div>
-                <ExplorationStatusBadges
-                  :exploration="exploration"
-                  :dweller="dweller ?? null"
-                  class="mt-1.5"
-                />
                 <DwellerIdentitySignal :visual-attributes="dweller?.visual_attributes" compact class="mt-1" />
               </div>
             </button>
@@ -88,14 +85,17 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
           <TooltipContent>Open dweller detail page</TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <TooltipProvider v-if="selected" :delay-duration="200">
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <button class="expand-indicator" aria-label="Event timeline open"><Icon icon="mdi:timeline-text" /></button>
-          </TooltipTrigger>
-          <TooltipContent>Event timeline open</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <div class="card-status">
+        <ExplorationStatusBadges :exploration="exploration" :dweller="dweller ?? null" />
+        <TooltipProvider v-if="selected" :delay-duration="200">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <button class="expand-indicator" aria-label="Event timeline open"><Icon icon="mdi:timeline-text" /></button>
+            </TooltipTrigger>
+            <TooltipContent>Event timeline open</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
     </div>
 
     <!-- Progress Bar -->
@@ -187,7 +187,15 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.card-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .dweller-info {
@@ -204,10 +212,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   color: inherit;
   text-align: left;
   cursor: pointer;
-}
-
-.dweller-link:hover .dweller-name {
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 .dweller-name {
@@ -278,7 +283,6 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   gap: 0.5rem;
 }
 
-
 .equipment-section {
   display: grid;
   grid-template-columns: 1fr;
@@ -309,7 +313,6 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 
 .recent-events {
   padding: 0.75rem;
@@ -354,5 +357,4 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   flex: 1;
   line-height: 1.3;
 }
-
 </style>

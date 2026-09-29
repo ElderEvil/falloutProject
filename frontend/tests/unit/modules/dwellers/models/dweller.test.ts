@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { ADULT_AGE_GROUPS, canUseRadaway, isMature } from '@/modules/dwellers/models/dweller'
+import {
+  ADULT_AGE_GROUPS,
+  canUseRadaway,
+  getDwellerDisplayName,
+  isMature,
+} from '@/modules/dwellers/models/dweller'
 
 /**
  * Regression: `isMature` checked `age_group === 'adult'` while the backend's
@@ -40,5 +45,27 @@ describe('canUseRadaway', () => {
 
   it('defaults missing race to human eligibility', () => {
     expect(canUseRadaway({ visual_attributes: null })).toBe(true)
+  })
+})
+
+describe('getDwellerDisplayName', () => {
+  it('joins first and last name', () => {
+    expect(getDwellerDisplayName({ first_name: 'Lucy', last_name: 'MacLean' })).toBe(
+      'Lucy MacLean'
+    )
+  })
+
+  it('omits a null last name instead of rendering "null"', () => {
+    expect(getDwellerDisplayName({ first_name: 'Gary', last_name: null })).toBe('Gary')
+  })
+
+  it('omits an undefined last name', () => {
+    expect(getDwellerDisplayName({ first_name: 'Gary' })).toBe('Gary')
+  })
+
+  it('returns an empty string without a dweller or first name', () => {
+    expect(getDwellerDisplayName(null)).toBe('')
+    expect(getDwellerDisplayName(undefined)).toBe('')
+    expect(getDwellerDisplayName({ first_name: null, last_name: 'Smith' })).toBe('')
   })
 })

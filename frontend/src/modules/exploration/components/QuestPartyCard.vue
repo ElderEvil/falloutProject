@@ -5,6 +5,7 @@ import { Card } from '@/core/components/ui/card'
 import { Badge } from '@/core/components/ui/badge'
 import { Progress } from '@/core/components/ui/progress'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
 import DwellerAgeBadge from '@/modules/dwellers/components/DwellerAgeBadge.vue'
 import DwellerGenderBadge from '@/modules/dwellers/components/DwellerGenderBadge.vue'
@@ -113,7 +114,7 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
         <div v-for="member in partyMembers" :key="member.id" class="party-member">
           <Icon icon="mdi:account" class="member-icon" />
           <div class="member-info">
-            <span class="member-name">{{ member.first_name }} {{ member.last_name }}</span>
+            <span class="member-name">{{ getDwellerDisplayName(member) }}</span>
             <div class="member-badges">
               <DwellerAgeBadge :age-group="member.age_group" size="sm" />
               <DwellerGenderBadge :gender="member.gender" size="sm" />

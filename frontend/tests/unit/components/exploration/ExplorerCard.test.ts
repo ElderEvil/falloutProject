@@ -81,19 +81,25 @@ describe('ExplorerCard', () => {
     expect(wrapper.find('.dweller-portrait').attributes('src')).toBe('http://example.com/thumb.png')
   })
 
-  it('keeps long equipment names within their exploration-card slots', () => {
+  it('renders mission metrics and the equipped weapon and outfit', () => {
     const wrapper = mount(ExplorerCard, {
       props: {
-        exploration,
+        exploration: {
+          ...exploration,
+          loot_collected: [{ name: 'Loot' }],
+          total_caps_found: 12,
+        },
         dweller: {
           ...dweller,
-          weapon: { name: 'Experimental Plasma Rifle With an Extremely Long Name' },
+          weapon: { name: 'Experimental Plasma Rifle' },
+          outfit: { name: 'Vault Suit' },
         },
       },
     })
 
-    expect(wrapper.find('.equipment-slot').classes()).toContain('min-w-0')
-    expect(wrapper.find('.equip-name').text()).toContain('Experimental Plasma Rifle')
+    expect(wrapper.text()).toContain('Distance')
+    expect(wrapper.text()).toContain('Experimental Plasma Rifle')
+    expect(wrapper.text()).toContain('Vault Suit')
   })
 
   it('updates progress and remaining time while mounted, then stops its clock when unmounted', async () => {

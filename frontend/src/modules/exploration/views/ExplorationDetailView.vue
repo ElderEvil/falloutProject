@@ -5,6 +5,7 @@ import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 import { usePolling } from '@/core/composables/usePolling'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useSound } from '@/core/composables/useSound'
@@ -78,10 +79,7 @@ const detailedDweller = computed(() => {
   return dwellerStore.detailedDwellers[exploration.value.dweller_id] || null
 })
 
-const dwellerName = computed(() => {
-  if (!dweller.value) return 'Unknown'
-  return `${dweller.value.first_name} ${dweller.value.last_name}`
-})
+const dwellerName = computed(() => getDwellerDisplayName(dweller.value) || 'Dweller')
 
 const dwellerImageUrl = computed(() => {
   const currentDweller = dweller.value

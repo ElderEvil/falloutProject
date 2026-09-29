@@ -2,7 +2,11 @@
 import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
-import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller'
+import {
+  getDwellerDisplayName,
+  type DwellerShort,
+  type SpecialKey,
+} from '@/modules/dwellers/models/dweller'
 import type { components } from '@/core/types/api.generated'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useTrainingStore } from '@/modules/progression/stores/training'
@@ -130,7 +134,7 @@ watch(
         :disabled="busyDwellerId !== null"
         @click="handleStart(dweller.id)"
       >
-        <span class="trainee-name">{{ dweller.first_name }} {{ dweller.last_name }}</span>
+        <span class="trainee-name">{{ getDwellerDisplayName(dweller) }}</span>
         <span class="trainee-stat">{{ room.ability?.charAt(0) }} {{ statValue(dweller) }} → {{ statValue(dweller) + 1 }}</span>
       </button>
     </div>

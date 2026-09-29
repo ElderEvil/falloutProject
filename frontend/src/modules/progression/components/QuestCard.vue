@@ -8,6 +8,7 @@ import { Progress } from '@/core/components/ui/progress'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
 import { QUEST_TYPE_COLORS } from '../models/quest'
 import { isStateQuestCategory } from '../models/quest'
@@ -341,7 +342,7 @@ const handleAction = () => {
         <div class="party-members">
           <div v-for="member in partyMembers ?? []" :key="member.id" class="party-member">
             <Icon icon="mdi:account" class="member-icon" />
-            <span class="member-name">{{ member.first_name }} {{ member.last_name }}</span>
+            <span class="member-name">{{ getDwellerDisplayName(member) }}</span>
             <span class="member-level">Lv.{{ member.level || 1 }}</span>
           </div>
         </div>

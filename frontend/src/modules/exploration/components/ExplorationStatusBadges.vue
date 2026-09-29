@@ -42,6 +42,8 @@ const timeRemaining = computed(() => getTimeRemaining(props.exploration))
 
 // Reuse the dweller status visuals for the persistent EXPLORING chip.
 const exploringConfig = getStatusConfig('exploring')
+// Every non-alert state shares one colour treatment so the chip reads consistently.
+const statusBadgeClass = [exploringConfig.color, exploringConfig.bgColor, exploringConfig.borderColor]
 </script>
 
 <template>
@@ -50,10 +52,7 @@ const exploringConfig = getStatusConfig('exploring')
       <Tooltip>
         <TooltipTrigger as-child>
           <span>
-            <Badge
-              variant="outline"
-              :class="[exploringConfig.color, exploringConfig.bgColor, exploringConfig.borderColor]"
-            >
+            <Badge variant="outline" :class="statusBadgeClass">
               <Icon :icon="exploringConfig.icon" class="h-3 w-3" />
               EXPLORING
             </Badge>
@@ -66,7 +65,12 @@ const exploringConfig = getStatusConfig('exploring')
     <TooltipProvider v-if="isReturning" :delay-duration="200">
       <Tooltip>
         <TooltipTrigger as-child>
-          <span><Badge variant="secondary">RETURNING</Badge></span>
+          <span>
+            <Badge variant="outline" :class="statusBadgeClass">
+              <Icon icon="mdi:home-import-outline" class="h-3 w-3" />
+              RETURNING
+            </Badge>
+          </span>
         </TooltipTrigger>
         <TooltipContent>{{ timeRemaining }}</TooltipContent>
       </Tooltip>
@@ -75,7 +79,12 @@ const exploringConfig = getStatusConfig('exploring')
     <TooltipProvider v-if="isReady" :delay-duration="200">
       <Tooltip>
         <TooltipTrigger as-child>
-          <span><Badge variant="default">READY</Badge></span>
+          <span>
+            <Badge variant="outline" :class="statusBadgeClass">
+              <Icon icon="mdi:checkbox-marked-circle-outline" class="h-3 w-3" />
+              READY
+            </Badge>
+          </span>
         </TooltipTrigger>
         <TooltipContent>Expedition finished — ready to collect</TooltipContent>
       </Tooltip>

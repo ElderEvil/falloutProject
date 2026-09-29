@@ -17,7 +17,7 @@ import { Label } from '@/core/components/ui/label'
 import DwellerDetailPane from './DwellerDetailPane.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { useDwellerDetail } from '../composables/useDwellerDetail'
-import { canUseRadaway } from '../models/dweller'
+import { canUseRadaway, getDwellerDisplayName } from '../models/dweller'
 import { dwellerDetailKey } from './DwellerDetailContext'
 
 const DwellerAppearanceEditor = defineAsyncComponent({
@@ -146,7 +146,7 @@ const wastelandModalOpen = ctx.wastelandModalOpen
         </DialogHeader>
         <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
           <p class="soft-delete-text">
-            Soft-delete <strong>{{ dweller?.first_name }} {{ dweller?.last_name }}</strong
+            Soft-delete <strong>{{ getDwellerDisplayName(dweller) }}</strong
             >? They will leave the vault and become tradable at the Trading Post. You can restore
             them later while they remain listed.
           </p>

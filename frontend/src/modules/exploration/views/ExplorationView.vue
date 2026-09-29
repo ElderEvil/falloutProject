@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { usePolling } from '@/core/composables/usePolling'
@@ -88,7 +89,7 @@ function showPendingOverflow(pending: PendingOverflow): void {
       events_encountered: 0,
       exploration_id: pending.exploration_id,
     },
-    dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller',
+    getDwellerDisplayName(dweller) || 'Dweller',
     pending.exploration_id
   )
   isPendingOverflowModal.value = true
@@ -152,7 +153,7 @@ watch(
     isPendingOverflowModal.value = false
     openRewards(
       pending.rewards,
-      dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller',
+      getDwellerDisplayName(dweller) || 'Dweller',
       pending.explorationId ?? ''
     )
     explorationStore.clearPendingSseRewards()

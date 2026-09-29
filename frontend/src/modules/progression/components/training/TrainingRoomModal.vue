@@ -8,7 +8,7 @@ import TrainingProgressCard from './TrainingProgressCard.vue'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import type { components } from '@/core/types/api.generated'
-import type { Dweller } from '@/modules/dwellers/models/dweller'
+import { getDwellerDisplayName, type Dweller } from '@/modules/dwellers/models/dweller'
 import type { Room } from '@/modules/rooms/models/room'
 
 type TrainingRead = components['schemas']['TrainingRead']
@@ -83,7 +83,7 @@ const availableDwellers = computed(() => {
 
 const getDwellerName = (dwellerId: string): string => {
   const dweller = dwellers.find((d) => d.id === dwellerId)
-  return dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Unknown'
+  return getDwellerDisplayName(dweller) || 'Unknown'
 }
 
 const close = () => {
@@ -236,7 +236,7 @@ watch(
             :disabled="loading"
           >
             <div class="dweller-info">
-              <span class="dweller-name"> {{ dweller.first_name }} {{ dweller.last_name }} </span>
+              <span class="dweller-name"> {{ getDwellerDisplayName(dweller) }} </span>
               <span class="dweller-level">Lvl {{ dweller.level }}</span>
             </div>
             <div class="dweller-stat">

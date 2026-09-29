@@ -8,6 +8,7 @@ import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import type { components } from '@/core/types/api.generated'
+import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 
 type DwellerReadFull = components['schemas']['DwellerReadFull']
 
@@ -138,7 +139,7 @@ const close = () => {
         <div class="training-start-modal">
           <p class="description">
             Select a SPECIAL stat to improve for
-            <span class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</span
+            <span class="dweller-name">{{ getDwellerDisplayName(dweller) }}</span
             >.
           </p>
 

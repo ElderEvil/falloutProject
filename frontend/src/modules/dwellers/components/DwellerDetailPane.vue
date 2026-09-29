@@ -14,7 +14,7 @@ import DwellerIdentitySignal from './DwellerIdentitySignal.vue'
 import DwellerOverflowMenu from './DwellerOverflowMenu.vue'
 import DwellerRoleMatch from './DwellerRoleMatch.vue'
 import { RevivalSection } from './death'
-import { canUseRadaway, getActivitySummary } from '../models/dweller'
+import { canUseRadaway, getActivitySummary, getDwellerDisplayName } from '../models/dweller'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 
 const ctx = useDwellerDetailContext()
@@ -47,7 +47,7 @@ const breadcrumbs = computed(() => [
               class="dweller-name cursor-pointer select-none"
               @click="ctx.actions.onHeaderNameClick()"
             >
-              {{ dweller.first_name }} {{ dweller.last_name }}
+              {{ getDwellerDisplayName(dweller) }}
             </h1>
           </div>
           <div class="status-line">

@@ -204,26 +204,26 @@ const distributionBands = computed<DistributionBand[]>(() => {
     {
       key: 'high',
       label: 'High (75-100)',
-      barClass: 'bg-happiness-high',
-      labelClass: 'text-happiness-high',
+      barClass: 'band-fill-high',
+      labelClass: 'band-text-high',
     },
     {
       key: 'medium',
       label: 'Medium (50-74)',
-      barClass: 'bg-happiness-medium',
-      labelClass: 'text-happiness-medium',
+      barClass: 'band-fill-medium',
+      labelClass: 'band-text-medium',
     },
     {
       key: 'low',
       label: 'Low (25-49)',
-      barClass: 'bg-happiness-low',
-      labelClass: 'text-happiness-low',
+      barClass: 'band-fill-low',
+      labelClass: 'band-text-low',
     },
     {
       key: 'critical',
       label: 'Critical (10-24)',
-      barClass: 'bg-happiness-critical',
-      labelClass: 'text-happiness-critical',
+      barClass: 'band-fill-critical',
+      labelClass: 'band-text-critical',
     },
   ]
   return bands.map((band) => ({
@@ -526,6 +526,34 @@ const distributionAriaLabel = computed(() =>
 .legend-count {
   color: var(--color-theme-primary);
   opacity: 0.6;
+}
+
+/* Distribution band colors live here (scoped, code-split) rather than as global
+   Tailwind utilities, so the critical-path CSS budget is untouched. Green →
+   amber → orange → red, fixed regardless of the active vault theme. */
+.band-fill-high {
+  background: var(--color-happiness-high);
+}
+.band-text-high {
+  color: var(--color-happiness-high);
+}
+.band-fill-medium {
+  background: var(--color-warning);
+}
+.band-text-medium {
+  color: var(--color-warning);
+}
+.band-fill-low {
+  background: var(--color-quest-locked);
+}
+.band-text-low {
+  color: var(--color-quest-locked);
+}
+.band-fill-critical {
+  background: var(--color-danger);
+}
+.band-text-critical {
+  color: var(--color-danger);
 }
 
 /* Modifiers Section */

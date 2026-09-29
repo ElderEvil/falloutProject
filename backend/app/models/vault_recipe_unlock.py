@@ -12,6 +12,8 @@ class VaultRecipeUnlock(SQLModel, table=True):
     the recipe's threshold.
     """
 
+    __tablename__ = "vault_recipe_unlock"
+
     vault_id: UUID4 = Field(foreign_key="vault.id", primary_key=True)
     item_type: str = Field(primary_key=True, max_length=16)
     recipe_name: str = Field(primary_key=True, max_length=128)

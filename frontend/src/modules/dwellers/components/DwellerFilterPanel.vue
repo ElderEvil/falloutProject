@@ -132,7 +132,7 @@ const genderOptions = [
 ]
 
 const rarityOptions = [
-  { value: 'all', label: 'All Rarities', icon: 'mdi:star-circle-outline' },
+  { value: 'all', label: 'All Rarities', icon: 'mdi:account-multiple' },
   ...Object.entries(RARITY_CONFIG_MAP).map(([value, config]) => ({
     value,
     label: config.label,

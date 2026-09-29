@@ -11,6 +11,7 @@ import DwellerAgeBadge from '@/modules/dwellers/components/DwellerAgeBadge.vue'
 import DwellerGenderBadge from '@/modules/dwellers/components/DwellerGenderBadge.vue'
 import DwellerRarityBadge from '@/modules/dwellers/components/DwellerRarityBadge.vue'
 import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
+import { isQuestReturning } from '@/modules/progression/models/quest'
 import type { VaultQuest } from '@/modules/progression/models/quest'
 
 interface Props {
@@ -35,9 +36,7 @@ onUnmounted(() => {
   if (timerInterval) clearInterval(timerInterval)
 })
 
-const isReturning = computed(
-  () => props.quest.return_completes_at != null && !props.quest.is_reward_ready
-)
+const isReturning = computed(() => isQuestReturning(props.quest))
 
 const progressPercentage = computed(() => {
   if (isReturning.value) {
@@ -86,23 +85,25 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
       <div class="mission-type">
         <Icon icon="mdi:sword-cross" class="mission-icon" />
         <span>Quest party</span>
-        <Badge v-if="isReturning" variant="secondary">RETURNING</Badge>
       </div>
-      <span class="mission-time">{{ timeRemaining }}</span>
+      <Badge
+        variant="outline"
+        class="border-theme-accent/50 bg-theme-accent/10 text-theme-accent"
+      >
+        <Icon :icon="isReturning ? 'mdi:home-import-outline' : 'mdi:sword-cross'" class="h-3 w-3" />
+        {{ isReturning ? 'RETURNING' : 'QUESTING' }}
+      </Badge>
     </div>
 
     <h3 class="quest-title">{{ quest.title }}</h3>
 
-    <div v-if="!isReturning" class="mission-progress">
+    <div class="mission-progress">
       <div class="progress-labels">
-        <span>Mission progress</span>
+        <span>{{ isReturning ? 'Return progress' : 'Mission progress' }}</span>
         <span>{{ Math.round(progressPercentage) }}%</span>
       </div>
       <Progress :model-value="progressPercentage" class="h-2" />
-    </div>
-    <div v-else class="mission-returning">
-      <Icon icon="mdi:home-import-outline" class="returning-icon" />
-      <span>{{ timeRemaining }}</span>
+      <span class="mission-time">{{ timeRemaining }}</span>
     </div>
 
     <div class="party-section">
@@ -177,14 +178,14 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
 
 .mission-icon,
 .member-icon,
-.mission-time,
 .member-level {
   color: var(--color-theme-accent);
 }
 
 .mission-time {
+  color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.7);
   font-family: 'Courier New', monospace;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   white-space: nowrap;
 }
 
@@ -199,25 +200,6 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
 .party-section,
 .party-members {
   display: grid;
-}
-
-.mission-returning {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  background: var(--color-surface-sunken);
-  border: 1px solid color-mix(in srgb, var(--color-theme-secondary) 40%, transparent);
-  border-radius: 4px;
-  color: var(--color-theme-secondary);
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.returning-icon {
-  font-size: 1.1rem;
 }
 
 .mission-progress {

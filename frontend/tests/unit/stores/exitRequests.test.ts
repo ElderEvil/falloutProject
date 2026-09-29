@@ -40,6 +40,7 @@ const pendingRequest = {
   dweller_name: 'Alice Smith',
   level: 5,
   happiness: 30,
+  refusal_happiness_penalty: 10,
 }
 
 describe('useExitRequestStore', () => {
@@ -68,7 +69,9 @@ describe('useExitRequestStore', () => {
     await store.load('vault-1')
 
     expect(store.requests).toEqual([])
-    expect(toastMock.error).toHaveBeenCalledWith(expect.stringContaining('Failed to load exit requests'))
+    expect(toastMock.error).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to load exit requests')
+    )
   })
 
   it('grants an exit request and removes the dweller from the pending list', async () => {
@@ -86,19 +89,19 @@ describe('useExitRequestStore', () => {
     expect(toastMock.warning).toHaveBeenCalledWith(expect.stringContaining('walked out'))
   })
 
-  it('refuses an exit request and updates the dweller happiness', async () => {
+  it('refuses an exit request, resolving it and warning about the cost', async () => {
     const store = useExitRequestStore()
     store.requests = [pendingRequest]
     vi.mocked(axios.post).mockResolvedValue({
       data: { dweller_id: 'dweller-1', dweller_name: 'Alice Smith', granted: false, happiness: 20 },
     })
 
-    const result = await store.refuse('vault-1', 'dweller-1')
+    const result = await store.refuse('vault-1', 'dweller-1', 10)
 
     expect(axios.post).toHaveBeenCalledWith('/api/v1/dwellers/dweller-1/refuse-exit')
     expect(result).toBe(true)
-    expect(store.requests[0].happiness).toBe(20)
-    expect(toastMock.info).toHaveBeenCalledWith(expect.stringContaining('was refused'))
+    expect(store.requests).toEqual([])
+    expect(toastMock.warning).toHaveBeenCalledWith(expect.stringContaining('loses 10 happiness'))
   })
 
   it('keeps the request standing when refusing fails', async () => {
@@ -106,7 +109,7 @@ describe('useExitRequestStore', () => {
     store.requests = [pendingRequest]
     vi.mocked(axios.post).mockRejectedValue(new Error('boom'))
 
-    const result = await store.refuse('vault-1', 'dweller-1')
+    const result = await store.refuse('vault-1', 'dweller-1', 10)
 
     expect(result).toBe(false)
     expect(store.requests).toEqual([pendingRequest])
@@ -118,6 +121,75 @@ describe('ExitRequestModal', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    localStorage.clear()
+  })
+
+  it('closes the modal after a successful refusal', async () => {
+    vi.mocked(axios.get).mockResolvedValue({ data: [pendingRequest] })
+    vi.mocked(axios.post).mockResolvedValue({
+      data: { dweller_id: 'dweller-1', dweller_name: 'Alice Smith', granted: false, happiness: 20 },
+    })
+
+    const wrapper = mount(ExitRequestModal, {
+      global: {
+        plugins: [createPinia()],
+        stubs: { Teleport: { template: '<div class="mock-modal"><slot /></div>' } },
+      },
+    })
+    await flushPromises()
+
+    const refuse = wrapper.findAll('button').find((button) => button.text().includes('Refuse'))
+    await refuse!.trigger('click')
+    await flushPromises()
+
+    expect(axios.post).toHaveBeenCalledWith('/api/v1/dwellers/dweller-1/refuse-exit')
+    expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
+  })
+
+  it('closes after deciding even when more requests are queued', async () => {
+    const second = { ...pendingRequest, dweller_id: 'dweller-2', dweller_name: 'Bob Jones' }
+    vi.mocked(axios.get).mockResolvedValue({ data: [pendingRequest, second] })
+    vi.mocked(axios.post).mockResolvedValue({
+      data: { dweller_id: 'dweller-1', dweller_name: 'Alice Smith', granted: false, happiness: 20 },
+    })
+
+    const wrapper = mount(ExitRequestModal, {
+      global: {
+        plugins: [createPinia()],
+        stubs: { Teleport: { template: '<div class="mock-modal"><slot /></div>' } },
+      },
+    })
+    await flushPromises()
+
+    const refuse = wrapper.findAll('button').find((button) => button.text().includes('Refuse'))
+    await refuse!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
+  })
+
+  it('re-checks for a raised ask on an interval', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+
+      const wrapper = mount(ExitRequestModal, {
+        global: {
+          plugins: [createPinia()],
+          stubs: { Teleport: { template: '<div class="mock-modal"><slot /></div>' } },
+        },
+      })
+      await flushPromises()
+      vi.mocked(axios.get).mockClear()
+
+      vi.advanceTimersByTime(60_000)
+      await flushPromises()
+
+      expect(axios.get).toHaveBeenCalledWith(expect.stringContaining('/exit-requests'))
+      wrapper.unmount()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('opens for a pending request and closes without deciding when dismissed', async () => {
@@ -135,12 +207,17 @@ describe('ExitRequestModal', () => {
 
     expect(wrapper.find('.mock-modal').exists()).toBe(true)
     expect(wrapper.text()).toContain('Alice Smith')
+    expect(wrapper.text()).toContain('the whole vault loses 10 happiness')
+    expect(wrapper.text()).toContain('Refuse — vault −10')
 
-    const decideLater = wrapper.findAll('button').find((button) => button.text().includes('Decide Later'))
+    const decideLater = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Decide Later'))
     await decideLater!.trigger('click')
     await flushPromises()
 
     expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
     expect(useExitRequestStore().requests).toEqual([pendingRequest])
+    expect(Number(localStorage.getItem('exitRequestSnoozedUntil'))).toBeGreaterThan(Date.now())
   })
 })

@@ -10,6 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403, verify_dweller_access
 from app.core.enums import AgeGroupEnum, DwellerStatusEnum, FactionEnum, GenderEnum, RaceEnum, RarityEnum
+from app.core.game_config import game_config
 from app.core.game_data import get_static_game_data
 from app.db.session import get_async_session
 from app.models.dweller import Dweller
@@ -607,6 +608,7 @@ def _to_exit_request_read(dweller: Dweller) -> ExitRequestRead:
         level=dweller.level,
         happiness=dweller.happiness,
         requested_at=dweller.exit_requested_at,
+        refusal_happiness_penalty=game_config.exit_request.vault_refusal_happiness_penalty,
     )
 
 
@@ -655,7 +657,7 @@ async def refuse_exit_request(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ExitDecisionResponse:
-    """Refuse the ask: the dweller takes a happiness hit and the request stands.
+    """Refuse the ask: the request is resolved and the whole vault pays a morale cost.
 
     Returns:
         ExitDecisionResponse: The refusal outcome and updated happiness.

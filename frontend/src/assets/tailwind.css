@@ -57,6 +57,12 @@
     --color-danger: #ff0000;
     --color-info: #00aaff;
 
+    /* Fixed top-band green for the happiness distribution, independent of the vault
+       theme. The lower bands reuse --color-warning / --color-quest-locked /
+       --color-danger from the component's scoped styles (kept out of the global
+       stylesheet so the critical-path CSS budget is unaffected). */
+    --color-happiness-high: #00ff00;
+
     /* Resource Colors */
     --color-power: #ffdd57;
     --color-food: #ff6b6b;

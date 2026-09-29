@@ -2,10 +2,17 @@
 import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import { useDwellerStore } from '../stores/dweller'
 import { ADULT_AGE_GROUPS } from '../models/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useRoomStore } from '@/modules/rooms/stores/room'
+import { isCraftingRoom, isTrainingRoom } from '@/modules/rooms/models/roomParts'
 
 interface Props {
   vaultId: string
@@ -14,9 +21,10 @@ interface Props {
 const props = defineProps<Props>()
 const { filter: filterStore, management: dwellerStore } = useDwellerStore()
 const authStore = useAuthStore()
+const roomStore = useRoomStore()
 
 const unassigningAll = ref(false)
-const autoAssigning = ref<'all' | 'production' | 'training' | null>(null)
+const autoAssigning = ref<'all' | 'production' | 'training' | 'crafting' | null>(null)
 const showConfirmDialog = ref(false)
 
 /**
@@ -26,13 +34,17 @@ const showConfirmDialog = ref(false)
 const eligibleCount = computed(
   () =>
     filterStore.dwellersWithStatus.filter(
-      (dweller) => dweller.status === 'idle' && !dweller.room_id && ADULT_AGE_GROUPS.has(dweller.age_group)
+      (dweller) =>
+        dweller.status === 'idle' && !dweller.room_id && ADULT_AGE_GROUPS.has(dweller.age_group)
     ).length
 )
 
 const activeAgeFilter = computed(() =>
   filterStore.filterAgeGroup !== 'all' ? filterStore.filterAgeGroup : undefined
 )
+
+const hasTrainingRooms = computed(() => roomStore.rooms.some((room) => isTrainingRoom(room)))
+const hasCraftingRooms = computed(() => roomStore.rooms.some((room) => isCraftingRoom(room)))
 
 const emptyHint = 'No idle adult dwellers match the current filters'
 
@@ -52,13 +64,19 @@ const productionTooltip = computed(() =>
 const allRoomsTooltip = computed(() =>
   eligibleCount.value === 0
     ? emptyHint
-    : `Assign ${eligibleCount.value} idle dweller${plural.value}${filterNote.value} across all room types (production, med/science, radio, training) by best SPECIAL. Rooms can fill up, so fewer may be assigned.`
+    : `Assign ${eligibleCount.value} idle dweller${plural.value}${filterNote.value} across all room types (production, med/science, radio, training, crafting) by best SPECIAL. Rooms can fill up, so fewer may be assigned.`
 )
 
 const trainingTooltip = computed(() =>
   eligibleCount.value === 0
     ? emptyHint
     : `Assign ${eligibleCount.value} idle dweller${plural.value}${filterNote.value} to training rooms, prioritizing each room's lowest eligible SPECIAL stat.`
+)
+
+const craftingTooltip = computed(() =>
+  eligibleCount.value === 0
+    ? emptyHint
+    : `Assign ${eligibleCount.value} idle dweller${plural.value}${filterNote.value} to crafting rooms, prioritizing the highest total SPECIAL.`
 )
 
 const handleUnassignAll = async () => {
@@ -73,18 +91,19 @@ const handleUnassignAll = async () => {
   }
 }
 
-const handleAutoAssign = async (target: 'all' | 'production' | 'training') => {
+const bulkAssignActions = {
+  all: 'autoAssignAllDwellers',
+  production: 'autoAssignProductionDwellers',
+  training: 'autoAssignTrainingDwellers',
+  crafting: 'autoAssignCraftingDwellers',
+} as const
+
+const handleAutoAssign = async (target: keyof typeof bulkAssignActions) => {
   if (!authStore.token) return
 
   autoAssigning.value = target
   try {
-    await dwellerStore[
-      target === 'all'
-        ? 'autoAssignAllDwellers'
-        : target === 'production'
-          ? 'autoAssignProductionDwellers'
-          : 'autoAssignTrainingDwellers'
-    ](props.vaultId, authStore.token, {
+    await dwellerStore[bulkAssignActions[target]](props.vaultId, authStore.token, {
       ageGroup: activeAgeFilter.value,
     })
   } finally {
@@ -101,6 +120,7 @@ const handleAutoAssign = async (target: 'all' | 'production' | 'training') => {
           <Button
             variant="default"
             size="sm"
+            class="border-2 border-theme-primary"
             @click="handleAutoAssign('all')"
             :disabled="autoAssigning === 'all' || eligibleCount === 0"
           >
@@ -109,7 +129,7 @@ const handleAutoAssign = async (target: 'all' | 'production' | 'training') => {
               class="h-4 w-4 mr-2"
               :class="{ 'animate-spin': autoAssigning === 'all' }"
             />
-            Auto-Assign All Rooms
+            Assign All Rooms
             <span class="action-count on-primary">{{ eligibleCount }}</span>
           </Button>
         </TooltipTrigger>
@@ -121,6 +141,7 @@ const handleAutoAssign = async (target: 'all' | 'production' | 'training') => {
           <Button
             variant="secondary"
             size="sm"
+            class="border-2 border-theme-primary"
             @click="handleAutoAssign('production')"
             :disabled="autoAssigning === 'production' || eligibleCount === 0"
           >
@@ -129,18 +150,19 @@ const handleAutoAssign = async (target: 'all' | 'production' | 'training') => {
               class="h-4 w-4 mr-2"
               :class="{ 'animate-spin': autoAssigning === 'production' }"
             />
-            Auto-Assign Production
+            Assign Production
             <span class="action-count on-secondary">{{ eligibleCount }}</span>
           </Button>
         </TooltipTrigger>
         <TooltipContent>{{ productionTooltip }}</TooltipContent>
       </Tooltip>
 
-      <Tooltip>
+      <Tooltip v-if="hasTrainingRooms">
         <TooltipTrigger as-child>
           <Button
             variant="secondary"
             size="sm"
+            class="border-2 border-theme-primary"
             @click="handleAutoAssign('training')"
             :disabled="autoAssigning === 'training' || eligibleCount === 0"
           >
@@ -149,11 +171,32 @@ const handleAutoAssign = async (target: 'all' | 'production' | 'training') => {
               class="h-4 w-4 mr-2"
               :class="{ 'animate-spin': autoAssigning === 'training' }"
             />
-            Auto-Assign Training
+            Assign Training
             <span class="action-count on-secondary">{{ eligibleCount }}</span>
           </Button>
         </TooltipTrigger>
         <TooltipContent>{{ trainingTooltip }}</TooltipContent>
+      </Tooltip>
+
+      <Tooltip v-if="hasCraftingRooms">
+        <TooltipTrigger as-child>
+          <Button
+            variant="secondary"
+            size="sm"
+            class="border-2 border-theme-primary"
+            @click="handleAutoAssign('crafting')"
+            :disabled="autoAssigning === 'crafting' || eligibleCount === 0"
+          >
+            <Icon
+              :icon="autoAssigning === 'crafting' ? 'mdi:loading' : 'mdi:hammer-wrench'"
+              class="h-4 w-4 mr-2"
+              :class="{ 'animate-spin': autoAssigning === 'crafting' }"
+            />
+            Assign Crafting
+            <span class="action-count on-secondary">{{ eligibleCount }}</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{{ craftingTooltip }}</TooltipContent>
       </Tooltip>
 
       <Tooltip>
@@ -161,6 +204,7 @@ const handleAutoAssign = async (target: 'all' | 'production' | 'training') => {
           <Button
             variant="destructive"
             size="sm"
+            class="border-2 border-theme-primary"
             @click="showConfirmDialog = true"
             :disabled="unassigningAll"
           >

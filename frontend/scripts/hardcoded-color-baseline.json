@@ -30,6 +30,6 @@
   "src/modules/rooms/components/RoomGridCell.vue": 11,
   "src/modules/rooms/components/RoomMenuItem.vue": 1,
   "src/modules/rooms/components/RoomPreviewSection.vue": 2,
-  "src/modules/vault/components/HappinessDashboard.vue": 2,
+  "src/modules/vault/components/HappinessDashboard.vue": 1,
   "src/modules/vault/views/VaultView.vue": 1
 }

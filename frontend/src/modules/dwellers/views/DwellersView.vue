@@ -29,6 +29,7 @@ import {
   useDwellerStore,
   isDwellerAgeGroup,
   isDwellerGender,
+  isDwellerRarity,
   isDwellerSortBy,
   isDwellerStatus,
   isSortDirection,
@@ -86,7 +87,7 @@ const shownCount = computed(() =>
 // still fills the gaps a bare link leaves; after that the URL is authoritative and an
 // absent key means the default again.
 function applyFiltersFromQuery(query: LocationQuery, resetMissing: boolean): void {
-  const { filter, ageGroup, gender, race, faction, sortBy, order } = query
+  const { filter, ageGroup, gender, rarity, race, faction, sortBy, order } = query
 
   if (isDwellerStatus(filter)) dwellerStore.setFilterStatus(filter)
   else if (resetMissing) dwellerStore.setFilterStatus('all')
@@ -96,6 +97,9 @@ function applyFiltersFromQuery(query: LocationQuery, resetMissing: boolean): voi
 
   if (isDwellerGender(gender)) dwellerStore.setFilterGender(gender)
   else if (resetMissing) dwellerStore.setFilterGender('all')
+
+  if (isDwellerRarity(rarity)) dwellerStore.setFilterRarity(rarity)
+  else if (resetMissing) dwellerStore.setFilterRarity('all')
 
   if (typeof race === 'string' && race) dwellerStore.setFilterRace(race)
   else if (resetMissing) dwellerStore.setFilterRace('all')
@@ -118,7 +122,16 @@ watch(
   (query) => applyFiltersFromQuery(query, true)
 )
 
-const FILTER_QUERY_KEYS = ['filter', 'ageGroup', 'gender', 'race', 'faction', 'sortBy', 'order'] as const
+const FILTER_QUERY_KEYS = [
+  'filter',
+  'ageGroup',
+  'gender',
+  'rarity',
+  'race',
+  'faction',
+  'sortBy',
+  'order',
+] as const
 
 function queryValue(value: LocationQueryValueRaw | LocationQueryValueRaw[] | undefined): string {
   if (Array.isArray(value))
@@ -137,6 +150,7 @@ function filtersToQuery(): LocationQueryRaw {
   set('filter', dwellerStore.filterStatus === 'all' ? undefined : dwellerStore.filterStatus)
   set('ageGroup', dwellerStore.filterAgeGroup === 'all' ? undefined : dwellerStore.filterAgeGroup)
   set('gender', dwellerStore.filterGender === 'all' ? undefined : dwellerStore.filterGender)
+  set('rarity', dwellerStore.filterRarity === 'all' ? undefined : dwellerStore.filterRarity)
   set('race', dwellerStore.filterRace === 'all' ? undefined : dwellerStore.filterRace)
   set(
     'faction',
@@ -164,6 +178,7 @@ watch(
     dwellerStore.filterStatus,
     dwellerStore.filterAgeGroup,
     dwellerStore.filterGender,
+    dwellerStore.filterRarity,
     dwellerStore.filterRace,
     dwellerStore.filterFaction,
     dwellerStore.sortBy,
@@ -284,6 +299,7 @@ watch(
     dwellerStore.filterStatus,
     dwellerStore.filterAgeGroup,
     dwellerStore.filterGender,
+    dwellerStore.filterRarity,
     dwellerStore.filterRace,
     dwellerStore.filterFaction,
     dwellerStore.sortBy,
@@ -478,6 +494,7 @@ const handleTreatIrradiated = async () => {
             <DwellerFilterPanel
               :show-age-filter="!isDeadFilter"
               :show-gender-filter="!isDeadFilter"
+              :show-rarity-filter="!isDeadFilter"
               :show-identity-filters="!isDeadFilter"
               :show-active-filter-summary="true"
             />

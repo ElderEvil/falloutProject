@@ -9,7 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403, verify_dweller_access
-from app.core.enums import AgeGroupEnum, DwellerStatusEnum, FactionEnum, GenderEnum, RaceEnum
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum, FactionEnum, GenderEnum, RaceEnum, RarityEnum
 from app.core.game_data import get_static_game_data
 from app.db.session import get_async_session
 from app.models.dweller import Dweller
@@ -192,6 +192,7 @@ async def read_dwellers_by_vault(
     status: DwellerStatusEnum | None = None,
     age_group: AgeGroupEnum | None = None,
     gender: GenderEnum | None = None,
+    rarity: RarityEnum | None = None,
     search: str | None = None,
     race: RaceEnum | None = None,
     faction: FactionEnum | None = None,
@@ -212,6 +213,7 @@ async def read_dwellers_by_vault(
         status=status,
         age_group=age_group,
         gender=gender,
+        rarity=rarity,
         search=search,
         race=race,
         faction=faction,

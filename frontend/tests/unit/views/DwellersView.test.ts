@@ -473,5 +473,39 @@ describe('DwellersView', () => {
       )
       wrapper.unmount()
     })
+
+    it('applies a rarity query param on load', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      await router.push('/vault/vault-1/dwellers?rarity=legendary')
+      await router.isReady()
+
+      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
+      await flushPromises()
+
+      expect(_dwellerStore.filter.filterRarity).toBe('legendary')
+      expect(axios.get).toHaveBeenCalledWith(
+        expect.stringContaining('rarity=legendary'),
+        expect.any(Object)
+      )
+      wrapper.unmount()
+    })
+
+    it('writes rarity changes back to the query and refetches the roster', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      await router.isReady()
+      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
+      await flushPromises()
+      vi.mocked(axios.get).mockClear()
+
+      _dwellerStore.filter.setFilterRarity('rare')
+      await flushPromises()
+
+      expect(router.currentRoute.value.query.rarity).toBe('rare')
+      expect(axios.get).toHaveBeenCalledWith(
+        expect.stringContaining('rarity=rare'),
+        expect.any(Object)
+      )
+      wrapper.unmount()
+    })
   })
 })

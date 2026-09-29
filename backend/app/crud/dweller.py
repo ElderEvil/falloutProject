@@ -131,6 +131,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         status: DwellerStatusEnum | None = None,
         age_group: AgeGroupEnum | None = None,
         gender: GenderEnum | None = None,
+        rarity: RarityEnum | None = None,
         search: str | None = None,
         race: str | None = None,
         faction: str | None = None,
@@ -156,6 +157,10 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         # Filter by gender
         if gender:
             query = query.where(self.model.gender == gender)
+
+        # Filter by rarity
+        if rarity is not None:
+            query = query.where(self.model.rarity == rarity)
 
         # Race and faction live in the visual_attributes JSONB, so filter through the column.
         identity_attrs = self.model.__table__.c.visual_attributes

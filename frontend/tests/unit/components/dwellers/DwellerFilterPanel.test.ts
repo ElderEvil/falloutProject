@@ -249,7 +249,8 @@ describe('Status counts', () => {
   })
 })
 
-describe('Gender counts', () => {  const chipByLabel = (wrapper: ReturnType<typeof mount>, label: string) =>
+describe('Gender counts', () => {
+  const chipByLabel = (wrapper: ReturnType<typeof mount>, label: string) =>
     wrapper.findAll('.filter-chip').find((chip) => chip.text().includes(label))!
 
   it('shows a count per gender and a total', async () => {
@@ -308,6 +309,37 @@ describe('Filter accents', () => {
     const chip = chipByLabel(wrapper, 'Male')
     expect(chip.classes()).toContain('active')
     expect(chip.attributes('style') ?? '').toContain('--filter-accent: var(--badge-gender-male)')
+    wrapper.unmount()
+  })
+})
+
+describe('Rarity counts', () => {
+  const chipByLabel = (wrapper: ReturnType<typeof mount>, label: string) =>
+    wrapper.findAll('.filter-chip').find((chip) => chip.text().includes(label))!
+
+  it('shows a count per rarity and a total', async () => {
+    const store = useDwellerStore().filter
+    store.allDwellers = [
+      { id: '1', status: 'idle', rarity: 'common' },
+      { id: '2', status: 'idle', rarity: 'common' },
+      { id: '3', status: 'working', rarity: 'legendary' },
+    ] as never
+
+    const wrapper = mount(DwellerFilterPanel, { props: { showRarityFilter: true } })
+    await wrapper.vm.$nextTick()
+
+    expect(chipByLabel(wrapper, 'Common').find('.filter-count').text()).toBe('2')
+    expect(chipByLabel(wrapper, 'Legendary').find('.filter-count').text()).toBe('1')
+    expect(chipByLabel(wrapper, 'All Rarities').find('.filter-count').text()).toBe('3')
+
+    wrapper.unmount()
+  })
+
+  it('shows no rarity counts until the roster has loaded', async () => {
+    const wrapper = mount(DwellerFilterPanel, { props: { showRarityFilter: true } })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.filter-count').exists()).toBe(false)
     wrapper.unmount()
   })
 })

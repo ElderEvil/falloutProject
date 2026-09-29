@@ -90,6 +90,8 @@ class ExitRequestService:
 
     async def refuse_exit(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID4) -> Dweller:
         """Decline the ask: the request is answered, and the whole vault pays for it."""
+        if not await self._lock_exit_requests(db_session, vault.id):
+            raise VaultOperationException(detail="Another exit request is already being handled")
         dweller = await self._get_pending(db_session, vault, dweller_id)
         vault_penalty = game_config.exit_request.vault_refusal_happiness_penalty
 
@@ -108,6 +110,8 @@ class ExitRequestService:
 
     async def grant_exit(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID4) -> Dweller:
         """Let the dweller go: permanent death by exile, with no revive window."""
+        if not await self._lock_exit_requests(db_session, vault.id):
+            raise VaultOperationException(detail="Another exit request is already being handled")
         dweller = await self._get_pending(db_session, vault, dweller_id)
         reason = self._eligibility_reason(dweller)
         if reason:

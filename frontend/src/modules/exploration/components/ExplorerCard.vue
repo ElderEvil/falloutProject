@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
-import type { Dweller } from '@/modules/dwellers/models/dweller'
+import { getDwellerDisplayName, type Dweller } from '@/modules/dwellers/models/dweller'
 import { useExplorationProgress } from '@/modules/exploration/composables/useExplorationProgress'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
@@ -40,11 +40,7 @@ const openDetailView = () =>
 const openDwellerDetail = () =>
   router.push(`/vault/${route.params.id}/dwellers/${props.exploration.dweller_id}`)
 
-const dwellerName = computed(() =>
-  props.dweller
-    ? `${props.dweller.first_name} ${props.dweller.last_name ?? ''}`.trim()
-    : 'Unknown Dweller'
-)
+const dwellerName = computed(() => getDwellerDisplayName(props.dweller) || 'Unknown Dweller')
 
 const {
   progress: progressPercentage,

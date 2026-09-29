@@ -7,7 +7,7 @@ import {
   type DwellerAgeGroup,
 } from '@/modules/dwellers/stores/dweller'
 import type { components } from '@/core/types/api.generated'
-import { formatIdentityLabel, getRaceConfig, FACTION_CONFIG_MAP, GENDER_CONFIG_MAP } from '../models/dweller'
+import { formatIdentityLabel, getRaceConfig, AGE_CONFIG_MAP, FACTION_CONFIG_MAP, GENDER_CONFIG_MAP } from '../models/dweller'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
 import { useIdentityOptions } from '../composables/useIdentityOptions'
 import DwellerFilterGroup from './DwellerFilterGroup.vue'
@@ -101,10 +101,10 @@ const statusOptions = [
 
 const ageGroupOptions = [
   { value: 'all', label: 'All Ages', icon: 'mdi:account-multiple' },
-  { value: 'child', label: 'Child', icon: 'mdi:baby' },
-  { value: 'teen', label: 'Teen', icon: 'mdi:human-child' },
-  { value: 'adult', label: 'Adult', icon: 'mdi:account' },
-  { value: 'elder', label: 'Elder', icon: 'mdi:account-cowboy-hat' },
+  { value: 'child', label: 'Child', icon: 'mdi:baby', accent: AGE_CONFIG_MAP.child.color },
+  { value: 'teen', label: 'Teen', icon: 'mdi:human-child', accent: AGE_CONFIG_MAP.teen.color },
+  { value: 'adult', label: 'Adult', icon: 'mdi:account', accent: AGE_CONFIG_MAP.adult.color },
+  { value: 'elder', label: 'Elder', icon: 'mdi:account-cowboy-hat', accent: AGE_CONFIG_MAP.elder.color },
 ]
 
 const genderOptions = [
@@ -113,6 +113,7 @@ const genderOptions = [
     value,
     label: config.label,
     icon: config.icon,
+    accent: config.color,
   })),
 ]
 

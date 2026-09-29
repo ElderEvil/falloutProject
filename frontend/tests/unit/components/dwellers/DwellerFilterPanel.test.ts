@@ -249,8 +249,7 @@ describe('Status counts', () => {
   })
 })
 
-describe('Gender counts', () => {
-  const chipByLabel = (wrapper: ReturnType<typeof mount>, label: string) =>
+describe('Gender counts', () => {  const chipByLabel = (wrapper: ReturnType<typeof mount>, label: string) =>
     wrapper.findAll('.filter-chip').find((chip) => chip.text().includes(label))!
 
   it('shows a count per gender and a total', async () => {
@@ -276,6 +275,39 @@ describe('Gender counts', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.find('.filter-count').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})
+
+describe('Filter accents', () => {
+  const chipByLabel = (wrapper: ReturnType<typeof mount>, label: string) =>
+    wrapper.findAll('.filter-chip').find((chip) => chip.text().includes(label))!
+
+  it('tints the active age chip with the age accent color', async () => {
+    const store = useDwellerStore().filter
+    store.allDwellers = [{ id: '1', status: 'idle', age_group: 'adult' }] as never
+
+    const wrapper = mount(DwellerFilterPanel, { props: { showAgeFilter: true } })
+    await chipByLabel(wrapper, 'Adult').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    const chip = chipByLabel(wrapper, 'Adult')
+    expect(chip.classes()).toContain('active')
+    expect(chip.attributes('style') ?? '').toContain('--filter-accent: var(--badge-age-adult)')
+    wrapper.unmount()
+  })
+
+  it('tints the active gender chip with the gender accent color', async () => {
+    const store = useDwellerStore().filter
+    store.allDwellers = [{ id: '1', status: 'idle', gender: 'male' }] as never
+
+    const wrapper = mount(DwellerFilterPanel, { props: { showGenderFilter: true } })
+    await chipByLabel(wrapper, 'Male').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    const chip = chipByLabel(wrapper, 'Male')
+    expect(chip.classes()).toContain('active')
+    expect(chip.attributes('style') ?? '').toContain('--filter-accent: var(--badge-gender-male)')
     wrapper.unmount()
   })
 })

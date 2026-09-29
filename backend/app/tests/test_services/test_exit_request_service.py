@@ -280,6 +280,23 @@ async def test_the_vault_asks_at_most_once_a_day(async_session: AsyncSession, va
 
 
 @pytest.mark.asyncio
+async def test_answering_an_ask_consumes_the_day(async_session: AsyncSession, vault: Vault) -> None:
+    """A refused dweller still in despair cannot immediately ask again — the answer uses the day."""
+    dwellers = await _with_room_for_one_exit(async_session, vault)
+    overdue = datetime.utcnow() - timedelta(hours=game_config.exit_request.despair_grace_hours)
+    await crud.dweller.update(async_session, dwellers[0].id, {"despair_since": overdue})
+    await exit_request_service.request_exit(async_session, dwellers[0].id)
+    vault.last_exit_request_at = None
+    async_session.add(vault)
+    await async_session.commit()
+
+    await exit_request_service.refuse_exit(async_session, vault, dwellers[0].id)
+    await exit_request_service.sync_despair_requests(async_session, vault.id)
+
+    assert await exit_request_service.list_pending(async_session, vault.id) == []
+
+
+@pytest.mark.asyncio
 async def test_despair_tracking_survives_a_blocked_ask(async_session: AsyncSession, vault: Vault) -> None:
     """A dweller who falls into despair while the daily cap is spent still starts their clock."""
     await _with_room_for_one_exit(async_session, vault)

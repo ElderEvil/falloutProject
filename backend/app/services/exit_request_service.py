@@ -97,6 +97,8 @@ class ExitRequestService:
             member.happiness = max(10, member.happiness - vault_penalty)
 
         dweller.exit_requested_at = None
+        vault.last_exit_request_at = datetime.now(UTC).replace(tzinfo=None)
+        db_session.add(vault)
         db_session.add(dweller)
         await db_session.commit()
         await db_session.refresh(dweller)
@@ -115,6 +117,8 @@ class ExitRequestService:
             raise VaultOperationException(detail=reason)
 
         dweller.exit_requested_at = None
+        vault.last_exit_request_at = datetime.now(UTC).replace(tzinfo=None)
+        db_session.add(vault)
         db_session.add(dweller)
         await db_session.flush()
 

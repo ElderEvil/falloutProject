@@ -124,6 +124,50 @@ describe('ExitRequestModal', () => {
     localStorage.clear()
   })
 
+  it('closes the modal after a successful refusal', async () => {
+    vi.mocked(axios.get).mockResolvedValue({ data: [pendingRequest] })
+    vi.mocked(axios.post).mockResolvedValue({
+      data: { dweller_id: 'dweller-1', dweller_name: 'Alice Smith', granted: false, happiness: 20 },
+    })
+
+    const wrapper = mount(ExitRequestModal, {
+      global: {
+        plugins: [createPinia()],
+        stubs: { Teleport: { template: '<div class="mock-modal"><slot /></div>' } },
+      },
+    })
+    await flushPromises()
+
+    const refuse = wrapper.findAll('button').find((button) => button.text().includes('Refuse'))
+    await refuse!.trigger('click')
+    await flushPromises()
+
+    expect(axios.post).toHaveBeenCalledWith('/api/v1/dwellers/dweller-1/refuse-exit')
+    expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
+  })
+
+  it('closes after deciding even when more requests are queued', async () => {
+    const second = { ...pendingRequest, dweller_id: 'dweller-2', dweller_name: 'Bob Jones' }
+    vi.mocked(axios.get).mockResolvedValue({ data: [pendingRequest, second] })
+    vi.mocked(axios.post).mockResolvedValue({
+      data: { dweller_id: 'dweller-1', dweller_name: 'Alice Smith', granted: false, happiness: 20 },
+    })
+
+    const wrapper = mount(ExitRequestModal, {
+      global: {
+        plugins: [createPinia()],
+        stubs: { Teleport: { template: '<div class="mock-modal"><slot /></div>' } },
+      },
+    })
+    await flushPromises()
+
+    const refuse = wrapper.findAll('button').find((button) => button.text().includes('Refuse'))
+    await refuse!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
+  })
+
   it('opens for a pending request and closes without deciding when dismissed', async () => {
     vi.mocked(axios.get).mockResolvedValue({
       data: [pendingRequest],

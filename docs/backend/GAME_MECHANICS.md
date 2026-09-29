@@ -32,7 +32,8 @@ is real, not a rerollable button:
   despair and is cleared on recovery, so a transient dip never raises a request.
 - **One ask per day** — the vault raises at most `EXIT_MAX_EXIT_REQUESTS_PER_DAY` (1) per rolling 24h
   (`vault.last_exit_request_at`), and never while a request is pending. The chat-driven ask
-  (`request_exit`) enforces the same cap, so it cannot slip a second ask in.
+  (`request_exit`) enforces the same cap, so it cannot slip a second ask in. **Answering** a request
+  (grant or refuse) restarts the same window, so a dweller still in despair cannot re-ask immediately.
 - **Refusal is final for that ask and costs the vault** — refusing answers the request
   (`exit_requested_at` cleared) and takes `EXIT_VAULT_REFUSAL_HAPPINESS_PENALTY` (10) from every living
   dweller (the refused dweller included). It must never leave the request standing, or the action becomes

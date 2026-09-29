@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.161.0 (2026-09-29)
+
+### Features
+
+* **dwellers:** crafting auto-assign, roster bulk actions, and happiness overview ([#835](https://github.com/ElderEvil/falloutProject/issues/835)) 2ce7861
+
 ## 2.160.0 (2026-09-29)
 
 ### Features

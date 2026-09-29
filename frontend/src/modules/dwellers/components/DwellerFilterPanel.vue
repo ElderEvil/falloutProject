@@ -7,7 +7,7 @@ import {
   type DwellerAgeGroup,
 } from '@/modules/dwellers/stores/dweller'
 import type { components } from '@/core/types/api.generated'
-import { formatIdentityLabel, getRaceConfig, FACTION_CONFIG_MAP } from '../models/dweller'
+import { formatIdentityLabel, getRaceConfig, FACTION_CONFIG_MAP, GENDER_CONFIG_MAP } from '../models/dweller'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
 import { useIdentityOptions } from '../composables/useIdentityOptions'
 import DwellerFilterGroup from './DwellerFilterGroup.vue'
@@ -15,6 +15,7 @@ import DwellerFilterGroup from './DwellerFilterGroup.vue'
 interface Props {
   showStatusFilter?: boolean
   showAgeFilter?: boolean
+  showGenderFilter?: boolean
   showIdentityFilters?: boolean
   showActiveFilterSummary?: boolean
 }
@@ -22,6 +23,7 @@ interface Props {
 const {
   showStatusFilter = true,
   showAgeFilter = false,
+  showGenderFilter = false,
   showIdentityFilters = false,
   showActiveFilterSummary = false,
 } = defineProps<Props>()
@@ -105,6 +107,15 @@ const ageGroupOptions = [
   { value: 'elder', label: 'Elder', icon: 'mdi:account-cowboy-hat' },
 ]
 
+const genderOptions = [
+  { value: 'all', label: 'All Genders', icon: 'mdi:account-multiple' },
+  ...Object.entries(GENDER_CONFIG_MAP).map(([value, config]) => ({
+    value,
+    label: config.label,
+    icon: config.icon,
+  })),
+]
+
 const currentFilterStatus = computed({
   get: () => dwellerStore.filterStatus,
   set: (value: DwellerStatus | 'all') => dwellerStore.setFilterStatus(value),
@@ -113,6 +124,11 @@ const currentFilterStatus = computed({
 const currentFilterAgeGroup = computed({
   get: () => dwellerStore.filterAgeGroup,
   set: (value: DwellerAgeGroup) => dwellerStore.setFilterAgeGroup(value),
+})
+
+const currentFilterGender = computed({
+  get: () => dwellerStore.filterGender,
+  set: (value: string) => dwellerStore.setFilterGender(value),
 })
 
 const currentFilterRace = computed({
@@ -131,6 +147,7 @@ const statusCounts = computed<Record<string, number> | undefined>(() => {
 
   const { all, byStatus } = dwellerStore.countByStatus({
     ageGroup: showAgeFilter ? dwellerStore.filterAgeGroup : 'all',
+    gender: showGenderFilter ? dwellerStore.filterGender : 'all',
     race: showIdentityFilters ? dwellerStore.filterRace : 'all',
     faction: showIdentityFilters ? dwellerStore.filterFaction : 'all',
   })
@@ -142,6 +159,20 @@ const statusCounts = computed<Record<string, number> | undefined>(() => {
     counts[status] = byStatus[status]
   }
   return counts
+})
+
+/** Gender chips preview their own result set, following every filter except gender itself. */
+const genderCounts = computed<Record<string, number> | undefined>(() => {
+  if (!showGenderFilter || dwellerStore.allDwellers.length === 0) return undefined
+
+  const { all, byGender } = dwellerStore.countByGender({
+    status: showStatusFilter ? dwellerStore.filterStatus : 'all',
+    ageGroup: showAgeFilter ? dwellerStore.filterAgeGroup : 'all',
+    race: showIdentityFilters ? dwellerStore.filterRace : 'all',
+    faction: showIdentityFilters ? dwellerStore.filterFaction : 'all',
+  })
+
+  return { all, ...byGender }
 })
 
 function labelFor(options: readonly { value: string; label: string }[], value: string): string {
@@ -156,6 +187,9 @@ const activeFilterLabels = computed(() => {
   }
   if (showAgeFilter && dwellerStore.filterAgeGroup !== 'all') {
     labels.push(labelFor(ageGroupOptions, dwellerStore.filterAgeGroup))
+  }
+  if (showGenderFilter && dwellerStore.filterGender !== 'all') {
+    labels.push(labelFor(genderOptions, dwellerStore.filterGender))
   }
   if (showIdentityFilters && dwellerStore.filterRace !== 'all') {
     labels.push(formatIdentityLabel(dwellerStore.filterRace))
@@ -175,6 +209,7 @@ const hasActiveFilters = computed(() => activeFilterLabels.value.length > 0)
 function clearFilters(): void {
   dwellerStore.setFilterStatus('all')
   dwellerStore.setFilterAgeGroup('all')
+  dwellerStore.setFilterGender('all')
   dwellerStore.setFilterRace('all')
   dwellerStore.setFilterFaction('all')
 }
@@ -205,6 +240,16 @@ function clearFilters(): void {
         :options="ageGroupOptions"
         :model-value="currentFilterAgeGroup"
         @update:model-value="currentFilterAgeGroup = $event as DwellerAgeGroup"
+      />
+
+      <DwellerFilterGroup
+        v-if="showGenderFilter"
+        label="Filter by Gender"
+        icon="mdi:gender-male-female"
+        :options="genderOptions"
+        :model-value="currentFilterGender"
+        :counts="genderCounts"
+        @update:model-value="currentFilterGender = $event"
       />
 
       <DwellerFilterGroup

@@ -11563,6 +11563,7 @@ export interface operations {
                 limit?: number;
                 status?: components["schemas"]["DwellerStatusEnum"] | null;
                 age_group?: components["schemas"]["AgeGroupEnum"] | null;
+                gender?: components["schemas"]["GenderEnum"] | null;
                 search?: string | null;
                 race?: components["schemas"]["RaceEnum"] | null;
                 faction?: components["schemas"]["FactionEnum"] | null;

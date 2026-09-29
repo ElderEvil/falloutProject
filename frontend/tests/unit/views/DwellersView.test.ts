@@ -439,5 +439,39 @@ describe('DwellersView', () => {
       expect(router.currentRoute.value.query.filter).toBe('working')
       wrapper.unmount()
     })
+
+    it('applies a gender query param on load', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      await router.push('/vault/vault-1/dwellers?gender=female')
+      await router.isReady()
+
+      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
+      await flushPromises()
+
+      expect(_dwellerStore.filter.filterGender).toBe('female')
+      expect(axios.get).toHaveBeenCalledWith(
+        expect.stringContaining('gender=female'),
+        expect.any(Object)
+      )
+      wrapper.unmount()
+    })
+
+    it('writes gender changes back to the query and refetches the roster', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      await router.isReady()
+      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
+      await flushPromises()
+      vi.mocked(axios.get).mockClear()
+
+      _dwellerStore.filter.setFilterGender('male')
+      await flushPromises()
+
+      expect(router.currentRoute.value.query.gender).toBe('male')
+      expect(axios.get).toHaveBeenCalledWith(
+        expect.stringContaining('gender=male'),
+        expect.any(Object)
+      )
+      wrapper.unmount()
+    })
   })
 })

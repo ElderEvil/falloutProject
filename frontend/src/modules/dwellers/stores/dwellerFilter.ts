@@ -2,6 +2,7 @@ import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
+import { GENDER_CONFIG_MAP } from '@/modules/dwellers/models/dweller'
 import {
   DEFAULT_TABLE_COLUMNS,
   DWELLER_TABLE_PRESETS,
@@ -52,6 +53,13 @@ export interface DwellerStatusCounts {
   byStatus: Record<DwellerStatus, number>
 }
 
+export interface DwellerGenderCounts {
+  /** Matched dwellers across every gender. */
+  all: number
+  /** Matched dwellers per gender; every known gender key is present and zero-initialized. */
+  byGender: Record<string, number>
+}
+
 export const DWELLER_SORT_KEYS = [
   'name',
   'level',
@@ -74,6 +82,9 @@ export const isDwellerStatus = (value: unknown): value is DwellerStatus =>
 
 export const isDwellerAgeGroup = (value: unknown): value is DwellerAgeGroup =>
   typeof value === 'string' && (DWELLER_AGE_GROUPS as readonly string[]).includes(value)
+
+export const isDwellerGender = (value: unknown): value is string =>
+  typeof value === 'string' && Object.keys(GENDER_CONFIG_MAP).includes(value)
 
 export const isDwellerSortBy = (value: unknown): value is DwellerSortBy =>
   typeof value === 'string' && (DWELLER_SORT_KEYS as readonly string[]).includes(value)
@@ -109,6 +120,7 @@ export type DwellerViewMode = 'list' | 'grid' | 'table'
 type DwellerFetchOptions = {
   status?: DwellerStatus | 'all'
   ageGroup?: DwellerAgeGroup
+  gender?: string
   race?: string
   faction?: string
   search?: string
@@ -142,6 +154,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     return {
       status: options.status !== 'all' ? options.status : undefined,
       ageGroup: options.ageGroup !== 'all' ? options.ageGroup : undefined,
+      gender: options.gender !== 'all' ? options.gender : undefined,
       race: options.race !== 'all' ? options.race : undefined,
       faction: options.faction !== 'all' ? options.faction : undefined,
       search: options.search,
@@ -174,6 +187,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   // Filter and sort state (persisted in localStorage)
   const filterStatus = useLocalStorage<DwellerStatus | 'all'>('dwellerFilterStatus', 'all')
   const filterAgeGroup = useLocalStorage<DwellerAgeGroup>('dwellerFilterAgeGroup', 'all')
+  const filterGender = useLocalStorage<string>('dwellerFilterGender', 'all')
   // Identity lives in visual_attributes; 'all' means unfiltered.
   const filterRace = useLocalStorage<string>('dwellerFilterRace', 'all')
   const filterFaction = useLocalStorage<string>('dwellerFilterFaction', 'all')
@@ -199,6 +213,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     (status) => {
       if (status !== 'dead') return
       filterAgeGroup.value = 'all'
+      filterGender.value = 'all'
       filterRace.value = 'all'
       filterFaction.value = 'all'
     },
@@ -272,6 +287,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
    */
   function countByStatus(filters: {
     ageGroup: DwellerAgeGroup
+    gender: string
     race: string
     faction: string
   }): DwellerStatusCounts {
@@ -284,6 +300,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
 
     for (const dweller of allDwellers.value) {
       if (!matchesAgeGroup(dweller, filters.ageGroup)) continue
+      if (filters.gender !== 'all' && dweller.gender !== filters.gender) continue
       if (filters.race !== 'all' && dweller.visual_attributes?.race !== filters.race) continue
       if (factionActive && dweller.visual_attributes?.faction !== filters.faction) continue
 
@@ -293,6 +310,36 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     }
 
     return { all, byStatus }
+  }
+
+  /**
+   * Count every gender under the given non-gender filters, from the unfiltered
+   * allDwellers collection. Mirrors countByStatus so a chip previews its own result.
+   */
+  function countByGender(filters: {
+    status: DwellerStatus | 'all'
+    ageGroup: DwellerAgeGroup
+    race: string
+    faction: string
+  }): DwellerGenderCounts {
+    const byGender: Record<string, number> = Object.fromEntries(
+      Object.keys(GENDER_CONFIG_MAP).map((gender) => [gender, 0])
+    )
+    const factionActive = featureFlags.factionMechanics && filters.faction !== 'all'
+    let all = 0
+
+    for (const dweller of allDwellers.value) {
+      if (filters.status !== 'all' && dweller.status !== filters.status) continue
+      if (!matchesAgeGroup(dweller, filters.ageGroup)) continue
+      if (filters.race !== 'all' && dweller.visual_attributes?.race !== filters.race) continue
+      if (factionActive && dweller.visual_attributes?.faction !== filters.faction) continue
+
+      const gender = dweller.gender ?? 'unknown'
+      byGender[gender] = (byGender[gender] ?? 0) + 1
+      all += 1
+    }
+
+    return { all, byGender }
   }
 
   async function fetchDwellersByVault(
@@ -312,6 +359,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       ...options,
       status: filterStatus.value,
       ageGroup: filterAgeGroup.value,
+      gender: filterGender.value,
       race: filterRace.value,
       // The API rejects a faction filter while the switch is off, so never send it.
       faction: featureFlags.factionMechanics ? filterFaction.value : 'all',
@@ -372,6 +420,10 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     filterAgeGroup.value = ageGroup
   }
 
+  function setFilterGender(gender: string): void {
+    filterGender.value = gender
+  }
+
   function setFilterRace(race: string): void {
     filterRace.value = race
   }
@@ -417,6 +469,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     isLoading,
     filterStatus,
     filterAgeGroup,
+    filterGender,
     filterRace,
     filterFaction,
     sortBy,
@@ -427,12 +480,14 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     getDwellersByStatus,
     filteredAndSortedDwellers,
     countByStatus,
+    countByGender,
     fetchDwellersByVault,
     fetchWithCurrentFilters,
     fetchAllDwellers,
     fetchDwellerDetails,
     setFilterStatus,
     setFilterAgeGroup,
+    setFilterGender,
     setFilterRace,
     setFilterFaction,
     setSortBy,

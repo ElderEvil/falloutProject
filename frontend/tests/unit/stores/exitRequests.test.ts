@@ -68,7 +68,9 @@ describe('useExitRequestStore', () => {
     await store.load('vault-1')
 
     expect(store.requests).toEqual([])
-    expect(toastMock.error).toHaveBeenCalledWith(expect.stringContaining('Failed to load exit requests'))
+    expect(toastMock.error).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to load exit requests')
+    )
   })
 
   it('grants an exit request and removes the dweller from the pending list', async () => {
@@ -86,7 +88,7 @@ describe('useExitRequestStore', () => {
     expect(toastMock.warning).toHaveBeenCalledWith(expect.stringContaining('walked out'))
   })
 
-  it('refuses an exit request and updates the dweller happiness', async () => {
+  it('refuses an exit request, resolving it and warning about the cost', async () => {
     const store = useExitRequestStore()
     store.requests = [pendingRequest]
     vi.mocked(axios.post).mockResolvedValue({
@@ -97,8 +99,8 @@ describe('useExitRequestStore', () => {
 
     expect(axios.post).toHaveBeenCalledWith('/api/v1/dwellers/dweller-1/refuse-exit')
     expect(result).toBe(true)
-    expect(store.requests[0].happiness).toBe(20)
-    expect(toastMock.info).toHaveBeenCalledWith(expect.stringContaining('was refused'))
+    expect(store.requests).toEqual([])
+    expect(toastMock.warning).toHaveBeenCalledWith(expect.stringContaining('stays'))
   })
 
   it('keeps the request standing when refusing fails', async () => {
@@ -135,8 +137,12 @@ describe('ExitRequestModal', () => {
 
     expect(wrapper.find('.mock-modal').exists()).toBe(true)
     expect(wrapper.text()).toContain('Alice Smith')
+    expect(wrapper.text()).toContain('the whole vault loses 10 happiness')
+    expect(wrapper.text()).toContain('Refuse — vault −10')
 
-    const decideLater = wrapper.findAll('button').find((button) => button.text().includes('Decide Later'))
+    const decideLater = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Decide Later'))
     await decideLater!.trigger('click')
     await flushPromises()
 

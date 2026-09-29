@@ -50,14 +50,23 @@ const close = () => {
 </script>
 
 <template>
-  <Dialog :open="isOpen" @update:open="(open) => { if (!open) close() }">
+  <Dialog
+    :open="isOpen"
+    @update:open="
+      (open) => {
+        if (!open) close()
+      }
+    "
+  >
     <DialogContent
       class="flex max-h-[65vh] w-full max-w-md flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-md"
     >
       <DialogHeader
         class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
       >
-        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">Someone Wants Out</DialogTitle>
+        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow"
+          >Someone Wants Out</DialogTitle
+        >
       </DialogHeader>
 
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
@@ -73,13 +82,18 @@ const close = () => {
           </div>
 
           <p class="description">
-            They have asked to go outside. The vault can refuse them, but it cannot keep them forever —
-            and if you let them go, they are not coming back.
+            They have asked to go outside. Refusing keeps them here: the whole vault loses 10
+            happiness, and {{ current.dweller_name }} loses 20. They will not ask again for a day.
+            Letting them go means they are not coming back.
           </p>
 
           <div class="modal-actions">
-            <Button variant="secondary" :disabled="isDeciding" @click="close"> Decide Later </Button>
-            <Button variant="secondary" :disabled="isDeciding" @click="decide(false)"> Refuse </Button>
+            <Button variant="secondary" :disabled="isDeciding" @click="close">
+              Decide Later
+            </Button>
+            <Button variant="secondary" :disabled="isDeciding" @click="decide(false)">
+              Refuse — vault −10
+            </Button>
             <Button variant="destructive" :disabled="isDeciding" @click="decide(true)">
               Let Them Go
             </Button>

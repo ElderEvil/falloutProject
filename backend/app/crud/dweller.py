@@ -364,17 +364,13 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         )
         return (await db_session.execute(query)).scalars().all()
 
-    async def get_despairing_without_exit_request(
-        self, db_session: AsyncSession, vault_id: UUID4, threshold: int
-    ) -> Sequence[Dweller]:
-        """Living dwellers at or below a happiness threshold who have not asked to leave."""
+    async def get_living_in_vault(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
+        """Every living (non-deleted, non-dead) dweller in a vault."""
         query = (
             select(self.model)
             .where(self.model.vault_id == vault_id)
             .where(~self.model.is_deleted)
             .where(~self.model.is_dead)
-            .where(self.model.exit_requested_at.is_(None))
-            .where(self.model.happiness <= threshold)
         )
         return (await db_session.execute(query)).scalars().all()
 

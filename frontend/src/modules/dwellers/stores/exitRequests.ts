@@ -33,9 +33,7 @@ export const useExitRequestStore = defineStore('exitRequests', () => {
 
   async function grant(vaultId: string, dwellerId: string): Promise<boolean> {
     try {
-      const response = await axios.post<ExitDecision>(
-        `/api/v1/dwellers/${dwellerId}/grant-exit`
-      )
+      const response = await axios.post<ExitDecision>(`/api/v1/dwellers/${dwellerId}/grant-exit`)
       const decision = response.data
       requests.value = requests.value.filter((request) => request.dweller_id !== dwellerId)
       toast.warning(`${decision.dweller_name} walked out and did not look back.`)
@@ -48,14 +46,10 @@ export const useExitRequestStore = defineStore('exitRequests', () => {
 
   async function refuse(vaultId: string, dwellerId: string): Promise<boolean> {
     try {
-      const response = await axios.post<ExitDecision>(
-        `/api/v1/dwellers/${dwellerId}/refuse-exit`
-      )
+      const response = await axios.post<ExitDecision>(`/api/v1/dwellers/${dwellerId}/refuse-exit`)
       const decision = response.data
-      requests.value = requests.value.map((request) =>
-        request.dweller_id === dwellerId ? { ...request, happiness: decision.happiness } : request
-      )
-      toast.info(`${decision.dweller_name} was refused. The request still stands.`)
+      requests.value = requests.value.filter((request) => request.dweller_id !== dwellerId)
+      toast.warning(`${decision.dweller_name} stays. The vault loses 10 happiness.`)
       return true
     } catch (error) {
       toast.error(`Failed to refuse the request: ${getErrorMessage(error)}`)

@@ -103,19 +103,35 @@ async def test_request_exit_unknown_dweller(async_session: AsyncSession, vault: 
 
 
 @pytest.mark.asyncio
-async def test_refuse_exit_costs_happiness_and_leaves_the_request_standing(
+async def test_request_exit_respects_the_daily_cap(async_session: AsyncSession, vault: Vault) -> None:
+    """A chat-driven ask cannot slip past the vault's one-per-day limit."""
+    dwellers = await _with_room_for_one_exit(async_session, vault)
+    await exit_request_service.request_exit(async_session, dwellers[0].id)
+    await exit_request_service.refuse_exit(async_session, vault, dwellers[0].id)
+
+    with pytest.raises(VaultOperationException, match="last day"):
+        await exit_request_service.request_exit(async_session, dwellers[1].id)
+
+
+@pytest.mark.asyncio
+async def test_refuse_exit_resolves_the_request_and_costs_the_whole_vault(
     async_session: AsyncSession, vault: Vault
 ) -> None:
-    """A refusal must not silently cancel the ask — the dweller still wants to go."""
+    """Refusing answers the ask, and every living dweller pays the morale cost."""
     dwellers = await _with_room_for_one_exit(async_session, vault)
-    starting_happiness = dwellers[0].happiness
     await exit_request_service.request_exit(async_session, dwellers[0].id)
+    starts = {dweller.id: dweller.happiness for dweller in dwellers}
 
     refused = await exit_request_service.refuse_exit(async_session, vault, dwellers[0].id)
 
-    assert refused.exit_requested_at is not None
-    assert refused.happiness == starting_happiness - game_config.exit_request.refusal_happiness_penalty
-    assert [d.id for d in await exit_request_service.list_pending(async_session, vault.id)] == [dwellers[0].id]
+    vault_penalty = game_config.exit_request.vault_refusal_happiness_penalty
+    personal_penalty = game_config.exit_request.refusal_happiness_penalty
+    assert refused.exit_requested_at is None
+    assert await exit_request_service.list_pending(async_session, vault.id) == []
+    assert refused.happiness == max(10, max(10, starts[dwellers[0].id] - vault_penalty) - personal_penalty)
+    for other in dwellers[1:]:
+        await async_session.refresh(other)
+        assert other.happiness == max(10, starts[other.id] - vault_penalty)
 
 
 @pytest.mark.asyncio
@@ -214,12 +230,54 @@ async def test_grant_exit_rejects_a_deleted_dweller(async_session: AsyncSession,
 async def test_despair_makes_dwellers_ask(async_session: AsyncSession, vault: Vault) -> None:
     await _with_room_for_one_exit(async_session, vault)
     sad = await _create(async_session, vault, first_name="Clara", happiness=game_config.exit_request.despair_happiness)
+    await crud.dweller.update(
+        async_session,
+        sad.id,
+        {"despair_since": datetime.utcnow() - timedelta(hours=game_config.exit_request.despair_grace_hours)},
+    )
 
     asked = await exit_request_service.sync_despair_requests(async_session, vault.id)
 
     assert [d.id for d in asked] == [sad.id]
     await async_session.refresh(sad)
     assert sad.exit_requested_at is not None
+
+
+@pytest.mark.asyncio
+async def test_despair_needs_the_grace_period_before_asking(async_session: AsyncSession, vault: Vault) -> None:
+    """A dweller must stay in despair for the grace period before the vault lets them ask."""
+    await _with_room_for_one_exit(async_session, vault)
+    sad = await _create(async_session, vault, first_name="Clara", happiness=game_config.exit_request.despair_happiness)
+
+    assert await exit_request_service.sync_despair_requests(async_session, vault.id) == []
+
+    await crud.dweller.update(
+        async_session,
+        sad.id,
+        {"despair_since": datetime.utcnow() - timedelta(hours=game_config.exit_request.despair_grace_hours)},
+    )
+    asked = await exit_request_service.sync_despair_requests(async_session, vault.id)
+
+    assert [d.id for d in asked] == [sad.id]
+
+
+@pytest.mark.asyncio
+async def test_the_vault_asks_at_most_once_a_day(async_session: AsyncSession, vault: Vault) -> None:
+    """The daily cap holds even with several dwellers ready to ask."""
+    dwellers = await _with_room_for_one_exit(async_session, vault)
+    overdue = datetime.utcnow() - timedelta(hours=game_config.exit_request.despair_grace_hours)
+    for dweller in dwellers:
+        await crud.dweller.update(
+            async_session,
+            dweller.id,
+            {"happiness": game_config.exit_request.despair_happiness, "despair_since": overdue},
+        )
+
+    first = await exit_request_service.sync_despair_requests(async_session, vault.id)
+    second = await exit_request_service.sync_despair_requests(async_session, vault.id)
+
+    assert len(first) == game_config.exit_request.max_exit_requests_per_day
+    assert second == []
 
 
 @pytest.mark.asyncio

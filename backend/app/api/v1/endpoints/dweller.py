@@ -655,7 +655,7 @@ async def refuse_exit_request(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ExitDecisionResponse:
-    """Refuse the ask: the dweller takes a happiness hit and the request stands.
+    """Refuse the ask: the request is resolved and the whole vault pays a morale cost.
 
     Returns:
         ExitDecisionResponse: The refusal outcome and updated happiness.

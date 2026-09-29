@@ -81,8 +81,10 @@ class DwellerBaseWithoutStats(SQLModel):
     # Status
     status: DwellerStatusEnum = Field(default=DwellerStatusEnum.IDLE, index=True)
 
-    # Exit requests: a dweller who asks to leave stands by the ask until it is granted or withdrawn.
+    # Exit requests: a dweller in despair asks to leave once they have been unhappy long enough;
+    # the ask is resolved by granting or refusing it, or withdrawn when their mood recovers.
     exit_requested_at: datetime | None = Field(default=None)
+    despair_since: datetime | None = Field(default=None)
 
     # Death system
     is_dead: bool = Field(default=False, index=True)

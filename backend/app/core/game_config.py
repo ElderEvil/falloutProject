@@ -1084,6 +1084,22 @@ class ExitConfig(BaseSettings):
         ge=1,
         description="The vault will not grant an exit that drops it below this many dwellers",
     )
+    max_exit_requests_per_day: int = Field(
+        default=1,
+        ge=1,
+        description="Most exit requests the vault raises per day",
+    )
+    vault_refusal_happiness_penalty: int = Field(
+        default=10,
+        ge=0,
+        le=100,
+        description="Happiness every living dweller loses when the vault refuses an exit request",
+    )
+    despair_grace_hours: int = Field(
+        default=6,
+        ge=0,
+        description="Hours a dweller must stay in despair before they will ask to leave",
+    )
 
 
 class GameConfig(BaseSettings):

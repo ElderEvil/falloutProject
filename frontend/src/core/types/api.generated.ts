@@ -1303,7 +1303,7 @@ export interface paths {
         put?: never;
         /**
          * Refuse Exit Request
-         * @description Refuse the ask: the dweller takes a happiness hit and the request stands.
+         * @description Refuse the ask: the request is resolved and the whole vault pays a morale cost.
          *
          *     Returns:
          *         ExitDecisionResponse: The refusal outcome and updated happiness.
@@ -5790,6 +5790,8 @@ export interface components {
             status: components["schemas"]["DwellerStatusEnum"];
             /** Exit Requested At */
             exit_requested_at?: string | null;
+            /** Despair Since */
+            despair_since?: string | null;
             /**
              * Is Dead
              * @default false
@@ -5943,6 +5945,8 @@ export interface components {
             status: components["schemas"]["DwellerStatusEnum"];
             /** Exit Requested At */
             exit_requested_at?: string | null;
+            /** Despair Since */
+            despair_since?: string | null;
             /**
              * Is Dead
              * @default false
@@ -6140,6 +6144,8 @@ export interface components {
             status: components["schemas"]["DwellerStatusEnum"];
             /** Exit Requested At */
             exit_requested_at?: string | null;
+            /** Despair Since */
+            despair_since?: string | null;
             /**
              * Is Dead
              * @default false
@@ -6293,6 +6299,8 @@ export interface components {
             status: components["schemas"]["DwellerStatusEnum"];
             /** Exit Requested At */
             exit_requested_at?: string | null;
+            /** Despair Since */
+            despair_since?: string | null;
             /**
              * Is Dead
              * @default false
@@ -6521,6 +6529,8 @@ export interface components {
             status: components["schemas"]["DwellerStatusEnum"];
             /** Exit Requested At */
             exit_requested_at?: string | null;
+            /** Despair Since */
+            despair_since?: string | null;
             /**
              * Is Dead
              * @default false
@@ -9964,6 +9974,8 @@ export interface components {
              * Format: uuid4
              */
             user_id?: string;
+            /** Last Exit Request At */
+            last_exit_request_at?: string | null;
         };
         /** VaultCreate */
         VaultCreate: {

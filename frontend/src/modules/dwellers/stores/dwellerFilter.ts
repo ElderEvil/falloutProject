@@ -2,7 +2,11 @@ import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
-import { GENDER_CONFIG_MAP, RACE_CONFIG_MAP, RARITY_CONFIG_MAP } from '@/modules/dwellers/models/dweller'
+import {
+  GENDER_CONFIG_MAP,
+  RACE_CONFIG_MAP,
+  RARITY_CONFIG_MAP,
+} from '@/modules/dwellers/models/dweller'
 import {
   DEFAULT_TABLE_COLUMNS,
   DWELLER_TABLE_PRESETS,
@@ -468,12 +472,20 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     const requestSeq = ++allDwellersRequestSeq
 
     try {
-      const data = await getDwellersByVault(vaultId, token, {
+      let page = await getDwellersByVault(vaultId, token, {
         skip: 0,
         limit: ALL_DWELLERS_FETCH_LIMIT,
       })
+      const collected: DwellerShort[] = [...page]
+      while (page.length === ALL_DWELLERS_FETCH_LIMIT) {
+        page = await getDwellersByVault(vaultId, token, {
+          skip: collected.length,
+          limit: ALL_DWELLERS_FETCH_LIMIT,
+        })
+        collected.push(...page)
+      }
       if (requestSeq === allDwellersRequestSeq && allDwellersVaultId === vaultId) {
-        allDwellers.value = data
+        allDwellers.value = collected
       }
     } catch (error) {
       handleStoreError(error, `Failed to fetch all dwellers for vault ${vaultId}`)

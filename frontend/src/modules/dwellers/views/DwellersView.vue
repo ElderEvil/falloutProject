@@ -92,20 +92,25 @@ function applyFiltersFromQuery(query: LocationQuery, resetMissing: boolean): voi
   if (isDwellerStatus(filter)) dwellerStore.setFilterStatus(filter)
   else if (resetMissing) dwellerStore.setFilterStatus('all')
 
-  if (isDwellerAgeGroup(ageGroup)) dwellerStore.setFilterAgeGroup(ageGroup)
+  // A dead roster is served without facet data, so the store drops these facets on entry;
+  // a stale link must not put one back.
+  const facetsAvailable = dwellerStore.filterStatus !== 'dead'
+
+  if (facetsAvailable && isDwellerAgeGroup(ageGroup)) dwellerStore.setFilterAgeGroup(ageGroup)
   else if (resetMissing) dwellerStore.setFilterAgeGroup('all')
 
-  if (isDwellerGender(gender)) dwellerStore.setFilterGender(gender)
+  if (facetsAvailable && isDwellerGender(gender)) dwellerStore.setFilterGender(gender)
   else if (resetMissing) dwellerStore.setFilterGender('all')
 
-  if (isDwellerRarity(rarity)) dwellerStore.setFilterRarity(rarity)
+  if (facetsAvailable && isDwellerRarity(rarity)) dwellerStore.setFilterRarity(rarity)
   else if (resetMissing) dwellerStore.setFilterRarity('all')
 
-  if (typeof race === 'string' && race) dwellerStore.setFilterRace(race)
+  if (facetsAvailable && typeof race === 'string' && race) dwellerStore.setFilterRace(race)
   else if (resetMissing) dwellerStore.setFilterRace('all')
 
-  if (typeof faction === 'string' && faction) dwellerStore.setFilterFaction(faction)
-  else if (resetMissing) dwellerStore.setFilterFaction('all')
+  if (facetsAvailable && typeof faction === 'string' && faction) {
+    dwellerStore.setFilterFaction(faction)
+  } else if (resetMissing) dwellerStore.setFilterFaction('all')
 
   if (isDwellerSortBy(sortBy)) dwellerStore.setSortBy(sortBy)
   else if (resetMissing) dwellerStore.setSortBy('name')

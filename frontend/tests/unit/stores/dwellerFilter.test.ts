@@ -238,6 +238,40 @@ describe('DwellerFilter Store', () => {
       expect(store.allDwellers).toEqual(mockDwellers)
     })
 
+    it('should fetch later pages until a short page arrives', async () => {
+      const fullPage = Array.from({ length: ALL_DWELLERS_FETCH_LIMIT }, (_, index) => ({
+        id: `d${index}`,
+        first_name: 'Page',
+        last_name: 'One',
+        status: 'idle',
+        level: 1,
+        happiness: 50,
+      }))
+      const tail = [
+        {
+          id: 'tail',
+          first_name: 'Last',
+          last_name: 'Page',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        },
+      ]
+      vi.mocked(axios.get)
+        .mockResolvedValueOnce({ data: fullPage })
+        .mockResolvedValueOnce({ data: tail })
+
+      const store = useDwellerFilterStore()
+      await store.fetchAllDwellers('vault-1', 'test-token')
+
+      expect(vi.mocked(axios.get)).toHaveBeenCalledTimes(2)
+      expect(vi.mocked(axios.get).mock.calls[1][0] as string).toContain(
+        `skip=${ALL_DWELLERS_FETCH_LIMIT}`
+      )
+      expect(store.allDwellers).toHaveLength(ALL_DWELLERS_FETCH_LIMIT + 1)
+      expect(store.allDwellers.at(-1)).toEqual(tail[0])
+    })
+
     it('should clear allDwellers before loading', async () => {
       let resolveRequest!: (value: unknown) => void
       vi.mocked(axios.get).mockImplementationOnce(

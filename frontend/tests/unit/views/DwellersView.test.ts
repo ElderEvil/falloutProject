@@ -490,6 +490,20 @@ describe('DwellersView', () => {
       wrapper.unmount()
     })
 
+    it('ignores facet query params while the dead panel is active', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      await router.push('/vault/vault-1/dwellers?filter=dead&rarity=legendary&race=ghoul')
+      await router.isReady()
+
+      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
+      await flushPromises()
+
+      expect(_dwellerStore.filter.filterStatus).toBe('dead')
+      expect(_dwellerStore.filter.filterRarity).toBe('all')
+      expect(_dwellerStore.filter.filterRace).toBe('all')
+      wrapper.unmount()
+    })
+
     it('writes rarity changes back to the query and refetches the roster', async () => {
       vi.mocked(axios.get).mockResolvedValue({ data: [] })
       await router.isReady()

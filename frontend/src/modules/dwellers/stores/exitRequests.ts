@@ -44,12 +44,18 @@ export const useExitRequestStore = defineStore('exitRequests', () => {
     }
   }
 
-  async function refuse(vaultId: string, dwellerId: string): Promise<boolean> {
+  async function refuse(
+    vaultId: string,
+    dwellerId: string,
+    happinessPenalty: number
+  ): Promise<boolean> {
     try {
       const response = await axios.post<ExitDecision>(`/api/v1/dwellers/${dwellerId}/refuse-exit`)
       const decision = response.data
       requests.value = requests.value.filter((request) => request.dweller_id !== dwellerId)
-      toast.warning(`${decision.dweller_name} stays. The vault loses 10 happiness.`)
+      toast.warning(
+        `${decision.dweller_name} stays. The vault loses ${happinessPenalty} happiness.`
+      )
       return true
     } catch (error) {
       toast.error(`Failed to refuse the request: ${getErrorMessage(error)}`)

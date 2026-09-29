@@ -11,6 +11,7 @@ from datetime import UTC, datetime, timedelta
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.db_locks import try_advisory_xact_lock
 from app.core.enums import DeathCauseEnum, DwellerStatusEnum
 from app.core.game_config import game_config
 from app.crud.dweller import dweller as dweller_crud
@@ -63,6 +64,9 @@ class ExitRequestService:
             raise VaultOperationException(detail=reason)
 
         now = datetime.now(UTC).replace(tzinfo=None)
+        if not await self._lock_exit_requests(db_session, dweller.vault_id):
+            raise VaultOperationException(detail="Another exit request is already being handled")
+
         vault = await vault_crud.get(db_session, dweller.vault_id)
         if vault is not None:
             reason = await self._daily_cap_block(db_session, vault, now)
@@ -137,6 +141,10 @@ class ExitRequestService:
             logger.info("%d dweller(s) in vault %s asked to leave", len(asked), vault_id)
         return asked
 
+    async def _lock_exit_requests(self, db_session: AsyncSession, vault_id: UUID4) -> bool:
+        """Serialize the cap check-and-stamp per vault (a no-op outside PostgreSQL)."""
+        return await try_advisory_xact_lock(db_session, f"exit-request:{vault_id}")
+
     async def _daily_cap_block(self, db_session: AsyncSession, vault: Vault, now: datetime) -> str | None:
         """Why the vault cannot raise another ask right now, or None when it can."""
         if await dweller_crud.get_pending_exit_requests(db_session, vault.id):
@@ -151,12 +159,16 @@ class ExitRequestService:
         self, db_session: AsyncSession, vault_id: UUID4, threshold: int, now: datetime
     ) -> list[Dweller]:
         vault = await vault_crud.get(db_session, vault_id)
-        if vault is None or await self._daily_cap_block(db_session, vault, now):
-            return []
-        if await self._population_block(db_session, vault_id):
+        if vault is None:
             return []
 
-        per_day = game_config.exit_request.max_exit_requests_per_day
+        if await self._lock_exit_requests(db_session, vault_id):
+            block = await self._daily_cap_block(db_session, vault, now)
+            if block is None:
+                block = await self._population_block(db_session, vault_id)
+        else:
+            block = "Another exit request is already being handled"
+
         grace = timedelta(hours=game_config.exit_request.despair_grace_hours)
         eligible: list[Dweller] = []
         for dweller in await dweller_crud.get_living_in_vault(db_session, vault_id):
@@ -172,8 +184,11 @@ class ExitRequestService:
             ):
                 eligible.append(dweller)
 
+        if block:
+            return []
+
         eligible.sort(key=lambda dweller: dweller.happiness)
-        asked = eligible[:per_day]
+        asked = eligible[:1]
         for dweller in asked:
             dweller.exit_requested_at = now
         if asked:

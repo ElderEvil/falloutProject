@@ -280,6 +280,21 @@ async def test_the_vault_asks_at_most_once_a_day(async_session: AsyncSession, va
 
 
 @pytest.mark.asyncio
+async def test_despair_tracking_survives_a_blocked_ask(async_session: AsyncSession, vault: Vault) -> None:
+    """A dweller who falls into despair while the daily cap is spent still starts their clock."""
+    await _with_room_for_one_exit(async_session, vault)
+    vault.last_exit_request_at = datetime.utcnow()
+    async_session.add(vault)
+    await async_session.commit()
+    sad = await _create(async_session, vault, first_name="Clara", happiness=game_config.exit_request.despair_happiness)
+
+    assert await exit_request_service.sync_despair_requests(async_session, vault.id) == []
+
+    await async_session.refresh(sad)
+    assert sad.despair_since is not None
+
+
+@pytest.mark.asyncio
 async def test_despair_raises_no_ask_below_the_population_floor(async_session: AsyncSession, vault: Vault) -> None:
     """An ask the vault could not grant would only dangle, so it is not raised."""
     dwellers = await _populate(async_session, vault, game_config.exit_request.min_population)

@@ -6821,6 +6821,8 @@ export interface components {
             happiness: number;
             /** Requested At */
             requested_at?: string | null;
+            /** Refusal Happiness Penalty */
+            refusal_happiness_penalty: number;
         };
         /**
          * ExpeditionDispatchRequest

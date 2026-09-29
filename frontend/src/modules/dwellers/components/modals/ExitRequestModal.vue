@@ -38,7 +38,7 @@ const decide = async (grant: boolean) => {
   isDeciding.value = true
   try {
     if (grant) await store.grant(vaultId, request.dweller_id)
-    else await store.refuse(vaultId, request.dweller_id)
+    else await store.refuse(vaultId, request.dweller_id, request.refusal_happiness_penalty)
   } finally {
     isDeciding.value = false
   }
@@ -82,9 +82,9 @@ const decideLater = () => {
           </div>
 
           <p class="description">
-            They have asked to go outside. Refusing keeps them here: the whole vault loses 10
-            happiness. They will not ask again for a day. Letting them go means they are not coming
-            back.
+            They have asked to go outside. Refusing keeps them here: the whole vault loses
+            {{ current.refusal_happiness_penalty }} happiness. They will not ask again for a day.
+            Letting them go means they are not coming back.
           </p>
 
           <div class="modal-actions">
@@ -94,7 +94,7 @@ const decideLater = () => {
             </Button>
             <Button variant="secondary" :disabled="isDeciding" @click="decide(false)">
               <Icon icon="mdi:hand-back-right-outline" />
-              Refuse — vault −10
+              Refuse — vault −{{ current.refusal_happiness_penalty }}
               <Icon icon="mdi:emoticon-sad-outline" />
             </Button>
             <Button variant="destructive" :disabled="isDeciding" @click="decide(true)">

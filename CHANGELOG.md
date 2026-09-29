@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.159.0 (2026-09-29)
+
+### Features
+
+* **dwellers:** make refusing an exit request a real decision ([#832](https://github.com/ElderEvil/falloutProject/issues/832)) 1092ca0
+
 ## 2.158.1 (2026-09-29)
 
 ### Bug Fixes

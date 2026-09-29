@@ -162,9 +162,7 @@ class DeathService:
         )
 
         # Calculate health after revival
-        revival_health = min(
-            int(dweller.max_health * game_config.death.revival_health_percent), dweller.effective_max_health
-        )
+        revival_health = min(int(dweller.max_health * game_config.death.revival_health_percent), dweller.max_health)
 
         # Revive dweller
         revived_dweller = await dweller_crud.update(
@@ -177,6 +175,7 @@ class DeathService:
                 is_permanently_dead=False,
                 status=DwellerStatusEnum.IDLE,
                 health=revival_health,
+                radiation=0,
             ),
         )
 

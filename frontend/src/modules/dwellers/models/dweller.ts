@@ -44,9 +44,11 @@ export const RACE_CONFIG_MAP: Record<string, { icon: string; label: string; colo
   synth: { icon: 'mdi:robot-outline', label: 'Synth', color: 'var(--badge-race-synth)' },
 }
 
-export function getRaceConfig(
-  race: string | null | undefined
-): { icon: string; label: string; color: string } {
+export function getRaceConfig(race: string | null | undefined): {
+  icon: string
+  label: string
+  color: string
+} {
   const key = String(race ?? '').toLowerCase()
   return (
     RACE_CONFIG_MAP[key] ?? {
@@ -278,6 +280,20 @@ export function getRadiationPercentage(
 ): number {
   if (!radiation || radiation <= 0 || maxHealth <= 0) return 0
   return Math.min(100, (radiation / maxHealth) * 100)
+}
+
+/**
+ * Radiation share of max health at or above which a dweller reads as severely
+ * irradiated (matches the explorer "heavy radiation" badge threshold).
+ */
+export const SEVERE_RADIATION_PERCENT = 50
+
+/** True when radiation consumes at least {@link SEVERE_RADIATION_PERCENT}% of max health. */
+export function isSeverelyIrradiated(
+  radiation: number | null | undefined,
+  maxHealth: number
+): boolean {
+  return getRadiationPercentage(radiation, maxHealth) >= SEVERE_RADIATION_PERCENT
 }
 
 /** Health ceiling after radiation damage, kept at one so existing death rules still apply. */

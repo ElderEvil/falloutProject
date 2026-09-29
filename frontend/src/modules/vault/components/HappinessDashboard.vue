@@ -20,7 +20,7 @@ interface Props {
   activeIncidentCount?: number
   lowResourceCount?: number
   radioHappinessMode?: boolean
-  irradiatedDwellerCount?: number
+  severelyIrradiatedDwellerCount?: number
   treatingDwellers?: boolean
   loading?: boolean
 }
@@ -30,7 +30,7 @@ const {
   activeIncidentCount = 0,
   lowResourceCount = 0,
   radioHappinessMode = false,
-  irradiatedDwellerCount = 0,
+  severelyIrradiatedDwellerCount = 0,
   treatingDwellers = false,
   loading = false,
   distribution,
@@ -87,6 +87,9 @@ const happinessLabel = computed(() => {
 
 // Threshold for idle dwellers to trigger decreasing happiness trend
 const IDLE_DWELLER_TREND_THRESHOLD = 3
+
+// Treatment is only prompted once more than one dweller is severely irradiated
+const TREATMENT_MIN_SEVERE_COUNT = 2
 
 // Calculate trend based on current modifiers and conditions
 const happinessTrend = computed((): 'increasing' | 'decreasing' | 'stable' => {
@@ -177,17 +180,75 @@ const hasNegativeModifiers = computed(() => {
   return activeModifiers.value.some((m) => m.severity === 'negative')
 })
 
+const showTreatmentAction = computed(
+  () => severelyIrradiatedDwellerCount >= TREATMENT_MIN_SEVERE_COUNT
+)
+
 const distributionPercentage = (count: number) => {
   if (dwellerCount === 0) return 0
   return Math.round((count / dwellerCount) * 100)
 }
+
+interface DistributionBand {
+  key: keyof DwellerDistribution
+  label: string
+  count: number
+  percent: number
+  barClass: string
+  labelClass: string
+}
+
+// Ordered high → critical; drives both the stacked proportion bar and its legend.
+const distributionBands = computed<DistributionBand[]>(() => {
+  const bands: Array<Omit<DistributionBand, 'count' | 'percent'>> = [
+    {
+      key: 'high',
+      label: 'High (75-100)',
+      barClass: 'bg-happiness-high',
+      labelClass: 'text-happiness-high',
+    },
+    {
+      key: 'medium',
+      label: 'Medium (50-74)',
+      barClass: 'bg-happiness-medium',
+      labelClass: 'text-happiness-medium',
+    },
+    {
+      key: 'low',
+      label: 'Low (25-49)',
+      barClass: 'bg-happiness-low',
+      labelClass: 'text-happiness-low',
+    },
+    {
+      key: 'critical',
+      label: 'Critical (10-24)',
+      barClass: 'bg-happiness-critical',
+      labelClass: 'text-happiness-critical',
+    },
+  ]
+  return bands.map((band) => ({
+    ...band,
+    count: dwellerDistribution.value[band.key],
+    percent: distributionPercentage(dwellerDistribution.value[band.key]),
+  }))
+})
+
+const distributionAriaLabel = computed(() =>
+  distributionBands.value.map((b) => `${b.label}: ${b.count} (${b.percent}%)`).join(', ')
+)
 </script>
 
 <template>
-  <Card v-if="loading" class="happiness-dashboard gap-0 rounded-lg border-2 border-theme-primary/20 bg-surface-raised p-4 shadow-none ring-0">
+  <Card
+    v-if="loading"
+    class="happiness-dashboard gap-0 rounded-lg border-2 border-theme-primary/20 bg-surface-raised p-4 shadow-none ring-0"
+  >
     <Skeleton :style="{ width: '100%', height: '120px' }" class="rounded-lg" />
   </Card>
-  <Card v-else class="happiness-dashboard gap-0 rounded-lg border-2 border-theme-primary/20 bg-surface-raised p-4 shadow-none ring-0">
+  <Card
+    v-else
+    class="happiness-dashboard gap-0 rounded-lg border-2 border-theme-primary/20 bg-surface-raised p-4 shadow-none ring-0"
+  >
     <div class="dashboard-content compact-dashboard">
       <!-- Main Happiness Gauge -->
       <div class="happiness-gauge">
@@ -235,81 +296,20 @@ const distributionPercentage = (count: number) => {
       <!-- Dweller Distribution -->
       <div class="distribution-section">
         <h4 class="section-title">DWELLER DISTRIBUTION</h4>
-        <div class="distribution-bars">
-          <div class="distribution-item">
-            <div class="distribution-header">
-              <span class="distribution-label text-theme-primary">High (75-100)</span>
-              <span class="distribution-count"
-                >{{ dwellerDistribution.high }} ({{
-                  distributionPercentage(dwellerDistribution.high)
-                }}%)</span
-              >
-            </div>
-            <div class="distribution-bar">
-              <div
-                class="distribution-fill bg-theme-primary"
-                :style="{
-                  width: `${distributionPercentage(dwellerDistribution.high)}%`,
-                }"
-              ></div>
-            </div>
-          </div>
-
-            <div class="distribution-item">
-            <div class="distribution-header">
-              <span class="distribution-label text-terminal-green-dark">Medium (50-74)</span>
-              <span class="distribution-count"
-                >{{ dwellerDistribution.medium }} ({{
-                  distributionPercentage(dwellerDistribution.medium)
-                }}%)</span
-              >
-            </div>
-            <div class="distribution-bar">
-              <div
-                class="distribution-fill bg-terminal-green-dark"
-                :style="{
-                  width: `${distributionPercentage(dwellerDistribution.medium)}%`,
-                }"
-              ></div>
-            </div>
-          </div>
-
-          <div class="distribution-item">
-            <div class="distribution-header">
-              <span class="distribution-label text-warning">Low (25-49)</span>
-              <span class="distribution-count"
-                >{{ dwellerDistribution.low }} ({{
-                  distributionPercentage(dwellerDistribution.low)
-                }}%)</span
-              >
-            </div>
-            <div class="distribution-bar">
-              <div
-                class="distribution-fill bg-warning"
-                :style="{
-                  width: `${distributionPercentage(dwellerDistribution.low)}%`,
-                }"
-              ></div>
-            </div>
-          </div>
-
-          <div class="distribution-item">
-            <div class="distribution-header">
-              <span class="distribution-label text-danger">Critical (10-24)</span>
-              <span class="distribution-count"
-                >{{ dwellerDistribution.critical }} ({{
-                  distributionPercentage(dwellerDistribution.critical)
-                }}%)</span
-              >
-            </div>
-            <div class="distribution-bar">
-              <div
-                class="distribution-fill bg-danger"
-                :style="{
-                  width: `${distributionPercentage(dwellerDistribution.critical)}%`,
-                }"
-              ></div>
-            </div>
+        <div class="distribution-stacked" role="img" :aria-label="distributionAriaLabel">
+          <div
+            v-for="band in distributionBands"
+            :key="band.key"
+            class="distribution-segment"
+            :class="[band.barClass, band.labelClass]"
+            :style="{ width: `${band.percent}%` }"
+          ></div>
+        </div>
+        <div class="distribution-legend">
+          <div v-for="band in distributionBands" :key="band.key" class="legend-item">
+            <span class="legend-dot" :class="[band.barClass, band.labelClass]"></span>
+            <span class="legend-label" :class="band.labelClass">{{ band.label }}</span>
+            <span class="legend-count tabular-nums">{{ band.count }} ({{ band.percent }}%)</span>
           </div>
         </div>
       </div>
@@ -326,22 +326,25 @@ const distributionPercentage = (count: number) => {
           >
             <Icon :icon="modifier.icon" :style="{ color: modifier.color }" class="modifier-icon" />
             <span class="modifier-name">{{ modifier.name }}</span>
+            <span class="modifier-tag" :class="modifier.severity">
+              {{ modifier.severity === 'negative' ? 'NEGATIVE' : 'POSITIVE' }}
+            </span>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Quick Actions Footer -->
-    <div v-if="hasNegativeModifiers || irradiatedDwellerCount > 0" class="actions-footer">
-      <h4 class="footer-title">QUICK ACTIONS</h4>
+    <div v-if="hasNegativeModifiers || showTreatmentAction" class="actions-footer">
+      <h4 class="section-title">QUICK ACTIONS</h4>
       <div class="actions-grid">
         <Button
-          v-if="irradiatedDwellerCount > 0"
+          v-if="showTreatmentAction"
           variant="outline"
           size="sm"
           :disabled="treatingDwellers"
           @click="emit('treat-irradiated')"
-          class="action-button border-2 border-theme-primary bg-transparent"
+          class="action-button border-2 border-theme-primary bg-transparent hover:shadow-glow-md"
         >
           <Icon v-if="treatingDwellers" icon="mdi:loading" class="action-icon animate-spin" />
           <Icon v-else icon="mdi:radiation" class="action-icon" />
@@ -353,7 +356,7 @@ const distributionPercentage = (count: number) => {
           variant="outline"
           size="sm"
           @click="emit('assign-idle')"
-          class="action-button border-2 border-theme-primary bg-transparent"
+          class="action-button border-2 border-theme-primary bg-transparent hover:shadow-glow-md"
         >
           <Icon icon="mdi:account-arrow-right" class="action-icon" />
           Assign Idle Dwellers
@@ -364,7 +367,7 @@ const distributionPercentage = (count: number) => {
           variant="outline"
           size="sm"
           @click="emit('activate-radio')"
-          class="action-button border-2 border-theme-primary bg-transparent"
+          class="action-button border-2 border-theme-primary bg-transparent hover:shadow-glow-md"
         >
           <Icon icon="mdi:radio" class="action-icon" />
           Activate Radio Mode
@@ -375,7 +378,7 @@ const distributionPercentage = (count: number) => {
           variant="outline"
           size="sm"
           @click="emit('view-low-happiness')"
-          class="action-button border-2 border-theme-primary bg-transparent"
+          class="action-button border-2 border-theme-primary bg-transparent hover:shadow-glow-md"
         >
           <Icon icon="mdi:account-alert" class="action-icon" />
           View Low Happiness
@@ -399,8 +402,8 @@ const distributionPercentage = (count: number) => {
   display: grid;
   grid-template-columns: minmax(6rem, 8rem) minmax(0, 1fr);
   align-items: center;
-  column-gap: 1rem;
-  row-gap: 0.75rem;
+  column-gap: 1.25rem;
+  row-gap: 1rem;
 }
 
 .happiness-gauge {
@@ -447,6 +450,7 @@ const distributionPercentage = (count: number) => {
   font-size: 1.375rem;
   font-weight: 700;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
   text-shadow: 0 0 10px currentColor;
 }
 
@@ -476,50 +480,60 @@ const distributionPercentage = (count: number) => {
   margin-bottom: 0.75rem;
 }
 
-.distribution-bars {
+.distribution-stacked {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.distribution-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.distribution-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.75rem;
-}
-
-.distribution-label {
-  font-weight: 600;
-}
-
-.distribution-count {
-  color: var(--color-gray-400);
-}
-
-.distribution-bar {
-  height: 8px;
-  background: rgba(107, 114, 128, 0.3);
-  border-radius: 4px;
+  gap: 2px;
+  height: 10px;
+  margin-bottom: 0.5rem;
+  padding: 1px;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-theme-glow);
+  border-radius: 0.25rem;
   overflow: hidden;
 }
 
-.distribution-fill {
+.distribution-segment {
   height: 100%;
+  border-radius: 2px;
   transition: width 0.5s ease;
-  border-radius: 4px;
-  box-shadow: 0 0 8px currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.distribution-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 1rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+}
+
+.legend-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  box-shadow: 0 0 4px currentColor;
+}
+
+.legend-label {
+  font-weight: 600;
+}
+
+.legend-count {
+  color: var(--color-theme-primary);
+  opacity: 0.6;
 }
 
 /* Modifiers Section */
 .modifiers-section {
   grid-column: 1 / -1;
+  margin-top: 0.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
 }
 
 .modifiers-list {
@@ -532,18 +546,20 @@ const distributionPercentage = (count: number) => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem;
-  background: rgba(0, 0, 0, 0.3);
+  padding: 0.5rem 0.625rem;
+  background: var(--color-surface-sunken);
   border-radius: 0.25rem;
   font-size: 0.875rem;
 }
 
 .modifier-item.negative {
   border-left: 2px solid var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 8%, var(--color-surface-sunken));
 }
 
 .modifier-item.positive {
   border-left: 2px solid var(--color-theme-primary);
+  background: color-mix(in srgb, var(--color-theme-primary) 8%, var(--color-surface-sunken));
 }
 
 .modifier-icon {
@@ -551,22 +567,30 @@ const distributionPercentage = (count: number) => {
 }
 
 .modifier-name {
-  color: var(--color-gray-200);
+  color: color-mix(in srgb, var(--color-theme-primary) 75%, transparent);
+}
+
+.modifier-tag {
+  margin-left: auto;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.modifier-tag.negative {
+  color: var(--color-danger);
+}
+
+.modifier-tag.positive {
+  color: var(--color-theme-primary);
 }
 
 /* Footer Actions Section */
 .actions-footer {
-  padding-top: 0.75rem;
-  border-top: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.2);
-}
-
-.footer-title {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--color-theme-primary);
-  margin-bottom: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
 }
 
 .footer-hint {
@@ -619,6 +643,5 @@ const distributionPercentage = (count: number) => {
   .actions-grid {
     grid-template-columns: 1fr;
   }
-
 }
 </style>

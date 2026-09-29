@@ -4,6 +4,7 @@ import {
   canUseRadaway,
   getDwellerDisplayName,
   isMature,
+  isSeverelyIrradiated,
 } from '@/modules/dwellers/models/dweller'
 
 /**
@@ -50,9 +51,7 @@ describe('canUseRadaway', () => {
 
 describe('getDwellerDisplayName', () => {
   it('joins first and last name', () => {
-    expect(getDwellerDisplayName({ first_name: 'Lucy', last_name: 'MacLean' })).toBe(
-      'Lucy MacLean'
-    )
+    expect(getDwellerDisplayName({ first_name: 'Lucy', last_name: 'MacLean' })).toBe('Lucy MacLean')
   })
 
   it('omits a null last name instead of rendering "null"', () => {
@@ -67,5 +66,24 @@ describe('getDwellerDisplayName', () => {
     expect(getDwellerDisplayName(null)).toBe('')
     expect(getDwellerDisplayName(undefined)).toBe('')
     expect(getDwellerDisplayName({ first_name: null, last_name: 'Smith' })).toBe('')
+  })
+})
+
+describe('isSeverelyIrradiated', () => {
+  it('is true at or above half of max health', () => {
+    expect(isSeverelyIrradiated(50, 100)).toBe(true)
+    expect(isSeverelyIrradiated(60, 100)).toBe(true)
+    expect(isSeverelyIrradiated(5, 10)).toBe(true)
+  })
+
+  it('is false below half of max health', () => {
+    expect(isSeverelyIrradiated(49, 100)).toBe(false)
+    expect(isSeverelyIrradiated(1, 100)).toBe(false)
+  })
+
+  it('is false without radiation or a positive maximum', () => {
+    expect(isSeverelyIrradiated(0, 100)).toBe(false)
+    expect(isSeverelyIrradiated(null, 100)).toBe(false)
+    expect(isSeverelyIrradiated(50, 0)).toBe(false)
   })
 })

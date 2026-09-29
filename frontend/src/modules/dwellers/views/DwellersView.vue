@@ -34,6 +34,7 @@ import {
   isDwellerStatus,
   isSortDirection,
 } from '../stores/dweller'
+import { isSeverelyIrradiated } from '../models/dweller'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
 import DwellerFilterPanel from '../components/DwellerFilterPanel.vue'
 import DwellerDisplayControls from '../components/DwellerDisplayControls.vue'
@@ -253,6 +254,9 @@ const happinessDashboardData = computed(() => {
     lowResourceCount,
     radioHappinessMode: currentVault.value.radio_mode === 'happiness',
     irradiatedDwellerCount: population.filter((d) => d.radiation > 0).length,
+    severelyIrradiatedDwellerCount: population.filter((d) =>
+      isSeverelyIrradiated(d.radiation, d.max_health)
+    ).length,
   }
 })
 
@@ -484,7 +488,9 @@ const handleTreatIrradiated = async () => {
                 :activeIncidentCount="happinessDashboardData.activeIncidentCount"
                 :lowResourceCount="happinessDashboardData.lowResourceCount"
                 :radioHappinessMode="happinessDashboardData.radioHappinessMode"
-                :irradiatedDwellerCount="happinessDashboardData.irradiatedDwellerCount"
+                :severelyIrradiatedDwellerCount="
+                  happinessDashboardData.severelyIrradiatedDwellerCount
+                "
                 :treatingDwellers="treatingDwellers"
                 @assign-idle="handleAssignIdle"
                 @activate-radio="handleActivateRadio"

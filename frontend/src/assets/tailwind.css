@@ -57,6 +57,13 @@
     --color-danger: #ff0000;
     --color-info: #00aaff;
 
+    /* Happiness distribution ramp: fixed hexes so bands stay distinguishable under
+       every vault theme (amber/teal/green). Green → amber → orange → red. */
+    --color-happiness-high: #00ff00;
+    --color-happiness-medium: #ffaa00;
+    --color-happiness-low: #ff6600;
+    --color-happiness-critical: #ff0000;
+
     /* Resource Colors */
     --color-power: #ffdd57;
     --color-food: #ff6b6b;

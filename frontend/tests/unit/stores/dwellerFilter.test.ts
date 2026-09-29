@@ -238,6 +238,40 @@ describe('DwellerFilter Store', () => {
       expect(store.allDwellers).toEqual(mockDwellers)
     })
 
+    it('should fetch later pages until a short page arrives', async () => {
+      const fullPage = Array.from({ length: ALL_DWELLERS_FETCH_LIMIT }, (_, index) => ({
+        id: `d${index}`,
+        first_name: 'Page',
+        last_name: 'One',
+        status: 'idle',
+        level: 1,
+        happiness: 50,
+      }))
+      const tail = [
+        {
+          id: 'tail',
+          first_name: 'Last',
+          last_name: 'Page',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        },
+      ]
+      vi.mocked(axios.get)
+        .mockResolvedValueOnce({ data: fullPage })
+        .mockResolvedValueOnce({ data: tail })
+
+      const store = useDwellerFilterStore()
+      await store.fetchAllDwellers('vault-1', 'test-token')
+
+      expect(vi.mocked(axios.get)).toHaveBeenCalledTimes(2)
+      expect(vi.mocked(axios.get).mock.calls[1][0] as string).toContain(
+        `skip=${ALL_DWELLERS_FETCH_LIMIT}`
+      )
+      expect(store.allDwellers).toHaveLength(ALL_DWELLERS_FETCH_LIMIT + 1)
+      expect(store.allDwellers.at(-1)).toEqual(tail[0])
+    })
+
     it('should clear allDwellers before loading', async () => {
       let resolveRequest!: (value: unknown) => void
       vi.mocked(axios.get).mockImplementationOnce(
@@ -823,6 +857,135 @@ describe('DwellerFilter Store', () => {
     })
   })
 
+  describe('countByRarity', () => {
+    const roster = [
+      {
+        id: '1',
+        status: 'idle',
+        age_group: 'adult',
+        gender: 'male',
+        rarity: 'common',
+        visual_attributes: { race: 'ghoul', faction: 'children_of_atom' },
+      },
+      {
+        id: '2',
+        status: 'working',
+        age_group: 'adult',
+        gender: 'female',
+        rarity: 'legendary',
+        visual_attributes: { race: 'human', faction: 'vault_dweller' },
+      },
+      {
+        id: '3',
+        status: 'idle',
+        age_group: 'child',
+        gender: 'male',
+        rarity: 'common',
+        visual_attributes: { race: 'ghoul', faction: 'children_of_atom' },
+      },
+    ] as never
+
+    it('counts every rarity from allDwellers under the non-rarity filters', () => {
+      const store = useDwellerFilterStore()
+      store.allDwellers = roster
+
+      const { all, byRarity } = store.countByRarity({
+        status: 'all',
+        ageGroup: 'all',
+        gender: 'all',
+        race: 'all',
+        faction: 'all',
+      })
+
+      expect(all).toBe(3)
+      expect(byRarity.common).toBe(2)
+      expect(byRarity.legendary).toBe(1)
+      expect(byRarity.rare).toBe(0)
+    })
+
+    it('respects the status and age facets while ignoring rarity itself', () => {
+      const store = useDwellerFilterStore()
+      store.allDwellers = roster
+
+      const { all, byRarity } = store.countByRarity({
+        status: 'idle',
+        ageGroup: 'adult',
+        gender: 'all',
+        race: 'all',
+        faction: 'all',
+      })
+
+      expect(all).toBe(1)
+      expect(byRarity.common).toBe(1)
+      expect(byRarity.legendary).toBe(0)
+    })
+  })
+
+  describe('countByRace', () => {
+    const roster = [
+      {
+        id: '1',
+        status: 'idle',
+        age_group: 'adult',
+        gender: 'male',
+        rarity: 'common',
+        visual_attributes: { race: 'ghoul', faction: 'children_of_atom' },
+      },
+      {
+        id: '2',
+        status: 'working',
+        age_group: 'adult',
+        gender: 'female',
+        rarity: 'legendary',
+        visual_attributes: { race: 'human', faction: 'vault_dweller' },
+      },
+      {
+        id: '3',
+        status: 'idle',
+        age_group: 'child',
+        gender: 'male',
+        rarity: 'common',
+        visual_attributes: { race: 'ghoul', faction: 'children_of_atom' },
+      },
+    ] as never
+
+    it('counts every race from allDwellers under the non-race filters', () => {
+      const store = useDwellerFilterStore()
+      store.allDwellers = roster
+
+      const { all, byRace } = store.countByRace({
+        status: 'all',
+        ageGroup: 'all',
+        gender: 'all',
+        rarity: 'all',
+        faction: 'all',
+      })
+
+      expect(all).toBe(3)
+      expect(byRace.ghoul).toBe(2)
+      expect(byRace.human).toBe(1)
+      expect(byRace.super_mutant).toBe(0)
+      expect(byRace.synth).toBe(0)
+    })
+
+    it('respects the status and age facets while ignoring race itself', () => {
+      const store = useDwellerFilterStore()
+      store.allDwellers = roster
+
+      const { all, byRace } = store.countByRace({
+        status: 'idle',
+        ageGroup: 'adult',
+        gender: 'all',
+        rarity: 'all',
+        faction: 'all',
+      })
+
+      expect(all).toBe(1)
+      expect(byRace.ghoul).toBe(1)
+      expect(byRace.human).toBe(0)
+    })
+  })
+
   describe('getDwellerStatus', () => {
     it('should return status for existing dweller', () => {
       const store = useDwellerFilterStore()
@@ -855,12 +1018,16 @@ describe('DwellerFilter Store', () => {
     it('drops the facet filters when the status becomes dead', () => {
       const store = useDwellerFilterStore()
       store.setFilterAgeGroup('adult')
+      store.setFilterGender('male')
+      store.setFilterRarity('legendary')
       store.setFilterRace('ghoul')
       store.setFilterFaction('children_of_atom')
 
       store.setFilterStatus('dead')
 
       expect(store.filterAgeGroup).toBe('all')
+      expect(store.filterGender).toBe('all')
+      expect(store.filterRarity).toBe('all')
       expect(store.filterRace).toBe('all')
       expect(store.filterFaction).toBe('all')
     })
@@ -875,6 +1042,12 @@ describe('DwellerFilter Store', () => {
       const store = useDwellerFilterStore()
       store.setFilterAgeGroup('adult')
       expect(store.filterAgeGroup).toBe('adult')
+    })
+
+    it('setFilterRarity updates filterRarity', () => {
+      const store = useDwellerFilterStore()
+      store.setFilterRarity('rare')
+      expect(store.filterRarity).toBe('rare')
     })
 
     it('setSortBy updates sortBy', () => {

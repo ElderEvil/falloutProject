@@ -583,6 +583,44 @@ async def test_filter_dwellers_by_gender(
 
 
 @pytest.mark.asyncio
+async def test_filter_dwellers_by_rarity(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+) -> None:
+    """Roster filters narrow by rarity, a real enum column on the dweller."""
+    from app.schemas.dweller import DwellerCreate
+    from app.tests.factory.dwellers import create_fake_dweller
+
+    def dweller_of_rarity(rarity: RarityEnum) -> DwellerCreate:
+        data = create_fake_dweller()
+        data.update({"vault_id": vault.id, "rarity": rarity})
+        return DwellerCreate(**data)
+
+    common = await crud.dweller.create(async_session, dweller_of_rarity(RarityEnum.COMMON))
+    rare = await crud.dweller.create(async_session, dweller_of_rarity(RarityEnum.RARE))
+    legendary = await crud.dweller.create(async_session, dweller_of_rarity(RarityEnum.LEGENDARY))
+
+    by_common = await async_client.get(f"/dwellers/vault/{vault.id}/?rarity=common", headers=superuser_token_headers)
+    assert by_common.status_code == 200
+    assert [row["id"] for row in by_common.json()] == [str(common.id)]
+
+    by_rare = await async_client.get(f"/dwellers/vault/{vault.id}/?rarity=rare", headers=superuser_token_headers)
+    assert by_rare.status_code == 200
+    assert [row["id"] for row in by_rare.json()] == [str(rare.id)]
+
+    by_legendary = await async_client.get(
+        f"/dwellers/vault/{vault.id}/?rarity=legendary", headers=superuser_token_headers
+    )
+    assert by_legendary.status_code == 200
+    assert [row["id"] for row in by_legendary.json()] == [str(legendary.id)]
+
+    invalid = await async_client.get(f"/dwellers/vault/{vault.id}/?rarity=invalid", headers=superuser_token_headers)
+    assert invalid.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_unknown_race_filter_is_rejected(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],

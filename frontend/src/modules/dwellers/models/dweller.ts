@@ -25,19 +25,26 @@ export function formatIdentityLabel(value: string): string {
 }
 
 /** Race → display config — single source of truth for race badges and the identity signal. */
-export const RACE_CONFIG_MAP: Record<string, { icon: string; label: string }> = {
-  human: { icon: 'mdi:account', label: 'Human' },
-  ghoul: { icon: 'mdi:radioactive', label: 'Ghoul' },
-  super_mutant: { icon: 'mdi:arm-flex', label: 'Super Mutant' },
-  synth: { icon: 'mdi:robot-outline', label: 'Synth' },
+export const RACE_CONFIG_MAP: Record<string, { icon: string; label: string; color: string }> = {
+  human: { icon: 'mdi:account', label: 'Human', color: 'var(--badge-race-human)' },
+  ghoul: { icon: 'mdi:radioactive', label: 'Ghoul', color: 'var(--badge-race-ghoul)' },
+  super_mutant: {
+    icon: 'mdi:arm-flex',
+    label: 'Super Mutant',
+    color: 'var(--badge-race-super-mutant)',
+  },
+  synth: { icon: 'mdi:robot-outline', label: 'Synth', color: 'var(--badge-race-synth)' },
 }
 
-export function getRaceConfig(race: string | null | undefined): { icon: string; label: string } {
+export function getRaceConfig(
+  race: string | null | undefined
+): { icon: string; label: string; color: string } {
   const key = String(race ?? '').toLowerCase()
   return (
     RACE_CONFIG_MAP[key] ?? {
       icon: 'mdi:account-question-outline',
       label: formatIdentityLabel(key),
+      color: 'var(--color-theme-primary)',
     }
   )
 }

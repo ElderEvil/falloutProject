@@ -16,11 +16,10 @@ const meta = computed(() => getRaceConfig(props.race))
 </script>
 
 <template>
-  <!-- Race has no per-value colour token, so it stays theme-primary like the identity signal. -->
   <DwellerBadge
     v-if="race"
     :icon="meta.icon"
-    color="var(--color-theme-primary)"
+    :color="meta.color"
     :label="meta.label"
     :show-label="showLabel"
     :size="size"

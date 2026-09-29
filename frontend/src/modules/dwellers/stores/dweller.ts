@@ -14,6 +14,7 @@ export {
   compareDwellers,
   isDwellerAgeGroup,
   isDwellerGender,
+  isDwellerRarity,
   isDwellerSortBy,
   isDwellerStatus,
   isSortDirection,

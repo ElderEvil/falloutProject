@@ -161,6 +161,20 @@ const statusCounts = computed<Record<string, number> | undefined>(() => {
   return counts
 })
 
+/** Gender chips preview their own result set, following every filter except gender itself. */
+const genderCounts = computed<Record<string, number> | undefined>(() => {
+  if (!showGenderFilter || dwellerStore.allDwellers.length === 0) return undefined
+
+  const { all, byGender } = dwellerStore.countByGender({
+    status: showStatusFilter ? dwellerStore.filterStatus : 'all',
+    ageGroup: showAgeFilter ? dwellerStore.filterAgeGroup : 'all',
+    race: showIdentityFilters ? dwellerStore.filterRace : 'all',
+    faction: showIdentityFilters ? dwellerStore.filterFaction : 'all',
+  })
+
+  return { all, ...byGender }
+})
+
 function labelFor(options: readonly { value: string; label: string }[], value: string): string {
   return options.find((option) => option.value === value)?.label ?? value
 }
@@ -234,6 +248,7 @@ function clearFilters(): void {
         icon="mdi:gender-male-female"
         :options="genderOptions"
         :model-value="currentFilterGender"
+        :counts="genderCounts"
         @update:model-value="currentFilterGender = $event"
       />
 

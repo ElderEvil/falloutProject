@@ -249,6 +249,37 @@ describe('Status counts', () => {
   })
 })
 
+describe('Gender counts', () => {
+  const chipByLabel = (wrapper: ReturnType<typeof mount>, label: string) =>
+    wrapper.findAll('.filter-chip').find((chip) => chip.text().includes(label))!
+
+  it('shows a count per gender and a total', async () => {
+    const store = useDwellerStore().filter
+    store.allDwellers = [
+      { id: '1', status: 'idle', gender: 'male' },
+      { id: '2', status: 'idle', gender: 'male' },
+      { id: '3', status: 'working', gender: 'female' },
+    ] as never
+
+    const wrapper = mount(DwellerFilterPanel, { props: { showGenderFilter: true } })
+    await wrapper.vm.$nextTick()
+
+    expect(chipByLabel(wrapper, 'Male').find('.filter-count').text()).toBe('2')
+    expect(chipByLabel(wrapper, 'Female').find('.filter-count').text()).toBe('1')
+    expect(chipByLabel(wrapper, 'All Genders').find('.filter-count').text()).toBe('3')
+
+    wrapper.unmount()
+  })
+
+  it('shows no gender counts until the roster has loaded', async () => {
+    const wrapper = mount(DwellerFilterPanel, { props: { showGenderFilter: true } })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.filter-count').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})
+
 describe('Active filter summary', () => {
   it('stays hidden while no filters are active', () => {
     const wrapper = mount(DwellerFilterPanel, { props: { showActiveFilterSummary: true } })

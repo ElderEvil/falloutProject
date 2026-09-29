@@ -765,6 +765,64 @@ describe('DwellerFilter Store', () => {
     })
   })
 
+  describe('countByGender', () => {
+    const roster = [
+      {
+        id: '1',
+        status: 'idle',
+        age_group: 'adult',
+        gender: 'male',
+        visual_attributes: { race: 'ghoul', faction: 'children_of_atom' },
+      },
+      {
+        id: '2',
+        status: 'working',
+        age_group: 'adult',
+        gender: 'female',
+        visual_attributes: { race: 'human', faction: 'vault_dweller' },
+      },
+      {
+        id: '3',
+        status: 'idle',
+        age_group: 'child',
+        gender: 'male',
+        visual_attributes: { race: 'ghoul', faction: 'children_of_atom' },
+      },
+    ] as never
+
+    it('counts every gender from allDwellers under the non-gender filters', () => {
+      const store = useDwellerFilterStore()
+      store.allDwellers = roster
+
+      const { all, byGender } = store.countByGender({
+        status: 'all',
+        ageGroup: 'all',
+        race: 'all',
+        faction: 'all',
+      })
+
+      expect(all).toBe(3)
+      expect(byGender.male).toBe(2)
+      expect(byGender.female).toBe(1)
+    })
+
+    it('respects the status and age facets while ignoring gender itself', () => {
+      const store = useDwellerFilterStore()
+      store.allDwellers = roster
+
+      const { all, byGender } = store.countByGender({
+        status: 'idle',
+        ageGroup: 'adult',
+        race: 'all',
+        faction: 'all',
+      })
+
+      expect(all).toBe(1)
+      expect(byGender.male).toBe(1)
+      expect(byGender.female).toBe(0)
+    })
+  })
+
   describe('getDwellerStatus', () => {
     it('should return status for existing dweller', () => {
       const store = useDwellerFilterStore()

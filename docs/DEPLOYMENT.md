@@ -509,17 +509,11 @@ docker compose exec fastapi uv run alembic downgrade -1
 docker compose exec fastapi uv run alembic revision --autogenerate -m "description"
 ```
 
-### Content seeding (manual)
-Migrations create schema, not game content. New or edited seed files (objectives, prompts, catalogs)
-are loaded separately and are **not** applied by `alembic upgrade head`:
-
-```bash
-docker compose exec fastapi uv run fo-cli seed
-```
-
-It is idempotent — entries are deduped on their natural key (objectives on `challenge`) — so it is safe
-to re-run after any deploy that adds or changes a seed file, and it must be run for new objectives to
-appear in a deployed environment.
+### Content seeding
+Game content (quests, objectives, places) loads from JSON at **backend startup**, so a deploy's rollout
+picks up new rows automatically. Seeding is **insert-only** — an existing row is never updated — so
+**editing an existing seed's content requires a data migration** (or a manual `UPDATE`); re-running the
+seeder will not change rows that already exist.
 
 ## Health Checks
 

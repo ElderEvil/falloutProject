@@ -190,6 +190,19 @@ describe('ArenaRoomDetail', () => {
     expect(sprites[0].attributes('data-alt')).toBe('Alice Dweller')
   })
 
+  it('maps slots by fighter_a_id/fighter_b_id, not the fighters array order', async () => {
+    storeMock.currentRoom = {
+      ...storeMock.readyRoom,
+      fighters: [storeMock.readyRoom.fighters[1], storeMock.readyRoom.fighters[0]],
+    }
+    const wrapper = mountArena()
+    await flushPromises()
+
+    const sprites = wrapper.findAll('.actor-sprite')
+    expect(sprites[0].attributes('data-alt')).toBe('Alice Dweller')
+    expect(sprites[1].attributes('data-alt')).toBe('Bravo Dweller')
+  })
+
   it('falls back to the dweller portrait when a fighter has no actor', async () => {
     const wrapper = mountArena()
     await flushPromises()

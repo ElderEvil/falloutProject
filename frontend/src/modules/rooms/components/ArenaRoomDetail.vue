@@ -67,22 +67,24 @@ const sceneStyle = computed(() => {
   return { aspectRatio: `${scene.value.width} / ${scene.value.height}` }
 })
 
-const fighters = computed<ArenaFighter[]>(() => arenaStore.getRoom(props.room.id)?.fighters ?? [])
+const arenaRoom = computed(() => arenaStore.getRoom(props.room.id))
+const fighters = computed<ArenaFighter[]>(() => arenaRoom.value?.fighters ?? [])
 
 const dwellerById = computed(
   () => new Map(props.assignedDwellers.map((dweller) => [dweller.id, dweller]))
 )
 
-// One sprite per manifest slot; fighters map to slots in order (A → first slot).
-// Slot x/y are scene intrinsic pixels converted to percentages, with the feet
-// on y — the sprite is anchored at its bottom-center and mirrored when the
-// actor faces left.
+// One sprite per manifest slot; the slot order is fighter A then fighter B from
+// the arena state, independent of the fighters array order. Slot x/y are scene
+// intrinsic pixels converted to percentages, with the feet on y — the sprite is
+// anchored at its bottom-center and mirrored when the actor faces left.
 const slots = computed(() => {
   const sceneValue = scene.value
   if (!sceneValue) return []
   return sceneValue.actor_slots.map((slot, index) => {
-    const fighter = fighters.value[index] ?? null
-    const dweller = fighter ? dwellerById.value.get(fighter.id) : undefined
+    const fighterId = index === 0 ? arenaRoom.value?.fighter_a_id : arenaRoom.value?.fighter_b_id
+    const fighter = fighterId ? (fighters.value.find((candidate) => candidate.id === fighterId) ?? null) : null
+    const dweller = fighterId ? dwellerById.value.get(fighterId) : undefined
     const name =
       fighter?.name ??
       (dweller ? `${dweller.first_name} ${dweller.last_name ?? ''}`.trim() : 'Fighter')

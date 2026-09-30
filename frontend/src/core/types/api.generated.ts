@@ -4874,6 +4874,48 @@ export interface components {
          */
         AgeGroupEnum: "child" | "teen" | "adult" | "elder";
         /**
+         * ArenaActor
+         * @description Manifest-driven actor reference for an arena fighter.
+         *
+         *     Derived from structured dweller fields + equipped items; independent of
+         *     portrait URLs and ``visual_attributes``. ``None`` on the fighter means the
+         *     client falls back to the portrait.
+         */
+        ArenaActor: {
+            /** Base Key */
+            base_key: string;
+            /** Variant Url */
+            variant_url: string | null;
+            /** Canvas Width */
+            canvas_width: number;
+            /** Canvas Height */
+            canvas_height: number;
+            /** Baseline Y */
+            baseline_y: number;
+            /** Layers */
+            layers: components["schemas"]["ArenaActorLayer"][];
+        };
+        /**
+         * ArenaActorLayer
+         * @description One composable sprite layer of an arena actor.
+         */
+        ArenaActorLayer: {
+            /** Slot */
+            slot: string;
+            /** Url */
+            url: string;
+            /** Z */
+            z: number;
+            /** Anchor X */
+            anchor_x: number;
+            /** Anchor Y */
+            anchor_y: number;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+        };
+        /**
          * ArenaEventsCleared
          * @description Journal clear result.
          */
@@ -4910,6 +4952,7 @@ export interface components {
             max_health: number;
             /** Power */
             power: number;
+            actor?: components["schemas"]["ArenaActor"] | null;
         };
         /**
          * ArenaFightersRequest
@@ -9244,6 +9287,47 @@ export interface components {
             /** Output Formula */
             output_formula?: string | null;
         };
+        /** RoomDetailActorSlot */
+        RoomDetailActorSlot: {
+            /** Id */
+            id: string;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /**
+             * Facing
+             * @enum {string}
+             */
+            facing: "left" | "right";
+            /**
+             * Scale
+             * @default 1
+             */
+            scale: number;
+        };
+        /** RoomDetailScene */
+        RoomDetailScene: {
+            /** Image Url */
+            image_url: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /** Camera */
+            camera: string;
+            /** Safe Crop */
+            safe_crop: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Floor Baseline Y */
+            floor_baseline_y: number;
+            /** Actor Slots */
+            actor_slots: components["schemas"]["RoomDetailActorSlot"][];
+        };
         /** RoomRead */
         RoomRead: {
             /** Name */
@@ -9315,6 +9399,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** @description Detail-modal scene art and actor anchors from the asset manifest, if registered. */
+            readonly detail_scene: components["schemas"]["RoomDetailScene"] | null;
         };
         /**
          * RoomTypeEnum

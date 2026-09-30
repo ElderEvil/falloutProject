@@ -2,6 +2,9 @@
 
 from pathlib import Path
 
+from app.core.enums import AssetRole
+from app.utils.asset_manifest import manifest_url
+
 WEAPON_NAME_TO_IMAGE_FILE = {
     ".32 pistol": "32 pistol FOS.png",
     "10mm pistol": "10mm pistol FOS.png",
@@ -129,6 +132,9 @@ def get_weapon_image_url(weapon_name: str | None) -> str | None:
     (variants share the family look), family base image after stripping the
     variant prefix, then the generic 10mm pistol fallback.
     """
+    if weapon_name and (url := manifest_url(AssetRole.WEAPON_ICON, weapon_name)):
+        return url
+
     if not weapon_name:
         filename = _FALLBACK_IMAGE_FILE
     else:

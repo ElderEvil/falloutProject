@@ -10,6 +10,34 @@ class ArenaFightersRequest(BaseModel):
     fighter_b_id: UUID4 | None = None
 
 
+class ArenaActorLayer(BaseModel):
+    """One composable sprite layer of an arena actor."""
+
+    slot: str
+    url: str
+    z: int
+    anchor_x: int
+    anchor_y: int
+    width: int
+    height: int
+
+
+class ArenaActor(BaseModel):
+    """Manifest-driven actor reference for an arena fighter.
+
+    Derived from structured dweller fields + equipped items; independent of
+    portrait URLs and ``visual_attributes``. ``None`` on the fighter means the
+    client falls back to the portrait.
+    """
+
+    base_key: str
+    variant_url: str | None
+    canvas_width: int
+    canvas_height: int
+    baseline_y: int
+    layers: list[ArenaActorLayer]
+
+
 class ArenaFighter(BaseModel):
     """A single selected fighter with live HP and combat power."""
 
@@ -19,6 +47,7 @@ class ArenaFighter(BaseModel):
     health: int
     max_health: int
     power: float
+    actor: ArenaActor | None = None
 
 
 class ArenaRosterEntry(BaseModel):

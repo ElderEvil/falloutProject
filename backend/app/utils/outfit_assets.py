@@ -6,6 +6,9 @@ assets. Unmapped outfits fall back to the generic equipment icon in the UI.
 
 from pathlib import Path
 
+from app.core.enums import AssetRole
+from app.utils.asset_manifest import manifest_url
+
 # Maps canonical lower-cased outfit names to the actual filename in
 # backend/app/static/apparel_images/. Keep this sorted alphabetically by key.
 OUTFIT_NAME_TO_IMAGE_FILE: dict[str, str] = {
@@ -200,6 +203,9 @@ def get_outfit_image_url(outfit_name: str | None) -> str | None:
     Returns ``None`` when the outfit is unmapped or the mapped file is missing
     on disk, so callers can fall back to a generic icon.
     """
+    if outfit_name and (url := manifest_url(AssetRole.OUTFIT_ICON, outfit_name)):
+        return url
+
     if not outfit_name:
         return None
 

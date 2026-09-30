@@ -8,6 +8,9 @@ with ``item_type="pet"``. Unmapped pets fall back to the generic icon in the UI.
 
 from pathlib import Path
 
+from app.core.enums import AssetRole
+from app.utils.asset_manifest import manifest_url
+
 # Maps canonical lower-cased pet names to the actual filename in
 # backend/app/static/pet_images/. Keep this sorted alphabetically by key.
 PET_NAME_TO_IMAGE_FILE: dict[str, str] = {
@@ -127,6 +130,9 @@ def get_pet_image_url(pet_name: str | None) -> str | None:
     Returns ``None`` when the pet is unmapped or the mapped file is missing
     on disk, so callers can fall back to a generic icon.
     """
+    if pet_name and (url := manifest_url(AssetRole.PET_ICON, pet_name)):
+        return url
+
     if not pet_name:
         return None
 

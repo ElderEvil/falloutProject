@@ -184,6 +184,9 @@ async def test_storage_capacity_matches_room_width_and_tier(
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    vault.bottle_caps = 900_000
+    async_session.add(vault)
+    await async_session.commit()
 
     await _add_elevator_on_level(async_session, vault.id, 1)
     service = RoomService()

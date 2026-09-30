@@ -25,6 +25,7 @@ async def test_non_humans_are_offered_stimpaks_but_not_radaway(
 ) -> None:
     dweller.visual_attributes = {"race": race}
     dweller.health = 20
+    dweller.max_health = 1000
     dweller.radiation = 35  # Legacy state before immunity was introduced.
     dweller.stimpack = 1
     dweller.radaway = 1

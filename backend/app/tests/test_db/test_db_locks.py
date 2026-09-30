@@ -110,10 +110,12 @@ async def test_lock_connection_is_handed_back_when_acquisition_fails(live_pg_eng
     engine = await _pooled_engine()
     try:
         async with _session_maker(engine)() as session:
-            with patch.object(db_locks, "_LOCK_SQL", text("SELECT no_such_function_688()")):
-                with pytest.raises(SQLAlchemyError):
-                    async with db_locks.hold_advisory_lock(session, "test-688-fail"):
-                        pass
+            with (
+                patch.object(db_locks, "_LOCK_SQL", text("SELECT no_such_function_688()")),
+                pytest.raises(SQLAlchemyError),
+            ):
+                async with db_locks.hold_advisory_lock(session, "test-688-fail"):
+                    pass
         assert engine.pool.checkedout() == 0
     finally:
         await engine.dispose()

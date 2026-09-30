@@ -205,7 +205,7 @@ async def test_catalog_entries_without_craftable_flag_are_excluded(
         "value": 10,
     }
 
-    async def fake_catalog(_item_type: str) -> list[dict]:
+    def fake_catalog(_item_type: str) -> list[dict]:
         return [unflagged]
 
     monkeypatch.setattr(crafting_service, "_catalog", fake_catalog)
@@ -247,7 +247,7 @@ async def test_start_order_consumes_materials_and_caps(async_session: AsyncSessi
 
 @pytest.mark.asyncio
 async def test_only_the_items_junk_types_count(async_session: AsyncSession, vault: Vault) -> None:
-    """A melee item takes steel/leather, so circuitry scrap cannot pay for it."""
+    """A melee item takes steel/adhesive, so circuitry scrap cannot pay for it."""
     storage = await _make_storage(async_session, vault)
     await _add_workshop(async_session, vault, "Weapon workshop")
     await _add_junk(async_session, storage, RarityEnum.COMMON, 10, JunkTypeEnum.CIRCUITRY)

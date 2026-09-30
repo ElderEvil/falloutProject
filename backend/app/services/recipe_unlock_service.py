@@ -7,7 +7,6 @@ RewardType or PG-enum change.
 """
 
 import logging
-from functools import lru_cache
 from typing import Any
 
 from pydantic import UUID4
@@ -27,25 +26,13 @@ _ITEM_TYPE_LOADERS = {
 }
 
 
-@lru_cache(maxsize=1)
-def _catalog_index(item_type: str) -> dict[str, dict[str, Any]]:
-    """Catalog entries of one workshop type keyed by normalized name.
-
-    ``list_recipes`` resolves every catalog entry, so a per-call linear scan made
-    the listing quadratic in catalog size. The loaders behind it are already
-    ``lru_cache``d, so this index is built once per process.
-    """
-    loader = _ITEM_TYPE_LOADERS.get(item_type)
-    if loader is None:
-        return {}
-    return {str(entry.get("name", "")).strip().lower(): entry for entry in loader() if entry.get("name")}
-
-
 def catalog_entry(item_type: str, name: str) -> dict[str, Any] | None:
     """The item catalog entry for a workshop item, matched case-insensitively by name."""
-    if not name:
+    loader = _ITEM_TYPE_LOADERS.get(item_type)
+    if loader is None or not name:
         return None
-    return _catalog_index(item_type).get(name.strip().lower())
+    target = name.strip().lower()
+    return next((entry for entry in loader() if str(entry.get("name", "")).strip().lower() == target), None)
 
 
 def scrap_unlock_count(entry: dict[str, Any]) -> int:

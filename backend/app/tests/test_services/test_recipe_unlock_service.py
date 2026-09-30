@@ -1,9 +1,15 @@
 """Tests for learning gated crafting recipes by scrapping the exact item (v1)."""
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncConnection
+from sqlalchemy.orm import sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+import app.services.progression.objectives.evaluators as evaluators_module
+import app.services.recipe_unlock_service as recipe_unlock_module
+from app import crud
 from app.core.enums import RarityEnum
+from app.core.event_bus import GameEvent
 from app.core.game_config import game_config
 from app.models.vault import Vault
 from app.services.crafting_service import crafting_service
@@ -20,6 +26,13 @@ from app.utils.exceptions import InsufficientResourcesException, ValidationExcep
 LEGENDARY_WEAPON = "Power fist"
 COMMON_WEAPON = "Pipe pistol"
 RARE_WEAPON = "Baseball bat"
+
+
+class _NoCurrentSession:
+    """Forces the handler to fall back to the patched ``async_session_maker``."""
+
+    def get(self) -> None:
+        return None
 
 
 def test_rare_and_legendary_recipes_are_gated_by_default():
@@ -105,6 +118,45 @@ async def test_a_second_scrap_does_not_re_unlock(async_session: AsyncSession, va
         async_session, vault_id=vault.id, item_type="weapon", item_name=RARE_WEAPON
     )
     assert again is None
+
+
+@pytest.mark.asyncio
+async def test_handler_persists_below_threshold_progress(
+    vault: Vault,
+    db_connection: AsyncConnection,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A two-scrap recipe unlocks through the event handler, not just record_scrap.
+
+    The handler opens its own savepoint-joined session, so a below-threshold scrap only
+    counts if the handler commits it — otherwise the session closes over the increment
+    and the threshold is never reached.
+    """
+    entry = {"name": RARE_WEAPON, "rarity": "rare", "craft": {"unlock": {"scrap": {"count": 2}}}}
+    handler_sessions = sessionmaker(
+        bind=db_connection,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autoflush=False,
+        join_transaction_mode="create_savepoint",
+    )
+    monkeypatch.setattr(recipe_unlock_module, "catalog_entry", lambda _item_type, _name: entry)
+    monkeypatch.setattr(recipe_unlock_module, "async_session_maker", handler_sessions)
+    monkeypatch.setattr(evaluators_module, "current_session_maker", _NoCurrentSession())
+
+    vault_id = vault.id
+    payload = {"item_type": "weapon", "item_name": RARE_WEAPON}
+
+    async def scrap_progress() -> tuple[int, bool] | None:
+        async with handler_sessions() as check:
+            row = await crud.vault_recipe_unlock.get_for_vault(check, vault_id, "weapon", RARE_WEAPON)
+            return None if row is None else (row.progress, row.unlocked_at is not None)
+
+    await recipe_unlock_module._on_item_scrapped(GameEvent.ITEM_SCRAPPED, vault_id, payload)
+    assert await scrap_progress() == (1, False)
+
+    await recipe_unlock_module._on_item_scrapped(GameEvent.ITEM_SCRAPPED, vault_id, payload)
+    assert await scrap_progress() == (2, True)
 
 
 @pytest.mark.asyncio

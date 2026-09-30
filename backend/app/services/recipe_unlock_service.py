@@ -141,9 +141,10 @@ async def _on_item_scrapped(_event_type: str, vault_id: UUID4, data: dict[str, A
             unlocked = await recipe_unlock_service.record_scrap(
                 db_session, vault_id=vault_id, item_type=item_type, item_name=str(item_name)
             )
+            # Commit below-threshold progress too, or a multi-scrap counter never advances.
+            await db_session.commit()
             if unlocked is None:
                 return
-            await db_session.commit()
             await event_bus.emit(GameEvent.RECIPE_UNLOCKED, vault_id, unlocked)
             await _notify_unlock(db_session, vault_id, unlocked)
             logger.info(f"Recipe '{unlocked['recipe_name']}' unlocked for vault {vault_id}")

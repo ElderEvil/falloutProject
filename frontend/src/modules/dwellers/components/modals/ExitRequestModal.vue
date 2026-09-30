@@ -14,7 +14,7 @@ const store = useExitRequestStore()
 
 const isDeciding = ref(false)
 const snoozedUntil = useLocalStorage<number | null>('exitRequestSnoozedUntil', null)
-const now = useNow({ interval: 30_000 })
+const now = useNow({ scheduler: (update) => useIntervalFn(update, 30_000) })
 
 const current = computed(() => store.requests[0] ?? null)
 const isSnoozed = computed(

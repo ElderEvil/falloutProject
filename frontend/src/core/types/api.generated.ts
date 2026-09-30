@@ -5408,6 +5408,10 @@ export interface components {
         /**
          * CraftingRecipeRead
          * @description One catalog entry with its costs, affordability, and unlock state.
+         *
+         *     A gated schematic the vault has not learned is still listed so the player can
+         *     see what is out there; ``unlocked``/``unlock_hint`` tell the UI to disable it
+         *     and explain how to learn it.
          */
         CraftingRecipeRead: {
             /** Name */

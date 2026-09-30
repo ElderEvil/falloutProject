@@ -33,6 +33,8 @@ class GameEvent(StrEnum):
     DWELLER_LEVEL_UP = "dweller_level_up"
     DWELLER_ADDED = "dweller_added"
     ITEM_COLLECTED = "item_collected"
+    ITEM_SCRAPPED = "item_scrapped"
+    RECIPE_UNLOCKED = "recipe_unlocked"
     QUEST_COMPLETED = "quest_completed"
     OBJECTIVE_COMPLETED = "objective_completed"
 

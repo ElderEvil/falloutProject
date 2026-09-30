@@ -5433,7 +5433,11 @@ export interface components {
         };
         /**
          * CraftingRecipeRead
-         * @description One craftable catalog entry with its cost and current affordability.
+         * @description One catalog entry with its costs, affordability, and unlock state.
+         *
+         *     A gated schematic the vault has not learned is still listed so the player can
+         *     see what is out there; ``unlocked``/``unlock_hint`` tell the UI to disable it
+         *     and explain how to learn it.
          */
         CraftingRecipeRead: {
             /** Name */
@@ -5488,6 +5492,18 @@ export interface components {
              * @default 0
              */
             missing_junk: number;
+            /**
+             * Has Junk
+             * @default false
+             */
+            has_junk: boolean;
+            /**
+             * Unlocked
+             * @default true
+             */
+            unlocked: boolean;
+            /** Unlock Hint */
+            unlock_hint?: string | null;
         };
         /**
          * CraftingRecipesRead
@@ -8047,7 +8063,7 @@ export interface components {
          * @description Types of notifications
          * @enum {string}
          */
-        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready";
+        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready";
         /** Objective */
         Objective: {
             /** Challenge */

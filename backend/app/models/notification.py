@@ -24,6 +24,7 @@ class NotificationType(StrEnum):
 
     # Crafting events
     CRAFTING_COMPLETE = "crafting_complete"
+    RECIPE_UNLOCKED = "recipe_unlocked"
 
     # Social events
     RELATIONSHIP_FORMED = "relationship_formed"

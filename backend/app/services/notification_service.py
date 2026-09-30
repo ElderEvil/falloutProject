@@ -518,6 +518,27 @@ class NotificationService:
         )
 
     @staticmethod
+    async def notify_recipe_unlocked(
+        db: AsyncSession,
+        user_id: UUID,
+        vault_id: UUID,
+        item_type: str,
+        recipe_name: str,
+        meta_data: dict[str, Any] | None = None,
+    ):
+        """Notify the owner that scrapping taught them a new crafting recipe."""
+        return await NotificationService.create_and_send(
+            db,
+            user_id=user_id,
+            vault_id=vault_id,
+            notification_type=NotificationType.RECIPE_UNLOCKED,
+            priority=NotificationPriority.NORMAL,
+            title="Recipe Unlocked",
+            message=f"You learned to craft {recipe_name}!",
+            meta_data={"item_type": item_type, "recipe_name": recipe_name, **(meta_data or {})},
+        )
+
+    @staticmethod
     async def notify_objective_completed(
         db: AsyncSession,
         user_id: UUID,

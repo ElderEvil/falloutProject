@@ -986,6 +986,10 @@ class CraftingConfig(BaseSettings):
         le=1.0,
         description="Fastest an order can get, as a fraction of its base duration",
     )
+    unlock_scrap_count_by_rarity: dict[str, int] = Field(
+        default_factory=lambda: {"rare": 1, "legendary": 1},
+        description="Scraps of the exact item needed to learn its recipe, keyed by rarity; absent = unlocked",
+    )
 
     @field_validator("caps_cost_by_rarity", "order_seconds_by_rarity", mode="before")
     @classmethod
@@ -1002,6 +1006,18 @@ class CraftingConfig(BaseSettings):
         if any(isinstance(cost, bool) or not isinstance(cost, int) or cost < 0 for cost in normalized.values()):
             raise ValueError("Crafting costs must be non-negative integers")
         return normalized
+
+    @field_validator("unlock_scrap_count_by_rarity", mode="before")
+    @classmethod
+    def validate_unlock_counts(cls, v: dict[str, int]) -> dict[str, int]:
+        normalized = {str(key).lower(): count for key, count in v.items()}
+        if any(isinstance(count, bool) or not isinstance(count, int) or count < 0 for count in normalized.values()):
+            raise ValueError("Unlock scrap counts must be non-negative integers")
+        return normalized
+
+    def scrap_unlock_count(self, rarity: str) -> int:
+        """Scraps of this rarity needed to learn its recipe; 0 means already unlocked."""
+        return self.unlock_scrap_count_by_rarity.get(rarity.lower(), 0)
 
     @field_validator("junk_recipe_by_rarity", mode="before")
     @classmethod

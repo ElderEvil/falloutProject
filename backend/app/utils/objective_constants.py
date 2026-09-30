@@ -64,6 +64,9 @@ VALID_ITEM_TYPES = frozenset(
 # Valid reach types for reach objectives
 VALID_REACH_TYPES = frozenset({"dweller_count", "population", "level"})
 
+# Valid rarities for scrap objectives
+VALID_RARITIES = frozenset({"common", "rare", "legendary"})
+
 # Map from objective room_type values to valid room names (for normalization)
 ROOM_TYPE_ALIASES: dict[str, str] = {
     "living_quarters": "living_room",
@@ -231,7 +234,7 @@ def _validate_resource_type(resource_type: str | None) -> list[str]:
 
 def _validate_item_type(item_type: str | None) -> list[str]:
     """Validate an item type value."""
-    if not item_type:
+    if not item_type or item_type in ("*", "any"):
         return []
     if normalize_item_type(item_type) is None:
         return [f"Invalid item_type '{item_type}'. Must be one of: {', '.join(sorted(VALID_ITEM_TYPES))}"]
@@ -243,6 +246,15 @@ def _validate_reach_type(reach_type: str | None) -> list[str]:
     if not reach_type or reach_type in VALID_REACH_TYPES:
         return []
     return [f"Invalid reach_type '{reach_type}'. Must be one of: {', '.join(sorted(VALID_REACH_TYPES))}"]
+
+
+def _validate_rarity(rarity: str | None) -> list[str]:
+    """Validate a rarity value."""
+    if not rarity or rarity in ("*", "any"):
+        return []
+    if str(rarity).lower() not in VALID_RARITIES:
+        return [f"Invalid rarity '{rarity}'. Must be one of: {', '.join(sorted(VALID_RARITIES))}, any"]
+    return []
 
 
 def validate_target_entity(
@@ -268,6 +280,9 @@ def validate_target_entity(
             + _validate_item_type(target_entity.get("item_type"))
         ),
         "reach": lambda: _validate_reach_type(target_entity.get("reach_type")),
+        "scrap": lambda: (
+            _validate_item_type(target_entity.get("item_type")) + _validate_rarity(target_entity.get("rarity"))
+        ),
     }
 
     validator = validators.get(objective_type or "")

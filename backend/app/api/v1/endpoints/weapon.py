@@ -159,7 +159,7 @@ async def scrap_weapon(
         AccessDeniedException: If the user doesn't own the weapon's vault.
     """
     await verify_item_access(weapon_id, Weapon, user, db_session)
-    junk_list = await crud.weapon.scrap(db_session=db_session, item_id=weapon_id)
+    junk_list = await item_service.scrap_item(db_session, item_id=weapon_id, model=Weapon)
     return JunkListResponse(junk=junk_list)
 
 

@@ -19,7 +19,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -43,8 +43,8 @@
         "stat": "strength",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "leather",
+                "steel"
             ],
             "unlock": null
         }
@@ -69,7 +69,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -94,7 +94,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -144,7 +144,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "valuables"
             ],
             "unlock": null
         }
@@ -169,7 +169,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "valuables"
             ],
             "unlock": null
         }
@@ -193,8 +193,8 @@
         "stat": "endurance",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "leather",
+                "steel"
             ],
             "unlock": null
         }
@@ -220,10 +220,8 @@
         "radiation_resist": 1.0,
         "craft": {
             "types": [
-                "cloth",
                 "leather",
-                "steel",
-                "science"
+                "steel"
             ],
             "unlock": null
         }
@@ -247,7 +245,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "valuables"
             ],
             "unlock": null
         }
@@ -270,8 +268,8 @@
         "stat": "perception",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "leather",
+                "steel"
             ],
             "unlock": null
         }
@@ -295,7 +293,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -319,7 +317,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -343,7 +341,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -366,8 +364,8 @@
         "stat": "perception",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "leather",
+                "steel"
             ],
             "unlock": null
         }
@@ -391,7 +389,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -415,7 +413,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -439,7 +437,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "science"
             ],
             "unlock": null
         }
@@ -463,7 +461,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -487,7 +485,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -511,7 +509,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "science"
             ],
             "unlock": null
         }
@@ -535,7 +533,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "science"
             ],
             "unlock": null
         }
@@ -582,8 +580,8 @@
         "stat": "strength",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "leather",
+                "steel"
             ],
             "unlock": null
         }
@@ -606,8 +604,8 @@
         "stat": "strength",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "leather",
+                "steel"
             ],
             "unlock": null
         }
@@ -630,8 +628,8 @@
         "stat": "endurance",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "leather",
+                "steel"
             ],
             "unlock": null
         }
@@ -654,8 +652,8 @@
         "stat": "agility",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "leather",
+                "steel"
             ],
             "unlock": null
         }
@@ -678,8 +676,8 @@
         "stat": "strength",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "leather",
+                "steel"
             ],
             "unlock": null
         }
@@ -702,8 +700,8 @@
         "stat": "agility",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "leather",
+                "steel"
             ],
             "unlock": null
         }
@@ -726,8 +724,8 @@
         "stat": "endurance",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "leather",
+                "steel"
             ],
             "unlock": null
         }
@@ -751,7 +749,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "valuables"
             ],
             "unlock": null
         }
@@ -798,8 +796,8 @@
         "stat": "agility",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "leather",
+                "steel"
             ],
             "unlock": null
         }
@@ -822,8 +820,8 @@
         "stat": "endurance",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "leather",
+                "steel"
             ],
             "unlock": null
         }
@@ -847,7 +845,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "valuables"
             ],
             "unlock": null
         }
@@ -871,7 +869,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "valuables"
             ],
             "unlock": null
         }
@@ -895,7 +893,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "valuables"
             ],
             "unlock": null
         }
@@ -918,8 +916,8 @@
         "stat": "agility",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "leather",
+                "steel"
             ],
             "unlock": null
         }
@@ -943,7 +941,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -990,8 +988,8 @@
         "stat": "endurance",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "leather",
+                "steel"
             ],
             "unlock": null
         }
@@ -1015,7 +1013,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "valuables"
             ],
             "unlock": null
         }
@@ -1038,8 +1036,8 @@
         "stat": "strength",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "leather",
+                "steel"
             ],
             "unlock": null
         }
@@ -1063,7 +1061,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "valuables"
             ],
             "unlock": null
         }
@@ -1086,8 +1084,8 @@
         "stat": "perception",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "leather",
+                "steel"
             ],
             "unlock": null
         }
@@ -1135,7 +1133,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "valuables"
             ],
             "unlock": null
         }
@@ -1159,7 +1157,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -1183,7 +1181,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "valuables"
             ],
             "unlock": null
         }
@@ -1207,7 +1205,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "science"
             ],
             "unlock": null
         }
@@ -1230,8 +1228,8 @@
         "stat": "endurance",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "leather",
+                "steel"
             ],
             "unlock": null
         }
@@ -1255,7 +1253,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "valuables"
             ],
             "unlock": null
         }
@@ -1279,7 +1277,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "valuables"
             ],
             "unlock": null
         }
@@ -1327,7 +1325,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -1351,7 +1349,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -1398,8 +1396,8 @@
         "stat": "strength",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "leather",
+                "steel"
             ],
             "unlock": null
         }
@@ -1423,7 +1421,7 @@
         "craft": {
             "types": [
                 "cloth",
-                "leather"
+                "science"
             ],
             "unlock": null
         }

@@ -25,6 +25,7 @@ NOTIFICATION_CATEGORY_BY_TYPE: dict[NotificationType, NotificationCategory | Non
     NotificationType.TRAINING_COMPLETE: NotificationCategory.ADVANCEMENT,
     NotificationType.TRAINING_STARTED: NotificationCategory.ADVANCEMENT,
     NotificationType.CRAFTING_COMPLETE: NotificationCategory.CRAFTING,
+    NotificationType.RECIPE_UNLOCKED: NotificationCategory.CRAFTING,
     NotificationType.RELATIONSHIP_FORMED: NotificationCategory.SOCIAL_ACTIVITY,
     NotificationType.PREGNANCY_DETECTED: NotificationCategory.SOCIAL_ACTIVITY,
     NotificationType.BABY_BORN: NotificationCategory.SOCIAL_ACTIVITY,

@@ -498,7 +498,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
   })
 
   it('toasts when an objective-completion notification arrives', async () => {
-    // ARRANGE: authenticated user, SSE delivers an achievement_unlocked notification
+    // ARRANGE: authenticated user, SSE delivers an objective_completed notification
     const authStore = useAuthStore()
     authStore.token = 'test-token'
     const { toasts } = useToast()
@@ -507,7 +507,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     const objectiveData = JSON.stringify({
       notification: {
         id: 'n8',
-        notification_type: 'achievement_unlocked',
+        notification_type: 'objective_completed',
         title: 'Objective Complete',
         message: 'Objective complete: Scrap 1 Baseball bat',
         priority: 'normal',

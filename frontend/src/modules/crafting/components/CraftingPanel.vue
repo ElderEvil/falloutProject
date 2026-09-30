@@ -98,7 +98,7 @@ const search = ref('')
 const filteredRecipes = computed(() =>
   recipes.value.filter((recipe) => {
     if (rarityFilter.value !== 'all' && recipe.rarity !== rarityFilter.value) return false
-    if (onlyCraftable.value && !recipe.can_craft) return false
+    if (onlyCraftable.value && !recipe.has_junk) return false
     const term = search.value.trim().toLowerCase()
     return term === '' || recipe.name.toLowerCase().includes(term)
   })
@@ -329,7 +329,7 @@ watch(() => [props.vaultId, props.itemType], loadAll)
         -->
         <Label class="gap-1.5 text-xs text-theme-primary/80">
           <input v-model="onlyCraftable" type="checkbox" class="craftable-checkbox" />
-          Craftable now
+          Have materials
         </Label>
       </div>
 
@@ -348,11 +348,7 @@ watch(() => [props.vaultId, props.itemType], loadAll)
           <TooltipProvider :delay-duration="200">
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">
-                <Icon
-                  v-if="isLocked(recipe)"
-                  icon="mdi:lock"
-                  class="h-3.5 w-3.5 shrink-0 text-warning"
-                />
+                <Icon v-if="isLocked(recipe)" icon="mdi:lock" class="h-3.5 w-3.5 shrink-0 text-warning" />
                 <span class="truncate text-sm font-bold" :class="getRarityTextClass(recipe.rarity)">
                   {{ recipe.name }}
                 </span>
@@ -419,11 +415,7 @@ watch(() => [props.vaultId, props.itemType], loadAll)
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{{
-                isLocked(recipe)
-                  ? (recipe.unlock_hint ?? 'Recipe locked')
-                  : recipe.can_craft
-                    ? `Queue ${recipe.name}`
-                    : materialsLabel(recipe)
+                isLocked(recipe) ? (recipe.unlock_hint ?? 'Recipe locked') : recipe.can_craft ? `Queue ${recipe.name}` : materialsLabel(recipe)
               }}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -436,7 +428,7 @@ watch(() => [props.vaultId, props.itemType], loadAll)
 
       <p class="mt-2 text-[0.7rem] text-theme-primary/50">
         Materials come from scrapping gear and wasteland salvage. Dwellers working the workshop
-        finish orders faster.
+        finish orders faster. Scrap an item to reverse-engineer its schematic.
       </p>
     </template>
   </Card>

@@ -25,7 +25,7 @@ from app.models.room import Room
 from app.models.storage import Storage
 from app.schemas.crafting import CraftingRecipeRead, CraftResultRead
 from app.services.exploration import data_loader
-from app.services.recipe_unlock_service import recipe_unlock_service, unlock_hint
+from app.services.recipe_unlock_service import is_gated, recipe_unlock_service, unlock_hint
 from app.services.vault_service import vault_service
 from app.utils.exceptions import (
     InsufficientResourcesException,
@@ -127,6 +127,8 @@ class CraftingService:
         for entry in await self._catalog(item_type):
             if not entry.get("craftable", False):
                 continue
+            recipe_name = str(entry["name"])
+            unlocked = not is_gated(entry) or recipe_name in unlocked_names
             rarity = RarityEnum(entry["rarity"])
             junk_cost, caps_cost = self._cost(rarity)
             craft_types = self.craft_types(entry)
@@ -136,9 +138,6 @@ class CraftingService:
             ability_sum = sum(int(getattr(dweller, required_stat, 0) or 0) for dweller in crew)
             available = self._available_by_rarity(junk, craft_types)
             materials = game_config.crafting.junk_recipe(rarity.value)
-            recipe_name = str(entry["name"])
-            hint = unlock_hint(item_type, recipe_name)
-            is_unlocked = hint is None or recipe_name in unlocked_names
             recipes.append(
                 CraftingRecipeRead(
                     name=recipe_name,
@@ -154,9 +153,10 @@ class CraftingService:
                     junk_cost=junk_cost,
                     caps_cost=caps_cost,
                     can_craft=missing == 0 and vault.bottle_caps >= caps_cost,
+                    has_junk=missing == 0,
                     missing_junk=missing,
-                    unlocked=is_unlocked,
-                    unlock_hint=None if is_unlocked else hint,
+                    unlocked=unlocked,
+                    unlock_hint=None if unlocked else unlock_hint(entry),
                 )
             )
 
@@ -224,11 +224,8 @@ class CraftingService:
 
         entry = await self._find_craftable(item_type, item_name)
         recipe_name = str(entry["name"])
-        locked_hint = unlock_hint(item_type, recipe_name)
-        if locked_hint is not None and not await recipe_unlock_service.is_unlocked(
-            db_session, vault_id=vault_id, item_type=item_type, recipe_name=recipe_name
-        ):
-            raise ValidationException(f"{recipe_name} is locked. {locked_hint}")
+        if not await recipe_unlock_service.is_unlocked(db_session, vault_id=vault_id, item_type=item_type, entry=entry):
+            raise ValidationException(f"{recipe_name} is locked. {unlock_hint(entry)}")
 
         rarity = RarityEnum(entry["rarity"])
         junk_cost, caps_cost = self._cost(rarity)

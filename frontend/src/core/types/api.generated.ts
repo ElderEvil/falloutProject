@@ -5407,7 +5407,7 @@ export interface components {
         };
         /**
          * CraftingRecipeRead
-         * @description One craftable catalog entry with its cost and current affordability.
+         * @description One catalog entry with its costs, affordability, and unlock state.
          */
         CraftingRecipeRead: {
             /** Name */
@@ -5462,6 +5462,11 @@ export interface components {
              * @default 0
              */
             missing_junk: number;
+            /**
+             * Has Junk
+             * @default false
+             */
+            has_junk: boolean;
             /**
              * Unlocked
              * @default true

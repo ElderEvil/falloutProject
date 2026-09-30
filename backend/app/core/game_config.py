@@ -987,7 +987,7 @@ class CraftingConfig(BaseSettings):
         description="Fastest an order can get, as a fraction of its base duration",
     )
     unlock_scrap_count_by_rarity: dict[str, int] = Field(
-        default_factory=lambda: {"legendary": 1},
+        default_factory=lambda: {"rare": 1, "legendary": 1},
         description="Scraps of the exact item needed to learn its recipe, keyed by rarity; absent = unlocked",
     )
 

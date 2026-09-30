@@ -7,6 +7,7 @@ RewardType or PG-enum change.
 """
 
 import logging
+from functools import lru_cache
 from typing import Any
 
 from pydantic import UUID4
@@ -26,16 +27,25 @@ _ITEM_TYPE_LOADERS = {
 }
 
 
+@lru_cache(maxsize=1)
+def _catalog_index(item_type: str) -> dict[str, dict[str, Any]]:
+    """Catalog entries of one workshop type keyed by normalized name.
+
+    ``list_recipes`` resolves every catalog entry, so a per-call linear scan made
+    the listing quadratic in catalog size. The loaders behind it are already
+    ``lru_cache``d, so this index is built once per process.
+    """
+    loader = _ITEM_TYPE_LOADERS.get(item_type)
+    if loader is None:
+        return {}
+    return {str(entry.get("name", "")).strip().lower(): entry for entry in loader() if entry.get("name")}
+
+
 def catalog_entry(item_type: str, name: str) -> dict[str, Any] | None:
     """The item catalog entry for a workshop item, matched case-insensitively by name."""
-    loader = _ITEM_TYPE_LOADERS.get(item_type)
-    if loader is None or not name:
+    if not name:
         return None
-    target = name.strip().lower()
-    return next(
-        (entry for entry in loader() if str(entry.get("name", "")).strip().lower() == target),
-        None,
-    )
+    return _catalog_index(item_type).get(name.strip().lower())
 
 
 def scrap_unlock_count(entry: dict[str, Any]) -> int:
@@ -46,26 +56,38 @@ def scrap_unlock_count(entry: dict[str, Any]) -> int:
     return game_config.crafting.scrap_unlock_count(str(entry.get("rarity", "")))
 
 
-def unlock_hint(item_type: str, recipe_name: str) -> str | None:
-    """Player-facing hint when a recipe is gated, or None when it is already available."""
-    entry = catalog_entry(item_type, recipe_name)
+def is_gated(entry: dict[str, Any] | None) -> bool:
+    """True when the recipe must be learned before it can be crafted."""
+    return entry is not None and scrap_unlock_count(entry) > 0
+
+
+def unlock_hint(entry: dict[str, Any] | None) -> str | None:
+    """Player-facing hint on how to learn a gated recipe, or None when it needs no learning."""
     if entry is None:
         return None
     count = scrap_unlock_count(entry)
     if count <= 0:
         return None
-    return f"Scrap {count} {item_type.capitalize()} to learn this recipe"
+    name = str(entry.get("name", "")).strip()
+    phrase = f"a {name}" if count == 1 else f"{count}\u00d7 {name}"
+    return f"Scrap {phrase} to reverse-engineer this schematic"
 
 
 class RecipeUnlockService:
     """Reads and advances per-vault recipe unlock progress."""
 
-    async def is_unlocked(self, db_session: AsyncSession, *, vault_id: UUID4, item_type: str, recipe_name: str) -> bool:
-        """True when the recipe is ungated or the vault has already unlocked it."""
-        if unlock_hint(item_type, recipe_name) is None:
+    async def is_unlocked(
+        self, db_session: AsyncSession, *, vault_id: UUID4, item_type: str, entry: dict[str, Any]
+    ) -> bool:
+        """True when the recipe is ungated or the vault has already unlocked it.
+
+        Takes the catalog entry the caller already resolved, so ordering a recipe
+        never rescans the catalog.
+        """
+        if not is_gated(entry):
             return True
-        unlocked = await crud.vault_recipe_unlock.unlocked_names(db_session, vault_id, item_type)
-        return recipe_name in unlocked
+        row = await crud.vault_recipe_unlock.get_for_vault(db_session, vault_id, item_type, str(entry["name"]))
+        return row is not None and row.unlocked_at is not None
 
     async def record_scrap(
         self, db_session: AsyncSession, *, vault_id: UUID4, item_type: str, item_name: str

@@ -13,7 +13,12 @@ CraftableItemType = Literal["weapon", "outfit"]
 
 
 class CraftingRecipeRead(SQLModel):
-    """One craftable catalog entry with its cost and current affordability."""
+    """One catalog entry with its costs, affordability, and unlock state.
+
+    A gated schematic the vault has not learned is still listed so the player can
+    see what is out there; ``unlocked``/``unlock_hint`` tell the UI to disable it
+    and explain how to learn it.
+    """
 
     name: str
     item_type: CraftableItemType
@@ -29,6 +34,7 @@ class CraftingRecipeRead(SQLModel):
     caps_cost: int
     can_craft: bool
     missing_junk: int = 0
+    has_junk: bool = False
     unlocked: bool = True
     unlock_hint: str | None = None
 

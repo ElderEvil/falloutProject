@@ -257,7 +257,7 @@
   },
   {
     "challenge": "Reverse-engineer a Legendary",
-    "reward": "10000 caps",
+    "reward": "2000 caps",
     "category": "achievement",
     "objective_type": "scrap",
     "target_entity": {"rarity": "legendary"},
@@ -265,7 +265,7 @@
   },
   {
     "challenge": "Scrap 10 Rare Items",
-    "reward": "5000 caps",
+    "reward": "1500 caps",
     "category": "achievement",
     "objective_type": "scrap",
     "target_entity": {"rarity": "rare"},

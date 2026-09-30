@@ -56,8 +56,6 @@ VALID_ITEM_TYPES = frozenset(
         "stimpak",
         "radaway",
         "junk",
-        "rare_weapon",
-        "rare_outfit",
     }
 )
 
@@ -116,8 +114,6 @@ ITEM_ALIASES: dict[str, str] = {
     "stimpaks": "stimpak",
     "radaways": "radaway",
     "junks": "junk",
-    "rare_weapons": "rare_weapon",
-    "rare_outfits": "rare_outfit",
     # Common aliases
     "gun": "weapon",
     "guns": "weapon",
@@ -129,8 +125,6 @@ ITEM_ALIASES: dict[str, str] = {
     "suit": "outfit",
     "scrap": "junk",
     "materials": "junk",
-    "legendary_weapon": "rare_weapon",
-    "legendary_outfit": "rare_outfit",
 }
 
 

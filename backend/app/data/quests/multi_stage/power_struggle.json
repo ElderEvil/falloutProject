@@ -34,7 +34,7 @@
   "Short description": "See what's causing a ruckus in the graveyard.",
   "Requirements": [
    "Level 20 dwellers",
-   "Lucy's vault suit"
+   "Vault 33 suit"
   ],
   "Rewards": "The Ghoul",
   "quest_type": "side",
@@ -50,7 +50,7 @@
    {
     "requirement_type": "ITEM",
     "requirement_data": {
-     "item_name": "Lucy's vault suit"
+     "item_name": "Vault 33 suit"
     },
     "is_mandatory": true
    },
@@ -79,8 +79,8 @@
   "Short description": "Explore the Brotherhood Base.",
   "Requirements": [
    "Level 20 dwellers",
-   "Lucy's vault suit",
-   "The Ghoul's coat"
+   "Vault 33 suit",
+   "Tattered longcoat"
   ],
   "Rewards": "Maximus",
   "quest_type": "side",
@@ -96,14 +96,14 @@
    {
     "requirement_type": "ITEM",
     "requirement_data": {
-     "item_name": "Lucy's vault suit"
+     "item_name": "Vault 33 suit"
     },
     "is_mandatory": true
    },
    {
     "requirement_type": "ITEM",
     "requirement_data": {
-     "item_name": "The Ghoul's coat"
+     "item_name": "Tattered longcoat"
     },
     "is_mandatory": true
    },
@@ -132,7 +132,7 @@
   "Short description": "Liberate the people of Filly.",
   "Requirements": [
    "Level 20 dwellers",
-   "Lucy's vault suit",
+   "Vault 33 suit",
    "BOS casual"
   ],
   "Rewards": "Ma June",
@@ -149,7 +149,7 @@
    {
     "requirement_type": "ITEM",
     "requirement_data": {
-     "item_name": "Lucy's vault suit"
+     "item_name": "Vault 33 suit"
     },
     "is_mandatory": true
    },
@@ -185,7 +185,7 @@
   "Short description": "Search the Super Duper Mart.",
   "Requirements": [
    "Level 20 dwellers",
-   "The Ghoul's coat",
+   "Tattered longcoat",
    "BOS casual"
   ],
   "Rewards": "Snip Snip",
@@ -202,7 +202,7 @@
    {
     "requirement_type": "ITEM",
     "requirement_data": {
-     "item_name": "The Ghoul's coat"
+     "item_name": "Tattered longcoat"
     },
     "is_mandatory": true
    },
@@ -238,8 +238,8 @@
   "Short description": "Find the Snake-Oil Salesman.",
   "Requirements": [
    "Level 20 dwellers",
-   "Lucy's vault suit",
-   "The Ghoul's coat"
+   "Vault 33 suit",
+   "Tattered longcoat"
   ],
   "Rewards": "Snake oil salesman",
   "quest_type": "side",
@@ -255,14 +255,14 @@
    {
     "requirement_type": "ITEM",
     "requirement_data": {
-     "item_name": "Lucy's vault suit"
+     "item_name": "Vault 33 suit"
     },
     "is_mandatory": true
    },
    {
     "requirement_type": "ITEM",
     "requirement_data": {
-     "item_name": "The Ghoul's coat"
+     "item_name": "Tattered longcoat"
     },
     "is_mandatory": true
    },
@@ -291,8 +291,8 @@
   "Short description": "Investigate strange sounds at the Red Rocket.",
   "Requirements": [
    "Level 20 dwellers",
-   "Lucy's vault suit",
-   "The Ghoul's coat"
+   "Vault 33 suit",
+   "Tattered longcoat"
   ],
   "Rewards": "CX404",
   "quest_type": "side",
@@ -308,14 +308,14 @@
    {
     "requirement_type": "ITEM",
     "requirement_data": {
-     "item_name": "Lucy's vault suit"
+     "item_name": "Vault 33 suit"
     },
     "is_mandatory": true
    },
    {
     "requirement_type": "ITEM",
     "requirement_data": {
-     "item_name": "The Ghoul's coat"
+     "item_name": "Tattered longcoat"
     },
     "is_mandatory": true
    },
@@ -354,7 +354,7 @@
   "Requirements": [
    "Level 20 dwellers",
    "BOS casual",
-   "Lucy's vault suit"
+   "Vault 33 suit"
   ],
   "Rewards": "Scarred power armor",
   "quest_type": "side",
@@ -377,7 +377,7 @@
    {
     "requirement_type": "ITEM",
     "requirement_data": {
-     "item_name": "Lucy's vault suit"
+     "item_name": "Vault 33 suit"
     },
     "is_mandatory": true
    },

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.162.2 (2026-09-30)
+
+### Bug Fixes
+
+* **objectives:** migrate the non-catalog Collect 3 Outfits reward ([#843](https://github.com/ElderEvil/falloutProject/issues/843)) 2fdc786
+
 ## 2.162.1 (2026-09-30)
 
 ### Bug Fixes

@@ -111,12 +111,6 @@ const navItems = computed((): NavItem[] => {
 
 const comingSoonItems = computed((): NavItem[] => [
   {
-    id: 'workshop',
-    label: 'Workshop',
-    icon: 'mdi:hammer-wrench',
-    comingSoon: { phase: 'Phase 1', quarter: 'Jan-Feb 2026' },
-  },
-  {
     id: 'achievements',
     label: 'Achievements',
     icon: 'mdi:trophy',

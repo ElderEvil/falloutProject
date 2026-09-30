@@ -10,7 +10,7 @@
   ],
   "quest_rewards": [
     {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary Junk", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Legendary Junk", "rarity": "legendary", "value": 50}},
-    {"reward_type": "ITEM", "reward_data": {"item_name": "Rare Weapon", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Rare Weapon", "rarity": "rare", "value": 100}},
+    {"reward_type": "ITEM", "reward_data": {"item_name": "Assault rifle", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Assault rifle", "rarity": "rare", "value": 100}},
     {"reward_type": "CAPS", "reward_data": {"amount": 200}, "reward_chance": 1.0}
   ]
 }

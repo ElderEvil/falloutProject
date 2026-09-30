@@ -586,3 +586,33 @@ async def test_seed_quests_requirement_sync_is_idempotent(async_session: AsyncSe
         .all()
     )
     assert {requirement.id for requirement in after} == before_ids
+
+
+def test_quest_gear_rewards_are_catalog_backed() -> None:
+    """Authored weapon/outfit rewards must name a real catalog item."""
+    from app.schemas.quest import infer_item_type
+    from app.services.exploration import data_loader
+    from app.utils.static_data import DATA_DIR
+
+    catalog = {
+        "weapon": {str(w["name"]).lower() for w in data_loader.load_weapons()},
+        "outfit": {str(o["name"]).lower() for o in data_loader.load_outfits()},
+    }
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            reward_data = node.get("reward_data") or {}
+            item_data = node.get("item_data") if isinstance(node.get("item_data"), dict) else None
+            name = reward_data.get("item_name") or (item_data or {}).get("name")
+            if name:
+                item_type = infer_item_type(str(name), item_data)
+                if item_type in catalog:
+                    assert str(name).lower() in catalog[item_type], f"{name!r} is not a catalog {item_type}"
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    for path in (DATA_DIR / "quests").rglob("*.json"):
+        walk(json.loads(path.read_text()))

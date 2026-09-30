@@ -48,8 +48,10 @@ class CRUDVaultRecipeUnlock(CRUDBase[VaultRecipeUnlock, None, None]):
     ) -> bool:
         """Count one scrap toward a recipe and report whether it just unlocked it.
 
-        Scrap emits are serialized per vault by the event bus, so this progress
-        write cannot interleave within the process; counting stops once unlocked.
+        The caller holds a transaction-scoped advisory lock for this
+        (vault, item, recipe) counter, so the read-modify-write cannot interleave
+        across worker processes; the event bus already serializes scraps within one
+        process. Counting stops once unlocked.
         """
         row = await self.get_for_vault(db_session, vault_id, item_type, recipe_name)
         if row is None:

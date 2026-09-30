@@ -13,6 +13,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core import db_locks
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.db.session import async_session_maker
@@ -92,6 +93,8 @@ class RecipeUnlockService:
             return None
 
         recipe_name = str(entry["name"])
+        # Serialize the counter across workers: the bus only serializes scraps within one process.
+        await db_locks.advisory_xact_lock(db_session, f"recipe_unlock:{vault_id}:{item_type}:{recipe_name}")
         newly_unlocked = await crud.vault_recipe_unlock.record_scrap(
             db_session,
             vault_id=vault_id,

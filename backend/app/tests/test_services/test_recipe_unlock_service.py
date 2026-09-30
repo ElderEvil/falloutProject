@@ -8,6 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 import app.services.progression.objectives.evaluators as evaluators_module
 import app.services.recipe_unlock_service as recipe_unlock_module
 from app import crud
+from app.core import db_locks
 from app.core.enums import RarityEnum
 from app.core.event_bus import GameEvent
 from app.core.game_config import game_config
@@ -72,6 +73,13 @@ def test_catalog_entry_matching_ignores_case_and_whitespace():
     assert catalog_entry("outfit", LEGENDARY_WEAPON) is None
     assert catalog_entry("weapon", "") is None
     assert is_gated(None) is False
+
+
+@pytest.mark.asyncio
+async def test_recipe_unlock_advisory_lock_is_portable(async_session: AsyncSession) -> None:
+    """The cross-worker counter lock must be a no-op on SQLite-backed tests."""
+    assert await db_locks.advisory_xact_lock(async_session, "recipe_unlock:v:t:r") is None
+    assert await db_locks.try_advisory_xact_lock(async_session, "recipe_unlock:v:t:r") is True
 
 
 @pytest.mark.asyncio

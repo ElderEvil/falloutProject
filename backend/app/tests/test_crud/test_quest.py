@@ -646,7 +646,7 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     await async_session.refresh(link)
     await async_session.refresh(vault)
     await async_session.refresh(dweller)
-    weapon = (await async_session.execute(select(Weapon).where(Weapon.name == "Laser Pistol"))).scalar_one()
+    weapon = (await async_session.execute(select(Weapon).where(Weapon.name == "Laser pistol"))).scalar_one()
     assert link.is_completed is True
     assert weapon.storage_id is not None
     assert dweller.level == expected_level

@@ -276,3 +276,19 @@ def test_starter_seed_file_integrity() -> None:
             assert target.get("reach_type") in VALID_REACH_TYPES
 
     assert sequences == list(range(9)), "sequences must be unique and contiguous 0..8"
+
+
+def test_objective_item_rewards_are_catalog_backed() -> None:
+    """Every weapon:/outfit: objective reward must name a real catalog item."""
+    from app.services.exploration import data_loader
+    from app.utils.static_data import DATA_DIR
+
+    catalog = {
+        "weapon": {str(w["name"]).lower() for w in data_loader.load_weapons()},
+        "outfit": {str(o["name"]).lower() for o in data_loader.load_outfits()},
+    }
+    for path in (DATA_DIR / "objectives").glob("*.json"):
+        for entry in json.loads(path.read_text()):
+            prefix, sep, name = str(entry.get("reward", "")).partition(":")
+            if sep and prefix.lower() in catalog:
+                assert name.strip().lower() in catalog[prefix.lower()], f"{path.name}: {entry['reward']}"

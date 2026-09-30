@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.162.0 (2026-09-30)
+
+### Features
+
+* **crafting:** unlock recipes by scrapping the exact item ([#836](https://github.com/ElderEvil/falloutProject/issues/836)) dc3af39
+
 ## 2.161.0 (2026-09-29)
 
 ### Features

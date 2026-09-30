@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.163.0 (2026-09-30)
+
+### Features
+
+* **objectives:** distinguish objective-completion notifications ([#846](https://github.com/ElderEvil/falloutProject/issues/846)) 4b4776d
+
+### Bug Fixes
+
+* **quests:** canonicalize authored gear and drop dead objective code ([#844](https://github.com/ElderEvil/falloutProject/issues/844)) 710a4c1
+
 ## 2.162.2 (2026-09-30)
 
 ### Bug Fixes

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.162.1 (2026-09-30)
+
+### Bug Fixes
+
+* parse lunchbox rewards, catalog-back reward gear, and serialize the scrap counter ([#842](https://github.com/ElderEvil/falloutProject/issues/842)) 87ca097
+
 ## 2.162.0 (2026-09-30)
 
 ### Features

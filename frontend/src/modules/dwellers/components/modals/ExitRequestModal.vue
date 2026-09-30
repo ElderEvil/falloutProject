@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useIntervalFn, useLocalStorage, useNow } from '@vueuse/core'
+import { useIntervalFn, useLocalStorage } from '@vueuse/core'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
@@ -14,11 +14,14 @@ const store = useExitRequestStore()
 
 const isDeciding = ref(false)
 const snoozedUntil = useLocalStorage<number | null>('exitRequestSnoozedUntil', null)
-const now = useNow({ scheduler: (update) => useIntervalFn(update, 30_000) })
+const now = ref(Date.now())
+useIntervalFn(() => {
+  now.value = Date.now()
+}, 30_000)
 
 const current = computed(() => store.requests[0] ?? null)
 const isSnoozed = computed(
-  () => snoozedUntil.value !== null && now.value.getTime() < snoozedUntil.value
+  () => snoozedUntil.value !== null && now.value < snoozedUntil.value
 )
 const isOpen = computed(() => current.value !== null && !isSnoozed.value)
 

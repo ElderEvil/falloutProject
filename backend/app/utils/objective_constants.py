@@ -234,7 +234,7 @@ def _validate_resource_type(resource_type: str | None) -> list[str]:
 
 def _validate_item_type(item_type: str | None) -> list[str]:
     """Validate an item type value."""
-    if not item_type:
+    if not item_type or item_type in ("*", "any"):
         return []
     if normalize_item_type(item_type) is None:
         return [f"Invalid item_type '{item_type}'. Must be one of: {', '.join(sorted(VALID_ITEM_TYPES))}"]

@@ -19,11 +19,35 @@ if TYPE_CHECKING:
     from app.models.dweller import Dweller
     from app.schemas.arena import ArenaActor
 
-#: Manifest catalog keys for the single adult base asset and the two prototype
-#: equipment layers (issue #817 asset manifest).
+#: Manifest catalog key for the single adult base asset (issue #817 asset manifest).
 ADULT_BASE_CATALOG_KEY = "adult.vault_suit"
-OUTFIT_CATALOG_KEY = "overcoat"
-WEAPON_CATALOG_KEY = "rifle"
+
+#: Prototype actor art exists for exactly one outfit and one weapon. Only these
+#: catalog names map to a layer; every other equipped item is unsupported and
+#: renders with no equipment layer (the base actor is unchanged) rather than
+#: being mismatched to art that is not its own. Extend these maps as per-item
+#: actor art lands.
+SUPPORTED_OUTFIT_LAYERS: dict[str, str] = {"Tattered longcoat": "overcoat"}
+SUPPORTED_WEAPON_LAYERS: dict[str, str] = {"Assault rifle": "rifle"}
+
+
+def _supported_layers(role: AssetRole, supported: dict[str, str], name: str | None) -> tuple[ActorLayerSpec, ...]:
+    """Layers for a supported equipment *name*, or ``()`` when unsupported.
+
+    Matching is case-insensitive and trimmed so catalog casing never silently
+    disables a layer. An unsupported item resolves to no layer, which is the
+    explicit fallback: the base actor renders without fabricated equipment.
+    """
+    if not name:
+        return ()
+    normalized = name.strip().casefold()
+    catalog_key = next((key for display, key in supported.items() if display.casefold() == normalized), None)
+    if catalog_key is None:
+        return ()
+    record = resolve_record(role, catalog_key)
+    if record is None or record.actor is None:
+        return ()
+    return record.actor.layers
 
 
 @dataclass(frozen=True)
@@ -86,19 +110,8 @@ def get_actor_assets(
         return None
 
     layers = list(base.actor.layers)
-
-    # Prototype stand-in: any equipped outfit maps to the single overcoat layer
-    # until per-outfit actor assets exist (issue #818 two-variant prototype).
-    if outfit_name:
-        outfit = resolve_record(AssetRole.ARENA_EQUIPMENT, OUTFIT_CATALOG_KEY)
-        if outfit is not None and outfit.actor is not None:
-            layers.extend(outfit.actor.layers)
-
-    # Prototype stand-in: any equipped weapon maps to the single rifle layer.
-    if weapon_name:
-        weapon = resolve_record(AssetRole.ARENA_EQUIPMENT, WEAPON_CATALOG_KEY)
-        if weapon is not None and weapon.actor is not None:
-            layers.extend(weapon.actor.layers)
+    layers.extend(_supported_layers(AssetRole.ARENA_EQUIPMENT, SUPPORTED_OUTFIT_LAYERS, outfit_name))
+    layers.extend(_supported_layers(AssetRole.ARENA_EQUIPMENT, SUPPORTED_WEAPON_LAYERS, weapon_name))
 
     return ActorAssets(
         base_key=base.catalog_key,

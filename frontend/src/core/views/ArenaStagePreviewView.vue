@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// TEMPORARY PoC preview view (issues #818/#819) — dev-only, delete after review.
+// TEMPORARY PoC preview view (issues 818 and 819) — dev-only, delete after review.
 // Compares image models (gpt-image-1 / gpt-image-2 / gpt-image-2.5 / a
 // style-matched 2.5) and actor poses without a backend or auth.
 import { computed, ref } from 'vue'
@@ -63,7 +63,7 @@ const actors = computed<StageActor[]>(() => [
 
 <template>
   <main class="poc-page">
-    <h1 class="poc-title">Arena Actor Stage — PoC (#818 / #819)</h1>
+    <h1 class="poc-title">Arena Actor Stage — PoC (818 / 819)</h1>
     <p class="poc-subtitle">
       Art set: {{ version }}
       <template v-if="version === 'v2'"> (no transparency in gpt-image-2; reuses v1 body)</template>
@@ -112,7 +112,7 @@ const actors = computed<StageActor[]>(() => [
 .poc-page {
   min-height: 100vh;
   padding: 1.5rem;
-  background: #06110a;
+  background: var(--color-surface-dark);
   color: var(--color-theme-primary);
 }
 .poc-title {

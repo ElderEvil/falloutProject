@@ -185,9 +185,9 @@ const weaponStyle = computed(() => ({
   justify-content: center;
   width: 100%;
   height: 100%;
-  border: 2px dashed rgba(128, 128, 128, 0.2);
+  border: 2px dashed color-mix(in srgb, var(--color-gray-500) 20%, transparent);
   border-radius: 8px;
-  background: rgba(128, 128, 128, 0.05);
+  background: color-mix(in srgb, var(--color-gray-500) 5%, transparent);
   color: var(--color-gray-500);
 }
 

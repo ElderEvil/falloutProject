@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { getStaticImageUrl } from '@/core/utils/image'
 import type { components } from '@/core/types/api.generated'
@@ -16,6 +16,17 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), { portraitUrl: null })
 
 const hasLayers = computed(() => Boolean(props.actor && props.actor.layers.length > 0))
+
+// A broken layer image must not leave a half-rendered stack: the first load
+// error drops the whole sprite to the portrait fallback.
+const hasError = ref(false)
+watch(
+  () => props.actor,
+  () => {
+    hasError.value = false
+  }
+)
+const showSprite = computed(() => hasLayers.value && !hasError.value)
 
 // The sprite box keeps the actor canvas' intrinsic aspect ratio so layer
 // percentages map 1:1 onto the rendered box.
@@ -58,7 +69,7 @@ const variant = computed(() => {
 
 <template>
   <div
-    v-if="hasLayers && actor"
+    v-if="showSprite && actor"
     class="arena-actor-sprite actor-idle"
     :style="boxStyle"
     role="img"
@@ -70,6 +81,7 @@ const variant = computed(() => {
       :alt="`${alt} variant`"
       class="actor-layer actor-layer--variant"
       :style="{ zIndex: variant.zIndex }"
+      @error="hasError = true"
     />
     <img
       v-for="layer in layers"
@@ -78,6 +90,7 @@ const variant = computed(() => {
       :alt="`${alt} ${layer.slot}`"
       class="actor-layer"
       :style="layer.style"
+      @error="hasError = true"
     />
   </div>
   <div v-else class="arena-actor-sprite arena-actor-sprite--fallback actor-idle">

@@ -314,7 +314,7 @@ class TestArenaService:
         outfit = await crud.outfit.create(
             db_session=async_session,
             obj_in={
-                "name": "Test Overcoat",
+                "name": "Tattered longcoat",
                 "rarity": RarityEnum.COMMON,
                 "value": 10,
                 "outfit_type": OutfitTypeEnum.COMMON,
@@ -324,7 +324,7 @@ class TestArenaService:
         weapon = await crud.weapon.create(
             db_session=async_session,
             obj_in={
-                "name": "Test Rifle",
+                "name": "Assault rifle",
                 "rarity": RarityEnum.COMMON,
                 "value": 10,
                 "weapon_type": WeaponTypeEnum.GUN,

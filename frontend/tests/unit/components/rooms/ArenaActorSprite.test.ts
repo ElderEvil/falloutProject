@@ -170,6 +170,39 @@ describe('ArenaActorSprite', () => {
     )
   })
 
+  it('falls back to the dweller portrait when a layer image fails to load', async () => {
+    const wrapper = mountSprite({
+      actor: actor({
+        layers: [
+          layer({ slot: 'body' }),
+          layer({ slot: 'outfit', url: 'https://cdn.test/outfit.png', z: 20 }),
+        ],
+      }),
+      portraitUrl: 'https://cdn.test/portrait.png',
+    })
+
+    expect(wrapper.find('.actor-layer').exists()).toBe(true)
+
+    await wrapper.find('.actor-layer').trigger('error')
+
+    expect(wrapper.find('.actor-layer').exists()).toBe(false)
+    expect(wrapper.find('.portrait-image').attributes('src')).toBe(
+      'https://cdn.test/portrait.png'
+    )
+  })
+
+  it('restores the sprite when the actor changes after a load error', async () => {
+    const wrapper = mountSprite({ actor: actor(), portraitUrl: 'https://cdn.test/portrait.png' })
+
+    await wrapper.find('.actor-layer').trigger('error')
+    expect(wrapper.find('.arena-actor-sprite--fallback').exists()).toBe(true)
+
+    await wrapper.setProps({ actor: actor({ base_key: 'adult.alt' }) })
+
+    expect(wrapper.find('.actor-layer').exists()).toBe(true)
+    expect(wrapper.find('.arena-actor-sprite--fallback').exists()).toBe(false)
+  })
+
   it('shows the portrait icon fallback when no portrait is available either', () => {
     const wrapper = mountSprite({ actor: null, portraitUrl: null })
 

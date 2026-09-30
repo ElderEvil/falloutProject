@@ -71,7 +71,7 @@ def test_adult_without_equipment_gets_body_layer_only() -> None:
 def test_adult_with_outfit_appends_outfit_layer() -> None:
     outfit = _record(AssetRole.ARENA_EQUIPMENT, "overcoat")
 
-    assets = get_actor_assets(_make_dweller(), outfit_name="Overcoat", weapon_name=None)
+    assets = get_actor_assets(_make_dweller(), outfit_name="Tattered longcoat", weapon_name=None)
 
     assert assets is not None
     assert [(layer.slot, layer.z) for layer in assets.layers] == [("body", 10), ("outfit", 20)]
@@ -81,7 +81,7 @@ def test_adult_with_outfit_appends_outfit_layer() -> None:
 def test_adult_with_weapon_appends_weapon_layer() -> None:
     weapon = _record(AssetRole.ARENA_EQUIPMENT, "rifle")
 
-    assets = get_actor_assets(_make_dweller(), outfit_name=None, weapon_name="Rifle")
+    assets = get_actor_assets(_make_dweller(), outfit_name=None, weapon_name="Assault rifle")
 
     assert assets is not None
     assert [(layer.slot, layer.z) for layer in assets.layers] == [("body", 10), ("weapon", 30)]
@@ -89,7 +89,7 @@ def test_adult_with_weapon_appends_weapon_layer() -> None:
 
 
 def test_adult_with_both_appends_outfit_then_weapon() -> None:
-    assets = get_actor_assets(_make_dweller(), outfit_name="Overcoat", weapon_name="Rifle")
+    assets = get_actor_assets(_make_dweller(), outfit_name="Tattered longcoat", weapon_name="Assault rifle")
 
     assert assets is not None
     assert [layer.slot for layer in assets.layers] == ["body", "outfit", "weapon"]
@@ -105,9 +105,16 @@ def test_adult_flag_false_resolves_none() -> None:
     assert get_actor_assets(_make_dweller(is_adult=False), outfit_name=None, weapon_name=None) is None
 
 
-def test_equipment_names_are_truthiness_gates_not_asset_selectors() -> None:
-    """Any equipped item maps to the prototype layer; the name only gates presence."""
-    assets = get_actor_assets(_make_dweller(), outfit_name="Any Outfit", weapon_name="Any Weapon")
+def test_unsupported_equipment_adds_no_layer() -> None:
+    """Items without actor art fall back to the base actor, never mismatched art."""
+    assets = get_actor_assets(_make_dweller(), outfit_name="Lab coat", weapon_name="Pipe rifle")
+
+    assert assets is not None
+    assert [layer.slot for layer in assets.layers] == ["body"]
+
+
+def test_supported_equipment_matching_is_case_insensitive() -> None:
+    assets = get_actor_assets(_make_dweller(), outfit_name="  tattered longcoat ", weapon_name="ASSAULT RIFLE")
 
     assert assets is not None
     assert [layer.slot for layer in assets.layers] == ["body", "outfit", "weapon"]

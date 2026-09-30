@@ -1,9 +1,9 @@
-// PoC scene descriptor for the layered-actor arena stage (issues #818/#819).
+// PoC scene descriptor for the layered-actor arena stage (issues 818 and 819).
 // Placeholder geometry only — proves anchors + layering + equipment swap +
 // fallback + reduced-motion before any art generation or manifest convention
 // exists. Anchors are authored in the scene's intrinsic pixel space and
 // converted to percentages so the stage stays resolution-independent.
-// TODO(#819): replace with the agreed scene manifest
+// TODO(819): replace with the agreed scene manifest
 export interface SceneAnchorSpec {
   id: string
   /** Anchor x in the scene's intrinsic pixel space, from the left edge. */

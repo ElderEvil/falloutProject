@@ -58,7 +58,7 @@ const router = createRouter({
             component: () => import('@/core/views/AssetGalleryView.vue'),
           },
           {
-            // TEMPORARY PoC route (issues #818/#819) — remove after review.
+            // TEMPORARY PoC route (issues 818 and 819) — remove after review.
             path: '/dev/arena-stage',
             name: 'arena-stage-preview',
             component: () => import('@/core/views/ArenaStagePreviewView.vue'),

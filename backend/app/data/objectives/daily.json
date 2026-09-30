@@ -158,5 +158,21 @@
     "objective_type": "train",
     "target_entity": {},
     "target_amount": 2
+  },
+  {
+    "challenge": "Scrap a Rare Weapon",
+    "reward": "150 caps",
+    "category": "daily",
+    "objective_type": "scrap",
+    "target_entity": {"item_type": "weapon", "rarity": "rare"},
+    "target_amount": 1
+  },
+  {
+    "challenge": "Scrap a Rare Outfit",
+    "reward": "150 caps",
+    "category": "daily",
+    "objective_type": "scrap",
+    "target_entity": {"item_type": "outfit", "rarity": "rare"},
+    "target_amount": 1
   }
 ]

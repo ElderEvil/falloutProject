@@ -63,6 +63,37 @@ class CollectEvaluator(ObjectiveEvaluator):
         return data.get("amount", 1)
 
 
+class ScrapEvaluator(ObjectiveEvaluator):
+    """Evaluates 'scrap' objectives (e.g. 'Scrap a Rare Weapon').
+
+    Listens to ITEM_SCRAPPED events. Matches target_entity["item_type"]
+    ("weapon"/"outfit"; absent/"*"/"any" = any) and target_entity["rarity"]
+    ("common"/"rare"/"legendary"; absent/"*"/"any" = any).
+    """
+
+    objective_type = "scrap"
+    subscribed_events = (GameEvent.ITEM_SCRAPPED,)
+
+    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:
+        target = objective.target_entity or {}
+
+        target_item = target.get("item_type")
+        item_mismatch = (
+            bool(target_item)
+            and target_item not in ("*", "any")
+            and normalize_item_type(data.get("item_type", "")) != normalize_item_type(target_item)
+        )
+
+        target_rarity = target.get("rarity")
+        rarity_mismatch = (
+            bool(target_rarity)
+            and target_rarity not in ("*", "any")
+            and str(data.get("rarity", "")).lower() != str(target_rarity).lower()
+        )
+
+        return not (item_mismatch or rarity_mismatch)
+
+
 class BuildEvaluator(ObjectiveEvaluator):
     """Evaluates 'build' objectives (e.g. 'Build 3 Rooms', 'Build a Living Quarter').
 

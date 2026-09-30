@@ -254,8 +254,8 @@ def test_starter_seed_file_integrity() -> None:
     with starter_file.open("r", encoding="utf-8") as f:
         steps = json.load(f)
 
-    assert len(steps) == 8
-    supported_types = {"assign", "build", "collect", "reach", "assign_correct"}
+    assert len(steps) == 9
+    supported_types = {"assign", "build", "collect", "reach", "assign_correct", "scrap"}
     sequences = []
     for step in steps:
         assert step["category"] == "starter"
@@ -275,4 +275,4 @@ def test_starter_seed_file_integrity() -> None:
         elif step["objective_type"] == "reach":
             assert target.get("reach_type") in VALID_REACH_TYPES
 
-    assert sequences == list(range(8)), "sequences must be unique and contiguous 0..7"
+    assert sequences == list(range(9)), "sequences must be unique and contiguous 0..8"

@@ -254,5 +254,21 @@
     "objective_type": "level_up",
     "target_entity": {"min_level": 2},
     "target_amount": 1
+  },
+  {
+    "challenge": "Reverse-engineer a Legendary",
+    "reward": "10000 caps",
+    "category": "achievement",
+    "objective_type": "scrap",
+    "target_entity": {"rarity": "legendary"},
+    "target_amount": 1
+  },
+  {
+    "challenge": "Scrap 10 Rare Items",
+    "reward": "5000 caps",
+    "category": "achievement",
+    "objective_type": "scrap",
+    "target_entity": {"rarity": "rare"},
+    "target_amount": 10
   }
 ]

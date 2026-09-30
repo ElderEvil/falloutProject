@@ -172,6 +172,10 @@ watch(currentSseEvent, (evt) => {
   if (notificationData.notification_type === 'recipe_unlocked') {
     toast.success(notificationData.message)
   }
+  // Objective completion is asynchronous; announce it beyond the bell (progression red line).
+  if (notificationData.notification_type === 'achievement_unlocked') {
+    toast.success(notificationData.message)
+  }
 })
 
 const fetchNotifications = async () => {

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.163.1 (2026-09-30)
+
+### Bug Fixes
+
+* **dwellers:** use the VueUse 15 scheduler option for useNow ([#848](https://github.com/ElderEvil/falloutProject/issues/848)) 0396c99, closes #849
+
 ## 2.163.0 (2026-09-30)
 
 ### Features

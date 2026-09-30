@@ -552,7 +552,7 @@ class NotificationService:
             db,
             user_id=user_id,
             vault_id=vault_id,
-            notification_type=NotificationType.ACHIEVEMENT_UNLOCKED,
+            notification_type=NotificationType.OBJECTIVE_COMPLETED,
             priority=NotificationPriority.NORMAL,
             title="Objective Complete!",
             message=f"'{objective_challenge}' completed! Reward: {reward}",

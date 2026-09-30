@@ -51,6 +51,7 @@ class NotificationType(StrEnum):
 
     # System events
     QUEST_COMPLETE = "quest_complete"
+    OBJECTIVE_COMPLETED = "objective_completed"
     ACHIEVEMENT_UNLOCKED = "achievement_unlocked"
     RADIO_NEW_DWELLER = "radio_new_dweller"
     RADIO_AUTO_SWITCHED_TO_HAPPINESS = "radio_auto_switched_to_happiness"

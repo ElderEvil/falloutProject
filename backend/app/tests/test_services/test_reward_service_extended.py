@@ -11,6 +11,7 @@ from app import crud
 from app.crud.user_profile import profile_crud
 from app.models.dweller import Dweller
 from app.models.item import Item
+from app.models.outfit import Outfit
 from app.models.quest import Quest
 from app.models.quest_reward import QuestReward, RewardType
 from app.models.storage import Storage
@@ -18,7 +19,7 @@ from app.models.vault import Vault
 from app.schemas.common import GenderEnum, RarityEnum
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
-from app.services.reward_service import _LUNCHBOX_ROLL_TABLE, reward_service
+from app.services.reward_service import reward_service
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
@@ -456,15 +457,49 @@ def test_parse_objective_reward_lunchbox() -> None:
     assert reward_service._parse_objective_reward("2 lunchboxes") == (RewardType.LUNCHBOX, {"amount": 2})
 
 
-def test_lunchbox_roll_gear_exists_in_catalog() -> None:
+@pytest.mark.asyncio
+async def test_lunchbox_roll_is_catalog_backed(async_session: AsyncSession) -> None:
+    """Every lunchbox roll is a real catalog row whose rarity matches the rolled tier."""
     from app.services.exploration import data_loader
 
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    storage = Storage(vault_id=vault.id, max_space=100)
+    async_session.add(storage)
+    await async_session.commit()
+    await async_session.refresh(storage)
+
+    granted_items, _ = await reward_service._roll_lunchbox_contents(async_session, vault.id, storage.id)
+
     catalog = {
-        "weapon": {str(w["name"]).lower() for w in data_loader.load_weapons()},
-        "outfit": {str(o["name"]).lower() for o in data_loader.load_outfits()},
+        str(entry["name"]).lower(): RarityEnum(entry["rarity"]).value
+        for entry in data_loader.load_weapons() + data_loader.load_outfits()
     }
-    for entry in _LUNCHBOX_ROLL_TABLE:
-        assert entry["name"].lower() in catalog[entry["kind"]], entry["name"]
+    assert granted_items
+    for entry in granted_items:
+        assert catalog[entry["name"].lower()] == entry["rarity"]
+
+
+@pytest.mark.asyncio
+async def test_grant_item_outfit_uses_catalog_stats(async_session: AsyncSession) -> None:
+    """Objective/quest gear resolves through the catalog instead of a zero-SPECIAL default row."""
+    from app.services.exploration import data_loader
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    async_session.add(Storage(vault_id=vault.id, max_space=100))
+    await async_session.commit()
+
+    await reward_service.grant_item(
+        async_session, vault.id, {"item_type": "outfit", "name": "Mechanic jumpsuit", "rarity": "common"}
+    )
+
+    outfit = (await async_session.execute(select(Outfit))).scalars().first()
+    catalog_entry = next(o for o in data_loader.load_outfits() if o["name"] == "Mechanic jumpsuit")
+    assert outfit is not None
+    assert outfit.name == "Mechanic jumpsuit"
+    assert outfit.outfit_type.value == catalog_entry["outfit_type"]
+    assert outfit.strength == catalog_entry.get("strength", 0)
 
 
 @pytest.mark.asyncio

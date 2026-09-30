@@ -18,7 +18,7 @@ from app.models.vault import Vault
 from app.schemas.common import GenderEnum, RarityEnum
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
-from app.services.reward_service import reward_service
+from app.services.reward_service import _LUNCHBOX_ROLL_TABLE, reward_service
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
@@ -436,6 +436,35 @@ async def test_grant_lunchbox(async_session: AsyncSession) -> None:
     rows = (await async_session.execute(select(Item))).scalars().all()
     assert [(item.name, item.item_type) for item in rows] == [("Lunchbox", "lunchbox")]
     assert (await async_session.execute(select(Dweller))).scalars().all() == []
+
+
+@pytest.mark.asyncio
+async def test_grant_lunchbox_amount_mints_several(async_session: AsyncSession) -> None:
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    async_session.add(Storage(vault_id=vault.id, max_space=100))
+    await async_session.commit()
+
+    await reward_service.grant_lunchbox(async_session, vault.id, amount=3)
+
+    rows = (await async_session.execute(select(Item))).scalars().all()
+    assert [(item.name, item.item_type) for item in rows] == [("Lunchbox", "lunchbox")] * 3
+
+
+def test_parse_objective_reward_lunchbox() -> None:
+    assert reward_service._parse_objective_reward("1 lunchbox") == (RewardType.LUNCHBOX, {"amount": 1})
+    assert reward_service._parse_objective_reward("2 lunchboxes") == (RewardType.LUNCHBOX, {"amount": 2})
+
+
+def test_lunchbox_roll_gear_exists_in_catalog() -> None:
+    from app.services.exploration import data_loader
+
+    catalog = {
+        "weapon": {str(w["name"]).lower() for w in data_loader.load_weapons()},
+        "outfit": {str(o["name"]).lower() for o in data_loader.load_outfits()},
+    }
+    for entry in _LUNCHBOX_ROLL_TABLE:
+        assert entry["name"].lower() in catalog[entry["kind"]], entry["name"]
 
 
 @pytest.mark.asyncio

@@ -102,12 +102,12 @@ def build_catalog_item(
     building from the schema dump.
     """
     if item_type == "weapon":
-        weapon_data = next((w for w in weapons_data if w["name"] == name), None)
+        weapon_data = next((w for w in weapons_data if str(w["name"]).lower() == name.lower()), None)
         if weapon_data is None:
             return None
         return build_weapon(weapon_data, rarity, storage_id)
     if item_type == "outfit":
-        outfit_data = next((o for o in outfits_data if o["name"] == name), None)
+        outfit_data = next((o for o in outfits_data if str(o["name"]).lower() == name.lower()), None)
         if outfit_data is None:
             return None
         return build_outfit(outfit_data, rarity, storage_id)

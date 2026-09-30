@@ -30,11 +30,11 @@ logger = logging.getLogger(__name__)
 
 _LUNCHBOX_ITEM_COUNT = 3
 _LUNCHBOX_ROLL_TABLE = (
-    {"name": "Laser Pistol", "kind": "weapon", "weapon_type": "energy", "weapon_subtype": "pistol", "stat": "luck"},
-    {"name": "Plasma Pistol", "kind": "weapon", "weapon_type": "energy", "weapon_subtype": "pistol", "stat": "luck"},
-    {"name": "Assault Rifle", "kind": "weapon", "weapon_type": "gun", "weapon_subtype": "rifle", "stat": "agility"},
-    {"name": "Vault Suit", "kind": "outfit", "outfit_type": "common_outfit", "stat": "endurance"},
-    {"name": "Combat Armor", "kind": "outfit", "outfit_type": "power_armor", "stat": "endurance"},
+    {"name": "Laser pistol", "kind": "weapon"},
+    {"name": "Plasma pistol", "kind": "weapon"},
+    {"name": "Assault rifle", "kind": "weapon"},
+    {"name": "Combat armor", "kind": "outfit"},
+    {"name": "Mechanic jumpsuit", "kind": "outfit"},
 )
 
 
@@ -441,10 +441,12 @@ class RewardService:
             "gender": gender,
         }
 
-    async def grant_lunchbox(self, db_session: AsyncSession, vault_id: UUID4) -> dict[str, Any]:
-        """Mint one unopened lunchbox Item; contents roll when the player opens it."""
+    async def grant_lunchbox(self, db_session: AsyncSession, vault_id: UUID4, amount: int = 1) -> dict[str, Any]:
+        """Mint unopened lunchbox Items; contents roll when the player opens each one."""
         return await self.grant_item(
-            db_session, vault_id, {"item_type": "lunchbox", "name": "Lunchbox", "rarity": "common"}
+            db_session,
+            vault_id,
+            {"item_type": "lunchbox", "name": "Lunchbox", "rarity": "common", "amount": amount},
         )
 
     async def open_lunchbox(self, db_session: AsyncSession, vault_id: UUID4, item_id: UUID4) -> dict[str, Any]:
@@ -483,6 +485,11 @@ class RewardService:
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """Roll 3 random items and 1 dweller into storage for a lunchbox opening."""
         from app.crud.dweller import dweller as dweller_crud
+        from app.services.exploration import data_loader
+        from app.utils.item_factory import build_catalog_item
+
+        weapons_data = data_loader.load_weapons()
+        outfits_data = data_loader.load_outfits()
 
         granted_items = []
         for _ in range(_LUNCHBOX_ITEM_COUNT):
@@ -491,20 +498,21 @@ class RewardService:
                 [RarityEnum.COMMON, RarityEnum.RARE, RarityEnum.LEGENDARY],
                 weights=[0.7, 0.2, 0.1],
             )[0]
-            roll_data = {
-                **entry,
-                "damage_min": random.randint(2, 5),
-                "damage_max": random.randint(5, 10),
-                "value": random.randint(30, 200) if entry["kind"] == "weapon" else random.randint(30, 100),
-            }
-            if entry["kind"] == "weapon":
-                item = self._build_weapon(entry["name"], rarity.value, roll_data, storage_id)
-            else:
-                item = self._build_outfit(entry["name"], rarity.value, roll_data, storage_id)
+            item = build_catalog_item(
+                entry["kind"],
+                entry["name"],
+                rarity,
+                storage_id,
+                weapons_data=weapons_data,
+                outfits_data=outfits_data,
+            )
+            if item is None:
+                logger.warning(f"Lunchbox roll '{entry['name']}' is not in the catalog; skipping")
+                continue
             db_session.add(item)
             granted_items.append(
                 {
-                    "name": entry["name"],
+                    "name": item.name,
                     "type": "weapon" if isinstance(item, Weapon) else "outfit",
                     "rarity": rarity.value,
                 }
@@ -648,7 +656,7 @@ class RewardService:
                     db_session, vault_id, reward_data.get("amount", 1), emit_event=emit_event
                 )
             case RewardType.LUNCHBOX:
-                return await self.grant_lunchbox(db_session, vault_id)
+                return await self.grant_lunchbox(db_session, vault_id, reward_data.get("amount", 1))
             case _:
                 msg = f"Unknown reward type: {reward_type_str}"
                 raise ValueError(msg)
@@ -672,6 +680,8 @@ class RewardService:
                 return RewardType.RESOURCE, {"resource_type": reward_name, "amount": amount}
             if reward_name in ("xp", "experience"):
                 return RewardType.EXPERIENCE, {"amount": amount, "dweller_ids": []}
+            if reward_name in ("lunchbox", "lunchboxes"):
+                return RewardType.LUNCHBOX, {"amount": amount}
 
         if ":" in reward_str:
             prefix, value = reward_str.split(":", 1)

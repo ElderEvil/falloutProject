@@ -81,7 +81,7 @@
   },
   {
     "challenge": "Collect 3 Outfits",
-    "reward": "outfit:Vault Suit",
+    "reward": "outfit:Mechanic jumpsuit",
     "category": "daily",
     "objective_type": "collect",
     "target_entity": {"item_type": "outfit"},

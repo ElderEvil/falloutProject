@@ -61,6 +61,11 @@ class ChatService:
         debug: bool = False,
     ) -> DwellerChatResponse:
         """Validate quota, generate a reply, and persist the conversation."""
+        verdict = await screen_message(message_text, db_session=db_session, user_id=user.id)
+        if verdict.blocked:
+            await db_session.commit()
+            raise ValidationException(detail=verdict.reason or "Message blocked by content screening.")
+
         async with db_session.begin_nested():
             dweller = await get_accessible_dweller(dweller_id, user, db_session)
 
@@ -69,10 +74,6 @@ class ChatService:
 
             instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
             provider, model = await get_provider_model_snapshot(db_session)
-
-            verdict = await screen_message(message_text, db_session=db_session, user_id=user.id)
-            if verdict.blocked:
-                raise ValidationException(detail=verdict.reason or "Message blocked by content screening.")
 
             result = await run_chat_agent(
                 db_session=db_session,
@@ -148,6 +149,12 @@ class ChatService:
     ) -> AsyncGenerator[ChatStreamEvent]:
         """Yield typed token, completion, or error events for one dweller response."""
         try:
+            verdict = await screen_message(message_text, db_session=db_session, user_id=user.id)
+            if verdict.blocked:
+                await db_session.commit()
+                yield ChatStreamError(detail=verdict.reason or "Message blocked by content screening.")
+                return
+
             async with db_session.begin_nested():
                 dweller = await get_accessible_dweller(dweller_id, user, db_session)
 
@@ -156,11 +163,6 @@ class ChatService:
 
                 instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
                 provider, model = await get_provider_model_snapshot(db_session)
-
-                verdict = await screen_message(message_text, db_session=db_session, user_id=user.id)
-                if verdict.blocked:
-                    yield ChatStreamError(detail=verdict.reason or "Message blocked by content screening.")
-                    return
 
                 deps = DwellerChatDeps(
                     db_session=db_session,

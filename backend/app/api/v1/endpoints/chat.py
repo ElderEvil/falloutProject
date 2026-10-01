@@ -35,7 +35,7 @@ async def chat_with_dweller(
         user=user,
         dweller_id=dweller_id,
         message_text=message.message,
-        debug=debug,
+        debug=debug and user.is_superuser,
     )
     await chat_service.send_chat_notification(
         user_id=user.id,

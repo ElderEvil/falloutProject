@@ -6,6 +6,7 @@ the query string before the connection is accepted/registered, so a failed
 auth causes the WebSocket handshake to be rejected (close before accept).
 """
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
@@ -172,6 +173,37 @@ class TestChatWebSocketStreaming:
             ws.send_json({"type": "message", "content": "Hello!"})
             assert ws.receive_json() == {"type": "token", "text": "Partial response"}
             assert ws.receive_json() == {"type": "error", "detail": "AI quota exceeded"}
+
+    @pytest.mark.parametrize("is_superuser", [False, True])
+    def test_debug_flag_follows_superuser(self, ws_client: TestClient, is_superuser: bool) -> None:
+        """A streamed message passes debug through only for superusers."""
+        user_id = uuid4()
+        dweller_id = uuid4()
+        token = create_access_token(subject=str(user_id))
+        captured: dict[str, object] = {}
+
+        async def stream(
+            db_session: object, user: object, dweller_id: object, message_text: str, *, debug: bool = False
+        ):
+            captured["debug"] = debug
+            yield ChatStreamToken(text="ok")
+
+        with (
+            patch(
+                "app.api.v1.endpoints.websocket.async_session_maker",
+                return_value=_FakeSessionCM(),
+            ),
+            patch(
+                "app.api.v1.endpoints.websocket.user_crud.get",
+                new=AsyncMock(return_value=SimpleNamespace(is_superuser=is_superuser)),
+            ),
+            patch("app.api.v1.endpoints.websocket.chat_service.stream_response", new=stream),
+            ws_client.websocket_connect(f"/api/v1/ws/chat/{user_id}/{dweller_id}?token={token}") as ws,
+        ):
+            ws.send_json({"type": "message", "content": "Hello!", "debug": True})
+            assert ws.receive_json() == {"type": "token", "text": "ok"}
+
+        assert captured["debug"] is is_superuser
 
 
 class TestChatWebSocketRoundTrip:

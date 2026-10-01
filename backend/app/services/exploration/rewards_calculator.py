@@ -2,6 +2,7 @@
 
 from app.core.game_config import game_config
 from app.models.exploration import Exploration
+from app.options.pet_modifiers import MAX_PCT_BONUS, pet_modifiers_for
 
 
 class RewardsCalculator:
@@ -14,6 +15,7 @@ class RewardsCalculator:
         - Base XP from distance, enemies, and events
         - Survival bonus (if returned with >70% health)
         - Luck bonus (scales with luck stat)
+        - Pet XP bonus (additive percentage, capped by MAX_PCT_BONUS)
 
         Args:
             exploration: Completed exploration
@@ -40,7 +42,10 @@ class RewardsCalculator:
         # Luck bonus (2% per luck point)
         luck_bonus = int(base_xp * (exploration.dweller_luck * cfg.exploration_luck_bonus))
 
-        total_xp = base_xp + survival_bonus + luck_bonus
+        # Pet XP bonus (additive percentage of base XP, capped)
+        pet_bonus = int(base_xp * min(pet_modifiers_for(dweller).xp_pct, MAX_PCT_BONUS))
+
+        total_xp = base_xp + survival_bonus + luck_bonus + pet_bonus
 
         return int(total_xp)
 

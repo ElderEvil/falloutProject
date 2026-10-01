@@ -28,7 +28,7 @@ from app.utils.exceptions import ResourceConflictException, ResourceNotFoundExce
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("item_type", "name"),
-    [("consumable", "Nuka-Cola Quantum"), ("pet", "Dogmeat"), ("lunchbox", "Lunchbox")],
+    [("consumable", "Nuka-Cola Quantum"), ("lunchbox", "Lunchbox")],
 )
 async def test_grant_item_supported_generic_type_creates_item(
     async_session: AsyncSession, item_type: str, name: str
@@ -58,6 +58,64 @@ async def test_grant_item_supported_generic_type_creates_item(
     assert item is not None
     assert item.name == name
     assert item.item_type == item_type
+
+
+@pytest.mark.asyncio
+async def test_grant_item_pet_creates_pet_row(async_session: AsyncSession) -> None:
+    """A pet reward mints a dedicated Pet row (not an inert generic Item), with art resolved."""
+    from app.models.pet import Pet
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    async_session.add(Storage(vault_id=vault.id, max_space=100))
+    await async_session.commit()
+
+    result = await reward_service.grant_item(
+        async_session, vault.id, {"item_type": "pet", "name": "CX404", "rarity": "legendary"}
+    )
+
+    assert result["item_type"] == "pet"
+    assert result["name"] == "CX404"
+    pet = await async_session.get(Pet, UUID(result["item_id"]))
+    assert pet is not None
+    assert pet.name == "CX404"
+    assert pet.rarity == RarityEnum.LEGENDARY
+    assert pet.image_url == "/static/pet_images/FOS CX404.png"
+    assert (await async_session.execute(select(Item))).scalars().all() == []
+
+
+@pytest.mark.asyncio
+async def test_grant_item_infers_pet_from_name(async_session: AsyncSession) -> None:
+    """A recognized pet name infers item_type='pet' and mints a Pet row without an explicit type."""
+    from app.models.pet import Pet
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    async_session.add(Storage(vault_id=vault.id, max_space=100))
+    await async_session.commit()
+
+    result = await reward_service.grant_item(
+        async_session, vault.id, {"item_name": "German Shepherd", "rarity": "rare"}
+    )
+
+    assert result["item_type"] == "pet"
+    pet = await async_session.get(Pet, UUID(result["item_id"]))
+    assert pet is not None
+    assert pet.name == "German Shepherd"
+    assert pet.rarity == RarityEnum.RARE
+    assert pet.image_url == "/static/pet_images/FOS German Shepherd.png"
+    assert (await async_session.execute(select(Item))).scalars().all() == []
+
+
+def test_infer_item_type_recognizes_mapped_pet_names() -> None:
+    """Pet inference keys off the mapped pet names and leaves existing categories untouched."""
+    from app.schemas.quest import infer_item_type
+
+    assert infer_item_type("German Shepherd") == "pet"
+    assert infer_item_type("CX404") == "pet"
+    assert infer_item_type("Dogmeat") == "junk"  # "dogmeat (fallout 4)" is the mapped key
+    assert infer_item_type("Pool Cue") == "weapon"
+    assert infer_item_type("Lunchbox") == "lunchbox"
 
 
 @pytest.mark.asyncio

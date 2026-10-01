@@ -17,12 +17,14 @@ from app.core.enums import (
     WeaponTypeEnum,
 )
 from app.models.base import BaseUUIDModel, SoftDeleteMixin, SPECIALModel, TimeStampMixin
+from app.options.pet_modifiers import pet_modifiers_for
 
 BIO_MAX_CHARS = 2_048
 
 if TYPE_CHECKING:
     from app.models.notification import Notification
     from app.models.outfit import Outfit
+    from app.models.pet import Pet
     from app.models.room import Room
     from app.models.team import TeamMember
     from app.models.training import Training
@@ -72,7 +74,7 @@ class DwellerBaseWithoutStats(SQLModel):
     @property
     def effective_max_health(self) -> int:
         """Maximum health available after radiation damage."""
-        return max(1, self.max_health - self.radiation)
+        return max(1, self.max_health + pet_modifiers_for(self).max_health - self.radiation)
 
     # Inventory
     stimpack: int = Field(default=0, ge=0, le=15)
@@ -185,6 +187,12 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
     # Inventory
     weapon: "Weapon" = Relationship(back_populates="dweller", cascade_delete=True)
     outfit: "Outfit" = Relationship(back_populates="dweller", cascade_delete=True)
+    pet: "Pet" = Relationship(back_populates="dweller", cascade_delete=True)
+
+    @property
+    def pet_loaded(self) -> "Pet | None":
+        """The equipped pet if already loaded, else None (never triggers lazy IO)."""
+        return self.__dict__.get("pet")
 
     @property
     def weapon_type(self) -> WeaponTypeEnum | None:

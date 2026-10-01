@@ -10,6 +10,7 @@ from app.core.game_config import game_config
 from app.crud import training as training_crud
 from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
+from app.models.pet import Pet
 from app.models.vault import Vault
 from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate
@@ -308,6 +309,89 @@ async def test_start_training_leaves_no_partial_state_when_the_second_write_fail
     assert await training_crud.training.get_active_by_vault(async_session, vault_id) == []
     await async_session.refresh(dweller)
     assert dweller.status == DwellerStatusEnum.IDLE
+
+
+@pytest.mark.asyncio
+async def test_start_training_duration_reduced_by_pet_training_speed_bonus(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    training_service: TrainingService,
+):
+    """An equipped training-speed pet shortens the snapshotted duration."""
+    room = await room_crud.create(async_session, _training_room(vault.id))
+    await _idle_dweller(async_session, dweller)
+
+    # Simulate the B7 eager-load: the pet sits in the dweller's __dict__.
+    # refresh() is no-op'd so it does not wipe the untracked __dict__ entry
+    # (a real selectinload pet survives refresh by being re-loaded).
+    dweller.__dict__["pet"] = Pet(name="Vault-Tec Parrot", rarity="Legendary")
+
+    with (
+        patch(
+            "app.services.training_service.dweller_crud.get",
+            new=AsyncMock(return_value=dweller),
+        ),
+        patch.object(async_session, "refresh", new=AsyncMock()),
+    ):
+        training = await training_service.start_training(async_session, dweller.id, room.id)
+
+    base_duration = training_service.calculate_training_duration(5, 1)
+    expected = int(base_duration * (1 - 0.25))
+    actual = (training.estimated_completion_at - training.started_at).total_seconds()
+    assert actual == expected
+    assert actual < base_duration
+
+
+@pytest.mark.asyncio
+async def test_start_training_duration_reduced_by_pet_real_path(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    training_service: TrainingService,
+):
+    """A pet equipped via crud.pet.equip shortens the duration through the real path.
+
+    start_training reads the dweller via dweller_crud.get, which eager-loads the
+    pet (Phase A); no __dict__ hand-set and no mocks, so this proves the B7
+    eager-load reaches the training-speed snapshot.
+    """
+    room = await room_crud.create(async_session, _training_room(vault.id))
+    await _idle_dweller(async_session, dweller)
+
+    from app import crud
+
+    pet = await crud.pet.create(
+        async_session,
+        obj_in={"name": "Vault-Tec Parrot", "rarity": "Legendary", "value": 500},
+    )
+    await crud.pet.equip(db_session=async_session, item_id=pet.id, dweller_id=dweller.id)
+
+    training = await training_service.start_training(async_session, dweller.id, room.id)
+
+    base_duration = training_service.calculate_training_duration(5, 1)
+    expected = int(base_duration * (1 - 0.25))
+    actual = (training.estimated_completion_at - training.started_at).total_seconds()
+    assert actual == expected
+    assert actual < base_duration
+
+
+@pytest.mark.asyncio
+async def test_start_training_duration_unchanged_without_pet(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    training_service: TrainingService,
+):
+    """Without an equipped pet the duration is the plain calculated duration."""
+    room = await room_crud.create(async_session, _training_room(vault.id))
+    await _idle_dweller(async_session, dweller)
+
+    training = await training_service.start_training(async_session, dweller.id, room.id)
+
+    expected = training_service.calculate_training_duration(5, 1)
+    actual = (training.estimated_completion_at - training.started_at).total_seconds()
+    assert actual == expected
 
 
 @pytest.mark.asyncio

@@ -13,6 +13,7 @@ from .llm_interaction import LLMInteraction
 from .notification import Notification, NotificationCreate, NotificationRead
 from .objective import Objective
 from .outfit import Outfit
+from .pet import Pet
 from .pregnancy import Pregnancy
 from .prompt import Prompt
 from .quest import Quest, QuestType

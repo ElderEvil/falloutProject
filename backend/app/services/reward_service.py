@@ -177,6 +177,12 @@ class RewardService:
             storage_id=storage_id,
         )
 
+    def _build_pet(self, name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
+        """Build a Pet; bonuses resolve by name at read time, so only identity/art are persisted."""
+        from app.utils.item_factory import build_pet
+
+        return build_pet(data | {"name": name}, rarity, storage_id)
+
     @staticmethod
     def _medication_kind(name: str) -> str | None:
         """Map a medication item name to its stock kind; None for non-medication."""
@@ -212,21 +218,24 @@ class RewardService:
         storage_obj = await self._ensure_storage(db_session, vault_id, quantity)
         created_ids: list[str] = []
         for _ in range(quantity):
-            if item_type == "weapon":
-                item = self._build_weapon(str(item_name), str(item_rarity), item_data, storage_obj.id)
-            elif item_type == "outfit":
-                item = self._build_outfit(str(item_name), str(item_rarity), item_data, storage_obj.id)
-            elif item_type == "junk":
-                item = self._build_junk(str(item_name), str(item_rarity), item_data, storage_obj.id)
-            else:
-                item = Item(
-                    name=str(item_name),
-                    item_type=item_type,
-                    rarity=str(item_rarity),
-                    value=item_data.get("value"),
-                    image_url=item_data.get("image_url"),
-                    storage_id=storage_obj.id,
-                )
+            match item_type:
+                case "weapon":
+                    item = self._build_weapon(str(item_name), str(item_rarity), item_data, storage_obj.id)
+                case "outfit":
+                    item = self._build_outfit(str(item_name), str(item_rarity), item_data, storage_obj.id)
+                case "junk":
+                    item = self._build_junk(str(item_name), str(item_rarity), item_data, storage_obj.id)
+                case "pet":
+                    item = self._build_pet(str(item_name), str(item_rarity), item_data, storage_obj.id)
+                case _:
+                    item = Item(
+                        name=str(item_name),
+                        item_type=item_type,
+                        rarity=str(item_rarity),
+                        value=item_data.get("value"),
+                        image_url=item_data.get("image_url"),
+                        storage_id=storage_obj.id,
+                    )
             db_session.add(item)
             await db_session.flush()
             await db_session.refresh(item)

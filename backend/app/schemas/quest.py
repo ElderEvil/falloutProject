@@ -7,6 +7,7 @@ from sqlmodel import SQLModel
 from app.models.quest import QuestBase
 from app.schemas.rewards import GrantedReward
 from app.utils.partial import optional
+from app.utils.pet_assets import PET_NAME_TO_IMAGE_FILE
 
 
 class QuestCreate(QuestBase):
@@ -151,6 +152,8 @@ def infer_item_type(name: str, item_data: QuestItemData | dict[str, Any] | None 
         for token in ("pool cue", "shotgun", "rifle", "pistol", "plasma", "weapon", "laser", "gun")
     ):
         return "weapon"
+    if name.strip().casefold() in PET_NAME_TO_IMAGE_FILE:
+        return "pet"
     return "junk"
 
 

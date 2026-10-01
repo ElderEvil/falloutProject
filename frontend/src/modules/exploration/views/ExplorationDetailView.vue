@@ -141,6 +141,7 @@ const timeRemainingSeconds = computed(() => {
 // Equipment computed
 const weaponName = computed(() => detailedDweller.value?.weapon?.name ?? null)
 const outfitName = computed(() => detailedDweller.value?.outfit?.name ?? null)
+const petName = computed(() => detailedDweller.value?.pet?.name ?? null)
 
 // Actions
 const handleCompleteExploration = () => {
@@ -351,8 +352,10 @@ watch(isReady, (ready) => {
             <ExplorerEquipmentSlots
               :weapon-name="weaponName"
               :outfit-name="outfitName"
+              :pet-name="petName"
               :weapon="detailedDweller?.weapon"
               :outfit="detailedDweller?.outfit"
+              :pet="detailedDweller?.pet"
             />
 
             <!-- Action Buttons -->

@@ -2610,6 +2610,111 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/pets/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Pet List
+         * @description Retrieve a paginated list of a vault's pets.
+         *
+         *     Every pet lives in a vault's storage or on one of its dwellers, so the vault
+         *     is required rather than optional: an unscoped list would enumerate other
+         *     players' pets.
+         *
+         *     Returns:
+         *         List of pets.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user doesn't own the vault.
+         */
+        get: operations["read_pet_list_api_v1_pets__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pets/{pet_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Pet
+         * @description Retrieve a pet by ID.
+         *
+         *     Returns:
+         *         The requested pet.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user doesn't own the pet's vault.
+         */
+        get: operations["read_pet_api_v1_pets__pet_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pets/{dweller_id}/equip/{pet_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Equip Pet
+         * @description Equip a pet on a dweller.
+         *
+         *     Returns:
+         *         The equipped pet.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user owns neither the dweller nor the pet.
+         */
+        post: operations["equip_pet_api_v1_pets__dweller_id__equip__pet_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pets/{pet_id}/unequip/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unequip Pet
+         * @description Unequip a pet from a dweller.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user doesn't own the pet's vault.
+         */
+        post: operations["unequip_pet_api_v1_pets__pet_id__unequip__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/pregnancies/vault/{vault_id}": {
         parameters: {
             query?: never;
@@ -3620,11 +3725,11 @@ export interface paths {
          * @description Get all items in a vault's storage.
          *
          *     Returns:
-         *         Lists of weapons, outfits, junk, and generic items in storage.
+         *         Lists of weapons, outfits, junk, generic items, and pets in storage.
          *
          *     Raises:
-         *         HTTPException: 403 if user lacks access to the vault.
-         *         HTTPException: 404 if storage not found for vault.
+         *         AccessDeniedException: If the user lacks access to the vault.
+         *         ResourceNotFoundException: If the vault has no storage row.
          */
         get: operations["get_storage_items_api_v1_storage_vault__vault_id__items_get"];
         put?: never;
@@ -6218,6 +6323,7 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            pet?: components["schemas"]["PetRead"] | null;
             /**
              * Effective Max Health
              * @description Maximum health available after radiation damage.
@@ -6373,6 +6479,7 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            pet?: components["schemas"]["PetRead"] | null;
             /**
              * Vault Id
              * Format: uuid4
@@ -6444,6 +6551,7 @@ export interface components {
             weapon_type?: components["schemas"]["WeaponTypeEnum"] | null;
             /** Combat Power */
             combat_power?: number | null;
+            pet?: components["schemas"]["PetRead"] | null;
             /** Partner Id */
             partner_id?: string | null;
             /** Parent 1 Id */
@@ -6603,6 +6711,7 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            pet?: components["schemas"]["PetRead"] | null;
             /**
              * Room Id
              * Format: uuid4
@@ -8466,6 +8575,121 @@ export interface components {
             }[];
         };
         /**
+         * PetEffectRead
+         * @description Wire shape for the catalog-resolved bonus a pet grants.
+         *
+         *     Mirrors ``PetEffect``; all-zero for pets without a catalog entry, so the
+         *     client can always read the shape without a null check.
+         */
+        PetEffectRead: {
+            /**
+             * Strength
+             * @default 0
+             */
+            strength: number;
+            /**
+             * Perception
+             * @default 0
+             */
+            perception: number;
+            /**
+             * Endurance
+             * @default 0
+             */
+            endurance: number;
+            /**
+             * Charisma
+             * @default 0
+             */
+            charisma: number;
+            /**
+             * Intelligence
+             * @default 0
+             */
+            intelligence: number;
+            /**
+             * Agility
+             * @default 0
+             */
+            agility: number;
+            /**
+             * Luck
+             * @default 0
+             */
+            luck: number;
+            /**
+             * Max Health
+             * @default 0
+             */
+            max_health: number;
+            /**
+             * Damage Pct
+             * @default 0
+             */
+            damage_pct: number;
+            /**
+             * Incident Response Pct
+             * @default 0
+             */
+            incident_response_pct: number;
+            /**
+             * Radiation Resist Pct
+             * @default 0
+             */
+            radiation_resist_pct: number;
+            /**
+             * Happiness
+             * @default 0
+             */
+            happiness: number;
+            /**
+             * Caps Pct
+             * @default 0
+             */
+            caps_pct: number;
+            /**
+             * Xp Pct
+             * @default 0
+             */
+            xp_pct: number;
+            /**
+             * Training Speed Pct
+             * @default 0
+             */
+            training_speed_pct: number;
+        };
+        /** PetRead */
+        PetRead: {
+            /** Name */
+            name: string;
+            rarity: components["schemas"]["RarityEnum"];
+            /** Value */
+            value?: number | null;
+            /** Image Url */
+            image_url?: string | null;
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Dweller Id */
+            dweller_id?: string | null;
+            /** Storage Id */
+            storage_id?: string | null;
+            /** @description The pet's catalog-resolved bonus, so clients can explain its contribution. */
+            readonly effect: components["schemas"]["PetEffectRead"];
+        };
+        /**
          * PlaceGroupRead
          * @description A wasteland site-type archetype from the group catalog.
          */
@@ -9473,6 +9697,11 @@ export interface components {
              * @description Generic items in storage
              */
             items?: components["schemas"]["ItemRead"][];
+            /**
+             * Pets
+             * @description Pets in storage
+             */
+            pets?: components["schemas"]["PetRead"][];
         };
         /**
          * StorageSpaceResponse
@@ -14364,6 +14593,133 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OutfitCreate"][];
+                };
+            };
+        };
+    };
+    read_pet_list_api_v1_pets__get: {
+        parameters: {
+            query: {
+                vault_id: string;
+                skip?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PetRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_pet_api_v1_pets__pet_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pet_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PetRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    equip_pet_api_v1_pets__dweller_id__equip__pet_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dweller_id: string;
+                pet_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PetRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unequip_pet_api_v1_pets__pet_id__unequip__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pet_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

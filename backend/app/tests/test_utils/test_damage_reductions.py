@@ -6,6 +6,8 @@ import pytest
 
 from app.core.enums import DamageChannel
 from app.core.game_config import game_config
+from app.models.pet import Pet
+from app.options.pet_modifiers import MAX_RESIST_PCT
 from app.utils.damage_reductions import DamageReductions, damage_reductions
 
 
@@ -29,6 +31,10 @@ def _dweller(race: str | None = None, faction: str | None = None, outfit=None) -
 
 def _outfit(**fields) -> SimpleNamespace:
     return SimpleNamespace(**fields)
+
+
+def _pet(name: str) -> Pet:
+    return Pet(name=name, rarity="Legendary")
 
 
 class TestChannelSourceSelection:
@@ -68,6 +74,36 @@ class TestChannelSourceSelection:
             reductions = damage_reductions(dweller, channel, team_share=0.2)
             assert reductions.shares == (0.2,)
 
+    def test_physical_adds_pet_incident_response(self) -> None:
+        minuteman = _dweller(faction="minutemen")
+        minuteman.pet = _pet("pallas's cat")  # incident_response_pct 0.25
+        reductions = damage_reductions(minuteman, DamageChannel.PHYSICAL)
+        assert reductions.shares == (0.15, 0.25)
+
+    def test_fire_adds_pet_incident_response(self) -> None:
+        minuteman = _dweller(faction="minutemen", outfit=_outfit(fire_resist=0.5))
+        minuteman.pet = _pet("pallas's cat")
+        reductions = damage_reductions(minuteman, DamageChannel.FIRE)
+        assert reductions.shares == (0.15, 0.25, 0.5)
+
+    def test_radiation_adds_pet_radiation_resist(self) -> None:
+        human = _dweller(race="human", faction="children_of_atom")
+        human.pet = _pet("st. bernard")  # radiation_resist_pct 0.25
+        reductions = damage_reductions(human, DamageChannel.RADIATION)
+        assert reductions.shares == (0.5, 0.25)
+
+    def test_pet_incident_response_ignored_for_radiation(self) -> None:
+        dweller = _dweller()
+        dweller.pet = _pet("pallas's cat")
+        reductions = damage_reductions(dweller, DamageChannel.RADIATION)
+        assert reductions.shares == ()
+
+    def test_pet_radiation_resist_ignored_for_physical(self) -> None:
+        dweller = _dweller()
+        dweller.pet = _pet("st. bernard")
+        reductions = damage_reductions(dweller, DamageChannel.PHYSICAL)
+        assert reductions.shares == ()
+
     def test_plain_dweller_has_no_reductions(self) -> None:
         dweller = _dweller()
         for channel in DamageChannel:
@@ -86,6 +122,20 @@ class TestCombinedShareMath:
         b = DamageReductions(shares=(0.5, 0.15, 0.2))
         c = DamageReductions(shares=(0.2, 0.5, 0.15))
         assert a.combined_share == b.combined_share == c.combined_share
+
+    def test_combined_share_is_capped_at_max_resist(self) -> None:
+        reductions = DamageReductions(shares=(0.9, 0.9))
+        assert reductions.combined_share == pytest.approx(MAX_RESIST_PCT)
+
+    def test_pet_resist_is_capped_at_max_resist(self, monkeypatch) -> None:
+        from app.options.pet_modifiers import PET_EFFECT_BY_NAME, PetEffect
+
+        monkeypatch.setitem(PET_EFFECT_BY_NAME, "cap test pet", PetEffect(radiation_resist_pct=0.95))
+        human = _dweller(race="human", faction="children_of_atom")
+        human.pet = _pet("cap test pet")
+        reductions = damage_reductions(human, DamageChannel.RADIATION)
+        # 1 - 0.5 * 0.05 = 0.975 → capped at 0.95
+        assert reductions.combined_share == pytest.approx(MAX_RESIST_PCT)
 
     def test_apply_single_share_matches_sequential(self) -> None:
         reductions = DamageReductions(shares=(0.15,))

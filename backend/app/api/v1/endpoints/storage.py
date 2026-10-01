@@ -10,14 +10,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
 from app.crud import storage as crud_storage
 from app.db.session import get_async_session
-from app.schemas.item import ItemRead
-from app.schemas.junk import JunkRead
-from app.schemas.outfit import OutfitRead
 from app.schemas.rewards import LunchboxOpened, LunchboxOpenRequest
 from app.schemas.storage import StorageItemsResponse, StorageSpaceResponse
 from app.schemas.vault import MedicalDistributionResponse, MedicalTransferRequest, MedicalTransferResponse
-from app.schemas.weapon import WeaponRead
-from app.utils.junk_assets import get_junk_image_url
+from app.services.storage_service import storage_service
 
 router = APIRouter(prefix="/storage", tags=["Storage"])
 logger = logging.getLogger(__name__)
@@ -78,45 +74,14 @@ async def get_storage_items(
     """Get all items in a vault's storage.
 
     Returns:
-        Lists of weapons, outfits, junk, and generic items in storage.
+        Lists of weapons, outfits, junk, generic items, and pets in storage.
 
     Raises:
-        HTTPException: 403 if user lacks access to the vault.
-        HTTPException: 404 if storage not found for vault.
+        AccessDeniedException: If the user lacks access to the vault.
+        ResourceNotFoundException: If the vault has no storage row.
     """
     vault = await get_user_vault_or_403(vault_id, current_user, db_session)
-
-    storage = await crud_storage.get_storage_by_vault(db_session, vault.id)
-    if not storage:
-        raise HTTPException(status_code=404, detail="Storage not found for vault")
-
-    items = await crud_storage.get_all_items(db_session, storage.id)
-
-    logger.info(
-        "Storage items retrieved",
-        extra={
-            "vault_id": str(vault_id),
-            "user_id": str(current_user.id),
-            "weapons_count": len(items["weapons"]),
-            "outfits_count": len(items["outfits"]),
-            "junk_count": len(items["junk"]),
-            "items_count": len(items["items"]),
-        },
-    )
-
-    junk_reads = []
-    for j in items["junk"]:
-        read = JunkRead.model_validate(j)
-        if not read.image_url:
-            read.image_url = get_junk_image_url(read.name)
-        junk_reads.append(read)
-
-    return StorageItemsResponse(
-        weapons=[WeaponRead.model_validate(w) for w in items["weapons"]],
-        outfits=[OutfitRead.model_validate(o) for o in items["outfits"]],
-        junk=junk_reads,
-        items=[ItemRead.model_validate(item) for item in items["items"]],
-    )
+    return await storage_service.get_items(db_session, vault)
 
 
 @router.post("/vault/{vault_id}/medical/transfer")

@@ -56,6 +56,7 @@ const formProviderSelect = computed<AcceptableValue>({
     if (isUntouchedDefault) {
       formBaseUrl.value = localDefaultUrl(next)
     }
+    baseUrlTouched.value = true
     formProvider.value = next
   },
 })
@@ -114,9 +115,10 @@ function applyProfileToForm(data: AISettingsRead) {
   const profile = data.profile
   formProvider.value = profile?.provider ?? ''
   formModel.value = profile?.model ?? ''
-  formBaseUrl.value = profile?.base_url ?? data.effective.base_url ?? localDefaultUrl(formProvider.value)
+  formBaseUrl.value = profile?.base_url ?? localDefaultUrl(formProvider.value)
   formGatewayRoute.value = profile?.gateway_route ?? ''
   testResult.value = null
+  baseUrlTouched.value = false
 }
 
 watch([formProvider, formModel, formBaseUrl, formGatewayRoute], () => {
@@ -136,7 +138,7 @@ const dirtyPayload = computed<AISettingsUpdate>(() => {
     payload.model = currentModel
   }
   const currentBaseUrl = formBaseUrl.value || null
-  if (currentBaseUrl !== (profile?.base_url ?? null)) {
+  if (baseUrlTouched.value && currentBaseUrl !== (profile?.base_url ?? null)) {
     payload.base_url = currentBaseUrl
   }
   const currentRoute = formGatewayRoute.value || null
@@ -161,6 +163,9 @@ const baseUrlNeeded = computed(() => {
 })
 
 const baseUrlValidationError = ref(false)
+// A prefilled local default is a display convenience, not a user value: only an
+// explicit edit (typing, or switching provider) may write base_url into the payload.
+const baseUrlTouched = ref(false)
 
 const baseUrlConnected = computed(() => testResult.value?.status === 'ok')
 
@@ -171,6 +176,11 @@ const providerHelperText = computed(() => {
     return modelConfigured.value ? 'Local provider — Base URL is required.' : 'Set a model to configure this provider.'
   return 'Cloud provider — Base URL is not needed.'
 })
+
+function onBaseUrlInput(value: string) {
+  formBaseUrl.value = value
+  baseUrlTouched.value = true
+}
 
 async function handleSave() {
   if (!hasChanges.value) return
@@ -357,9 +367,10 @@ onMounted(() => {
               </Label>
               <Input
                 id="ai-base-url"
-                v-model="formBaseUrl"
+                :model-value="formBaseUrl"
                 type="text"
                 placeholder="e.g. http://localhost:11434/v1"
+                @update:model-value="onBaseUrlInput"
                 class="h-auto w-full rounded-md bg-surface-raised px-4 py-2 text-theme-primary placeholder:text-theme-primary/40"
                 :class="
                   baseUrlConnected

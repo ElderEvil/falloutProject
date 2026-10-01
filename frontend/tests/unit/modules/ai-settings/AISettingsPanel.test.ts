@@ -77,6 +77,52 @@ describe('AISettingsPanel', () => {
     expect(wrapper.text()).toContain('gateway')
   })
 
+  it('reloads a local provider without marking the prefilled base URL as an override', async () => {
+    vi.mocked(aiSettingsService.get).mockResolvedValue(
+      settings({
+        profile: {
+          id: 'profile-1',
+          provider: 'lmstudio',
+          model: 'google/gemma-4-e4b',
+          base_url: null,
+          gateway_route: null,
+          updated_at: '2026-09-22T00:00:00Z',
+        },
+      })
+    )
+    const wrapper = mountWithSetup(AISettingsPanel)
+    await flushPromises()
+
+    const saveButton = findButton(wrapper, 'Save & Apply')
+    expect((saveButton.element as HTMLButtonElement).disabled).toBe(true)
+    expect(wrapper.text()).toContain('No unsaved changes')
+  })
+
+  it('marks the base URL dirty only after an explicit edit', async () => {
+    vi.mocked(aiSettingsService.get).mockResolvedValue(
+      settings({
+        profile: {
+          id: 'profile-1',
+          provider: 'lmstudio',
+          model: 'google/gemma-4-e4b',
+          base_url: null,
+          gateway_route: null,
+          updated_at: '2026-09-22T00:00:00Z',
+        },
+      })
+    )
+    const wrapper = mountWithSetup(AISettingsPanel)
+    await flushPromises()
+
+    await wrapper.find('input[id="ai-base-url"]').setValue('http://localhost:9999/v1')
+    await flushPromises()
+
+    await findButton(wrapper, 'Save & Apply').trigger('click')
+    await flushPromises()
+
+    expect(aiSettingsService.update).toHaveBeenCalledWith({ base_url: 'http://localhost:9999/v1' })
+  })
+
   it('shows the Jev decision model status', async () => {
     const wrapper = mountWithSetup(AISettingsPanel)
     await flushPromises()

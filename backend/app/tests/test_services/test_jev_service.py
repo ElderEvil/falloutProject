@@ -90,6 +90,7 @@ def test_built_agent_reads_the_key_from_settings(monkeypatch: pytest.MonkeyPatch
     .env, so that path has no key and fails auth in-app. Assert the provider is
     constructed with the settings value while the env var is absent.
     """
+    pytest.importorskip("typesafe_sdk", reason="requires the typesafe test dependency group")
     from pydantic_ai.providers.typesafe import TypeSafeProvider
 
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)

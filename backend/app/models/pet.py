@@ -28,7 +28,7 @@ class Pet(BaseUUIDModel, ItemBase, TimeStampMixin, table=True):
 
     dweller_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="dweller.id", index=True)
     dweller: Optional["Dweller"] = Relationship(back_populates="pet")
-    storage_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="storage.id")
+    storage_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="storage.id", index=True)
     legacy_item_id: UUID4 | None = Field(default=None, nullable=True, index=True, unique=True)
 
     def __str__(self):

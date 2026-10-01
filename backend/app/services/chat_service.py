@@ -13,6 +13,10 @@ from app.models import User
 from app.models.chat_message import ChatMessage
 from app.schemas.chat import (
     ActionSuggestion,
+    ChatDebug,
+    ChatGuardrailDebug,
+    ChatJevDecision,
+    ChatJevField,
     ChatStreamDone,
     ChatStreamError,
     ChatStreamEvent,
@@ -26,6 +30,7 @@ from app.services.chat.agent_runner import (
     extract_provider_reason,
     run_chat_agent,
 )
+from app.services.chat.guardrail import screen_message
 from app.services.chat.models import StreamBundle
 from app.services.chat.notifications import send_chat_notification, unlock_places_after_conversation
 from app.services.chat.persistence import persist_chat
@@ -37,6 +42,7 @@ from app.utils.exceptions import (
     AIProviderCreditsExhaustedException,
     QuotaExceededException,
     ResourceNotFoundException,
+    ValidationException,
 )
 
 logger = logging.getLogger(__name__)
@@ -51,14 +57,22 @@ class ChatService:
         user: User,
         dweller_id: UUID4,
         message_text: str,
+        *,
+        debug: bool = False,
     ) -> DwellerChatResponse:
         """Validate quota, generate a reply, and persist the conversation."""
+        dweller = await get_accessible_dweller(dweller_id, user, db_session)
+
+        quota_result = await quota_service.check_quota(user.id, db_session)
+        quota_result.ensure_allowed()
+
+        verdict = await screen_message(message_text, db_session=db_session, user_id=user.id)
+
+        await db_session.commit()
+        if verdict.blocked:
+            raise ValidationException(detail=verdict.reason or "Message blocked by content screening.")
+
         async with db_session.begin_nested():
-            dweller = await get_accessible_dweller(dweller_id, user, db_session)
-
-            quota_result = await quota_service.check_quota(user.id, db_session)
-            quota_result.ensure_allowed()
-
             instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
             provider, model = await get_provider_model_snapshot(db_session)
 
@@ -98,6 +112,31 @@ class ChatService:
             happiness_impact=result.happiness_impact,
             action_suggestion=result.action_suggestion,
             unlocked_places=unlocked_places,
+            debug=(
+                ChatDebug(
+                    provider=provider,
+                    model=model,
+                    prompt_tokens=result.prompt_tokens,
+                    completion_tokens=result.completion_tokens,
+                    total_tokens=result.total_tokens,
+                    guardrail=ChatGuardrailDebug(ran=verdict.ran, blocked=verdict.blocked, reason=verdict.reason),
+                    jev_decisions=(
+                        [
+                            ChatJevDecision(
+                                name="guardrail",
+                                fields={
+                                    name: ChatJevField(answer=f.answer, confidence=f.confidence)
+                                    for name, f in verdict.fields.items()
+                                },
+                            )
+                        ]
+                        if verdict.fields
+                        else []
+                    ),
+                )
+                if debug
+                else None
+            ),
         )
 
     async def stream_response(
@@ -106,15 +145,24 @@ class ChatService:
         user: User,
         dweller_id: UUID4,
         message_text: str,
+        *,
+        debug: bool = False,
     ) -> AsyncGenerator[ChatStreamEvent]:
         """Yield typed token, completion, or error events for one dweller response."""
         try:
+            dweller = await get_accessible_dweller(dweller_id, user, db_session)
+
+            quota_result = await quota_service.check_quota(user.id, db_session)
+            quota_result.ensure_allowed()
+
+            verdict = await screen_message(message_text, db_session=db_session, user_id=user.id)
+
+            await db_session.commit()
+            if verdict.blocked:
+                yield ChatStreamError(detail=verdict.reason or "Message blocked by content screening.")
+                return
+
             async with db_session.begin_nested():
-                dweller = await get_accessible_dweller(dweller_id, user, db_session)
-
-                quota_result = await quota_service.check_quota(user.id, db_session)
-                quota_result.ensure_allowed()
-
                 instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
                 provider, model = await get_provider_model_snapshot(db_session)
 
@@ -150,6 +198,31 @@ class ChatService:
                 happiness_impact=bundle.happiness_impact,
                 action_suggestion=bundle.action_suggestion,
                 unlocked_places=unlocked_places,
+                debug=(
+                    ChatDebug(
+                        provider=provider,
+                        model=model,
+                        prompt_tokens=bundle.prompt_tokens,
+                        completion_tokens=bundle.completion_tokens,
+                        total_tokens=bundle.total_tokens,
+                        guardrail=ChatGuardrailDebug(ran=verdict.ran, blocked=verdict.blocked, reason=verdict.reason),
+                        jev_decisions=(
+                            [
+                                ChatJevDecision(
+                                    name="guardrail",
+                                    fields={
+                                        name: ChatJevField(answer=f.answer, confidence=f.confidence)
+                                        for name, f in verdict.fields.items()
+                                    },
+                                )
+                            ]
+                            if verdict.fields
+                            else []
+                        ),
+                    )
+                    if debug
+                    else None
+                ),
             )
 
         except (AccessDeniedException, ResourceNotFoundException) as e:

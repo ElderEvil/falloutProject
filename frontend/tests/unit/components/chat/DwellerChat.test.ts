@@ -2116,7 +2116,7 @@ describe('DwellerChat', () => {
       await wrapper.find('.chat-send-btn').trigger('click')
       await flushPromises()
 
-      expect(mockSendMessage).toHaveBeenCalledWith('Hello stream')
+      expect(mockSendMessage).toHaveBeenCalledWith('Hello stream', false)
       expect(apiClient.post).not.toHaveBeenCalled()
 
       let messages = wrapper.findAll('.message-wrapper')

@@ -39,10 +39,25 @@ const copiedConfig = ref(false)
 // show the placeholder), so the "Default (from env)" option is mapped to a
 // sentinel at the Select boundary. formProvider keeps its '' semantics.
 const DEFAULT_PROVIDER = 'default'
+const LOCAL_PROVIDER_DEFAULT_URL: Partial<Record<AIProvider, string>> = {
+  lmstudio: 'http://localhost:1234/v1',
+  ollama: 'http://localhost:11434/v1',
+}
+const LOCAL_PROVIDER_DEFAULTS = new Set(Object.values(LOCAL_PROVIDER_DEFAULT_URL))
+const localDefaultUrl = (provider: AIProvider | ''): string =>
+  provider === '' ? '' : (LOCAL_PROVIDER_DEFAULT_URL[provider] ?? '')
 const formProviderSelect = computed<AcceptableValue>({
   get: () => (formProvider.value === '' ? DEFAULT_PROVIDER : formProvider.value),
   set: (value: AcceptableValue) => {
-    formProvider.value = value === DEFAULT_PROVIDER ? '' : (value as AIProvider)
+    const next = value === DEFAULT_PROVIDER ? '' : (value as AIProvider)
+    const previous = formProvider.value
+    if (next === previous) return
+    const isUntouchedDefault = formBaseUrl.value === '' || LOCAL_PROVIDER_DEFAULTS.has(formBaseUrl.value)
+    if (isUntouchedDefault) {
+      formBaseUrl.value = localDefaultUrl(next)
+    }
+    baseUrlTouched.value = true
+    formProvider.value = next
   },
 })
 
@@ -100,13 +115,15 @@ function applyProfileToForm(data: AISettingsRead) {
   const profile = data.profile
   formProvider.value = profile?.provider ?? ''
   formModel.value = profile?.model ?? ''
-  formBaseUrl.value = profile?.base_url ?? ''
+  formBaseUrl.value = profile?.base_url ?? localDefaultUrl(formProvider.value)
   formGatewayRoute.value = profile?.gateway_route ?? ''
   testResult.value = null
+  baseUrlTouched.value = false
 }
 
 watch([formProvider, formModel, formBaseUrl, formGatewayRoute], () => {
   testResult.value = null
+  baseUrlValidationError.value = false
 })
 
 const dirtyPayload = computed<AISettingsUpdate>(() => {
@@ -121,7 +138,7 @@ const dirtyPayload = computed<AISettingsUpdate>(() => {
     payload.model = currentModel
   }
   const currentBaseUrl = formBaseUrl.value || null
-  if (currentBaseUrl !== (profile?.base_url ?? null)) {
+  if (baseUrlTouched.value && currentBaseUrl !== (profile?.base_url ?? null)) {
     payload.base_url = currentBaseUrl
   }
   const currentRoute = formGatewayRoute.value || null
@@ -138,10 +155,17 @@ const showBaseUrlField = computed(() => {
   return provider === '' || provider === 'ollama' || provider === 'lmstudio'
 })
 
-const baseUrlRequired = computed(() => {
+const modelConfigured = computed(() => formModel.value.trim() !== '')
+
+const baseUrlNeeded = computed(() => {
   const provider = formProvider.value
-  return provider === 'ollama' || provider === 'lmstudio'
+  return modelConfigured.value && (provider === 'ollama' || provider === 'lmstudio')
 })
+
+const baseUrlValidationError = ref(false)
+// A prefilled local default is a display convenience, not a user value: only an
+// explicit edit (typing, or switching provider) may write base_url into the payload.
+const baseUrlTouched = ref(false)
 
 const baseUrlConnected = computed(() => testResult.value?.status === 'ok')
 
@@ -149,17 +173,30 @@ const providerHelperText = computed(() => {
   const provider = formProvider.value
   if (provider === '') return 'Default uses the server environment variable.'
   if (provider === 'ollama' || provider === 'lmstudio')
-    return 'Local provider — Base URL is required.'
+    return modelConfigured.value ? 'Local provider — Base URL is required.' : 'Set a model to configure this provider.'
   return 'Cloud provider — Base URL is not needed.'
 })
 
+function onBaseUrlInput(value: string) {
+  formBaseUrl.value = value
+  baseUrlTouched.value = true
+}
+
 async function handleSave() {
   if (!hasChanges.value) return
+  if (baseUrlNeeded.value && formBaseUrl.value.trim() === '') {
+    baseUrlValidationError.value = true
+    return
+  }
   await runSave(dirtyPayload.value)
 }
 
 async function handleTest() {
   testResult.value = null
+  if (baseUrlNeeded.value && formBaseUrl.value.trim() === '') {
+    baseUrlValidationError.value = true
+    return
+  }
   await runTest(dirtyPayload.value)
 }
 
@@ -181,6 +218,7 @@ async function handleCopyConfig() {
     `Base URL: ${eff.base_url || '—'}`,
     `Gateway Route: ${eff.gateway_route || '—'}`,
     `Mode: ${eff.mode}`,
+    `Jev: ${settings.value.jev.enabled ? 'enabled' : 'disabled'} (${settings.value.jev.model})`,
   ].join('\n')
   try {
     await navigator.clipboard.writeText(text)
@@ -306,35 +344,62 @@ onMounted(() => {
                 Base URL
                 <span
                   class="text-xs font-normal ml-1"
-                  :class="baseUrlConnected ? 'text-theme-primary' : baseUrlRequired ? 'text-danger' : 'text-theme-primary/50'"
+                  :class="
+                    baseUrlConnected
+                      ? 'text-theme-primary'
+                      : baseUrlValidationError
+                        ? 'text-danger'
+                        : 'text-theme-primary/50'
+                  "
                 >
-                  ({{ baseUrlConnected ? 'Connected' : baseUrlRequired ? 'Required' : 'Optional' }})
+                  {{
+                    baseUrlConnected
+                      ? '(Connected)'
+                      : baseUrlValidationError
+                        ? '(Required)'
+                        : baseUrlNeeded
+                          ? '(Required for local providers)'
+                          : modelConfigured
+                            ? '(Optional)'
+                            : '(Not configured)'
+                  }}
                 </span>
               </Label>
               <Input
                 id="ai-base-url"
-                v-model="formBaseUrl"
+                :model-value="formBaseUrl"
                 type="text"
                 placeholder="e.g. http://localhost:11434/v1"
+                @update:model-value="onBaseUrlInput"
                 class="h-auto w-full rounded-md bg-surface-raised px-4 py-2 text-theme-primary placeholder:text-theme-primary/40"
                 :class="
                   baseUrlConnected
                     ? 'border-theme-primary/60 focus:border-theme-primary'
-                    : baseUrlRequired
+                    : baseUrlValidationError
                       ? 'border-danger/50 focus:border-danger'
                       : 'border-theme-primary/50 focus:border-theme-primary'
                 "
               />
               <p
                 class="mt-1 text-xs"
-                :class="baseUrlConnected ? 'text-theme-primary' : baseUrlRequired ? 'text-danger/80' : 'text-theme-primary/50'"
+                :class="
+                  baseUrlConnected
+                    ? 'text-theme-primary'
+                    : baseUrlValidationError
+                      ? 'text-danger/80'
+                      : 'text-theme-primary/50'
+                "
               >
                 {{
                   baseUrlConnected
                     ? `Connection established — ${testResult?.model} responded via this endpoint.`
-                    : baseUrlRequired
+                    : baseUrlValidationError
                       ? 'Required for Ollama / LM Studio — specify the local endpoint.'
-                      : 'Leave empty to use the environment default.'
+                      : baseUrlNeeded
+                        ? 'Required for Ollama / LM Studio — specify the local endpoint.'
+                        : modelConfigured
+                          ? 'Leave empty to use the environment default.'
+                          : 'Set a model to configure this provider.'
                 }}
               </p>
             </div>
@@ -463,6 +528,38 @@ onMounted(() => {
           <p class="mt-5 text-xs leading-5 text-theme-primary/60">
             Currently active settings. Changes above apply after you save.
           </p>
+
+          <!-- Jev (TypeSafe) decision model — read-only, env-configured -->
+          <div class="mt-5 rounded-md border border-theme-primary/15 bg-surface-sunken p-3">
+            <div class="flex items-center gap-2">
+              <Icon
+                :icon="settings.jev.configured ? 'mdi:check-circle' : 'mdi:minus-circle'"
+                class="h-4 w-4 shrink-0"
+                :class="settings.jev.configured ? 'text-theme-primary' : 'text-theme-primary/40'"
+              />
+              <span class="text-xs font-medium text-theme-primary/70">Jev decision model</span>
+              <span
+                class="ml-auto rounded border border-theme-primary/20 px-1.5 py-0.5 text-[0.65rem] font-medium"
+                :class="settings.jev.enabled ? 'text-theme-primary/65' : 'text-danger'"
+              >
+                {{ settings.jev.enabled ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+            <dl class="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 font-mono text-xs text-theme-primary/80">
+              <dt class="text-theme-primary/50">Model</dt>
+              <dd class="text-right">{{ settings.jev.model }}</dd>
+              <dt class="text-theme-primary/50">Timeout</dt>
+              <dd class="text-right">{{ settings.jev.timeout_seconds }}s</dd>
+              <dt class="text-theme-primary/50">API key</dt>
+              <dd class="text-right">{{ settings.jev.configured ? 'configured' : 'missing' }}</dd>
+            </dl>
+            <p v-if="settings.jev.enabled && !settings.jev.configured" class="mt-2 text-xs text-danger">
+              Enabled but no API key — calls fail open and run unchecked.
+            </p>
+            <p class="mt-2 text-[0.65rem] leading-4 text-theme-primary/50">
+              Guardrail screening for chat. Configured via environment variables.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

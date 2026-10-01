@@ -4894,6 +4894,7 @@ export interface components {
         AISettingsRead: {
             profile?: components["schemas"]["AISettingsProfile"] | null;
             effective: components["schemas"]["AISettingsEffective"];
+            jev: components["schemas"]["JevStatus"];
         };
         /** AISettingsTestInput */
         AISettingsTestInput: {
@@ -5319,6 +5320,106 @@ export interface components {
             date_display: string;
             /** Changes */
             changes: components["schemas"]["ChangeEntry"][];
+        };
+        /**
+         * ChatDebug
+         * @description Dev-only diagnostics for one chat turn. Populated only when opt-in requested.
+         *
+         *     Never persisted: this rides the live response (and the streamed done event) so
+         *     stored history stays bounded, and any message-shaped schema may embed it as an
+         *     optional field.
+         */
+        ChatDebug: {
+            /**
+             * Provider
+             * @description Provider id used for this turn
+             */
+            provider?: string | null;
+            /**
+             * Model
+             * @description Model id used for this turn
+             */
+            model?: string | null;
+            /**
+             * Prompt Tokens
+             * @description Input tokens billed
+             */
+            prompt_tokens?: number | null;
+            /**
+             * Completion Tokens
+             * @description Output tokens billed
+             */
+            completion_tokens?: number | null;
+            /**
+             * Total Tokens
+             * @description Total tokens billed
+             */
+            total_tokens?: number | null;
+            /** @description Input screen outcome */
+            guardrail?: components["schemas"]["ChatGuardrailDebug"] | null;
+            /**
+             * Jev Decisions
+             * @description Jev decisions that fired this turn, in the order they ran
+             */
+            jev_decisions?: components["schemas"]["ChatJevDecision"][];
+        };
+        /**
+         * ChatGuardrailDebug
+         * @description Whether the input screen ran and what it decided.
+         */
+        ChatGuardrailDebug: {
+            /**
+             * Ran
+             * @description Whether the guardrail judged this message
+             */
+            ran: boolean;
+            /**
+             * Blocked
+             * @description Whether the message was blocked
+             */
+            blocked: boolean;
+            /**
+             * Reason
+             * @description Human-readable block reason, if any
+             */
+            reason?: string | null;
+        };
+        /**
+         * ChatJevDecision
+         * @description One Jev decision that fired: its named fields, each answered with confidence.
+         */
+        ChatJevDecision: {
+            /**
+             * Name
+             * @description Decision identifier, e.g. 'guardrail'
+             */
+            name: string;
+            /**
+             * Fields
+             * @description Field name -> {answer, confidence}
+             */
+            fields?: {
+                [key: string]: components["schemas"]["ChatJevField"];
+            };
+        };
+        /**
+         * ChatJevField
+         * @description One judged Jev field, answer and confidence together.
+         *
+         *     ``confidence`` is the probability of ``answer``; a ``False`` at 0.96 means
+         *     "96% sure it is not this", so the pair must be read together.
+         */
+        ChatJevField: {
+            /**
+             * Answer
+             * @description The field's answer
+             */
+            answer: boolean;
+            /**
+             * Confidence
+             * @description Probability of that answer, 0-1
+             */
+            confidence: number;
         };
         /**
          * ChatMessage
@@ -5821,6 +5922,8 @@ export interface components {
              * @description Map locations newly unlocked by this conversation
              */
             unlocked_places?: components["schemas"]["UnlockedPlace"][];
+            /** @description Dev diagnostics (tokens, model, guardrail/Jev decisions); only when debug is requested */
+            debug?: components["schemas"]["ChatDebug"] | null;
         };
         /** DwellerCreate */
         DwellerCreate: {
@@ -7794,6 +7897,20 @@ export interface components {
          * @enum {string}
          */
         ItemTypeEnum: "misc" | "weapon" | "outfit" | "junk" | "consumable" | "lunchbox" | "pet" | "dweller";
+        /**
+         * JevStatus
+         * @description Read-only Jev (TypeSafe) decision-model status; the key is env-only, never shown.
+         */
+        JevStatus: {
+            /** Enabled */
+            enabled: boolean;
+            /** Configured */
+            configured: boolean;
+            /** Model */
+            model: string;
+            /** Timeout Seconds */
+            timeout_seconds: number;
+        };
         /** JunkCreate */
         JunkCreate: {
             /** Name */
@@ -11267,7 +11384,10 @@ export interface operations {
     };
     chat_with_dweller_api_v1_chat__dweller_id__post: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Include dev diagnostics (tokens, guardrail/Jev) in the response */
+                debug?: boolean;
+            };
             header?: never;
             path: {
                 dweller_id: string;

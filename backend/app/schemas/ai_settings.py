@@ -23,9 +23,19 @@ class AISettingsEffective(BaseModel):
     mode: str
 
 
+class JevStatus(BaseModel):
+    """Read-only Jev (TypeSafe) decision-model status; the key is env-only, never shown."""
+
+    enabled: bool
+    configured: bool
+    model: str
+    timeout_seconds: float
+
+
 class AISettingsRead(BaseModel):
     profile: AISettingsProfile | None = None
     effective: AISettingsEffective
+    jev: JevStatus
 
 
 class AISettingsUpdate(BaseModel):

@@ -11,6 +11,8 @@ export interface SpecialBreakdown {
   identity: number
   outfit: number
   outfitName: string | null
+  pet: number
+  petName: string | null
   effective: number
 }
 
@@ -24,11 +26,11 @@ const LETTER_DEFS: Array<{ letter: SpecialLetter; label: string; stat: SpecialSt
   { letter: 'L', label: 'Luck', stat: 'luck' },
 ]
 
-type BreakdownInput = Pick<Dweller, SpecialLetter | 'outfit' | 'identity_modifiers'>
+type BreakdownInput = Pick<Dweller, SpecialLetter | 'outfit' | 'identity_modifiers' | 'pet'>
 
 /**
  * Per-stat base vs effective breakdown, mirroring backend
- * ``options.identity_modifiers.effective_stat``: stored + identity + outfit,
+ * ``options.identity_modifiers.effective_stat``: stored + identity + outfit + pet,
  * floored at 1, never capped, never persisted.
  */
 export function getSpecialBreakdown(dweller: BreakdownInput | null | undefined): SpecialBreakdown[] {
@@ -37,6 +39,7 @@ export function getSpecialBreakdown(dweller: BreakdownInput | null | undefined):
     const base = dweller[letter] ?? 0
     const identity = dweller.identity_modifiers?.[stat] ?? 0
     const outfit = dweller.outfit?.[stat] ?? 0
+    const pet = dweller.pet?.effect?.[stat] ?? 0
     return {
       letter,
       label,
@@ -44,12 +47,14 @@ export function getSpecialBreakdown(dweller: BreakdownInput | null | undefined):
       identity,
       outfit,
       outfitName: outfit !== 0 ? (dweller.outfit?.name ?? null) : null,
-      effective: Math.max(1, base + identity + outfit),
+      pet,
+      petName: pet !== 0 ? (dweller.pet?.name ?? null) : null,
+      effective: Math.max(1, base + identity + outfit + pet),
     }
   })
 }
 
-/** Human-readable bonus sources, e.g. "+5 Vault Suit", "+2 identity". Empty when clean. */
+/** Human-readable bonus sources, e.g. "+5 Vault Suit", "+2 identity", "+2 Dogmeat". Empty when clean. */
 export function describeBonusSources(breakdown: SpecialBreakdown): string[] {
   const parts: string[] = []
   if (breakdown.outfit !== 0 && breakdown.outfitName) {
@@ -57,6 +62,9 @@ export function describeBonusSources(breakdown: SpecialBreakdown): string[] {
   }
   if (breakdown.identity !== 0) {
     parts.push(`${breakdown.identity > 0 ? '+' : ''}${breakdown.identity} identity`)
+  }
+  if (breakdown.pet !== 0 && breakdown.petName) {
+    parts.push(`${breakdown.pet > 0 ? '+' : ''}${breakdown.pet} ${breakdown.petName}`)
   }
   return parts
 }

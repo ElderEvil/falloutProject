@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import {
   formatItemLabel,
   getOutfitStats,
+  getPetStats,
   getRarityTextClass,
   getWeaponStats,
   type ItemCardSource,
@@ -34,6 +35,7 @@ const {
 const rarityTextClass = computed(() => getRarityTextClass(item.rarity ?? undefined))
 
 const stats = computed<ItemStat[]>(() => {
+  if (itemType === 'pet') return getPetStats(item.effect ?? {})
   if (itemType !== 'weapon' && itemType !== 'outfit') return []
   const base =
     itemType === 'weapon'

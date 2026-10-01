@@ -187,4 +187,34 @@ describe('StorageItemCard', () => {
     expect(wrapper.text()).toContain('×2')
     expect(wrapper.findAll('button')).toHaveLength(0)
   })
+
+  it('renders pet effect stats, omitting zero bonuses', () => {
+    const wrapper = mount(StorageItemCard, {
+      props: {
+        item: {
+          name: 'Dogmeat',
+          rarity: 'rare',
+          value: 100,
+          effect: {
+            strength: 2,
+            max_health: 50,
+            damage_pct: 0.25,
+            luck: 0,
+          },
+        },
+        itemType: 'pet',
+      },
+      global: { stubs: { Icon: true } },
+    })
+
+    const text = wrapper.text()
+    expect(text).toContain('Strength:')
+    expect(text).toContain('+2')
+    expect(text).toContain('Max HP:')
+    expect(text).toContain('+50')
+    expect(text).toContain('Damage:')
+    expect(text).toContain('+25%')
+    expect(text).not.toContain('Luck:')
+    expect(wrapper.findAll('button')).toHaveLength(0)
+  })
 })

@@ -8,8 +8,15 @@ that the ones which intentionally remain are *accounted for* rather than silentl
 This file is that accounting. It covers `frontend/src/modules/**/*.vue` only — the dev-only
 `core/views/UiCatalogView.vue` is a fixture and is out of scope.
 
-**Snapshot:** 94 controls across 48 files, down from ~150 before the migration. No `<dialog>`
-remains; `<select>` / `<textarea>` / `<table>` are down to 0 / 2 / 1.
+**Enforced by** `frontend/scripts/check-raw-controls.mjs` with `frontend/scripts/raw-control-baseline.json`
+(run as a dedicated Frontend CI step). The baseline is the machine count: **287 primitive-backed raw
+controls across 97 files** (`<button>`, `<input>`, `<select>`) — larger than the narrative inventory
+below because that inventory grouped only the *bespoke button* and reasoned exceptions, not every
+`<input>`/`<select>`. The guard flags only controls with a vendored primitive; it must shrink, never grow.
+
+**Snapshot (narrative):** ~94 bespoke/grouped controls across 48 files, down from ~150 before the
+migration. No `<dialog>` remains; `<select>` / `<textarea>` / `<table>` are down to 0 / 2 / 1 in the
+reasoned groups below.
 
 ## Why they remain
 
@@ -88,3 +95,8 @@ Two levers, both scoped separately from this accounting:
 
 Until then, the counts above are the frozen baseline: they may shrink as files are touched, but new
 raw controls should not be added where a vendored primitive exists.
+
+The guard enforces exactly that rule: a new `<button>` / `<input>` / `<select>` outside the baseline
+fails CI, growth in a baselined file fails CI, and a file that drops below its recorded count fails
+until the baseline is ratcheted down (`node scripts/check-raw-controls.mjs --update`). `textarea` and
+`table` stay exempt until their primitives are vendored.

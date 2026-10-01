@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.165.1 (2026-10-01)
+
+### Bug Fixes
+
+* **pets:** show equipped pet bonuses in SPECIAL and storage cards ([#858](https://github.com/ElderEvil/falloutProject/issues/858)) d37ddc9
+
 ## 2.165.0 (2026-10-01)
 
 ### Features

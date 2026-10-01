@@ -442,8 +442,8 @@ watch(
 .stat-value {
   font-size: 1.25rem;
   font-weight: bold;
-  color: rgb(250 204 21);
-  text-shadow: 0 0 4px rgb(250 204 21 / 0.6);
+  color: var(--color-warning);
+  text-shadow: 0 0 4px color-mix(in srgb, var(--color-warning) 60%, transparent);
 }
 
 .capacity-alert {

@@ -183,24 +183,24 @@
 .audio-replay-btn.is-playing {
   opacity: 1;
   border-color: var(--color-danger);
-  background-color: rgba(255, 68, 68, 0.1);
+  background-color: color-mix(in srgb, var(--color-danger) 10%, transparent);
   color: var(--color-danger);
   animation: audio-pulse 1.5s ease-in-out infinite;
 }
 
 .audio-replay-btn.is-playing:hover {
-  background-color: rgba(255, 68, 68, 0.2);
-  box-shadow: 0 0 8px rgba(255, 68, 68, 0.3);
+  background-color: color-mix(in srgb, var(--color-danger) 20%, transparent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-danger) 30%, transparent);
   animation: none;
 }
 
 @keyframes audio-pulse {
   0%,
   100% {
-    box-shadow: 0 0 4px rgba(255, 68, 68, 0.3);
+    box-shadow: 0 0 4px color-mix(in srgb, var(--color-danger) 30%, transparent);
   }
   50% {
-    box-shadow: 0 0 12px rgba(255, 68, 68, 0.6);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--color-danger) 60%, transparent);
   }
 }
 
@@ -237,7 +237,7 @@
   margin-top: 0.4rem;
   color: var(--color-danger);
   font-size: 0.8rem;
-  text-shadow: 0 0 4px rgba(255, 68, 68, 0.3);
+  text-shadow: 0 0 4px color-mix(in srgb, var(--color-danger) 30%, transparent);
 }
 
 .message-error-icon {
@@ -455,15 +455,15 @@
 }
 
 .cancel-btn {
-  background-color: rgba(255, 68, 68, 0.1);
-  border-color: rgba(255, 68, 68, 0.5);
+  background-color: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-danger) 50%, transparent);
 }
 
 .cancel-btn:hover {
-  background-color: rgba(255, 68, 68, 0.3);
+  background-color: color-mix(in srgb, var(--color-danger) 30%, transparent);
   border-color: var(--color-danger);
   color: var(--color-danger);
-  box-shadow: 0 0 15px rgba(255, 68, 68, 0.3);
+  box-shadow: 0 0 15px color-mix(in srgb, var(--color-danger) 30%, transparent);
 }
 
 .record-btn:disabled,
@@ -604,8 +604,8 @@
 
 .action-dismiss-btn:hover {
   opacity: 1;
-  background-color: rgba(255, 68, 68, 0.1);
-  border-color: rgba(255, 68, 68, 0.5);
+  background-color: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-danger) 50%, transparent);
   color: var(--color-danger);
 }
 
@@ -622,8 +622,8 @@
   width: 100%;
   max-width: 500px;
   padding: 0.75rem 1rem;
-  background-color: rgba(255, 68, 68, 0.1);
-  border: 1px solid rgba(255, 68, 68, 0.4);
+  background-color: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 40%, transparent);
   border-radius: 8px;
 }
 
@@ -657,7 +657,7 @@
   padding: 0.5rem 1rem;
   border-radius: 4px;
   border: 1px solid var(--color-danger);
-  background-color: rgba(255, 68, 68, 0.15);
+  background-color: color-mix(in srgb, var(--color-danger) 15%, transparent);
   color: var(--color-danger);
   font-size: 0.8rem;
   font-weight: 600;
@@ -669,5 +669,5 @@
 .quota-profile-btn:hover {
   background-color: var(--color-danger);
   color: var(--color-terminal-background);
-  box-shadow: 0 0 10px rgba(255, 68, 68, 0.4);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-danger) 40%, transparent);
 }

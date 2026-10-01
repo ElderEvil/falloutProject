@@ -30,7 +30,7 @@ OutputT = TypeVar("OutputT", bound=BaseModel)
 JEV_STATE_TOKEN_LIMIT = 32_000
 
 
-class JevDecision(BaseModel):
+class JevDecision[OutputT: BaseModel](BaseModel):
     """A resolved Jev judgement: the typed answer plus per-field confidence.
 
     ``confidence`` maps each output field to 0-1; pick the acting threshold per
@@ -39,7 +39,7 @@ class JevDecision(BaseModel):
     ``jev-latest`` alias was requested.
     """
 
-    output: BaseModel
+    output: OutputT
     confidence: dict[str, float]
     model_name: str
 
@@ -63,7 +63,7 @@ class JevService:
         *,
         instructions: str | None = None,
         model: str | None = None,
-    ) -> JevDecision:
+    ) -> JevDecision[OutputT]:
         """Judge ``state`` against ``output_type``'s fields.
 
         Args:
@@ -82,7 +82,11 @@ class JevService:
         result = await agent.run(state)
         provider_details = result.response.provider_details or {}
         confidence = dict(provider_details.get("confidence") or {})
-        return JevDecision(output=result.output, confidence=confidence, model_name=result.response.model_name or "")
+        return JevDecision[OutputT](
+            output=result.output,
+            confidence=confidence,
+            model_name=result.response.model_name or "",
+        )
 
     @staticmethod
     def _build_agent(

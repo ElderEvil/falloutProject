@@ -84,6 +84,12 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = "http://localhost:11434/v1"
     LMSTUDIO_BASE_URL: str = "http://localhost:1234/v1"
 
+    # TypeSafe Jev decision model (optional). Independent of the chat provider:
+    # Jev answers typed questions with confidence and is complementary to chat.
+    TYPESAFE_API_KEY: str | None = None
+    JEV_MODEL: str = "jev-latest"
+    JEV_ENABLED: bool = False
+
     @property
     def ai_provider_mode(self) -> Literal["gateway", "direct", "ollama", "lmstudio", "disabled"]:
         """Determine which AI provider mode to use.

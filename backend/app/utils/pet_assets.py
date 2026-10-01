@@ -1,9 +1,9 @@
 """Pet name to companion image mapping.
 
 Starter plus full FOS breed roster (cats, dogs, parrots): breed names and
-legendary unique names resolve to their breed art. Pets are inventory items,
-not dwellers: quest and lunchbox rewards carry them as generic ``Item`` rows
-with ``item_type="pet"``. Unmapped pets fall back to the generic icon in the UI.
+legendary unique names resolve to their breed art. Pets are owned inventory
+entities (``Pet`` rows) equipped to a dweller; quest and lunchbox rewards mint
+them directly. Unmapped pets fall back to the generic icon in the UI.
 """
 
 from pathlib import Path
@@ -114,7 +114,6 @@ PET_NAME_TO_IMAGE_FILE: dict[str, str] = {
     "vinnie": "FOS Vault-Tec parrot.png",
     "wanderer": "FOS Pirate parrot.png",
     "zula": "FOS Abyssinian.png",
-    "{{linkable": "FOS Bloodhound.png",
 }
 
 _PET_IMAGE_DIR = Path(__file__).parent.parent / "static" / "pet_images"

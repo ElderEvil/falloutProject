@@ -107,6 +107,11 @@ jobs:
         working-directory: frontend
         run: node scripts/check-hardcoded-colors.mjs
 
+      - name: Check raw native controls
+        if: steps.filter.outputs.src == 'true'
+        working-directory: frontend
+        run: node scripts/check-raw-controls.mjs
+
       - name: Run tests
         if: steps.filter.outputs.src == 'true'
         working-directory: frontend

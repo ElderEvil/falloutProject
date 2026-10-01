@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.164.0 (2026-10-01)
+
+### Features
+
+* **pets:** pet domain with dweller equip and catalog-resolved bonuses ([#851](https://github.com/ElderEvil/falloutProject/issues/851)) 90e1c69, closes #470
+
 ## 2.163.1 (2026-09-30)
 
 ### Bug Fixes

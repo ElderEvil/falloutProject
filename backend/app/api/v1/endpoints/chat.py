@@ -25,7 +25,9 @@ async def chat_with_dweller(
     user: CurrentActiveUser,
     message: ChatMessage,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    debug: Annotated[bool, Query(description="Include dev diagnostics (tokens, guardrail/Jev) in the response")] = False,
+    debug: Annotated[
+        bool, Query(description="Include dev diagnostics (tokens, guardrail/Jev) in the response")
+    ] = False,
 ) -> DwellerChatResponse:
     """Send a text message and publish the resulting chat notifications."""
     response = await chat_service.process_text_message(

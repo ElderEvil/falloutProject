@@ -39,11 +39,7 @@ async def _guardrail_scores() -> list[tuple[str, bool, float, str]]:
     rows: list[tuple[str, bool, float, str]] = []
     for sample in GUARDRAIL_CORPUS:
         decision = await jev_service.decide(sample.text, ChatGuardrail)
-        flagged = [
-            decision.confidence_for(name)
-            for name in ("jailbreak", "toxic")
-            if getattr(decision.output, name)
-        ]
+        flagged = [decision.confidence_for(name) for name in ("jailbreak", "toxic") if getattr(decision.output, name)]
         rows.append((sample.kind, sample.should_block, max(flagged, default=0.0), decision.model_name))
     return rows
 
@@ -92,9 +88,7 @@ def _report(rows: list[tuple[str, bool, float, str]]) -> None:
         total = stats["total"]
         typer.echo(
             f"  {kind:<10} total={total:<3} "
-            + "  ".join(
-                f"{t}:{stats[f't{t}']}/{total} fp{stats[f'fp{t}']} fn{stats[f'fn{t}']}" for t in THRESHOLDS
-            )
+            + "  ".join(f"{t}:{stats[f't{t}']}/{total} fp{stats[f'fp{t}']} fn{stats[f'fn{t}']}" for t in THRESHOLDS)
         )
 
     typer.echo("\nthreshold sweep (overall):")

@@ -188,4 +188,3 @@ removed. Reasons, which apply to any future "classify text that already has a ty
 - **Jev is advisory, never authoritative.** It answers the question as written and is
   documented as movable by adversarial text; keep it beside deterministic checks, not in
   place of them.
-

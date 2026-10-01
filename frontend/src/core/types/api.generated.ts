@@ -5321,6 +5321,69 @@ export interface components {
             changes: components["schemas"]["ChangeEntry"][];
         };
         /**
+         * ChatDebug
+         * @description Dev-only diagnostics for one chat turn. Populated only when opt-in requested.
+         */
+        ChatDebug: {
+            /**
+             * Provider
+             * @description Provider id used for this turn
+             */
+            provider?: string | null;
+            /**
+             * Model
+             * @description Model id used for this turn
+             */
+            model?: string | null;
+            /**
+             * Prompt Tokens
+             * @description Input tokens billed
+             */
+            prompt_tokens?: number | null;
+            /**
+             * Completion Tokens
+             * @description Output tokens billed
+             */
+            completion_tokens?: number | null;
+            /**
+             * Total Tokens
+             * @description Total tokens billed
+             */
+            total_tokens?: number | null;
+            /** @description Input screen outcome */
+            guardrail?: components["schemas"]["ChatGuardrailDebug"] | null;
+            /**
+             * Jev Decisions
+             * @description Jev decisions that fired this turn, keyed by decision name -> field confidence
+             */
+            jev_decisions?: {
+                [key: string]: {
+                    [key: string]: number;
+                };
+            };
+        };
+        /**
+         * ChatGuardrailDebug
+         * @description Whether the input screen ran and what it decided.
+         */
+        ChatGuardrailDebug: {
+            /**
+             * Ran
+             * @description Whether the guardrail judged this message
+             */
+            ran: boolean;
+            /**
+             * Blocked
+             * @description Whether the message was blocked
+             */
+            blocked: boolean;
+            /**
+             * Reason
+             * @description Human-readable block reason, if any
+             */
+            reason?: string | null;
+        };
+        /**
          * ChatMessage
          * @description Request schema for sending a text message to a dweller.
          */
@@ -5821,6 +5884,8 @@ export interface components {
              * @description Map locations newly unlocked by this conversation
              */
             unlocked_places?: components["schemas"]["UnlockedPlace"][];
+            /** @description Dev diagnostics (tokens, model, guardrail/Jev decisions); only when debug is requested */
+            debug?: components["schemas"]["ChatDebug"] | null;
         };
         /** DwellerCreate */
         DwellerCreate: {
@@ -11267,7 +11332,10 @@ export interface operations {
     };
     chat_with_dweller_api_v1_chat__dweller_id__post: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Include dev diagnostics (tokens, guardrail/Jev) in the response */
+                debug?: boolean;
+            };
             header?: never;
             path: {
                 dweller_id: string;

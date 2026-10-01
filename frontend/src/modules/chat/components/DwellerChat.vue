@@ -18,6 +18,7 @@ import { useToast } from '@/core/composables/useToast'
 import { useMapStore } from '@/modules/map/stores/map'
 import type { MapPlaceLink } from '@/modules/dwellers/models/dweller'
 import ChatMessageList from './ChatMessageList.vue'
+import ChatDebugPanel from './ChatDebugPanel.vue'
 import { Button } from '@/core/components/ui/button'
 import { Input } from '@/core/components/ui/input'
 import {
@@ -97,6 +98,10 @@ const userId = computed(() => authStore.user?.id || '')
 const chatWs = useChatWebSocket(userId.value, props.dwellerId, authStore.token)
 const toast = useToast()
 
+// Admin-only diagnostics: toggle requests the opt-in payload and shows the panel.
+const isSuperuser = computed(() => authStore.user?.is_superuser ?? false)
+const showDebug = ref(false)
+
 const {
   messages,
   userMessage,
@@ -115,12 +120,14 @@ const {
   dismissAction,
   getHappinessColor,
   getHappinessIcon,
+  lastChatDebug,
 } = useChatMessages({
   dwellerId: props.dwellerId,
   dwellerAvatar: props.dwellerAvatar,
   token: authStore.token,
   userImageUrl: userAvatarUrl,
   chatWs,
+  debugEnabled: showDebug,
 })
 
 const { currentlyPlayingUrl, stopAudio, playAudio } = useChatAudio()
@@ -443,6 +450,14 @@ onUnmounted(() => {
           </template>
         </template>
       </TooltipProvider>
+    </div>
+
+    <div v-if="isSuperuser" class="mt-2 flex flex-col gap-2">
+      <label class="flex items-center gap-1.5 self-end text-xs text-theme-primary/70">
+        <input v-model="showDebug" type="checkbox" class="accent-theme-primary" />
+        Debug info
+      </label>
+      <ChatDebugPanel v-if="showDebug" :debug="lastChatDebug" />
     </div>
   </div>
 </template>

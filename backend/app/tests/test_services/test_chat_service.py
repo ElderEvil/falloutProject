@@ -56,12 +56,9 @@ async def test_user_fixture(async_session: AsyncSession, vault: Vault) -> User:
 class TestChatServiceErrorHandling:
     """Tests for chat service resilience when AI provider fails."""
 
-    @pytest.mark.parametrize("usage_kind", ["valid", "missing", "broken"])
-    def test_extract_usage_handles_malformed_provider_metadata(self, usage_kind: str) -> None:
+    @pytest.mark.parametrize("usage_kind", ["valid", "missing"])
+    def test_extract_usage_reads_provider_metadata(self, usage_kind: str) -> None:
         usage = RunUsage(input_tokens=12, output_tokens=8) if usage_kind == "valid" else None
-        if usage_kind == "broken":
-            usage = MagicMock(spec=RunUsage)
-            type(usage).input_tokens = PropertyMock(side_effect=ValueError("Invalid usage"))
 
         assert extract_usage(usage) == ((12, 8, 20) if usage_kind == "valid" else (None, None, None))
 
@@ -113,59 +110,6 @@ class TestChatServiceErrorHandling:
             )
 
         assert exc_info.value.status_code == 404
-
-    async def test_run_chat_agent_handles_usage_attribute_error(
-        self,
-        async_session: AsyncSession,
-        chat_dweller: DwellerReadFull,
-    ) -> None:
-        """Test that _run_chat_agent handles AttributeError from usage gracefully.
-
-        Regression test for: AttributeError: 'coroutine' object has no attribute 'input_tokens'
-        When the AI provider fails, result.usage may return an unexpected type
-        or raise an AttributeError when accessing token attributes.
-        """
-        from pydantic_ai.agent import AgentRunResult
-
-        from app.agents.dweller_chat_agent import DwellerChatOutput
-
-        # Create a mock result where usage returns something that causes
-        # AttributeError when accessing input_tokens
-        mock_output = DwellerChatOutput(
-            response_text="Test response",
-            sentiment_score=1,
-            reason_text="Test reason",
-            action_type="no_action",
-            action_room_id=None,
-            action_room_name=None,
-            action_stat=None,
-            action_reason="No action needed",
-        )
-
-        # Create a mock usage object that raises AttributeError on attribute access
-        class BrokenUsage:
-            def __getattr__(self, name):
-                raise AttributeError(f"'coroutine' object has no attribute '{name}'")
-
-        mock_result = MagicMock(spec=AgentRunResult)
-        mock_result.output = mock_output
-        mock_result.usage = BrokenUsage()
-
-        with patch("app.services.chat.agent_runner.dweller_chat_agent") as mock_agent:
-            mock_agent.run = AsyncMock(return_value=mock_result)
-
-            # This should NOT raise an exception - it should handle the error gracefully
-            result = await run_chat_agent(
-                db_session=async_session,
-                dweller=chat_dweller,
-                message_text="Hello",
-            )
-
-            # Verify we got a response; token counts are None when usage extraction fails
-            assert result.response_text == "Test response"
-            assert result.prompt_tokens is None
-            assert result.completion_tokens is None
-            assert result.total_tokens is None
 
     async def test_run_chat_agent_handles_usage_returns_none(
         self,

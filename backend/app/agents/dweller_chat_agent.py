@@ -9,6 +9,7 @@ and re-exports the public names for existing importers.
 import logging
 
 from pydantic_ai import Agent, RunContext
+from pydantic_ai.usage import UsageLimits
 
 from app.agents.chat_prompts import build_chat_instructions
 from app.agents.chat_schemas import (
@@ -37,6 +38,7 @@ from app.services.medical_service import (
 logger = logging.getLogger(__name__)
 
 __all__ = [
+    "CHAT_USAGE_LIMITS",
     "DwellerActivityBriefing",
     "DwellerChatDeps",
     "DwellerChatOutput",
@@ -69,12 +71,21 @@ class ModelCache:
         cls._instance = None
 
 
+# A chat turn needs a handful of tool calls at most. The caps stop a model that
+# loops on one tool from burning dozens of provider requests (and its timeout)
+# before the run fails; callers fall back to the non-agent reply on that failure.
+CHAT_REQUEST_LIMIT = 8
+CHAT_TOOL_CALLS_LIMIT = 8
+
 dweller_chat_agent = Agent(
     model=ModelCache.get_model(),
     output_type=DwellerChatOutput,
     deps_type=DwellerChatDeps,
     retries=2,
 )
+
+#: Per-run guard: pass to ``run``/``run_stream`` as ``usage_limits=CHAT_USAGE_LIMITS``.
+CHAT_USAGE_LIMITS = UsageLimits(request_limit=CHAT_REQUEST_LIMIT, tool_calls_limit=CHAT_TOOL_CALLS_LIMIT)
 
 
 @dweller_chat_agent.instructions
@@ -123,7 +134,11 @@ async def list_all_rooms(ctx: RunContext[DwellerChatDeps]) -> list[RoomInfo]:
 
 @dweller_chat_agent.tool
 async def get_dweller_social_context(ctx: RunContext[DwellerChatDeps], topic: str = "general") -> dict:
-    """Get live status, room, family, and relationship affinity for a social topic."""
+    """Get this dweller's live status, room, family, and relationship affinity.
+
+    One call returns the whole social context (it does not vary by ``topic``), so
+    call it at most once per reply and answer from that result.
+    """
     return {"requested_topic": topic, **await build_dweller_social_context(ctx.deps)}
 
 

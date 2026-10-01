@@ -180,6 +180,87 @@ class TestChatServiceErrorHandling:
         count = (await async_session.execute(select(func.count()).select_from(LLMInteraction))).scalar_one()
         assert count == 1
 
+    async def test_inaccessible_dweller_is_rejected_before_screening(
+        self,
+        async_session: AsyncSession,
+        test_user: User,
+    ) -> None:
+        """An unreachable dweller must fail access before Jev spends a paid call."""
+        screen = AsyncMock()
+        with (
+            patch("app.services.chat_service.screen_message", new=screen),
+            pytest.raises(ResourceNotFoundException),
+        ):
+            await chat_service.process_text_message(
+                db_session=async_session,
+                user=test_user,
+                dweller_id=uuid4(),
+                message_text="Hello there.",
+            )
+
+        screen.assert_not_awaited()
+
+    async def test_exhausted_quota_is_rejected_before_screening(
+        self,
+        async_session: AsyncSession,
+        chat_dweller: DwellerReadFull,
+        test_user: User,
+    ) -> None:
+        """A quota-exhausted user must be turned away before Jev spends a paid call."""
+        screen = AsyncMock()
+        blocked = MagicMock()
+        blocked.ensure_allowed.side_effect = ValidationException(detail="quota exceeded")
+
+        with (
+            patch("app.services.chat_service.quota_service.check_quota", new=AsyncMock(return_value=blocked)),
+            patch("app.services.chat_service.screen_message", new=screen),
+            pytest.raises(ValidationException),
+        ):
+            await chat_service.process_text_message(
+                db_session=async_session,
+                user=test_user,
+                dweller_id=chat_dweller.id,
+                message_text="Hello there.",
+            )
+
+        screen.assert_not_awaited()
+
+    async def test_screening_usage_survives_chat_failure(
+        self,
+        async_session: AsyncSession,
+        chat_dweller: DwellerReadFull,
+        test_user: User,
+    ) -> None:
+        """A Jev usage row must persist even when the chat turn later fails."""
+        from sqlalchemy import func, select
+
+        from app.models.llm_interaction import LLMInteraction
+        from app.services.chat.guardrail import ChatGuardrail
+        from app.services.jev_service import JevDecision
+
+        decision = JevDecision[ChatGuardrail](
+            output=ChatGuardrail(jailbreak=False, toxic=False),
+            confidence={"jailbreak": 0.1},
+            model_name="jev-1.13.0",
+            total_tokens=17,
+        )
+
+        with (
+            patch("app.services.chat.guardrail.is_configured", return_value=True),
+            patch("app.services.chat.guardrail.jev_service.decide", new=AsyncMock(return_value=decision)),
+            patch("app.services.chat_service.run_chat_agent", new=AsyncMock(side_effect=RuntimeError("agent down"))),
+            pytest.raises(RuntimeError, match="agent down"),
+        ):
+            await chat_service.process_text_message(
+                db_session=async_session,
+                user=test_user,
+                dweller_id=chat_dweller.id,
+                message_text="How are you?",
+            )
+
+        count = (await async_session.execute(select(func.count()).select_from(LLMInteraction))).scalar_one()
+        assert count == 1
+
     async def test_run_chat_agent_handles_usage_returns_none(
         self,
         async_session: AsyncSession,

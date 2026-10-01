@@ -151,28 +151,30 @@ class JevService:
 
         Jev decides but is not the chat model, so the row is tagged ``jev_decision``
         and carries the same provenance (provider, model, tokens) as a chat call.
-        Recording is best-effort: a failure must not break the decision the caller
-        already made.
+        The write runs in its own savepoint: a failed flush aborts the transaction,
+        and catching that exception without rolling back to a savepoint would leave
+        the shared session unusable for the rest of the request.
         """
         from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
         from app.schemas.llm_interaction import LLMInteractionCreate
         from app.services.ai_constants import JEV_OPERATION
 
         try:
-            await llm_interaction_crud.create(
-                db_session,
-                LLMInteractionCreate(
-                    user_id=user_id,
-                    usage=JEV_OPERATION,
-                    provider="typesafe",
-                    model=decision.model_name,
-                    prompt_tokens=decision.prompt_tokens,
-                    completion_tokens=decision.completion_tokens,
-                    total_tokens=decision.total_tokens,
-                    parameters=output_type_name,
-                    response=None,
-                ),
-            )
+            async with db_session.begin_nested():
+                await llm_interaction_crud.create(
+                    db_session,
+                    LLMInteractionCreate(
+                        user_id=user_id,
+                        usage=JEV_OPERATION,
+                        provider="typesafe",
+                        model=decision.model_name,
+                        prompt_tokens=decision.prompt_tokens,
+                        completion_tokens=decision.completion_tokens,
+                        total_tokens=decision.total_tokens,
+                        parameters=output_type_name,
+                        response=None,
+                    ),
+                )
         except Exception:
             logger.exception("Failed to record Jev usage")
 

@@ -2,6 +2,7 @@
 
 from typing import Annotated, Literal
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 from pydantic import BaseModel, ConfigDict
@@ -125,3 +126,21 @@ def test_agent_carries_the_decision_timeout(monkeypatch: pytest.MonkeyPatch) -> 
 
     with patch.object(jev_service, "_build_agent", return_value=HangingAgent()), pytest.raises(TimeoutError):
         asyncio.run(jev_service.decide("anything", Triage))
+
+
+@pytest.mark.asyncio
+async def test_record_usage_swallows_a_failed_write(async_session) -> None:
+    """A failed usage insert must not raise or leave the session unusable."""
+    from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
+
+    decision = JevDecision(
+        output=Triage(continue_run=True, risk="low"),
+        confidence={"continue_run": 0.9},
+        model_name="jev-1.13.0",
+        total_tokens=5,
+    )
+
+    with patch.object(llm_interaction_crud, "create", new=AsyncMock(side_effect=RuntimeError("insert failed"))):
+        await jev_service.record_usage(async_session, uuid4(), decision, output_type_name="Triage")
+
+    assert async_session.is_active is True

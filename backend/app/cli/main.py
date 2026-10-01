@@ -50,7 +50,7 @@ cli = typer.Typer(
 
 # Register sub-command groups
 cli.add_typer(family_scenario, name="family-scenario", help="Dev/QA: build family/breeding test scenarios")
-cli.add_typer(jev_eval, name="jev-eval", help="Dev/QA: measure Jev guardrail/triage accuracy and calibrate thresholds")
+cli.add_typer(jev_eval, name="jev-eval", help="Dev/QA: measure Jev guardrail accuracy and calibrate thresholds")
 cli.add_typer(apprentice_scenario, name="apprentice-scenario", help="Dev/QA: build youth apprenticeship test scenarios")
 cli.add_typer(
     expedition_scenario,

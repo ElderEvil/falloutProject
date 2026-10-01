@@ -29,8 +29,6 @@ from app.schemas.exploration_event import (
 )
 from app.services.exploration import data_loader
 from app.services.exploration.event_generator import event_generator
-from app.services.exploration.triage import triage_description
-from app.services.jev_service import is_configured as is_jev_configured
 from app.services.notification_service import notification_service
 from app.services.radiation_service import apply_radiation_gain, radiation_removal_amount
 from app.services.stream_manager import sse_manager
@@ -262,12 +260,6 @@ class EventService:
         )
         db_session.add(exploration)
         event_records = [event_record]
-
-        # Advisory Jev label for log routing; never overrides the generator's event type.
-        if is_jev_configured():
-            triage = await triage_description(event.description)
-            if triage.category is not None:
-                event_record["jev_category"] = triage.category
 
         # Handle event-specific logic
         if loot_event is not None and loot_event.loot:

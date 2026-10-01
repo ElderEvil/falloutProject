@@ -95,11 +95,19 @@ class JevService:
         instructions: str | None,
         model: str | None,
     ) -> Any:
-        """Build the Jev agent lazily so importing this module needs no SDK/key."""
+        """Build the Jev agent lazily so importing this module needs no SDK/key.
+
+        The API key is passed explicitly: ``settings`` is loaded from ``.env`` and is
+        NOT the process environment, so ``Agent("typesafe:...")`` by name would read an
+        absent env var and fail auth. ``TypeSafeProvider`` takes the key directly.
+        """
         from pydantic_ai import Agent
+        from pydantic_ai.models.typesafe import TypeSafeModel
+        from pydantic_ai.providers.typesafe import TypeSafeProvider
 
         model_name = model or settings.JEV_MODEL
-        return Agent(f"typesafe:{model_name}", output_type=output_type, instructions=instructions)
+        provider = TypeSafeProvider(api_key=settings.TYPESAFE_API_KEY)
+        return Agent(TypeSafeModel(model_name, provider=provider), output_type=output_type, instructions=instructions)
 
 
 jev_service = JevService()

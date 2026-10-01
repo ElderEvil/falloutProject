@@ -141,6 +141,11 @@ class ChatService:
                 instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
                 provider, model = await get_provider_model_snapshot(db_session)
 
+                verdict = await screen_message(message_text)
+                if verdict.blocked:
+                    yield ChatStreamError(detail=verdict.reason or "Message blocked by content screening.")
+                    return
+
                 deps = DwellerChatDeps(
                     db_session=db_session,
                     dweller=dweller,

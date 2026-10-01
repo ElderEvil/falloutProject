@@ -132,3 +132,60 @@ Damage math stays deterministic in `incident_math.py` / `utils/combat.py`; Jev o
 2. Incident-spawn triage attached to spawn notifications.
 3. Exploration engage/avoid behind the formula fallback.
 4. Responder suggestions in the incident UI.
+
+## Implementation findings — first integration attempt (2026-10-01)
+
+A first pass wired Jev into the codebase. Results, decisions, and traps found along the way.
+
+### Provider wiring (pydantic-ai 2.52+)
+
+- `pydantic-ai-slim` gained the `typesafe` extra **after 2.30**; the repo was pinned at
+  2.30, where `TypeSafeModel` / `typesafe:` does not exist. The extra must be a
+  **project optional-dependency** (`uv add "pydantic-ai-slim[typesafe]"`), not a marker on
+  the main dependency list — otherwise `uv` resolves it to nothing and installs nothing.
+- **`Agent("typesafe:…")` reads the API key from the OS environment, not from `settings`.**
+  The app loads `.env` into `settings.TYPESAFE_API_KEY` but never into `os.environ`, so the
+  by-name constructor silently has no key and auth fails at call time. **Pass the key
+  explicitly**: `TypeSafeProvider(api_key=settings.TYPESAFE_API_KEY)` (or export it). Any
+  code path that only works when the key is exported to the shell is broken in production.
+- `Agent.__init__` does **not** accept `usage_limits`; it is a per-run argument
+  (`run(..., usage_limits=...)` / `run_stream(..., usage_limits=...)`).
+
+### What worked
+
+- Typed `decide(state, output_type) -> {output, per-field confidence, model_name}` is a
+  clean seam. `JevDecision` must stay **generic** (`JevDecision[OutputType]`) so callers
+  keep their concrete output type; a `BaseModel`-typed `output` loses the fields.
+- Screening chat input for injection + toxic is a genuine fit: on a 24-case synthetic set,
+  benign 12/12, injection 8/8, toxic 3-4/4. Injection lands at **0.97+ confidence**;
+  **toxic is unstable at 0.5-0.7** run to run — one threshold for both fields is wrong,
+  the two need **per-field bars** (or the toxic field needs better criteria wording).
+- A labelled corpus + `fo-cli jev-eval` is worth keeping: it turns threshold tuning into
+  measurement, prints a false-positive/false-negative split, and records the resolved
+  model version. Pin `JEV_MODEL` once a bar is tuned (`jev-latest` moves under it).
+
+### Removed: exploration-event triage (do not re-add as-is)
+
+An advisory Jev label on generated exploration event narratives was built and then
+removed. Reasons, which apply to any future "classify text that already has a type":
+
+- **Wrong value.** The event already carries a typed `event_type` from the generator, so
+  re-classifying the narrative added a label nobody acted on. Reclassifying typed data is
+  not a decision; prefer targets where Jev *chooses* something (see rollout order).
+- **Ran inside the locked game tick.** `event_service.process_event` awaits Jev **before**
+  the commit, while the exploration row is locked — a slow Jev serialises the tick. **Any
+  Jev call on a tick/locked path must be post-commit enrichment in a worker**, never an
+  inline `await` ahead of gameplay effects.
+
+### Other traps to honour
+
+- **Screen at a shared boundary.** Ordinary text chat screened the message; the streaming
+  (WebSocket) path did not, so the same policy was enforced on one transport only. Put
+  screening where both transports pass, not in each caller.
+- **Bound the call.** Give every optional decision a deadline and usage accounting:
+  elapsed time, tokens/cost, model version, outcome. Fail-open only helps once the call
+  *returns*; SDK retries can extend a failure, so cap the whole operation.
+- **Jev is advisory, never authoritative.** It answers the question as written and is
+  documented as movable by adversarial text; keep it beside deterministic checks, not in
+  place of them.
+

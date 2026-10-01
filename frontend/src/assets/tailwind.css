@@ -51,9 +51,14 @@
     --color-gray-800: #2b2521;
     --color-gray-900: #1b1816;
 
-    /* Semantic Colors (theme-aware) */
+    /* Semantic Colors.
+       `success` follows the brand primary so a success state always reads in the
+       active theme; under fnv/fo3 it is amber/teal rather than green by design.
+       `warning` is a red-shifted orange (hue ~14) kept clear of the fnv amber
+       primary (hue ~43) and of quest-locked, so a caution is distinguishable in
+       every theme. `danger`/`info` are fixed. See docs/frontend/STYLEGUIDE.md. */
     --color-success: var(--color-theme-primary);
-    --color-warning: #ffaa00;
+    --color-warning: #ff7043;
     --color-danger: #ff0000;
     --color-info: #00aaff;
 

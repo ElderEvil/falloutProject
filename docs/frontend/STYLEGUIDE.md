@@ -113,12 +113,25 @@ Use `text-theme-primary/70` and `text-theme-primary/50` for muted terminal text 
 
 ### Semantic Colors
 
-| Purpose | Variable          | Value     | When to Use                      |
-| ------- | ----------------- | --------- | -------------------------------- |
-| Success | `--color-success` | `#00ff00` | Confirmations, positive feedback |
-| Warning | `--color-warning` | `#ffaa00` | Alerts, cautions                 |
-| Danger  | `--color-danger`  | `#ff0000` | Errors, destructive actions      |
-| Info    | `--color-info`    | `#00aaff` | Informational messages           |
+| Purpose | Variable          | Value                     | When to Use                      |
+| ------- | ----------------- | ------------------------- | -------------------------------- |
+| Success | `--color-success` | `var(--color-theme-primary)` | Confirmations, positive feedback |
+| Warning | `--color-warning` | `#ff7043`                 | Alerts, cautions                 |
+| Danger  | `--color-danger`  | `#ff0000`                 | Errors, destructive actions      |
+| Info    | `--color-info`    | `#00aaff`                 | Informational messages           |
+
+**Fixed vs theme-dependent.** One meaning per color: status colors signal *state*, so they are
+never repurposed for decoration or identity.
+
+- **`success` follows the brand primary** (`var(--color-theme-primary)`). A success state always
+  reads in the active theme — under `fnv`/`fo3` it is amber/teal, not green, **by design**. Do not
+  "fix" it to `#00ff00`; that would break theme consistency and collide with the `working` status.
+- **`warning` is a red-shifted orange (`#ff7043`, hue ~14°)** deliberately kept clear of the `fnv`
+  amber primary (`#ffb700`, hue ~43°) and of `--color-quest-locked` (`#ff6600`, hue ~24°). This is
+  what keeps a caution readable in the amber theme. Do not drift it back toward amber.
+- **`danger`/`info` are fixed** across themes.
+- Because color alone must never carry meaning, status is always paired with a text or shape cue
+  (icon, label, or pattern) — see [Color Contrast](#color-contrast).
 
 ### Resource Colors
 

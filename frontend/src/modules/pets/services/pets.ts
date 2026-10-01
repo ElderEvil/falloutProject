@@ -25,9 +25,8 @@ export async function equipPet(dwellerId: string, petId: string, token: string):
   return response.data
 }
 
-export async function unequipPet(petId: string, token: string): Promise<Pet> {
-  const response = await axios.post(`/api/v1/pets/${petId}/unequip/`, null, {
+export async function unequipPet(petId: string, token: string): Promise<void> {
+  await axios.post(`/api/v1/pets/${petId}/unequip/`, null, {
     headers: { Authorization: `Bearer ${token}` },
   })
-  return response.data
 }

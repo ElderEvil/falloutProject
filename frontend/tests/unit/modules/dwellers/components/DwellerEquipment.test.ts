@@ -225,6 +225,7 @@ describe('DwellerEquipment', () => {
         },
       },
     ])
+    petsStoreMock.equipPet.mockResolvedValue({ id: 'pet-9' })
     const wrapper = mountEquip(makeDweller(), {}, { PetCard: petCardStub })
     await flushPromises()
 
@@ -239,6 +240,36 @@ describe('DwellerEquipment', () => {
 
     expect(petsStoreMock.equipPet).toHaveBeenCalledWith('dweller-1', 'pet-9', 'test-token')
     expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
+  })
+
+  it('keeps the pet picker open when equipping fails', async () => {
+    petsStoreMock.equipPet.mockResolvedValue(null)
+    petsStoreMock.getAvailablePets.mockReturnValue([
+      {
+        id: 'pet-9',
+        name: 'CX404',
+        rarity: 'legendary',
+        value: 500,
+        image_url: null,
+        dweller_id: null,
+        storage_id: 'storage-1',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+        effect: {},
+      },
+    ])
+    const wrapper = mountEquip(makeDweller(), {}, { PetCard: petCardStub })
+    await flushPromises()
+
+    await wrapper.findAll('button.empty-slot')[2].trigger('click')
+    await flushPromises()
+    await nextTick()
+    await flushPromises()
+    await wrapper.find('.pet-slot').trigger('click')
+    await flushPromises()
+
+    expect(petsStoreMock.equipPet).toHaveBeenCalledWith('dweller-1', 'pet-9', 'test-token')
+    expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(true)
   })
 
   it('renders the empty state in the pet picker when no pets are available', async () => {

@@ -11,9 +11,10 @@ interface Props {
   pet: Pet
   showActions?: boolean
   equipped?: boolean
+  disabled?: boolean
 }
 
-const { showActions = false, equipped = false, pet } = defineProps<Props>()
+const { showActions = false, equipped = false, disabled = false, pet } = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'equip'): void
@@ -40,6 +41,7 @@ const bonuses = computed(() => getPetBonuses(pet.effect))
             v-if="!equipped"
             class="w-full"
             variant="secondary"
+            :disabled="disabled"
             @click="emit('equip')"
           >
             <Icon icon="mdi:check" />
@@ -49,6 +51,7 @@ const bonuses = computed(() => getPetBonuses(pet.effect))
             v-else
             class="w-full"
             variant="destructive"
+            :disabled="disabled"
             @click="emit('unequip')"
           >
             <Icon icon="mdi:close" />

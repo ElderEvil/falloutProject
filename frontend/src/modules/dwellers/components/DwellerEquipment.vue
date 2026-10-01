@@ -20,6 +20,7 @@ const dweller = computed(() => ctx.dweller.value)
 const vaultId = computed(() => ctx.vaultId.value)
 
 const showInventoryModal = ref(false)
+const petActionPending = ref(false)
 const inventoryMode = ref<'weapon' | 'outfit' | 'pet'>('weapon')
 
 // Get equipped items from the dweller object
@@ -68,16 +69,27 @@ const handleEquipOutfit = async (outfitId: string) => {
 }
 
 const handleUnequipPet = async () => {
-  if (!equippedPet.value || !authStore.token || !dweller.value?.id) return
-  await petsStore.unequipPet(dweller.value.id, equippedPet.value.id, authStore.token)
-  ctx.actions.refresh()
+  if (petActionPending.value || !equippedPet.value || !authStore.token || !dweller.value?.id) return
+  petActionPending.value = true
+  try {
+    await petsStore.unequipPet(dweller.value.id, equippedPet.value.id, authStore.token)
+    ctx.actions.refresh()
+  } finally {
+    petActionPending.value = false
+  }
 }
 
 const handleEquipPet = async (petId: string) => {
-  if (!authStore.token || !dweller.value?.id) return
-  await petsStore.equipPet(dweller.value.id, petId, authStore.token)
-  showInventoryModal.value = false
-  ctx.actions.refresh()
+  if (petActionPending.value || !authStore.token || !dweller.value?.id) return
+  petActionPending.value = true
+  try {
+    const pet = await petsStore.equipPet(dweller.value.id, petId, authStore.token)
+    if (!pet) return
+    showInventoryModal.value = false
+    ctx.actions.refresh()
+  } finally {
+    petActionPending.value = false
+  }
 }
 
 const openWeaponInventory = () => {
@@ -170,6 +182,7 @@ const modalIcon = computed(() => {
           :pet="equippedPet"
           :equipped="true"
           :show-actions="true"
+          :disabled="petActionPending"
           @unequip="handleUnequipPet"
         />
 
@@ -232,6 +245,7 @@ const modalIcon = computed(() => {
                 :key="pet.id"
                 :pet="pet"
                 :show-actions="true"
+                :disabled="petActionPending"
                 @equip="handleEquipPet(pet.id)"
               />
               <div v-if="availablePets.length === 0" class="empty-state">

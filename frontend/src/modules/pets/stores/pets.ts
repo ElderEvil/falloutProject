@@ -51,16 +51,18 @@ export const usePetsStore = defineStore('pets', () => {
 
   async function unequipPet(dwellerId: string, petId: string, token: string): Promise<Pet | null> {
     try {
-      const pet = await petsService.unequipPet(petId, token)
+      await petsService.unequipPet(petId, token)
 
-      // Update local state
+      // The API returns no body on unequip, so reflect the change locally.
       const petIndex = pets.value.findIndex((p) => p.id === petId)
+      let updated: Pet | null = null
       if (petIndex !== -1) {
-        pets.value[petIndex] = pet
+        updated = { ...pets.value[petIndex], dweller_id: null }
+        pets.value[petIndex] = updated
       }
 
       toast.success('Pet unequipped successfully!')
-      return pet
+      return updated
     } catch (err) {
       handleStoreError(err, 'Failed to unequip pet')
       toast.error('Failed to unequip pet')

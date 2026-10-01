@@ -38,9 +38,12 @@ DELETE_LEGACY_SQL = sa.text("DELETE FROM item WHERE item_type = 'pet'")
 RESTORE_LEGACY_SQL = sa.text(
     """
     INSERT INTO item (id, name, rarity, value, image_url, item_type, storage_id)
-    SELECT legacy_item_id, name, rarity, value, image_url, 'pet', storage_id
-    FROM pet
-    WHERE legacy_item_id IS NOT NULL
+    SELECT p.legacy_item_id, p.name, p.rarity, p.value, p.image_url, 'pet',
+           COALESCE(p.storage_id, s.id)
+    FROM pet p
+    LEFT JOIN dweller d ON d.id = p.dweller_id
+    LEFT JOIN storage s ON s.vault_id = d.vault_id
+    WHERE p.legacy_item_id IS NOT NULL
     """
 )
 

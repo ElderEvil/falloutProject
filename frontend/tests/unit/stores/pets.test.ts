@@ -107,17 +107,16 @@ describe('Pets Store', () => {
     expect(store.pets[0].dweller_id).toBeNull()
   })
 
-  it('unequipPet calls the service and updates the pet in state', async () => {
+  it('unequipPet calls the service and clears the pet locally', async () => {
     const store = usePetsStore()
     store.pets = [makePet({ dweller_id: 'dweller-1' })]
-    const unequipped = makePet()
-    vi.mocked(petsService.unequipPet).mockResolvedValueOnce(unequipped)
+    vi.mocked(petsService.unequipPet).mockResolvedValueOnce(undefined)
 
     const result = await store.unequipPet('dweller-1', 'pet-1', 'token')
 
     expect(petsService.unequipPet).toHaveBeenCalledWith('pet-1', 'token')
-    expect(result).toEqual(unequipped)
-    expect(store.pets[0]).toEqual(unequipped)
+    expect(result?.dweller_id).toBeNull()
+    expect(store.pets[0].dweller_id).toBeNull()
     expect(toastMock.success).toHaveBeenCalledWith('Pet unequipped successfully!')
   })
 

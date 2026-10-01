@@ -138,8 +138,34 @@ class ChatGuardrailDebug(BaseModel):
     reason: str | None = Field(None, description="Human-readable block reason, if any")
 
 
+class ChatJevField(BaseModel):
+    """One judged Jev field, answer and confidence together.
+
+    ``confidence`` is the probability of ``answer``; a ``False`` at 0.96 means
+    "96% sure it is not this", so the pair must be read together.
+    """
+
+    answer: bool = Field(..., description="The field's answer")
+    confidence: float = Field(..., description="Probability of that answer, 0-1")
+
+
+class ChatJevDecision(BaseModel):
+    """One Jev decision that fired: its named fields, each answered with confidence."""
+
+    name: str = Field(..., description="Decision identifier, e.g. 'guardrail'")
+    fields: dict[str, ChatJevField] = Field(
+        default_factory=dict,
+        description="Field name -> {answer, confidence}",
+    )
+
+
 class ChatDebug(BaseModel):
-    """Dev-only diagnostics for one chat turn. Populated only when opt-in requested."""
+    """Dev-only diagnostics for one chat turn. Populated only when opt-in requested.
+
+    Never persisted: this rides the live response (and the streamed done event) so
+    stored history stays bounded, and any message-shaped schema may embed it as an
+    optional field.
+    """
 
     provider: str | None = Field(None, description="Provider id used for this turn")
     model: str | None = Field(None, description="Model id used for this turn")
@@ -147,9 +173,9 @@ class ChatDebug(BaseModel):
     completion_tokens: int | None = Field(None, description="Output tokens billed")
     total_tokens: int | None = Field(None, description="Total tokens billed")
     guardrail: ChatGuardrailDebug | None = Field(None, description="Input screen outcome")
-    jev_decisions: dict[str, dict[str, float]] = Field(
-        default_factory=dict,
-        description="Jev decisions that fired this turn, keyed by decision name -> field confidence",
+    jev_decisions: list[ChatJevDecision] = Field(
+        default_factory=list,
+        description="Jev decisions that fired this turn, in the order they ran",
     )
 
 
@@ -197,6 +223,10 @@ class ChatStreamDone(BaseModel):
     happiness_impact: HappinessImpact | None = None
     action_suggestion: ActionSuggestion | None = None
     unlocked_places: list[UnlockedPlace] = Field(default_factory=list)
+    debug: ChatDebug | None = Field(
+        None,
+        description="Dev diagnostics; present only when the turn opted into debug",
+    )
 
 
 class ChatStreamError(BaseModel):

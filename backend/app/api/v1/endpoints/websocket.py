@@ -68,6 +68,7 @@ async def _handle_chat_message(websocket: WebSocket, data: str, user_id: UUID4, 
                     user=user,
                     dweller_id=dweller_id,
                     message_text=content,
+                    debug=message.get("debug") is True,
                 ):
                     await websocket.send_json(chunk.model_dump(mode="json", exclude_none=True))
 

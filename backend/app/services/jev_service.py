@@ -14,7 +14,9 @@ The service degrades to "disabled" without a key so no caller needs secrets at
 import time; every entry point returns a typed :class:`JevDecision`.
 """
 
+import asyncio
 import logging
+import time
 from typing import Any, TypeVar
 
 from pydantic import BaseModel
@@ -28,6 +30,17 @@ OutputT = TypeVar("OutputT", bound=BaseModel)
 
 #: Jev refuses anything above this; keep the state + questions under it.
 JEV_STATE_TOKEN_LIMIT = 32_000
+
+
+class JevFieldAnswer(BaseModel):
+    """One judged field: the answer and how confident Jev was in it.
+
+    ``confidence`` is the probability of the answer shown, so a ``False`` answer at
+    0.96 means "96% sure it is *not* this" - never display it without the flag.
+    """
+
+    answer: bool
+    confidence: float
 
 
 class JevDecision[OutputT: BaseModel](BaseModel):
@@ -66,6 +79,11 @@ class JevService:
     ) -> JevDecision[OutputT]:
         """Judge ``state`` against ``output_type``'s fields.
 
+        Bounded by ``JEV_TIMEOUT_SECONDS`` and usage-accounted: callers sit inside
+        chat transactions, so a slow provider must fail (to their fallback) rather
+        than hold a transaction open. The SDK's own retries are disabled so the
+        deadline bounds the whole operation, not one attempt.
+
         Args:
             state: the material being judged (the prompt).
             output_type: a Pydantic model; each field is one typed question.
@@ -79,9 +97,29 @@ class JevService:
             raise FeatureDisabledException(detail="Jev is not configured (set JEV_ENABLED and TYPESAFE_API_KEY).")
 
         agent = self._build_agent(output_type, instructions=instructions, model=model)
-        result = await agent.run(state)
+        started = time.perf_counter()
+        try:
+            result = await asyncio.wait_for(agent.run(state), timeout=settings.JEV_TIMEOUT_SECONDS)
+        except TimeoutError:
+            logger.warning(
+                "Jev decision timed out",
+                extra={"output_type": output_type.__name__, "timeout_s": settings.JEV_TIMEOUT_SECONDS},
+            )
+            raise
+        elapsed = time.perf_counter() - started
+
         provider_details = result.response.provider_details or {}
         confidence = dict(provider_details.get("confidence") or {})
+        logger.info(
+            "Jev decision",
+            extra={
+                "output_type": output_type.__name__,
+                "model": result.response.model_name or "",
+                "elapsed_s": round(elapsed, 3),
+                "input_tokens": result.usage().input_tokens if callable(result.usage) else None,
+                "confidence": confidence,
+            },
+        )
         return JevDecision[OutputT](
             output=result.output,
             confidence=confidence,

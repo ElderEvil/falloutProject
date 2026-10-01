@@ -49,16 +49,15 @@ const tokenTotal = computed(() => debug?.total_tokens ?? 0)
         }}</span>
       </div>
 
-      <div v-if="debug.jev_decisions && Object.keys(debug.jev_decisions).length" class="text-theme-primary/60">
+      <div v-if="debug.jev_decisions?.length" class="text-theme-primary/60">
         jev
-        <span
-          v-for="(fields, name) in debug.jev_decisions"
-          :key="name"
-          class="mr-2 text-theme-primary"
-          >{{ name }}:{{ Object.entries(fields ?? {})
-            .map(([f, c]) => `${f}=${c.toFixed(2)}`)
-            .join(' ') }}</span
-        >
+        <span v-for="decision in debug.jev_decisions" :key="decision.name" class="mr-2 text-theme-primary">
+          {{ decision.name }}:{{
+            Object.entries(decision.fields ?? {})
+              .map(([f, v]) => `${f}=${v.answer ? 'yes' : 'no'}(${v.confidence.toFixed(2)})`)
+              .join(' ')
+          }}
+        </span>
       </div>
     </div>
   </div>

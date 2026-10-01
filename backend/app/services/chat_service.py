@@ -15,6 +15,8 @@ from app.schemas.chat import (
     ActionSuggestion,
     ChatDebug,
     ChatGuardrailDebug,
+    ChatJevDecision,
+    ChatJevField,
     ChatStreamDone,
     ChatStreamError,
     ChatStreamEvent,
@@ -116,7 +118,19 @@ class ChatService:
                     completion_tokens=result.completion_tokens,
                     total_tokens=result.total_tokens,
                     guardrail=ChatGuardrailDebug(ran=verdict.ran, blocked=verdict.blocked, reason=verdict.reason),
-                    jev_decisions={"guardrail": verdict.confidence} if verdict.confidence else {},
+                    jev_decisions=(
+                            [
+                                ChatJevDecision(
+                                    name="guardrail",
+                                    fields={
+                                        name: ChatJevField(answer=f.answer, confidence=f.confidence)
+                                        for name, f in verdict.fields.items()
+                                    },
+                                )
+                            ]
+                            if verdict.fields
+                            else []
+                        ),
                 )
                 if debug
                 else None
@@ -129,6 +143,8 @@ class ChatService:
         user: User,
         dweller_id: UUID4,
         message_text: str,
+        *,
+        debug: bool = False,
     ) -> AsyncGenerator[ChatStreamEvent]:
         """Yield typed token, completion, or error events for one dweller response."""
         try:
@@ -178,6 +194,31 @@ class ChatService:
                 happiness_impact=bundle.happiness_impact,
                 action_suggestion=bundle.action_suggestion,
                 unlocked_places=unlocked_places,
+                debug=(
+                    ChatDebug(
+                        provider=provider,
+                        model=model,
+                        prompt_tokens=bundle.prompt_tokens,
+                        completion_tokens=bundle.completion_tokens,
+                        total_tokens=bundle.total_tokens,
+                        guardrail=ChatGuardrailDebug(ran=verdict.ran, blocked=verdict.blocked, reason=verdict.reason),
+                        jev_decisions=(
+                            [
+                                ChatJevDecision(
+                                    name="guardrail",
+                                    fields={
+                                        name: ChatJevField(answer=f.answer, confidence=f.confidence)
+                                        for name, f in verdict.fields.items()
+                                    },
+                                )
+                            ]
+                            if verdict.fields
+                            else []
+                        ),
+                    )
+                    if debug
+                    else None
+                ),
             )
 
         except (AccessDeniedException, ResourceNotFoundException) as e:

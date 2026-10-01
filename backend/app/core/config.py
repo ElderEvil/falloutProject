@@ -91,6 +91,8 @@ class Settings(BaseSettings):
     JEV_ENABLED: bool = False
     #: Minimum confidence to block a chat message as injection/toxic.
     JEV_GUARDRAIL_CONFIDENCE: float = 0.7
+    #: Hard deadline for one Jev decision, including any provider retries.
+    JEV_TIMEOUT_SECONDS: float = 2.0
 
     @property
     def ai_provider_mode(self) -> Literal["gateway", "direct", "ollama", "lmstudio", "disabled"]:

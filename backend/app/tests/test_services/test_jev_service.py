@@ -81,3 +81,46 @@ def test_is_configured_requires_both_flag_and_key(monkeypatch: pytest.MonkeyPatc
 
     monkeypatch.setattr("app.services.jev_service.settings.JEV_ENABLED", False)
     assert is_configured() is False
+
+
+def test_built_agent_reads_the_key_from_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The provider must be built from settings.TYPESAFE_API_KEY, not the process env.
+
+    The spent-by-name path Agent(typesafe:...) reads the OS environment; settings loads
+    .env, so that path has no key and fails auth in-app. Assert the provider is
+    constructed with the settings value while the env var is absent.
+    """
+    from pydantic_ai.providers.typesafe import TypeSafeProvider
+
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    monkeypatch.setattr("app.services.jev_service.settings.TYPESAFE_API_KEY", "settings-only-key")
+
+    real_provider = TypeSafeProvider
+
+    class SpyProvider(real_provider):  # type: ignore[misc, valid-type]
+        seen_key: str | None = None
+
+        def __init__(self, *, api_key: str | None = None, **kwargs) -> None:
+            SpyProvider.seen_key = api_key
+            super().__init__(api_key=api_key, **kwargs)
+
+    monkeypatch.setattr("pydantic_ai.providers.typesafe.TypeSafeProvider", SpyProvider)
+
+    jev_service._build_agent(Triage, instructions=None, model=None)
+
+    assert SpyProvider.seen_key == "settings-only-key"
+
+
+def test_agent_carries_the_decision_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    """decide() bounds the call: a hanging provider must raise, not hold the caller's transaction."""
+    import asyncio
+
+    monkeypatch.setattr("app.services.jev_service.is_configured", lambda: True)
+    monkeypatch.setattr("app.services.jev_service.settings.JEV_TIMEOUT_SECONDS", 0.01)
+
+    class HangingAgent:
+        async def run(self, *_args, **_kwargs):
+            await asyncio.sleep(5)
+
+    with patch.object(jev_service, "_build_agent", return_value=HangingAgent()), pytest.raises(TimeoutError):
+        asyncio.run(jev_service.decide("anything", Triage))

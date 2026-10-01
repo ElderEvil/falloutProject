@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict
 from pydantic_ai import BoolCriteria
 
 from app.core.config import settings
-from app.services.jev_service import is_configured, jev_service
+from app.services.jev_service import JevFieldAnswer, is_configured, jev_service
 
 logger = logging.getLogger(__name__)
 
@@ -49,12 +49,18 @@ class ChatGuardrail(BaseModel):
 
 @dataclass(slots=True)
 class GuardrailVerdict:
-    """Allow by default; blocked only on a high-confidence Jev affirmative."""
+    """Allow by default; blocked only on a high-confidence Jev affirmative.
+
+    ``fields`` carries each question's answer and confidence together, so callers
+    reporting the verdict show which way it answered - a bare confidence beside a
+    field named ``jailbreak`` reads as P(jailbreak) when a false answer means it is
+    actually P(not jailbreak).
+    """
 
     blocked: bool = False
     reason: str | None = None
     ran: bool = False
-    confidence: dict[str, float] = field(default_factory=dict)
+    fields: dict[str, JevFieldAnswer] = field(default_factory=dict)
 
 
 async def screen_message(message_text: str) -> GuardrailVerdict:
@@ -68,22 +74,22 @@ async def screen_message(message_text: str) -> GuardrailVerdict:
         logger.exception("Jev guardrail failed open for chat input")
         return GuardrailVerdict()
 
+    fields = {
+        name: JevFieldAnswer(answer=bool(getattr(decision.output, name)), confidence=decision.confidence_for(name))
+        for name in ("jailbreak", "toxic")
+    }
+
     threshold = settings.JEV_GUARDRAIL_CONFIDENCE
     for name, label in (("jailbreak", "prompt-injection"), ("toxic", "toxic content")):
-        if getattr(decision.output, name) and decision.confidence_for(name) >= threshold:
+        if fields[name].answer and fields[name].confidence >= threshold:
             logger.warning(
                 "Jev guardrail blocked chat input",
-                extra={"reason": label, "confidence": decision.confidence_for(name), "model": decision.model_name},
+                extra={"reason": label, "confidence": fields[name].confidence, "model": decision.model_name},
             )
-            return GuardrailVerdict(
-                blocked=True,
-                reason=f"blocked: suspected {label}",
-                ran=True,
-                confidence=decision.confidence,
-            )
+            return GuardrailVerdict(blocked=True, reason=f"blocked: suspected {label}", ran=True, fields=fields)
 
     logger.info(
         "Jev guardrail allowed chat input",
-        extra={"confidence": decision.confidence, "model": decision.model_name},
+        extra={"fields": {n: f.model_dump() for n, f in fields.items()}, "model": decision.model_name},
     )
-    return GuardrailVerdict(ran=True, confidence=decision.confidence)
+    return GuardrailVerdict(ran=True, fields=fields)

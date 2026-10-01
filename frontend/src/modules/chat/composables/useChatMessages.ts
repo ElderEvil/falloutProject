@@ -104,6 +104,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
         }
         streamingIndex = null
       }
+      lastChatDebug.value = msg.debug ?? lastChatDebug.value
       isTyping.value = false
       sendResolver?.()
       sendResolver = null
@@ -196,7 +197,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
       isTyping.value = true
 
       if (isWsConnected && options.chatWs) {
-        options.chatWs.sendMessage(messageToSend)
+        options.chatWs.sendMessage(messageToSend, toValue(options.debugEnabled) === true)
         await new Promise<void>((resolve) => {
           sendResolver = resolve
         })

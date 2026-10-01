@@ -5323,6 +5323,10 @@ export interface components {
         /**
          * ChatDebug
          * @description Dev-only diagnostics for one chat turn. Populated only when opt-in requested.
+         *
+         *     Never persisted: this rides the live response (and the streamed done event) so
+         *     stored history stays bounded, and any message-shaped schema may embed it as an
+         *     optional field.
          */
         ChatDebug: {
             /**
@@ -5354,13 +5358,9 @@ export interface components {
             guardrail?: components["schemas"]["ChatGuardrailDebug"] | null;
             /**
              * Jev Decisions
-             * @description Jev decisions that fired this turn, keyed by decision name -> field confidence
+             * @description Jev decisions that fired this turn, in the order they ran
              */
-            jev_decisions?: {
-                [key: string]: {
-                    [key: string]: number;
-                };
-            };
+            jev_decisions?: components["schemas"]["ChatJevDecision"][];
         };
         /**
          * ChatGuardrailDebug
@@ -5382,6 +5382,43 @@ export interface components {
              * @description Human-readable block reason, if any
              */
             reason?: string | null;
+        };
+        /**
+         * ChatJevDecision
+         * @description One Jev decision that fired: its named fields, each answered with confidence.
+         */
+        ChatJevDecision: {
+            /**
+             * Name
+             * @description Decision identifier, e.g. 'guardrail'
+             */
+            name: string;
+            /**
+             * Fields
+             * @description Field name -> {answer, confidence}
+             */
+            fields?: {
+                [key: string]: components["schemas"]["ChatJevField"];
+            };
+        };
+        /**
+         * ChatJevField
+         * @description One judged Jev field, answer and confidence together.
+         *
+         *     ``confidence`` is the probability of ``answer``; a ``False`` at 0.96 means
+         *     "96% sure it is not this", so the pair must be read together.
+         */
+        ChatJevField: {
+            /**
+             * Answer
+             * @description The field's answer
+             */
+            answer: boolean;
+            /**
+             * Confidence
+             * @description Probability of that answer, 0-1
+             */
+            confidence: number;
         };
         /**
          * ChatMessage

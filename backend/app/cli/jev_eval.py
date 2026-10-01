@@ -58,12 +58,15 @@ async def _run(json_out: bool) -> None:
         raise typer.Exit(code=1)
 
     rows = await _guardrail_scores()
-    _report(rows)
 
+    # --json must emit a single parseable document, so the human report is suppressed.
     if json_out:
         import json
 
         typer.echo(json.dumps(rows, indent=2))
+        return
+
+    _report(rows)
 
 
 def _report(rows: list[tuple[str, bool, float, str]]) -> None:

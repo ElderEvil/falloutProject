@@ -43,18 +43,20 @@ const LOCAL_PROVIDER_DEFAULT_URL: Partial<Record<AIProvider, string>> = {
   lmstudio: 'http://localhost:1234/v1',
   ollama: 'http://localhost:11434/v1',
 }
+const LOCAL_PROVIDER_DEFAULTS = new Set(Object.values(LOCAL_PROVIDER_DEFAULT_URL))
+const localDefaultUrl = (provider: AIProvider | ''): string =>
+  provider === '' ? '' : (LOCAL_PROVIDER_DEFAULT_URL[provider] ?? '')
 const formProviderSelect = computed<AcceptableValue>({
   get: () => (formProvider.value === '' ? DEFAULT_PROVIDER : formProvider.value),
   set: (value: AcceptableValue) => {
     const next = value === DEFAULT_PROVIDER ? '' : (value as AIProvider)
     const previous = formProvider.value
-    formProvider.value = next
-    if (next !== previous && next !== '') {
-      const previousDefault = LOCAL_PROVIDER_DEFAULT_URL[previous as AIProvider]
-      if (formBaseUrl.value === '' || formBaseUrl.value === previousDefault) {
-        formBaseUrl.value = LOCAL_PROVIDER_DEFAULT_URL[next] ?? ''
-      }
+    if (next === previous) return
+    const isUntouchedDefault = formBaseUrl.value === '' || LOCAL_PROVIDER_DEFAULTS.has(formBaseUrl.value)
+    if (isUntouchedDefault) {
+      formBaseUrl.value = localDefaultUrl(next)
     }
+    formProvider.value = next
   },
 })
 
@@ -112,7 +114,7 @@ function applyProfileToForm(data: AISettingsRead) {
   const profile = data.profile
   formProvider.value = profile?.provider ?? ''
   formModel.value = profile?.model ?? ''
-  formBaseUrl.value = profile?.base_url ?? ''
+  formBaseUrl.value = profile?.base_url ?? data.effective.base_url ?? localDefaultUrl(formProvider.value)
   formGatewayRoute.value = profile?.gateway_route ?? ''
   testResult.value = null
 }

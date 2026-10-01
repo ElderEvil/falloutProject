@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.165.0 (2026-10-01)
+
+### Features
+
+* **jev:** TypeSafe Jev decision client and chat guardrail ([#853](https://github.com/ElderEvil/falloutProject/issues/853)) 1eefe21
+
 ## 2.164.1 (2026-10-01)
 
 ### Bug Fixes

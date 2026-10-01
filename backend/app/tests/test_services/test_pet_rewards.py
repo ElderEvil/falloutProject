@@ -31,9 +31,7 @@ def _pet_data(**overrides) -> dict:
     }
 
 
-async def _settled_exploration(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller, caps: int
-) -> Exploration:
+async def _settled_exploration(async_session: AsyncSession, vault: Vault, dweller: Dweller, caps: int) -> Exploration:
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     exploration.total_caps_found = caps
     async_session.add(exploration)
@@ -76,9 +74,7 @@ async def test_apply_rewards_caps_pet_bonus_at_max_pct(
 
 
 @pytest.mark.asyncio
-async def test_apply_rewards_without_pet_unchanged(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
-) -> None:
+async def test_apply_rewards_without_pet_unchanged(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """No equipped pet means caps are awarded exactly as found."""
     exploration = await _settled_exploration(async_session, vault, dweller, caps=100)
     initial_caps = vault.bottle_caps

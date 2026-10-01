@@ -94,7 +94,9 @@ async def test_grant_item_infers_pet_from_name(async_session: AsyncSession) -> N
     async_session.add(Storage(vault_id=vault.id, max_space=100))
     await async_session.commit()
 
-    result = await reward_service.grant_item(async_session, vault.id, {"item_name": "German Shepherd", "rarity": "rare"})
+    result = await reward_service.grant_item(
+        async_session, vault.id, {"item_name": "German Shepherd", "rarity": "rare"}
+    )
 
     assert result["item_type"] == "pet"
     pet = await async_session.get(Pet, UUID(result["item_id"]))

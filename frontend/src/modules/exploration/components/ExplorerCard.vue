@@ -132,6 +132,10 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
         <Icon :icon="getItemIcon('outfit', dweller?.outfit ?? {})" class="equip-icon" />
         <span class="equip-name min-w-0">{{ dweller?.outfit?.name || 'Vault Suit' }}</span>
       </div>
+      <div class="equipment-slot min-w-0">
+        <Icon :icon="getItemIcon('pet', dweller?.pet ?? {})" class="equip-icon" />
+        <span class="equip-name min-w-0">{{ dweller?.pet?.name || 'No Pet' }}</span>
+      </div>
     </div>
 
     <!-- Recent Events Preview -->

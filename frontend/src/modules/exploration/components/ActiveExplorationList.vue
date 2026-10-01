@@ -49,6 +49,12 @@ const getDwellerOutfit = (dwellerId: string) => {
   return null
 }
 
+const getDwellerPet = (dwellerId: string) => {
+  const detailed = getDetailedDweller(dwellerId)
+  if (detailed?.pet) return detailed.pet
+  return null
+}
+
 // Status badges prefer the detailed record (live vitals) but fall back to the
 // roster dweller so the AT RISK chip still works before details load.
 const getDwellerForBadges = (dwellerId: string): DetailedDweller | Dweller | null =>
@@ -139,7 +145,9 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
           </div>
           <div
             v-if="
-              getDwellerWeapon(exploration.dweller_id) || getDwellerOutfit(exploration.dweller_id)
+              getDwellerWeapon(exploration.dweller_id) ||
+              getDwellerOutfit(exploration.dweller_id) ||
+              getDwellerPet(exploration.dweller_id)
             "
             class="flex min-w-0 flex-col gap-0.5 text-[0.7rem] leading-tight"
           >
@@ -173,6 +181,22 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>{{ getDwellerOutfit(exploration.dweller_id)?.name }}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider v-if="getDwellerPet(exploration.dweller_id)" :delay-duration="200">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <span class="stat-item min-w-0 text-emerald-400">
+                    <Icon
+                      :icon="getItemIcon('pet', getDwellerPet(exploration.dweller_id) ?? {})"
+                      class="h-3 w-3 shrink-0"
+                    />
+                    <span class="min-w-0 flex-1 truncate">{{
+                      getDwellerPet(exploration.dweller_id)?.name
+                    }}</span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{{ getDwellerPet(exploration.dweller_id)?.name }}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>

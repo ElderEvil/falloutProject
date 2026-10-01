@@ -148,7 +148,9 @@ class TestChatWebSocketStreaming:
         dweller_id = uuid4()
         token = create_access_token(subject=str(user_id))
 
-        async def failing_stream(db_session: object, user: object, dweller_id: object, message_text: str, *, debug: bool = False):
+        async def failing_stream(
+            db_session: object, user: object, dweller_id: object, message_text: str, *, debug: bool = False
+        ):
             yield ChatStreamToken(text="Partial response")
             yield ChatStreamError(detail="AI quota exceeded")
 

@@ -119,18 +119,18 @@ class ChatService:
                     total_tokens=result.total_tokens,
                     guardrail=ChatGuardrailDebug(ran=verdict.ran, blocked=verdict.blocked, reason=verdict.reason),
                     jev_decisions=(
-                            [
-                                ChatJevDecision(
-                                    name="guardrail",
-                                    fields={
-                                        name: ChatJevField(answer=f.answer, confidence=f.confidence)
-                                        for name, f in verdict.fields.items()
-                                    },
-                                )
-                            ]
-                            if verdict.fields
-                            else []
-                        ),
+                        [
+                            ChatJevDecision(
+                                name="guardrail",
+                                fields={
+                                    name: ChatJevField(answer=f.answer, confidence=f.confidence)
+                                    for name, f in verdict.fields.items()
+                                },
+                            )
+                        ]
+                        if verdict.fields
+                        else []
+                    ),
                 )
                 if debug
                 else None

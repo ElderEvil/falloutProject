@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.164.1 (2026-10-01)
+
+### Bug Fixes
+
+* **chat:** cap runaway tool-call loops in the dweller agent ([#852](https://github.com/ElderEvil/falloutProject/issues/852)) 002989f
+
 ## 2.164.0 (2026-10-01)
 
 ### Features

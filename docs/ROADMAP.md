@@ -1020,7 +1020,7 @@ Loose fragments from the #470 discussion, recorded so the decisions aren't lost.
 
 - ⬜ **Production/crafting bonus** — scaled by the apprentice's accrued SPECIAL skill, not a flat percentage;
   the more skilled the apprentice, the larger the room efficiency bonus. Remaining follow-up.
-- **Pets** — assign to **living quarters (`CAPACITY`)** and **training rooms (`TRAINING`)**; intentionally NOT production/crafting rooms (a pet in a power plant or diner makes no sense). Pets remain a larger feature (new `Pet` model + assignment) tracked under Phase 3.
+- **Pets** — equip to a **dweller** (same slot shape as weapon/outfit) and grant catalog-resolved bonuses. Supersedes the obsolete room-assignment idea (pets assigned to `CAPACITY`/`TRAINING` rooms), which has been scrapped. Tracked under Phase 3.
 
 ### Onboarding — Guided Game Mechanics (design fragment, Target: TBD)
 

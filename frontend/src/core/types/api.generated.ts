@@ -3725,11 +3725,11 @@ export interface paths {
          * @description Get all items in a vault's storage.
          *
          *     Returns:
-         *         Lists of weapons, outfits, junk, and generic items in storage.
+         *         Lists of weapons, outfits, junk, generic items, and pets in storage.
          *
          *     Raises:
-         *         HTTPException: 403 if user lacks access to the vault.
-         *         HTTPException: 404 if storage not found for vault.
+         *         AccessDeniedException: If the user lacks access to the vault.
+         *         ResourceNotFoundException: If the vault has no storage row.
          */
         get: operations["get_storage_items_api_v1_storage_vault__vault_id__items_get"];
         put?: never;
@@ -8574,6 +8574,90 @@ export interface components {
                 [key: string]: unknown;
             }[];
         };
+        /**
+         * PetEffectRead
+         * @description Wire shape for the catalog-resolved bonus a pet grants.
+         *
+         *     Mirrors ``PetEffect``; all-zero for pets without a catalog entry, so the
+         *     client can always read the shape without a null check.
+         */
+        PetEffectRead: {
+            /**
+             * Strength
+             * @default 0
+             */
+            strength: number;
+            /**
+             * Perception
+             * @default 0
+             */
+            perception: number;
+            /**
+             * Endurance
+             * @default 0
+             */
+            endurance: number;
+            /**
+             * Charisma
+             * @default 0
+             */
+            charisma: number;
+            /**
+             * Intelligence
+             * @default 0
+             */
+            intelligence: number;
+            /**
+             * Agility
+             * @default 0
+             */
+            agility: number;
+            /**
+             * Luck
+             * @default 0
+             */
+            luck: number;
+            /**
+             * Max Health
+             * @default 0
+             */
+            max_health: number;
+            /**
+             * Damage Pct
+             * @default 0
+             */
+            damage_pct: number;
+            /**
+             * Incident Response Pct
+             * @default 0
+             */
+            incident_response_pct: number;
+            /**
+             * Radiation Resist Pct
+             * @default 0
+             */
+            radiation_resist_pct: number;
+            /**
+             * Happiness
+             * @default 0
+             */
+            happiness: number;
+            /**
+             * Caps Pct
+             * @default 0
+             */
+            caps_pct: number;
+            /**
+             * Xp Pct
+             * @default 0
+             */
+            xp_pct: number;
+            /**
+             * Training Speed Pct
+             * @default 0
+             */
+            training_speed_pct: number;
+        };
         /** PetRead */
         PetRead: {
             /** Name */
@@ -8602,6 +8686,8 @@ export interface components {
             dweller_id?: string | null;
             /** Storage Id */
             storage_id?: string | null;
+            /** @description The pet's catalog-resolved bonus, so clients can explain its contribution. */
+            readonly effect: components["schemas"]["PetEffectRead"];
         };
         /**
          * PlaceGroupRead

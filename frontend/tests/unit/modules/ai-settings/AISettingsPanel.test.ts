@@ -176,6 +176,32 @@ describe('AISettingsPanel', () => {
     )
   })
 
+  it('does not flag Base URL red until a local-provider submit is attempted', async () => {
+    vi.mocked(aiSettingsService.get).mockResolvedValue(
+      settings({
+        profile: {
+          id: 'profile-1',
+          provider: 'lmstudio',
+          model: 'google/gemma-4-e4b',
+          base_url: null,
+          gateway_route: null,
+          updated_at: '2026-09-22T00:00:00Z',
+        },
+      })
+    )
+    const wrapper = mountWithSetup(AISettingsPanel)
+    await flushPromises()
+
+    expect(wrapper.find('.border-danger\\/50').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('(Required)')
+
+    await findButton(wrapper, 'Test Connection').trigger('click')
+    await flushPromises()
+
+    expect(aiSettingsService.test).not.toHaveBeenCalled()
+    expect(wrapper.find('.border-danger\\/50').exists()).toBe(true)
+  })
+
   it('copies the effective configuration to the clipboard', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })

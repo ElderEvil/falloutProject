@@ -119,6 +119,7 @@ function applyProfileToForm(data: AISettingsRead) {
 
 watch([formProvider, formModel, formBaseUrl, formGatewayRoute], () => {
   testResult.value = null
+  baseUrlValidationError.value = false
 })
 
 const dirtyPayload = computed<AISettingsUpdate>(() => {
@@ -152,10 +153,12 @@ const showBaseUrlField = computed(() => {
 
 const modelConfigured = computed(() => formModel.value.trim() !== '')
 
-const baseUrlRequired = computed(() => {
+const baseUrlNeeded = computed(() => {
   const provider = formProvider.value
   return modelConfigured.value && (provider === 'ollama' || provider === 'lmstudio')
 })
+
+const baseUrlValidationError = ref(false)
 
 const baseUrlConnected = computed(() => testResult.value?.status === 'ok')
 
@@ -169,11 +172,19 @@ const providerHelperText = computed(() => {
 
 async function handleSave() {
   if (!hasChanges.value) return
+  if (baseUrlNeeded.value && formBaseUrl.value.trim() === '') {
+    baseUrlValidationError.value = true
+    return
+  }
   await runSave(dirtyPayload.value)
 }
 
 async function handleTest() {
   testResult.value = null
+  if (baseUrlNeeded.value && formBaseUrl.value.trim() === '') {
+    baseUrlValidationError.value = true
+    return
+  }
   await runTest(dirtyPayload.value)
 }
 
@@ -324,12 +335,22 @@ onMounted(() => {
                   :class="
                     baseUrlConnected
                       ? 'text-theme-primary'
-                      : baseUrlRequired
+                      : baseUrlValidationError
                         ? 'text-danger'
                         : 'text-theme-primary/50'
                   "
                 >
-                  ({{ baseUrlConnected ? 'Connected' : baseUrlRequired ? 'Required' : modelConfigured ? 'Optional' : 'Not configured' }})
+                  {{
+                    baseUrlConnected
+                      ? '(Connected)'
+                      : baseUrlValidationError
+                        ? '(Required)'
+                        : baseUrlNeeded
+                          ? '(Required for local providers)'
+                          : modelConfigured
+                            ? '(Optional)'
+                            : '(Not configured)'
+                  }}
                 </span>
               </Label>
               <Input
@@ -341,7 +362,7 @@ onMounted(() => {
                 :class="
                   baseUrlConnected
                     ? 'border-theme-primary/60 focus:border-theme-primary'
-                    : baseUrlRequired
+                    : baseUrlValidationError
                       ? 'border-danger/50 focus:border-danger'
                       : 'border-theme-primary/50 focus:border-theme-primary'
                 "
@@ -351,7 +372,7 @@ onMounted(() => {
                 :class="
                   baseUrlConnected
                     ? 'text-theme-primary'
-                    : baseUrlRequired
+                    : baseUrlValidationError
                       ? 'text-danger/80'
                       : 'text-theme-primary/50'
                 "
@@ -359,11 +380,13 @@ onMounted(() => {
                 {{
                   baseUrlConnected
                     ? `Connection established — ${testResult?.model} responded via this endpoint.`
-                    : baseUrlRequired
+                    : baseUrlValidationError
                       ? 'Required for Ollama / LM Studio — specify the local endpoint.'
-                      : modelConfigured
-                        ? 'Leave empty to use the environment default.'
-                        : 'Set a model to configure this provider.'
+                      : baseUrlNeeded
+                        ? 'Required for Ollama / LM Studio — specify the local endpoint.'
+                        : modelConfigured
+                          ? 'Leave empty to use the environment default.'
+                          : 'Set a model to configure this provider.'
                 }}
               </p>
             </div>

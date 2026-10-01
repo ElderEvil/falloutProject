@@ -70,7 +70,7 @@ class ChatService:
             instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
             provider, model = await get_provider_model_snapshot(db_session)
 
-            verdict = await screen_message(message_text)
+            verdict = await screen_message(message_text, db_session=db_session, user_id=user.id)
             if verdict.blocked:
                 raise ValidationException(detail=verdict.reason or "Message blocked by content screening.")
 
@@ -157,7 +157,7 @@ class ChatService:
                 instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
                 provider, model = await get_provider_model_snapshot(db_session)
 
-                verdict = await screen_message(message_text)
+                verdict = await screen_message(message_text, db_session=db_session, user_id=user.id)
                 if verdict.blocked:
                     yield ChatStreamError(detail=verdict.reason or "Message blocked by content screening.")
                     return

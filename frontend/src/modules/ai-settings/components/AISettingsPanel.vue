@@ -39,10 +39,22 @@ const copiedConfig = ref(false)
 // show the placeholder), so the "Default (from env)" option is mapped to a
 // sentinel at the Select boundary. formProvider keeps its '' semantics.
 const DEFAULT_PROVIDER = 'default'
+const LOCAL_PROVIDER_DEFAULT_URL: Partial<Record<AIProvider, string>> = {
+  lmstudio: 'http://localhost:1234/v1',
+  ollama: 'http://localhost:11434/v1',
+}
 const formProviderSelect = computed<AcceptableValue>({
   get: () => (formProvider.value === '' ? DEFAULT_PROVIDER : formProvider.value),
   set: (value: AcceptableValue) => {
-    formProvider.value = value === DEFAULT_PROVIDER ? '' : (value as AIProvider)
+    const next = value === DEFAULT_PROVIDER ? '' : (value as AIProvider)
+    const previous = formProvider.value
+    formProvider.value = next
+    if (next !== previous && next !== '') {
+      const previousDefault = LOCAL_PROVIDER_DEFAULT_URL[previous as AIProvider]
+      if (formBaseUrl.value === '' || formBaseUrl.value === previousDefault) {
+        formBaseUrl.value = LOCAL_PROVIDER_DEFAULT_URL[next] ?? ''
+      }
+    }
   },
 })
 
@@ -138,9 +150,11 @@ const showBaseUrlField = computed(() => {
   return provider === '' || provider === 'ollama' || provider === 'lmstudio'
 })
 
+const modelConfigured = computed(() => formModel.value.trim() !== '')
+
 const baseUrlRequired = computed(() => {
   const provider = formProvider.value
-  return provider === 'ollama' || provider === 'lmstudio'
+  return modelConfigured.value && (provider === 'ollama' || provider === 'lmstudio')
 })
 
 const baseUrlConnected = computed(() => testResult.value?.status === 'ok')
@@ -149,7 +163,7 @@ const providerHelperText = computed(() => {
   const provider = formProvider.value
   if (provider === '') return 'Default uses the server environment variable.'
   if (provider === 'ollama' || provider === 'lmstudio')
-    return 'Local provider — Base URL is required.'
+    return modelConfigured.value ? 'Local provider — Base URL is required.' : 'Set a model to configure this provider.'
   return 'Cloud provider — Base URL is not needed.'
 })
 
@@ -181,6 +195,7 @@ async function handleCopyConfig() {
     `Base URL: ${eff.base_url || '—'}`,
     `Gateway Route: ${eff.gateway_route || '—'}`,
     `Mode: ${eff.mode}`,
+    `Jev: ${settings.value.jev.enabled ? 'enabled' : 'disabled'} (${settings.value.jev.model})`,
   ].join('\n')
   try {
     await navigator.clipboard.writeText(text)
@@ -306,9 +321,15 @@ onMounted(() => {
                 Base URL
                 <span
                   class="text-xs font-normal ml-1"
-                  :class="baseUrlConnected ? 'text-theme-primary' : baseUrlRequired ? 'text-danger' : 'text-theme-primary/50'"
+                  :class="
+                    baseUrlConnected
+                      ? 'text-theme-primary'
+                      : baseUrlRequired
+                        ? 'text-danger'
+                        : 'text-theme-primary/50'
+                  "
                 >
-                  ({{ baseUrlConnected ? 'Connected' : baseUrlRequired ? 'Required' : 'Optional' }})
+                  ({{ baseUrlConnected ? 'Connected' : baseUrlRequired ? 'Required' : modelConfigured ? 'Optional' : 'Not configured' }})
                 </span>
               </Label>
               <Input
@@ -327,14 +348,22 @@ onMounted(() => {
               />
               <p
                 class="mt-1 text-xs"
-                :class="baseUrlConnected ? 'text-theme-primary' : baseUrlRequired ? 'text-danger/80' : 'text-theme-primary/50'"
+                :class="
+                  baseUrlConnected
+                    ? 'text-theme-primary'
+                    : baseUrlRequired
+                      ? 'text-danger/80'
+                      : 'text-theme-primary/50'
+                "
               >
                 {{
                   baseUrlConnected
                     ? `Connection established — ${testResult?.model} responded via this endpoint.`
                     : baseUrlRequired
                       ? 'Required for Ollama / LM Studio — specify the local endpoint.'
-                      : 'Leave empty to use the environment default.'
+                      : modelConfigured
+                        ? 'Leave empty to use the environment default.'
+                        : 'Set a model to configure this provider.'
                 }}
               </p>
             </div>
@@ -463,6 +492,38 @@ onMounted(() => {
           <p class="mt-5 text-xs leading-5 text-theme-primary/60">
             Currently active settings. Changes above apply after you save.
           </p>
+
+          <!-- Jev (TypeSafe) decision model — read-only, env-configured -->
+          <div class="mt-5 rounded-md border border-theme-primary/15 bg-surface-sunken p-3">
+            <div class="flex items-center gap-2">
+              <Icon
+                :icon="settings.jev.configured ? 'mdi:check-circle' : 'mdi:minus-circle'"
+                class="h-4 w-4 shrink-0"
+                :class="settings.jev.configured ? 'text-theme-primary' : 'text-theme-primary/40'"
+              />
+              <span class="text-xs font-medium text-theme-primary/70">Jev decision model</span>
+              <span
+                class="ml-auto rounded border border-theme-primary/20 px-1.5 py-0.5 text-[0.65rem] font-medium"
+                :class="settings.jev.enabled ? 'text-theme-primary/65' : 'text-danger'"
+              >
+                {{ settings.jev.enabled ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+            <dl class="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 font-mono text-xs text-theme-primary/80">
+              <dt class="text-theme-primary/50">Model</dt>
+              <dd class="text-right">{{ settings.jev.model }}</dd>
+              <dt class="text-theme-primary/50">Timeout</dt>
+              <dd class="text-right">{{ settings.jev.timeout_seconds }}s</dd>
+              <dt class="text-theme-primary/50">API key</dt>
+              <dd class="text-right">{{ settings.jev.configured ? 'configured' : 'missing' }}</dd>
+            </dl>
+            <p v-if="settings.jev.enabled && !settings.jev.configured" class="mt-2 text-xs text-danger">
+              Enabled but no API key — calls fail open and run unchecked.
+            </p>
+            <p class="mt-2 text-[0.65rem] leading-4 text-theme-primary/50">
+              Guardrail screening for chat. Configured via environment variables.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

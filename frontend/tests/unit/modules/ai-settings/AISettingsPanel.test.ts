@@ -32,6 +32,12 @@ const settings = (overrides: Partial<AISettingsRead> = {}): AISettingsRead => ({
     gateway_route: null,
     mode: 'gateway',
   },
+  jev: {
+    enabled: true,
+    configured: true,
+    model: 'jev-latest',
+    timeout_seconds: 2,
+  },
   ...overrides,
 })
 
@@ -55,6 +61,36 @@ describe('AISettingsPanel', () => {
     expect((wrapper.find('input[id="ai-model"]').element as HTMLInputElement).value).toBe('gpt-4o-mini')
     expect(wrapper.text()).toContain('Effective configuration')
     expect(wrapper.text()).toContain('gateway')
+  })
+
+  it('shows the Jev decision model status', async () => {
+    const wrapper = mountWithSetup(AISettingsPanel)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Jev decision model')
+    expect(wrapper.text()).toContain('jev-latest')
+    expect(wrapper.text()).toContain('Enabled')
+    expect(wrapper.text()).toContain('configured')
+  })
+
+  it('does not mark Base URL required when the model field is empty', async () => {
+    vi.mocked(aiSettingsService.get).mockResolvedValue(
+      settings({
+        profile: {
+          id: 'profile-1',
+          provider: 'lmstudio',
+          model: null,
+          base_url: null,
+          gateway_route: null,
+          updated_at: '2026-09-22T00:00:00Z',
+        },
+      })
+    )
+    const wrapper = mountWithSetup(AISettingsPanel)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Not configured')
+    expect(wrapper.text()).not.toContain('Required for Ollama / LM Studio')
   })
 
   it('keeps save disabled until a field changes', async () => {
@@ -135,6 +171,9 @@ describe('AISettingsPanel', () => {
 
     expect(wrapper.find('input[id="ai-base-url"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Required for Ollama / LM Studio')
+    expect((wrapper.find('input[id="ai-base-url"]').element as HTMLInputElement).value).toBe(
+      'http://localhost:11434/v1'
+    )
   })
 
   it('copies the effective configuration to the clipboard', async () => {
@@ -148,7 +187,7 @@ describe('AISettingsPanel', () => {
     await copyButton.trigger('click')
 
     expect(writeText).toHaveBeenCalledWith(
-      'Provider: openai\nModel: gpt-4o-mini\nBase URL: —\nGateway Route: —\nMode: gateway'
+      'Provider: openai\nModel: gpt-4o-mini\nBase URL: —\nGateway Route: —\nMode: gateway\nJev: enabled (jev-latest)'
     )
     expect(copyButton.text()).toContain('Copied')
   })

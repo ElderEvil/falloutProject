@@ -70,3 +70,38 @@ async def test_unconfigured_allows_without_calling() -> None:
 
     assert verdict.blocked is False
     decide.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_records_usage_when_session_and_user_supplied() -> None:
+    from unittest.mock import MagicMock
+    from uuid import uuid4
+
+    record = AsyncMock()
+    with (
+        patch("app.services.chat.guardrail.is_configured", return_value=True),
+        patch(
+            "app.services.chat.guardrail.jev_service.decide",
+            new=AsyncMock(return_value=_decision(jailbreak=False, toxic=False, conf={"jailbreak": 0.1})),
+        ),
+        patch("app.services.chat.guardrail.jev_service.record_usage", new=record),
+    ):
+        await screen_message("hello there", db_session=MagicMock(), user_id=uuid4())
+
+    record.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_skips_usage_recording_without_session() -> None:
+    record = AsyncMock()
+    with (
+        patch("app.services.chat.guardrail.is_configured", return_value=True),
+        patch(
+            "app.services.chat.guardrail.jev_service.decide",
+            new=AsyncMock(return_value=_decision(jailbreak=False, toxic=False, conf={"jailbreak": 0.1})),
+        ),
+        patch("app.services.chat.guardrail.jev_service.record_usage", new=record),
+    ):
+        await screen_message("hello there")
+
+    record.assert_not_awaited()

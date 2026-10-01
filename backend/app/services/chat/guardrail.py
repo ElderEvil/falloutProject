@@ -14,8 +14,9 @@ import logging
 from dataclasses import dataclass, field
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import UUID4, BaseModel, ConfigDict
 from pydantic_ai import BoolCriteria
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 from app.services.jev_service import JevFieldAnswer, is_configured, jev_service
@@ -63,8 +64,17 @@ class GuardrailVerdict:
     fields: dict[str, JevFieldAnswer] = field(default_factory=dict)
 
 
-async def screen_message(message_text: str) -> GuardrailVerdict:
-    """Screen one player message; allow on low confidence or any Jev failure."""
+async def screen_message(
+    message_text: str,
+    *,
+    db_session: AsyncSession | None = None,
+    user_id: UUID4 | None = None,
+) -> GuardrailVerdict:
+    """Screen one player message; allow on low confidence or any Jev failure.
+
+    When a session and user are supplied, the Jev call is recorded as a usage row
+    so it shows up in AI usage stats; screening itself never depends on that.
+    """
     if not is_configured() or not message_text.strip():
         return GuardrailVerdict()
 
@@ -73,6 +83,9 @@ async def screen_message(message_text: str) -> GuardrailVerdict:
     except Exception:
         logger.exception("Jev guardrail failed open for chat input")
         return GuardrailVerdict()
+
+    if db_session is not None and user_id is not None:
+        await jev_service.record_usage(db_session, user_id, decision, output_type_name="ChatGuardrail")
 
     fields = {
         name: JevFieldAnswer(answer=bool(getattr(decision.output, name)), confidence=decision.confidence_for(name))

@@ -17,12 +17,16 @@ import time; every entry point returns a typed :class:`JevDecision`.
 import asyncio
 import logging
 import time
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from pydantic import BaseModel
 
 from app.core.config import settings
 from app.utils.exceptions import FeatureDisabledException
+
+if TYPE_CHECKING:
+    from pydantic import UUID4
+    from sqlmodel.ext.asyncio.session import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +59,10 @@ class JevDecision[OutputT: BaseModel](BaseModel):
     output: OutputT
     confidence: dict[str, float]
     model_name: str
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
+    elapsed_s: float = 0.0
 
     def confidence_for(self, field: str) -> float:
         """Confidence for one field, 0.0 when Jev reported none."""
@@ -110,13 +118,14 @@ class JevService:
 
         provider_details = result.response.provider_details or {}
         confidence = dict(provider_details.get("confidence") or {})
+        usage = result.usage() if callable(result.usage) else result.usage
         logger.info(
             "Jev decision",
             extra={
                 "output_type": output_type.__name__,
                 "model": result.response.model_name or "",
                 "elapsed_s": round(elapsed, 3),
-                "input_tokens": result.usage().input_tokens if callable(result.usage) else None,
+                "total_tokens": getattr(usage, "total_tokens", None),
                 "confidence": confidence,
             },
         )
@@ -124,7 +133,48 @@ class JevService:
             output=result.output,
             confidence=confidence,
             model_name=result.response.model_name or "",
+            prompt_tokens=getattr(usage, "input_tokens", None),
+            completion_tokens=getattr(usage, "output_tokens", None),
+            total_tokens=getattr(usage, "total_tokens", None),
+            elapsed_s=round(elapsed, 3),
         )
+
+    @staticmethod
+    async def record_usage(
+        db_session: "AsyncSession",
+        user_id: "UUID4",
+        decision: JevDecision,
+        *,
+        output_type_name: str,
+    ) -> None:
+        """Persist one Jev call as an LLM interaction so it appears in AI usage stats.
+
+        Jev decides but is not the chat model, so the row is tagged ``jev_decision``
+        and carries the same provenance (provider, model, tokens) as a chat call.
+        Recording is best-effort: a failure must not break the decision the caller
+        already made.
+        """
+        from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
+        from app.schemas.llm_interaction import LLMInteractionCreate
+        from app.services.ai_constants import JEV_OPERATION
+
+        try:
+            await llm_interaction_crud.create(
+                db_session,
+                LLMInteractionCreate(
+                    user_id=user_id,
+                    usage=JEV_OPERATION,
+                    provider="typesafe",
+                    model=decision.model_name,
+                    prompt_tokens=decision.prompt_tokens,
+                    completion_tokens=decision.completion_tokens,
+                    total_tokens=decision.total_tokens,
+                    parameters=output_type_name,
+                    response=None,
+                ),
+            )
+        except Exception:
+            logger.exception("Failed to record Jev usage")
 
     @staticmethod
     def _build_agent(

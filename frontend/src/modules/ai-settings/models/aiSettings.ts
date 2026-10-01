@@ -22,6 +22,14 @@ export interface AIEffective {
 export interface AISettingsRead {
   profile: AIProfile | null
   effective: AIEffective
+  jev: JevStatus
+}
+
+export interface JevStatus {
+  enabled: boolean
+  configured: boolean
+  model: string
+  timeout_seconds: number
 }
 
 export interface AISettingsUpdate {

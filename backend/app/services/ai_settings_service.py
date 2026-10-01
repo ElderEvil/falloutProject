@@ -16,9 +16,11 @@ from app.schemas.ai_settings import (
     AISettingsTestInput,
     AISettingsTestResult,
     AISettingsUpdate,
+    JevStatus,
 )
 from app.services.ai_service import AIService, build_test_model
 from app.services.chat.agent_runner import extract_provider_reason
+from app.services.jev_service import is_configured as jev_is_configured
 from app.utils.exceptions import ValidationException
 
 logger = logging.getLogger(__name__)
@@ -40,6 +42,7 @@ class AISettingsService:
         return AISettingsRead(
             profile=self._to_profile(profile) if profile else None,
             effective=self._resolve_effective(profile),
+            jev=self._jev_status(),
         )
 
     async def update_profile(self, db_session: AsyncSession, update: AISettingsUpdate) -> AISettingsRead:
@@ -55,6 +58,7 @@ class AISettingsService:
         return AISettingsRead(
             profile=self._to_profile(profile),
             effective=self._resolve_effective(profile),
+            jev=self._jev_status(),
         )
 
     async def test_connection(self, db_session: AsyncSession, overrides: AISettingsTestInput) -> AISettingsTestResult:
@@ -166,6 +170,15 @@ class AISettingsService:
             base_url=settings.effective_ai_base_url(profile),
             gateway_route=settings.effective_ai_gateway_route(profile),
             mode=settings.effective_ai_mode(profile),
+        )
+
+    @staticmethod
+    def _jev_status() -> JevStatus:
+        return JevStatus(
+            enabled=settings.JEV_ENABLED,
+            configured=jev_is_configured(),
+            model=settings.JEV_MODEL,
+            timeout_seconds=settings.JEV_TIMEOUT_SECONDS,
         )
 
     @staticmethod

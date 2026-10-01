@@ -696,7 +696,7 @@ class TestMaybeUnlockPlaces:
 @pytest.mark.parametrize("mode", ["text", "stream", "voice"])
 @pytest.mark.parametrize("fail_write", [False, True])
 async def test_chat_commits_usage_messages_and_happiness_together(
-    async_session, chat_dweller, test_user, mode, fail_write
+    async_session, chat_dweller, test_user, mode, fail_write, monkeypatch
 ):
     from sqlalchemy import func, select
 
@@ -704,6 +704,9 @@ async def test_chat_commits_usage_messages_and_happiness_together(
     from app.models.chat_message import ChatMessage
     from app.models.llm_interaction import LLMInteraction
     from app.services.conversation_service import conversation_service
+
+    # Keep the Jev guardrail off so this test asserts commit atomicity, not screening.
+    monkeypatch.setattr("app.services.jev_service.settings.JEV_ENABLED", False)
 
     dweller_id, happiness = chat_dweller.id, chat_dweller.happiness
     output = DwellerChatOutput(

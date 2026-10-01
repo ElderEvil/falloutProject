@@ -4894,6 +4894,7 @@ export interface components {
         AISettingsRead: {
             profile?: components["schemas"]["AISettingsProfile"] | null;
             effective: components["schemas"]["AISettingsEffective"];
+            jev: components["schemas"]["JevStatus"];
         };
         /** AISettingsTestInput */
         AISettingsTestInput: {
@@ -7896,6 +7897,20 @@ export interface components {
          * @enum {string}
          */
         ItemTypeEnum: "misc" | "weapon" | "outfit" | "junk" | "consumable" | "lunchbox" | "pet" | "dweller";
+        /**
+         * JevStatus
+         * @description Read-only Jev (TypeSafe) decision-model status; the key is env-only, never shown.
+         */
+        JevStatus: {
+            /** Enabled */
+            enabled: boolean;
+            /** Configured */
+            configured: boolean;
+            /** Model */
+            model: string;
+            /** Timeout Seconds */
+            timeout_seconds: number;
+        };
         /** JunkCreate */
         JunkCreate: {
             /** Name */

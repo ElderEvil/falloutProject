@@ -62,6 +62,10 @@ jobs:
           PYDANTIC_AI_GATEWAY_ROUTE: ${{ secrets.PYDANTIC_AI_GATEWAY_ROUTE }}
           PYDANTIC_AI_GATEWAY_BASE_URL: ${{ secrets.PYDANTIC_AI_GATEWAY_BASE_URL }}
           LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TOKEN }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+          JEV_ENABLED: ${{ secrets.JEV_ENABLED }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
@@ -73,7 +77,7 @@ jobs:
           FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
         run: |
           set -euo pipefail
-          for name in PYDANTIC_AI_GATEWAY_API_KEY PYDANTIC_AI_GATEWAY_ROUTE PYDANTIC_AI_GATEWAY_BASE_URL LOGFIRE_TOKEN; do
+          for name in PYDANTIC_AI_GATEWAY_API_KEY PYDANTIC_AI_GATEWAY_ROUTE PYDANTIC_AI_GATEWAY_BASE_URL LOGFIRE_TOKEN AI_MODEL OPENAI_API_KEY TYPESAFE_API_KEY; do
             if [[ -z "${!name}" ]]; then
               echo "::error::Required GitHub Actions secret $name is missing"
               exit 1
@@ -85,6 +89,10 @@ jobs:
             --arg gateway_route "$PYDANTIC_AI_GATEWAY_ROUTE" \
             --arg gateway_base_url "$PYDANTIC_AI_GATEWAY_BASE_URL" \
             --arg logfire_token "$LOGFIRE_TOKEN" \
+            --arg ai_model "$AI_MODEL" \
+            --arg openai_key "$OPENAI_API_KEY" \
+            --arg typesafe_key "$TYPESAFE_API_KEY" \
+            --arg jev_enabled "${JEV_ENABLED:-false}" \
             --arg smtp_host "${SMTP_HOST:-localhost}" \
             --arg smtp_port "${SMTP_PORT:-1025}" \
             --arg smtp_user "${SMTP_USER:-}" \
@@ -94,7 +102,7 @@ jobs:
             --arg email_from_address "${EMAIL_FROM_ADDRESS:-noreply@falloutshelter.com}" \
             --arg email_from_name "${EMAIL_FROM_NAME:-Fallout Shelter}" \
             --arg frontend_url "${FRONTEND_URL:-https://fallout.evillab.tech}" \
-            '{apiVersion: "v1", kind: "Secret", metadata: {name: "backend-env", namespace: "fallout"}, type: "Opaque", stringData: {PYDANTIC_AI_GATEWAY_API_KEY: $gateway_key, PYDANTIC_AI_GATEWAY_ROUTE: $gateway_route, PYDANTIC_AI_GATEWAY_BASE_URL: $gateway_base_url, LOGFIRE_TOKEN: $logfire_token, SMTP_HOST: $smtp_host, SMTP_PORT: $smtp_port, SMTP_USER: $smtp_user, SMTP_PASSWORD: $smtp_password, SMTP_TLS: $smtp_tls, SMTP_SSL: $smtp_ssl, EMAIL_FROM_ADDRESS: $email_from_address, EMAIL_FROM_NAME: $email_from_name, FRONTEND_URL: $frontend_url}}' \
+            '{apiVersion: "v1", kind: "Secret", metadata: {name: "backend-env", namespace: "fallout"}, type: "Opaque", stringData: {PYDANTIC_AI_GATEWAY_API_KEY: $gateway_key, PYDANTIC_AI_GATEWAY_ROUTE: $gateway_route, PYDANTIC_AI_GATEWAY_BASE_URL: $gateway_base_url, LOGFIRE_TOKEN: $logfire_token, AI_PROVIDER: "openai", AI_MODEL: $ai_model, OPENAI_API_KEY: $openai_key, TYPESAFE_API_KEY: $typesafe_key, JEV_ENABLED: $jev_enabled, SMTP_HOST: $smtp_host, SMTP_PORT: $smtp_port, SMTP_USER: $smtp_user, SMTP_PASSWORD: $smtp_password, SMTP_TLS: $smtp_tls, SMTP_SSL: $smtp_ssl, EMAIL_FROM_ADDRESS: $email_from_address, EMAIL_FROM_NAME: $email_from_name, FRONTEND_URL: $frontend_url}}' \
             | ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
               'kubectl apply -f - && kubectl -n fallout set env deployment/backend deployment/dramatiq-worker --from=secret/backend-env'
 

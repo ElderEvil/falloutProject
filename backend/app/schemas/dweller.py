@@ -23,6 +23,7 @@ from app.options.factions import FactionOption, faction_restrictions
 from app.options.identity_modifiers import identity_modifiers_for
 from app.options.races import RaceOption
 from app.schemas.outfit import OutfitRead
+from app.schemas.pet import PetRead
 from app.schemas.room import RoomRead
 from app.schemas.vault import VaultRead
 from app.schemas.weapon import WeaponRead
@@ -346,6 +347,7 @@ class DwellerReadFull(DwellerRead):
     room: RoomRead | None
     weapon: WeaponRead | None
     outfit: OutfitRead | None
+    pet: PetRead | None
 
     model_config = SQLModelConfig(from_attributes=True)
 

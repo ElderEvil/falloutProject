@@ -10,6 +10,7 @@ import pytest
 from app.crud.item_base import CRUDItem, get_item_vault_id, get_items_by_vault
 from app.models.junk import Junk
 from app.models.outfit import Outfit
+from app.models.pet import Pet
 from app.models.weapon import Weapon
 from app.schemas.common import ItemTypeEnum, JunkTypeEnum, RarityEnum
 from app.utils.exceptions import (
@@ -190,13 +191,27 @@ async def test_fetch_unequip_data_weapon() -> None:
     session = _new_session()
     crud = CRUDItem(Weapon)
     mock_dweller = MagicMock()
-    row = (mock_dweller, "storage-x", True)
+    row = (mock_dweller, "storage-x", True, False)
     _setup_execute_first(session, row)
 
     dweller, storage_id, item_type = await crud._fetch_unequip_data(session, "w-1")
     assert dweller is mock_dweller
     assert storage_id == "storage-x"
     assert item_type == ItemTypeEnum.WEAPON
+
+
+@pytest.mark.asyncio
+async def test_fetch_unequip_data_pet() -> None:
+    session = _new_session()
+    crud = CRUDItem(Pet)
+    mock_dweller = MagicMock()
+    row = (mock_dweller, "storage-x", False, True)
+    _setup_execute_first(session, row)
+
+    dweller, storage_id, item_type = await crud._fetch_unequip_data(session, "p-1")
+    assert dweller is mock_dweller
+    assert storage_id == "storage-x"
+    assert item_type == ItemTypeEnum.PET
 
 
 @pytest.mark.asyncio

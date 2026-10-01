@@ -23,6 +23,7 @@ BIO_MAX_CHARS = 2_048
 if TYPE_CHECKING:
     from app.models.notification import Notification
     from app.models.outfit import Outfit
+    from app.models.pet import Pet
     from app.models.room import Room
     from app.models.team import TeamMember
     from app.models.training import Training
@@ -185,6 +186,7 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
     # Inventory
     weapon: "Weapon" = Relationship(back_populates="dweller", cascade_delete=True)
     outfit: "Outfit" = Relationship(back_populates="dweller", cascade_delete=True)
+    pet: "Pet" = Relationship(back_populates="dweller", cascade_delete=True)
 
     @property
     def weapon_type(self) -> WeaponTypeEnum | None:

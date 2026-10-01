@@ -57,7 +57,7 @@ def determine_status_for_room(room_category: RoomTypeEnum | None, room_name: str
 
 class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     async def get(self, db_session: AsyncSession, id: UUID4, include_deleted: bool = False) -> Dweller:
-        """Override to eager load weapon and outfit relationships."""
+        """Override to eager load weapon, outfit and pet relationships."""
         query = (
             select(self.model)
             .where(self.model.id == id)
@@ -66,6 +66,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
                 selectinload(Dweller.room),
                 selectinload(Dweller.weapon),
                 selectinload(Dweller.outfit),
+                selectinload(Dweller.pet),
             )
         )
 
@@ -745,6 +746,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
                 selectinload(self.model.room),
                 selectinload(self.model.weapon),
                 selectinload(self.model.outfit),
+                selectinload(self.model.pet),
             )
             .where(self.model.id == dweller_id)
         )

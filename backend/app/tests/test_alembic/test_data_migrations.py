@@ -39,6 +39,8 @@ RELATIONSHIP_REPAIR_PARENT = "32bf7f844093"
 RELATIONSHIP_REPAIR_REVISION = "f0e1d2c3b4a5"
 QUEST_RETURN_PARENT = "d5e6f7a8b9c0"
 QUEST_COMPLETION_REVISION = "8dca68ba234c"
+PET_PARENT = "907b110e6ae4"
+PET_REVISION = "c19031dc6b22"
 
 #: Every dweller column that has no server default at this revision, plus the flags the
 #: assertions read. Plain literal (no interpolation) so the statement stays parameterised.
@@ -498,3 +500,47 @@ class TestQuestCompletionDetailsMigration:
             )
             == 0
         )
+
+
+class TestPetMigration:
+    """Legacy pet Items move onto the pet table and back on downgrade."""
+
+    def test_backfills_legacy_pet_items_and_downgrade_restores_them(self, harness: MigrationHarness) -> None:
+        harness.upgrade(PET_PARENT)
+        vault_id = _seed_vault(harness, number=905)
+        storage_id = str(uuid.uuid4())
+        harness.execute(
+            "INSERT INTO storage (id, vault_id, used_space, max_space, stimpack, radaway) "
+            "VALUES (:id, :vault_id, 0, 100, 0, 0)",
+            id=storage_id,
+            vault_id=vault_id,
+        )
+        legacy_ids = [str(uuid.uuid4()) for _ in range(2)]
+        for index, legacy_id in enumerate(legacy_ids):
+            harness.execute(
+                "INSERT INTO item (id, name, rarity, value, image_url, item_type, storage_id) "
+                "VALUES (:id, :name, 'RARE', :value, NULL, 'pet', :storage_id)",
+                id=legacy_id,
+                name=f"Legacy Pet {index}",
+                value=100,
+                storage_id=storage_id,
+            )
+
+        harness.upgrade(PET_REVISION)
+
+        rows = harness.fetch("SELECT legacy_item_id::text, name, storage_id::text FROM pet ORDER BY name")
+        assert [(row[0], row[1], row[2]) for row in rows] == [
+            (legacy_ids[0], "Legacy Pet 0", storage_id),
+            (legacy_ids[1], "Legacy Pet 1", storage_id),
+        ]
+        assert harness.scalar("SELECT count(*) FROM item WHERE item_type = 'pet'") == 0
+
+        harness.downgrade(PET_PARENT)
+
+        restored = harness.fetch(
+            "SELECT id::text, name, storage_id::text FROM item WHERE item_type = 'pet' ORDER BY name"
+        )
+        assert [(row[0], row[1], row[2]) for row in restored] == [
+            (legacy_ids[0], "Legacy Pet 0", storage_id),
+            (legacy_ids[1], "Legacy Pet 1", storage_id),
+        ]

@@ -14,6 +14,7 @@ from .item_base import CRUDItem
 from .junk import junk
 from .llm_interaction import llm_interaction
 from .objective import objective_crud
+from .pet import pet
 from .pregnancy import pregnancy
 from .quest import quest_crud
 from .room import room

@@ -17,6 +17,7 @@ from app.api.v1.endpoints import (
     notifications,
     objective,
     outfit,
+    pet,
     pregnancy,
     quest,
     radio,
@@ -51,6 +52,7 @@ api_router.include_router(map_endpoints.router)
 api_router.include_router(notifications.router)
 api_router.include_router(objective.router)
 api_router.include_router(outfit.router)
+api_router.include_router(pet.router)
 api_router.include_router(pregnancy.router)
 api_router.include_router(quest.router)
 api_router.include_router(arena.router)

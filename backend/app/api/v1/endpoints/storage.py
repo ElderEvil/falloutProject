@@ -13,6 +13,7 @@ from app.db.session import get_async_session
 from app.schemas.item import ItemRead
 from app.schemas.junk import JunkRead
 from app.schemas.outfit import OutfitRead
+from app.schemas.pet import PetRead
 from app.schemas.rewards import LunchboxOpened, LunchboxOpenRequest
 from app.schemas.storage import StorageItemsResponse, StorageSpaceResponse
 from app.schemas.vault import MedicalDistributionResponse, MedicalTransferRequest, MedicalTransferResponse
@@ -116,6 +117,7 @@ async def get_storage_items(
         outfits=[OutfitRead.model_validate(o) for o in items["outfits"]],
         junk=junk_reads,
         items=[ItemRead.model_validate(item) for item in items["items"]],
+        pets=[PetRead.model_validate(p) for p in items["pets"]],
     )
 
 

@@ -28,6 +28,7 @@ from app.cli.debug import app as debug
 from app.cli.dweller_bios import dweller_bios as _dweller_bios
 from app.cli.expedition_scenario import app as expedition_scenario
 from app.cli.family_scenario import app as family_scenario
+from app.cli.jev_eval import app as jev_eval
 from app.cli.ops import app as ops
 from app.cli.pregen_dwellers import pregen_dwellers as _pregen_dwellers
 from app.cli.seed_places import seed_places as _seed_places
@@ -49,6 +50,7 @@ cli = typer.Typer(
 
 # Register sub-command groups
 cli.add_typer(family_scenario, name="family-scenario", help="Dev/QA: build family/breeding test scenarios")
+cli.add_typer(jev_eval, name="jev-eval", help="Dev/QA: measure Jev guardrail/triage accuracy and calibrate thresholds")
 cli.add_typer(apprentice_scenario, name="apprentice-scenario", help="Dev/QA: build youth apprenticeship test scenarios")
 cli.add_typer(
     expedition_scenario,

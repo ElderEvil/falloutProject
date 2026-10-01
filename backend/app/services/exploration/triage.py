@@ -15,12 +15,10 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from app.core.config import settings
 from app.services.jev_service import is_configured, jev_service
 
 logger = logging.getLogger(__name__)
-
-#: Below this the advisory label is dropped rather than recorded.
-TRIAGE_CONFIDENCE = 0.8
 
 
 class EventTriage(BaseModel):
@@ -29,7 +27,9 @@ class EventTriage(BaseModel):
     model_config = ConfigDict(use_attribute_docstrings=True)
 
     event_kind: Literal["combat", "loot", "danger", "rest", "discovery", "travel"]
-    """What kind of wasteland event does this log entry describe?"""
+    """Which one best fits: fighting enemies (combat), gaining caps/items/supplies
+    (loot), radiation/traps/injury/hazard (danger), healing or camping (rest),
+    finding a new place or landmark (discovery), or plain travel (travel)?"""
 
 
 @dataclass(slots=True)
@@ -51,6 +51,15 @@ async def triage_description(description: str) -> TriageResult:
         return TriageResult()
 
     confidence = decision.confidence_for("event_kind")
-    if confidence < TRIAGE_CONFIDENCE:
+    if confidence < settings.JEV_TRIAGE_CONFIDENCE:
+        logger.info(
+            "Jev triage below threshold; keeping generator event type",
+            extra={"category": decision.output.event_kind, "confidence": confidence, "model": decision.model_name},
+        )
         return TriageResult()
+
+    logger.info(
+        "Jev triage applied",
+        extra={"category": decision.output.event_kind, "confidence": confidence, "model": decision.model_name},
+    )
     return TriageResult(category=decision.output.event_kind, confidence=confidence)

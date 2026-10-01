@@ -26,6 +26,7 @@ from app.services.chat.agent_runner import (
     extract_provider_reason,
     run_chat_agent,
 )
+from app.services.chat.guardrail import screen_message
 from app.services.chat.models import StreamBundle
 from app.services.chat.notifications import send_chat_notification, unlock_places_after_conversation
 from app.services.chat.persistence import persist_chat
@@ -37,6 +38,7 @@ from app.utils.exceptions import (
     AIProviderCreditsExhaustedException,
     QuotaExceededException,
     ResourceNotFoundException,
+    ValidationException,
 )
 
 logger = logging.getLogger(__name__)
@@ -61,6 +63,10 @@ class ChatService:
 
             instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
             provider, model = await get_provider_model_snapshot(db_session)
+
+            verdict = await screen_message(message_text)
+            if verdict.blocked:
+                raise ValidationException(detail=verdict.reason or "Message blocked by content screening.")
 
             result = await run_chat_agent(
                 db_session=db_session,

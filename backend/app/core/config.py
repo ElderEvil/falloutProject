@@ -89,6 +89,10 @@ class Settings(BaseSettings):
     TYPESAFE_API_KEY: str | None = None
     JEV_MODEL: str = "jev-latest"
     JEV_ENABLED: bool = False
+    #: Minimum confidence for the advisory exploration-event triage label.
+    JEV_TRIAGE_CONFIDENCE: float = 0.8
+    #: Minimum confidence to block a chat message as injection/toxic.
+    JEV_GUARDRAIL_CONFIDENCE: float = 0.7
 
     @property
     def ai_provider_mode(self) -> Literal["gateway", "direct", "ollama", "lmstudio", "disabled"]:

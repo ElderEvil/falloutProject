@@ -130,6 +130,29 @@ class UnlockedPlace(BaseModel):
     name: str = Field(..., description="Display name of the revealed location")
 
 
+class ChatGuardrailDebug(BaseModel):
+    """Whether the input screen ran and what it decided."""
+
+    ran: bool = Field(..., description="Whether the guardrail judged this message")
+    blocked: bool = Field(..., description="Whether the message was blocked")
+    reason: str | None = Field(None, description="Human-readable block reason, if any")
+
+
+class ChatDebug(BaseModel):
+    """Dev-only diagnostics for one chat turn. Populated only when opt-in requested."""
+
+    provider: str | None = Field(None, description="Provider id used for this turn")
+    model: str | None = Field(None, description="Model id used for this turn")
+    prompt_tokens: int | None = Field(None, description="Input tokens billed")
+    completion_tokens: int | None = Field(None, description="Output tokens billed")
+    total_tokens: int | None = Field(None, description="Total tokens billed")
+    guardrail: ChatGuardrailDebug | None = Field(None, description="Input screen outcome")
+    jev_decisions: dict[str, dict[str, float]] = Field(
+        default_factory=dict,
+        description="Jev decisions that fired this turn, keyed by decision name -> field confidence",
+    )
+
+
 class DwellerChatResponse(BaseModel):
     """Response schema for dweller chat interactions.
 
@@ -150,6 +173,10 @@ class DwellerChatResponse(BaseModel):
     unlocked_places: list[UnlockedPlace] = Field(
         default_factory=list,
         description="Map locations newly unlocked by this conversation",
+    )
+    debug: ChatDebug | None = Field(
+        None,
+        description="Dev diagnostics (tokens, model, guardrail/Jev decisions); only when debug is requested",
     )
 
 

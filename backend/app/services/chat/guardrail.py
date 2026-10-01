@@ -11,7 +11,7 @@ them. See the Jev docs on adversarial text before widening its remit.
 """
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict
@@ -53,6 +53,8 @@ class GuardrailVerdict:
 
     blocked: bool = False
     reason: str | None = None
+    ran: bool = False
+    confidence: dict[str, float] = field(default_factory=dict)
 
 
 async def screen_message(message_text: str) -> GuardrailVerdict:
@@ -67,16 +69,21 @@ async def screen_message(message_text: str) -> GuardrailVerdict:
         return GuardrailVerdict()
 
     threshold = settings.JEV_GUARDRAIL_CONFIDENCE
-    for field, label in (("jailbreak", "prompt-injection"), ("toxic", "toxic content")):
-        if getattr(decision.output, field) and decision.confidence_for(field) >= threshold:
+    for name, label in (("jailbreak", "prompt-injection"), ("toxic", "toxic content")):
+        if getattr(decision.output, name) and decision.confidence_for(name) >= threshold:
             logger.warning(
                 "Jev guardrail blocked chat input",
-                extra={"reason": label, "confidence": decision.confidence_for(field), "model": decision.model_name},
+                extra={"reason": label, "confidence": decision.confidence_for(name), "model": decision.model_name},
             )
-            return GuardrailVerdict(blocked=True, reason=f"blocked: suspected {label}")
+            return GuardrailVerdict(
+                blocked=True,
+                reason=f"blocked: suspected {label}",
+                ran=True,
+                confidence=decision.confidence,
+            )
 
     logger.info(
         "Jev guardrail allowed chat input",
         extra={"confidence": decision.confidence, "model": decision.model_name},
     )
-    return GuardrailVerdict()
+    return GuardrailVerdict(ran=True, confidence=decision.confidence)

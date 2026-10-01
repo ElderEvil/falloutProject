@@ -13,6 +13,8 @@ from app.models import User
 from app.models.chat_message import ChatMessage
 from app.schemas.chat import (
     ActionSuggestion,
+    ChatDebug,
+    ChatGuardrailDebug,
     ChatStreamDone,
     ChatStreamError,
     ChatStreamEvent,
@@ -53,6 +55,8 @@ class ChatService:
         user: User,
         dweller_id: UUID4,
         message_text: str,
+        *,
+        debug: bool = False,
     ) -> DwellerChatResponse:
         """Validate quota, generate a reply, and persist the conversation."""
         async with db_session.begin_nested():
@@ -104,6 +108,19 @@ class ChatService:
             happiness_impact=result.happiness_impact,
             action_suggestion=result.action_suggestion,
             unlocked_places=unlocked_places,
+            debug=(
+                ChatDebug(
+                    provider=provider,
+                    model=model,
+                    prompt_tokens=result.prompt_tokens,
+                    completion_tokens=result.completion_tokens,
+                    total_tokens=result.total_tokens,
+                    guardrail=ChatGuardrailDebug(ran=verdict.ran, blocked=verdict.blocked, reason=verdict.reason),
+                    jev_decisions={"guardrail": verdict.confidence} if verdict.confidence else {},
+                )
+                if debug
+                else None
+            ),
         )
 
     async def stream_response(

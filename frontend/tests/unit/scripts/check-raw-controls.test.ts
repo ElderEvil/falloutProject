@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findRawControls } from '../../../scripts/check-raw-controls.mjs'
+import { findRawControls, isInScope } from '../../../scripts/check-raw-controls.mjs'
 
 describe('check-raw-controls', () => {
   it('flags raw controls that have a vendored primitive', () => {
@@ -30,5 +30,12 @@ describe('check-raw-controls', () => {
 
   it('returns nothing for a file with no template', () => {
     expect(findRawControls('export default { name: "X" }')).toEqual([])
+  })
+
+  it('scopes to src/modules and not look-alike siblings', () => {
+    expect(isInScope('src/modules/chat/components/DwellerChat.vue')).toBe(true)
+    expect(isInScope('src/modulesX/thing.vue')).toBe(false)
+    expect(isInScope('src/core/components/ui/button/Button.vue')).toBe(false)
+    expect(isInScope('src/modules')).toBe(false)
   })
 })

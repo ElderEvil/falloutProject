@@ -43,12 +43,17 @@ export function findRawControls(source) {
   return found
 }
 
+/** True for paths under `src/modules/`, false for siblings like `src/modulesX/`. */
+export function isInScope(relativePath) {
+  return relativePath.startsWith(`${SCOPE.split(sep).join('/')}/`)
+}
+
 /** Per-file raw-control counts, keyed by path relative to `cwd`. */
 export function collectViolations(files, cwd) {
   const counts = {}
   for (const file of files) {
     const relativePath = relative(cwd, file).split(sep).join('/')
-    if (!relativePath.startsWith(SCOPE.split(sep).join('/'))) continue
+    if (!isInScope(relativePath)) continue
     const found = findRawControls(readFileSync(file, 'utf8'))
     if (found.length > 0) counts[relativePath] = found.length
   }
@@ -78,6 +83,12 @@ if (isMainModule) {
   }
 
   const baseline = JSON.parse(readFileSync(baselineUrl, 'utf8'))
+  if (baseline === null || typeof baseline !== 'object' || Array.isArray(baseline)) {
+    console.error(
+      'Raw control baseline must be a JSON object mapping file paths to counts — run `node scripts/check-raw-controls.mjs --update` to regenerate it.'
+    )
+    process.exit(1)
+  }
   const added = []
   const grown = []
   const stale = []

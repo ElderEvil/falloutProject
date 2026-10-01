@@ -130,8 +130,11 @@ def test_agent_carries_the_decision_timeout(monkeypatch: pytest.MonkeyPatch) -> 
 
 @pytest.mark.asyncio
 async def test_record_usage_swallows_a_failed_write(async_session) -> None:
-    """A failed usage insert must not raise or leave the session unusable."""
+    """A real flush failure must not raise and must leave the session usable."""
+    from sqlalchemy import text
+
     from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
+    from app.models.llm_interaction import LLMInteraction
 
     decision = JevDecision(
         output=Triage(continue_run=True, risk="low"),
@@ -140,7 +143,15 @@ async def test_record_usage_swallows_a_failed_write(async_session) -> None:
         total_tokens=5,
     )
 
-    with patch.object(llm_interaction_crud, "create", new=AsyncMock(side_effect=RuntimeError("insert failed"))):
+    sentinel = LLMInteraction(usage="sentinel")
+    async_session.add(sentinel)
+    await async_session.flush()
+
+    async def duplicate_key(db_session, obj_in):
+        db_session.add(LLMInteraction(id=sentinel.id, usage="dup"))
+        await db_session.flush()
+
+    with patch.object(llm_interaction_crud, "create", new=duplicate_key):
         await jev_service.record_usage(async_session, uuid4(), decision, output_type_name="Triage")
 
-    assert async_session.is_active is True
+    assert (await async_session.execute(text("SELECT 1"))).scalar_one() == 1

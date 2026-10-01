@@ -293,6 +293,38 @@ async def test_read_dweller_exposes_effective_max_health(
 
 
 @pytest.mark.asyncio
+async def test_read_dweller_effective_max_health_includes_pet_bonus(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    dweller: Dweller,
+) -> None:
+    """DwellerReadFull must carry the equipped pet's max_health bonus (wire == ORM)."""
+    from app.options.pet_modifiers import PET_EFFECT_BY_NAME
+
+    pet = await crud.pet.create(
+        async_session,
+        obj_in={"name": "Dogmeat (Fallout 4)", "rarity": RarityEnum.LEGENDARY, "value": 500},
+    )
+    await crud.pet.equip(db_session=async_session, item_id=pet.id, dweller_id=dweller.id)
+
+    dweller.max_health = 100
+    dweller.health = 30
+    dweller.radiation = 40
+    async_session.add(dweller)
+    await async_session.commit()
+
+    response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
+    assert response.status_code == 200
+    body = response.json()
+    pet_bonus = PET_EFFECT_BY_NAME["dogmeat (fallout 4)"].max_health
+    assert body["effective_max_health"] == max(1, 100 + pet_bonus - 40)
+
+    reloaded = await crud.dweller.get(async_session, dweller.id)
+    assert reloaded.effective_max_health == body["effective_max_health"]
+
+
+@pytest.mark.asyncio
 async def test_read_dweller_list_exposes_effective_max_health(
     async_client: AsyncClient,
     async_session: AsyncSession,
@@ -305,6 +337,42 @@ async def test_read_dweller_list_exposes_effective_max_health(
     assert response.status_code == 200
     by_id = {d["id"]: d for d in response.json()}
     assert by_id[str(dweller.id)]["effective_max_health"] == 60
+
+
+@pytest.mark.asyncio
+async def test_read_dweller_list_effective_max_health_includes_pet_bonus(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    dweller: Dweller,
+) -> None:
+    """The list endpoint's effective_max_health matches the ORM value with a pet equipped.
+
+    get_multi_by_vault must selectinload(Dweller.pet) (B7) or the wire value
+    silently drops the pet's max_health bonus.
+    """
+    from app.options.pet_modifiers import PET_EFFECT_BY_NAME
+
+    pet = await crud.pet.create(
+        async_session,
+        obj_in={"name": "Dogmeat (Fallout 4)", "rarity": RarityEnum.LEGENDARY, "value": 500},
+    )
+    await crud.pet.equip(db_session=async_session, item_id=pet.id, dweller_id=dweller.id)
+
+    dweller.max_health = 100
+    dweller.health = 30
+    dweller.radiation = 40
+    async_session.add(dweller)
+    await async_session.commit()
+
+    response = await async_client.get("/dwellers/", headers=superuser_token_headers)
+    assert response.status_code == 200
+    by_id = {d["id"]: d for d in response.json()}
+    pet_bonus = PET_EFFECT_BY_NAME["dogmeat (fallout 4)"].max_health
+    assert by_id[str(dweller.id)]["effective_max_health"] == max(1, 100 + pet_bonus - 40)
+
+    reloaded = (await crud.dweller.get_multi_by_vault(async_session, dweller.vault_id))[0]
+    assert reloaded.effective_max_health == by_id[str(dweller.id)]["effective_max_health"]
 
 
 @pytest.mark.asyncio

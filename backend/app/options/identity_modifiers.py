@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from app.core.enums import SPECIAL_STATS
 from app.core.game_config import game_config
 from app.options.factions import FactionPerks, perks_for_faction
+from app.options.pet_modifiers import MAX_DAMAGE_PCT_BONUS, pet_modifiers_for
 from app.options.races import RaceModifiers, modifiers_for_race, state_stat_deltas_for
 from app.utils.equipped import equipped_outfit
 
@@ -79,21 +80,28 @@ def identity_modifiers_for(entity: object) -> IdentityModifiers:
 
 
 def effective_stat(entity: object, stat: str) -> int:
-    """A dweller's stat after identity and equipped-outfit modifiers, floored at 1.
+    """A dweller's stat after identity, equipped-outfit, and equipped-pet modifiers, floored at 1.
 
     Derived on read and never persisted: the stored SPECIAL stays the trained value,
-    so removing a race, faction, or outfit cannot leave a permanent stat change behind.
-    The outfit is read via ``__dict__`` (no lazy IO, a missing relationship means no
-    bonus), and the result is not capped — a 10 S dweller in a +5 S outfit counts as 15.
+    so removing a race, faction, outfit, or pet cannot leave a permanent stat change behind.
+    The outfit and pet are read via ``__dict__`` (no lazy IO, a missing relationship means no
+    bonus), and the result is not capped — a 10 S dweller in a +5 S outfit with a +2 S pet
+    counts as 17.
     """
     if stat not in SPECIAL_STATS:
         raise ValueError(f"Unknown SPECIAL stat: {stat!r}")
     outfit = equipped_outfit(entity)
     outfit_bonus = getattr(outfit, stat, 0) if outfit is not None else 0
-    return max(1, getattr(entity, stat) + getattr(identity_modifiers_for(entity), stat) + outfit_bonus)
+    pet_bonus = getattr(pet_modifiers_for(entity), stat)
+    return max(1, getattr(entity, stat) + getattr(identity_modifiers_for(entity), stat) + outfit_bonus + pet_bonus)
 
 
 def weapon_damage_pct(entity: object, weapon_type: str) -> float:
-    """Faction damage bonus for a weapon type; types without a perk return zero."""
+    """Faction + pet damage bonus for a weapon type; types without a perk return zero.
+
+    The total multiplier ``1 + faction + pet`` is capped at ``MAX_DAMAGE_PCT_BONUS``.
+    """
     field = _WEAPON_PERK_FIELDS.get(weapon_type)
-    return getattr(identity_modifiers_for(entity), field) if field else 0.0
+    faction_bonus = getattr(identity_modifiers_for(entity), field) if field else 0.0
+    pet_bonus = pet_modifiers_for(entity).damage_pct
+    return min(MAX_DAMAGE_PCT_BONUS - 1.0, faction_bonus + pet_bonus)

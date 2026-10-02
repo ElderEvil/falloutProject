@@ -12,6 +12,12 @@ vi.mock('@/modules/map/services/mapService', () => ({
 
 import * as mapService from '@/modules/map/services/mapService'
 
+const mockToast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
+
+vi.mock('@/core/composables/useToast', () => ({
+  useToast: () => mockToast,
+}))
+
 describe('Map Store', () => {
   const mockLocation = {
     id: 'loc-1',
@@ -426,5 +432,76 @@ describe('Map Store', () => {
       expect(store.vaultMarkers).toEqual([])
       expect(store.isLoading).toBe(false)
     })
+  })
+})
+
+describe('Map Store unlock toasts', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+  })
+
+  const loc = (id: string, name: string, unlocked: boolean) => ({ id, name, is_unlocked: unlocked })
+
+  async function load(store: ReturnType<typeof useMapStore>, vaultId: string, locs: unknown[]) {
+    vi.mocked(mapService.getVaultMap).mockResolvedValueOnce({ locations: locs, vault_markers: [] })
+    await store.fetchMap(vaultId, 'token')
+  }
+
+  async function refresh(store: ReturnType<typeof useMapStore>, vaultId: string, locs: unknown[]) {
+    vi.mocked(mapService.getVaultMap).mockResolvedValueOnce({ locations: locs, vault_markers: [] })
+    await store.refreshMap(vaultId, 'token')
+  }
+
+  it('stays silent on baseline initial load', async () => {
+    const store = useMapStore()
+    await load(store, 'vault-1', [loc('a', 'Alpha', true)])
+    expect(mockToast.success).not.toHaveBeenCalled()
+  })
+
+  it('names a single newly unlocked location on refresh', async () => {
+    const store = useMapStore()
+    const a = loc('a', 'Alpha', true)
+    await load(store, 'vault-1', [a])
+    await refresh(store, 'vault-1', [a, loc('b', 'Beta', true)])
+    expect(mockToast.success).toHaveBeenCalledTimes(1)
+    expect(mockToast.success).toHaveBeenCalledWith('New discovery: Beta')
+  })
+
+  it('counts multiple newly unlocked locations in one toast', async () => {
+    const store = useMapStore()
+    const a = loc('a', 'Alpha', true)
+    await load(store, 'vault-1', [a])
+    await refresh(store, 'vault-1', [a, loc('b', 'Beta', true), loc('c', 'Gamma', true)])
+    expect(mockToast.success).toHaveBeenCalledTimes(1)
+    expect(mockToast.success).toHaveBeenCalledWith('2 new discoveries on the map')
+  })
+
+  it('does not re-toast on unchanged refresh', async () => {
+    const store = useMapStore()
+    const locs = [loc('a', 'Alpha', true), loc('b', 'Beta', true)]
+    await load(store, 'vault-1', locs)
+    await refresh(store, 'vault-1', locs)
+    expect(mockToast.success).not.toHaveBeenCalled()
+  })
+
+  it('toasts locked-to-unlocked transitions', async () => {
+    const store = useMapStore()
+    await load(store, 'vault-1', [loc('c', 'Gamma', false)])
+    await refresh(store, 'vault-1', [loc('c', 'Gamma', true)])
+    expect(mockToast.success).toHaveBeenCalledTimes(1)
+    expect(mockToast.success).toHaveBeenCalledWith('New discovery: Gamma')
+  })
+
+  it('isolates snapshots per vault', async () => {
+    const store = useMapStore()
+    await load(store, 'vault-1', [loc('a', 'Alpha', true)])
+    await load(store, 'vault-2', [loc('x', 'Xi', true), loc('y', 'Psi', true)])
+    expect(mockToast.success).not.toHaveBeenCalled()
+    await refresh(store, 'vault-2', [loc('x', 'Xi', true), loc('y', 'Psi', true), loc('z', 'Zed', true)])
+    expect(mockToast.success).toHaveBeenCalledTimes(1)
+    expect(mockToast.success).toHaveBeenCalledWith('New discovery: Zed')
+    await refresh(store, 'vault-1', [loc('a', 'Alpha', true)])
+    expect(mockToast.success).toHaveBeenCalledTimes(1)
   })
 })

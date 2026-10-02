@@ -117,7 +117,7 @@ describe('MapView', () => {
           WorldMap: {
             name: 'WorldMap',
             template: '<div class="world-map-stub"></div>',
-            props: ['locations', 'vaultMarkers', 'explorerTracks'],
+            props: ['locations', 'vaultMarkers', 'explorerTracks', 'selectedMarkerId'],
           },
           MarkerDetailModal: {
             name: 'MarkerDetailModal',
@@ -189,6 +189,27 @@ describe('MapView', () => {
       const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
       expect(modal.props('modelValue')).toBe(true)
       expect(modal.props('location')).toEqual(mockLocation2)
+    })
+
+    it('should show refreshed location data in the modal after the store reloads', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation, mockLocation2]
+      mapStore.isLoading = false
+
+      mockRoute.query = { place: 'loc-1' }
+      const wrapper = mountView()
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      expect(modal.props('location')).toEqual(mockLocation)
+
+      mapStore.locations = [{ ...mockLocation, name: 'Renamed Ruins' }, mockLocation2]
+      await flushPromises()
+
+      expect(wrapper.findComponent({ name: 'MarkerDetailModal' }).props('location')).toEqual({
+        ...mockLocation,
+        name: 'Renamed Ruins',
+      })
     })
 
     it('should open modal when ?place= query param changes after mount', async () => {
@@ -281,6 +302,14 @@ describe('MapView', () => {
     it('should clear ?place= when a vault marker is clicked', async () => {
       vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
       mapStore.locations = [mockLocation, mockLocation2]
+      const vaultMarker = {
+        name: 'Vault 101',
+        coord_x: 30,
+        coord_y: 40,
+        type: 'vault' as const,
+        description: 'Unexplored vault signal',
+      }
+      mapStore.vaultMarkers = [vaultMarker]
       mapStore.isLoading = false
 
       mockRoute.query = { place: 'loc-1' }
@@ -288,13 +317,13 @@ describe('MapView', () => {
       await flushPromises()
 
       const worldMap = wrapper.findComponent({ name: 'WorldMap' })
-      worldMap.vm.$emit('marker-click', { kind: 'vault', data: { id: 'vm-1' } })
+      worldMap.vm.$emit('marker-click', { kind: 'vault', data: vaultMarker })
       await flushPromises()
 
       expect(mockReplace).toHaveBeenCalledWith({ query: {} })
       const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
       expect(modal.props('modelValue')).toBe(true)
-      expect(modal.props('vaultMarker')).toEqual({ id: 'vm-1' })
+      expect(modal.props('vaultMarker')).toEqual(vaultMarker)
     })
   })
 

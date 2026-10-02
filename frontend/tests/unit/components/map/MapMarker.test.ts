@@ -44,6 +44,23 @@ describe('MapMarker', () => {
     expect(g.find('foreignObject').element.parentElement).toBe(g.element)
   })
 
+  it('renders an enlarged transparent hit area beneath the icon', () => {
+    const wrapper = mount(MapMarker, {
+      props: {
+        x: 10,
+        y: 20,
+        name: 'Sunken Church',
+        type: 'origin',
+      },
+    })
+
+    const g = wrapper.find('g.map-marker')
+    const hit = g.find('circle.marker-hit-area')
+    expect(hit.exists()).toBe(true)
+    expect(hit.attributes('r')).toBe('6')
+    expect(hit.attributes('fill')).toBe('transparent')
+  })
+
   it('still exposes the tooltip text via aria-label and native <title>', () => {
     const wrapper = mount(MapMarker, {
       props: {

@@ -37,9 +37,24 @@ const vaultId = computed(() => route.params.id as string)
 
 // Modal state
 const showModal = ref(false)
-const selectedLocation = ref<WastelandLocationWithDwellers | null>(null)
-const selectedVaultMarker = ref<VaultMarkerRead | null>(null)
-const selectedSite = ref<ExpeditionSiteMarkerRead | null>(null)
+// Single selection identity; selected objects derive from store state so polling
+// refreshes them automatically instead of manual re-selection after each refresh.
+const selectedMarkerId = ref<string | null>(null)
+const selectedLocation = computed<WastelandLocationWithDwellers | null>(() => {
+  const id = selectedMarkerId.value
+  if (id === null || !id.startsWith('loc-')) return null
+  return mapStore.locations.find((l) => l.id === id.slice(4)) ?? null
+})
+const selectedVaultMarker = computed<VaultMarkerRead | null>(() => {
+  const id = selectedMarkerId.value
+  if (id === null || !id.startsWith('vault-')) return null
+  return mapStore.vaultMarkers.find((m) => m.name === id.slice(6)) ?? null
+})
+const selectedSite = computed<ExpeditionSiteMarkerRead | null>(() => {
+  const id = selectedMarkerId.value
+  if (id === null || !id.startsWith('site-')) return null
+  return mapStore.expeditionSites.find((s) => s.id === id.slice(5)) ?? null
+})
 
 // Explorer tracking: active runs projected onto the map. Dispatched runs mark
 // their target location; free-roam runs surface at the last discovery point.
@@ -97,8 +112,6 @@ async function handleDispatch(dwellerIds: string[]) {
     showDispatchModal.value = false
     dispatchLocation.value = null
     await mapStore.refreshMap(vaultId.value, authStore.token)
-    const refreshed = mapStore.locations.find((l) => l.id === location.id)
-    if (refreshed) selectedLocation.value = refreshed
     toast.success(`${location.name} — dispatch sent`)
   } catch (err) {
     toast.error(getErrorMessage(err))
@@ -114,9 +127,7 @@ function handleMarkerClick(
     | { kind: 'site'; data: ExpeditionSiteMarkerRead }
 ) {
   if (payload.kind === 'location') {
-    selectedLocation.value = payload.data
-    selectedVaultMarker.value = null
-    selectedSite.value = null
+    selectedMarkerId.value = `loc-${payload.data.id}`
     mapStore.markLocationViewed(payload.data.vault_id, payload.data.id)
     // Symmetric deep-link: a clicked marker owns ?place= so the URL is
     // shareable and survives reload; the ?place= watcher opens the modal.
@@ -124,14 +135,10 @@ function handleMarkerClick(
       void router.push({ query: { ...route.query, place: payload.data.id } })
     }
   } else if (payload.kind === 'site') {
-    selectedLocation.value = null
-    selectedVaultMarker.value = null
-    selectedSite.value = payload.data
+    selectedMarkerId.value = `site-${payload.data.id}`
     clearPlaceQuery()
   } else {
-    selectedLocation.value = null
-    selectedVaultMarker.value = payload.data
-    selectedSite.value = null
+    selectedMarkerId.value = `vault-${payload.data.name}`
     clearPlaceQuery()
   }
   showModal.value = true
@@ -270,6 +277,8 @@ const mapPaneHeight = 'var(--map-pane-size)'
             :discovery-routes="mapStore.discoveryRoutes"
             :expedition-sites="mapStore.expeditionSites"
             :explorer-tracks="explorerTracks"
+            :selected-marker-id="selectedMarkerId"
+            @update:selected-marker-id="selectedMarkerId = $event"
             @marker-click="handleMarkerClick"
           />
 
@@ -292,6 +301,7 @@ const mapPaneHeight = 'var(--map-pane-size)'
             :max-party-size="3"
             @assign="handleDispatch"
           />
+
         </PageContentRail>
       </div>
     </div>

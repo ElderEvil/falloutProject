@@ -142,7 +142,9 @@ def _stream(recipe: WorldRecipe, namespace: str) -> Random:
 # ── Noise (value noise + fBm) ───────────────────────────────────────────
 
 
-def _value_noise_field(width: int, height: int, rng: Random, octaves: int, frequency: float, lacunarity: float, gain: float) -> list[float]:
+def _value_noise_field(
+    width: int, height: int, rng: Random, octaves: int, frequency: float, lacunarity: float, gain: float
+) -> list[float]:
     """Normalized fBm over a seeded lattice, min/max-normalized to [0, 1]."""
     field = [0.0] * (width * height)
     amplitude = 1.0
@@ -196,12 +198,22 @@ def generate_terrain(recipe: WorldRecipe) -> list[TerrainType]:
     cfg = recipe.config
     n = cfg.width * cfg.height
     base = _value_noise_field(
-        cfg.width, cfg.height, _stream(recipe, "terrain:base"),
-        cfg.noise_octaves, cfg.noise_frequency, cfg.noise_lacunarity, cfg.noise_gain,
+        cfg.width,
+        cfg.height,
+        _stream(recipe, "terrain:base"),
+        cfg.noise_octaves,
+        cfg.noise_frequency,
+        cfg.noise_lacunarity,
+        cfg.noise_gain,
     )
     ruins = _value_noise_field(
-        cfg.width, cfg.height, _stream(recipe, "terrain:ruins"),
-        cfg.noise_octaves, cfg.noise_frequency, cfg.noise_lacunarity, cfg.noise_gain,
+        cfg.width,
+        cfg.height,
+        _stream(recipe, "terrain:ruins"),
+        cfg.noise_octaves,
+        cfg.noise_frequency,
+        cfg.noise_lacunarity,
+        cfg.noise_gain,
     )
     water_cut = _quantile(base, cfg.water_quantile)
     hills_cut = _quantile(base, 1 - cfg.hills_quantile)
@@ -244,7 +256,7 @@ def generate_slots(recipe: WorldRecipe, terrain: list[TerrainType]) -> list[Gene
     rng.shuffle(land)
     chosen: list[tuple[int, int]] = []
     spacing_sq = cfg.slot_min_spacing * cfg.slot_min_spacing
-    for (x, y) in land:
+    for x, y in land:
         if len(chosen) == cfg.slot_count:
             break
         if all((x - cx) ** 2 + (y - cy) ** 2 >= spacing_sq for cx, cy in chosen):

@@ -1,9 +1,10 @@
 """Focused regression tests for the backend world generation core.
 
-NOTE: written but NOT executed (per the current instruction: no test runs).
 They lock the contract guarantees: determinism, land-safe slots, and occupancy
 independence.
 """
+
+import pytest
 
 from app.services.world_generation_service import (
     TRAVEL_COST,
@@ -53,7 +54,8 @@ def test_every_slot_is_land_safe_unique_and_spaced():
     seen: set[tuple[int, int]] = set()
     for slot in world.slots:
         assert world.terrain[slot.tile_y * world.width + slot.tile_x] != "water"
-        assert 0 <= slot.tile_x < world.width and 0 <= slot.tile_y < world.height
+        assert 0 <= slot.tile_x < world.width
+        assert 0 <= slot.tile_y < world.height
         assert (slot.tile_x, slot.tile_y) not in seen
         seen.add((slot.tile_x, slot.tile_y))
     spacing_sq = recipe.config.slot_min_spacing**2
@@ -88,12 +90,8 @@ def test_generation_fails_clearly_when_slots_cannot_be_placed():
     # An impossibly large spacing must raise, never fall back to unsafe coordinates.
     recipe = WorldRecipe(seed="s", config=WorldConfig(slot_count=100, slot_min_spacing=999))
     terrain = generate_terrain(recipe)
-    try:
+    with pytest.raises(RuntimeError, match="slots"):
         generate_slots(recipe, terrain)
-    except RuntimeError as exc:
-        assert "slots" in str(exc)
-    else:  # pragma: no cover - guard
-        raise AssertionError("expected RuntimeError when slots cannot be placed")
 
 
 def test_canonical_serialization_is_stable():

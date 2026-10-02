@@ -7,8 +7,7 @@ development/seed operation, not a request path.
 from __future__ import annotations
 
 import logging
-
-from sqlmodel.ext.asyncio.session import AsyncSession
+from typing import TYPE_CHECKING
 
 from app.crud.world_snapshot import world_snapshot as snapshot_crud
 from app.models.world_snapshot import WorldSnapshot
@@ -20,20 +19,21 @@ from app.services.world_generation_service import (
     snapshot_checksum,
 )
 
+if TYPE_CHECKING:
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
 logger = logging.getLogger(__name__)
 
 
 class WorldSnapshotService:
-    async def get_or_generate(
-        self, db_session: AsyncSession, recipe: WorldRecipe | None = None
-    ) -> WorldSnapshot:
+    async def get_or_generate(self, db_session: AsyncSession, recipe: WorldRecipe | None = None) -> WorldSnapshot:
         """Return the persisted snapshot, generating and persisting it once if absent.
 
         Idempotent on (world_id, generator_version): an existing row is returned
         unchanged, so terrain and slots never drift between reads.
         """
         recipe = recipe or WorldRecipe(seed="wasteland-atlas-v1", config=WorldConfig())
-        existing = await snapshot_crud.get_active(
+        existing = await snapshot_crud.get_version(
             db_session, world_id=recipe.world_id, generator_version=recipe.generator_version
         )
         if existing is not None:

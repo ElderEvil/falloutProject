@@ -19,7 +19,7 @@ router = APIRouter(prefix="/map", tags=["Map"])
 
 @router.get("/world", response_model=WorldSnapshotRead)
 async def get_world_snapshot(
-    user: CurrentActiveUser,
+    _user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> WorldSnapshotRead:
     """Return the shared backend-generated base world (authenticated, public snapshot).

@@ -6,17 +6,25 @@ Reads never regenerate: the snapshot row is written explicitly once per
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.world_snapshot import WorldSnapshot
 
+if TYPE_CHECKING:
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
 
 class CRUDWorldSnapshot:
-    async def get_active(
+    async def get_version(
         self, db_session: AsyncSession, *, world_id: str, generator_version: int
     ) -> WorldSnapshot | None:
-        """The persisted snapshot for a world version, or None when not generated yet."""
+        """The persisted snapshot for an explicitly selected world version, or None.
+
+        Selection is by exact ``(world_id, generator_version)`` — never "the newest" —
+        so generating a later version cannot silently change what an existing reader sees.
+        """
         result = await db_session.execute(
             select(WorldSnapshot).where(
                 WorldSnapshot.world_id == world_id,

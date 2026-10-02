@@ -86,8 +86,10 @@ class MapService:
     # ------------------------------------------------------------------
 
     async def ensure_home_marker(self, db_session: AsyncSession, vault: Vault) -> WorldLocation:
-        """Idempotent home-vault registry row at exactly (50.0, 50.0) + per-vault HOME_VAULT state."""
-        home = await wl_crud.get_or_create_home_marker(db_session, vault)
+        """Home-vault marker at the vault's slot placement + per-vault HOME_VAULT state."""
+        slot = await vault_slot_crud.get_by_vault(db_session, vault.id)
+        coord_x, coord_y = slot_coords(slot.slot_index) if slot is not None else (50.0, 50.0)
+        home = await wl_crud.get_or_create_home_marker(db_session, vault, coord_x=coord_x, coord_y=coord_y)
         await wl_crud.ensure_home_state(
             db_session,
             vault.id,

@@ -59,13 +59,9 @@ class CRUDVaultSlot:
         return (await db_session.execute(select(VaultSlot))).scalars().all()
 
     async def get_by_vault(self, db_session: AsyncSession, vault_id: UUID4) -> VaultSlot | None:
-        return (
-            await db_session.execute(select(VaultSlot).where(VaultSlot.vault_id == vault_id))
-        ).scalar_one_or_none()
+        return (await db_session.execute(select(VaultSlot).where(VaultSlot.vault_id == vault_id))).scalar_one_or_none()
 
-    async def list_markers(
-        self, db_session: AsyncSession
-    ) -> Sequence[tuple[int, UUID4, int, UUID4]]:
+    async def list_markers(self, db_session: AsyncSession) -> Sequence[tuple[int, UUID4, int, UUID4]]:
         """(slot_index, vault_id, vault number, owner user_id) for every live vault."""
         result = await db_session.execute(
             select(VaultSlot.slot_index, VaultSlot.vault_id, Vault.number, Vault.user_id)

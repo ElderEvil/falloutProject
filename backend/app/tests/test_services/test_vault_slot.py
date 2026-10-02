@@ -105,7 +105,5 @@ async def test_slot_allocation_failure_leaves_no_vault(
             user_id=vault.user_id,
         )
 
-    persisted = (
-        await async_session.execute(select(Vault).where(Vault.number == 125))
-    ).scalar_one_or_none()
+    persisted = (await async_session.execute(select(Vault).where(Vault.number == 125))).scalar_one_or_none()
     assert persisted is None

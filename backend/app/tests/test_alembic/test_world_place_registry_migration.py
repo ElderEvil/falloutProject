@@ -125,9 +125,7 @@ class TestWorldPlaceRegistryMigration:
               AND NOT (gl.kind = 'VAULT' AND gl.vault_number = v.number)
             """,
         )
-        assert mismatched == 0, (
-            "every HOME_VAULT state must sit on a VAULT registry row with its vault number"
-        )
+        assert mismatched == 0, "every HOME_VAULT state must sit on a VAULT registry row with its vault number"
 
     @pytest.mark.asyncio
     async def test_place_coordinates_are_unique(self, live_pg_engine: AsyncEngine) -> None:

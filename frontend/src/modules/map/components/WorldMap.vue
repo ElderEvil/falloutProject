@@ -8,6 +8,7 @@ import type {
   ExpeditionSiteMarkerRead,
   ExplorerTrack,
   MarkerClickPayload,
+  PlayerVaultMarkerRead,
   WastelandLocationWithDwellers,
   VaultMarkerRead,
 } from '../models/map'
@@ -29,6 +30,7 @@ import { isKnownLocation } from '../utils/visibility'
 interface Props {
   locations: WastelandLocationWithDwellers[]
   vaultMarkers: VaultMarkerRead[]
+  playerVaults?: PlayerVaultMarkerRead[]
   discoveryRoutes?: DiscoveryRouteRead[]
   expeditionSites?: ExpeditionSiteMarkerRead[]
   explorerTracks?: ExplorerTrack[]
@@ -36,6 +38,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  playerVaults: () => [],
   discoveryRoutes: () => [],
   expeditionSites: () => [],
   explorerTracks: () => [],
@@ -263,6 +266,18 @@ function handleTouchEnd(event: TouchEvent) {
           :type="vm.type"
           :selected="selectedMarkerId === `vault-${vm.name}`"
           @click="onVaultClick(vm)"
+        />
+
+        <!-- Real player vaults on the shared atlas (discoverable by all users) -->
+        <MapMarker
+          v-for="pv in playerVaults"
+          :key="`pv-${pv.vault_id}`"
+          :x="pv.coord_x"
+          :y="pv.coord_y"
+          :name="`Vault ${pv.number}`"
+          :type="pv.is_mine ? 'home_vault' : 'vault'"
+          :label="pv.is_mine ? 'Your Vault' : 'Vault'"
+          :interactive="false"
         />
 
         <!-- Expedition site markers (fixed coordinates, already viewBox-scaled) -->

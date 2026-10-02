@@ -3,6 +3,7 @@ from logging import getLogger
 
 from pydantic import UUID4
 from sqlalchemy import Row, and_, func
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -11,7 +12,7 @@ from app.models import Dweller, Room, Storage
 from app.models.game_state import GameState
 from app.models.vault import Vault
 from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultNumber, VaultUpdate
-from app.utils.exceptions import ValidationException
+from app.utils.exceptions import ResourceAlreadyExistsException, ValidationException
 from app.utils.place_seed import get_seeded_vault_numbers
 
 logger = getLogger(__name__)
@@ -217,11 +218,34 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
     async def create_with_user_id(
         self, *, db_session: AsyncSession, obj_in: VaultCreate | VaultNumber | dict, user_id: UUID4
     ) -> Vault:
+        """Create a vault and claim its atlas slot in one transaction.
+
+        The vault is added and flushed (not committed); the slot claim inserts under
+        savepoints without committing; a single commit makes both durable or neither.
+        An allocation failure rolls the vault back, so a vault is never persisted
+        without a slot.
+        """
+        from app.crud.vault_slot import vault_slot as vault_slot_crud
+
         obj_data = obj_in.model_dump() if hasattr(obj_in, "model_dump") else obj_in
         obj_data["user_id"] = user_id
         obj_in = VaultCreateWithUserID(**obj_data)
         _validate_vault_number(obj_in.number)
-        return await super().create(db_session, obj_in)
+
+        vault = Vault.model_validate(obj_in)
+        try:
+            db_session.add(vault)
+            await db_session.flush()
+            await vault_slot_crud.claim_for_new_vault(db_session=db_session, vault_id=vault.id)
+        except IntegrityError as e:
+            await db_session.rollback()
+            raise ResourceAlreadyExistsException(self.model, vault.number, headers={"detail": str(e)}) from e
+        except Exception:
+            await db_session.rollback()
+            raise
+        await db_session.commit()
+        await db_session.refresh(vault)
+        return vault
 
     async def delete(self, db_session: AsyncSession, id: UUID4, soft: bool = True) -> Vault:
         """Delete vault and its associated gamestate."""

@@ -18,6 +18,7 @@ from app.crud import training as training_crud
 from app.crud import world_location as crud_world_location
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.storage import storage as crud_storage
+from app.crud.vault_slot import vault_slot as vault_slot_crud
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration, ExplorationStatus
 from app.models.team import Team, TeamMember
@@ -34,6 +35,7 @@ from app.services.user_service import user_service
 from app.utils.dweller_availability import availability_error
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 from app.utils.place_groups import get_place_group
+from app.utils.vault_slots import slot_coords
 
 #: The vault home point in the registry's 0..100 coordinate space.
 VAULT_HOME_POINT = (50.0, 50.0)
@@ -262,6 +264,11 @@ class ExplorationService:
         await user_service.record_vault_statistic(db_session, vault_id, "total_explorations")
         return exploration
 
+    async def _vault_origin(self, db_session: AsyncSession, vault_id: UUID4) -> tuple[float, float]:
+        """Travel origin: the vault's slot placement, or the map centre without a slot."""
+        slot = await vault_slot_crud.get_by_vault(db_session, vault_id)
+        return slot_coords(slot.slot_index) if slot is not None else VAULT_HOME_POINT
+
     async def dispatch(
         self,
         db_session: AsyncSession,
@@ -272,7 +279,7 @@ class ExplorationService:
         """Send a party to clear a specific map point (issue 772).
 
         A targeted run travels for a whole number of hours based on the distance
-        from the vault home point, suppresses random events, and resolves exactly
+        from the vault's slot placement, suppresses random events, and resolves exactly
         once on arrival (see ``dispatch_resolution.resolve_dispatch_arrival``).
         The party has no leader: ``dweller_ids[0]`` is only the anchor that keeps
         the non-nullable ``Exploration.dweller_id`` FK working.
@@ -324,7 +331,7 @@ class ExplorationService:
         if not state.is_dispatchable(datetime.utcnow()):
             raise ValidationException("This location is currently cleared")
 
-        distance = math.dist(VAULT_HOME_POINT, (location.coord_x, location.coord_y))
+        distance = math.dist(await self._vault_origin(db_session, vault_id), (location.coord_x, location.coord_y))
         duration = dispatch_travel_hours(distance)
         tier = min(state.clear_count, game_config.exploration.dispatch.escalation_cap)
         anchor = dwellers[0]

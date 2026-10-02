@@ -84,6 +84,16 @@ class VaultMarkerRead(SQLModel):
     description: str
 
 
+class PlayerVaultMarkerRead(SQLModel):
+    """A real player vault placed on the shared atlas, discoverable by other users."""
+
+    vault_id: UUID4
+    number: int
+    coord_x: float
+    coord_y: float
+    is_mine: bool = False
+
+
 class DiscoveryRoutePoint(SQLModel):
     """One persisted discovery event, projected into map coordinates."""
 
@@ -125,6 +135,7 @@ class VaultMapResponse(SQLModel):
 
     locations: list[WastelandLocationWithDwellers]
     vault_markers: list[VaultMarkerRead]
+    player_vaults: list[PlayerVaultMarkerRead] = []
     discovery_routes: list[DiscoveryRouteRead] = []
     place_groups: list[PlaceGroupRead] = []
     expedition_sites: list[ExpeditionSiteMarkerRead] = []

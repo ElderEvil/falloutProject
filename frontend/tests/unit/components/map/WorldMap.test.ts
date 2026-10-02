@@ -1014,4 +1014,30 @@ describe('WorldMap', () => {
       expect(wrapper.findAllComponents(MapMarkerStub)[0].props('cleared')).toBe(false)
     })
   })
+
+  describe('Player vaults on the shared atlas', () => {
+    it('distinguishes the user own vaults from other players', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [],
+          vaultMarkers: [],
+          playerVaults: [
+            { vault_id: 'v-mine', number: 121, coord_x: 40, coord_y: 8, is_mine: true },
+            { vault_id: 'v-other', number: 200, coord_x: 90, coord_y: 60, is_mine: false },
+          ],
+          selectedMarkerId: null,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const mine = wrapper.findAllComponents(MapMarkerStub).find((m) => m.props('name') === 'Vault 121')
+      const other = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('name') === 'Vault 200')
+      expect(mine!.props('type')).toBe('home_vault')
+      expect(mine!.props('label')).toBe('Your Vault')
+      expect(other!.props('type')).toBe('vault')
+      expect(other!.props('interactive')).toBe(false)
+    })
+  })
 })

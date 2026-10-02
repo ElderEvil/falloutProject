@@ -7,8 +7,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.crud import vault as crud_vault
 from app.crud.vault_slot import vault_slot
 from app.crud.world_location import world_location as wl_crud
+from app.models.dweller import Dweller
 from app.models.vault import Vault
-from app.services.exploration_service import exploration_service
+from app.services.exploration_service import dispatch_travel_hours, exploration_service, scout_band_hours
 from app.services.map_service import map_service
 from app.utils.vault_slots import slot_coords
 
@@ -74,6 +75,34 @@ async def test_dispatch_travel_origin_is_the_vault_slot(async_session: AsyncSess
     origin = await exploration_service._vault_origin(async_session, vault.id)
 
     assert origin == slot_coords(slot.slot_index)
+
+
+def test_scout_band_widens_with_distance():
+    assert scout_band_hours(1) == (1, 3)
+    assert scout_band_hours(5) == (4, 8)
+    assert scout_band_hours(10) == (8, 16)
+    assert scout_band_hours(30) == (24, 40)
+
+
+@pytest.mark.asyncio
+async def test_scout_sends_a_run_from_the_vault_slot(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+):
+    slot = await vault_slot.claim_next(db_session=async_session, vault_id=vault.id)
+    await async_session.commit()
+
+    exploration = await exploration_service.scout(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        target_coord_x=100.0,
+        target_coord_y=100.0,
+    )
+
+    origin = slot_coords(slot.slot_index)
+    distance = ((origin[0] - 100) ** 2 + (origin[1] - 100) ** 2) ** 0.5
+    _, band_high = scout_band_hours(dispatch_travel_hours(distance))
+    assert exploration.duration == max(1, min(24, band_high))
 
 
 @pytest.mark.asyncio

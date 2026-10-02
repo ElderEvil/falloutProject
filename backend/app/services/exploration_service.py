@@ -52,6 +52,17 @@ def dispatch_travel_hours(distance: float) -> int:
     return max(1, min(24, math.ceil(total_hours)))
 
 
+def scout_band_hours(known_hours: int) -> tuple[int, int]:
+    """Coarse travel band for a scout, so the player reads a range, not false precision.
+
+    Scouts head into the unknown, so the exact duration is deliberately hidden: the
+    known route's hours are widened by one uncertainty step and bucketed.
+    """
+    step = 1 if known_hours <= 2 else 2 if known_hours <= 6 else 4 if known_hours <= 12 else 8
+    low = max(1, (known_hours // step) * step)
+    return low, low + step * 2
+
+
 class ExplorationService:
     """Exploration service for managing wasteland explorations.
 
@@ -268,6 +279,35 @@ class ExplorationService:
         """Travel origin: the vault's slot placement, or the map centre without a slot."""
         slot = await vault_slot_crud.get_by_vault(db_session, vault_id)
         return slot_coords(slot.slot_index) if slot is not None else VAULT_HOME_POINT
+
+    async def scout(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        dweller_id: UUID4,
+        target_coord_x: float,
+        target_coord_y: float,
+        stimpaks: int = 0,
+        radaways: int = 0,
+    ) -> Exploration:
+        """Scout an approximate frontier location (no discovered destination).
+
+        Unlike ``dispatch`` there is no ``WorldLocation``: the player targets a
+        revealed frontier cell and gets only a coarse band, because the destination
+        is unknown. The run reuses the free-roam exploration lifecycle, so arrival
+        discovery/history rides the existing coordinator.
+        """
+        distance = math.dist(await self._vault_origin(db_session, vault_id), (target_coord_x, target_coord_y))
+        hours = dispatch_travel_hours(distance)
+        _, band_high = scout_band_hours(hours)
+        return await self.send_dweller(
+            db_session,
+            vault_id=vault_id,
+            dweller_id=dweller_id,
+            duration=max(1, min(24, band_high)),
+            stimpaks=stimpaks,
+            radaways=radaways,
+        )
 
     async def dispatch(
         self,

@@ -131,6 +131,16 @@ class ExpeditionDispatchRequest(SQLModel):
     location_id: UUID4
 
 
+class ScoutRequest(SQLModel):
+    """Schema for scouting an approximate frontier cell (no known destination)."""
+
+    dweller_id: UUID4
+    target_coord_x: float = Field(ge=0, le=100)
+    target_coord_y: float = Field(ge=0, le=100)
+    stimpaks: int = Field(default=0, ge=0, le=25)
+    radaways: int = Field(default=0, ge=0, le=25)
+
+
 class ExplorationRecallRequest(SQLModel):
     """Schema for recalling a dweller from wasteland."""
 

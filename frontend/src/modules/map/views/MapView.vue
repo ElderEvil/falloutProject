@@ -23,6 +23,8 @@ import type {
   VaultMarkerRead,
 } from '../models/map'
 import { buildExplorerTracks } from '../utils/explorerTracks'
+import { wireToRegistry } from '../utils/atlasProjection'
+import { isExploredTile } from '../utils/fog'
 
 const authStore = useAuthStore()
 const mapStore = useMapStore()
@@ -117,6 +119,69 @@ async function handleDispatch(dwellerIds: string[]) {
     toast.error(getErrorMessage(err))
   } finally {
     isDispatching.value = false
+  }
+}
+
+// Scout flow: pick a revealed frontier cell, send a dweller. The duration is
+// server-derived (no client ETA), and only one scout submit runs at a time.
+const scoutMode = ref(false)
+const scoutTarget = ref<{ coord_x: number; coord_y: number } | null>(null)
+const scoutTargetWire = ref<{ coord_x: number; coord_y: number } | null>(null)
+const lastScout = ref<{ hours: number; coord: { coord_x: number; coord_y: number } } | null>(null)
+const isScouting = ref(false)
+
+const lastScoutText = computed(() => {
+  const scout = lastScout.value
+  if (scout === null) return null
+  return `(${scout.coord.coord_x.toFixed(0)}, ${scout.coord.coord_y.toFixed(0)}) · about ${scout.hours} h`
+})
+
+const scoutConfirmText = computed(() => {
+  const target = scoutTarget.value
+  if (target === null) return null
+  return `Target (${target.coord_x.toFixed(0)}, ${target.coord_y.toFixed(0)})`
+})
+
+function toggleScoutMode() {
+  scoutMode.value = !scoutMode.value
+  if (!scoutMode.value) {
+    scoutTarget.value = null
+    scoutTargetWire.value = null
+  }
+}
+
+// Guard: the target must be a revealed cell (fog), else there is nothing to scout.
+// The mask check happens in WorldMap (props-derived); here we only record the pick.
+function handleScoutTarget(coord: { coord_x: number; coord_y: number }) {
+  scoutTargetWire.value = coord
+  scoutTarget.value = { coord_x: wireToRegistry(coord.coord_x), coord_y: wireToRegistry(coord.coord_y) }
+}
+
+function handleScoutInvalid() {
+  toast.error('Pick a revealed cell on the edge of the unknown')
+}
+
+async function confirmScout(dwellerId: string) {
+  const target = scoutTarget.value
+  if (isScouting.value || !target || !vaultId.value || !authStore.token) return
+  isScouting.value = true
+  try {
+    const exploration = await explorationStore.scoutFrontier(
+      vaultId.value,
+      dwellerId,
+      target.coord_x,
+      target.coord_y
+    )
+    lastScout.value = { hours: exploration.duration, coord: target }
+    scoutMode.value = false
+    scoutTarget.value = null
+    scoutTargetWire.value = null
+    await mapStore.refreshMap(vaultId.value, authStore.token)
+    toast.success(`Scout sent — about ${exploration.duration} h`)
+  } catch (err) {
+    toast.error(getErrorMessage(err))
+  } finally {
+    isScouting.value = false
   }
 }
 
@@ -278,10 +343,44 @@ const mapPaneHeight = 'var(--map-pane-size)'
             :discovery-routes="mapStore.discoveryRoutes"
             :expedition-sites="mapStore.expeditionSites"
             :explorer-tracks="explorerTracks"
+            :scout-mode="scoutMode"
+            :scout-target="scoutTargetWire"
             :selected-marker-id="selectedMarkerId"
             @update:selected-marker-id="selectedMarkerId = $event"
             @marker-click="handleMarkerClick"
+            @scout-target="handleScoutTarget"
+            @scout-invalid="handleScoutInvalid"
           />
+
+          <!-- Scout control + last result -->
+          <div class="scout-bar">
+            <Button variant="outline" size="sm" @click="toggleScoutMode">
+              {{ scoutMode ? 'Cancel scouting' : 'Scout frontier' }}
+            </Button>
+            <span v-if="scoutMode" class="scout-hint">
+              Pick a revealed cell on the edge of the unknown
+            </span>
+            <span v-else-if="lastScoutText" class="scout-hint">
+              Last scout → {{ lastScoutText }}
+            </span>
+          </div>
+
+          <!-- Scout confirm: pick a dweller, then send -->
+          <div v-if="scoutConfirmText" class="scout-confirm">
+            <p>{{ scoutConfirmText }} — duration is approximate.</p>
+            <div class="scout-dwellers">
+              <Button
+                v-for="dweller in dwellerStore.dwellers"
+                :key="dweller.id"
+                variant="outline"
+                size="sm"
+                :disabled="isScouting"
+                @click="confirmScout(dweller.id)"
+              >
+                Send {{ dweller.first_name }}
+              </Button>
+            </div>
+          </div>
 
           <!-- Detail modal -->
           <MarkerDetailModal
@@ -310,6 +409,32 @@ const mapPaneHeight = 'var(--map-pane-size)'
 </template>
 
 <style scoped>
+.scout-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.scout-hint {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.scout-confirm {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px dashed color-mix(in srgb, var(--color-theme-primary) 40%, transparent);
+  font-size: 0.8rem;
+}
+
+.scout-dwellers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
 .vault-layout {
   display: flex;
   min-height: 100vh;

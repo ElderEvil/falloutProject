@@ -18,7 +18,7 @@ import MapLegend from './MapLegend.vue'
 import MarkerListPanel from './MarkerListPanel.vue'
 import AtlasTerrain from './AtlasTerrain.vue'
 import FogLayer from './FogLayer.vue'
-import { registryToTile } from '../utils/atlasProjection'
+import { registryToTile, registryToWire } from '../utils/atlasProjection'
 import { computeExploredMask, isExploredTile } from '../utils/fog'
 import { useMapSpread } from '../composables/useMapSpread'
 import { useMarkerSelection } from '../composables/useMarkerSelection'
@@ -34,6 +34,8 @@ interface Props {
   discoveryRoutes?: DiscoveryRouteRead[]
   expeditionSites?: ExpeditionSiteMarkerRead[]
   explorerTracks?: ExplorerTrack[]
+  scoutMode?: boolean
+  scoutTarget?: { coord_x: number; coord_y: number } | null
   selectedMarkerId: string | null
 }
 
@@ -42,12 +44,42 @@ const props = withDefaults(defineProps<Props>(), {
   discoveryRoutes: () => [],
   expeditionSites: () => [],
   explorerTracks: () => [],
+  scoutMode: false,
+  scoutTarget: null,
 })
 
 const emit = defineEmits<{
   (e: 'marker-click', payload: MarkerClickPayload): void
   (e: 'update:selectedMarkerId', value: string | null): void
+  (e: 'scout-target', coord: { coord_x: number; coord_y: number }): void
+  (e: 'scout-invalid'): void
 }>()
+
+// ── Scout targeting ──────────────────────────────────────────────
+// In scout mode the player picks a revealed cell on the unknown frontier. The
+// click reports wire coords; the server derives the duration, so the client never
+// computes a competing ETA. A highlighted dot marks the chosen frontier cell.
+const scoutMarker = computed(() => {
+  const target = props.scoutTarget
+  if (target === null) return null
+  return { x: registryToWire(target.coord_x), y: registryToWire(target.coord_y) }
+})
+
+function handleSvgClick(event: MouseEvent): void {
+  if (!props.scoutMode) return
+  const svg = svgRef.value
+  if (svg === null) return
+  const rect = svg.getBoundingClientRect()
+  const view = svg.viewBox.baseVal
+  const coord_x = ((event.clientX - rect.left) / rect.width) * view.width + view.x
+  const coord_y = ((event.clientY - rect.top) / rect.height) * view.height + view.y
+  // Only revealed cells are valid scout targets; the mask lives here (props-derived).
+  if (!isExploredTile(exploredMask.value, registryToTile(coord_x), registryToTile(coord_y))) {
+    emit('scout-invalid')
+    return
+  }
+  emit('scout-target', { coord_x, coord_y })
+}
 
 // ── Marker visibility filter ─────────────────────────────────────
 // The index stays known-only. The SVG shows known markers plus dimmed "?" hint
@@ -154,7 +186,7 @@ const selectedMarkerId = computed<string | null>({
 })
 
 const { hasDragMoved, onLocationClick, onVaultClick, onSiteClick, onPanelMarkerSelect } =
-  useMarkerSelection(selectedMarkerId, spreadMap, focusOnMarker, emit)
+  useMarkerSelection(selectedMarkerId, spreadMap, focusOnMarker, emit, () => props.scoutMode)
 
 function getSvgRect(): DOMRect {
   return svgRef.value?.getBoundingClientRect() ?? new DOMRect(0, 0, 0, 0)
@@ -219,14 +251,22 @@ function handleTouchEnd(event: TouchEvent) {
         :viewBox="viewBox"
         xmlns="http://www.w3.org/2000/svg"
         class="world-map-svg"
+        :class="{ 'cursor-crosshair': scoutMode }"
         focusable="false"
         @mousedown="handleMouseDown"
+        @click="handleSvgClick"
       >
         <!-- Terrain layer (bottom — behind markers): biomes, rivers, roads -->
         <AtlasTerrain />
 
         <!-- Fog of war: derived explored mask over the terrain -->
         <FogLayer :explored="exploredMask" />
+
+        <!-- Scout target marker (wire/screen coords; server derives the duration) -->
+        <g v-if="scoutMarker" class="scout-target" aria-hidden="true">
+          <circle :cx="scoutMarker.x" :cy="scoutMarker.y" r="3.2" />
+          <circle :cx="scoutMarker.x" :cy="scoutMarker.y" r="1.4" class="scout-target-dot" />
+        </g>
 
 
 
@@ -355,6 +395,16 @@ function handleTouchEnd(event: TouchEvent) {
 </template>
 
 <style scoped>
+.scout-target circle:first-child {
+  fill: color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
+  stroke: var(--color-theme-primary);
+  stroke-width: 0.4;
+  stroke-dasharray: 1 1;
+}
+
+.scout-target-dot {
+  fill: var(--color-theme-primary);
+}
 .world-map-layout {
   display: grid;
   grid-template-columns: auto minmax(12rem, 14rem);

@@ -11,6 +11,7 @@ import type {
   WastelandLocationWithDwellers,
 } from '../models/map'
 import * as mapService from '../services/mapService'
+import { computeExploredMask } from '../utils/fog'
 import { isKnownLocation } from '../utils/visibility'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
@@ -74,6 +75,16 @@ export const useMapStore = defineStore('map', () => {
   // Getters
   const hasUnseenDiscoveries = computed(() => locations.value.some(isUnseenDiscovery))
   const placeGroupByKey = computed(() => new Map(placeGroups.value.map((group) => [group.key, group])))
+
+  // Derived fog of war mask (single source; shared by the render layer and any
+  // interaction that needs to test whether a cell is explored).
+  const exploredMask = computed(() =>
+    computeExploredMask({
+      home: locations.value.find((loc) => loc.type === 'home_vault') ?? null,
+      discovered: locations.value.filter(isKnownLocation),
+      trailPoints: discoveryRoutes.value.flatMap((route) => route.points),
+    })
+  )
 
   function isUnseenDiscovery(loc: WastelandLocationWithDwellers): boolean {
     return (
@@ -186,6 +197,7 @@ export const useMapStore = defineStore('map', () => {
     expeditionSites,
     placeGroups,
     placeGroupByKey,
+    exploredMask,
     isLoading,
     error,
     viewedLocationKeys,

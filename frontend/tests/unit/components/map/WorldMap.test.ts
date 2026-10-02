@@ -1015,6 +1015,36 @@ describe('WorldMap', () => {
     })
   })
 
+  describe('Scout targeting', () => {
+    function mountScout() {
+      return mount(WorldMap, {
+        props: { locations: createLocations(1), vaultMarkers: [], selectedMarkerId: null, scoutMode: true },
+        global: { stubs: defaultStubs },
+        attachTo: document.body,
+      })
+    }
+
+    it('ignores target clicks while not scouting', async () => {
+      const wrapper = mount(WorldMap, {
+        props: { locations: createLocations(1), vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      await wrapper.find('svg.world-map-svg').trigger('click')
+      expect(wrapper.emitted('scout-target')).toBeFalsy()
+      expect(wrapper.emitted('scout-invalid')).toBeFalsy()
+    })
+
+    it('rejects a click on an unexplored cell', async () => {
+      const wrapper = mountScout()
+
+      await wrapper.find('svg.world-map-svg').trigger('click', { clientX: 5, clientY: 5 })
+      expect(wrapper.emitted('scout-invalid')).toBeTruthy()
+      expect(wrapper.emitted('scout-target')).toBeFalsy()
+      wrapper.unmount()
+    })
+  })
+
   describe('Player vaults on the shared atlas', () => {
     it('distinguishes the user own vaults from other players', () => {
       const wrapper = mount(WorldMap, {

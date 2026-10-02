@@ -85,9 +85,7 @@ def test_scout_band_widens_with_distance():
 
 
 @pytest.mark.asyncio
-async def test_scout_sends_a_run_from_the_vault_slot(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
-):
+async def test_scout_sends_a_run_from_the_vault_slot(async_session: AsyncSession, vault: Vault, dweller: Dweller):
     slot = await vault_slot.claim_next(db_session=async_session, vault_id=vault.id)
     await async_session.commit()
 

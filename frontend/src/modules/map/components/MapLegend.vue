@@ -3,6 +3,11 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { MARKER_TYPES } from '../models/markerTypeMeta'
 import { useMapStore } from '../stores/map'
+import {
+  ATLAS_TERRAIN_CLASS,
+  ATLAS_TERRAIN_LABEL,
+  ATLAS_TERRAIN_ORDER,
+} from '../utils/atlasProjection'
 
 const legendItems = MARKER_TYPES
 
@@ -30,6 +35,12 @@ const siteGroups = computed(() => {
         <Icon :icon="item.icon" class="legend-icon" />
       </span>
       <span class="legend-label">{{ item.label }}</span>
+    </div>
+
+    <div class="legend-title legend-title-spaced">TERRAIN</div>
+    <div v-for="terrain in ATLAS_TERRAIN_ORDER" :key="terrain" class="legend-terrain">
+      <span class="legend-swatch" :class="ATLAS_TERRAIN_CLASS[terrain]" />
+      <span class="legend-label">{{ ATLAS_TERRAIN_LABEL[terrain] }}</span>
     </div>
 
     <template v-if="siteGroups.length">
@@ -81,6 +92,13 @@ const siteGroups = computed(() => {
   line-height: 1.6;
 }
 
+.legend-terrain {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.6;
+}
+
 .legend-icon-wrapper {
   display: inline-flex;
   align-items: center;
@@ -94,6 +112,14 @@ const siteGroups = computed(() => {
   width: 12px;
   height: 12px;
   color: var(--color-theme-primary);
+}
+
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 40%, transparent);
+  border-radius: 2px;
 }
 
 .legend-label {

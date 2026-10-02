@@ -15,7 +15,10 @@ import { EXPEDITION_SITE_ICON } from '../models/markerTypeMeta'
 import MapMarker from './MapMarker.vue'
 import MapLegend from './MapLegend.vue'
 import MarkerListPanel from './MarkerListPanel.vue'
-import TerrainLayer from './TerrainLayer.vue'
+import AtlasTerrain from './AtlasTerrain.vue'
+import FogLayer from './FogLayer.vue'
+import { registryToTile } from '../utils/atlasProjection'
+import { computeExploredMask, isExploredTile } from '../utils/fog'
 import { useMapSpread } from '../composables/useMapSpread'
 import { useMarkerSelection } from '../composables/useMarkerSelection'
 import { tracePoints } from '../utils/tracePath'
@@ -44,13 +47,27 @@ const emit = defineEmits<{
 }>()
 
 // ── Marker visibility filter ─────────────────────────────────────
-// The index stays known-only, but the SVG renders locked places as dimmed "?"
-// hint pins so the player sees an unknown place exists and can chat with a
-// dweller to reveal it. The home vault is always visible regardless of unlock.
+// The index stays known-only. The SVG shows known markers plus dimmed "?" hint
+// pins, but only where the derived fog of war has been explored — fogged tiles
+// reveal nothing. The home vault is always revealed.
 const knownLocations = computed(() => props.locations.filter(isKnownLocation))
 
+const exploredMask = computed(() =>
+  computeExploredMask({
+    home: props.locations.find((loc) => loc.type === 'home_vault') ?? null,
+    discovered: props.locations.filter(isKnownLocation),
+    trailPoints: props.discoveryRoutes.flatMap((route) => route.points),
+  }),
+)
+
+function isExploredLocation(loc: { coord_x: number; coord_y: number }): boolean {
+  return isExploredTile(exploredMask.value, registryToTile(loc.coord_x), registryToTile(loc.coord_y))
+}
+
 const visibleLocations = computed(() =>
-  props.locations.filter((loc) => !(loc.type === 'visited' && loc.dwellers.length < 2))
+  props.locations.filter(
+    (loc) => !(loc.type === 'visited' && loc.dwellers.length < 2) && isExploredLocation(loc),
+  ),
 )
 
 // Expeditions start at the home vault — anchor every trail there.
@@ -202,8 +219,11 @@ function handleTouchEnd(event: TouchEvent) {
         focusable="false"
         @mousedown="handleMouseDown"
       >
-        <!-- Terrain layer (bottom — behind grid and markers) -->
-        <TerrainLayer />
+        <!-- Terrain layer (bottom — behind markers): biomes, rivers, roads -->
+        <AtlasTerrain />
+
+        <!-- Fog of war: derived explored mask over the terrain -->
+        <FogLayer :explored="exploredMask" />
 
 
 

@@ -74,6 +74,20 @@
     --color-water: #4dabf7;
     --color-caps: #ffd43b;
 
+    /* Atlas terrain biomes — shared atlas geography. Hue-separated so regions read
+       by colour, kept quiet so markers stay dominant. Themes may retint these.
+       See docs/frontend/STYLEGUIDE.md. */
+    --color-terrain-wasteland: #7a6b3f;
+    --color-terrain-forest: #1f4a2a;
+    --color-terrain-ruins: #6b6474;
+    --color-terrain-hills: #40291a;
+    --color-terrain-water: #1f6a8c;
+    --color-terrain-road: #e6c886;
+
+    /* Fog of war — unexplored atlas regions. Near-black, fully opaque so hidden
+       terrain and markers do not ghost through. Themeable. */
+    --color-fog: #0a0908;
+
     /* Rarity Colors */
     --color-rarity-common: #808080;
     --color-rarity-rare: #4169e1;

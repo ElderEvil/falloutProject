@@ -1326,13 +1326,14 @@ export interface paths {
         put?: never;
         /**
          * Send Dweller To Wasteland
-         * @description Send a dweller to the wasteland for exploration.
+         * @description The single departure boundary: one roster, optional destination.
          *
-         *     Returns:
-         *         ExplorationRead: The created exploration.
+         *     `target_location_id` present → travel and clear a known place (party allowed);
+         *     absent → roam (exactly one dweller). Roster/branch validation lives in the
+         *     service; the endpoint only maps the request.
          *
          *     Raises:
-         *         ValidationException: If the dweller cannot be sent.
+         *         ValidationException: If the roster is empty/oversized, or a dweller cannot be sent.
          */
         post: operations["send_dweller_to_wasteland_api_v1_explorations_send_post"];
         delete?: never;
@@ -7393,17 +7394,31 @@ export interface components {
         };
         /**
          * ExplorationSendRequest
-         * @description Schema for sending a dweller to wasteland.
+         * @description Schema for sending dwellers out — the single departure boundary.
+         *
+         *     One roster, one optional destination: `dweller_ids` (or the legacy single
+         *     `dweller_id`) is the roster; `target_location_id` present means travel to a
+         *     known place (clear), absent means roam. Roaming sends exactly one dweller.
          */
         ExplorationSendRequest: {
             /**
              * Dweller Id
-             * Format: uuid4
+             * @description Single dweller (legacy/roam)
              */
-            dweller_id: string;
+            dweller_id?: string | null;
+            /**
+             * Dweller Ids
+             * @description Roster; up to the party limit when clearing
+             */
+            dweller_ids?: string[] | null;
+            /**
+             * Target Location Id
+             * @description Known place to travel to and clear; omit to roam
+             */
+            target_location_id?: string | null;
             /**
              * Duration
-             * @description Duration in hours
+             * @description Duration in hours (roam only)
              * @default 4
              */
             duration: number;

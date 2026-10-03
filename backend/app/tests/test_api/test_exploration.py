@@ -8,6 +8,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import DwellerLocationRelationEnum
 from app.models.dweller import Dweller
 from app.models.exploration import ExplorationStatus
 from app.models.room import Room
@@ -66,6 +67,115 @@ async def test_send_dweller_to_wasteland_success(
 
 
 @pytest.mark.asyncio
+async def test_send_routes_to_clear_when_target_given(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """The unified send boundary travels+clears when a target is provided."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
+    state = (
+        await async_session.execute(
+            select(VaultLocationState)
+            .join(WorldLocation, WorldLocation.id == VaultLocationState.location_id)
+            .where(VaultLocationState.vault_id == vault.id, WorldLocation.name == "Red Rocket")
+        )
+    ).scalar_one()
+
+    await crud.world_location.link_dweller(
+        async_session, dweller.id, state.location_id, DwellerLocationRelationEnum.VISITED, is_unlocked=True
+    )
+
+    response = await async_client.post(
+        f"/explorations/send?vault_id={vault.id}",
+        json={"dweller_ids": [str(dweller.id)], "target_location_id": str(state.location_id)},
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["target_location_id"] == str(state.location_id)
+
+    exploration = await crud.exploration.get_by_dweller(async_session, dweller_id=dweller.id)
+    assert exploration is not None
+    assert exploration.target_location_id == state.location_id
+    assert exploration.team_id is not None
+
+
+@pytest.mark.asyncio
+async def test_send_rejects_multi_dweller_roam(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """A roam (no target) sending more than one dweller is rejected."""
+    response = await async_client.post(
+        f"/explorations/send?vault_id={vault.id}",
+        json={"dweller_ids": [str(dweller.id), str(dweller.id)]},
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_send_requires_a_roster(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+) -> None:
+    """Neither dweller_id nor dweller_ids is rejected."""
+    response = await async_client.post(
+        f"/explorations/send?vault_id={vault.id}",
+        json={"duration": 4},
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_send_rejects_locked_target(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """A clearable place the vault has not unlocked cannot be sent to."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
+    state = (
+        await async_session.execute(
+            select(VaultLocationState)
+            .join(WorldLocation, WorldLocation.id == VaultLocationState.location_id)
+            .where(VaultLocationState.vault_id == vault.id, WorldLocation.name == "Red Rocket")
+        )
+    ).scalar_one()
+
+    response = await async_client.post(
+        f"/explorations/send?vault_id={vault.id}",
+        json={"dweller_ids": [str(dweller.id)], "target_location_id": str(state.location_id)},
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_send_rejects_conflicting_roster_fields(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """Providing both dweller_id and dweller_ids is rejected, not silently resolved."""
+    response = await async_client.post(
+        f"/explorations/send?vault_id={vault.id}",
+        json={"dweller_id": str(dweller.id), "dweller_ids": [str(dweller.id)]},
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_list_explorations_empty(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
@@ -96,6 +206,10 @@ async def test_dispatch_dweller_success(
         .where(VaultLocationState.vault_id == vault.id, WorldLocation.name == "Red Rocket")
     )
     state = result.scalar_one()
+
+    await crud.world_location.link_dweller(
+        async_session, dweller.id, state.location_id, DwellerLocationRelationEnum.VISITED, is_unlocked=True
+    )
 
     response = await async_client.post(
         f"/explorations/dispatch?vault_id={vault.id}",
@@ -133,6 +247,10 @@ async def test_list_explorations_includes_target_location_id(
             .where(VaultLocationState.vault_id == vault.id, WorldLocation.name == "Red Rocket")
         )
     ).scalar_one()
+
+    await crud.world_location.link_dweller(
+        async_session, dweller.id, state.location_id, DwellerLocationRelationEnum.VISITED, is_unlocked=True
+    )
 
     response = await async_client.post(
         f"/explorations/dispatch?vault_id={vault.id}",

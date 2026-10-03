@@ -224,6 +224,24 @@ class CRUDWorldLocation:
         )
         return result.scalar_one_or_none()
 
+    async def is_location_unlocked(self, db_session: AsyncSession, vault_id: UUID4, location_id: UUID4) -> bool:
+        """True when a dweller in the vault has unlocked this location.
+
+        Mirrors the map's visibility rule: a place is known to the vault only once a
+        dweller link marks it unlocked, so the registry row alone is not enough.
+        """
+        result = await db_session.execute(
+            select(DwellerLocation.id)
+            .join(Dweller, Dweller.id == DwellerLocation.dweller_id)
+            .where(
+                DwellerLocation.location_id == location_id,
+                Dweller.vault_id == vault_id,
+                DwellerLocation.is_unlocked == True,  # ruff: ignore[true-false-comparison]
+            )
+            .limit(1)
+        )
+        return result.first() is not None
+
     async def get_state_with_location(
         self, db_session: AsyncSession, vault_id: UUID4, location_id: UUID4
     ) -> tuple[WorldLocation, VaultLocationState] | None:

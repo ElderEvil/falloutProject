@@ -280,6 +280,44 @@ class ExplorationService:
         slot = await vault_slot_crud.get_by_vault(db_session, vault_id)
         return slot_coords(slot.slot_index) if slot is not None else VAULT_HOME_POINT
 
+    async def depart(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        dweller_ids: list[UUID4],
+        target_location_id: UUID4 | None = None,
+        duration: int = 4,
+        stimpaks: int = 0,
+        radaways: int = 0,
+    ) -> Exploration:
+        """The single departure entry point: roam (no target) or clear (target).
+
+        Roster and target validation live here so every caller shares one rule set;
+        the roam and clear resolution engines stay separate.
+        """
+        if not dweller_ids:
+            raise ValidationException("Provide at least one dweller")
+        if target_location_id is None:
+            if len(dweller_ids) != 1:
+                raise ValidationException("Roaming runs send exactly one dweller")
+            try:
+                return await self.send_dweller(
+                    db_session,
+                    vault_id=vault_id,
+                    dweller_id=dweller_ids[0],
+                    duration=duration,
+                    stimpaks=stimpaks,
+                    radaways=radaways,
+                )
+            except ValueError as e:
+                raise ValidationException(str(e)) from e
+        return await self.dispatch(
+            db_session,
+            vault_id=vault_id,
+            dweller_ids=dweller_ids,
+            location_id=target_location_id,
+        )
+
     async def scout(
         self,
         db_session: AsyncSession,
@@ -372,6 +410,9 @@ class ExplorationService:
         group = get_place_group(location.group_key)
         if group is None or not group.get("clearable"):
             raise ValidationException("This location cannot be cleared")
+
+        if not await crud_world_location.is_location_unlocked(db_session, vault_id, location_id):
+            raise ValidationException("This location is not known to the vault")
 
         if not state.is_dispatchable(datetime.utcnow()):
             raise ValidationException("This location is currently cleared")

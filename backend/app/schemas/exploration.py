@@ -122,10 +122,21 @@ class ExplorationEvent(SQLModel):
 
 
 class ExplorationSendRequest(SQLModel):
-    """Schema for sending a dweller to wasteland."""
+    """Schema for sending dwellers out — the single departure boundary.
 
-    dweller_id: UUID4
-    duration: int = Field(default=4, ge=1, le=24, description="Duration in hours")
+    One roster, one optional destination: `dweller_ids` (or the legacy single
+    `dweller_id`) is the roster; `target_location_id` present means travel to a
+    known place (clear), absent means roam. Roaming sends exactly one dweller.
+    """
+
+    dweller_id: UUID4 | None = Field(default=None, description="Single dweller (legacy/roam)")
+    dweller_ids: list[UUID4] | None = Field(
+        default=None, min_length=1, description="Roster; up to the party limit when clearing"
+    )
+    target_location_id: UUID4 | None = Field(
+        default=None, description="Known place to travel to and clear; omit to roam"
+    )
+    duration: int = Field(default=4, ge=1, le=24, description="Duration in hours (roam only)")
     stimpaks: int = Field(default=0, ge=0, le=25, description="Number of Stimpaks to bring")
     radaways: int = Field(default=0, ge=0, le=25, description="Number of Radaways to bring")
 

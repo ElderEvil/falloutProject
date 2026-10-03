@@ -42,20 +42,36 @@ async def send_dweller_to_wasteland(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Exploration:
-    """Send a dweller to the wasteland for exploration.
+    """The single departure boundary: one roster, optional destination.
 
-    Returns:
-        ExplorationRead: The created exploration.
+    `target_location_id` present → travel and clear a known place (party allowed);
+    absent → roam (exactly one dweller). Both route to the existing service
+    branches; no resolution engine is merged.
 
     Raises:
-        ValidationException: If the dweller cannot be sent.
+        ValidationException: If the roster is empty/oversized, or a dweller cannot be sent.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
+    roster = list(request.dweller_ids or ([request.dweller_id] if request.dweller_id else []))
+    if not roster:
+        raise ValidationException("Provide dweller_id or dweller_ids")
+
+    if request.target_location_id is not None:
+        return await exploration_service.dispatch(
+            db_session,
+            vault_id=vault_id,
+            dweller_ids=roster,
+            location_id=request.target_location_id,
+        )
+
+    if len(roster) != 1:
+        raise ValidationException("Roaming runs send exactly one dweller")
+
     try:
         return await exploration_service.send_dweller(
             db_session,
             vault_id=vault_id,
-            dweller_id=request.dweller_id,
+            dweller_id=roster[0],
             duration=request.duration,
             stimpaks=request.stimpaks,
             radaways=request.radaways,

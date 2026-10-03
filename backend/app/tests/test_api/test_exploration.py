@@ -66,6 +66,69 @@ async def test_send_dweller_to_wasteland_success(
 
 
 @pytest.mark.asyncio
+async def test_send_routes_to_clear_when_target_given(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """The unified send boundary travels+clears when a target is provided."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
+    state = (
+        await async_session.execute(
+            select(VaultLocationState)
+            .join(WorldLocation, WorldLocation.id == VaultLocationState.location_id)
+            .where(VaultLocationState.vault_id == vault.id, WorldLocation.name == "Red Rocket")
+        )
+    ).scalar_one()
+
+    response = await async_client.post(
+        f"/explorations/send?vault_id={vault.id}",
+        json={"dweller_ids": [str(dweller.id)], "target_location_id": str(state.location_id)},
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["target_location_id"] == str(state.location_id)
+
+    exploration = await crud.exploration.get_by_dweller(async_session, dweller_id=dweller.id)
+    assert exploration is not None
+    assert exploration.target_location_id == state.location_id
+    assert exploration.team_id is not None
+
+
+@pytest.mark.asyncio
+async def test_send_rejects_multi_dweller_roam(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """A roam (no target) sending more than one dweller is rejected."""
+    response = await async_client.post(
+        f"/explorations/send?vault_id={vault.id}",
+        json={"dweller_ids": [str(dweller.id), str(dweller.id)]},
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_send_requires_a_roster(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+) -> None:
+    """Neither dweller_id nor dweller_ids is rejected."""
+    response = await async_client.post(
+        f"/explorations/send?vault_id={vault.id}",
+        json={"duration": 4},
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
 async def test_list_explorations_empty(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],

@@ -21,7 +21,6 @@ const adultDweller = {
   last_name: 'Dweller',
   room_id: null,
   status: 'idle',
-  is_adult: true,
   age_group: 'adult',
 }
 
@@ -31,7 +30,6 @@ const childDweller = {
   last_name: 'Dweller',
   room_id: null,
   status: 'idle',
-  is_adult: false,
   age_group: 'child',
 }
 

@@ -49,7 +49,6 @@ def available_dweller_conditions(*, require_healthy: bool = False) -> tuple:
     """Database conditions mirroring :func:`availability_error` for candidate queries."""
     conditions = [
         ~col(Dweller.is_deleted),
-        col(Dweller.is_adult),
         col(Dweller.age_group).in_(ADULT_AGE_GROUPS),
         ~col(Dweller.is_dead),
         col(Dweller.status).notin_(list(UNAVAILABLE_STATUSES)),

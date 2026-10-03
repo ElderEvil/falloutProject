@@ -260,7 +260,6 @@ class DwellerReadLess(SQLModel):
     happiness: int
     room_id: UUID4 | None = None
     status: DwellerStatusEnum
-    is_adult: bool
     age_group: AgeGroupEnum
     gender: GenderEnum
     rarity: RarityEnum

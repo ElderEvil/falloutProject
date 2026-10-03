@@ -122,7 +122,6 @@ describe('ExplorationDetailView', () => {
     thumbnail_url: null,
     room_id: null,
     status: 'exploring',
-    is_adult: true,
     age_group: 'adult',
     gender: 'female',
     birth_date: null,

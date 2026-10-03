@@ -23,15 +23,16 @@ describe('isMature', () => {
   const youths = ['teen', 'child'] as const
 
   it.each(grownUps)('accepts a mature %s', (age_group) => {
-    expect(isMature({ is_adult: true, age_group })).toBe(true)
+    expect(isMature({ age_group })).toBe(true)
   })
 
   it.each(youths)('rejects a %s', (age_group) => {
-    expect(isMature({ is_adult: true, age_group })).toBe(false)
+    expect(isMature({ age_group })).toBe(false)
   })
 
-  it('still requires the is_adult flag', () => {
-    expect(isMature({ is_adult: false, age_group: 'adult' })).toBe(false)
+  it('derives maturity from age_group alone', () => {
+    expect(isMature({ age_group: 'adult' })).toBe(true)
+    expect(isMature({ age_group: 'elder' })).toBe(true)
   })
 })
 

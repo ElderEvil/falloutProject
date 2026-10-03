@@ -772,7 +772,7 @@ describe('RoomGrid', () => {
         first_name: 'X',
         last_name: 'Y',
         room_id: 'production-room-123',
-        is_adult: true,
+        age_group: 'adult',
         apprentice_stat: null,
         ...overrides,
       }) as any
@@ -790,7 +790,7 @@ describe('RoomGrid', () => {
     it('lets a youth apprentice be dropped on a fully staffed production room', async () => {
       const dwellerStore = setupDrop([
         ...staffedFull,
-        dwellerIn({ id: 'teen-1', room_id: null, is_adult: false, age_group: 'teen' }),
+        dwellerIn({ id: 'teen-1', room_id: null, age_group: 'teen' }),
       ])
 
       const assignSpy = vi
@@ -822,7 +822,7 @@ describe('RoomGrid', () => {
     it('does not count an apprentice against worker capacity for adults', async () => {
       const dwellerStore = setupDrop([
         dwellerIn({ id: 'adult-1' }),
-        dwellerIn({ id: 'teen-1', is_adult: false, age_group: 'teen', apprentice_stat: 'strength' }),
+        dwellerIn({ id: 'teen-1', age_group: 'teen', apprentice_stat: 'strength' }),
         dwellerIn({ id: 'adult-3', room_id: null }),
       ])
 

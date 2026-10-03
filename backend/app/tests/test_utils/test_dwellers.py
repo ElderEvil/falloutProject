@@ -61,10 +61,10 @@ def test_render_bio_non_human_voice(race: RaceOption, marker: str) -> None:
 
 
 def test_procedural_bio_places_scales_with_rarity() -> None:
-    """Visited counts stay tight: 1/2/3 for common/rare/legendary."""
-    assert len(_procedural_bio_places(random.Random(3), RarityEnum.COMMON)[1]) == 1
-    assert len(_procedural_bio_places(random.Random(3), RarityEnum.RARE)[1]) == 2
-    assert len(_procedural_bio_places(random.Random(3), RarityEnum.LEGENDARY)[1]) == 3
+    """Visited counts stay tight: 0/1/2 for common/rare/legendary (origin always present)."""
+    assert len(_procedural_bio_places(random.Random(3), RarityEnum.COMMON)[1]) == 0
+    assert len(_procedural_bio_places(random.Random(3), RarityEnum.RARE)[1]) == 1
+    assert len(_procedural_bio_places(random.Random(3), RarityEnum.LEGENDARY)[1]) == 2
 
 
 def test_create_random_common_dweller_state_of_being_for_non_humans() -> None:

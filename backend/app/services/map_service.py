@@ -119,17 +119,15 @@ class MapService:
         explicit_origin: str | None = None,
         *,
         commit: bool = True,
-        cap_visited: bool = True,
     ) -> bool:
         """Upsert bio origin + rarity-scaled visited location rows — best-effort.
 
         *effective origin* = *explicit_origin* when truthy, else *origin_place*.
         If the effective origin normalises to a generic skip token we suppress it.
         Every visited name (max 64 chars, skip-list applied) is upserted, capped
-        at ``game_config.bio.max_visited`` for the dweller's rarity. Curated
-        template registrations pass ``cap_visited=False``: their places are
-        schema-bounded and bio-authoritative, so capping would orphan mentioned
-        locations.
+        at ``game_config.bio.max_visited`` for the dweller's rarity. The cap is
+        uniform: curated templates obey it too (they author the best N places,
+        not every mention).
 
         A failed attempt rolls back its savepoint before retrying. With commit=False,
         the caller owns persistence and must notify failure after its own commit.
@@ -151,7 +149,6 @@ class MapService:
                         origin_place,
                         visited_places,
                         explicit_origin,
-                        cap_visited,
                     )
             except Exception:
                 if attempt == 0:
@@ -197,7 +194,6 @@ class MapService:
         origin_place: str,
         visited_places: list[str],
         explicit_origin: str | None,
-        cap_visited: bool = True,
     ) -> None:
         """Register bio places once; callers handle best-effort recovery."""
         effective_origin = explicit_origin or origin_place
@@ -225,7 +221,7 @@ class MapService:
         visited = 0
         max_visited = game_config.bio.max_visited(dweller.rarity.value)
         for raw_name in visited_places:
-            if cap_visited and visited >= max_visited:
+            if visited >= max_visited:
                 break
             if not raw_name or self._should_skip(raw_name):
                 continue

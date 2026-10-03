@@ -26,7 +26,7 @@ from app.utils.places import WORLD_SCALE, normalize_place_name
 
 @pytest.mark.asyncio
 async def test_register_bio_places_rarity_scaled(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """VISITED cap follows rarity: COMMON→1, LEGENDARY→3 for 6 provided names each."""
+    """VISITED cap follows rarity: COMMON→0, LEGENDARY→2 for 6 provided names each."""
     common_names = [
         "Megaton",
         "Rivet City",
@@ -54,33 +54,48 @@ async def test_register_bio_places_rarity_scaled(async_session: AsyncSession, va
     origin_rows = [r for r in rows if r.type == LocationTypeEnum.ORIGIN]
     visited_rows = [r for r in rows if r.type == LocationTypeEnum.VISITED]
     assert len(origin_rows) == 1
-    assert len(visited_rows) == 4
+    assert len(visited_rows) == 2
 
 
 @pytest.mark.asyncio
-async def test_register_bio_places_uncapped_for_curated_templates(
+async def test_register_bio_places_caps_curated_templates_at_rarity(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """Curated template places bypass the rarity cap: all 4 register for a legendary."""
+    """Curated places obey the same rarity cap: a legendary registers 2, not all 4."""
     dweller.rarity = RarityEnum.LEGENDARY
     await map_service.register_bio_places(
         async_session,
         dweller,
         origin_place="Rivet City",
         visited_places=["National Archives", "Megaton", "Canterbury Commons", "Tenpenny Tower"],
-        cap_visited=False,
     )
 
     rows = (await async_session.execute(select(VaultLocationState))).scalars().all()
     visited_rows = [r for r in rows if r.type == LocationTypeEnum.VISITED]
-    assert len(visited_rows) == 4
+    assert len(visited_rows) == 2
 
 
 @pytest.mark.asyncio
-async def test_template_dweller_creation_registers_all_curated_places(
-    async_session: AsyncSession, vault: Vault
-) -> None:
-    """Abraham Washington's 4 curated visits all reach the map despite the legendary cap of 3."""
+async def test_common_bio_registers_origin_only(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
+    """A common dweller keeps its origin but registers no traveled history."""
+    dweller.rarity = RarityEnum.COMMON
+    await map_service.register_bio_places(
+        async_session,
+        dweller,
+        origin_place="Megaton",
+        visited_places=["Rivet City", "Tenpenny Tower", "Canterbury Commons"],
+    )
+
+    rows = (await async_session.execute(select(VaultLocationState))).scalars().all()
+    origin_rows = [r for r in rows if r.type == LocationTypeEnum.ORIGIN]
+    visited_rows = [r for r in rows if r.type == LocationTypeEnum.VISITED]
+    assert len(origin_rows) == 1
+    assert len(visited_rows) == 0
+
+
+@pytest.mark.asyncio
+async def test_template_dweller_creation_registers_capped_places(async_session: AsyncSession, vault: Vault) -> None:
+    """Abraham Washington's 4 curated visits register capped to the legendary limit of 2."""
     from app.services.dweller_service import dweller_service
 
     dweller = await dweller_service.create_dweller_from_template(async_session, vault.id, "abraham-washington")
@@ -88,7 +103,7 @@ async def test_template_dweller_creation_registers_all_curated_places(
     rows = (await async_session.execute(select(VaultLocationState))).scalars().all()
     visited_rows = [r for r in rows if r.type == LocationTypeEnum.VISITED]
     assert dweller.bio.startswith("Curator of the Capitol Preservation Society")
-    assert len(visited_rows) == 4
+    assert len(visited_rows) == 2
 
 
 @pytest.mark.asyncio
@@ -224,6 +239,7 @@ async def test_get_vault_map_unlocked_only_hides_locked(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
     """unlocked_only=True excludes non-VAULT locations that are locked."""
+    dweller.rarity = RarityEnum.LEGENDARY
     await map_service.register_bio_places(async_session, dweller, origin_place="Megaton", visited_places=["Rivet City"])
 
     full = await map_service.get_vault_map(async_session, vault)

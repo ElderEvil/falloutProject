@@ -9,7 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.core.enums import HazardTeam
 from app.core.game_config import game_config
-from app.models.incident import IncidentType
+from app.models.incident import IncidentObjective, IncidentType, get_incident_definition
 from app.models.team import ACTIVE_STATUS, RESERVE_STATUS
 from app.schemas.dweller import DwellerCreate
 from app.services.combat.incident_round import apply_damage
@@ -104,9 +104,9 @@ async def test_active_member_response_bonus(
     await make_member(async_session, room.vault_id, dwellers[0].id, member_team, ACTIVE_STATUS)
     incident = await raise_incident(async_session, room, incident_type)
 
-    is_fire = incident_type == IncidentType.FIRE
-    power_fn = "fire_suppression" if is_fire else "damage_to_raiders"
-    damage_fn = "fire_damage" if is_fire else "damage_to_dwellers"
+    is_containment = get_incident_definition(incident_type).objective == IncidentObjective.CONTAIN
+    power_fn = "containment_progress" if is_containment else "damage_to_raiders"
+    damage_fn = "containment_damage" if is_containment else "damage_to_dwellers"
     with (
         patch("app.services.combat.incident_math.dweller_combat_power", return_value=100.0),
         patch(f"app.services.combat.incident_math.{power_fn}", return_value=0.0) as mock_power,

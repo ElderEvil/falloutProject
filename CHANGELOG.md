@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.167.0 (2026-10-03)
+
+### Features
+
+* **map:** shared atlas generator, terrain, coordinates, and derived fog 6c88993
+
+### Bug Fixes
+
+* **map:** drop hardcoded fog fallback in favor of --color-fog token 66e183a
+* **map:** pixelated terrain image, delink missing contract, honest projection test 4af17c4
+
 ## 2.166.0 (2026-10-03)
 
 ### Features

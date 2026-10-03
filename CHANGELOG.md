@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.174.0 (2026-10-03)
+
+### Features
+
+* **bio:** rarity-scale visited places and apply the cap to templates 58b8dc9
+
 ## 2.173.0 (2026-10-03)
 
 ### Features

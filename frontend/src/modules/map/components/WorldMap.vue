@@ -235,10 +235,10 @@ function handleTouchEnd(event: TouchEvent) {
 
         <!-- Vault markers (spread-adjusted positions) -->
         <MapMarker
-          v-for="(vm, idx) in vaultMarkers"
-          :key="`vault-${idx}`"
-          :x="getSpread(`vault-${idx}`, vm.coord_x, vm.coord_y).renderX"
-          :y="getSpread(`vault-${idx}`, vm.coord_x, vm.coord_y).renderY"
+          v-for="vm in vaultMarkers"
+          :key="`vault-${vm.name}`"
+          :x="getSpread(`vault-${vm.name}`, vm.coord_x, vm.coord_y).renderX"
+          :y="getSpread(`vault-${vm.name}`, vm.coord_x, vm.coord_y).renderY"
           :name="vm.name"
           :type="vm.type"
           :selected="selectedMarkerId === `vault-${vm.name}`"

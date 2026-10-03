@@ -68,7 +68,7 @@ const groups = computed<MarkerGroup[]>(() => {
   for (let i = 0; i < props.vaultMarkers.length; i++) {
     const vm = props.vaultMarkers[i]
     if (!byType.has(vm.type)) byType.set(vm.type, [])
-    byType.get(vm.type)!.push({ id: `vault-${i}`, name: vm.name, kind: 'vault', data: vm })
+    byType.get(vm.type)!.push({ id: `vault-${vm.name}`, name: vm.name, kind: 'vault', data: vm })
   }
 
   for (const site of props.expeditionSites) {
@@ -109,6 +109,42 @@ function toggleGroup(type: string) {
 function handleItemClick(item: MarkerGroup['items'][number]) {
   emit('marker-select', { kind: item.kind, data: item.data } as MarkerClickPayload)
 }
+
+const rowRefs = ref<Record<string, HTMLButtonElement | null>>({})
+function rowRefFn(id: string) {
+  return (el: unknown) => {
+    rowRefs.value[id] = el as HTMLButtonElement | null
+  }
+}
+
+function onListKeydown(event: KeyboardEvent) {  const keyTarget = event.target
+  if (
+    (event.key === 'Enter' || event.key === ' ') &&
+    keyTarget instanceof HTMLButtonElement &&
+    keyTarget.classList.contains('marker-row')
+  ) {
+    event.preventDefault()
+    keyTarget.click()
+    return
+  }
+  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Home' && event.key !== 'End') return
+  const visibleIds: string[] = []
+  for (const group of groups.value) {
+    if (collapsedGroups.value.has(group.type)) continue
+    for (const item of group.items) visibleIds.push(item.id)
+  }
+  if (visibleIds.length === 0) return
+  event.preventDefault()
+  const activeId = visibleIds.find((id) => rowRefs.value[id] === document.activeElement) ?? ''
+  const current = visibleIds.indexOf(activeId)
+  let next: string
+  if (event.key === 'ArrowDown') next = visibleIds[(current + 1) % visibleIds.length] as string
+  else if (event.key === 'ArrowUp')
+    next = visibleIds[(current - 1 + visibleIds.length) % visibleIds.length] as string
+  else if (event.key === 'Home') next = visibleIds[0] as string
+  else next = visibleIds[visibleIds.length - 1] as string
+  rowRefs.value[next]?.focus()
+}
 </script>
 
 <template>
@@ -136,7 +172,7 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
         <span class="panel-count">{{ totalCount }}</span>
       </div>
 
-      <div class="panel-body">
+      <div class="panel-body" @keydown="onListKeydown">
         <div
           v-for="group in groups"
           :key="group.type"
@@ -160,10 +196,11 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
           </button>
 
           <div v-show="!collapsedGroups.has(group.type)">
-            <button
-              v-for="item in group.items"
-              :key="item.id"
-              class="marker-row"
+              <button
+                v-for="item in group.items"
+                :key="item.id"
+                :ref="rowRefFn(item.id)"
+                class="marker-row"
               :class="{ selected: selectedMarkerId === item.id }"
               @click="handleItemClick(item)"
             >

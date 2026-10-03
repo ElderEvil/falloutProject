@@ -8,18 +8,19 @@ import type {
 import type { SpreadResult } from '../utils/spreadMarkers'
 
 export function useMarkerSelection(
-  vaultMarkers: Ref<VaultMarkerRead[]>,
+  selectedMarkerId: Ref<string | null>,
   spreadMap: ComputedRef<Map<string, SpreadResult>>,
   focusOnMarker: (x: number, y: number) => void,
   emit: (event: 'marker-click', payload: MarkerClickPayload) => void
 ) {
-  const selectedMarkerId = ref<string | null>(null)
   const hasDragMoved = ref(false)
 
+  // Vault markers have no stable backend IDs (computed signals), so key them by
+  // name, which survives replacement and reordering unlike array indexes.
   function markerId(payload: MarkerClickPayload): string {
     if (payload.kind === 'location') return `loc-${payload.data.id}`
     if (payload.kind === 'site') return `site-${payload.data.id}`
-    return `vault-${vaultMarkers.value.indexOf(payload.data)}`
+    return `vault-${payload.data.name}`
   }
 
   function onLocationClick(loc: WastelandLocationWithDwellers) {
@@ -30,7 +31,7 @@ export function useMarkerSelection(
 
   function onVaultClick(marker: VaultMarkerRead) {
     if (hasDragMoved.value) return
-    selectedMarkerId.value = `vault-${vaultMarkers.value.indexOf(marker)}`
+    selectedMarkerId.value = `vault-${marker.name}`
     emit('marker-click', { kind: 'vault', data: marker })
   }
 

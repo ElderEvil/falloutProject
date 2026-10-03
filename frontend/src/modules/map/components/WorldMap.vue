@@ -21,6 +21,7 @@ import { useMarkerSelection } from '../composables/useMarkerSelection'
 import { tracePoints } from '../utils/tracePath'
 import { useMapZoomPan } from '../composables/useMapZoomPan'
 import { useMapStore } from '../stores/map'
+import { isKnownLocation } from '../utils/visibility'
 
 interface Props {
   locations: WastelandLocationWithDwellers[]
@@ -28,6 +29,7 @@ interface Props {
   discoveryRoutes?: DiscoveryRouteRead[]
   expeditionSites?: ExpeditionSiteMarkerRead[]
   explorerTracks?: ExplorerTrack[]
+  selectedMarkerId: string | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -38,16 +40,18 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   (e: 'marker-click', payload: MarkerClickPayload): void
+  (e: 'update:selectedMarkerId', value: string | null): void
 }>()
 
 // ── Marker visibility filter ─────────────────────────────────────
-// Hide single-dweller VISITED locations from the SVG to reduce clutter
-// (they remain in the marker list panel and detail modal).
+// The index stays known-only, but the SVG renders locked places as dimmed "?"
+// hint pins so the player sees an unknown place exists and can chat with a
+// dweller to reveal it. The home vault is always visible regardless of unlock.
+const knownLocations = computed(() => props.locations.filter(isKnownLocation))
+
 const visibleLocations = computed(() =>
   props.locations.filter((loc) => !(loc.type === 'visited' && loc.dwellers.length < 2))
 )
-
-const knownLocations = computed(() => props.locations.filter((loc) => loc.is_unlocked !== false))
 
 // Expeditions start at the home vault — anchor every trail there.
 const homeCoords = computed<[number, number]>(() => {
@@ -112,6 +116,10 @@ const {
   onDragStart,
   onDragMove,
   onDragEnd,
+  isPinching,
+  onTouchStart,
+  onTouchMove,
+  onTouchEnd,
 } = useMapZoomPan()
 
 const mapStore = useMapStore()
@@ -120,8 +128,13 @@ const vaultMarkers = toRef(props, 'vaultMarkers')
 
 const { spreadMap, getSpread } = useMapSpread(visibleLocations, vaultMarkers)
 
-const { selectedMarkerId, hasDragMoved, onLocationClick, onVaultClick, onSiteClick, onPanelMarkerSelect } =
-  useMarkerSelection(vaultMarkers, spreadMap, focusOnMarker, emit)
+const selectedMarkerId = computed<string | null>({
+  get: () => props.selectedMarkerId,
+  set: (value) => emit('update:selectedMarkerId', value),
+})
+
+const { hasDragMoved, onLocationClick, onVaultClick, onSiteClick, onPanelMarkerSelect } =
+  useMarkerSelection(selectedMarkerId, spreadMap, focusOnMarker, emit)
 
 function getSvgRect(): DOMRect {
   return svgRef.value?.getBoundingClientRect() ?? new DOMRect(0, 0, 0, 0)
@@ -148,19 +161,38 @@ function handleMouseUp() {
   onDragEnd()
 }
 
-// ── Grid lines ─────────────────────────────────────────────────────────
-const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
+function handleTouchStart(event: TouchEvent) {
+  hasDragMoved.value = false
+  onTouchStart(event, getSvgRect())
+}
+
+function handleTouchMove(event: TouchEvent) {
+  if (isDragging.value || isPinching.value) {
+    onTouchMove(event, getSvgRect())
+    hasDragMoved.value = true
+  }
+}
+
+function handleTouchEnd(event: TouchEvent) {
+  onTouchEnd(event)
+}
+
+
 </script>
 
 <template>
   <div class="world-map-layout">
     <div
-      class="world-map-container crt-screen"
+      class="world-map-container crt-screen touch-none"
       :class="{ 'is-zoomed': isZoomed, 'is-dragging': isDragging }"
       @mousemove="handleMouseMove"
       @mouseup="handleMouseUp"
       @mouseleave="handleMouseUp"
       @wheel.prevent="handleWheel"
+      @touchstart="handleTouchStart"
+      @touchmove="handleTouchMove"
+      @touchend="handleTouchEnd"
+      @touchcancel="handleTouchEnd"
     >
       <svg
         ref="svgRef"
@@ -173,25 +205,7 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
         <!-- Terrain layer (bottom — behind grid and markers) -->
         <TerrainLayer />
 
-        <!-- Grid lines -->
-        <line
-          v-for="pos in gridLines"
-          :key="`h-${pos}`"
-          :x1="0"
-          :y1="pos"
-          :x2="160"
-          :y2="pos"
-          class="grid-line"
-        />
-        <line
-          v-for="pos in gridLines"
-          :key="`v-${pos}`"
-          :x1="pos"
-          :y1="0"
-          :x2="pos"
-          :y2="160"
-          class="grid-line"
-        />
+
 
         <!-- Discovery routes (per-exploration trail) -->
         <polyline
@@ -221,13 +235,13 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
 
         <!-- Vault markers (spread-adjusted positions) -->
         <MapMarker
-          v-for="(vm, idx) in vaultMarkers"
-          :key="`vault-${idx}`"
-          :x="getSpread(`vault-${idx}`, vm.coord_x, vm.coord_y).renderX"
-          :y="getSpread(`vault-${idx}`, vm.coord_x, vm.coord_y).renderY"
+          v-for="vm in vaultMarkers"
+          :key="`vault-${vm.name}`"
+          :x="getSpread(`vault-${vm.name}`, vm.coord_x, vm.coord_y).renderX"
+          :y="getSpread(`vault-${vm.name}`, vm.coord_x, vm.coord_y).renderY"
           :name="vm.name"
           :type="vm.type"
-          :selected="selectedMarkerId === `vault-${idx}`"
+          :selected="selectedMarkerId === `vault-${vm.name}`"
           @click="onVaultClick(vm)"
         />
 
@@ -346,11 +360,7 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
   display: block;
 }
 
-.grid-line {
-  stroke: var(--color-theme-primary);
-  stroke-width: 0.15;
-  stroke-opacity: 0.12;
-}
+
 
 /* Zoom controls overlay */
 .zoom-controls {

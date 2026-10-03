@@ -10,8 +10,8 @@ export function useMapSpread(
     spreadMarkers(
       [
         ...locations.value.map((loc) => ({ id: `loc-${loc.id}`, x: loc.coord_x, y: loc.coord_y })),
-        ...vaultMarkers.value.map((vm, idx) => ({
-          id: `vault-${idx}`,
+        ...vaultMarkers.value.map((vm) => ({
+          id: `vault-${vm.name}`,
           x: vm.coord_x,
           y: vm.coord_y,
         })),

@@ -347,6 +347,7 @@ describe('MarkerDetailModal', () => {
       expect(wrapper.text()).toContain('John Doe')
       expect(wrapper.findAll('button.dweller-contact')).toHaveLength(2)
       expect(wrapper.text()).not.toContain('origin')
+      expect(wrapper.text()).not.toContain('Dispatch')
     })
 
     it('opens a linked dweller chat from a locked location', async () => {

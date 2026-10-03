@@ -389,4 +389,96 @@ describe('MarkerListPanel', () => {
       expect(wrapper.text()).not.toContain('Expedition Sites')
     })
   })
+
+  describe('Keyboard navigation', () => {
+    function mountAttached(locations: WastelandLocationWithDwellers[]) {
+      return mount(MarkerListPanel, {
+        props: { locations, vaultMarkers: [], open: true },
+        global: { stubs: { Icon: IconStub } },
+        attachTo: document.body,
+      })
+    }
+
+    function keydown(el: Element, key: string) {
+      el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+    }
+
+    it('moves focus with ArrowDown and ArrowUp across rows', async () => {
+      const wrapper = mountAttached([
+        createLocation('discovery', 'Alpha'),
+        createLocation('discovery', 'Beta'),
+      ])
+
+      const rows = wrapper.findAll('button.marker-row')
+      expect(rows).toHaveLength(2)
+      ;(rows[0].element as HTMLElement).focus()
+      expect(document.activeElement).toBe(rows[0].element)
+
+      keydown(wrapper.find('.panel-body').element, 'ArrowDown')
+      await wrapper.vm.$nextTick()
+      expect(document.activeElement).toBe(rows[1].element)
+
+      keydown(wrapper.find('.panel-body').element, 'ArrowUp')
+      await wrapper.vm.$nextTick()
+      expect(document.activeElement).toBe(rows[0].element)
+      wrapper.unmount()
+    })
+
+    it('wraps focus at the ends and jumps with Home and End', async () => {
+      const wrapper = mountAttached([
+        createLocation('discovery', 'Alpha'),
+        createLocation('discovery', 'Beta'),
+      ])
+
+      const body = wrapper.find('.panel-body').element
+      const rows = wrapper.findAll('button.marker-row')
+      ;(rows[1].element as HTMLElement).focus()
+
+      keydown(body, 'ArrowDown')
+      await wrapper.vm.$nextTick()
+      expect(document.activeElement).toBe(rows[0].element)
+
+      keydown(body, 'End')
+      await wrapper.vm.$nextTick()
+      expect(document.activeElement).toBe(rows[1].element)
+
+      keydown(body, 'Home')
+      await wrapper.vm.$nextTick()
+      expect(document.activeElement).toBe(rows[0].element)
+      wrapper.unmount()
+    })
+
+    it('skips rows in collapsed groups', async () => {
+      const wrapper = mountAttached([
+        createLocation('discovery', 'Alpha'),
+        createLocation('visited', 'Beta'),
+      ])
+
+      const headers = wrapper.findAll('button.group-header')
+      expect(headers.length).toBeGreaterThanOrEqual(2)
+      await headers[0].trigger('click')
+
+      const rows = wrapper.findAll('button.marker-row')
+      ;(rows[1].element as HTMLElement).focus()
+      keydown(wrapper.find('.panel-body').element, 'ArrowDown')
+      await wrapper.vm.$nextTick()
+      expect(document.activeElement).toBe(rows[1].element)
+      wrapper.unmount()
+    })
+
+    it('activates the focused row with Enter', async () => {
+      const loc = createLocation('origin', 'Megaton')
+      const wrapper = mountAttached([loc])
+
+      const row = wrapper.findAll('button.marker-row')[0]
+      ;(row.element as HTMLElement).focus()
+      keydown(row.element, 'Enter')
+      await wrapper.vm.$nextTick()
+
+      const emitted = wrapper.emitted('marker-select')
+      expect(emitted).toBeTruthy()
+      expect(emitted![0][0]).toEqual({ kind: 'location', data: loc })
+      wrapper.unmount()
+    })
+  })
 })

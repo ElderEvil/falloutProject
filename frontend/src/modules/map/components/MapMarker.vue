@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { markerTypeMeta, type MarkerType } from '../models/markerTypeMeta'
+import { isHintLocation } from '../utils/visibility'
 
 interface Props {
   x: number
@@ -49,9 +50,7 @@ const label = computed(() => props.label ?? meta.value.label)
 const isDiscovery = computed(() => props.type === 'discovery')
 const isVault = computed(() => props.type === 'vault')
 
-const isLocked = computed(
-  () => !props.is_unlocked && props.type !== 'home_vault' && props.type !== 'vault'
-)
+const isLocked = computed(() => isHintLocation(props))
 const displayIcon = computed(() => (isLocked.value ? 'mdi:lock-question' : icon.value))
 const displayLabel = computed(() => (isLocked.value ? 'Unknown Location' : props.name))
 const shouldPulse = computed(() => isDiscovery.value && !isLocked.value && props.unseen)
@@ -84,6 +83,7 @@ const tooltipText = computed(() => {
     <!-- Native SVG tooltip. IMPORTANT: keep the <foreignObject> a DIRECT child
          of <g> - wrapping it in HTML elements (e.g. a tooltip <div>) collapses
          it to 0x0 in Chromium and the marker becomes invisible. -->
+    <circle class="marker-hit-area" r="6" fill="transparent" />
     <title>{{ tooltipText }}</title>
     <circle v-if="selected" class="marker-select-ring" r="3.1" />
     <circle v-if="selected" class="marker-select-ping" r="3.1" />

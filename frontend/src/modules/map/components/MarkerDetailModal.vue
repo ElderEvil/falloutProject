@@ -13,6 +13,7 @@ import type {
   VaultMarkerRead,
 } from '../models/map'
 import { useMapStore } from '../stores/map'
+import { isHintLocation, isKnownLocation } from '../utils/visibility'
 
 interface Props {
   modelValue: boolean
@@ -79,7 +80,7 @@ const coordinates = computed(() => {
 
 const recordStatus = computed(() => {
   if (isVaultMarker.value) return 'SIGNAL DETECTED'
-  return props.location?.is_unlocked ? 'SURVEYED' : 'UNVERIFIED'
+  return props.location && isKnownLocation(props.location) ? 'SURVEYED' : 'UNVERIFIED'
 })
 
 const recordedAt = computed(() => {
@@ -111,10 +112,7 @@ const badgeClass = computed(() =>
   placeType.value === 'discovery' ? 'bg-warning text-black border-warning' : ''
 )
 
-const isLocked = computed(
-  () =>
-    props.location !== null && props.location.type !== 'home_vault' && !props.location.is_unlocked
-)
+const isLocked = computed(() => props.location !== null && isHintLocation(props.location))
 
 // Clear-state projection for clearable map points (issue 772).
 const clearState = computed(() => props.location?.clear_state ?? null)

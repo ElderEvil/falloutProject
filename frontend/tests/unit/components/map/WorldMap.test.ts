@@ -3,6 +3,7 @@ import { nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import WorldMap from '@/modules/map/components/WorldMap.vue'
+import { markerTypeMeta } from '@/modules/map/models/markerTypeMeta'
 import { useMapStore, VIEWED_LOCATIONS_STORAGE_KEY } from '@/modules/map/stores/map'
 import type {
   ExpeditionSiteMarkerRead,
@@ -148,6 +149,38 @@ describe('WorldMap', () => {
 
       const markers = wrapper.findAll('.map-marker-stub')
       expect(markers).toHaveLength(5)
+    })
+
+    it('renders the site-type archetype icon on a grouped location marker', () => {
+      const store = useMapStore()
+      store.placeGroups = [
+        { key: 'gas_station', label: 'Gas Station', icon: 'mdi:gas-station' },
+      ] as (typeof store.placeGroups)[number][]
+      const [location] = createLocations(1)
+      const grouped = { ...location, type: 'visited' as const, group_key: 'gas_station' }
+
+      const wrapper = mount(WorldMap, {
+        props: { locations: [grouped], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const marker = wrapper.findAllComponents(MapMarkerStub)[0]
+      expect(marker.props('icon')).toBe('mdi:gas-station')
+    })
+
+    it('falls back to the generic type icon without an archetype', () => {
+      const store = useMapStore()
+      store.placeGroups = []
+      const [location] = createLocations(1)
+      const plain = { ...location, type: 'visited' as const, group_key: null }
+
+      const wrapper = mount(WorldMap, {
+        props: { locations: [plain], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const marker = wrapper.findAllComponents(MapMarkerStub)[0]
+      expect(marker.props('icon')).toBe(markerTypeMeta('visited').icon)
     })
   })
 

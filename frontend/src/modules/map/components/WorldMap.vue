@@ -18,7 +18,7 @@ import MapLegend from './MapLegend.vue'
 import MarkerListPanel from './MarkerListPanel.vue'
 import AtlasTerrain from './AtlasTerrain.vue'
 import FogLayer from './FogLayer.vue'
-import { registryToTile, registryToWire } from '../utils/atlasProjection'
+import { registryToTile, registryToWire, ATLAS_TILES } from '../utils/atlasProjection'
 import { computeExploredMask, isExploredTile } from '../utils/fog'
 import { useMapSpread } from '../composables/useMapSpread'
 import { useMarkerSelection } from '../composables/useMarkerSelection'
@@ -74,7 +74,9 @@ function handleSvgClick(event: MouseEvent): void {
   const coord_x = ((event.clientX - rect.left) / rect.width) * view.width + view.x
   const coord_y = ((event.clientY - rect.top) / rect.height) * view.height + view.y
   // Only revealed cells are valid scout targets; the mask lives here (props-derived).
-  if (!isExploredTile(exploredMask.value, registryToTile(coord_x), registryToTile(coord_y))) {
+  if (
+    !isExploredTile(exploredMask.value, registryToTile(coord_x, gridTiles.value), registryToTile(coord_y, gridTiles.value), gridTiles.value)
+  ) {
     emit('scout-invalid')
     return
   }
@@ -87,16 +89,28 @@ function handleSvgClick(event: MouseEvent): void {
 // reveal nothing. The home vault is always revealed.
 const knownLocations = computed(() => props.locations.filter(isKnownLocation))
 
+// Fog/mask grid resolution follows the backend snapshot when loaded, so fog
+// cells align with rendered terrain cells; defaults preserve current behavior.
+const gridTiles = computed(() => mapStore.worldSnapshot?.width ?? ATLAS_TILES)
+
 const exploredMask = computed(() =>
-  computeExploredMask({
-    home: props.locations.find((loc) => loc.type === 'home_vault') ?? null,
-    discovered: props.locations.filter(isKnownLocation),
-    trailPoints: props.discoveryRoutes.flatMap((route) => route.points),
-  }),
+  computeExploredMask(
+    {
+      home: props.locations.find((loc) => loc.type === 'home_vault') ?? null,
+      discovered: props.locations.filter(isKnownLocation),
+      trailPoints: props.discoveryRoutes.flatMap((route) => route.points),
+    },
+    gridTiles.value,
+  ),
 )
 
 function isExploredLocation(loc: { coord_x: number; coord_y: number }): boolean {
-  return isExploredTile(exploredMask.value, registryToTile(loc.coord_x), registryToTile(loc.coord_y))
+  return isExploredTile(
+    exploredMask.value,
+    registryToTile(loc.coord_x, gridTiles.value),
+    registryToTile(loc.coord_y, gridTiles.value),
+    gridTiles.value,
+  )
 }
 
 const visibleLocations = computed(() =>
@@ -260,7 +274,7 @@ function handleTouchEnd(event: TouchEvent) {
         <AtlasTerrain />
 
         <!-- Fog of war: derived explored mask over the terrain -->
-        <FogLayer :explored="exploredMask" />
+        <FogLayer :explored="exploredMask" :tiles="gridTiles" />
 
         <!-- Scout target marker (wire/screen coords; server derives the duration) -->
         <g v-if="scoutMarker" class="scout-target" aria-hidden="true">

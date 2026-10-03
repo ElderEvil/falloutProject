@@ -9,6 +9,7 @@ import type {
   VaultMapResponse,
   VaultMarkerRead,
   WastelandLocationWithDwellers,
+  WorldSnapshotRead,
 } from '../models/map'
 import * as mapService from '../services/mapService'
 import { isKnownLocation } from '../utils/visibility'
@@ -25,6 +26,12 @@ export const useMapStore = defineStore('map', () => {
   const discoveryRoutes = ref<DiscoveryRouteRead[]>([])
   const expeditionSites = ref<ExpeditionSiteMarkerRead[]>([])
   const placeGroups = ref<PlaceGroup[]>([])
+  // Backend-owned world snapshot (terrain + slots). Fetched once per map load:
+  // the snapshot is immutable per (world_id, generator_version), so polling the
+  // vault map never refetches it. Null until loaded — terrain renders nothing
+  // rather than falling back to local generation.
+  const worldSnapshot = ref<WorldSnapshotRead | null>(null)
+  const snapshotError = ref<string | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const viewedLocationKeys = useLocalStorage<Set<string>>(
@@ -163,8 +170,23 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
-  async function refreshMap(vaultId: string, token?: string): Promise<void> {
-    const effectiveToken = token ?? _pollToken.value
+  async function fetchWorldSnapshot(token: string): Promise<void> {
+    snapshotError.value = null
+    try {
+      const snapshot = await mapService.getWorldSnapshot(token)
+      if (snapshot.terrain.length !== snapshot.width * snapshot.height) {
+        throw new Error(
+          `Snapshot terrain has ${snapshot.terrain.length} cells for a ${snapshot.width}x${snapshot.height} grid`
+        )
+      }
+      worldSnapshot.value = snapshot
+    } catch (err) {
+      worldSnapshot.value = null
+      snapshotError.value = handleStoreError(err, 'Failed to fetch world snapshot')
+    }
+  }
+
+  async function refreshMap(vaultId: string, token?: string): Promise<void> {    const effectiveToken = token ?? _pollToken.value
     if (!effectiveToken) return
     const gen = _pollGeneration
     try {
@@ -195,6 +217,9 @@ export const useMapStore = defineStore('map', () => {
     isLocationViewed,
     fetchMap,
     refreshMap,
+    worldSnapshot,
+    snapshotError,
+    fetchWorldSnapshot,
     startPolling,
     stopPolling,
   }

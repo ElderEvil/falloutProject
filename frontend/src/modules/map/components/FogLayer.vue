@@ -2,12 +2,14 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { ATLAS_TILES, MAP_UNITS } from '../utils/atlasProjection'
 
-const props = defineProps<{ explored: Uint8Array }>()
+const props = withDefaults(defineProps<{ explored: Uint8Array; tiles?: number }>(), {
+  tiles: ATLAS_TILES,
+})
 
 const imageUrl = ref('')
 
 function renderFog(): void {
-  const tiles = ATLAS_TILES
+  const tiles = props.tiles
   if (props.explored.length !== tiles * tiles) {
     imageUrl.value = ''
     return

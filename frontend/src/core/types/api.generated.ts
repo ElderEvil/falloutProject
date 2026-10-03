@@ -2145,6 +2145,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/map/world": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get World Snapshot
+         * @description Return the shared backend-generated base world (authenticated, public snapshot).
+         *
+         *     Terrain and land-safe slots only — never ownership, discoveries, or expedition
+         *     state. The snapshot is generated once and read; this endpoint never regenerates.
+         */
+        get: operations["get_world_snapshot_api_v1_map_world_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/map/vault/{vault_id}": {
         parameters: {
             query?: never;
@@ -11008,6 +11031,43 @@ export interface components {
             /** Storage Id */
             storage_id?: string | null;
         };
+        /**
+         * WorldSlotRead
+         * @description One land-safe slot: stable index + registry coordinate.
+         */
+        WorldSlotRead: {
+            /** Slot Index */
+            slot_index: number;
+            /** Coord X */
+            coord_x: number;
+            /** Coord Y */
+            coord_y: number;
+        };
+        /**
+         * WorldSnapshotRead
+         * @description Public base-world snapshot the production map renders.
+         *
+         *     Terrain is row-major over ``width x height`` tiles. Private ownership,
+         *     discoveries, and expedition state are never part of this payload.
+         */
+        WorldSnapshotRead: {
+            /** World Id */
+            world_id: string;
+            /** Generator Version */
+            generator_version: number;
+            /** Recipe Fingerprint */
+            recipe_fingerprint: string;
+            /** Snapshot Checksum */
+            snapshot_checksum: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /** Terrain */
+            terrain: string[];
+            /** Slots */
+            slots: components["schemas"]["WorldSlotRead"][];
+        };
     };
     responses: never;
     parameters: never;
@@ -14125,6 +14185,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_world_snapshot_api_v1_map_world_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorldSnapshotRead"];
                 };
             };
         };

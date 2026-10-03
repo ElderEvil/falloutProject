@@ -31,7 +31,7 @@ const MapMarkerStub = {
     'status',
     'interactive',
   ],
-  template: '<g class="map-marker-stub" />',
+  template: '<g class="map-marker map-marker-stub" />',
 }
 
 const MarkerListPanelStub = {
@@ -1108,32 +1108,45 @@ describe('WorldMap', () => {
     })
   })
 
-  describe('Scout targeting', () => {
-    function mountScout() {
-      return mount(WorldMap, {
-        props: { locations: createLocations(1), vaultMarkers: [], selectedMarkerId: null, scoutMode: true },
-        global: { stubs: defaultStubs },
-        attachTo: document.body,
-      })
-    }
-
-    it('ignores target clicks while not scouting', async () => {
+  describe('Map-first departure clicks', () => {
+    it('emits explore-wasteland when empty space is clicked', async () => {
       const wrapper = mount(WorldMap, {
         props: { locations: createLocations(1), vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
+        attachTo: document.body,
       })
 
       await wrapper.find('svg.world-map-svg').trigger('click')
-      expect(wrapper.emitted('scout-target')).toBeFalsy()
-      expect(wrapper.emitted('scout-invalid')).toBeFalsy()
+      expect(wrapper.emitted('explore-wasteland')).toBeTruthy()
+      wrapper.unmount()
     })
 
-    it('rejects a click on an unexplored cell', async () => {
-      const wrapper = mountScout()
+    it('does not emit explore-wasteland when a marker is clicked', async () => {
+      const locations = createLocations(1)
+      const wrapper = mount(WorldMap, {
+        props: { locations, vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+        attachTo: document.body,
+      })
 
-      await wrapper.find('svg.world-map-svg').trigger('click', { clientX: 5, clientY: 5 })
-      expect(wrapper.emitted('scout-invalid')).toBeTruthy()
-      expect(wrapper.emitted('scout-target')).toBeFalsy()
+      // Marker clicks bubble to the SVG; the handler must ignore them so they
+      // keep selecting instead of opening the departure flow.
+      await wrapper.find('.map-marker-stub').trigger('click')
+      expect(wrapper.emitted('explore-wasteland')).toBeFalsy()
+      wrapper.unmount()
+    })
+
+    it('suppresses the departure emit after a drag pan', async () => {
+      const wrapper = mount(WorldMap, {
+        props: { locations: createLocations(1), vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+        attachTo: document.body,
+      })
+
+      const vm = wrapper.vm as any
+      vm.hasDragMoved = true
+      await wrapper.find('svg.world-map-svg').trigger('click')
+      expect(wrapper.emitted('explore-wasteland')).toBeFalsy()
       wrapper.unmount()
     })
   })

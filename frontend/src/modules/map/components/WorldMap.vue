@@ -19,7 +19,7 @@ import MapLegend from './MapLegend.vue'
 import MarkerListPanel from './MarkerListPanel.vue'
 import AtlasTerrain from './AtlasTerrain.vue'
 import FogLayer from './FogLayer.vue'
-import { registryToTile, registryToWire, ATLAS_TILES } from '../utils/atlasProjection'
+import { registryToTile, ATLAS_TILES } from '../utils/atlasProjection'
 import { computeExploredMask, isExploredTile } from '../utils/fog'
 import { useMapSpread } from '../composables/useMapSpread'
 import { useMarkerSelection } from '../composables/useMarkerSelection'
@@ -35,8 +35,6 @@ interface Props {
   discoveryRoutes?: DiscoveryRouteRead[]
   expeditionSites?: ExpeditionSiteMarkerRead[]
   explorerTracks?: ExplorerTrack[]
-  scoutMode?: boolean
-  scoutTarget?: { coord_x: number; coord_y: number } | null
   fogDisabled?: boolean
   selectedMarkerId: string | null
 }
@@ -46,44 +44,24 @@ const props = withDefaults(defineProps<Props>(), {
   discoveryRoutes: () => [],
   expeditionSites: () => [],
   explorerTracks: () => [],
-  scoutMode: false,
-  scoutTarget: null,
   fogDisabled: false,
 })
 
 const emit = defineEmits<{
   (e: 'marker-click', payload: MarkerClickPayload): void
   (e: 'update:selectedMarkerId', value: string | null): void
-  (e: 'scout-target', coord: { coord_x: number; coord_y: number }): void
-  (e: 'scout-invalid'): void
+  (e: 'explore-wasteland'): void
 }>()
 
-// ── Scout targeting ──────────────────────────────────────────────
-// In scout mode the player picks a revealed cell on the unknown frontier. The
-// click reports wire coords; the server derives the duration, so the client never
-// computes a competing ETA. A highlighted dot marks the chosen frontier cell.
-const scoutMarker = computed(() => {
-  const target = props.scoutTarget
-  if (target === null) return null
-  return { x: registryToWire(target.coord_x), y: registryToWire(target.coord_y) }
-})
-
+// ── Map-first departure ──────────────────────────────────────────
+// Clicking empty/fogged space (no marker) opens the departure flow: the map is
+// the primary dispatch surface. Marker clicks select instead — they bubble up
+// to the SVG, so the handler ignores any click that landed on a marker group.
 function handleSvgClick(event: MouseEvent): void {
-  if (!props.scoutMode || hasDragMoved.value) return
-  const svg = svgRef.value
-  if (svg === null) return
-  const rect = svg.getBoundingClientRect()
-  const view = svg.viewBox.baseVal
-  const coord_x = ((event.clientX - rect.left) / rect.width) * view.width + view.x
-  const coord_y = ((event.clientY - rect.top) / rect.height) * view.height + view.y
-  // Only revealed cells are valid scout targets; the mask lives here (props-derived).
-  if (
-    !isExploredTile(exploredMask.value, registryToTile(coord_x, gridTiles.value), registryToTile(coord_y, gridTiles.value), gridTiles.value)
-  ) {
-    emit('scout-invalid')
-    return
-  }
-  emit('scout-target', { coord_x, coord_y })
+  if (hasDragMoved.value) return
+  const target = event.target as Element | null
+  if (target?.closest?.('.map-marker')) return
+  emit('explore-wasteland')
 }
 
 // ── Marker visibility filter ─────────────────────────────────────
@@ -241,7 +219,6 @@ const { hasDragMoved, onLocationClick, onSiteClick, onPanelMarkerSelect } = useM
   spreadMap,
   focusOnMarker,
   emit,
-  () => props.scoutMode,
 )
 
 function getSvgRect(): DOMRect {
@@ -307,7 +284,6 @@ function handleTouchEnd(event: TouchEvent) {
         :viewBox="viewBox"
         xmlns="http://www.w3.org/2000/svg"
         class="world-map-svg"
-        :class="{ 'cursor-crosshair': scoutMode }"
         focusable="false"
         @mousedown="handleMouseDown"
         @click="handleSvgClick"
@@ -317,14 +293,6 @@ function handleTouchEnd(event: TouchEvent) {
 
         <!-- Fog of war: derived explored mask over the terrain -->
         <FogLayer v-if="!fogDisabled" :explored="exploredMask" :tiles="gridTiles" />
-
-        <!-- Scout target marker (wire/screen coords; server derives the duration) -->
-        <g v-if="scoutMarker" class="scout-target" aria-hidden="true">
-          <circle :cx="scoutMarker.x" :cy="scoutMarker.y" r="3.2" />
-          <circle :cx="scoutMarker.x" :cy="scoutMarker.y" r="1.4" class="scout-target-dot" />
-        </g>
-
-
 
         <!-- Discovery routes (per-exploration trail) -->
         <polyline
@@ -455,16 +423,6 @@ function handleTouchEnd(event: TouchEvent) {
 </template>
 
 <style scoped>
-.scout-target circle:first-child {
-  fill: color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
-  stroke: var(--color-theme-primary);
-  stroke-width: 0.4;
-  stroke-dasharray: 1 1;
-}
-
-.scout-target-dot {
-  fill: var(--color-theme-primary);
-}
 .world-map-layout {
   display: grid;
   grid-template-columns: auto minmax(12rem, 14rem);

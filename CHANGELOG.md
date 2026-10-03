@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.171.0 (2026-10-03)
+
+### Features
+
+* **world:** persist generated world snapshot b9addf5
+
+### Bug Fixes
+
+* **world:** enforce snapshot uniqueness and persist full config 7de6992
+* **world:** join vault-slot and snapshot migration heads ecbdd3a
+
 ## 2.170.0 (2026-10-03)
 
 ### Features

@@ -16,8 +16,12 @@ const SCOPE = join('src', 'modules')
 // and stay exempt until they are vendored (see the doc's "Driving it to zero").
 const PRIMITIVE_BACKED = new Set(['button', 'input', 'select'])
 
+// Native elements are lowercase in Vue templates; PascalCase tags resolve to
+// imported components (e.g. the shared Button/Input/Select primitives), so the
+// match is case-sensitive by design — counting components as raw would punish
+// exactly the primitive reuse this gate exists to encourage.
 const SCAN_EXT = /\.vue$/
-const TAG = /<(button|input|select|textarea|table)\b/gi
+const TAG = /<(button|input|select|textarea|table)\b/g
 
 export function collectFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {

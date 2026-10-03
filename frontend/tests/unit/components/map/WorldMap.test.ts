@@ -51,11 +51,16 @@ const IconStub = {
   template: '<span class="icon-stub" />',
 }
 
+const AtlasTerrainStub = { name: 'AtlasTerrain', template: '<g class="atlas-terrain-stub" />' }
+const FogLayerStub = { name: 'FogLayer', props: ['explored'], template: '<g class="fog-layer-stub" />' }
+
 const defaultStubs = {
   MapMarker: MapMarkerStub,
   MarkerListPanel: MarkerListPanelStub,
   Button: ButtonStub,
   Icon: IconStub,
+  AtlasTerrain: AtlasTerrainStub,
+  FogLayer: FogLayerStub,
 }
 
 function createLocations(count: number): WastelandLocationWithDwellers[] {
@@ -470,17 +475,29 @@ describe('WorldMap', () => {
       expect(wrapper.findAllComponents(MapMarkerStub)[0].props('unseen')).toBe(false)
     })
 
-    it('renders a locked discovery as a hint pin (not unseen, not pulsing)', () => {
+    it('hides a locked discovery in the fog until its area is explored', () => {
       const locations = [discoveryLocation('loc-1', { is_unlocked: false })]
       const wrapper = mount(WorldMap, {
         props: { locations, vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
-      const markers = wrapper.findAllComponents(MapMarkerStub)
-      expect(markers).toHaveLength(1)
-      expect(markers[0].props('is_unlocked')).toBe(false)
-      expect(markers[0].props('unseen')).toBe(false)
+      expect(wrapper.findAllComponents(MapMarkerStub)).toHaveLength(0)
+    })
+
+    it('shows a locked discovery as a hint pin once its area is explored', () => {
+      const locked = discoveryLocation('loc-1', { is_unlocked: false })
+      const revealed = { ...discoveryLocation('loc-2'), coord_x: locked.coord_x, coord_y: locked.coord_y }
+      const wrapper = mount(WorldMap, {
+        props: { locations: [locked, revealed], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const hint = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find(marker => marker.props('is_unlocked') === false)
+      expect(hint).toBeTruthy()
+      expect(hint!.props('unseen')).toBe(false)
     })
 
     it('should pass unseen=false to non-discovery locations', () => {

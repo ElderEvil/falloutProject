@@ -70,6 +70,15 @@ describe('MapLegend', () => {
     expect(items).toHaveLength(6)
   })
 
+  it('should render the five terrain swatches', () => {
+    const wrapper = mountLegend()
+
+    const terrain = wrapper.findAll('.legend-terrain')
+    expect(terrain).toHaveLength(5)
+    expect(wrapper.text()).toContain('Wasteland')
+    expect(wrapper.text()).toContain('Water')
+  })
+
   it('should render an icon for each marker type', () => {
     const wrapper = mountLegend()
 

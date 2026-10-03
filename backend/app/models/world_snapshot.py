@@ -6,7 +6,7 @@ columns (the repo's existing JSON-column pattern) alongside the recipe fingerpri
 a snapshot checksum, so deployment needs no filesystem artifacts.
 """
 
-from sqlalchemy import Column
+from sqlalchemy import Column, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
@@ -36,3 +36,7 @@ class WorldSnapshot(BaseUUIDModel, WorldSnapshotBase, TimeStampMixin, table=True
     """The backend-owned generated world; the map renders this, not frontend geography."""
 
     __tablename__ = "worldsnapshot"
+
+    __table_args__ = (
+        UniqueConstraint("world_id", "generator_version", name="uq_worldsnapshot_world_version"),
+    )

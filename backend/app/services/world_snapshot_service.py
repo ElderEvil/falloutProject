@@ -7,7 +7,10 @@ development/seed operation, not a request path.
 from __future__ import annotations
 
 import logging
+from dataclasses import asdict
 from typing import TYPE_CHECKING
+
+from sqlalchemy.exc import IntegrityError
 
 from app.crud.world_snapshot import world_snapshot as snapshot_crud
 from app.models.world_snapshot import WorldSnapshot
@@ -41,8 +44,19 @@ class WorldSnapshotService:
 
         world = generate_world(recipe)
         snapshot = self._to_model(recipe, world)
-        await snapshot_crud.create(db_session, snapshot=snapshot)
-        await db_session.commit()
+        try:
+            await snapshot_crud.create(db_session, snapshot=snapshot)
+            await db_session.commit()
+        except IntegrityError:
+            # Lost a creation race: another writer persisted this version first.
+            # The unique constraint kept it to one row; return the winner.
+            await db_session.rollback()
+            winner = await snapshot_crud.get_version(
+                db_session, world_id=recipe.world_id, generator_version=recipe.generator_version
+            )
+            if winner is None:
+                raise
+            return winner
         logger.info(
             "Generated world snapshot %s v%s (fingerprint=%s)",
             recipe.world_id,
@@ -57,14 +71,9 @@ class WorldSnapshotService:
             world_id=recipe.world_id,
             generator_version=recipe.generator_version,
             seed=recipe.seed,
-            config={
-                "width": recipe.config.width,
-                "height": recipe.config.height,
-                "location_count": recipe.config.location_count,
-                "slot_count": recipe.config.slot_count,
-                "slot_columns": recipe.config.slot_columns,
-                "slot_min_spacing": recipe.config.slot_min_spacing,
-            },
+            # The whole config, derived programmatically so new fields cannot
+            # silently diverge from the fingerprint input.
+            config=asdict(recipe.config),
             recipe_fingerprint=world.recipe_fingerprint,
             snapshot_checksum=snapshot_checksum(world),
             terrain=list(world.terrain),

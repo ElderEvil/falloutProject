@@ -41,6 +41,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(), nullable=True),
         sa.Column("updated_at", sa.DateTime(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("world_id", "generator_version", name="uq_worldsnapshot_world_version"),
     )
     op.create_index(op.f("ix_worldsnapshot_id"), "worldsnapshot", ["id"], unique=False)
     op.create_index(op.f("ix_worldsnapshot_world_id"), "worldsnapshot", ["world_id"], unique=False)

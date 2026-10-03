@@ -11,11 +11,23 @@ describe('AtlasTerrain', () => {
   })
 
   function stubCanvas() {
-    const calls = { fillRect: 0 }
+    const calls = { fillRect: 0, drawImage: 0, getImageData: 0, putImageData: 0 }
     const ctx = {
       fillStyle: '',
+      imageSmoothingEnabled: false,
+      imageSmoothingQuality: 'low',
       fillRect: vi.fn(() => {
         calls.fillRect += 1
+      }),
+      drawImage: vi.fn(() => {
+        calls.drawImage += 1
+      }),
+      getImageData: vi.fn((_x: number, _y: number, w: number, h: number) => {
+        calls.getImageData += 1
+        return { data: new Uint8ClampedArray(w * h * 4) }
+      }),
+      putImageData: vi.fn(() => {
+        calls.putImageData += 1
       }),
     }
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as any)
@@ -36,7 +48,7 @@ describe('AtlasTerrain', () => {
     } as any
   }
 
-  it('paints every snapshot cell and shows the terrain image', async () => {
+  it('paints every snapshot cell, blends, and shows the terrain image', async () => {
     const store = useMapStore()
     store.worldSnapshot = snapshot([
       'water', 'forest', 'hills', 'ruins',
@@ -48,6 +60,10 @@ describe('AtlasTerrain', () => {
     await flushPromises()
 
     expect(calls.fillRect).toBe(16)
+    // Bilinear upscale (blend) then dither pass.
+    expect(calls.drawImage).toBe(1)
+    expect(calls.getImageData).toBe(1)
+    expect(calls.putImageData).toBe(1)
     expect(wrapper.find('image').exists()).toBe(true)
   })
 

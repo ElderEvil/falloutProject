@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.176.0 (2026-10-03)
+
+### Features
+
+* **dwellers:** canon-shaped starting levels for rare and legendary bbacce5
+* **map:** admin remove-fog debug toggle f0f1929
+* **map:** match prototype terrain palette and blend biomes 0e9006f
+* **map:** show prototype archetype art on expedition sites d55d863
+
+### Bug Fixes
+
+* **dwellers:** initialize starting XP with the starting level e21ff24
+* **map:** collapsible legend and own-vaults-with-hints 53b781b
+
 ## 2.175.0 (2026-10-03)
 
 ### Features

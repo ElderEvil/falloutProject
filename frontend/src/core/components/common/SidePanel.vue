@@ -99,6 +99,12 @@ const navItems = computed((): NavItem[] => {
       hotkey: '9',
     },
     {
+      id: 'response-teams',
+      label: 'Response Teams',
+      icon: 'mdi:account-hard-hat',
+      path: `/vault/${vaultId.value}/response-teams`,
+    },
+    {
       id: 'trading',
       label: 'Trading Post',
       icon: 'mdi:store',

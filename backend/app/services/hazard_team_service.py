@@ -15,10 +15,16 @@ from app.crud.storage import storage as crud_storage
 from app.crud.team import team_crud
 from app.models.dweller import Dweller
 from app.models.incident import HAZARD_TEAM_INCIDENT_TYPES, Incident, hazard_team_for
-from app.models.team import ACTIVE_STATUS, RESERVE_STATUS, TeamMember
+from app.models.team import ACTIVE_STATUS, DISPATCHED_STATUS, RESERVE_STATUS, TeamMember
 from app.schemas.contamination_team import ContaminationTeamRead, HazardTeamMemberRead, HazardTeamRosterRead
 from app.services.bio_service import bio_service
 from app.services.notification_service import notification_service
+from app.utils.dweller_availability import availability_error
+from app.utils.exceptions import (
+    ContentNoChangeException,
+    ResourceConflictException,
+    ResourceNotFoundException,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -267,6 +273,137 @@ class HazardTeamService:
                 await db_session.rollback()
                 logger.exception("Failed to auto-equip %s on dweller %s", target_name, dweller_id)
 
+    async def dispatch_to_incident(self, db_session: AsyncSession, incident: Incident) -> list[UUID4]:
+        """Auto-dispatch the vault's standing hazard team to a matching incident.
+
+        Called right after a hazard incident spawns: active members of the team
+        matching the incident's hazard are moved into the incident room and marked
+        ``dispatched`` on the incident roster, so the round engine's room-occupancy
+        combat picks them up. Best-effort — never raises; returns the ids actually
+        moved.
+        """
+        team = hazard_team_for(incident.type)
+        if not team:
+            return []
+        try:
+            active_members = [
+                member
+                for member in await team_crud.get_hazard_team(db_session, incident.vault_id, team)
+                if member.status == ACTIVE_STATUS
+            ]
+            if not active_members:
+                return []
+
+            # Respect the responder cap: only fill the room left on the roster.
+            from app.services.combat.incident_service import MAX_INCIDENT_RESPONDERS, committed_responder_ids
+
+            existing = await team_crud.get_incident_team(db_session, incident.id, incident.vault_id)
+            room = MAX_INCIDENT_RESPONDERS - len(existing)
+            if room <= 0:
+                return []
+
+            member_ids = [member.dweller_id for member in active_members]
+            dwellers = list(await crud_dweller.get_by_ids_in_vault(db_session, member_ids, incident.vault_id))
+            existing_ids = {member.dweller_id for member in existing}
+            committed_ids = await committed_responder_ids(
+                db_session, incident.vault_id, exclude_incident_id=incident.id
+            )
+            skipped = [dweller for dweller in dwellers if dweller.id in committed_ids]
+            candidates = [
+                dweller
+                for dweller in dwellers
+                if dweller.id not in existing_ids
+                and dweller.id not in committed_ids
+                and availability_error(dweller, require_healthy=True) is None
+            ][:room]
+            if not candidates:
+                return []
+
+            ids = [dweller.id for dweller in candidates]
+            await team_crud.add_incident_team_members(
+                db_session, incident.id, incident.vault_id, ids, status=DISPATCHED_STATUS
+            )
+
+            from app.services.dweller_service import dweller_service
+
+            dispatched: list[UUID4] = []
+            for dweller in candidates:
+                try:
+                    await dweller_service.update_dweller(db_session, dweller.id, {"room_id": incident.room_id})
+                    dispatched.append(dweller.id)
+                except Exception:
+                    logger.exception("Failed to move dispatched responder %s into incident room", dweller.id)
+            if dispatched:
+                from app.services.combat import incident_publishing
+
+                incident_publishing.record_event(
+                    db_session,
+                    incident,
+                    "responders_dispatched",
+                    f"{len(dispatched)} hazard-team responder(s) dispatched.",
+                    data={"skipped": [dweller.first_name for dweller in skipped]} if skipped else None,
+                )
+                await db_session.commit()
+        except Exception:
+            logger.exception("Hazard auto-dispatch failed for incident %s", incident.id)
+            return []
+        else:
+            return dispatched
+
+    async def return_dispatched_responders(self, db_session: AsyncSession, incident: Incident) -> int:
+        """Put auto-dispatched hazard-team responders back to work after the incident ends.
+
+        Re-assigns every living ``dispatched`` member of the incident's roster to a
+        production room and flips their member status to ``completed`` so a later
+        pass cannot return them twice. Best-effort — never raises; returns the
+        count re-assigned.
+        """
+        try:
+            members = await team_crud.get_incident_team(db_session, incident.id, incident.vault_id)
+            dispatched = [member for member in members if member.status == DISPATCHED_STATUS]
+            if not dispatched:
+                return 0
+
+            from app.services.dweller_service import dweller_service
+
+            returned = 0
+            closed = 0
+            for member in dispatched:
+                dweller = member.dweller
+                if dweller is None or availability_error(dweller, require_healthy=True) is not None:
+                    # Terminal state (dead, wounded, gone): nobody to send back
+                    # to work, but the ledger still closes so "dispatched"
+                    # never lingers on a finished incident.
+                    member.status = "completed"
+                    db_session.add(member)
+                    closed += 1
+                    continue
+                try:
+                    await dweller_service.auto_assign_to_best_room(db_session, member.dweller_id)
+                except ContentNoChangeException:
+                    # Already back at work in the best matching room.
+                    pass
+                except ResourceConflictException:
+                    logger.info(
+                        "Dispatched responder %s has no production room to return to; leaving for a later pass",
+                        member.dweller_id,
+                    )
+                    continue
+                except Exception:
+                    logger.exception("Failed to return dispatched responder %s to work", member.dweller_id)
+                    continue
+                member.status = "completed"
+                db_session.add(member)
+                returned += 1
+                closed += 1
+            if closed:
+                await db_session.commit()
+        except Exception:
+            logger.exception("Failed to return dispatched responders for incident %s", incident.id)
+            return 0
+        else:
+            return returned
+
     async def get_roster(self, db_session: AsyncSession, vault_id: UUID4) -> ContaminationTeamRead:
         """Every team's roster for a vault, active places and bench included."""
         teams: list[HazardTeamRosterRead] = []
@@ -281,9 +418,66 @@ class HazardTeamService:
             )
         return ContaminationTeamRead(vault_id=vault_id, teams=teams)
 
+    async def set_place(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        team: HazardTeam,
+        dweller_id: UUID4,
+        *,
+        active: bool,
+    ) -> ContaminationTeamRead:
+        """Manually move a team member between Active and Reserve.
+
+        Activating is idempotent when the member is already active and refuses to
+        exceed ``TEAM_SIZE``; benching is idempotent when already on the bench and
+        leaves the slot open — a voluntary stand-down never unequips and never
+        auto-promotes a reserve member.
+        """
+        if not await db_locks.try_advisory_xact_lock(db_session, roster_lock_key(vault_id, team)):
+            raise ResourceConflictException("Team roster is busy — try again")
+        member = await team_crud.get_hazard_member(db_session, vault_id, team, dweller_id)
+        if member is None:
+            raise ResourceNotFoundException(TeamMember, identifier=dweller_id)
+        if active:
+            if member.status == ACTIVE_STATUS:
+                return await self.get_roster(db_session, vault_id)
+            if await team_crud.count_active_hazard(db_session, vault_id, team) >= TEAM_SIZE:
+                raise ResourceConflictException("The team already has 3 active members — bench one first.")
+            member.status = ACTIVE_STATUS
+            member.slot_number = await self._next_free_slot(db_session, vault_id, team)
+            db_session.add(member)
+            await db_session.commit()
+            dweller = await crud_dweller.get_or_none(db_session, member.dweller_id)
+            if dweller is not None:
+                try:
+                    await self.equip_hazard_outfits(db_session, vault_id, [dweller], team)
+                except Exception:
+                    logger.exception("Failed to auto-equip %s on dweller %s", TEAM_OUTFIT_NAMES[team], dweller.id)
+                await bio_service.append_entry(
+                    db_session,
+                    member.dweller_id,
+                    BIO_SOURCE,
+                    f"Took an active place on the vault's {TEAM_LABELS[team]}.",
+                    {"team": team.value, "status": ACTIVE_STATUS},
+                )
+        else:
+            if member.status == RESERVE_STATUS:
+                return await self.get_roster(db_session, vault_id)
+            member.status = RESERVE_STATUS
+            member.slot_number = None
+            db_session.add(member)
+            await db_session.commit()
+        return await self.get_roster(db_session, vault_id)
+
 
 hazard_team_service = HazardTeamService()
 
 
 def _place_read(place: TeamMember) -> HazardTeamMemberRead:
-    return HazardTeamMemberRead(dweller_id=place.dweller_id, status=place.status)
+    return HazardTeamMemberRead(
+        dweller_id=place.dweller_id,
+        status=place.status,
+        name=place.dweller.display_name,
+        level=place.dweller.level,
+    )

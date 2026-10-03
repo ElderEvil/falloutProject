@@ -4,17 +4,33 @@ import { Icon } from '@iconify/vue'
 import { Progress } from '@/core/components/ui/progress'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getCombatPower } from '@/modules/dwellers/models/dweller'
-import type { Incident } from '@/modules/combat/models/incident'
+import type { Incident, IncidentTeamMember } from '@/modules/combat/models/incident'
 import { getIncidentIcon } from '@/modules/combat/models/incident'
 
 const props = defineProps<{
   incident: Incident
   dwellers: DwellerShort[]
   roomImageUrl?: string | null
+  team?: IncidentTeamMember[]
 }>()
 
-const responders = computed(() =>
-  props.dwellers.filter((dweller) => dweller.room_id === props.incident.room_id)
+// The roster from GET /incidents/{id}/team is authoritative: auto-dispatched
+// hazard-team responders keep a stale room_id in the dweller store (it only
+// loads at VaultView mount), so filtering by room_id hides them. When the
+// roster is present (even empty) it wins; undefined means not loaded yet.
+const responders = computed(() => {
+  if (props.team === undefined)
+    return props.dwellers.filter((dweller) => dweller.room_id === props.incident.room_id)
+  const rosterIds = new Set(props.team.map((member) => member.dweller_id))
+  return props.dwellers.filter((dweller) => rosterIds.has(dweller.id))
+})
+const dispatchedIds = computed(
+  () =>
+    new Set(
+      (props.team ?? [])
+        .filter((member) => member.status === 'dispatched')
+        .map((member) => member.dweller_id)
+    )
 )
 const remainingEnemies = computed(() =>
   Math.max(0, props.incident.progress.target - props.incident.progress.current)
@@ -59,7 +75,8 @@ const containmentGain = computed(() => Math.round(Number(latestEffect.value?.dat
         <div v-for="dweller in responders" :key="dweller.id" class="combatant">
           <span class="combatant-portrait">{{ dweller.first_name[0] }}</span>
           <span class="combatant-name">{{ dweller.first_name }}</span>
-          <span class="combatant-power">POW {{ getCombatPower(dweller) }}</span>
+          <span v-if="dispatchedIds.has(dweller.id)" class="combatant-dispatched">DISPATCHED</span>
+          <span class="combatant-power">POW {{ getCombatPower(dweller) }} · Lv {{ dweller.level }}</span>
           <Progress
             :model-value="(dweller.health / dweller.max_health) * 100"
             class="h-[7px]"
@@ -214,6 +231,12 @@ const containmentGain = computed(() => Math.round(Number(latestEffect.value?.dat
   color: var(--color-warning);
   font-size: 0.65rem;
   font-variant-numeric: tabular-nums;
+}
+.combatant-dispatched {
+  color: var(--color-info, var(--color-theme-primary));
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
 .combatant-name,
 .stage-empty,

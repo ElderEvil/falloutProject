@@ -559,6 +559,42 @@ async def test_assign_responders_appends_to_roster(
 
 
 @pytest.mark.asyncio
+async def test_assign_responders_skips_committed_and_errors_when_all_committed(
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+):
+    """A dweller rostered on another active incident is skipped; all-committed raises a 400."""
+    room = room_with_dwellers["room"]
+    vault = room_with_dwellers["vault"]
+    responder = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
+    other = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
+
+    first = await crud.incident_crud.create(
+        async_session, vault_id=vault.id, room_id=room.id, incident_type=IncidentType.FIRE, difficulty=2
+    )
+    await incident_service.assign_responders(async_session, first, [responder.id])
+
+    second = await crud.incident_crud.create(
+        async_session, vault_id=vault.id, room_id=room.id, incident_type=IncidentType.FIRE, difficulty=2
+    )
+
+    # The committed responder is skipped; the free one is assigned.
+    assigned = await incident_service.assign_responders(async_session, second, [responder.id, other.id])
+    assert assigned == [other.id]
+    team = await crud.team_crud.get_incident_team_row(async_session, second.id, vault.id)
+    assert team is not None
+    assert [member.dweller_id for member in team.members] == [other.id]
+
+    events = await crud.incident_crud.get_recent_events(async_session, second.id)
+    assign_event = next(event for event in events if event.kind == "responders_assigned")
+    assert assign_event.data == {"skipped": [responder.first_name]}
+
+    # When every chosen responder is committed elsewhere, assignment raises a 400 naming the conflict.
+    with pytest.raises(ValidationException) as excinfo:
+        await incident_service.assign_responders(async_session, second, [responder.id])
+    assert "committed" in str(excinfo.value)
+
+
+@pytest.mark.asyncio
 async def test_assign_responders_accepts_six_responders(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):

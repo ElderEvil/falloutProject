@@ -68,6 +68,14 @@ const teamMembers = computed<TeamMemberEntry[]>(() =>
 const teamMemberLabel = (entry: TeamMemberEntry): string =>
   entry.dweller?.first_name ?? entry.member.dweller_id.slice(0, 8)
 
+// The team is on scene but the backend has not fought a round yet: the log is
+// empty by design, so the overlay says so instead of looking broken.
+const awaitingFirstRound = computed(
+  () =>
+    teamMembers.value.length > 0 &&
+    !props.incident.events.some((event) => event.kind === 'round' || event.kind === 'containment')
+)
+
 const teamLoaded = ref(false)
 
 const loadTeam = async (): Promise<void> => {
@@ -149,9 +157,11 @@ const assignResponder = async (dwellerId: string) => {
       :incident="incident"
       :dwellers="dwellers"
       :room-image-url="roomImageUrl ?? null"
+      :team="teamLoaded ? incidentStore.getIncidentTeam(incident.id) : undefined"
     />
 
     <IncidentBattleLog :events="incident.events" />
+    <p v-if="awaitingFirstRound" class="text-xs text-terminal-green-dim">Awaiting next round…</p>
 
     <div>
       <h4 class="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-terminal-green-dim">
@@ -172,6 +182,15 @@ const assignResponder = async (dwellerId: string) => {
           >
             <Icon icon="mdi:account" class="h-4 w-4 shrink-0 text-terminal-green" />
             <span class="truncate text-terminal-green">{{ teamMemberLabel(entry) }}</span>
+            <span v-if="entry.dweller" class="shrink-0 tabular-nums text-terminal-green-dim">
+              · Lv {{ entry.dweller.level }}
+            </span>
+            <span
+              v-if="entry.member.status === 'dispatched'"
+              class="shrink-0 rounded border border-theme-primary/30 px-1 text-[10px] font-bold tracking-wide text-terminal-green-dim"
+            >
+              DISPATCHED
+            </span>
             <span class="ml-auto flex items-center gap-1 text-terminal-green-dim">
               <Icon icon="mdi:sword" class="h-3.5 w-3.5" />
               POW {{ entry.dweller ? getCombatPower(entry.dweller) : '—' }}
@@ -212,6 +231,7 @@ const assignResponder = async (dwellerId: string) => {
                 <Icon icon="mdi:sword" class="h-3.5 w-3.5" />
                 POW {{ getCombatPower(dweller) }}
               </span>
+              <span class="tabular-nums">· Lv {{ dweller.level }}</span>
             </div>
           </template>
           <template #actions>

@@ -13,7 +13,7 @@ from app.crud.incident import incident_crud
 from app.crud.room import room as room_crud
 from app.crud.vault import vault as vault_crud
 from app.models.game_state import GameState
-from app.models.incident import Incident, IncidentType
+from app.models.incident import Incident, IncidentType, hazard_team_for
 from app.models.room import Room
 from app.models.vault import Vault
 from app.services.combat import incident_publishing
@@ -166,6 +166,15 @@ async def spawn_incident(
     await db_session.commit()
 
     logger.info(f"Spawned {incident_type} (difficulty {difficulty}) in room {target_room.name} of vault {vault_id}")
+
+    # Auto-dispatch the vault's standing hazard team to a matching hazard; a
+    # non-hazard incident (or one without a team) costs nothing.
+    if hazard_team_for(incident.type):
+        from app.services.hazard_team_service import hazard_team_service
+
+        dispatched = await hazard_team_service.dispatch_to_incident(db_session, incident)
+        if dispatched:
+            await db_session.commit()
 
     # Send notification + SSE (non-critical, don't break incident creation on failure)
     await incident_publishing.notify_spawn(db_session, incident, target_room.name, incident_name, difficulty)

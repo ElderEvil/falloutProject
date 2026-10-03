@@ -20,7 +20,7 @@ function renderFog(): void {
     imageUrl.value = ''
     return
   }
-  const fog = getComputedStyle(document.documentElement).getPropertyValue('--color-fog').trim() || '#0a0908'
+  const fog = getComputedStyle(document.documentElement).getPropertyValue('--color-fog').trim()
   ctx.fillStyle = fog
   for (let i = 0; i < props.explored.length; i++) {
     if (props.explored[i] === 1) continue

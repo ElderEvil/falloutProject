@@ -28,6 +28,11 @@ describe('check-raw-controls', () => {
     expect(findRawControls('<template><!-- <button /> --><select /></template>')).toEqual(['select'])
   })
 
+  it('ignores PascalCase component usage (shared primitives, not native controls)', () => {
+    expect(findRawControls('<template><Button>Go</Button></template>')).toEqual([])
+    expect(findRawControls('<template><Button /><Input /><Select /></template>')).toEqual([])
+  })
+
   it('returns nothing for a file with no template', () => {
     expect(findRawControls('export default { name: "X" }')).toEqual([])
   })

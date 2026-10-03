@@ -158,6 +158,18 @@ def _max_health_for_level(level: int) -> int:
     return game_config.leveling.base_max_health + (level - 1) * game_config.leveling.hp_gain_per_level
 
 
+def _xp_for_level(level: int) -> int:
+    """Cumulative XP to reach ``level``.
+
+    Mirrors ``leveling_service.calculate_xp_required``; duplicated here to avoid a
+    utils -> services import cycle. The two formulas must stay in sync, or a
+    pre-leveled dweller starts with negative progress toward the next level.
+    """
+    if level <= 1:
+        return 0
+    return int(game_config.leveling.base_xp_requirement * (level**game_config.leveling.xp_curve_exponent))
+
+
 def create_random_common_dweller(
     gender: GenderEnum | None = None, seed: int | None = None, rarity: RarityEnum = RarityEnum.COMMON
 ) -> dict[str, Any]:
@@ -191,6 +203,7 @@ def create_random_common_dweller(
         bio = f"{bio} {rumor}"
     level = _rarity_start_level(rarity, rng)
     starting_health = _max_health_for_level(level)
+    starting_xp = _xp_for_level(level)
     return {
         "first_name": get_gender_based_name(gender, faker),
         "last_name": faker.last_name(),
@@ -200,7 +213,7 @@ def create_random_common_dweller(
         "gender": gender,
         "rarity": rarity,
         "level": level,
-        "experience": 0,
+        "experience": starting_xp,
         "max_health": starting_health,
         "health": starting_health,
         "radiation": 0,
@@ -259,6 +272,7 @@ def create_dweller_from_template(
         data["level"] = start_level
         data["max_health"] = _max_health_for_level(start_level)
         data["health"] = data["max_health"]
+        data["experience"] = _xp_for_level(start_level)
     if data.get("visual_attributes") is None:
         data["visual_attributes"] = None
     data["_bio_places"] = (origin, visited) if origin or visited else None

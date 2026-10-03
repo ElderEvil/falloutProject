@@ -11,7 +11,13 @@ from app.crud.room import room as room_crud
 from app.crud.team import team_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
-from app.models.incident import Incident, IncidentStatus, IncidentType, get_incident_definition
+from app.models.incident import (
+    Incident,
+    IncidentObjective,
+    IncidentStatus,
+    IncidentType,
+    get_incident_definition,
+)
 from app.schemas.incident import (
     IncidentEventRead,
     IncidentListItem,
@@ -126,7 +132,7 @@ class IncidentService:
     ) -> IncidentRead:
         """Build the stable, type-aware incident contract consumed by the UI."""
         definition = get_incident_definition(incident.type)
-        if incident.type == IncidentType.FIRE:
+        if definition.objective == IncidentObjective.CONTAIN:
             progress = IncidentProgress(
                 current=min(100, int(incident.combat_progress * 100)), target=100, label=definition.progress_label
             )

@@ -37,6 +37,4 @@ class WorldSnapshot(BaseUUIDModel, WorldSnapshotBase, TimeStampMixin, table=True
 
     __tablename__ = "worldsnapshot"
 
-    __table_args__ = (
-        UniqueConstraint("world_id", "generator_version", name="uq_worldsnapshot_world_version"),
-    )
+    __table_args__ = (UniqueConstraint("world_id", "generator_version", name="uq_worldsnapshot_world_version"),)

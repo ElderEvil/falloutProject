@@ -59,9 +59,7 @@ async def test_duplicate_version_insert_is_rejected(async_session: AsyncSession)
     await async_session.rollback()
 
 
-async def test_creation_race_returns_existing_row(
-    async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_creation_race_returns_existing_row(async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
     """A lost creation race returns the winner instead of failing.
 
     Simulates check-then-insert interleaving: the initial read misses, a

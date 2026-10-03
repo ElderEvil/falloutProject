@@ -18,6 +18,7 @@ from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum, Rarity
 from app.core.game_config import game_config
 from app.crud.exploration import exploration as exploration_crud
 from app.crud.vault import vault as vault_crud
+from app.crud.vault_slot import vault_slot as vault_slot_crud
 from app.crud.world_location import world_location as wl_crud
 from app.models.notification import NotificationPriority, NotificationType
 from app.models.world_location import VaultLocationState, WorldLocation
@@ -28,6 +29,7 @@ from app.schemas.wasteland_location import (
     ExpeditionSiteMarkerRead,
     LocationClearStateRead,
     PlaceGroupRead,
+    PlayerVaultMarkerRead,
     VaultMapResponse,
     VaultMarkerRead,
     WastelandLocationWithDwellers,
@@ -37,6 +39,7 @@ from app.services.exploration.expedition import site_block_state
 from app.services.notification_service import notification_service
 from app.utils.place_groups import get_place_group, load_place_groups
 from app.utils.places import GENERIC_ORIGIN_SKIP, WORLD_SCALE, normalize_place_name
+from app.utils.vault_slots import slot_coords
 
 if TYPE_CHECKING:
     from sqlmodel.ext.asyncio.session import AsyncSession
@@ -83,8 +86,10 @@ class MapService:
     # ------------------------------------------------------------------
 
     async def ensure_home_marker(self, db_session: AsyncSession, vault: Vault) -> WorldLocation:
-        """Idempotent home-vault registry row at exactly (50.0, 50.0) + per-vault HOME_VAULT state."""
-        home = await wl_crud.get_or_create_home_marker(db_session, vault)
+        """Home-vault marker at the vault's slot placement + per-vault HOME_VAULT state."""
+        slot = await vault_slot_crud.get_by_vault(db_session, vault.id)
+        coord_x, coord_y = slot_coords(slot.slot_index) if slot is not None else (50.0, 50.0)
+        home = await wl_crud.get_or_create_home_marker(db_session, vault, coord_x=coord_x, coord_y=coord_y)
         await wl_crud.ensure_home_state(
             db_session,
             vault.id,
@@ -528,6 +533,19 @@ class MapService:
 
         discovery_routes = await self._get_discovery_routes(db_session, vault.id)
 
+        # --- real player vaults on the shared atlas (discoverable by all users) ---
+        slot_rows = await vault_slot_crud.list_markers(db_session)
+        player_vaults = [
+            PlayerVaultMarkerRead(
+                vault_id=slot_vault_id,
+                number=number,
+                coord_x=round(slot_coords(slot_index)[0] * WORLD_SCALE, 1),
+                coord_y=round(slot_coords(slot_index)[1] * WORLD_SCALE, 1),
+                is_mine=slot_user_id == vault.user_id,
+            )
+            for slot_index, slot_vault_id, number, slot_user_id in slot_rows
+        ]
+
         # --- interactive expedition sites (per-vault anti-farm state) ---
         expedition_sites: list[ExpeditionSiteMarkerRead] = []
         for site in load_expedition_sites():
@@ -550,6 +568,7 @@ class MapService:
         return VaultMapResponse(
             locations=locations,
             vault_markers=vault_markers,
+            player_vaults=player_vaults,
             discovery_routes=discovery_routes,
             place_groups=[PlaceGroupRead(**group) for group in load_place_groups()],
             expedition_sites=expedition_sites,

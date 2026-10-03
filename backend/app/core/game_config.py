@@ -1115,6 +1115,15 @@ class ExitConfig(BaseSettings):
     )
 
 
+class VaultSlotConfig(BaseSettings):
+    """Shared atlas slot grid: how many vaults can be placed and the grid width."""
+
+    model_config = SettingsConfigDict(env_prefix="VAULT_SLOT_")
+
+    count: int = Field(default=100, description="Total vault slots on the shared atlas", ge=1)
+    columns: int = Field(default=10, description="Slot grid columns (rows are derived)", ge=1)
+
+
 class GameConfig(BaseSettings):
     """Master game configuration."""
 
@@ -1141,6 +1150,7 @@ class GameConfig(BaseSettings):
     crafting: CraftingConfig = Field(default_factory=CraftingConfig)
     exit_request: ExitConfig = Field(default_factory=ExitConfig)
     features: FeatureConfig = Field(default_factory=FeatureConfig)
+    vault_slots: VaultSlotConfig = Field(default_factory=VaultSlotConfig)
 
 
 # Singleton instance

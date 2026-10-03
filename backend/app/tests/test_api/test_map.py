@@ -9,6 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum
+from app.crud.vault_slot import vault_slot
 from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.schemas.common import GenderEnum, RarityEnum
@@ -76,6 +77,27 @@ async def test_get_vault_map_includes_bio_places(
     assert "settlement" in {group["key"] for group in data["place_groups"]}
     megaton = next(loc for loc in data["locations"] if loc["name"] == "Megaton")
     assert megaton["group_key"] == "settlement"
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_includes_discoverable_player_vaults(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+) -> None:
+    """A vault's slot is exposed on the map so other players can discover it."""
+    await vault_slot.claim_next(db_session=async_session, vault_id=vault.id)
+    await async_session.commit()
+
+    response = await async_client.get(f"/map/vault/{vault.id}", headers=superuser_token_headers)
+    assert response.status_code == 200
+    player_vaults = response.json()["player_vaults"]
+    mine = next((pv for pv in player_vaults if pv["vault_id"] == str(vault.id)), None)
+    assert mine is not None
+    assert mine["number"] == vault.number
+    assert mine["is_mine"] is True
+    assert all(0 < pv["coord_x"] < 160 and 0 < pv["coord_y"] < 160 for pv in player_vaults)
 
 
 @pytest.mark.asyncio

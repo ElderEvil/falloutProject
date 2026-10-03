@@ -5,6 +5,7 @@ import type {
   DiscoveryRouteRead,
   ExpeditionSiteMarkerRead,
   PlaceGroup,
+  PlayerVaultMarkerRead,
   VaultMapResponse,
   VaultMarkerRead,
   WastelandLocationWithDwellers,
@@ -20,6 +21,7 @@ export const useMapStore = defineStore('map', () => {
   // State
   const locations = ref<WastelandLocationWithDwellers[]>([])
   const vaultMarkers = ref<VaultMarkerRead[]>([])
+  const playerVaults = ref<PlayerVaultMarkerRead[]>([])
   const discoveryRoutes = ref<DiscoveryRouteRead[]>([])
   const expeditionSites = ref<ExpeditionSiteMarkerRead[]>([])
   const placeGroups = ref<PlaceGroup[]>([])
@@ -99,6 +101,7 @@ export const useMapStore = defineStore('map', () => {
   function applyMapData(data: VaultMapResponse): void {
     locations.value = data.locations
     vaultMarkers.value = data.vault_markers
+    playerVaults.value = data.player_vaults ?? []
     discoveryRoutes.value = data.discovery_routes ?? []
     expeditionSites.value = data.expedition_sites ?? []
     placeGroups.value = data.place_groups ?? []
@@ -178,6 +181,7 @@ export const useMapStore = defineStore('map', () => {
   return {
     locations,
     vaultMarkers,
+    playerVaults,
     discoveryRoutes,
     expeditionSites,
     placeGroups,

@@ -8834,6 +8834,28 @@ export interface components {
             base_difficulty?: number | null;
         };
         /**
+         * PlayerVaultMarkerRead
+         * @description A real player vault placed on the shared atlas, discoverable by other users.
+         */
+        PlayerVaultMarkerRead: {
+            /**
+             * Vault Id
+             * Format: uuid4
+             */
+            vault_id: string;
+            /** Number */
+            number: number;
+            /** Coord X */
+            coord_x: number;
+            /** Coord Y */
+            coord_y: number;
+            /**
+             * Is Mine
+             * @default false
+             */
+            is_mine: boolean;
+        };
+        /**
          * PregnancyRead
          * @description Schema for reading a pregnancy.
          */
@@ -10437,6 +10459,11 @@ export interface components {
             locations: components["schemas"]["WastelandLocationWithDwellers"][];
             /** Vault Markers */
             vault_markers: components["schemas"]["VaultMarkerRead"][];
+            /**
+             * Player Vaults
+             * @default []
+             */
+            player_vaults: components["schemas"]["PlayerVaultMarkerRead"][];
             /**
              * Discovery Routes
              * @default []

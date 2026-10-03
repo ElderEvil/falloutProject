@@ -274,6 +274,7 @@ const mapPaneHeight = 'var(--map-pane-size)'
             v-else
             :locations="mapStore.locations"
             :vault-markers="mapStore.vaultMarkers"
+            :player-vaults="mapStore.playerVaults"
             :discovery-routes="mapStore.discoveryRoutes"
             :expedition-sites="mapStore.expeditionSites"
             :explorer-tracks="explorerTracks"

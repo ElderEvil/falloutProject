@@ -633,8 +633,10 @@ class BioConfig(BaseSettings):
 
     # Max visited places registered to the world map from a dweller bio, by rarity.
     # Keyed by RarityEnum value string so env overrides stay JSON-friendly.
+    # Origin is always registered; only traveled history is rarity-gated, so a
+    # common vault-born dweller is origin-only while a legendary knows two places.
     visited_by_rarity: dict[str, int] = Field(
-        default={"common": 1, "rare": 2, "legendary": 3},
+        default={"common": 0, "rare": 1, "legendary": 2},
         description="Max visited map places per rarity (common/rare/legendary)",
     )
 

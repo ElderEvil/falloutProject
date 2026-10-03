@@ -129,9 +129,7 @@ class DwellerService:
     ) -> Dweller:
         """Instantiate a dweller from a named template, recording the overseer's total and bio places."""
         payload = await crud.dweller.prepare_template_dweller(db_session, vault_id, template_id, overrides=overrides)
-        return await self._persist_registered_dweller(
-            db_session, vault_id, payload, register_bio_places=True, cap_bio_places=False
-        )
+        return await self._persist_registered_dweller(db_session, vault_id, payload, register_bio_places=True)
 
     async def _persist_registered_dweller(
         self,
@@ -139,7 +137,6 @@ class DwellerService:
         vault_id: UUID4,
         payload: dict[str, Any],
         register_bio_places: bool,
-        cap_bio_places: bool = True,
     ) -> Dweller:
         """Persist a prepared payload, record the lifetime total and register explicit bio places."""
         from app.services.bio_service import make_entry
@@ -153,7 +150,7 @@ class DwellerService:
         if bio_places and register_bio_places:
             origin, visited = bio_places
             await map_service.register_bio_places(
-                db_session, dweller, origin_place=origin or "", visited_places=visited, cap_visited=cap_bio_places
+                db_session, dweller, origin_place=origin or "", visited_places=visited
             )
         return dweller
 

@@ -9,8 +9,10 @@ Design rules (see docs/features/WORLD_GENERATION_CONTRACT.md):
 - Deterministic hashing (blake2b), never Python's process-dependent ``hash()``.
 - One seeded PRNG per named stream, stable call order, so adding a stream never
   shifts another.
-- Terrain depends only on the recipe (seed + config + version + public anchors),
-  never on vault occupancy or discoveries.
+- Terrain and slots derive only from seed + config + version — never on vault
+-   occupancy or discoveries. Public anchors participate in the recipe
+-   fingerprint (recipe versioning), not in shaping geography: slots are
+-   placement markers on the fixed world, never terrain shapers.
 - Generation is a pure function: same recipe -> identical output.
 """
 
@@ -59,8 +61,7 @@ class WorldConfig:
     noise_gain: float = 0.5
     water_quantile: float = 0.02
     hills_quantile: float = 0.17
-    river_count: int = 1
-    river_width: int = 3
+    forest_quantile: float = 0.10
 
 
 @dataclass(frozen=True)
@@ -97,7 +98,7 @@ class WorldRecipe:
         return (
             f"{c.width}x{c.height}:{c.location_count}:{c.slot_count}:{c.slot_columns}:"
             f"{c.slot_min_spacing}:{c.noise_octaves}:{c.noise_frequency}:{c.noise_lacunarity}:"
-            f"{c.noise_gain}:{c.water_quantile}:{c.hills_quantile}:{c.river_count}:{c.river_width}"
+            f"{c.noise_gain}:{c.water_quantile}:{c.hills_quantile}:{c.forest_quantile}"
         )
 
 
@@ -215,18 +216,21 @@ def generate_terrain(recipe: WorldRecipe) -> list[TerrainType]:
         cfg.noise_lacunarity,
         cfg.noise_gain,
     )
-    water_cut = _quantile(base, cfg.water_quantile)
-    hills_cut = _quantile(base, 1 - cfg.hills_quantile)
+    water_cut = _quantile(base, cfg.water_quantile) if cfg.water_quantile > 0 else None
+    hills_cut = _quantile(base, 1 - cfg.hills_quantile) if cfg.hills_quantile > 0 else None
     ruins_cut = _quantile(ruins, 1 - cfg.hills_quantile)
+    forest_cut = _quantile(base, cfg.water_quantile + cfg.forest_quantile) if cfg.forest_quantile > 0 else None
 
     terrain: list[TerrainType] = ["wasteland"] * n
     for i in range(n):
-        if base[i] <= water_cut:
+        if water_cut is not None and base[i] <= water_cut:
             terrain[i] = "water"
-        elif base[i] >= hills_cut:
+        elif hills_cut is not None and base[i] >= hills_cut:
             terrain[i] = "hills"
         elif ruins[i] >= ruins_cut:
             terrain[i] = "ruins"
+        elif forest_cut is not None and base[i] <= forest_cut:
+            terrain[i] = "forest"
         else:
             terrain[i] = "wasteland"
     return terrain
@@ -239,8 +243,38 @@ def _is_traversable(terrain: list[TerrainType], width: int, x: int, y: int) -> b
     return TRAVEL_COST[terrain[y * width + x]] != math.inf
 
 
+def _largest_traversable_component(terrain: list[TerrainType], width: int, height: int) -> set[int]:
+    """Tile indices in the biggest 4-connected traversable region.
+
+    Restricting slots (and thus vaults) to one component keeps every pair mutually
+    reachable under TRAVEL_COST; island clusters would otherwise satisfy the
+    land/spacing checks while being unreachable from each other.
+    """
+    seen: set[int] = set()
+    largest: set[int] = set()
+    for start in range(width * height):
+        if start in seen or not _is_traversable(terrain, width, start % width, start // width):
+            continue
+        component: set[int] = set()
+        stack = [start]
+        seen.add(start)
+        while stack:
+            idx = stack.pop()
+            component.add(idx)
+            x, y = idx % width, idx // width
+            for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+                if 0 <= nx < width and 0 <= ny < height:
+                    nidx = ny * width + nx
+                    if nidx not in seen and _is_traversable(terrain, width, nx, ny):
+                        seen.add(nidx)
+                        stack.append(nidx)
+        if len(component) > len(largest):
+            largest = component
+    return largest
+
+
 def generate_slots(recipe: WorldRecipe, terrain: list[TerrainType]) -> list[GeneratedSlot]:
-    """Assign slots to unique, traversable, spaced tile positions.
+    """Assign slots to unique, traversable, spaced, mutually reachable positions.
 
     Fails clearly (``RuntimeError``) when the recipe cannot place all slots rather
     than falling back to an unsafe coordinate.
@@ -249,9 +283,10 @@ def generate_slots(recipe: WorldRecipe, terrain: list[TerrainType]) -> list[Gene
     width, height = cfg.width, cfg.height
     rng = _stream(recipe, "slots")
 
-    land = [(x, y) for y in range(height) for x in range(width) if _is_traversable(terrain, width, x, y)]
+    main_component = _largest_traversable_component(terrain, width, height)
+    land = [(x, y) for y in range(height) for x in range(width) if y * width + x in main_component]
     if len(land) < cfg.slot_count:
-        raise RuntimeError(f"terrain has {len(land)} traversable cells, fewer than {cfg.slot_count} slots")
+        raise RuntimeError(f"terrain has {len(land)} reachable cells, fewer than {cfg.slot_count} slots")
 
     rng.shuffle(land)
     chosen: list[tuple[int, int]] = []

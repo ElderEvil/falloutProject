@@ -34,7 +34,7 @@ TS generator stays as a reference and is retired only once production renders th
 |---|---|
 | `seed` | string seed; the only entropy source besides fixed constants |
 | `config` | grid dimensions, sector layout, location/slot counts, spacing, version |
-| `anchors` | fixed **public** seed anchors used during generation (stable ids + coords) |
+| `anchors` | fixed **public** seed anchors; part of the recipe **fingerprint** (versioning), not inputs to terrain geometry |
 
 ### Grid and coordinates
 
@@ -70,11 +70,15 @@ TS generator stays as a reference and is retired only once production renders th
 
 - Deterministic hashing (e.g. `blake2b`/`sha256` of `f"{version}:{seed}:{namespace}"`) — **not**
   Python `hash()` (process-dependent).
-- Seeded PRNG (e.g. `random.Random(seed)`) with **separate named streams** (terrain, rivers,
+- Seeded PRNG (e.g. `random.Random(seed)`) with **separate named streams** (terrain,
   slots, …) and stable iteration order, so adding a stream never shifts another.
-- Small pipeline mirroring the proven TS approach in spirit: value-noise/fBm classification →
-  river carve → small-component cleanup; **no** rendering, icons, prototype timers, claims UI,
-  or climate/hydrology.
+- Terrain derives from **seed + config + version only**. Public anchors version the recipe
+  (`fingerprint()`) but do not shape geometry — consistent with the map-side decision that
+  slots are placement markers on a fixed world, never terrain shapers.
+- Small pipeline: value-noise/fBm → quantile terrain classification (water/forest/hills/ruins)
+  → slots placed inside the largest traversable component; **no** rendering, icons, prototype
+  timers, claims UI, or climate/hydrology. Rivers are **deferred** (no carving pass yet) and
+  are intentionally absent from `WorldConfig` rather than carried as dead config.
 - Reproducibility is defined by the Python implementation, not TS parity. A divergence is
   absorbed by a new `generator_version`.
 - Generation is a pure function of the recipe; the same inputs recompute identically.

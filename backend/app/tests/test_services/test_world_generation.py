@@ -11,6 +11,7 @@ from app.services.world_generation_service import (
     PublicAnchor,
     WorldConfig,
     WorldRecipe,
+    _is_traversable,
     generate_slots,
     generate_terrain,
     generate_world,
@@ -47,6 +48,18 @@ def test_terrain_uses_only_contract_types():
     assert set(world.terrain) <= set(TRAVEL_COST)
 
 
+def test_default_recipe_contains_forest():
+    world = generate_world(_recipe())
+    assert "forest" in world.terrain
+
+
+def test_zero_fractions_emit_no_water_or_hills_or_forest():
+    world = generate_world(_recipe(water_quantile=0, hills_quantile=0, forest_quantile=0))
+    assert "water" not in world.terrain
+    assert "hills" not in world.terrain
+    assert "forest" not in world.terrain
+
+
 def test_every_slot_is_land_safe_unique_and_spaced():
     recipe = _recipe()
     world = generate_world(recipe)
@@ -68,6 +81,23 @@ def test_every_slot_is_land_safe_unique_and_spaced():
 def test_slot_indices_are_stable_and_sequential():
     world = generate_world(_recipe())
     assert [s.slot_index for s in world.slots] == list(range(len(world.slots)))
+
+
+def test_slots_share_one_traversable_component():
+    world = generate_world(_recipe())
+    reached = {world.slots[0].tile_y * world.width + world.slots[0].tile_x}
+    frontier = list(reached)
+    while frontier:
+        idx = frontier.pop()
+        x, y = idx % world.width, idx // world.width
+        for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+            if 0 <= nx < world.width and 0 <= ny < world.height:
+                nidx = ny * world.width + nx
+                if nidx not in reached and _is_traversable(world.terrain, world.width, nx, ny):
+                    reached.add(nidx)
+                    frontier.append(nidx)
+    for slot in world.slots:
+        assert slot.tile_y * world.width + slot.tile_x in reached
 
 
 def test_slot_coordinates_match_tile_centers():

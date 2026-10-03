@@ -13,6 +13,7 @@ import type {
   VaultMarkerRead,
 } from '../models/map'
 import { EXPEDITION_SITE_ICON, locationMarkerIcon } from '../models/markerTypeMeta'
+import { markerArtDataUrl } from '../utils/markerIcons'
 import MapMarker from './MapMarker.vue'
 import MapLegend from './MapLegend.vue'
 import MarkerListPanel from './MarkerListPanel.vue'
@@ -306,6 +307,7 @@ function handleTouchEnd(event: TouchEvent) {
           :name="loc.name"
           :type="loc.type"
           :icon="locationMarkerIcon(loc.type, loc.group_key, groupIconByKey)"
+          :art-src="markerArtDataUrl(loc.group_key)"
           :is_unlocked="loc.is_unlocked"
           :unseen="mapStore.isUnseenDiscovery(loc)"
           :selected="selectedMarkerId === `loc-${loc.id}`"

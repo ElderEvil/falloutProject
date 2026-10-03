@@ -24,6 +24,7 @@ const MapMarkerStub = {
     'unseen',
     'is_unlocked',
     'icon',
+    'artSrc',
     'label',
     'cleared',
     'exploring',
@@ -113,6 +114,7 @@ describe('WorldMap', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     localStorage.removeItem(VIEWED_LOCATIONS_STORAGE_KEY)
+    vi.restoreAllMocks()
   })
 
   describe('Marker rendering', () => {
@@ -166,6 +168,28 @@ describe('WorldMap', () => {
 
       const marker = wrapper.findAllComponents(MapMarkerStub)[0]
       expect(marker.props('icon')).toBe('mdi:gas-station')
+    })
+
+    it('renders preserved prototype art for a mappable archetype', () => {
+      const store = useMapStore()
+      store.placeGroups = [
+        { key: 'gas_station', label: 'Gas Station', icon: 'mdi:gas-station' },
+      ] as (typeof store.placeGroups)[number][]
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+        new Proxy({} as CanvasRenderingContext2D, { get: () => () => {}, set: () => true })
+      )
+      vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,art')
+      const [location] = createLocations(1)
+      const grouped = { ...location, type: 'visited' as const, group_key: 'gas_station' }
+
+      const wrapper = mount(WorldMap, {
+        props: { locations: [grouped], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.findAllComponents(MapMarkerStub)[0].props('artSrc')).toBe(
+        'data:image/png;base64,art'
+      )
     })
 
     it('falls back to the generic type icon without an archetype', () => {

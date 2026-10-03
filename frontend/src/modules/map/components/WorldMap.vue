@@ -37,6 +37,7 @@ interface Props {
   explorerTracks?: ExplorerTrack[]
   scoutMode?: boolean
   scoutTarget?: { coord_x: number; coord_y: number } | null
+  fogDisabled?: boolean
   selectedMarkerId: string | null
 }
 
@@ -47,6 +48,7 @@ const props = withDefaults(defineProps<Props>(), {
   explorerTracks: () => [],
   scoutMode: false,
   scoutTarget: null,
+  fogDisabled: false,
 })
 
 const emit = defineEmits<{
@@ -115,9 +117,39 @@ function isExploredLocation(loc: { coord_x: number; coord_y: number }): boolean 
 }
 
 const visibleLocations = computed(() =>
-  props.locations.filter(
-    (loc) => !(loc.type === 'visited' && loc.dwellers.length < 2) && isExploredLocation(loc),
-  ),
+  props.fogDisabled
+    ? props.locations
+    : props.locations.filter(
+        (loc) => !(loc.type === 'visited' && loc.dwellers.length < 2) && isExploredLocation(loc),
+      ),
+)
+
+function isExploredCoord(coord: { coord_x: number; coord_y: number }): boolean {
+  return isExploredTile(
+    exploredMask.value,
+    registryToTile(coord.coord_x, gridTiles.value),
+    registryToTile(coord.coord_y, gridTiles.value),
+    gridTiles.value,
+  )
+}
+
+// Only the player's own vaults render with identity; every other vault — other
+// players' and the seeded NPC signals — is an anonymous hint, and only where the
+// fog has been lifted, so the shared atlas does not flood the map with unrelated
+// vaults.
+const ownPlayerVaults = computed(() => props.playerVaults.filter((pv) => pv.is_mine))
+
+const foreignVaultHints = computed(() =>
+  [
+    ...props.playerVaults
+      .filter((pv) => !pv.is_mine)
+      .map((pv) => ({ key: `pv-${pv.vault_id}`, coord_x: pv.coord_x, coord_y: pv.coord_y })),
+    ...props.vaultMarkers.map((vm) => ({
+      key: `vm-${vm.name}`,
+      coord_x: vm.coord_x,
+      coord_y: vm.coord_y,
+    })),
+  ].filter((hint) => props.fogDisabled || isExploredCoord(hint)),
 )
 
 // Expeditions start at the home vault — anchor every trail there.
@@ -204,8 +236,13 @@ const selectedMarkerId = computed<string | null>({
   set: (value) => emit('update:selectedMarkerId', value),
 })
 
-const { hasDragMoved, onLocationClick, onVaultClick, onSiteClick, onPanelMarkerSelect } =
-  useMarkerSelection(selectedMarkerId, spreadMap, focusOnMarker, emit, () => props.scoutMode)
+const { hasDragMoved, onLocationClick, onSiteClick, onPanelMarkerSelect } = useMarkerSelection(
+  selectedMarkerId,
+  spreadMap,
+  focusOnMarker,
+  emit,
+  () => props.scoutMode,
+)
 
 function getSvgRect(): DOMRect {
   return svgRef.value?.getBoundingClientRect() ?? new DOMRect(0, 0, 0, 0)
@@ -279,7 +316,7 @@ function handleTouchEnd(event: TouchEvent) {
         <AtlasTerrain />
 
         <!-- Fog of war: derived explored mask over the terrain -->
-        <FogLayer :explored="exploredMask" :tiles="gridTiles" />
+        <FogLayer v-if="!fogDisabled" :explored="exploredMask" :tiles="gridTiles" />
 
         <!-- Scout target marker (wire/screen coords; server derives the duration) -->
         <g v-if="scoutMarker" class="scout-target" aria-hidden="true">
@@ -317,27 +354,28 @@ function handleTouchEnd(event: TouchEvent) {
           @click="onLocationClick(loc)"
         />
 
-        <!-- Vault markers (spread-adjusted positions) -->
+        <!-- Your vaults (identity shown) -->
         <MapMarker
-          v-for="vm in vaultMarkers"
-          :key="`vault-${vm.name}`"
-          :x="getSpread(`vault-${vm.name}`, vm.coord_x, vm.coord_y).renderX"
-          :y="getSpread(`vault-${vm.name}`, vm.coord_x, vm.coord_y).renderY"
-          :name="vm.name"
-          :type="vm.type"
-          :selected="selectedMarkerId === `vault-${vm.name}`"
-          @click="onVaultClick(vm)"
-        />
-
-        <!-- Real player vaults on the shared atlas (discoverable by all users) -->
-        <MapMarker
-          v-for="pv in playerVaults"
+          v-for="pv in ownPlayerVaults"
           :key="`pv-${pv.vault_id}`"
           :x="pv.coord_x"
           :y="pv.coord_y"
           :name="`Vault ${pv.number}`"
-          :type="pv.is_mine ? 'home_vault' : 'vault'"
-          :label="pv.is_mine ? 'Your Vault' : 'Vault'"
+          type="home_vault"
+          label="Your Vault"
+          :interactive="false"
+        />
+
+        <!-- Other vaults: anonymous hints, only where the fog is lifted -->
+        <MapMarker
+          v-for="hint in foreignVaultHints"
+          :key="hint.key"
+          :x="hint.coord_x"
+          :y="hint.coord_y"
+          name="Unknown vault"
+          type="vault"
+          icon="mdi:help-circle-outline"
+          label="Unexplored signal"
           :interactive="false"
         />
 
@@ -350,6 +388,7 @@ function handleTouchEnd(event: TouchEvent) {
           :name="site.name"
           type="expedition_site"
           :icon="EXPEDITION_SITE_ICON"
+          :art-src="markerArtDataUrl(site.id)"
           :cleared="site.cleared"
           :status="siteStatus(site)"
           :selected="selectedMarkerId === `site-${site.id}`"
@@ -406,7 +445,7 @@ function handleTouchEnd(event: TouchEvent) {
     <MarkerListPanel
       :docked="true"
       :locations="knownLocations"
-      :vault-markers="vaultMarkers"
+      :vault-markers="[]"
       :expedition-sites="expeditionSites"
       :place-groups="mapStore.placeGroups"
       :selected-marker-id="selectedMarkerId"

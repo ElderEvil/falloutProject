@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
+import { Button } from '@/core/components/ui/button'
 import { MARKER_TYPES } from '../models/markerTypeMeta'
 import { useMapStore } from '../stores/map'
 import {
@@ -10,6 +11,10 @@ import {
 } from '../utils/atlasProjection'
 
 const legendItems = MARKER_TYPES
+
+// The legend overlays the map pane, so it must be collapsible: a revealed area
+// under it is otherwise invisible. Expanded by default, one click to clear.
+const collapsed = ref(false)
 
 const mapStore = useMapStore()
 const hasUnseen = computed(() => mapStore.hasUnseenDiscoveries)
@@ -23,34 +28,48 @@ const siteGroups = computed(() => {
 
 <template>
   <div class="map-legend" role="complementary" aria-label="Map legend">
-    <div class="legend-title">MAP KEY</div>
-    <div v-for="item in legendItems" :key="item.type" class="legend-item">
-      <span
-        class="legend-icon-wrapper"
-        :class="{
-          'legend-vault': item.type === 'vault',
-          'legend-unseen': item.type === 'discovery' && hasUnseen,
-        }"
-      >
-        <Icon :icon="item.icon" class="legend-icon" />
-      </span>
-      <span class="legend-label">{{ item.label }}</span>
-    </div>
-
-    <div class="legend-title legend-title-spaced">TERRAIN</div>
-    <div v-for="terrain in ATLAS_TERRAIN_ORDER" :key="terrain" class="legend-terrain">
-      <span class="legend-swatch" :class="ATLAS_TERRAIN_CLASS[terrain]" />
-      <span class="legend-label">{{ ATLAS_TERRAIN_LABEL[terrain] }}</span>
-    </div>
-
-    <template v-if="siteGroups.length">
-      <div class="legend-title legend-title-spaced">SITE TYPES</div>
-      <div v-for="group in siteGroups" :key="group.key" class="legend-item">
-        <span class="legend-icon-wrapper">
-          <Icon :icon="group.icon" class="legend-icon" />
+    <Button
+      variant="ghost"
+      size="xs"
+      class="legend-toggle"
+      :aria-expanded="!collapsed"
+      @click="collapsed = !collapsed"
+    >
+      <span class="legend-title">MAP KEY</span>
+      <Icon
+        :icon="collapsed ? 'mdi:chevron-up' : 'mdi:chevron-down'"
+        class="legend-toggle-icon"
+      />
+    </Button>
+    <template v-if="!collapsed">
+      <div v-for="item in legendItems" :key="item.type" class="legend-item">
+        <span
+          class="legend-icon-wrapper"
+          :class="{
+            'legend-vault': item.type === 'vault',
+            'legend-unseen': item.type === 'discovery' && hasUnseen,
+          }"
+        >
+          <Icon :icon="item.icon" class="legend-icon" />
         </span>
-        <span class="legend-label">{{ group.label }}</span>
+        <span class="legend-label">{{ item.label }}</span>
       </div>
+
+      <div class="legend-title legend-title-spaced">TERRAIN</div>
+      <div v-for="terrain in ATLAS_TERRAIN_ORDER" :key="terrain" class="legend-terrain">
+        <span class="legend-swatch" :class="ATLAS_TERRAIN_CLASS[terrain]" />
+        <span class="legend-label">{{ ATLAS_TERRAIN_LABEL[terrain] }}</span>
+      </div>
+
+      <template v-if="siteGroups.length">
+        <div class="legend-title legend-title-spaced">SITE TYPES</div>
+        <div v-for="group in siteGroups" :key="group.key" class="legend-item">
+          <span class="legend-icon-wrapper">
+            <Icon :icon="group.icon" class="legend-icon" />
+          </span>
+          <span class="legend-label">{{ group.label }}</span>
+        </div>
+      </template>
     </template>
   </div>
 </template>
@@ -77,8 +96,28 @@ const siteGroups = computed(() => {
   font-size: 9px;
   letter-spacing: 0.1em;
   opacity: 0.6;
-  margin-bottom: 4px;
   text-transform: uppercase;
+}
+
+.legend-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.legend-toggle-icon {
+  width: 12px;
+  height: 12px;
+  opacity: 0.7;
 }
 
 .legend-title-spaced {

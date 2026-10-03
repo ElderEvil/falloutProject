@@ -125,6 +125,8 @@ async function handleDispatch(dwellerIds: string[]) {
 // target and follows no route — the pick only sizes a server-derived duration
 // band, and only one scout submit runs at a time.
 const scoutMode = ref(false)
+// Admin debug tool: reveal the whole atlas by dropping the fog layer.
+const fogDisabled = ref(false)
 const scoutTarget = ref<{ coord_x: number; coord_y: number } | null>(null)
 const lastScout = ref<{ bandLow: number | null; bandHigh: number; coord: { coord_x: number; coord_y: number } } | null>(null)
 const isScouting = ref(false)
@@ -369,6 +371,7 @@ const mapPaneHeight = 'var(--map-pane-size)'
             :expedition-sites="mapStore.expeditionSites"
             :explorer-tracks="explorerTracks"
             :scout-mode="scoutMode"
+            :fog-disabled="fogDisabled"
             :scout-target="scoutTarget"
             :selected-marker-id="selectedMarkerId"
             @update:selected-marker-id="selectedMarkerId = $event"
@@ -388,6 +391,13 @@ const mapPaneHeight = 'var(--map-pane-size)'
             <span v-else-if="lastScoutText" class="scout-hint">
               Last scout → {{ lastScoutText }}
             </span>
+          </div>
+
+          <!-- Admin debug: lift the fog to inspect the whole atlas -->
+          <div v-if="authStore.isSuperuser" class="scout-bar">
+            <Button variant="outline" size="sm" @click="fogDisabled = !fogDisabled">
+              {{ fogDisabled ? 'Restore fog' : 'Remove fog (debug)' }}
+            </Button>
           </div>
 
           <!-- Scout confirm: pick a dweller, then send -->

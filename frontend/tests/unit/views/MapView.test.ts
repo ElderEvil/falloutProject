@@ -118,7 +118,7 @@ describe('MapView', () => {
           WorldMap: {
             name: 'WorldMap',
             template: '<div class="world-map-stub"></div>',
-            props: ['locations', 'vaultMarkers', 'explorerTracks', 'selectedMarkerId', 'scoutMode', 'scoutTarget'],
+            props: ['locations', 'vaultMarkers', 'explorerTracks', 'selectedMarkerId', 'scoutMode', 'scoutTarget', 'fogDisabled'],
             emits: ['marker-click', 'update:selectedMarkerId', 'scout-target', 'scout-invalid'],
           },
           MarkerDetailModal: {
@@ -478,6 +478,41 @@ describe('MapView', () => {
       expect(wrapper.find('.scout-bar').text()).not.toContain('Scout sent')
       expect(wrapper.find('.scout-confirm').exists()).toBe(false)
       mockRoute.params.id = 'vault-1'
+    })
+  })
+
+  describe('admin fog debug tool', () => {
+    it('is hidden for non-admins', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(wrapper.text()).not.toContain('Remove fog')
+    })
+
+    it('toggles fog removal for admins', async () => {
+      localStorage.setItem(
+        'user',
+        JSON.stringify({ id: 'u1', username: 'admin', email: 'a@a.com', is_superuser: true })
+      )
+      setActivePinia(createPinia())
+      const store = useMapStore()
+      vi.spyOn(store, 'fetchMap').mockResolvedValue(undefined)
+      store.locations = [mockLocation]
+      store.isLoading = false
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      const button = wrapper.findAll('button').find((b) => b.text().includes('Remove fog'))
+      expect(button).toBeTruthy()
+      await button!.trigger('click')
+      await flushPromises()
+
+      expect(wrapper.findComponent({ name: 'WorldMap' }).props('fogDisabled')).toBe(true)
     })
   })
 })

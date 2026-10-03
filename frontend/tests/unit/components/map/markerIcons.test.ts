@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import {
   ARCHETYPE_ART,
+  EXPEDITION_SITE_ART,
   PROTOTYPE_KIND_ART,
   markerArtDataUrl,
 } from '@/modules/map/utils/markerIcons'
@@ -36,6 +37,11 @@ describe('markerIcons', () => {
     expect(Object.keys(ARCHETYPE_ART).sort()).toEqual(
       ['factory', 'gas_station', 'settlement', 'supermarket'].sort(),
     )
+  })
+
+  it('maps expedition site ids to prototype art', () => {
+    expect(EXPEDITION_SITE_ART.red_rocket).toBe(PROTOTYPE_KIND_ART.red_rocket)
+    expect(EXPEDITION_SITE_ART.super_duper_mart).toBe(PROTOTYPE_KIND_ART.super_duper_mart)
   })
 
   it('returns null when the archetype has no preserved art', () => {

@@ -125,4 +125,16 @@ describe('MapLegend', () => {
 
     expect(discoveryWrapper(wrapper).classes()).not.toContain('legend-unseen')
   })
+
+  it('collapses and expands so it can uncover content beneath it', async () => {
+    const wrapper = mountLegend()
+    expect(wrapper.find('.legend-item').exists()).toBe(true)
+
+    await wrapper.find('.legend-toggle').trigger('click')
+    expect(wrapper.find('.legend-item').exists()).toBe(false)
+    expect(wrapper.find('.legend-toggle').attributes('aria-expanded')).toBe('false')
+
+    await wrapper.find('.legend-toggle').trigger('click')
+    expect(wrapper.find('.legend-item').exists()).toBe(true)
+  })
 })

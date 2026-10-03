@@ -27,7 +27,6 @@ const dweller = {
   gender: 'female',
   rarity: 'rare',
   age_group: 'adult',
-  is_adult: true,
   is_dead: false,
   is_permanently_dead: false,
   status: 'working',

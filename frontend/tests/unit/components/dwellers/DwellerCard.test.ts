@@ -40,7 +40,6 @@ describe('DwellerCard', () => {
     stimpack: 2,
     radaway: 1,
     status: 'idle',
-    is_adult: true,
     age_group: 'adult',
     room: null,
   } as any
@@ -432,7 +431,7 @@ describe('DwellerCard', () => {
     })
 
     it('disables send to wasteland for a child', () => {
-      const childDweller = { ...mockDweller, is_adult: false, age_group: 'child' }
+      const childDweller = { ...mockDweller, age_group: 'child' }
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: childDweller,
@@ -602,7 +601,7 @@ describe('DwellerCard', () => {
     })
 
     it('labels the assign action as an apprenticeship for youth', () => {
-      const childDweller = { ...mockDweller, is_adult: false, age_group: 'child' }
+      const childDweller = { ...mockDweller, age_group: 'child' }
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: childDweller,

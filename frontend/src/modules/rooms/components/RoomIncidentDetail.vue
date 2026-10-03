@@ -5,7 +5,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { getIncidentIcon, type Incident, type IncidentTeamMember } from '@/modules/combat/models/incident'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
-import { getCombatPower } from '@/modules/dwellers/models/dweller'
+import { getCombatPower, isMature } from '@/modules/dwellers/models/dweller'
 import DwellerListRow from '@/modules/dwellers/components/DwellerListRow.vue'
 import { Button } from '@/core/components/ui/button'
 import { useToast } from '@/core/composables/useToast'
@@ -37,7 +37,7 @@ const progress = computed(() => props.incident.progress)
 const availableResponders = computed(() =>
   props.dwellers.filter(
     (dweller) =>
-      dweller.is_adult &&
+      isMature(dweller) &&
       dweller.health > 0 &&
       dweller.room_id !== props.incident.room_id &&
       !['exploring', 'questing', 'dead'].includes(dweller.status)

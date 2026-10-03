@@ -36,7 +36,6 @@ class DwellerBaseWithoutStats(SQLModel):
     # General info
     first_name: str = Field(index=True, min_length=2, max_length=32)
     last_name: str | None = Field(default=None, index=True, max_length=32)
-    is_adult: bool = True
     age_group: AgeGroupEnum = Field(default=AgeGroupEnum.ADULT)
     birth_date: datetime | None = Field(default=None)
     gender: GenderEnum = Field()
@@ -44,8 +43,8 @@ class DwellerBaseWithoutStats(SQLModel):
 
     @property
     def is_mature(self) -> bool:
-        """Adult by both flags — children and teens can't take combat assignments."""
-        return self.is_adult and self.age_group in ADULT_AGE_GROUPS
+        """Adult or elder — children and teens can't take combat assignments."""
+        return self.age_group in ADULT_AGE_GROUPS
 
     @property
     def display_name(self) -> str:

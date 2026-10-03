@@ -322,7 +322,6 @@ class TestAutoAssignProductionRooms:
     async def test_apprentice_fills_vacant_slot_without_taking_worker_slot(self, svc, mock_db):
         room = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)  # 2 worker slots
         youth = _make_dweller(_id=_D1, strength=4)
-        youth.is_adult = False
         youth.is_mature = False
 
         def count_room_occupants(_db, _room_id, *, include_apprentices=True):
@@ -365,7 +364,6 @@ class TestAutoAssignProductionRooms:
         room = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)  # 2 worker slots
         adult = _make_dweller(_id=_D1, strength=5)
         youth = _make_dweller(_id=_D2, strength=4)
-        youth.is_adult = False
         youth.is_mature = False
 
         def count_room_occupants(_db, _room_id, *, include_apprentices=True):
@@ -463,7 +461,6 @@ class TestAutoAssignProductionRooms:
     async def test_teen_age_group_filter_only_fills_teen_apprentices(self, svc, mock_db):
         room = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)
         teen = _make_dweller(_id=_D1, strength=4)
-        teen.is_adult = False
         teen.is_mature = False
         teen.age_group = AgeGroupEnum.TEEN
 
@@ -501,7 +498,6 @@ class TestAutoAssignProductionRooms:
         locked for the pass and claims are written without intermediate commits."""
         room = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)
         youth = _make_dweller(_id=_D1, strength=4)
-        youth.is_adult = False
         youth.is_mature = False
 
         with (

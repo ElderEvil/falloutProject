@@ -5990,11 +5990,6 @@ export interface components {
             first_name: string;
             /** Last Name */
             last_name?: string | null;
-            /**
-             * Is Adult
-             * @default true
-             */
-            is_adult: boolean;
             /** @default adult */
             age_group: components["schemas"]["AgeGroupEnum"];
             /** Birth Date */
@@ -6145,11 +6140,6 @@ export interface components {
             first_name: string;
             /** Last Name */
             last_name?: string | null;
-            /**
-             * Is Adult
-             * @default true
-             */
-            is_adult: boolean;
             /** @default adult */
             age_group: components["schemas"]["AgeGroupEnum"];
             /** Birth Date */
@@ -6344,11 +6334,6 @@ export interface components {
             first_name: string;
             /** Last Name */
             last_name?: string | null;
-            /**
-             * Is Adult
-             * @default true
-             */
-            is_adult: boolean;
             /** @default adult */
             age_group: components["schemas"]["AgeGroupEnum"];
             /** Birth Date */
@@ -6500,11 +6485,6 @@ export interface components {
             first_name: string;
             /** Last Name */
             last_name?: string | null;
-            /**
-             * Is Adult
-             * @default true
-             */
-            is_adult: boolean;
             /** @default adult */
             age_group: components["schemas"]["AgeGroupEnum"];
             /** Birth Date */
@@ -6650,8 +6630,6 @@ export interface components {
             /** Room Id */
             room_id?: string | null;
             status: components["schemas"]["DwellerStatusEnum"];
-            /** Is Adult */
-            is_adult: boolean;
             age_group: components["schemas"]["AgeGroupEnum"];
             gender: components["schemas"]["GenderEnum"];
             rarity: components["schemas"]["RarityEnum"];
@@ -6732,11 +6710,6 @@ export interface components {
             first_name: string;
             /** Last Name */
             last_name?: string | null;
-            /**
-             * Is Adult
-             * @default true
-             */
-            is_adult: boolean;
             /** @default adult */
             age_group: components["schemas"]["AgeGroupEnum"];
             /** Birth Date */

@@ -9,7 +9,6 @@ import type { Dweller } from '@/modules/dwellers/models/dweller'
 
 const healthyAdult = {
   is_dead: false,
-  is_adult: true,
   age_group: 'adult',
   max_health: 100,
   health: 100,
@@ -56,7 +55,7 @@ describe('DwellerAlertLine', () => {
     const adult = mountAlertLine({ room: null, status: 'idle' })
     expect(adult.find('.alert-chip').text()).toBe('Unassigned')
 
-    const youth = mountAlertLine({ room: null, status: 'idle', is_adult: false, age_group: 'child' })
+    const youth = mountAlertLine({ room: null, status: 'idle', age_group: 'child' })
     expect(youth.find('.alert-chip').text()).toBe('Unassigned')
   })
 

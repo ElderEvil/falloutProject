@@ -442,7 +442,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             .where(self.model.vault_id == vault_id)
             .where(self.model.status == DwellerStatusEnum.IDLE)
             .where(self.model.room_id.is_(None))
-            .where(~self.model.is_adult)
+            .where(~self.model.age_group.in_(ADULT_AGE_GROUPS))
             .where(~self.model.is_deleted)
             .where(~self.model.is_dead)
         )
@@ -499,10 +499,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
                 selectinload(self.model.pet),
             )
             .where(
-                (self.model.room_id == room_id)
-                & (self.model.health > 0)
-                & self.model.is_adult
-                & self.model.age_group.in_(ADULT_AGE_GROUPS)
+                (self.model.room_id == room_id) & (self.model.health > 0) & self.model.age_group.in_(ADULT_AGE_GROUPS)
             )
         )
         return list((await db_session.execute(query)).scalars().all())
@@ -518,7 +515,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     def _arena_fighter_conditions(room_id: UUID4, *, require_alive: bool = True) -> list[Any]:
         conditions = [
             Dweller.room_id == room_id,
-            Dweller.is_adult,
             Dweller.age_group.in_(ADULT_AGE_GROUPS),
         ]
         if require_alive:

@@ -571,6 +571,14 @@ class LevelingConfig(BaseSettings):
     hp_gain_per_level: int = Field(default=5, description="Health gained per level up", ge=1)
     max_level: int = Field(default=50, description="Maximum dweller level", ge=1, le=100)
 
+    # Starting level bands for generated dwellers, canon-shaped (Fallout Shelter
+    # rare ~6-10, legendary 19-43). Commons always start at level 1.
+    base_max_health: int = Field(default=100, description="Max health at level 1", ge=1)
+    rare_start_level_min: int = Field(default=6, ge=1)
+    rare_start_level_max: int = Field(default=10, ge=1)
+    legendary_start_level_min: int = Field(default=19, ge=1)
+    legendary_start_level_max: int = Field(default=43, ge=1)
+
     # XP sources
     exploration_xp_per_distance: int = Field(default=10, description="Per mile traveled", ge=0)
     exploration_xp_per_enemy: int = Field(default=50, description="Per enemy defeated", ge=0)

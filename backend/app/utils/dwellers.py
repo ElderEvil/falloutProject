@@ -136,6 +136,28 @@ def roll_child_identity(mother: Any, father: Any, source: random.Random | Module
     return _identity_for_race(race, source)
 
 
+def _rarity_start_level(rarity: RarityEnum | str, rng: random.Random | ModuleType) -> int:
+    """Starting level for a dweller of the given rarity (commons start at 1)."""
+    value = rarity.value if isinstance(rarity, RarityEnum) else str(rarity).lower()
+    cfg = game_config.leveling
+    bands = {
+        RarityEnum.RARE.value: (cfg.rare_start_level_min, cfg.rare_start_level_max),
+        RarityEnum.LEGENDARY.value: (cfg.legendary_start_level_min, cfg.legendary_start_level_max),
+    }
+    band = bands.get(value)
+    if band is None:
+        return 1
+    low, high = band
+    high = min(high, cfg.max_level)
+    low = min(low, high)
+    return rng.randint(low, high)
+
+
+def _max_health_for_level(level: int) -> int:
+    """Health a dweller should hold at ``level`` under flat per-level gains."""
+    return game_config.leveling.base_max_health + (level - 1) * game_config.leveling.hp_gain_per_level
+
+
 def create_random_common_dweller(
     gender: GenderEnum | None = None, seed: int | None = None, rarity: RarityEnum = RarityEnum.COMMON
 ) -> dict[str, Any]:
@@ -167,6 +189,8 @@ def create_random_common_dweller(
     bio = render_bio(origin, visited, race=_race_from_attributes(identity), rng=rng)
     if rumor := maybe_zone_rumor(rng, game_config.bio.zone_rumor_chance):
         bio = f"{bio} {rumor}"
+    level = _rarity_start_level(rarity, rng)
+    starting_health = _max_health_for_level(level)
     return {
         "first_name": get_gender_based_name(gender, faker),
         "last_name": faker.last_name(),
@@ -175,10 +199,10 @@ def create_random_common_dweller(
         "birth_date": birth_date,
         "gender": gender,
         "rarity": rarity,
-        "level": 1,
+        "level": level,
         "experience": 0,
-        "max_health": 100,
-        "health": 100,
+        "max_health": starting_health,
+        "health": starting_health,
         "radiation": 0,
         "happiness": 50,
         "stimpack": 0,
@@ -228,6 +252,13 @@ def create_dweller_from_template(
     data.setdefault("health", 100)
     data.setdefault("radiation", 0)
     data.setdefault("happiness", 50)
+    # Rare/legendary templates arrive experienced, with health matching the
+    # levels they already carry (flat per-level gains).
+    start_level = _rarity_start_level(template.rarity, rng)
+    if start_level > 1:
+        data["level"] = start_level
+        data["max_health"] = _max_health_for_level(start_level)
+        data["health"] = data["max_health"]
     if data.get("visual_attributes") is None:
         data["visual_attributes"] = None
     data["_bio_places"] = (origin, visited) if origin or visited else None

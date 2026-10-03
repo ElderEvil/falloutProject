@@ -52,17 +52,6 @@ def dispatch_travel_hours(distance: float) -> int:
     return max(1, min(24, math.ceil(total_hours)))
 
 
-def scout_band_hours(known_hours: int) -> tuple[int, int]:
-    """Coarse travel band for a scout, so the player reads a range, not false precision.
-
-    Scouts head into the unknown, so the exact duration is deliberately hidden: the
-    known route's hours are widened by one uncertainty step and bucketed.
-    """
-    step = 1 if known_hours <= 2 else 2 if known_hours <= 6 else 4 if known_hours <= 12 else 8
-    low = max(1, (known_hours // step) * step)
-    return low, low + step * 2
-
-
 class ExplorationService:
     """Exploration service for managing wasteland explorations.
 
@@ -317,40 +306,6 @@ class ExplorationService:
             dweller_ids=dweller_ids,
             location_id=target_location_id,
         )
-
-    async def scout(
-        self,
-        db_session: AsyncSession,
-        vault_id: UUID4,
-        dweller_id: UUID4,
-        target_coord_x: float,
-        target_coord_y: float,
-        stimpaks: int = 0,
-        radaways: int = 0,
-    ) -> tuple[Exploration, int, int]:
-        """Scout an approximate frontier location (no discovered destination).
-
-        Unlike ``dispatch`` there is no ``WorldLocation``: the player targets a
-        revealed frontier cell and gets only a coarse band, because the destination
-        is unknown. The run reuses the free-roam exploration lifecycle, so arrival
-        discovery/history rides the existing coordinator.
-
-        Returns the exploration plus the displayed (low, high) band. The scheduled
-        duration is the upper bound; the lower bound rides along so the client can
-        show the range instead of false precision.
-        """
-        distance = math.dist(await self._vault_origin(db_session, vault_id), (target_coord_x, target_coord_y))
-        hours = dispatch_travel_hours(distance)
-        band_low, band_high = scout_band_hours(hours)
-        exploration = await self.send_dweller(
-            db_session,
-            vault_id=vault_id,
-            dweller_id=dweller_id,
-            duration=max(1, min(24, band_high)),
-            stimpaks=stimpaks,
-            radaways=radaways,
-        )
-        return exploration, max(1, min(24, band_low)), max(1, min(24, band_high))
 
     async def dispatch(
         self,

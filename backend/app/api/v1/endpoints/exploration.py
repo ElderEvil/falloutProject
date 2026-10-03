@@ -24,7 +24,6 @@ from app.schemas.exploration import (
     ExplorationReadShort,
     ExplorationSendRequest,
     PendingOverflowRead,
-    ScoutRequest,
 )
 from app.schemas.overflow import OverflowActionRequest, OverflowActionResponse
 from app.services.exploration.expedition import expedition_service
@@ -87,40 +86,6 @@ async def dispatch_dweller(
         dweller_ids=request.dweller_ids,
         location_id=request.location_id,
     )
-
-
-@router.post("/scout", response_model=ExplorationRead)
-async def scout_frontier(
-    request: ScoutRequest,
-    vault_id: Annotated[UUID4, Query()],
-    user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> ExplorationRead:
-    """Send a dweller to scout an approximate frontier cell.
-
-    The exact destination is unknown, so the player targets a frontier cell and the
-    run returns a coarse duration band rather than a precise ETA.
-
-    Raises:
-        ValidationException: If the dweller cannot be sent.
-    """
-    await get_user_vault_or_403(vault_id, user, db_session)
-    try:
-        exploration, band_low, band_high = await exploration_service.scout(
-            db_session,
-            vault_id=vault_id,
-            dweller_id=request.dweller_id,
-            target_coord_x=request.target_coord_x,
-            target_coord_y=request.target_coord_y,
-            stimpaks=request.stimpaks,
-            radaways=request.radaways,
-        )
-    except ValueError as e:
-        raise ValidationException(str(e)) from e
-    read = ExplorationRead.model_validate(exploration)
-    read.band_low = band_low
-    read.band_high = band_high
-    return read
 
 
 @router.get("/vault/{vault_id}", response_model=list[ExplorationReadShort])

@@ -11,6 +11,7 @@ from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.services.exploration_service import dispatch_travel_hours, exploration_service, scout_band_hours
 from app.services.map_service import map_service
+from app.utils.exceptions import ResourceConflictException
 from app.utils.vault_slots import slot_coords
 
 
@@ -135,3 +136,49 @@ async def test_slot_allocation_failure_leaves_no_vault(
 
     persisted = (await async_session.execute(select(Vault).where(Vault.number == 125))).scalar_one_or_none()
     assert persisted is None
+
+
+@pytest.mark.asyncio
+async def test_soft_delete_releases_the_slot(async_session: AsyncSession, vault: Vault):
+    await vault_slot.claim_next(db_session=async_session, vault_id=vault.id)
+    assert await vault_slot.get_by_vault(async_session, vault.id) is not None
+
+    deleted = await crud_vault.delete(async_session, vault.id, soft=True)
+
+    assert deleted.is_deleted is True
+    assert await vault_slot.get_by_vault(async_session, vault.id) is None
+
+
+@pytest.mark.asyncio
+async def test_restore_reclaims_a_slot(async_session: AsyncSession, vault: Vault):
+    await vault_slot.claim_next(db_session=async_session, vault_id=vault.id)
+    await crud_vault.delete(async_session, vault.id, soft=True)
+
+    restored = await crud_vault.restore(async_session, vault.id)
+
+    assert restored.is_deleted is False
+    assert await vault_slot.get_by_vault(async_session, vault.id) is not None
+
+
+@pytest.mark.asyncio
+async def test_restore_fails_when_no_slot_is_available(
+    async_session: AsyncSession, vault: Vault, monkeypatch: pytest.MonkeyPatch
+):
+    from app.core.game_config import game_config
+
+    await vault_slot.claim_next(db_session=async_session, vault_id=vault.id)
+    await crud_vault.delete(async_session, vault.id, soft=True)
+
+    # Shrink the atlas to a single slot and fill it with another vault.
+    monkeypatch.setattr(game_config.vault_slots, "count", 1)
+    other = Vault(number=126, user_id=vault.user_id)
+    async_session.add(other)
+    await async_session.flush()
+    await vault_slot.claim_for_new_vault(db_session=async_session, vault_id=other.id)
+    await async_session.commit()
+
+    with pytest.raises(ResourceConflictException):
+        await crud_vault.restore(async_session, vault.id)
+
+    refreshed = await crud_vault.get(async_session, vault.id, include_deleted=True)
+    assert refreshed.is_deleted is True

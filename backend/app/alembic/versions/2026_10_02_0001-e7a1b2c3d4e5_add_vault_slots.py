@@ -7,7 +7,11 @@ Create Date: 2026-10-02 00:01:00.000000
 Persisted vault map placement: each vault claims one unique slot on the shared
 atlas, discoverable by every user. Existing vaults are backfilled deterministically
 by vault number (0-based); the backfill is guarded by ``NOT EXISTS`` so it is
-idempotent. ``downgrade()`` drops the table, losing all slot placement. No enum
+idempotent. Precondition: ``VAULT_SLOT_COUNT`` must be at least the live vault
+count before upgrading — the backfill numbers every live vault without an upper
+bound, and indices at or above the configured count wrap onto occupied cells
+(``slot_index % count``) while new-vault claims only try ``0..count-1``.
+``downgrade()`` drops the table, losing all slot placement. No enum
 migration: ``slot_index`` is an int.
 """
 
@@ -49,6 +53,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("slot_index", name="uq_vault_slot_index"),
         sa.UniqueConstraint("vault_id", name="uq_vault_slot_vault"),
     )
+    op.create_index("ix_vaultslot_id", "vaultslot", ["id"])
     op.execute(BACKFILL_SQL)
 
 

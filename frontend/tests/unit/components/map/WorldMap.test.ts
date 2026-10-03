@@ -131,6 +131,23 @@ describe('WorldMap', () => {
       expect(names).not.toContain('Vault 100')
     })
 
+    it('drops fog and reveals fog-gated markers when fogDisabled', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [],
+          vaultMarkers: createVaultMarkers(1),
+          selectedMarkerId: null,
+          fogDisabled: true,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.findComponent({ name: 'FogLayer' }).exists()).toBe(false)
+      expect(
+        wrapper.findAllComponents(MapMarkerStub).some((m) => m.props('name') === 'Unknown vault'),
+      ).toBe(true)
+    })
+
     it('should render zero markers when both arrays are empty', () => {
       const wrapper = mount(WorldMap, {
         props: { locations: [], vaultMarkers: [], selectedMarkerId: null },

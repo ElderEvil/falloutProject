@@ -37,6 +37,7 @@ interface Props {
   explorerTracks?: ExplorerTrack[]
   scoutMode?: boolean
   scoutTarget?: { coord_x: number; coord_y: number } | null
+  fogDisabled?: boolean
   selectedMarkerId: string | null
 }
 
@@ -47,6 +48,7 @@ const props = withDefaults(defineProps<Props>(), {
   explorerTracks: () => [],
   scoutMode: false,
   scoutTarget: null,
+  fogDisabled: false,
 })
 
 const emit = defineEmits<{
@@ -115,9 +117,11 @@ function isExploredLocation(loc: { coord_x: number; coord_y: number }): boolean 
 }
 
 const visibleLocations = computed(() =>
-  props.locations.filter(
-    (loc) => !(loc.type === 'visited' && loc.dwellers.length < 2) && isExploredLocation(loc),
-  ),
+  props.fogDisabled
+    ? props.locations
+    : props.locations.filter(
+        (loc) => !(loc.type === 'visited' && loc.dwellers.length < 2) && isExploredLocation(loc),
+      ),
 )
 
 function isExploredCoord(coord: { coord_x: number; coord_y: number }): boolean {
@@ -145,7 +149,7 @@ const foreignVaultHints = computed(() =>
       coord_x: vm.coord_x,
       coord_y: vm.coord_y,
     })),
-  ].filter(isExploredCoord),
+  ].filter((hint) => props.fogDisabled || isExploredCoord(hint)),
 )
 
 // Expeditions start at the home vault — anchor every trail there.
@@ -312,7 +316,7 @@ function handleTouchEnd(event: TouchEvent) {
         <AtlasTerrain />
 
         <!-- Fog of war: derived explored mask over the terrain -->
-        <FogLayer :explored="exploredMask" :tiles="gridTiles" />
+        <FogLayer v-if="!fogDisabled" :explored="exploredMask" :tiles="gridTiles" />
 
         <!-- Scout target marker (wire/screen coords; server derives the duration) -->
         <g v-if="scoutMarker" class="scout-target" aria-hidden="true">

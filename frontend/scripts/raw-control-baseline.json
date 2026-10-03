@@ -47,7 +47,7 @@
   "src/modules/map/components/MarkerDetailModal.vue": 3,
   "src/modules/map/components/MarkerListPanel.vue": 3,
   "src/modules/map/components/WorldMap.vue": 3,
-  "src/modules/map/views/MapView.vue": 2,
+  "src/modules/map/views/MapView.vue": 4,
   "src/modules/pets/components/PetCard.vue": 2,
   "src/modules/profile/components/AIUsageCard.vue": 1,
   "src/modules/profile/components/ChangelogModal.vue": 4,

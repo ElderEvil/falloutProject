@@ -117,7 +117,8 @@ describe('MapView', () => {
           WorldMap: {
             name: 'WorldMap',
             template: '<div class="world-map-stub"></div>',
-            props: ['locations', 'vaultMarkers', 'explorerTracks', 'selectedMarkerId'],
+            props: ['locations', 'vaultMarkers', 'explorerTracks', 'selectedMarkerId', 'scoutMode', 'scoutTarget'],
+            emits: ['marker-click', 'update:selectedMarkerId', 'scout-target', 'scout-invalid'],
           },
           MarkerDetailModal: {
             name: 'MarkerDetailModal',
@@ -394,6 +395,25 @@ describe('MapView', () => {
       const tracks = worldMap.props('explorerTracks') as ExplorerTrack[]
       expect(tracks).toHaveLength(1)
       expect(tracks[0].explorationId).toBe('expl-own')
+    })
+  })
+
+  describe('scout targeting', () => {
+    it('passes registry coordinates to WorldMap so the highlight is not double-scaled', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      // WorldMap reports picks in wire coords (SVG units); the highlight prop
+      // must carry registry coords, which WorldMap converts back exactly once.
+      const worldMap = wrapper.findComponent({ name: 'WorldMap' })
+      worldMap.vm.$emit('scout-target', { coord_x: 80, coord_y: 80 })
+      await flushPromises()
+
+      expect(worldMap.props('scoutTarget')).toEqual({ coord_x: 50, coord_y: 50 })
     })
   })
 })

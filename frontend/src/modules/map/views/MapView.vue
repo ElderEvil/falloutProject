@@ -126,7 +126,6 @@ async function handleDispatch(dwellerIds: string[]) {
 // server-derived (no client ETA), and only one scout submit runs at a time.
 const scoutMode = ref(false)
 const scoutTarget = ref<{ coord_x: number; coord_y: number } | null>(null)
-const scoutTargetWire = ref<{ coord_x: number; coord_y: number } | null>(null)
 const lastScout = ref<{ hours: number; coord: { coord_x: number; coord_y: number } } | null>(null)
 const isScouting = ref(false)
 
@@ -146,14 +145,14 @@ function toggleScoutMode() {
   scoutMode.value = !scoutMode.value
   if (!scoutMode.value) {
     scoutTarget.value = null
-    scoutTargetWire.value = null
   }
 }
 
 // Guard: the target must be a revealed cell (fog), else there is nothing to scout.
-// The mask check happens in WorldMap (props-derived); here we only record the pick.
+// The mask check happens in WorldMap (props-derived); here we only record the pick
+// in registry coordinates — the same representation WorldMap's highlight and the
+// scout submit both consume, so no second conversion exists to drift.
 function handleScoutTarget(coord: { coord_x: number; coord_y: number }) {
-  scoutTargetWire.value = coord
   scoutTarget.value = { coord_x: wireToRegistry(coord.coord_x), coord_y: wireToRegistry(coord.coord_y) }
 }
 
@@ -175,7 +174,6 @@ async function confirmScout(dwellerId: string) {
     lastScout.value = { hours: exploration.duration, coord: target }
     scoutMode.value = false
     scoutTarget.value = null
-    scoutTargetWire.value = null
     await mapStore.refreshMap(vaultId.value, authStore.token)
     toast.success(`Scout sent — about ${exploration.duration} h`)
   } catch (err) {
@@ -344,7 +342,7 @@ const mapPaneHeight = 'var(--map-pane-size)'
             :expedition-sites="mapStore.expeditionSites"
             :explorer-tracks="explorerTracks"
             :scout-mode="scoutMode"
-            :scout-target="scoutTargetWire"
+            :scout-target="scoutTarget"
             :selected-marker-id="selectedMarkerId"
             @update:selected-marker-id="selectedMarkerId = $event"
             @marker-click="handleMarkerClick"

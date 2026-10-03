@@ -351,7 +351,7 @@ export function drawUnknown(ctx: CanvasRenderingContext2D, cx: number, cy: numbe
 
 interface MarkerArt {
   draw: IconDrawer
-  color: string
+  colorVar: string
 }
 
 /**
@@ -360,14 +360,14 @@ interface MarkerArt {
  * production map now adopts (see `ARCHETYPE_ART`).
  */
 export const PROTOTYPE_KIND_ART: Record<string, MarkerArt> = {
-  settlement: { color: '#00ff00', draw: drawHouses },
-  red_rocket: { color: '#ff6b6b', draw: drawRocket },
-  super_duper_mart: { color: '#ffd43b', draw: drawStore },
-  abandoned_factory: { color: '#c8b9ae', draw: drawFactory },
-  radio_tower: { color: '#00d9ff', draw: drawTower },
-  water_treatment: { color: '#4dabf7', draw: drawWaterDrop },
-  raider_camp: { color: '#ff7043', draw: drawSkull },
-  supply_cache: { color: '#d4a24e', draw: drawSupplyCrate },
+  settlement: { colorVar: '--color-marker-settlement', draw: drawHouses },
+  red_rocket: { colorVar: '--color-marker-rocket', draw: drawRocket },
+  super_duper_mart: { colorVar: '--color-marker-store', draw: drawStore },
+  abandoned_factory: { colorVar: '--color-marker-factory', draw: drawFactory },
+  radio_tower: { colorVar: '--color-marker-tower', draw: drawTower },
+  water_treatment: { colorVar: '--color-marker-water', draw: drawWaterDrop },
+  raider_camp: { colorVar: '--color-marker-raider', draw: drawSkull },
+  supply_cache: { colorVar: '--color-marker-cache', draw: drawSupplyCrate },
 }
 
 /** Catalog group_key → prototype art, for the archetypes that map cleanly. */
@@ -402,7 +402,11 @@ export function markerArtDataUrl(groupKey: string | null | undefined): string | 
   if (ctx === null) return null
   ctx.translate(TILE_SIZE / 2, TILE_SIZE / 2)
   ctx.scale(TILE_SIZE / DRAW_SPAN, TILE_SIZE / DRAW_SPAN)
-  art.draw(ctx, 0, 0, art.color)
+  const styles = getComputedStyle(document.documentElement)
+  const color =
+    styles.getPropertyValue(art.colorVar).trim() ||
+    styles.getPropertyValue('--color-theme-primary').trim()
+  art.draw(ctx, 0, 0, color)
   const url = canvas.toDataURL()
   urlCache.set(groupKey, url)
   return url

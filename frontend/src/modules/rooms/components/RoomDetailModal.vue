@@ -25,6 +25,7 @@ import { useSound } from '@/core/composables/useSound'
 import { getRoomAmbienceKey } from '@/core/audio/soundManifest'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { getStaticImageUrl } from '@/core/utils/image'
 
 interface Props {
   room: Room | null
@@ -85,6 +86,10 @@ const { resourceIcon, roomImageUrl, productionInfo } = useRoomProduction(
   assignedDwellers,
   dwellerCapacity
 )
+
+// Detail-scene art from the asset manifest wins over the grid art; the backend
+// returns a /static/... path, same convention as room.image_url.
+const detailSceneUrl = computed(() => getStaticImageUrl(props.room?.detail_scene?.image_url))
 
 const {
   isUpgrading,
@@ -167,6 +172,7 @@ onUnmounted(stopAmbience)
         :vault-id="props.vaultId"
         :dwellers="vaultDwellers"
         :room-image-url="roomImageUrl ?? null"
+        :detail-scene-url="detailSceneUrl"
       />
 
       <IncidentAftermath
@@ -196,6 +202,7 @@ onUnmounted(stopAmbience)
           :room-name="room.name"
           :image-url="room.image_url ?? null"
           :room-image-url="roomImageUrl ?? null"
+          :detail-scene-url="detailSceneUrl"
           :room-units="roomUnits"
           :dweller-capacity="sceneCapacity"
           :assigned-dwellers="assignedDwellers"

@@ -8,6 +8,7 @@ interface Props {
   roomName: string
   imageUrl: string | null
   roomImageUrl: string | null
+  detailSceneUrl?: string | null
   roomUnits?: number
   dwellerCapacity: number
   assignedDwellers: DwellerShort[]
@@ -15,7 +16,12 @@ interface Props {
   assignEnabled?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), { showApprenticeSlot: false, roomUnits: 3, assignEnabled: true })
+const props = withDefaults(defineProps<Props>(), {
+  showApprenticeSlot: false,
+  roomUnits: 3,
+  assignEnabled: true,
+  detailSceneUrl: null,
+})
 const emit = defineEmits<{
   activate: [dwellerId: string]
   unassign: [dwellerId: string]
@@ -23,7 +29,7 @@ const emit = defineEmits<{
   assignApprentice: []
 }>()
 
-const sceneImageUrl = computed(() => props.roomImageUrl ?? props.imageUrl)
+const sceneImageUrl = computed(() => props.detailSceneUrl ?? props.roomImageUrl ?? props.imageUrl)
 const sceneSizeClass = computed(() => {
   if (props.roomUnits <= 1) return 'room-scene--compact'
   if (props.roomUnits >= 6) return 'room-scene--wide'

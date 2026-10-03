@@ -106,6 +106,25 @@ describe('RoomIncidentDetail', () => {
     expect(wrapper.find('[aria-label="Battle log"]').exists()).toBe(true)
   })
 
+  it('uses the detail-scene URL as the incident backdrop when provided', async () => {
+    const wrapper = await mountDetail({
+      roomImageUrl: 'https://cdn.test/room.png',
+      detailSceneUrl: 'https://cdn.test/detail-scene.png',
+    })
+
+    const backdrop = wrapper.find('.scene-backdrop')
+    expect(backdrop.exists()).toBe(true)
+    expect(backdrop.attributes('style')).toContain('https://cdn.test/detail-scene.png')
+  })
+
+  it('falls back to the grid art backdrop when no detail scene is provided', async () => {
+    const wrapper = await mountDetail({ roomImageUrl: 'https://cdn.test/room.png' })
+
+    const backdrop = wrapper.find('.scene-backdrop')
+    expect(backdrop.exists()).toBe(true)
+    expect(backdrop.attributes('style')).toContain('https://cdn.test/room.png')
+  })
+
   it('offers the strongest adults as the best team and sends them together', async () => {
     const wrapper = await mountDetail({
       dwellers: [

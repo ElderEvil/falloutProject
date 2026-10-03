@@ -1,7 +1,14 @@
+from __future__ import annotations
+
 import math
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from app.core.enums import RoomTypeEnum
+from app.core.enums import AssetRole, RoomTypeEnum
+from app.utils.asset_manifest import manifest_url, resolve_record
+
+if TYPE_CHECKING:
+    from app.schemas.room import RoomDetailScene
 
 # Map internal room names (from rooms.json) to asset keys (from wiki filenames)
 ROOM_NAME_TO_ASSET_KEY = {
@@ -98,6 +105,9 @@ def get_room_image_url(room_name: str, tier: int = 1, size: int = 3) -> str | No
     Returns:
         URL path to the room image, or None if not found
     """
+    if room_name and (url := manifest_url(AssetRole.ROOM_GRID, room_name)):
+        return url
+
     # Handle special cases first
     if room_name in SPECIAL_CASE_ROOMS:
         return f"/static/room_images/{SPECIAL_CASE_ROOMS[room_name]}"
@@ -119,3 +129,27 @@ def get_room_image_url(room_name: str, tier: int = 1, size: int = 3) -> str | No
     segment = math.ceil(size / 3)
     base_path = Path(__file__).parent.parent / "static" / "room_images"
     return _find_image_with_fallback(base_path, asset_key, tier, segment)
+
+
+def get_room_detail_scene(room_name: str, tier: int = 1, size: int = 3) -> RoomDetailScene | None:  # ruff: ignore[unused-function-argument]
+    """Resolve the detail-modal scene for a room from the asset manifest.
+
+    Returns ``None`` when no usable (reviewed/approved, on-disk) manifest record
+    with ``scene`` geometry is registered for the room; the frontend then falls
+    back to the grid image. ``tier`` and ``size`` mirror ``get_room_image_url``
+    for signature parity — the manifest is keyed by room name only.
+    """
+    from app.schemas.room import RoomDetailActorSlot, RoomDetailScene
+
+    record = resolve_record(AssetRole.ROOM_DETAIL_SCENE, room_name)
+    if record is None or record.scene is None:
+        return None
+    return RoomDetailScene(
+        image_url=record.path,
+        width=record.width,
+        height=record.height,
+        camera=record.scene.camera,
+        safe_crop=record.scene.safe_crop,
+        floor_baseline_y=record.scene.floor_baseline_y,
+        actor_slots=[RoomDetailActorSlot.model_validate(slot.model_dump()) for slot in record.scene.actor_slots],
+    )

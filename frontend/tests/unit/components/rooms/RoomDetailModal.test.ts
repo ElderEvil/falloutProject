@@ -263,6 +263,42 @@ describe('RoomDetailModal', () => {
       expect(wrapper.find('.scene-unassign').exists()).toBe(false)
     })
 
+    it('prefers the detail-scene art over the grid art in the room preview', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: {
+            ...mockRoom,
+            image_url: '/static/room_images/grid.png',
+            detail_scene: {
+              image_url: '/static/room_images/arena_empty_poc.png',
+              width: 1536,
+              height: 1024,
+              camera: 'front',
+              safe_crop: [0, 0, 1536, 1024],
+              floor_baseline_y: 717,
+              actor_slots: [],
+            },
+          },
+          modelValue: true,
+        },
+      })
+
+      expect(wrapper.get('.room-image').attributes('src')).toContain(
+        '/static/room_images/arena_empty_poc.png'
+      )
+    })
+
+    it('falls back to the grid art when the room has no detail scene', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, image_url: '/static/room_images/grid.png' },
+          modelValue: true,
+        },
+      })
+
+      expect(wrapper.get('.room-image').attributes('src')).toContain('/static/room_images/grid.png')
+    })
+
     it('should display room size', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {

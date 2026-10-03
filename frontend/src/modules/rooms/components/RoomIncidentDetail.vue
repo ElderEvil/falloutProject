@@ -17,6 +17,7 @@ interface Props {
   vaultId: string
   dwellers: DwellerShort[]
   roomImageUrl?: string | null
+  detailSceneUrl?: string | null
 }
 
 const props = defineProps<Props>()
@@ -148,7 +149,7 @@ const assignResponder = async (dwellerId: string) => {
     <IncidentScene
       :incident="incident"
       :dwellers="dwellers"
-      :room-image-url="roomImageUrl ?? null"
+      :room-image-url="detailSceneUrl ?? roomImageUrl ?? null"
     />
 
     <IncidentBattleLog :events="incident.events" />

@@ -7,6 +7,9 @@ Unmapped junk falls back to the generic icon in the UI.
 
 from pathlib import Path
 
+from app.core.enums import AssetRole
+from app.utils.asset_manifest import manifest_url
+
 # Maps canonical lower-cased junk names to the actual filename in
 # backend/app/static/junk_images/. Keep this sorted alphabetically by key.
 JUNK_NAME_TO_IMAGE_FILE: dict[str, str] = {
@@ -43,6 +46,9 @@ def get_junk_image_url(junk_name: str | None) -> str | None:
     Returns ``None`` when the junk is unmapped or the mapped file is missing
     on disk, so callers can fall back to a generic icon.
     """
+    if junk_name and (url := manifest_url(AssetRole.JUNK_ICON, junk_name)):
+        return url
+
     if not junk_name:
         return None
 

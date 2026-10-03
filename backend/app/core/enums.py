@@ -277,3 +277,27 @@ class DamageChannel(StrEnum):
 
 
 STATE_OF_BEING_TYPE = GhoulFeralnessEnum | SuperMutantMutationEnum | SynthTypeEnum
+
+
+class AssetRole(StrEnum):
+    """Role a generated asset plays in the UI (manifest registry, not a DB column)."""
+
+    ROOM_GRID = "room_grid"
+    ROOM_DETAIL_SCENE = "room_detail_scene"
+    WEAPON_ICON = "weapon_icon"
+    OUTFIT_ICON = "outfit_icon"
+    JUNK_ICON = "junk_icon"
+    PET_ICON = "pet_icon"
+    DWELLER_PORTRAIT = "dweller_portrait"
+    ARENA_ACTOR = "arena_actor"
+    ARENA_EQUIPMENT = "arena_equipment"
+
+
+class ReviewStatus(StrEnum):
+    """Review state of a manifest asset record (manifest registry, not a DB column)."""
+
+    DRAFT = "draft"
+    REVIEWED = "reviewed"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    DEPRECATED = "deprecated"

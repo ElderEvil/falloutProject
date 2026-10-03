@@ -11,7 +11,17 @@ from app import crud
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.vault import Vault
-from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
+from app.schemas.common import (
+    AgeGroupEnum,
+    DwellerStatusEnum,
+    GenderEnum,
+    OutfitTypeEnum,
+    RarityEnum,
+    RoomTypeEnum,
+    SPECIALEnum,
+    WeaponSubtypeEnum,
+    WeaponTypeEnum,
+)
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.combat.arena_service import ArenaService
@@ -271,6 +281,80 @@ class TestArenaService:
             serialized = roster_by_id[str(fighter.id)]
             assert serialized.max_health == fighter.effective_max_health
             assert serialized.max_health != fighter.max_health
+
+    @pytest.mark.asyncio
+    async def test_equipment_swaps_change_actor_layers_not_portraits(
+        self, async_session, arena_room, fighter_a, fighter_b, vault
+    ):
+        """Equip/unequip must change the actor layer stack but never the portrait URLs.
+
+        Regression for #818: the actor reference is derived from equipped
+        items, and equipment changes must never regenerate portraits (only
+        ``generate_photo`` with ``force=True`` rewrites them).
+        """
+        fighter_a.room_id = arena_room.id
+        fighter_b.room_id = arena_room.id
+        arena_room.arena_fighter_a_id = fighter_a.id
+        arena_room.arena_fighter_b_id = fighter_b.id
+        fighter_a.image_url = "https://images.example/dweller-a.png"
+        fighter_a.thumbnail_url = "https://images.example/dweller-a-thumb.png"
+        await async_session.refresh(fighter_a, ["weapon", "outfit"])
+        await async_session.refresh(fighter_b, ["weapon", "outfit"])
+        await async_session.commit()
+
+        service = ArenaService()
+
+        async def fighter_actor_slots() -> list[str]:
+            state = await service.get_arena_state(async_session, vault.id)
+            fighter = next(f for f in state.rooms[0].fighters if f.id == str(fighter_a.id))
+            return [layer.slot for layer in fighter.actor.layers] if fighter.actor else []
+
+        assert await fighter_actor_slots() == ["body"]
+
+        outfit = await crud.outfit.create(
+            db_session=async_session,
+            obj_in={
+                "name": "Tattered longcoat",
+                "rarity": RarityEnum.COMMON,
+                "value": 10,
+                "outfit_type": OutfitTypeEnum.COMMON,
+                "dweller_id": fighter_a.id,
+            },
+        )
+        weapon = await crud.weapon.create(
+            db_session=async_session,
+            obj_in={
+                "name": "Assault rifle",
+                "rarity": RarityEnum.COMMON,
+                "value": 10,
+                "weapon_type": WeaponTypeEnum.GUN,
+                "weapon_subtype": WeaponSubtypeEnum.RIFLE,
+                "stat": "P",
+                "damage_min": 1,
+                "damage_max": 5,
+                "dweller_id": fighter_a.id,
+            },
+        )
+        await async_session.commit()
+
+        # Expire the cached (None) relationships so the next arena query
+        # re-loads them from the FK writes, mirroring crud equip's expire.
+        async_session.expire(fighter_a, ["weapon", "outfit"])
+
+        assert await fighter_actor_slots() == ["body", "outfit", "weapon"]
+        await async_session.refresh(fighter_a)
+        assert fighter_a.image_url == "https://images.example/dweller-a.png"
+        assert fighter_a.thumbnail_url == "https://images.example/dweller-a-thumb.png"
+
+        outfit.dweller_id = None
+        weapon.dweller_id = None
+        await async_session.commit()
+        async_session.expire(fighter_a, ["weapon", "outfit"])
+
+        assert await fighter_actor_slots() == ["body"]
+        await async_session.refresh(fighter_a)
+        assert fighter_a.image_url == "https://images.example/dweller-a.png"
+        assert fighter_a.thumbnail_url == "https://images.example/dweller-a-thumb.png"
 
     @pytest.mark.asyncio
     async def test_set_fighters_rejects_dweller_not_in_room(self, async_session, arena_room, fighter_a, fighter_b):

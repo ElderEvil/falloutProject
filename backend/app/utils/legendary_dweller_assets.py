@@ -2,6 +2,9 @@
 
 from pathlib import Path
 
+from app.core.enums import AssetRole
+from app.utils.asset_manifest import manifest_url
+
 LEGENDARY_DWELLER_IMAGE_FILES = {
     "76 overseer": "FOS_Dw_76_Overseer.png",
     "abraham washington": "FOS_Dw_Abraham_Washington.png",
@@ -64,6 +67,9 @@ _FALLBACK_IMAGE_FILE = "FOS_Dw_Legendary_Red.png"
 
 def get_legendary_dweller_image_url(name: str | None) -> str | None:
     """Return a legendary dweller portrait, with a generic legendary fallback."""
+    if name and (url := manifest_url(AssetRole.DWELLER_PORTRAIT, name)):
+        return url
+
     filename = LEGENDARY_DWELLER_IMAGE_FILES.get(name.strip().casefold()) if name else None
     filename = filename or _FALLBACK_IMAGE_FILE
     return f"/static/legendary_dweller_images/{filename}" if (_IMAGE_DIR / filename).exists() else None

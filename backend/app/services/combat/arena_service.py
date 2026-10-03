@@ -27,12 +27,14 @@ from app.models.arena_match_event import ArenaMatchEvent
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.schemas.arena import (
+    ArenaActor,
     ArenaFighter,
     ArenaMatchEventOut,
     ArenaRoomState,
     ArenaRosterEntry,
     ArenaState,
 )
+from app.utils.actor_assets import get_actor_assets
 from app.utils.combat import combat_power
 from app.utils.exceptions import ValidationException
 
@@ -120,6 +122,22 @@ class ArenaService:
         return list(await crud_dweller.get_arena_roster(db_session, room.id))
 
     @staticmethod
+    def _fighter_actor(dweller: Dweller) -> ArenaActor | None:
+        """Manifest-driven actor reference for a fighter, or None (portrait fallback).
+
+        Built from the dweller's equipped outfit/weapon names; never touches
+        portrait URLs or ``visual_attributes``, so equipment swaps change the
+        actor layers without ever regenerating a portrait. Fighters always come
+        from ``get_arena_fighters``, which eager-loads both relationships.
+        """
+        assets = get_actor_assets(
+            dweller,
+            outfit_name=dweller.outfit.name if dweller.outfit is not None else None,
+            weapon_name=dweller.weapon.name if dweller.weapon is not None else None,
+        )
+        return assets.to_arena_actor() if assets is not None else None
+
+    @staticmethod
     def _winner_from_events(events: list[ArenaMatchEventOut]) -> str | None:
         """Return the match winner from the newest finish event, if any."""
         for event in reversed(events):
@@ -170,6 +188,7 @@ class ArenaService:
                             health=f.health,
                             max_health=f.effective_max_health,
                             power=combat_power(f),
+                            actor=self._fighter_actor(f),
                         )
                         for f in fighters
                     ],

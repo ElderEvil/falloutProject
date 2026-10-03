@@ -1,0 +1,127 @@
+[
+  {
+    "key": "room_detail_scene.arena",
+    "role": "room_detail_scene",
+    "catalog_key": "Arena",
+    "source": "ai-generated",
+    "workflow": "openai-image",
+    "model": "gpt-image-2.5-flare",
+    "prompt_ref": null,
+    "seed": null,
+    "path": "/static/poc_v25/arena_empty.png",
+    "width": 1536,
+    "height": 1024,
+    "format": "png",
+    "has_alpha": false,
+    "review_status": "reviewed",
+    "ui_placement": "room_detail",
+    "scene": {
+      "camera": "side-on-2.5d",
+      "safe_crop": [0, 0, 1536, 1024],
+      "floor_baseline_y": 625,
+      "actor_slots": [
+        {"id": "actor_a", "x": 522, "y": 625, "facing": "right", "scale": 1.0},
+        {"id": "actor_b", "x": 1014, "y": 625, "facing": "left", "scale": 1.0}
+      ]
+    }
+  },
+  {
+    "key": "arena_actor.base",
+    "role": "arena_actor",
+    "catalog_key": "adult.vault_suit",
+    "source": "ai-generated",
+    "workflow": "openai-image",
+    "model": "gpt-image-2.5-flare",
+    "prompt_ref": null,
+    "seed": null,
+    "path": "/static/poc_v25/pose_guard.png",
+    "width": 1024,
+    "height": 1536,
+    "format": "png",
+    "has_alpha": true,
+    "review_status": "reviewed",
+    "ui_placement": "arena_actor",
+    "actor": {
+      "canvas_width": 1024,
+      "canvas_height": 1536,
+      "baseline_y": 1536,
+      "layers": [
+        {
+          "slot": "body",
+          "path": "/static/poc_v25/pose_guard.png",
+          "z": 10,
+          "anchor_x": 0,
+          "anchor_y": 0,
+          "width": 1024,
+          "height": 1536
+        }
+      ]
+    }
+  },
+  {
+    "key": "arena_equipment.outfit_overcoat",
+    "role": "arena_equipment",
+    "catalog_key": "overcoat",
+    "source": "ai-generated",
+    "workflow": "openai-image",
+    "model": "gpt-image-2.5-flare",
+    "prompt_ref": null,
+    "seed": null,
+    "path": "/static/poc_v25/outfit_layer_overcoat.png",
+    "width": 1024,
+    "height": 1024,
+    "format": "png",
+    "has_alpha": true,
+    "review_status": "reviewed",
+    "ui_placement": "arena_actor",
+    "actor": {
+      "canvas_width": 1024,
+      "canvas_height": 1536,
+      "baseline_y": 1536,
+      "layers": [
+        {
+          "slot": "outfit",
+          "path": "/static/poc_v25/outfit_layer_overcoat.png",
+          "z": 20,
+          "anchor_x": 0,
+          "anchor_y": 256,
+          "width": 1024,
+          "height": 1024
+        }
+      ]
+    }
+  },
+  {
+    "key": "arena_equipment.weapon_rifle",
+    "role": "arena_equipment",
+    "catalog_key": "rifle",
+    "source": "ai-generated",
+    "workflow": "openai-image",
+    "model": "gpt-image-2.5-flare",
+    "prompt_ref": null,
+    "seed": null,
+    "path": "/static/poc_v25/weapon_layer_rifle.png",
+    "width": 1024,
+    "height": 1024,
+    "format": "png",
+    "has_alpha": true,
+    "review_status": "reviewed",
+    "ui_placement": "arena_actor",
+    "actor": {
+      "canvas_width": 1024,
+      "canvas_height": 1536,
+      "baseline_y": 1536,
+      "layers": [
+        {
+          "slot": "weapon",
+          "path": "/static/poc_v25/weapon_layer_rifle.png",
+          "z": 30,
+          "anchor_x": 205,
+          "anchor_y": 400,
+          "width": 614,
+          "height": 614
+        }
+      ]
+    }
+  }
+]

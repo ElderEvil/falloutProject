@@ -15,6 +15,7 @@ from app.utils.dwellers import (
     _PLACE_POOL,
     _calendar_years_ago,
     _procedural_bio_places,
+    create_dweller_from_template,
     create_random_common_dweller,
 )
 
@@ -65,6 +66,51 @@ def test_procedural_bio_places_scales_with_rarity() -> None:
     assert len(_procedural_bio_places(random.Random(3), RarityEnum.COMMON)[1]) == 0
     assert len(_procedural_bio_places(random.Random(3), RarityEnum.RARE)[1]) == 1
     assert len(_procedural_bio_places(random.Random(3), RarityEnum.LEGENDARY)[1]) == 2
+
+
+def test_starting_level_scales_with_rarity() -> None:
+    """Commons start at 1; rare/legendary arrive within their canon bands."""
+    assert create_random_common_dweller(seed=1, rarity=RarityEnum.COMMON)["level"] == 1
+    for seed in range(25):
+        rare = create_random_common_dweller(seed=seed, rarity=RarityEnum.RARE)
+        legendary = create_random_common_dweller(seed=seed, rarity=RarityEnum.LEGENDARY)
+        assert 6 <= rare["level"] <= 10
+        assert 19 <= legendary["level"] <= 43
+
+
+def test_starting_health_matches_starting_level() -> None:
+    """A pre-leveled dweller carries the health its levels earned (flat gain)."""
+    cfg = game_config.leveling
+    for seed in range(25):
+        dweller = create_random_common_dweller(seed=seed, rarity=RarityEnum.LEGENDARY)
+        expected = cfg.base_max_health + (dweller["level"] - 1) * cfg.hp_gain_per_level
+        assert dweller["max_health"] == expected
+        assert dweller["health"] == expected
+
+
+def test_starting_xp_matches_starting_level() -> None:
+    """A pre-leveled dweller starts with the cumulative XP for its level (no negative progress)."""
+    cfg = game_config.leveling
+    for seed in range(25):
+        for rarity in (RarityEnum.RARE, RarityEnum.LEGENDARY):
+            dweller = create_random_common_dweller(seed=seed, rarity=rarity)
+            level = dweller["level"]
+            expected = 0 if level <= 1 else int(cfg.base_xp_requirement * (level**cfg.xp_curve_exponent))
+            assert dweller["experience"] == expected
+            assert dweller["experience"] < int(cfg.base_xp_requirement * ((level + 1) ** cfg.xp_curve_exponent))
+
+
+def test_legendary_template_starts_in_band_with_matching_health() -> None:
+    """Curated legendary templates also arrive experienced, with level-consistent health."""
+    from app.utils.static_data import game_data_store
+
+    template = game_data_store.get_dweller("abraham-washington")
+    assert template is not None
+    data = create_dweller_from_template(template, seed=1)
+    cfg = game_config.leveling
+    assert 19 <= data["level"] <= 43
+    assert data["max_health"] == cfg.base_max_health + (data["level"] - 1) * cfg.hp_gain_per_level
+    assert data["experience"] == int(cfg.base_xp_requirement * (data["level"] ** cfg.xp_curve_exponent))
 
 
 def test_create_random_common_dweller_state_of_being_for_non_humans() -> None:

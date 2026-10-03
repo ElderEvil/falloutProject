@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.166.0 (2026-10-03)
+
+### Features
+
+* **map:** interactive production map with discovery-only visibility 23ed46a
+
+### Bug Fixes
+
+* **map:** use name-based vault IDs for spread and selection d386c80
+
 ## 2.165.1 (2026-10-01)
 
 ### Bug Fixes

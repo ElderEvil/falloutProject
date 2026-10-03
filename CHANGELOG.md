@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.172.0 (2026-10-03)
+
+### Features
+
+* **map:** render backend world snapshot in production atlas 57b5fb0
+
+### Bug Fixes
+
+* **map:** surface snapshot failure and enforce square grid 3a6ddfd
+
 ## 2.171.0 (2026-10-03)
 
 ### Features

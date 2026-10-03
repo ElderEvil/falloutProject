@@ -384,6 +384,7 @@ function handleTouchEnd(event: TouchEvent) {
           :name="site.name"
           type="expedition_site"
           :icon="EXPEDITION_SITE_ICON"
+          :art-src="markerArtDataUrl(site.id)"
           :cleared="site.cleared"
           :status="siteStatus(site)"
           :selected="selectedMarkerId === `site-${site.id}`"

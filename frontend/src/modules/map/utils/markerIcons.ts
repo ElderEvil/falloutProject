@@ -378,6 +378,14 @@ export const ARCHETYPE_ART: Record<string, MarkerArt> = {
   factory: PROTOTYPE_KIND_ART.abandoned_factory,
 }
 
+/** Expedition site id → prototype art (site ids reuse the prototype kind names). */
+export const EXPEDITION_SITE_ART: Record<string, MarkerArt> = {
+  red_rocket: PROTOTYPE_KIND_ART.red_rocket,
+  super_duper_mart: PROTOTYPE_KIND_ART.super_duper_mart,
+}
+
+const ART_BY_KEY: Record<string, MarkerArt> = { ...ARCHETYPE_ART, ...EXPEDITION_SITE_ART }
+
 // Drawers span roughly ±8 units plus stroke; render into a 32px tile with a
 // little padding so nothing clips.
 const TILE_SIZE = 32
@@ -386,12 +394,12 @@ const DRAW_SPAN = 24
 const urlCache = new Map<string, string>()
 
 /**
- * Rendered data URL for a location's archetype art, or null when the archetype
- * has no preserved silhouette (caller falls back to the Material icon).
+ * Rendered data URL for a location archetype or expedition-site key, or null
+ * when the key has no preserved silhouette (caller falls back to the Material icon).
  */
 export function markerArtDataUrl(groupKey: string | null | undefined): string | null {
   if (!groupKey) return null
-  const art = ARCHETYPE_ART[groupKey]
+  const art = ART_BY_KEY[groupKey]
   if (!art) return null
   const cached = urlCache.get(groupKey)
   if (cached) return cached

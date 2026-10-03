@@ -824,6 +824,29 @@ describe('WorldMap', () => {
       expect(siteMarkers).toHaveLength(2)
       expect(siteMarkers[0].props('name')).toBe('Red Rocket Gas Station')
       expect(siteMarkers[0].props('icon')).toBe('mdi:map-marker-star')
+      expect(siteMarkers[0].props('artSrc')).toBeNull()
+    })
+
+    it('renders prototype art for a site whose id maps to an archetype', () => {
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+        new Proxy({} as CanvasRenderingContext2D, { get: () => () => {}, set: () => true })
+      )
+      vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,art')
+
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          expeditionSites: [createSite({ id: 'red_rocket' })],
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const site = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('type') === 'expedition_site')
+      expect(site!.props('artSrc')).toBe('data:image/png;base64,art')
     })
 
     it('passes cleared + status for a ready site', () => {

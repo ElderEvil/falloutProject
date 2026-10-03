@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.170.0 (2026-10-03)
+
+### Features
+
+* **world:** deterministic backend world generation core ad3ff88
+
+### Bug Fixes
+
+* **world:** honor config in generation (forest, zero quantiles, reachable slots) aceefd4
+
 ## 2.169.0 (2026-10-03)
 
 ### Features

@@ -153,4 +153,18 @@ describe('ExplorerCard', () => {
     expect(wrapper.emitted('complete')).toEqual([['exploration-1']])
     expect(wrapper.emitted('recall')).toEqual([['exploration-1']])
   })
+
+  it('links dispatched explorers to their map marker', () => {
+    const wrapper = mount(ExplorerCard, {
+      props: { exploration: { ...exploration, target_location_id: 'loc-9' }, dweller },
+    })
+
+    expect(wrapper.find('.view-on-map').attributes('href')).toBe('/vault/vault-1/map?place=loc-9')
+  })
+
+  it('links free-roam explorers to the plain map', () => {
+    const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
+
+    expect(wrapper.find('.view-on-map').attributes('href')).toBe('/vault/vault-1/map')
+  })
 })

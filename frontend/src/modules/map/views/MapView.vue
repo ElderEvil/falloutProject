@@ -6,7 +6,7 @@ import { useMapStore } from '../stores/map'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import { canUseRadaway, type DwellerShort } from '@/modules/dwellers/models/dweller'
+import { canUseRadaway, isMature, type DwellerShort } from '@/modules/dwellers/models/dweller'
 import { useSendToWasteland } from '@/modules/exploration/composables/useSendToWasteland'
 import ExplorationDurationModal from '@/modules/exploration/components/ExplorationDurationModal.vue'
 import { useToast } from '@/core/composables/useToast'
@@ -148,20 +148,44 @@ const pendingDepartureDweller = computed<DwellerShort | null>(() => {
 })
 
 async function handleExploreWasteland() {
-  if (!vaultId.value || !authStore.token) return
+  const requestedVaultId = vaultId.value
+  if (!requestedVaultId || !authStore.token) return
   // Like the dispatch picker: the dweller list may be empty when the map opens
   // on its own, so fetch on open and let the panel show loading/empty instead
   // of silently offering nobody to send. Refetch when the list belongs to
   // another vault (route change without reload).
-  if (dwellerStore.dwellers.length === 0 || departureDwellersVaultId.value !== vaultId.value) {
-    await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
-    departureDwellersVaultId.value = vaultId.value
+  if (dwellerStore.dwellers.length === 0 || departureDwellersVaultId.value !== requestedVaultId) {
+    await dwellerStore.fetchDwellersByVault(requestedVaultId, authStore.token)
+    if (vaultId.value !== requestedVaultId) return
+    departureDwellersVaultId.value = requestedVaultId
   }
   // Supplies come from the vault record; load it lazily so the duration modal
   // shows real caps instead of zeros.
-  await vaultStore.ensureVaultLoaded(vaultId.value, authStore.token)
+  await vaultStore.ensureVaultLoaded(requestedVaultId, authStore.token)
+  if (vaultId.value !== requestedVaultId) return
   showDeparturePicker.value = true
 }
+
+// Dwellers already out (active or returning) cannot be sent again; the picker
+// only offers eligible, mature candidates.
+const departingDwellerIds = computed(
+  () =>
+    new Set(
+      explorationStore.explorations
+        .filter(
+          (exploration) =>
+            exploration.vault_id === vaultId.value &&
+            (exploration.status === 'active' || exploration.status === 'returning'),
+        )
+        .map((exploration) => exploration.dweller_id),
+    ),
+)
+
+const departureCandidates = computed(() =>
+  dwellerStore.dwellers.filter(
+    (dweller) => isMature(dweller) && !departingDwellerIds.value.has(dweller.id),
+  ),
+)
 
 function pickDepartureDweller(dweller: DwellerShort) {
   sendWasteland.open({
@@ -177,12 +201,17 @@ async function handleDepartureConfirm(payload: {
   stimpaks: number
   radaways: number
 }) {
-  // The shared flow sends the dweller roaming and refreshes the map + vault
-  // supplies on success; a refresh failure must not mask a successful dispatch.
+  const departureVaultId = vaultId.value
+  if (!departureVaultId || !authStore.token) return
+  // The shared flow sends the dweller roaming and refreshes the sent vault's
+  // supplies on success; the map only refreshes if that vault is still active,
+  // so a route change mid-send cannot refetch the wrong one.
   await sendWasteland.confirm(payload, () =>
     Promise.all([
-      mapStore.refreshMap(vaultId.value, authStore.token as string),
-      vaultStore.refreshVault(vaultId.value, authStore.token as string),
+      vaultStore.refreshVault(departureVaultId, authStore.token as string),
+      ...(vaultId.value === departureVaultId
+        ? [mapStore.refreshMap(departureVaultId, authStore.token as string)]
+        : []),
     ]).then(() => undefined)
   )
 }
@@ -246,6 +275,7 @@ watch(
     // Vault-scoped departure state must not survive a route change: the picker
     // and any open duration modal belong to the previous vault.
     showDeparturePicker.value = false
+    departureDwellersVaultId.value = null
     sendWasteland.cancel()
     loadMap()
   },
@@ -374,12 +404,12 @@ const mapPaneHeight = 'var(--map-pane-size)'
           <div v-if="showDeparturePicker" class="departure-picker">
             <p>Explore the wasteland — pick a dweller to send roaming.</p>
             <p v-if="dwellerStore.isLoading" class="map-hint">Loading dwellers…</p>
-            <p v-else-if="dwellerStore.dwellers.length === 0" class="map-hint">
+            <p v-else-if="departureCandidates.length === 0" class="map-hint">
               No dwellers available to send.
             </p>
             <div v-else class="departure-dwellers">
               <Button
-                v-for="dweller in dwellerStore.dwellers"
+                v-for="dweller in departureCandidates"
                 :key="dweller.id"
                 variant="outline"
                 size="sm"

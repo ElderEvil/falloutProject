@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.168.0 (2026-10-03)
+
+### Features
+
+* **map:** persisted vault slots, ownership markers, and atomic allocation 1cf0a1e
+
+### Bug Fixes
+
+* **map:** place home markers at the vault slot; pin slot migration tests 0c4239c
+* **map:** self-contained slot migrations and missing id index 12dd07f
+
 ## 2.167.0 (2026-10-03)
 
 ### Features

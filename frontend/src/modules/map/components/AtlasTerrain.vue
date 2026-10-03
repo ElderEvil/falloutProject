@@ -80,6 +80,7 @@ onBeforeUnmount(() => {
       :width="MAP_UNITS"
       :height="MAP_UNITS"
       preserveAspectRatio="none"
+      class="atlas-image"
     />
     <path
       v-for="(d, i) in roadPaths"

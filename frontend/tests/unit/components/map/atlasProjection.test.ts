@@ -52,9 +52,11 @@ describe('atlasProjection', () => {
     expect(merged).toHaveLength(2)
   })
 
-  it('keeps production terrain independent of player anchors', () => {
-    // AtlasTerrain generates from the static seeded signals only; this guards the
-    // stability contract (occupancy must not reshape shared geography).
+  it('merges seeded and player anchors without dropping either set', () => {
+    // Anchor-set composition only: this does not generate terrain and does not
+    // prove occupancy-independence of the rendered world. Full terrain-stability
+    // coverage belongs to the backend-owned generation contract (Python lane),
+    // not to this interim TS presentation path.
     const before = anchorsFromVaultMarkers([{ name: 'S', coord_x: 80, coord_y: 80 }])
     const withPlayer = mergeAnchors(
       anchorsFromVaultMarkers([{ name: 'S', coord_x: 80, coord_y: 80 }]),

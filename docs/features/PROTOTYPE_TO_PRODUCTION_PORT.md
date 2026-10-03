@@ -11,7 +11,7 @@
 > disagree: the prototype is a reference, not a parallel product surface.
 >
 > **Backend-owned world generation (2026-10-03):** the frontend-owned generation direction is
-> superseded by [`WORLD_GENERATION_CONTRACT.md`](WORLD_GENERATION_CONTRACT.md) — the backend
+> superseded by the backend-owned world-generation contract — the backend
 > owns the recipe and generated snapshot; the frontend renders it. That contract lives in the
 > Python lane (`world-generation-core` → `world-snapshots`), not here.
 

@@ -31,3 +31,4 @@ from .vault_recipe_unlock import VaultRecipeUnlock
 from .vault_slot import VaultSlot
 from .weapon import Weapon
 from .world_location import DwellerLocation, VaultLocationState, WorldLocation
+from .world_snapshot import WorldSnapshot

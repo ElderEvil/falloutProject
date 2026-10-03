@@ -12,7 +12,8 @@ import type {
   WastelandLocationWithDwellers,
   VaultMarkerRead,
 } from '../models/map'
-import { EXPEDITION_SITE_ICON } from '../models/markerTypeMeta'
+import { EXPEDITION_SITE_ICON, locationMarkerIcon } from '../models/markerTypeMeta'
+import { markerArtDataUrl } from '../utils/markerIcons'
 import MapMarker from './MapMarker.vue'
 import MapLegend from './MapLegend.vue'
 import MarkerListPanel from './MarkerListPanel.vue'
@@ -192,6 +193,10 @@ const mapStore = useMapStore()
 const svgRef = ref<SVGSVGElement | null>(null)
 const vaultMarkers = toRef(props, 'vaultMarkers')
 
+const groupIconByKey = computed(
+  () => new Map(mapStore.placeGroups.map((group) => [group.key, group.icon])),
+)
+
 const { spreadMap, getSpread } = useMapSpread(visibleLocations, vaultMarkers)
 
 const selectedMarkerId = computed<string | null>({
@@ -301,6 +306,8 @@ function handleTouchEnd(event: TouchEvent) {
           :y="getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y).renderY"
           :name="loc.name"
           :type="loc.type"
+          :icon="locationMarkerIcon(loc.type, loc.group_key, groupIconByKey)"
+          :art-src="markerArtDataUrl(loc.group_key)"
           :is_unlocked="loc.is_unlocked"
           :unseen="mapStore.isUnseenDiscovery(loc)"
           :selected="selectedMarkerId === `loc-${loc.id}`"

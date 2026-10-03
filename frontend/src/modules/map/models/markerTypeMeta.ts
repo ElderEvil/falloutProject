@@ -30,3 +30,20 @@ const BY_TYPE = new Map<string, MarkerTypeMeta>(MARKER_TYPES.map((meta) => [meta
 export function markerTypeMeta(type: string): MarkerTypeMeta {
   return BY_TYPE.get(type) ?? { type: type as MarkerType, icon: 'mdi:map-marker', label: type }
 }
+
+/**
+ * Marker icon for a wasteland location: its site-type archetype icon when the
+ * catalog has one, else the generic type icon. Keeps map markers consistent with
+ * the legend and list panel, which already render archetype icons.
+ */
+export function locationMarkerIcon(
+  type: string,
+  groupKey: string | null | undefined,
+  groupIconByKey: ReadonlyMap<string, string>,
+): string {
+  if (groupKey) {
+    const groupIcon = groupIconByKey.get(groupKey)
+    if (groupIcon) return groupIcon
+  }
+  return markerTypeMeta(type).icon
+}

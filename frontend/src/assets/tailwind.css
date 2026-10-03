@@ -88,6 +88,17 @@
        terrain and markers do not ghost through. Themeable. */
     --color-fog: #0a0908;
 
+    /* Marker archetype art — the prototype's silhouette palette, retained.
+       Read at draw time for the canvas marker icons. Themeable. */
+    --color-marker-settlement: #00ff00;
+    --color-marker-rocket: #ff6b6b;
+    --color-marker-store: #ffd43b;
+    --color-marker-factory: #c8b9ae;
+    --color-marker-tower: #00d9ff;
+    --color-marker-water: #4dabf7;
+    --color-marker-raider: #ff7043;
+    --color-marker-cache: #d4a24e;
+
     /* Rarity Colors */
     --color-rarity-common: #808080;
     --color-rarity-rare: #4169e1;

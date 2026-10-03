@@ -13,6 +13,7 @@ interface Props {
   is_unlocked?: boolean
   unseen?: boolean
   icon?: string
+  artSrc?: string | null
   label?: string
   cleared?: boolean
   exploring?: boolean
@@ -97,7 +98,14 @@ const tooltipText = computed(() => {
           'marker-vault': isVault,
         }"
       >
-        <Icon :icon="displayIcon" class="h-full w-full" />
+        <img
+          v-if="artSrc && !isLocked"
+          :src="artSrc"
+          class="h-full w-full"
+          alt=""
+          aria-hidden="true"
+        />
+        <Icon v-else :icon="displayIcon" class="h-full w-full" />
       </div>
     </foreignObject>
     <!-- Cleared badge: small shield-check pinned to the marker's top-right -->

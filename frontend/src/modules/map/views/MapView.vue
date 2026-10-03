@@ -141,10 +141,17 @@ const scoutConfirmText = computed(() => {
   return `Target (${target.coord_x.toFixed(0)}, ${target.coord_y.toFixed(0)})`
 })
 
-function toggleScoutMode() {
+async function toggleScoutMode() {
   scoutMode.value = !scoutMode.value
   if (!scoutMode.value) {
     scoutTarget.value = null
+    return
+  }
+  // Like the dispatch picker: the dweller list may be empty when the map opens
+  // on its own, so fetch on open and let the panel show loading/empty instead
+  // of silently offering nobody to send.
+  if (vaultId.value && authStore.token && dwellerStore.dwellers.length === 0) {
+    await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
   }
 }
 
@@ -366,7 +373,11 @@ const mapPaneHeight = 'var(--map-pane-size)'
           <!-- Scout confirm: pick a dweller, then send -->
           <div v-if="scoutConfirmText" class="scout-confirm">
             <p>{{ scoutConfirmText }} — duration is approximate.</p>
-            <div class="scout-dwellers">
+            <p v-if="dwellerStore.isLoading" class="scout-hint">Loading dwellers…</p>
+            <p v-else-if="dwellerStore.dwellers.length === 0" class="scout-hint">
+              No dwellers available to send.
+            </p>
+            <div v-else class="scout-dwellers">
               <Button
                 v-for="dweller in dwellerStore.dwellers"
                 :key="dweller.id"

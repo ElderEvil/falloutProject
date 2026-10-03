@@ -66,7 +66,7 @@ const scoutMarker = computed(() => {
 })
 
 function handleSvgClick(event: MouseEvent): void {
-  if (!props.scoutMode) return
+  if (!props.scoutMode || hasDragMoved.value) return
   const svg = svgRef.value
   if (svg === null) return
   const rect = svg.getBoundingClientRect()

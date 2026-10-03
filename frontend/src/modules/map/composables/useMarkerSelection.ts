@@ -47,6 +47,7 @@ export function useMarkerSelection(
   }
 
   function onPanelMarkerSelect(payload: MarkerClickPayload) {
+    if (blocked()) return
     const id = markerId(payload)
     const pos = spreadMap.value.get(id)
     focusOnMarker(pos?.renderX ?? payload.data.coord_x, pos?.renderY ?? payload.data.coord_y)

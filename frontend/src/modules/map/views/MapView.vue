@@ -181,11 +181,22 @@ const departingDwellerIds = computed(
     ),
 )
 
-const departureCandidates = computed(() =>
-  dwellerStore.dwellers.filter(
-    (dweller) => isMature(dweller) && !departingDwellerIds.value.has(dweller.id),
-  ),
-)
+// Mirror the backend availability policy (app/utils/dweller_availability): a
+// dweller is unavailable when dead or already out (exploring/questing). The
+// status check keeps this correct even when the exploration store is empty or
+// stale, which the loaded-records set alone cannot cover. A dead dweller carries
+// the `dead` status, so listing it here covers `is_dead` too.
+const UNAVAILABLE_DEPARTURE_STATUSES = new Set(['exploring', 'questing', 'dead'])
+
+function isAvailableForDeparture(dweller: DwellerShort): boolean {
+  return (
+    isMature(dweller) &&
+    !UNAVAILABLE_DEPARTURE_STATUSES.has(dweller.status) &&
+    !departingDwellerIds.value.has(dweller.id)
+  )
+}
+
+const departureCandidates = computed(() => dwellerStore.dwellers.filter(isAvailableForDeparture))
 
 function pickDepartureDweller(dweller: DwellerShort) {
   sendWasteland.open({

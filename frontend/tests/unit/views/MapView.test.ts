@@ -445,19 +445,19 @@ describe('MapView', () => {
       expect(wrapper.find('.departure-dwellers button').text()).toContain('Send Ada')
     })
 
-    it('offers only mature dwellers who are not already out', async () => {
+    it('offers only available dwellers, even with no exploration records loaded', async () => {
       vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
       mapStore.locations = [mockLocation]
       mapStore.isLoading = false
       const { dwellerStore } = mountWithDwellers()
       dwellerStore.dwellers = [
-        { id: 'dweller-1', first_name: 'Ada', is_adult: true, age_group: 'adult' } as any,
-        { id: 'dweller-2', first_name: 'Kid', is_adult: true, age_group: 'child' } as any,
-        { id: 'dweller-3', first_name: 'Out', is_adult: true, age_group: 'adult' } as any,
-      ]
-      useExplorationStore().explorations = [
-        exploration({ id: 'e1', dweller_id: 'dweller-3', status: 'active' }),
-      ]
+        { id: 'd1', first_name: 'Idle', is_adult: true, age_group: 'adult', is_dead: false, status: 'idle' },
+        { id: 'd2', first_name: 'Questing', is_adult: true, age_group: 'adult', is_dead: false, status: 'questing' },
+        { id: 'd3', first_name: 'Fallen', is_adult: true, age_group: 'adult', is_dead: true, status: 'dead' },
+        { id: 'd4', first_name: 'Roaming', is_adult: true, age_group: 'adult', is_dead: false, status: 'exploring' },
+        { id: 'd5', first_name: 'Kid', is_adult: true, age_group: 'child', is_dead: false, status: 'idle' },
+      ] as any[]
+      useExplorationStore().explorations = []
 
       const wrapper = mountView()
       await flushPromises()
@@ -465,10 +465,11 @@ describe('MapView', () => {
       await flushPromises()
 
       const names = wrapper.findAll('.departure-dwellers button').map((b) => b.text())
-      expect(names).toEqual(['Send Ada'])
+      expect(names).toEqual(['Send Idle'])
     })
 
-    it('picking a dweller opens the duration modal with their name and vault supplies', async () => {      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+    it('picking a dweller opens the duration modal with their name and vault supplies', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
       mapStore.locations = [mockLocation]
       mapStore.isLoading = false
       mountWithDwellers()

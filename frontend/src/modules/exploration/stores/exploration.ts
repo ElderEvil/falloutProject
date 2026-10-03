@@ -50,6 +50,9 @@ export interface Exploration {
   target_location_id?: string | null
   status: 'active' | 'returning' | 'completed' | 'recalled'
   duration: number
+  /** Scout-only coarse band; absent on non-scout runs. */
+  band_low?: number | null
+  band_high?: number | null
   start_time: string
   end_time: string | null
   return_started_at?: string | null
@@ -366,6 +369,22 @@ export const useExplorationStore = defineStore('exploration', () => {
       isLoading.value = false
     }
   }
+  async function scoutFrontier(
+    vaultId: string,
+    dwellerId: string,
+    coordX: number,
+    coordY: number
+  ): Promise<Exploration> {
+    const token = authStore.token
+    if (!token) throw new Error('Not authenticated')
+    const exploration = (await explorationApi.scoutFrontier(token, vaultId, {
+      dwellerId,
+      coordX,
+      coordY,
+    })) as unknown as Exploration
+    upsertExploration(exploration)
+    return exploration
+  }
 
   async function fetchExplorationsByVault(
     vaultId: string,
@@ -544,6 +563,7 @@ export const useExplorationStore = defineStore('exploration', () => {
     // Actions
     sendDwellerToWasteland,
     dispatchToLocation,
+    scoutFrontier,
     fetchExplorationsByVault,
     fetchExplorationDetails,
     fetchExplorationProgress,

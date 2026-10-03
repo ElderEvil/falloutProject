@@ -43,6 +43,12 @@ class ExplorationRead(ExplorationBase):
     # Targeted dispatch (issue 772): the map point this run was sent to clear,
     # or None for free-roam runs.
     target_location_id: UUID4 | None = None
+    # Scout-only: the coarse duration band the player was shown. ``duration``
+    # carries the scheduled (upper-bound) hours; the lower bound rides along so
+    # the client can display the range instead of false precision. None for
+    # non-scout runs.
+    band_low: int | None = Field(default=None, ge=1, le=24)
+    band_high: int | None = Field(default=None, ge=1, le=24)
     status: ExplorationStatus
     start_time: datetime
     end_time: datetime | None
@@ -129,6 +135,16 @@ class ExpeditionDispatchRequest(SQLModel):
 
     dweller_ids: list[UUID4] = Field(min_length=1, description="Party of 1-3 dwellers, no leader")
     location_id: UUID4
+
+
+class ScoutRequest(SQLModel):
+    """Schema for scouting an approximate frontier cell (no known destination)."""
+
+    dweller_id: UUID4
+    target_coord_x: float = Field(ge=0, le=100)
+    target_coord_y: float = Field(ge=0, le=100)
+    stimpaks: int = Field(default=0, ge=0, le=25)
+    radaways: int = Field(default=0, ge=0, le=25)
 
 
 class ExplorationRecallRequest(SQLModel):

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.175.0 (2026-10-03)
+
+### Features
+
+* **exploration:** unify departure behind one send boundary a075392
+
+### Bug Fixes
+
+* **exploration:** validate depart target and roster in the service 1d4a549
+
 ## 2.174.0 (2026-10-03)
 
 ### Features

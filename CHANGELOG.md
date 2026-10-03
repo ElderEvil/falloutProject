@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.173.0 (2026-10-03)
+
+### Features
+
+* **exploration:** link dispatched explorers to their map marker d3e6fca, closes #812
+* **map:** adopt preserved prototype marker art 2001a59
+* **map:** render site-type archetype icons on map markers 1f98d2f
+
+### Bug Fixes
+
+* **frontend:** count only lowercase native tags in raw-control check 137031b
+* **map:** move marker art palette into theme tokens a0ae195
+* **vault:** release map slot on soft-delete and re-claim on restore 5816d09
+
+### Documentation
+
+* land stranded feature docs and fix stale publication note 8295183, closes #859-862
+
 ## 2.172.0 (2026-10-03)
 
 ### Features

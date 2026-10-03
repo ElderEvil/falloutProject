@@ -45,39 +45,23 @@ async def send_dweller_to_wasteland(
     """The single departure boundary: one roster, optional destination.
 
     `target_location_id` present → travel and clear a known place (party allowed);
-    absent → roam (exactly one dweller). Both route to the existing service
-    branches; no resolution engine is merged.
+    absent → roam (exactly one dweller). Roster/branch validation lives in the
+    service; the endpoint only maps the request.
 
     Raises:
         ValidationException: If the roster is empty/oversized, or a dweller cannot be sent.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
     roster = list(request.dweller_ids or ([request.dweller_id] if request.dweller_id else []))
-    if not roster:
-        raise ValidationException("Provide dweller_id or dweller_ids")
-
-    if request.target_location_id is not None:
-        return await exploration_service.dispatch(
-            db_session,
-            vault_id=vault_id,
-            dweller_ids=roster,
-            location_id=request.target_location_id,
-        )
-
-    if len(roster) != 1:
-        raise ValidationException("Roaming runs send exactly one dweller")
-
-    try:
-        return await exploration_service.send_dweller(
-            db_session,
-            vault_id=vault_id,
-            dweller_id=roster[0],
-            duration=request.duration,
-            stimpaks=request.stimpaks,
-            radaways=request.radaways,
-        )
-    except ValueError as e:
-        raise ValidationException(str(e)) from e
+    return await exploration_service.depart(
+        db_session,
+        vault_id=vault_id,
+        dweller_ids=roster,
+        target_location_id=request.target_location_id,
+        duration=request.duration,
+        stimpaks=request.stimpaks,
+        radaways=request.radaways,
+    )
 
 
 @router.post("/dispatch", response_model=ExplorationRead)

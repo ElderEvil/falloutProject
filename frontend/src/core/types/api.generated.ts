@@ -1329,8 +1329,8 @@ export interface paths {
          * @description The single departure boundary: one roster, optional destination.
          *
          *     `target_location_id` present → travel and clear a known place (party allowed);
-         *     absent → roam (exactly one dweller). Both route to the existing service
-         *     branches; no resolution engine is merged.
+         *     absent → roam (exactly one dweller). Roster/branch validation lives in the
+         *     service; the endpoint only maps the request.
          *
          *     Raises:
          *         ValidationException: If the roster is empty/oversized, or a dweller cannot be sent.

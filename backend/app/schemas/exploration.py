@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import UUID4, Field
+from pydantic import UUID4, Field, model_validator
 from sqlmodel import SQLModel
 
 from app.models.exploration import ExplorationStatus
@@ -139,6 +139,13 @@ class ExplorationSendRequest(SQLModel):
     duration: int = Field(default=4, ge=1, le=24, description="Duration in hours (roam only)")
     stimpaks: int = Field(default=0, ge=0, le=25, description="Number of Stimpaks to bring")
     radaways: int = Field(default=0, ge=0, le=25, description="Number of Radaways to bring")
+
+    @model_validator(mode="after")
+    def _single_roster_source(self) -> "ExplorationSendRequest":
+        """Reject conflicting roster fields instead of silently preferring one."""
+        if self.dweller_id is not None and self.dweller_ids is not None:
+            raise ValueError("Provide either dweller_id or dweller_ids, not both")
+        return self
 
 
 class ExpeditionDispatchRequest(SQLModel):

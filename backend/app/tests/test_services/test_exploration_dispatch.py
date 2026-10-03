@@ -11,6 +11,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import DwellerLocationRelationEnum
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.exploration import ExplorationStatus
@@ -67,6 +68,13 @@ async def _register_clearable(
     )
     state = result.scalar_one()
     location = await crud.world_location.get_registry(async_session, state.location_id)
+    await crud.world_location.link_dweller(
+        async_session,
+        dweller.id,
+        state.location_id,
+        DwellerLocationRelationEnum.VISITED,
+        is_unlocked=True,
+    )
     return location, state
 
 

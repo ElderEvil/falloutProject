@@ -231,7 +231,9 @@ async function loadMap() {
   if (!authStore.isAuthenticated || !vaultId.value) return
   const token = authStore.token as string
   mapStore.stopPolling()
-  await mapStore.fetchMap(vaultId.value, token)
+  // Snapshot first: terrain needs no vault context and is version-pinned, so it
+  // loads independently of (and is never refetched by) the vault-map poll loop.
+  await Promise.all([mapStore.fetchWorldSnapshot(token), mapStore.fetchMap(vaultId.value, token)])
   mapStore.startPolling(vaultId.value, token)
   tryOpenPlaceFromQuery()
 }

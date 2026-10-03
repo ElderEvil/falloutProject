@@ -1,41 +1,21 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { useMapStore } from '../stores/map'
 import {
-  ATLAS_SEED,
-  ATLAS_TILES,
   ATLAS_TERRAIN_ORDER,
   ATLAS_TERRAIN_VAR,
   MAP_UNITS,
-  anchorsFromVaultMarkers,
 } from '../utils/atlasProjection'
-import { generateWorld, type TerrainType } from '../utils/atlasWorldgen'
+import type { TerrainType } from '../utils/atlasWorldgen'
 
 const store = useMapStore()
 const imageUrl = ref('')
 
-// One shared seeded world, anchored to the global seeded vault signals only. It
-// deliberately does NOT consume player-vault anchors: geography must stay stable
-// as vault occupancy changes, so player vaults are placement markers on the fixed
-// world, never terrain shapers.
-const world = computed(() =>
-  generateWorld(
-    { seed: ATLAS_SEED, width: ATLAS_TILES, height: ATLAS_TILES },
-    anchorsFromVaultMarkers(store.vaultMarkers),
-  ),
-)
-
-const roadPaths = computed(() => {
-  const w = world.value
-  const unitX = MAP_UNITS / w.config.width
-  const unitY = MAP_UNITS / w.config.height
-  return w.roads.map(edge =>
-    edge.path
-      .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x * unitX} ${p.y * unitY}`)
-      .join(' '),
-  )
-})
-
+// Backend-owned terrain: renders the persisted snapshot verbatim. No local
+// generation, no fallback geography — a missing snapshot renders nothing rather
+// than a second, divergent world. Roads are omitted deliberately: the snapshot
+// carries no roads, and unrelated TS roads must not masquerade as movement
+// authority (travel stays distance-based until approved).
 function resolveTerrainColors(): Record<TerrainType, string> {
   const styles = getComputedStyle(document.documentElement)
   const colors = {} as Record<TerrainType, string>
@@ -46,8 +26,12 @@ function resolveTerrainColors(): Record<TerrainType, string> {
 }
 
 function renderTerrain(): void {
-  const w = world.value
-  const { width, height } = w.config
+  const snapshot = store.worldSnapshot
+  if (snapshot === null) {
+    imageUrl.value = ''
+    return
+  }
+  const { width, height } = snapshot
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
@@ -57,14 +41,14 @@ function renderTerrain(): void {
     return
   }
   const colors = resolveTerrainColors()
-  for (let i = 0; i < w.terrain.length; i++) {
-    ctx.fillStyle = colors[w.terrain[i]]
+  for (let i = 0; i < snapshot.terrain.length; i++) {
+    ctx.fillStyle = colors[snapshot.terrain[i] as TerrainType] ?? '#000000'
     ctx.fillRect(i % width, Math.floor(i / width), 1, 1)
   }
   imageUrl.value = canvas.toDataURL()
 }
 
-watch(world, renderTerrain, { immediate: true })
+watch(() => store.worldSnapshot, renderTerrain, { immediate: true })
 onBeforeUnmount(() => {
   imageUrl.value = ''
 })
@@ -82,20 +66,6 @@ onBeforeUnmount(() => {
       preserveAspectRatio="none"
       class="atlas-image"
     />
-    <path
-      v-for="(d, i) in roadPaths"
-      :key="`atlas-road-casing-${i}`"
-      :d="d"
-      class="atlas-road-casing"
-      fill="none"
-    />
-    <path
-      v-for="(d, i) in roadPaths"
-      :key="`atlas-road-${i}`"
-      :d="d"
-      class="atlas-road"
-      fill="none"
-    />
   </g>
 </template>
 
@@ -106,20 +76,5 @@ onBeforeUnmount(() => {
 
 .atlas-image {
   image-rendering: pixelated;
-}
-
-.atlas-road-casing {
-  stroke: rgba(0, 0, 0, 0.55);
-  stroke-width: 1.1;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.atlas-road {
-  stroke: var(--color-terrain-road);
-  stroke-width: 0.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0.95;
 }
 </style>

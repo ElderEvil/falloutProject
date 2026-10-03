@@ -8,6 +8,7 @@ import { useMapStore, VIEWED_LOCATIONS_STORAGE_KEY } from '@/modules/map/stores/
 vi.mock('@/modules/map/services/mapService', () => ({
   getVaultMap: vi.fn(),
   getLocationDetail: vi.fn(),
+  getWorldSnapshot: vi.fn(),
 }))
 
 import * as mapService from '@/modules/map/services/mapService'
@@ -503,5 +504,66 @@ describe('Map Store unlock toasts', () => {
     expect(mockToast.success).toHaveBeenCalledWith('New discovery: Zed')
     await refresh(store, 'vault-1', [loc('a', 'Alpha', true)])
     expect(mockToast.success).toHaveBeenCalledTimes(1)
+  })
+
+  describe('fetchWorldSnapshot Action', () => {
+    const snapshot = (terrain: string[], width = 80, height = 80) => ({
+      world_id: 'wasteland-atlas',
+      generator_version: 1,
+      recipe_fingerprint: 'fp',
+      snapshot_checksum: 'cs',
+      width,
+      height,
+      terrain,
+      slots: [],
+    })
+
+    it('stores a well-formed snapshot', async () => {
+      const store = useMapStore()
+      vi.mocked(mapService.getWorldSnapshot).mockResolvedValueOnce(
+        snapshot(new Array(80 * 80).fill('wasteland')) as any
+      )
+
+      await store.fetchWorldSnapshot('test-token')
+
+      expect(mapService.getWorldSnapshot).toHaveBeenCalledWith('test-token')
+      expect(store.worldSnapshot?.width).toBe(80)
+      expect(store.snapshotError).toBeNull()
+    })
+
+    it('rejects a snapshot whose terrain does not match its grid', async () => {
+      const store = useMapStore()
+      vi.mocked(mapService.getWorldSnapshot).mockResolvedValueOnce(
+        snapshot(new Array(10).fill('wasteland')) as any
+      )
+
+      await store.fetchWorldSnapshot('test-token')
+
+      expect(store.worldSnapshot).toBeNull()
+      expect(store.snapshotError).not.toBeNull()
+    })
+
+    it('clears the snapshot on fetch failure instead of keeping stale terrain', async () => {
+      const store = useMapStore()
+      vi.mocked(mapService.getWorldSnapshot).mockRejectedValueOnce(new Error('offline'))
+
+      await store.fetchWorldSnapshot('test-token')
+
+      expect(store.worldSnapshot).toBeNull()
+      expect(store.snapshotError).not.toBeNull()
+      expect(mockToast.error).toHaveBeenCalled()
+    })
+
+    it('rejects a non-square grid explicitly', async () => {
+      const store = useMapStore()
+      vi.mocked(mapService.getWorldSnapshot).mockResolvedValueOnce(
+        snapshot(new Array(80 * 60).fill('wasteland'), 80, 60) as any
+      )
+
+      await store.fetchWorldSnapshot('test-token')
+
+      expect(store.worldSnapshot).toBeNull()
+      expect(store.snapshotError).not.toBeNull()
+    })
   })
 })

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.169.0 (2026-10-03)
+
+### Features
+
+* **map:** scouting action and production scouting UI 5dbf932
+
+### Bug Fixes
+
+* **map:** honest scout band, vault-scoped state, dead code 9648eb6
+* **map:** pass registry scout target to WorldMap highlight b198a3e
+* **map:** scout-mode interaction guards and dweller loading 32287c7
+
 ## 2.168.0 (2026-10-03)
 
 ### Features

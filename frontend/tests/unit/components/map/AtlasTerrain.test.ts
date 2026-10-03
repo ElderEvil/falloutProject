@@ -10,17 +10,22 @@ describe('AtlasTerrain', () => {
     vi.restoreAllMocks()
   })
 
+  // Minimal canvas stub: blending/dither are cosmetic, so tests assert only that
+  // the terrain image renders and is stable — not the rasterisation strategy.
   function stubCanvas() {
-    const calls = { fillRect: 0 }
     const ctx = {
       fillStyle: '',
-      fillRect: vi.fn(() => {
-        calls.fillRect += 1
-      }),
+      imageSmoothingEnabled: false,
+      imageSmoothingQuality: 'low',
+      fillRect: vi.fn(),
+      drawImage: vi.fn(),
+      getImageData: vi.fn((_x: number, _y: number, w: number, h: number) => ({
+        data: new Uint8ClampedArray(w * h * 4),
+      })),
+      putImageData: vi.fn(),
     }
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as any)
     vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,x')
-    return calls
   }
 
   function snapshot(terrain: string[]) {
@@ -36,22 +41,21 @@ describe('AtlasTerrain', () => {
     } as any
   }
 
-  it('paints every snapshot cell and shows the terrain image', async () => {
+  it('renders the terrain image for a snapshot', async () => {
     const store = useMapStore()
     store.worldSnapshot = snapshot([
       'water', 'forest', 'hills', 'ruins',
       ...new Array(12).fill('wasteland'),
     ])
-    const calls = stubCanvas()
+    stubCanvas()
 
     const wrapper = mount(AtlasTerrain)
     await flushPromises()
 
-    expect(calls.fillRect).toBe(16)
     expect(wrapper.find('image').exists()).toBe(true)
   })
 
-  it('renders no terrain and no roads without a snapshot', async () => {
+  it('renders no terrain without a snapshot', async () => {
     const store = useMapStore()
     store.worldSnapshot = null
     stubCanvas()

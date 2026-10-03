@@ -179,10 +179,18 @@ export const useMapStore = defineStore('map', () => {
           `Snapshot terrain has ${snapshot.terrain.length} cells for a ${snapshot.width}x${snapshot.height} grid`
         )
       }
+      if (snapshot.width !== snapshot.height) {
+        throw new Error(
+          `Snapshot grid is ${snapshot.width}x${snapshot.height}: only square grids are supported`
+        )
+      }
       worldSnapshot.value = snapshot
     } catch (err) {
       worldSnapshot.value = null
       snapshotError.value = handleStoreError(err, 'Failed to fetch world snapshot')
+      // Visible, non-blocking: markers/routes/fog still render over the empty
+      // terrain rather than failing the whole map load.
+      toast.error('World terrain unavailable — showing markers only')
     }
   }
 

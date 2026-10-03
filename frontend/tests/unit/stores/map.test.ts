@@ -551,6 +551,19 @@ describe('Map Store unlock toasts', () => {
 
       expect(store.worldSnapshot).toBeNull()
       expect(store.snapshotError).not.toBeNull()
+      expect(mockToast.error).toHaveBeenCalled()
+    })
+
+    it('rejects a non-square grid explicitly', async () => {
+      const store = useMapStore()
+      vi.mocked(mapService.getWorldSnapshot).mockResolvedValueOnce(
+        snapshot(new Array(80 * 60).fill('wasteland'), 80, 60) as any
+      )
+
+      await store.fetchWorldSnapshot('test-token')
+
+      expect(store.worldSnapshot).toBeNull()
+      expect(store.snapshotError).not.toBeNull()
     })
   })
 })

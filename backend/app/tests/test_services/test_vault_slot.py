@@ -89,7 +89,7 @@ async def test_scout_sends_a_run_from_the_vault_slot(async_session: AsyncSession
     slot = await vault_slot.claim_next(db_session=async_session, vault_id=vault.id)
     await async_session.commit()
 
-    exploration = await exploration_service.scout(
+    exploration, band_low, band_high = await exploration_service.scout(
         async_session,
         vault_id=vault.id,
         dweller_id=dweller.id,
@@ -99,8 +99,9 @@ async def test_scout_sends_a_run_from_the_vault_slot(async_session: AsyncSession
 
     origin = slot_coords(slot.slot_index)
     distance = ((origin[0] - 100) ** 2 + (origin[1] - 100) ** 2) ** 0.5
-    _, band_high = scout_band_hours(dispatch_travel_hours(distance))
-    assert exploration.duration == max(1, min(24, band_high))
+    expected_low, expected_high = scout_band_hours(dispatch_travel_hours(distance))
+    assert (band_low, band_high) == (max(1, min(24, expected_low)), max(1, min(24, expected_high)))
+    assert exploration.duration == band_high
 
 
 @pytest.mark.asyncio

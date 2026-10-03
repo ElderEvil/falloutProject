@@ -7260,6 +7260,10 @@ export interface components {
             dweller_id: string;
             /** Target Location Id */
             target_location_id?: string | null;
+            /** Band Low */
+            band_low?: number | null;
+            /** Band High */
+            band_high?: number | null;
             status: components["schemas"]["ExplorationStatus"];
             /**
              * Start Time

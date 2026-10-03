@@ -24,7 +24,6 @@ import type {
 } from '../models/map'
 import { buildExplorerTracks } from '../utils/explorerTracks'
 import { wireToRegistry } from '../utils/atlasProjection'
-import { isExploredTile } from '../utils/fog'
 
 const authStore = useAuthStore()
 const mapStore = useMapStore()
@@ -122,23 +121,31 @@ async function handleDispatch(dwellerIds: string[]) {
   }
 }
 
-// Scout flow: pick a revealed frontier cell, send a dweller. The duration is
-// server-derived (no client ETA), and only one scout submit runs at a time.
+// Scout flow: pick a revealed cell, send a dweller roaming free. The run keeps no
+// target and follows no route — the pick only sizes a server-derived duration
+// band, and only one scout submit runs at a time.
 const scoutMode = ref(false)
 const scoutTarget = ref<{ coord_x: number; coord_y: number } | null>(null)
-const lastScout = ref<{ hours: number; coord: { coord_x: number; coord_y: number } } | null>(null)
+const lastScout = ref<{ bandLow: number | null; bandHigh: number; coord: { coord_x: number; coord_y: number } } | null>(null)
 const isScouting = ref(false)
+// Vault that the scout dweller list was fetched for; guards against offering
+// another vault's dwellers after a route change.
+const scoutDwellersVaultId = ref<string | null>(null)
+
+function scoutBandText(bandLow: number | null | undefined, bandHigh: number): string {
+  return bandLow == null || bandLow >= bandHigh ? `about ${bandHigh} h` : `${bandLow}–${bandHigh} h`
+}
 
 const lastScoutText = computed(() => {
   const scout = lastScout.value
   if (scout === null) return null
-  return `(${scout.coord.coord_x.toFixed(0)}, ${scout.coord.coord_y.toFixed(0)}) · about ${scout.hours} h`
+  return `(${scout.coord.coord_x.toFixed(0)}, ${scout.coord.coord_y.toFixed(0)}) · ${scoutBandText(scout.bandLow, scout.bandHigh)}`
 })
 
 const scoutConfirmText = computed(() => {
   const target = scoutTarget.value
   if (target === null) return null
-  return `Target (${target.coord_x.toFixed(0)}, ${target.coord_y.toFixed(0)})`
+  return `Roam from (${target.coord_x.toFixed(0)}, ${target.coord_y.toFixed(0)})`
 })
 
 async function toggleScoutMode() {
@@ -149,9 +156,15 @@ async function toggleScoutMode() {
   }
   // Like the dispatch picker: the dweller list may be empty when the map opens
   // on its own, so fetch on open and let the panel show loading/empty instead
-  // of silently offering nobody to send.
-  if (vaultId.value && authStore.token && dwellerStore.dwellers.length === 0) {
+  // of silently offering nobody to send. Refetch when the list belongs to
+  // another vault (route change without reload).
+  if (
+    vaultId.value &&
+    authStore.token &&
+    (dwellerStore.dwellers.length === 0 || scoutDwellersVaultId.value !== vaultId.value)
+  ) {
     await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
+    scoutDwellersVaultId.value = vaultId.value
   }
 }
 
@@ -178,11 +191,11 @@ async function confirmScout(dwellerId: string) {
       target.coord_x,
       target.coord_y
     )
-    lastScout.value = { hours: exploration.duration, coord: target }
+    lastScout.value = { bandLow: exploration.band_low ?? null, bandHigh: exploration.duration, coord: target }
     scoutMode.value = false
     scoutTarget.value = null
     await mapStore.refreshMap(vaultId.value, authStore.token)
-    toast.success(`Scout sent — about ${exploration.duration} h`)
+    toast.success(`Scout sent — ${scoutBandText(exploration.band_low, exploration.duration)}`)
   } catch (err) {
     toast.error(getErrorMessage(err))
   } finally {
@@ -244,6 +257,11 @@ function clearPlaceQuery() {
 watch(
   vaultId,
   () => {
+    // Vault-scoped scout state must not survive a route change: the target,
+    // result, and mode belong to the previous vault.
+    scoutMode.value = false
+    scoutTarget.value = null
+    lastScout.value = null
     loadMap()
   },
   { immediate: true }
@@ -360,10 +378,10 @@ const mapPaneHeight = 'var(--map-pane-size)'
           <!-- Scout control + last result -->
           <div class="scout-bar">
             <Button variant="outline" size="sm" @click="toggleScoutMode">
-              {{ scoutMode ? 'Cancel scouting' : 'Scout frontier' }}
+              {{ scoutMode ? 'Cancel scouting' : 'Scout (approximate)' }}
             </Button>
             <span v-if="scoutMode" class="scout-hint">
-              Pick a revealed cell on the edge of the unknown
+              Pick a revealed cell — the dweller roams free, no fixed route
             </span>
             <span v-else-if="lastScoutText" class="scout-hint">
               Last scout → {{ lastScoutText }}
@@ -372,7 +390,7 @@ const mapPaneHeight = 'var(--map-pane-size)'
 
           <!-- Scout confirm: pick a dweller, then send -->
           <div v-if="scoutConfirmText" class="scout-confirm">
-            <p>{{ scoutConfirmText }} — duration is approximate.</p>
+            <p>{{ scoutConfirmText }} — free-roam, duration is a rough band.</p>
             <p v-if="dwellerStore.isLoading" class="scout-hint">Loading dwellers…</p>
             <p v-else-if="dwellerStore.dwellers.length === 0" class="scout-hint">
               No dwellers available to send.

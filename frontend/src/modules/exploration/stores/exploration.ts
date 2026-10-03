@@ -50,6 +50,9 @@ export interface Exploration {
   target_location_id?: string | null
   status: 'active' | 'returning' | 'completed' | 'recalled'
   duration: number
+  /** Scout-only coarse band; absent on non-scout runs. */
+  band_low?: number | null
+  band_high?: number | null
   start_time: string
   end_time: string | null
   return_started_at?: string | null

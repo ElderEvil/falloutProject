@@ -95,7 +95,7 @@ async def scout_frontier(
     vault_id: Annotated[UUID4, Query()],
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> Exploration:
+) -> ExplorationRead:
     """Send a dweller to scout an approximate frontier cell.
 
     The exact destination is unknown, so the player targets a frontier cell and the
@@ -106,7 +106,7 @@ async def scout_frontier(
     """
     await get_user_vault_or_403(vault_id, user, db_session)
     try:
-        return await exploration_service.scout(
+        exploration, band_low, band_high = await exploration_service.scout(
             db_session,
             vault_id=vault_id,
             dweller_id=request.dweller_id,
@@ -117,6 +117,10 @@ async def scout_frontier(
         )
     except ValueError as e:
         raise ValidationException(str(e)) from e
+    read = ExplorationRead.model_validate(exploration)
+    read.band_low = band_low
+    read.band_high = band_high
+    return read
 
 
 @router.get("/vault/{vault_id}", response_model=list[ExplorationReadShort])

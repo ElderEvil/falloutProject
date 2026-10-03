@@ -5,6 +5,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import MapView from '@/modules/map/views/MapView.vue'
 import { useMapStore, VIEWED_LOCATIONS_STORAGE_KEY } from '@/modules/map/stores/map'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { ExplorerTrack } from '@/modules/map/models/map'
@@ -414,6 +415,69 @@ describe('MapView', () => {
       await flushPromises()
 
       expect(worldMap.props('scoutTarget')).toEqual({ coord_x: 50, coord_y: 50 })
+    })
+
+    it('sends a scout on a valid pick and shows the returned band', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      useAuthStore().token = 'test-token'
+      const { filter: dwellerStore } = useDwellerStore()
+      dwellerStore.dwellers = [{ id: 'dweller-1', first_name: 'Ada' } as any]
+      vi.spyOn(dwellerStore, 'fetchDwellersByVault').mockResolvedValue(undefined)
+      const explorationStore = useExplorationStore()
+      vi.spyOn(explorationStore, 'scoutFrontier').mockResolvedValue(
+        exploration({ duration: 6, band_low: 4, band_high: 6 })
+      )
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      await wrapper.find('.scout-bar .btn-outline, .scout-bar button').trigger('click')
+      const worldMap = wrapper.findComponent({ name: 'WorldMap' })
+      worldMap.vm.$emit('scout-target', { coord_x: 80, coord_y: 80 })
+      await flushPromises()
+      await wrapper.find('.scout-dwellers button').trigger('click')
+      await flushPromises()
+
+      expect(explorationStore.scoutFrontier).toHaveBeenCalledWith(
+        'vault-1',
+        'dweller-1',
+        50,
+        50
+      )
+      expect(wrapper.find('.scout-bar').text()).toContain('4–6 h')
+    })
+
+    it('resets scout state when switching vaults', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      useAuthStore().token = 'test-token'
+      const { filter: dwellerStore } = useDwellerStore()
+      dwellerStore.dwellers = [{ id: 'dweller-1', first_name: 'Ada' } as any]
+      vi.spyOn(dwellerStore, 'fetchDwellersByVault').mockResolvedValue(undefined)
+      const explorationStore = useExplorationStore()
+      vi.spyOn(explorationStore, 'scoutFrontier').mockResolvedValue(
+        exploration({ duration: 6, band_low: 4, band_high: 6 })
+      )
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      await wrapper.find('.scout-bar button').trigger('click')
+      const worldMap = wrapper.findComponent({ name: 'WorldMap' })
+      worldMap.vm.$emit('scout-target', { coord_x: 80, coord_y: 80 })
+      await flushPromises()
+      expect(worldMap.props('scoutTarget')).toEqual({ coord_x: 50, coord_y: 50 })
+
+      mockRoute.params.id = 'vault-2'
+      await flushPromises()
+
+      expect(wrapper.findComponent({ name: 'WorldMap' }).props('scoutTarget')).toBeNull()
+      expect(wrapper.find('.scout-bar').text()).not.toContain('Scout sent')
+      expect(wrapper.find('.scout-confirm').exists()).toBe(false)
+      mockRoute.params.id = 'vault-1'
     })
   })
 })

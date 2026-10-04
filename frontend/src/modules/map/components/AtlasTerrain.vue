@@ -6,7 +6,7 @@ import {
   ATLAS_TERRAIN_VAR,
   MAP_UNITS,
 } from '../utils/atlasProjection'
-import type { TerrainType } from '../utils/atlasWorldgen'
+import type { TerrainType } from '../models/terrain'
 
 const store = useMapStore()
 const imageUrl = ref('')

@@ -1,4 +1,4 @@
-import type { TerrainAnchor, TerrainType } from './atlasWorldgen'
+import type { TerrainAnchor, TerrainType } from '../models/terrain'
 
 /** SVG viewBox size of the production map. */
 export const MAP_UNITS = 160

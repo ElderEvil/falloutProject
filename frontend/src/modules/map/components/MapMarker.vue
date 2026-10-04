@@ -181,11 +181,8 @@ const tooltipText = computed(() => {
   opacity: 0.7;
 }
 
-.marker-locked {
-  opacity: 0.5;
-}
-
 .marker-locked .marker-icon {
+  opacity: 0.5;
   stroke-dasharray: 4 2;
 }
 
@@ -241,8 +238,7 @@ const tooltipText = computed(() => {
 
 .map-marker:hover .marker-label,
 .map-marker:focus-visible .marker-label,
-.map-marker.marker-selected .marker-label,
-.map-marker.marker-locked .marker-label {
+.map-marker.marker-selected .marker-label {
   opacity: 1;
 }
 

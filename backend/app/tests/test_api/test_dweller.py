@@ -43,7 +43,7 @@ async def test_create_dweller(
     response_data = response.json()
     assert response_data["first_name"] == dweller_data["first_name"]
     assert response_data["last_name"] == dweller_data["last_name"]
-    assert response_data["is_adult"] == dweller_data["is_adult"]
+    assert response_data["age_group"] == dweller_data["age_group"]
     assert response_data["gender"] == dweller_data["gender"]
     assert response_data["rarity"] == dweller_data["rarity"]
     assert response_data["level"] == dweller_data["level"]

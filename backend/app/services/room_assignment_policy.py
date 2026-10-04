@@ -35,7 +35,7 @@ def calculate_room_capacity(room_size: int | None) -> int:
 
 def adult_assignment_conditions() -> tuple:
     """Return database conditions that select mature dwellers for automatic work assignment."""
-    return Dweller.is_adult, col(Dweller.age_group).in_(ADULT_AGE_GROUPS)
+    return (col(Dweller.age_group).in_(ADULT_AGE_GROUPS),)
 
 
 async def validate_room_assignment(db_session: AsyncSession, dweller: Dweller, room: Room) -> None:

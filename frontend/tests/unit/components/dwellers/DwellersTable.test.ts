@@ -18,7 +18,6 @@ function makeDweller(overrides: Partial<DwellerShort> = {}): DwellerShort {
     happiness: 75,
     room_id: 'room-1',
     status: 'working',
-    is_adult: true,
     age_group: 'adult',
     gender: 'female',
     rarity: 'rare',

@@ -2,6 +2,7 @@ import random
 
 from faker import Faker
 
+from app.core.enums import ADULT_AGE_GROUPS
 from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.tests.utils.utils import get_gender_based_name, get_stats_by_rarity
 
@@ -13,11 +14,13 @@ def create_fake_dweller():
     max_health = random.randint(50, 1_000)
 
     stats = get_stats_by_rarity(rarity)
+    age_group = random.choice(list(AgeGroupEnum))
 
     return stats | {
         "first_name": fake.first_name(),
         "last_name": fake.last_name(),
-        "is_adult": random.choice([True, False]),
+        "is_adult": age_group in ADULT_AGE_GROUPS,
+        "age_group": age_group,
         "gender": random.choice(list(GenderEnum)),
         "rarity": rarity,
         "level": random.randint(1, 50),
@@ -50,5 +53,6 @@ def create_random_common_dweller(gender: GenderEnum | None = None):
         "health": 100,
         "happiness": 50,
         "is_adult": True,
+        "age_group": AgeGroupEnum.ADULT,
         "visual_attributes": {"race": "human", "faction": "vault_dweller"},
     } | stats

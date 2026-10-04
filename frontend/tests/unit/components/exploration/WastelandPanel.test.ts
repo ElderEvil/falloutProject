@@ -129,7 +129,6 @@ describe('WastelandPanel', () => {
         {
           id: 'dweller-1',
           first_name: 'Test',
-          is_adult: true,
           age_group: 'adult',
           visual_attributes: { race: 'super_mutant' },
         },

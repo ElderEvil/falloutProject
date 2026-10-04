@@ -18,7 +18,6 @@ const base = {
   I: 6,
   A: 9,
   L: 1,
-  is_adult: true,
   age_group: 'adult',
   is_dead: false,
   room: { id: 'room-1', name: 'Diner', category: 'production', ability: 'agility' },
@@ -67,7 +66,7 @@ describe('DwellerRoleMatch', () => {
   })
 
   it('renders nothing for youth, whose room ability is the apprenticeship by construction', () => {
-    const wrapper = mountMatch({ is_adult: false, age_group: 'teen' } as never)
+    const wrapper = mountMatch({ age_group: 'teen' } as never)
 
     expect(wrapper.find('.role-match').exists()).toBe(false)
   })

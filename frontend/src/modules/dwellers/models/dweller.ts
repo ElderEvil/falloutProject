@@ -468,7 +468,7 @@ export function getActivitySummary(dweller: Pick<Dweller, 'status' | 'room' | 'i
  */
 export const ADULT_AGE_GROUPS: ReadonlySet<string> = new Set(['adult', 'elder'])
 
-/** Adult by both flags, mirroring the backend's ``Dweller.is_mature``. */
-export function isMature(dweller: Pick<Dweller, 'is_adult' | 'age_group'>): boolean {
-  return dweller.is_adult && ADULT_AGE_GROUPS.has(dweller.age_group)
+/** Mature by age group, mirroring the backend's ``Dweller.is_mature``. */
+export function isMature(dweller: Pick<Dweller, 'age_group'>): boolean {
+  return ADULT_AGE_GROUPS.has(dweller.age_group)
 }

@@ -45,7 +45,6 @@ const fakeDweller = {
   last_name: 'Almodovar',
   status: 'idle',
   thumbnail_url: 'http://example.com/thumb.png',
-  is_adult: true,
   age_group: 'adult',
   vault: { id: 'vault-1' },
   room: { name: 'Power Plant' },

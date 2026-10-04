@@ -42,7 +42,7 @@ const dweller = (overrides: Record<string, unknown> = {}) => ({
   level: 5,
   health: 90,
   max_health: 100,
-  is_adult: true,
+  age_group: 'adult',
   room_id: 'room-2',
   status: 'idle',
   combat_power: 10,
@@ -146,7 +146,7 @@ describe('RoomIncidentDetail', () => {
       dwellers: [
         dweller({ id: 'd1', first_name: 'Away', status: 'exploring' }),
         dweller({ id: 'd2', first_name: 'Gone', status: 'dead' }),
-        dweller({ id: 'd3', first_name: 'Child', is_adult: false }),
+        dweller({ id: 'd3', first_name: 'Child', age_group: 'child' }),
         dweller({ id: 'd4', first_name: 'Hurt', health: 0 }),
       ],
     })

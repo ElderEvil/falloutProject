@@ -44,8 +44,8 @@ class DwellerBaseWithoutStats(SQLModel):
 
     @property
     def is_mature(self) -> bool:
-        """Adult by both flags — children and teens can't take combat assignments."""
-        return self.is_adult and self.age_group in ADULT_AGE_GROUPS
+        """Adult or elder — children and teens can't take combat assignments."""
+        return self.age_group in ADULT_AGE_GROUPS
 
     @property
     def display_name(self) -> str:

@@ -6650,8 +6650,6 @@ export interface components {
             /** Room Id */
             room_id?: string | null;
             status: components["schemas"]["DwellerStatusEnum"];
-            /** Is Adult */
-            is_adult: boolean;
             age_group: components["schemas"]["AgeGroupEnum"];
             gender: components["schemas"]["GenderEnum"];
             rarity: components["schemas"]["RarityEnum"];

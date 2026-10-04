@@ -7,6 +7,7 @@ import { useMapStore, VIEWED_LOCATIONS_STORAGE_KEY } from '@/modules/map/stores/
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { ExplorerTrack } from '@/modules/map/models/map'
 
@@ -118,14 +119,20 @@ describe('MapView', () => {
           WorldMap: {
             name: 'WorldMap',
             template: '<div class="world-map-stub"></div>',
-            props: ['locations', 'vaultMarkers', 'explorerTracks', 'selectedMarkerId', 'scoutMode', 'scoutTarget', 'fogDisabled'],
-            emits: ['marker-click', 'update:selectedMarkerId', 'scout-target', 'scout-invalid'],
+            props: ['locations', 'vaultMarkers', 'explorerTracks', 'selectedMarkerId', 'fogDisabled'],
+            emits: ['marker-click', 'update:selectedMarkerId', 'explore-wasteland'],
           },
           MarkerDetailModal: {
             name: 'MarkerDetailModal',
             template: '<div class="modal-stub"></div>',
             props: ['modelValue', 'location', 'vaultMarker'],
             emits: ['update:modelValue', 'dispatch'],
+          },
+          ExplorationDurationModal: {
+            name: 'ExplorationDurationModal',
+            template: '<div class="duration-modal-stub"></div>',
+            props: ['show', 'dwellerName', 'maxStimpaks', 'maxRadaways', 'allowRadaway'],
+            emits: ['confirm', 'cancel'],
           },
           PartySelectionModal: {
             name: 'PartySelectionModal',
@@ -399,84 +406,142 @@ describe('MapView', () => {
     })
   })
 
-  describe('scout targeting', () => {
-    it('passes registry coordinates to WorldMap so the highlight is not double-scaled', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation]
-      mapStore.isLoading = false
-
-      const wrapper = mountView()
-      await flushPromises()
-
-      // WorldMap reports picks in wire coords (SVG units); the highlight prop
-      // must carry registry coords, which WorldMap converts back exactly once.
-      const worldMap = wrapper.findComponent({ name: 'WorldMap' })
-      worldMap.vm.$emit('scout-target', { coord_x: 80, coord_y: 80 })
-      await flushPromises()
-
-      expect(worldMap.props('scoutTarget')).toEqual({ coord_x: 50, coord_y: 50 })
-    })
-
-    it('sends a scout on a valid pick and shows the returned band', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation]
-      mapStore.isLoading = false
+  describe('map departure flow', () => {
+    function mountWithDwellers() {
       useAuthStore().token = 'test-token'
       const { filter: dwellerStore } = useDwellerStore()
-      dwellerStore.dwellers = [{ id: 'dweller-1', first_name: 'Ada' } as any]
+      dwellerStore.dwellers = [
+        {
+          id: 'dweller-1',
+          first_name: 'Ada',
+          last_name: 'Lovelace',
+          is_adult: true,
+          age_group: 'adult',
+        } as any,
+      ]
       vi.spyOn(dwellerStore, 'fetchDwellersByVault').mockResolvedValue(undefined)
-      const explorationStore = useExplorationStore()
-      vi.spyOn(explorationStore, 'scoutFrontier').mockResolvedValue(
-        exploration({ duration: 6, band_low: 4, band_high: 6 })
-      )
+      const vaultStore = useVaultStore()
+      vi.spyOn(vaultStore, 'ensureVaultLoaded').mockResolvedValue(undefined)
+      vi.spyOn(vaultStore, 'refreshVault').mockResolvedValue(undefined)
+      vaultStore.loadedVaults = { 'vault-1': { stimpack: 10, radaway: 5 } as any }
+      return { dwellerStore, vaultStore }
+    }
+
+    it('opens the dweller picker when empty wasteland is clicked', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      mountWithDwellers()
 
       const wrapper = mountView()
       await flushPromises()
 
-      await wrapper.find('.scout-bar .btn-outline, .scout-bar button').trigger('click')
-      const worldMap = wrapper.findComponent({ name: 'WorldMap' })
-      worldMap.vm.$emit('scout-target', { coord_x: 80, coord_y: 80 })
-      await flushPromises()
-      await wrapper.find('.scout-dwellers button').trigger('click')
+      expect(wrapper.find('.departure-picker').exists()).toBe(false)
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('explore-wasteland')
       await flushPromises()
 
-      expect(explorationStore.scoutFrontier).toHaveBeenCalledWith(
+      expect(wrapper.find('.departure-picker').exists()).toBe(true)
+      expect(wrapper.find('.departure-picker').text()).toContain('Explore the wasteland')
+      expect(wrapper.find('.departure-dwellers button').text()).toContain('Send Ada')
+    })
+
+    it('offers only available dwellers, even with no exploration records loaded', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      const { dwellerStore } = mountWithDwellers()
+      dwellerStore.dwellers = [
+        { id: 'd1', first_name: 'Idle', is_adult: true, age_group: 'adult', is_dead: false, status: 'idle' },
+        { id: 'd2', first_name: 'Questing', is_adult: true, age_group: 'adult', is_dead: false, status: 'questing' },
+        { id: 'd3', first_name: 'Fallen', is_adult: true, age_group: 'adult', is_dead: true, status: 'dead' },
+        { id: 'd4', first_name: 'Roaming', is_adult: true, age_group: 'adult', is_dead: false, status: 'exploring' },
+        { id: 'd5', first_name: 'Kid', is_adult: true, age_group: 'child', is_dead: false, status: 'idle' },
+      ] as any[]
+      useExplorationStore().explorations = []
+
+      const wrapper = mountView()
+      await flushPromises()
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('explore-wasteland')
+      await flushPromises()
+
+      const names = wrapper.findAll('.departure-dwellers button').map((b) => b.text())
+      expect(names).toEqual(['Send Idle'])
+    })
+
+    it('picking a dweller opens the duration modal with their name and vault supplies', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      mountWithDwellers()
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('explore-wasteland')
+      await flushPromises()
+      await wrapper.find('.departure-dwellers button').trigger('click')
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'ExplorationDurationModal' })
+      expect(modal.props('show')).toBe(true)
+      expect(modal.props('dwellerName')).toBe('Ada')
+      expect(modal.props('maxStimpaks')).toBe(10)
+      expect(modal.props('maxRadaways')).toBe(5)
+      expect(wrapper.find('.departure-picker').exists()).toBe(false)
+    })
+
+    it('sends the dweller roaming on confirm and refreshes the map', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      mountWithDwellers()
+      const explorationStore = useExplorationStore()
+      vi.spyOn(explorationStore, 'sendDwellerToWasteland').mockResolvedValue(
+        exploration({ duration: 4 })
+      )
+      vi.spyOn(mapStore, 'refreshMap').mockResolvedValue(undefined)
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('explore-wasteland')
+      await flushPromises()
+      await wrapper.find('.departure-dwellers button').trigger('click')
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'ExplorationDurationModal' })
+      modal.vm.$emit('confirm', { duration: 4, stimpaks: 2, radaways: 1 })
+      await flushPromises()
+
+      expect(explorationStore.sendDwellerToWasteland).toHaveBeenCalledWith(
         'vault-1',
         'dweller-1',
-        50,
-        50
+        4,
+        'test-token',
+        2,
+        1
       )
-      expect(wrapper.find('.scout-bar').text()).toContain('4–6 h')
+      expect(mapStore.refreshMap).toHaveBeenCalled()
+      expect(modal.props('show')).toBe(false)
     })
 
-    it('resets scout state when switching vaults', async () => {
+    it('resets the departure picker when switching vaults', async () => {
       vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
       mapStore.locations = [mockLocation]
       mapStore.isLoading = false
-      useAuthStore().token = 'test-token'
-      const { filter: dwellerStore } = useDwellerStore()
-      dwellerStore.dwellers = [{ id: 'dweller-1', first_name: 'Ada' } as any]
-      vi.spyOn(dwellerStore, 'fetchDwellersByVault').mockResolvedValue(undefined)
-      const explorationStore = useExplorationStore()
-      vi.spyOn(explorationStore, 'scoutFrontier').mockResolvedValue(
-        exploration({ duration: 6, band_low: 4, band_high: 6 })
-      )
+      mountWithDwellers()
 
       const wrapper = mountView()
       await flushPromises()
 
-      await wrapper.find('.scout-bar button').trigger('click')
-      const worldMap = wrapper.findComponent({ name: 'WorldMap' })
-      worldMap.vm.$emit('scout-target', { coord_x: 80, coord_y: 80 })
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('explore-wasteland')
       await flushPromises()
-      expect(worldMap.props('scoutTarget')).toEqual({ coord_x: 50, coord_y: 50 })
+      expect(wrapper.find('.departure-picker').exists()).toBe(true)
 
       mockRoute.params.id = 'vault-2'
       await flushPromises()
 
-      expect(wrapper.findComponent({ name: 'WorldMap' }).props('scoutTarget')).toBeNull()
-      expect(wrapper.find('.scout-bar').text()).not.toContain('Scout sent')
-      expect(wrapper.find('.scout-confirm').exists()).toBe(false)
+      expect(wrapper.find('.departure-picker').exists()).toBe(false)
       mockRoute.params.id = 'vault-1'
     })
   })

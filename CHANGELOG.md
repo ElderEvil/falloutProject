@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.178.1 (2026-10-04)
+
+### Bug Fixes
+
+* **map:** collapse legend by default and remember its state fadfc88
+* **map:** survive unavailable storage, undim locked labels 3fe5b40
+
 ## 2.178.0 (2026-10-04)
 
 ### Features

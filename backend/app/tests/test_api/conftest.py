@@ -85,6 +85,7 @@ def dweller_data_fixture():
     return stats | {
         "first_name": get_gender_based_name(gender),
         "last_name": fake.last_name(),
+        "is_adult": True,
         "age_group": AgeGroupEnum.ADULT,
         "gender": gender,
         "rarity": rarity.value,

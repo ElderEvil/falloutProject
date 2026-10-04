@@ -6016,6 +6016,11 @@ export interface components {
             first_name: string;
             /** Last Name */
             last_name?: string | null;
+            /**
+             * Is Adult
+             * @default true
+             */
+            is_adult: boolean;
             /** @default adult */
             age_group: components["schemas"]["AgeGroupEnum"];
             /** Birth Date */
@@ -6166,6 +6171,11 @@ export interface components {
             first_name: string;
             /** Last Name */
             last_name?: string | null;
+            /**
+             * Is Adult
+             * @default true
+             */
+            is_adult: boolean;
             /** @default adult */
             age_group: components["schemas"]["AgeGroupEnum"];
             /** Birth Date */
@@ -6360,6 +6370,11 @@ export interface components {
             first_name: string;
             /** Last Name */
             last_name?: string | null;
+            /**
+             * Is Adult
+             * @default true
+             */
+            is_adult: boolean;
             /** @default adult */
             age_group: components["schemas"]["AgeGroupEnum"];
             /** Birth Date */
@@ -6511,6 +6526,11 @@ export interface components {
             first_name: string;
             /** Last Name */
             last_name?: string | null;
+            /**
+             * Is Adult
+             * @default true
+             */
+            is_adult: boolean;
             /** @default adult */
             age_group: components["schemas"]["AgeGroupEnum"];
             /** Birth Date */
@@ -6736,6 +6756,11 @@ export interface components {
             first_name: string;
             /** Last Name */
             last_name?: string | null;
+            /**
+             * Is Adult
+             * @default true
+             */
+            is_adult: boolean;
             /** @default adult */
             age_group: components["schemas"]["AgeGroupEnum"];
             /** Birth Date */

@@ -48,7 +48,7 @@ async def _expired_quest(
         )
     link = await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
     dweller_data = create_fake_dweller()
-    dweller_data.update(age_group=AgeGroupEnum.ADULT)
+    dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
     dweller = Dweller(**dweller_data, vault_id=vault.id)
     async_session.add(dweller)
     await async_session.commit()

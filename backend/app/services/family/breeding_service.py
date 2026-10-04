@@ -357,6 +357,7 @@ class BreedingService:
             "gender": child_gender,
             "rarity": child_rarity,
             "age_group": AgeGroupEnum.CHILD,
+            "is_adult": False,
             "birth_date": datetime.now(UTC).replace(tzinfo=None),
             "level": 1,
             "experience": 0,
@@ -519,12 +520,14 @@ class BreedingService:
                 teens.append(child)
                 continue
             child.age_group = AgeGroupEnum.TEEN
+            child.is_adult = False
             child.updated_at = now
             aged_dwellers.append(child)
             logger.info(f"Child became teen: {child.first_name} {child.last_name} ({child.id})")
 
         for teen in teens:
             teen.age_group = AgeGroupEnum.ADULT
+            teen.is_adult = True
             teen.apprentice_stat = None
             teen.apprentice_started_at = None
             for attr in SPECIAL_STATS:

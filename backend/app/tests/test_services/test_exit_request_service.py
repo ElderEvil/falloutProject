@@ -24,6 +24,7 @@ def _dweller_data(**overrides: object) -> dict:
         "gender": GenderEnum.FEMALE,
         "rarity": RarityEnum.COMMON,
         "age_group": AgeGroupEnum.ADULT,
+        "is_adult": True,
         "birth_date": datetime.utcnow() - timedelta(days=365 * 30),
         "level": 5,
         "experience": 0,
@@ -74,7 +75,7 @@ async def test_request_exit_is_refused_below_the_population_floor(async_session:
 @pytest.mark.asyncio
 async def test_request_exit_rejects_children(async_session: AsyncSession, vault: Vault) -> None:
     await _with_room_for_one_exit(async_session, vault)
-    child = await _create(async_session, vault, first_name="Pip", age_group=AgeGroupEnum.CHILD)
+    child = await _create(async_session, vault, first_name="Pip", age_group=AgeGroupEnum.CHILD, is_adult=False)
 
     with pytest.raises(VaultOperationException, match="grown dwellers"):
         await exit_request_service.request_exit(async_session, child.id)

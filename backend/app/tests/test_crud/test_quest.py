@@ -290,19 +290,20 @@ async def test_assign_party_rejects_ineligible_dwellers(async_session: AsyncSess
         ),
     )
     child_data = create_fake_dweller()
-    child_data.update(age_group=AgeGroupEnum.CHILD)
+    child_data.update(is_adult=False, age_group=AgeGroupEnum.CHILD)
     child = Dweller(**child_data, vault_id=vault.id)
     explorer_data = create_fake_dweller()
     explorer_data.update(
+        is_adult=True,
         age_group=AgeGroupEnum.ADULT,
         status=DwellerStatusEnum.EXPLORING,
     )
     explorer = Dweller(**explorer_data, vault_id=vault.id)
     assigned_data = create_fake_dweller()
-    assigned_data.update(age_group=AgeGroupEnum.ADULT)
+    assigned_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
     assigned = Dweller(**assigned_data, vault_id=vault.id)
     deleted_data = create_fake_dweller()
-    deleted_data.update(age_group=AgeGroupEnum.ADULT, is_deleted=True)
+    deleted_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT, is_deleted=True)
     deleted = Dweller(**deleted_data, vault_id=vault.id)
     async_session.add(child)
     async_session.add(explorer)
@@ -352,7 +353,7 @@ async def test_start_quest(async_session: AsyncSession) -> None:
         db_session=async_session, quest_id=quest.id, vault_id=vault.id, is_visible=True
     )
     dweller_data = create_fake_dweller()
-    dweller_data.update(age_group=AgeGroupEnum.ADULT)
+    dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
     dweller = Dweller(**dweller_data, vault_id=vault.id)
     async_session.add(dweller)
     await async_session.commit()
@@ -477,7 +478,7 @@ async def test_quest_cannot_complete_before_its_duration(async_session: AsyncSes
     )
     await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
     dweller_data = create_fake_dweller()
-    dweller_data.update(age_group=AgeGroupEnum.ADULT)
+    dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
     dweller = Dweller(**dweller_data, vault_id=vault.id)
     async_session.add(dweller)
     await async_session.commit()
@@ -574,7 +575,7 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     vault_data = create_fake_vault()
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
     async_session.add(Storage(vault_id=vault.id, max_space=10))
-    dweller_data = create_fake_dweller() | {"age_group": AgeGroupEnum.ADULT}
+    dweller_data = create_fake_dweller() | {"is_adult": True, "age_group": AgeGroupEnum.ADULT}
     dweller = Dweller(**dweller_data, vault_id=vault.id)
     async_session.add(dweller)
 
@@ -732,7 +733,7 @@ async def test_assign_party_replaces_existing(async_session: AsyncSession) -> No
     dwellers = []
     for _ in range(3):
         dweller_data = create_fake_dweller()
-        dweller_data.update(age_group=AgeGroupEnum.ADULT)
+        dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
         dwellers.append(Dweller(**dweller_data, vault_id=vault.id))
     dweller1, dweller2, dweller3 = dwellers
     async_session.add_all(dwellers)
@@ -776,7 +777,7 @@ async def test_assign_party_rejects_reward_ready_or_completed_quest(
         ),
     )
     dweller_data = create_fake_dweller()
-    dweller_data.update(age_group=AgeGroupEnum.ADULT)
+    dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
     dweller = Dweller(**dweller_data, vault_id=vault.id)
     async_session.add_all([dweller, VaultQuestCompletionLink(vault_id=vault.id, quest_id=quest.id, **link_state)])
     await async_session.commit()

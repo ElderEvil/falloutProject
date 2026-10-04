@@ -35,6 +35,7 @@ async def chat_dweller_fixture(async_session: AsyncSession, vault: Vault) -> Dwe
             "first_name": "Test",
             "last_name": "Dweller",
             "gender": GenderEnum.MALE,
+            "is_adult": True,
             "level": 5,
             "happiness": 80,
         }

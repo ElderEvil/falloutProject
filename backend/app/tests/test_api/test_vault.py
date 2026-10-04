@@ -152,6 +152,7 @@ async def test_auto_assign_respects_age_group_filter(
             luck=3,
             status=DwellerStatusEnum.IDLE,
             age_group="teen",
+            is_adult=False,
         ),
     )
 

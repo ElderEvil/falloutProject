@@ -30,6 +30,7 @@ async def _create_youth(async_session: AsyncSession, vault: Vault, first_name: s
             last_name="Apprentice",
             gender=GenderEnum.FEMALE,
             rarity=RarityEnum.COMMON,
+            is_adult=False,
             age_group=AgeGroupEnum.TEEN,
             birth_date=datetime.utcnow(),
             vault_id=vault.id,

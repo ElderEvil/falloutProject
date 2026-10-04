@@ -449,6 +449,12 @@ function handleTouchEnd(event: TouchEvent) {
   cursor: grab;
 }
 
+/* Locked ("Unknown Location") labels stay hidden at overview zoom to avoid
+   wallpapering the map; zooming in means intent to inspect, so reveal them. */
+.world-map-container.is-zoomed :deep(.map-marker.marker-locked .marker-label) {
+  opacity: 1;
+}
+
 .world-map-container.is-dragging {
   cursor: grabbing;
 }

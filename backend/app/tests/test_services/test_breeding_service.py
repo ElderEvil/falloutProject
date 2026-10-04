@@ -910,4 +910,4 @@ def test_breeding_config_values():
 
     assert 0.0 <= game_config.breeding.conception_chance_per_tick <= 1.0
     assert game_config.breeding.pregnancy_duration_hours > 0
-    assert game_config.breeding.child_growth_duration_hours == 24
+    assert game_config.breeding.child_growth_duration_hours == 60

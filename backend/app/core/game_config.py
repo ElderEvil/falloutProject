@@ -549,7 +549,7 @@ class BreedingConfig(BaseSettings):
     )
 
     # Youth maturity
-    child_growth_duration_hours: int = Field(default=24, description="Total hours from child to adult", ge=2)
+    child_growth_duration_hours: int = Field(default=60, description="Total hours from child to adult", ge=2)
     child_special_multiplier: float = Field(default=0.5, description="Children have 50% of adult stats", ge=0.0, le=1.0)
     child_consumption_multiplier: float = Field(
         default=0.7,
@@ -810,7 +810,7 @@ class DwellerConfig(BaseSettings):
         return dict(self.race_weights)
 
     elder_age_years: int = Field(
-        default=60,
+        default=70,
         ge=50,
         le=90,
         description="Adults whose birth date is at least this many years ago are elders",

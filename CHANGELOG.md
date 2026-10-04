@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.177.3 (2026-10-04)
+
+### Bug Fixes
+
+* **combat:** derive containment copy from the hazard team d8cd475
+* **combat:** use neutral containment copy for non-fire incidents d643d20
+
+### Code Refactoring
+
+* **combat:** select containment flow from the incident objective 07a893d
+
 ## 2.177.2 (2026-10-04)
 
 ### Code Refactoring

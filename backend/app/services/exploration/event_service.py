@@ -216,22 +216,34 @@ class EventService:
 
         # Resolve a discovery's world-map location before persisting so the event
         # can carry location_id + coordinates for deep-linking and route drawing.
-        # Spatial runs (heading set) skip the name-derived registry placement: the
-        # journal still records the discovery, but no WorldLocation row is created
-        # from a name while the dweller moves through the world (slice 1).
+        # Spatial runs discover what they pass: an existing place within the fog's
+        # site radius is claimed in place, else a new place is snapped near the
+        # current position. Legacy runs keep the name-derived registry placement.
         location_name = getattr(event, "location_name", None)
         location = None
-        if location_name and exploration.heading_degrees is None:
+        if location_name:
             try:
                 from app.services.map_service import map_service
 
-                location = await map_service.register_discovery(
-                    db_session,
-                    exploration.vault_id,
-                    exploration.id,
-                    exploration.dweller_id,
-                    location_name,
-                )
+                if exploration.heading_degrees is not None:
+                    if exploration.pos_x is not None and exploration.pos_y is not None:
+                        location = await map_service.register_spatial_discovery(
+                            db_session,
+                            exploration.vault_id,
+                            exploration.id,
+                            exploration.dweller_id,
+                            location_name,
+                            (exploration.pos_x, exploration.pos_y),
+                            exploration.world_version,
+                        )
+                else:
+                    location = await map_service.register_discovery(
+                        db_session,
+                        exploration.vault_id,
+                        exploration.id,
+                        exploration.dweller_id,
+                        location_name,
+                    )
             except Exception:
                 logger.exception(
                     "Failed to register discovery: vault=%s exploration=%s location=%r",

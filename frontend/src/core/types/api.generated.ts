@@ -5841,14 +5841,14 @@ export interface components {
         };
         /**
          * DiscoveryRoutePoint
-         * @description One persisted discovery event, projected into map coordinates.
+         * @description One journey point, projected into map coordinates.
+         *
+         *     Legacy runs contribute discovery events (each with a location id); spatial
+         *     runs contribute their movement trail, whose points have no single location.
          */
         DiscoveryRoutePoint: {
-            /**
-             * Location Id
-             * Format: uuid4
-             */
-            location_id: string;
+            /** Location Id */
+            location_id?: string | null;
             /** Coord X */
             coord_x: number;
             /** Coord Y */

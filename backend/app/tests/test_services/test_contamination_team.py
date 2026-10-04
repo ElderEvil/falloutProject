@@ -188,7 +188,7 @@ async def test_qualifying_round_still_commits_exactly_once(async_session: AsyncS
     with (
         patch.object(async_session, "commit", wraps=async_session.commit) as commit_spy,
         patch("app.services.combat.incident_math.damage_to_dwellers", return_value=0.0),
-        patch("app.services.combat.incident_math.fire_suppression", return_value=0.0),
+        patch("app.services.combat.incident_math.containment_progress", return_value=0.0),
     ):
         await incident_service.process_incident(async_session, incident, 2)
 

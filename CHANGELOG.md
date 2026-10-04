@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.177.1 (2026-10-04)
+
+### Bug Fixes
+
+* **dwellers:** reconstruct is_adult from age_group on downgrade dcb5c83
+
+### Code Refactoring
+
+* **dwellers:** drop is_adult in favor of age_group maturity 3ddbe48
+* **dwellers:** keep is_adult column with age_group authoritative 000fdd0
+
 ## 2.177.0 (2026-10-04)
 
 ### Features

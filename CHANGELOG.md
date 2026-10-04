@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.178.0 (2026-10-04)
+
+### Features
+
+* **dwellers:** slow down aging across the board e725a13
+
 ## 2.177.3 (2026-10-04)
 
 ### Bug Fixes

@@ -65,9 +65,9 @@ async def chat_dweller_fixture(
         {
             "first_name": "John",
             "last_name": "Doe",
-                "gender": GenderEnum.MALE,
-                "is_adult": True,
-                "level": 5,
+            "gender": GenderEnum.MALE,
+            "is_adult": True,
+            "level": 5,
             "happiness": 80,
             "max_health": 100,
             "health": 100,

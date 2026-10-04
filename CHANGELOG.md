@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.177.2 (2026-10-04)
+
+### Code Refactoring
+
+* **dwellers:** drop is_adult column and remaining writes d43df00
+
 ## 2.177.1 (2026-10-04)
 
 ### Bug Fixes

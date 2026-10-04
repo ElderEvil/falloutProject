@@ -17,6 +17,7 @@ from app.utils.dwellers import (
     _procedural_bio_places,
     create_dweller_from_template,
     create_random_common_dweller,
+    roll_spawn_birth_date,
 )
 
 
@@ -139,6 +140,18 @@ def test_create_random_common_dweller_marks_elders_from_birth_date() -> None:
             expected = AgeGroupEnum.ADULT
         assert dweller["age_group"] == expected
     assert groups == {AgeGroupEnum.ADULT, AgeGroupEnum.ELDER}
+
+
+def test_spawn_birth_dates_lean_under_thirty() -> None:
+    """New arrivals skew young: most spawn under 30, elders stay rare."""
+    now = datetime(2000, 1, 1)
+    ages = []
+    for seed in range(1000):
+        birth = roll_spawn_birth_date(now, random.Random(seed))
+        ages.append((now - birth).days // 365)
+
+    assert sum(1 for age in ages if age < 30) / len(ages) > 0.6
+    assert sum(1 for age in ages if age >= game_config.dweller.elder_age_years) / len(ages) < 0.1
 
 
 def test_dweller_config_race_weights_rejects_unknown_key() -> None:

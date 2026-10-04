@@ -88,6 +88,16 @@ def elder_birth_threshold(now: datetime) -> datetime:
     return _calendar_years_ago(now, game_config.dweller.elder_age_years)
 
 
+def roll_spawn_birth_date(now: datetime, rng: random.Random | ModuleType) -> datetime:
+    """Birth date for a new arrival. Arrivals lean young: most spawn under 30,
+    a minority anywhere up to 80, so elders stay rare without disappearing."""
+    if rng.random() < 0.7:
+        years = rng.randint(18, 30)
+    else:
+        years = rng.randint(31, 80)
+    return _calendar_years_ago(now, years) + timedelta(days=rng.randint(0, 364))
+
+
 def _identity_for_race(race: RaceOption, source: random.Random | ModuleType) -> dict[str, Any]:
     """Build a validator-passing race/faction/state_of_being identity for a chosen race."""
     if not game_config.features.faction_mechanics:
@@ -186,9 +196,7 @@ def create_random_common_dweller(
     gender = gender or rng.choice(list(GenderEnum))
     stats = get_stats_by_rarity(rarity, rng)
     now = datetime.now(UTC).replace(tzinfo=None) if seed is None else datetime(2000, 1, 1)
-    oldest_birth_date = _calendar_years_ago(now, 80)
-    youngest_birth_date = _calendar_years_ago(now, 18)
-    birth_date = oldest_birth_date + timedelta(days=rng.randint(0, (youngest_birth_date - oldest_birth_date).days))
+    birth_date = roll_spawn_birth_date(now, rng)
     identity = _roll_identity(rng)
     # Non-humans never senesce: visual freezes at adult while birth_date keeps
     # the real span for future feral-pressure math.
@@ -251,10 +259,8 @@ def create_dweller_from_template(
         data["visual_attributes"] = va.model_dump(exclude_none=False)  # type: ignore[union-attr]
     rng = random.Random(seed) if seed is not None else random
     now = datetime.now(UTC).replace(tzinfo=None) if seed is None else datetime(2000, 1, 1)
-    oldest = _calendar_years_ago(now, 80)
-    youngest = _calendar_years_ago(now, 18)
     if data.get("birth_date") is None:
-        data["birth_date"] = oldest + timedelta(days=rng.randint(0, (youngest - oldest).days))
+        data["birth_date"] = roll_spawn_birth_date(now, rng)
     data.setdefault("age_group", AgeGroupEnum.ADULT)
     data.setdefault("level", 1)
     data.setdefault("experience", 0)

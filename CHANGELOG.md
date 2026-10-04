@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.177.0 (2026-10-04)
+
+### Features
+
+* **map:** map-first departure picker, retire scouting (frontend) 9869cee
+
+### Bug Fixes
+
+* **map:** exclude unavailable dwellers from the departure picker 587d719
+* **map:** guard stale departure loads and filter eligible dwellers f37cc3e
+
 ## 2.176.0 (2026-10-03)
 
 ### Features

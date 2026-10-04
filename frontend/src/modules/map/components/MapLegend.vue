@@ -12,9 +12,15 @@ import {
 
 const legendItems = MARKER_TYPES
 
-// The legend overlays the map pane, so it must be collapsible: a revealed area
-// under it is otherwise invisible. Expanded by default, one click to clear.
-const collapsed = ref(false)
+// The legend overlays the map pane, so it stays collapsed on first view and
+// remembers its state: a revealed area under it is otherwise invisible.
+const LEGEND_COLLAPSED_KEY = 'map:legend-collapsed'
+const collapsed = ref(localStorage.getItem(LEGEND_COLLAPSED_KEY) !== 'false')
+
+function toggleCollapsed() {
+  collapsed.value = !collapsed.value
+  localStorage.setItem(LEGEND_COLLAPSED_KEY, String(collapsed.value))
+}
 
 const mapStore = useMapStore()
 const hasUnseen = computed(() => mapStore.hasUnseenDiscoveries)
@@ -33,7 +39,7 @@ const siteGroups = computed(() => {
       size="xs"
       class="legend-toggle"
       :aria-expanded="!collapsed"
-      @click="collapsed = !collapsed"
+      @click="toggleCollapsed"
     >
       <span class="legend-title">MAP KEY</span>
       <Icon

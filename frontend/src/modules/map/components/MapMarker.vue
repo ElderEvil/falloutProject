@@ -181,11 +181,8 @@ const tooltipText = computed(() => {
   opacity: 0.7;
 }
 
-.marker-locked {
-  opacity: 0.5;
-}
-
 .marker-locked .marker-icon {
+  opacity: 0.5;
   stroke-dasharray: 4 2;
 }
 

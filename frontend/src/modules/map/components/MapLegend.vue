@@ -15,11 +15,25 @@ const legendItems = MARKER_TYPES
 // The legend overlays the map pane, so it stays collapsed on first view and
 // remembers its state: a revealed area under it is otherwise invisible.
 const LEGEND_COLLAPSED_KEY = 'map:legend-collapsed'
-const collapsed = ref(localStorage.getItem(LEGEND_COLLAPSED_KEY) !== 'false')
+
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(LEGEND_COLLAPSED_KEY) !== 'false'
+  } catch {
+    return true
+  }
+}
+
+const collapsed = ref(readCollapsed())
 
 function toggleCollapsed() {
   collapsed.value = !collapsed.value
-  localStorage.setItem(LEGEND_COLLAPSED_KEY, String(collapsed.value))
+  try {
+    localStorage.setItem(LEGEND_COLLAPSED_KEY, String(collapsed.value))
+  } catch {
+    // Storage unavailable (private mode, blocked cookies): the visible
+    // state still toggles, it just won't persist.
+  }
 }
 
 const mapStore = useMapStore()

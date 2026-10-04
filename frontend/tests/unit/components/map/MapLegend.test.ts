@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import MapLegend from '@/modules/map/components/MapLegend.vue'
@@ -156,5 +156,35 @@ describe('MapLegend', () => {
     })
 
     expect(wrapper.find('.legend-item').exists()).toBe(false)
+  })
+
+  it('stays collapsed when storage reads throw', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('denied', 'SecurityError')
+    })
+    try {
+      const wrapper = mountLegend(false)
+
+      expect(wrapper.find('.legend-item').exists()).toBe(false)
+    } finally {
+      vi.restoreAllMocks()
+    }
+  })
+
+  it('still toggles when storage writes throw', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('denied', 'QuotaExceededError')
+    })
+    try {
+      const wrapper = mountLegend()
+
+      await wrapper.find('.legend-toggle').trigger('click')
+      expect(wrapper.find('.legend-item').exists()).toBe(false)
+
+      await wrapper.find('.legend-toggle').trigger('click')
+      expect(wrapper.find('.legend-item').exists()).toBe(true)
+    } finally {
+      vi.restoreAllMocks()
+    }
   })
 })

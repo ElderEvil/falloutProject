@@ -380,7 +380,6 @@ async def test_process_incident_does_not_damage_child(
     room = room_with_dwellers["room"]
     child_data = {
         **dweller_data,
-        "is_adult": False,
         "age_group": AgeGroupEnum.CHILD,
         "health": 100,
         "max_health": 100,

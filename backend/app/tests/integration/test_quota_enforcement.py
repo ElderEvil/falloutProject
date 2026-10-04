@@ -82,7 +82,6 @@ async def quota_dweller_fixture(async_session: AsyncSession, quota_user: User) -
         first_name="Test",
         last_name="Dweller",
         gender=GenderEnum.MALE,
-        is_adult=True,
         level=5,
         vault_id=vault.id,
         rarity=RarityEnum.COMMON,

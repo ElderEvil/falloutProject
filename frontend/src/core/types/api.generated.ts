@@ -1369,32 +1369,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/explorations/scout": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Scout Frontier
-         * @description Send a dweller to scout an approximate frontier cell.
-         *
-         *     The exact destination is unknown, so the player targets a frontier cell and the
-         *     run returns a coarse duration band rather than a precise ETA.
-         *
-         *     Raises:
-         *         ValidationException: If the dweller cannot be sent.
-         */
-        post: operations["scout_frontier_api_v1_explorations_scout_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/explorations/vault/{vault_id}": {
         parameters: {
             query?: never;
@@ -7257,10 +7231,6 @@ export interface components {
             dweller_id: string;
             /** Target Location Id */
             target_location_id?: string | null;
-            /** Band Low */
-            band_low?: number | null;
-            /** Band High */
-            band_high?: number | null;
             status: components["schemas"]["ExplorationStatus"];
             /**
              * Start Time
@@ -7317,6 +7287,24 @@ export interface components {
             stimpaks: number;
             /** Radaways */
             radaways: number;
+            /** World Version */
+            world_version?: number | null;
+            /** Origin X */
+            origin_x?: number | null;
+            /** Origin Y */
+            origin_y?: number | null;
+            /** Heading Degrees */
+            heading_degrees?: number | null;
+            /** Pos X */
+            pos_x?: number | null;
+            /** Pos Y */
+            pos_y?: number | null;
+            /** Trail */
+            trail?: {
+                [key: string]: unknown;
+            }[];
+            /** Position As Of */
+            position_as_of?: string | null;
         };
         /**
          * ExplorationReadShort
@@ -7389,6 +7377,11 @@ export interface components {
              * @description Known place to travel to and clear; omit to roam
              */
             target_location_id?: string | null;
+            /**
+             * Heading Degrees
+             * @description Compass heading (0=N, 90=E) for a spatial roam
+             */
+            heading_degrees?: number | null;
             /**
              * Duration
              * @description Duration in hours (roam only)
@@ -9730,31 +9723,6 @@ export interface components {
          * @enum {string}
          */
         SPECIALEnum: "strength" | "perception" | "endurance" | "charisma" | "intelligence" | "agility" | "luck";
-        /**
-         * ScoutRequest
-         * @description Schema for scouting an approximate frontier cell (no known destination).
-         */
-        ScoutRequest: {
-            /**
-             * Dweller Id
-             * Format: uuid4
-             */
-            dweller_id: string;
-            /** Target Coord X */
-            target_coord_x: number;
-            /** Target Coord Y */
-            target_coord_y: number;
-            /**
-             * Stimpaks
-             * @default 0
-             */
-            stimpaks: number;
-            /**
-             * Radaways
-             * @default 0
-             */
-            radaways: number;
-        };
         /**
          * SiteNodeView
          * @description Player-facing node prompt.
@@ -12977,41 +12945,6 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ExpeditionDispatchRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ExplorationRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    scout_frontier_api_v1_explorations_scout_post: {
-        parameters: {
-            query: {
-                vault_id: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ScoutRequest"];
             };
         };
         responses: {

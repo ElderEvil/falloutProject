@@ -1151,6 +1151,85 @@ describe('WorldMap', () => {
     })
   })
 
+  describe('Map-first departure heading', () => {
+    function mountWithSvgRect(rect: Partial<DOMRect>) {
+      const wrapper = mount(WorldMap, {
+        props: { locations: [], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+        attachTo: document.body,
+      })
+      const svg = wrapper.find('.world-map-svg')
+      vi.spyOn(svg.element, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        top: 0,
+        width: 400,
+        height: 400,
+        right: 400,
+        bottom: 400,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      } as DOMRect)
+      return { wrapper, svg }
+    }
+
+    it('emits explore-wasteland with the heading from the vault origin to the click', async () => {
+      const { wrapper, svg } = mountWithSvgRect({})
+      // Default origin [80, 80]; click at client (300, 200) → svg (120, 80),
+      // due east of the origin → 90°.
+      await svg.trigger('click', { clientX: 300, clientY: 200 })
+      const emitted = wrapper.emitted('explore-wasteland')
+      expect(emitted).toBeTruthy()
+      expect(emitted![0][0]).toEqual({ headingDegrees: 90 })
+      wrapper.unmount()
+    })
+
+    it('computes the heading from the home vault marker when present', async () => {
+      const home = {
+        id: 'home-1',
+        type: 'home_vault' as const,
+        coord_x: 50,
+        coord_y: 50,
+      } as WastelandLocationWithDwellers
+      const wrapper = mount(WorldMap, {
+        props: { locations: [home], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+        attachTo: document.body,
+      })
+      const svg = wrapper.find('.world-map-svg')
+      vi.spyOn(svg.element, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        top: 0,
+        width: 400,
+        height: 400,
+        right: 400,
+        bottom: 400,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      } as DOMRect)
+      // Click at client (250, 125) → svg (100, 50); origin (50, 50) → due east.
+      await svg.trigger('click', { clientX: 250, clientY: 125 })
+      const emitted = wrapper.emitted('explore-wasteland')
+      expect(emitted).toBeTruthy()
+      expect(emitted![0][0]).toEqual({ headingDegrees: 90 })
+      wrapper.unmount()
+    })
+
+    it('does not emit a heading when a marker is clicked', async () => {
+      const locations = createLocations(1)
+      const wrapper = mount(WorldMap, {
+        props: { locations, vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+        attachTo: document.body,
+      })
+
+      await wrapper.find('.map-marker-stub').trigger('click')
+      expect(wrapper.emitted('explore-wasteland')).toBeFalsy()
+      wrapper.unmount()
+    })
+  })
+
   describe('Player vaults on the shared atlas', () => {
     it('shows the user own vaults but not other players identities', () => {
       const wrapper = mount(WorldMap, {

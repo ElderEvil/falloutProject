@@ -18,9 +18,11 @@ interface Props {
   maxStimpaks: number
   maxRadaways: number
   allowRadaway?: boolean
+  /** Formatted compass heading (e.g. "E / 90°") for a heading-bearing run. */
+  heading?: string | null
 }
 
-const props = withDefaults(defineProps<Props>(), { allowRadaway: true })
+const props = withDefaults(defineProps<Props>(), { allowRadaway: true, heading: null })
 
 const emit = defineEmits<{
   confirm: [payload: { duration: number; stimpaks: number; radaways: number }]
@@ -89,6 +91,20 @@ const setRadaways = (value: number[] | undefined) => {
 
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
         <p class="mb-6 text-sm text-theme-primary/70">How long should {{ dwellerName }} explore?</p>
+
+        <div
+          v-if="heading"
+          class="mb-6 rounded-lg border border-theme-primary/25 bg-surface-sunken p-4"
+        >
+          <h4 class="mb-2 flex items-center gap-2 text-base font-bold text-theme-primary">
+            <Icon icon="mdi:compass-outline" class="inline h-5 w-5" />
+            Travel Heading
+          </h4>
+          <p class="text-sm text-theme-primary/80">
+            {{ heading }} — {{ dwellerName }} travels in this direction.
+          </p>
+        </div>
+
         <div class="mb-6 grid grid-cols-3 gap-3">
           <button
             v-for="duration in [1, 2, 4, 8, 12, 24]"

@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { isMature, type Dweller } from '@/modules/dwellers/models/dweller'
@@ -9,6 +9,8 @@ export interface PendingExplorer {
   dwellerId: string
   firstName: string
   lastName?: string
+  /** Compass degrees (0-360, clockwise from north) for a heading-bearing run. */
+  headingDegrees?: number
 }
 
 /**
@@ -25,6 +27,9 @@ export function useSendToWasteland(vaultId: () => string | null) {
   const showModal = ref(false)
   const pendingDweller = ref<PendingExplorer | null>(null)
   const isSending = ref(false)
+
+  // Heading chosen by a map click; null means a free-roam send.
+  const headingDegrees = computed<number | null>(() => pendingDweller.value?.headingDegrees ?? null)
 
   const open = (dweller: PendingExplorer, knownDweller?: Dweller) => {
     const candidate =
@@ -50,7 +55,7 @@ export function useSendToWasteland(vaultId: () => string | null) {
     if (!pendingDweller.value || !vId || !authStore.token || isSending.value) return false
 
     isSending.value = true
-    const { dwellerId, firstName, lastName } = pendingDweller.value
+    const { dwellerId, firstName, lastName, headingDegrees: pendingHeading } = pendingDweller.value
     let dispatched = false
     try {
       await explorationStore.sendDwellerToWasteland(
@@ -59,7 +64,8 @@ export function useSendToWasteland(vaultId: () => string | null) {
         payload.duration,
         authStore.token,
         payload.stimpaks,
-        payload.radaways
+        payload.radaways,
+        pendingHeading
       )
       toast.success(`${firstName} ${lastName ?? ''} sent to the wasteland for ${payload.duration} hour(s)!`)
       showModal.value = false
@@ -83,5 +89,5 @@ export function useSendToWasteland(vaultId: () => string | null) {
     return dispatched
   }
 
-  return { showModal, pendingDweller, isSending, open, cancel, confirm }
+  return { showModal, pendingDweller, headingDegrees, isSending, open, cancel, confirm }
 }

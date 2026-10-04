@@ -83,8 +83,38 @@ describe('useSendToWasteland', () => {
     const dispatched = await sendWasteland.confirm({ duration: 8, stimpaks: 0, radaways: 0 })
 
     expect(dispatched).toBe(true)
-    expect(dispatchSpy).toHaveBeenCalledWith('vault-1', 'dweller-adult', 8, 'test-token', 0, 0)
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      'vault-1',
+      'dweller-adult',
+      8,
+      'test-token',
+      0,
+      0,
+      undefined
+    )
     expect(sendWasteland.showModal.value).toBe(false)
     expect(sendWasteland.pendingDweller.value).toBeNull()
+  })
+
+  it('passes a heading through to the store action when one is chosen', async () => {
+    const dispatchSpy = vi
+      .spyOn(useExplorationStore(), 'sendDwellerToWasteland')
+      .mockResolvedValue({} as never)
+    const sendWasteland = useSendToWasteland(() => 'vault-1')
+
+    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult', headingDegrees: 90 })
+    expect(sendWasteland.headingDegrees.value).toBe(90)
+
+    await sendWasteland.confirm({ duration: 8, stimpaks: 0, radaways: 0 })
+
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      'vault-1',
+      'dweller-adult',
+      8,
+      'test-token',
+      0,
+      0,
+      90
+    )
   })
 })

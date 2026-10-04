@@ -8,7 +8,7 @@ import { addPendingReport } from '../composables/usePendingReports'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { explorationUpdatesDisabled } from '@/modules/profile/stores/profile'
-import { explorationApi } from '../api/exploration'
+import { explorationApi, type ExplorationSendRequest } from '../api/exploration'
 import type { ExplorationEventType } from '@/modules/exploration/models/exploration'
 
 export interface ExplorationEvent {
@@ -308,19 +308,22 @@ export const useExplorationStore = defineStore('exploration', () => {
     duration: number,
     token: string,
     stimpaks: number = 0,
-    radaways: number = 0
+    radaways: number = 0,
+    headingDegrees?: number
   ): Promise<Exploration> {
     isLoading.value = true
     error.value = null
     try {
+      const body: ExplorationSendRequest = {
+        dweller_id: dwellerId,
+        duration,
+        stimpaks,
+        radaways,
+      }
+      if (headingDegrees !== undefined) body.heading_degrees = headingDegrees
       const response = await axios.post(
         `/api/v1/explorations/send?vault_id=${vaultId}`,
-        {
-          dweller_id: dwellerId,
-          duration,
-          stimpaks,
-          radaways,
-        },
+        body,
         {
           headers: { Authorization: `Bearer ${token}` },
         }

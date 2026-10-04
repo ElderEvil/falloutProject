@@ -132,7 +132,6 @@ def test_create_random_common_dweller_marks_elders_from_birth_date() -> None:
     for seed in range(300):
         dweller = create_random_common_dweller(seed=seed)
         groups.add(dweller["age_group"])
-        assert dweller["is_adult"] is True
         race = RaceOption((dweller["visual_attributes"] or {}).get("race", "human"))
         if race == RaceOption.HUMAN:
             expected = AgeGroupEnum.ELDER if dweller["birth_date"] <= threshold else AgeGroupEnum.ADULT

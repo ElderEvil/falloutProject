@@ -48,7 +48,7 @@ async def _make_quest_vault(async_session: AsyncSession, *, title: str = "Team Q
 
 async def _make_adult_dweller(async_session: AsyncSession, vault: Vault) -> Dweller:
     data = create_fake_dweller()
-    data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
+    data.update(age_group=AgeGroupEnum.ADULT)
     dweller = Dweller(**data, vault_id=vault.id)
     async_session.add(dweller)
     await async_session.commit()
@@ -152,13 +152,13 @@ async def test_assign_quest_team_rejects_unavailable_dwellers(async_session: Asy
     """Children, explorers, and deleted dwellers cannot join a team."""
     vault, quest = await _make_quest_vault(async_session)
     child_data = create_fake_dweller()
-    child_data.update(is_adult=False, age_group=AgeGroupEnum.CHILD)
+    child_data.update(age_group=AgeGroupEnum.CHILD)
     child = Dweller(**child_data, vault_id=vault.id)
     explorer_data = create_fake_dweller()
-    explorer_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT, status=DwellerStatusEnum.EXPLORING)
+    explorer_data.update(age_group=AgeGroupEnum.ADULT, status=DwellerStatusEnum.EXPLORING)
     explorer = Dweller(**explorer_data, vault_id=vault.id)
     deleted_data = create_fake_dweller()
-    deleted_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT, is_deleted=True)
+    deleted_data.update(age_group=AgeGroupEnum.ADULT, is_deleted=True)
     deleted = Dweller(**deleted_data, vault_id=vault.id)
     async_session.add_all([child, explorer, deleted])
     await async_session.commit()

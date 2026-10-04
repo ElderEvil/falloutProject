@@ -185,7 +185,6 @@ def create_random_common_dweller(
 
     gender = gender or rng.choice(list(GenderEnum))
     stats = get_stats_by_rarity(rarity, rng)
-    is_adult = True
     now = datetime.now(UTC).replace(tzinfo=None) if seed is None else datetime(2000, 1, 1)
     oldest_birth_date = _calendar_years_ago(now, 80)
     youngest_birth_date = _calendar_years_ago(now, 18)
@@ -207,7 +206,6 @@ def create_random_common_dweller(
     return {
         "first_name": get_gender_based_name(gender, faker),
         "last_name": faker.last_name(),
-        "is_adult": is_adult,
         "age_group": age_group,
         "birth_date": birth_date,
         "gender": gender,
@@ -257,7 +255,6 @@ def create_dweller_from_template(
     youngest = _calendar_years_ago(now, 18)
     if data.get("birth_date") is None:
         data["birth_date"] = oldest + timedelta(days=rng.randint(0, (youngest - oldest).days))
-    data.setdefault("is_adult", True)
     data.setdefault("age_group", AgeGroupEnum.ADULT)
     data.setdefault("level", 1)
     data.setdefault("experience", 0)

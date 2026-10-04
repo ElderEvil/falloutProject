@@ -343,7 +343,6 @@ class FamilyScenarioService:
             register_bio_places=False,
         )
         child.age_group = AgeGroupEnum.CHILD
-        child.is_adult = False
         child.birth_date = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=age_hours)
         child.parent_1_id = couple.dweller_1.id
         child.parent_2_id = couple.dweller_2.id

@@ -36,7 +36,6 @@ class DwellerBaseWithoutStats(SQLModel):
     # General info
     first_name: str = Field(index=True, min_length=2, max_length=32)
     last_name: str | None = Field(default=None, index=True, max_length=32)
-    is_adult: bool = True
     age_group: AgeGroupEnum = Field(default=AgeGroupEnum.ADULT)
     birth_date: datetime | None = Field(default=None)
     gender: GenderEnum = Field()

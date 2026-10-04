@@ -93,7 +93,6 @@ class ApprenticeScenarioService:
                     last_name="Scenario",
                     gender=GenderEnum.FEMALE,
                     rarity=RarityEnum.COMMON,
-                    is_adult=False,
                     age_group=AgeGroupEnum.TEEN,
                     birth_date=_now(),
                     vault_id=vault_id,

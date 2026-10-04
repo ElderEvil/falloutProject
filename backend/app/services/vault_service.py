@@ -380,7 +380,6 @@ class VaultService:
             db_session,
             youth_id,
             {
-                "is_adult": False,
                 "age_group": AgeGroupEnum.TEEN,
                 "birth_date": datetime.utcnow() - timedelta(hours=YOUTH_APPRENTICE_BIRTH_AGE_HOURS),
                 "room_id": room.id,
@@ -455,7 +454,6 @@ class VaultService:
                 "parent_1_id": mother.id,
                 "parent_2_id": father.id,
                 "last_name": surname,
-                "is_adult": False,
                 "age_group": AgeGroupEnum.TEEN if room else AgeGroupEnum.CHILD,
                 "birth_date": datetime.utcnow()
                 - timedelta(hours=YOUTH_APPRENTICE_BIRTH_AGE_HOURS if room else SEEDED_CHILD_AGE_HOURS),

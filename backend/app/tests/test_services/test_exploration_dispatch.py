@@ -60,6 +60,12 @@ async def _register_clearable(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, name: str = "Red Rocket"
 ) -> tuple[WorldLocation, VaultLocationState]:
     """Register a clearable map point (gas_station group) for the vault."""
+    # Dispatches originate from the vault's slot placement; claim one so the run
+    # has an authoritative origin (no map-centre fallback).
+    from app.crud.vault_slot import vault_slot
+
+    await vault_slot.claim_next(db_session=async_session, vault_id=vault.id)
+    await async_session.commit()
     await map_service.register_bio_places(async_session, dweller, origin_place=name, visited_places=[])
     result = await async_session.execute(
         select(VaultLocationState)
@@ -151,7 +157,9 @@ async def test_dispatch_creates_targeted_run(async_session: AsyncSession, vault:
 
     assert exploration.target_location_id == location.id
     assert exploration.clear_tier == 0
-    expected_duration = dispatch_travel_hours(math.dist((50.0, 50.0), (location.coord_x, location.coord_y)))
+    origin = await exploration_service._vault_origin(async_session, vault.id)
+    assert origin is not None
+    expected_duration = dispatch_travel_hours(math.dist(origin, (location.coord_x, location.coord_y)))
     assert exploration.duration == expected_duration
     assert exploration.stimpaks == 0
     assert exploration.radaways == 0
@@ -172,6 +180,24 @@ async def test_dispatch_rejects_unknown_location(async_session: AsyncSession, va
     """An unknown location id raises ResourceNotFoundException."""
     with pytest.raises(ResourceNotFoundException):
         await exploration_service.dispatch(async_session, vault.id, [dweller.id], uuid4())
+
+
+@pytest.mark.asyncio
+async def test_dispatch_rejects_slotless_vault(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
+    """A vault without a slot cannot dispatch: no map-centre fallback origin."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
+    result = await async_session.execute(
+        select(VaultLocationState)
+        .join(WorldLocation, WorldLocation.id == VaultLocationState.location_id)
+        .where(VaultLocationState.vault_id == vault.id, WorldLocation.name == "Red Rocket")
+    )
+    state = result.scalar_one()
+    await crud.world_location.link_dweller(
+        async_session, dweller.id, state.location_id, DwellerLocationRelationEnum.VISITED, is_unlocked=True
+    )
+
+    with pytest.raises(ValidationException, match="no map placement"):
+        await exploration_service.dispatch(async_session, vault.id, [dweller.id], state.location_id)
 
 
 @pytest.mark.asyncio

@@ -60,6 +60,7 @@ async def send_dweller_to_wasteland(
         duration=request.duration,
         stimpaks=request.stimpaks,
         radaways=request.radaways,
+        heading_degrees=request.heading_degrees,
     )
 
 

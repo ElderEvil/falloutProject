@@ -4,11 +4,13 @@ This service provides a clean API for exploration operations and delegates to
 the modular exploration system in services/exploration/ modules.
 """
 
+import logging
 import math
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from pydantic import UUID4
+from sqlalchemy import orm
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import DwellerStatusEnum
@@ -19,6 +21,7 @@ from app.crud import world_location as crud_world_location
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.storage import storage as crud_storage
 from app.crud.vault_slot import vault_slot as vault_slot_crud
+from app.crud.world_snapshot import world_snapshot as world_snapshot_crud
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration, ExplorationStatus
 from app.models.team import Team, TeamMember
@@ -32,13 +35,14 @@ from app.services.exploration.coordinator import ERROR_NOT_ACTIVE, exploration_c
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration.event_service import event_service
 from app.services.user_service import user_service
+from app.services.world_generation_service import WORLD_ID
+from app.services.world_snapshot_service import world_snapshot_service
 from app.utils.dweller_availability import availability_error
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 from app.utils.place_groups import get_place_group
 from app.utils.vault_slots import slot_coords
 
-#: The vault home point in the registry's 0..100 coordinate space.
-VAULT_HOME_POINT = (50.0, 50.0)
+logger = logging.getLogger(__name__)
 
 
 def dispatch_travel_hours(distance: float) -> int:
@@ -117,6 +121,7 @@ class ExplorationService:
         duration: int,
         stimpaks: int = 0,
         radaways: int = 0,
+        heading_degrees: float | None = None,
     ) -> Exploration:
         """Send a dweller to wasteland exploration.
 
@@ -132,6 +137,9 @@ class ExplorationService:
         :type stimpaks: int
         :param radaways: Number of Radaways to bring, defaults to 0
         :type radaways: int
+        :param heading_degrees: Compass heading (0=N, 90=E) for a spatial roam;
+            None keeps today's legacy free-roam behavior
+        :type heading_degrees: float | None
         :return: Created exploration
         :rtype: Exploration
         :raises ValueError: If dweller is already exploring or lacks supplies
@@ -148,6 +156,20 @@ class ExplorationService:
         if radaways < 0:
             msg = f"Radaways cannot be negative. Provided: {radaways}"
             raise ValueError(msg)
+
+        # Spatial runs need a slot-authoritative origin and the world version they
+        # move through. Resolved before any staging so a snapshot generation (which
+        # commits) cannot split the departure transaction.
+        origin: tuple[float, float] | None = None
+        world_version: int | None = None
+        if heading_degrees is not None:
+            if not 0 <= heading_degrees < 360:
+                raise ValueError("heading_degrees must be in [0, 360)")
+            origin = await self._vault_origin(db_session, vault_id)
+            if origin is None:
+                raise ValueError("Vault has no map placement; cannot depart spatially")
+            snapshot = await world_snapshot_service.get_or_generate(db_session)
+            world_version = snapshot.generator_version
 
         # Check vault storage first, then fall back to dweller inventory
         storage = await crud_storage.get_by_vault(db_session, vault_id)
@@ -214,6 +236,7 @@ class ExplorationService:
         total_stimpaks = stimpaks_from_vault + stimpaks_from_dweller
         total_radaways = radaways_from_vault + radaways_from_dweller
 
+        start_time = datetime.utcnow()
         exploration = Exploration(
             vault_id=vault_id,
             dweller_id=dweller_id,
@@ -227,8 +250,16 @@ class ExplorationService:
             dweller_intelligence=dweller.intelligence,
             dweller_agility=dweller.agility,
             dweller_luck=dweller.luck,
-            start_time=datetime.utcnow(),
+            start_time=start_time,
             status=ExplorationStatus.ACTIVE,
+            world_version=world_version,
+            origin_x=origin[0] if origin else None,
+            origin_y=origin[1] if origin else None,
+            heading_degrees=heading_degrees,
+            pos_x=origin[0] if origin else None,
+            pos_y=origin[1] if origin else None,
+            trail=[{"x": origin[0], "y": origin[1], "t": start_time.isoformat()}] if origin else [],
+            position_as_of=start_time if origin else None,
         )
         return await self._persist_departure(db_session, vault_id=vault_id, dwellers=[dweller], exploration=exploration)
 
@@ -264,10 +295,15 @@ class ExplorationService:
         await user_service.record_vault_statistic(db_session, vault_id, "total_explorations")
         return exploration
 
-    async def _vault_origin(self, db_session: AsyncSession, vault_id: UUID4) -> tuple[float, float]:
-        """Travel origin: the vault's slot placement, or the map centre without a slot."""
+    async def _vault_origin(self, db_session: AsyncSession, vault_id: UUID4) -> tuple[float, float] | None:
+        """Travel origin: the vault's slot placement, or None when the vault has no slot.
+
+        No production fallback to the map centre: vaults without a slot are
+        grandfathered (their existing placements keep working) but cannot start a
+        new spatial run or dispatch.
+        """
         slot = await vault_slot_crud.get_by_vault(db_session, vault_id)
-        return slot_coords(slot.slot_index) if slot is not None else VAULT_HOME_POINT
+        return slot_coords(slot.slot_index) if slot is not None else None
 
     async def depart(
         self,
@@ -278,6 +314,7 @@ class ExplorationService:
         duration: int = 4,
         stimpaks: int = 0,
         radaways: int = 0,
+        heading_degrees: float | None = None,
     ) -> Exploration:
         """The single departure entry point: roam (no target) or clear (target).
 
@@ -297,6 +334,7 @@ class ExplorationService:
                     duration=duration,
                     stimpaks=stimpaks,
                     radaways=radaways,
+                    heading_degrees=heading_degrees,
                 )
             except ValueError as e:
                 raise ValidationException(str(e)) from e
@@ -372,7 +410,10 @@ class ExplorationService:
         if not state.is_dispatchable(datetime.utcnow()):
             raise ValidationException("This location is currently cleared")
 
-        distance = math.dist(await self._vault_origin(db_session, vault_id), (location.coord_x, location.coord_y))
+        origin = await self._vault_origin(db_session, vault_id)
+        if origin is None:
+            raise ValidationException("Vault has no map placement; cannot dispatch")
+        distance = math.dist(origin, (location.coord_x, location.coord_y))
         duration = dispatch_travel_hours(distance)
         tier = min(state.clear_count, game_config.exploration.dispatch.escalation_cap)
         anchor = dwellers[0]
@@ -406,6 +447,214 @@ class ExplorationService:
             db_session.add(TeamMember(team_id=team.id, dweller_id=dweller.id, slot_number=slot, status="assigned"))
         exploration.team_id = team.id
         return await self._persist_departure(db_session, vault_id=vault_id, dwellers=dwellers, exploration=exploration)
+
+    @staticmethod
+    def _speed() -> float:
+        """Registry-space units per hour (10 at current config)."""
+        return 1 / game_config.exploration.dispatch.travel_hours_per_unit
+
+    async def _load_snapshot(self, db_session: AsyncSession, exploration: Exploration):
+        """The world snapshot the run moves through, or None when unavailable."""
+        if exploration.world_version is None:
+            return None
+        snapshot = await world_snapshot_crud.get_version(
+            db_session, world_id=WORLD_ID, generator_version=exploration.world_version
+        )
+        if snapshot is None:
+            logger.warning(
+                "No world snapshot for version %s; terrain checks disabled for exploration %s",
+                exploration.world_version,
+                exploration.id,
+            )
+        return snapshot
+
+    @staticmethod
+    def _is_blocked(snapshot, x: float, y: float) -> bool:
+        """True when the registry-space position is out of bounds or on water."""
+        if snapshot is None:
+            return False
+        if not (0 <= x <= 100 and 0 <= y <= 100):
+            return True
+        width = snapshot.config["width"]
+        height = snapshot.config["height"]
+        tx = min(width - 1, max(0, int(x / 100 * width)))
+        ty = min(height - 1, max(0, int(y / 100 * height)))
+        return snapshot.terrain[ty * width + tx] == "water"
+
+    @classmethod
+    def _last_valid_point(cls, snapshot, x0: float, y0: float, x1: float, y1: float) -> tuple[float, float]:
+        """The last point along the segment that is not blocked (water/bounds).
+
+        Marches the whole newly traveled segment so offline catch-up cannot jump
+        over a water tile between ticks.
+        """
+        distance = math.dist((x0, y0), (x1, y1))
+        steps = max(1, int(distance / 0.5))
+        last_valid = (x0, y0)
+        for i in range(1, steps + 1):
+            t = i / steps
+            x = x0 + (x1 - x0) * t
+            y = y0 + (y1 - y0) * t
+            if cls._is_blocked(snapshot, x, y):
+                break
+            last_valid = (x, y)
+        return last_valid
+
+    @staticmethod
+    def _origin(exploration: Exploration) -> tuple[float, float]:
+        """The departure origin; spatial runs always carry one."""
+        origin_x = exploration.origin_x
+        origin_y = exploration.origin_y
+        if origin_x is None or origin_y is None:
+            raise ValidationException("Spatial run is missing an origin")
+        return (origin_x, origin_y)
+
+    @staticmethod
+    def _position(exploration: Exploration) -> tuple[float, float]:
+        """The dweller's current position; spatial runs always carry one."""
+        pos_x = exploration.pos_x
+        pos_y = exploration.pos_y
+        if pos_x is None or pos_y is None:
+            raise ValidationException("Spatial run is missing a position")
+        return (pos_x, pos_y)
+
+    @staticmethod
+    def _heading(exploration: Exploration) -> float:
+        """The run's compass heading; spatial runs always carry one."""
+        heading = exploration.heading_degrees
+        if heading is None:
+            raise ValidationException("Spatial run is missing a heading")
+        return heading
+
+    @staticmethod
+    def _return_started_at(exploration: Exploration) -> datetime:
+        """When the return leg started; returning spatial runs always carry one."""
+        return_started_at = exploration.return_started_at
+        if return_started_at is None:
+            raise ValidationException("Spatial run is missing a return start")
+        return return_started_at
+
+    def _forward_position(self, exploration: Exploration, now: datetime) -> tuple[float, float]:
+        """Analytic position along the heading at time *now* (registry space)."""
+        origin = self._origin(exploration)
+        heading = math.radians(self._heading(exploration))
+        dx, dy = math.sin(heading), -math.cos(heading)
+        t_hours = (now - exploration.start_time).total_seconds() / 3600
+        return (origin[0] + dx * self._speed() * t_hours, origin[1] + dy * self._speed() * t_hours)
+
+    @staticmethod
+    def _append_trail(exploration: Exploration, x: float, y: float, t: datetime) -> None:
+        exploration.trail.append({"x": round(x, 4), "y": round(y, 4), "t": t.isoformat()})
+        orm.attributes.flag_modified(exploration, "trail")
+
+    @staticmethod
+    def _begin_spatial_return(exploration: Exploration, return_started_at: datetime) -> None:
+        """Start the physical return leg: retrace the traveled path at the same speed."""
+        traveled = math.dist(ExplorationService._origin(exploration), ExplorationService._position(exploration))
+        return_hours = traveled * game_config.exploration.dispatch.travel_hours_per_unit
+        exploration.return_started_at = return_started_at
+        exploration.return_completes_at = return_started_at + timedelta(hours=return_hours)
+        exploration.status = ExplorationStatus.RETURNING
+
+    async def _advance_forward(
+        self, db_session: AsyncSession, exploration: Exploration, now: datetime, snapshot, position_as_of: datetime
+    ) -> None:
+        """Move the dweller forward along the heading; block on water and map bounds."""
+        new_x, new_y = self._forward_position(exploration, now)
+        pos_x, pos_y = self._position(exploration)
+        valid_x, valid_y = self._last_valid_point(snapshot, pos_x, pos_y, new_x, new_y)
+        if (valid_x, valid_y) != (new_x, new_y):
+            exploration.pos_x, exploration.pos_y = valid_x, valid_y
+            self._append_trail(exploration, valid_x, valid_y, now)
+            self._begin_spatial_return(exploration, position_as_of)
+            return
+        exploration.pos_x, exploration.pos_y = new_x, new_y
+        self._append_trail(exploration, new_x, new_y, now)
+
+    async def _snap_to_forward_end(
+        self,
+        db_session: AsyncSession,
+        exploration: Exploration,
+        forward_end: datetime,
+        snapshot,
+        position_as_of: datetime,
+    ) -> None:
+        """Set the position to the outbound budget point, unless blocked earlier."""
+        new_x, new_y = self._forward_position(exploration, forward_end)
+        pos_x, pos_y = self._position(exploration)
+        valid_x, valid_y = self._last_valid_point(snapshot, pos_x, pos_y, new_x, new_y)
+        if (valid_x, valid_y) != (new_x, new_y):
+            exploration.pos_x, exploration.pos_y = valid_x, valid_y
+            self._append_trail(exploration, valid_x, valid_y, forward_end)
+            self._begin_spatial_return(exploration, position_as_of)
+            return
+        exploration.pos_x, exploration.pos_y = new_x, new_y
+        self._append_trail(exploration, new_x, new_y, forward_end)
+
+    def _advance_return(self, exploration: Exploration, now: datetime) -> None:
+        """Move the dweller back along the traveled path at the same speed."""
+        origin = self._origin(exploration)
+        heading = math.radians(self._heading(exploration))
+        dx, dy = math.sin(heading), -math.cos(heading)
+        if exploration.trail:
+            last = exploration.trail[-1]
+            max_x, max_y = float(last["x"]), float(last["y"])
+        else:
+            max_x, max_y = origin
+        forward_distance = math.dist(origin, (max_x, max_y))
+        return_elapsed_hours = (now - self._return_started_at(exploration)).total_seconds() / 3600
+        retraced = self._speed() * return_elapsed_hours
+        if retraced >= forward_distance:
+            exploration.pos_x, exploration.pos_y = origin
+        else:
+            exploration.pos_x = max_x - dx * retraced
+            exploration.pos_y = max_y - dy * retraced
+
+    async def advance(
+        self, db_session: AsyncSession, exploration_id: UUID4, *, now: datetime | None = None
+    ) -> Exploration:
+        """Advance a spatial exploration's position by elapsed time (slice 1 movement).
+
+        Legacy runs (``heading_degrees`` NULL) are untouched. Spatial runs move along
+        their heading at ``1 / travel_hours_per_unit`` units per hour; the forward
+        phase lasts half the chosen duration, then the dweller retraces the traveled
+        path home at the same speed. Water and map bounds block forward movement and
+        trigger an early return. Reprocessing an already-processed interval is a no-op
+        via ``position_as_of``.
+        """
+        exploration = await crud_exploration.get(db_session, exploration_id)
+        position_as_of = exploration.position_as_of
+        if position_as_of is None:
+            return exploration
+        if exploration.heading_degrees is None:
+            return exploration
+        if not exploration.is_in_progress():
+            return exploration
+
+        now = now or datetime.utcnow()
+        elapsed = (now - position_as_of).total_seconds()
+        if elapsed <= 0:
+            return exploration
+
+        snapshot = await self._load_snapshot(db_session, exploration)
+        forward_budget = timedelta(hours=exploration.duration / 2)
+        forward_end = exploration.start_time + forward_budget
+
+        if exploration.is_active():
+            if now <= forward_end:
+                await self._advance_forward(db_session, exploration, now, snapshot, position_as_of)
+            else:
+                await self._snap_to_forward_end(db_session, exploration, forward_end, snapshot, position_as_of)
+                if exploration.is_active():
+                    self._begin_spatial_return(exploration, forward_end)
+        elif exploration.is_returning():
+            self._advance_return(exploration, now)
+
+        exploration.position_as_of = now
+        db_session.add(exploration)
+        await db_session.commit()
+        await db_session.refresh(exploration)
+        return exploration
 
     async def get_exploration_progress(self, db_session: AsyncSession, exploration_id: UUID4) -> ExplorationProgress:
         """Get current progress of an exploration.

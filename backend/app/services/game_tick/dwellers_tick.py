@@ -103,8 +103,25 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
         return
     exploration = locked
 
-    # A returning dweller only waits for arrival; no events fire on the way home.
-    if exploration.is_returning():
+    # Spatial runs move through the world; advance() owns their movement clock,
+    # the forward->return transition, and arrival detection. Events still fire
+    # during the forward phase (with name-derived registry placement suppressed).
+    if exploration.heading_degrees is not None:
+        was_active = exploration.is_active()
+        await exploration_service.advance(db_session, exploration.id)
+        await db_session.refresh(exploration)
+        if was_active and exploration.is_returning():
+            stats["returning"] += 1
+        if exploration.is_returning() and exploration.return_time_remaining_seconds() <= 0:
+            await exploration_service.finalize_return(db_session, exploration.id)
+            stats["completed"] += 1
+            logger.info(f"Finalized returning exploration {exploration.id} for dweller {exploration.dweller_id}")
+            return
+        if not exploration.is_in_progress():
+            return
+        if exploration.is_returning():
+            return
+    elif exploration.is_returning():
         if exploration.return_time_remaining_seconds() <= 0:
             await exploration_service.finalize_return(db_session, exploration.id)
             stats["completed"] += 1

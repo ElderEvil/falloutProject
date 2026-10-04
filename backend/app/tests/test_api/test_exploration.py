@@ -20,6 +20,14 @@ from app.services.exploration_service import exploration_service
 from app.services.map_service import map_service
 
 
+async def _claim_slot(async_session: AsyncSession, vault: Vault) -> None:
+    """Dispatches originate from the vault's slot placement; claim one."""
+    from app.crud.vault_slot import vault_slot
+
+    await vault_slot.claim_next(db_session=async_session, vault_id=vault.id)
+    await async_session.commit()
+
+
 @pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_send_dweller_to_wasteland_success(
@@ -75,6 +83,7 @@ async def test_send_routes_to_clear_when_target_given(
     dweller: Dweller,
 ) -> None:
     """The unified send boundary travels+clears when a target is provided."""
+    await _claim_slot(async_session, vault)
     await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
     state = (
         await async_session.execute(
@@ -199,6 +208,7 @@ async def test_dispatch_dweller_success(
     dweller: Dweller,
 ) -> None:
     """The dispatch endpoint accepts a clearable location and creates a targeted run."""
+    await _claim_slot(async_session, vault)
     await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
     result = await async_session.execute(
         select(VaultLocationState)
@@ -239,6 +249,7 @@ async def test_list_explorations_includes_target_location_id(
     dweller: Dweller,
 ) -> None:
     """The short list payload exposes target_location_id for dispatched runs."""
+    await _claim_slot(async_session, vault)
     await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
     state = (
         await async_session.execute(

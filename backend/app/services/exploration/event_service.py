@@ -216,9 +216,12 @@ class EventService:
 
         # Resolve a discovery's world-map location before persisting so the event
         # can carry location_id + coordinates for deep-linking and route drawing.
+        # Spatial runs (heading set) skip the name-derived registry placement: the
+        # journal still records the discovery, but no WorldLocation row is created
+        # from a name while the dweller moves through the world (slice 1).
         location_name = getattr(event, "location_name", None)
         location = None
-        if location_name:
+        if location_name and exploration.heading_degrees is None:
             try:
                 from app.services.map_service import map_service
 

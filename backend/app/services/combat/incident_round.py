@@ -12,6 +12,7 @@ from app.models.incident import (
     Incident,
     IncidentObjective,
     IncidentStatus,
+    IncidentType,
     effects_for_incident_type,
     get_incident_definition,
     hazard_team_for,
@@ -210,11 +211,12 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
     expected_raider_count = incident.difficulty * 2  # Each difficulty = 2 raiders
 
     if definition.objective == IncidentObjective.CONTAIN and response_progress > 0:
+        containment_label = "Fire containment" if incident.type == IncidentType.FIRE else "Containment"
         incident_publishing.record_event(
             db_session,
             incident,
             "containment",
-            f"Fire containment increased by {max(1, int(response_progress * 100))}%.",
+            f"{containment_label} increased by {max(1, int(response_progress * 100))}%.",
             {"target": "hazard", "amount": response_progress},
         )
     else:

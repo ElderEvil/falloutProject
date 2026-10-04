@@ -157,6 +157,37 @@ async def test_combat_objective_does_not_resolve_on_progress_alone(
 
 
 @pytest.mark.asyncio
+async def test_containment_message_names_fire_only_for_fire_incidents(
+    async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch
+):
+    """Fire keeps its message; a non-fire CONTAIN incident gets incident-neutral copy."""
+    room = room_with_dwellers["room"]
+    fire_incident = await raise_incident(async_session, room, IncidentType.FIRE)
+
+    with (
+        patch("app.services.combat.incident_math.containment_damage", return_value=10.0),
+        patch("app.services.combat.incident_math.containment_progress", return_value=0.5),
+    ):
+        await incident_service.process_incident(async_session, fire_incident, 2)
+
+    fire_events = await crud.incident_crud.get_recent_events(async_session, fire_incident.id)
+    assert fire_events[0].message == "Fire containment increased by 50%."
+
+    monkeypatch.setitem(INCIDENT_DEFINITIONS, IncidentType.RADROACH_INFESTATION, _containment_definition())
+    roach_incident = await raise_incident(async_session, room, IncidentType.RADROACH_INFESTATION)
+
+    with (
+        patch("app.services.combat.incident_math.containment_damage", return_value=10.0),
+        patch("app.services.combat.incident_math.containment_progress", return_value=0.5),
+    ):
+        await incident_service.process_incident(async_session, roach_incident, 2)
+
+    roach_events = await crud.incident_crud.get_recent_events(async_session, roach_incident.id)
+    assert roach_events[0].message == "Containment increased by 50%."
+    assert "Fire" not in roach_events[0].message
+
+
+@pytest.mark.asyncio
 async def test_non_fire_containment_read_reports_percentage_progress(
     async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch
 ):

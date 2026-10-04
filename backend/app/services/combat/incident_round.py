@@ -5,6 +5,7 @@ import logging
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import HazardTeam
 from app.core.game_config import game_config
 from app.crud.dweller import dweller as crud_dweller
 from app.models.dweller import Dweller
@@ -12,7 +13,6 @@ from app.models.incident import (
     Incident,
     IncidentObjective,
     IncidentStatus,
-    IncidentType,
     effects_for_incident_type,
     get_incident_definition,
     hazard_team_for,
@@ -211,7 +211,12 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
     expected_raider_count = incident.difficulty * 2  # Each difficulty = 2 raiders
 
     if definition.objective == IncidentObjective.CONTAIN and response_progress > 0:
-        containment_label = "Fire containment" if incident.type == IncidentType.FIRE else "Containment"
+        if team == HazardTeam.FIRE:
+            containment_label = "Fire containment"
+        elif team == HazardTeam.RADIATION:
+            containment_label = "Radiation containment"
+        else:
+            containment_label = "Containment"
         incident_publishing.record_event(
             db_session,
             incident,

@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.182.0 (2026-10-05)
+
+### Features
+
+* **exploration:** journey-scoped site encounters (slice 3b) edf5aa7
+
+### Bug Fixes
+
+* **exploration:** encounter integration fixes (paused expiry, atomicity, return-leg UI, multi-journey offers) 57c116a, closes #900
+* **exploration:** encounter lifecycle review fixes e50b868, closes #900
+
 ## 2.181.0 (2026-10-05)
 
 ### Features

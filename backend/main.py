@@ -40,6 +40,7 @@ from app.admin.views import (
     UserProfileAdmin,
     VaultAdmin,
     WeaponAdmin,
+    WorldSnapshotAdmin,
 )
 from app.api.v1.api import api_router as api_router_v1
 from app.core.config import settings
@@ -267,3 +268,4 @@ admin.add_view(ObjectiveAdmin)
 admin.add_view(PromptAdmin)
 admin.add_view(LLInteractionAdmin)
 admin.add_view(GameStateAdmin)
+admin.add_view(WorldSnapshotAdmin)

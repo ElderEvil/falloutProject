@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from app.crud.world_snapshot import world_snapshot as snapshot_crud
 from app.models.world_snapshot import WorldSnapshot
 from app.services.world_generation_service import (
+    WORLD_ID,
     GeneratedWorld,
     WorldConfig,
     WorldRecipe,
@@ -64,6 +65,29 @@ class WorldSnapshotService:
             world.recipe_fingerprint,
         )
         return snapshot
+
+    async def active_slot_coord(
+        self, db_session: AsyncSession, slot_index: int, *, world_id: str = WORLD_ID
+    ) -> tuple[float, float] | None:
+        """The active world's placement for *slot_index*, or None when unset.
+
+        The activation workflow writes the approved placement into the active
+        snapshot's slots; map/home and dispatch-origin consumers read it back here
+        (falling back to the legacy slot grid when no world is active) so all
+        coordinate sources agree after a transition.
+        """
+        snapshot = await snapshot_crud.get_active(db_session, world_id=world_id)
+        if snapshot is None:
+            return None
+        for slot in snapshot.slots:
+            if slot.get("slot_index") != slot_index:
+                continue
+            coord_x = slot.get("coord_x")
+            coord_y = slot.get("coord_y")
+            if coord_x is None or coord_y is None:
+                return None
+            return (float(coord_x), float(coord_y))
+        return None
 
     @staticmethod
     def _to_model(recipe: WorldRecipe, world: GeneratedWorld) -> WorldSnapshot:

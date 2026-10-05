@@ -315,7 +315,12 @@ class ExplorationService:
         new spatial run or dispatch.
         """
         slot = await vault_slot_crud.get_by_vault(db_session, vault_id)
-        return slot_coords(slot.slot_index) if slot is not None else None
+        if slot is None:
+            return None
+        # Match the home marker: active world placement first, legacy slot grid otherwise.
+        return await world_snapshot_service.active_slot_coord(db_session, slot.slot_index) or slot_coords(
+            slot.slot_index
+        )
 
     async def depart(
         self,

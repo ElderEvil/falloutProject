@@ -246,6 +246,38 @@ class CRUDWorldLocation:
         )
         return list(result.scalars().all())
 
+    async def get_home_markers(self, db_session: AsyncSession, vault_numbers: list[int]) -> dict[int, WorldLocation]:
+        """Real-vault home markers by vault number (seed signals excluded)."""
+        if not vault_numbers:
+            return {}
+        result = await db_session.execute(
+            select(WorldLocation).where(
+                WorldLocation.kind == PlaceKindEnum.VAULT,
+                WorldLocation.source != "seed",
+                col(WorldLocation.vault_number).in_(vault_numbers),
+            )
+        )
+        return {row.vault_number: row for row in result.scalars().all() if row.vault_number is not None}
+
+    async def move_home_marker(
+        self, db_session: AsyncSession, *, vault_number: int, coord_x: float, coord_y: float
+    ) -> int:
+        """Move an existing home marker to a new placement; no-op when none exists.
+
+        Caller owns the transaction, so an activation can move every affected marker
+        and switch the active pointer in one commit.
+        """
+        result = await db_session.execute(
+            sa_update(WorldLocation)
+            .where(
+                WorldLocation.kind == PlaceKindEnum.VAULT,
+                WorldLocation.source != "seed",
+                WorldLocation.vault_number == vault_number,
+            )
+            .values(coord_x=coord_x, coord_y=coord_y)
+        )
+        return result.rowcount or 0
+
     # -- VaultLocationState --------------------------------------------------------
 
     async def get_state(

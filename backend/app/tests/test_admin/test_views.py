@@ -24,6 +24,7 @@ from app.admin.views import (
     TeamMemberAdmin,
     UserAdmin,
     VaultAdmin,
+    WorldSnapshotAdmin,
 )
 from app.core.config import settings
 from app.core.enums import HazardTeam
@@ -104,7 +105,15 @@ async def admin_client(
 
     test_session_maker = sessionmaker(bind=db_connection, class_=AsyncSession, expire_on_commit=False)
     monkeypatch.setattr(admin_auth, "async_engine", db_connection)
-    for view in (DwellerAdmin, LLInteractionAdmin, PromptAdmin, TeamAdmin, TeamMemberAdmin, VaultAdmin):
+    for view in (
+        DwellerAdmin,
+        LLInteractionAdmin,
+        PromptAdmin,
+        TeamAdmin,
+        TeamMemberAdmin,
+        VaultAdmin,
+        WorldSnapshotAdmin,
+    ):
         monkeypatch.setattr(view, "session_maker", test_session_maker)
 
     # AdminAuth stores user_id as a session string; on PostgreSQL the driver
@@ -359,3 +368,24 @@ async def test_team_admin_lists_an_earned_roster(
     assert response.status_code == 200
     assert dweller.first_name in response.text
     assert "active" in response.text
+
+
+def test_world_snapshot_admin_is_read_only_with_activation_actions() -> None:
+    assert WorldSnapshotAdmin.can_create is False
+    assert WorldSnapshotAdmin.can_edit is False
+    assert WorldSnapshotAdmin.can_delete is False
+    assert WorldSnapshotAdmin.activation_page._exposed is True
+    assert WorldSnapshotAdmin.activation_page._methods == ["GET"]
+    assert WorldSnapshotAdmin.activation_preview._methods == ["POST"]
+    assert WorldSnapshotAdmin.activation_activate._methods == ["POST"]
+
+
+async def test_world_activation_page_renders_with_csrf_token(admin_client: AsyncClient) -> None:
+    response = await admin_client.get("/admin/world-snapshot/activation")
+    assert response.status_code == 200
+    assert 'name="csrf_token"' in response.text
+
+
+async def test_world_activation_post_without_token_is_forbidden(admin_client: AsyncClient) -> None:
+    response = await admin_client.post("/admin/world-snapshot/activation/preview", data={"candidate_version": "1"})
+    assert response.status_code == 403

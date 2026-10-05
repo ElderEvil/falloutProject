@@ -8,6 +8,7 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 
 from app.admin.csrf import issue_token, validate_token
+from app.crud.world_snapshot import world_snapshot as snapshot_crud
 from app.models import Item, LLMInteraction, Objective, Storage
 from app.models.chat_message import ChatMessage
 from app.models.dweller import Dweller
@@ -28,6 +29,10 @@ from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.models.vault import Vault
 from app.models.weapon import Weapon
+from app.models.world_snapshot import WorldSnapshot
+from app.services.world_activation_service import world_activation_service
+from app.services.world_generation_service import WORLD_ID
+from app.utils.exceptions import DomainError
 
 TRUNCATE_LENGTH = 50
 
@@ -661,3 +666,108 @@ class TeamMemberAdmin(AdminModelView, model=TeamMember):
     can_create = False
     can_edit = False
     can_delete = False
+
+
+class WorldSnapshotAdmin(AdminModelView, model=WorldSnapshot):
+    """Reviewed activation of one shared world; lifecycle logic lives in the service."""
+
+    column_list: ClassVar[list] = [
+        WorldSnapshot.id,
+        WorldSnapshot.world_id,
+        WorldSnapshot.generator_version,
+        WorldSnapshot.is_active,
+        WorldSnapshot.activated_at,
+        WorldSnapshot.recipe_fingerprint,
+        WorldSnapshot.snapshot_checksum,
+        WorldSnapshot.created_at,
+    ]
+    column_sortable_list: ClassVar[list] = [
+        WorldSnapshot.generator_version,
+        WorldSnapshot.is_active,
+        WorldSnapshot.created_at,
+    ]
+    column_default_sort: ClassVar[list] = [(WorldSnapshot.generator_version, True)]
+
+    name = "World Snapshot"
+    name_plural = "World Snapshots"
+    icon = "fa-solid fa-earth-americas"
+
+    can_create = False
+    can_edit = False
+    can_export = False
+    can_delete = False
+
+    async def _render(self, request: Request, *, preview=None, error: str | None = None, status_code: int = 200):
+        """Render the activation page with the stored snapshots (thin presentation read)."""
+        async with self.session_maker() as session:
+            snapshots = list(await snapshot_crud.list_for_world(session, world_id=WORLD_ID))
+            active = await snapshot_crud.get_active(session, world_id=WORLD_ID)
+        return await self.templates.TemplateResponse(
+            request,
+            "world_activation.html",
+            {
+                "snapshots": snapshots,
+                "active": active,
+                "csrf_token": issue_token(request),
+                "preview": preview,
+                "error": error,
+                "world_id": WORLD_ID,
+            },
+            status_code=status_code,
+        )
+
+    @staticmethod
+    def _form_value(form, key: str) -> str | None:
+        value = form.get(key)
+        return value if isinstance(value, str) and value.strip() else None
+
+    @expose("/activation", methods=["GET"])
+    async def activation_page(self, request: Request) -> Response:
+        """Show stored snapshots and the preview/activate forms."""
+        return await self._render(request)
+
+    @expose("/activation/preview", methods=["POST"])
+    async def activation_preview(self, request: Request) -> Response:
+        """Read-only structured preview of a candidate (no writes, CSRF-checked)."""
+        form = await request.form()
+        submitted = form.get("csrf_token")
+        if not validate_token(request, submitted if isinstance(submitted, str) else None):
+            return Response(status_code=403)
+        try:
+            candidate_version = int(self._form_value(form, "candidate_version") or "")
+        except ValueError:
+            return await self._render(request, error="Choose a candidate version.", status_code=400)
+        try:
+            async with self.session_maker() as session:
+                preview = await world_activation_service.preview(session, candidate_version=candidate_version)
+        except DomainError as exc:
+            return await self._render(request, error=exc.detail, status_code=exc.status_code)
+        return await self._render(request, preview=preview)
+
+    @expose("/activation/activate", methods=["POST"])
+    async def activation_activate(self, request: Request) -> Response:
+        """Explicitly activate a candidate after the service rechecks compatibility."""
+        form = await request.form()
+        submitted = form.get("csrf_token")
+        if not validate_token(request, submitted if isinstance(submitted, str) else None):
+            return Response(status_code=403)
+        try:
+            candidate_version = int(self._form_value(form, "candidate_version") or "")
+        except ValueError:
+            return await self._render(request, error="Choose a candidate version.", status_code=400)
+        raw_expected = self._form_value(form, "expected_active_version")
+        try:
+            expected_active_version = int(raw_expected) if raw_expected is not None else None
+        except ValueError:
+            return await self._render(request, error="Invalid expected active version.", status_code=400)
+        try:
+            async with self.session_maker() as session:
+                await world_activation_service.activate(
+                    session,
+                    candidate_version=candidate_version,
+                    expected_active_version=expected_active_version,
+                    confirm=form.get("confirm") == "yes",
+                )
+        except DomainError as exc:
+            return await self._render(request, error=exc.detail, status_code=exc.status_code)
+        return RedirectResponse("/admin/world-snapshot/activation", status_code=303)

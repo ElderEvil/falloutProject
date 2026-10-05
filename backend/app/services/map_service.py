@@ -44,6 +44,7 @@ from app.services.exploration.expedition import (
 )
 from app.services.notification_service import notification_service
 from app.services.world_generation_service import WORLD_ID
+from app.services.world_snapshot_service import world_snapshot_service
 from app.utils import world_terrain
 from app.utils.place_groups import get_place_group, load_place_groups
 from app.utils.places import GENERIC_ORIGIN_SKIP, WORLD_SCALE, normalize_place_name
@@ -96,7 +97,14 @@ class MapService:
     async def ensure_home_marker(self, db_session: AsyncSession, vault: Vault) -> WorldLocation:
         """Home-vault marker at the vault's slot placement + per-vault HOME_VAULT state."""
         slot = await vault_slot_crud.get_by_vault(db_session, vault.id)
-        coord_x, coord_y = slot_coords(slot.slot_index) if slot is not None else (50.0, 50.0)
+        if slot is None:
+            coord_x, coord_y = (50.0, 50.0)
+        else:
+            # Prefer the active world's approved placement; the legacy slot grid is
+            # the fallback while no world is active.
+            coord_x, coord_y = await world_snapshot_service.active_slot_coord(
+                db_session, slot.slot_index
+            ) or slot_coords(slot.slot_index)
         home = await wl_crud.get_or_create_home_marker(db_session, vault, coord_x=coord_x, coord_y=coord_y)
         await wl_crud.ensure_home_state(
             db_session,

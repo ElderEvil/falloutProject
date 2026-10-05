@@ -28,7 +28,7 @@ from app.schemas.exploration_event import (
     WeaponSchema,
 )
 from app.services.exploration import data_loader
-from app.services.exploration.event_generator import event_generator
+from app.services.exploration.event_generator import describe_discovery, event_generator
 from app.services.notification_service import notification_service
 from app.services.radiation_service import apply_radiation_gain, radiation_removal_amount
 from app.services.stream_manager import sse_manager
@@ -216,22 +216,34 @@ class EventService:
 
         # Resolve a discovery's world-map location before persisting so the event
         # can carry location_id + coordinates for deep-linking and route drawing.
-        # Spatial runs (heading set) skip the name-derived registry placement: the
-        # journal still records the discovery, but no WorldLocation row is created
-        # from a name while the dweller moves through the world (slice 1).
+        # Spatial runs discover what they pass: an existing place within the fog's
+        # site radius is claimed in place, else a new place is snapped near the
+        # current position. Legacy runs keep the name-derived registry placement.
         location_name = getattr(event, "location_name", None)
         location = None
-        if location_name and exploration.heading_degrees is None:
+        if location_name:
             try:
                 from app.services.map_service import map_service
 
-                location = await map_service.register_discovery(
-                    db_session,
-                    exploration.vault_id,
-                    exploration.id,
-                    exploration.dweller_id,
-                    location_name,
-                )
+                if exploration.heading_degrees is not None:
+                    if exploration.pos_x is not None and exploration.pos_y is not None:
+                        location = await map_service.register_spatial_discovery(
+                            db_session,
+                            exploration.vault_id,
+                            exploration.id,
+                            exploration.dweller_id,
+                            location_name,
+                            (exploration.pos_x, exploration.pos_y),
+                            exploration.world_version,
+                        )
+                else:
+                    location = await map_service.register_discovery(
+                        db_session,
+                        exploration.vault_id,
+                        exploration.id,
+                        exploration.dweller_id,
+                        location_name,
+                    )
             except Exception:
                 logger.exception(
                     "Failed to register discovery: vault=%s exploration=%s location=%r",
@@ -242,6 +254,13 @@ class EventService:
         location_id = location.id if location else None
         coord_x = location.coord_x if location else None
         coord_y = location.coord_y if location else None
+        if location is not None:
+            # The journal, map, and bio all describe the resolved place — never
+            # the generated name when it pointed somewhere else.
+            location_name = location.name
+            description = describe_discovery(location.name)
+        else:
+            description = event.description
 
         # Convert loot schema to dict for JSON storage
         loot_dict = None
@@ -251,7 +270,7 @@ class EventService:
 
         event_record = exploration.add_event(
             event_type=event.type,
-            description=event.description,
+            description=description,
             loot=loot_dict,
             location_name=location_name,
             location_id=location_id,

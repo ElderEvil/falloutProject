@@ -95,9 +95,13 @@ class PlayerVaultMarkerRead(SQLModel):
 
 
 class DiscoveryRoutePoint(SQLModel):
-    """One persisted discovery event, projected into map coordinates."""
+    """One journey point, projected into map coordinates.
 
-    location_id: UUID4
+    Legacy runs contribute discovery events (each with a location id); spatial
+    runs contribute their movement trail, whose points have no single location.
+    """
+
+    location_id: UUID4 | None = None
     coord_x: float
     coord_y: float
     timestamp: str

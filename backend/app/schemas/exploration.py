@@ -97,6 +97,9 @@ class ExplorationReadShort(SQLModel):
     enemies_encountered: int
     stimpaks: int
     radaways: int
+    # Authoritative registry position for spatial runs (map markers); null on legacy runs.
+    pos_x: float | None = None
+    pos_y: float | None = None
 
 
 class ExplorationProgress(SQLModel):

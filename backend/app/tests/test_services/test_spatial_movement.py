@@ -2,10 +2,8 @@
 
 import math
 from datetime import datetime, timedelta
-from unittest.mock import patch
 
 import pytest
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
@@ -14,9 +12,6 @@ from app.models.dweller import Dweller
 from app.models.exploration import ExplorationStatus
 from app.models.vault import Vault
 from app.models.vault_slot import VaultSlot
-from app.models.world_location import WorldLocation
-from app.schemas.exploration_event import DiscoveryEventSchema
-from app.services.exploration.event_generator import event_generator
 from app.services.exploration_service import exploration_service
 from app.services.world_snapshot_service import world_snapshot_service
 from app.utils.exceptions import ValidationException
@@ -186,34 +181,6 @@ async def test_legacy_null_heading_run_untouched(async_session: AsyncSession, va
     assert advanced.status == ExplorationStatus.ACTIVE
     assert advanced.pos_x is None
     assert advanced.position_as_of is None
-
-
-@pytest.mark.asyncio
-async def test_spatial_run_writes_no_registry_rows_from_names(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
-) -> None:
-    """A spatial discovery records the journal but creates no WorldLocation row."""
-    await _claim_slot(async_session, vault)
-    await _ensure_snapshot(async_session)
-    exploration = await _spatial_depart(async_session, vault, dweller, heading=0, duration=4)
-    exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
-    await async_session.commit()
-
-    mock_event = DiscoveryEventSchema(
-        location_name="Crater of Mystery",
-        description="Your dweller has discovered Crater of Mystery in the wasteland.",
-    )
-    with patch.object(event_generator, "generate_event", return_value=mock_event):
-        result = await exploration_service.process_event(async_session, exploration)
-
-    assert result.events[-1]["type"] == "discovery"
-    assert result.events[-1]["location_name"] == "Crater of Mystery"
-    rows = (
-        (await async_session.execute(select(WorldLocation).where(WorldLocation.name == "Crater of Mystery")))
-        .scalars()
-        .all()
-    )
-    assert rows == []
 
 
 @pytest.mark.asyncio

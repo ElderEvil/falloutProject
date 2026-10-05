@@ -95,6 +95,11 @@ const exploredMask = computed(() =>
       home: props.locations.find((loc) => loc.type === 'home_vault') ?? null,
       discovered: props.locations.filter(isKnownLocation),
       trailPoints: props.discoveryRoutes.flatMap((route) => route.points),
+      // Movement trails (every point location-free) interpolate their
+      // segments; legacy discovery hops keep circle-only reveals.
+      travelRoutes: props.discoveryRoutes
+        .filter((route) => route.points.length > 0 && route.points.every((point) => point.location_id == null))
+        .map((route) => route.points),
     },
     gridTiles.value,
   ),

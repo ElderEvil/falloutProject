@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from typing import TYPE_CHECKING
 
 from sqlalchemy import update as sa_update
@@ -47,34 +48,69 @@ class CRUDWorldLocation:
         result = await db_session.execute(select(WorldLocation.coord_x, WorldLocation.coord_y))
         return {(x, y) for x, y in result.all()}
 
+    async def get_nearest_within(
+        self, db_session: AsyncSession, coord_x: float, coord_y: float, radius: float
+    ) -> WorldLocation | None:
+        """The closest PLACE row within *radius* registry units, or None.
+
+        Vault markers are excluded — a vault is not a discovery. A coordinate
+        box narrows the candidates, then true distance decides, so the circle
+        (not the box corner) is the boundary.
+        """
+        result = await db_session.execute(
+            select(WorldLocation).where(
+                WorldLocation.kind != PlaceKindEnum.VAULT,
+                WorldLocation.coord_x >= coord_x - radius,
+                WorldLocation.coord_x <= coord_x + radius,
+                WorldLocation.coord_y >= coord_y - radius,
+                WorldLocation.coord_y <= coord_y + radius,
+            )
+        )
+        best: WorldLocation | None = None
+        best_distance = radius
+        for location in result.scalars().all():
+            distance = math.dist((location.coord_x, location.coord_y), (coord_x, coord_y))
+            if distance <= best_distance:
+                best = location
+                best_distance = distance
+        return best
+
     async def get_or_create_location(
         self,
         db_session: AsyncSession,
         name: str,
         *,
         description: str | None = None,
+        coords: tuple[float, float] | None = None,
+        normalized_name: str | None = None,
         commit: bool = True,
     ) -> WorldLocation:
         """Get or create a canonical PLACE row, merging on ``normalized_name``.
 
-        Normalises the name, derives deterministic schematic coordinates, and
-        nudges against the GLOBAL set of occupied registry coordinates.  On
-        IntegrityError (concurrent insert of the same name) we roll back and
-        re-select the existing row; there is no coordinate unique constraint,
-        so no retry loop is needed. When ``commit`` is false, inserts are
-        flushed and remain part of the caller's outer transaction.
+        Without ``coords`` the name derives deterministic schematic coordinates,
+        nudged against every occupied registry coordinate. With ``coords`` the
+        caller's placement is authoritative and no nudge is applied (spatial
+        discovery follows the explorer, not a name hash). Pass an explicit
+        ``normalized_name`` to disambiguate a same-name row that must not be
+        reused. On IntegrityError (concurrent insert of the same name) we roll
+        back and re-select; there is no coordinate unique constraint, so no
+        retry loop is needed. When ``commit`` is false, inserts are flushed
+        into the caller's transaction.
         """
-        normalized = normalize_place_name(name)
+        normalized = normalized_name or normalize_place_name(name)
 
         # Fast path: already exists
         existing = await self.get_registry_by_normalized(db_session, normalized)
         if existing is not None:
             return existing
 
-        base_x, base_y = schematic_coords(normalized)
-        occupied_result = await db_session.execute(select(WorldLocation.coord_x, WorldLocation.coord_y))
-        occupied: set[tuple[float, float]] = {(rx, ry) for rx, ry in occupied_result.all()}
-        coord_x, coord_y = collision_nudge((base_x, base_y), occupied)
+        if coords is not None:
+            coord_x, coord_y = coords
+        else:
+            base_x, base_y = schematic_coords(normalized)
+            occupied_result = await db_session.execute(select(WorldLocation.coord_x, WorldLocation.coord_y))
+            occupied: set[tuple[float, float]] = {(rx, ry) for rx, ry in occupied_result.all()}
+            coord_x, coord_y = collision_nudge((base_x, base_y), occupied)
 
         obj = WorldLocation(
             name=name[:64],

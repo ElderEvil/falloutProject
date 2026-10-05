@@ -8,6 +8,7 @@ load-bearing because bio generation must not fail on map bookkeeping.
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Protocol
@@ -362,8 +363,23 @@ class MapService:
             else:
                 if snapshot is not None:
                     coord_x, coord_y = world_terrain.nearest_land(snapshot, coord_x, coord_y)
+                # A same-name row outside the radius is not this discovery —
+                # disambiguate so the new row lands near the explorer instead
+                # of teleporting the discovery to the twin's coordinates.
+                normalized_name: str | None = None
+                twin = await wl_crud.get_registry_by_normalized(db_session, normalize_place_name(location_name[:64]))
+                if twin is not None and (
+                    snapshot is None
+                    or math.dist((twin.coord_x, twin.coord_y), (coord_x, coord_y))
+                    > world_terrain.reveal_radius_registry(snapshot, world_terrain.SITE_REVEAL_TILES)
+                ):
+                    normalized_name = f"{normalize_place_name(location_name[:64])[:50]}@{coord_x:.1f},{coord_y:.1f}"
                 location = await wl_crud.get_or_create_location(
-                    db_session, location_name[:64], coords=(coord_x, coord_y), commit=False
+                    db_session,
+                    location_name[:64],
+                    coords=(coord_x, coord_y),
+                    normalized_name=normalized_name,
+                    commit=False,
                 )
             await wl_crud.get_or_create_state(
                 db_session,

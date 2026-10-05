@@ -166,6 +166,34 @@ async def test_spatial_discovery_is_not_name_derived(
 
 
 @pytest.mark.asyncio
+async def test_spatial_discovery_ignores_a_distant_same_name_twin(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A same-name row outside the site radius is not this discovery: a new row lands near the explorer."""
+    exploration, origin, snapshot = await _depart(async_session, vault, dweller)
+    radius = world_terrain.reveal_radius_registry(snapshot, world_terrain.SITE_REVEAL_TILES)
+    twin_spot = max(
+        [(10.0, 10.0), (90.0, 10.0), (10.0, 90.0), (90.0, 90.0)],
+        key=lambda spot: (spot[0] - origin[0]) ** 2 + (spot[1] - origin[1]) ** 2,
+    )
+    twin = _place_at("Distant Twin Cave", *twin_spot)
+    async_session.add(twin)
+    await async_session.commit()
+    twin_coords = (twin.coord_x, twin.coord_y)
+
+    result = await _discover(async_session, exploration, "Distant Twin Cave")
+
+    event = result.events[-1]
+    assert UUID(event["location_id"]) != twin.id
+    created = await async_session.get(WorldLocation, UUID(event["location_id"]))
+    assert created.name == "Distant Twin Cave"
+    assert created.normalized_name != twin.normalized_name
+    distance = ((created.coord_x - origin[0]) ** 2 + (created.coord_y - origin[1]) ** 2) ** 0.5
+    assert distance <= radius
+    assert (twin.coord_x, twin.coord_y) == twin_coords
+
+
+@pytest.mark.asyncio
 async def test_nearest_land_escapes_water() -> None:
     """nearest_land returns a non-water point for a water registry position."""
     snap = SimpleNamespace(config={"width": 4, "height": 1}, terrain=["water", "water", "wasteland", "water"])

@@ -57,6 +57,16 @@ async def _make_exploration(async_session: AsyncSession, level: int = 10, stats:
     return vault, dweller, exploration
 
 
+async def _second_exploration(async_session: AsyncSession, vault):
+    """A second active exploration in the same vault, for cross-journey cooldown checks."""
+    dweller_data = create_fake_adult_dweller() | {"level": 10, "health": 100, "max_health": 100}
+    dweller = await crud.dweller.create(
+        async_session,
+        obj_in=DwellerCreate(**dweller_data, vault_id=str(vault.id)),
+    )
+    return await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+
+
 async def _push_on_until(async_session: AsyncSession, exploration_id, room_index: int, max_attempts: int = 8):
     """Resolve (push-on through defeats) until the cursor reaches room_index."""
     view = await expedition_service.resolve_node(async_session, exploration_id, ExpeditionResolveRequest())
@@ -142,9 +152,10 @@ async def test_enter_after_recent_clear_conflicts(async_session: AsyncSession):
     from datetime import datetime
 
     vault, dweller, exploration = await _make_exploration(async_session)
+    prior = await _second_exploration(async_session, vault)
     run = await crud.expedition_run.create_run(
         async_session,
-        exploration_id=exploration.id,
+        exploration_id=prior.id,
         vault_id=vault.id,
         site_id="red_rocket",
     )
@@ -158,12 +169,13 @@ async def test_enter_after_recent_clear_conflicts(async_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_enter_after_retreat_blocked_by_cooldown(async_session: AsyncSession):
-    _, _, exploration = await _make_exploration(async_session)
-    await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
-    view = await expedition_service.retreat_run(async_session, exploration.id)
+    vault, _, prior = await _make_exploration(async_session)
+    await expedition_service.enter_run(async_session, prior.id, "red_rocket")
+    view = await expedition_service.retreat_run(async_session, prior.id)
     assert view.status == "retreated"
+    fresh = await _second_exploration(async_session, vault)
     with pytest.raises(ResourceConflictException, match="quiet"):
-        await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
+        await expedition_service.enter_run(async_session, fresh.id, "red_rocket")
 
 
 @pytest.mark.asyncio
@@ -185,9 +197,10 @@ async def test_site_available_again_after_cooldown_window(async_session: AsyncSe
     from datetime import datetime, timedelta
 
     vault, dweller, exploration = await _make_exploration(async_session)
+    prior = await _second_exploration(async_session, vault)
     run = await crud.expedition_run.create_run(
         async_session,
-        exploration_id=exploration.id,
+        exploration_id=prior.id,
         vault_id=vault.id,
         site_id="red_rocket",
     )

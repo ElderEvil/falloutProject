@@ -95,5 +95,18 @@ class CRUDExpeditionRun(CRUDBase[ExpeditionRun, ExpeditionRun, ExpeditionRun]):
         )
         return result.scalars().first()
 
+    async def get_terminal_for_exploration_site(
+        self, db_session: AsyncSession, *, exploration_id: UUID4, site_id: str
+    ) -> ExpeditionRun | None:
+        """Return a finished run of this site in this journey, if the encounter is consumed."""
+        result = await db_session.execute(
+            select(ExpeditionRun)
+            .where(ExpeditionRun.exploration_id == exploration_id)
+            .where(ExpeditionRun.site_id == site_id)
+            .where(ExpeditionRun.status.in_(TERMINAL_STATUSES))
+            .order_by(ExpeditionRun.finished_at.desc())
+        )
+        return result.scalars().first()
+
 
 expedition_run = CRUDExpeditionRun(ExpeditionRun)

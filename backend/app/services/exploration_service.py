@@ -15,6 +15,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import DwellerStatusEnum
 from app.core.game_config import game_config
+from app.crud import expedition_run as crud_expedition_run
 from app.crud import exploration as crud_exploration
 from app.crud import training as training_crud
 from app.crud import world_location as crud_world_location
@@ -729,6 +730,24 @@ class ExplorationService:
         now = now or datetime.utcnow()
         elapsed = (now - position_as_of).total_seconds()
         if elapsed <= 0:
+            return exploration
+
+        # An open site encounter pauses the journey: burn the interval without
+        # moving, and shift the clock origins forward so later movement math
+        # (which keys off start/return times) never counts paused time.
+        if await crud_expedition_run.get_open_for_exploration(db_session, exploration.id) is not None:
+            paused = now - position_as_of
+            exploration.position_as_of = now
+            if exploration.is_active():
+                exploration.start_time += paused
+            elif exploration.is_returning():
+                if exploration.return_started_at is not None:
+                    exploration.return_started_at += paused
+                if exploration.return_completes_at is not None:
+                    exploration.return_completes_at += paused
+            db_session.add(exploration)
+            await db_session.commit()
+            await db_session.refresh(exploration)
             return exploration
 
         snapshot = await self._load_snapshot(db_session, exploration)

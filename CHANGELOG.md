@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.181.0 (2026-10-05)
+
+### Features
+
+* **exploration:** travel-backed clearing with 168h cooldown (slice 3a) 1908fe9
+
+### Bug Fixes
+
+* **exploration:** blocked-route return timing and traversable arrival (slice 3a review) f1f3b7e
+
 ## 2.180.0 (2026-10-05)
 
 ### Features

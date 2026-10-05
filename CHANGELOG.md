@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.179.0 (2026-10-05)
+
+### Features
+
+* **exploration:** spatial movement core for roam departures 641ca97
+* **map:** heading-based departure from map clicks d6ff349
+
+### Bug Fixes
+
+* **rewards:** refuse dweller rewards at the population cap 6229428
+
 ## 2.178.1 (2026-10-04)
 
 ### Bug Fixes

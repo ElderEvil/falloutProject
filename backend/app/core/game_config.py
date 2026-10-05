@@ -435,6 +435,12 @@ class ResourceConfig(BaseSettings):
         description="Per INT point per second for Medbay/Science Lab only",
         ge=0.0,
     )
+    junior_worker_output_multiplier: float = Field(
+        default=0.5,
+        description="A youth junior worker's production contribution as a fraction of a mature worker's",
+        ge=0.0,
+        le=1.0,
+    )
     tier_1_multiplier: float = Field(default=1.0, ge=0.0)
     tier_2_multiplier: float = Field(default=1.5, ge=0.0)
     tier_3_multiplier: float = Field(default=2.0, ge=0.0)

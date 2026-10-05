@@ -110,4 +110,18 @@ describe('buildExplorerTracks', () => {
     expect(tracks).toHaveLength(1)
     expect(tracks[0].targetLocationId).toBe('loc-9')
   })
+
+  it('prefers the authoritative position over the route end', () => {
+    const tracks = buildExplorerTracks(
+      [exploration({ id: 'expl-1', pos_x: 40, pos_y: 41 })],
+      [
+        route('expl-1', [
+          { location_id: null, coord_x: 20, coord_y: 30, timestamp: '2026-01-01T00:00:00Z' },
+        ]),
+      ],
+      new Map()
+    )
+
+    expect(tracks[0].lastKnown).toEqual({ coord_x: 40, coord_y: 41 })
+  })
 })

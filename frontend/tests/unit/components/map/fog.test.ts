@@ -29,7 +29,34 @@ describe('atlas fog of war', () => {
 
   it('clamps reveals at the map edge without throwing', () => {
     const mask = computeExploredMask({ home: { coord_x: 0, coord_y: 0 }, discovered: [], trailPoints: [] })
-    expect(isExploredTile(mask, 0, 0)).toBe(true)
     expect(mask.some(value => value === 1)).toBe(true)
+  })
+
+  it('reveals the segment between movement-trail points, not just endpoints', () => {
+    const from = { coord_x: 10, coord_y: 50 }
+    const to = { coord_x: 30, coord_y: 50 }
+    const mask = computeExploredMask({
+      home: null,
+      discovered: [],
+      trailPoints: [from, to],
+      travelRoutes: [[from, to]],
+    })
+    const midX = registryToTile(20)
+    const midY = registryToTile(50)
+    expect(isExploredTile(mask, midX, midY)).toBe(true)
+  })
+
+  it('does not connect legacy discovery hops with corridors', () => {
+    const mask = computeExploredMask({
+      home: null,
+      discovered: [],
+      trailPoints: [
+        { coord_x: 10, coord_y: 10 },
+        { coord_x: 90, coord_y: 90 },
+      ],
+    })
+    const midX = registryToTile(50)
+    const midY = registryToTile(50)
+    expect(isExploredTile(mask, midX, midY)).toBe(false)
   })
 })

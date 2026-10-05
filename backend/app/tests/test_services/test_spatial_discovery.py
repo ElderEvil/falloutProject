@@ -188,7 +188,7 @@ async def test_spatial_discovery_ignores_a_distant_same_name_twin(
     assert UUID(event["location_id"]) != twin.id
     created = await async_session.get(WorldLocation, UUID(event["location_id"]))
     assert created.name == "Distant Twin Cave"
-    assert created.normalized_name == f"{exploration.id}:1"
+    assert created.normalized_name.startswith(f"{exploration.id}:")
     assert created.normalized_name != twin.normalized_name
     distance = ((created.coord_x - origin[0]) ** 2 + (created.coord_y - origin[1]) ** 2) ** 0.5
     assert distance <= radius
@@ -212,8 +212,28 @@ async def test_same_name_twice_in_one_journey_makes_two_rows(
     assert first is not None
     assert second is not None
     assert first.id != second.id
-    assert first.normalized_name == f"{exploration.id}:1"
-    assert second.normalized_name == f"{exploration.id}:2"
+    assert first.normalized_name.startswith(f"{exploration.id}:")
+    assert second.normalized_name.startswith(f"{exploration.id}:")
+    assert first.normalized_name != second.normalized_name
+
+
+@pytest.mark.asyncio
+async def test_same_position_twice_merges_into_one_row(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """Position-derived identity is stable: concurrent discoveries at one spot share the row."""
+    exploration, _origin, snapshot = await _depart(async_session, vault, dweller)
+
+    first = await map_service.register_spatial_discovery(
+        async_session, vault.id, exploration.id, dweller.id, "Echo Cave", (20.0, 20.0), snapshot.generator_version
+    )
+    second = await map_service.register_spatial_discovery(
+        async_session, vault.id, exploration.id, dweller.id, "Echo Cave", (20.0, 20.0), snapshot.generator_version
+    )
+
+    assert first is not None
+    assert second is not None
+    assert first.id == second.id
 
 
 @pytest.mark.asyncio

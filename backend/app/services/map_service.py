@@ -348,18 +348,18 @@ class MapService:
         coord_x: float,
         coord_y: float,
     ) -> WorldLocation:
-        """A new spatial row keyed to the journey and discovery sequence.
+        """A new spatial row keyed to journey and position, not to the name.
 
-        Each discovery in a journey gets its own row even when the generator
-        repeats a name, so concurrent discoveries at different positions never
-        compete for one name.
+        Identity is a pure function of the inputs, so concurrent discoveries
+        cannot race on allocation: same position merges (one place), different
+        positions never compete for one row.
         """
-        seq = await wl_crud.count_journey_places(db_session, exploration_id) + 1
+        key = f"{exploration_id}:{coord_x:.1f},{coord_y:.1f}"
         return await wl_crud.get_or_create_location(
             db_session,
             location_name[:64],
             coords=(coord_x, coord_y),
-            normalized_name=f"{exploration_id}:{seq}",
+            normalized_name=key,
             commit=False,
         )
 

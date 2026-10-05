@@ -75,13 +75,6 @@ class CRUDWorldLocation:
                 best_distance = distance
         return best
 
-    async def count_journey_places(self, db_session: AsyncSession, exploration_id: UUID4) -> int:
-        """How many spatial rows this journey already placed, for stable per-discovery identity."""
-        result = await db_session.execute(
-            select(func.count()).where(col(WorldLocation.normalized_name).like(f"{exploration_id}:%"))
-        )
-        return result.scalar_one()
-
     async def get_or_create_location(
         self,
         db_session: AsyncSession,

@@ -2,10 +2,12 @@
 
 import math
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.game_config import game_config
 from app.crud.vault_slot import vault_slot
 from app.models.dweller import Dweller
 from app.models.exploration import ExplorationStatus
@@ -157,3 +159,44 @@ async def test_missing_target_returns_without_resolving(
     # return completes immediately. Nothing resolves, nothing clears.
     assert exploration.status == ExplorationStatus.COMPLETED
     assert stats["returning"] == 1
+
+
+def test_obstruction_time_reflects_distance_traveled() -> None:
+    """A blocked return is dated when the party reached the obstruction, not the interval start."""
+    base = datetime(2026, 1, 1)
+    speed = 1 / game_config.exploration.dispatch.travel_hours_per_unit
+
+    obstruction = exploration_service._obstruction_time(base, (0.0, 0.0), (speed, 0.0))
+
+    assert obstruction == base + timedelta(hours=1)
+    assert obstruction > base
+
+
+def test_path_clear_detects_water_walls() -> None:
+    """A target across water is not reachable even when it sits within the arrival radius."""
+    snap = SimpleNamespace(
+        config={"width": 5, "height": 1},
+        terrain=["wasteland", "wasteland", "water", "wasteland", "wasteland"],
+    )
+
+    assert exploration_service._path_clear(snap, (10.0, 50.0), (90.0, 50.0)) is False
+    assert exploration_service._path_clear(snap, (10.0, 50.0), (30.0, 50.0)) is True
+
+
+@pytest.mark.asyncio
+async def test_arrival_with_vanished_target_returns_instead_of_raising(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """Arriving before expiry at a vanished target starts the return, not an exception."""
+    from app.models.world_location import VaultLocationState, WorldLocation
+
+    location, state = (await _nearby_clearable(async_session, vault, dweller))[:2]
+    exploration = await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
+    await async_session.delete(state)
+    await async_session.delete(location)
+    await async_session.commit()
+
+    await resolve_dispatch_arrival(async_session, exploration.id, arrived=True)
+
+    await async_session.refresh(exploration)
+    assert exploration.status == ExplorationStatus.RETURNING

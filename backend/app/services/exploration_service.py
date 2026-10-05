@@ -512,6 +512,26 @@ class ExplorationService:
             last_valid = (x, y)
         return last_valid
 
+    @classmethod
+    def _path_clear(cls, snapshot, a: tuple[float, float], b: tuple[float, float]) -> bool:
+        """True when the straight segment between two points is fully traversable.
+
+        Uses the same segment march as movement, so a target across water is never
+        treated as reached merely because it sits within the arrival radius.
+        """
+        last = cls._last_valid_point(snapshot, a[0], a[1], b[0], b[1])
+        return math.dist(last, b) < 0.01
+
+    def _obstruction_time(
+        self, position_as_of: datetime, start: tuple[float, float], blocked_at: tuple[float, float]
+    ) -> datetime:
+        """When, within the processed interval, the party actually reached the obstruction.
+
+        Dating a blocked return at the interval start would let it expire before the
+        party could have traveled to the obstruction; derive it from the distance moved.
+        """
+        return position_as_of + timedelta(hours=math.dist(start, blocked_at) / self._speed())
+
     @staticmethod
     def _origin(exploration: Exploration) -> tuple[float, float]:
         """The departure origin; spatial runs always carry one."""
@@ -578,7 +598,9 @@ class ExplorationService:
         if (valid_x, valid_y) != (new_x, new_y):
             exploration.pos_x, exploration.pos_y = valid_x, valid_y
             self._append_trail(exploration, valid_x, valid_y, now)
-            self._begin_spatial_return(exploration, position_as_of)
+            self._begin_spatial_return(
+                exploration, self._obstruction_time(position_as_of, (pos_x, pos_y), (valid_x, valid_y))
+            )
             return
         exploration.pos_x, exploration.pos_y = new_x, new_y
         self._append_trail(exploration, new_x, new_y, now)
@@ -598,7 +620,9 @@ class ExplorationService:
         if (valid_x, valid_y) != (new_x, new_y):
             exploration.pos_x, exploration.pos_y = valid_x, valid_y
             self._append_trail(exploration, valid_x, valid_y, forward_end)
-            self._begin_spatial_return(exploration, position_as_of)
+            self._begin_spatial_return(
+                exploration, self._obstruction_time(position_as_of, (pos_x, pos_y), (valid_x, valid_y))
+            )
             return
         exploration.pos_x, exploration.pos_y = new_x, new_y
         self._append_trail(exploration, new_x, new_y, forward_end)
@@ -619,25 +643,31 @@ class ExplorationService:
         combat; an unreached run falls back to the legacy timer expiry. Blocked
         paths return early instead of stranding the party.
         """
-        location = await crud_world_location.get_registry(db_session, exploration.target_location_id)
+        target_location_id = exploration.target_location_id
+        if target_location_id is None:
+            self._begin_spatial_return(exploration, now)
+            return
+        location = await crud_world_location.get_registry(db_session, target_location_id)
         if location is None:
-            self._begin_spatial_return(exploration, position_as_of)
+            self._begin_spatial_return(exploration, now)
             return
         target = (location.coord_x, location.coord_y)
         pos = self._position(exploration)
-        if math.dist(pos, target) <= world_terrain.ARRIVAL_RADIUS:
+        if math.dist(pos, target) <= world_terrain.ARRIVAL_RADIUS and self._path_clear(snapshot, pos, target):
             self._append_trail(exploration, pos[0], pos[1], now)
             return
         new_x, new_y = self._forward_position(exploration, now)
         valid_x, valid_y = self._last_valid_point(snapshot, pos[0], pos[1], new_x, new_y)
-        if world_terrain.segment_passes_near(pos, (valid_x, valid_y), target, world_terrain.ARRIVAL_RADIUS):
+        if world_terrain.segment_passes_near(
+            pos, (valid_x, valid_y), target, world_terrain.ARRIVAL_RADIUS
+        ) and self._path_clear(snapshot, (valid_x, valid_y), target):
             exploration.pos_x, exploration.pos_y = target
             self._append_trail(exploration, target[0], target[1], now)
             return
         if (valid_x, valid_y) != (new_x, new_y):
             exploration.pos_x, exploration.pos_y = valid_x, valid_y
             self._append_trail(exploration, valid_x, valid_y, now)
-            self._begin_spatial_return(exploration, position_as_of)
+            self._begin_spatial_return(exploration, self._obstruction_time(position_as_of, pos, (valid_x, valid_y)))
             return
         exploration.pos_x, exploration.pos_y = new_x, new_y
         self._append_trail(exploration, new_x, new_y, now)
@@ -662,16 +692,18 @@ class ExplorationService:
             exploration.pos_y = max_y - dy * retraced
 
     async def has_arrived(self, db_session: AsyncSession, exploration: Exploration) -> bool:
-        """True when a spatial dispatch run sits within arrival radius of its target."""
+        """True when a spatial dispatch run reaches its target over traversable terrain."""
         if exploration.target_location_id is None or exploration.pos_x is None or exploration.pos_y is None:
             return False
         location = await crud_world_location.get_registry(db_session, exploration.target_location_id)
         if location is None:
             return False
-        return (
-            math.dist((exploration.pos_x, exploration.pos_y), (location.coord_x, location.coord_y))
-            <= world_terrain.ARRIVAL_RADIUS
-        )
+        target = (location.coord_x, location.coord_y)
+        pos = (exploration.pos_x, exploration.pos_y)
+        if math.dist(pos, target) > world_terrain.ARRIVAL_RADIUS:
+            return False
+        snapshot = await self._load_snapshot(db_session, exploration)
+        return self._path_clear(snapshot, pos, target)
 
     async def advance(
         self, db_session: AsyncSession, exploration_id: UUID4, *, now: datetime | None = None

@@ -49,16 +49,16 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
 
     pair = await crud_world_location.get_state_with_location(db_session, exploration.vault_id, target_location_id)
     if pair is None:
-        await exploration_coordinator.start_return(db_session, exploration_id)
+        await exploration_coordinator.start_return(db_session, exploration_id, arrived=arrived)
         return
     location, state = pair
     group = get_place_group(location.group_key)
     if group is None or not group.get("clearable"):
-        await exploration_coordinator.start_return(db_session, exploration_id)
+        await exploration_coordinator.start_return(db_session, exploration_id, arrived=arrived)
         return
     now = datetime.utcnow()
     if not state.is_dispatchable(now):
-        await exploration_coordinator.start_return(db_session, exploration_id)
+        await exploration_coordinator.start_return(db_session, exploration_id, arrived=arrived)
         return
 
     # Dispatch always snapshots clear_tier; fall back to the escalation cap for legacy NULL rows.
@@ -75,7 +75,7 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
         anchor = await dweller_crud.get_with_equipment(db_session, exploration.dweller_id)
         members = [anchor] if anchor is not None and not anchor.is_dead else []
     if not members:
-        await exploration_coordinator.start_return(db_session, exploration_id)
+        await exploration_coordinator.start_return(db_session, exploration_id, arrived=arrived)
         return
     party_size = len(members)
 

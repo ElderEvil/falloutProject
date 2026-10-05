@@ -7352,6 +7352,10 @@ export interface components {
             stimpaks: number;
             /** Radaways */
             radaways: number;
+            /** Pos X */
+            pos_x?: number | null;
+            /** Pos Y */
+            pos_y?: number | null;
         };
         /**
          * ExplorationSendRequest

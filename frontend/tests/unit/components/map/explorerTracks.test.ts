@@ -122,6 +122,7 @@ describe('buildExplorerTracks', () => {
       new Map()
     )
 
-    expect(tracks[0].lastKnown).toEqual({ coord_x: 40, coord_y: 41 })
+    expect(tracks[0].lastKnown?.coord_x).toBeCloseTo(64, 10)
+    expect(tracks[0].lastKnown?.coord_y).toBeCloseTo(65.6, 10)
   })
 })

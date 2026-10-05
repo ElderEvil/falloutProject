@@ -340,14 +340,28 @@ class MapService:
         else:
             return location
 
-    @staticmethod
-    def _journey_place_key(exploration_id: UUID4, normalized: str) -> str:
-        """Merge key scoping a spatial discovery to its journey.
+    async def _create_journey_place(
+        self,
+        db_session: AsyncSession,
+        exploration_id: UUID4,
+        location_name: str,
+        coord_x: float,
+        coord_y: float,
+    ) -> WorldLocation:
+        """A new spatial row keyed to the journey and discovery sequence.
 
-        Two journeys rolling the same generated name get distinct rows at
-        distinct positions; repeats within one journey still merge.
+        Each discovery in a journey gets its own row even when the generator
+        repeats a name, so concurrent discoveries at different positions never
+        compete for one name.
         """
-        return f"{exploration_id}:{normalized[:27]}"
+        seq = await wl_crud.count_journey_places(db_session, exploration_id) + 1
+        return await wl_crud.get_or_create_location(
+            db_session,
+            location_name[:64],
+            coords=(coord_x, coord_y),
+            normalized_name=f"{exploration_id}:{seq}",
+            commit=False,
+        )
 
     async def register_spatial_discovery(
         self,
@@ -381,23 +395,11 @@ class MapService:
                     location = nearby
                 else:
                     coord_x, coord_y = world_terrain.nearest_land(snapshot, coord_x, coord_y)
-                    location = await wl_crud.get_or_create_location(
-                        db_session,
-                        location_name[:64],
-                        coords=(coord_x, coord_y),
-                        normalized_name=self._journey_place_key(
-                            exploration_id, normalize_place_name(location_name[:64])
-                        ),
-                        commit=False,
+                    location = await self._create_journey_place(
+                        db_session, exploration_id, location_name, coord_x, coord_y
                     )
             else:
-                location = await wl_crud.get_or_create_location(
-                    db_session,
-                    location_name[:64],
-                    coords=(coord_x, coord_y),
-                    normalized_name=self._journey_place_key(exploration_id, normalize_place_name(location_name[:64])),
-                    commit=False,
-                )
+                location = await self._create_journey_place(db_session, exploration_id, location_name, coord_x, coord_y)
             await self._link_discovery(db_session, vault_id, exploration_id, dweller_id, location)
         except Exception:
             await db_session.rollback()

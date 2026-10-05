@@ -23,8 +23,6 @@ if TYPE_CHECKING:
 
 #: Mirrors SITE_REVEAL in frontend/src/modules/map/utils/fog.ts.
 SITE_REVEAL_TILES = 7
-#: Mirrors TRAIL_REVEAL in frontend/src/modules/map/utils/fog.ts.
-TRAIL_REVEAL_TILES = 4
 
 
 def reveal_radius_registry(snapshot: TerrainSnapshot, tiles: int) -> float:

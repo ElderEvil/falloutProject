@@ -8,7 +8,6 @@ load-bearing because bio generation must not fail on map bookkeeping.
 from __future__ import annotations
 
 import logging
-import math
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Protocol
@@ -284,6 +283,32 @@ class MapService:
     # discovery registration
     # ------------------------------------------------------------------
 
+    async def _link_discovery(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        exploration_id: UUID4,
+        dweller_id: UUID4,
+        location: WorldLocation,
+    ) -> None:
+        """Create the vault state + dweller link for a resolved discovery place."""
+        await wl_crud.get_or_create_state(
+            db_session,
+            vault_id,
+            location.id,
+            LocationTypeEnum.DISCOVERY,
+            exploration_id=exploration_id,
+            commit=False,
+        )
+        await wl_crud.link_dweller(
+            db_session,
+            dweller_id,
+            location.id,
+            DwellerLocationRelationEnum.VISITED,
+            is_unlocked=True,
+            commit=False,
+        )
+
     async def register_discovery(
         self,
         db_session: AsyncSession,
@@ -299,22 +324,7 @@ class MapService:
                 location_name[:64],
                 commit=False,
             )
-            await wl_crud.get_or_create_state(
-                db_session,
-                vault_id,
-                location.id,
-                LocationTypeEnum.DISCOVERY,
-                exploration_id=exploration_id,
-                commit=False,
-            )
-            await wl_crud.link_dweller(
-                db_session,
-                dweller_id,
-                location.id,
-                DwellerLocationRelationEnum.VISITED,
-                is_unlocked=True,
-                commit=False,
-            )
+            await self._link_discovery(db_session, vault_id, exploration_id, dweller_id, location)
         except Exception:
             # A failed flush leaves SQLAlchemy's transaction unusable. This
             # registration is best-effort and runs before the event mutation,
@@ -330,6 +340,15 @@ class MapService:
         else:
             return location
 
+    @staticmethod
+    def _journey_place_key(exploration_id: UUID4, normalized: str) -> str:
+        """Merge key scoping a spatial discovery to its journey.
+
+        Two journeys rolling the same generated name get distinct rows at
+        distinct positions; repeats within one journey still merge.
+        """
+        return f"{exploration_id}:{normalized[:27]}"
+
     async def register_spatial_discovery(
         self,
         db_session: AsyncSession,
@@ -340,12 +359,13 @@ class MapService:
         position: tuple[float, float],
         world_version: int | None,
     ) -> WorldLocation | None:
-        """Register a discovery found while moving: nearby place, else terrain-snapped.
+        """Register a discovery found while moving: nearby place, else journey-scoped.
 
-        Spatial runs discover what they pass. An existing PLACE row within the
-        fog's site radius is claimed where it stands (its coordinates never
-        move); otherwise a new place is created at the explorer's position
-        snapped to the nearest land tile. Best-effort like ``register_discovery``.
+        An existing PLACE row within the fog's site radius is claimed where it
+        stands (its coordinates never move); otherwise a new place is created
+        at the explorer's position snapped to the nearest land tile, keyed to
+        the journey so distant same-name rows can never hijack it.
+        Best-effort like ``register_discovery``.
         """
         try:
             coord_x, coord_y = position
@@ -354,49 +374,31 @@ class MapService:
                 if world_version is not None
                 else None
             )
-            nearby = None
             if snapshot is not None:
                 radius = world_terrain.reveal_radius_registry(snapshot, world_terrain.SITE_REVEAL_TILES)
                 nearby = await wl_crud.get_nearest_within(db_session, coord_x, coord_y, radius)
-            if nearby is not None:
-                location = nearby
-            else:
-                if snapshot is not None:
+                if nearby is not None:
+                    location = nearby
+                else:
                     coord_x, coord_y = world_terrain.nearest_land(snapshot, coord_x, coord_y)
-                # A same-name row outside the radius is not this discovery —
-                # disambiguate so the new row lands near the explorer instead
-                # of teleporting the discovery to the twin's coordinates.
-                normalized_name: str | None = None
-                twin = await wl_crud.get_registry_by_normalized(db_session, normalize_place_name(location_name[:64]))
-                if twin is not None and (
-                    snapshot is None
-                    or math.dist((twin.coord_x, twin.coord_y), (coord_x, coord_y))
-                    > world_terrain.reveal_radius_registry(snapshot, world_terrain.SITE_REVEAL_TILES)
-                ):
-                    normalized_name = f"{normalize_place_name(location_name[:64])[:50]}@{coord_x:.1f},{coord_y:.1f}"
+                    location = await wl_crud.get_or_create_location(
+                        db_session,
+                        location_name[:64],
+                        coords=(coord_x, coord_y),
+                        normalized_name=self._journey_place_key(
+                            exploration_id, normalize_place_name(location_name[:64])
+                        ),
+                        commit=False,
+                    )
+            else:
                 location = await wl_crud.get_or_create_location(
                     db_session,
                     location_name[:64],
                     coords=(coord_x, coord_y),
-                    normalized_name=normalized_name,
+                    normalized_name=self._journey_place_key(exploration_id, normalize_place_name(location_name[:64])),
                     commit=False,
                 )
-            await wl_crud.get_or_create_state(
-                db_session,
-                vault_id,
-                location.id,
-                LocationTypeEnum.DISCOVERY,
-                exploration_id=exploration_id,
-                commit=False,
-            )
-            await wl_crud.link_dweller(
-                db_session,
-                dweller_id,
-                location.id,
-                DwellerLocationRelationEnum.VISITED,
-                is_unlocked=True,
-                commit=False,
-            )
+            await self._link_discovery(db_session, vault_id, exploration_id, dweller_id, location)
         except Exception:
             await db_session.rollback()
             logger.exception(

@@ -28,7 +28,7 @@ from app.schemas.exploration_event import (
     WeaponSchema,
 )
 from app.services.exploration import data_loader
-from app.services.exploration.event_generator import event_generator
+from app.services.exploration.event_generator import describe_discovery, event_generator
 from app.services.notification_service import notification_service
 from app.services.radiation_service import apply_radiation_gain, radiation_removal_amount
 from app.services.stream_manager import sse_manager
@@ -254,6 +254,13 @@ class EventService:
         location_id = location.id if location else None
         coord_x = location.coord_x if location else None
         coord_y = location.coord_y if location else None
+        if location is not None:
+            # The journal, map, and bio all describe the resolved place — never
+            # the generated name when it pointed somewhere else.
+            location_name = location.name
+            description = describe_discovery(location.name)
+        else:
+            description = event.description
 
         # Convert loot schema to dict for JSON storage
         loot_dict = None
@@ -263,7 +270,7 @@ class EventService:
 
         event_record = exploration.add_event(
             event_type=event.type,
-            description=event.description,
+            description=description,
             loot=loot_dict,
             location_name=location_name,
             location_id=location_id,

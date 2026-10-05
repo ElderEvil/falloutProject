@@ -9,6 +9,7 @@ registry coordinates map to tiles with no flip. The fog radii in
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -23,6 +24,36 @@ if TYPE_CHECKING:
 
 #: Mirrors SITE_REVEAL in frontend/src/modules/map/utils/fog.ts.
 SITE_REVEAL_TILES = 7
+
+#: Registry-space distance within which a dispatch counts as arrived.
+ARRIVAL_RADIUS = 2.0
+
+
+def segment_passes_near(
+    start: tuple[float, float], end: tuple[float, float], point: tuple[float, float], radius: float
+) -> bool:
+    """True when a point lies within *radius* of the segment, endpoints included.
+
+    Catches arrivals that a single endpoint check would leapfrog over long
+    offline catch-ups.
+    """
+    segment_dx, segment_dy = end[0] - start[0], end[1] - start[1]
+    length_sq = segment_dx * segment_dx + segment_dy * segment_dy
+    if length_sq == 0:
+        closest = start
+    else:
+        t = ((point[0] - start[0]) * segment_dx + (point[1] - start[1]) * segment_dy) / length_sq
+        t = min(1.0, max(0.0, t))
+        closest = (start[0] + segment_dx * t, start[1] + segment_dy * t)
+    return (point[0] - closest[0]) ** 2 + (point[1] - closest[1]) ** 2 <= radius * radius
+
+
+def heading_to(origin: tuple[float, float], target: tuple[float, float]) -> float:
+    """Compass heading from origin toward target (0=N, 90=E), matching the map bearing math."""
+    dx, dy = target[0] - origin[0], target[1] - origin[1]
+    if dx == 0 and dy == 0:
+        return 0.0
+    return round((math.degrees(math.atan2(dx, -dy)) + 360) % 360, 2)
 
 
 def reveal_radius_registry(snapshot: TerrainSnapshot, tiles: int) -> float:

@@ -35,12 +35,12 @@ from app.utils.place_loot import loot_table
 logger = logging.getLogger(__name__)
 
 
-async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUID4) -> None:
+async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUID4, *, arrived: bool = False) -> None:
     """Resolve a targeted run's arrival: party fight, loot, clear state, then return leg."""
     exploration = await lock_exploration_with_vault_claim(db_session, exploration_id)
     if exploration is None or not exploration.is_dispatch_run() or not exploration.is_active():
         return
-    if exploration.time_remaining_seconds() > 0:
+    if exploration.time_remaining_seconds() > 0 and not arrived:
         return
 
     target_location_id = exploration.target_location_id
@@ -148,7 +148,7 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
     # start_return's vault claim re-reads the exploration with populate_existing,
     # which would otherwise discard the staged haul.
     await db_session.flush()
-    await exploration_coordinator.start_return(db_session, exploration_id)
+    await exploration_coordinator.start_return(db_session, exploration_id, arrived=arrived)
     # start_return commits (persisting the LOCATION_CLEARED row and any parked
     # death notice); drain the deferred queue so they also go out live.
     await notification_service.deliver_deferred_notifications(db_session)

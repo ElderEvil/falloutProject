@@ -110,14 +110,12 @@ def test_non_clearable_groups_carry_no_clear_fields() -> None:
 
 
 def test_reclear_hours_and_difficulty_follow_risk_bands() -> None:
-    """Low/medium/high risk map to 48/72/96 hours and 2/3/4 difficulty."""
-    expected = {"low": (48, 2), "medium": (72, 3), "high": (96, 4)}
+    """Every clearable group cools down 168h; difficulty still follows risk bands."""
     for group in load_place_groups():
         if not group["clearable"]:
             continue
-        hours, difficulty = expected[group["risk"]]
-        assert group["reclear_hours"] == hours
-        assert group["base_difficulty"] == difficulty
+        assert group["reclear_hours"] == 168
+        assert group["base_difficulty"] == {"low": 2, "medium": 3, "high": 4}[group["risk"]]
         assert group["loot_table"] == group["risk"]
 
 

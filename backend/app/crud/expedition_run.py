@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
-from app.models.exploration import OPEN_STATUSES, TERMINAL_STATUSES, ExpeditionRun
+from app.models.exploration import CONSUMING_STATUSES, OPEN_STATUSES, TERMINAL_STATUSES, ExpeditionRun
 from app.utils.exceptions import ResourceConflictException
 
 
@@ -92,6 +92,42 @@ class CRUDExpeditionRun(CRUDBase[ExpeditionRun, ExpeditionRun, ExpeditionRun]):
             .where(ExpeditionRun.status.in_(TERMINAL_STATUSES))
             .where(ExpeditionRun.finished_at >= since)
             .order_by(ExpeditionRun.finished_at.desc())
+        )
+        return result.scalars().first()
+
+    async def get_consumed_for_exploration_site(
+        self, db_session: AsyncSession, *, exploration_id: UUID4, site_id: str
+    ) -> ExpeditionRun | None:
+        """Return a consumed (CLEARED/DIED) run of this site in this journey, if any."""
+        result = await db_session.execute(
+            select(ExpeditionRun)
+            .where(ExpeditionRun.exploration_id == exploration_id)
+            .where(ExpeditionRun.site_id == site_id)
+            .where(ExpeditionRun.status.in_(CONSUMING_STATUSES))
+            .order_by(ExpeditionRun.finished_at.desc())
+        )
+        return result.scalars().first()
+
+    async def get_consumed_site_ids_for_exploration(
+        self, db_session: AsyncSession, *, exploration_id: UUID4
+    ) -> set[str]:
+        """Site ids consumed (CLEARED/DIED) so far in this journey."""
+        result = await db_session.execute(
+            select(ExpeditionRun.site_id)
+            .where(ExpeditionRun.exploration_id == exploration_id)
+            .where(ExpeditionRun.status.in_(CONSUMING_STATUSES))
+        )
+        return set(result.scalars().all())
+
+    async def get_latest_for_exploration_site(
+        self, db_session: AsyncSession, *, exploration_id: UUID4, site_id: str
+    ) -> ExpeditionRun | None:
+        """Return the most recent run of this site in this journey, whatever its status."""
+        result = await db_session.execute(
+            select(ExpeditionRun)
+            .where(ExpeditionRun.exploration_id == exploration_id)
+            .where(ExpeditionRun.site_id == site_id)
+            .order_by(ExpeditionRun.created_at.desc())
         )
         return result.scalars().first()
 

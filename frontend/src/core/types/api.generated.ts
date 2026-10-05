@@ -7136,6 +7136,8 @@ export interface components {
             cooldown_remaining_seconds: number;
             /** Block Reason */
             block_reason?: ("open" | "cooldown") | null;
+            /** Exploration Id */
+            exploration_id?: string | null;
         };
         /** ExperienceGranted */
         ExperienceGranted: {

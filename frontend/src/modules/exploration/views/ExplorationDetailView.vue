@@ -176,7 +176,11 @@ const refreshExploration = async () => {
   }
 }
 
-const isActiveExploration = computed(() => exploration.value?.status === 'active')
+// Encounters are offered and actionable while the journey is active OR returning;
+// only a terminal exploration is close-only recovery.
+const isInProgressExploration = computed(
+  () => exploration.value?.status === 'active' || exploration.value?.status === 'returning'
+)
 
 const siteOptionsLoaded = ref(false)
 
@@ -188,7 +192,7 @@ const canOpenSite = computed(
 
 const loadSiteOptions = async () => {
   const requestedId = explorationId.value
-  if (!requestedId || !authStore.token || !isActiveExploration.value) return
+  if (!requestedId || !authStore.token || !isInProgressExploration.value) return
   try {
     await siteStore.fetchAvailableSites(requestedId)
     if (explorationId.value === requestedId) siteOptionsLoaded.value = true
@@ -207,7 +211,7 @@ const handleSiteUpdated = async () => {
 // on mount so the player can pick up where they left off. A null room (no open
 // run) is a normal answer, not an error.
 const reconnectToSite = async () => {
-  if (!explorationId.value || !authStore.token || !isActiveExploration.value) return
+  if (!explorationId.value || !authStore.token || !isInProgressExploration.value) return
   try {
     const currentRoom = await siteStore.fetchCurrentRoom(explorationId.value)
     if (currentRoom?.exploration_id === explorationId.value) showSiteModal.value = true
@@ -324,9 +328,9 @@ watch(isReady, (ready) => {
               :dweller="detailedDweller ?? dweller"
             />
 
-            <!-- Expedition site entry CTA (active explorations only) -->
+            <!-- Expedition site entry CTA (in-progress journeys: active or returning) -->
             <Button
-              v-if="isActiveExploration"
+              v-if="isInProgressExploration"
               class="mb-4 w-full"
               size="lg"
               :disabled="!canOpenSite"
@@ -393,7 +397,7 @@ watch(isReady, (ready) => {
             :exploration-id="explorationId"
             :dweller-name="dwellerName"
             :time-remaining-seconds="timeRemainingSeconds"
-            :exploration-active="isActiveExploration"
+            :exploration-active="isInProgressExploration"
             @close="showSiteModal = false"
             @updated="handleSiteUpdated"
           />

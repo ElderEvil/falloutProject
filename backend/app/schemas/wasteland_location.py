@@ -132,6 +132,8 @@ class ExpeditionSiteMarkerRead(SQLModel):
     cleared: bool
     cooldown_remaining_seconds: int
     block_reason: Literal["open", "cooldown"] | None = None
+    # Journey identity for temporary encounter offers; None for catalog/legacy markers.
+    exploration_id: UUID4 | None = None
 
 
 class VaultMapResponse(SQLModel):

@@ -1,6 +1,7 @@
 """Tests for the expedition site resolution engine (SQLite, seeded RNG)."""
 
 import random
+from datetime import datetime, timedelta
 
 import pytest
 from pydantic import ValidationError
@@ -55,6 +56,16 @@ async def _make_exploration(async_session: AsyncSession, level: int = 10, stats:
     )
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     return vault, dweller, exploration
+
+
+async def _second_exploration(async_session: AsyncSession, vault):
+    """A second active exploration in the same vault, for cross-journey cooldown checks."""
+    dweller_data = create_fake_adult_dweller() | {"level": 10, "health": 100, "max_health": 100}
+    dweller = await crud.dweller.create(
+        async_session,
+        obj_in=DwellerCreate(**dweller_data, vault_id=str(vault.id)),
+    )
+    return await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
 
 async def _push_on_until(async_session: AsyncSession, exploration_id, room_index: int, max_attempts: int = 8):
@@ -130,11 +141,21 @@ async def test_enter_level_gate(async_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_enter_twice_conflicts(async_session: AsyncSession):
+async def test_enter_same_site_is_idempotent(async_session: AsyncSession):
+    _, _, exploration = await _make_exploration(async_session)
+    first = await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
+    second = await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
+    assert second.site_id == "red_rocket"
+    assert second.room_index == first.room_index
+    assert second.status == "in_room"
+
+
+@pytest.mark.asyncio
+async def test_enter_different_site_conflicts(async_session: AsyncSession):
     _, _, exploration = await _make_exploration(async_session)
     await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
     with pytest.raises(ResourceConflictException, match="already has an open expedition run"):
-        await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
+        await expedition_service.enter_run(async_session, exploration.id, "super_duper_mart")
 
 
 @pytest.mark.asyncio
@@ -142,9 +163,10 @@ async def test_enter_after_recent_clear_conflicts(async_session: AsyncSession):
     from datetime import datetime
 
     vault, dweller, exploration = await _make_exploration(async_session)
+    prior = await _second_exploration(async_session, vault)
     run = await crud.expedition_run.create_run(
         async_session,
-        exploration_id=exploration.id,
+        exploration_id=prior.id,
         vault_id=vault.id,
         site_id="red_rocket",
     )
@@ -158,12 +180,13 @@ async def test_enter_after_recent_clear_conflicts(async_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_enter_after_retreat_blocked_by_cooldown(async_session: AsyncSession):
-    _, _, exploration = await _make_exploration(async_session)
-    await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
-    view = await expedition_service.retreat_run(async_session, exploration.id)
+    vault, _, prior = await _make_exploration(async_session)
+    await expedition_service.enter_run(async_session, prior.id, "red_rocket")
+    view = await expedition_service.retreat_run(async_session, prior.id)
     assert view.status == "retreated"
+    fresh = await _second_exploration(async_session, vault)
     with pytest.raises(ResourceConflictException, match="quiet"):
-        await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
+        await expedition_service.enter_run(async_session, fresh.id, "red_rocket")
 
 
 @pytest.mark.asyncio
@@ -185,9 +208,10 @@ async def test_site_available_again_after_cooldown_window(async_session: AsyncSe
     from datetime import datetime, timedelta
 
     vault, dweller, exploration = await _make_exploration(async_session)
+    prior = await _second_exploration(async_session, vault)
     run = await crud.expedition_run.create_run(
         async_session,
-        exploration_id=exploration.id,
+        exploration_id=prior.id,
         vault_id=vault.id,
         site_id="red_rocket",
     )
@@ -338,16 +362,33 @@ async def test_mart_trade_without_caps_falls_back(async_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("status", [ExplorationStatus.COMPLETED, ExplorationStatus.RETURNING])
-async def test_resolve_after_exploration_leaves_active_raises(async_session: AsyncSession, status: ExplorationStatus):
-    """Resolving a room on a non-active exploration is rejected under the lock (Gap 1)."""
+async def test_resolve_after_exploration_completed_raises(async_session: AsyncSession):
+    """Resolving a room on a finished exploration is rejected under the lock (Gap 1)."""
     _, _, exploration = await _make_exploration(async_session)
     await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
-    exploration.status = status
+    exploration.status = ExplorationStatus.COMPLETED
     async_session.add(exploration)
     await async_session.commit()
     with pytest.raises(ValidationException, match="Expedition sites need an active exploration"):
         await expedition_service.resolve_node(async_session, exploration.id, ExpeditionResolveRequest())
+
+
+@pytest.mark.asyncio
+async def test_return_leg_allows_listing_and_retreating(async_session: AsyncSession):
+    """A returning journey may still list and act on its open encounter (return-leg access)."""
+    _, _, exploration = await _make_exploration(async_session)
+    await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
+    exploration.status = ExplorationStatus.RETURNING
+    exploration.return_started_at = datetime.utcnow()
+    exploration.return_completes_at = datetime.utcnow() + timedelta(minutes=1)
+    async_session.add(exploration)
+    await async_session.commit()
+
+    available = await expedition_service.list_available_sites(async_session, exploration.id)
+    assert isinstance(available, list)
+
+    view = await expedition_service.retreat_run(async_session, exploration.id)
+    assert view.status == "retreated"
 
 
 @pytest.mark.asyncio

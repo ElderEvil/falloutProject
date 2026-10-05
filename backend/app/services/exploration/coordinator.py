@@ -61,6 +61,9 @@ class ExplorationCoordinator:
             db_session.add(run)
             await db_session.flush()
 
+        from app.services.exploration_service import exploration_service
+
+        exploration_service.resume_from_encounter(exploration)
         exploration = await crud_exploration.start_return(db_session, exploration_id=exploration_id, recalled=recalled)
         await db_session.commit()
 

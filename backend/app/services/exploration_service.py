@@ -705,31 +705,26 @@ class ExplorationService:
         snapshot = await self._load_snapshot(db_session, exploration)
         return self._path_clear(snapshot, pos, target)
 
-    async def advance(
-        self, db_session: AsyncSession, exploration_id: UUID4, *, now: datetime | None = None
-    ) -> Exploration:
-        """Advance a spatial exploration's position by elapsed time (slice 1 movement).
+    async def _settle_movement(self, db_session: AsyncSession, exploration: Exploration, now: datetime) -> None:
+        """Apply movement up to *now* on the in-memory exploration (no commit).
 
-        Legacy runs (``heading_degrees`` NULL) are untouched. Spatial runs move along
-        their heading at ``1 / travel_hours_per_unit`` units per hour; the forward
-        phase lasts half the chosen duration, then the dweller retraces the traveled
-        path home at the same speed. Water and map bounds block forward movement and
-        trigger an early return. Reprocessing an already-processed interval is a no-op
-        via ``position_as_of``.
+        Shared by the tick-owned ``advance`` and the boundary settles so the clock
+        arithmetic has one implementation while each caller owns its transaction.
         """
-        exploration = await crud_exploration.get(db_session, exploration_id)
         position_as_of = exploration.position_as_of
-        if position_as_of is None:
-            return exploration
-        if exploration.heading_degrees is None:
-            return exploration
+        if position_as_of is None or exploration.heading_degrees is None:
+            return
         if not exploration.is_in_progress():
-            return exploration
+            return
+        if (now - position_as_of).total_seconds() <= 0:
+            return
 
-        now = now or datetime.utcnow()
-        elapsed = (now - position_as_of).total_seconds()
-        if elapsed <= 0:
-            return exploration
+        # An encounter in progress freezes the journey: burn the interval without
+        # moving. The clock shift is applied once at the exit boundary
+        # (resume_from_encounter), so a pause with no inside tick is still counted.
+        if exploration.paused_at is not None:
+            exploration.position_as_of = max(position_as_of, now)
+            return
 
         snapshot = await self._load_snapshot(db_session, exploration)
         forward_budget = timedelta(hours=exploration.duration / 2)
@@ -748,9 +743,63 @@ class ExplorationService:
             self._advance_return(exploration, now)
 
         exploration.position_as_of = now
+
+    async def advance(
+        self, db_session: AsyncSession, exploration_id: UUID4, *, now: datetime | None = None
+    ) -> Exploration:
+        """Advance a spatial exploration's position by elapsed time (slice 1 movement).
+
+        Legacy runs (``heading_degrees`` NULL) are untouched. Spatial runs move along
+        their heading at ``1 / travel_hours_per_unit`` units per hour; the forward
+        phase lasts half the chosen duration, then the dweller retraces the traveled
+        path home at the same speed. Water and map bounds block forward movement and
+        trigger an early return. Reprocessing an already-processed interval is a no-op
+        via ``position_as_of``. The tick owns this transaction, so it commits.
+        """
+        exploration = await crud_exploration.get(db_session, exploration_id)
+        now = now or datetime.utcnow()
+        await self._settle_movement(db_session, exploration, now)
         db_session.add(exploration)
         await db_session.commit()
         await db_session.refresh(exploration)
+        return exploration
+
+    async def pause_for_encounter(
+        self, db_session: AsyncSession, exploration: Exploration, *, now: datetime | None = None
+    ) -> Exploration:
+        """Stage the journey freeze while a site encounter is open (caller commits).
+
+        The pre-entry segment is settled to the boundary first, then the pause is
+        marked. ``advance`` burns intervals while paused and the clock shift happens
+        in ``resume_from_encounter``, so entry/exit need no ticks in between.
+        """
+        now = now or datetime.utcnow()
+        await self._settle_movement(db_session, exploration, now)
+        if exploration.heading_degrees is not None and exploration.paused_at is None:
+            exploration.paused_at = now
+        if exploration.position_as_of is not None:
+            exploration.position_as_of = max(exploration.position_as_of, now)
+        db_session.add(exploration)
+        return exploration
+
+    def resume_from_encounter(self, exploration: Exploration, *, now: datetime | None = None) -> Exploration:
+        """Stage the clock shift past a pause (caller commits)."""
+        now = now or datetime.utcnow()
+        paused_at = exploration.paused_at
+        if paused_at is None:
+            return exploration
+        paused = now - paused_at
+        if exploration.heading_degrees is not None and paused > timedelta(0):
+            if exploration.is_active():
+                exploration.start_time += paused
+            elif exploration.is_returning():
+                if exploration.return_started_at is not None:
+                    exploration.return_started_at += paused
+                if exploration.return_completes_at is not None:
+                    exploration.return_completes_at += paused
+        exploration.paused_at = None
+        if exploration.position_as_of is not None:
+            exploration.position_as_of = max(exploration.position_as_of, now)
         return exploration
 
     async def get_exploration_progress(self, db_session: AsyncSession, exploration_id: UUID4) -> ExplorationProgress:

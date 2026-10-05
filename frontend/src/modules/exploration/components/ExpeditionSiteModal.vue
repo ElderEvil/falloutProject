@@ -549,8 +549,8 @@ const terminalBanner = computed(() => {
         <template v-else>
           <div v-if="confirmingRetreat" class="flex w-full flex-col items-end gap-2">
             <p class="flex items-center gap-1.5 text-xs font-semibold text-warning">
-              <Icon icon="mdi:calendar-clock" class="h-3.5 w-3.5" />
-              Retreating puts the site on a 7-day cooldown.
+              <Icon icon="mdi:map-marker-path" class="h-3.5 w-3.5" />
+              Retreating keeps this encounter open — you can return while the journey lasts.
             </p>
             <TerminalModalActions
               cancel-label="Keep Exploring"

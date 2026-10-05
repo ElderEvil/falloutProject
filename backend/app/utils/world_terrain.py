@@ -48,6 +48,16 @@ def segment_passes_near(
     return (point[0] - closest[0]) ** 2 + (point[1] - closest[1]) ** 2 <= radius * radius
 
 
+def path_passes_near(points: list[tuple[float, float]], target: tuple[float, float], radius: float) -> bool:
+    """True when a target lies within *radius* of a traveled path or its endpoints."""
+    if not points:
+        return False
+    if len(points) == 1:
+        px, py = points[0]
+        return (target[0] - px) ** 2 + (target[1] - py) ** 2 <= radius * radius
+    return any(segment_passes_near(points[i - 1], points[i], target, radius) for i in range(1, len(points)))
+
+
 def heading_to(origin: tuple[float, float], target: tuple[float, float]) -> float:
     """Compass heading from origin toward target (0=N, 90=E), matching the map bearing math."""
     dx, dy = target[0] - origin[0], target[1] - origin[1]

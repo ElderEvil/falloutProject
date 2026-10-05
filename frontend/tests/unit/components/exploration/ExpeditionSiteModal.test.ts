@@ -511,7 +511,7 @@ describe('ExpeditionSiteModal', () => {
     }
   })
 
-  it('warns about the 7-day cooldown in the retreat confirm step', async () => {
+  it('explains the retreat keeps the encounter open for the journey', async () => {
     const wrapper = mountModal()
     const store = useExpeditionSiteStore()
     store.room = choiceRoom
@@ -519,7 +519,7 @@ describe('ExpeditionSiteModal', () => {
 
     await buttonByText(wrapper, 'Retreat')!.trigger('click')
 
-    expect(wrapper.text()).toContain('7-day cooldown')
+    expect(wrapper.text()).toContain('keeps this encounter open')
     expect(wrapper.text()).toContain('Keep Exploring')
   })
 

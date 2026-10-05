@@ -31,7 +31,7 @@ class ExplorationCoordinator:
     """Coordinates exploration completion and recall; events and rewards live in their own services."""
 
     async def start_return(
-        self, db_session: AsyncSession, exploration_id: UUID4, *, recalled: bool = False
+        self, db_session: AsyncSession, exploration_id: UUID4, *, recalled: bool = False, arrived: bool = False
     ) -> Exploration:
         """Send a dweller home; rewards and loot wait until the return leg finishes.
 
@@ -39,6 +39,8 @@ class ExplorationCoordinator:
             db_session: Database session
             exploration_id: Exploration ID
             recalled: True for a player-initiated early recall, False for a natural finish
+            arrived: True when a spatial dispatch reached its target; arrival finishes
+                the outbound leg regardless of remaining planned time
 
         Returns:
             Exploration: The exploration now in RETURNING state
@@ -47,7 +49,7 @@ class ExplorationCoordinator:
 
         if not exploration.is_active():
             raise ValueError(ERROR_NOT_ACTIVE)
-        if not recalled and exploration.time_remaining_seconds() > 0:
+        if not recalled and not arrived and exploration.time_remaining_seconds() > 0:
             raise ValueError("Exploration has not finished yet; recall the dweller to end it early")
 
         # Clock expiry and recall both force-retreat an open site run before the

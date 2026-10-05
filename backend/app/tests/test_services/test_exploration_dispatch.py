@@ -277,7 +277,7 @@ async def test_dispatch_arrival_win_clears_state_and_loot(
     assert state.cleared_at is not None
     assert state.clear_count == 1
     assert state.reclear_available_at is not None
-    expected_reclear = state.cleared_at + timedelta(hours=48)  # gas_station reclear_hours
+    expected_reclear = state.cleared_at + timedelta(hours=168)  # all clearable groups share the 168h window
     assert abs((state.reclear_available_at - expected_reclear).total_seconds()) < 1
     assert len(exploration.loot_collected) == 3  # low table has 3 items
     assert exploration.total_caps_found > 0

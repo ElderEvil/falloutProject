@@ -253,16 +253,27 @@ class ExplorationService:
             dweller_luck=dweller.luck,
             start_time=start_time,
             status=ExplorationStatus.ACTIVE,
-            world_version=world_version,
-            origin_x=origin[0] if origin else None,
-            origin_y=origin[1] if origin else None,
-            heading_degrees=heading_degrees,
-            pos_x=origin[0] if origin else None,
-            pos_y=origin[1] if origin else None,
-            trail=[{"x": origin[0], "y": origin[1], "t": start_time.isoformat()}] if origin else [],
-            position_as_of=start_time if origin else None,
         )
+        self._init_spatial_movement(exploration, origin, heading_degrees, world_version, start_time)
         return await self._persist_departure(db_session, vault_id=vault_id, dwellers=[dweller], exploration=exploration)
+
+    @staticmethod
+    def _init_spatial_movement(
+        exploration: Exploration,
+        origin: tuple[float, float] | None,
+        heading_degrees: float | None,
+        world_version: int | None,
+        start_time: datetime,
+    ) -> None:
+        """Stage movement fields on a departure; legacy runs keep every column NULL."""
+        exploration.world_version = world_version
+        exploration.origin_x = origin[0] if origin else None
+        exploration.origin_y = origin[1] if origin else None
+        exploration.heading_degrees = heading_degrees
+        exploration.pos_x = origin[0] if origin else None
+        exploration.pos_y = origin[1] if origin else None
+        exploration.trail = [{"x": origin[0], "y": origin[1], "t": start_time.isoformat()}] if origin else []
+        exploration.position_as_of = start_time if origin else None
 
     async def _persist_departure(
         self,
@@ -418,6 +429,7 @@ class ExplorationService:
         duration = dispatch_travel_hours(distance)
         tier = min(state.clear_count, game_config.exploration.dispatch.escalation_cap)
         anchor = dwellers[0]
+        snapshot = await world_snapshot_service.get_or_generate(db_session)
 
         exploration = Exploration(
             vault_id=vault_id,
@@ -436,6 +448,13 @@ class ExplorationService:
             clear_tier=tier,
             start_time=datetime.utcnow(),
             status=ExplorationStatus.ACTIVE,
+        )
+        self._init_spatial_movement(
+            exploration,
+            origin,
+            world_terrain.heading_to(origin, (location.coord_x, location.coord_y)),
+            snapshot.generator_version,
+            exploration.start_time,
         )
         db_session.add(exploration)
         await db_session.flush()
@@ -492,6 +511,26 @@ class ExplorationService:
                 break
             last_valid = (x, y)
         return last_valid
+
+    @classmethod
+    def _path_clear(cls, snapshot, a: tuple[float, float], b: tuple[float, float]) -> bool:
+        """True when the straight segment between two points is fully traversable.
+
+        Uses the same segment march as movement, so a target across water is never
+        treated as reached merely because it sits within the arrival radius.
+        """
+        last = cls._last_valid_point(snapshot, a[0], a[1], b[0], b[1])
+        return math.dist(last, b) < 0.01
+
+    def _obstruction_time(
+        self, position_as_of: datetime, start: tuple[float, float], blocked_at: tuple[float, float]
+    ) -> datetime:
+        """When, within the processed interval, the party actually reached the obstruction.
+
+        Dating a blocked return at the interval start would let it expire before the
+        party could have traveled to the obstruction; derive it from the distance moved.
+        """
+        return position_as_of + timedelta(hours=math.dist(start, blocked_at) / self._speed())
 
     @staticmethod
     def _origin(exploration: Exploration) -> tuple[float, float]:
@@ -559,7 +598,9 @@ class ExplorationService:
         if (valid_x, valid_y) != (new_x, new_y):
             exploration.pos_x, exploration.pos_y = valid_x, valid_y
             self._append_trail(exploration, valid_x, valid_y, now)
-            self._begin_spatial_return(exploration, position_as_of)
+            self._begin_spatial_return(
+                exploration, self._obstruction_time(position_as_of, (pos_x, pos_y), (valid_x, valid_y))
+            )
             return
         exploration.pos_x, exploration.pos_y = new_x, new_y
         self._append_trail(exploration, new_x, new_y, now)
@@ -579,10 +620,57 @@ class ExplorationService:
         if (valid_x, valid_y) != (new_x, new_y):
             exploration.pos_x, exploration.pos_y = valid_x, valid_y
             self._append_trail(exploration, valid_x, valid_y, forward_end)
-            self._begin_spatial_return(exploration, position_as_of)
+            self._begin_spatial_return(
+                exploration, self._obstruction_time(position_as_of, (pos_x, pos_y), (valid_x, valid_y))
+            )
             return
         exploration.pos_x, exploration.pos_y = new_x, new_y
         self._append_trail(exploration, new_x, new_y, forward_end)
+
+    async def _advance_dispatch(
+        self,
+        db_session: AsyncSession,
+        exploration: Exploration,
+        now: datetime,
+        snapshot,
+        position_as_of: datetime,
+    ) -> None:
+        """Move a targeted run toward its location; hold on arrival, return when blocked.
+
+        Unlike roams, dispatches have no outbound budget: the forward phase lasts
+        until the dweller reaches the target, detected on the traveled segment so
+        long offline catch-ups cannot leapfrog it. The tick resolves arrival
+        combat; an unreached run falls back to the legacy timer expiry. Blocked
+        paths return early instead of stranding the party.
+        """
+        target_location_id = exploration.target_location_id
+        if target_location_id is None:
+            self._begin_spatial_return(exploration, now)
+            return
+        location = await crud_world_location.get_registry(db_session, target_location_id)
+        if location is None:
+            self._begin_spatial_return(exploration, now)
+            return
+        target = (location.coord_x, location.coord_y)
+        pos = self._position(exploration)
+        if math.dist(pos, target) <= world_terrain.ARRIVAL_RADIUS and self._path_clear(snapshot, pos, target):
+            self._append_trail(exploration, pos[0], pos[1], now)
+            return
+        new_x, new_y = self._forward_position(exploration, now)
+        valid_x, valid_y = self._last_valid_point(snapshot, pos[0], pos[1], new_x, new_y)
+        if world_terrain.segment_passes_near(
+            pos, (valid_x, valid_y), target, world_terrain.ARRIVAL_RADIUS
+        ) and self._path_clear(snapshot, (valid_x, valid_y), target):
+            exploration.pos_x, exploration.pos_y = target
+            self._append_trail(exploration, target[0], target[1], now)
+            return
+        if (valid_x, valid_y) != (new_x, new_y):
+            exploration.pos_x, exploration.pos_y = valid_x, valid_y
+            self._append_trail(exploration, valid_x, valid_y, now)
+            self._begin_spatial_return(exploration, self._obstruction_time(position_as_of, pos, (valid_x, valid_y)))
+            return
+        exploration.pos_x, exploration.pos_y = new_x, new_y
+        self._append_trail(exploration, new_x, new_y, now)
 
     def _advance_return(self, exploration: Exploration, now: datetime) -> None:
         """Move the dweller back along the traveled path at the same speed."""
@@ -602,6 +690,20 @@ class ExplorationService:
         else:
             exploration.pos_x = max_x - dx * retraced
             exploration.pos_y = max_y - dy * retraced
+
+    async def has_arrived(self, db_session: AsyncSession, exploration: Exploration) -> bool:
+        """True when a spatial dispatch run reaches its target over traversable terrain."""
+        if exploration.target_location_id is None or exploration.pos_x is None or exploration.pos_y is None:
+            return False
+        location = await crud_world_location.get_registry(db_session, exploration.target_location_id)
+        if location is None:
+            return False
+        target = (location.coord_x, location.coord_y)
+        pos = (exploration.pos_x, exploration.pos_y)
+        if math.dist(pos, target) > world_terrain.ARRIVAL_RADIUS:
+            return False
+        snapshot = await self._load_snapshot(db_session, exploration)
+        return self._path_clear(snapshot, pos, target)
 
     async def advance(
         self, db_session: AsyncSession, exploration_id: UUID4, *, now: datetime | None = None
@@ -634,7 +736,9 @@ class ExplorationService:
         forward_end = exploration.start_time + forward_budget
 
         if exploration.is_active():
-            if now <= forward_end:
+            if exploration.target_location_id is not None:
+                await self._advance_dispatch(db_session, exploration, now, snapshot, position_as_of)
+            elif now <= forward_end:
                 await self._advance_forward(db_session, exploration, now, snapshot, position_as_of)
             else:
                 await self._snap_to_forward_end(db_session, exploration, forward_end, snapshot, position_as_of)

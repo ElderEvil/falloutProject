@@ -128,6 +128,18 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
             logger.info(f"Finalized returning exploration {exploration.id} for dweller {exploration.dweller_id}")
         return
 
+    # Spatial dispatch arrival is positional: the dweller reached its target.
+    if (
+        exploration.heading_degrees is not None
+        and exploration.target_location_id is not None
+        and exploration.is_active()
+        and await exploration_service.has_arrived(db_session, exploration)
+    ):
+        await resolve_dispatch_arrival(db_session, exploration.id, arrived=True)
+        stats["returning"] += 1
+        logger.info(f"Exploration {exploration.id} arrived; dweller {exploration.dweller_id} is clearing")
+        return
+
     # Exploring is done: send the dweller home; loot and rewards wait for arrival.
     if exploration.time_remaining_seconds() <= 0:
         if exploration.is_dispatch_run():

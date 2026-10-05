@@ -37,6 +37,7 @@ from app.services.exploration.event_service import event_service
 from app.services.user_service import user_service
 from app.services.world_generation_service import WORLD_ID
 from app.services.world_snapshot_service import world_snapshot_service
+from app.utils import world_terrain
 from app.utils.dweller_availability import availability_error
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 from app.utils.place_groups import get_place_group
@@ -471,15 +472,7 @@ class ExplorationService:
     @staticmethod
     def _is_blocked(snapshot, x: float, y: float) -> bool:
         """True when the registry-space position is out of bounds or on water."""
-        if snapshot is None:
-            return False
-        if not (0 <= x <= 100 and 0 <= y <= 100):
-            return True
-        width = snapshot.config["width"]
-        height = snapshot.config["height"]
-        tx = min(width - 1, max(0, int(x / 100 * width)))
-        ty = min(height - 1, max(0, int(y / 100 * height)))
-        return snapshot.terrain[ty * width + tx] == "water"
+        return snapshot is not None and world_terrain.is_blocked(snapshot, x, y)
 
     @classmethod
     def _last_valid_point(cls, snapshot, x0: float, y0: float, x1: float, y1: float) -> tuple[float, float]:

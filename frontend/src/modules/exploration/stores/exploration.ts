@@ -73,6 +73,9 @@ export interface Exploration {
   radaways: number
   health?: number
   radiation?: number
+  /** Authoritative registry position for spatial runs; absent on legacy runs. */
+  pos_x?: number | null
+  pos_y?: number | null
 }
 
 export interface ExplorationProgress {

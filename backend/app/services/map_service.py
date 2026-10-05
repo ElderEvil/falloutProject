@@ -20,6 +20,7 @@ from app.crud.exploration import exploration as exploration_crud
 from app.crud.vault import vault as vault_crud
 from app.crud.vault_slot import vault_slot as vault_slot_crud
 from app.crud.world_location import world_location as wl_crud
+from app.crud.world_snapshot import world_snapshot as world_snapshot_crud
 from app.models.notification import NotificationPriority, NotificationType
 from app.models.world_location import VaultLocationState, WorldLocation
 from app.schemas.wasteland_location import (
@@ -37,6 +38,8 @@ from app.schemas.wasteland_location import (
 from app.services.exploration.data_loader import load_expedition_sites
 from app.services.exploration.expedition import site_block_state
 from app.services.notification_service import notification_service
+from app.services.world_generation_service import WORLD_ID
+from app.utils import world_terrain
 from app.utils.place_groups import get_place_group, load_place_groups
 from app.utils.places import GENERIC_ORIGIN_SKIP, WORLD_SCALE, normalize_place_name
 from app.utils.vault_slots import slot_coords
@@ -280,6 +283,32 @@ class MapService:
     # discovery registration
     # ------------------------------------------------------------------
 
+    async def _link_discovery(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        exploration_id: UUID4,
+        dweller_id: UUID4,
+        location: WorldLocation,
+    ) -> None:
+        """Create the vault state + dweller link for a resolved discovery place."""
+        await wl_crud.get_or_create_state(
+            db_session,
+            vault_id,
+            location.id,
+            LocationTypeEnum.DISCOVERY,
+            exploration_id=exploration_id,
+            commit=False,
+        )
+        await wl_crud.link_dweller(
+            db_session,
+            dweller_id,
+            location.id,
+            DwellerLocationRelationEnum.VISITED,
+            is_unlocked=True,
+            commit=False,
+        )
+
     async def register_discovery(
         self,
         db_session: AsyncSession,
@@ -295,22 +324,7 @@ class MapService:
                 location_name[:64],
                 commit=False,
             )
-            await wl_crud.get_or_create_state(
-                db_session,
-                vault_id,
-                location.id,
-                LocationTypeEnum.DISCOVERY,
-                exploration_id=exploration_id,
-                commit=False,
-            )
-            await wl_crud.link_dweller(
-                db_session,
-                dweller_id,
-                location.id,
-                DwellerLocationRelationEnum.VISITED,
-                is_unlocked=True,
-                commit=False,
-            )
+            await self._link_discovery(db_session, vault_id, exploration_id, dweller_id, location)
         except Exception:
             # A failed flush leaves SQLAlchemy's transaction unusable. This
             # registration is best-effort and runs before the event mutation,
@@ -326,39 +340,142 @@ class MapService:
         else:
             return location
 
-    async def _get_discovery_routes(self, db_session: AsyncSession, vault_id: UUID4) -> list[DiscoveryRouteRead]:
-        """Project discovery events into ordered map trails.
+    async def _create_journey_place(
+        self,
+        db_session: AsyncSession,
+        exploration_id: UUID4,
+        location_name: str,
+        coord_x: float,
+        coord_y: float,
+    ) -> WorldLocation:
+        """A new spatial row keyed to journey and position, not to the name.
 
-        A ``WastelandLocation`` is intentionally de-duplicated by place name,
-        so it cannot faithfully represent repeated visits across expeditions.
-        Event records are the journey history and therefore the route authority.
-        Older events without the Journal coordinate fields are simply omitted.
+        Identity is a pure function of the inputs, so concurrent discoveries
+        cannot race on allocation: same position merges (one place), different
+        positions never compete for one row.
+        """
+        key = f"{exploration_id}:{coord_x:.1f},{coord_y:.1f}"
+        return await wl_crud.get_or_create_location(
+            db_session,
+            location_name[:64],
+            coords=(coord_x, coord_y),
+            normalized_name=key,
+            commit=False,
+        )
+
+    async def register_spatial_discovery(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        exploration_id: UUID4,
+        dweller_id: UUID4,
+        location_name: str,
+        position: tuple[float, float],
+        world_version: int | None,
+    ) -> WorldLocation | None:
+        """Register a discovery found while moving: nearby place, else journey-scoped.
+
+        An existing PLACE row within the fog's site radius is claimed where it
+        stands (its coordinates never move); otherwise a new place is created
+        at the explorer's position snapped to the nearest land tile, keyed to
+        the journey so distant same-name rows can never hijack it.
+        Best-effort like ``register_discovery``.
+        """
+        try:
+            coord_x, coord_y = position
+            snapshot = (
+                await world_snapshot_crud.get_version(db_session, world_id=WORLD_ID, generator_version=world_version)
+                if world_version is not None
+                else None
+            )
+            if snapshot is not None:
+                radius = world_terrain.reveal_radius_registry(snapshot, world_terrain.SITE_REVEAL_TILES)
+                nearby = await wl_crud.get_nearest_within(db_session, coord_x, coord_y, radius)
+                if nearby is not None:
+                    location = nearby
+                else:
+                    coord_x, coord_y = world_terrain.nearest_land(snapshot, coord_x, coord_y)
+                    location = await self._create_journey_place(
+                        db_session, exploration_id, location_name, coord_x, coord_y
+                    )
+            else:
+                location = await self._create_journey_place(db_session, exploration_id, location_name, coord_x, coord_y)
+            await self._link_discovery(db_session, vault_id, exploration_id, dweller_id, location)
+        except Exception:
+            await db_session.rollback()
+            logger.exception(
+                "register_spatial_discovery failed: vault=%s exploration=%s name=%r",
+                vault_id,
+                exploration_id,
+                location_name,
+            )
+            return None
+        else:
+            return location
+
+    async def _get_discovery_routes(self, db_session: AsyncSession, vault_id: UUID4) -> list[DiscoveryRouteRead]:
+        """Project a journey into ordered map coordinates.
+
+        Spatial runs use their persisted movement trail: the durable path
+        segments the fog corridor follows. Legacy runs use discovery events —
+        a ``WastelandLocation`` is de-duplicated by place name, so it cannot
+        faithfully represent repeated visits, and event records are the journey
+        authority there. Older events without coordinate fields are omitted.
         """
         explorations = await exploration_crud.get_by_vault(db_session, vault_id=vault_id)
         routes: list[DiscoveryRouteRead] = []
         for exploration in explorations:
-            points: list[DiscoveryRoutePoint] = []
-            for event in exploration.events:
-                if event.get("type") != "discovery":
-                    continue
-                location_id = event.get("location_id")
-                coord_x = event.get("coord_x")
-                coord_y = event.get("coord_y")
-                timestamp = event.get("timestamp")
-                if location_id is None or coord_x is None or coord_y is None or not isinstance(timestamp, str):
-                    continue
-                points.append(
-                    DiscoveryRoutePoint(
-                        location_id=location_id,
-                        coord_x=round(float(coord_x) * WORLD_SCALE, 1),
-                        coord_y=round(float(coord_y) * WORLD_SCALE, 1),
-                        timestamp=timestamp,
-                    )
-                )
+            points = (
+                self._movement_route_points(exploration)
+                if exploration.heading_degrees is not None
+                else self._discovery_route_points(exploration)
+            )
             if len(points) >= 2:
                 points.sort(key=lambda point: point.timestamp)
                 routes.append(DiscoveryRouteRead(exploration_id=exploration.id, points=points))
         return routes
+
+    @staticmethod
+    def _movement_route_points(exploration) -> list[DiscoveryRoutePoint]:
+        """A spatial run's traveled path, scaled into wire coordinates."""
+        points: list[DiscoveryRoutePoint] = []
+        for step in exploration.trail or []:
+            coord_x = step.get("x")
+            coord_y = step.get("y")
+            timestamp = step.get("t")
+            if coord_x is None or coord_y is None or not isinstance(timestamp, str):
+                continue
+            points.append(
+                DiscoveryRoutePoint(
+                    coord_x=round(float(coord_x) * WORLD_SCALE, 1),
+                    coord_y=round(float(coord_y) * WORLD_SCALE, 1),
+                    timestamp=timestamp,
+                )
+            )
+        return points
+
+    @staticmethod
+    def _discovery_route_points(exploration) -> list[DiscoveryRoutePoint]:
+        """A legacy run's discovery events, scaled into wire coordinates."""
+        points: list[DiscoveryRoutePoint] = []
+        for event in exploration.events:
+            if event.get("type") != "discovery":
+                continue
+            location_id = event.get("location_id")
+            coord_x = event.get("coord_x")
+            coord_y = event.get("coord_y")
+            timestamp = event.get("timestamp")
+            if location_id is None or coord_x is None or coord_y is None or not isinstance(timestamp, str):
+                continue
+            points.append(
+                DiscoveryRoutePoint(
+                    location_id=location_id,
+                    coord_x=round(float(coord_x) * WORLD_SCALE, 1),
+                    coord_y=round(float(coord_y) * WORLD_SCALE, 1),
+                    timestamp=timestamp,
+                )
+            )
+        return points
 
     # ------------------------------------------------------------------
     # map assembly

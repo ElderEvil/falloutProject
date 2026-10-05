@@ -59,6 +59,10 @@ class ExplorationBase(SQLModel):
     pos_y: float | None = Field(default=None, description="Authoritative position, registry y")
     trail: list[dict] = Field(default_factory=list, sa_column=sa.Column(JSONB))
     position_as_of: datetime | None = Field(default=None, description="Last processed movement timestamp")
+    # Encounter pause (slice 3b): set while the dweller is inside a site run.
+    # The journey clock is settled at the entry/exit boundaries, so a pause with
+    # no tick in between still discounts exactly the paused interval.
+    paused_at: datetime | None = Field(default=None, description="When the encounter pause started; NULL when moving")
 
     # Journey log and events
     events: list[dict] = Field(default_factory=list, sa_column=sa.Column(JSONB))
@@ -298,6 +302,13 @@ OPEN_STATUSES: tuple[ExpeditionRunStatus, ...] = (ExpeditionRunStatus.IN_ROOM,)
 TERMINAL_STATUSES: tuple[ExpeditionRunStatus, ...] = (
     ExpeditionRunStatus.CLEARED,
     ExpeditionRunStatus.RETREATED,
+    ExpeditionRunStatus.DIED,
+)
+
+# Statuses that consume a journey encounter: completion or death only. A retreat
+# stays resumable for the rest of the journey, so it is terminal but not consuming.
+CONSUMING_STATUSES: tuple[ExpeditionRunStatus, ...] = (
+    ExpeditionRunStatus.CLEARED,
     ExpeditionRunStatus.DIED,
 )
 

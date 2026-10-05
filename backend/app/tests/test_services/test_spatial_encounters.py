@@ -9,7 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
-from app.models.exploration import ExplorationStatus
+from app.models.exploration import ExpeditionRunStatus, ExplorationStatus
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
 from app.services.exploration import data_loader
@@ -55,13 +55,43 @@ async def _spatial_run_at_site(async_session: AsyncSession, vault: Vault, dwelle
 
 
 @pytest.mark.asyncio
-async def test_consumed_site_rejects_reentry_in_same_journey(
+async def test_retreat_allows_reentry_and_resumes_progress(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """Enter, retreat, re-enter: the second entry fails as spent, and the list hides the site."""
+    """Retreat does not consume: re-entry resumes the saved room cursor, and the site stays offered."""
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
     await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
+    run = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
+    assert run is not None
+    run.room_cursor = 1
+    async_session.add(run)
+    await async_session.commit()
+
     await expedition_module.expedition_service.retreat_run(async_session, exploration.id)
+
+    available = await expedition_module.expedition_service.list_available_sites(async_session, exploration.id)
+    assert SITE_ID in [site.id for site in available]
+
+    view = await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
+    assert view.room_index == 1
+
+
+@pytest.mark.asyncio
+async def test_cleared_site_rejects_reentry_in_same_journey(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """Only completion consumes the encounter: a CLEARED run refuses re-entry as spent."""
+    exploration = await _spatial_run_at_site(async_session, vault, dweller)
+    run = await crud.expedition_run.create_run(
+        async_session,
+        exploration_id=exploration.id,
+        vault_id=vault.id,
+        site_id=SITE_ID,
+    )
+    run.status = ExpeditionRunStatus.CLEARED
+    run.finished_at = datetime.utcnow()
+    async_session.add(run)
+    await async_session.commit()
 
     with pytest.raises(ResourceConflictException, match="spent for this journey"):
         await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
@@ -78,13 +108,14 @@ async def test_open_encounter_freezes_position_but_burns_clock(
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
     await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
     before = (exploration.pos_x, exploration.pos_y)
+    trail_len = len(exploration.trail)
     now = exploration.start_time + timedelta(hours=2)
 
     advanced = await exploration_service.advance(async_session, exploration.id, now=now)
 
     assert (advanced.pos_x, advanced.pos_y) == before
     assert advanced.position_as_of == now
-    assert len(advanced.trail) == 2
+    assert len(advanced.trail) == trail_len
 
 
 @pytest.mark.asyncio
@@ -120,21 +151,20 @@ async def _extend_trail_near_site(async_session, exploration, site_id: str = SIT
 
 
 @pytest.mark.asyncio
-async def test_no_position_jump_after_encounter_closes(
+async def test_pause_resume_discounts_paused_interval(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """Paused time never converts to movement: post-exit position matches continuous travel."""
+    """Settled boundaries: a 2h pause with no inside tick never converts to movement."""
     exploration = await _spatial_run(async_session, vault, dweller)
     speed = 1 / game_config.exploration.dispatch.travel_hours_per_unit
     t0 = exploration.start_time
     await exploration_service.advance(async_session, exploration.id, now=t0 + timedelta(hours=1))
     await async_session.refresh(exploration)
     pos_after_1h = (exploration.pos_x, exploration.pos_y)
-    await _extend_trail_near_site(async_session, exploration, SITE_ID)
-    await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
-    # 2h paused inside, then 1h more travel: total 2h of movement, not 4.
+
+    await exploration_service.pause_for_encounter(async_session, exploration.id, now=t0 + timedelta(hours=1))
     await exploration_service.advance(async_session, exploration.id, now=t0 + timedelta(hours=3))
-    await expedition_module.expedition_service.retreat_run(async_session, exploration.id)
+    await exploration_service.resume_from_encounter(async_session, exploration.id, now=t0 + timedelta(hours=3))
     await exploration_service.advance(async_session, exploration.id, now=t0 + timedelta(hours=4))
 
     await async_session.refresh(exploration)
@@ -145,13 +175,32 @@ async def test_no_position_jump_after_encounter_closes(
     )
     assert exploration.pos_x == pytest.approx(expected[0], abs=0.05)
     assert exploration.pos_y == pytest.approx(expected[1], abs=0.05)
+    assert exploration.paused_at is None
 
 
 @pytest.mark.asyncio
-async def test_return_clock_freezes_while_encounter_open(
+async def test_enter_retreat_without_tick_does_not_move(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """Return timing extends by paused intervals instead of finalizing mid-visit."""
+    """Enter + immediate retreat with no inside tick leaves the position untouched."""
+    exploration = await _spatial_run_at_site(async_session, vault, dweller)
+    await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
+    await async_session.refresh(exploration)
+    entered = (exploration.pos_x, exploration.pos_y)
+    assert exploration.paused_at is not None
+
+    await expedition_module.expedition_service.retreat_run(async_session, exploration.id)
+
+    await async_session.refresh(exploration)
+    assert exploration.paused_at is None
+    assert (exploration.pos_x, exploration.pos_y) == entered
+
+
+@pytest.mark.asyncio
+async def test_return_clock_shifts_on_encounter_exit(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """Return timing extends by the paused interval at the exit boundary."""
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
     await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
     exploration.status = ExplorationStatus.RETURNING
@@ -161,12 +210,33 @@ async def test_return_clock_freezes_while_encounter_open(
     async_session.add(exploration)
     await async_session.commit()
 
-    await exploration_service.advance(
+    await exploration_service.resume_from_encounter(
         async_session, exploration.id, now=exploration.position_as_of + timedelta(hours=1)
     )
 
     await async_session.refresh(exploration)
     assert exploration.return_completes_at == completes_at + timedelta(hours=1)
+
+
+@pytest.mark.asyncio
+async def test_return_leg_entry_pauses_the_return(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
+    """An in-progress return leg may enter a site, which pauses the return clock."""
+    exploration = await _spatial_run_at_site(async_session, vault, dweller)
+    exploration.status = ExplorationStatus.RETURNING
+    exploration.return_started_at = datetime.utcnow() - timedelta(hours=1)
+    exploration.return_completes_at = datetime.utcnow() + timedelta(hours=1)
+    async_session.add(exploration)
+    await async_session.commit()
+
+    view = await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
+
+    await async_session.refresh(exploration)
+    assert view.site_id == SITE_ID
+    assert exploration.paused_at is not None
+    assert SITE_ID in [
+        site.id
+        for site in await expedition_module.expedition_service.list_available_sites(async_session, exploration.id)
+    ]
 
 
 @pytest.mark.asyncio
@@ -186,7 +256,8 @@ async def test_spatial_offers_only_sites_near_the_trail(
     await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
     await expedition_module.expedition_service.retreat_run(async_session, exploration.id)
     available = await expedition_module.expedition_service.list_available_sites(async_session, exploration.id)
-    assert SITE_ID not in [site.id for site in available]
+    # A retreat stays resumable for the journey, so the trail-offered site is still listed.
+    assert SITE_ID in [site.id for site in available]
 
 
 @pytest.mark.asyncio

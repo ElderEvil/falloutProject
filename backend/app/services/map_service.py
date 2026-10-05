@@ -36,7 +36,12 @@ from app.schemas.wasteland_location import (
     WastelandLocationWithDwellers,
 )
 from app.services.exploration.data_loader import load_expedition_sites
-from app.services.exploration.expedition import site_block_state
+from app.services.exploration.expedition import (
+    SiteBlockState,
+    journey_offer_context,
+    site_block_state,
+    site_is_offered,
+)
 from app.services.notification_service import notification_service
 from app.services.world_generation_service import WORLD_ID
 from app.utils import world_terrain
@@ -659,24 +664,7 @@ class MapService:
             for slot_index, slot_vault_id, number, slot_user_id in slot_rows
         ]
 
-        # --- interactive expedition sites (per-vault anti-farm state) ---
-        expedition_sites: list[ExpeditionSiteMarkerRead] = []
-        for site in load_expedition_sites():
-            block = await site_block_state(db_session, vault.id, site.id)
-            expedition_sites.append(
-                ExpeditionSiteMarkerRead(
-                    id=site.id,
-                    name=site.name,
-                    flavor=site.flavor,
-                    coord_x=round(site.coord_x * WORLD_SCALE, 1),
-                    coord_y=round(site.coord_y * WORLD_SCALE, 1),
-                    min_dweller_level=site.min_dweller_level,
-                    room_total=len(site.rooms),
-                    cleared=block.cleared,
-                    cooldown_remaining_seconds=block.cooldown_remaining_seconds,
-                    block_reason=block.reason,
-                )
-            )
+        expedition_sites = await self._expedition_site_markers(db_session, vault)
 
         return VaultMapResponse(
             locations=locations,
@@ -686,6 +674,41 @@ class MapService:
             place_groups=[PlaceGroupRead(**group) for group in load_place_groups()],
             expedition_sites=expedition_sites,
         )
+
+    @staticmethod
+    def _site_marker(site, block: SiteBlockState) -> ExpeditionSiteMarkerRead:
+        """Project one catalog site plus its journey/anti-farm block state onto the wire."""
+        return ExpeditionSiteMarkerRead(
+            id=site.id,
+            name=site.name,
+            flavor=site.flavor,
+            coord_x=round(site.coord_x * WORLD_SCALE, 1),
+            coord_y=round(site.coord_y * WORLD_SCALE, 1),
+            min_dweller_level=site.min_dweller_level,
+            room_total=len(site.rooms),
+            cleared=block.cleared,
+            cooldown_remaining_seconds=block.cooldown_remaining_seconds,
+            block_reason=block.reason,
+        )
+
+    @staticmethod
+    async def _spatial_journey(db_session: AsyncSession, vault_id):
+        """The vault's in-progress spatial exploration, or None for legacy/no journey."""
+        explorations = await exploration_crud.get_by_vault(db_session, vault_id=vault_id, active_only=True)
+        return next((exploration for exploration in explorations if exploration.heading_degrees is not None), None)
+
+    async def _expedition_site_markers(self, db_session: AsyncSession, vault: Vault) -> list[ExpeditionSiteMarkerRead]:
+        """Journey-offered sites for an in-progress spatial run, else the catalog with cooldowns."""
+        spatial = await self._spatial_journey(db_session, vault.id)
+        context = await journey_offer_context(db_session, spatial) if spatial is not None else None
+        markers: list[ExpeditionSiteMarkerRead] = []
+        for site in load_expedition_sites():
+            if context is not None:
+                if site_is_offered(site, context):
+                    markers.append(self._site_marker(site, SiteBlockState()))
+                continue
+            markers.append(self._site_marker(site, await site_block_state(db_session, vault.id, site.id)))
+        return markers
 
 
 # ------------------------------------------------------------------

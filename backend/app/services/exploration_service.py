@@ -15,7 +15,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import DwellerStatusEnum
 from app.core.game_config import game_config
-from app.crud import expedition_run as crud_expedition_run
 from app.crud import exploration as crud_exploration
 from app.crud import training as training_crud
 from app.crud import world_location as crud_world_location
@@ -732,19 +731,11 @@ class ExplorationService:
         if elapsed <= 0:
             return exploration
 
-        # An open site encounter pauses the journey: burn the interval without
-        # moving, and shift the clock origins forward so later movement math
-        # (which keys off start/return times) never counts paused time.
-        if await crud_expedition_run.get_open_for_exploration(db_session, exploration.id) is not None:
-            paused = now - position_as_of
-            exploration.position_as_of = now
-            if exploration.is_active():
-                exploration.start_time += paused
-            elif exploration.is_returning():
-                if exploration.return_started_at is not None:
-                    exploration.return_started_at += paused
-                if exploration.return_completes_at is not None:
-                    exploration.return_completes_at += paused
+        # An encounter in progress freezes the journey: burn the interval without
+        # moving. The clock shift is applied once at the exit boundary
+        # (resume_from_encounter), so a pause with no inside tick is still counted.
+        if exploration.paused_at is not None:
+            exploration.position_as_of = max(position_as_of, now)
             db_session.add(exploration)
             await db_session.commit()
             await db_session.refresh(exploration)
@@ -767,6 +758,53 @@ class ExplorationService:
             self._advance_return(exploration, now)
 
         exploration.position_as_of = now
+        db_session.add(exploration)
+        await db_session.commit()
+        await db_session.refresh(exploration)
+        return exploration
+
+    async def pause_for_encounter(
+        self, db_session: AsyncSession, exploration_id: UUID4, *, now: datetime | None = None
+    ) -> Exploration:
+        """Freeze the journey while a site encounter is open, settling travel to *now*.
+
+        The pre-entry segment is advanced to the boundary first, then the pause is
+        marked. ``advance`` burns intervals while paused and the clock shift happens
+        in ``resume_from_encounter``, so entry/exit need no ticks in between.
+        """
+        now = now or datetime.utcnow()
+        exploration = await self.advance(db_session, exploration_id, now=now)
+        if exploration.heading_degrees is None or exploration.paused_at is not None:
+            return exploration
+        exploration.paused_at = now
+        if exploration.position_as_of is not None:
+            exploration.position_as_of = max(exploration.position_as_of, now)
+        db_session.add(exploration)
+        await db_session.commit()
+        await db_session.refresh(exploration)
+        return exploration
+
+    async def resume_from_encounter(
+        self, db_session: AsyncSession, exploration_id: UUID4, *, now: datetime | None = None
+    ) -> Exploration:
+        """Re-open the journey clock, shifting the active or return leg past the pause."""
+        now = now or datetime.utcnow()
+        exploration = await crud_exploration.get(db_session, exploration_id)
+        paused_at = exploration.paused_at
+        if paused_at is None:
+            return exploration
+        paused = now - paused_at
+        if exploration.heading_degrees is not None and paused > timedelta(0):
+            if exploration.is_active():
+                exploration.start_time += paused
+            elif exploration.is_returning():
+                if exploration.return_started_at is not None:
+                    exploration.return_started_at += paused
+                if exploration.return_completes_at is not None:
+                    exploration.return_completes_at += paused
+        exploration.paused_at = None
+        if exploration.position_as_of is not None:
+            exploration.position_as_of = max(exploration.position_as_of, now)
         db_session.add(exploration)
         await db_session.commit()
         await db_session.refresh(exploration)

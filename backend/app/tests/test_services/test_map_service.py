@@ -645,3 +645,54 @@ async def test_get_vault_map_expedition_sites_cooldown_not_cleared(
     assert by_id["red_rocket"].cooldown_remaining_seconds > 0
     assert by_id["super_duper_mart"].block_reason is None
     assert by_id["super_duper_mart"].cleared is False
+
+
+async def _spatial_journey_near_red_rocket(async_session: AsyncSession, vault: Vault, dweller: Dweller):
+    """An in-progress spatial run whose trail passes red_rocket (30, 25)."""
+    from app.crud.vault_slot import vault_slot
+    from app.services.exploration_service import exploration_service
+    from app.services.world_snapshot_service import world_snapshot_service
+
+    slot = await vault_slot.get_by_vault(async_session, vault.id)
+    if slot is None:
+        await vault_slot.claim_next(db_session=async_session, vault_id=vault.id)
+        await async_session.commit()
+    await world_snapshot_service.get_or_generate(async_session)
+    dweller.level = 10
+    dweller.health = 100
+    dweller.max_health = 100
+    async_session.add(dweller)
+    await async_session.commit()
+    exploration = await exploration_service.send_dweller(
+        async_session, vault.id, dweller.id, duration=24, heading_degrees=90
+    )
+    exploration.pos_x, exploration.pos_y = 30.0, 25.0
+    exploration.trail = [*exploration.trail, {"x": 30.0, "y": 25.0, "t": datetime.utcnow().isoformat()}]
+    async_session.add(exploration)
+    await async_session.commit()
+    await async_session.refresh(exploration)
+    return exploration
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_spatial_journey_exposes_only_offered_sites(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A spatial journey shows only trail-offered sites; consumption removes one."""
+    from app import crud
+
+    exploration = await _spatial_journey_near_red_rocket(async_session, vault, dweller)
+
+    map_data = await map_service.get_vault_map(async_session, vault)
+    assert {site.id for site in map_data.expedition_sites} == {"red_rocket"}
+
+    run = await crud.expedition_run.create_run(
+        async_session, exploration_id=exploration.id, vault_id=vault.id, site_id="red_rocket"
+    )
+    run.status = ExpeditionRunStatus.CLEARED
+    run.finished_at = datetime.utcnow()
+    async_session.add(run)
+    await async_session.commit()
+
+    map_data = await map_service.get_vault_map(async_session, vault)
+    assert map_data.expedition_sites == []

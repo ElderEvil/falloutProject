@@ -82,6 +82,7 @@ class CRUDWorldLocation:
         *,
         description: str | None = None,
         coords: tuple[float, float] | None = None,
+        normalized_name: str | None = None,
         commit: bool = True,
     ) -> WorldLocation:
         """Get or create a canonical PLACE row, merging on ``normalized_name``.
@@ -89,12 +90,14 @@ class CRUDWorldLocation:
         Without ``coords`` the name derives deterministic schematic coordinates,
         nudged against every occupied registry coordinate. With ``coords`` the
         caller's placement is authoritative and no nudge is applied (spatial
-        discovery follows the explorer, not a name hash). On IntegrityError
-        (concurrent insert of the same name) we roll back and re-select; there
-        is no coordinate unique constraint, so no retry loop is needed. When
-        ``commit`` is false, inserts are flushed into the caller's transaction.
+        discovery follows the explorer, not a name hash). Pass an explicit
+        ``normalized_name`` to disambiguate a same-name row that must not be
+        reused. On IntegrityError (concurrent insert of the same name) we roll
+        back and re-select; there is no coordinate unique constraint, so no
+        retry loop is needed. When ``commit`` is false, inserts are flushed
+        into the caller's transaction.
         """
-        normalized = normalize_place_name(name)
+        normalized = normalized_name or normalize_place_name(name)
 
         # Fast path: already exists
         existing = await self.get_registry_by_normalized(db_session, normalized)

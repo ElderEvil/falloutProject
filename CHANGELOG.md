@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.180.0 (2026-10-05)
+
+### Features
+
+* **exploration:** corridor fog and local discoveries (slice 2) a36ba2e
+
+### Bug Fixes
+
+* **exploration:** corridor fog, pos marker, consistent discovery records 36095bc
+* **exploration:** disambiguate distant same-name twins in spatial discovery 60f2dc4
+* **exploration:** position-derived journey identity for spatial discoveries 4d97705
+* **exploration:** wire-scale markers, short-schema pos, journey-sequence identity e88989e
+
 ## 2.179.0 (2026-10-05)
 
 ### Features

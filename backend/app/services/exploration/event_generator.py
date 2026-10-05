@@ -29,8 +29,7 @@ def generate_discovery_name() -> str:
 def describe_discovery(location_name: str) -> str:
     """Player-facing copy for a discovery, naming the resolved place."""
     return (
-        f"Your dweller has discovered {location_name} in the wasteland. "
-        "This location has been added to your world map."
+        f"Your dweller has discovered {location_name} in the wasteland. This location has been added to your world map."
     )
 
 
@@ -87,9 +86,7 @@ class EventGenerator:
         rng_value = random.random()
         if rng_value < cfg.event_discovery_chance:
             location_name = generate_discovery_name()
-            return DiscoveryEventSchema(
-                location_name=location_name, description=describe_discovery(location_name)
-            )
+            return DiscoveryEventSchema(location_name=location_name, description=describe_discovery(location_name))
 
         # Determine event type with weighted probabilities
         event_weights = {

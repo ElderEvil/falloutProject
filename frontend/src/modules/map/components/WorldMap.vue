@@ -24,9 +24,10 @@ import { computeExploredMask, isExploredTile } from '../utils/fog'
 import { useMapSpread } from '../composables/useMapSpread'
 import { useMarkerSelection } from '../composables/useMarkerSelection'
 import { tracePoints } from '../utils/tracePath'
-import { useMapZoomPan } from '../composables/useMapZoomPan'
+import { useMapZoomPan, MAP_SIZE } from '../composables/useMapZoomPan'
 import { useMapStore } from '../stores/map'
 import { isKnownLocation } from '../utils/visibility'
+import { bearingDegrees } from '../utils/bearing'
 
 interface Props {
   locations: WastelandLocationWithDwellers[]
@@ -50,18 +51,32 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   (e: 'marker-click', payload: MarkerClickPayload): void
   (e: 'update:selectedMarkerId', value: string | null): void
-  (e: 'explore-wasteland'): void
+  (e: 'explore-wasteland', payload: { headingDegrees: number }): void
 }>()
 
 // ── Map-first departure ──────────────────────────────────────────
 // Clicking empty/fogged space (no marker) opens the departure flow: the map is
 // the primary dispatch surface. Marker clicks select instead — they bubble up
 // to the SVG, so the handler ignores any click that landed on a marker group.
+// The click expresses a heading (bearing from the vault origin to the clicked
+// point), never a destination promise.
+function svgPointFromEvent(event: MouseEvent): { x: number; y: number } {
+  const rect = getSvgRect()
+  if (rect.width === 0 || rect.height === 0) return { x: 0, y: 0 }
+  const viewSize = MAP_SIZE / zoom.value
+  return {
+    x: panX.value + ((event.clientX - rect.left) / rect.width) * viewSize,
+    y: panY.value + ((event.clientY - rect.top) / rect.height) * viewSize,
+  }
+}
+
 function handleSvgClick(event: MouseEvent): void {
   if (hasDragMoved.value) return
   const target = event.target as Element | null
   if (target?.closest?.('.map-marker')) return
-  emit('explore-wasteland')
+  const point = svgPointFromEvent(event)
+  const heading = bearingDegrees({ x: homeCoords.value[0], y: homeCoords.value[1] }, point)
+  emit('explore-wasteland', { headingDegrees: heading })
 }
 
 // ── Marker visibility filter ─────────────────────────────────────
@@ -182,6 +197,8 @@ function siteStatus(site: ExpeditionSiteMarkerRead): string {
 // ── Zoom & Pan ────────────────────────────────────────────────────────
 const {
   zoom,
+  panX,
+  panY,
   isZoomed,
   isDragging,
   viewBox,

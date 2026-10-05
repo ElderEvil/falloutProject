@@ -68,6 +68,16 @@ class ExplorationRead(ExplorationBase):
     stimpaks: int
     radaways: int
 
+    # Spatial movement (slice 1): null for legacy runs.
+    world_version: int | None = None
+    origin_x: float | None = None
+    origin_y: float | None = None
+    heading_degrees: float | None = None
+    pos_x: float | None = None
+    pos_y: float | None = None
+    trail: list[dict] = Field(default_factory=list)
+    position_as_of: datetime | None = None
+
 
 class ExplorationReadShort(SQLModel):
     """Schema for reading exploration data (short version for lists)."""
@@ -129,6 +139,9 @@ class ExplorationSendRequest(SQLModel):
     )
     target_location_id: UUID4 | None = Field(
         default=None, description="Known place to travel to and clear; omit to roam"
+    )
+    heading_degrees: float | None = Field(
+        default=None, ge=0, lt=360, description="Compass heading (0=N, 90=E) for a spatial roam"
     )
     duration: int = Field(default=4, ge=1, le=24, description="Duration in hours (roam only)")
     stimpaks: int = Field(default=0, ge=0, le=25, description="Number of Stimpaks to bring")

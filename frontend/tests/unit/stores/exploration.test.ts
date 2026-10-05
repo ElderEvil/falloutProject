@@ -235,6 +235,32 @@ describe('Exploration Store', () => {
       expect(store.error).toBe('Failed to send dweller to wasteland')
       expect(store.isLoading).toBe(false)
     })
+
+    it('includes heading_degrees in the request body when a heading is given', async () => {
+      const store = useExplorationStore()
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: mockExploration })
+
+      await store.sendDwellerToWasteland('vault-1', 'dweller-1', 4, 'test-token', 2, 1, 90)
+
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/v1/explorations/send?vault_id=vault-1',
+        { dweller_id: 'dweller-1', duration: 4, stimpaks: 2, radaways: 1, heading_degrees: 90 },
+        { headers: { Authorization: 'Bearer test-token' } }
+      )
+    })
+
+    it('omits heading_degrees for a free-roam send', async () => {
+      const store = useExplorationStore()
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: mockExploration })
+
+      await store.sendDwellerToWasteland('vault-1', 'dweller-1', 4, 'test-token')
+
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/v1/explorations/send?vault_id=vault-1',
+        { dweller_id: 'dweller-1', duration: 4, stimpaks: 0, radaways: 0 },
+        { headers: { Authorization: 'Bearer test-token' } }
+      )
+    })
   })
 
   describe('dispatchToLocation Action', () => {

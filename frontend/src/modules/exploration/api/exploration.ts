@@ -2,6 +2,7 @@ import axios from '@/core/plugins/axios'
 import type { components } from '@/core/types/api.generated'
 
 export type ExplorationRead = components['schemas']['ExplorationRead']
+export type ExplorationSendRequest = components['schemas']['ExplorationSendRequest']
 
 export const explorationApi = {
   /**

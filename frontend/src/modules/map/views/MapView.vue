@@ -27,6 +27,7 @@ import type {
   VaultMarkerRead,
 } from '../models/map'
 import { buildExplorerTracks } from '../utils/explorerTracks'
+import { formatHeading } from '../utils/bearing'
 
 const authStore = useAuthStore()
 const mapStore = useMapStore()
@@ -132,6 +133,10 @@ const showDeparturePicker = ref(false)
 // Vault that the departure dweller list was fetched for; guards against
 // offering another vault's dwellers after a route change.
 const departureDwellersVaultId = ref<string | null>(null)
+// Compass heading (degrees) chosen by the map click that opened the picker;
+// null means a free-roam send. The heading expresses a direction from the
+// vault origin, never a promise of arrival at a hidden destination.
+const pendingHeading = ref<number | null>(null)
 const sendWasteland = useSendToWasteland(() => vaultId.value)
 // Admin debug tool: reveal the whole atlas by dropping the fog layer.
 const fogDisabled = ref(false)
@@ -147,9 +152,10 @@ const pendingDepartureDweller = computed<DwellerShort | null>(() => {
   return dwellerStore.dwellers.find((d) => d.id === id) ?? null
 })
 
-async function handleExploreWasteland() {
+async function handleExploreWasteland(payload?: { headingDegrees: number }) {
   const requestedVaultId = vaultId.value
   if (!requestedVaultId || !authStore.token) return
+  pendingHeading.value = payload?.headingDegrees ?? null
   // Like the dispatch picker: the dweller list may be empty when the map opens
   // on its own, so fetch on open and let the panel show loading/empty instead
   // of silently offering nobody to send. Refetch when the list belongs to
@@ -199,10 +205,12 @@ function isAvailableForDeparture(dweller: DwellerShort): boolean {
 const departureCandidates = computed(() => dwellerStore.dwellers.filter(isAvailableForDeparture))
 
 function pickDepartureDweller(dweller: DwellerShort) {
+  const heading = pendingHeading.value
   sendWasteland.open({
     dwellerId: dweller.id,
     firstName: dweller.first_name,
     lastName: dweller.last_name ?? undefined,
+    ...(heading !== null ? { headingDegrees: heading } : {}),
   })
   showDeparturePicker.value = false
 }
@@ -225,6 +233,8 @@ async function handleDepartureConfirm(payload: {
         : []),
     ]).then(() => undefined)
   )
+  // The heading is consumed by the send; the next map click picks a fresh one.
+  pendingHeading.value = null
 }
 
 function handleMarkerClick(
@@ -287,6 +297,7 @@ watch(
     // and any open duration modal belong to the previous vault.
     showDeparturePicker.value = false
     departureDwellersVaultId.value = null
+    pendingHeading.value = null
     sendWasteland.cancel()
     loadMap()
   },
@@ -413,7 +424,12 @@ const mapPaneHeight = 'var(--map-pane-size)'
 
           <!-- Departure picker: pick a dweller, then the duration/supplies modal -->
           <div v-if="showDeparturePicker" class="departure-picker">
-            <p>Explore the wasteland — pick a dweller to send roaming.</p>
+            <p v-if="pendingHeading !== null">
+              Explore the wasteland heading
+              <span class="heading-badge">{{ formatHeading(pendingHeading) }}</span>
+              — pick a dweller to send.
+            </p>
+            <p v-else>Explore the wasteland — pick a dweller to send roaming.</p>
             <p v-if="dwellerStore.isLoading" class="map-hint">Loading dwellers…</p>
             <p v-else-if="departureCandidates.length === 0" class="map-hint">
               No dwellers available to send.
@@ -426,7 +442,8 @@ const mapPaneHeight = 'var(--map-pane-size)'
                 size="sm"
                 @click="pickDepartureDweller(dweller)"
               >
-                Send {{ dweller.first_name }}
+                Send {{ dweller.first_name
+                }}{{ pendingHeading !== null ? ` → ${formatHeading(pendingHeading)}` : '' }}
               </Button>
             </div>
           </div>
@@ -455,6 +472,11 @@ const mapPaneHeight = 'var(--map-pane-size)'
           <ExplorationDurationModal
             :show="sendWasteland.showModal.value"
             :dweller-name="sendWasteland.pendingDweller.value?.firstName ?? ''"
+            :heading="
+              sendWasteland.headingDegrees.value !== null
+                ? formatHeading(sendWasteland.headingDegrees.value)
+                : null
+            "
             :max-stimpaks="vaultMedicalSupplies.stimpaks"
             :max-radaways="vaultMedicalSupplies.radaways"
             :allow-radaway="canUseRadaway(pendingDepartureDweller)"
@@ -493,6 +515,16 @@ const mapPaneHeight = 'var(--map-pane-size)'
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.4rem;
+}
+
+.heading-badge {
+  display: inline-block;
+  padding: 0 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 60%, transparent);
+  border-radius: 2px;
+  color: var(--color-theme-primary);
+  font-weight: 700;
+  letter-spacing: 0.05em;
 }
 
 .vault-layout {

@@ -1,5 +1,6 @@
 """Exploration models for wasteland expeditions."""
 
+import math
 from datetime import datetime, timedelta
 from enum import StrEnum
 
@@ -46,6 +47,18 @@ class ExplorationBase(SQLModel):
     return_started_at: datetime | None = Field(default=None)
     return_completes_at: datetime | None = Field(default=None)
     recalled_early: bool = Field(default=False)
+
+    # Spatial movement (slice 1): nullable columns; a run with heading_degrees set
+    # moves through the world snapshot instead of generating events over time.
+    # Legacy runs keep every column NULL and today's behavior untouched.
+    world_version: int | None = Field(default=None, description="World snapshot generator version at departure")
+    origin_x: float | None = Field(default=None, description="Departure origin, registry x (slot placement)")
+    origin_y: float | None = Field(default=None, description="Departure origin, registry y (slot placement)")
+    heading_degrees: float | None = Field(default=None, ge=0, lt=360, description="Compass heading: 0=N, 90=E")
+    pos_x: float | None = Field(default=None, description="Authoritative position, registry x")
+    pos_y: float | None = Field(default=None, description="Authoritative position, registry y")
+    trail: list[dict] = Field(default_factory=list, sa_column=sa.Column(JSONB))
+    position_as_of: datetime | None = Field(default=None, description="Last processed movement timestamp")
 
     # Journey log and events
     events: list[dict] = Field(default_factory=list, sa_column=sa.Column(JSONB))
@@ -121,7 +134,12 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
     def exploring_seconds(self) -> int:
         """Seconds actually spent exploring, capped at the planned duration."""
         end = self.return_started_at or datetime.utcnow()
-        return min(max(0, int((end - self.start_time).total_seconds())), self.duration * 3600)
+        cap = self.duration * 3600
+        if self.heading_degrees is not None:
+            # Spatial runs explore for the outbound half of the plan; the return
+            # leg retraces the traveled path at the same speed.
+            cap = int(cap / 2)
+        return min(max(0, int((end - self.start_time).total_seconds())), cap)
 
     def exploring_progress_percentage(self) -> float:
         """Exploration progress at the moment exploring ended (0-100)."""
@@ -146,12 +164,31 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         elapsed = self.elapsed_time_seconds()
         return max(0, total_seconds - elapsed)
 
+    def _spatial_traveled(self) -> float:
+        """Distance from origin to the current position; 0 when fields are missing."""
+        origin_x = self.origin_x
+        origin_y = self.origin_y
+        pos_x = self.pos_x
+        pos_y = self.pos_y
+        if origin_x is None or origin_y is None or pos_x is None or pos_y is None:
+            return 0.0
+        return math.dist((origin_x, origin_y), (pos_x, pos_y))
+
     def start_return(self, *, recalled: bool = False) -> None:
         """Begin the trip home, lasting half the time spent exploring."""
         now = datetime.utcnow()
         exploring_seconds = self.exploring_seconds()
         self.return_started_at = now
-        self.return_completes_at = now + timedelta(seconds=int(exploring_seconds * RETURN_LEG_FRACTION))
+        if self.heading_degrees is not None:
+            # Spatial runs retrace the traveled path at the same speed: the return
+            # leg lasts as long as the outbound phase, not the old half rule.
+            from app.core.game_config import game_config
+
+            self.return_completes_at = now + timedelta(
+                hours=self._spatial_traveled() * game_config.exploration.dispatch.travel_hours_per_unit
+            )
+        else:
+            self.return_completes_at = now + timedelta(seconds=int(exploring_seconds * RETURN_LEG_FRACTION))
         self.recalled_early = recalled
         self.status = ExplorationStatus.RETURNING
 

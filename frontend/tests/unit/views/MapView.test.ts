@@ -131,7 +131,7 @@ describe('MapView', () => {
           ExplorationDurationModal: {
             name: 'ExplorationDurationModal',
             template: '<div class="duration-modal-stub"></div>',
-            props: ['show', 'dwellerName', 'maxStimpaks', 'maxRadaways', 'allowRadaway'],
+            props: ['show', 'dwellerName', 'maxStimpaks', 'maxRadaways', 'allowRadaway', 'heading'],
             emits: ['confirm', 'cancel'],
           },
           PartySelectionModal: {
@@ -519,7 +519,8 @@ describe('MapView', () => {
         4,
         'test-token',
         2,
-        1
+        1,
+        undefined
       )
       expect(mapStore.refreshMap).toHaveBeenCalled()
       expect(modal.props('show')).toBe(false)
@@ -543,6 +544,116 @@ describe('MapView', () => {
 
       expect(wrapper.find('.departure-picker').exists()).toBe(false)
       mockRoute.params.id = 'vault-1'
+    })
+
+    it('shows the heading in the picker when the map click carries one', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      mountWithDwellers()
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      wrapper
+        .findComponent({ name: 'WorldMap' })
+        .vm.$emit('explore-wasteland', { headingDegrees: 90 })
+      await flushPromises()
+
+      expect(wrapper.find('.departure-picker').text()).toContain('E / 90°')
+      expect(wrapper.find('.departure-dwellers button').text()).toContain('→ E / 90°')
+    })
+
+    it('labels the picker as free roam when no heading is chosen', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      mountWithDwellers()
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('explore-wasteland')
+      await flushPromises()
+
+      expect(wrapper.find('.departure-picker').text()).toContain('roaming')
+      expect(wrapper.find('.departure-dwellers button').text()).not.toContain('→')
+    })
+
+    it('passes the heading into the duration modal and sends it on confirm', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      mountWithDwellers()
+      const explorationStore = useExplorationStore()
+      vi.spyOn(explorationStore, 'sendDwellerToWasteland').mockResolvedValue(
+        exploration({ duration: 4 })
+      )
+      vi.spyOn(mapStore, 'refreshMap').mockResolvedValue(undefined)
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      wrapper
+        .findComponent({ name: 'WorldMap' })
+        .vm.$emit('explore-wasteland', { headingDegrees: 90 })
+      await flushPromises()
+      await wrapper.find('.departure-dwellers button').trigger('click')
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'ExplorationDurationModal' })
+      expect(modal.props('heading')).toBe('E / 90°')
+
+      modal.vm.$emit('confirm', { duration: 4, stimpaks: 2, radaways: 1 })
+      await flushPromises()
+
+      expect(explorationStore.sendDwellerToWasteland).toHaveBeenCalledWith(
+        'vault-1',
+        'dweller-1',
+        4,
+        'test-token',
+        2,
+        1,
+        90
+      )
+      expect(mapStore.refreshMap).toHaveBeenCalled()
+      expect(modal.props('show')).toBe(false)
+    })
+
+    it('sends a free-roam run without a heading when none was chosen', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      mountWithDwellers()
+      const explorationStore = useExplorationStore()
+      vi.spyOn(explorationStore, 'sendDwellerToWasteland').mockResolvedValue(
+        exploration({ duration: 4 })
+      )
+      vi.spyOn(mapStore, 'refreshMap').mockResolvedValue(undefined)
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('explore-wasteland')
+      await flushPromises()
+      await wrapper.find('.departure-dwellers button').trigger('click')
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'ExplorationDurationModal' })
+      expect(modal.props('heading')).toBeNull()
+
+      modal.vm.$emit('confirm', { duration: 4, stimpaks: 2, radaways: 1 })
+      await flushPromises()
+
+      expect(explorationStore.sendDwellerToWasteland).toHaveBeenCalledWith(
+        'vault-1',
+        'dweller-1',
+        4,
+        'test-token',
+        2,
+        1,
+        undefined
+      )
     })
   })
 

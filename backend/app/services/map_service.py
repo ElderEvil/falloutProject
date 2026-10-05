@@ -676,7 +676,7 @@ class MapService:
         )
 
     @staticmethod
-    def _site_marker(site, block: SiteBlockState) -> ExpeditionSiteMarkerRead:
+    def _site_marker(site, block: SiteBlockState, exploration_id=None) -> ExpeditionSiteMarkerRead:
         """Project one catalog site plus its journey/anti-farm block state onto the wire."""
         return ExpeditionSiteMarkerRead(
             id=site.id,
@@ -689,26 +689,40 @@ class MapService:
             cleared=block.cleared,
             cooldown_remaining_seconds=block.cooldown_remaining_seconds,
             block_reason=block.reason,
+            exploration_id=exploration_id,
         )
 
-    @staticmethod
-    async def _spatial_journey(db_session: AsyncSession, vault_id):
-        """The vault's in-progress spatial exploration, or None for legacy/no journey."""
-        explorations = await exploration_crud.get_by_vault(db_session, vault_id=vault_id, active_only=True)
-        return next((exploration for exploration in explorations if exploration.heading_degrees is not None), None)
-
     async def _expedition_site_markers(self, db_session: AsyncSession, vault: Vault) -> list[ExpeditionSiteMarkerRead]:
-        """Journey-offered sites for an in-progress spatial run, else the catalog with cooldowns."""
-        spatial = await self._spatial_journey(db_session, vault.id)
-        context = await journey_offer_context(db_session, spatial) if spatial is not None else None
-        markers: list[ExpeditionSiteMarkerRead] = []
-        for site in load_expedition_sites():
-            if context is not None:
-                if site_is_offered(site, context):
-                    markers.append(self._site_marker(site, SiteBlockState()))
-                continue
-            markers.append(self._site_marker(site, await site_block_state(db_session, vault.id, site.id)))
-        return markers
+        """Journey-offered sites across in-progress spatial runs, else the legacy catalog.
+
+        Every in-progress spatial journey contributes the sites near its traveled
+        trail (consumed ones drop out), carrying its exploration id so the client can
+        route entry to the right journey. Legacy journeys keep the catalog with
+        anti-farm cooldowns. With no in-progress journey there are no temporary
+        markers at all — they expire with the journey rather than reverting to a
+        permanent catalog.
+        """
+        explorations = await exploration_crud.get_by_vault(db_session, vault_id=vault.id, active_only=True)
+        spatial = [exploration for exploration in explorations if exploration.heading_degrees is not None]
+        if spatial:
+            markers: list[ExpeditionSiteMarkerRead] = []
+            offered_ids: set[str] = set()
+            for exploration in spatial:
+                context = await journey_offer_context(db_session, exploration)
+                if context is None:
+                    continue
+                for site in load_expedition_sites():
+                    if site.id in offered_ids or not site_is_offered(site, context):
+                        continue
+                    markers.append(self._site_marker(site, SiteBlockState(), exploration.id))
+                    offered_ids.add(site.id)
+            return markers
+        if not explorations:
+            return []
+        return [
+            self._site_marker(site, await site_block_state(db_session, vault.id, site.id))
+            for site in load_expedition_sites()
+        ]
 
 
 # ------------------------------------------------------------------

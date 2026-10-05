@@ -123,6 +123,10 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
             return
         if exploration.is_returning():
             return
+        # A paused encounter freezes the travel clock: never expire the run while
+        # the dweller is inside, or a long site visit would force an early return.
+        if exploration.paused_at is not None:
+            return
     elif exploration.is_returning():
         if (
             exploration.return_time_remaining_seconds() <= 0

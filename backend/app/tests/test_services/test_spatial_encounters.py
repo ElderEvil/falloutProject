@@ -162,9 +162,13 @@ async def test_pause_resume_discounts_paused_interval(
     await async_session.refresh(exploration)
     pos_after_1h = (exploration.pos_x, exploration.pos_y)
 
-    await exploration_service.pause_for_encounter(async_session, exploration.id, now=t0 + timedelta(hours=1))
+    await exploration_service.pause_for_encounter(async_session, exploration, now=t0 + timedelta(hours=1))
+    await async_session.commit()
+    # A 2h pause with no tick inside: advance only burns the clock.
     await exploration_service.advance(async_session, exploration.id, now=t0 + timedelta(hours=3))
-    await exploration_service.resume_from_encounter(async_session, exploration.id, now=t0 + timedelta(hours=3))
+    await async_session.refresh(exploration)
+    exploration_service.resume_from_encounter(exploration, now=t0 + timedelta(hours=3))
+    await async_session.commit()
     await exploration_service.advance(async_session, exploration.id, now=t0 + timedelta(hours=4))
 
     await async_session.refresh(exploration)
@@ -210,9 +214,8 @@ async def test_return_clock_shifts_on_encounter_exit(
     async_session.add(exploration)
     await async_session.commit()
 
-    await exploration_service.resume_from_encounter(
-        async_session, exploration.id, now=exploration.position_as_of + timedelta(hours=1)
-    )
+    exploration_service.resume_from_encounter(exploration, now=exploration.position_as_of + timedelta(hours=1))
+    await async_session.commit()
 
     await async_session.refresh(exploration)
     assert exploration.return_completes_at == completes_at + timedelta(hours=1)
@@ -276,3 +279,22 @@ async def test_spatial_reentry_ignores_vault_cooldown(
     available = await expedition_module.expedition_service.list_available_sites(async_session, second.id)
     assert SITE_ID in [site.id for site in available]
     await expedition_module.expedition_service.enter_run(async_session, second.id, SITE_ID)
+
+
+@pytest.mark.asyncio
+async def test_tick_does_not_expire_a_paused_journey(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """An active journey inside an encounter is never force-returned by timer expiry."""
+    exploration = await _spatial_run_at_site(async_session, vault, dweller)
+    await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
+    # Past its planned duration, as a long site visit would leave it.
+    exploration.start_time = datetime.utcnow() - timedelta(hours=25)
+    async_session.add(exploration)
+    await async_session.commit()
+
+    await process_explorations(async_session, vault.id)
+
+    await async_session.refresh(exploration)
+    assert exploration.status == ExplorationStatus.ACTIVE
+    assert exploration.paused_at is not None

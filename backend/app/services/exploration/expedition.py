@@ -547,8 +547,7 @@ class ExpeditionService:
 
         from app.services.exploration_service import exploration_service
 
-        await exploration_service.pause_for_encounter(db_session, exploration_id)
-        exploration = await _get_exploration(db_session, exploration_id)
+        await exploration_service.pause_for_encounter(db_session, exploration)
         await _log_site_event(db_session, exploration, f"Entered {site.name}: {site.rooms[0].flavor}")
         await db_session.commit()
         return build_view(exploration_id, site, run, exploration, dweller=dweller_obj)
@@ -694,7 +693,7 @@ class ExpeditionService:
         if run.status in CONSUMING_STATUSES:
             from app.services.exploration_service import exploration_service
 
-            await exploration_service.resume_from_encounter(db_session, exploration_id)
+            exploration_service.resume_from_encounter(exploration)
         await db_session.commit()
         await notification_service.deliver_deferred_notifications(db_session)
         return build_view(
@@ -723,8 +722,7 @@ class ExpeditionService:
 
         from app.services.exploration_service import exploration_service
 
-        await exploration_service.resume_from_encounter(db_session, exploration_id)
-        exploration = await _get_exploration(db_session, exploration_id)
+        exploration_service.resume_from_encounter(exploration)
         await _log_site_event(db_session, exploration, f"Retreated from {site.name} with whatever was carried.")
         await db_session.commit()
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)

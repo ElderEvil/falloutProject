@@ -63,7 +63,7 @@ class ExplorationCoordinator:
 
         from app.services.exploration_service import exploration_service
 
-        await exploration_service.resume_from_encounter(db_session, exploration_id)
+        exploration_service.resume_from_encounter(exploration)
         exploration = await crud_exploration.start_return(db_session, exploration_id=exploration_id, recalled=recalled)
         await db_session.commit()
 

@@ -29,7 +29,7 @@ from app.services.exploration.party_resolution import (
     resolve_party_combat,
 )
 from app.services.notification_service import notification_service
-from app.utils.place_groups import get_place_group
+from app.utils.place_groups import effective_place_group
 from app.utils.place_loot import loot_table
 
 logger = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
         await exploration_coordinator.start_return(db_session, exploration_id, arrived=arrived)
         return
     location, state = pair
-    group = get_place_group(location.group_key)
+    group = effective_place_group(location.group_key, location.kind)
     if group is None or not group.get("clearable"):
         await exploration_coordinator.start_return(db_session, exploration_id, arrived=arrived)
         return

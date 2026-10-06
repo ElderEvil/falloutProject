@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 
 const toastMocks = vi.hoisted(() => ({
@@ -6,8 +7,19 @@ const toastMocks = vi.hoisted(() => ({
   error: vi.fn(),
 }))
 
+const apiMocks = vi.hoisted(() => ({
+  suggestHeading: vi.fn(),
+}))
+
 vi.mock('@/core/composables/useToast', () => ({
   useToast: () => toastMocks,
+}))
+
+vi.mock('@/modules/exploration/api/exploration', () => ({
+  explorationApi: {
+    suggestHeading: apiMocks.suggestHeading,
+    dispatchToLocation: vi.fn(),
+  },
 }))
 
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -37,6 +49,7 @@ describe('useSendToWasteland', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    apiMocks.suggestHeading.mockResolvedValue(null)
     useAuthStore().token = 'test-token'
     useDwellerStore().filter.dwellers = [adultDweller, childDweller] as never
   })
@@ -115,6 +128,122 @@ describe('useSendToWasteland', () => {
       0,
       0,
       90
+    )
+  })
+
+  it('suggests a heading for a non-map open and sends it on confirm', async () => {
+    apiMocks.suggestHeading.mockResolvedValue(135)
+    const dispatchSpy = vi
+      .spyOn(useExplorationStore(), 'sendDwellerToWasteland')
+      .mockResolvedValue({} as never)
+    const sendWasteland = useSendToWasteland(() => 'vault-1')
+
+    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+    await flushPromises()
+
+    expect(apiMocks.suggestHeading).toHaveBeenCalledTimes(1)
+    expect(apiMocks.suggestHeading).toHaveBeenCalledWith('test-token', 'vault-1', expect.any(String), 4)
+    expect(sendWasteland.headingDegrees.value).toBe(135)
+
+    await sendWasteland.confirm({ duration: 8, stimpaks: 0, radaways: 0 })
+
+    expect(dispatchSpy).toHaveBeenCalledWith('vault-1', 'dweller-adult', 8, 'test-token', 0, 0, 135)
+  })
+
+  it('re-rolls the suggested heading', async () => {
+    apiMocks.suggestHeading.mockResolvedValueOnce(10).mockResolvedValueOnce(200)
+    const sendWasteland = useSendToWasteland(() => 'vault-1')
+
+    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+    await flushPromises()
+    expect(sendWasteland.headingDegrees.value).toBe(10)
+
+    sendWasteland.reroll()
+    await flushPromises()
+    expect(sendWasteland.headingDegrees.value).toBe(200)
+  })
+
+  it('re-requests the heading for the duration passed to reroll', async () => {
+    apiMocks.suggestHeading.mockResolvedValue(90)
+    const sendWasteland = useSendToWasteland(() => 'vault-1')
+
+    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+    await flushPromises()
+
+    sendWasteland.reroll(24)
+    await flushPromises()
+
+    expect(apiMocks.suggestHeading).toHaveBeenLastCalledWith(
+      'test-token',
+      'vault-1',
+      expect.any(String),
+      24
+    )
+  })
+
+  it('ignores a suggestion that resolves after the modal is cancelled', async () => {
+    let resolvePending: (value: number | null) => void = () => {}
+    apiMocks.suggestHeading.mockReturnValueOnce(
+      new Promise<number | null>((resolve) => {
+        resolvePending = resolve
+      })
+    )
+    const sendWasteland = useSendToWasteland(() => 'vault-1')
+
+    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+    sendWasteland.cancel()
+
+    resolvePending(42)
+    await flushPromises()
+
+    expect(sendWasteland.headingDegrees.value).toBeNull()
+    expect(sendWasteland.isSuggestingHeading.value).toBe(false)
+  })
+
+  it('ignores a stale suggestion that resolves after a newer modal opening', async () => {
+    let resolveStale: (value: number | null) => void = () => {}
+    apiMocks.suggestHeading
+      .mockReturnValueOnce(
+        new Promise<number | null>((resolve) => {
+          resolveStale = resolve
+        })
+      )
+      .mockResolvedValueOnce(777)
+    const sendWasteland = useSendToWasteland(() => 'vault-1')
+
+    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+    sendWasteland.cancel()
+    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+    await flushPromises()
+    expect(sendWasteland.headingDegrees.value).toBe(777)
+
+    resolveStale(111)
+    await flushPromises()
+
+    expect(sendWasteland.headingDegrees.value).toBe(777)
+  })
+
+  it('sends no heading when the suggestion is unavailable', async () => {
+    apiMocks.suggestHeading.mockResolvedValue(null)
+    const dispatchSpy = vi
+      .spyOn(useExplorationStore(), 'sendDwellerToWasteland')
+      .mockResolvedValue({} as never)
+    const sendWasteland = useSendToWasteland(() => 'vault-1')
+
+    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+    await flushPromises()
+    expect(sendWasteland.headingDegrees.value).toBeNull()
+
+    await sendWasteland.confirm({ duration: 8, stimpaks: 0, radaways: 0 })
+
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      'vault-1',
+      'dweller-adult',
+      8,
+      'test-token',
+      0,
+      0,
+      undefined
     )
   })
 })

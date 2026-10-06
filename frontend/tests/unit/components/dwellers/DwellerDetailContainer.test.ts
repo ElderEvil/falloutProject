@@ -36,8 +36,11 @@ vi.mock('@/modules/exploration/composables/useSendToWasteland', () => ({
     open: vi.fn(),
     cancel: vi.fn(),
     confirm: vi.fn(),
+    reroll: vi.fn(),
     showModal: { value: false },
     pendingDweller: { value: null },
+    headingDegrees: { value: null },
+    isSuggestingHeading: { value: false },
   }),
 }))
 

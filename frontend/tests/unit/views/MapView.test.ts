@@ -125,7 +125,17 @@ describe('MapView', () => {
           MarkerDetailModal: {
             name: 'MarkerDetailModal',
             template: '<div class="modal-stub"></div>',
-            props: ['modelValue', 'location', 'vaultMarker'],
+            props: [
+              'modelValue',
+              'location',
+              'vaultMarker',
+              'site',
+              'dwellers',
+              'maxPartySize',
+              'maxStimpaks',
+              'maxRadaways',
+              'suppliesLoading',
+            ],
             emits: ['update:modelValue', 'dispatch'],
           },
           ExplorationDurationModal: {
@@ -133,12 +143,6 @@ describe('MapView', () => {
             template: '<div class="duration-modal-stub"></div>',
             props: ['show', 'dwellerName', 'maxStimpaks', 'maxRadaways', 'allowRadaway', 'heading'],
             emits: ['confirm', 'cancel'],
-          },
-          PartySelectionModal: {
-            name: 'PartySelectionModal',
-            template: '<div class="picker-stub"></div>',
-            props: ['modelValue', 'quest', 'vaultId', 'dwellers', 'currentParty', 'maxPartySize'],
-            emits: ['update:modelValue', 'assign', 'start'],
           },
           teleport: true,
         },
@@ -350,26 +354,170 @@ describe('MapView', () => {
         .spyOn(explorationStore, 'dispatchToLocation')
         .mockReturnValue(gate as never)
       vi.spyOn(mapStore, 'refreshMap').mockResolvedValue(undefined)
-      const { filter: dwellerFilter } = useDwellerStore()
-      vi.spyOn(dwellerFilter, 'fetchDwellersByVault').mockResolvedValue(undefined)
 
       mockRoute.query = { place: 'loc-1' }
       const wrapper = mountView()
       await flushPromises()
 
       const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
-      modal.vm.$emit('dispatch')
-      await flushPromises()
-
-      const picker = wrapper.findComponent({ name: 'PartySelectionModal' })
-      picker.vm.$emit('assign', ['dweller-1'])
-      picker.vm.$emit('assign', ['dweller-1'])
+      const payload = { dwellerIds: ['dweller-1'], supplies: { stimpaks: 0, radaways: 0 } }
+      modal.vm.$emit('dispatch', payload)
+      modal.vm.$emit('dispatch', payload)
       await flushPromises()
 
       expect(dispatchSpy).toHaveBeenCalledTimes(1)
       resolveDispatch({ id: 'expl-1' })
       await flushPromises()
       expect(mapStore.refreshMap).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('dispatch from the location details modal', () => {
+    function clearableLocation() {
+      return {
+        ...mockLocation,
+        clear_state: {
+          clearable: true,
+          cleared: false,
+          clear_count: 0,
+          tier: 0,
+          time_remaining_seconds: 0,
+          loot_table: 'low',
+        },
+      }
+    }
+
+    function mountWithClearable() {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      const clearable = clearableLocation()
+      mapStore.locations = [clearable]
+      mapStore.isLoading = false
+      const { filter: dwellerFilter } = useDwellerStore()
+      dwellerFilter.dwellers = [
+        {
+          id: 'dweller-1',
+          first_name: 'Ada',
+          last_name: 'Lovelace',
+          age_group: 'adult',
+          is_adult: true,
+          status: 'idle',
+        } as never,
+      ]
+      vi.spyOn(dwellerFilter, 'fetchDwellersByVault').mockResolvedValue(undefined)
+      const vaultStore = useVaultStore()
+      vi.spyOn(vaultStore, 'ensureVaultLoaded').mockResolvedValue(undefined)
+      return clearable
+    }
+
+    it('opens the details modal (not the picker) for a clearable location click', async () => {
+      const clearable = mountWithClearable()
+      const wrapper = mountView()
+      await flushPromises()
+
+      wrapper
+        .findComponent({ name: 'WorldMap' })
+        .vm.$emit('marker-click', { kind: 'location', data: clearable })
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      expect(modal.props('modelValue')).toBe(true)
+      expect(modal.props('dwellers')).toHaveLength(1)
+      expect(wrapper.findComponent({ name: 'PartySelectionModal' }).exists()).toBe(false)
+    })
+
+    it('preloads the vault before rendering supplies in the details modal', async () => {
+      const clearable = mountWithClearable()
+      const vaultStore = useVaultStore()
+      let resolveVault!: () => void
+      const gate = new Promise<void>((resolve) => {
+        resolveVault = () => {
+          vaultStore.loadedVaults = { 'vault-1': { stimpack: 10, radaway: 5 } as any }
+          resolve()
+        }
+      })
+      vi.mocked(vaultStore.ensureVaultLoaded).mockReturnValue(gate)
+
+      const wrapper = mountView()
+      await flushPromises()
+      wrapper
+        .findComponent({ name: 'WorldMap' })
+        .vm.$emit('marker-click', { kind: 'location', data: clearable })
+      await flushPromises()
+
+      const loading = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      expect(loading.props('suppliesLoading')).toBe(true)
+      expect(loading.props('maxStimpaks')).toBe(0)
+
+      resolveVault()
+      await flushPromises()
+
+      expect(loading.props('suppliesLoading')).toBe(false)
+      expect(loading.props('maxStimpaks')).toBe(10)
+      expect(loading.props('maxRadaways')).toBe(5)
+    })
+
+    it('still opens the details modal when the vault cannot be loaded', async () => {
+      const clearable = mountWithClearable()
+      const vaultStore = useVaultStore()
+      vi.mocked(vaultStore.ensureVaultLoaded).mockRejectedValueOnce(new Error('unloadable'))
+
+      const wrapper = mountView()
+      await flushPromises()
+      wrapper
+        .findComponent({ name: 'WorldMap' })
+        .vm.$emit('marker-click', { kind: 'location', data: clearable })
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      expect(modal.props('modelValue')).toBe(true)
+      expect(modal.props('maxStimpaks')).toBe(0)
+      expect(modal.props('suppliesLoading')).toBe(false)
+    })
+
+    it('dispatches the selected team and supplies from the details modal', async () => {
+      const clearable = mountWithClearable()
+      const explorationStore = useExplorationStore()
+      const dispatchSpy = vi
+        .spyOn(explorationStore, 'dispatchToLocation')
+        .mockResolvedValue(undefined as never)
+      vi.spyOn(mapStore, 'refreshMap').mockResolvedValue(undefined)
+
+      const wrapper = mountView()
+      await flushPromises()
+      wrapper
+        .findComponent({ name: 'WorldMap' })
+        .vm.$emit('marker-click', { kind: 'location', data: clearable })
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      expect(modal.props('modelValue')).toBe(true)
+
+      modal.vm.$emit('dispatch', {
+        dwellerIds: ['dweller-1'],
+        supplies: { stimpaks: 4, radaways: 2 },
+      })
+      await flushPromises()
+
+      expect(dispatchSpy).toHaveBeenCalledWith('vault-1', ['dweller-1'], 'loc-1', {
+        stimpaks: 4,
+        radaways: 2,
+      })
+      expect(mapStore.refreshMap).toHaveBeenCalled()
+      expect(modal.props('modelValue')).toBe(false)
+    })
+
+    it('keeps the ?place= deep link working without opening the picker', async () => {
+      mountWithClearable()
+      mockRoute.query = { place: 'loc-1' }
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(wrapper.findComponent({ name: 'MarkerDetailModal' }).props('modelValue')).toBe(true)
+      expect(wrapper.findComponent({ name: 'PartySelectionModal' }).exists()).toBe(false)
+      // The shareable deep link survives: the query is neither pushed nor cleared.
+      expect(mockReplace).not.toHaveBeenCalled()
+      expect(mockPush).not.toHaveBeenCalled()
     })
   })
 
@@ -443,6 +591,35 @@ describe('MapView', () => {
       expect(wrapper.find('.departure-picker').exists()).toBe(true)
       expect(wrapper.find('.departure-picker').text()).toContain('Explore the wasteland')
       expect(wrapper.find('.departure-dwellers button').text()).toContain('Send Ada')
+    })
+
+    it('scrolls the picker into view when it opens', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      mountWithDwellers()
+
+      const scrollSpy = vi.fn()
+      const original = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView')
+      Object.defineProperty(Element.prototype, 'scrollIntoView', {
+        configurable: true,
+        writable: true,
+        value: scrollSpy,
+      })
+
+      try {
+        const wrapper = mountView()
+        await flushPromises()
+
+        wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('explore-wasteland')
+        await flushPromises()
+
+        expect(scrollSpy).toHaveBeenCalledTimes(1)
+        expect(scrollSpy.mock.calls[0]?.[0]).toMatchObject({ block: 'nearest' })
+      } finally {
+        if (original) Object.defineProperty(Element.prototype, 'scrollIntoView', original)
+        else Reflect.deleteProperty(Element.prototype, 'scrollIntoView')
+      }
     })
 
     it('offers only available dwellers, even with no exploration records loaded', async () => {

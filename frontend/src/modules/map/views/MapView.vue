@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useMapStore } from '../stores/map'
@@ -18,7 +18,6 @@ import { Skeleton } from '@/core/components/ui/skeleton'
 import { Button } from '@/core/components/ui/button'
 import WorldMap from '../components/WorldMap.vue'
 import MarkerDetailModal from '../components/MarkerDetailModal.vue'
-import PartySelectionModal from '@/modules/progression/components/PartySelectionModal.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import type {
   ExpeditionSiteMarkerRead,
@@ -73,6 +72,16 @@ const dwellerNames = computed(() => {
   return names
 })
 
+// Explorer markers show the dweller's thumbnail when the vault roster has one;
+// otherwise the map falls back to the walking icon.
+const dwellerThumbnails = computed(() => {
+  const thumbnails = new Map<string, string | null>()
+  for (const dweller of dwellerStore.dwellers) {
+    thumbnails.set(dweller.id, dweller.thumbnail_url ?? null)
+  }
+  return thumbnails
+})
+
 const explorerTracks = computed<ExplorerTrack[]>(() =>
   buildExplorerTracks(
     // The store can still hold the previous vault's active runs after a vault
@@ -80,43 +89,63 @@ const explorerTracks = computed<ExplorerTrack[]>(() =>
     // stale run could match a location on the new map. Scope to this vault.
     explorationStore.explorations.filter((e) => e.vault_id === vaultId.value),
     mapStore.discoveryRoutes,
-    dwellerNames.value
+    dwellerNames.value,
+    dwellerThumbnails.value
   )
 )
 
-// Dispatch picker state (issue 772, phase 4b)
-const showDispatchModal = ref(false)
-const dispatchLocation = ref<WastelandLocationWithDwellers | null>(null)
+// Dispatch state (issue 772). The team menu now lives inside the location
+// details modal; the map only preloads its data and routes the confirm.
 // Blocks repeated Dispatch confirms while the request is in flight.
 const isDispatching = ref(false)
+// True while the vault record / dweller roster feeding the in-modal Send-team
+// section loads, so the modal's confirm stays disabled until supplies are real.
+const isPreparingDispatch = ref(false)
 
-function handleDispatchRequest() {
-  if (selectedLocation.value) void openDispatchPicker(selectedLocation.value)
-}
-
-async function openDispatchPicker(location: WastelandLocationWithDwellers) {
-  dispatchLocation.value = location
-  showDispatchModal.value = true
-  if (vaultId.value && authStore.token && dwellerStore.dwellers.length === 0) {
-    await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
+async function ensureDispatchData() {
+  const requestedVaultId = vaultId.value
+  const token = authStore.token
+  if (!requestedVaultId || !token) return
+  isPreparingDispatch.value = true
+  try {
+    // The shell hydrates loadedVaults asynchronously; showing the Send-team
+    // section before that lands renders the supply sliders as zeros. Load the
+    // vault record, then the roster, and let a failure leave supplies at zero.
+    await vaultStore.ensureVaultLoaded(requestedVaultId, token)
+    // A route change mid-load means this data no longer belongs to the view.
+    if (vaultId.value !== requestedVaultId || authStore.token !== token) return
+    if (dwellerStore.dwellers.length === 0) {
+      await dwellerStore.fetchDwellersByVault(requestedVaultId, token)
+    }
+  } catch {
+    // Unloadable vault: the section still renders, supplies just stay at zero.
+  } finally {
+    isPreparingDispatch.value = false
   }
 }
 
-async function handleDispatch(dwellerIds: string[]) {
-  const location = dispatchLocation.value
+async function handleDispatch(payload: {
+  dwellerIds: string[]
+  supplies: { stimpaks: number; radaways: number }
+}) {
+  const location = selectedLocation.value
   if (
     isDispatching.value ||
     !location ||
-    dwellerIds.length === 0 ||
+    payload.dwellerIds.length === 0 ||
     !vaultId.value ||
     !authStore.token
   )
     return
   isDispatching.value = true
   try {
-    await explorationStore.dispatchToLocation(vaultId.value, dwellerIds, location.id)
-    showDispatchModal.value = false
-    dispatchLocation.value = null
+    await explorationStore.dispatchToLocation(
+      vaultId.value,
+      payload.dwellerIds,
+      location.id,
+      payload.supplies
+    )
+    showModal.value = false
     await mapStore.refreshMap(vaultId.value, authStore.token)
     toast.success(`${location.name} — dispatch sent`)
   } catch (err) {
@@ -130,6 +159,19 @@ async function handleDispatch(dwellerIds: string[]) {
 // departure flow. The run is free-roam (no target) via the shared send action;
 // the pick only chooses the dweller, then the duration/supplies modal opens.
 const showDeparturePicker = ref(false)
+const departurePickerRef = ref<HTMLElement | null>(null)
+// The map is a full-width square, so the picker that answers a map click can
+// mount below the fold; scroll it into view so the click has a visible result.
+// Honour reduced-motion by jumping instead of animating.
+watch(showDeparturePicker, async (open) => {
+  if (!open) return
+  await nextTick()
+  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+  departurePickerRef.value?.scrollIntoView?.({
+    block: 'nearest',
+    behavior: reduced ? 'auto' : 'smooth',
+  })
+})
 // Vault that the departure dweller list was fetched for; guards against
 // offering another vault's dwellers after a route change.
 const departureDwellersVaultId = ref<string | null>(null)
@@ -237,6 +279,11 @@ async function handleDepartureConfirm(payload: {
   pendingHeading.value = null
 }
 
+function isDirectDispatchable(loc: WastelandLocationWithDwellers): boolean {
+  const clearState = loc.clear_state
+  return !!clearState?.clearable && (!clearState.cleared || clearState.time_remaining_seconds <= 0)
+}
+
 function handleMarkerClick(
   payload:
     | { kind: 'location'; data: WastelandLocationWithDwellers }
@@ -251,6 +298,9 @@ function handleMarkerClick(
     if (route.query.place !== payload.data.id) {
       void router.push({ query: { ...route.query, place: payload.data.id } })
     }
+    // Team dispatch now lives in the details modal; preload the vault supplies
+    // and roster so its Send-team section is usable when it opens.
+    if (isDirectDispatchable(payload.data)) void ensureDispatchData()
   } else if (payload.kind === 'site') {
     selectedMarkerId.value = `site-${payload.data.id}`
     clearPlaceQuery()
@@ -423,7 +473,7 @@ const mapPaneHeight = 'var(--map-pane-size)'
           </div>
 
           <!-- Departure picker: pick a dweller, then the duration/supplies modal -->
-          <div v-if="showDeparturePicker" class="departure-picker">
+          <div v-if="showDeparturePicker" ref="departurePickerRef" class="departure-picker">
             <p v-if="pendingHeading !== null">
               Explore the wasteland heading
               <span class="heading-badge">{{ formatHeading(pendingHeading) }}</span>
@@ -448,24 +498,18 @@ const mapPaneHeight = 'var(--map-pane-size)'
             </div>
           </div>
 
-          <!-- Detail modal -->
+          <!-- Detail modal: also hosts the team dispatch menu for clearable points -->
           <MarkerDetailModal
             v-model="showModal"
             :location="selectedLocation"
             :vault-marker="selectedVaultMarker"
             :site="selectedSite"
-            @dispatch="handleDispatchRequest"
-          />
-
-          <!-- Dispatch dweller picker (solo; parties arrive in a later phase) -->
-          <PartySelectionModal
-            v-model="showDispatchModal"
-            :quest="null"
-            :vault-id="vaultId"
-            :dwellers="dwellerStore.dwellers"
-            :current-party="[]"
+            :dwellers="departureCandidates"
             :max-party-size="3"
-            @assign="handleDispatch"
+            :max-stimpaks="vaultMedicalSupplies.stimpaks"
+            :max-radaways="vaultMedicalSupplies.radaways"
+            :supplies-loading="isPreparingDispatch"
+            @dispatch="handleDispatch"
           />
 
           <!-- Duration/supplies picker for the map departure flow -->

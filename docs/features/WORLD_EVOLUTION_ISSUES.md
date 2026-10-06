@@ -87,6 +87,11 @@ No duplicate core/API implementation, terrain/road travel adoption, new scout-ta
 
 ## 3. Candidate preview and explicit world activation
 
+> **Status: DEFERRED (2026-10-06) — not shipping now.** A reviewed lifecycle was built in draft PR #901
+> (`feat/world-activation`, Track C) and parked, not merged: one shared world is enough and the machinery had
+> no candidate source to exercise on master. Record and revival steps:
+> `docs/features/WORLD_ACTIVATION_DEFERRED.md`. Issue #861 stays open as the future tracking item.
+
 **Title:** Preview stored candidate worlds and explicitly activate progress-preserving migrations
 
 ### Problem and goal

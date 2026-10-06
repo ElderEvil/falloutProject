@@ -17,6 +17,7 @@ export interface ExplorerTrack {
   dwellerName: string
   targetLocationId: string | null
   lastKnown: { coord_x: number; coord_y: number } | null
+  dwellerThumbnailUrl?: string | null
 }
 
 export type MarkerClickPayload =

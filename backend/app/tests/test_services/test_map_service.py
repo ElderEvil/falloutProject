@@ -413,16 +413,32 @@ async def test_get_vault_map_clear_state_none_for_non_clearable_group(
 
 
 @pytest.mark.asyncio
-async def test_get_vault_map_clear_state_none_without_group_key(
+async def test_get_vault_map_clear_state_for_ungrouped_place(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """Emergent places without a group key carry no clear_state."""
+    """An ungrouped emergent PLACE falls back to the default clearable archetype."""
     await map_service.register_bio_places(async_session, dweller, origin_place="Race Town", visited_places=[])
 
     map_data = await map_service.get_vault_map(async_session, vault)
     race_town = next(loc for loc in map_data.locations if loc.normalized_name == "race town")
 
     assert race_town.group_key is None
+    assert race_town.clear_state is not None
+    assert race_town.clear_state.clearable is True
+    assert race_town.clear_state.loot_table == "low"
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_clear_state_none_when_emergent_sites_disabled(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With the flag off, an ungrouped PLACE carries no clear_state."""
+    monkeypatch.setattr(game_config.features, "emergent_sites", False)
+    await map_service.register_bio_places(async_session, dweller, origin_place="Race Town", visited_places=[])
+
+    map_data = await map_service.get_vault_map(async_session, vault)
+    race_town = next(loc for loc in map_data.locations if loc.normalized_name == "race town")
+
     assert race_town.clear_state is None
 
 
@@ -449,6 +465,50 @@ async def test_get_location_detail_includes_clear_state(
     assert detail.clear_state.clear_count == 0
     assert detail.clear_state.tier == 0
     assert detail.clear_state.loot_table == "low"
+
+
+@pytest.mark.asyncio
+async def test_location_detail_prefers_canonical_description(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A canonical registry description wins over the per-vault description."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
+    location = (
+        await async_session.execute(select(WorldLocation).where(WorldLocation.name == "Red Rocket"))
+    ).scalar_one()
+    location.description = "Canonical lore"
+    state = (
+        await async_session.execute(
+            select(VaultLocationState).where(
+                VaultLocationState.vault_id == vault.id,
+                VaultLocationState.location_id == location.id,
+            )
+        )
+    ).scalar_one()
+    state.description = "Per-vault lore"
+    async_session.add(location)
+    async_session.add(state)
+    await async_session.commit()
+
+    detail = await map_service.get_location_detail(async_session, vault, location.id)
+
+    assert detail.description == "Canonical lore"
+
+
+@pytest.mark.asyncio
+async def test_location_detail_falls_back_to_group_lore(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A place with no description shows its archetype's shared lore."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
+    location = (
+        await async_session.execute(select(WorldLocation).where(WorldLocation.name == "Red Rocket"))
+    ).scalar_one()
+
+    detail = await map_service.get_location_detail(async_session, vault, location.id)
+
+    assert detail.description is not None
+    assert "roadside fuel stop" in detail.description
 
 
 # ---------------------------------------------------------------------------

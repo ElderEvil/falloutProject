@@ -163,6 +163,8 @@ class ExpeditionDispatchRequest(SQLModel):
 
     dweller_ids: list[UUID4] = Field(min_length=1, description="Party of 1-3 dwellers, no leader")
     location_id: UUID4
+    stimpaks: int = Field(default=0, ge=0, le=25, description="Number of Stimpaks to bring")
+    radaways: int = Field(default=0, ge=0, le=25, description="Number of Radaways to bring")
 
 
 class ExplorationRecallRequest(SQLModel):
@@ -186,3 +188,9 @@ class PendingOverflowRead(SQLModel):
     exploration_id: UUID4
     dweller_id: UUID4
     unclaimed_loot: list[dict]
+
+
+class HeadingSuggestion(SQLModel):
+    """A server-suggested compass heading for an auto departure; null without a placement."""
+
+    heading_degrees: float | None = None

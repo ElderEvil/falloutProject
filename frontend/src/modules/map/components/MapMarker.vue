@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { markerTypeMeta, type MarkerType } from '../models/markerTypeMeta'
 import { isHintLocation } from '../utils/visibility'
 
@@ -98,12 +99,13 @@ const tooltipText = computed(() => {
           'marker-vault': isVault,
         }"
       >
-        <img
+        <DwellerPortrait
           v-if="artSrc && !isLocked"
-          :src="artSrc"
-          class="h-full w-full"
+          :image-url="artSrc"
+          :fallback-icon="displayIcon"
           alt=""
-          aria-hidden="true"
+          image-class="h-full w-full rounded-full object-cover object-top"
+          fallback-class="h-full w-full"
         />
         <Icon v-else :icon="displayIcon" class="h-full w-full" />
       </div>

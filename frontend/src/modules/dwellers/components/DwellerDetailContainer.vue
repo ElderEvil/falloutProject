@@ -19,6 +19,7 @@ import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { useDwellerDetail } from '../composables/useDwellerDetail'
 import { canUseRadaway, getDwellerDisplayName } from '../models/dweller'
 import { dwellerDetailKey } from './DwellerDetailContext'
+import { formatHeading } from '@/modules/map/utils/bearing'
 
 const DwellerAppearanceEditor = defineAsyncComponent({
   loader: () => import('./DwellerAppearanceEditor.vue'),
@@ -97,8 +98,16 @@ const wastelandModalOpen = ctx.wastelandModalOpen
       :max-stimpaks="ctx.availableStimpaks.value ?? 0"
       :max-radaways="ctx.availableRadaways.value ?? 0"
       :allow-radaway="canUseRadaway(dweller)"
+      :heading="
+        ctx.wastelandHeadingDegrees.value !== null
+          ? formatHeading(ctx.wastelandHeadingDegrees.value)
+          : null
+      "
+      :can-reroll="true"
+      :is-suggesting-heading="ctx.wastelandIsSuggestingHeading.value"
       @confirm="ctx.actions.confirmSendToWasteland"
       @cancel="ctx.actions.cancelSendToWasteland"
+      @reroll="ctx.actions.rerollWastelandHeading"
     />
 
     <Dialog v-model:open="renameDialogOpen">

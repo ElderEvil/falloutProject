@@ -4,6 +4,7 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import WorldMap from '@/modules/map/components/WorldMap.vue'
 import { markerTypeMeta } from '@/modules/map/models/markerTypeMeta'
+import { bearingDegrees } from '@/modules/map/utils/bearing'
 import { useMapStore, VIEWED_LOCATIONS_STORAGE_KEY } from '@/modules/map/stores/map'
 import type {
   ExpeditionSiteMarkerRead,
@@ -258,9 +259,9 @@ describe('WorldMap', () => {
 
       const route = wrapper.find('polyline')
       const points = route.attributes('points')!.split(' ')
-      expect(points[0]).toBe('80,80')
-      expect(points.at(-1)).toBe('20,30')
-      expect(points.length).toBeGreaterThan(3)
+      // Straight trails: the rendered points are exactly the real waypoints
+      // (home + each visit, repeats included) with no hand-drawn wobble.
+      expect(points).toEqual(['80,80', '20,30', '20,30'])
     })
 
     it('anchors trails at the home vault coordinates', () => {
@@ -1064,6 +1065,153 @@ describe('WorldMap', () => {
         .findAllComponents(MapMarkerStub)
         .filter((m) => m.props('type') === 'explorer')
       expect(explorers).toHaveLength(0)
+    })
+
+    it('passes the dweller thumbnail as artSrc on a free-roam explorer marker', () => {
+      const tracks: ExplorerTrack[] = [
+        {
+          explorationId: 'expl-2',
+          dwellerName: 'Bob',
+          targetLocationId: null,
+          lastKnown: { coord_x: 42, coord_y: 43 },
+          dwellerThumbnailUrl: 'https://cdn.example/bob.png',
+        },
+      ]
+      const wrapper = mount(WorldMap, {
+        props: { locations: [], vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const explorer = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('type') === 'explorer')
+      expect(explorer!.props('artSrc')).toBe('https://cdn.example/bob.png')
+    })
+
+    it('forwards backend-static thumbnails as artSrc for the portrait to normalize', () => {
+      const tracks: ExplorerTrack[] = [
+        {
+          explorationId: 'expl-2',
+          dwellerName: 'Bob',
+          targetLocationId: null,
+          lastKnown: { coord_x: 42, coord_y: 43 },
+          dwellerThumbnailUrl: '/static/portraits/bob.png',
+        },
+      ]
+      const wrapper = mount(WorldMap, {
+        props: { locations: [], vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const explorer = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('type') === 'explorer')
+      expect(explorer!.props('artSrc')).toBe('/static/portraits/bob.png')
+    })
+
+    it('falls back to the walk icon when a free-roam explorer has no thumbnail', () => {
+      const tracks: ExplorerTrack[] = [
+        {
+          explorationId: 'expl-2',
+          dwellerName: 'Bob',
+          targetLocationId: null,
+          lastKnown: { coord_x: 42, coord_y: 43 },
+          dwellerThumbnailUrl: null,
+        },
+      ]
+      const wrapper = mount(WorldMap, {
+        props: { locations: [], vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const explorer = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('type') === 'explorer')
+      expect(explorer!.props('artSrc')).toBeNull()
+      expect(explorer!.props('icon')).toBe('mdi:walk')
+    })
+
+    it('rotates the heading chevron along the free-roam trail', () => {
+      const tracks: ExplorerTrack[] = [
+        {
+          explorationId: 'expl-2',
+          dwellerName: 'Bob',
+          targetLocationId: null,
+          lastKnown: { coord_x: 42, coord_y: 43 },
+        },
+      ]
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [],
+          vaultMarkers: [],
+          explorerTracks: tracks,
+          selectedMarkerId: null,
+          discoveryRoutes: [
+            {
+              exploration_id: 'expl-2',
+              points: [
+                { coord_x: 0, coord_y: 10, timestamp: '2026-01-01T00:00:00Z' },
+                { coord_x: 10, coord_y: 10, timestamp: '2026-01-01T01:00:00Z' },
+              ],
+            },
+          ],
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const chevron = wrapper.find('.explorer-heading')
+      expect(chevron.exists()).toBe(true)
+      // Due east along the trail.
+      expect(chevron.attributes('transform')).toContain('rotate(90)')
+    })
+
+    it('points the heading chevron home for a returning run without a usable trail', () => {
+      const tracks: ExplorerTrack[] = [
+        {
+          explorationId: 'expl-2',
+          dwellerName: 'Bob',
+          targetLocationId: null,
+          lastKnown: { coord_x: 10, coord_y: 0 },
+        },
+      ]
+      const home = { id: 'home', type: 'home_vault', coord_x: 0, coord_y: 0 }
+      const expected = bearingDegrees({ x: 10, y: 0 }, { x: 0, y: 0 })
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [home as WastelandLocationWithDwellers],
+          vaultMarkers: [],
+          explorerTracks: tracks,
+          selectedMarkerId: null,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const chevron = wrapper.find('.explorer-heading')
+      expect(chevron.exists()).toBe(true)
+      expect(chevron.attributes('transform')).toContain(`rotate(${expected})`)
+    })
+
+    it('renders no heading chevron when a heading cannot be derived', () => {
+      const tracks: ExplorerTrack[] = [
+        {
+          explorationId: 'expl-2',
+          dwellerName: 'Bob',
+          targetLocationId: null,
+          lastKnown: null,
+        },
+        {
+          explorationId: 'expl-3',
+          dwellerName: 'Ann',
+          targetLocationId: 'loc-1',
+          lastKnown: null,
+        },
+      ]
+      const wrapper = mount(WorldMap, {
+        props: { locations: [], vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.find('.explorer-heading').exists()).toBe(false)
     })
 
     it('does not mark locations when no explorer tracks exist', () => {

@@ -6,7 +6,12 @@ import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
+import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { formatRemaining } from '@/modules/exploration/composables/useExplorationProgress'
+import { usePartySelection } from '@/modules/progression/composables/usePartySelection'
+import PartySlots from '@/modules/progression/components/party/PartySlots.vue'
+import AvailableDwellers from '@/modules/progression/components/party/AvailableDwellers.vue'
+import SupplySliders from '@/modules/progression/components/party/SupplySliders.vue'
 import type {
   ExpeditionSiteMarkerRead,
   WastelandLocationWithDwellers,
@@ -20,13 +25,35 @@ interface Props {
   location: WastelandLocationWithDwellers | null
   vaultMarker: VaultMarkerRead | null
   site?: ExpeditionSiteMarkerRead | null
+  /** Already-filtered candidates for the in-modal Send-team section. */
+  dwellers?: DwellerShort[]
+  maxPartySize?: number
+  /** Vault medical stock; the slider ceiling is min(stock, 15). */
+  maxStimpaks?: number
+  maxRadaways?: number
+  /** True while the vault/dweller data feeding the Send-team section loads. */
+  suppliesLoading?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  site: null,
+  dwellers: () => [],
+  maxPartySize: 3,
+  maxStimpaks: 0,
+  maxRadaways: 0,
+  suppliesLoading: false,
+})
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
-  (e: 'dispatch'): void
+  /**
+   * Confirmed team and supplies from the in-modal Send-team section. The map
+   * routes this to the dispatch service; the detail modal itself never calls it.
+   */
+  (
+    e: 'dispatch',
+    payload: { dwellerIds: string[]; supplies: { stimpaks: number; radaways: number } }
+  ): void
 }>()
 
 const router = useRouter()
@@ -88,7 +115,7 @@ const recordedAt = computed(() => {
   return new Date(props.location.created_at).toLocaleDateString()
 })
 
-const dwellers = computed(() => {
+const linkedDwellers = computed(() => {
   if (props.location && props.location.dwellers.length > 0) {
     return props.location.dwellers
   }
@@ -151,6 +178,53 @@ const reclearCountdown = computed(() => {
   return seconds > 0 ? formatRemaining(seconds) : ''
 })
 const lootTableLabel = computed(() => clearState.value?.loot_table ?? '')
+
+// Send-team state for the in-modal dispatch section. Dispatch mode passes the
+// already-filtered candidates straight in (no eligibility fetch) and opens from
+// an empty party each time the modal lands on a location.
+const {
+  selectedDwellerIds,
+  selectedStimpaks,
+  selectedRadaways,
+  stimpakMax,
+  radawayMax,
+  selectedDwellers,
+  canSubmit,
+  toggleDweller,
+  setStimpaks,
+  setRadaways,
+  resetOnOpen,
+  suppliesPayload,
+} = usePartySelection({
+  dwellers: () => props.dwellers,
+  maxPartySize: () => props.maxPartySize,
+  maxStimpaks: () => props.maxStimpaks,
+  maxRadaways: () => props.maxRadaways,
+})
+
+// The section and its footer confirm appear exactly where the old Dispatch
+// button did: a clearable point that is uncleared or re-clearable.
+const actionable = computed(() => isClearable.value && (!isCleared.value || reclearReady.value))
+
+watch(
+  () => props.modelValue,
+  (open) => {
+    // Reset only on open: the polled locations array replaces the selected
+    // object every tick (same id, new reference), so watching the location
+    // itself would wipe an in-progress party mid-selection.
+    if (open && props.location) resetOnOpen([])
+  },
+  { immediate: true }
+)
+
+function closeModal() {
+  isOpen.value = false
+}
+
+function confirmDispatch() {
+  if (!canSubmit.value) return
+  emit('dispatch', { dwellerIds: [...selectedDwellerIds.value], supplies: suppliesPayload() })
+}
 
 // Expedition-site status projection (mirrors the marker's block_reason).
 const siteStatus = computed(() => {
@@ -241,10 +315,10 @@ function dwellerDisplayName(first: string, last: string | null) {
           <p class="mt-2 max-w-sm text-sm leading-6 text-theme-primary/60">
             Chat with a dweller who has been here to uncover this place.
           </p>
-          <div v-if="dwellers" class="mt-4 w-full max-w-sm space-y-1.5 text-left">
+          <div v-if="linkedDwellers" class="mt-4 w-full max-w-sm space-y-1.5 text-left">
             <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">KNOWN CONTACTS</p>
             <button
-              v-for="d in dwellers"
+              v-for="d in linkedDwellers"
               :key="d.dweller_id"
               type="button"
               class="dweller-contact flex w-full items-center justify-between gap-3 rounded border border-theme-primary/20 bg-surface px-3 py-2 text-left transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
@@ -353,7 +427,7 @@ function dwellerDisplayName(first: string, last: string | null) {
               <TerminalMetric
                 :icon="isVaultMarker ? 'mdi:radio-tower' : 'mdi:account-group'"
                 :label="isVaultMarker ? 'MARKER TYPE' : 'KNOWN DWELLERS'"
-                :value="isVaultMarker ? 'VAULT SIGNAL' : (dwellers?.length ?? 0)"
+                :value="isVaultMarker ? 'VAULT SIGNAL' : (linkedDwellers?.length ?? 0)"
                 compact
               />
             </div>
@@ -390,15 +464,6 @@ function dwellerDisplayName(first: string, last: string | null) {
                   </span>
                 </div>
               </div>
-              <Button
-                v-if="!isCleared || reclearReady"
-                size="sm"
-                class="border-theme-primary/40 bg-theme-primary/10 text-theme-primary hover:bg-theme-primary/20"
-                @click="emit('dispatch')"
-              >
-                <Icon icon="mdi:send" class="h-4 w-4" />
-                Dispatch
-              </Button>
             </div>
             <p
               v-if="isCleared && reclearCountdown"
@@ -409,10 +474,38 @@ function dwellerDisplayName(first: string, last: string | null) {
             </p>
           </section>
 
-          <section v-if="dwellers" class="border-t border-theme-primary/20 pt-4">
+          <section v-if="actionable" class="space-y-4 border-t border-theme-primary/20 pt-4">
+            <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">SEND TEAM</p>
+            <PartySlots
+              :selected-dwellers="selectedDwellers"
+              :selected-count="selectedDwellerIds.length"
+              :max-party-size="maxPartySize"
+              @remove="toggleDweller"
+            />
+            <AvailableDwellers
+              :dwellers="dwellers"
+              :selected-ids="selectedDwellerIds"
+              :is-loading="suppliesLoading"
+              :show-eligible-badge="false"
+              :error="null"
+              @toggle="toggleDweller"
+            />
+            <SupplySliders
+              :selected-stimpaks="selectedStimpaks"
+              :selected-radaways="selectedRadaways"
+              :max-stimpaks="maxStimpaks"
+              :max-radaways="maxRadaways"
+              :stimpak-max="stimpakMax"
+              :radaway-max="radawayMax"
+              @update:stimpaks="setStimpaks"
+              @update:radaways="setRadaways"
+            />
+          </section>
+
+          <section v-if="linkedDwellers" class="border-t border-theme-primary/20 pt-4">
             <h4 class="mb-2 text-sm font-bold uppercase text-theme-primary">Linked Dwellers</h4>
             <ul class="space-y-1.5">
-              <li v-for="d in dwellers" :key="d.dweller_id">
+              <li v-for="d in linkedDwellers" :key="d.dweller_id">
                 <button
                   type="button"
                   class="dweller-entry flex w-full items-center justify-between gap-3 rounded border border-theme-primary/20 bg-surface px-3 py-2 text-left transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
@@ -427,6 +520,22 @@ function dwellerDisplayName(first: string, last: string | null) {
             </ul>
           </section>
         </div>
+      </div>
+
+      <div
+        v-if="actionable"
+        class="flex flex-shrink-0 justify-end gap-3 border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
+      >
+        <Button variant="secondary" size="sm" @click="closeModal">Cancel</Button>
+        <Button
+          size="sm"
+          class="border-theme-primary/40 bg-theme-primary/10 text-theme-primary hover:bg-theme-primary/20"
+          :disabled="!canSubmit || suppliesLoading"
+          @click="confirmDispatch"
+        >
+          <Icon icon="mdi:send" class="h-4 w-4" />
+          Dispatch
+        </Button>
       </div>
     </DialogContent>
   </Dialog>

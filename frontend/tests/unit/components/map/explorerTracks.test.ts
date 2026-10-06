@@ -87,6 +87,34 @@ describe('buildExplorerTracks', () => {
     expect(tracks[0].dwellerName).toBe('')
   })
 
+  it('resolves the dweller thumbnail from the provided map', () => {
+    const tracks = buildExplorerTracks(
+      [exploration({ id: 'expl-1', dweller_id: 'dweller-1' })],
+      [],
+      new Map(),
+      new Map([['dweller-1', 'https://cdn.example/ada.png']])
+    )
+
+    expect(tracks[0].dwellerThumbnailUrl).toBe('https://cdn.example/ada.png')
+  })
+
+  it('leaves the dweller thumbnail null when absent or unprovided', () => {
+    const withNull = buildExplorerTracks(
+      [exploration({ id: 'expl-1', dweller_id: 'dweller-1' })],
+      [],
+      new Map(),
+      new Map([['dweller-1', null]])
+    )
+    const withoutMap = buildExplorerTracks(
+      [exploration({ id: 'expl-1', dweller_id: 'dweller-1' })],
+      [],
+      new Map()
+    )
+
+    expect(withNull[0].dwellerThumbnailUrl).toBeNull()
+    expect(withoutMap[0].dwellerThumbnailUrl).toBeNull()
+  })
+
   it('ignores completed and recalled runs', () => {
     const tracks = buildExplorerTracks(
       [

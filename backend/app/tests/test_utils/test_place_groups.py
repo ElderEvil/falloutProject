@@ -4,8 +4,12 @@ import json
 
 import pytest
 
+from app.core.enums import PlaceKindEnum
+from app.core.game_config import game_config
 from app.utils.place_groups import (
+    DEFAULT_EMERGENT_GROUP,
     GROUPS_FILE,
+    effective_place_group,
     get_place_group,
     group_for_place_name,
     load_place_groups,
@@ -27,6 +31,7 @@ CLEARABLE_GROUPS = {
     "vault_tec",
     "ruin",
     "exclusion_zone",
+    "wasteland_site",
 }
 NON_CLEARABLE_GROUPS = {"settlement", "city", "landmark", "region"}
 
@@ -171,3 +176,25 @@ def test_non_clearable_group_carrying_clear_fields_is_rejected(tmp_path) -> None
     finally:
         monkeypatch.undo()
         load_place_groups.cache_clear()
+
+
+def test_effective_group_defaults_for_ungrouped_place() -> None:
+    """An ungrouped PLACE resolves to the default clearable archetype."""
+    group = effective_place_group(None, PlaceKindEnum.PLACE)
+    assert group is not None
+    assert group["key"] == DEFAULT_EMERGENT_GROUP
+    assert group["clearable"] is True
+
+
+def test_effective_group_none_for_vault_and_when_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """VAULT rows never inherit the place default; the flag turns the fallback off."""
+    assert effective_place_group(None, PlaceKindEnum.VAULT) is None
+    monkeypatch.setattr(game_config.features, "emergent_sites", False)
+    assert effective_place_group(None, PlaceKindEnum.PLACE) is None
+
+
+def test_effective_group_prefers_the_place_own_group() -> None:
+    """A grouped place keeps its own group regardless of kind."""
+    group = effective_place_group("settlement", PlaceKindEnum.PLACE)
+    assert group is not None
+    assert group["key"] == "settlement"

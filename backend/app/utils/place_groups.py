@@ -13,11 +13,15 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from app.core.enums import PlaceKindEnum
+from app.core.game_config import game_config
 from app.utils.place_loot import loot_table
 from app.utils.place_seed import load_seed_entries
 from app.utils.places import normalize_place_name
 
 GROUPS_FILE = Path(__file__).parent.parent / "data" / "places" / "place_groups.json"
+
+DEFAULT_EMERGENT_GROUP = "wasteland_site"
 
 
 @lru_cache(maxsize=1)
@@ -103,3 +107,13 @@ def group_for_place_name(name: str) -> str | None:
 def get_place_group(key: str | None) -> dict[str, Any] | None:
     """Catalog entry for a group key, or None."""
     return place_groups_by_key().get(key) if key else None
+
+
+def effective_place_group(group_key: str | None, kind: PlaceKindEnum | None) -> dict[str, Any] | None:
+    """Catalog entry for a place: its own group, or the default archetype for an ungrouped PLACE."""
+    group = get_place_group(group_key)
+    if group is not None:
+        return group
+    if kind == PlaceKindEnum.PLACE and game_config.features.emergent_sites:
+        return get_place_group(DEFAULT_EMERGENT_GROUP)
+    return None

@@ -45,7 +45,7 @@ from app.services.exploration.expedition import (
 from app.services.notification_service import notification_service
 from app.services.world_generation_service import WORLD_ID
 from app.utils import world_terrain
-from app.utils.place_groups import get_place_group, load_place_groups
+from app.utils.place_groups import effective_place_group, load_place_groups
 from app.utils.places import GENERIC_ORIGIN_SKIP, WORLD_SCALE, normalize_place_name
 from app.utils.vault_slots import slot_coords
 
@@ -487,13 +487,23 @@ class MapService:
     # ------------------------------------------------------------------
 
     @staticmethod
+    def _description_for(state: VaultLocationState, location: WorldLocation) -> str | None:
+        """Canonical lore, then per-vault description, then the archetype's shared lore."""
+        if location.description:
+            return location.description
+        if state.description:
+            return state.description
+        group = effective_place_group(location.group_key, location.kind)
+        return group.get("description") if group else None
+
+    @staticmethod
     def _clear_state_for(state: VaultLocationState, location: WorldLocation) -> LocationClearStateRead | None:
         """Derive the read-only clear state for a map point, or None when not clearable.
 
         Availability is computed from ``now`` and never persisted; non-clearable
         groups and ungrouped points carry no clear state on the wire.
         """
-        group = get_place_group(location.group_key)
+        group = effective_place_group(location.group_key, location.kind)
         if group is None or not group.get("clearable"):
             return None
         now = datetime.utcnow()
@@ -541,7 +551,7 @@ class MapService:
             type=state.type,
             coord_x=round(location.coord_x * WORLD_SCALE, 1),
             coord_y=round(location.coord_y * WORLD_SCALE, 1),
-            description=state.description,
+            description=self._description_for(state, location),
             group_key=location.group_key,
             vault_id=vault.id,
             exploration_id=state.exploration_id,
@@ -625,7 +635,7 @@ class MapService:
                     type=state.type,
                     coord_x=round(location.coord_x * WORLD_SCALE, 1),
                     coord_y=round(location.coord_y * WORLD_SCALE, 1),
-                    description=state.description,
+                    description=self._description_for(state, location),
                     group_key=location.group_key,
                     vault_id=vault.id,
                     exploration_id=state.exploration_id,

@@ -3,6 +3,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { isMature, type Dweller } from '@/modules/dwellers/models/dweller'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
+import { explorationApi } from '@/modules/exploration/api/exploration'
 import { useToast } from '@/core/composables/useToast'
 
 export interface PendingExplorer {
@@ -27,9 +28,33 @@ export function useSendToWasteland(vaultId: () => string | null) {
   const showModal = ref(false)
   const pendingDweller = ref<PendingExplorer | null>(null)
   const isSending = ref(false)
+  const suggestedHeading = ref<number | null>(null)
+  const isSuggestingHeading = ref(false)
 
-  // Heading chosen by a map click; null means a free-roam send.
-  const headingDegrees = computed<number | null>(() => pendingDweller.value?.headingDegrees ?? null)
+  // A map click supplies the heading; otherwise the server suggests one.
+  const headingDegrees = computed<number | null>(
+    () => pendingDweller.value?.headingDegrees ?? suggestedHeading.value
+  )
+
+  const suggestHeading = async () => {
+    const vId = vaultId()
+    if (!vId || !authStore.token) return
+    isSuggestingHeading.value = true
+    try {
+      suggestedHeading.value = await explorationApi.suggestHeading(
+        authStore.token,
+        vId,
+        crypto.randomUUID(),
+        4
+      )
+    } catch {
+      suggestedHeading.value = null
+    } finally {
+      isSuggestingHeading.value = false
+    }
+  }
+
+  const reroll = () => void suggestHeading()
 
   const open = (dweller: PendingExplorer, knownDweller?: Dweller) => {
     const candidate =
@@ -39,12 +64,15 @@ export function useSendToWasteland(vaultId: () => string | null) {
       return
     }
     pendingDweller.value = dweller
+    suggestedHeading.value = null
     showModal.value = true
+    if (dweller.headingDegrees === undefined) void suggestHeading()
   }
 
   const cancel = () => {
     showModal.value = false
     pendingDweller.value = null
+    suggestedHeading.value = null
   }
 
   const confirm = async (
@@ -55,7 +83,8 @@ export function useSendToWasteland(vaultId: () => string | null) {
     if (!pendingDweller.value || !vId || !authStore.token || isSending.value) return false
 
     isSending.value = true
-    const { dwellerId, firstName, lastName, headingDegrees: pendingHeading } = pendingDweller.value
+    const { dwellerId, firstName, lastName } = pendingDweller.value
+    const heading = pendingDweller.value.headingDegrees ?? suggestedHeading.value
     let dispatched = false
     try {
       await explorationStore.sendDwellerToWasteland(
@@ -65,11 +94,12 @@ export function useSendToWasteland(vaultId: () => string | null) {
         authStore.token,
         payload.stimpaks,
         payload.radaways,
-        pendingHeading
+        heading ?? undefined
       )
       toast.success(`${firstName} ${lastName ?? ''} sent to the wasteland for ${payload.duration} hour(s)!`)
       showModal.value = false
       pendingDweller.value = null
+      suggestedHeading.value = null
       dispatched = true
     } catch {
       toast.error('Failed to send dweller to wasteland')
@@ -89,5 +119,15 @@ export function useSendToWasteland(vaultId: () => string | null) {
     return dispatched
   }
 
-  return { showModal, pendingDweller, headingDegrees, isSending, open, cancel, confirm }
+  return {
+    showModal,
+    pendingDweller,
+    headingDegrees,
+    isSuggestingHeading,
+    isSending,
+    open,
+    cancel,
+    confirm,
+    reroll,
+  }
 }

@@ -27,6 +27,7 @@ export interface DwellerDetailActions {
     radaways: number
   }): Promise<boolean>
   cancelSendToWasteland(): void
+  rerollWastelandHeading(): void
   useStimpak(): void
   useRadAway(): void
   issueMedicalSupply(supply: 'stimpack' | 'radaway'): void
@@ -83,6 +84,8 @@ export interface UseDwellerDetailReturn {
   softDeleteDialogOpen: Ref<boolean>
   wastelandModalOpen: Ref<boolean>
   wastelandPendingDweller: Readonly<Ref<{ firstName: string; lastName?: string } | null>>
+  wastelandHeadingDegrees: Readonly<Ref<number | null>>
+  wastelandIsSuggestingHeading: Readonly<Ref<boolean>>
   actions: DwellerDetailActions
 }
 
@@ -460,6 +463,7 @@ export function useDwellerDetail(
     openSendToWasteland: handleSendWasteland,
     confirmSendToWasteland: handleSendWastelandConfirm,
     cancelSendToWasteland: () => sendWasteland.cancel(),
+    rerollWastelandHeading: () => sendWasteland.reroll(),
     useStimpak: handleUseStimpak,
     useRadAway: handleUseRadAway,
     issueMedicalSupply: handleIssueMedicalSupply,
@@ -514,6 +518,8 @@ export function useDwellerDetail(
     softDeleteDialogOpen,
     wastelandModalOpen: sendWasteland.showModal,
     wastelandPendingDweller: readonly(sendWasteland.pendingDweller),
+    wastelandHeadingDegrees: readonly(sendWasteland.headingDegrees),
+    wastelandIsSuggestingHeading: readonly(sendWasteland.isSuggestingHeading),
     actions,
   }
 }

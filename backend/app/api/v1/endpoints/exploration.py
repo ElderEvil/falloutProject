@@ -23,6 +23,7 @@ from app.schemas.exploration import (
     ExplorationRead,
     ExplorationReadShort,
     ExplorationSendRequest,
+    HeadingSuggestion,
     PendingOverflowRead,
 )
 from app.schemas.overflow import OverflowActionRequest, OverflowActionResponse
@@ -86,7 +87,23 @@ async def dispatch_dweller(
         vault_id=vault_id,
         dweller_ids=request.dweller_ids,
         location_id=request.location_id,
+        stimpaks=request.stimpaks,
+        radaways=request.radaways,
     )
+
+
+@router.get("/suggest-heading", response_model=HeadingSuggestion)
+async def suggest_heading(
+    vault_id: Annotated[UUID4, Query()],
+    seed: Annotated[str, Query(min_length=1)],
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    duration: Annotated[int, Query(ge=1, le=24)] = 4,
+) -> HeadingSuggestion:
+    """Suggest a heading for an auto departure; null when the vault has no map placement."""
+    await get_user_vault_or_403(vault_id, user, db_session)
+    heading = await exploration_service.suggest_heading(db_session, vault_id, duration=duration, seed=seed)
+    return HeadingSuggestion(heading_degrees=heading)
 
 
 @router.get("/vault/{vault_id}", response_model=list[ExplorationReadShort])

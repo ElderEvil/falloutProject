@@ -6,8 +6,10 @@ the modular exploration system in services/exploration/ modules.
 
 import logging
 import math
+import random
 from collections.abc import Sequence
 from datetime import datetime, timedelta
+from uuid import uuid4
 
 from pydantic import UUID4
 from sqlalchemy import orm
@@ -40,7 +42,7 @@ from app.services.world_snapshot_service import world_snapshot_service
 from app.utils import world_terrain
 from app.utils.dweller_availability import availability_error
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
-from app.utils.place_groups import get_place_group
+from app.utils.place_groups import effective_place_group
 from app.utils.vault_slots import slot_coords
 
 logger = logging.getLogger(__name__)
@@ -158,19 +160,20 @@ class ExplorationService:
             msg = f"Radaways cannot be negative. Provided: {radaways}"
             raise ValueError(msg)
 
-        # Spatial runs need a slot-authoritative origin and the world version they
-        # move through. Resolved before any staging so a snapshot generation (which
-        # commits) cannot split the departure transaction.
-        origin: tuple[float, float] | None = None
+        # Resolve origin/world before staging: snapshot generation commits, so
+        # resolving later would split the departure transaction.
+        exploration_id = uuid4()
+        origin: tuple[float, float] | None = await self._vault_origin(db_session, vault_id)
         world_version: int | None = None
-        if heading_degrees is not None:
-            if not 0 <= heading_degrees < 360:
-                raise ValueError("heading_degrees must be in [0, 360)")
-            origin = await self._vault_origin(db_session, vault_id)
-            if origin is None:
-                raise ValueError("Vault has no map placement; cannot depart spatially")
+        if heading_degrees is not None and not 0 <= heading_degrees < 360:
+            raise ValueError("heading_degrees must be in [0, 360)")
+        if origin is not None:
             snapshot = await world_snapshot_service.get_or_generate(db_session)
             world_version = snapshot.generator_version
+            if heading_degrees is None:
+                heading_degrees = self.choose_heading(snapshot, origin, duration, seed=exploration_id)
+        elif heading_degrees is not None:
+            raise ValueError("Vault has no map placement; cannot depart spatially")
 
         # Check vault storage first, then fall back to dweller inventory
         storage = await crud_storage.get_by_vault(db_session, vault_id)
@@ -239,6 +242,7 @@ class ExplorationService:
 
         start_time = datetime.utcnow()
         exploration = Exploration(
+            id=exploration_id,
             vault_id=vault_id,
             dweller_id=dweller_id,
             duration=duration,
@@ -363,6 +367,8 @@ class ExplorationService:
         vault_id: UUID4,
         dweller_ids: list[UUID4],
         location_id: UUID4,
+        stimpaks: int = 0,
+        radaways: int = 0,
     ) -> Exploration:
         """Send a party to clear a specific map point (issue 772).
 
@@ -412,7 +418,7 @@ class ExplorationService:
             raise ResourceNotFoundException(WorldLocation, identifier=location_id)
         location, state = pair
 
-        group = get_place_group(location.group_key)
+        group = effective_place_group(location.group_key, location.kind)
         if group is None or not group.get("clearable"):
             raise ValidationException("This location cannot be cleared")
 
@@ -428,6 +434,19 @@ class ExplorationService:
         distance = math.dist(origin, (location.coord_x, location.coord_y))
         duration = dispatch_travel_hours(distance)
         tier = min(state.clear_count, game_config.exploration.dispatch.escalation_cap)
+        if stimpaks < 0 or radaways < 0:
+            raise ValidationException("Supplies cannot be negative")
+        storage = await crud_storage.get_by_vault(db_session, vault_id)
+        available_stimpaks = storage.stimpack if storage else 0
+        available_radaways = storage.radaway if storage else 0
+        if stimpaks > available_stimpaks:
+            raise ValidationException(f"Total available stimpaks: {available_stimpaks}")
+        if radaways > available_radaways:
+            raise ValidationException(f"Total available radaways: {available_radaways}")
+        if (stimpaks or radaways) and storage is not None:
+            storage.stimpack = (storage.stimpack or 0) - stimpaks
+            storage.radaway = (storage.radaway or 0) - radaways
+            db_session.add(storage)
         anchor = dwellers[0]
         snapshot = await world_snapshot_service.get_or_generate(db_session)
 
@@ -435,8 +454,8 @@ class ExplorationService:
             vault_id=vault_id,
             dweller_id=anchor.id,
             duration=duration,
-            stimpaks=0,
-            radaways=0,
+            stimpaks=stimpaks,
+            radaways=radaways,
             dweller_strength=anchor.strength,
             dweller_perception=anchor.perception,
             dweller_endurance=anchor.endurance,
@@ -472,6 +491,39 @@ class ExplorationService:
     def _speed() -> float:
         """Registry-space units per hour (10 at current config)."""
         return 1 / game_config.exploration.dispatch.travel_hours_per_unit
+
+    def choose_heading(self, snapshot, origin: tuple[float, float], duration: int, seed) -> float:
+        """Deterministic, terrain-aware heading: the candidate with the most clear ground."""
+        outbound = self._speed() * duration / 2
+        winners: list[float] = []
+        best = -1.0
+        for heading in range(0, 360, 15):
+            score = min(self._clear_distance(snapshot, origin, heading, outbound), outbound)
+            if score > best:
+                best = score
+                winners = [float(heading)]
+            elif score == best:
+                winners.append(float(heading))
+        return random.Random(str(seed)).choice(winners)
+
+    def _clear_distance(self, snapshot, origin: tuple[float, float], heading: float, max_distance: float) -> float:
+        """Distance travelable along *heading* before water or a map bound blocks it."""
+        if snapshot is None:
+            return max_distance
+        radians = math.radians(heading)
+        end = (origin[0] + math.sin(radians) * max_distance, origin[1] - math.cos(radians) * max_distance)
+        last = self._last_valid_point(snapshot, origin[0], origin[1], end[0], end[1])
+        return math.dist(origin, last)
+
+    async def suggest_heading(
+        self, db_session: AsyncSession, vault_id: UUID4, duration: int, seed: str
+    ) -> float | None:
+        """Suggest a deterministic, terrain-aware heading; null when the vault has no placement."""
+        origin = await self._vault_origin(db_session, vault_id)
+        if origin is None:
+            return None
+        snapshot = await world_snapshot_service.get_or_generate(db_session)
+        return self.choose_heading(snapshot, origin, duration, seed=seed)
 
     async def _load_snapshot(self, db_session: AsyncSession, exploration: Exploration):
         """The world snapshot the run moves through, or None when unavailable."""

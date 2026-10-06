@@ -86,7 +86,7 @@ describe('PartySelectionModal', () => {
     expect(dispatchButton?.attributes('disabled')).toBeUndefined()
     await dispatchButton!.trigger('click')
 
-    expect(wrapper.emitted('assign')).toEqual([[['dweller-1']]])
+    expect(wrapper.emitted('assign')).toEqual([[['dweller-1'], { stimpaks: 0, radaways: 0 }]])
     expect(wrapper.emitted('start')).toBeUndefined()
   })
 })

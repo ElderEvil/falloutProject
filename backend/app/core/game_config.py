@@ -1089,6 +1089,13 @@ class FeatureConfig(BaseSettings):
             "(choice, filters, dossier) is deliberately not gated by it."
         ),
     )
+    emergent_sites: bool = Field(
+        default=True,
+        description=(
+            "Treat an ungrouped emergent PLACE (from a bio or discovery) as the default clearable "
+            "'Wasteland Site' archetype so it can be dispatched. Off keeps such places narrative-only."
+        ),
+    )
 
 
 class ExitConfig(BaseSettings):

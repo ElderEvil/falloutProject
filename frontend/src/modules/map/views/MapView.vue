@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useMapStore } from '../stores/map'
@@ -102,7 +102,22 @@ async function openDispatchPicker(location: WastelandLocationWithDwellers) {
   }
 }
 
-async function handleDispatch(dwellerIds: string[]) {
+const dispatchSubtitle = computed(() => {
+  const loc = dispatchLocation.value
+  if (!loc) return undefined
+  const status = loc.clear_state?.cleared ? `Cleared ×${loc.clear_state.clear_count}` : 'Not cleared'
+  return loc.description ? `${status} — ${loc.description}` : status
+})
+
+function openDetailsFromPicker() {
+  showDispatchModal.value = false
+  showModal.value = true
+}
+
+async function handleDispatch(
+  dwellerIds: string[],
+  supplies: { stimpaks: number; radaways: number } = { stimpaks: 0, radaways: 0 }
+) {
   const location = dispatchLocation.value
   if (
     isDispatching.value ||
@@ -114,7 +129,7 @@ async function handleDispatch(dwellerIds: string[]) {
     return
   isDispatching.value = true
   try {
-    await explorationStore.dispatchToLocation(vaultId.value, dwellerIds, location.id)
+    await explorationStore.dispatchToLocation(vaultId.value, dwellerIds, location.id, supplies)
     showDispatchModal.value = false
     dispatchLocation.value = null
     await mapStore.refreshMap(vaultId.value, authStore.token)
@@ -130,6 +145,19 @@ async function handleDispatch(dwellerIds: string[]) {
 // departure flow. The run is free-roam (no target) via the shared send action;
 // the pick only chooses the dweller, then the duration/supplies modal opens.
 const showDeparturePicker = ref(false)
+const departurePickerRef = ref<HTMLElement | null>(null)
+// The map is a full-width square, so the picker that answers a map click can
+// mount below the fold; scroll it into view so the click has a visible result.
+// Honour reduced-motion by jumping instead of animating.
+watch(showDeparturePicker, async (open) => {
+  if (!open) return
+  await nextTick()
+  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+  departurePickerRef.value?.scrollIntoView?.({
+    block: 'nearest',
+    behavior: reduced ? 'auto' : 'smooth',
+  })
+})
 // Vault that the departure dweller list was fetched for; guards against
 // offering another vault's dwellers after a route change.
 const departureDwellersVaultId = ref<string | null>(null)
@@ -237,6 +265,11 @@ async function handleDepartureConfirm(payload: {
   pendingHeading.value = null
 }
 
+function isDirectDispatchable(loc: WastelandLocationWithDwellers): boolean {
+  const clearState = loc.clear_state
+  return !!clearState?.clearable && (!clearState.cleared || clearState.time_remaining_seconds <= 0)
+}
+
 function handleMarkerClick(
   payload:
     | { kind: 'location'; data: WastelandLocationWithDwellers }
@@ -246,6 +279,11 @@ function handleMarkerClick(
   if (payload.kind === 'location') {
     selectedMarkerId.value = `loc-${payload.data.id}`
     mapStore.markLocationViewed(payload.data.vault_id, payload.data.id)
+    if (isDirectDispatchable(payload.data)) {
+      clearPlaceQuery()
+      void openDispatchPicker(payload.data)
+      return
+    }
     // Symmetric deep-link: a clicked marker owns ?place= so the URL is
     // shareable and survives reload; the ?place= watcher opens the modal.
     if (route.query.place !== payload.data.id) {
@@ -423,7 +461,7 @@ const mapPaneHeight = 'var(--map-pane-size)'
           </div>
 
           <!-- Departure picker: pick a dweller, then the duration/supplies modal -->
-          <div v-if="showDeparturePicker" class="departure-picker">
+          <div v-if="showDeparturePicker" ref="departurePickerRef" class="departure-picker">
             <p v-if="pendingHeading !== null">
               Explore the wasteland heading
               <span class="heading-badge">{{ formatHeading(pendingHeading) }}</span>
@@ -465,7 +503,14 @@ const mapPaneHeight = 'var(--map-pane-size)'
             :dwellers="dwellerStore.dwellers"
             :current-party="[]"
             :max-party-size="3"
+            :title="dispatchLocation?.name"
+            :subtitle="dispatchSubtitle"
+            :details="true"
+            :show-supplies="true"
+            :max-stimpaks="vaultMedicalSupplies.stimpaks"
+            :max-radaways="vaultMedicalSupplies.radaways"
             @assign="handleDispatch"
+            @details="openDetailsFromPicker"
           />
 
           <!-- Duration/supplies picker for the map departure flow -->

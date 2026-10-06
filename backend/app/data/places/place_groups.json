@@ -174,5 +174,16 @@
     "reclear_hours": 168,
     "loot_table": "high",
     "base_difficulty": 4
+  },
+  {
+    "key": "wasteland_site",
+    "label": "Wasteland Site",
+    "icon": "mdi:map-marker-alert",
+    "risk": "low",
+    "description": "An unmapped ruin of the old world. Nobody wrote down what it was, and nobody who went in came back with a straight answer.",
+    "clearable": true,
+    "reclear_hours": 168,
+    "loot_table": "low",
+    "base_difficulty": 2
   }
 ]

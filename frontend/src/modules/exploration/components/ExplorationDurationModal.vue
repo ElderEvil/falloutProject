@@ -20,13 +20,21 @@ interface Props {
   allowRadaway?: boolean
   /** Formatted compass heading (e.g. "E / 90°") for a heading-bearing run. */
   heading?: string | null
+  canReroll?: boolean
+  isSuggestingHeading?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), { allowRadaway: true, heading: null })
+const props = withDefaults(defineProps<Props>(), {
+  allowRadaway: true,
+  heading: null,
+  canReroll: false,
+  isSuggestingHeading: false,
+})
 
 const emit = defineEmits<{
   confirm: [payload: { duration: number; stimpaks: number; radaways: number }]
   cancel: []
+  reroll: []
 }>()
 
 const selectedDuration = ref(4)
@@ -93,16 +101,29 @@ const setRadaways = (value: number[] | undefined) => {
         <p class="mb-6 text-sm text-theme-primary/70">How long should {{ dwellerName }} explore?</p>
 
         <div
-          v-if="heading"
+          v-if="heading || isSuggestingHeading"
           class="mb-6 rounded-lg border border-theme-primary/25 bg-surface-sunken p-4"
         >
           <h4 class="mb-2 flex items-center gap-2 text-base font-bold text-theme-primary">
             <Icon icon="mdi:compass-outline" class="inline h-5 w-5" />
             Travel Heading
           </h4>
-          <p class="text-sm text-theme-primary/80">
-            {{ heading }} — {{ dwellerName }} travels in this direction.
+          <p v-if="isSuggestingHeading" class="text-sm text-theme-primary/60">
+            Choosing a direction…
           </p>
+          <div v-else class="flex items-center justify-between gap-3">
+            <p class="text-sm text-theme-primary/80">
+              {{ heading }} — {{ dwellerName }} travels in this direction.
+            </p>
+            <button
+              v-if="canReroll"
+              type="button"
+              class="cursor-pointer rounded-md border border-theme-primary/40 bg-theme-primary/10 px-3 py-1 font-mono text-xs font-bold text-theme-primary transition-colors hover:border-theme-primary/70 hover:bg-theme-primary/20"
+              @click="emit('reroll')"
+            >
+              Change
+            </button>
+          </div>
         </div>
 
         <div class="mb-6 grid grid-cols-3 gap-3">

@@ -16,6 +16,7 @@ from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.exploration import ExplorationStatus
 from app.models.notification import Notification, NotificationType
+from app.models.storage import Storage
 from app.models.vault import Vault
 from app.models.world_location import VaultLocationState, WorldLocation
 from app.schemas.dweller import DwellerCreate
@@ -869,3 +870,37 @@ async def test_free_roam_creates_no_team(async_session: AsyncSession, vault: Vau
     assert exploration.team_id is None
     await async_session.refresh(dweller)
     assert dweller.status.value == "exploring"
+
+
+@pytest.mark.asyncio
+async def test_dispatch_carries_supplies_from_vault_storage(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """Dispatch supplies are reserved from vault storage and recorded on the run."""
+    location, _state = await _register_clearable(async_session, vault, dweller)
+    storage = Storage(vault_id=vault.id, max_space=100, stimpack=5, radaway=3)
+    async_session.add(storage)
+    await async_session.commit()
+
+    exploration = await exploration_service.dispatch(
+        async_session, vault.id, [dweller.id], location.id, stimpaks=2, radaways=1
+    )
+
+    assert exploration.stimpaks == 2
+    assert exploration.radaways == 1
+    await async_session.refresh(storage)
+    assert storage.stimpack == 3
+    assert storage.radaway == 2
+
+
+@pytest.mark.asyncio
+async def test_dispatch_rejects_supplies_beyond_storage(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """Requesting more supplies than the vault holds is rejected."""
+    location, _state = await _register_clearable(async_session, vault, dweller)
+    async_session.add(Storage(vault_id=vault.id, max_space=100, stimpack=1, radaway=0))
+    await async_session.commit()
+
+    with pytest.raises(ValidationException, match="available stimpaks"):
+        await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id, stimpaks=5)

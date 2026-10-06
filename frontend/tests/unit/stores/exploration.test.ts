@@ -274,6 +274,8 @@ describe('Exploration Store', () => {
       expect(explorationApi.dispatchToLocation).toHaveBeenCalledWith('test-token', 'vault-1', {
         dwellerIds: ['dweller-1'],
         locationId: 'loc-1',
+        stimpaks: 0,
+        radaways: 0,
       })
       expect(result).toEqual(mockExploration)
       expect(store.explorations).toContainEqual(mockExploration)

@@ -2,6 +2,7 @@
 import { computed, ref, watch, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
+import { Slider } from '@/core/components/ui/slider'
 import { Button } from '@/core/components/ui/button'
 import { Badge } from '@/core/components/ui/badge'
 import { useQuestStore } from '@/modules/progression/stores/quest'
@@ -15,6 +16,12 @@ interface Props {
   dwellers: DwellerShort[]
   currentParty: DwellerShort[]
   maxPartySize?: number
+  title?: string
+  subtitle?: string
+  details?: boolean
+  showSupplies?: boolean
+  maxStimpaks?: number
+  maxRadaways?: number
 }
 
 const {
@@ -24,16 +31,33 @@ const {
   modelValue,
   quest,
   vaultId,
+  title,
+  subtitle,
+  details = false,
+  showSupplies = false,
+  maxStimpaks = 0,
+  maxRadaways = 0,
 } = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
-  (e: 'assign', dwellerIds: string[]): void
+  (e: 'assign', dwellerIds: string[], supplies: { stimpaks: number; radaways: number }): void
   (e: 'start'): void
+  (e: 'details'): void
 }>()
 
 const questStore = useQuestStore()
 const selectedDwellerIds = ref<string[]>([])
+const selectedStimpaks = ref(0)
+const selectedRadaways = ref(0)
+
+const setStimpaks = (value: number[] | undefined) => {
+  selectedStimpaks.value = value?.[0] ?? 0
+}
+
+const setRadaways = (value: number[] | undefined) => {
+  selectedRadaways.value = value?.[0] ?? 0
+}
 const eligibleDwellers = ref<DwellerShort[]>([])
 const eligibleDwellersError = ref<string | null>(null)
 const isLoadingEligible = ref(false)
@@ -137,8 +161,10 @@ const close = () => {
   emit('update:modelValue', false)
 }
 
+const supplies = () => ({ stimpaks: selectedStimpaks.value, radaways: selectedRadaways.value })
+
 const handleAssign = () => {
-  emit('assign', selectedDwellerIds.value)
+  emit('assign', selectedDwellerIds.value, supplies())
 }
 
 const handleStart = () => {
@@ -146,7 +172,7 @@ const handleStart = () => {
 }
 
 const handleAssignAndStart = () => {
-  emit('assign', selectedDwellerIds.value)
+  emit('assign', selectedDwellerIds.value, supplies())
   emit('start')
 }
 </script>
@@ -159,8 +185,19 @@ const handleAssignAndStart = () => {
       <DialogHeader
         class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
       >
-        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">{{ quest ? `Start Quest: ${quest.title}` : 'Dispatch Dweller' }}</DialogTitle>
+        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">{{ title ?? (quest ? `Start Quest: ${quest.title}` : 'Dispatch Dweller') }}</DialogTitle>
+        <button
+          v-if="details"
+          type="button"
+          class="ml-auto cursor-pointer rounded-md border border-theme-primary/40 bg-theme-primary/10 px-3 py-1 font-mono text-xs font-bold text-theme-primary transition-colors hover:border-theme-primary/70 hover:bg-theme-primary/20"
+          @click="emit('details')"
+        >
+          Details
+        </button>
       </DialogHeader>
+      <p v-if="subtitle" class="border-b border-theme-primary/20 px-6 py-2 text-xs text-theme-primary/70">
+        {{ subtitle }}
+      </p>
 
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
 
@@ -259,6 +296,40 @@ const handleAssignAndStart = () => {
         Estimated Duration: {{ quest.duration_minutes }} minutes
       </div>
     </div>
+
+      <div
+        v-if="showSupplies"
+        class="flex flex-shrink-0 flex-col gap-3 border-t border-theme-primary/25 px-5 py-3"
+      >
+        <div class="flex items-center gap-3">
+          <span class="w-20 text-xs text-theme-primary/80">Stimpaks</span>
+          <Slider
+            class="flex-1"
+            :model-value="[selectedStimpaks]"
+            :min="0"
+            :max="Math.max(1, Math.min(maxStimpaks, 15))"
+            aria-label="Stimpaks to carry"
+            @update:model-value="setStimpaks"
+          />
+          <span class="w-14 text-right text-xs font-bold text-theme-primary"
+            >{{ selectedStimpaks }} / {{ maxStimpaks }}</span
+          >
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="w-20 text-xs text-theme-primary/80">RadAway</span>
+          <Slider
+            class="flex-1"
+            :model-value="[selectedRadaways]"
+            :min="0"
+            :max="Math.max(1, Math.min(maxRadaways, 15))"
+            aria-label="RadAway to carry"
+            @update:model-value="setRadaways"
+          />
+          <span class="w-14 text-right text-xs font-bold text-theme-primary"
+            >{{ selectedRadaways }} / {{ maxRadaways }}</span
+          >
+        </div>
+      </div>
 
       <DialogFooter
         class="flex-shrink-0 justify-end border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"

@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
-import { Slider } from '@/core/components/ui/slider'
 import { Button } from '@/core/components/ui/button'
 import { Badge } from '@/core/components/ui/badge'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
 import { useQuestStore } from '@/modules/progression/stores/quest'
-import { getDwellerDisplayName, type DwellerShort } from '@/modules/dwellers/models/dweller'
+import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { VaultQuest } from '../models/quest'
+import { usePartySelection } from '../composables/usePartySelection'
+import PartySlots from './party/PartySlots.vue'
+import AvailableDwellers from './party/AvailableDwellers.vue'
+import SupplySliders from './party/SupplySliders.vue'
 
 interface Props {
   modelValue: boolean
@@ -54,25 +57,26 @@ const emit = defineEmits<{
 }>()
 
 const questStore = useQuestStore()
-const selectedDwellerIds = ref<string[]>([])
-const selectedStimpaks = ref(0)
-const selectedRadaways = ref(0)
 
-const stimpakMax = computed(() => Math.min(maxStimpaks, 15))
-const radawayMax = computed(() => Math.min(maxRadaways, 15))
-
-const setStimpaks = (value: number[] | undefined) => {
-  selectedStimpaks.value = Math.min(value?.[0] ?? 0, stimpakMax.value)
-}
-
-const setRadaways = (value: number[] | undefined) => {
-  selectedRadaways.value = Math.min(value?.[0] ?? 0, radawayMax.value)
-}
-
-// Supplies shrink while the picker stays open — never carry more than what is available.
-watch([() => maxStimpaks, () => maxRadaways], ([stimpaks, radaways]) => {
-  selectedStimpaks.value = Math.min(selectedStimpaks.value, stimpaks)
-  selectedRadaways.value = Math.min(selectedRadaways.value, radaways)
+// Selection + supply state, shared with the dispatch (location-details) flow.
+const {
+  selectedDwellerIds,
+  selectedStimpaks,
+  selectedRadaways,
+  stimpakMax,
+  radawayMax,
+  selectedDwellers,
+  canSubmit,
+  toggleDweller,
+  setStimpaks,
+  setRadaways,
+  resetOnOpen,
+  suppliesPayload,
+} = usePartySelection({
+  dwellers: () => dwellers,
+  maxPartySize: () => maxPartySize,
+  maxStimpaks: () => maxStimpaks,
+  maxRadaways: () => maxRadaways,
 })
 
 const eligibleDwellers = ref<DwellerShort[]>([])
@@ -84,9 +88,7 @@ watch(
   () => modelValue,
   async (isOpen) => {
     if (isOpen) {
-      selectedDwellerIds.value = currentParty.map((d) => d.id)
-      selectedStimpaks.value = 0
-      selectedRadaways.value = 0
+      resetOnOpen(currentParty.map((d) => d.id))
       eligibleDwellersError.value = null
       // Fetch eligible dwellers for this quest
       if (quest && vaultId) {
@@ -113,8 +115,6 @@ watch(
     }
   }
 )
-
-const canSubmit = computed(() => selectedDwellerIds.value.length > 0)
 
 // Idle dwellers first (best quest candidates), then by level — status order:
 // idle, resting, working, everything else.
@@ -145,45 +145,12 @@ const availableDwellers = computed(() => {
     })
 })
 
-const selectedDwellers = computed(() => {
-  return selectedDwellerIds.value
-    .map((id) => dwellers.find((d) => d.id === id))
-    .filter((d): d is DwellerShort => d !== undefined)
-})
-
-const toggleDweller = (dwellerId: string) => {
-  const index = selectedDwellerIds.value.indexOf(dwellerId)
-  if (index === -1) {
-    // Add dweller if not at max
-    if (selectedDwellerIds.value.length < maxPartySize) {
-      selectedDwellerIds.value.push(dwellerId)
-    }
-  } else {
-    // Remove dweller
-    selectedDwellerIds.value.splice(index, 1)
-  }
-}
-
-const isSelected = (dwellerId: string) => {
-  return selectedDwellerIds.value.includes(dwellerId)
-}
-
-const getDwellerName = (dweller: DwellerShort) => {
-  return getDwellerDisplayName(dweller)
-}
-
-const getDwellerLevel = (dweller: DwellerShort) => {
-  return dweller.level || 1
-}
-
 const close = () => {
   emit('update:modelValue', false)
 }
 
-const supplies = () => ({ stimpaks: selectedStimpaks.value, radaways: selectedRadaways.value })
-
 const handleAssign = () => {
-  emit('assign', selectedDwellerIds.value, supplies())
+  emit('assign', selectedDwellerIds.value, suppliesPayload())
 }
 
 const handleStart = () => {
@@ -191,7 +158,7 @@ const handleStart = () => {
 }
 
 const handleAssignAndStart = () => {
-  emit('assign', selectedDwellerIds.value, supplies())
+  emit('assign', selectedDwellerIds.value, suppliesPayload())
   emit('start')
 }
 </script>
@@ -241,93 +208,21 @@ const handleAssignAndStart = () => {
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
 
     <div class="party-modal-content">
-      <!-- Party Slots -->
-      <div class="party-slots">
-        <div class="slots-label">
-          <Icon icon="mdi:account-group" class="inline-icon" />
-          Party Slots ({{ selectedDwellerIds.length }} / {{ maxPartySize }})
-        </div>
-        <div class="slots-grid">
-          <div
-            v-for="slot in maxPartySize"
-            :key="slot"
-            class="party-slot"
-            :class="{ filled: selectedDwellers[slot - 1] }"
-          >
-            <div v-if="selectedDwellers[slot - 1]" class="slot-dweller">
-              <Icon icon="mdi:account" class="slot-icon" />
-              <div class="slot-info">
-                <span class="slot-name">{{ getDwellerName(selectedDwellers[slot - 1]) }}</span>
-                <span class="slot-level"
-                  >Lv. {{ getDwellerLevel(selectedDwellers[slot - 1]) }}</span
-                >
-              </div>
-              <button class="slot-remove" @click="toggleDweller(selectedDwellers[slot - 1].id)">
-                <Icon icon="mdi:close" />
-              </button>
-            </div>
-            <div v-else class="slot-empty">
-              <Icon icon="mdi:account-plus" class="slot-icon" />
-              <span>Empty Slot</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <PartySlots
+        :selected-dwellers="selectedDwellers"
+        :selected-count="selectedDwellerIds.length"
+        :max-party-size="maxPartySize"
+        @remove="toggleDweller"
+      />
 
-      <!-- Available Dwellers -->
-      <div class="available-dwellers">
-        <div class="dwellers-label">
-          <Icon icon="mdi:account-search" class="inline-icon" />
-          Available Dwellers
-          <span v-if="isLoadingEligible" class="loading-text">(Loading...)</span>
-          <span v-else-if="quest && eligibleDwellers.length > 0" class="eligible-badge"
-            >(Level Requirements Met)</span
-          >
-        </div>
-        <div v-if="isLoadingEligible" class="loading-dwellers">
-          <Icon icon="mdi:loading" class="loading-icon spin" />
-          <p>Checking dweller eligibility...</p>
-        </div>
-        <div v-else class="dwellers-list">
-          <div
-            v-for="dweller in availableDwellers"
-            :key="dweller.id"
-            class="dweller-item"
-            :class="{ selected: isSelected(dweller.id) }"
-            @click="toggleDweller(dweller.id)"
-          >
-            <div class="dweller-checkbox">
-              <Icon
-                :icon="
-                  isSelected(dweller.id) ? 'mdi:checkbox-marked' : 'mdi:checkbox-blank-outline'
-                "
-                class="checkbox-icon"
-              />
-            </div>
-            <div class="dweller-avatar">
-              <Icon icon="mdi:account" class="avatar-icon" />
-            </div>
-            <div class="dweller-info">
-              <span class="dweller-name">{{ getDwellerName(dweller) }}</span>
-              <span class="dweller-stats">Level {{ getDwellerLevel(dweller) }}</span>
-            </div>
-            <div class="dweller-status">
-              <Badge variant="default" :class="dweller.status === 'idle' ? '' : 'border-warning bg-warning/10 text-warning'">
-                {{ dweller.status === 'resting' ? 'Socializing' : dweller.status }}
-              </Badge>
-            </div>
-          </div>
-
-          <div v-if="availableDwellers.length === 0" class="no-dwellers">
-            <Icon icon="mdi:account-off" class="no-dwellers-icon" />
-            <p v-if="eligibleDwellersError">{{ eligibleDwellersError }}</p>
-            <p v-else>No available dwellers found</p>
-            <p v-if="!eligibleDwellersError" class="hint">
-              Build more living quarters to get more dwellers
-            </p>
-          </div>
-        </div>
-      </div>
+      <AvailableDwellers
+        :dwellers="availableDwellers"
+        :selected-ids="selectedDwellerIds"
+        :is-loading="isLoadingEligible"
+        :show-eligible-badge="!!quest && eligibleDwellers.length > 0"
+        :error="eligibleDwellersError"
+        @toggle="toggleDweller"
+      />
 
       <!-- Quest Duration Info -->
       <div v-if="quest && quest.duration_minutes" class="quest-duration">
@@ -336,41 +231,17 @@ const handleAssignAndStart = () => {
       </div>
     </div>
 
-      <div
+      <SupplySliders
         v-if="showSupplies"
-        class="flex flex-shrink-0 flex-col gap-3 border-t border-theme-primary/25 px-5 py-3"
-      >
-        <div class="flex items-center gap-3">
-          <span class="w-20 text-xs text-theme-primary/80">Stimpaks</span>
-          <Slider
-            class="flex-1"
-            :model-value="stimpakMax > 0 ? [selectedStimpaks] : []"
-            :min="0"
-            :max="stimpakMax"
-            :disabled="maxStimpaks <= 0"
-            aria-label="Stimpaks to carry"
-            @update:model-value="setStimpaks"
-          />
-          <span class="w-14 text-right text-xs font-bold text-theme-primary"
-            >{{ selectedStimpaks }} / {{ maxStimpaks }}</span
-          >
-        </div>
-        <div class="flex items-center gap-3">
-          <span class="w-20 text-xs text-theme-primary/80">RadAway</span>
-          <Slider
-            class="flex-1"
-            :model-value="radawayMax > 0 ? [selectedRadaways] : []"
-            :min="0"
-            :max="radawayMax"
-            :disabled="maxRadaways <= 0"
-            aria-label="RadAway to carry"
-            @update:model-value="setRadaways"
-          />
-          <span class="w-14 text-right text-xs font-bold text-theme-primary"
-            >{{ selectedRadaways }} / {{ maxRadaways }}</span
-          >
-        </div>
-      </div>
+        :selected-stimpaks="selectedStimpaks"
+        :selected-radaways="selectedRadaways"
+        :max-stimpaks="maxStimpaks"
+        :max-radaways="maxRadaways"
+        :stimpak-max="stimpakMax"
+        :radaway-max="radawayMax"
+        @update:stimpaks="setStimpaks"
+        @update:radaways="setRadaways"
+      />
 
       <DialogFooter
         class="flex-shrink-0 justify-end border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
@@ -396,205 +267,8 @@ const handleAssignAndStart = () => {
   gap: 20px;
 }
 
-.party-slots {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 8px;
-  padding: 16px;
-}
-
-.slots-label,
-.dwellers-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
-  font-weight: bold;
-  color: var(--color-theme-accent);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 12px;
-}
-
 .inline-icon {
   font-size: 1.2rem;
-}
-
-.slots-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-
-.party-slot {
-  background: rgba(0, 0, 0, 0.4);
-  border: 2px dashed var(--color-theme-primary);
-  border-radius: 8px;
-  padding: 16px;
-  min-height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.party-slot.filled {
-  border-style: solid;
-  border-color: var(--color-theme-accent);
-  background: rgba(var(--color-theme-primary-rgb), 0.05);
-}
-
-.slot-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  color: var(--color-theme-primary);
-  opacity: 0.5;
-}
-
-.slot-icon {
-  font-size: 2rem;
-}
-
-.slot-dweller {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-}
-
-.slot-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.slot-name {
-  font-weight: bold;
-  font-size: 0.85rem;
-  color: var(--color-theme-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.slot-level {
-  font-size: 0.75rem;
-  color: var(--color-theme-accent);
-}
-
-.slot-remove {
-  background: none;
-  border: none;
-  color: var(--color-danger);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  transition: all 0.2s;
-}
-
-.slot-remove:hover {
-  background: rgba(255, 68, 68, 0.2);
-}
-
-.available-dwellers {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 8px;
-  padding: 16px;
-}
-
-.dwellers-list {
-  max-height: 300px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.dweller-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.dweller-item:hover {
-  background: rgba(var(--color-theme-primary-rgb), 0.05);
-  border-color: var(--color-theme-glow);
-}
-
-.dweller-item.selected {
-  background: rgba(var(--color-theme-primary-rgb), 0.1);
-  border-color: var(--color-theme-accent);
-}
-
-.dweller-checkbox {
-  color: var(--color-theme-primary);
-}
-
-.checkbox-icon {
-  font-size: 1.3rem;
-}
-
-.dweller-item.selected .checkbox-icon {
-  color: var(--color-theme-accent);
-}
-
-.dweller-avatar {
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: 50%;
-  padding: 8px;
-}
-
-.avatar-icon {
-  font-size: 1.5rem;
-  color: var(--color-theme-primary);
-}
-
-.dweller-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.dweller-name {
-  font-weight: bold;
-  color: var(--color-theme-primary);
-}
-
-.dweller-stats {
-  font-size: 0.8rem;
-  color: var(--color-theme-accent);
-}
-
-.dweller-status {
-  flex-shrink: 0;
-}
-
-.no-dwellers {
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--color-theme-primary);
-  opacity: 0.6;
-}
-
-.no-dwellers-icon {
-  font-size: 3rem;
-  margin-bottom: 16px;
-}
-
-.hint {
-  font-size: 0.85rem;
-  margin-top: 8px;
-  opacity: 0.7;
 }
 
 .quest-duration {
@@ -607,41 +281,5 @@ const handleAssignAndStart = () => {
   border-radius: 6px;
   color: var(--color-theme-accent);
   font-size: 0.9rem;
-}
-
-.loading-text {
-  font-size: 0.8rem;
-  color: var(--color-theme-accent);
-  font-weight: normal;
-}
-
-.eligible-badge {
-  font-size: 0.8rem;
-  color: var(--color-theme-primary);
-  font-weight: normal;
-}
-
-.loading-dwellers {
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--color-theme-primary);
-}
-
-.loading-icon {
-  font-size: 2rem;
-  margin-bottom: 12px;
-}
-
-.spin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
 }
 </style>

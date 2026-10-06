@@ -125,7 +125,17 @@ describe('MapView', () => {
           MarkerDetailModal: {
             name: 'MarkerDetailModal',
             template: '<div class="modal-stub"></div>',
-            props: ['modelValue', 'location', 'vaultMarker'],
+            props: [
+              'modelValue',
+              'location',
+              'vaultMarker',
+              'site',
+              'dwellers',
+              'maxPartySize',
+              'maxStimpaks',
+              'maxRadaways',
+              'suppliesLoading',
+            ],
             emits: ['update:modelValue', 'dispatch'],
           },
           ExplorationDurationModal: {
@@ -133,27 +143,6 @@ describe('MapView', () => {
             template: '<div class="duration-modal-stub"></div>',
             props: ['show', 'dwellerName', 'maxStimpaks', 'maxRadaways', 'allowRadaway', 'heading'],
             emits: ['confirm', 'cancel'],
-          },
-          PartySelectionModal: {
-            name: 'PartySelectionModal',
-            template: '<div class="picker-stub"></div>',
-            props: [
-              'modelValue',
-              'quest',
-              'vaultId',
-              'dwellers',
-              'currentParty',
-              'maxPartySize',
-              'title',
-              'subtitle',
-              'subtitleStatus',
-              'subtitleLabel',
-              'details',
-              'showSupplies',
-              'maxStimpaks',
-              'maxRadaways',
-            ],
-            emits: ['update:modelValue', 'assign', 'start', 'details'],
           },
           teleport: true,
         },
@@ -365,22 +354,15 @@ describe('MapView', () => {
         .spyOn(explorationStore, 'dispatchToLocation')
         .mockReturnValue(gate as never)
       vi.spyOn(mapStore, 'refreshMap').mockResolvedValue(undefined)
-      const { filter: dwellerFilter } = useDwellerStore()
-      vi.spyOn(dwellerFilter, 'fetchDwellersByVault').mockResolvedValue(undefined)
-      const vaultStore = useVaultStore()
-      vi.spyOn(vaultStore, 'ensureVaultLoaded').mockResolvedValue(undefined)
 
       mockRoute.query = { place: 'loc-1' }
       const wrapper = mountView()
       await flushPromises()
 
       const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
-      modal.vm.$emit('dispatch')
-      await flushPromises()
-
-      const picker = wrapper.findComponent({ name: 'PartySelectionModal' })
-      picker.vm.$emit('assign', ['dweller-1'])
-      picker.vm.$emit('assign', ['dweller-1'])
+      const payload = { dwellerIds: ['dweller-1'], supplies: { stimpaks: 0, radaways: 0 } }
+      modal.vm.$emit('dispatch', payload)
+      modal.vm.$emit('dispatch', payload)
       await flushPromises()
 
       expect(dispatchSpy).toHaveBeenCalledTimes(1)
@@ -390,7 +372,7 @@ describe('MapView', () => {
     })
   })
 
-  describe('direct dispatch from a marker click', () => {
+  describe('dispatch from the location details modal', () => {
     function clearableLocation() {
       return {
         ...mockLocation,
@@ -411,14 +393,23 @@ describe('MapView', () => {
       mapStore.locations = [clearable]
       mapStore.isLoading = false
       const { filter: dwellerFilter } = useDwellerStore()
-      dwellerFilter.dwellers = [{ id: 'dweller-1', first_name: 'Ada' } as never]
+      dwellerFilter.dwellers = [
+        {
+          id: 'dweller-1',
+          first_name: 'Ada',
+          last_name: 'Lovelace',
+          age_group: 'adult',
+          is_adult: true,
+          status: 'idle',
+        } as never,
+      ]
       vi.spyOn(dwellerFilter, 'fetchDwellersByVault').mockResolvedValue(undefined)
       const vaultStore = useVaultStore()
       vi.spyOn(vaultStore, 'ensureVaultLoaded').mockResolvedValue(undefined)
       return clearable
     }
 
-    it('opens the team picker directly for a clearable, uncleared location', async () => {
+    it('opens the details modal (not the picker) for a clearable location click', async () => {
       const clearable = mountWithClearable()
       const wrapper = mountView()
       await flushPromises()
@@ -428,13 +419,13 @@ describe('MapView', () => {
         .vm.$emit('marker-click', { kind: 'location', data: clearable })
       await flushPromises()
 
-      expect(wrapper.findComponent({ name: 'MarkerDetailModal' }).props('modelValue')).toBe(false)
-      const picker = wrapper.findComponent({ name: 'PartySelectionModal' })
-      expect(picker.props('modelValue')).toBe(true)
-      expect(picker.props('title')).toBe('Rusty Depot')
+      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      expect(modal.props('modelValue')).toBe(true)
+      expect(modal.props('dwellers')).toHaveLength(1)
+      expect(wrapper.findComponent({ name: 'PartySelectionModal' }).exists()).toBe(false)
     })
 
-    it('waits for the vault to hydrate before showing supplies in the picker', async () => {
+    it('preloads the vault before rendering supplies in the details modal', async () => {
       const clearable = mountWithClearable()
       const vaultStore = useVaultStore()
       let resolveVault!: () => void
@@ -453,20 +444,19 @@ describe('MapView', () => {
         .vm.$emit('marker-click', { kind: 'location', data: clearable })
       await flushPromises()
 
-      // Picker must not render on unhydrated vault state (zero supplies).
-      expect(wrapper.findComponent({ name: 'PartySelectionModal' }).props('modelValue')).toBe(false)
-      expect(wrapper.findComponent({ name: 'PartySelectionModal' }).props('maxStimpaks')).toBe(0)
+      const loading = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      expect(loading.props('suppliesLoading')).toBe(true)
+      expect(loading.props('maxStimpaks')).toBe(0)
 
       resolveVault()
       await flushPromises()
 
-      const picker = wrapper.findComponent({ name: 'PartySelectionModal' })
-      expect(picker.props('modelValue')).toBe(true)
-      expect(picker.props('maxStimpaks')).toBe(10)
-      expect(picker.props('maxRadaways')).toBe(5)
+      expect(loading.props('suppliesLoading')).toBe(false)
+      expect(loading.props('maxStimpaks')).toBe(10)
+      expect(loading.props('maxRadaways')).toBe(5)
     })
 
-    it('keeps the picker closed when the vault cannot be loaded', async () => {
+    it('still opens the details modal when the vault cannot be loaded', async () => {
       const clearable = mountWithClearable()
       const vaultStore = useVaultStore()
       vi.mocked(vaultStore.ensureVaultLoaded).mockRejectedValueOnce(new Error('unloadable'))
@@ -478,11 +468,45 @@ describe('MapView', () => {
         .vm.$emit('marker-click', { kind: 'location', data: clearable })
       await flushPromises()
 
-      expect(wrapper.findComponent({ name: 'PartySelectionModal' }).props('modelValue')).toBe(false)
-      expect(wrapper.findComponent({ name: 'MarkerDetailModal' }).props('modelValue')).toBe(false)
+      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      expect(modal.props('modelValue')).toBe(true)
+      expect(modal.props('maxStimpaks')).toBe(0)
+      expect(modal.props('suppliesLoading')).toBe(false)
     })
 
-    it('opens details instead of the picker for a clearable ?place= deep link', async () => {
+    it('dispatches the selected team and supplies from the details modal', async () => {
+      const clearable = mountWithClearable()
+      const explorationStore = useExplorationStore()
+      const dispatchSpy = vi
+        .spyOn(explorationStore, 'dispatchToLocation')
+        .mockResolvedValue(undefined as never)
+      vi.spyOn(mapStore, 'refreshMap').mockResolvedValue(undefined)
+
+      const wrapper = mountView()
+      await flushPromises()
+      wrapper
+        .findComponent({ name: 'WorldMap' })
+        .vm.$emit('marker-click', { kind: 'location', data: clearable })
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      expect(modal.props('modelValue')).toBe(true)
+
+      modal.vm.$emit('dispatch', {
+        dwellerIds: ['dweller-1'],
+        supplies: { stimpaks: 4, radaways: 2 },
+      })
+      await flushPromises()
+
+      expect(dispatchSpy).toHaveBeenCalledWith('vault-1', ['dweller-1'], 'loc-1', {
+        stimpaks: 4,
+        radaways: 2,
+      })
+      expect(mapStore.refreshMap).toHaveBeenCalled()
+      expect(modal.props('modelValue')).toBe(false)
+    })
+
+    it('keeps the ?place= deep link working without opening the picker', async () => {
       mountWithClearable()
       mockRoute.query = { place: 'loc-1' }
 
@@ -490,89 +514,10 @@ describe('MapView', () => {
       await flushPromises()
 
       expect(wrapper.findComponent({ name: 'MarkerDetailModal' }).props('modelValue')).toBe(true)
-      expect(wrapper.findComponent({ name: 'PartySelectionModal' }).props('modelValue')).toBe(false)
+      expect(wrapper.findComponent({ name: 'PartySelectionModal' }).exists()).toBe(false)
       // The shareable deep link survives: the query is neither pushed nor cleared.
       expect(mockReplace).not.toHaveBeenCalled()
       expect(mockPush).not.toHaveBeenCalled()
-    })
-
-    it('opens the detail modal from the picker Details action', async () => {
-      const clearable = mountWithClearable()
-      const wrapper = mountView()
-      await flushPromises()
-      wrapper
-        .findComponent({ name: 'WorldMap' })
-        .vm.$emit('marker-click', { kind: 'location', data: clearable })
-      await flushPromises()
-
-      wrapper.findComponent({ name: 'PartySelectionModal' }).vm.$emit('details')
-      await flushPromises()
-
-      expect(wrapper.findComponent({ name: 'PartySelectionModal' }).props('modelValue')).toBe(false)
-      expect(wrapper.findComponent({ name: 'MarkerDetailModal' }).props('modelValue')).toBe(true)
-    })
-
-    it('passes the description as the picker subtitle with a pending status badge', async () => {
-      const clearable = mountWithClearable()
-      const wrapper = mountView()
-      await flushPromises()
-      wrapper
-        .findComponent({ name: 'WorldMap' })
-        .vm.$emit('marker-click', { kind: 'location', data: clearable })
-      await flushPromises()
-
-      const picker = wrapper.findComponent({ name: 'PartySelectionModal' })
-      expect(picker.props('subtitle')).toBe('An old storage facility')
-      expect(picker.props('subtitleStatus')).toBe('pending')
-      expect(picker.props('subtitleLabel')).toBe('Not cleared')
-    })
-
-    it('passes a cleared status badge when the location has been cleared', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      const cleared = {
-        ...mockLocation,
-        clear_state: {
-          clearable: true,
-          cleared: true,
-          clear_count: 3,
-          tier: 0,
-          time_remaining_seconds: 0,
-          loot_table: 'low',
-        },
-      }
-      mapStore.locations = [cleared]
-      mapStore.isLoading = false
-      const { filter: dwellerFilter } = useDwellerStore()
-      dwellerFilter.dwellers = [{ id: 'dweller-1', first_name: 'Ada' } as never]
-      vi.spyOn(dwellerFilter, 'fetchDwellersByVault').mockResolvedValue(undefined)
-      const vaultStore = useVaultStore()
-      vi.spyOn(vaultStore, 'ensureVaultLoaded').mockResolvedValue(undefined)
-
-      const wrapper = mountView()
-      await flushPromises()
-      wrapper
-        .findComponent({ name: 'WorldMap' })
-        .vm.$emit('marker-click', { kind: 'location', data: cleared })
-      await flushPromises()
-
-      const picker = wrapper.findComponent({ name: 'PartySelectionModal' })
-      expect(picker.props('subtitle')).toBe('An old storage facility')
-      expect(picker.props('subtitleStatus')).toBe('cleared')
-      expect(picker.props('subtitleLabel')).toBe('Cleared ×3')
-    })
-
-    it('leaves the picker subtitle empty when no location is selected', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation]
-      mapStore.isLoading = false
-
-      const wrapper = mountView()
-      await flushPromises()
-
-      const picker = wrapper.findComponent({ name: 'PartySelectionModal' })
-      expect(picker.props('subtitle')).toBeUndefined()
-      expect(picker.props('subtitleStatus')).toBeUndefined()
-      expect(picker.props('subtitleLabel')).toBeUndefined()
     })
   })
 

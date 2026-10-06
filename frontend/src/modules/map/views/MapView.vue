@@ -18,7 +18,6 @@ import { Skeleton } from '@/core/components/ui/skeleton'
 import { Button } from '@/core/components/ui/button'
 import WorldMap from '../components/WorldMap.vue'
 import MarkerDetailModal from '../components/MarkerDetailModal.vue'
-import PartySelectionModal from '@/modules/progression/components/PartySelectionModal.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import type {
   ExpeditionSiteMarkerRead,
@@ -95,79 +94,58 @@ const explorerTracks = computed<ExplorerTrack[]>(() =>
   )
 )
 
-// Dispatch picker state (issue 772, phase 4b)
-const showDispatchModal = ref(false)
-const dispatchLocation = ref<WastelandLocationWithDwellers | null>(null)
+// Dispatch state (issue 772). The team menu now lives inside the location
+// details modal; the map only preloads its data and routes the confirm.
 // Blocks repeated Dispatch confirms while the request is in flight.
 const isDispatching = ref(false)
+// True while the vault record / dweller roster feeding the in-modal Send-team
+// section loads, so the modal's confirm stays disabled until supplies are real.
+const isPreparingDispatch = ref(false)
 
-function handleDispatchRequest() {
-  if (selectedLocation.value) void openDispatchPicker(selectedLocation.value)
-}
-
-async function openDispatchPicker(location: WastelandLocationWithDwellers) {
+async function ensureDispatchData() {
   const requestedVaultId = vaultId.value
   const token = authStore.token
   if (!requestedVaultId || !token) return
-  // The shell hydrates loadedVaults asynchronously; showing the picker before
-  // that lands renders the supply sliders as zeros. Load the vault record first
-  // and abort (no picker) when it cannot be loaded — the store's own error
-  // handler has already surfaced the failure, so there is no rejection to leak.
+  isPreparingDispatch.value = true
   try {
+    // The shell hydrates loadedVaults asynchronously; showing the Send-team
+    // section before that lands renders the supply sliders as zeros. Load the
+    // vault record, then the roster, and let a failure leave supplies at zero.
     await vaultStore.ensureVaultLoaded(requestedVaultId, token)
+    // A route change mid-load means this data no longer belongs to the view.
+    if (vaultId.value !== requestedVaultId || authStore.token !== token) return
+    if (dwellerStore.dwellers.length === 0) {
+      await dwellerStore.fetchDwellersByVault(requestedVaultId, token)
+    }
   } catch {
-    // Unloadable vault: dispatching on zero supplies is worse than not opening.
-    return
-  }
-  // A route change mid-load means this picker no longer belongs to the view.
-  if (vaultId.value !== requestedVaultId || authStore.token !== token) return
-  dispatchLocation.value = location
-  showDispatchModal.value = true
-  if (dwellerStore.dwellers.length === 0) {
-    await dwellerStore.fetchDwellersByVault(requestedVaultId, token)
+    // Unloadable vault: the section still renders, supplies just stay at zero.
+  } finally {
+    isPreparingDispatch.value = false
   }
 }
 
-// The picker gets the location flavour text as the subtitle and the clear
-// state as a badge; keeping them separate lets the modal render its own
-// badge/icon styling instead of an embedded "status — description" string.
-const dispatchSubtitle = computed(() => dispatchLocation.value?.description ?? undefined)
-
-const dispatchSubtitleStatus = computed<'cleared' | 'pending' | undefined>(() => {
-  const loc = dispatchLocation.value
-  if (!loc) return undefined
-  return loc.clear_state?.cleared ? 'cleared' : 'pending'
-})
-
-const dispatchSubtitleLabel = computed(() => {
-  const loc = dispatchLocation.value
-  if (!loc) return undefined
-  return loc.clear_state?.cleared ? `Cleared ×${loc.clear_state.clear_count}` : 'Not cleared'
-})
-
-function openDetailsFromPicker() {
-  showDispatchModal.value = false
-  showModal.value = true
-}
-
-async function handleDispatch(
-  dwellerIds: string[],
-  supplies: { stimpaks: number; radaways: number } = { stimpaks: 0, radaways: 0 }
-) {
-  const location = dispatchLocation.value
+async function handleDispatch(payload: {
+  dwellerIds: string[]
+  supplies: { stimpaks: number; radaways: number }
+}) {
+  const location = selectedLocation.value
   if (
     isDispatching.value ||
     !location ||
-    dwellerIds.length === 0 ||
+    payload.dwellerIds.length === 0 ||
     !vaultId.value ||
     !authStore.token
   )
     return
   isDispatching.value = true
   try {
-    await explorationStore.dispatchToLocation(vaultId.value, dwellerIds, location.id, supplies)
-    showDispatchModal.value = false
-    dispatchLocation.value = null
+    await explorationStore.dispatchToLocation(
+      vaultId.value,
+      payload.dwellerIds,
+      location.id,
+      payload.supplies
+    )
+    showModal.value = false
     await mapStore.refreshMap(vaultId.value, authStore.token)
     toast.success(`${location.name} — dispatch sent`)
   } catch (err) {
@@ -310,25 +288,19 @@ function handleMarkerClick(
   payload:
     | { kind: 'location'; data: WastelandLocationWithDwellers }
     | { kind: 'vault'; data: VaultMarkerRead }
-    | { kind: 'site'; data: ExpeditionSiteMarkerRead },
-  // A deep link (?place=) is a link to the location's details, not a map click:
-  // it must not be diverted into the dispatch picker and it keeps the shareable
-  // query. Direct dispatch stays a click affordance.
-  options: { fromPlaceQuery?: boolean } = {}
+    | { kind: 'site'; data: ExpeditionSiteMarkerRead }
 ) {
   if (payload.kind === 'location') {
     selectedMarkerId.value = `loc-${payload.data.id}`
     mapStore.markLocationViewed(payload.data.vault_id, payload.data.id)
-    if (!options.fromPlaceQuery && isDirectDispatchable(payload.data)) {
-      clearPlaceQuery()
-      void openDispatchPicker(payload.data)
-      return
-    }
     // Symmetric deep-link: a clicked marker owns ?place= so the URL is
     // shareable and survives reload; the ?place= watcher opens the modal.
     if (route.query.place !== payload.data.id) {
       void router.push({ query: { ...route.query, place: payload.data.id } })
     }
+    // Team dispatch now lives in the details modal; preload the vault supplies
+    // and roster so its Send-team section is usable when it opens.
+    if (isDirectDispatchable(payload.data)) void ensureDispatchData()
   } else if (payload.kind === 'site') {
     selectedMarkerId.value = `site-${payload.data.id}`
     clearPlaceQuery()
@@ -357,7 +329,7 @@ function tryOpenPlaceFromQuery() {
   if (showModal.value && selectedLocation.value?.id === placeId) return
   const loc = mapStore.locations.find((l) => l.id === placeId)
   if (loc) {
-    handleMarkerClick({ kind: 'location', data: loc }, { fromPlaceQuery: true })
+    handleMarkerClick({ kind: 'location', data: loc })
   }
 }
 
@@ -526,33 +498,18 @@ const mapPaneHeight = 'var(--map-pane-size)'
             </div>
           </div>
 
-          <!-- Detail modal -->
+          <!-- Detail modal: also hosts the team dispatch menu for clearable points -->
           <MarkerDetailModal
             v-model="showModal"
             :location="selectedLocation"
             :vault-marker="selectedVaultMarker"
             :site="selectedSite"
-            @dispatch="handleDispatchRequest"
-          />
-
-          <!-- Dispatch dweller picker (solo; parties arrive in a later phase) -->
-          <PartySelectionModal
-            v-model="showDispatchModal"
-            :quest="null"
-            :vault-id="vaultId"
-            :dwellers="dwellerStore.dwellers"
-            :current-party="[]"
+            :dwellers="departureCandidates"
             :max-party-size="3"
-            :title="dispatchLocation?.name"
-            :subtitle="dispatchSubtitle"
-            :subtitle-status="dispatchSubtitleStatus"
-            :subtitle-label="dispatchSubtitleLabel"
-            :details="true"
-            :show-supplies="true"
             :max-stimpaks="vaultMedicalSupplies.stimpaks"
             :max-radaways="vaultMedicalSupplies.radaways"
-            @assign="handleDispatch"
-            @details="openDetailsFromPicker"
+            :supplies-loading="isPreparingDispatch"
+            @dispatch="handleDispatch"
           />
 
           <!-- Duration/supplies picker for the map departure flow -->

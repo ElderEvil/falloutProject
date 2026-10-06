@@ -18,7 +18,7 @@
   "src/modules/exploration/components/ExplorationRewardsModal.vue": 3,
   "src/modules/exploration/components/WastelandDropzone.vue": 7,
   "src/modules/profile/components/AIUsageCard.vue": 2,
-  "src/modules/progression/components/PartySelectionModal.vue": 1,
+  "src/modules/progression/components/party/PartySlots.vue": 1,
   "src/modules/progression/components/QuestCard.vue": 1,
   "src/modules/progression/components/training/TrainingRoomModal.vue": 7,
   "src/modules/rooms/components/ArenaFighterSlot.vue": 1,

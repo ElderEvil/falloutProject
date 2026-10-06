@@ -194,27 +194,6 @@ describe('PartySelectionModal', () => {
     expect(wrapper.emitted('assign')).toEqual([[['dweller-1'], { stimpaks: 0, radaways: 0 }]])
   })
 
-  it('adds right padding to the header so Details clears the dialog close button', () => {
-    const wrapper = mount(PartySelectionModal, {
-      props: {
-        modelValue: true,
-        quest: null,
-        vaultId: 'vault-1',
-        dwellers: [],
-        currentParty: [],
-        details: true,
-        title: 'Rusty Depot',
-      },
-      global: {
-        stubs: {
-          Teleport: { template: '<div><slot /></div>' },
-        },
-      },
-    })
-
-    expect(wrapper.find('[data-slot="dialog-header"]').classes()).toContain('pr-12')
-  })
-
   it('emits assign then start through the shared footer confirm in quest mode', async () => {
     const questStore = useQuestStore()
     vi.spyOn(questStore, 'getEligibleDwellers').mockResolvedValue([socializingEligibleDweller])

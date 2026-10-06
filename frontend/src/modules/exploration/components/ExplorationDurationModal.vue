@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import {
   Dialog,
@@ -12,6 +12,9 @@ import { Label } from '@/core/components/ui/label'
 import { Button } from '@/core/components/ui/button'
 import { Slider } from '@/core/components/ui/slider'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
+import { COMPASS_LABELS, compassLabel } from '@/modules/map/utils/bearing'
+
+const HEADING_STEPS = COMPASS_LABELS.map((_label, index) => index * 45)
 
 interface Props {
   show: boolean
@@ -23,6 +26,12 @@ interface Props {
   heading?: string | null
   canReroll?: boolean
   isSuggestingHeading?: boolean
+  /** Raw compass degrees for the dial highlight; null when unknown. */
+  headingDegrees?: number | null
+  /** Optional values to seed the reset-on-open (chat prefill); undefined keeps defaults. */
+  initialDuration?: number
+  initialStimpaks?: number
+  initialRadaways?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -30,32 +39,47 @@ const props = withDefaults(defineProps<Props>(), {
   heading: null,
   canReroll: false,
   isSuggestingHeading: false,
+  headingDegrees: null,
 })
 
 const emit = defineEmits<{
   confirm: [payload: { duration: number; stimpaks: number; radaways: number }]
   cancel: []
   reroll: [duration: number]
+  selectHeading: [degrees: number]
 }>()
 
 const selectedDuration = ref(4)
 const selectedStimpaks = ref(0)
 const selectedRadaways = ref(0)
+const selectedHeading = ref<number | null>(null)
+const dialOpen = ref(false)
 
 const DURATION_DEFAULT = 4
 const DEFAULT_STIMPAKS = 5
 const DEFAULT_RADAWAYS = 5
 const DWELLER_MAX_SUPPLIES = 15
 
+const activeDialLabel = computed(() => {
+  const degrees = selectedHeading.value ?? props.headingDegrees
+  return degrees === null || degrees === undefined ? null : compassLabel(degrees)
+})
+
 watch(
   () => props.show,
   (isVisible, wasVisible) => {
     if (isVisible && !wasVisible) {
-      selectedDuration.value = DURATION_DEFAULT
-      selectedStimpaks.value = Math.min(DEFAULT_STIMPAKS, props.maxStimpaks, DWELLER_MAX_SUPPLIES)
+      selectedDuration.value = props.initialDuration ?? DURATION_DEFAULT
+      selectedStimpaks.value = Math.min(
+        props.initialStimpaks ?? DEFAULT_STIMPAKS,
+        props.maxStimpaks,
+        DWELLER_MAX_SUPPLIES
+      )
       selectedRadaways.value = props.allowRadaway
-        ? Math.min(DEFAULT_RADAWAYS, props.maxRadaways, DWELLER_MAX_SUPPLIES)
+        ? Math.min(props.initialRadaways ?? DEFAULT_RADAWAYS, props.maxRadaways, DWELLER_MAX_SUPPLIES)
         : 0
+      selectedHeading.value = null
+      dialOpen.value = false
     }
   },
   { immediate: true }
@@ -72,7 +96,19 @@ const handleConfirm = () => {
 const selectDuration = (duration: number) => {
   if (duration === selectedDuration.value) return
   selectedDuration.value = duration
-  if (props.canReroll) emit('reroll', duration)
+  // A manual compass pick wins for this opening: duration changes must not
+  // auto-reroll over it. The explicit Change button still re-rolls.
+  if (props.canReroll && selectedHeading.value === null) emit('reroll', duration)
+}
+
+const selectManualHeading = (degrees: number) => {
+  selectedHeading.value = degrees
+  emit('selectHeading', degrees)
+}
+
+const handleChange = () => {
+  selectedHeading.value = null
+  emit('reroll', selectedDuration.value)
 }
 
 const setStimpaks = (value: number[] | undefined) => {
@@ -118,24 +154,57 @@ const setRadaways = (value: number[] | undefined) => {
           <p v-if="isSuggestingHeading" class="text-sm text-theme-primary/60">
             Choosing a direction…
           </p>
-          <div v-else class="flex items-center justify-between gap-3">
-            <p v-if="heading" class="text-sm text-theme-primary/80">
-              {{ heading }} — {{ dwellerName }} travels in this direction.
-            </p>
-            <p v-else class="text-sm text-theme-primary/60">
-              No direction suggested. You can try again.
-            </p>
-            <Button
-              v-if="canReroll"
-              variant="outline"
-              size="xs"
-              type="button"
-              class="font-mono text-xs font-bold"
-              @click="emit('reroll', selectedDuration)"
-            >
-              Change
-            </Button>
-          </div>
+          <template v-else>
+            <div class="flex items-center justify-between gap-3">
+              <p v-if="heading" class="text-sm text-theme-primary/80">
+                {{ heading }} — {{ dwellerName }} travels in this direction.
+              </p>
+              <p v-else class="text-sm text-theme-primary/60">
+                No direction suggested. You can try again.
+              </p>
+              <Button
+                v-if="canReroll"
+                variant="outline"
+                size="xs"
+                type="button"
+                class="font-mono text-xs font-bold"
+                @click="handleChange"
+              >
+                Change
+              </Button>
+            </div>
+            <div class="mt-3">
+              <Button
+                variant="outline"
+                size="xs"
+                type="button"
+                class="heading-dial-toggle font-mono text-xs font-bold"
+                @click="dialOpen = !dialOpen"
+              >
+                <Icon icon="mdi:compass" class="inline h-4 w-4" />
+                {{ dialOpen ? 'Hide directions' : 'Pick direction' }}
+              </Button>
+              <div v-if="dialOpen" class="compass-dial mt-3 grid grid-cols-4 gap-2">
+                <Button
+                  v-for="(label, index) in COMPASS_LABELS"
+                  :key="label"
+                  variant="outline"
+                  size="xs"
+                  type="button"
+                  class="dial-direction font-mono text-xs font-bold"
+                  :aria-pressed="activeDialLabel === label"
+                  :class="
+                    activeDialLabel === label
+                      ? 'border-theme-primary bg-theme-primary/25 text-theme-primary shadow-glow-md'
+                      : ''
+                  "
+                  @click="selectManualHeading(HEADING_STEPS[index])"
+                >
+                  {{ label }}
+                </Button>
+              </div>
+            </div>
+          </template>
         </div>
 
         <div class="mb-6 grid grid-cols-3 gap-3">

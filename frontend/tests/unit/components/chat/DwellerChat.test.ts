@@ -84,6 +84,7 @@ vi.mock('@/modules/vault/stores/vault', () => ({
   useVaultStore: () => ({
     activeVault: {},
     activeVaultId: 'vault-123',
+    loadedVaults: { 'vault-123': { id: 'vault-123', stimpack: 10, radaway: 10 } },
   }),
 }))
 
@@ -138,6 +139,17 @@ vi.mock('@/modules/exploration/stores/exploration', () => ({
   }),
 }))
 
+const { mockSuggestHeading } = vi.hoisted(() => ({
+  mockSuggestHeading: vi.fn(),
+}))
+
+vi.mock('@/modules/exploration/api/exploration', () => ({
+  explorationApi: {
+    suggestHeading: mockSuggestHeading,
+    dispatchToLocation: vi.fn(),
+  },
+}))
+
 const { mockRefreshMap } = vi.hoisted(() => ({
   mockRefreshMap: vi.fn(),
 }))
@@ -171,6 +183,8 @@ describe('DwellerChat', () => {
     mockCompleteExploration.mockReset()
     mockFetchExplorationProgress.mockReset()
     mockFetchRooms.mockReset()
+    mockSuggestHeading.mockReset()
+    mockSuggestHeading.mockResolvedValue(null)
 
     mockRooms.value = [
       {
@@ -208,6 +222,8 @@ describe('DwellerChat', () => {
             template: '<span class="icon-stub" :data-icon="icon"></span>',
             props: ['icon'],
           },
+          // The chat's send-wasteland modal teleports; render it inline so tests can interact.
+          Teleport: { template: '<div><slot /></div>' },
         },
       },
     })
@@ -1839,7 +1855,7 @@ describe('DwellerChat', () => {
       expect(actionCard.text()).toContain('High endurance makes them ideal for exploration')
     })
 
-    it('should call sendDwellerToWasteland when confirm clicked for start_exploration', async () => {
+    it('should open the prefilled send modal instead of dispatching instantly for start_exploration', async () => {
       const dwellerStore = useDwellerStore().filter
       vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue({} as any)
       mockSendDwellerToWasteland.mockResolvedValue({})
@@ -1892,20 +1908,84 @@ describe('DwellerChat', () => {
       await confirmBtn.trigger('click')
       await flushPromises()
 
+      // The suggestion is accepted into the shared send flow, the modal opens
+      // prefilled with the suggestion's plan, and nothing dispatches yet.
+      expect(mockSendDwellerToWasteland).not.toHaveBeenCalled()
+      expect(wrapper.find('.duration-button.active').text()).toBe('8h')
+      expect(wrapper.text()).toContain('5 / 10')
+      expect(wrapper.text()).toContain('3 / 10')
+      expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
+
+      await wrapper.find('.modal-button.confirm').trigger('click')
+      await flushPromises()
+
       expect(mockSendDwellerToWasteland).toHaveBeenCalledWith(
         'vault-123',
         'dweller-123',
         8,
         'test-token',
         5,
-        3
+        3,
+        undefined
       )
-
-      // Verify action card is removed
-      expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
     })
 
-    it('should unassign dweller from room before starting exploration', async () => {
+    it('should refuse to open the send modal for an underage dweller', async () => {
+      const dwellerStore = useDwellerStore().filter
+      dwellerStore.$patch({
+        dwellers: [
+          {
+            id: 'dweller-123',
+            first_name: 'Test',
+            last_name: 'Dweller',
+            room_id: null,
+            level: 1,
+            happiness: 50,
+            strength: 5,
+            perception: 5,
+            endurance: 5,
+            charisma: 5,
+            intelligence: 5,
+            agility: 5,
+            luck: 5,
+            status: 'idle',
+            age_group: 'child',
+          },
+        ],
+      })
+
+      const wrapper = mountComponent()
+      await flushPromises()
+
+      ;(apiClient.post as Mock).mockResolvedValueOnce({
+        data: {
+          response: 'Can I explore?',
+          happiness_impact: { delta: 1, reason_text: 'Curious' },
+          action_suggestion: {
+            action_type: 'start_exploration',
+            duration_hours: 4,
+            stimpaks: 2,
+            radaways: 1,
+            reason: 'Wants adventure',
+          },
+        },
+      })
+
+      const input = wrapper.find('.chat-input-field')
+      await input.setValue('Go explore')
+      await wrapper.find('.chat-send-btn').trigger('click')
+      await flushPromises()
+
+      await wrapper.find('.action-confirm-btn').trigger('click')
+      await flushPromises()
+
+      expect(mockToastError).toHaveBeenCalledWith('Test Dweller is too young for the wasteland')
+      expect(mockSendDwellerToWasteland).not.toHaveBeenCalled()
+      expect(wrapper.find('.duration-button').exists()).toBe(false)
+      expect(wrapper.find('.action-suggestion-card').exists()).toBe(true)
+    })
+
+    it('should unassign dweller from room when the prefilled modal confirms', async () => {
       const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
       const unassignSpy = vi
         .spyOn(dwellerManagementStore, 'unassignDwellerFromRoom')
@@ -1959,6 +2039,14 @@ describe('DwellerChat', () => {
 
       const confirmBtn = wrapper.find('.action-confirm-btn')
       await confirmBtn.trigger('click')
+      await flushPromises()
+
+      // The room is released only at departure confirm; cancelling the modal
+      // never strands a worker without their room.
+      expect(mockSendDwellerToWasteland).not.toHaveBeenCalled()
+      expect(unassignSpy).not.toHaveBeenCalled()
+
+      await wrapper.find('.modal-button.confirm').trigger('click')
       await flushPromises()
 
       expect(unassignSpy).toHaveBeenCalledWith('dweller-123', 'test-token')

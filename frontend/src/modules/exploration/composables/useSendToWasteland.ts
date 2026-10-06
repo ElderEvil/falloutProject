@@ -17,6 +17,13 @@ export interface PendingExplorer {
   headingDegrees?: number
 }
 
+/** Values to seed the modal's reset-on-open; undefined keeps today's defaults. */
+export interface WastelandPrefill {
+  duration?: number
+  stimpaks?: number
+  radaways?: number
+}
+
 /**
  * Shared "send a dweller to the wasteland via the duration modal" flow, used by
  * the WastelandPanel and the dweller detail page. Owns the modal open/close
@@ -30,6 +37,7 @@ export function useSendToWasteland(vaultId: () => string | null) {
 
   const showModal = ref(false)
   const pendingDweller = ref<PendingExplorer | null>(null)
+  const pendingPrefill = ref<WastelandPrefill | null>(null)
   const isSending = ref(false)
   const suggestedHeading = ref<number | null>(null)
   const isSuggestingHeading = ref(false)
@@ -62,9 +70,26 @@ export function useSendToWasteland(vaultId: () => string | null) {
     }
   }
 
-  const reroll = (duration: number = lastSuggestDuration) => void suggestHeading(duration)
+  const reroll = (duration: number = lastSuggestDuration) => {
+    // A manual pick wins until the user explicitly re-rolls: clear it and let
+    // the server suggest a fresh direction for the new duration.
+    if (pendingDweller.value && pendingDweller.value.headingDegrees !== undefined) {
+      pendingDweller.value = { ...pendingDweller.value, headingDegrees: undefined }
+    }
+    void suggestHeading(duration)
+  }
 
-  const open = (dweller: PendingExplorer, knownDweller?: Dweller) => {
+  /** Store a compass pick from the modal; it overrides the server suggestion. */
+  const setHeading = (degrees: number) => {
+    if (!pendingDweller.value) return
+    pendingDweller.value = { ...pendingDweller.value, headingDegrees: degrees }
+  }
+
+  const open = (
+    dweller: PendingExplorer,
+    knownDweller?: Pick<Dweller, 'age_group'>,
+    prefill?: WastelandPrefill
+  ) => {
     const candidate =
       knownDweller ?? dwellerStore.dwellers.find((subject) => subject.id === dweller.dwellerId)
     if (candidate && !isMature(candidate)) {
@@ -74,9 +99,14 @@ export function useSendToWasteland(vaultId: () => string | null) {
     suggestionToken++
     isSuggestingHeading.value = false
     pendingDweller.value = dweller
+    pendingPrefill.value = prefill ?? null
     suggestedHeading.value = null
     showModal.value = true
-    if (dweller.headingDegrees === undefined) void suggestHeading(DEFAULT_SUGGEST_DURATION)
+    if (dweller.headingDegrees === undefined) {
+      // A prefilled duration drives the first suggestion so the auto heading
+      // matches the duration the modal opens with.
+      void suggestHeading(prefill?.duration ?? DEFAULT_SUGGEST_DURATION)
+    }
   }
 
   const cancel = () => {
@@ -84,6 +114,7 @@ export function useSendToWasteland(vaultId: () => string | null) {
     isSuggestingHeading.value = false
     showModal.value = false
     pendingDweller.value = null
+    pendingPrefill.value = null
     suggestedHeading.value = null
   }
 
@@ -111,6 +142,7 @@ export function useSendToWasteland(vaultId: () => string | null) {
       toast.success(`${firstName} ${lastName ?? ''} sent to the wasteland for ${payload.duration} hour(s)!`)
       showModal.value = false
       pendingDweller.value = null
+      pendingPrefill.value = null
       suggestedHeading.value = null
       dispatched = true
     } catch {
@@ -134,6 +166,7 @@ export function useSendToWasteland(vaultId: () => string | null) {
   return {
     showModal,
     pendingDweller,
+    pendingPrefill,
     headingDegrees,
     isSuggestingHeading,
     isSending,
@@ -141,5 +174,6 @@ export function useSendToWasteland(vaultId: () => string | null) {
     cancel,
     confirm,
     reroll,
+    setHeading,
   }
 }

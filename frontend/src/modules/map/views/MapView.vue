@@ -73,6 +73,16 @@ const dwellerNames = computed(() => {
   return names
 })
 
+// Explorer markers show the dweller's thumbnail when the vault roster has one;
+// otherwise the map falls back to the walking icon.
+const dwellerThumbnails = computed(() => {
+  const thumbnails = new Map<string, string | null>()
+  for (const dweller of dwellerStore.dwellers) {
+    thumbnails.set(dweller.id, dweller.thumbnail_url ?? null)
+  }
+  return thumbnails
+})
+
 const explorerTracks = computed<ExplorerTrack[]>(() =>
   buildExplorerTracks(
     // The store can still hold the previous vault's active runs after a vault
@@ -80,7 +90,8 @@ const explorerTracks = computed<ExplorerTrack[]>(() =>
     // stale run could match a location on the new map. Scope to this vault.
     explorationStore.explorations.filter((e) => e.vault_id === vaultId.value),
     mapStore.discoveryRoutes,
-    dwellerNames.value
+    dwellerNames.value,
+    dwellerThumbnails.value
   )
 )
 
@@ -95,10 +106,25 @@ function handleDispatchRequest() {
 }
 
 async function openDispatchPicker(location: WastelandLocationWithDwellers) {
+  const requestedVaultId = vaultId.value
+  const token = authStore.token
+  if (!requestedVaultId || !token) return
+  // The shell hydrates loadedVaults asynchronously; showing the picker before
+  // that lands renders the supply sliders as zeros. Load the vault record first
+  // and abort (no picker) when it cannot be loaded — the store's own error
+  // handler has already surfaced the failure, so there is no rejection to leak.
+  try {
+    await vaultStore.ensureVaultLoaded(requestedVaultId, token)
+  } catch {
+    // Unloadable vault: dispatching on zero supplies is worse than not opening.
+    return
+  }
+  // A route change mid-load means this picker no longer belongs to the view.
+  if (vaultId.value !== requestedVaultId || authStore.token !== token) return
   dispatchLocation.value = location
   showDispatchModal.value = true
-  if (vaultId.value && authStore.token && dwellerStore.dwellers.length === 0) {
-    await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
+  if (dwellerStore.dwellers.length === 0) {
+    await dwellerStore.fetchDwellersByVault(requestedVaultId, token)
   }
 }
 
@@ -274,12 +300,16 @@ function handleMarkerClick(
   payload:
     | { kind: 'location'; data: WastelandLocationWithDwellers }
     | { kind: 'vault'; data: VaultMarkerRead }
-    | { kind: 'site'; data: ExpeditionSiteMarkerRead }
+    | { kind: 'site'; data: ExpeditionSiteMarkerRead },
+  // A deep link (?place=) is a link to the location's details, not a map click:
+  // it must not be diverted into the dispatch picker and it keeps the shareable
+  // query. Direct dispatch stays a click affordance.
+  options: { fromPlaceQuery?: boolean } = {}
 ) {
   if (payload.kind === 'location') {
     selectedMarkerId.value = `loc-${payload.data.id}`
     mapStore.markLocationViewed(payload.data.vault_id, payload.data.id)
-    if (isDirectDispatchable(payload.data)) {
+    if (!options.fromPlaceQuery && isDirectDispatchable(payload.data)) {
       clearPlaceQuery()
       void openDispatchPicker(payload.data)
       return
@@ -317,7 +347,7 @@ function tryOpenPlaceFromQuery() {
   if (showModal.value && selectedLocation.value?.id === placeId) return
   const loc = mapStore.locations.find((l) => l.id === placeId)
   if (loc) {
-    handleMarkerClick({ kind: 'location', data: loc })
+    handleMarkerClick({ kind: 'location', data: loc }, { fromPlaceQuery: true })
   }
 }
 

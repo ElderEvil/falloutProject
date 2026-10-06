@@ -141,7 +141,8 @@ describe('useSendToWasteland', () => {
     sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
     await flushPromises()
 
-    expect(apiMocks.suggestHeading).toHaveBeenCalled()
+    expect(apiMocks.suggestHeading).toHaveBeenCalledTimes(1)
+    expect(apiMocks.suggestHeading).toHaveBeenCalledWith('test-token', 'vault-1', expect.any(String), 4)
     expect(sendWasteland.headingDegrees.value).toBe(135)
 
     await sendWasteland.confirm({ duration: 8, stimpaks: 0, radaways: 0 })
@@ -160,6 +161,66 @@ describe('useSendToWasteland', () => {
     sendWasteland.reroll()
     await flushPromises()
     expect(sendWasteland.headingDegrees.value).toBe(200)
+  })
+
+  it('re-requests the heading for the duration passed to reroll', async () => {
+    apiMocks.suggestHeading.mockResolvedValue(90)
+    const sendWasteland = useSendToWasteland(() => 'vault-1')
+
+    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+    await flushPromises()
+
+    sendWasteland.reroll(24)
+    await flushPromises()
+
+    expect(apiMocks.suggestHeading).toHaveBeenLastCalledWith(
+      'test-token',
+      'vault-1',
+      expect.any(String),
+      24
+    )
+  })
+
+  it('ignores a suggestion that resolves after the modal is cancelled', async () => {
+    let resolvePending: (value: number | null) => void = () => {}
+    apiMocks.suggestHeading.mockReturnValueOnce(
+      new Promise<number | null>((resolve) => {
+        resolvePending = resolve
+      })
+    )
+    const sendWasteland = useSendToWasteland(() => 'vault-1')
+
+    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+    sendWasteland.cancel()
+
+    resolvePending(42)
+    await flushPromises()
+
+    expect(sendWasteland.headingDegrees.value).toBeNull()
+    expect(sendWasteland.isSuggestingHeading.value).toBe(false)
+  })
+
+  it('ignores a stale suggestion that resolves after a newer modal opening', async () => {
+    let resolveStale: (value: number | null) => void = () => {}
+    apiMocks.suggestHeading
+      .mockReturnValueOnce(
+        new Promise<number | null>((resolve) => {
+          resolveStale = resolve
+        })
+      )
+      .mockResolvedValueOnce(777)
+    const sendWasteland = useSendToWasteland(() => 'vault-1')
+
+    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+    sendWasteland.cancel()
+    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+    await flushPromises()
+    expect(sendWasteland.headingDegrees.value).toBe(777)
+
+    resolveStale(111)
+    await flushPromises()
+
+    expect(sendWasteland.headingDegrees.value).toBe(777)
   })
 
   it('sends no heading when the suggestion is unavailable', async () => {

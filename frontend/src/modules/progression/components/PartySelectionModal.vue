@@ -51,13 +51,23 @@ const selectedDwellerIds = ref<string[]>([])
 const selectedStimpaks = ref(0)
 const selectedRadaways = ref(0)
 
+const stimpakMax = computed(() => Math.min(maxStimpaks, 15))
+const radawayMax = computed(() => Math.min(maxRadaways, 15))
+
 const setStimpaks = (value: number[] | undefined) => {
-  selectedStimpaks.value = value?.[0] ?? 0
+  selectedStimpaks.value = Math.min(value?.[0] ?? 0, stimpakMax.value)
 }
 
 const setRadaways = (value: number[] | undefined) => {
-  selectedRadaways.value = value?.[0] ?? 0
+  selectedRadaways.value = Math.min(value?.[0] ?? 0, radawayMax.value)
 }
+
+// Supplies shrink while the picker stays open — never carry more than what is available.
+watch([() => maxStimpaks, () => maxRadaways], ([stimpaks, radaways]) => {
+  selectedStimpaks.value = Math.min(selectedStimpaks.value, stimpaks)
+  selectedRadaways.value = Math.min(selectedRadaways.value, radaways)
+})
+
 const eligibleDwellers = ref<DwellerShort[]>([])
 const eligibleDwellersError = ref<string | null>(null)
 const isLoadingEligible = ref(false)
@@ -68,6 +78,8 @@ watch(
   async (isOpen) => {
     if (isOpen) {
       selectedDwellerIds.value = currentParty.map((d) => d.id)
+      selectedStimpaks.value = 0
+      selectedRadaways.value = 0
       eligibleDwellersError.value = null
       // Fetch eligible dwellers for this quest
       if (quest && vaultId) {
@@ -307,9 +319,10 @@ const handleAssignAndStart = () => {
           <span class="w-20 text-xs text-theme-primary/80">Stimpaks</span>
           <Slider
             class="flex-1"
-            :model-value="[selectedStimpaks]"
+            :model-value="stimpakMax > 0 ? [selectedStimpaks] : []"
             :min="0"
-            :max="Math.max(1, Math.min(maxStimpaks, 15))"
+            :max="stimpakMax"
+            :disabled="maxStimpaks <= 0"
             aria-label="Stimpaks to carry"
             @update:model-value="setStimpaks"
           />
@@ -321,9 +334,10 @@ const handleAssignAndStart = () => {
           <span class="w-20 text-xs text-theme-primary/80">RadAway</span>
           <Slider
             class="flex-1"
-            :model-value="[selectedRadaways]"
+            :model-value="radawayMax > 0 ? [selectedRadaways] : []"
             :min="0"
-            :max="Math.max(1, Math.min(maxRadaways, 15))"
+            :max="radawayMax"
+            :disabled="maxRadaways <= 0"
             aria-label="RadAway to carry"
             @update:model-value="setRadaways"
           />

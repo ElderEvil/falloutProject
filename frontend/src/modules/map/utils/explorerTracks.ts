@@ -5,7 +5,8 @@ import { registryToWire } from './atlasProjection'
 export function buildExplorerTracks(
   explorations: Exploration[],
   discoveryRoutes: DiscoveryRouteRead[],
-  dwellerNames: ReadonlyMap<string, string>
+  dwellerNames: ReadonlyMap<string, string>,
+  dwellerThumbnails: ReadonlyMap<string, string | null> = new Map()
 ): ExplorerTrack[] {
   const routesByExploration = new Map(discoveryRoutes.map((route) => [route.exploration_id, route]))
   return explorations
@@ -27,6 +28,7 @@ export function buildExplorerTracks(
         dwellerName: dwellerNames.get(exploration.dweller_id) ?? '',
         targetLocationId: exploration.target_location_id ?? null,
         lastKnown: position,
+        dwellerThumbnailUrl: dwellerThumbnails.get(exploration.dweller_id) ?? null,
       }
     })
 }

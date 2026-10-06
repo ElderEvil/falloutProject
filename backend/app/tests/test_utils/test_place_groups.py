@@ -193,6 +193,11 @@ def test_effective_group_none_for_vault_and_when_disabled(monkeypatch: pytest.Mo
     assert effective_place_group(None, PlaceKindEnum.PLACE) is None
 
 
+def test_effective_group_unknown_explicit_key_is_not_defaulted() -> None:
+    """An unknown explicit group key stays None instead of falling back to the emergent default."""
+    assert effective_place_group("not_a_group", PlaceKindEnum.PLACE) is None
+
+
 def test_effective_group_prefers_the_place_own_group() -> None:
     """A grouped place keeps its own group regardless of kind."""
     group = effective_place_group("settlement", PlaceKindEnum.PLACE)

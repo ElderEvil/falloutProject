@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { Icon } from '@iconify/vue'
 import MapMarker from '@/modules/map/components/MapMarker.vue'
+import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 
 /**
  * Regression test for invisible markers on the World Map.
@@ -388,6 +389,120 @@ describe('MapMarker', () => {
 
       await wrapper.trigger('click')
       expect(wrapper.emitted('click')).toBeUndefined()
+    })
+  })
+
+  describe('Marker art (DwellerPortrait)', () => {
+    it('renders the shared DwellerPortrait with artSrc when art is present', () => {
+      const wrapper = mount(MapMarker, {
+        props: {
+          x: 10,
+          y: 20,
+          name: 'Bob',
+          type: 'explorer',
+          icon: 'mdi:walk',
+          artSrc: 'https://cdn.example/bob.png',
+        },
+        global: { stubs: { Icon: true } },
+      })
+
+      const portrait = wrapper.findComponent(DwellerPortrait)
+      expect(portrait.exists()).toBe(true)
+      expect(portrait.props('imageUrl')).toBe('https://cdn.example/bob.png')
+      expect(portrait.props('fallbackIcon')).toBe('mdi:walk')
+      expect(portrait.find('img').attributes('src')).toBe('https://cdn.example/bob.png')
+      // Portrait classes own cover-crop + rounding (no raw <img> styling needed).
+      expect(portrait.find('img').attributes('class')).toContain('object-cover')
+      expect(portrait.find('img').attributes('class')).toContain('rounded-full')
+    })
+
+    it('resolves backend-static art against the API origin through the portrait', () => {
+      const wrapper = mount(MapMarker, {
+        props: {
+          x: 10,
+          y: 20,
+          name: 'Bob',
+          type: 'explorer',
+          icon: 'mdi:walk',
+          artSrc: '/static/portraits/bob.png',
+        },
+        global: { stubs: { Icon: true } },
+      })
+
+      const portrait = wrapper.findComponent(DwellerPortrait)
+      expect(portrait.find('img').attributes('src')).toBe(
+        'http://localhost:8000/static/portraits/bob.png'
+      )
+    })
+
+    it('keeps location data-URL art working through the portrait', () => {
+      const wrapper = mount(MapMarker, {
+        props: {
+          x: 10,
+          y: 20,
+          name: 'Gas Station',
+          type: 'visited',
+          artSrc: 'data:image/png;base64,art',
+        },
+        global: { stubs: { Icon: true } },
+      })
+
+      const portrait = wrapper.findComponent(DwellerPortrait)
+      expect(portrait.find('img').attributes('src')).toBe('data:image/png;base64,art')
+    })
+
+    it('renders the marker icon when no art is present', () => {
+      const wrapper = mount(MapMarker, {
+        props: {
+          x: 10,
+          y: 20,
+          name: 'Old Shack',
+          type: 'visited',
+          icon: 'mdi:cave',
+        },
+        global: { stubs: { Icon: true } },
+      })
+
+      expect(wrapper.findComponent(DwellerPortrait).exists()).toBe(false)
+      expect(wrapper.findComponent(Icon).props('icon')).toBe('mdi:cave')
+    })
+
+    it('keeps the icon fallback for locked markers despite art', () => {
+      const wrapper = mount(MapMarker, {
+        props: {
+          x: 10,
+          y: 20,
+          name: 'Hidden Place',
+          type: 'discovery',
+          is_unlocked: false,
+          artSrc: 'https://cdn.example/hidden.png',
+        },
+        global: { stubs: { Icon: true } },
+      })
+
+      expect(wrapper.findComponent(DwellerPortrait).exists()).toBe(false)
+      expect(wrapper.findComponent(Icon).props('icon')).toBe('mdi:lock-question')
+    })
+
+    it('swaps to the marker icon fallback when art fails to load', async () => {
+      const wrapper = mount(MapMarker, {
+        props: {
+          x: 10,
+          y: 20,
+          name: 'Bob',
+          type: 'explorer',
+          icon: 'mdi:walk',
+          artSrc: 'https://cdn.example/bob.png',
+        },
+        global: { stubs: { Icon: true } },
+      })
+
+      const portrait = wrapper.findComponent(DwellerPortrait)
+      await portrait.find('img').trigger('error')
+
+      expect(portrait.find('img').exists()).toBe(false)
+      expect(portrait.find('[role="img"]').exists()).toBe(true)
+      expect(portrait.findComponent(Icon).props('icon')).toBe('mdi:walk')
     })
   })
 })

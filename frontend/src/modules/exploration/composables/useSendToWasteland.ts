@@ -6,6 +6,9 @@ import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { explorationApi } from '@/modules/exploration/api/exploration'
 import { useToast } from '@/core/composables/useToast'
 
+/** Search length used for the modal's initial suggestion before a duration is picked. */
+const DEFAULT_SUGGEST_DURATION = 4
+
 export interface PendingExplorer {
   dwellerId: string
   firstName: string
@@ -30,31 +33,36 @@ export function useSendToWasteland(vaultId: () => string | null) {
   const isSending = ref(false)
   const suggestedHeading = ref<number | null>(null)
   const isSuggestingHeading = ref(false)
+  let suggestionToken = 0
+  let lastSuggestDuration = DEFAULT_SUGGEST_DURATION
 
   // A map click supplies the heading; otherwise the server suggests one.
   const headingDegrees = computed<number | null>(
     () => pendingDweller.value?.headingDegrees ?? suggestedHeading.value
   )
 
-  const suggestHeading = async () => {
+  const suggestHeading = async (duration: number) => {
     const vId = vaultId()
     if (!vId || !authStore.token) return
+    lastSuggestDuration = duration
+    const token = ++suggestionToken
     isSuggestingHeading.value = true
     try {
-      suggestedHeading.value = await explorationApi.suggestHeading(
+      const heading = await explorationApi.suggestHeading(
         authStore.token,
         vId,
         crypto.randomUUID(),
-        4
+        duration
       )
+      if (token === suggestionToken) suggestedHeading.value = heading
     } catch {
-      suggestedHeading.value = null
+      if (token === suggestionToken) suggestedHeading.value = null
     } finally {
-      isSuggestingHeading.value = false
+      if (token === suggestionToken) isSuggestingHeading.value = false
     }
   }
 
-  const reroll = () => void suggestHeading()
+  const reroll = (duration: number = lastSuggestDuration) => void suggestHeading(duration)
 
   const open = (dweller: PendingExplorer, knownDweller?: Dweller) => {
     const candidate =
@@ -63,13 +71,17 @@ export function useSendToWasteland(vaultId: () => string | null) {
       toast.error(`${dweller.firstName} is too young for the wasteland`)
       return
     }
+    suggestionToken++
+    isSuggestingHeading.value = false
     pendingDweller.value = dweller
     suggestedHeading.value = null
     showModal.value = true
-    if (dweller.headingDegrees === undefined) void suggestHeading()
+    if (dweller.headingDegrees === undefined) void suggestHeading(DEFAULT_SUGGEST_DURATION)
   }
 
   const cancel = () => {
+    suggestionToken++
+    isSuggestingHeading.value = false
     showModal.value = false
     pendingDweller.value = null
     suggestedHeading.value = null

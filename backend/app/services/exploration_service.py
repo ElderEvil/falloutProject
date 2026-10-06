@@ -359,6 +359,8 @@ class ExplorationService:
             vault_id=vault_id,
             dweller_ids=dweller_ids,
             location_id=target_location_id,
+            stimpaks=stimpaks,
+            radaways=radaways,
         )
 
     async def dispatch(
@@ -443,12 +445,16 @@ class ExplorationService:
             raise ValidationException(f"Total available stimpaks: {available_stimpaks}")
         if radaways > available_radaways:
             raise ValidationException(f"Total available radaways: {available_radaways}")
+        # Snapshot generation commits when it creates a row; resolve it before
+        # staging the storage deduction so supplies, team, and exploration all
+        # persist in the single departure commit. Staging first would let the
+        # snapshot commit strand the deduction if the run never gets created.
+        snapshot = await world_snapshot_service.get_or_generate(db_session)
         if (stimpaks or radaways) and storage is not None:
             storage.stimpack = (storage.stimpack or 0) - stimpaks
             storage.radaway = (storage.radaway or 0) - radaways
             db_session.add(storage)
         anchor = dwellers[0]
-        snapshot = await world_snapshot_service.get_or_generate(db_session)
 
         exploration = Exploration(
             vault_id=vault_id,

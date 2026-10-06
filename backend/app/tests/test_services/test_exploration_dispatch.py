@@ -27,6 +27,7 @@ from app.services.exploration_service import dispatch_travel_hours, exploration_
 from app.services.game_tick.dwellers_tick import process_explorations
 from app.services.map_service import map_service
 from app.services.notification_service import NotificationService
+from app.services.world_snapshot_service import world_snapshot_service
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 STRONG_STATS = {
@@ -904,3 +905,53 @@ async def test_dispatch_rejects_supplies_beyond_storage(
 
     with pytest.raises(ValidationException, match="available stimpaks"):
         await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id, stimpaks=5)
+
+
+@pytest.mark.asyncio
+async def test_depart_targeted_forwards_requested_supplies(async_session: AsyncSession) -> None:
+    """A targeted /send depart forwards stimpaks and radaways to dispatch."""
+    vault_id, dweller_id, location_id = uuid4(), uuid4(), uuid4()
+
+    with patch.object(exploration_service, "dispatch", new_callable=AsyncMock) as mock_dispatch:
+        await exploration_service.depart(
+            async_session,
+            vault_id,
+            [dweller_id],
+            target_location_id=location_id,
+            stimpaks=3,
+            radaways=2,
+        )
+
+    mock_dispatch.assert_awaited_once()
+    assert mock_dispatch.await_args.kwargs["stimpaks"] == 3
+    assert mock_dispatch.await_args.kwargs["radaways"] == 2
+    assert mock_dispatch.await_args.kwargs["location_id"] == location_id
+
+
+@pytest.mark.asyncio
+async def test_dispatch_snapshot_commit_cannot_strand_supplies(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A snapshot-generation commit must not persist supplies without the run.
+
+    Snapshot generation commits the session; a failure right after it must leave
+    vault storage untouched, because the deduction and the run share one commit.
+    """
+    location, _state = await _register_clearable(async_session, vault, dweller)
+    storage = Storage(vault_id=vault.id, max_space=100, stimpack=5, radaway=3)
+    async_session.add(storage)
+    await async_session.commit()
+
+    async def _commit_then_fail(db_session: AsyncSession, recipe=None):
+        await db_session.commit()
+        raise RuntimeError("snapshot generation failed")
+
+    with (
+        patch.object(world_snapshot_service, "get_or_generate", new=AsyncMock(side_effect=_commit_then_fail)),
+        pytest.raises(RuntimeError),
+    ):
+        await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id, stimpaks=2, radaways=1)
+
+    await async_session.refresh(storage)
+    assert storage.stimpack == 5
+    assert storage.radaway == 3

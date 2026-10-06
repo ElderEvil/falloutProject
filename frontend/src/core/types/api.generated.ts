@@ -7110,6 +7110,18 @@ export interface components {
              * Format: uuid4
              */
             location_id: string;
+            /**
+             * Stimpaks
+             * @description Number of Stimpaks to bring
+             * @default 0
+             */
+            stimpaks: number;
+            /**
+             * Radaways
+             * @description Number of Radaways to bring
+             * @default 0
+             */
+            radaways: number;
         };
         /**
          * ExpeditionEnterRequest

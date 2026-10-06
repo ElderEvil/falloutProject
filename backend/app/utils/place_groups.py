@@ -114,6 +114,8 @@ def effective_place_group(group_key: str | None, kind: PlaceKindEnum | None) -> 
     group = get_place_group(group_key)
     if group is not None:
         return group
+    if group_key:
+        return None
     if kind == PlaceKindEnum.PLACE and game_config.features.emergent_sites:
         return get_place_group(DEFAULT_EMERGENT_GROUP)
     return None

@@ -27,7 +27,7 @@ export interface DwellerDetailActions {
     radaways: number
   }): Promise<boolean>
   cancelSendToWasteland(): void
-  rerollWastelandHeading(): void
+  rerollWastelandHeading(duration?: number): void
   useStimpak(): void
   useRadAway(): void
   issueMedicalSupply(supply: 'stimpack' | 'radaway'): void
@@ -463,7 +463,7 @@ export function useDwellerDetail(
     openSendToWasteland: handleSendWasteland,
     confirmSendToWasteland: handleSendWastelandConfirm,
     cancelSendToWasteland: () => sendWasteland.cancel(),
-    rerollWastelandHeading: () => sendWasteland.reroll(),
+    rerollWastelandHeading: (duration?: number) => sendWasteland.reroll(duration),
     useStimpak: handleUseStimpak,
     useRadAway: handleUseRadAway,
     issueMedicalSupply: handleIssueMedicalSupply,

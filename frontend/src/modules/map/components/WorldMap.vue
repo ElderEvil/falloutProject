@@ -28,6 +28,7 @@ import { useMapZoomPan, MAP_SIZE } from '../composables/useMapZoomPan'
 import { useMapStore } from '../stores/map'
 import { isKnownLocation } from '../utils/visibility'
 import { bearingDegrees } from '../utils/bearing'
+import { explorerHeading } from '../utils/explorerHeading'
 
 interface Props {
   locations: WastelandLocationWithDwellers[]
@@ -156,12 +157,18 @@ const homeCoords = computed<[number, number]>(() => {
   return home ? [home.coord_x, home.coord_y] : [80, 80]
 })
 
+// Amplitude 0 removes the hand-drawn wobble; steps 1 keeps only the real
+// waypoints, so each trail renders as clean straight segments between them.
 const discoveryRouteLines = computed(() =>
   props.discoveryRoutes.map((route) =>
-    tracePoints([
-      homeCoords.value,
-      ...route.points.map((point): [number, number] => [point.coord_x, point.coord_y]),
-    ])
+    tracePoints(
+      [
+        homeCoords.value,
+        ...route.points.map((point): [number, number] => [point.coord_x, point.coord_y]),
+      ],
+      0,
+      1
+    )
   )
 )
 
@@ -183,6 +190,20 @@ const exploringByLocation = computed(() => {
 const freeRoamTracks = computed(() =>
   props.explorerTracks.filter((track) => !track.targetLocationId && track.lastKnown)
 )
+
+// Heading chevrons for the free-roam markers: trail vector when the run has a
+// usable outbound trail, otherwise the bearing back home. Tracks with neither
+// keep the bare thumbnail/marker (no chevron).
+const freeRoamChevrons = computed(() => {
+  const routesByExploration = new Map(
+    props.discoveryRoutes.map((route) => [route.exploration_id, route])
+  )
+  const home = { coord_x: homeCoords.value[0], coord_y: homeCoords.value[1] }
+  return freeRoamTracks.value.flatMap((track) => {
+    const heading = explorerHeading(track, routesByExploration.get(track.explorationId), home)
+    return heading === null ? [] : [{ track, heading }]
+  })
+})
 
 // ── Expedition site state ────────────────────────────────────────────────
 function siteStatus(site: ExpeditionSiteMarkerRead): string {
@@ -321,7 +342,7 @@ function handleTouchEnd(event: TouchEvent) {
           v-for="(route, i) in discoveryRouteLines"
           :key="`route-${i}`"
           :points="route"
-          class="stroke-(--color-theme-accent) stroke-[0.4] opacity-[0.55] [stroke-dasharray:2_2] [stroke-linecap:round]"
+          class="stroke-(--color-theme-accent) stroke-[0.4] opacity-[0.55] [stroke-linecap:round]"
           fill="none"
         />
 
@@ -394,10 +415,23 @@ function handleTouchEnd(event: TouchEvent) {
           :name="track.dwellerName || 'Explorer'"
           type="explorer"
           icon="mdi:walk"
+          :art-src="track.dwellerThumbnailUrl ?? null"
           label="Explorer"
           :status="track.dwellerName ? `Last known — ${track.dwellerName}` : 'Last known position'"
           :interactive="false"
         />
+
+        <!-- Travel-direction chevrons for free-roam explorers: a small accent
+             wedge rotated around the marker center. aria-hidden + non-interactive. -->
+        <g
+          v-for="entry in freeRoamChevrons"
+          :key="`explorer-heading-${entry.track.explorationId}`"
+          class="explorer-heading"
+          :transform="`translate(${entry.track.lastKnown!.coord_x}, ${entry.track.lastKnown!.coord_y}) rotate(${entry.heading})`"
+          aria-hidden="true"
+        >
+          <path class="explorer-heading-chevron" d="M -1.7 -3.4 L 0 -5.5 L 1.7 -3.4" />
+        </g>
       </svg>
 
       <!-- Zoom controls overlay -->
@@ -489,6 +523,19 @@ function handleTouchEnd(event: TouchEvent) {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+/* Free-roam explorer travel direction: accent chevron outside the marker ring. */
+.explorer-heading {
+  pointer-events: none;
+}
+
+.explorer-heading-chevron {
+  fill: none;
+  stroke: var(--color-theme-accent);
+  stroke-width: 0.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 

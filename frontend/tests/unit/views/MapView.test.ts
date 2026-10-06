@@ -147,6 +147,9 @@ describe('MapView', () => {
               'title',
               'subtitle',
               'details',
+              'showSupplies',
+              'maxStimpaks',
+              'maxRadaways',
             ],
             emits: ['update:modelValue', 'assign', 'start', 'details'],
           },
@@ -362,6 +365,8 @@ describe('MapView', () => {
       vi.spyOn(mapStore, 'refreshMap').mockResolvedValue(undefined)
       const { filter: dwellerFilter } = useDwellerStore()
       vi.spyOn(dwellerFilter, 'fetchDwellersByVault').mockResolvedValue(undefined)
+      const vaultStore = useVaultStore()
+      vi.spyOn(vaultStore, 'ensureVaultLoaded').mockResolvedValue(undefined)
 
       mockRoute.query = { place: 'loc-1' }
       const wrapper = mountView()
@@ -406,6 +411,8 @@ describe('MapView', () => {
       const { filter: dwellerFilter } = useDwellerStore()
       dwellerFilter.dwellers = [{ id: 'dweller-1', first_name: 'Ada' } as never]
       vi.spyOn(dwellerFilter, 'fetchDwellersByVault').mockResolvedValue(undefined)
+      const vaultStore = useVaultStore()
+      vi.spyOn(vaultStore, 'ensureVaultLoaded').mockResolvedValue(undefined)
       return clearable
     }
 
@@ -420,8 +427,71 @@ describe('MapView', () => {
       await flushPromises()
 
       expect(wrapper.findComponent({ name: 'MarkerDetailModal' }).props('modelValue')).toBe(false)
-      expect(wrapper.findComponent({ name: 'PartySelectionModal' }).props('modelValue')).toBe(true)
-      expect(wrapper.findComponent({ name: 'PartySelectionModal' }).props('title')).toBe('Rusty Depot')
+      const picker = wrapper.findComponent({ name: 'PartySelectionModal' })
+      expect(picker.props('modelValue')).toBe(true)
+      expect(picker.props('title')).toBe('Rusty Depot')
+    })
+
+    it('waits for the vault to hydrate before showing supplies in the picker', async () => {
+      const clearable = mountWithClearable()
+      const vaultStore = useVaultStore()
+      let resolveVault!: () => void
+      const gate = new Promise<void>((resolve) => {
+        resolveVault = () => {
+          vaultStore.loadedVaults = { 'vault-1': { stimpack: 10, radaway: 5 } as any }
+          resolve()
+        }
+      })
+      vi.mocked(vaultStore.ensureVaultLoaded).mockReturnValue(gate)
+
+      const wrapper = mountView()
+      await flushPromises()
+      wrapper
+        .findComponent({ name: 'WorldMap' })
+        .vm.$emit('marker-click', { kind: 'location', data: clearable })
+      await flushPromises()
+
+      // Picker must not render on unhydrated vault state (zero supplies).
+      expect(wrapper.findComponent({ name: 'PartySelectionModal' }).props('modelValue')).toBe(false)
+      expect(wrapper.findComponent({ name: 'PartySelectionModal' }).props('maxStimpaks')).toBe(0)
+
+      resolveVault()
+      await flushPromises()
+
+      const picker = wrapper.findComponent({ name: 'PartySelectionModal' })
+      expect(picker.props('modelValue')).toBe(true)
+      expect(picker.props('maxStimpaks')).toBe(10)
+      expect(picker.props('maxRadaways')).toBe(5)
+    })
+
+    it('keeps the picker closed when the vault cannot be loaded', async () => {
+      const clearable = mountWithClearable()
+      const vaultStore = useVaultStore()
+      vi.mocked(vaultStore.ensureVaultLoaded).mockRejectedValueOnce(new Error('unloadable'))
+
+      const wrapper = mountView()
+      await flushPromises()
+      wrapper
+        .findComponent({ name: 'WorldMap' })
+        .vm.$emit('marker-click', { kind: 'location', data: clearable })
+      await flushPromises()
+
+      expect(wrapper.findComponent({ name: 'PartySelectionModal' }).props('modelValue')).toBe(false)
+      expect(wrapper.findComponent({ name: 'MarkerDetailModal' }).props('modelValue')).toBe(false)
+    })
+
+    it('opens details instead of the picker for a clearable ?place= deep link', async () => {
+      mountWithClearable()
+      mockRoute.query = { place: 'loc-1' }
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(wrapper.findComponent({ name: 'MarkerDetailModal' }).props('modelValue')).toBe(true)
+      expect(wrapper.findComponent({ name: 'PartySelectionModal' }).props('modelValue')).toBe(false)
+      // The shareable deep link survives: the query is neither pushed nor cleared.
+      expect(mockReplace).not.toHaveBeenCalled()
+      expect(mockPush).not.toHaveBeenCalled()
     })
 
     it('opens the detail modal from the picker Details action', async () => {

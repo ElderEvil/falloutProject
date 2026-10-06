@@ -283,4 +283,78 @@ describe('ExplorationDurationModal', () => {
       expect(confirmEvents![0]).toEqual([{ duration: 4, stimpaks: 5, radaways: 2 }])
     })
   })
+
+  describe('heading reroll control', () => {
+    it('keeps the Change control available when the suggestion failed', () => {
+      const wrapper = mount(ExplorationDurationModal, {
+        props: {
+          show: true,
+          dwellerName: 'TestDweller',
+          maxStimpaks: 10,
+          maxRadaways: 10,
+          heading: null,
+          isSuggestingHeading: false,
+          canReroll: true,
+        },
+      })
+
+      expect(wrapper.text()).toContain('Travel Heading')
+      expect(wrapper.text()).toContain('No direction suggested')
+      const changeButton = wrapper.findAllComponents(Button).find((button) => button.text() === 'Change')
+      expect(changeButton).toBeDefined()
+    })
+
+    it('emits reroll with the selected duration when Change is clicked', async () => {
+      const wrapper = mount(ExplorationDurationModal, {
+        props: {
+          show: true,
+          dwellerName: 'TestDweller',
+          maxStimpaks: 10,
+          maxRadaways: 10,
+          heading: 'E / 90°',
+          canReroll: true,
+        },
+      })
+
+      await wrapper.findAll('.duration-button')[3].trigger('click') // 8h
+      const changeButton = wrapper.findAllComponents(Button).find((button) => button.text() === 'Change')
+      await changeButton?.trigger('click')
+
+      expect(wrapper.emitted('reroll')).toContainEqual([8])
+    })
+
+    it('re-requests the heading with the newly selected duration', async () => {
+      const wrapper = mount(ExplorationDurationModal, {
+        props: {
+          show: true,
+          dwellerName: 'TestDweller',
+          maxStimpaks: 10,
+          maxRadaways: 10,
+          heading: 'E / 90°',
+          canReroll: true,
+        },
+      })
+
+      await wrapper.findAll('.duration-button')[5].trigger('click') // 24h
+
+      expect(wrapper.emitted('reroll')).toContainEqual([24])
+    })
+
+    it('does not reroll while heading is user-chosen', async () => {
+      const wrapper = mount(ExplorationDurationModal, {
+        props: {
+          show: true,
+          dwellerName: 'TestDweller',
+          maxStimpaks: 10,
+          maxRadaways: 10,
+          heading: 'E / 90°',
+          canReroll: false,
+        },
+      })
+
+      await wrapper.findAll('.duration-button')[5].trigger('click') // 24h
+
+      expect(wrapper.emitted('reroll')).toBeUndefined()
+    })
+  })
 })

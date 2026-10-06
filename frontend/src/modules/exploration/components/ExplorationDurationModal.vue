@@ -35,7 +35,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   confirm: [payload: { duration: number; stimpaks: number; radaways: number }]
   cancel: []
-  reroll: []
+  reroll: [duration: number]
 }>()
 
 const selectedDuration = ref(4)
@@ -67,6 +67,12 @@ const handleConfirm = () => {
     stimpaks: selectedStimpaks.value,
     radaways: props.allowRadaway ? selectedRadaways.value : 0,
   })
+}
+
+const selectDuration = (duration: number) => {
+  if (duration === selectedDuration.value) return
+  selectedDuration.value = duration
+  if (props.canReroll) emit('reroll', duration)
 }
 
 const setStimpaks = (value: number[] | undefined) => {
@@ -102,7 +108,7 @@ const setRadaways = (value: number[] | undefined) => {
         <p class="mb-6 text-sm text-theme-primary/70">How long should {{ dwellerName }} explore?</p>
 
         <div
-          v-if="heading || isSuggestingHeading"
+          v-if="heading || isSuggestingHeading || canReroll"
           class="mb-6 rounded-lg border border-theme-primary/25 bg-surface-sunken p-4"
         >
           <h4 class="mb-2 flex items-center gap-2 text-base font-bold text-theme-primary">
@@ -113,8 +119,11 @@ const setRadaways = (value: number[] | undefined) => {
             Choosing a direction…
           </p>
           <div v-else class="flex items-center justify-between gap-3">
-            <p class="text-sm text-theme-primary/80">
+            <p v-if="heading" class="text-sm text-theme-primary/80">
               {{ heading }} — {{ dwellerName }} travels in this direction.
+            </p>
+            <p v-else class="text-sm text-theme-primary/60">
+              No direction suggested. You can try again.
             </p>
             <Button
               v-if="canReroll"
@@ -122,7 +131,7 @@ const setRadaways = (value: number[] | undefined) => {
               size="xs"
               type="button"
               class="font-mono text-xs font-bold"
-              @click="emit('reroll')"
+              @click="emit('reroll', selectedDuration)"
             >
               Change
             </Button>
@@ -133,7 +142,7 @@ const setRadaways = (value: number[] | undefined) => {
           <button
             v-for="duration in [1, 2, 4, 8, 12, 24]"
             :key="duration"
-            @click="selectedDuration = duration"
+            @click="selectDuration(duration)"
             class="duration-button cursor-pointer rounded-md border-2 border-theme-primary/30 bg-theme-primary/10 p-3 font-mono text-base font-bold text-theme-primary transition-all duration-200 hover:border-theme-primary/60 hover:bg-theme-primary/20"
             :class="
               selectedDuration === duration

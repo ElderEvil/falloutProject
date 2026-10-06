@@ -26,6 +26,7 @@ from app.services.world_activation_service import ActivationPreview, world_activ
 from app.services.world_generation_service import WORLD_ID, WorldRecipe
 from app.services.world_snapshot_service import world_snapshot_service
 from app.utils.exceptions import ResourceConflictException, ValidationException
+from app.utils.places import WORLD_SCALE
 from app.utils.vault_slots import slot_coords
 
 pytestmark = pytest.mark.asyncio
@@ -110,10 +111,35 @@ async def test_activation_switches_pointer_and_agrees_coordinates(async_session:
 
     candidate_coord = _candidate_slots(candidate)[slot.slot_index]
     home = await map_service.ensure_home_marker(async_session, vault)
-    # Snapshot slot, home marker, and dispatch origin all agree on the candidate placement.
+    # Snapshot slot, home marker, map marker, and dispatch origin all agree on the candidate placement.
     assert await world_snapshot_service.active_slot_coord(async_session, slot.slot_index) == candidate_coord
     assert (home.coord_x, home.coord_y) == candidate_coord
-    assert await exploration_service._vault_origin(async_session, vault.id) == candidate_coord
+    origin, world_version = await exploration_service._vault_origin(async_session, vault.id)
+    assert origin == candidate_coord
+    assert world_version == 2
+
+    vault_map = await map_service.get_vault_map(async_session, vault)
+    marker = next(marker for marker in vault_map.player_vaults if marker.vault_id == vault.id)
+    assert (marker.coord_x, marker.coord_y) == (
+        round(candidate_coord[0] * WORLD_SCALE, 1),
+        round(candidate_coord[1] * WORLD_SCALE, 1),
+    )
+
+
+async def test_spatial_departure_persists_the_active_snapshot_version(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A run departing an active placement stores that snapshot's version, not the default recipe's."""
+    candidate = await _snapshot(async_session, 2, "candidate-seed")
+    async_session.add(VaultSlot(slot_index=_first_moved_index(candidate), vault_id=vault.id))
+    await async_session.commit()
+    active = await _snapshot(async_session, 1, "active-seed")
+    await _make_active(async_session, active)
+    await world_activation_service.activate(async_session, candidate_version=2, expected_active_version=1, confirm=True)
+
+    run = await exploration_service.depart(async_session, vault.id, [dweller.id], duration=4, heading_degrees=90)
+
+    assert run.world_version == 2
 
 
 async def test_activation_blocked_while_affected_expedition_active(
@@ -144,7 +170,7 @@ async def test_activation_blocked_while_affected_expedition_active(
     )
     await async_session.commit()
 
-    with pytest.raises(ResourceConflictException):
+    with pytest.raises(ResourceConflictException, match="in-progress expedition"):
         await world_activation_service.activate(
             async_session, candidate_version=2, expected_active_version=1, confirm=True
         )

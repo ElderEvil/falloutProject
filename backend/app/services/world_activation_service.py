@@ -345,7 +345,12 @@ class WorldActivationService:
 
         preview = await self.preview(db_session, candidate_version=candidate_version, world_id=world_id)
         if not preview.activatable:
-            raise ResourceConflictException("Activation blocked: " + "; ".join(preview.conflicts))
+            reasons = list(preview.conflicts)
+            if preview.affected_expeditions:
+                reasons.append(
+                    f"{len(preview.affected_expeditions)} in-progress expedition(s) belong to affected vaults"
+                )
+            raise ResourceConflictException("Activation blocked: " + "; ".join(reasons))
 
         now = datetime.utcnow()
         try:

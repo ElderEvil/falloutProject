@@ -166,11 +166,12 @@ class ExplorationService:
         if heading_degrees is not None:
             if not 0 <= heading_degrees < 360:
                 raise ValueError("heading_degrees must be in [0, 360)")
-            origin = await self._vault_origin(db_session, vault_id)
-            if origin is None:
+            placement = await self._vault_origin(db_session, vault_id)
+            if placement is None:
                 raise ValueError("Vault has no map placement; cannot depart spatially")
+            origin, active_version = placement
             snapshot = await world_snapshot_service.get_or_generate(db_session)
-            world_version = snapshot.generator_version
+            world_version = active_version if active_version is not None else snapshot.generator_version
 
         # Check vault storage first, then fall back to dweller inventory
         storage = await crud_storage.get_by_vault(db_session, vault_id)
@@ -307,9 +308,14 @@ class ExplorationService:
         await user_service.record_vault_statistic(db_session, vault_id, "total_explorations")
         return exploration
 
-    async def _vault_origin(self, db_session: AsyncSession, vault_id: UUID4) -> tuple[float, float] | None:
-        """Travel origin: the vault's slot placement, or None when the vault has no slot.
+    async def _vault_origin(
+        self, db_session: AsyncSession, vault_id: UUID4
+    ) -> tuple[tuple[float, float], int | None] | None:
+        """Travel origin and the snapshot version that supplies it, or None without a slot.
 
+        The active world's placement is returned with its own generator version so
+        movement loads the same terrain the origin came from; the legacy slot grid
+        returns ``None`` for the version, letting callers keep the default recipe.
         No production fallback to the map centre: vaults without a slot are
         grandfathered (their existing placements keep working) but cannot start a
         new spatial run or dispatch.
@@ -318,9 +324,10 @@ class ExplorationService:
         if slot is None:
             return None
         # Match the home marker: active world placement first, legacy slot grid otherwise.
-        return await world_snapshot_service.active_slot_coord(db_session, slot.slot_index) or slot_coords(
-            slot.slot_index
-        )
+        placement = await world_snapshot_service.active_slot_placement(db_session, slot.slot_index)
+        if placement is not None:
+            return (placement[0], placement[1]), placement[2]
+        return slot_coords(slot.slot_index), None
 
     async def depart(
         self,
@@ -427,14 +434,16 @@ class ExplorationService:
         if not state.is_dispatchable(datetime.utcnow()):
             raise ValidationException("This location is currently cleared")
 
-        origin = await self._vault_origin(db_session, vault_id)
-        if origin is None:
+        placement = await self._vault_origin(db_session, vault_id)
+        if placement is None:
             raise ValidationException("Vault has no map placement; cannot dispatch")
+        origin, active_version = placement
         distance = math.dist(origin, (location.coord_x, location.coord_y))
         duration = dispatch_travel_hours(distance)
         tier = min(state.clear_count, game_config.exploration.dispatch.escalation_cap)
         anchor = dwellers[0]
         snapshot = await world_snapshot_service.get_or_generate(db_session)
+        world_version = active_version if active_version is not None else snapshot.generator_version
 
         exploration = Exploration(
             vault_id=vault_id,
@@ -458,7 +467,7 @@ class ExplorationService:
             exploration,
             origin,
             world_terrain.heading_to(origin, (location.coord_x, location.coord_y)),
-            snapshot.generator_version,
+            world_version,
             exploration.start_time,
         )
         db_session.add(exploration)

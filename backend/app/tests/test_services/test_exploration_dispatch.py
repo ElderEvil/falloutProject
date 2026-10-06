@@ -157,7 +157,7 @@ async def test_dispatch_creates_targeted_run(async_session: AsyncSession, vault:
 
     assert exploration.target_location_id == location.id
     assert exploration.clear_tier == 0
-    origin = await exploration_service._vault_origin(async_session, vault.id)
+    origin, _version = await exploration_service._vault_origin(async_session, vault.id)
     assert origin is not None
     expected_duration = dispatch_travel_hours(math.dist(origin, (location.coord_x, location.coord_y)))
     assert exploration.duration == expected_duration

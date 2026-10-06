@@ -73,7 +73,7 @@ async def test_dispatch_travel_origin_is_the_vault_slot(async_session: AsyncSess
     slot = await vault_slot.claim_next(db_session=async_session, vault_id=vault.id)
     await async_session.commit()
 
-    origin = await exploration_service._vault_origin(async_session, vault.id)
+    origin, _version = await exploration_service._vault_origin(async_session, vault.id)
 
     assert origin == slot_coords(slot.slot_index)
 

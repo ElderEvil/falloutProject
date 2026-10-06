@@ -661,16 +661,19 @@ class MapService:
 
         # --- real player vaults on the shared atlas (discoverable by all users) ---
         slot_rows = await vault_slot_crud.list_markers(db_session)
-        player_vaults = [
-            PlayerVaultMarkerRead(
-                vault_id=slot_vault_id,
-                number=number,
-                coord_x=round(slot_coords(slot_index)[0] * WORLD_SCALE, 1),
-                coord_y=round(slot_coords(slot_index)[1] * WORLD_SCALE, 1),
-                is_mine=slot_user_id == vault.user_id,
+        active_placements = await world_snapshot_service.active_slot_coords(db_session)
+        player_vaults = []
+        for slot_index, slot_vault_id, number, slot_user_id in slot_rows:
+            coord = active_placements.get(slot_index) or slot_coords(slot_index)
+            player_vaults.append(
+                PlayerVaultMarkerRead(
+                    vault_id=slot_vault_id,
+                    number=number,
+                    coord_x=round(coord[0] * WORLD_SCALE, 1),
+                    coord_y=round(coord[1] * WORLD_SCALE, 1),
+                    is_mine=slot_user_id == vault.user_id,
+                )
             )
-            for slot_index, slot_vault_id, number, slot_user_id in slot_rows
-        ]
 
         expedition_sites = await self._expedition_site_markers(db_session, vault)
 

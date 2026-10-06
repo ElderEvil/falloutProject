@@ -72,22 +72,46 @@ class WorldSnapshotService:
         """The active world's placement for *slot_index*, or None when unset.
 
         The activation workflow writes the approved placement into the active
-        snapshot's slots; map/home and dispatch-origin consumers read it back here
-        (falling back to the legacy slot grid when no world is active) so all
-        coordinate sources agree after a transition.
+        snapshot's slots; map/home consumers read it back here (falling back to the
+        legacy slot grid when no world is active) so all coordinate sources agree
+        after a transition.
+        """
+        placement = await self.active_slot_placement(db_session, slot_index, world_id=world_id)
+        return (placement[0], placement[1]) if placement is not None else None
+
+    async def active_slot_coords(
+        self, db_session: AsyncSession, *, world_id: str = WORLD_ID
+    ) -> dict[int, tuple[float, float]]:
+        """The active world's placement for every slot, or an empty dict when unset."""
+        snapshot = await snapshot_crud.get_active(db_session, world_id=world_id)
+        return self._slot_coords(snapshot) if snapshot is not None else {}
+
+    async def active_slot_placement(
+        self, db_session: AsyncSession, slot_index: int, *, world_id: str = WORLD_ID
+    ) -> tuple[float, float, int] | None:
+        """The active world's placement for *slot_index* and the version that supplies it.
+
+        Returned together so a spatial departure stores the terrain version matching
+        the origin it departs from; a coordinate without its version could make
+        movement check against a different snapshot's terrain.
         """
         snapshot = await snapshot_crud.get_active(db_session, world_id=world_id)
         if snapshot is None:
             return None
+        coord = self._slot_coords(snapshot).get(slot_index)
+        return (coord[0], coord[1], snapshot.generator_version) if coord is not None else None
+
+    @staticmethod
+    def _slot_coords(snapshot: WorldSnapshot) -> dict[int, tuple[float, float]]:
+        placements: dict[int, tuple[float, float]] = {}
         for slot in snapshot.slots:
-            if slot.get("slot_index") != slot_index:
-                continue
+            index = slot.get("slot_index")
             coord_x = slot.get("coord_x")
             coord_y = slot.get("coord_y")
-            if coord_x is None or coord_y is None:
-                return None
-            return (float(coord_x), float(coord_y))
-        return None
+            if index is None or coord_x is None or coord_y is None:
+                continue
+            placements[index] = (float(coord_x), float(coord_y))
+        return placements
 
     @staticmethod
     def _to_model(recipe: WorldRecipe, world: GeneratedWorld) -> WorldSnapshot:

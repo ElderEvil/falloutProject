@@ -53,9 +53,10 @@ async def test_vault_origin_matches_slot_coords(async_session: AsyncSession, vau
     """A vault with a slot departs from its slot placement."""
     slot_index = await _claim_slot(async_session, vault)
 
-    origin = await exploration_service._vault_origin(async_session, vault.id)
+    origin, world_version = await exploration_service._vault_origin(async_session, vault.id)
 
     assert origin == slot_coords(slot_index)
+    assert world_version is None
 
 
 @pytest.mark.asyncio
@@ -82,7 +83,7 @@ async def test_home_marker_agrees_with_the_slot(async_session: AsyncSession, vau
     home = await map_service.ensure_home_marker(async_session, vault)
 
     assert (home.coord_x, home.coord_y) == slot_coords(slot_index)
-    assert await exploration_service._vault_origin(async_session, vault.id) == (home.coord_x, home.coord_y)
+    assert (await exploration_service._vault_origin(async_session, vault.id))[0] == (home.coord_x, home.coord_y)
 
 
 # ---------------------------------------------------------------------------

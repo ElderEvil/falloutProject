@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.183.0 (2026-10-06)
+
+### Features
+
+* **exploration:** unify map departures with auto-heading, team dispatch, and supplies 0c64b95
+* **map:** merge dispatch into location details modal a01c507
+
+### Bug Fixes
+
+* **frontend:** polish dispatch picker header, footer and status badge e34b82b
+* **frontend:** use Button primitive for modal header actions 12c5c99
+* **map:** address review findings, unify explorer markers and trails 416cbd2
+* **review:** storage lock refresh and party picker a11y 7d4859f
+
+### Documentation
+
+* record pets as shipped and world activation as deferred 227b3b2
+
 ## 2.182.0 (2026-10-05)
 
 ### Features

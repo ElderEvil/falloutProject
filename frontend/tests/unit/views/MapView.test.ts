@@ -146,6 +146,8 @@ describe('MapView', () => {
               'maxPartySize',
               'title',
               'subtitle',
+              'subtitleStatus',
+              'subtitleLabel',
               'details',
               'showSupplies',
               'maxStimpaks',
@@ -508,6 +510,69 @@ describe('MapView', () => {
 
       expect(wrapper.findComponent({ name: 'PartySelectionModal' }).props('modelValue')).toBe(false)
       expect(wrapper.findComponent({ name: 'MarkerDetailModal' }).props('modelValue')).toBe(true)
+    })
+
+    it('passes the description as the picker subtitle with a pending status badge', async () => {
+      const clearable = mountWithClearable()
+      const wrapper = mountView()
+      await flushPromises()
+      wrapper
+        .findComponent({ name: 'WorldMap' })
+        .vm.$emit('marker-click', { kind: 'location', data: clearable })
+      await flushPromises()
+
+      const picker = wrapper.findComponent({ name: 'PartySelectionModal' })
+      expect(picker.props('subtitle')).toBe('An old storage facility')
+      expect(picker.props('subtitleStatus')).toBe('pending')
+      expect(picker.props('subtitleLabel')).toBe('Not cleared')
+    })
+
+    it('passes a cleared status badge when the location has been cleared', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      const cleared = {
+        ...mockLocation,
+        clear_state: {
+          clearable: true,
+          cleared: true,
+          clear_count: 3,
+          tier: 0,
+          time_remaining_seconds: 0,
+          loot_table: 'low',
+        },
+      }
+      mapStore.locations = [cleared]
+      mapStore.isLoading = false
+      const { filter: dwellerFilter } = useDwellerStore()
+      dwellerFilter.dwellers = [{ id: 'dweller-1', first_name: 'Ada' } as never]
+      vi.spyOn(dwellerFilter, 'fetchDwellersByVault').mockResolvedValue(undefined)
+      const vaultStore = useVaultStore()
+      vi.spyOn(vaultStore, 'ensureVaultLoaded').mockResolvedValue(undefined)
+
+      const wrapper = mountView()
+      await flushPromises()
+      wrapper
+        .findComponent({ name: 'WorldMap' })
+        .vm.$emit('marker-click', { kind: 'location', data: cleared })
+      await flushPromises()
+
+      const picker = wrapper.findComponent({ name: 'PartySelectionModal' })
+      expect(picker.props('subtitle')).toBe('An old storage facility')
+      expect(picker.props('subtitleStatus')).toBe('cleared')
+      expect(picker.props('subtitleLabel')).toBe('Cleared ×3')
+    })
+
+    it('leaves the picker subtitle empty when no location is selected', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      const picker = wrapper.findComponent({ name: 'PartySelectionModal' })
+      expect(picker.props('subtitle')).toBeUndefined()
+      expect(picker.props('subtitleStatus')).toBeUndefined()
+      expect(picker.props('subtitleLabel')).toBeUndefined()
     })
   })
 

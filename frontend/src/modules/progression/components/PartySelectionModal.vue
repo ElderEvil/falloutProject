@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Slider } from '@/core/components/ui/slider'
 import { Button } from '@/core/components/ui/button'
 import { Badge } from '@/core/components/ui/badge'
+import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { getDwellerDisplayName, type DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { VaultQuest } from '../models/quest'
@@ -18,6 +19,10 @@ interface Props {
   maxPartySize?: number
   title?: string
   subtitle?: string
+  /** Cleared/pending badge state for the subtitle row; absent = plain-text subtitle. */
+  subtitleStatus?: 'cleared' | 'pending'
+  /** Status text shown inside the badge ('Cleared ×n' / 'Not cleared'). */
+  subtitleLabel?: string
   details?: boolean
   showSupplies?: boolean
   maxStimpaks?: number
@@ -33,6 +38,8 @@ const {
   vaultId,
   title,
   subtitle,
+  subtitleStatus,
+  subtitleLabel,
   details = false,
   showSupplies = false,
   maxStimpaks = 0,
@@ -195,7 +202,7 @@ const handleAssignAndStart = () => {
       class="flex max-h-[80vh] w-full max-w-5xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-5xl"
     >
       <DialogHeader
-        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
+        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4 pr-12"
       >
         <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">{{ title ?? (quest ? `Start Quest: ${quest.title}` : 'Dispatch Dweller') }}</DialogTitle>
         <Button
@@ -209,9 +216,27 @@ const handleAssignAndStart = () => {
           Details
         </Button>
       </DialogHeader>
-      <p v-if="subtitle" class="border-b border-theme-primary/20 px-6 py-2 text-xs text-theme-primary/70">
-        {{ subtitle }}
-      </p>
+      <div
+        v-if="subtitle || subtitleStatus"
+        class="flex flex-wrap items-center gap-2 border-b border-theme-primary/20 px-6 py-2 text-xs text-theme-primary/70"
+      >
+        <Badge
+          v-if="subtitleStatus"
+          :variant="subtitleStatus === 'cleared' ? 'default' : 'outline'"
+          :class="
+            subtitleStatus === 'cleared'
+              ? 'border-theme-primary bg-theme-primary/10 text-theme-primary terminal-glow'
+              : 'border-warning/60 text-warning'
+          "
+        >
+          <Icon
+            :icon="subtitleStatus === 'cleared' ? 'mdi:shield-check' : 'mdi:shield-outline'"
+            class="h-3.5 w-3.5"
+          />
+          {{ subtitleLabel }}
+        </Badge>
+        <span v-if="subtitle">{{ subtitle }}</span>
+      </div>
 
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
 
@@ -350,13 +375,14 @@ const handleAssignAndStart = () => {
       <DialogFooter
         class="flex-shrink-0 justify-end border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
       >
-        <div class="modal-actions">
-          <Button variant="secondary" @click="close"> Cancel </Button>
-          <Button variant="default" :disabled="!canSubmit" @click="quest ? handleAssignAndStart() : handleAssign()">
-            <Icon icon="mdi:check" class="btn-icon" />
-            {{ quest ? 'Start Quest' : 'Dispatch' }}
-          </Button>
-        </div>
+        <TerminalModalActions
+          cancel-label="Cancel"
+          :confirm-label="quest ? 'Start Quest' : 'Dispatch'"
+          confirm-icon="mdi:check"
+          :confirm-disabled="!canSubmit"
+          @cancel="close"
+          @confirm="quest ? handleAssignAndStart() : handleAssign()"
+        />
       </DialogFooter>
       </div>
     </DialogContent>
@@ -581,16 +607,6 @@ const handleAssignAndStart = () => {
   border-radius: 6px;
   color: var(--color-theme-accent);
   font-size: 0.9rem;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-.btn-icon {
-  margin-right: 8px;
 }
 
 .loading-text {

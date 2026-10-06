@@ -111,6 +111,23 @@ describe('PartySelectionModal', () => {
       },
     })
 
+  const mountWithSubtitle = (props: Record<string, unknown>) =>
+    mount(PartySelectionModal, {
+      props: {
+        modelValue: true,
+        quest: null,
+        vaultId: 'vault-1',
+        dwellers: [],
+        currentParty: [],
+        ...props,
+      },
+      global: {
+        stubs: {
+          Teleport: { template: '<div><slot /></div>' },
+        },
+      },
+    })
+
   const supplyTexts = (wrapper: ReturnType<typeof mountDispatchWithSupplies>) =>
     wrapper.findAll('.w-14').map((el) => el.text())
 
@@ -175,5 +192,121 @@ describe('PartySelectionModal', () => {
     const dispatchButton = wrapper.findAll('button').find((b) => b.text().includes('Dispatch'))
     await dispatchButton!.trigger('click')
     expect(wrapper.emitted('assign')).toEqual([[['dweller-1'], { stimpaks: 0, radaways: 0 }]])
+  })
+
+  it('adds right padding to the header so Details clears the dialog close button', () => {
+    const wrapper = mount(PartySelectionModal, {
+      props: {
+        modelValue: true,
+        quest: null,
+        vaultId: 'vault-1',
+        dwellers: [],
+        currentParty: [],
+        details: true,
+        title: 'Rusty Depot',
+      },
+      global: {
+        stubs: {
+          Teleport: { template: '<div><slot /></div>' },
+        },
+      },
+    })
+
+    expect(wrapper.find('[data-slot="dialog-header"]').classes()).toContain('pr-12')
+  })
+
+  it('emits assign then start through the shared footer confirm in quest mode', async () => {
+    const questStore = useQuestStore()
+    vi.spyOn(questStore, 'getEligibleDwellers').mockResolvedValue([socializingEligibleDweller])
+    const wrapper = mount(PartySelectionModal, {
+      props: {
+        modelValue: false,
+        quest: { id: 'quest-1', title: 'Test Quest', duration_minutes: 1 } as VaultQuest,
+        vaultId: 'vault-1',
+        dwellers: [socializingDweller],
+        currentParty: [],
+        maxPartySize: 1,
+      },
+      global: {
+        stubs: {
+          Teleport: { template: '<div><slot /></div>' },
+        },
+      },
+    })
+    await wrapper.setProps({ modelValue: true })
+    await flushPromises()
+
+    await wrapper.find('.dweller-item').trigger('click')
+    const startButton = wrapper.findAll('button').find((b) => b.text().includes('Start Quest'))
+    expect(startButton).toBeDefined()
+    await startButton!.trigger('click')
+
+    expect(wrapper.emitted('assign')).toEqual([[['dweller-1'], { stimpaks: 0, radaways: 0 }]])
+    expect(wrapper.emitted('start')).toEqual([[]])
+  })
+
+  it('closes the picker via the shared footer cancel', async () => {
+    const wrapper = mount(PartySelectionModal, {
+      props: {
+        modelValue: true,
+        quest: null,
+        vaultId: 'vault-1',
+        dwellers: [],
+        currentParty: [],
+      },
+      global: {
+        stubs: {
+          Teleport: { template: '<div><slot /></div>' },
+        },
+      },
+    })
+
+    const cancelButton = wrapper.findAll('button').find((b) => b.text().includes('Cancel'))
+    expect(cancelButton).toBeDefined()
+    await cancelButton!.trigger('click')
+    expect(wrapper.emitted('update:modelValue')).toEqual([[false]])
+  })
+
+  it('renders a cleared status badge above the description', () => {
+    const wrapper = mountWithSubtitle({
+      subtitle: 'A quiet ruin of the old world',
+      subtitleStatus: 'cleared',
+      subtitleLabel: 'Cleared ×2',
+    })
+
+    const badge = wrapper.find('[data-slot="badge"]')
+    expect(badge.exists()).toBe(true)
+    expect(badge.text()).toBe('Cleared ×2')
+    expect(badge.find('i').attributes('icon')).toBe('mdi:shield-check')
+    expect(wrapper.text()).toContain('A quiet ruin of the old world')
+  })
+
+  it('renders a pending status badge above the description', () => {
+    const wrapper = mountWithSubtitle({
+      subtitle: 'An unmapped ruin of the old world',
+      subtitleStatus: 'pending',
+      subtitleLabel: 'Not cleared',
+    })
+
+    const badge = wrapper.find('[data-slot="badge"]')
+    expect(badge.exists()).toBe(true)
+    expect(badge.text()).toBe('Not cleared')
+    expect(badge.find('i').attributes('icon')).toBe('mdi:shield-outline')
+    expect(wrapper.text()).toContain('An unmapped ruin of the old world')
+  })
+
+  it('shows the status badge even when the location has no description', () => {
+    const wrapper = mountWithSubtitle({ subtitleStatus: 'pending', subtitleLabel: 'Not cleared' })
+
+    const badge = wrapper.find('[data-slot="badge"]')
+    expect(badge.exists()).toBe(true)
+    expect(badge.text()).toBe('Not cleared')
+  })
+
+  it('falls back to a plain-text subtitle when no status is supplied', () => {
+    const wrapper = mountWithSubtitle({ subtitle: 'Just some flavour text' })
+
+    expect(wrapper.find('[data-slot="badge"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Just some flavour text')
   })
 })

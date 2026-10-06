@@ -128,11 +128,21 @@ async function openDispatchPicker(location: WastelandLocationWithDwellers) {
   }
 }
 
-const dispatchSubtitle = computed(() => {
+// The picker gets the location flavour text as the subtitle and the clear
+// state as a badge; keeping them separate lets the modal render its own
+// badge/icon styling instead of an embedded "status — description" string.
+const dispatchSubtitle = computed(() => dispatchLocation.value?.description ?? undefined)
+
+const dispatchSubtitleStatus = computed<'cleared' | 'pending' | undefined>(() => {
   const loc = dispatchLocation.value
   if (!loc) return undefined
-  const status = loc.clear_state?.cleared ? `Cleared ×${loc.clear_state.clear_count}` : 'Not cleared'
-  return loc.description ? `${status} — ${loc.description}` : status
+  return loc.clear_state?.cleared ? 'cleared' : 'pending'
+})
+
+const dispatchSubtitleLabel = computed(() => {
+  const loc = dispatchLocation.value
+  if (!loc) return undefined
+  return loc.clear_state?.cleared ? `Cleared ×${loc.clear_state.clear_count}` : 'Not cleared'
 })
 
 function openDetailsFromPicker() {
@@ -535,6 +545,8 @@ const mapPaneHeight = 'var(--map-pane-size)'
             :max-party-size="3"
             :title="dispatchLocation?.name"
             :subtitle="dispatchSubtitle"
+            :subtitle-status="dispatchSubtitleStatus"
+            :subtitle-label="dispatchSubtitleLabel"
             :details="true"
             :show-supplies="true"
             :max-stimpaks="vaultMedicalSupplies.stimpaks"

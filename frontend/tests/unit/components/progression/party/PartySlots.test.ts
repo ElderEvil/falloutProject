@@ -40,7 +40,11 @@ describe('PartySlots', () => {
       },
     })
 
-    await wrapper.find('.slot-remove').trigger('click')
+    const remove = wrapper.find('.slot-remove')
+    expect(remove.attributes('type')).toBe('button')
+    expect(remove.attributes('aria-label')).toBe('Remove Lucy Dweller from party')
+
+    await remove.trigger('click')
 
     expect(wrapper.emitted('remove')).toEqual([['a']])
   })

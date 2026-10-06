@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import update
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -14,7 +15,7 @@ from app import crud
 from app.core.enums import DwellerLocationRelationEnum
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
-from app.models.exploration import ExplorationStatus
+from app.models.exploration import Exploration, ExplorationStatus
 from app.models.notification import Notification, NotificationType
 from app.models.storage import Storage
 from app.models.vault import Vault
@@ -955,3 +956,47 @@ async def test_dispatch_snapshot_commit_cannot_strand_supplies(
     await async_session.refresh(storage)
     assert storage.stimpack == 5
     assert storage.radaway == 3
+
+
+@pytest.mark.asyncio
+async def test_dispatch_revalidates_supplies_after_snapshot_commit(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A spend committed in the snapshot-commit window must reject the dispatch.
+
+    Snapshot generation commits the session; a competing deduction that lands in
+    that window must not be overwritten by the pre-commit validation. The locked
+    re-read sees the spent row, so the dispatch is rejected without consuming
+    supplies or creating a run.
+    """
+    location, _state = await _register_clearable(async_session, vault, dweller)
+    storage = Storage(vault_id=vault.id, max_space=100, stimpack=3, radaway=1)
+    async_session.add(storage)
+    await async_session.commit()
+
+    real_get_or_generate = world_snapshot_service.get_or_generate
+
+    async def _spend_then_generate(db_session: AsyncSession, recipe=None):
+        # Simulate a competing dispatch committing its deduction before this one
+        # stages: the raw UPDATE bypasses the identity map, leaving the session's
+        # pre-commit read stale.
+        await db_session.execute(
+            update(Storage)
+            .where(Storage.vault_id == vault.id)
+            .values(stimpack=0, radaway=0)
+            .execution_options(synchronize_session=False)
+        )
+        await db_session.commit()
+        return await real_get_or_generate(db_session, recipe)
+
+    with (
+        patch.object(world_snapshot_service, "get_or_generate", new=AsyncMock(side_effect=_spend_then_generate)),
+        pytest.raises(ValidationException, match="available stimpaks"),
+    ):
+        await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id, stimpaks=2, radaways=1)
+
+    await async_session.refresh(storage)
+    assert storage.stimpack == 0
+    assert storage.radaway == 0
+    runs = (await async_session.execute(select(Exploration).where(Exploration.vault_id == vault.id))).scalars().all()
+    assert runs == []

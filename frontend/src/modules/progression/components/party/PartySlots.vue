@@ -39,7 +39,12 @@ const getDwellerLevel = (dweller: DwellerShort) => dweller.level || 1
             <span class="slot-name">{{ getDwellerName(selectedDwellers[slot - 1]) }}</span>
             <span class="slot-level">Lv. {{ getDwellerLevel(selectedDwellers[slot - 1]) }}</span>
           </div>
-          <button class="slot-remove" @click="emit('remove', selectedDwellers[slot - 1].id)">
+          <button
+            type="button"
+            class="slot-remove"
+            :aria-label="`Remove ${getDwellerName(selectedDwellers[slot - 1])} from party`"
+            @click="emit('remove', selectedDwellers[slot - 1].id)"
+          >
             <Icon icon="mdi:close" />
           </button>
         </div>

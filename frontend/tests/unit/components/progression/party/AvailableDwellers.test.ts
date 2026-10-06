@@ -43,6 +43,27 @@ describe('AvailableDwellers', () => {
     expect(wrapper.emitted('toggle')).toEqual([['a']])
   })
 
+  it('exposes checkbox semantics bound to the selected state', () => {
+    const wrapper = mountList({
+      dwellers: [dweller('a', 'Lucy'), dweller('b', 'Max')],
+      selectedIds: ['b'],
+    })
+
+    const items = wrapper.findAll('.dweller-item')
+    expect(items[0].attributes('role')).toBe('checkbox')
+    expect(items[0].attributes('tabindex')).toBe('0')
+    expect(items[0].attributes('aria-checked')).toBe('false')
+    expect(items[1].attributes('aria-checked')).toBe('true')
+  })
+
+  it.each(['enter', 'space'])('emits toggle when %s is pressed on a row', async (key) => {
+    const wrapper = mountList({ dwellers: [dweller('a', 'Lucy')] })
+
+    await wrapper.find('.dweller-item').trigger(`keydown.${key}`)
+
+    expect(wrapper.emitted('toggle')).toEqual([['a']])
+  })
+
   it('labels resting dwellers as Socializing', () => {
     const wrapper = mountList({ dwellers: [dweller('a', 'Lucy', 'resting')] })
 

@@ -26,6 +26,7 @@ from app.crud.vault_slot import vault_slot as vault_slot_crud
 from app.crud.world_snapshot import world_snapshot as world_snapshot_crud
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration, ExplorationStatus
+from app.models.storage import Storage
 from app.models.team import Team, TeamMember
 from app.models.training import TrainingStatus
 from app.models.world_location import WorldLocation
@@ -439,17 +440,20 @@ class ExplorationService:
         if stimpaks < 0 or radaways < 0:
             raise ValidationException("Supplies cannot be negative")
         storage = await crud_storage.get_by_vault(db_session, vault_id)
-        available_stimpaks = storage.stimpack if storage else 0
-        available_radaways = storage.radaway if storage else 0
-        if stimpaks > available_stimpaks:
-            raise ValidationException(f"Total available stimpaks: {available_stimpaks}")
-        if radaways > available_radaways:
-            raise ValidationException(f"Total available radaways: {available_radaways}")
+        self._require_supplies(storage, stimpaks, radaways)
         # Snapshot generation commits when it creates a row; resolve it before
         # staging the storage deduction so supplies, team, and exploration all
         # persist in the single departure commit. Staging first would let the
         # snapshot commit strand the deduction if the run never gets created.
         snapshot = await world_snapshot_service.get_or_generate(db_session)
+        # That commit can leave the pre-snapshot read stale, so re-read the row
+        # under FOR UPDATE and refresh it: a supply spend committed in the window
+        # must not be overwritten by the earlier validation. The row lock holds
+        # until the departure commit, making the re-check and deduction atomic.
+        storage = await crud_storage.get_by_vault_for_update(db_session, vault_id)
+        if storage is not None:
+            await db_session.refresh(storage)
+        self._require_supplies(storage, stimpaks, radaways)
         if (stimpaks or radaways) and storage is not None:
             storage.stimpack = (storage.stimpack or 0) - stimpaks
             storage.radaway = (storage.radaway or 0) - radaways
@@ -492,6 +496,16 @@ class ExplorationService:
             db_session.add(TeamMember(team_id=team.id, dweller_id=dweller.id, slot_number=slot, status="assigned"))
         exploration.team_id = team.id
         return await self._persist_departure(db_session, vault_id=vault_id, dwellers=dwellers, exploration=exploration)
+
+    @staticmethod
+    def _require_supplies(storage: Storage | None, stimpaks: int, radaways: int) -> None:
+        """Reject a dispatch whose requested supplies exceed the storage row."""
+        available_stimpaks = storage.stimpack if storage else 0
+        available_radaways = storage.radaway if storage else 0
+        if stimpaks > available_stimpaks:
+            raise ValidationException(f"Total available stimpaks: {available_stimpaks}")
+        if radaways > available_radaways:
+            raise ValidationException(f"Total available radaways: {available_radaways}")
 
     @staticmethod
     def _speed() -> float:

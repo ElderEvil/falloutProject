@@ -45,7 +45,12 @@ const getDwellerLevel = (dweller: DwellerShort) => dweller.level || 1
         :key="dweller.id"
         class="dweller-item"
         :class="{ selected: isSelected(dweller.id) }"
+        role="checkbox"
+        :aria-checked="isSelected(dweller.id)"
+        tabindex="0"
         @click="emit('toggle', dweller.id)"
+        @keydown.enter.prevent="emit('toggle', dweller.id)"
+        @keydown.space.prevent="emit('toggle', dweller.id)"
       >
         <div class="dweller-checkbox">
           <Icon
@@ -134,6 +139,11 @@ const getDwellerLevel = (dweller: DwellerShort) => dweller.level || 1
 .dweller-item.selected {
   background: rgba(var(--color-theme-primary-rgb), 0.1);
   border-color: var(--color-theme-accent);
+}
+
+.dweller-item:focus-visible {
+  outline: 2px solid var(--color-theme-primary);
+  outline-offset: 2px;
 }
 
 .dweller-checkbox {

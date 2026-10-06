@@ -569,6 +569,12 @@ context for the player's own dwellers. Feature contract: `docs/features/WORLD_MA
 now, but it should eventually move **under Exploration** — the map is an exploration surface, not a peer of
 it. Design deferred; decide the navigation shape when the exploration module next gets attention.
 
+**World activation (Track C) — DEFERRED (2026-10-06).** The reviewed candidate-preview/activation lifecycle
+(draft PR #901, `feat/world-activation`) is **not shipping now** — one shared world is enough and the machinery
+had no candidate source to exercise on master. Work is preserved on the branch; master keeps a single shared
+world and `generator_version` stays as recipe identity. Record and revival steps:
+`docs/features/WORLD_ACTIVATION_DEFERRED.md`.
+
 
 - 🔧 **Deployment parity** — deploy the v2.46.1 Dramatiq worker image with the discovery-unlock fix so new
   discoveries unlock live (the currently deployed worker runs pre-fix code).
@@ -1005,7 +1011,7 @@ immediately.
 
 ### Phase 3: Endgame
 
-- Pet system, legendary dwellers
+- ~~Pet system~~ **shipped** — dweller-equip pet domain (v2.164.0 #851, fix v2.165.1 #858); **legendary dwellers** remain.
 - Merchant system, economy
 - Achievement system, daily/weekly challenges
 - **Dead Dweller Reuse System** — parked; cross-vault encounters are out of scope under the single-vault exploration guardrail.
@@ -1014,13 +1020,16 @@ immediately.
   - Transformation chance: ghoul, synth, super mutant
   - ~~Cross-vault encounters with former dwellers~~ — out of scope
 
-### Apprentice System & Pets — design fragments (Issue #470)
+### Apprentice System (design fragment) & Pets (**SHIPPED** — Issue #470)
 
 Loose fragments from the #470 discussion, recorded so the decisions aren't lost.
 
 - ⬜ **Production/crafting bonus** — scaled by the apprentice's accrued SPECIAL skill, not a flat percentage;
   the more skilled the apprentice, the larger the room efficiency bonus. Remaining follow-up.
-- **Pets** — equip to a **dweller** (same slot shape as weapon/outfit) and grant catalog-resolved bonuses. Supersedes the obsolete room-assignment idea (pets assigned to `CAPACITY`/`TRAINING` rooms), which has been scrapped. Tracked under Phase 3.
+- ✅ **Pets — SHIPPED** (v2.164.0 #851, closes #470; fix v2.165.1 #858). Equip to a **dweller** (same slot
+  shape as weapon/outfit) and grant catalog-resolved bonuses. This **overrides** the obsolete room-assignment
+  idea (pets assigned to `CAPACITY`/`TRAINING` rooms), which has been scrapped. Implementation record:
+  `.omo/plans/pets.md`; see `CHANGELOG.md`.
 
 ### Onboarding — Guided Game Mechanics (design fragment, Target: TBD)
 
@@ -1320,9 +1329,12 @@ Current blocker map (what stalls what):
 
 ---
 
-_Last updated: 2026-09-20_ — grey-surface styling policy recorded under Frontend
+_Last updated: 2026-10-06_ — **pets recorded as SHIPPED** (dweller-equip pet domain, v2.164.0 #851 / fix
+v2.165.1 #858; overrides the #470 room-assignment idea). **World activation (Track C) recorded as DEFERRED** —
+not shipping; work parked on `feat/world-activation`, draft PR #901 unmerged, revival steps in
+`docs/features/WORLD_ACTIVATION_DEFERRED.md`. Earlier: grey-surface styling policy recorded under Frontend
 Design-System Consolidation (quest/objective cards lost their grey background in an earlier pass; a deliberate
-"which parts, on what condition, which shade" decision is deferred). Also on 2026-09-19: quest/objective progression
+"which parts, on what condition, which shade" decision is deferred). Also 2026-09-19: quest/objective progression
 plan recorded (`.omo/plans/quest-objective-progression.md`): sequenced starter objectives drive
 pre-Overseer's-Office guidance and quest gates follow the real-game level/equipment model with progressive reveal.
 Progression correctness remains P1; the D1 soft-lock stays a separate decision.

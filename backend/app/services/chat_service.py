@@ -62,6 +62,8 @@ class ChatService:
     ) -> DwellerChatResponse:
         """Validate quota, generate a reply, and persist the conversation."""
         dweller = await get_accessible_dweller(dweller_id, user, db_session)
+        if dweller.is_dead:
+            raise ValidationException(detail="Cannot chat with a dead dweller.")
 
         quota_result = await quota_service.check_quota(user.id, db_session)
         quota_result.ensure_allowed()
@@ -151,6 +153,9 @@ class ChatService:
         """Yield typed token, completion, or error events for one dweller response."""
         try:
             dweller = await get_accessible_dweller(dweller_id, user, db_session)
+            if dweller.is_dead:
+                yield ChatStreamError(detail="Cannot chat with a dead dweller.")
+                return
 
             quota_result = await quota_service.check_quota(user.id, db_session)
             quota_result.ensure_allowed()

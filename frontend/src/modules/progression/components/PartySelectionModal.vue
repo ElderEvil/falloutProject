@@ -186,14 +186,16 @@ const handleAssignAndStart = () => {
         class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
       >
         <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">{{ title ?? (quest ? `Start Quest: ${quest.title}` : 'Dispatch Dweller') }}</DialogTitle>
-        <button
+        <Button
           v-if="details"
+          variant="outline"
+          size="xs"
           type="button"
-          class="ml-auto cursor-pointer rounded-md border border-theme-primary/40 bg-theme-primary/10 px-3 py-1 font-mono text-xs font-bold text-theme-primary transition-colors hover:border-theme-primary/70 hover:bg-theme-primary/20"
+          class="ml-auto font-mono text-xs font-bold"
           @click="emit('details')"
         >
           Details
-        </button>
+        </Button>
       </DialogHeader>
       <p v-if="subtitle" class="border-b border-theme-primary/20 px-6 py-2 text-xs text-theme-primary/70">
         {{ subtitle }}

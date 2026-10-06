@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from '@/core/components/ui/dialog'
 import { Label } from '@/core/components/ui/label'
+import { Button } from '@/core/components/ui/button'
 import { Slider } from '@/core/components/ui/slider'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
 
@@ -115,14 +116,16 @@ const setRadaways = (value: number[] | undefined) => {
             <p class="text-sm text-theme-primary/80">
               {{ heading }} — {{ dwellerName }} travels in this direction.
             </p>
-            <button
+            <Button
               v-if="canReroll"
+              variant="outline"
+              size="xs"
               type="button"
-              class="cursor-pointer rounded-md border border-theme-primary/40 bg-theme-primary/10 px-3 py-1 font-mono text-xs font-bold text-theme-primary transition-colors hover:border-theme-primary/70 hover:bg-theme-primary/20"
+              class="font-mono text-xs font-bold"
               @click="emit('reroll')"
             >
               Change
-            </button>
+            </Button>
           </div>
         </div>
 

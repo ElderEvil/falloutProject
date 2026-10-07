@@ -10,7 +10,7 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
 // Mock Iconify
-vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' }))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 // Mock the components
 vi.mock('@/core/components/common/SidePanel.vue', () => ({

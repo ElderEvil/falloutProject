@@ -11,7 +11,7 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
 // Mock Iconify
-vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' }))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 // Mock useToast
 const mockToast = createToastMock()

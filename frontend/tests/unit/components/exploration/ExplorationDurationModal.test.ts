@@ -8,7 +8,7 @@ import { Dialog } from '@/core/components/ui/dialog'
 import { Slider } from '@/core/components/ui/slider'
 
 // Mock Iconify
-vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' }))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 let originalTeleportStub: unknown
 

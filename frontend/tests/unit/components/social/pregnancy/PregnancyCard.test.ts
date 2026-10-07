@@ -4,7 +4,7 @@ import { mount } from '@vue/test-utils'
 import PregnancyCard from '@/modules/social/components/pregnancy/PregnancyCard.vue'
 
 vi.mock('@iconify/vue', () =>
-  createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' })
+  createIconifyMock()
 )
 
 vi.mock('@/modules/social/stores/pregnancy', () => ({

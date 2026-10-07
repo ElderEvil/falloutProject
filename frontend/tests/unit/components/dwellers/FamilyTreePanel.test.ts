@@ -7,9 +7,7 @@ import FamilyTreePanel from '@/modules/dwellers/components/FamilyTreePanel.vue'
 import { useDwellerManagementStore } from '@/modules/dwellers/stores/dwellerManagement'
 import { createMockDwellerDetailContext, mountWithDwellerContext } from '../../helpers/dwellerDetailContext'
 
-vi.mock('@/iconify/vue', () =>
-  createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' })
-)
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 const mockLineage = {
   dweller_id: 'self',

@@ -14,7 +14,7 @@ vi.mock('@/core/composables/useSound', () => ({
   useSound: () => ({ playSound: soundMock.playSound }),
 }))
 
-vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' }))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 const result: LunchboxOpened = {
   reward_type: 'lunchbox',

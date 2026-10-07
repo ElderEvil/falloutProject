@@ -9,7 +9,7 @@ import ExpeditionSiteModal from '@/modules/exploration/components/ExpeditionSite
 import { useExpeditionSiteStore } from '@/modules/exploration/stores/expeditionSite'
 import type { AvailableSiteView, SiteRoomView } from '@/modules/exploration/api/expeditionSite'
 
-vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' }))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 const { mockList, mockEnter, mockResolve, mockRetreat } = vi.hoisted(() => ({
   mockList: vi.fn(),

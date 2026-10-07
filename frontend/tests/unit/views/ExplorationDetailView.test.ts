@@ -15,7 +15,7 @@ import ExpeditionSiteModal from '@/modules/exploration/components/ExpeditionSite
 import type { AvailableSiteView, SiteRoomView } from '@/modules/exploration/api/expeditionSite'
 
 // Mock Iconify
-vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' }))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 // Mock ExplorationRewardsModal
 vi.mock('@/modules/exploration/components/ExplorationRewardsModal.vue', () => ({

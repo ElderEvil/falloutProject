@@ -4,7 +4,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import RelationshipList from '@/modules/social/components/relationships/RelationshipList.vue'
 
 vi.mock('@iconify/vue', () =>
-  createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' })
+  createIconifyMock()
 )
 
 const { relationships, pregnancies, fetchVaultRelationships } = vi.hoisted(() => ({

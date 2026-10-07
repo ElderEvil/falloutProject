@@ -5,7 +5,7 @@ import RelationshipCard from '@/modules/social/components/relationships/Relation
 
 // Mock Iconify
 vi.mock('@iconify/vue', () =>
-  createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' })
+  createIconifyMock()
 )
 
 const dweller1 = {

@@ -4,7 +4,7 @@ import { mount } from '@vue/test-utils'
 import WastelandDropzone from '@/modules/exploration/components/WastelandDropzone.vue'
 
 // Mock Iconify
-vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' }))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 describe('WastelandDropzone', () => {
   it('renders the wasteland title and subtitle', () => {

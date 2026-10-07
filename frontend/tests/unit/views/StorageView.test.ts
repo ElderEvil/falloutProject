@@ -11,7 +11,7 @@ import axios from '@/core/plugins/axios'
 vi.mock('@/core/plugins/axios')
 
 // Mock Iconify so icon-only assertions read the resolved icon name
-vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' }))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 // Composables outside the scope of the pets-bucket tests
 const mockToast = createToastMock()

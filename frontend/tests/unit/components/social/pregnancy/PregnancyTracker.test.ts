@@ -4,7 +4,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import PregnancyTracker from '@/modules/social/components/pregnancy/PregnancyTracker.vue'
 
 vi.mock('@iconify/vue', () =>
-  createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' })
+  createIconifyMock()
 )
 
 const {

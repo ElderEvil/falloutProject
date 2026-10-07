@@ -3,7 +3,7 @@ import { createIconifyMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import ExplorationEventLog from '@/modules/exploration/components/ExplorationEventLog.vue'
 
-vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' }))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 const makeEvent = (overrides: Partial<{
   type: string

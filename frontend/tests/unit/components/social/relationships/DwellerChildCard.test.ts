@@ -4,7 +4,7 @@ import { mount } from '@vue/test-utils'
 import DwellerChildCard from '@/modules/social/components/relationships/DwellerChildCard.vue'
 
 vi.mock('@iconify/vue', () =>
-  createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' })
+  createIconifyMock()
 )
 
 const child = {

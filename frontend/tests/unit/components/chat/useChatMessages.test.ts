@@ -3,10 +3,8 @@ import { createAxiosMock } from '../../helpers/mocks'
 import { ref } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 
-const post = vi.fn()
-vi.mock('@/core/plugins/axios', () =>
-  createAxiosMock({ post: (...args: unknown[]) => post(...args) })
-)
+const post = vi.hoisted(() => vi.fn())
+vi.mock('@/core/plugins/axios', () => createAxiosMock({ post }))
 vi.mock('@/core/utils/errorHandler', () => ({ handleStoreError: () => 'error' }))
 
 import { useChatMessages } from '@/modules/chat/composables/useChatMessages'

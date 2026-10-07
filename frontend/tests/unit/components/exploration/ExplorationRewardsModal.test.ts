@@ -6,7 +6,7 @@ import { Dialog } from '@/core/components/ui/dialog'
 import ExplorationRewardsModal from '@/modules/exploration/components/ExplorationRewardsModal.vue'
 import type { RewardsSummary } from '@/modules/exploration/stores/exploration'
 
-vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' }))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 const { mockResolve } = vi.hoisted(() => ({ mockResolve: vi.fn() }))
 

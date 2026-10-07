@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
+import { createIconifyMock } from '../../helpers/mocks'
 import { config, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ExplorationDurationModal from '@/modules/exploration/components/ExplorationDurationModal.vue'
@@ -7,13 +8,7 @@ import { Dialog } from '@/core/components/ui/dialog'
 import { Slider } from '@/core/components/ui/slider'
 
 // Mock Iconify
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-mock" :data-icon="icon"></span>',
-    props: ['icon'],
-  },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' }))
 
 let originalTeleportStub: unknown
 

@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
+import { createIconifyMock } from '../../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import PartySlots from '@/modules/progression/components/party/PartySlots.vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 
-vi.mock('@iconify/vue', () => ({ Icon: { template: '<i />' } }))
+vi.mock('@iconify/vue', () => createIconifyMock({ template: '<i />', props: [] }))
 
 const dweller = (id: string, firstName: string, level = 1): DwellerShort =>
   ({

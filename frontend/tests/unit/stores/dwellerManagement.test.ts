@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createAxiosMock, createToastMock } from '../helpers/mocks'
 import { createPinia, setActivePinia } from 'pinia'
 import axios from '@/core/plugins/axios'
 import { audioManager } from '@/core/audio/audioManager'
@@ -6,19 +7,15 @@ import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import { useDwellerManagementStore } from '@/modules/dwellers/stores/dwellerManagement'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 
-vi.mock('@/core/plugins/axios', () => ({
-  default: {
-    post: vi.fn(),
-    put: vi.fn(),
-  },
-}))
+vi.mock('@/core/plugins/axios', () => createAxiosMock())
 
 vi.mock('@/core/audio/audioManager', () => ({
   audioManager: { play: vi.fn() },
 }))
 
+const mockToast = createToastMock()
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }),
+  useToast: () => mockToast,
 }))
 
 describe('useDwellerManagementStore', () => {

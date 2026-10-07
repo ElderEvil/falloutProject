@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createIconifyMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import GameControlPanel from '@/modules/vault/components/shell/GameControlPanel.vue'
 
@@ -25,7 +26,7 @@ vi.mock('@/modules/vault/stores/vault', () => ({ useVaultStore: () => vaultStore
 vi.mock('@/modules/auth/stores/auth', () => ({ useAuthStore: () => authStore }))
 vi.mock('@/modules/combat/stores/incident', () => ({ useIncidentStore: () => incidentStore }))
 vi.mock('@/core/utils/errorHandler', () => ({ handleStoreError: vi.fn() }))
-vi.mock('@iconify/vue', () => ({ Icon: { template: '<span />' } }))
+vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span />', props: [] }))
 
 describe('GameControlPanel', () => {
   beforeEach(() => {

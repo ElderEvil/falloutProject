@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createAxiosMock, createRouterMock } from '../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import SettingsView from '@/modules/profile/views/SettingsView.vue'
@@ -6,19 +7,9 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 
 // Settings is reachable without a loaded vault (the back nav falls back to `/`),
 // so the balance fetch failing must not block rendering the page shell.
-vi.mock('@/core/plugins/axios', () => ({
-  default: {
-    get: vi.fn().mockRejectedValue(new Error('offline')),
-  },
-}))
+vi.mock('@/core/plugins/axios', () => createAxiosMock({ get: vi.fn().mockRejectedValue(new Error('offline')) }))
 
-vi.mock('vue-router', () => ({
-  RouterLink: { template: '<a><slot /></a>' },
-  useRoute: () => ({ path: '/settings', params: {}, meta: {} }),
-  useRouter: () => ({
-    push: vi.fn(),
-  }),
-}))
+vi.mock('vue-router', () => createRouterMock({ path: '/settings', meta: {} }))
 
 describe('SettingsView', () => {
   beforeEach(() => {

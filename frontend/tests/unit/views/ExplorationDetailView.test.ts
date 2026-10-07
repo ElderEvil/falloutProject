@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { createIconifyMock, createToastMock } from '../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
@@ -14,13 +15,7 @@ import ExpeditionSiteModal from '@/modules/exploration/components/ExpeditionSite
 import type { AvailableSiteView, SiteRoomView } from '@/modules/exploration/api/expeditionSite'
 
 // Mock Iconify
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-mock" :data-icon="icon"></span>',
-    props: ['icon'],
-  },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' }))
 
 // Mock ExplorationRewardsModal
 vi.mock('@/modules/exploration/components/ExplorationRewardsModal.vue', () => ({
@@ -33,12 +28,9 @@ vi.mock('@/modules/exploration/components/ExplorationRewardsModal.vue', () => ({
 }))
 
 // Mock useToast
+const mockToast = createToastMock()
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-  }),
+  useToast: () => mockToast,
 }))
 
 // Mock usePolling - call immediate fn once, no interval

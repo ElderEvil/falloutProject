@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createIconifyMock, createRouterMock, createToastMock } from '../helpers/mocks'
 import { flushPromises, mount, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ExplorationView from '@/modules/exploration/views/ExplorationView.vue'
@@ -7,21 +8,13 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
-vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: { id: 'vault-123' } }),
-}))
+vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-123' } }))
 
-vi.mock('@iconify/vue', () => ({
-  Icon: { name: 'Icon', template: '<span class="icon-mock" />' },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" />', props: [] }))
 
+const mockToast = createToastMock()
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-    warning: vi.fn(),
-  }),
+  useToast: () => mockToast,
 }))
 
 vi.mock('@/core/composables/usePolling', () => ({

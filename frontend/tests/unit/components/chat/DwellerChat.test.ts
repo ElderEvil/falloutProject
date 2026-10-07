@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest'
+import { createAxiosMock, createIconifyMock, createToastMock } from '../../helpers/mocks'
 import { ref } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
@@ -10,20 +11,11 @@ import { useProfileStore } from '@/modules/profile/stores/profile'
 import * as trainingService from '@/modules/progression/services/trainingService'
 
 // iconify's Icon ships with no component name, so VTU stubs can't match it — mock the module instead.
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-stub" :data-icon="icon"></span>',
-    props: ['icon'],
-  },
-}))
+vi.mock('@iconify/vue', () =>
+  createIconifyMock({ template: '<span class="icon-stub" :data-icon="icon"></span>' })
+)
 
-vi.mock('@/core/plugins/axios', () => ({
-  default: {
-    get: vi.fn(),
-    post: vi.fn(),
-  },
-}))
+vi.mock('@/core/plugins/axios', () => createAxiosMock())
 
 vi.mock('@/modules/chat/composables/useAudioRecorder', () => ({
   useAudioRecorder: () => ({
@@ -60,18 +52,10 @@ vi.mock('@/core/composables/useWebSocket', () => ({
 }))
 
 // Mock useToast
-const { mockToastSuccess, mockToastError, mockToastInfo } = vi.hoisted(() => ({
-  mockToastSuccess: vi.fn(),
-  mockToastError: vi.fn(),
-  mockToastInfo: vi.fn(),
-}))
+const mockToast = createToastMock()
 
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({
-    success: mockToastSuccess,
-    error: mockToastError,
-    info: mockToastInfo,
-  }),
+  useToast: () => mockToast,
 }))
 
 // Mock trainingService
@@ -1289,7 +1273,7 @@ describe('DwellerChat', () => {
       await confirmBtn.trigger('click')
       await flushPromises()
 
-      expect(mockToastError).toHaveBeenCalledWith('No training rooms available')
+      expect(mockToast.error).toHaveBeenCalledWith('No training rooms available')
     })
 
     it('should show error when all training rooms at capacity', async () => {
@@ -1393,7 +1377,7 @@ describe('DwellerChat', () => {
       await confirmBtn.trigger('click')
       await flushPromises()
 
-      expect(mockToastError).toHaveBeenCalledWith('No available training rooms (all at capacity)')
+      expect(mockToast.error).toHaveBeenCalledWith('No available training rooms (all at capacity)')
     })
   })
 
@@ -1981,7 +1965,7 @@ describe('DwellerChat', () => {
       await wrapper.find('.action-confirm-btn').trigger('click')
       await flushPromises()
 
-      expect(mockToastError).toHaveBeenCalledWith('Test Dweller is too young for the wasteland')
+      expect(mockToast.error).toHaveBeenCalledWith('Test Dweller is too young for the wasteland')
       expect(mockSendDwellerToWasteland).not.toHaveBeenCalled()
       expect(wrapper.find('.duration-button').exists()).toBe(false)
       expect(wrapper.find('.action-suggestion-card').exists()).toBe(true)
@@ -2245,7 +2229,7 @@ describe('DwellerChat', () => {
 
       expect(unassignSpy).toHaveBeenCalledWith('dweller-123', 'test-token')
       expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'room-456', 'test-token')
-      expect(mockToastError).toHaveBeenCalledWith('Failed to send dweller to wasteland')
+      expect(mockToast.error).toHaveBeenCalledWith('Failed to send dweller to wasteland')
       // A failed send keeps the card so the player can retry.
       expect(wrapper.find('.action-suggestion-card').exists()).toBe(true)
     })

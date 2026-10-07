@@ -1,14 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
+import { createIconifyMock } from '../../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import DwellerChildCard from '@/modules/social/components/relationships/DwellerChildCard.vue'
 
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-mock" :data-icon="icon"></span>',
-    props: ['icon'],
-  },
-}))
+vi.mock('@iconify/vue', () =>
+  createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' })
+)
 
 const child = {
   id: 'c1',

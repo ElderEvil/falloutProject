@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createIconifyMock } from '../../helpers/mocks'
 import { flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { ref } from 'vue'
@@ -6,13 +7,9 @@ import FamilyTreePanel from '@/modules/dwellers/components/FamilyTreePanel.vue'
 import { useDwellerManagementStore } from '@/modules/dwellers/stores/dwellerManagement'
 import { createMockDwellerDetailContext, mountWithDwellerContext } from '../../helpers/dwellerDetailContext'
 
-vi.mock('@/iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-mock" :data-icon="icon"></span>',
-    props: ['icon'],
-  },
-}))
+vi.mock('@/iconify/vue', () =>
+  createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' })
+)
 
 const mockLineage = {
   dweller_id: 'self',

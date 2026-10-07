@@ -1,14 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
+import { createIconifyMock } from '../../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import PregnancyCard from '@/modules/social/components/pregnancy/PregnancyCard.vue'
 
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-mock" :data-icon="icon"></span>',
-    props: ['icon'],
-  },
-}))
+vi.mock('@iconify/vue', () =>
+  createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' })
+)
 
 vi.mock('@/modules/social/stores/pregnancy', () => ({
   usePregnancyStore: () => ({

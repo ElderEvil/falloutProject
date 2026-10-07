@@ -1,15 +1,10 @@
 import { describe, it, expect, vi } from 'vitest'
+import { createIconifyMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import ResourceBar from '@/modules/vault/components/shell/ResourceBar.vue'
 
 // Mock @iconify/vue
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    props: ['icon'],
-    template: '<div class="mock-icon" :data-icon="icon"></div>',
-  },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock({ template: '<div class="mock-icon" :data-icon="icon"></div>' }))
 
 describe('ResourceBar', () => {
   describe('Props', () => {

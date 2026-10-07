@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createRouterMock } from '../helpers/mocks'
 import { mount, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ObjectivesView from '@/modules/progression/views/ObjectivesView.vue'
@@ -6,11 +7,7 @@ import ObjectiveCompleteModal from '@/modules/progression/components/ObjectiveCo
 import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import type { Objective } from '@/modules/progression/models/objective'
 
-vi.mock('vue-router', () => ({
-  useRoute: () => ({
-    params: { id: 'vault-123' },
-  }),
-}))
+vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-123' } }))
 
 const claimableObjective: Objective = {
   id: 'obj-1',

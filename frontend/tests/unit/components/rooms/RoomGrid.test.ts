@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { createRouterMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import RoomGrid from '@/modules/rooms/components/RoomGrid.vue'
@@ -9,9 +10,7 @@ import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
 
-vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: { id: 'vault-1' } }),
-}))
+vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' } }))
 
 // TooltipLabel is a thin presentational wrapper; stubbing it lets isolated cell
 // mounts skip the TooltipProvider ancestor and exposes each label as text.

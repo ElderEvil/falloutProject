@@ -1,16 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
+import { createIconifyMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import ChatMessageList from '@/modules/chat/components/ChatMessageList.vue'
 import type { ChatMessageDisplay } from '@/modules/chat/models/chat'
 
 // iconify's Icon ships with no component name, so VTU stubs can't match it — mock the module instead.
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-stub" :data-icon="icon"></span>',
-    props: ['icon'],
-  },
-}))
+vi.mock('@iconify/vue', () =>
+  createIconifyMock({ template: '<span class="icon-stub" :data-icon="icon"></span>' })
+)
 
 type ListProps = InstanceType<typeof ChatMessageList>['$props']
 

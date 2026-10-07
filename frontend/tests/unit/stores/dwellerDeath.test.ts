@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { createToastMock } from '../helpers/mocks'
 import { setActivePinia, createPinia } from 'pinia'
 import axios from '@/core/plugins/axios'
 
@@ -6,11 +7,9 @@ vi.mock('@/core/plugins/axios')
 vi.mock('@/core/utils/errorHandler', () => ({
   handleStoreError: vi.fn(),
 }))
+const mockToast = createToastMock()
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-  }),
+  useToast: () => mockToast,
 }))
 vi.mock('@/modules/dwellers/stores/dwellerFilter', () => ({
   useDwellerFilterStore: () => ({

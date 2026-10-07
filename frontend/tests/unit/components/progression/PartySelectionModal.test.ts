@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createIconifyMock } from '../../helpers/mocks'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import PartySelectionModal from '@/modules/progression/components/PartySelectionModal.vue'
@@ -7,7 +8,7 @@ import { useQuestStore, type EligibleDweller } from '@/modules/progression/store
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { VaultQuest } from '@/modules/progression/models/quest'
 
-vi.mock('@iconify/vue', () => ({ Icon: { template: '<i />' } }))
+vi.mock('@iconify/vue', () => createIconifyMock({ template: '<i />', props: [] }))
 
 const socializingDweller = {
   id: 'dweller-1',

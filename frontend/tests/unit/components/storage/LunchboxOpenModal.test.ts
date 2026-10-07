@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createIconifyMock } from '../../helpers/mocks'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import LunchboxOpenModal from '@/modules/storage/components/LunchboxOpenModal.vue'
 import type { components } from '@/core/types/api.generated'
@@ -13,13 +14,7 @@ vi.mock('@/core/composables/useSound', () => ({
   useSound: () => ({ playSound: soundMock.playSound }),
 }))
 
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-mock" :data-icon="icon"></span>',
-    props: ['icon'],
-  },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon"></span>' }))
 
 const result: LunchboxOpened = {
   reward_type: 'lunchbox',

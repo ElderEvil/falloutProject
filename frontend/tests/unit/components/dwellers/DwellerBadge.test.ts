@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createIconifyMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
@@ -10,13 +11,9 @@ vi.mock('@/modules/dwellers/services/dwellerService', () => ({
   getIdentityOptions: vi.fn().mockResolvedValue({ races: [], factions_by_race: {}, states_by_race: {} }),
 }))
 
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    props: ['icon'],
-    template: '<span class="icon-mock" :data-icon="icon" />',
-  },
-}))
+vi.mock('@iconify/vue', () =>
+  createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon" />' })
+)
 
 const visualAttributes = {
   race: 'super_mutant',

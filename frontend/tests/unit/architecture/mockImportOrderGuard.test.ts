@@ -7,16 +7,20 @@ import { describe, expect, it } from 'vitest'
  *
  * The axios/router/iconify factories run when the mocked module is first
  * imported, so the helper module must already be evaluated: the helpers
- * import has to precede any import that can pull in a mocked module or the
- * component under test. Toast factory calls happen at module scope and are
- * order-independent, so only axios/router/iconify factory calls are checked.
+ * import has to precede any import that can trigger evaluation of app code
+ * or a mocked module. That means every static import form — single-line and
+ * multiline, path (at-slash and relative) and bare (vue-router, iconify and
+ * friends) — except the known-inert test runtimes themselves. Toast factory
+ * calls happen at module scope and are order-independent, so only
+ * axios/router/iconify factory calls are checked.
  */
 
 const UNIT_TESTS_DIR = join(process.cwd(), 'tests/unit')
 const SELF = 'architecture/mockImportOrderGuard.test.ts'
-const HELPER_IMPORT = /from\s+['"](?:\.\.?\/)+helpers\/mocks['"]/
 const FACTORY_CALL = /create(?:Axios|Router|Iconify)Mock\s*\(/
-const RISKY_IMPORT = /^import\s+(?:.*\s+from\s+)?['"]((?:@\/|\.\.?\/)(?!.*helpers\/mocks)[^'"]*)['"]/
+const IMPORT_RE = /^import\s+(?:[\s\S]*?\sfrom\s+)?['"]([^'"]+)['"]/gm
+const HELPER_SOURCE_SUFFIX = 'helpers/mocks'
+const INERT_SOURCE = /^(vitest|vue|pinia|@vue\/test-utils)(\/|$)/
 
 function walkTestFiles(dir: string): string[] {
   const files: string[] = []
@@ -37,12 +41,18 @@ describe('mock helper import order', () => {
     for (const file of walkTestFiles(UNIT_TESTS_DIR)) {
       const rel = relative(UNIT_TESTS_DIR, file).split('\\').join('/')
       if (rel === SELF) continue
-      const lines = readFileSync(file, 'utf8').split('\n')
-      if (!lines.some((line) => FACTORY_CALL.test(line))) continue
-      const helperLine = lines.findIndex((line) => HELPER_IMPORT.test(line))
-      const riskyLine = lines.findIndex((line) => RISKY_IMPORT.test(line))
-      if (helperLine === -1 || riskyLine === -1 || helperLine > riskyLine) {
-        violations.push(`${rel} (helper@${helperLine + 1}, first risky import@${riskyLine + 1})`)
+      const source = readFileSync(file, 'utf8')
+      if (!source.includes('vi.mock(') || !FACTORY_CALL.test(source)) continue
+      const imports: { source: string; index: number }[] = []
+      for (const match of source.matchAll(IMPORT_RE)) {
+        imports.push({ source: match[1], index: match.index ?? 0 })
+      }
+      const helper = imports.find((imp) => imp.source.endsWith(HELPER_SOURCE_SUFFIX))
+      const risky = imports.find(
+        (imp) => !imp.source.endsWith(HELPER_SOURCE_SUFFIX) && !INERT_SOURCE.test(imp.source)
+      )
+      if (!helper || !risky || helper.index > risky.index) {
+        violations.push(`${rel} (helpers/mocks must precede every app/bare import)`)
       }
     }
     expect(violations).toEqual([])

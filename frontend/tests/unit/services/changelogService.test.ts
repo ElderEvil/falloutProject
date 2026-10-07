@@ -1,7 +1,9 @@
-import { AxiosError } from 'axios'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import apiClient from '@/core/plugins/axios'
+import { createApiClientMock } from '../helpers/mocks'
+import { apiGet } from '@/core/utils/api'
 import { changelogService, type ChangelogEntry } from '@/modules/profile/services/changelogService'
+
+vi.mock('@/core/utils/api', () => createApiClientMock())
 
 describe('ChangelogService', () => {
   afterEach(() => {
@@ -26,10 +28,13 @@ describe('ChangelogService', () => {
         },
       ]
 
-      vi.spyOn(apiClient, 'get').mockResolvedValue({ data: mockData })
+      vi.mocked(apiGet).mockResolvedValue(mockData)
 
       const result = await changelogService.getChangelog({ limit: 5 })
 
+      expect(apiGet).toHaveBeenCalledWith('/api/v1/system/changelog', {
+        params: { limit: 5 },
+      })
       expect(Array.isArray(result)).toBe(true)
       expect(result.length).toBe(1)
       expect(result[0]).toHaveProperty('version')
@@ -39,7 +44,7 @@ describe('ChangelogService', () => {
     })
 
     it('should handle API errors gracefully', async () => {
-      vi.spyOn(apiClient, 'get').mockRejectedValue(new Error('API error'))
+      vi.mocked(apiGet).mockRejectedValue(new Error('API error'))
 
       const result = await changelogService.getChangelog({ limit: 1 })
 
@@ -57,7 +62,7 @@ describe('ChangelogService', () => {
         changes: [{ category: 'Added', description: 'New feature' }],
       }
 
-      vi.spyOn(apiClient, 'get').mockResolvedValue({ data: mockData })
+      vi.mocked(apiGet).mockResolvedValue(mockData)
 
       const result = await changelogService.getLatestChangelog()
 
@@ -68,7 +73,7 @@ describe('ChangelogService', () => {
     })
 
     it('should return null on API error', async () => {
-      vi.spyOn(apiClient, 'get').mockRejectedValue(new Error('API error'))
+      vi.mocked(apiGet).mockRejectedValue(new Error('API error'))
 
       const result = await changelogService.getLatestChangelog()
 
@@ -76,12 +81,7 @@ describe('ChangelogService', () => {
     })
 
     it('should return null on 404 error without logging', async () => {
-      const error404 = new AxiosError('Not Found', undefined, undefined, undefined, {
-        status: 404,
-        data: {},
-      } as any)
-
-      vi.spyOn(apiClient, 'get').mockRejectedValue(error404)
+      vi.mocked(apiGet).mockRejectedValue({ status: 404 })
       const consoleSpy = vi.spyOn(console, 'error')
 
       const result = await changelogService.getLatestChangelog()

@@ -132,17 +132,25 @@ The 7-day delay can slow urgent security patches. When a verified fix must ship 
 4. Run `pnpm run lint`, `pnpm run typecheck`, and `pnpm run test:run` before merging.
 5. Keep the PR and CI green, then remove the temporary exclusion in a follow-up commit once the verified version is locked and the emergency window has passed.
 
-## Planned HTTP Client Migration
+## HTTP Client Migration
 
-We plan to deprecate `axios` through a staged migration, but this is not active in the current release.
-The migration plan, phases, risks, and done criteria are tracked in [`HTTP_CLIENT_MIGRATION.md`](./HTTP_CLIENT_MIGRATION.md).
-Today, `src/core/utils/api.ts` does not exist. Axios remains the active HTTP client via
-`@/core/plugins/axios`; any shared HTTP boundary is deferred to the staged migration.
+`axios` is being deprecated through a staged migration tracked in
+[`HTTP_CLIENT_MIGRATION.md`](./HTTP_CLIENT_MIGRATION.md). The approved sequence:
 
-Current policy during planning/migration:
+1. `src/core/utils/api.ts` now exists as an **axios-backed shim** over `@/core/plugins/axios`
+   (Batch 1). Use `apiGet`/`apiPost`/`apiPut`/`apiPatch`/`apiDelete` (or the `api.*` sugar);
+   `apiRequest` returns the full `AxiosResponse` for call sites that need it. Errors normalize to
+   `ApiError { status, detail, fields, headers, cause }`.
+2. Batches 2–4 migrate the remaining services, stores, and exploration/chat call sites.
+3. A later slice swaps the implementation to native `fetch` behind the same `api.ts` surface.
 
-- Avoid introducing new direct `axios` imports in new code.
-- Do not introduce a new HTTP boundary until the migration is approved.
+Toasts are caller-owned: the boundary throws and never notifies. The axios interceptor's
+notifications stay byte-identical until a dedicated behavior-changing slice removes them.
+
+Policy during migration:
+
+- Prefer `@/core/utils/api.ts` for runtime calls in new/updated code.
+- Avoid new direct runtime `axios` imports; type-only imports (e.g. `AxiosResponse`) are allowed.
 
 ## 🚀 Quick Start
 

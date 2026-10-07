@@ -10,10 +10,11 @@ import { vi, type Mock } from 'vitest'
  *
  * - `createToastMock` is called at module scope and referenced through a nested
  *   arrow (`{ useToast: () => mockToast }`), which is order-independent.
- * - `createAxiosMock`, `createRouterMock` and `createIconifyMock` are called
- *   *inside* the `vi.mock` factory, so this helper's import must appear before
- *   the first import that pulls in the mocked module or the component under
- *   test (put it directly after the `vitest` import).
+ * - `createAxiosMock`, `createApiClientMock`, `createRouterMock` and
+ *   `createIconifyMock` are called *inside* the `vi.mock` factory, so this
+ *   helper's import must appear before the first import that pulls in the
+ *   mocked module or the component under test (put it directly after the
+ *   `vitest` import).
  */
 
 export interface ToastSpies {
@@ -72,6 +73,59 @@ export function createAxiosMock(overrides: Partial<AxiosClientSpies> = {}): {
       request: vi.fn(),
       ...overrides,
     },
+  }
+}
+
+export interface ApiClientSpies {
+  apiGet: Mock
+  apiPost: Mock
+  apiPut: Mock
+  apiPatch: Mock
+  apiDelete: Mock
+  apiRequest: Mock
+  authHeaders: Mock
+  api: {
+    get: Mock
+    post: Mock
+    put: Mock
+    patch: Mock
+    delete: Mock
+    request: Mock
+  }
+}
+
+/**
+ * Module-namespace mock for `@/core/utils/api` (the typed HTTP boundary).
+ *
+ * ```ts
+ * vi.mock('@/core/utils/api', () => createApiClientMock())
+ * vi.mock('@/core/utils/api', () => createApiClientMock({ apiGet: myGetSpy }))
+ * ```
+ */
+export function createApiClientMock(overrides: Partial<ApiClientSpies> = {}): ApiClientSpies {
+  const apiGet = overrides.apiGet ?? vi.fn()
+  const apiPost = overrides.apiPost ?? vi.fn()
+  const apiPut = overrides.apiPut ?? vi.fn()
+  const apiPatch = overrides.apiPatch ?? vi.fn()
+  const apiDelete = overrides.apiDelete ?? vi.fn()
+  const apiRequest = overrides.apiRequest ?? vi.fn()
+  return {
+    apiGet,
+    apiPost,
+    apiPut,
+    apiPatch,
+    apiDelete,
+    apiRequest,
+    authHeaders: overrides.authHeaders ?? vi.fn(() => ({})),
+    api:
+      overrides.api ?? {
+        get: apiGet,
+        post: apiPost,
+        put: apiPut,
+        patch: apiPatch,
+        delete: apiDelete,
+        request: apiRequest,
+      },
   }
 }
 

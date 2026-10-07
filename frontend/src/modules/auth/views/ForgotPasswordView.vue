@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import axios from '@/core/plugins/axios'
+import { apiPost } from '@/core/utils/api'
+import { getErrorMessage } from '@/core/utils/errorHandler'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import { Input } from '@/core/components/ui/input'
@@ -22,13 +23,13 @@ const handleSubmit = async () => {
   loading.value = true
 
   try {
-    await axios.post('/api/v1/auth/forgot-password', {
+    await apiPost('/api/v1/auth/forgot-password', {
       email: email.value,
     })
 
     success.value = true
-  } catch (err: any) {
-    error.value = err.response?.data?.detail || 'Failed to send reset email'
+  } catch (err) {
+    error.value = getErrorMessage(err, 'Failed to send reset email')
   } finally {
     loading.value = false
   }

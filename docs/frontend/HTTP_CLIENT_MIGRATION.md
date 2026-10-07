@@ -1,9 +1,26 @@
 # HTTP Client Migration Plan (Axios -> Fetch Adapter)
 
-Status: planned (intent declared)
+Status: in progress — Batch 1 shipped (axios-backed boundary)
 
 This document defines the staged migration away from `axios` to a native-fetch-based adapter.
-No runtime behavior changes are part of this planning update.
+
+## Approved sequence
+
+1. **Now (Batch 1):** create `src/core/utils/api.ts` as an **axios-backed shim** over
+   `@/core/plugins/axios`. Named helpers (`apiGet`/`apiPost`/`apiPut`/`apiPatch`/`apiDelete`),
+   an `api.*` sugar object, `apiRequest` (full `AxiosResponse` escape hatch) and `authHeaders`
+   (for later SSE, not yet migrated). Errors normalize to `ApiError { status, detail, fields,
+   headers, cause }`; `getErrorMessage` reads both `ApiError` and raw `AxiosError`.
+2. **Batches 2–4:** migrate remaining services, stores, and the exploration/chat call sites in
+   module-sized slices.
+3. **Later:** replace the axios-backed implementation with native `fetch` behind the same
+   `api.ts` surface; the public API stays stable across that swap.
+4. **Toasts stay caller-owned until a dedicated slice.** The interceptor's current notifications
+   remain byte-identical for now; removing them is a separate behavior-changing change, not part
+   of the boundary work.
+
+Batch 1 migrates: core public reads (AssetGalleryView), auth service/views, profile services +
+store + SettingsView, and ai-settings service.
 
 ## Why this migration
 
@@ -15,6 +32,8 @@ No runtime behavior changes are part of this planning update.
 
 - In scope: frontend HTTP layer, service/store call sites, and tests that mock the HTTP client.
 - Out of scope for planning phase: API contract changes, backend endpoint changes, and UX redesign.
+- Out of scope for Batch 1: removing interceptor notifications, migrating SSE, and swapping the
+  implementation to native fetch.
 
 ## Baseline snapshot (before migration)
 

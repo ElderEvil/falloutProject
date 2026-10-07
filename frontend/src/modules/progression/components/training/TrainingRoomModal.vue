@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
 import { Button } from '@/core/components/ui/button'
 import { Alert } from '@/core/components/ui/alert'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TrainingProgressCard from './TrainingProgressCard.vue'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -152,16 +152,13 @@ watch(
 </script>
 
 <template>
-  <Dialog :open="modelValue" @update:open="(open) => { if (!open) close() }">
-    <DialogContent
-      class="flex max-h-[80vh] w-full max-w-5xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-5xl"
-    >
-      <DialogHeader
-        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
-      >
-        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">{{ room ? `${room.name} - Training Room` : 'Training Room' }}</DialogTitle>
-      </DialogHeader>
-
+  <TerminalModal
+    :open="modelValue"
+    :title="room ? `${room.name} - Training Room` : 'Training Room'"
+    size="5xl"
+    max-height="80"
+    @close="close"
+  >
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
 
     <div v-if="room" class="training-modal">
@@ -259,8 +256,7 @@ watch(
       </div>
       </div>
     </div>
-    </DialogContent>
-  </Dialog>
+  </TerminalModal>
 </template>
 
 <style scoped>

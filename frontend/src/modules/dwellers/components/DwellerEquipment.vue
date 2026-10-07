@@ -6,7 +6,7 @@ import { usePetsStore } from '@/modules/pets/stores/pets'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import EquipmentCard from '@/modules/combat/components/equipment/EquipmentCard.vue'
 import PetCard from '@/modules/pets/components/PetCard.vue'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import { getItemIcon } from '@/core/models/items'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 
@@ -194,18 +194,16 @@ const modalIcon = computed(() => {
     </div>
 
     <!-- Inventory Modal -->
-    <Dialog v-model:open="showInventoryModal">
-      <DialogContent
-        class="flex max-h-[75vh] w-full max-w-xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-xl"
-      >
-        <DialogHeader
-          class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
-        >
-          <DialogTitle class="modal-title text-theme-primary terminal-glow">
-            <Icon :icon="modalIcon" />
-            {{ modalTitle }}
-          </DialogTitle>
-        </DialogHeader>
+    <TerminalModal
+      v-model:open="showInventoryModal"
+      size="xl"
+      max-height="75"
+      title-class="modal-title text-theme-primary terminal-glow"
+    >
+        <template #title>
+          <Icon :icon="modalIcon" />
+          {{ modalTitle }}
+        </template>
 
         <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
           <div class="items-list">
@@ -255,8 +253,7 @@ const modalIcon = computed(() => {
             </template>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </TerminalModal>
   </div>
 </template>
 

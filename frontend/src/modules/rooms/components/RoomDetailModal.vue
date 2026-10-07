@@ -7,8 +7,8 @@ import { useRoomProduction } from '../composables/useRoomProduction'
 import { useRoomUpgrade } from '../composables/useRoomUpgrade'
 import { useRoomDwellers } from '../composables/useRoomDwellers'
 import { useRadioRoom } from '../composables/useRadioRoom'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
 import RoomDetailHeader from './RoomDetailHeader.vue'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import RoomPreviewSection from './RoomPreviewSection.vue'
 import ProductionStats from './ProductionStats.vue'
 import DwellerList from './DwellerList.vue'
@@ -135,23 +135,20 @@ onUnmounted(stopAmbience)
 </script>
 
 <template>
-  <Dialog
+  <TerminalModal
     :open="modelValue"
+    size="5xl"
+    max-height="80"
+    title-as-child
     @update:open="(open) => { if (!open) { emit('update:modelValue', false); emit('close') } }"
   >
-    <DialogContent
-      class="flex max-h-[80vh] w-full max-w-5xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-5xl"
-    >
-      <DialogHeader
-        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
-      >
-        <DialogTitle v-if="room" as-child>
-          <RoomDetailHeader
-            :room="room"
-            :resource-icon="resourceIcon"
-          />
-        </DialogTitle>
-      </DialogHeader>
+      <template #title>
+        <RoomDetailHeader
+          v-if="room"
+          :room="room"
+          :resource-icon="resourceIcon"
+        />
+      </template>
 
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
         <div v-if="room" class="modal-content">
@@ -266,8 +263,7 @@ onUnmounted(stopAmbience)
       </template>
         </div>
       </div>
-    </DialogContent>
-  </Dialog>
+  </TerminalModal>
 </template>
 
 <style scoped>

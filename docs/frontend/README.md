@@ -132,17 +132,26 @@ The 7-day delay can slow urgent security patches. When a verified fix must ship 
 4. Run `pnpm run lint`, `pnpm run typecheck`, and `pnpm run test:run` before merging.
 5. Keep the PR and CI green, then remove the temporary exclusion in a follow-up commit once the verified version is locked and the emergency window has passed.
 
-## Planned HTTP Client Migration
+## HTTP Client Migration
 
-We plan to deprecate `axios` through a staged migration, but this is not active in the current release.
-The migration plan, phases, risks, and done criteria are tracked in [`HTTP_CLIENT_MIGRATION.md`](./HTTP_CLIENT_MIGRATION.md).
-Today, `src/core/utils/api.ts` does not exist. Axios remains the active HTTP client via
-`@/core/plugins/axios`; any shared HTTP boundary is deferred to the staged migration.
+`axios` call sites are being consolidated onto a typed boundary tracked in
+[`HTTP_CLIENT_MIGRATION.md`](./HTTP_CLIENT_MIGRATION.md). The approved sequence:
 
-Current policy during planning/migration:
+1. `src/core/utils/api.ts` is the shared API boundary over `@/core/plugins/axios`
+   (Batch 1, in review). Use `apiGet`/`apiPost`/`apiPut`/`apiPatch`/`apiDelete` (or the `api.*` sugar);
+   `apiRequest` returns the full `AxiosResponse` where callers need response status or headers. Errors normalize to
+   `ApiError { status, detail, fields, headers, cause }`.
+2. Batches 2–4 migrate the remaining services, stores, and exploration/chat call sites.
+3. A later behavior-changing slice removes interceptor notifications (caller-owned toasts end to end).
 
-- Avoid introducing new direct `axios` imports in new code.
-- Do not introduce a new HTTP boundary until the migration is approved.
+Caller-owned toasts are the target: the boundary throws and never notifies, but the axios
+interceptor's notifications stay byte-identical for now, so both layers can notify today.
+Removing interceptor notifications is a dedicated behavior-changing slice.
+
+Policy during migration:
+
+- Prefer `@/core/utils/api.ts` for runtime calls in new/updated code.
+- Avoid new direct runtime `axios` imports; type-only imports (e.g. `AxiosResponse`) are allowed.
 
 ## 🚀 Quick Start
 
@@ -421,7 +430,7 @@ const apiUrl = import.meta.env.VITE_API_BASE_URL
 - **[STYLEGUIDE.md](./STYLEGUIDE.md)** - Complete design system guide
 - **[ACCESSIBILITY.md](./ACCESSIBILITY.md)** - WCAG target, implementation policy, and verification plan
 - **[src/core/components/ui/README.md](./src/core/components/ui/README.md)** - UI component API
-- **[HTTP_CLIENT_MIGRATION.md](./HTTP_CLIENT_MIGRATION.md)** - Axios deprecation and migration plan
+- **[HTTP_CLIENT_MIGRATION.md](./HTTP_CLIENT_MIGRATION.md)** - Shared API boundary consolidation plan
 
 ## 🔧 Troubleshooting
 

@@ -604,7 +604,7 @@ import { useToast } from '@/core/composables/useToast'
 import { useBackNavigation } from '@/core/composables/useBackNavigation'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import apiClient from '@/core/plugins/axios'
+import { apiGet } from '@/core/utils/api'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
@@ -646,8 +646,7 @@ const error = ref<string | null>(null)
 
 async function loadSettings() {
   try {
-    const response = await apiClient.get('/api/v1/game/balance')
-    settings.value = response.data
+    settings.value = await apiGet('/api/v1/game/balance')
   } catch (err) {
     error.value = 'Failed to load game balance settings'
     showError('Failed to load game balance settings')

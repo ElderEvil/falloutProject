@@ -68,6 +68,9 @@ async def use_stimpack(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
     if dweller_obj is None:
         raise ResourceNotFoundException(Dweller, identifier=dweller_id)
 
+    if dweller_obj.is_dead:
+        raise ResourceConflictException(detail="Dead dweller must be revived before treatment.")
+
     if dweller_obj.stimpack <= 0:
         raise ResourceConflictException(detail="No stimpacks available to use.")
 
@@ -87,6 +90,9 @@ async def use_radaway(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
     dweller_obj = await dweller_crud.get_for_update(db_session, dweller_id)
     if dweller_obj is None:
         raise ResourceNotFoundException(Dweller, identifier=dweller_id)
+
+    if dweller_obj.is_dead:
+        raise ResourceConflictException(detail="Dead dweller must be revived before treatment.")
 
     if not can_use_radaway(dweller_obj):
         raise ResourceConflictException(detail="This dweller cannot use RadAway.")

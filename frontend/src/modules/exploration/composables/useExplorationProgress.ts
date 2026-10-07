@@ -1,12 +1,10 @@
-import { computed, onMounted, onUnmounted, ref, toValue } from 'vue'
+import { computed, toValue } from 'vue'
 import type { MaybeRefOrGetter } from 'vue'
+import { useNow } from '@/core/composables/useNow'
+import { formatRemaining, parseUtcMs as parseStartTimeMs } from '@/core/utils/time'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 
-export function parseStartTimeMs(startTime: string): number {
-  const normalized = startTime.includes('T') ? startTime : startTime.replace(' ', 'T')
-  const withZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized) ? normalized : `${normalized}Z`
-  return new Date(withZone).getTime()
-}
+export { formatRemaining, parseStartTimeMs }
 
 export function getProgressPercentage(exploration: Exploration, nowMs = Date.now()): number {
   if (exploration.status === 'returning') {
@@ -21,13 +19,6 @@ export function getProgressPercentage(exploration: Exploration, nowMs = Date.now
   const start = parseStartTimeMs(exploration.start_time)
   const durationMs = exploration.duration * 3600 * 1000
   return Math.max(0, Math.min(100, ((nowMs - start) / durationMs) * 100))
-}
-
-export function formatRemaining(seconds: number): string {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  if (hours > 0) return `${hours}h ${minutes}m remaining`
-  return `${minutes}m remaining`
 }
 
 export function getTimeRemaining(exploration: Exploration, nowMs = Date.now()): string {
@@ -54,18 +45,7 @@ export function isReadyToComplete(exploration: Exploration, nowMs = Date.now()):
 export function useExplorationProgress(
   exploration: MaybeRefOrGetter<Exploration | null | undefined>
 ) {
-  const now = ref(Date.now())
-  let clock: ReturnType<typeof setInterval> | undefined
-
-  onMounted(() => {
-    clock = setInterval(() => {
-      now.value = Date.now()
-    }, 60_000)
-  })
-
-  onUnmounted(() => {
-    if (clock !== undefined) clearInterval(clock)
-  })
+  const now = useNow(60_000)
 
   const resolved = computed(() => toValue(exploration))
   const progress = computed(() => {

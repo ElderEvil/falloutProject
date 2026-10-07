@@ -23,6 +23,8 @@ import {
 import { getItemIcon, getRarityTextClass } from '@/core/models/items'
 import { useToast } from '@/core/composables/useToast'
 import { useSound } from '@/core/composables/useSound'
+import { useNow } from '@/core/composables/useNow'
+import { computeRemainingSeconds, formatDuration } from '@/core/utils/time'
 import { getErrorMessage } from '@/core/utils/errorHandler'
 import { craftingService } from '../services/craftingService'
 import type { CraftableItemType, CraftingOrder, CraftingRecipe } from '../models/crafting'
@@ -45,9 +47,9 @@ const recipes = ref<CraftingRecipe[]>([])
 const orders = ref<CraftingOrder[]>([])
 const isLoading = ref(false)
 const busyKey = ref<string | null>(null)
-const now = ref(Date.now())
+const now = useNow(1000)
 let loadSequence = 0
-let ticker: number | null = null
+let recheckTimer: number | null = null
 let lastRecheck = 0
 const RECHECK_MS = 5000
 
@@ -106,15 +108,6 @@ const filteredRecipes = computed(() =>
 
 const isLocked = (recipe: CraftingRecipe) => recipe.unlocked === false
 
-function formatDuration(seconds: number): string {
-  if (seconds >= 3600) {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.round((seconds % 3600) / 60)
-    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`
-  }
-  return `${Math.max(1, Math.round(seconds / 60))}m`
-}
-
 /** "3 common · 3 rare" — what the recipe consumes, by material rarity. */
 function materialsLabel(recipe: CraftingRecipe): string {
   return Object.entries(recipe.junk_materials)
@@ -128,8 +121,7 @@ const queue = computed(() =>
 
 function remainingSeconds(order: CraftingOrder): number {
   if (order.status !== 'active') return 0
-  const endsAt = new Date(`${order.estimated_completion_at}Z`).getTime()
-  return Math.max(0, Math.round((endsAt - now.value) / 1000))
+  return computeRemainingSeconds(order.estimated_completion_at, now.value)
 }
 
 function remainingLabel(order: CraftingOrder): string {
@@ -207,10 +199,9 @@ async function handleCollect(order: CraftingOrder) {
 
 onMounted(() => {
   loadAll()
-  ticker = window.setInterval(() => {
-    now.value = Date.now()
-    // The game tick flips an order to completed server-side; re-poll once its
-    // timer has elapsed so Collect appears without closing the panel.
+  // The game tick flips an order to completed server-side; re-poll once its
+  // timer has elapsed so Collect appears without closing the panel.
+  recheckTimer = window.setInterval(() => {
     if (
       Date.now() - lastRecheck > RECHECK_MS &&
       queue.value.some((order) => remainingSeconds(order) === 0 && order.status === 'active')
@@ -222,7 +213,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (ticker) clearInterval(ticker)
+  if (recheckTimer) clearInterval(recheckTimer)
 })
 
 watch(() => [props.vaultId, props.itemType], loadAll)
@@ -386,7 +377,7 @@ watch(() => [props.vaultId, props.itemType], loadAll)
                 </span>
                 <span class="flex items-center gap-1">
                   <Icon icon="mdi:clock-outline" class="h-3.5 w-3.5 shrink-0" />
-                  {{ formatDuration(recipe.duration_seconds) }}
+                  {{ formatDuration(recipe.duration_seconds, { rounding: 'round' }) }}
                 </span>
                 <span
                   v-if="isLocked(recipe) && recipe.unlock_hint"

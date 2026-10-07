@@ -4,6 +4,7 @@ import { useIntervalFn, useLocalStorage } from '@vueuse/core'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
+import { useNow } from '@/core/composables/useNow'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useExitRequestStore } from '../../stores/exitRequests'
 
@@ -14,10 +15,7 @@ const store = useExitRequestStore()
 
 const isDeciding = ref(false)
 const snoozedUntil = useLocalStorage<number | null>('exitRequestSnoozedUntil', null)
-const now = ref(Date.now())
-useIntervalFn(() => {
-  now.value = Date.now()
-}, 30_000)
+const now = useNow(30_000)
 
 const current = computed(() => store.requests[0] ?? null)
 const isSnoozed = computed(

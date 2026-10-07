@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { Badge } from '@/core/components/ui/badge'
@@ -7,7 +7,8 @@ import { Button } from '@/core/components/ui/button'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
-import { formatRemaining } from '@/modules/exploration/composables/useExplorationProgress'
+import { formatRemaining } from '@/core/utils/time'
+import { useCountdown } from '@/core/composables/useCountdown'
 import { usePartySelection } from '@/modules/progression/composables/usePartySelection'
 import PartySlots from '@/modules/progression/components/party/PartySlots.vue'
 import AvailableDwellers from '@/modules/progression/components/party/AvailableDwellers.vue'
@@ -148,35 +149,14 @@ const isCleared = computed(() => clearState.value?.cleared ?? false)
 // Local countdown seeded from the backend snapshot: the polled locations array
 // is replaced, but the modal keeps its own selected object, so without this the
 // displayed countdown (and the Dispatch button) would go stale while open.
-const reclearSeconds = ref(0)
-let reclearTimer: ReturnType<typeof setInterval> | null = null
+const reclearSecondsSource = computed(() => clearState.value?.time_remaining_seconds ?? 0)
+const { secondsLeft: reclearSeconds, isFinished: reclearFinished } =
+  useCountdown(reclearSecondsSource)
 
-function stopReclearTimer() {
-  if (reclearTimer !== null) clearInterval(reclearTimer)
-  reclearTimer = null
-}
-
-watch(
-  () => clearState.value?.time_remaining_seconds,
-  (seconds) => {
-    stopReclearTimer()
-    reclearSeconds.value = Math.max(0, seconds ?? 0)
-    if (reclearSeconds.value > 0) {
-      reclearTimer = setInterval(() => {
-        reclearSeconds.value = Math.max(0, reclearSeconds.value - 1)
-        if (reclearSeconds.value === 0) stopReclearTimer()
-      }, 1000)
-    }
-  },
-  { immediate: true }
+const reclearReady = computed(() => isCleared.value && reclearFinished.value)
+const reclearCountdown = computed(() =>
+  reclearSeconds.value > 0 ? formatRemaining(reclearSeconds.value) : ''
 )
-onUnmounted(stopReclearTimer)
-
-const reclearReady = computed(() => isCleared.value && reclearSeconds.value <= 0)
-const reclearCountdown = computed(() => {
-  const seconds = reclearSeconds.value
-  return seconds > 0 ? formatRemaining(seconds) : ''
-})
 const lootTableLabel = computed(() => clearState.value?.loot_table ?? '')
 
 // Send-team state for the in-modal dispatch section. Dispatch mode passes the
@@ -237,34 +217,12 @@ const siteStatus = computed(() => {
 const siteCleared = computed(() => siteStatus.value === 'CLEARED')
 // Local countdown seeded from the backend snapshot (same staleness rationale
 // as the location reclear timer above).
-const siteCooldownSeconds = ref(0)
-let siteCooldownTimer: ReturnType<typeof setInterval> | null = null
+const siteCooldownSource = computed(() => props.site?.cooldown_remaining_seconds ?? 0)
+const { secondsLeft: siteCooldownSeconds } = useCountdown(siteCooldownSource)
 
-function stopSiteCooldownTimer() {
-  if (siteCooldownTimer !== null) clearInterval(siteCooldownTimer)
-  siteCooldownTimer = null
-}
-
-watch(
-  () => props.site?.cooldown_remaining_seconds,
-  (seconds) => {
-    stopSiteCooldownTimer()
-    siteCooldownSeconds.value = Math.max(0, seconds ?? 0)
-    if (siteCooldownSeconds.value > 0) {
-      siteCooldownTimer = setInterval(() => {
-        siteCooldownSeconds.value = Math.max(0, siteCooldownSeconds.value - 1)
-        if (siteCooldownSeconds.value === 0) stopSiteCooldownTimer()
-      }, 1000)
-    }
-  },
-  { immediate: true }
+const siteCooldownCountdown = computed(() =>
+  siteCooldownSeconds.value > 0 ? formatRemaining(siteCooldownSeconds.value) : ''
 )
-onUnmounted(stopSiteCooldownTimer)
-
-const siteCooldownCountdown = computed(() => {
-  const seconds = siteCooldownSeconds.value
-  return seconds > 0 ? formatRemaining(seconds) : ''
-})
 
 const modalTitle = computed(() => {
   if (isLocked.value) return 'Unknown Location'

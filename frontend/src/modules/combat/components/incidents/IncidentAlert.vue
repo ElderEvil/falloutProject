@@ -39,8 +39,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useNow } from '@/core/composables/useNow'
+import { formatClock, parseUtcMs } from '@/core/utils/time'
 import type { Incident } from '../../models/incident'
 import { getIncidentIcon } from '../../models/incident'
 import { useIncidentStore } from '../../stores/incident'
@@ -58,18 +60,7 @@ defineEmits<{
 }>()
 
 // Timer for elapsed time updates
-const currentTime = ref(Date.now())
-let timer: number | null = null
-
-onMounted(() => {
-  timer = window.setInterval(() => {
-    currentTime.value = Date.now()
-  }, 1000)
-})
-
-onUnmounted(() => {
-  if (timer) clearInterval(timer)
-})
+const currentTime = useNow(1000)
 
 // Computed
 const hasActiveIncidents = computed(() => props.incidents.length > 0)
@@ -96,19 +87,9 @@ const incidentSubtitle = computed(() => {
 const elapsedTime = computed(() => {
   if (!primaryIncident.value) return '00:00'
 
-  // Parse as UTC by appending 'Z' if not present, or replace space with 'T' for ISO format
-  let startTimeStr = primaryIncident.value.start_time
-  if (!startTimeStr.endsWith('Z')) {
-    // Convert "2026-07-05 16:58:7" to "2026-07-05T16:58:07Z" (UTC)
-    startTimeStr = startTimeStr.replace(' ', 'T') + 'Z'
-  }
-  const startTime = new Date(startTimeStr).getTime()
-  const elapsed = Math.floor((currentTime.value - startTime) / 1000)
-
-  const minutes = Math.floor(elapsed / 60)
-  const seconds = elapsed % 60
-
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  const startMs = parseUtcMs(primaryIncident.value.start_time)
+  const elapsed = Math.floor((currentTime.value - startMs) / 1000)
+  return formatClock(elapsed, { padMinutes: true })
 })
 
 // The designated responder roster is a fact about the incident: informational

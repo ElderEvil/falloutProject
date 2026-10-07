@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
 import { Card } from '@/core/components/ui/card'
 import { Progress } from '@/core/components/ui/progress'
+import { useNow } from '@/core/composables/useNow'
+import { formatClock } from '@/core/utils/time'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
@@ -36,64 +38,34 @@ const emit = defineEmits<{
   assignParty: [questId: string]
 }>()
 
-const timeRemaining = ref<string | null>(null)
-let timerInterval: ReturnType<typeof setInterval> | null = null
+const now = useNow(1000)
 
-const updateTimer = () => {
-  if (status === 'returning') {
-    if (!quest.return_completes_at) {
-      timeRemaining.value = null
-      return
-    }
-    const remaining = parseStartTimeMs(quest.return_completes_at) - Date.now()
-    if (remaining <= 0) {
-      timeRemaining.value = '00:00:00'
-      if (timerInterval) {
-        clearInterval(timerInterval)
-        timerInterval = null
-      }
-      return
-    }
-    const hours = Math.floor(remaining / (1000 * 60 * 60))
-    const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
-    const seconds = Math.floor((remaining % (1000 * 60)) / 1000)
-    timeRemaining.value = `${hours.toString().padStart(2, '0')}:${minutes
-      .toString()
-      .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-    return
-  }
+const timerActive = computed(
+  () =>
+    (status === 'active' || status === 'returning') &&
+    Boolean(quest.started_at) &&
+    Boolean(quest.duration_minutes)
+)
 
-  if (!quest.started_at || !quest.duration_minutes) {
-    timeRemaining.value = null
-    return
-  }
+const timeRemaining = computed<string | null>(() => {
+  if (!timerActive.value) return null
 
-  const startTime = parseStartTimeMs(quest.started_at)
-  const durationMs = quest.duration_minutes * 60 * 1000
-  const endTime = startTime + durationMs
-  const now = Date.now()
-  const remaining = endTime - now
+  const endMs =
+    status === 'returning'
+      ? quest.return_completes_at
+        ? parseStartTimeMs(quest.return_completes_at)
+        : null
+      : parseStartTimeMs(quest.started_at as string) + (quest.duration_minutes ?? 0) * 60 * 1000
 
-  if (remaining <= 0) {
-    timeRemaining.value = '00:00:00'
-    if (timerInterval) {
-      clearInterval(timerInterval)
-      timerInterval = null
-    }
-    return
-  }
+  if (endMs === null) return null
 
-  const hours = Math.floor(remaining / (1000 * 60 * 60))
-  const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
-  const seconds = Math.floor((remaining % (1000 * 60)) / 1000)
-
-  timeRemaining.value = `${hours.toString().padStart(2, '0')}:${minutes
-    .toString()
-    .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-}
+  const remaining = endMs - now.value
+  if (remaining <= 0) return '00:00:00'
+  return formatClock(remaining / 1000, { showHours: true })
+})
 
 const questProgress = computed(() => {
-  void timeRemaining.value
+  void now.value
   if (!quest.started_at || !quest.duration_minutes) return 0
 
   const elapsed = Date.now() - parseStartTimeMs(quest.started_at)
@@ -101,7 +73,7 @@ const questProgress = computed(() => {
 })
 
 const returnProgress = computed(() => {
-  void timeRemaining.value
+  void now.value
   if (!quest.return_started_at || !quest.return_completes_at) return 0
 
   const start = parseStartTimeMs(quest.return_started_at)
@@ -118,51 +90,6 @@ const displayedQuestProgress = computed(() => {
 const questProgressLabel = computed(() => {
   if (status === 'returning') return `${Math.round(displayedQuestProgress.value)}% home`
   return `${Math.round(displayedQuestProgress.value)}% complete`
-})
-
-const startTimer = () => {
-  if (timerInterval) {
-    clearInterval(timerInterval)
-  }
-  if (
-    (status === 'active' || status === 'returning') &&
-    quest.started_at &&
-    quest.duration_minutes
-  ) {
-    updateTimer()
-    timerInterval = setInterval(updateTimer, 1000)
-  }
-}
-
-const stopTimer = () => {
-  if (timerInterval) {
-    clearInterval(timerInterval)
-    timerInterval = null
-  }
-}
-
-watch(
-  () => [status, quest.started_at, quest.return_completes_at],
-  () => {
-    if (
-      (status === 'active' || status === 'returning') &&
-      quest.started_at &&
-      quest.duration_minutes
-    ) {
-      startTimer()
-    } else {
-      stopTimer()
-    }
-  },
-  { immediate: true }
-)
-
-onMounted(() => {
-  startTimer()
-})
-
-onUnmounted(() => {
-  stopTimer()
 })
 
 const hasParty = computed(() => partyMembers && partyMembers.length > 0)

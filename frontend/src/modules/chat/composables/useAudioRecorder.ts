@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { useToast } from '@/core/composables/useToast'
+import { formatClock } from '@/core/utils/time'
 
 export type RecordingState = 'idle' | 'recording' | 'paused' | 'processing'
 
@@ -133,11 +134,7 @@ export function useAudioRecorder() {
     recordingDuration.value = 0
   }
 
-  const formatDuration = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
+  const formatDuration = (seconds: number): string => formatClock(seconds)
 
   return {
     // State

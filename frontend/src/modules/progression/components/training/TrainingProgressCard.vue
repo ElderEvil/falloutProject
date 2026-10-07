@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import { Badge } from '@/core/components/ui/badge'
 import { Progress } from '@/core/components/ui/progress'
+import { useNow } from '@/core/composables/useNow'
+import { formatDuration } from '@/core/utils/time'
 import type { components } from '@/core/types/api.generated'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
@@ -24,21 +26,7 @@ const emit = defineEmits<{
   (e: 'complete', trainingId: string): void
 }>()
 
-const now = ref(Date.now())
-let intervalId: number | null = null
-
-onMounted(() => {
-  // Update time every second
-  intervalId = window.setInterval(() => {
-    now.value = Date.now()
-  }, 1000)
-})
-
-onUnmounted(() => {
-  if (intervalId) {
-    clearInterval(intervalId)
-  }
-})
+const now = useNow(1000)
 
 const progressPercentage = computed(() => {
   // Prefer the backend's persisted progress when present (it's 0.0-1.0),
@@ -67,17 +55,7 @@ const timeRemaining = computed(() => {
     return 'Ready to complete!'
   }
 
-  const hours = Math.floor(remaining / (1000 * 60 * 60))
-  const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
-  const seconds = Math.floor((remaining % (1000 * 60)) / 1000)
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`
-  } else if (minutes > 0) {
-    return `${minutes}m ${seconds}s`
-  } else {
-    return `${seconds}s`
-  }
+  return formatDuration(Math.floor(remaining / 1000), { includeSeconds: true })
 })
 
 const isReadyToComplete = computed(() => {

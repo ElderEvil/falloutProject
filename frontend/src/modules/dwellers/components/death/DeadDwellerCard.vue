@@ -8,6 +8,7 @@ import { Icon } from '@iconify/vue'
 import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
 import { Card } from '@/core/components/ui/card'
+import { formatDaysRemaining } from '@/core/utils/time'
 import type { DwellerDead } from '@/modules/dwellers/models/dweller'
 import { getDeathCauseIcon, getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 
@@ -50,8 +51,7 @@ const normalizedThumbnail = computed(() => {
 
 const daysLeftText = computed(() => {
   if (dweller.is_permanently_dead) return 'PERMANENTLY DEAD'
-  const days = dweller.days_until_permanent ?? 0
-  return `${days} day${days !== 1 ? 's' : ''} remaining`
+  return formatDaysRemaining(dweller.days_until_permanent ?? 0)
 })
 
 const handleRevive = () => {

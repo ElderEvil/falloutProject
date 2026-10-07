@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, toRef, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, toRef } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import { formatRemaining } from '@/modules/exploration/composables/useExplorationProgress'
@@ -198,15 +198,12 @@ function siteStatus(site: ExpeditionSiteMarkerRead): string {
 const {
   zoom,
   isZoomed,
-  isPanned,
   isDragging,
   viewBox,
-  canPan,
   zoomIn,
   zoomOut,
   resetZoom,
   focusOnMarker,
-  syncViewport,
   onWheel,
   onDragStart,
   onDragMove,
@@ -219,7 +216,6 @@ const {
 
 const mapStore = useMapStore()
 const svgRef = ref<SVGSVGElement | null>(null)
-const containerRef = ref<HTMLDivElement | null>(null)
 const vaultMarkers = toRef(props, 'vaultMarkers')
 
 // Display-only road/river masks ride the immutable world snapshot. Computed so
@@ -237,27 +233,6 @@ const groupIconByKey = computed(
 function locationGroup(loc: WastelandLocationWithDwellers): PlaceGroup | undefined {
   return loc.group_key ? mapStore.placeGroupByKey.get(loc.group_key) : undefined
 }
-
-// The map fills a full-bleed rectangular pane, so the composable needs the
-// rendered aspect ratio to know which axis its cover fit crops.
-let resizeObserver: ResizeObserver | null = null
-
-function syncViewportAspect(): void {
-  const rect = svgRef.value?.getBoundingClientRect()
-  if (rect) syncViewport(rect)
-}
-
-onMounted(() => {
-  syncViewportAspect()
-  if (typeof ResizeObserver === 'undefined') return
-  resizeObserver = new ResizeObserver(syncViewportAspect)
-  if (containerRef.value) resizeObserver.observe(containerRef.value)
-})
-
-onBeforeUnmount(() => {
-  resizeObserver?.disconnect()
-  resizeObserver = null
-})
 
 const { spreadMap, getSpread } = useMapSpread(visibleLocations, vaultMarkers)
 
@@ -282,7 +257,7 @@ function handleWheel(event: WheelEvent) {
 }
 
 function handleMouseDown(event: MouseEvent) {
-  if (!canPan.value) return
+  if (!isZoomed.value) return
   hasDragMoved.value = false
   onDragStart(event, getSvgRect())
 }
@@ -320,9 +295,8 @@ function handleTouchEnd(event: TouchEvent) {
 <template>
   <div class="world-map-layout">
     <div
-      ref="containerRef"
       class="world-map-container crt-screen touch-none"
-      :class="{ 'is-zoomed': isZoomed, 'is-pannable': canPan, 'is-dragging': isDragging }"
+      :class="{ 'is-zoomed': isZoomed, 'is-dragging': isDragging }"
       @mousemove="handleMouseMove"
       @mouseup="handleMouseUp"
       @mouseleave="handleMouseUp"
@@ -337,7 +311,6 @@ function handleTouchEnd(event: TouchEvent) {
         :viewBox="viewBox"
         xmlns="http://www.w3.org/2000/svg"
         class="world-map-svg"
-        preserveAspectRatio="xMidYMid slice"
         focusable="false"
         @mousedown="handleMouseDown"
       >
@@ -463,7 +436,7 @@ function handleTouchEnd(event: TouchEvent) {
         <Button
           variant="ghost"
           size="xs"
-          :disabled="!isZoomed && !isPanned"
+          :disabled="!isZoomed"
           aria-label="Reset zoom"
           class="zoom-btn"
           @click="resetZoom()"
@@ -475,31 +448,35 @@ function handleTouchEnd(event: TouchEvent) {
 
       <!-- Legend overlay -->
       <MapLegend />
-
-      <!-- Location index: overlay drawer collapsed to a toggle button, so the
-           map owns the full pane. -->
-      <MarkerListPanel
-        :locations="knownLocations"
-        :vault-markers="[]"
-        :expedition-sites="expeditionSites"
-        :place-groups="mapStore.placeGroups"
-        :selected-marker-id="selectedMarkerId"
-        @marker-select="onPanelMarkerSelect"
-      />
     </div>
+
+    <!-- Persistent desktop location index -->
+    <MarkerListPanel
+      :docked="true"
+      :locations="knownLocations"
+      :vault-markers="[]"
+      :expedition-sites="expeditionSites"
+      :place-groups="mapStore.placeGroups"
+      :selected-marker-id="selectedMarkerId"
+      @marker-select="onPanelMarkerSelect"
+    />
   </div>
 </template>
 
 <style scoped>
 .world-map-layout {
-  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(12rem, 14rem);
+  align-items: start;
+  gap: 0.75rem;
+  width: fit-content;
+  max-width: min(80rem, 100%);
 }
 
-/* Full-bleed pane: the map fills the content width under a viewport-relative
-   height, and the SVG's cover fit crops the square world to that shape. */
 .world-map-container {
-  width: 100%;
-  height: var(--map-pane-size);
+  width: var(--map-pane-size);
+  max-width: min(100%, calc(100vw - 2rem));
+  aspect-ratio: 1 / 1;
   border: 1px solid var(--color-theme-primary);
   background-color: var(--color-terminal-background);
   box-shadow:
@@ -509,7 +486,7 @@ function handleTouchEnd(event: TouchEvent) {
   position: relative;
 }
 
-.world-map-container.is-pannable {
+.world-map-container.is-zoomed {
   cursor: grab;
 }
 
@@ -552,7 +529,7 @@ function handleTouchEnd(event: TouchEvent) {
 .zoom-controls {
   position: absolute;
   top: 8px;
-  left: 8px;
+  right: 8px;
   z-index: 10;
   display: flex;
   flex-direction: column;
@@ -585,5 +562,17 @@ function handleTouchEnd(event: TouchEvent) {
   opacity: 0.6;
   margin-top: 2px;
   letter-spacing: 0.05em;
+}
+
+@media (max-width: 64rem) {
+  .world-map-layout {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 800px;
+  }
+
+  .marker-list-wrapper :deep(.marker-list-panel) {
+    height: auto;
+    min-height: 14rem;
+  }
 }
 </style>

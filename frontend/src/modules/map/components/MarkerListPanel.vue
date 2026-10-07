@@ -148,12 +148,7 @@ function onListKeydown(event: KeyboardEvent) {  const keyTarget = event.target
 </script>
 
 <template>
-  <div
-    class="marker-list-wrapper"
-    :class="{ docked: props.docked }"
-    @touchstart.stop
-    @wheel.stop
-  >
+  <div class="marker-list-wrapper" :class="{ docked: props.docked }">
     <!-- Toggle button -->
     <button
       v-if="!props.docked"
@@ -288,8 +283,6 @@ function onListKeydown(event: KeyboardEvent) {  const keyTarget = event.target
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  /* Overlaid on the touch-action:none map pane; keep the list scrollable by touch. */
-  touch-action: pan-y;
 }
 
 .panel-header {

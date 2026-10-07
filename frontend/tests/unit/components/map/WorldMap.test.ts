@@ -644,16 +644,16 @@ describe('WorldMap', () => {
       expect(panel.props('vaultMarkers')).toEqual([])
     })
 
-    it('renders the location index as an in-pane overlay, not a side dock', () => {
+    it('renders the location index as a separate docked panel, not an in-map overlay', () => {
       const wrapper = mount(WorldMap, {
         props: { locations: createLocations(2), vaultMarkers: createVaultMarkers(1), selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
       const panel = wrapper.findComponent(MarkerListPanelStub)
-      expect(panel.props('docked')).toBeFalsy()
+      expect(panel.props('docked')).toBe(true)
       expect(wrapper.find('.world-map-container').findComponent(MarkerListPanelStub).exists()).toBe(
-        true
+        false
       )
     })
 

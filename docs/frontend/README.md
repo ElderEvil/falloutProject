@@ -134,7 +134,7 @@ The 7-day delay can slow urgent security patches. When a verified fix must ship 
 
 ## HTTP Client Migration
 
-`axios` is being deprecated through a staged migration tracked in
+`axios` call sites are being consolidated onto a typed boundary tracked in
 [`HTTP_CLIENT_MIGRATION.md`](./HTTP_CLIENT_MIGRATION.md). The approved sequence:
 
 1. `src/core/utils/api.ts` now exists as an **axios-backed shim** over `@/core/plugins/axios`
@@ -142,7 +142,7 @@ The 7-day delay can slow urgent security patches. When a verified fix must ship 
    `apiRequest` returns the full `AxiosResponse` for call sites that need it. Errors normalize to
    `ApiError { status, detail, fields, headers, cause }`.
 2. Batches 2–4 migrate the remaining services, stores, and exploration/chat call sites.
-3. A later slice swaps the implementation to native `fetch` behind the same `api.ts` surface.
+3. A later behavior-changing slice removes interceptor notifications (caller-owned toasts end to end).
 
 Caller-owned toasts are the target: the boundary throws and never notifies, but the axios
 interceptor's notifications stay byte-identical for now, so both layers can notify today.
@@ -430,7 +430,7 @@ const apiUrl = import.meta.env.VITE_API_BASE_URL
 - **[STYLEGUIDE.md](./STYLEGUIDE.md)** - Complete design system guide
 - **[ACCESSIBILITY.md](./ACCESSIBILITY.md)** - WCAG target, implementation policy, and verification plan
 - **[src/core/components/ui/README.md](./src/core/components/ui/README.md)** - UI component API
-- **[HTTP_CLIENT_MIGRATION.md](./HTTP_CLIENT_MIGRATION.md)** - Axios deprecation and migration plan
+- **[HTTP_CLIENT_MIGRATION.md](./HTTP_CLIENT_MIGRATION.md)** - Axios consolidation plan
 
 ## 🔧 Troubleshooting
 

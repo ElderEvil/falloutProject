@@ -3,7 +3,7 @@ import apiClient from '@/core/plugins/axios'
 import { extractValidationFields, formatValidationDetail } from '@/core/types/utils'
 
 /**
- * Central HTTP boundary (Batch 1 of the axios -> fetch migration).
+ * Central HTTP boundary (Batch 1 of the axios call-site consolidation).
  *
  * Axios-backed shim: every call delegates to the shared `@/core/plugins/axios`
  * instance, so the existing auth-refresh interceptor and its notifications keep

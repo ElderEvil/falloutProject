@@ -2,8 +2,8 @@
 import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
 import RewardCard from '@/core/components/common/RewardCard.vue'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
 import { useExplorationStore, type RewardsSummary } from '@/modules/exploration/stores/exploration'
@@ -94,19 +94,14 @@ const tryClose = () => emit('close', requiresResolution.value)
 </script>
 
 <template>
-  <Dialog :open="show" @update:open="(open) => { if (!open) tryClose() }">
-    <DialogContent
-      class="flex max-h-[75vh] w-full max-w-xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-xl"
-    >
-      <DialogHeader
-        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
-      >
-        <Icon icon="mdi:treasure-chest" class="h-8 w-8 text-theme-primary terminal-glow" />
-        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow"
-          >Exploration Complete!</DialogTitle
-        >
-      </DialogHeader>
-
+  <TerminalModal
+    :open="show"
+    title="Exploration Complete!"
+    icon="mdi:treasure-chest"
+    size="xl"
+    max-height="75"
+    @close="tryClose"
+  >
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
         <!-- Dweller Name -->
         <div class="dweller-name">
@@ -234,19 +229,16 @@ const tryClose = () => emit('close', requiresResolution.value)
       </div>
       </div>
 
-      <DialogFooter
-        class="flex flex-shrink-0 justify-end border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
+    <template #footer>
+      <button
+        @click="tryClose"
+        class="collect-btn"
       >
-        <button
-          @click="tryClose"
-          class="collect-btn"
-        >
-          <Icon :icon="hasOverflow ? 'mdi:clock-outline' : 'mdi:check-bold'" class="mr-2" />
-          {{ hasOverflow ? 'Resolve Later' : 'Collect Rewards' }}
-        </button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
+        <Icon :icon="hasOverflow ? 'mdi:clock-outline' : 'mdi:check-bold'" class="mr-2" />
+        {{ hasOverflow ? 'Resolve Later' : 'Collect Rewards' }}
+      </button>
+    </template>
+  </TerminalModal>
 </template>
 
 <style scoped>

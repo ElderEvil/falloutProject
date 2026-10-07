@@ -4,7 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { formatRemaining } from '@/modules/exploration/composables/useExplorationProgress'
@@ -290,24 +290,15 @@ function dwellerDisplayName(first: string, last: string | null) {
 </script>
 
 <template>
-  <Dialog
+  <TerminalModal
     :open="isOpen"
-    @update:open="
-      (open) => {
-        isOpen = open
-      }
-    "
+    :title="modalTitle"
+    size="xl"
+    max-height="75"
+    :show-footer="actionable"
+    footer-class="flex flex-row flex-shrink-0 justify-end gap-3 border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
+    @update:open="isOpen = $event"
   >
-    <DialogContent
-      class="flex max-h-[75vh] w-full max-w-xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-xl"
-    >
-      <DialogHeader
-        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
-      >
-        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">{{
-          modalTitle
-        }}</DialogTitle>
-      </DialogHeader>
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
         <div v-if="isLocked" class="flex flex-col items-center py-6 text-center">
           <Icon icon="mdi:lock-question" class="h-16 w-16 text-theme-primary/40" />
@@ -522,10 +513,7 @@ function dwellerDisplayName(first: string, last: string | null) {
         </div>
       </div>
 
-      <div
-        v-if="actionable"
-        class="flex flex-shrink-0 justify-end gap-3 border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
-      >
+    <template #footer>
         <Button variant="secondary" size="sm" @click="closeModal">Cancel</Button>
         <Button
           size="sm"
@@ -536,7 +524,6 @@ function dwellerDisplayName(first: string, last: string | null) {
           <Icon icon="mdi:send" class="h-4 w-4" />
           Dispatch
         </Button>
-      </div>
-    </DialogContent>
-  </Dialog>
+    </template>
+  </TerminalModal>
 </template>

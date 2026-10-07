@@ -1,16 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/core/components/ui/dialog'
 import { Label } from '@/core/components/ui/label'
 import { Button } from '@/core/components/ui/button'
 import { Slider } from '@/core/components/ui/slider'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
 import { COMPASS_LABELS, compassLabel } from '@/modules/map/utils/bearing'
 
@@ -120,26 +114,16 @@ const setRadaways = (value: number[] | undefined) => {
 </script>
 
 <template>
-  <Dialog
+  <TerminalModal
     :open="show"
-    @update:open="
-      (open) => {
-        if (!open) emit('cancel')
-      }
-    "
+    title="Select Exploration Duration"
+    icon="mdi:clock-outline"
+    icon-class="inline h-6 w-6 text-theme-primary"
+    size="xl"
+    max-height="75"
+    header-class="flex flex-shrink-0 flex-row items-center gap-2 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
+    @close="emit('cancel')"
   >
-    <DialogContent
-      class="flex max-h-[75vh] w-full max-w-xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-xl"
-    >
-      <DialogHeader
-        class="flex flex-shrink-0 flex-row items-center gap-2 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
-      >
-        <Icon icon="mdi:clock-outline" class="inline h-6 w-6 text-theme-primary" />
-        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow"
-          >Select Exploration Duration</DialogTitle
-        >
-      </DialogHeader>
-
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
         <p class="mb-6 text-sm text-theme-primary/70">How long should {{ dwellerName }} explore?</p>
 
@@ -270,16 +254,13 @@ const setRadaways = (value: number[] | undefined) => {
         </div>
       </div>
 
-      <DialogFooter
-        class="flex flex-shrink-0 justify-end border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
-      >
-        <TerminalModalActions
-          cancel-label="Cancel"
-          confirm-label="Send to Wasteland"
-          @cancel="emit('cancel')"
-          @confirm="handleConfirm"
-        />
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
+    <template #footer>
+      <TerminalModalActions
+        cancel-label="Cancel"
+        confirm-label="Send to Wasteland"
+        @cancel="emit('cancel')"
+        @confirm="handleConfirm"
+      />
+    </template>
+  </TerminalModal>
 </template>

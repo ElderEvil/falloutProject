@@ -5,13 +5,7 @@ import { Icon } from '@iconify/vue'
 import BackButton from '@/core/components/common/BackButton.vue'
 import TerminalLoadingState from '@/core/components/common/TerminalLoadingState.vue'
 import { Button } from '@/core/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/core/components/ui/dialog'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import { Input } from '@/core/components/ui/input'
 import { Label } from '@/core/components/ui/label'
 import DwellerDetailPane from './DwellerDetailPane.vue'
@@ -112,49 +106,36 @@ const wastelandModalOpen = ctx.wastelandModalOpen
       @select-heading="ctx.actions.setWastelandHeading"
     />
 
-    <Dialog v-model:open="renameDialogOpen">
-      <DialogContent
-        class="flex max-h-[60vh] w-full max-w-sm flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-sm"
-      >
-        <DialogHeader
-          class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
-        >
-          <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow"
-            >Rename Dweller</DialogTitle
-          >
-        </DialogHeader>
+    <TerminalModal
+      v-model:open="renameDialogOpen"
+      title="Rename Dweller"
+      size="sm"
+      max-height="60"
+    >
         <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
           <Label for="rename-dweller" class="mb-1 block text-sm font-medium text-theme-primary/70">
             First name
           </Label>
           <Input id="rename-dweller" v-model="renameDialogName" placeholder="Dweller name" />
         </div>
-        <DialogFooter
-          class="flex flex-shrink-0 justify-end gap-2 border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
+      <template #footer>
+        <Button variant="secondary" @click="renameDialogOpen = false">Cancel</Button>
+        <Button
+          variant="default"
+          :disabled="!renameDialogName.trim()"
+          @click="ctx.actions.confirmRename()"
         >
-          <Button variant="secondary" @click="renameDialogOpen = false">Cancel</Button>
-          <Button
-            variant="default"
-            :disabled="!renameDialogName.trim()"
-            @click="ctx.actions.confirmRename()"
-          >
-            Save
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          Save
+        </Button>
+      </template>
+    </TerminalModal>
 
-    <Dialog v-model:open="softDeleteDialogOpen">
-      <DialogContent
-        class="flex max-h-[60vh] w-full max-w-sm flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-sm"
-      >
-        <DialogHeader
-          class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
-        >
-          <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow"
-            >Soft-delete Dweller</DialogTitle
-          >
-        </DialogHeader>
+    <TerminalModal
+      v-model:open="softDeleteDialogOpen"
+      title="Soft-delete Dweller"
+      size="sm"
+      max-height="60"
+    >
         <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
           <p class="soft-delete-text">
             Soft-delete <strong>{{ getDwellerDisplayName(dweller) }}</strong
@@ -162,16 +143,13 @@ const wastelandModalOpen = ctx.wastelandModalOpen
             them later while they remain listed.
           </p>
         </div>
-        <DialogFooter
-          class="flex flex-shrink-0 justify-end gap-2 border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
+      <template #footer>
+        <Button variant="secondary" @click="softDeleteDialogOpen = false">Cancel</Button>
+        <Button variant="destructive" @click="ctx.actions.confirmSoftDelete()"
+          >Soft-delete</Button
         >
-          <Button variant="secondary" @click="softDeleteDialogOpen = false">Cancel</Button>
-          <Button variant="destructive" @click="ctx.actions.confirmSoftDelete()"
-            >Soft-delete</Button
-          >
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </template>
+    </TerminalModal>
   </div>
 </template>
 

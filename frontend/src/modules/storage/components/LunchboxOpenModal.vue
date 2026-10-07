@@ -3,13 +3,7 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useSound } from '@/core/composables/useSound'
 import { Button } from '@/core/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/core/components/ui/dialog'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import RewardCard from '@/core/components/common/RewardCard.vue'
 import { getItemIcon } from '@/core/models/items'
 import type { components } from '@/core/types/api.generated'
@@ -69,17 +63,14 @@ const itemLabel = (type: string): string => type === 'weapon' ? 'Weapon' : 'Outf
 </script>
 
 <template>
-  <Dialog :open="show && !!result" @update:open="(open) => { if (!open) emit('close') }">
-    <DialogContent
-      class="flex max-h-[75vh] w-full max-w-xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-xl"
-    >
-      <DialogHeader
-        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
-      >
-        <Icon icon="mdi:gift" class="h-8 w-8 text-theme-primary terminal-glow" />
-        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">Lunchbox Opened!</DialogTitle>
-      </DialogHeader>
-
+  <TerminalModal
+    :open="show && !!result"
+    title="Lunchbox Opened!"
+    icon="mdi:gift"
+    size="xl"
+    max-height="75"
+    @close="emit('close')"
+  >
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
         <div v-if="result && !revealed" class="flex flex-col items-center gap-6 p-8">
           <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -113,13 +104,10 @@ const itemLabel = (type: string): string => type === 'weapon' ? 'Weapon' : 'Outf
         </div>
       </div>
 
-      <DialogFooter
-        class="flex-shrink-0 justify-end border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
-      >
-        <Button variant="default" class="border-2 border-theme-primary hover:shadow-glow-md" @click="emit('close')">
-          Done
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
+    <template #footer>
+      <Button variant="default" class="border-2 border-theme-primary hover:shadow-glow-md" @click="emit('close')">
+        Done
+      </Button>
+    </template>
+  </TerminalModal>
 </template>

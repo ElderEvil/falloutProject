@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import { Input } from '@/core/components/ui/input'
 import { Label } from '@/core/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/core/components/ui/select'
@@ -246,16 +246,15 @@ function handleCancel() {
 </script>
 
 <template>
-  <Dialog :open="modelValue" @update:open="(open) => { if (!open) emit('update:modelValue', false) }">
-    <DialogContent
-      class="flex max-h-[90vh] w-full max-w-6xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary bg-surface p-0 text-base crt-screen sm:max-w-6xl"
-    >
-      <DialogHeader
-        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
-      >
-        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">Edit Appearance</DialogTitle>
-      </DialogHeader>
-
+  <TerminalModal
+    :open="modelValue"
+    title="Edit Appearance"
+    size="6xl"
+    max-height="90"
+    content-class="bg-surface"
+    footer-class="flex-shrink-0 border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
+    @update:open="(open) => { if (!open) emit('update:modelValue', false) }"
+  >
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
         <div class="editor-workbench">
           <nav class="section-nav" aria-label="Appearance sections">
@@ -626,9 +625,7 @@ function handleCancel() {
         </div>
       </div>
 
-      <DialogFooter
-        class="flex flex-shrink-0 border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
-      >
+    <template #footer>
         <div class="editor-footer">
           <Button
             variant="ghost"
@@ -644,9 +641,8 @@ function handleCancel() {
             <Button @click="handleSave">Save Changes</Button>
           </div>
         </div>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
+    </template>
+  </TerminalModal>
 </template>
 
 <style scoped>

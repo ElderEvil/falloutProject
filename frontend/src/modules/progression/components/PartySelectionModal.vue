@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
 import { Button } from '@/core/components/ui/button'
 import { Badge } from '@/core/components/ui/badge'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
@@ -164,14 +164,16 @@ const handleAssignAndStart = () => {
 </script>
 
 <template>
-  <Dialog :open="modelValue" @update:open="emit('update:modelValue', $event)">
-    <DialogContent
-      class="flex max-h-[80vh] w-full max-w-5xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-5xl"
-    >
-      <DialogHeader
-        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4 pr-12"
-      >
-        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">{{ title ?? (quest ? `Start Quest: ${quest.title}` : 'Dispatch Dweller') }}</DialogTitle>
+  <TerminalModal
+    :open="modelValue"
+    :title="title ?? (quest ? `Start Quest: ${quest.title}` : 'Dispatch Dweller')"
+    size="5xl"
+    max-height="80"
+    header-class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4 pr-12"
+    body-class="flex-1 overflow-y-auto px-5 pt-5 pb-5"
+    @update:open="emit('update:modelValue', $event)"
+  >
+      <template #header-extra>
         <Button
           v-if="details"
           variant="outline"
@@ -182,7 +184,8 @@ const handleAssignAndStart = () => {
         >
           Details
         </Button>
-      </DialogHeader>
+      </template>
+      <template #subheader>
       <div
         v-if="subtitle || subtitleStatus"
         class="flex flex-wrap items-center gap-2 border-b border-theme-primary/20 px-6 py-2 text-xs text-theme-primary/70"
@@ -204,8 +207,7 @@ const handleAssignAndStart = () => {
         </Badge>
         <span v-if="subtitle">{{ subtitle }}</span>
       </div>
-
-      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+      </template>
 
     <div class="party-modal-content">
       <PartySlots
@@ -243,9 +245,7 @@ const handleAssignAndStart = () => {
         @update:radaways="setRadaways"
       />
 
-      <DialogFooter
-        class="flex-shrink-0 justify-end border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
-      >
+      <template #footer>
         <TerminalModalActions
           cancel-label="Cancel"
           :confirm-label="quest ? 'Start Quest' : 'Dispatch'"
@@ -254,10 +254,8 @@ const handleAssignAndStart = () => {
           @cancel="close"
           @confirm="quest ? handleAssignAndStart() : handleAssign()"
         />
-      </DialogFooter>
-      </div>
-    </DialogContent>
-  </Dialog>
+      </template>
+  </TerminalModal>
 </template>
 
 <style scoped>

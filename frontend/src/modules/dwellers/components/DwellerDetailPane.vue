@@ -96,19 +96,16 @@ const breadcrumbs = computed(() => [
           :generating-portrait="ctx.generatingPortrait.value"
           :available-stimpaks="ctx.availableStimpaks.value"
           :available-radaways="ctx.availableRadaways.value"
-          :issuing-medical-supply="ctx.issuingMedicalSupply.value"
-          :using-stimpak="ctx.usingStimpak.value"
-          :using-rad-away="ctx.usingRadAway.value"
+          :healing-supply="ctx.healingSupply.value"
           @chat="ctx.actions.navigateToChat()"
           @assign="ctx.actions.assign()"
           @unassign="ctx.actions.unassign()"
           @recall="ctx.actions.recall()"
-          @use-stimpak="ctx.actions.useStimpak()"
-          @use-radaway="ctx.actions.useRadAway()"
+          @heal-stimpack="ctx.actions.healSupply('stimpack')"
+          @heal-radaway="ctx.actions.healSupply('radaway')"
           @train="ctx.trainingModalOpen.value = true"
           @send-wasteland="ctx.actions.openSendToWasteland()"
           @generate-portrait="ctx.actions.generatePortrait()"
-          @issue-medical-supply="ctx.actions.issueMedicalSupply($event)"
         />
 
         <!-- Revival Section for Dead Dwellers -->

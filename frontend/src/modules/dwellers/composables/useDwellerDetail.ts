@@ -7,9 +7,11 @@ import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useToast } from '@/core/composables/useToast'
 import { useSendToWasteland } from '@/modules/exploration/composables/useSendToWasteland'
 import { useGaryMode } from '@/core/composables/useGaryMode'
-import { handleStoreError } from '@/core/utils/errorHandler'
+import { getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
 import { getVaultMap } from '@/modules/map/services/mapService'
 import {
+  canUseRadaway,
+  getEffectiveMaxHealth,
   isMature,
   type Dweller,
   type MapPlaceLink,
@@ -28,9 +30,7 @@ export interface DwellerDetailActions {
   }): Promise<boolean>
   cancelSendToWasteland(): void
   rerollWastelandHeading(duration?: number): void
-  useStimpak(): void
-  useRadAway(): void
-  issueMedicalSupply(supply: 'stimpack' | 'radaway'): void
+  healSupply(supply: 'stimpack' | 'radaway'): void
   rename(name: string): void
   confirmRename(): void
   openRenameDialog(): void
@@ -63,9 +63,7 @@ export interface UseDwellerDetailReturn {
   generatingAppearance: Readonly<Ref<boolean>>
   generatingPortrait: Readonly<Ref<boolean>>
   generatingAI: Readonly<Ref<boolean>>
-  usingStimpak: Readonly<Ref<boolean>>
-  usingRadAway: Readonly<Ref<boolean>>
-  issuingMedicalSupply: Readonly<Ref<boolean>>
+  healingSupply: Readonly<Ref<'stimpack' | 'radaway' | null>>
   assigning: Readonly<Ref<boolean>>
   unassigning: Readonly<Ref<boolean>>
   isAnyGenerating: Readonly<Ref<boolean>>
@@ -156,9 +154,9 @@ export function useDwellerDetail(
 
   const assigning = ref(false)
   const unassigning = ref(false)
-  const usingStimpak = ref(false)
-  const usingRadAway = ref(false)
-  const issuingMedicalSupply = ref(false)
+  // One in-flight heal at a time, so the issued-then-used chain shares a single
+  // busy state across both store calls.
+  const healingSupply = ref<'stimpack' | 'radaway' | null>(null)
 
   const sendWasteland = useSendToWasteland(() => vaultId.value)
 
@@ -170,13 +168,7 @@ export function useDwellerDetail(
       generatingPortrait.value
   )
   const cardLoading = computed(
-    () =>
-      generatingAI.value ||
-      usingStimpak.value ||
-      usingRadAway.value ||
-      issuingMedicalSupply.value ||
-      assigning.value ||
-      unassigning.value
+    () => generatingAI.value || healingSupply.value !== null || assigning.value || unassigning.value
   )
   const availableStimpaks = computed(() => currentVault.value?.stimpack)
   const availableRadaways = computed(() => currentVault.value?.radaway)
@@ -394,31 +386,50 @@ export function useDwellerDetail(
       },
     })
 
-  const handleUseStimpak = () =>
-    runAction(() => dwellerMedicalStore.useStimpack(dwellerId.value, authStore.token as string), {
-      flag: usingStimpak,
-      errorMessage: 'Failed to use Stimpak',
-    })
-  const handleUseRadAway = () =>
-    runAction(() => dwellerMedicalStore.useRadaway(dwellerId.value, authStore.token as string), {
-      flag: usingRadAway,
-      errorMessage: 'Failed to use RadAway',
-    })
-  const handleIssueMedicalSupply = (supply: 'stimpack' | 'radaway') =>
-    runAction(
-      () =>
-        dwellerMedicalStore.issueMedicalSupply(
+  const handleHealSupply = async (supply: 'stimpack' | 'radaway') => {
+    const current = dweller.value
+    if (!current || current.is_dead || healingSupply.value) return
+    const token = authStore.token as string
+    const needsHealing =
+      supply === 'stimpack'
+        ? current.health < getEffectiveMaxHealth(current.radiation, current.max_health)
+        : canUseRadaway(current) && (current.radiation || 0) > 0
+    if (!needsHealing) return
+
+    const carried = (supply === 'stimpack' ? current.stimpack : current.radaway) || 0
+    const inVault = (supply === 'stimpack' ? availableStimpaks.value : availableRadaways.value) ?? 0
+    if (carried <= 0 && inVault <= 0) return
+
+    healingSupply.value = supply
+    try {
+      if (carried <= 0) {
+        // Issue one from vault storage, then reload both sides so the use call
+        // runs against the dweller now carrying it. A failed issue stops here.
+        const issued = await dwellerMedicalStore.issueMedicalSupply(
           vaultId.value,
           dwellerId.value,
           supply,
-          authStore.token as string
-        ),
-      {
-        flag: issuingMedicalSupply,
-        errorMessage: 'Failed to issue medical supply',
-        refreshVault: true,
+          token
+        )
+        if (!issued) return
+        await Promise.all([
+          dwellerStore.fetchDwellerDetails(dwellerId.value, token, true),
+          vaultStore.refreshVault(vaultId.value, token),
+        ])
       }
-    )
+      const used =
+        supply === 'stimpack'
+          ? await dwellerMedicalStore.useStimpack(dwellerId.value, token)
+          : await dwellerMedicalStore.useRadaway(dwellerId.value, token)
+      // A failed use is toasted by the store; the issued supply stays carried,
+      // matching the outcome of the old manual issue-then-use two-click flow.
+      if (used) await refetch()
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Failed to heal dweller'))
+    } finally {
+      healingSupply.value = null
+    }
+  }
 
   const handleRename = (name: string) =>
     runAction(
@@ -464,9 +475,7 @@ export function useDwellerDetail(
     confirmSendToWasteland: handleSendWastelandConfirm,
     cancelSendToWasteland: () => sendWasteland.cancel(),
     rerollWastelandHeading: (duration?: number) => sendWasteland.reroll(duration),
-    useStimpak: handleUseStimpak,
-    useRadAway: handleUseRadAway,
-    issueMedicalSupply: handleIssueMedicalSupply,
+    healSupply: handleHealSupply,
     rename: handleRename,
     confirmRename,
     openRenameDialog,
@@ -498,9 +507,7 @@ export function useDwellerDetail(
     generatingAppearance: readonly(generatingAppearance),
     generatingPortrait: readonly(generatingPortrait),
     generatingAI: readonly(generatingAI),
-    usingStimpak: readonly(usingStimpak),
-    usingRadAway: readonly(usingRadAway),
-    issuingMedicalSupply: readonly(issuingMedicalSupply),
+    healingSupply: readonly(healingSupply),
     assigning: readonly(assigning),
     unassigning: readonly(unassigning),
     isAnyGenerating: readonly(isAnyGenerating),

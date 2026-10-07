@@ -197,6 +197,61 @@ it. The real gaps are group **coverage/fallback** and the absence of a key.
 `place_groups.json` + `PlaceGroupRead` stay the single icon source; the map domain keeps its layered
 models → schemas → CRUD → service → thin-router shape.
 
+## Road & river masks (display-only) — active slice
+
+Presents the road network and meandering rivers on the atlas map **without touching travel**.
+Decisions locked with the maintainer (Oct 2026):
+
+- **Junctions:** a deterministic in-recipe node set (seeded from the world recipe), never DB/registry
+  state, so generation stays a pure function of seed + config + epoch. Spanning order is a Prim MST
+  weighted by sampled terrain cost.
+- **Routing:** 4-connected A* at `ROAD_COST`; water is impassable, so roads detour and never bridge.
+  Unroutable edges are skipped, never fatal. The retired 8-neighbour `findPath` (bug #870) is **not**
+  ported.
+- **Rivers:** real meandering geometry traced in-recipe but stored as a **display-only tile mask**,
+  not carved `water` terrain. This is what keeps rivers from altering traversal, ETA, arrival, or
+  dispatch.
+- **No gameplay coupling:** `TRAVEL_COST`, movement, ETA, arrival detection, and vault placement are
+  unchanged. Masks are geometry only.
+
+**Restored 2026-10-28:** the original stack's first commit (the Fallout 1/2 restyle) already shipped as
+PR #914, and its third commit (pane/docked-list tweak) reverted the newer square-grid and places-panel
+work. The slice was therefore rebased onto current master with only the generation, persistence and
+mask-rendering commit.
+
+### Delivery status
+
+| Layer | Status |
+|---|---|
+| Backend generation (`generate_rivers`, `generate_road_mask`) | Implemented on `feat/world-roads-rivers` (restored 2026-10-28 on top of current master) |
+| Snapshot persistence + migration (`roads`, `rivers` JSONB) | Implemented; migration rebased onto the current Alembic head |
+| Wire (`WorldSnapshotRead.roads/rivers`) + generated frontend types | Implemented |
+| Frontend rendering (`AtlasTerrain` mask painting) | Implemented; the places-panel legend owns the key, so the retired overlay legend is not re-added |
+| New location groups (tents, bones, raider/water) | Separate slice; see `features/LOCATION_KINDS_AUDIT.md` |
+| RobCo monochrome glyph presentation | Optional theme, separate slice; see `frontend/WORLD_MAP_STYLE_REFERENCES.md` |
+
+### Snapshot population strategy
+
+Masks are additive and derived from terrain, so existing worlds must obtain them **without** a terrain
+re-roll. The strategy is versioned regeneration, not backfill:
+
+1. Bump `GENERATOR_VERSION` (payload version). It feeds the recipe fingerprint, so `get_or_generate`
+   keys a new row per world and generates the masks for every world.
+2. `SEED_EPOCH` is **decoupled** from `GENERATOR_VERSION` and drives every RNG stream, so a bumped
+   version keeps terrain and slots byte-identical — existing geography is preserved and only masks
+   are added.
+3. Pre-v2 rows keep `server_default='[]'` and render mask-less; they are retained for explorations
+   pinned to an older `world_version`. **No backfill migration** — backfilling would require importing
+   the generator into a migration (layering violation) and is not reproducible across code changes.
+4. Readers tolerate both shapes (empty mask vs populated).
+
+### Verification gates
+
+- Backend: full suite green; single Alembic head; generator determinism + vault-tile exclusion tests;
+  terrain equality to bare `generate_terrain` output proves no carving.
+- Frontend: `maskGeometry` unit tests; map suite green; lint + typecheck; `pnpm run types:generate`
+  reflects the new wire fields.
+
 ## Deferred multiplayer phases (parked)
 
 Raiding and the social/multiplayer **state** layers remain deferred. The registry they would depend on (formerly

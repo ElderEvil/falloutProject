@@ -77,6 +77,8 @@ class WorldSnapshotService:
             recipe_fingerprint=world.recipe_fingerprint,
             snapshot_checksum=snapshot_checksum(world),
             terrain=list(world.terrain),
+            roads=list(world.roads),
+            rivers=list(world.rivers),
             slots=[
                 {
                     "slot_index": slot.slot_index,

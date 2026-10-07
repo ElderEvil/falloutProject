@@ -294,6 +294,12 @@ function onOwnVaultClick(vault: PlayerVaultMarkerRead): void {
   emit('vault-info', vault.vault_id)
 }
 
+// Display-only road/river masks ride the immutable world snapshot. Computed so
+// the prop identities stay stable across marker polling and the terrain canvas
+// repaints only when the snapshot itself changes.
+const snapshotRoads = computed(() => mapStore.worldSnapshot?.roads ?? [])
+const snapshotRivers = computed(() => mapStore.worldSnapshot?.rivers ?? [])
+
 const groupIconByKey = computed(
   () => new Map([...mapStore.placeGroupByKey].map(([key, group]) => [key, group.icon]))
 )
@@ -528,7 +534,7 @@ function handleTouchEnd(event: TouchEvent) {
         @mousedown="handleMouseDown"
       >
         <!-- Terrain layer (bottom — behind markers): biomes, rivers, roads -->
-        <AtlasTerrain />
+        <AtlasTerrain :roads="snapshotRoads" :rivers="snapshotRivers" />
 
         <!-- Fog of war: derived explored mask over the terrain -->
         <FogLayer v-if="!fogDisabled" :explored="exploredMask" :tiles="gridTiles" />

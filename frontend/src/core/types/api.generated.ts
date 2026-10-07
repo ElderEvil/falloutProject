@@ -12371,6 +12371,10 @@ export interface components {
             terrain: string[];
             /** Slots */
             slots: components["schemas"]["WorldSlotRead"][];
+            /** Roads */
+            roads: number[];
+            /** Rivers */
+            rivers: number[];
         };
     };
     responses: never;

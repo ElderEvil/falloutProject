@@ -28,3 +28,5 @@ class WorldSnapshotRead(SQLModel):
     height: int
     terrain: list[str]
     slots: list[WorldSlotRead]
+    roads: list[int]
+    rivers: list[int]

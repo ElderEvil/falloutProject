@@ -37,6 +37,8 @@ async def get_world_snapshot(
         height=snapshot.config["height"],
         terrain=snapshot.terrain,
         slots=[WorldSlotRead(**slot) for slot in snapshot.slots],
+        roads=snapshot.roads,
+        rivers=snapshot.rivers,
     )
 
 

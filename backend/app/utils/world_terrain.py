@@ -71,13 +71,20 @@ def reveal_radius_registry(snapshot: TerrainSnapshot, tiles: int) -> float:
     return tiles * (100.0 / snapshot.config["width"])
 
 
-def _tile_index(snapshot: TerrainSnapshot, x: float, y: float) -> tuple[int, int]:
-    width = snapshot.config["width"]
-    height = snapshot.config["height"]
+def tile_from_registry(width: int, height: int, x: float, y: float) -> tuple[int, int]:
+    """Convert registry coordinates (0-100) to clamped tile coordinates.
+
+    The single conversion source for every consumer that needs a tile from a
+    registry position.
+    """
     return (
         min(width - 1, max(0, int(x / 100 * width))),
         min(height - 1, max(0, int(y / 100 * height))),
     )
+
+
+def _tile_index(snapshot: TerrainSnapshot, x: float, y: float) -> tuple[int, int]:
+    return tile_from_registry(snapshot.config["width"], snapshot.config["height"], x, y)
 
 
 def is_blocked(snapshot: TerrainSnapshot, x: float, y: float) -> bool:

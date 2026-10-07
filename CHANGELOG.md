@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.187.0 (2026-10-07)
+
+### Features
+
+* **frontend:** typed API client boundary with auth/profile migration ([#911](https://github.com/ElderEvil/falloutProject/issues/911)) f78ef47
+
 ## 2.186.0 (2026-10-07)
 
 ### Features

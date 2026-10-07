@@ -168,8 +168,9 @@ export function useChatActions(options: UseChatActionsOptions) {
 
     // Route through the shared send flow: the modal opens prefilled with the
     // suggestion's plan and the server still supplies the heading (or the
-    // user picks one on the compass dial). The dweller is unassigned only
-    // when the modal's departure is actually confirmed.
+    // user picks one on the compass dial). Opening only presents the modal —
+    // success is unknown until the departure is confirmed — so this reports
+    // false and the chat keeps the suggestion card until the send succeeds.
     options.sendWasteland.open(
       {
         dwellerId: options.dwellerId,
@@ -183,7 +184,7 @@ export function useChatActions(options: UseChatActionsOptions) {
         radaways: action.radaways,
       }
     )
-    return Promise.resolve(true)
+    return Promise.resolve(false)
   }
 
   const handleRecallExploration = async (action: RecallExplorationAction): Promise<boolean> => {

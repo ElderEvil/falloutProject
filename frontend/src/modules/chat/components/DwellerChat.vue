@@ -177,23 +177,49 @@ const { isPerformingAction, handleActionConfirm, refreshAfterChat } = useChatAct
 
 // The chat's departure keeps the instant path's guard: the dweller is released
 // from their room before dispatch. It runs at modal-confirm time so cancelling
-// the modal never strands a worker without a room.
+// the modal never strands a worker without a room, and a failed or duplicate
+// dispatch restores the dweller to the room they were released from.
+const restoreDwellerRoom = async (roomId: string | null) => {
+  if (!roomId || !authStore.token) return
+  try {
+    await dwellerManagementStore.assignDwellerToRoom(props.dwellerId, roomId, authStore.token)
+  } catch {
+    // Best-effort rollback; the send failure is already surfaced to the user.
+  }
+}
+
 const handleChatSendConfirm = async (payload: {
   duration: number
   stimpaks: number
   radaways: number
 }): Promise<boolean> => {
+  // Duplicate-dispatch guard: a second confirm while the first send is still in
+  // flight must not release the room again.
+  if (sendWasteland.isSending.value) return false
+
+  // The roster list carries room_id; the full detail shape exposes room only.
+  const dweller = dwellerStore.dwellers.find((d) => d.id === props.dwellerId)
+  const originalRoomId = dweller?.room_id ?? null
+  let releasedRoom = false
+
   try {
-    // The roster list carries room_id; the full detail shape exposes room only.
-    const dweller = dwellerStore.dwellers.find((d) => d.id === props.dwellerId)
-    if (dweller?.room_id && props.vaultId && authStore.token) {
+    if (originalRoomId && props.vaultId && authStore.token) {
       await dwellerManagementStore.unassignDwellerFromRoom(props.dwellerId, authStore.token)
+      releasedRoom = true
     }
     toast.info(`Sending ${props.dwellerName} to wasteland...`)
-    return await sendWasteland.confirm(payload, async () => {
+    const sent = await sendWasteland.confirm(payload, async () => {
       await dwellerStore.fetchDwellerDetails(props.dwellerId, authStore.token as string, true)
     })
+    if (!sent) {
+      if (releasedRoom) await restoreDwellerRoom(originalRoomId)
+      toast.error('Failed to send dweller to wasteland')
+      return false
+    }
+    dismissAction(latestActionSuggestionIndex.value)
+    return true
   } catch {
+    if (releasedRoom) await restoreDwellerRoom(originalRoomId)
     toast.error('Failed to send dweller to wasteland')
     return false
   }

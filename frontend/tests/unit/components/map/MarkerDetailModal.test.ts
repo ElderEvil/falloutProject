@@ -426,6 +426,14 @@ describe('MarkerDetailModal', () => {
       expect(wrapper.text()).not.toContain('CLEARED')
     })
 
+    it('keeps the dispatch footer on one row like the pre-wrapper layout', () => {
+      const wrapper = mountWithClearState(clearableState)
+      const footer = wrapper.find('[data-slot="dialog-footer"]')
+
+      expect(footer.exists()).toBe(true)
+      expect(footer.attributes('class')).toContain('flex-row')
+    })
+
     it('shows a CLEARED badge with the clear count and a reclear countdown while cooling down', () => {
       const wrapper = mountWithClearState({
         ...clearableState,

@@ -296,7 +296,7 @@ function dwellerDisplayName(first: string, last: string | null) {
     size="xl"
     max-height="75"
     :show-footer="actionable"
-    footer-class="flex-shrink-0 justify-end gap-3 border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
+    footer-class="flex flex-row flex-shrink-0 justify-end gap-3 border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
     @update:open="isOpen = $event"
   >
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">

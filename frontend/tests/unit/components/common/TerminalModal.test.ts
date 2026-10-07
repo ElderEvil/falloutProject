@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createIconifyMock } from '../../helpers/mocks'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { Dialog } from '@/core/components/ui/dialog'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 
@@ -8,11 +8,13 @@ vi.mock('@iconify/vue', () => createIconifyMock())
 
 const mountModal = (
   props: Record<string, unknown> = {},
-  slots: Record<string, string> = {}
+  slots: Record<string, string> = {},
+  attach = false
 ) =>
   mount(TerminalModal, {
     props: { open: true, ...props },
     slots,
+    attachTo: attach ? document.body : undefined,
     global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
   })
 
@@ -97,5 +99,45 @@ describe('TerminalModal', () => {
 
     expect(wrapper.emitted('update:open')).toEqual([[true]])
     expect(wrapper.emitted('close')).toBeUndefined()
+  })
+
+  it('closes on Escape', async () => {
+    const wrapper = mountModal()
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await flushPromises()
+
+    expect(wrapper.emitted('update:open')).toEqual([[false]])
+    expect(wrapper.emitted('close')).toHaveLength(1)
+  })
+
+  it('closes on the header close button', async () => {
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-slot="dialog-close"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.emitted('update:open')).toEqual([[false]])
+    expect(wrapper.emitted('close')).toHaveLength(1)
+  })
+
+  it('closes on backdrop pointer down', async () => {
+    const wrapper = mountModal({}, {}, true)
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    wrapper
+      .get('[data-slot="dialog-overlay"]')
+      .element.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          bubbles: true,
+          button: 0,
+          pointerType: 'mouse',
+          isPrimary: true,
+        })
+      )
+    await flushPromises()
+
+    expect(wrapper.emitted('update:open')).toEqual([[false]])
+    expect(wrapper.emitted('close')).toHaveLength(1)
   })
 })

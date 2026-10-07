@@ -36,14 +36,19 @@ function isApiError(error: unknown): error is ApiErrorLike {
   )
 }
 
-function apiErrorDetailMessage(error: ApiErrorLike): string | null {
-  const detail = error.detail
+interface FastApiValidationItem {
+  loc?: unknown[]
+  msg?: unknown
+}
+
+/** Render a backend validation payload (string, FastAPI array, or object) as text. */
+export function formatValidationDetail(detail: unknown): string | null {
   if (typeof detail === 'string' && detail.length > 0) return detail
   if (Array.isArray(detail)) {
     const parts = detail
       .map((item) => {
         if (item && typeof item === 'object') {
-          const entry = item as { loc?: unknown[]; msg?: unknown }
+          const entry = item as FastApiValidationItem
           const field = Array.isArray(entry.loc) ? entry.loc.join('.') : 'field'
           return typeof entry.msg === 'string' ? `${field}: ${entry.msg}` : null
         }
@@ -53,11 +58,31 @@ function apiErrorDetailMessage(error: ApiErrorLike): string | null {
     if (parts.length > 0) return parts.join(', ')
   }
   if (detail && typeof detail === 'object') return JSON.stringify(detail)
-  if (error.fields) {
-    const parts = Object.entries(error.fields).map(([field, message]) => `${field}: ${message}`)
-    if (parts.length > 0) return parts.join(', ')
-  }
   return null
+}
+
+/** Flatten a FastAPI validation array to path -> message. */
+export function extractValidationFields(detail: unknown): Record<string, string> | null {
+  if (!Array.isArray(detail)) return null
+  const fields: Record<string, string> = {}
+  for (const item of detail) {
+    if (!item || typeof item !== 'object') continue
+    const entry = item as FastApiValidationItem
+    if (typeof entry.msg !== 'string') continue
+    fields[Array.isArray(entry.loc) ? entry.loc.join('.') : 'field'] = entry.msg
+  }
+  return Object.keys(fields).length > 0 ? fields : null
+}
+
+function apiErrorDetailMessage(error: ApiErrorLike): string | null {
+  return (
+    formatValidationDetail(error.detail) ??
+    (error.fields
+      ? Object.entries(error.fields)
+          .map(([field, message]) => `${field}: ${message}`)
+          .join(', ') || null
+      : null)
+  )
 }
 
 /**

@@ -1,6 +1,6 @@
 # HTTP Client Migration Plan (Axios -> Fetch Adapter)
 
-Status: in progress — Batch 1 shipped (axios-backed boundary)
+Status: in progress — Batch 1 in review, not yet merged
 
 This document defines the staged migration away from `axios` to a native-fetch-based adapter.
 
@@ -8,16 +8,20 @@ This document defines the staged migration away from `axios` to a native-fetch-b
 
 1. **Now (Batch 1):** create `src/core/utils/api.ts` as an **axios-backed shim** over
    `@/core/plugins/axios`. Named helpers (`apiGet`/`apiPost`/`apiPut`/`apiPatch`/`apiDelete`),
-   an `api.*` sugar object, `apiRequest` (full `AxiosResponse` escape hatch) and `authHeaders`
-   (for later SSE, not yet migrated). Errors normalize to `ApiError { status, detail, fields,
+   an `api.*` sugar object, and `apiRequest` (full `AxiosResponse` escape hatch, temporary —
+   see below). Errors normalize to `ApiError { status, detail, fields,
    headers, cause }`; `getErrorMessage` reads both `ApiError` and raw `AxiosError`.
 2. **Batches 2–4:** migrate remaining services, stores, and the exploration/chat call sites in
    module-sized slices.
 3. **Later:** replace the axios-backed implementation with native `fetch` behind the same
    `api.ts` surface; the public API stays stable across that swap.
-4. **Toasts stay caller-owned until a dedicated slice.** The interceptor's current notifications
-   remain byte-identical for now; removing them is a separate behavior-changing change, not part
-   of the boundary work.
+4. **Toasts stay caller-owned as the target state.** The boundary throws and never
+   notifies — but the axios interceptor's notifications remain byte-identical for now,
+   so both layers can notify today. Removing interceptor notifications is a separate
+   behavior-changing slice, not part of the boundary work.
+5. **`apiRequest` is temporary.** It still exposes the full `AxiosResponse`, which a
+   native-fetch swap cannot preserve automatically; its callers must migrate to
+   data-returning helpers before the fetch slice lands.
 
 Batch 1 migrates: core public reads (AssetGalleryView), auth service/views, profile services +
 store + SettingsView, and ai-settings service.
@@ -42,7 +46,7 @@ store + SettingsView, and ai-settings service.
 - Build artifact currently includes an axios chunk (`dist/assets/axios-*.js`) around 36 kB (about 14 kB gzip).
 - Axios coupling includes:
   - `src/core/plugins/axios.ts` is the main coupling point (29 files import from `@/core/plugins/axios` across `src`, 25 under `src/modules`)
-  - `src/core/utils/api.ts` is only an optional typed wrapper used by ~2 files
+  - `src/core/utils/api.ts` is the new typed boundary (Batch 1); Batch 1 migrates 11 source files to it
   - Shared types/helpers in `src/core/types/utils.ts`
   - Many files (e.g., authService.ts, storageService.ts, equipment.ts and many others) import directly from `@/core/plugins/axios`
   - 6 files also import Axios types directly from `axios` (AxiosResponse, AxiosError)

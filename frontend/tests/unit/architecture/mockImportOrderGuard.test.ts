@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest'
 
 const UNIT_TESTS_DIR = join(process.cwd(), 'tests/unit')
 const SELF = 'architecture/mockImportOrderGuard.test.ts'
-const FACTORY_CALL = /create(?:Axios|Router|Iconify)Mock\s*\(/
+const FACTORY_CALL = /create(?:Axios|Router|Iconify|ApiClient)Mock\s*\(/
 const IMPORT_RE = /^import\s+(?:[\s\S]*?\sfrom\s+)?['"]([^'"]+)['"]/gm
 const HELPER_SOURCE_SUFFIX = 'helpers/mocks'
 const INERT_SOURCE = /^(vitest|vue|pinia|@vue\/test-utils)(\/|$)/

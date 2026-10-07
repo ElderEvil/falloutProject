@@ -138,14 +138,15 @@ The 7-day delay can slow urgent security patches. When a verified fix must ship 
 [`HTTP_CLIENT_MIGRATION.md`](./HTTP_CLIENT_MIGRATION.md). The approved sequence:
 
 1. `src/core/utils/api.ts` now exists as an **axios-backed shim** over `@/core/plugins/axios`
-   (Batch 1). Use `apiGet`/`apiPost`/`apiPut`/`apiPatch`/`apiDelete` (or the `api.*` sugar);
+   (Batch 1, in review). Use `apiGet`/`apiPost`/`apiPut`/`apiPatch`/`apiDelete` (or the `api.*` sugar);
    `apiRequest` returns the full `AxiosResponse` for call sites that need it. Errors normalize to
    `ApiError { status, detail, fields, headers, cause }`.
 2. Batches 2–4 migrate the remaining services, stores, and exploration/chat call sites.
 3. A later slice swaps the implementation to native `fetch` behind the same `api.ts` surface.
 
-Toasts are caller-owned: the boundary throws and never notifies. The axios interceptor's
-notifications stay byte-identical until a dedicated behavior-changing slice removes them.
+Caller-owned toasts are the target: the boundary throws and never notifies, but the axios
+interceptor's notifications stay byte-identical for now, so both layers can notify today.
+Removing interceptor notifications is a dedicated behavior-changing slice.
 
 Policy during migration:
 

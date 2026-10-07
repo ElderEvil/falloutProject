@@ -1,5 +1,6 @@
 import type { AxiosRequestConfig, AxiosResponse } from 'axios'
 import apiClient from '@/core/plugins/axios'
+import { extractValidationFields, formatValidationDetail } from '@/core/types/utils'
 
 /**
  * Central HTTP boundary (Batch 1 of the axios -> fetch migration).
@@ -11,8 +12,7 @@ import apiClient from '@/core/plugins/axios'
  * callers keep feeding the error through `handleStoreError`/`getErrorMessage`.
  *
  * Bearer auth is injected by the interceptor; no call site passes a token.
- * `authHeaders()` exists for transports that bypass axios (SSE), which is a
- * later slice. See docs/frontend/HTTP_CLIENT_MIGRATION.md.
+ * See docs/frontend/HTTP_CLIENT_MIGRATION.md.
  */
 
 export type ApiMethod = 'get' | 'post' | 'put' | 'patch' | 'delete'
@@ -43,6 +43,7 @@ export class ApiError extends Error {
   readonly detail: unknown
   readonly fields: Record<string, string> | null
   readonly headers: Record<string, unknown>
+  declare cause: unknown
 
   constructor(init: ApiErrorInit = {}) {
     super(init.message ?? 'Request failed')
@@ -51,45 +52,8 @@ export class ApiError extends Error {
     this.detail = init.detail ?? null
     this.fields = init.fields ?? null
     this.headers = init.headers ?? {}
-    if (init.cause !== undefined) this.cause = init.cause
+    this.cause = init.cause
   }
-}
-
-interface FastApiValidationItem {
-  loc?: unknown[]
-  msg?: unknown
-}
-
-function detailToMessage(detail: unknown): string | null {
-  if (typeof detail === 'string' && detail.length > 0) return detail
-  if (Array.isArray(detail)) {
-    const parts = detail
-      .map((item) => {
-        if (item && typeof item === 'object') {
-          const entry = item as FastApiValidationItem
-          const field = Array.isArray(entry.loc) ? entry.loc.join('.') : 'field'
-          return typeof entry.msg === 'string' ? `${field}: ${entry.msg}` : null
-        }
-        return typeof item === 'string' ? item : null
-      })
-      .filter((part): part is string => part !== null)
-    return parts.length > 0 ? parts.join(', ') : null
-  }
-  if (detail && typeof detail === 'object') return JSON.stringify(detail)
-  return null
-}
-
-function extractFields(detail: unknown): Record<string, string> | null {
-  if (!Array.isArray(detail)) return null
-  const fields: Record<string, string> = {}
-  for (const item of detail) {
-    if (!item || typeof item !== 'object') continue
-    const entry = item as FastApiValidationItem
-    if (typeof entry.msg !== 'string') continue
-    const field = Array.isArray(entry.loc) ? entry.loc.join('.') : 'field'
-    fields[field] = entry.msg
-  }
-  return Object.keys(fields).length > 0 ? fields : null
 }
 
 function extractDetail(data: unknown): unknown {
@@ -127,11 +91,11 @@ export function toApiError(error: unknown): ApiError {
   if (response) {
     const detail = extractDetail(response.data)
     const message =
-      detailToMessage(detail) ?? (error instanceof Error ? error.message : 'Request failed')
+      formatValidationDetail(detail) ?? (error instanceof Error ? error.message : 'Request failed')
     return new ApiError({
       status: response.status,
       detail,
-      fields: extractFields(detail),
+      fields: extractValidationFields(detail),
       headers: response.headers,
       cause: error,
       message,
@@ -220,25 +184,6 @@ export async function apiDelete<T = unknown>(
 ): Promise<T> {
   const response = await apiRequest<T>('delete', url, undefined, options)
   return response.data
-}
-
-function readStoredToken(): string | null {
-  try {
-    const stored = localStorage.getItem('token')
-    if (!stored) return null
-    return stored.replace(/^"|"$/g, '')
-  } catch {
-    return null
-  }
-}
-
-/**
- * Authorization header for transports outside the axios interceptor (SSE).
- * Axios call sites must not use this: the interceptor owns the bearer token.
- */
-export function authHeaders(): Record<string, string> {
-  const token = readStoredToken()
-  return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
 /** Sugar object over the named functions (single implementation). */

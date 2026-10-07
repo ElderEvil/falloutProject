@@ -83,7 +83,6 @@ export interface ApiClientSpies {
   apiPatch: Mock
   apiDelete: Mock
   apiRequest: Mock
-  authHeaders: Mock
   api: {
     get: Mock
     post: Mock
@@ -116,7 +115,6 @@ export function createApiClientMock(overrides: Partial<ApiClientSpies> = {}): Ap
     apiPatch,
     apiDelete,
     apiRequest,
-    authHeaders: overrides.authHeaders ?? vi.fn(() => ({})),
     api:
       overrides.api ?? {
         get: apiGet,

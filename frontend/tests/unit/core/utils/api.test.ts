@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAxiosMock } from '../../helpers/mocks'
 import type { AxiosResponse } from 'axios'
 import apiClient from '@/core/plugins/axios'
-import { ApiError, apiGet, apiPost, apiRequest, authHeaders } from '@/core/utils/api'
+import { ApiError, apiGet, apiPost, apiRequest } from '@/core/utils/api'
 import { getErrorMessage } from '@/core/types/utils'
 
 vi.mock('@/core/plugins/axios', () => createAxiosMock())
@@ -68,13 +68,6 @@ describe('api boundary', () => {
     vi.mocked(apiClient.get).mockResolvedValueOnce(response)
 
     await expect(apiRequest('get', '/api/v1/thing')).resolves.toBe(response)
-  })
-
-  it('authHeaders reads the stored token without quotes', () => {
-    expect(authHeaders()).toEqual({})
-
-    localStorage.setItem('token', '"abc123"')
-    expect(authHeaders()).toEqual({ Authorization: 'Bearer abc123' })
   })
 })
 

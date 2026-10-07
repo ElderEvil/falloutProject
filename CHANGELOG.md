@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.186.0 (2026-10-07)
+
+### Features
+
+* **frontend:** read-only chat and no medical offers for dead dwellers 23bb2eb
+
 ## 2.185.0 (2026-10-07)
 
 ### Features

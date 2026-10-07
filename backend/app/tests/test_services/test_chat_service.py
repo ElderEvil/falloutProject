@@ -110,6 +110,75 @@ class TestChatServiceErrorHandling:
 
         assert exc_info.value.status_code == 404
 
+    async def test_process_text_message_rejects_dead_dweller(
+        self,
+        async_session: AsyncSession,
+        chat_dweller: DwellerReadFull,
+        test_user: User,
+    ) -> None:
+        """Dead dwellers cannot be chatted with — revive them first."""
+        from app.core.enums import DwellerStatusEnum
+        from app.services.chat.guardrail import GuardrailVerdict
+
+        orm_dweller = await crud.dweller.get(async_session, chat_dweller.id)
+        orm_dweller.is_dead = True
+        orm_dweller.status = DwellerStatusEnum.DEAD
+        orm_dweller.health = 0
+        async_session.add(orm_dweller)
+        await async_session.commit()
+
+        with (
+            patch(
+                "app.services.chat_service.screen_message",
+                new=AsyncMock(return_value=GuardrailVerdict(blocked=False)),
+            ),
+            patch(
+                "app.services.chat_service.run_chat_agent",
+                new=AsyncMock(side_effect=AssertionError("agent must not run for dead dweller")),
+            ),
+            pytest.raises(ValidationException, match="dead"),
+        ):
+            await chat_service.process_text_message(
+                db_session=async_session,
+                user=test_user,
+                dweller_id=chat_dweller.id,
+                message_text="Hello?",
+            )
+
+    async def test_stream_response_reports_dead_dweller_without_running_agent(
+        self,
+        async_session: AsyncSession,
+        chat_dweller: DwellerReadFull,
+        test_user: User,
+    ) -> None:
+        """The websocket/streaming path surfaces the dead-dweller block as a stream error."""
+        from app.core.enums import DwellerStatusEnum
+
+        orm_dweller = await crud.dweller.get(async_session, chat_dweller.id)
+        orm_dweller.is_dead = True
+        orm_dweller.status = DwellerStatusEnum.DEAD
+        orm_dweller.health = 0
+        async_session.add(orm_dweller)
+        await async_session.commit()
+
+        with patch(
+            "app.services.chat_service.stream_with_fallback",
+            new=AsyncMock(side_effect=AssertionError("stream must not run for dead dweller")),
+        ):
+            events = [
+                event
+                async for event in chat_service.stream_response(
+                    db_session=async_session,
+                    user=test_user,
+                    dweller_id=chat_dweller.id,
+                    message_text="Hello?",
+                )
+            ]
+
+        assert len(events) == 1
+        assert isinstance(events[0], ChatStreamError)
+        assert "dead" in events[0].detail.lower()
+
     async def test_blocked_message_never_runs_the_agent_or_persists(
         self,
         async_session: AsyncSession,

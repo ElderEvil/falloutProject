@@ -1,35 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createAxiosMock, createIconifyMock, createToastMock } from '../helpers/mocks'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import axios from '@/core/plugins/axios'
 import { useExitRequestStore } from '@/modules/dwellers/stores/exitRequests'
 import ExitRequestModal from '@/modules/dwellers/components/modals/ExitRequestModal.vue'
 
-const toastMock = vi.hoisted(() => ({
-  success: vi.fn(),
-  error: vi.fn(),
-  info: vi.fn(),
-  warning: vi.fn(),
-}))
+const toastMock = createToastMock()
 
-vi.mock('@/core/plugins/axios', () => ({
-  default: {
-    get: vi.fn(),
-    post: vi.fn(),
-  },
-}))
+vi.mock('@/core/plugins/axios', () => createAxiosMock())
 
 vi.mock('@/core/composables/useToast', () => ({
   useToast: () => toastMock,
 }))
 
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    props: ['icon'],
-    template: '<div class="mock-icon" :data-icon="icon"></div>',
-  },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock({ template: '<div class="mock-icon" :data-icon="icon"></div>' }))
 
 vi.mock('@/modules/vault/stores/vault', () => ({
   useVaultStore: () => ({ activeVaultId: 'vault-1' }),

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createRouterMock } from '../helpers/mocks'
 import { flushPromises, mount, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import PreferencesView from '@/modules/profile/views/PreferencesView.vue'
@@ -10,10 +11,7 @@ import type { UserProfile } from '@/models/profile'
 
 vi.mock('@/core/plugins/axios')
 
-vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: {}, query: {} }),
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
-}))
+vi.mock('vue-router', () => createRouterMock())
 
 const mockProfile: UserProfile = {
   id: 'profile-123',

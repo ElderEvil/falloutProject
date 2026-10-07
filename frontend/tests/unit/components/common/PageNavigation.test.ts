@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { createRouterMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 
 const mocks = vi.hoisted(() => ({
@@ -6,10 +7,7 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
 }))
 
-vi.mock('vue-router', () => ({
-  RouterLink: { template: '<a><slot /></a>' },
-  useRouter: () => ({ push: mocks.push }),
-}))
+vi.mock('vue-router', () => createRouterMock({ push: mocks.push }))
 
 vi.mock('@/core/composables/useGoBack', () => ({
   useGoBack: () => ({ goBack: mocks.goBack }),

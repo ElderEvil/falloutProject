@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createRouterMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import MarkerDetailModal from '@/modules/map/components/MarkerDetailModal.vue'
@@ -12,11 +13,8 @@ import type {
 } from '@/modules/map/models/map'
 
 // Mock vue-router
-const mockPush = vi.fn()
-vi.mock('vue-router', () => ({
-  useRouter: () => ({ push: mockPush }),
-  useRoute: () => ({ params: { id: 'vault-1' }, query: {} }),
-}))
+const mockPush = vi.hoisted(() => vi.fn())
+vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' }, query: {}, push: mockPush }))
 
 function createLocation(
   overrides: Partial<WastelandLocationWithDwellers> = {}

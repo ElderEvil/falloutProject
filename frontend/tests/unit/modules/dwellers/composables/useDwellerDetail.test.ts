@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { createToastMock } from '../../../helpers/mocks'
 import { defineComponent, nextTick, ref } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
@@ -14,9 +15,10 @@ vi.mock('@/modules/map/services/mapService', () => ({
   getVaultMap: vi.fn().mockResolvedValue({ locations: [] }),
 }))
 
-const { toastError } = vi.hoisted(() => ({ toastError: vi.fn() }))
+const mockToast = createToastMock()
+
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({ success: vi.fn(), error: toastError, info: vi.fn() }),
+  useToast: () => mockToast,
 }))
 vi.mock('@/core/composables/useGaryMode', () => ({
   useGaryMode: () => ({ triggerGaryMode: vi.fn() }),
@@ -94,7 +96,7 @@ describe('useDwellerDetail soft-delete', () => {
 
     // The record is gone: no force-refresh that would 404 and toast.
     expect(fetchSpy).toHaveBeenCalledTimes(1)
-    expect(toastError).not.toHaveBeenCalled()
+    expect(mockToast.error).not.toHaveBeenCalled()
     expect(router.currentRoute.value.path).toBe('/vault/vault-1/dwellers')
   })
 })

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { createIconifyMock, createToastMock } from '../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
@@ -9,13 +10,7 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
 // Mock Iconify
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-mock" :data-icon="icon"></span>',
-    props: ['icon'],
-  },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 // Mock the components
 vi.mock('@/core/components/common/SidePanel.vue', () => ({
@@ -44,12 +39,9 @@ vi.mock('@/core/composables/useSidePanel', () => ({
   useSidePanel: () => ({ isCollapsed: { value: false } }),
 }))
 
+const mockToast = createToastMock()
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    info: vi.fn(),
-    error: vi.fn(),
-  }),
+  useToast: () => mockToast,
 }))
 
 describe('RelationshipsView', () => {

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { createToastMock } from '../helpers/mocks'
 import { setActivePinia, createPinia } from 'pinia'
 import {
   useExpeditionSiteStore,
@@ -10,8 +11,9 @@ import type { AvailableSiteView, SiteRoomView } from '@/modules/exploration/api/
 
 vi.mock('@/modules/exploration/api/expeditionSite')
 
+const mockToast = createToastMock()
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }),
+  useToast: () => mockToast,
 }))
 
 const mockSite: AvailableSiteView = {

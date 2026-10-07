@@ -1,17 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createIconifyMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { Dialog } from '@/core/components/ui/dialog'
 import ExplorationRewardsModal from '@/modules/exploration/components/ExplorationRewardsModal.vue'
 import type { RewardsSummary } from '@/modules/exploration/stores/exploration'
 
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-mock" :data-icon="icon"></span>',
-    props: ['icon'],
-  },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 const { mockResolve } = vi.hoisted(() => ({ mockResolve: vi.fn() }))
 

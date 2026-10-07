@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createIconifyMock, createToastMock } from '../../helpers/mocks'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import CraftingPanel from '@/modules/crafting/components/CraftingPanel.vue'
 import { craftingService } from '@/modules/crafting/services/craftingService'
 import type { CraftingOrder, CraftingRecipe } from '@/modules/crafting/models/crafting'
 
-const mockToast = { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }
+const mockToast = createToastMock()
 const mockPlaySound = vi.fn()
 
 vi.mock('@/core/composables/useToast', () => ({ useToast: () => mockToast }))
@@ -19,9 +20,9 @@ vi.mock('@/modules/crafting/services/craftingService', () => ({
     collectOrder: vi.fn(),
   },
 }))
-vi.mock('@iconify/vue', () => ({
-  Icon: { name: 'Icon', props: ['icon'], template: '<i class="icon" :data-icon="icon" />' },
-}))
+vi.mock('@iconify/vue', () =>
+  createIconifyMock({ template: '<i class="icon" :data-icon="icon" />' })
+)
 
 const recipe = (overrides: Partial<CraftingRecipe> = {}): CraftingRecipe =>
   ({

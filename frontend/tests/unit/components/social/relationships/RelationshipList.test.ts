@@ -1,14 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createIconifyMock } from '../../../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import RelationshipList from '@/modules/social/components/relationships/RelationshipList.vue'
 
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-mock" :data-icon="icon"></span>',
-    props: ['icon'],
-  },
-}))
+vi.mock('@iconify/vue', () =>
+  createIconifyMock()
+)
 
 const { relationships, pregnancies, fetchVaultRelationships } = vi.hoisted(() => ({
   relationships: [] as Record<string, unknown>[],

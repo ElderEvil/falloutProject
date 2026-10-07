@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { createToastMock } from '../helpers/mocks'
 import { nextTick } from 'vue'
 import { flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
@@ -13,7 +14,7 @@ vi.mock('@/modules/map/services/mapService', () => ({
 
 import * as mapService from '@/modules/map/services/mapService'
 
-const mockToast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
+const mockToast = createToastMock()
 
 vi.mock('@/core/composables/useToast', () => ({
   useToast: () => mockToast,

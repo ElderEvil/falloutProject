@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { createAxiosMock, createIconifyMock } from '../../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import NotificationBell from '@/modules/vault/components/shell/NotificationBell.vue'
@@ -31,22 +32,12 @@ import { removePendingReport, usePendingReports } from '@/modules/exploration/co
  */
 
 // Mock Iconify (no-op icon component)
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-mock" :data-icon="icon" data-testid="mock-icon" />',
-    props: ['icon'],
-  },
-}))
+vi.mock('@iconify/vue', () =>
+  createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon" data-testid="mock-icon" />' })
+)
 
 // Mock the axios plugin: NotificationBell only needs resolved API responses
-vi.mock('@/core/plugins/axios', () => ({
-  default: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-  },
-}))
+vi.mock('@/core/plugins/axios', () => createAxiosMock())
 
 import axios from '@/core/plugins/axios'
 

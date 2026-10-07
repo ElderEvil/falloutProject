@@ -1,11 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createToastMock } from '../helpers/mocks'
 import { flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 
-const toastMocks = vi.hoisted(() => ({
-  success: vi.fn(),
-  error: vi.fn(),
-}))
+const toastMocks = createToastMock()
 
 const apiMocks = vi.hoisted(() => ({
   suggestHeading: vi.fn(),

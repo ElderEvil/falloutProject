@@ -1,16 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createAxiosMock, createToastMock } from '../helpers/mocks'
 import { createPinia, setActivePinia } from 'pinia'
 import axios from '@/core/plugins/axios'
 import { useDwellerGenerationStore } from '@/modules/dwellers/stores/dwellerGeneration'
 
-const toastError = vi.fn()
+const mockToast = createToastMock()
 
-vi.mock('@/core/plugins/axios', () => ({
-  default: { post: vi.fn() },
-}))
+vi.mock('@/core/plugins/axios', () => createAxiosMock())
 
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({ success: vi.fn(), error: toastError }),
+  useToast: () => mockToast,
 }))
 
 vi.mock('@/modules/dwellers/stores/dwellerFilter', () => ({
@@ -34,8 +33,8 @@ describe('useDwellerGenerationStore', () => {
     const result = await useDwellerGenerationStore().generateDwellerAppearance('dweller-1', 'token-1')
 
     expect(result).toBeNull()
-    expect(toastError).toHaveBeenCalledTimes(1)
-    expect(toastError).toHaveBeenCalledWith(
+    expect(mockToast.error).toHaveBeenCalledTimes(1)
+    expect(mockToast.error).toHaveBeenCalledWith(
       'Failed to generate appearance for dweller dweller-1: The AI provider returned an invalid appearance response. Please try again.'
     )
   })

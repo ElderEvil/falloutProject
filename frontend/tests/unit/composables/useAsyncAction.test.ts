@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createToastMock } from '../helpers/mocks'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 
-const toast = vi.hoisted(() => ({ error: vi.fn() }))
+const toast = createToastMock()
 const handleStoreError = vi.hoisted(() => vi.fn())
 
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({ error: toast.error }),
+  useToast: () => toast,
 }))
 
 vi.mock('@/core/utils/errorHandler', () => ({ handleStoreError }))

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createAxiosMock, createRouterMock, createToastMock } from '../helpers/mocks'
 import { ref, effectScope } from 'vue'
 import { flushPromises } from '@vue/test-utils'
 
@@ -12,9 +13,9 @@ import { flushPromises } from '@vue/test-utils'
  */
 
 const { get, put, post } = vi.hoisted(() => ({ get: vi.fn(), put: vi.fn(), post: vi.fn() }))
-vi.mock('@/core/plugins/axios', () => ({ default: { get, put, post } }))
+vi.mock('@/core/plugins/axios', () => createAxiosMock({ get, put, post }))
 
-vi.mock('vue-router', () => ({ useRoute: () => ({ params: { id: 'vault-1' } }) }))
+vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' } }))
 
 const authState = vi.hoisted(() => ({ token: 'test-token' as string | null }))
 vi.mock('@/modules/auth/stores/auth', () => ({ useAuthStore: () => authState }))
@@ -30,7 +31,7 @@ vi.mock('@/modules/dwellers/stores/dweller', () => ({
   useDwellerStore: () => ({ filter: dwellerState }),
 }))
 
-const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), warning: vi.fn(), info: vi.fn() }))
+const toast = createToastMock()
 vi.mock('@/core/composables/useToast', () => ({ useToast: () => toast }))
 
 vi.mock('@/modules/rooms/models/roomParts', () => ({ isRadioRoom: () => true }))

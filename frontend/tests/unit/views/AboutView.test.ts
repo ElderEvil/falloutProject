@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createAxiosMock, createRouterMock } from '../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import AboutView from '@/modules/profile/views/AboutView.vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
 // Mock the axios client
-vi.mock('@/core/plugins/axios', () => ({
-  default: {
+vi.mock('@/core/plugins/axios', () =>
+  createAxiosMock({
     get: vi.fn().mockResolvedValue({
       data: {
         app_version: '1.13.7',
@@ -16,17 +17,11 @@ vi.mock('@/core/plugins/axios', () => ({
         build_date: '2026-01-22T00:00:00+00:00',
       },
     }),
-  },
-}))
+  })
+)
 
 // Mock vue-router
-vi.mock('vue-router', () => ({
-  RouterLink: { template: '<a><slot /></a>' },
-  useRoute: () => ({ path: '/about', params: {}, meta: {} }),
-  useRouter: () => ({
-    push: vi.fn(),
-  }),
-}))
+vi.mock('vue-router', () => createRouterMock({ path: '/about', meta: {} }))
 
 describe('AboutView', () => {
   beforeEach(() => {

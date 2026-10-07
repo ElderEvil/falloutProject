@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { createIconifyMock, createRouterMock } from '../../helpers/mocks'
 import { config, flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import RoomDetailModal from '@/modules/rooms/components/RoomDetailModal.vue'
@@ -10,13 +11,9 @@ import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { audioManager } from '@/core/audio/audioManager'
 
 // Mock @iconify/vue
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    props: ['icon'],
-    template: '<div class="mock-icon" :data-icon="icon"></div>',
-  },
-}))
+vi.mock('@iconify/vue', () =>
+  createIconifyMock({ template: '<div class="mock-icon" :data-icon="icon"></div>' })
+)
 
 // The modal now composes shadcn primitives; stub them onto the same `mock-*`
 // hooks this suite already selects on (`mock-modal`, `mock-button`, …) and keep
@@ -60,15 +57,10 @@ vi.mock('@/core/plugins/axios', () => ({
 }))
 
 // Mock vue-router with shared mocks so we can spy on router.push
-const mockRouterPush = vi.fn()
-vi.mock('vue-router', () => ({
-  useRoute: () => ({
-    params: { id: 'vault-123' },
-  }),
-  useRouter: () => ({
-    push: mockRouterPush,
-  }),
-}))
+const { mockRouterPush } = vi.hoisted(() => ({ mockRouterPush: vi.fn() }))
+vi.mock('vue-router', () =>
+  createRouterMock({ params: { id: 'vault-123' }, push: mockRouterPush })
+)
 
 describe('RoomDetailModal', () => {
   beforeEach(() => {

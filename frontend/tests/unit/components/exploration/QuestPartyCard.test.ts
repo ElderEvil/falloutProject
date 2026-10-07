@@ -1,22 +1,19 @@
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
+import { createIconifyMock, createRouterMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { Progress } from '@/core/components/ui/progress'
 import QuestPartyCard from '@/modules/exploration/components/QuestPartyCard.vue'
 import type { VaultQuest } from '@/modules/progression/models/quest'
 
-vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: { id: 'vault-1' } }),
-}))
+vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' } }))
 
 vi.mock('@/modules/dwellers/services/dwellerService', () => ({
   getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
   getIdentityOptions: vi.fn().mockResolvedValue({ races: [], factions_by_race: {}, states_by_race: {} }),
 }))
 
-vi.mock('@iconify/vue', () => ({
-  Icon: { name: 'Icon', template: '<span class="icon-mock" />' },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" />', props: [] }))
 
 const quest = {
   id: 'quest-1',

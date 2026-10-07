@@ -83,8 +83,11 @@
     --color-terrain-ruins: #4d4638;
     --color-terrain-hills: #3a2b18;
     --color-terrain-water: #253440;
-    /* Reserved for a future road layer: no road data exists yet, do not draw. */
+    /* Display-only road/river masks from the world snapshot: a pale track over
+       the biomes, read through a darker casing so it stays legible on every
+       terrain. Their own tokens, so themes retint roads without shifting fog. */
     --color-terrain-road: #e6c886;
+    --color-terrain-road-casing: #241f12;
 
     /* Fog of war — unexplored atlas regions. Near-black olive drawn from the
        terrain palette, fully opaque so hidden terrain and markers do not ghost

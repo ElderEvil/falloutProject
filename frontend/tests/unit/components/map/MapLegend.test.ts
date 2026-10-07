@@ -72,13 +72,15 @@ describe('MapLegend', () => {
     expect(items).toHaveLength(6)
   })
 
-  it('should render the five terrain swatches', () => {
+  it('should render the five biome swatches plus the road and river overlays', () => {
     const wrapper = mountLegend()
 
     const terrain = wrapper.findAll('.legend-terrain')
-    expect(terrain).toHaveLength(5)
+    expect(terrain).toHaveLength(7)
     expect(wrapper.text()).toContain('Wasteland')
     expect(wrapper.text()).toContain('Water')
+    expect(wrapper.text()).toContain('Road')
+    expect(wrapper.text()).toContain('River')
   })
 
   it('should render an icon for each marker type', () => {

@@ -88,3 +88,15 @@ async def test_persisted_config_matches_generation_input(async_session: AsyncSes
     recipe = WorldRecipe(seed="cfg", generator_version=1, config=WorldConfig())
     snapshot = await world_snapshot_service.get_or_generate(async_session, recipe)
     assert snapshot.config == asdict(recipe.config)
+
+
+async def test_pinned_v1_row_reloads_masks(async_session: AsyncSession) -> None:
+    """An explicitly pinned v1 row reloads its persisted roads and rivers masks, version unchanged."""
+    recipe = WorldRecipe(seed="legacy-v1", generator_version=1, config=WorldConfig())
+    created = await world_snapshot_service.get_or_generate(async_session, recipe)
+    reloaded = await snapshot_crud.get_version(async_session, world_id=recipe.world_id, generator_version=1)
+    assert reloaded is not None
+    assert reloaded.generator_version == 1
+    assert reloaded.roads == created.roads
+    assert reloaded.rivers == created.rivers
+    assert reloaded.rivers

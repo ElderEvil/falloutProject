@@ -34,6 +34,28 @@ MIGRATION_SPEC.loader.exec_module(MIGRATION)
 REVISION = "a1f2b3c4d5e6"
 PARENT = "c19031dc6b22"
 
+MASKS_MIGRATION_PATH = (
+    Path(__file__).parents[2]
+    / "alembic/versions/2026_10_07_0001-e2f3a4b5c6d7_add_world_snapshot_roads_and_rivers.py"
+)
+MASKS_MIGRATION_SPEC = importlib.util.spec_from_file_location("add_world_snapshot_roads_and_rivers", MASKS_MIGRATION_PATH)
+assert MASKS_MIGRATION_SPEC
+assert MASKS_MIGRATION_SPEC.loader
+MASKS_MIGRATION = importlib.util.module_from_spec(MASKS_MIGRATION_SPEC)
+MASKS_MIGRATION_SPEC.loader.exec_module(MASKS_MIGRATION)
+
+MASKS_REVISION = "e2f3a4b5c6d7"
+MASKS_PARENT = "862c04111ec1"
+
+_INSERT_LEGACY_ROW = (
+    "INSERT INTO worldsnapshot "
+    "(id, world_id, generator_version, seed, config, recipe_fingerprint, "
+    " snapshot_checksum, terrain, slots, anchors) "
+    "VALUES (gen_random_uuid(), 'wasteland-atlas', :version, 's', "
+    " '{\"width\": 2, \"height\": 2}'::jsonb, 'fp', 'ck', "
+    " '[\"wasteland\"]'::jsonb, '[]'::jsonb, '[]'::jsonb)"
+)
+
 
 @pytest.fixture
 def harness(monkeypatch: pytest.MonkeyPatch) -> Iterator[MigrationHarness]:
@@ -113,3 +135,39 @@ class TestWorldSnapshotMigrationRoundTrip:
         harness.downgrade(PARENT)
         remaining = harness.fetch("SELECT 1 FROM information_schema.tables WHERE table_name = 'worldsnapshot'")
         assert remaining == []
+
+
+@pytest.mark.integration
+class TestWorldSnapshotMasksMigrationFragment:
+    """The roads+rivers migration declares the right chain without touching a database."""
+
+    def test_revision_chain(self) -> None:
+        assert MASKS_MIGRATION.revision == MASKS_REVISION
+        assert MASKS_MIGRATION.down_revision == MASKS_PARENT
+
+
+@pytest.mark.integration
+class TestWorldSnapshotMasksMigrationRoundTrip:
+    """Existing rows get empty roads and rivers defaults; downgrade drops both columns."""
+
+    def test_existing_rows_get_empty_masks_and_downgrade_drops_columns(self, harness: MigrationHarness) -> None:
+        harness.upgrade(MASKS_PARENT)
+        harness.execute(_INSERT_LEGACY_ROW, version=1)
+
+        harness.upgrade(MASKS_REVISION)
+
+        assert harness.scalar("SELECT roads::text FROM worldsnapshot WHERE generator_version = 1") == "[]"
+        assert harness.scalar("SELECT rivers::text FROM worldsnapshot WHERE generator_version = 1") == "[]"
+        harness.execute(_INSERT_LEGACY_ROW, version=2)
+        assert harness.scalar("SELECT roads::text FROM worldsnapshot WHERE generator_version = 2") == "[]"
+        assert harness.scalar("SELECT rivers::text FROM worldsnapshot WHERE generator_version = 2") == "[]"
+
+        harness.downgrade(MASKS_PARENT)
+        columns = {
+            row[0]
+            for row in harness.fetch(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'worldsnapshot'"
+            )
+        }
+        assert "roads" not in columns
+        assert "rivers" not in columns

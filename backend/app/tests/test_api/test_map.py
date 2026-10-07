@@ -29,6 +29,22 @@ from app.tests.utils.utils import get_gender_based_name
 
 
 @pytest.mark.asyncio
+async def test_get_world_snapshot_exposes_masks(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """GET /map/world returns the persisted world at generator v2 with roads and rivers masks."""
+    response = await async_client.get("/map/world", headers=superuser_token_headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["generator_version"] == 2
+    assert isinstance(body["roads"], list)
+    assert body["roads"]
+    assert isinstance(body["rivers"], list)
+    assert body["rivers"]
+
+
+@pytest.mark.asyncio
 async def test_get_vault_map_includes_bio_places(
     async_client: AsyncClient,
     async_session: AsyncSession,

@@ -26,6 +26,7 @@ describe('AtlasTerrain', () => {
     }
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as any)
     vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,x')
+    return ctx
   }
 
   function snapshot(terrain: string[]) {
@@ -53,6 +54,29 @@ describe('AtlasTerrain', () => {
     await flushPromises()
 
     expect(wrapper.find('image').exists()).toBe(true)
+  })
+
+  it('paints road and river masks over the upscaled terrain', async () => {
+    const store = useMapStore()
+    store.worldSnapshot = snapshot(new Array(16).fill('wasteland'))
+    const ctx = stubCanvas()
+
+    mount(AtlasTerrain, { props: { roads: [0], rivers: [15] } })
+    await flushPromises()
+
+    // 16 terrain cells + one river rect + one road casing + one road fill.
+    expect(ctx.fillRect).toHaveBeenCalledTimes(19)
+  })
+
+  it('paints no mask rects without roads or rivers', async () => {
+    const store = useMapStore()
+    store.worldSnapshot = snapshot(new Array(16).fill('wasteland'))
+    const ctx = stubCanvas()
+
+    mount(AtlasTerrain)
+    await flushPromises()
+
+    expect(ctx.fillRect).toHaveBeenCalledTimes(16)
   })
 
   it('renders no terrain without a snapshot', async () => {

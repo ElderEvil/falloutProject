@@ -56,7 +56,11 @@ const IconStub = {
   template: '<span class="icon-stub" />',
 }
 
-const AtlasTerrainStub = { name: 'AtlasTerrain', template: '<g class="atlas-terrain-stub" />' }
+const AtlasTerrainStub = {
+  name: 'AtlasTerrain',
+  props: ['roads', 'rivers'],
+  template: '<g class="atlas-terrain-stub" />',
+}
 const FogLayerStub = { name: 'FogLayer', props: ['explored'], template: '<g class="fog-layer-stub" />' }
 
 const defaultStubs = {
@@ -1284,6 +1288,48 @@ describe('WorldMap', () => {
       })
 
       expect(wrapper.findAllComponents(MapMarkerStub)[0].props('cleared')).toBe(false)
+    })
+  })
+
+  describe('Terrain mask wiring', () => {
+    function worldSnapshot(roads: number[], rivers: number[]) {
+      return {
+        world_id: 'wasteland-atlas',
+        generator_version: 1,
+        recipe_fingerprint: 'fp',
+        snapshot_checksum: 'cs',
+        width: 4,
+        height: 4,
+        terrain: new Array(16).fill('wasteland'),
+        slots: [],
+        roads,
+        rivers,
+      } as any
+    }
+
+    it('passes the snapshot road and river masks to the terrain layer', () => {
+      const store = useMapStore()
+      store.worldSnapshot = worldSnapshot([1, 2], [8])
+
+      const wrapper = mount(WorldMap, {
+        props: { locations: [], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const terrain = wrapper.findComponent(AtlasTerrainStub)
+      expect(terrain.props('roads')).toEqual([1, 2])
+      expect(terrain.props('rivers')).toEqual([8])
+    })
+
+    it('passes empty masks before the snapshot loads', () => {
+      const wrapper = mount(WorldMap, {
+        props: { locations: [], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const terrain = wrapper.findComponent(AtlasTerrainStub)
+      expect(terrain.props('roads')).toEqual([])
+      expect(terrain.props('rivers')).toEqual([])
     })
   })
 

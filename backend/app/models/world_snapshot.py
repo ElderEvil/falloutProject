@@ -28,6 +28,18 @@ class WorldSnapshotBase(SQLModel):
     # Generated terrain cells (row-major) and land-safe slots.
     terrain: list[str] = Field(default_factory=list, sa_column=Column(JSONB, nullable=False))
     slots: list[dict] = Field(default_factory=list, sa_column=Column(JSONB, nullable=False))
+    # Display-only road mask: flat, sorted tile indices over the terrain grid.
+    # server_default '[]' keeps pre-roads rows readable (legitimate empty mask).
+    roads: list[int] = Field(
+        default_factory=list,
+        sa_column=Column(JSONB, nullable=False, server_default="[]"),
+    )
+    # Display-only river mask: same convention, never carved into terrain.
+    # server_default '[]' keeps pre-rivers rows readable (legitimate empty mask).
+    rivers: list[int] = Field(
+        default_factory=list,
+        sa_column=Column(JSONB, nullable=False, server_default="[]"),
+    )
     # Fixed public anchors baked into the recipe.
     anchors: list[dict] = Field(default_factory=list, sa_column=Column(JSONB, nullable=False))
 

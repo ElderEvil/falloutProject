@@ -81,6 +81,14 @@ const siteGroups = computed(() => {
         <span class="legend-swatch" :class="ATLAS_TERRAIN_CLASS[terrain]" />
         <span class="legend-label">{{ ATLAS_TERRAIN_LABEL[terrain] }}</span>
       </div>
+      <div class="legend-terrain">
+        <span class="legend-swatch bg-terrain-road" />
+        <span class="legend-label">Road</span>
+      </div>
+      <div class="legend-terrain">
+        <span class="legend-swatch bg-terrain-water" />
+        <span class="legend-label">River</span>
+      </div>
 
       <div class="legend-title legend-title-spaced">DANGER</div>
       <div v-for="entry in DANGER_RAMP" :key="entry.level" class="legend-danger">

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.184.0 (2026-10-07)
+
+### Features
+
+* **frontend:** one-click heal with vault count and auto-issue a2ea9de
+
 ## 2.183.1 (2026-10-07)
 
 ### Bug Fixes

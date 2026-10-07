@@ -198,7 +198,7 @@ const modalIcon = computed(() => {
       v-model:open="showInventoryModal"
       size="xl"
       max-height="75"
-      title-class="modal-title text-theme-primary terminal-glow"
+      title-class="flex items-center gap-3 text-2xl font-bold text-theme-primary terminal-glow"
     >
         <template #title>
           <Icon :icon="modalIcon" />
@@ -327,16 +327,6 @@ const modalIcon = computed(() => {
   color: var(--color-theme-primary);
   opacity: 0.7;
   font-size: 0.875rem;
-}
-
-.modal-title {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .items-list {

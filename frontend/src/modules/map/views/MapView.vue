@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useMapStore } from '../stores/map'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import { canUseRadaway, isMature, type DwellerShort } from '@/modules/dwellers/models/dweller'
-import { useSendToWasteland } from '@/modules/exploration/composables/useSendToWasteland'
-import ExplorationDurationModal from '@/modules/exploration/components/ExplorationDurationModal.vue'
+import { isMature, type DwellerShort } from '@/modules/dwellers/models/dweller'
 import { useToast } from '@/core/composables/useToast'
 import { getErrorMessage } from '@/core/utils/errorHandler'
 import SidePanel from '@/core/components/common/SidePanel.vue'
@@ -26,7 +24,6 @@ import type {
   VaultMarkerRead,
 } from '../models/map'
 import { buildExplorerTracks } from '../utils/explorerTracks'
-import { formatHeading } from '../utils/bearing'
 
 const authStore = useAuthStore()
 const mapStore = useMapStore()
@@ -155,31 +152,6 @@ async function handleDispatch(payload: {
   }
 }
 
-// Map-first departure: clicking empty/fogged space on the map opens the
-// departure flow. The run is free-roam (no target) via the shared send action;
-// the pick only chooses the dweller, then the duration/supplies modal opens.
-const showDeparturePicker = ref(false)
-const departurePickerRef = ref<HTMLElement | null>(null)
-// The map is a full-width square, so the picker that answers a map click can
-// mount below the fold; scroll it into view so the click has a visible result.
-// Honour reduced-motion by jumping instead of animating.
-watch(showDeparturePicker, async (open) => {
-  if (!open) return
-  await nextTick()
-  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
-  departurePickerRef.value?.scrollIntoView?.({
-    block: 'nearest',
-    behavior: reduced ? 'auto' : 'smooth',
-  })
-})
-// Vault that the departure dweller list was fetched for; guards against
-// offering another vault's dwellers after a route change.
-const departureDwellersVaultId = ref<string | null>(null)
-// Compass heading (degrees) chosen by the map click that opened the picker;
-// null means a free-roam send. The heading expresses a direction from the
-// vault origin, never a promise of arrival at a hidden destination.
-const pendingHeading = ref<number | null>(null)
-const sendWasteland = useSendToWasteland(() => vaultId.value)
 // Admin debug tool: reveal the whole atlas by dropping the fog layer.
 const fogDisabled = ref(false)
 
@@ -188,34 +160,8 @@ const vaultMedicalSupplies = computed(() => {
   return { stimpaks: vault?.stimpack ?? 0, radaways: vault?.radaway ?? 0 }
 })
 
-const pendingDepartureDweller = computed<DwellerShort | null>(() => {
-  const id = sendWasteland.pendingDweller.value?.dwellerId
-  if (!id) return null
-  return dwellerStore.dwellers.find((d) => d.id === id) ?? null
-})
-
-async function handleExploreWasteland(payload?: { headingDegrees: number }) {
-  const requestedVaultId = vaultId.value
-  if (!requestedVaultId || !authStore.token) return
-  pendingHeading.value = payload?.headingDegrees ?? null
-  // Like the dispatch picker: the dweller list may be empty when the map opens
-  // on its own, so fetch on open and let the panel show loading/empty instead
-  // of silently offering nobody to send. Refetch when the list belongs to
-  // another vault (route change without reload).
-  if (dwellerStore.dwellers.length === 0 || departureDwellersVaultId.value !== requestedVaultId) {
-    await dwellerStore.fetchDwellersByVault(requestedVaultId, authStore.token)
-    if (vaultId.value !== requestedVaultId) return
-    departureDwellersVaultId.value = requestedVaultId
-  }
-  // Supplies come from the vault record; load it lazily so the duration modal
-  // shows real caps instead of zeros.
-  await vaultStore.ensureVaultLoaded(requestedVaultId, authStore.token)
-  if (vaultId.value !== requestedVaultId) return
-  showDeparturePicker.value = true
-}
-
-// Dwellers already out (active or returning) cannot be sent again; the picker
-// only offers eligible, mature candidates.
+// Dwellers already out (active or returning) cannot be sent again; the details
+// modal's dispatch picker only offers eligible, mature candidates.
 const departingDwellerIds = computed(
   () =>
     new Set(
@@ -245,39 +191,6 @@ function isAvailableForDeparture(dweller: DwellerShort): boolean {
 }
 
 const departureCandidates = computed(() => dwellerStore.dwellers.filter(isAvailableForDeparture))
-
-function pickDepartureDweller(dweller: DwellerShort) {
-  const heading = pendingHeading.value
-  sendWasteland.open({
-    dwellerId: dweller.id,
-    firstName: dweller.first_name,
-    lastName: dweller.last_name ?? undefined,
-    ...(heading !== null ? { headingDegrees: heading } : {}),
-  })
-  showDeparturePicker.value = false
-}
-
-async function handleDepartureConfirm(payload: {
-  duration: number
-  stimpaks: number
-  radaways: number
-}) {
-  const departureVaultId = vaultId.value
-  if (!departureVaultId || !authStore.token) return
-  // The shared flow sends the dweller roaming and refreshes the sent vault's
-  // supplies on success; the map only refreshes if that vault is still active,
-  // so a route change mid-send cannot refetch the wrong one.
-  await sendWasteland.confirm(payload, () =>
-    Promise.all([
-      vaultStore.refreshVault(departureVaultId, authStore.token as string),
-      ...(vaultId.value === departureVaultId
-        ? [mapStore.refreshMap(departureVaultId, authStore.token as string)]
-        : []),
-    ]).then(() => undefined)
-  )
-  // The heading is consumed by the send; the next map click picks a fresh one.
-  pendingHeading.value = null
-}
 
 function isDirectDispatchable(loc: WastelandLocationWithDwellers): boolean {
   const clearState = loc.clear_state
@@ -343,12 +256,6 @@ function clearPlaceQuery() {
 watch(
   vaultId,
   () => {
-    // Vault-scoped departure state must not survive a route change: the picker
-    // and any open duration modal belong to the previous vault.
-    showDeparturePicker.value = false
-    departureDwellersVaultId.value = null
-    pendingHeading.value = null
-    sendWasteland.cancel()
     loadMap()
   },
   { immediate: true }
@@ -457,45 +364,13 @@ const mapPaneHeight = 'var(--map-pane-size)'
             :selected-marker-id="selectedMarkerId"
             @update:selected-marker-id="selectedMarkerId = $event"
             @marker-click="handleMarkerClick"
-            @explore-wasteland="handleExploreWasteland"
           />
-
-          <!-- Map-first departure hint: the map itself is the dispatch surface -->
-          <div class="map-toolbar">
-            <span class="map-hint">Click empty wasteland to send a dweller exploring</span>
-          </div>
 
           <!-- Admin debug: lift the fog to inspect the whole atlas -->
           <div v-if="authStore.isSuperuser" class="map-toolbar">
             <Button variant="outline" size="sm" @click="fogDisabled = !fogDisabled">
               {{ fogDisabled ? 'Restore fog' : 'Remove fog (debug)' }}
             </Button>
-          </div>
-
-          <!-- Departure picker: pick a dweller, then the duration/supplies modal -->
-          <div v-if="showDeparturePicker" ref="departurePickerRef" class="departure-picker">
-            <p v-if="pendingHeading !== null">
-              Explore the wasteland heading
-              <span class="heading-badge">{{ formatHeading(pendingHeading) }}</span>
-              — pick a dweller to send.
-            </p>
-            <p v-else>Explore the wasteland — pick a dweller to send roaming.</p>
-            <p v-if="dwellerStore.isLoading" class="map-hint">Loading dwellers…</p>
-            <p v-else-if="departureCandidates.length === 0" class="map-hint">
-              No dwellers available to send.
-            </p>
-            <div v-else class="departure-dwellers">
-              <Button
-                v-for="dweller in departureCandidates"
-                :key="dweller.id"
-                variant="outline"
-                size="sm"
-                @click="pickDepartureDweller(dweller)"
-              >
-                Send {{ dweller.first_name
-                }}{{ pendingHeading !== null ? ` → ${formatHeading(pendingHeading)}` : '' }}
-              </Button>
-            </div>
           </div>
 
           <!-- Detail modal: also hosts the team dispatch menu for clearable points -->
@@ -512,22 +387,6 @@ const mapPaneHeight = 'var(--map-pane-size)'
             @dispatch="handleDispatch"
           />
 
-          <!-- Duration/supplies picker for the map departure flow -->
-          <ExplorationDurationModal
-            :show="sendWasteland.showModal.value"
-            :dweller-name="sendWasteland.pendingDweller.value?.firstName ?? ''"
-            :heading="
-              sendWasteland.headingDegrees.value !== null
-                ? formatHeading(sendWasteland.headingDegrees.value)
-                : null
-            "
-            :max-stimpaks="vaultMedicalSupplies.stimpaks"
-            :max-radaways="vaultMedicalSupplies.radaways"
-            :allow-radaway="canUseRadaway(pendingDepartureDweller)"
-            @confirm="handleDepartureConfirm"
-            @cancel="sendWasteland.cancel"
-          />
-
         </PageContentRail>
       </div>
     </div>
@@ -540,35 +399,6 @@ const mapPaneHeight = 'var(--map-pane-size)'
   align-items: center;
   gap: 0.75rem;
   margin-top: 0.75rem;
-}
-
-.map-hint {
-  font-size: 0.75rem;
-  opacity: 0.7;
-}
-
-.departure-picker {
-  margin-top: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px dashed color-mix(in srgb, var(--color-theme-primary) 40%, transparent);
-  font-size: 0.8rem;
-}
-
-.departure-dwellers {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.4rem;
-}
-
-.heading-badge {
-  display: inline-block;
-  padding: 0 0.35rem;
-  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 60%, transparent);
-  border-radius: 2px;
-  color: var(--color-theme-primary);
-  font-weight: 700;
-  letter-spacing: 0.05em;
 }
 
 .vault-layout {

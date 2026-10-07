@@ -224,11 +224,13 @@ const detailedDwellerMap = computed(
           ? formatHeading(sendWasteland.headingDegrees.value)
           : null
       "
+      :heading-degrees="sendWasteland.headingDegrees.value"
       :can-reroll="true"
       :is-suggesting-heading="sendWasteland.isSuggestingHeading.value"
       @confirm="handleSendWastelandConfirm"
       @cancel="sendWasteland.cancel"
       @reroll="sendWasteland.reroll"
+      @select-heading="sendWasteland.setHeading"
     />
 
     <!-- Rewards Modal -->

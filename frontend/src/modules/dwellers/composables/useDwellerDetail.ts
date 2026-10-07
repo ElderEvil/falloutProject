@@ -30,6 +30,7 @@ export interface DwellerDetailActions {
   }): Promise<boolean>
   cancelSendToWasteland(): void
   rerollWastelandHeading(duration?: number): void
+  setWastelandHeading(degrees: number): void
   healSupply(supply: 'stimpack' | 'radaway'): void
   rename(name: string): void
   confirmRename(): void
@@ -475,6 +476,7 @@ export function useDwellerDetail(
     confirmSendToWasteland: handleSendWastelandConfirm,
     cancelSendToWasteland: () => sendWasteland.cancel(),
     rerollWastelandHeading: (duration?: number) => sendWasteland.reroll(duration),
+    setWastelandHeading: (degrees: number) => sendWasteland.setHeading(degrees),
     healSupply: handleHealSupply,
     rename: handleRename,
     confirmRename,

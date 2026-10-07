@@ -17,6 +17,12 @@ import { useSound } from '@/core/composables/useSound'
 import { useToast } from '@/core/composables/useToast'
 import { useMapStore } from '@/modules/map/stores/map'
 import type { MapPlaceLink } from '@/modules/dwellers/models/dweller'
+import { canUseRadaway } from '@/modules/dwellers/models/dweller'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useSendToWasteland } from '@/modules/exploration/composables/useSendToWasteland'
+import { formatHeading } from '@/modules/map/utils/bearing'
+import ExplorationDurationModal from '@/modules/exploration/components/ExplorationDurationModal.vue'
 import ChatMessageList from './ChatMessageList.vue'
 import ChatDebugPanel from './ChatDebugPanel.vue'
 import { Button } from '@/core/components/ui/button'
@@ -45,6 +51,18 @@ const props = withDefaults(
 const authStore = useAuthStore()
 const profileStore = useProfileStore()
 const mapStore = useMapStore()
+const vaultStore = useVaultStore()
+const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
+
+// Chat's own send-wasteland session: the shared flow owns the modal state, the
+// server heading suggestion, and the departure dispatch.
+const sendWasteland = useSendToWasteland(() => props.vaultId ?? null)
+
+const chatVault = computed(() => (props.vaultId ? vaultStore.loadedVaults[props.vaultId] : null))
+const chatMaxStimpaks = computed(() => chatVault.value?.stimpack ?? 0)
+const chatMaxRadaways = computed(() => chatVault.value?.radaway ?? 0)
+const chatDweller = computed(() => dwellerStore.detailedDwellers[props.dwellerId] ?? null)
+const chatAllowRadaway = computed(() => canUseRadaway(chatDweller.value))
 
 const isSendingAudio = ref(false)
 const audioMode = ref(false)
@@ -154,7 +172,58 @@ const { isPerformingAction, handleActionConfirm, refreshAfterChat } = useChatAct
   dwellerName: props.dwellerName,
   messages,
   vaultId: props.vaultId,
+  sendWasteland,
 })
+
+// The chat's departure keeps the instant path's guard: the dweller is released
+// from their room before dispatch. It runs at modal-confirm time so cancelling
+// the modal never strands a worker without a room, and a failed or duplicate
+// dispatch restores the dweller to the room they were released from.
+const restoreDwellerRoom = async (roomId: string | null) => {
+  if (!roomId || !authStore.token) return
+  try {
+    await dwellerManagementStore.assignDwellerToRoom(props.dwellerId, roomId, authStore.token)
+  } catch {
+    // Best-effort rollback; the send failure is already surfaced to the user.
+  }
+}
+
+const handleChatSendConfirm = async (payload: {
+  duration: number
+  stimpaks: number
+  radaways: number
+}): Promise<boolean> => {
+  // Duplicate-dispatch guard: a second confirm while the first send is still in
+  // flight must not release the room again.
+  if (sendWasteland.isSending.value) return false
+
+  // The roster list carries room_id; the full detail shape exposes room only.
+  const dweller = dwellerStore.dwellers.find((d) => d.id === props.dwellerId)
+  const originalRoomId = dweller?.room_id ?? null
+  let releasedRoom = false
+
+  try {
+    if (originalRoomId && props.vaultId && authStore.token) {
+      await dwellerManagementStore.unassignDwellerFromRoom(props.dwellerId, authStore.token)
+      releasedRoom = true
+    }
+    toast.info(`Sending ${props.dwellerName} to wasteland...`)
+    const sent = await sendWasteland.confirm(payload, async () => {
+      await dwellerStore.fetchDwellerDetails(props.dwellerId, authStore.token as string, true)
+    })
+    if (!sent) {
+      if (releasedRoom) await restoreDwellerRoom(originalRoomId)
+      toast.error('Failed to send dweller to wasteland')
+      return false
+    }
+    dismissAction(latestActionSuggestionIndex.value)
+    return true
+  } catch {
+    if (releasedRoom) await restoreDwellerRoom(originalRoomId)
+    toast.error('Failed to send dweller to wasteland')
+    return false
+  }
+}
 
 const handleSendMessage = async () => {
   await sendMessage()
@@ -459,6 +528,31 @@ onUnmounted(() => {
       </label>
       <ChatDebugPanel v-if="showDebug" :debug="lastChatDebug" />
     </div>
+
+    <ExplorationDurationModal
+      :show="sendWasteland.showModal.value"
+      :dweller-name="
+        `${sendWasteland.pendingDweller.value?.firstName ?? ''} ${sendWasteland.pendingDweller.value?.lastName ?? ''}`
+      "
+      :max-stimpaks="chatMaxStimpaks"
+      :max-radaways="chatMaxRadaways"
+      :allow-radaway="chatAllowRadaway"
+      :heading="
+        sendWasteland.headingDegrees.value !== null
+          ? formatHeading(sendWasteland.headingDegrees.value)
+          : null
+      "
+      :heading-degrees="sendWasteland.headingDegrees.value"
+      :can-reroll="true"
+      :is-suggesting-heading="sendWasteland.isSuggestingHeading.value"
+      :initial-duration="sendWasteland.pendingPrefill.value?.duration"
+      :initial-stimpaks="sendWasteland.pendingPrefill.value?.stimpaks"
+      :initial-radaways="sendWasteland.pendingPrefill.value?.radaways"
+      @confirm="handleChatSendConfirm"
+      @cancel="sendWasteland.cancel"
+      @reroll="sendWasteland.reroll"
+      @select-heading="sendWasteland.setHeading"
+    />
   </div>
 </template>
 

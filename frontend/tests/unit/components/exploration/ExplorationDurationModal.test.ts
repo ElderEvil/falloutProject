@@ -357,4 +357,156 @@ describe('ExplorationDurationModal', () => {
       expect(wrapper.emitted('reroll')).toBeUndefined()
     })
   })
+
+  describe('compass dial', () => {
+    const baseHeadingProps = {
+      show: true,
+      dwellerName: 'TestDweller',
+      maxStimpaks: 10,
+      maxRadaways: 10,
+      heading: 'E / 90°',
+      canReroll: true,
+    }
+
+    it('is collapsed by default behind a Pick direction toggle', () => {
+      const wrapper = mount(ExplorationDurationModal, { props: baseHeadingProps })
+
+      expect(wrapper.find('.heading-dial-toggle').exists()).toBe(true)
+      expect(wrapper.find('.heading-dial-toggle').text()).toContain('Pick direction')
+      expect(wrapper.find('.compass-dial').exists()).toBe(false)
+    })
+
+    it('expands into eight compass directions', async () => {
+      const wrapper = mount(ExplorationDurationModal, { props: baseHeadingProps })
+
+      await wrapper.find('.heading-dial-toggle').trigger('click')
+
+      const directions = wrapper.findAll('.dial-direction')
+      expect(directions).toHaveLength(8)
+      expect(directions.map((d) => d.text())).toEqual(['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'])
+    })
+
+    it('emits selectHeading with the mapped degrees when a direction is picked', async () => {
+      const wrapper = mount(ExplorationDurationModal, { props: baseHeadingProps })
+
+      await wrapper.find('.heading-dial-toggle').trigger('click')
+      const east = wrapper.findAll('.dial-direction').find((d) => d.text() === 'E')
+      await east?.trigger('click')
+
+      expect(wrapper.emitted('selectHeading')).toContainEqual([90])
+    })
+
+    it('highlights the currently active direction on the dial', async () => {
+      const wrapper = mount(ExplorationDurationModal, {
+        props: { ...baseHeadingProps, headingDegrees: 225 },
+      })
+
+      await wrapper.find('.heading-dial-toggle').trigger('click')
+
+      const sw = wrapper.findAll('.dial-direction').find((d) => d.text() === 'SW')
+      expect(sw?.attributes('aria-pressed')).toBe('true')
+      const n = wrapper.findAll('.dial-direction').find((d) => d.text() === 'N')
+      expect(n?.attributes('aria-pressed')).toBe('false')
+    })
+
+    it('stops auto-rerolling when a manual pick is active so it is not overwritten', async () => {
+      const wrapper = mount(ExplorationDurationModal, { props: baseHeadingProps })
+
+      await wrapper.find('.heading-dial-toggle').trigger('click')
+      await wrapper.findAll('.dial-direction').find((d) => d.text() === 'E')?.trigger('click')
+      expect(wrapper.emitted('selectHeading')).toContainEqual([90])
+
+      // Selecting a different duration must NOT re-suggest a heading over the pick.
+      await wrapper.findAll('.duration-button')[5].trigger('click')
+      expect(wrapper.emitted('reroll')).toBeUndefined()
+    })
+
+    it('Change clears the manual pick and re-rerolls', async () => {
+      const wrapper = mount(ExplorationDurationModal, { props: baseHeadingProps })
+
+      await wrapper.find('.heading-dial-toggle').trigger('click')
+      await wrapper.findAll('.dial-direction').find((d) => d.text() === 'SE')?.trigger('click')
+
+      const changeButton = wrapper
+        .findAllComponents(Button)
+        .find((button) => button.text() === 'Change')
+      await changeButton?.trigger('click')
+
+      expect(wrapper.emitted('reroll')).toContainEqual([4])
+      // The dial reverts to the server-suggested heading highlight.
+      expect(wrapper.emitted('selectHeading')).toContainEqual([135])
+    })
+
+    it('seeds the dial highlight from headingDegrees when opened with a suggestion already set', async () => {
+      const wrapper = mount(ExplorationDurationModal, {
+        props: { ...baseHeadingProps, heading: 'S / 180°', headingDegrees: 180 },
+      })
+
+      await wrapper.find('.heading-dial-toggle').trigger('click')
+
+      const south = wrapper.findAll('.dial-direction').find((d) => d.text() === 'S')
+      expect(south?.attributes('aria-pressed')).toBe('true')
+    })
+  })
+
+  describe('prefill seeding', () => {
+    it('seeds duration and supplies from initial props on open, clamped by maxes', async () => {
+      const wrapper = mount(ExplorationDurationModal, {
+        props: {
+          show: false,
+          dwellerName: 'TestDweller',
+          maxStimpaks: 10,
+          maxRadaways: 10,
+          initialDuration: 8,
+          initialStimpaks: 3,
+          initialRadaways: 2,
+        },
+      })
+
+      await wrapper.setProps({ show: true })
+      await nextTick()
+
+      expect(wrapper.find('.duration-button.active').text()).toBe('8h')
+      expect(wrapper.text()).toContain('3 / 10')
+      expect(wrapper.text()).toContain('2 / 10')
+    })
+
+    it('clamps prefilled supplies to the vault maximums', async () => {
+      const wrapper = mount(ExplorationDurationModal, {
+        props: {
+          show: false,
+          dwellerName: 'TestDweller',
+          maxStimpaks: 2,
+          maxRadaways: 1,
+          initialDuration: 4,
+          initialStimpaks: 10,
+          initialRadaways: 10,
+        },
+      })
+
+      await wrapper.setProps({ show: true })
+      await nextTick()
+
+      expect(wrapper.text()).toContain('2 / 2')
+      expect(wrapper.text()).toContain('1 / 1')
+    })
+
+    it('keeps today defaults when no initial props are provided', async () => {
+      const wrapper = mount(ExplorationDurationModal, {
+        props: {
+          show: false,
+          dwellerName: 'TestDweller',
+          maxStimpaks: 10,
+          maxRadaways: 10,
+        },
+      })
+
+      await wrapper.setProps({ show: true })
+      await nextTick()
+
+      expect(wrapper.find('.duration-button.active').text()).toBe('4h')
+      expect(wrapper.text()).toContain('5 / 10')
+      expect(wrapper.text()).toContain('5 / 10')
+    })
+  })
 })

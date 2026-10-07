@@ -103,11 +103,13 @@ const wastelandModalOpen = ctx.wastelandModalOpen
           ? formatHeading(ctx.wastelandHeadingDegrees.value)
           : null
       "
+      :heading-degrees="ctx.wastelandHeadingDegrees.value"
       :can-reroll="true"
       :is-suggesting-heading="ctx.wastelandIsSuggestingHeading.value"
       @confirm="ctx.actions.confirmSendToWasteland"
       @cancel="ctx.actions.cancelSendToWasteland"
       @reroll="ctx.actions.rerollWastelandHeading"
+      @select-heading="ctx.actions.setWastelandHeading"
     />
 
     <Dialog v-model:open="renameDialogOpen">

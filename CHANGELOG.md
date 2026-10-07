@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.185.0 (2026-10-07)
+
+### Features
+
+* **frontend:** retire map-click send, add compass dial, route chat through send flow 4ca7223
+
+### Bug Fixes
+
+* **frontend:** guard chat dispatch unassign and suggestion dismissal faf1af9
+
+## 2.184.0 (2026-10-07)
+
+### Features
+
+* **frontend:** one-click heal with vault count and auto-issue a2ea9de
+
 ## 2.183.1 (2026-10-07)
 
 ### Bug Fixes

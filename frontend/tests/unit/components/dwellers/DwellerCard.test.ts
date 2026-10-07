@@ -543,6 +543,32 @@ describe('DwellerCard', () => {
       expect(useRadAwayBtn.attributes('disabled')).toBeUndefined()
     })
 
+    it('offers no medical actions to a dead dweller but keeps carried supply counts', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: {
+            ...mockDweller,
+            is_dead: true,
+            health: 20,
+            radiation: 30,
+            stimpack: 4,
+            radaway: 3,
+          },
+          imageUrl: null,
+          availableStimpaks: 5,
+          availableRadaways: 5,
+        },
+      })
+
+      expect(wrapper.find('[aria-label="Use Stimpack"]').exists()).toBe(false)
+      expect(wrapper.find('[aria-label="Issue Stimpack from vault"]').exists()).toBe(false)
+      expect(wrapper.find('[aria-label="Use RadAway"]').exists()).toBe(false)
+      expect(wrapper.find('[aria-label="Issue RadAway from vault"]').exists()).toBe(false)
+      // Revival UI owns the dead state; the card only withholds actions, never the counts.
+      expect(wrapper.find('.supply-stimpack .supply-count').text()).toBe('4')
+      expect(wrapper.find('.supply-radaway .supply-count').text()).toBe('3')
+    })
+
     it('emits use-stimpak when the Use button is clicked', async () => {
       const wrapper = mount(DwellerCard, {
         props: {

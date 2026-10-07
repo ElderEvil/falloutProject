@@ -80,6 +80,9 @@ const isInjured = computed(
     props.dweller.health < getEffectiveMaxHealth(props.dweller.radiation, props.dweller.max_health)
 )
 const isRadiated = computed(() => (props.dweller.radiation || 0) > 0)
+// Healing is refused server-side for the deceased (409). Revival UI owns the
+// dead state, so the card never offers a medical action on a corpse.
+const isDead = computed(() => props.dweller.is_dead === true)
 
 const showStimpackSection = computed(
   () => (props.dweller.stimpack || 0) > 0 || (isInjured.value && availableStimpaksCount.value > 0)
@@ -92,10 +95,11 @@ const showRadawaySection = computed(
 const showInventory = computed(() => showStimpackSection.value || showRadawaySection.value)
 
 const canIssueStimpack = computed(
-  () => (props.dweller.stimpack || 0) < 15 && availableStimpaksCount.value > 0
+  () => !isDead.value && (props.dweller.stimpack || 0) < 15 && availableStimpaksCount.value > 0
 )
 const canIssueRadaway = computed(
   () =>
+    !isDead.value &&
     isRadawayEligible(props.dweller) &&
     (props.dweller.radaway || 0) < 15 &&
     availableRadawaysCount.value > 0
@@ -103,11 +107,13 @@ const canIssueRadaway = computed(
 
 const canUseStimpak = computed(
   () =>
+    !isDead.value &&
     (props.dweller.stimpack || 0) > 0 &&
     props.dweller.health < getEffectiveMaxHealth(props.dweller.radiation, props.dweller.max_health)
 )
 const canUseRadaway = computed(
   () =>
+    !isDead.value &&
     isRadawayEligible(props.dweller) &&
     (props.dweller.radaway || 0) > 0 &&
     (props.dweller.radiation || 0) > 0

@@ -2,14 +2,14 @@
 
 Status: in progress — Batch 1 in review, not yet merged
 
-This document defines the staged consolidation of frontend HTTP onto a typed
-boundary. **The native-fetch replacement is cancelled:** reimplementing token
-refresh, retries, and request handling would add maintenance work without a
-demonstrated user benefit (the saving is ~14 kB gzip against a bundle already
-carrying Vue, Reka, and Tailwind). Pinning and lockfile policy checks reduce
-supply-chain exposure but do not eliminate it — the deciding factor is that a
-hand-rolled client costs ongoing maintenance for no user-visible gain. Axios
-stays as the permanent transport; the value is the boundary, not the swap.
+**Axios remains the supported transport.** This document defines the staged
+consolidation of frontend HTTP onto the shared API boundary in
+`src/core/utils/api.ts`. Reimplementing token refresh, retries, and request
+handling on another transport would add maintenance work without a demonstrated
+user benefit (the saving is ~14 kB gzip against a bundle already carrying Vue,
+Reka, and Tailwind). Pinning and lockfile policy checks reduce supply-chain
+exposure but do not eliminate it — the deciding factor is maintenance cost
+without user gain.
 
 ## Approved sequence
 

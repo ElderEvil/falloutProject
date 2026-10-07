@@ -137,9 +137,9 @@ The 7-day delay can slow urgent security patches. When a verified fix must ship 
 `axios` call sites are being consolidated onto a typed boundary tracked in
 [`HTTP_CLIENT_MIGRATION.md`](./HTTP_CLIENT_MIGRATION.md). The approved sequence:
 
-1. `src/core/utils/api.ts` now exists as an **axios-backed shim** over `@/core/plugins/axios`
+1. `src/core/utils/api.ts` is the shared API boundary over `@/core/plugins/axios`
    (Batch 1, in review). Use `apiGet`/`apiPost`/`apiPut`/`apiPatch`/`apiDelete` (or the `api.*` sugar);
-   `apiRequest` returns the full `AxiosResponse` for call sites that need it. Errors normalize to
+   `apiRequest` returns the full `AxiosResponse` where callers need response status or headers. Errors normalize to
    `ApiError { status, detail, fields, headers, cause }`.
 2. Batches 2–4 migrate the remaining services, stores, and exploration/chat call sites.
 3. A later behavior-changing slice removes interceptor notifications (caller-owned toasts end to end).
@@ -430,7 +430,7 @@ const apiUrl = import.meta.env.VITE_API_BASE_URL
 - **[STYLEGUIDE.md](./STYLEGUIDE.md)** - Complete design system guide
 - **[ACCESSIBILITY.md](./ACCESSIBILITY.md)** - WCAG target, implementation policy, and verification plan
 - **[src/core/components/ui/README.md](./src/core/components/ui/README.md)** - UI component API
-- **[HTTP_CLIENT_MIGRATION.md](./HTTP_CLIENT_MIGRATION.md)** - Axios consolidation plan
+- **[HTTP_CLIENT_MIGRATION.md](./HTTP_CLIENT_MIGRATION.md)** - Shared API boundary consolidation plan
 
 ## 🔧 Troubleshooting
 

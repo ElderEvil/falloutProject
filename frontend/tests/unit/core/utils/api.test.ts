@@ -63,6 +63,20 @@ describe('api boundary', () => {
     expect(apiError.cause).toBeDefined()
   })
 
+  it('falls back to message when detail is empty', async () => {
+    vi.mocked(apiClient.get).mockRejectedValueOnce({
+      response: {
+        status: 403,
+        data: { detail: null, message: 'Account disabled' },
+        headers: {},
+      },
+    })
+
+    const error = await apiGet('/api/v1/thing').catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(ApiError)
+    expect(getErrorMessage(error)).toBe('Account disabled')
+  })
+
   it('apiRequest returns the full response untouched', async () => {
     const response = respond({ id: 1 })
     vi.mocked(apiClient.get).mockResolvedValueOnce(response)

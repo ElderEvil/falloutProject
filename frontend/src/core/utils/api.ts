@@ -4,9 +4,7 @@ import { extractValidationFields, formatValidationDetail } from '@/core/types/ut
 
 /**
  * Central HTTP boundary (Batch 1 of the axios call-site consolidation).
- *
- * Axios-backed shim: every call delegates to the shared `@/core/plugins/axios`
- * instance, so the existing auth-refresh interceptor and its notifications keep
+ * Every call delegates to the shared `@/core/plugins/axios` instance, so the
  * working byte-for-byte. This layer only unwraps `response.data` and normalizes
  * failures to {@link ApiError}. Toasts stay caller-owned: the client throws and
  * callers keep feeding the error through `handleStoreError`/`getErrorMessage`.
@@ -58,8 +56,8 @@ export class ApiError extends Error {
 
 function extractDetail(data: unknown): unknown {
   if (data && typeof data === 'object') {
-    if ('detail' in data) return (data as { detail: unknown }).detail
-    if ('message' in data) return (data as { message: unknown }).message
+    const payload = data as { detail?: unknown; message?: unknown }
+    return payload.detail ?? payload.message ?? data
   }
   return data ?? null
 }

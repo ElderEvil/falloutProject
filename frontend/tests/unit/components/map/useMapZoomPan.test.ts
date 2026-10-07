@@ -6,6 +6,7 @@ import {
   computeFocusPan,
   computeZoomAtPoint,
   computePinchPan,
+  canPanAt,
   useMapZoomPan,
   MIN_ZOOM,
   MAX_ZOOM,
@@ -38,6 +39,27 @@ describe('useMapZoomPan — pure functions', () => {
       const result = clampPan(150, 150, zoom)
       expect(result.panX).toBe(120)
       expect(result.panY).toBe(120)
+    })
+  })
+
+  describe('cover-fit pan bounds (full-bleed viewport)', () => {
+    it('reports whether panning is possible per zoom and viewport aspect', () => {
+      expect(canPanAt(1, 1)).toBe(false)
+      expect(canPanAt(2, 1)).toBe(true)
+      expect(canPanAt(1, 2)).toBe(true)
+      expect(canPanAt(1, 0.5)).toBe(true)
+      expect(canPanAt(1, 0)).toBe(false)
+    })
+
+    it('clamps pan to the cropped axis at zoom=1 on a wide viewport', () => {
+      // aspect 2 → the visible window is 160x80 units, so panY ranges [-40, 40].
+      expect(clampPan(10, 999, 1, 2)).toEqual({ panX: 0, panY: 40 })
+      expect(clampPan(10, -999, 1, 2)).toEqual({ panX: 0, panY: -40 })
+    })
+
+    it('keeps the square-viewport pan bounds unchanged', () => {
+      expect(clampPan(50, 50, 1, 1)).toEqual({ panX: 0, panY: 0 })
+      expect(clampPan(90, -10, 2, 1)).toEqual({ panX: 80, panY: 0 })
     })
   })
 
@@ -150,7 +172,7 @@ describe('useMapZoomPan — pure functions', () => {
     })
 
     it('should clamp zoom at MAX_ZOOM', () => {
-      const result = computePinchPan(4, 60, 60, 100, 400, 0.5, 0.5, 0.5, 0.5)
+      const result = computePinchPan(MAX_ZOOM, 60, 60, 100, 400, 0.5, 0.5, 0.5, 0.5)
       expect(result.zoom).toBe(MAX_ZOOM)
       expect(result.panX).toBe(60)
       expect(result.panY).toBe(60)
@@ -260,6 +282,33 @@ describe('useMapZoomPan — pure functions', () => {
       map.onTouchMove(touchEvent([{ x: 70, y: 200 }]), rect)
       expect(map.zoom.value).toBe(zoomAfterPinch)
       expect(map.panX.value).toBeLessThan(panBefore)
+    })
+
+    it('starts a pan drag at zoom=1 when the cover fit crops an axis', () => {
+      const map = useMapZoomPan()
+      const wide = { left: 0, top: 0, width: 800, height: 400 } as DOMRect
+      map.syncViewport(wide)
+
+      expect(map.canPan.value).toBe(true)
+      map.onTouchStart(touchEvent([{ x: 400, y: 200 }]), wide)
+      expect(map.isDragging.value).toBe(true)
+
+      map.onTouchMove(touchEvent([{ x: 400, y: 240 }]), wide)
+      // dy=40px at scale 800/160=5 → 8 SVG units; pan starts at 0.
+      expect(map.panX.value).toBe(0)
+      expect(map.panY.value).toBe(-8)
+
+      map.onTouchEnd(touchEvent([]))
+      expect(map.isDragging.value).toBe(false)
+    })
+
+    it('does not start a drag at zoom=1 on a square viewport', () => {
+      const map = useMapZoomPan()
+      map.syncViewport(rect)
+
+      expect(map.canPan.value).toBe(false)
+      map.onTouchStart(touchEvent([{ x: 200, y: 200 }]), rect)
+      expect(map.isDragging.value).toBe(false)
     })
   })
 })

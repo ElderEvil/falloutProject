@@ -505,4 +505,64 @@ describe('MapMarker', () => {
       expect(portrait.findComponent(Icon).props('icon')).toBe('mdi:walk')
     })
   })
+
+  describe('Danger ramp', () => {
+    it('ramps the marker to the catalog risk class over a chunky disc', () => {
+      const wrapper = mount(MapMarker, {
+        props: {
+          x: 10,
+          y: 20,
+          name: 'Raider Camp',
+          type: 'visited',
+          risk: 'high',
+        },
+        global: { stubs: { Icon: true } },
+      })
+
+      expect(wrapper.find('g.map-marker.marker-risk-high').exists()).toBe(true)
+      expect(wrapper.find('circle.marker-disc').exists()).toBe(true)
+    })
+
+    it('falls back to the base difficulty band when the risk is missing', () => {
+      const wrapper = mount(MapMarker, {
+        props: {
+          x: 10,
+          y: 20,
+          name: 'Gas Station',
+          type: 'visited',
+          baseDifficulty: 3,
+        },
+        global: { stubs: { Icon: true } },
+      })
+
+      expect(wrapper.find('g.map-marker.marker-risk-medium').exists()).toBe(true)
+    })
+
+    it('keeps the neutral ramp for a marker without catalog risk data', () => {
+      const wrapper = mount(MapMarker, {
+        props: { x: 10, y: 20, name: 'Old Shack', type: 'visited' },
+        global: { stubs: { Icon: true } },
+      })
+
+      expect(wrapper.find('g.map-marker.marker-risk-medium').exists()).toBe(false)
+      expect(wrapper.find('g.map-marker.marker-risk-high').exists()).toBe(false)
+    })
+
+    it('does not leak risk styling for a locked location', () => {
+      const wrapper = mount(MapMarker, {
+        props: {
+          x: 10,
+          y: 20,
+          name: 'Hidden Camp',
+          type: 'discovery',
+          is_unlocked: false,
+          risk: 'high',
+        },
+        global: { stubs: { Icon: true } },
+      })
+
+      expect(wrapper.find('g.map-marker.marker-risk-high').exists()).toBe(false)
+      expect(wrapper.find('.marker-locked').exists()).toBe(true)
+    })
+  })
 })

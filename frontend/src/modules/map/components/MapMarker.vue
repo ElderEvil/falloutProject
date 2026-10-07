@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { markerTypeMeta, type MarkerType } from '../models/markerTypeMeta'
+import { riskToDangerStyle } from '../utils/dangerStyle'
 import { isHintLocation } from '../utils/visibility'
 
 interface Props {
@@ -20,6 +21,8 @@ interface Props {
   exploring?: boolean
   status?: string
   interactive?: boolean
+  risk?: string | null
+  baseDifficulty?: number | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -57,6 +60,14 @@ const displayIcon = computed(() => (isLocked.value ? 'mdi:lock-question' : icon.
 const displayLabel = computed(() => (isLocked.value ? 'Unknown Location' : props.name))
 const shouldPulse = computed(() => isDiscovery.value && !isLocked.value && props.unseen)
 
+// Locked places are mysteries: their catalog risk must not leak through the
+// marker colour, so the ramp only applies once a place is known.
+const dangerClass = computed(() =>
+  !isLocked.value && (props.risk != null || props.baseDifficulty != null)
+    ? riskToDangerStyle(props.risk, props.baseDifficulty).className
+    : null
+)
+
 const tooltipText = computed(() => {
   const base = `${displayLabel.value} (${label.value})`
   return props.status ? `${base} — ${props.status}` : base
@@ -75,6 +86,7 @@ const tooltipText = computed(() => {
       'marker-locked': isLocked,
       'marker-cleared': cleared,
       'marker-explorer': type === 'explorer',
+      [dangerClass ?? '']: dangerClass !== null,
     }"
     :tabindex="interactive ? 0 : undefined"
     :role="interactive ? 'button' : undefined"
@@ -87,10 +99,11 @@ const tooltipText = computed(() => {
          it to 0x0 in Chromium and the marker becomes invisible. -->
     <circle class="marker-hit-area" r="6" fill="transparent" />
     <title>{{ tooltipText }}</title>
-    <circle v-if="selected" class="marker-select-ring" r="3.1" />
-    <circle v-if="selected" class="marker-select-ping" r="3.1" />
-    <circle v-if="exploring" class="marker-exploring-ring" r="3.1" />
-    <foreignObject x="-3.5" y="-3.5" width="7" height="7">
+    <circle class="marker-disc" r="4.2" />
+    <circle v-if="selected" class="marker-select-ring" r="5" />
+    <circle v-if="selected" class="marker-select-ping" r="5" />
+    <circle v-if="exploring" class="marker-exploring-ring" r="5" />
+    <foreignObject x="-4" y="-4" width="8" height="8">
       <div
         v-bind="{ xmlns: 'http://www.w3.org/1999/xhtml' }"
         class="marker-icon"
@@ -116,7 +129,7 @@ const tooltipText = computed(() => {
       <path d="M 2.1 -3.3 L 2.6 -2.7 L 3.4 -3.7" class="marker-cleared-badge-check" />
     </g>
     <!-- Label: hidden by default, shown on hover/focus/selected via CSS -->
-    <text class="marker-label" x="0" y="-3.4" text-anchor="middle" aria-hidden="true">{{
+    <text class="marker-label" x="0" y="-5.4" text-anchor="middle" aria-hidden="true">{{
       displayLabel
     }}</text>
   </g>
@@ -125,6 +138,28 @@ const tooltipText = computed(() => {
 <style scoped>
 .map-marker {
   transition: transform 150ms ease;
+  /* Danger ramp source: disc, icon tint, glow and label all read this. */
+  --marker-accent: var(--color-theme-primary);
+  --marker-glow: 1.2px;
+}
+
+/* Catalog risk → Fallout danger ramp: quiet green, amber warning, red danger. */
+.marker-risk-low {
+  --marker-accent: var(--color-success);
+}
+
+.marker-risk-medium {
+  --marker-accent: var(--color-warning);
+  --marker-glow: 1.8px;
+}
+
+.marker-risk-high {
+  --marker-accent: var(--color-danger);
+  --marker-glow: 2.4px;
+}
+
+.marker-risk-unknown {
+  --marker-accent: var(--color-theme-primary);
 }
 
 /* Non-interactive markers (free-roam explorer last-known positions) are
@@ -136,12 +171,21 @@ const tooltipText = computed(() => {
 
 .map-marker:hover .marker-icon,
 .map-marker:focus-visible .marker-icon {
-  filter: drop-shadow(0 0 6px var(--color-theme-primary));
+  filter: drop-shadow(0 0 6px var(--marker-accent));
 }
 
 .map-marker:focus-visible {
   outline: none;
-  filter: drop-shadow(0 0 4px var(--color-theme-primary));
+  filter: drop-shadow(0 0 4px var(--marker-accent));
+}
+
+/* Chunky location disc: dark plate + danger-coloured rim and glow. */
+.marker-disc {
+  fill: var(--color-surface-sunken);
+  stroke: var(--marker-accent);
+  stroke-width: 0.45;
+  filter: drop-shadow(0 0 var(--marker-glow) var(--marker-accent));
+  pointer-events: none;
 }
 
 .marker-icon {
@@ -152,7 +196,7 @@ const tooltipText = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-theme-primary);
+  color: var(--marker-accent);
 }
 
 .marker-discovery {
@@ -179,13 +223,19 @@ const tooltipText = computed(() => {
 }
 
 .marker-vault {
-  color: var(--color-warning);
+  --marker-accent: var(--color-warning);
   opacity: 0.7;
 }
 
 .marker-locked .marker-icon {
   opacity: 0.5;
   stroke-dasharray: 4 2;
+}
+
+/* Unknown-location hints keep the dashed, dimmed rim once the disc is chunky. */
+.marker-locked .marker-disc {
+  opacity: 0.5;
+  stroke-dasharray: 0.8 0.6;
 }
 
 /* Cleared points: dimmed marker + shield-check badge in the top-right corner */
@@ -220,13 +270,13 @@ const tooltipText = computed(() => {
 }
 
 /* Free-roam explorer last-known position: accent-tinted, non-interactive */
-.marker-explorer .marker-icon {
-  color: var(--color-theme-accent);
+.marker-explorer {
+  --marker-accent: var(--color-theme-accent);
 }
 
 /* Label: hidden by default, visible on hover/focus/selected */
 .marker-label {
-  fill: var(--color-theme-primary);
+  fill: var(--marker-accent);
   font-family: var(--font-family-mono);
   font-size: 2.4px;
   pointer-events: none;

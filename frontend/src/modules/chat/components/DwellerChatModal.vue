@@ -121,6 +121,8 @@ watch(
           :dweller-status="dweller.status"
           :room-name="dweller.room?.name"
           :dweller-can-explore="isMature(dweller)"
+          :is-dead="dweller.is_dead"
+          :is-permanently-dead="dweller.is_permanently_dead"
         />
         <div v-else class="flex flex-1 items-center justify-center text-theme-primary/60">
           <p>Dweller information unavailable.</p>

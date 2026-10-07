@@ -6,6 +6,7 @@ import DwellerChat from '@/modules/chat/components/DwellerChat.vue'
 import apiClient from '@/core/plugins/axios'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useDwellerDeathStore } from '@/modules/dwellers/stores/dwellerDeath'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import * as trainingService from '@/modules/progression/services/trainingService'
 
@@ -2538,6 +2539,64 @@ describe('DwellerChat', () => {
       const wrapper = mountComponent()
 
       expect(wrapper.find('.chat-budget-status').text()).toContain('650 tokens remaining')
+    })
+  })
+
+  describe('Dead dweller read-only chat', () => {
+    it('disables the composer, shows the dead notice and revive CTA, and never sends', async () => {
+      const wrapper = mountComponent({ isDead: true })
+      await flushPromises()
+
+      expect(wrapper.get('.dead-notice').text()).toContain('The dead cannot reply')
+      expect((wrapper.get('.chat-input-field').element as HTMLInputElement).disabled).toBe(true)
+      expect((wrapper.get('.chat-send-btn').element as HTMLButtonElement).disabled).toBe(true)
+      expect(wrapper.find('.dead-revive-btn').exists()).toBe(true)
+
+      await wrapper.get('.chat-input-field').setValue('Anyone there?')
+      await wrapper.get('.chat-send-btn').trigger('click')
+      await flushPromises()
+
+      expect(apiClient.post).not.toHaveBeenCalled()
+    })
+
+    it('re-enables the composer after a successful revive without reloading', async () => {
+      const reviveSpy = vi
+        .spyOn(useDwellerDeathStore(), 'reviveDweller')
+        .mockResolvedValue({ dweller: { first_name: 'Test' }, caps_spent: 5 } as any)
+
+      const wrapper = mountComponent({ isDead: true })
+      await flushPromises()
+
+      await wrapper.get('.dead-revive-btn').trigger('click')
+      await flushPromises()
+
+      expect(reviveSpy).toHaveBeenCalledWith('dweller-123', 'test-token')
+      expect(wrapper.find('.dead-notice').exists()).toBe(false)
+      expect((wrapper.get('.chat-input-field').element as HTMLInputElement).disabled).toBe(false)
+
+      await wrapper.get('.chat-input-field').setValue('Back among the living')
+      expect((wrapper.get('.chat-send-btn').element as HTMLButtonElement).disabled).toBe(false)
+    })
+
+    it('shows the notice without a revive action for permanently dead dwellers', async () => {
+      const wrapper = mountComponent({ isDead: true, isPermanentlyDead: true })
+      await flushPromises()
+
+      expect(wrapper.find('.dead-notice').exists()).toBe(true)
+      expect(wrapper.find('.dead-revive-btn').exists()).toBe(false)
+      expect(wrapper.text()).toContain('Permanently dead')
+      expect((wrapper.get('.chat-input-field').element as HTMLInputElement).disabled).toBe(true)
+    })
+
+    it('leaves live dwellers with an enabled composer and no dead notice', async () => {
+      const wrapper = mountComponent()
+      await flushPromises()
+
+      expect(wrapper.find('.dead-notice').exists()).toBe(false)
+      expect((wrapper.get('.chat-input-field').element as HTMLInputElement).disabled).toBe(false)
+
+      await wrapper.get('.chat-input-field').setValue('Hello')
+      expect((wrapper.get('.chat-send-btn').element as HTMLButtonElement).disabled).toBe(false)
     })
   })
 })

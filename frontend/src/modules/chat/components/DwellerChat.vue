@@ -16,6 +16,7 @@ import { useChatActions } from '../composables/useChatActions'
 import { useSound } from '@/core/composables/useSound'
 import { useToast } from '@/core/composables/useToast'
 import { useMapStore } from '@/modules/map/stores/map'
+import { useDwellerDeathStore } from '@/modules/dwellers/stores/dwellerDeath'
 import type { MapPlaceLink } from '@/modules/dwellers/models/dweller'
 import { canUseRadaway } from '@/modules/dwellers/models/dweller'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
@@ -44,13 +45,31 @@ const props = withDefaults(
     dwellerStatus?: string
     roomName?: string | null
     dwellerCanExplore?: boolean
+    isDead?: boolean
+    isPermanentlyDead?: boolean
   }>(),
-  { dwellerCanExplore: true }
+  { dwellerCanExplore: true, isDead: false, isPermanentlyDead: false }
 )
 
 const authStore = useAuthStore()
 const profileStore = useProfileStore()
 const mapStore = useMapStore()
+const dwellerDeathStore = useDwellerDeathStore()
+
+// The backend rejects sends from a dead dweller (HTTP 400); the composer must
+// stay readable but unsendable until the Overseer revives them. `locallyRevived`
+// flips the chat live after a successful revive without waiting for a refetch.
+const locallyRevived = ref(false)
+const isReviving = ref(false)
+const isDead = computed(() => props.isDead && !locallyRevived.value)
+const canRevive = computed(() => isDead.value && !props.isPermanentlyDead)
+
+watch(
+  () => props.isDead,
+  () => {
+    locallyRevived.value = false
+  }
+)
 const vaultStore = useVaultStore()
 const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
 
@@ -226,8 +245,27 @@ const handleChatSendConfirm = async (payload: {
 }
 
 const handleSendMessage = async () => {
+  if (isDead.value) return
   await sendMessage()
   refreshAfterChat()
+}
+
+const handleRetryMessage = (index: number) => {
+  if (isDead.value) return
+  retryMessage(index)
+}
+
+// Reuses the dwellers' revive flow (which owns the success/failure toasts);
+// flipping local state re-enables the composer without a page reload.
+const handleRevive = async () => {
+  if (isReviving.value || !canRevive.value || !authStore.token) return
+  isReviving.value = true
+  try {
+    const result = await dwellerDeathStore.reviveDweller(props.dwellerId, authStore.token)
+    if (result) locallyRevived.value = true
+  } finally {
+    isReviving.value = false
+  }
 }
 
 // Register WebSocket event handlers during setup
@@ -400,7 +438,7 @@ onUnmounted(() => {
         @stop-audio="stopAudio"
         @confirm-action="handleActionConfirm"
         @dismiss-action="dismissAction"
-        @retry-message="retryMessage"
+        @retry-message="handleRetryMessage"
       />
     </div>
 
@@ -414,7 +452,49 @@ onUnmounted(() => {
       </RouterLink>
     </div>
 
-    <div v-if="isQuotaExceeded" class="chat-input quota-exceeded">
+    <div
+      v-if="isDead"
+      class="flex flex-col gap-2 border-t border-theme-glow bg-black/80 p-4"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <p class="dead-notice flex items-center gap-1.5 text-xs text-theme-primary/70">
+          <Icon icon="mdi:heart-broken" class="h-4 w-4" />
+          The dead cannot reply — revive to continue
+        </p>
+        <Button
+          v-if="canRevive"
+          variant="default"
+          size="sm"
+          class="dead-revive-btn"
+          :disabled="isReviving"
+          @click="handleRevive"
+        >
+          <Icon
+            :icon="isReviving ? 'mdi:loading' : 'mdi:heart-pulse'"
+            class="h-4 w-4"
+            :class="{ 'animate-spin': isReviving }"
+          />
+          Revive
+        </Button>
+        <span v-else class="text-xs uppercase tracking-wider text-theme-primary/50">
+          Permanently dead
+        </span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="terminal-prompt">&gt;</span>
+        <Input
+          v-model="userMessage"
+          class="chat-input-field"
+          placeholder="The dead cannot reply"
+          disabled
+        />
+        <Button variant="ghost" class="chat-send-btn h-auto" disabled aria-label="Send message">
+          <Icon icon="mdi:send" class="h-5 w-5" />
+        </Button>
+      </div>
+    </div>
+
+    <div v-else-if="isQuotaExceeded" class="chat-input quota-exceeded">
       <div class="quota-blocked-message">
         <Icon icon="mdi:alert-circle" class="quota-icon" />
         <div class="quota-text">

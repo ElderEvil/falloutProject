@@ -546,6 +546,29 @@ describe('DwellerCard', () => {
       expect(useRadAwayBtn.attributes('disabled')).toBeUndefined()
     })
 
+    it('shows no medical rows for a dead dweller', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: {
+            ...mockDweller,
+            is_dead: true,
+            health: 20,
+            radiation: 30,
+            stimpack: 4,
+            radaway: 3,
+          },
+          imageUrl: null,
+          availableStimpaks: 5,
+          availableRadaways: 5,
+        },
+      })
+
+      expect(wrapper.find('.supply-stimpack').exists()).toBe(false)
+      expect(wrapper.find('.supply-radaway').exists()).toBe(false)
+      expect(wrapper.find('[aria-label="Use Stimpack"]').exists()).toBe(false)
+      expect(wrapper.find('[aria-label="Use RadAway"]').exists()).toBe(false)
+    })
+
     it('emits heal-stimpack when the Heal button is clicked', async () => {
       const wrapper = mount(DwellerCard, {
         props: {

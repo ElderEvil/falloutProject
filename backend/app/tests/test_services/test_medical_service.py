@@ -70,6 +70,18 @@ class TestUseRadaway:
         with pytest.raises(ContentNoChangeException):
             await medical_service.use_radaway(async_session, dweller.id)
 
+    @pytest.mark.asyncio
+    async def test_dead_dweller_cannot_use_radaway(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
+        await _set_dweller_state(async_session, dweller, max_health=100, radiation=50, radaway=1)
+        dweller.is_dead = True
+        async_session.add(dweller)
+        await async_session.commit()
+        with pytest.raises(ResourceConflictException, match="revived"):
+            await medical_service.use_radaway(async_session, dweller.id)
+        await async_session.refresh(dweller)
+        assert dweller.radiation == 50
+        assert dweller.radaway == 1
+
 
 class TestUseStimpack:
     @pytest.mark.asyncio
@@ -102,6 +114,18 @@ class TestUseStimpack:
         await _set_dweller_state(async_session, dweller, max_health=100, health=100, radiation=0, stimpack=1)
         with pytest.raises(ContentNoChangeException):
             await medical_service.use_stimpack(async_session, dweller.id)
+
+    @pytest.mark.asyncio
+    async def test_dead_dweller_cannot_be_healed(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
+        await _set_dweller_state(async_session, dweller, max_health=100, health=0, radiation=0, stimpack=1)
+        dweller.is_dead = True
+        async_session.add(dweller)
+        await async_session.commit()
+        with pytest.raises(ResourceConflictException, match="revived"):
+            await medical_service.use_stimpack(async_session, dweller.id)
+        await async_session.refresh(dweller)
+        assert dweller.health == 0
+        assert dweller.stimpack == 1
 
 
 class TestDistributeRecoverySupplies:

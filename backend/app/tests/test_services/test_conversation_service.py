@@ -104,6 +104,25 @@ async def test_empty_audio_is_rejected_before_loading_dweller() -> None:
     load.assert_not_awaited()
 
 
+async def test_dead_dweller_is_rejected_before_transcription() -> None:
+    from app.utils.exceptions import ValidationException
+
+    dead_dweller = MagicMock(is_dead=True)
+    with (
+        patch(
+            "app.services.conversation_service.get_accessible_dweller",
+            new=AsyncMock(return_value=dead_dweller),
+        ),
+        patch.object(
+            conversation_service,
+            "_transcribe_audio",
+            new=AsyncMock(side_effect=AssertionError("Unexpected transcription")),
+        ),
+        pytest.raises(ValidationException, match="dead"),
+    ):
+        await conversation_service.process_audio_message(MagicMock(), MagicMock(), uuid4(), b"audio-bytes")
+
+
 async def test_voice_generation_uses_shared_audio_agent_runner() -> None:
     db_session = MagicMock()
     dweller = MagicMock()

@@ -1185,39 +1185,6 @@ const redraw = (): void => {
     }
   }
 
-  if (layersOn.terrain) {
-    // Sparse texture marks so terrain reads by pattern as well as colour
-    // (contract DD6). Deterministic placement — no per-frame randomness.
-    ctx.lineWidth = 1
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        if ((x * 7 + y * 13) % 6 !== 0) continue
-        if (visibilityEnforced.value && !tileVisible(x, y)) continue
-        const t = w.terrain[y * width + x]
-        const cx = x * TILE + TILE / 2
-        const cy = y * TILE + TILE / 2
-        if (t === 'hills') {
-          ctx.strokeStyle = 'rgba(214, 200, 160, 0.22)'
-          ctx.lineWidth = 1.2
-          ctx.beginPath()
-          ctx.moveTo(cx - 3, cy + 2)
-          ctx.lineTo(cx, cy - 2)
-          ctx.lineTo(cx + 3, cy + 2)
-          ctx.stroke()
-          ctx.lineWidth = 1
-        } else if (t === 'ruins') {
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'
-          ctx.fillRect(cx - 1.5, cy - 1.5, 3, 3)
-        } else if (t === 'forest') {
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-          ctx.beginPath()
-          ctx.arc(cx, cy, 1.6, 0, Math.PI * 2)
-          ctx.fill()
-        }
-      }
-    }
-  }
-
   if (layersOn.grid) {
     ctx.strokeStyle = 'rgba(0, 255, 0, 0.07)'
     ctx.lineWidth = 1

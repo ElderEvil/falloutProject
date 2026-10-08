@@ -87,6 +87,8 @@ const tooltipText = computed(() => {
          it to 0x0 in Chromium and the marker becomes invisible. -->
     <circle class="marker-hit-area" r="6" fill="transparent" />
     <title>{{ tooltipText }}</title>
+    <!-- Dark knockout disc: keeps the icon and rings legible over any terrain -->
+    <circle class="marker-backing" r="3.8" />
     <circle v-if="selected" class="marker-select-ring" r="3.1" />
     <circle v-if="selected" class="marker-select-ping" r="3.1" />
     <circle v-if="exploring" class="marker-exploring-ring" r="3.1" />
@@ -153,6 +155,14 @@ const tooltipText = computed(() => {
   align-items: center;
   justify-content: center;
   color: var(--color-theme-primary);
+}
+
+/* Uniform dark backing behind every marker icon and ring. Slightly wider than
+   the icon box and near-opaque, so markers separate from light terrain without
+   changing the marker's own size. */
+.marker-backing {
+  fill: color-mix(in srgb, var(--color-terminal-background) 90%, transparent);
+  pointer-events: none;
 }
 
 .marker-discovery {

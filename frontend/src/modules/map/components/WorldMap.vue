@@ -14,6 +14,7 @@ import type {
 } from '../models/map'
 import { EXPEDITION_SITE_ICON, locationMarkerIcon } from '../models/markerTypeMeta'
 import { markerArtDataUrl } from '../utils/markerIcons'
+import MapClusterMarker from './MapClusterMarker.vue'
 import MapMarker from './MapMarker.vue'
 import MapLegend from './MapLegend.vue'
 import MarkerListPanel from './MarkerListPanel.vue'
@@ -24,9 +25,11 @@ import { computeExploredMask, isExploredTile } from '../utils/fog'
 import { useMapSpread } from '../composables/useMapSpread'
 import { useMarkerSelection } from '../composables/useMarkerSelection'
 import { tracePoints } from '../utils/tracePath'
-import { useMapZoomPan } from '../composables/useMapZoomPan'
+import { useMapZoomPan, MAX_ZOOM } from '../composables/useMapZoomPan'
 import { useMapStore } from '../stores/map'
 import { isKnownLocation } from '../utils/visibility'
+import { isMarkerVisible } from '../utils/declutter'
+import { clusterMarkers, type MarkerCluster } from '../utils/clusterMarkers'
 import { explorerHeading } from '../utils/explorerHeading'
 
 interface Props {
@@ -223,6 +226,28 @@ const groupIconByKey = computed(
 
 const { spreadMap, getSpread } = useMapSpread(visibleLocations, vaultMarkers)
 
+// ── Declutter ─────────────────────────────────────────────────────────
+// Primary markers (home vault, selection, discoveries, active explorers and
+// expedition sites) always render — dense discoveries collapse into cluster
+// badges instead of being hidden. Secondary locations and anonymous vault
+// hints stay hidden at overview zoom and reappear as the player zooms in.
+const renderedLocations = computed(() =>
+  visibleLocations.value.filter((loc) =>
+    isMarkerVisible(
+      {
+        type: loc.type,
+        selected: props.selectedMarkerId === `loc-${loc.id}`,
+        exploring: exploringByLocation.value.has(loc.id),
+      },
+      zoom.value,
+    ),
+  ),
+)
+
+const renderedVaultHints = computed(() =>
+  foreignVaultHints.value.filter(() => isMarkerVisible({ type: 'vault' }, zoom.value)),
+)
+
 const selectedMarkerId = computed<string | null>({
   get: () => props.selectedMarkerId,
   set: (value) => emit('update:selectedMarkerId', value),
@@ -234,6 +259,62 @@ const { hasDragMoved, onLocationClick, onSiteClick, onPanelMarkerSelect } = useM
   focusOnMarker,
   emit,
 )
+
+// ── Discovery clustering ──────────────────────────────────────────────
+// Discoveries render at every zoom, so on a dense atlas their count is what
+// swamps the map. Grid cells shrink as the map zooms in, so a badge expands
+// into individual, fully interactive markers on its own; a badge click zooms
+// one step further, centered on the cluster. Selection and active explorers
+// stay pinned individually so their rings and labels never disappear.
+const locationByMarkerId = computed(
+  () => new Map(renderedLocations.value.map((loc) => [`loc-${loc.id}`, loc])),
+)
+
+const clusterableDiscoveries = computed(() =>
+  renderedLocations.value
+    .filter(
+      (loc) =>
+        loc.type === 'discovery' &&
+        loc.is_unlocked !== false &&
+        selectedMarkerId.value !== `loc-${loc.id}` &&
+        !exploringByLocation.value.has(loc.id),
+    )
+    .map((loc) => {
+      const spread = getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y)
+      return { id: `loc-${loc.id}`, x: spread.renderX, y: spread.renderY }
+    }),
+)
+
+const discoveryClusters = computed(() =>
+  clusterMarkers(clusterableDiscoveries.value, { zoom: zoom.value }),
+)
+
+const clusterBadges = computed(() =>
+  discoveryClusters.value.filter((cluster) => cluster.members.length > 1),
+)
+
+const clusteredIds = computed(
+  () =>
+    new Set(
+      clusterBadges.value.flatMap((cluster) => cluster.members.map((member) => member.id)),
+    ),
+)
+
+const renderedLocationsIndividual = computed(() =>
+  renderedLocations.value.filter((loc) => !clusteredIds.value.has(`loc-${loc.id}`)),
+)
+
+function clusterHasUnseen(cluster: MarkerCluster): boolean {
+  return cluster.members.some((member) => {
+    const loc = locationByMarkerId.value.get(member.id)
+    return loc ? mapStore.isUnseenDiscovery(loc) : false
+  })
+}
+
+function onClusterClick(cluster: MarkerCluster) {
+  if (hasDragMoved.value) return
+  focusOnMarker(cluster.x, cluster.y, Math.min(MAX_ZOOM, zoom.value + 1))
+}
 
 function getSvgRect(): DOMRect {
   return svgRef.value?.getBoundingClientRect() ?? new DOMRect(0, 0, 0, 0)
@@ -307,18 +388,22 @@ function handleTouchEnd(event: TouchEvent) {
         <!-- Fog of war: derived explored mask over the terrain -->
         <FogLayer v-if="!fogDisabled" :explored="exploredMask" :tiles="gridTiles" />
 
-        <!-- Discovery routes (per-exploration trail) -->
-        <polyline
+        <!-- Discovery routes: dark casing under the accent line so trails read
+             as roads (still above terrain/fog and below markers) -->
+        <g
           v-for="(route, i) in discoveryRouteLines"
           :key="`route-${i}`"
-          :points="route"
-          class="stroke-(--color-theme-accent) stroke-[0.4] opacity-[0.55] [stroke-linecap:round]"
+          class="discovery-route"
           fill="none"
-        />
+        >
+          <polyline :points="route" class="discovery-route-casing" />
+          <polyline :points="route" class="discovery-route-line" />
+        </g>
 
-        <!-- Location markers (spread-adjusted positions) -->
+        <!-- Location markers (spread-adjusted positions; discoveries inside a
+             cluster are rendered as the badge below instead) -->
         <MapMarker
-          v-for="loc in visibleLocations"
+          v-for="loc in renderedLocationsIndividual"
           :key="`loc-${loc.id}`"
           :x="getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y).renderX"
           :y="getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y).renderY"
@@ -335,6 +420,18 @@ function handleTouchEnd(event: TouchEvent) {
           @click="onLocationClick(loc)"
         />
 
+        <!-- Discovery clusters: one ×N badge per dense cell, clickable to zoom
+             in until the cluster splits back into individual markers -->
+        <MapClusterMarker
+          v-for="cluster in clusterBadges"
+          :key="cluster.id"
+          :x="cluster.x"
+          :y="cluster.y"
+          :count="cluster.members.length"
+          :unseen="clusterHasUnseen(cluster)"
+          @click="onClusterClick(cluster)"
+        />
+
         <!-- Your vaults (identity shown) -->
         <MapMarker
           v-for="pv in ownPlayerVaults"
@@ -347,9 +444,10 @@ function handleTouchEnd(event: TouchEvent) {
           :interactive="false"
         />
 
-        <!-- Other vaults: anonymous hints, only where the fog is lifted -->
+        <!-- Other vaults: anonymous hints, only where the fog is lifted and
+             the map is zoomed past the declutter threshold -->
         <MapMarker
-          v-for="hint in foreignVaultHints"
+          v-for="hint in renderedVaultHints"
           :key="hint.key"
           :x="hint.coord_x"
           :y="hint.coord_y"
@@ -493,6 +591,29 @@ function handleTouchEnd(event: TouchEvent) {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+/* Cased discovery routes: a wider, near-opaque dark under-stroke reads as a
+   road edge; the brighter accent line on top keeps the trail legible wherever
+   routes cross each other or busy terrain. */
+.discovery-route {
+  pointer-events: none;
+}
+
+.discovery-route-casing {
+  stroke: color-mix(in srgb, var(--color-terminal-background) 92%, transparent);
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 2 1.4;
+}
+
+.discovery-route-line {
+  stroke: var(--color-theme-accent);
+  stroke-width: 0.45;
+  opacity: 0.8;
+  stroke-linecap: round;
+  stroke-dasharray: 2 1.4;
 }
 
 /* Free-roam explorer travel direction: accent chevron outside the marker ring. */

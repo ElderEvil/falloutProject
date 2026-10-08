@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.188.0 (2026-10-08)
+
+### Features
+
+* **map:** marker clarity, zoom clustering, and cased dashed routes 55de1a9
+* **map:** show vault info panel when clicking own vaults 5bf32cc
+* **map:** transient curved routes, stable duration modal, clickable own vaults d5d47a5
+
+### Bug Fixes
+
+* **map:** address PR review — cluster at max zoom, vault-info race ade383c
+* **map:** guard home-vault and own-vault marker clicks against drag d3ddd32
+* **map:** stop rendering the current vault twice 1d4673a
+
+### Code Refactoring
+
+* **map:** apply owner review — dead renderer, modal contract, home-vault info 23cd2e2
+
 ## 2.187.0 (2026-10-07)
 
 ### Features

@@ -5879,6 +5879,9 @@ export interface components {
         /**
          * DiscoveryRouteRead
          * @description Ordered discovery trail for a single exploration.
+         *
+         *     ``is_active`` marks an in-progress run. Routes are always returned (the fog
+         *     corridor is derived from every route), but only active ones draw a trail.
          */
         DiscoveryRouteRead: {
             /**
@@ -5888,6 +5891,8 @@ export interface components {
             exploration_id: string;
             /** Points */
             points: components["schemas"]["DiscoveryRoutePoint"][];
+            /** Is Active */
+            is_active: boolean;
         };
         /**
          * DwellerAppearanceOptions

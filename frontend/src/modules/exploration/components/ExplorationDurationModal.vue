@@ -134,61 +134,63 @@ const setRadaways = (value: number[] | undefined) => {
           <h4 class="mb-2 flex items-center gap-2 text-base font-bold text-theme-primary">
             <Icon icon="mdi:compass-outline" class="inline h-5 w-5" />
             Travel Heading
+            <span
+              v-if="isSuggestingHeading"
+              class="text-xs font-normal text-theme-primary/50"
+              aria-live="polite"
+            >
+              consulting terrain…
+            </span>
           </h4>
-          <p v-if="isSuggestingHeading" class="text-sm text-theme-primary/60">
-            Choosing a direction…
-          </p>
-          <template v-else>
-            <div class="flex items-center justify-between gap-3">
-              <p v-if="heading" class="text-sm text-theme-primary/80">
-                {{ heading }} — {{ dwellerName }} travels in this direction.
-              </p>
-              <p v-else class="text-sm text-theme-primary/60">
-                No direction suggested. You can try again.
-              </p>
+          <div class="flex min-h-[1.75rem] items-center justify-between gap-3">
+            <p v-if="heading" class="text-sm text-theme-primary/80">
+              {{ heading }} — {{ dwellerName }} travels in this direction.
+            </p>
+            <p v-else class="text-sm text-theme-primary/60">
+              No direction suggested. You can try again.
+            </p>
+            <Button
+              v-if="canReroll"
+              variant="outline"
+              size="xs"
+              type="button"
+              class="font-mono text-xs font-bold"
+              @click="handleChange"
+            >
+              Change
+            </Button>
+          </div>
+          <div class="mt-3">
+            <Button
+              variant="outline"
+              size="xs"
+              type="button"
+              class="heading-dial-toggle font-mono text-xs font-bold"
+              @click="dialOpen = !dialOpen"
+            >
+              <Icon icon="mdi:compass" class="inline h-4 w-4" />
+              {{ dialOpen ? 'Hide directions' : 'Pick direction' }}
+            </Button>
+            <div v-if="dialOpen" class="compass-dial mt-3 grid grid-cols-4 gap-2">
               <Button
-                v-if="canReroll"
+                v-for="(label, index) in COMPASS_LABELS"
+                :key="label"
                 variant="outline"
                 size="xs"
                 type="button"
-                class="font-mono text-xs font-bold"
-                @click="handleChange"
+                class="dial-direction font-mono text-xs font-bold"
+                :aria-pressed="activeDialLabel === label"
+                :class="
+                  activeDialLabel === label
+                    ? 'border-theme-primary bg-theme-primary/25 text-theme-primary shadow-glow-md'
+                    : ''
+                "
+                @click="selectManualHeading(HEADING_STEPS[index])"
               >
-                Change
+                {{ label }}
               </Button>
             </div>
-            <div class="mt-3">
-              <Button
-                variant="outline"
-                size="xs"
-                type="button"
-                class="heading-dial-toggle font-mono text-xs font-bold"
-                @click="dialOpen = !dialOpen"
-              >
-                <Icon icon="mdi:compass" class="inline h-4 w-4" />
-                {{ dialOpen ? 'Hide directions' : 'Pick direction' }}
-              </Button>
-              <div v-if="dialOpen" class="compass-dial mt-3 grid grid-cols-4 gap-2">
-                <Button
-                  v-for="(label, index) in COMPASS_LABELS"
-                  :key="label"
-                  variant="outline"
-                  size="xs"
-                  type="button"
-                  class="dial-direction font-mono text-xs font-bold"
-                  :aria-pressed="activeDialLabel === label"
-                  :class="
-                    activeDialLabel === label
-                      ? 'border-theme-primary bg-theme-primary/25 text-theme-primary shadow-glow-md'
-                      : ''
-                  "
-                  @click="selectManualHeading(HEADING_STEPS[index])"
-                >
-                  {{ label }}
-                </Button>
-              </div>
-            </div>
-          </template>
+          </div>
         </div>
 
         <div class="mb-6 grid grid-cols-3 gap-3">

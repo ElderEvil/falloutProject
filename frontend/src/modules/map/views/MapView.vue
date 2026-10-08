@@ -16,6 +16,7 @@ import { Skeleton } from '@/core/components/ui/skeleton'
 import { Button } from '@/core/components/ui/button'
 import WorldMap from '../components/WorldMap.vue'
 import MarkerDetailModal from '../components/MarkerDetailModal.vue'
+import VaultInfoModal from '../components/VaultInfoModal.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import type {
   ExpeditionSiteMarkerRead,
@@ -57,6 +58,47 @@ const selectedSite = computed<ExpeditionSiteMarkerRead | null>(() => {
   if (id === null || !id.startsWith('site-')) return null
   return mapStore.expeditionSites.find((s) => s.id === id.slice(5)) ?? null
 })
+
+// ── Own-vault info panel ─────────────────────────────────────────────
+// Clicking one of the player's own vault markers opens its summary instead
+// of navigating. The payload only carries `vault_id`, so the record comes
+// from the vault store: `/api/v1/vaults/my` already returns every counter the
+// selection card shows. Never `ensureVaultLoaded` here — loading another
+// vault adopts it and moves live polling/SSE off the vault being played.
+const showVaultInfo = ref(false)
+const vaultInfoId = ref<string | null>(null)
+const vaultInfoLoading = ref(false)
+// Monotonic id for in-flight summary lookups: a slow older request must not
+// clear the loading state of a newer one when it settles.
+let vaultInfoRequest = 0
+
+function findVaultSummary(id: string) {
+  return vaultStore.loadedVaults[id] ?? vaultStore.vaults.find((vault) => vault.id === id) ?? null
+}
+
+const vaultInfoVault = computed(() =>
+  vaultInfoId.value ? findVaultSummary(vaultInfoId.value) : null
+)
+
+async function handleVaultInfo(infoVaultId: string) {
+  const token = authStore.token
+  if (!token || !infoVaultId) return
+  const requestId = ++vaultInfoRequest
+  vaultInfoId.value = infoVaultId
+  showVaultInfo.value = true
+  if (findVaultSummary(infoVaultId)) {
+    vaultInfoLoading.value = false
+    return
+  }
+  // The marker is `is_mine`, so the hydrated list should cover it; refetch
+  // whenever the current list does not contain it.
+  vaultInfoLoading.value = true
+  try {
+    await vaultStore.fetchVaults(token)
+  } finally {
+    if (requestId === vaultInfoRequest) vaultInfoLoading.value = false
+  }
+}
 
 // Explorer tracking: active runs projected onto the map. Dispatched runs mark
 // their target location; free-roam runs surface at the last discovery point.
@@ -169,10 +211,10 @@ const departingDwellerIds = computed(
         .filter(
           (exploration) =>
             exploration.vault_id === vaultId.value &&
-            (exploration.status === 'active' || exploration.status === 'returning'),
+            (exploration.status === 'active' || exploration.status === 'returning')
         )
-        .map((exploration) => exploration.dweller_id),
-    ),
+        .map((exploration) => exploration.dweller_id)
+    )
 )
 
 // Mirror the backend availability policy (app/utils/dweller_availability): a
@@ -364,6 +406,7 @@ const mapPaneHeight = 'var(--map-pane-size)'
             :selected-marker-id="selectedMarkerId"
             @update:selected-marker-id="selectedMarkerId = $event"
             @marker-click="handleMarkerClick"
+            @vault-info="handleVaultInfo"
           />
 
           <!-- Admin debug: lift the fog to inspect the whole atlas -->
@@ -387,6 +430,12 @@ const mapPaneHeight = 'var(--map-pane-size)'
             @dispatch="handleDispatch"
           />
 
+          <!-- Own-vault summary: same fields as the vault-selection card -->
+          <VaultInfoModal
+            v-model:open="showVaultInfo"
+            :vault="vaultInfoVault"
+            :loading="vaultInfoLoading"
+          />
         </PageContentRail>
       </div>
     </div>

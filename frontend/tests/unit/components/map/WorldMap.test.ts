@@ -782,6 +782,41 @@ describe('WorldMap', () => {
       expect(mine!.props('label')).toBe('Your Vault')
     })
 
+    it('does not render the current vault twice (home marker + owned vault)', () => {
+      const home: WastelandLocationWithDwellers = {
+        ...createLocations(1)[0],
+        id: 'home-765',
+        name: 'Vault 765',
+        type: 'home_vault',
+        vault_id: 'v-current',
+      }
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [home],
+          vaultMarkers: [],
+          playerVaults: [
+            {
+              vault_id: 'v-current',
+              number: 765,
+              coord_x: home.coord_x,
+              coord_y: home.coord_y,
+              is_mine: true,
+            },
+            { vault_id: 'v-other', number: 777, coord_x: 90, coord_y: 60, is_mine: true },
+          ],
+          selectedMarkerId: null,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const markers = wrapper.findAllComponents(MapMarkerStub)
+      const vault765 = markers.filter((m) => m.props('name') === 'Vault 765')
+      expect(vault765).toHaveLength(1)
+      expect(vault765[0].props('label')).not.toBe('Your Vault')
+
+      expect(markers.some((m) => m.props('name') === 'Vault 777')).toBe(true)
+    })
+
     it('should suppress marker-click when hasDragMoved is true', async () => {
       const locations = createLocations(1)
       const wrapper = mount(WorldMap, {

@@ -114,7 +114,10 @@ function isExploredCoord(coord: { coord_x: number; coord_y: number }): boolean {
 // players' and the seeded NPC signals — is an anonymous hint, and only where the
 // fog has been lifted, so the shared atlas does not flood the map with unrelated
 // vaults.
-const ownPlayerVaults = computed(() => props.playerVaults.filter((pv) => pv.is_mine))
+const ownPlayerVaults = computed(() => {
+  const homeVaultId = props.locations.find((loc) => loc.type === 'home_vault')?.vault_id
+  return props.playerVaults.filter((pv) => pv.is_mine && pv.vault_id !== homeVaultId)
+})
 
 const foreignVaultHints = computed(() =>
   [

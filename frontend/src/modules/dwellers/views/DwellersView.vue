@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, inject, onMounted, ref, shallowRef, watch } from 'vue'
 import {
+  RouterLink,
   useRouter,
   useRoute,
   type LocationQuery,
@@ -645,18 +646,18 @@ const handleTreatIrradiated = async () => {
                   <span class="text-theme-primary/60"
                     >{{ happinessDashboardData.dwellerCount }} dwellers</span
                   >
-                  <button
+                  <RouterLink
                     v-for="issue in summaryIssues"
                     :key="issue.id"
-                    type="button"
-                    class="flex items-center gap-1 rounded-full border border-current px-2 py-0.5 text-xs font-bold transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary"
+                    :to="issue.to"
+                    class="flex items-center gap-1 rounded-full border border-current px-2 py-0.5 text-xs font-bold no-underline transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary"
                     :class="issue.tone === 'critical' ? 'text-danger' : 'text-warning'"
                     :aria-label="issue.ariaLabel"
-                    @click.prevent.stop="router.push(issue.to)"
+                    @click.stop
                   >
                     <Icon :icon="issue.icon" class="h-3.5 w-3.5" :ariaHidden="true" />
                     {{ issue.label }}
-                  </button>
+                  </RouterLink>
                   <Icon icon="mdi:chevron-down" class="h-5 w-5" :ariaHidden="true" />
                 </span>
               </summary>

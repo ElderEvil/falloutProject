@@ -623,9 +623,7 @@ describe('DwellersView', () => {
       const wrapper = await mountView()
       await flushPromises()
 
-      await wrapper
-        .find('button[aria-label="Filter the roster to 1 idle dwellers"]')
-        .trigger('click')
+      await wrapper.find('a[aria-label="Filter the roster to 1 idle dwellers"]').trigger('click')
       await flushPromises()
 
       expect(router.currentRoute.value.query.filter).toBe('idle')
@@ -639,7 +637,7 @@ describe('DwellersView', () => {
 
       await wrapper
         .find(
-          'button[aria-label="Open the happiness overview to treat 1 injured or irradiated dwellers"]'
+          'a[aria-label="Open the happiness overview to treat 1 injured or irradiated dwellers"]'
         )
         .trigger('click')
       await flushPromises()
@@ -656,7 +654,7 @@ describe('DwellersView', () => {
       await flushPromises()
 
       const chip = wrapper.find(
-        'button[aria-label="Food critically low! — open the Food production room"]'
+        'a[aria-label="Food critically low! — open the Food production room"]'
       )
       expect(chip.exists()).toBe(true)
       await chip.trigger('click')

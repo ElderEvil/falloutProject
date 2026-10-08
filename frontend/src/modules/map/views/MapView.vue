@@ -68,6 +68,9 @@ const selectedSite = computed<ExpeditionSiteMarkerRead | null>(() => {
 const showVaultInfo = ref(false)
 const vaultInfoId = ref<string | null>(null)
 const vaultInfoLoading = ref(false)
+// Monotonic id for in-flight summary lookups: a slow older request must not
+// clear the loading state of a newer one when it settles.
+let vaultInfoRequest = 0
 
 function findVaultSummary(id: string) {
   return vaultStore.loadedVaults[id] ?? vaultStore.vaults.find((vault) => vault.id === id) ?? null
@@ -80,19 +83,20 @@ const vaultInfoVault = computed(() =>
 async function handleVaultInfo(infoVaultId: string) {
   const token = authStore.token
   if (!token || !infoVaultId) return
+  const requestId = ++vaultInfoRequest
   vaultInfoId.value = infoVaultId
   showVaultInfo.value = true
   if (findVaultSummary(infoVaultId)) {
     vaultInfoLoading.value = false
     return
   }
-  // Marker is `is_mine`, so the hydrated list should cover it; fetch it only
-  // when the shell has not populated the store yet.
+  // The marker is `is_mine`, so the hydrated list should cover it; refetch
+  // whenever the current list does not contain it.
   vaultInfoLoading.value = true
   try {
-    if (vaultStore.vaults.length === 0) await vaultStore.fetchVaults(token)
+    await vaultStore.fetchVaults(token)
   } finally {
-    vaultInfoLoading.value = false
+    if (requestId === vaultInfoRequest) vaultInfoLoading.value = false
   }
 }
 
@@ -207,10 +211,10 @@ const departingDwellerIds = computed(
         .filter(
           (exploration) =>
             exploration.vault_id === vaultId.value &&
-            (exploration.status === 'active' || exploration.status === 'returning'),
+            (exploration.status === 'active' || exploration.status === 'returning')
         )
-        .map((exploration) => exploration.dweller_id),
-    ),
+        .map((exploration) => exploration.dweller_id)
+    )
 )
 
 // Mirror the backend availability policy (app/utils/dweller_availability): a
@@ -434,7 +438,6 @@ const mapPaneHeight = 'var(--map-pane-size)'
             @update:open="showVaultInfo = $event"
             @close="showVaultInfo = false"
           />
-
         </PageContentRail>
       </div>
     </div>

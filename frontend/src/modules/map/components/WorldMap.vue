@@ -77,11 +77,14 @@ const exploredMask = computed(() =>
       // Movement trails (every point location-free) interpolate their
       // segments; legacy discovery hops keep circle-only reveals.
       travelRoutes: props.discoveryRoutes
-        .filter((route) => route.points.length > 0 && route.points.every((point) => point.location_id == null))
+        .filter(
+          (route) =>
+            route.points.length > 0 && route.points.every((point) => point.location_id == null)
+        )
         .map((route) => route.points),
     },
-    gridTiles.value,
-  ),
+    gridTiles.value
+  )
 )
 
 function isExploredLocation(loc: { coord_x: number; coord_y: number }): boolean {
@@ -89,7 +92,7 @@ function isExploredLocation(loc: { coord_x: number; coord_y: number }): boolean 
     exploredMask.value,
     registryToTile(loc.coord_x, gridTiles.value),
     registryToTile(loc.coord_y, gridTiles.value),
-    gridTiles.value,
+    gridTiles.value
   )
 }
 
@@ -97,8 +100,8 @@ const visibleLocations = computed(() =>
   props.fogDisabled
     ? props.locations
     : props.locations.filter(
-        (loc) => !(loc.type === 'visited' && loc.dwellers.length < 2) && isExploredLocation(loc),
-      ),
+        (loc) => !(loc.type === 'visited' && loc.dwellers.length < 2) && isExploredLocation(loc)
+      )
 )
 
 function isExploredCoord(coord: { coord_x: number; coord_y: number }): boolean {
@@ -106,7 +109,7 @@ function isExploredCoord(coord: { coord_x: number; coord_y: number }): boolean {
     exploredMask.value,
     registryToTile(coord.coord_x, gridTiles.value),
     registryToTile(coord.coord_y, gridTiles.value),
-    gridTiles.value,
+    gridTiles.value
   )
 }
 
@@ -129,7 +132,7 @@ const foreignVaultHints = computed(() =>
       coord_x: vm.coord_x,
       coord_y: vm.coord_y,
     })),
-  ].filter((hint) => props.fogDisabled || isExploredCoord(hint)),
+  ].filter((hint) => props.fogDisabled || isExploredCoord(hint))
 )
 
 // Expeditions start at the home vault — anchor every trail there.
@@ -229,7 +232,7 @@ function onOwnVaultClick(vault: PlayerVaultMarkerRead): void {
 }
 
 const groupIconByKey = computed(
-  () => new Map(mapStore.placeGroups.map((group) => [group.key, group.icon])),
+  () => new Map(mapStore.placeGroups.map((group) => [group.key, group.icon]))
 )
 
 const { spreadMap, getSpread } = useMapSpread(visibleLocations, vaultMarkers)
@@ -247,13 +250,13 @@ const renderedLocations = computed(() =>
         selected: props.selectedMarkerId === `loc-${loc.id}`,
         exploring: exploringByLocation.value.has(loc.id),
       },
-      zoom.value,
-    ),
-  ),
+      zoom.value
+    )
+  )
 )
 
 const renderedVaultHints = computed(() =>
-  foreignVaultHints.value.filter(() => isMarkerVisible({ type: 'vault' }, zoom.value)),
+  foreignVaultHints.value.filter(() => isMarkerVisible({ type: 'vault' }, zoom.value))
 )
 
 const selectedMarkerId = computed<string | null>({
@@ -265,7 +268,7 @@ const { hasDragMoved, onLocationClick, onSiteClick, onPanelMarkerSelect } = useM
   selectedMarkerId,
   spreadMap,
   focusOnMarker,
-  emit,
+  emit
 )
 
 // ── Discovery clustering ──────────────────────────────────────────────
@@ -275,7 +278,7 @@ const { hasDragMoved, onLocationClick, onSiteClick, onPanelMarkerSelect } = useM
 // one step further, centered on the cluster. Selection and active explorers
 // stay pinned individually so their rings and labels never disappear.
 const locationByMarkerId = computed(
-  () => new Map(renderedLocations.value.map((loc) => [`loc-${loc.id}`, loc])),
+  () => new Map(renderedLocations.value.map((loc) => [`loc-${loc.id}`, loc]))
 )
 
 const clusterableDiscoveries = computed(() =>
@@ -285,31 +288,31 @@ const clusterableDiscoveries = computed(() =>
         loc.type === 'discovery' &&
         loc.is_unlocked !== false &&
         selectedMarkerId.value !== `loc-${loc.id}` &&
-        !exploringByLocation.value.has(loc.id),
+        !exploringByLocation.value.has(loc.id)
     )
     .map((loc) => {
       const spread = getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y)
       return { id: `loc-${loc.id}`, x: spread.renderX, y: spread.renderY }
-    }),
+    })
 )
 
-const discoveryClusters = computed(() =>
-  clusterMarkers(clusterableDiscoveries.value, { zoom: zoom.value }),
+const discoveryClusters = computed<MarkerCluster[]>(() =>
+  // At max zoom a badge could not be split any further, so every discovery
+  // renders individually instead of persisting as an unopenable cluster.
+  zoom.value >= MAX_ZOOM ? [] : clusterMarkers(clusterableDiscoveries.value, { zoom: zoom.value })
 )
 
 const clusterBadges = computed(() =>
-  discoveryClusters.value.filter((cluster) => cluster.members.length > 1),
+  discoveryClusters.value.filter((cluster) => cluster.members.length > 1)
 )
 
 const clusteredIds = computed(
   () =>
-    new Set(
-      clusterBadges.value.flatMap((cluster) => cluster.members.map((member) => member.id)),
-    ),
+    new Set(clusterBadges.value.flatMap((cluster) => cluster.members.map((member) => member.id)))
 )
 
 const renderedLocationsIndividual = computed(() =>
-  renderedLocations.value.filter((loc) => !clusteredIds.value.has(`loc-${loc.id}`)),
+  renderedLocations.value.filter((loc) => !clusteredIds.value.has(`loc-${loc.id}`))
 )
 
 function clusterHasUnseen(cluster: MarkerCluster): boolean {
@@ -364,8 +367,6 @@ function handleTouchMove(event: TouchEvent) {
 function handleTouchEnd(event: TouchEvent) {
   onTouchEnd(event)
 }
-
-
 </script>
 
 <template>
@@ -516,13 +517,7 @@ function handleTouchEnd(event: TouchEvent) {
         <Button variant="ghost" size="xs" aria-label="Zoom in" class="zoom-btn" @click="zoomIn()">
           <Icon icon="mdi:plus" class="zoom-icon" />
         </Button>
-        <Button
-          variant="ghost"
-          size="xs"
-          aria-label="Zoom out"
-          class="zoom-btn"
-          @click="zoomOut()"
-        >
+        <Button variant="ghost" size="xs" aria-label="Zoom out" class="zoom-btn" @click="zoomOut()">
           <Icon icon="mdi:minus" class="zoom-icon" />
         </Button>
         <Button
@@ -637,8 +632,6 @@ function handleTouchEnd(event: TouchEvent) {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-
-
 
 /* Zoom controls overlay */
 .zoom-controls {

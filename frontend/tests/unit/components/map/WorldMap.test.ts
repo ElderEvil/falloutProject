@@ -3,6 +3,7 @@ import { nextTick } from 'vue'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import WorldMap from '@/modules/map/components/WorldMap.vue'
+import { MAX_ZOOM } from '@/modules/map/composables/useMapZoomPan'
 import { markerTypeMeta } from '@/modules/map/models/markerTypeMeta'
 import { bearingDegrees } from '@/modules/map/utils/bearing'
 import { isExploredTile } from '@/modules/map/utils/fog'
@@ -57,7 +58,11 @@ const IconStub = {
 }
 
 const AtlasTerrainStub = { name: 'AtlasTerrain', template: '<g class="atlas-terrain-stub" />' }
-const FogLayerStub = { name: 'FogLayer', props: ['explored'], template: '<g class="fog-layer-stub" />' }
+const FogLayerStub = {
+  name: 'FogLayer',
+  props: ['explored'],
+  template: '<g class="fog-layer-stub" />',
+}
 
 const defaultStubs = {
   MapMarker: MapMarkerStub,
@@ -157,7 +162,7 @@ describe('WorldMap', () => {
 
       await zoomPastDeclutterThreshold(wrapper)
       expect(
-        wrapper.findAllComponents(MapMarkerStub).some((m) => m.props('name') === 'Unknown vault'),
+        wrapper.findAllComponents(MapMarkerStub).some((m) => m.props('name') === 'Unknown vault')
       ).toBe(true)
     })
 
@@ -210,7 +215,9 @@ describe('WorldMap', () => {
       vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
         new Proxy({} as CanvasRenderingContext2D, { get: () => () => {}, set: () => true })
       )
-      vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,art')
+      vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue(
+        'data:image/png;base64,art'
+      )
       const [location] = createLocations(1)
       const grouped = { ...location, type: 'visited' as const, group_key: 'gas_station' }
 
@@ -265,8 +272,18 @@ describe('WorldMap', () => {
               exploration_id: 'expl-1',
               is_active: true,
               points: [
-                { location_id: 'loc-1', coord_x: 20, coord_y: 30, timestamp: '2026-01-01T00:00:00Z' },
-                { location_id: 'loc-1', coord_x: 20, coord_y: 30, timestamp: '2026-01-01T01:00:00Z' },
+                {
+                  location_id: 'loc-1',
+                  coord_x: 20,
+                  coord_y: 30,
+                  timestamp: '2026-01-01T00:00:00Z',
+                },
+                {
+                  location_id: 'loc-1',
+                  coord_x: 20,
+                  coord_y: 30,
+                  timestamp: '2026-01-01T01:00:00Z',
+                },
               ],
             },
           ],
@@ -298,8 +315,18 @@ describe('WorldMap', () => {
               exploration_id: 'expl-1',
               is_active: true,
               points: [
-                { location_id: 'loc-1', coord_x: 20, coord_y: 30, timestamp: '2026-01-01T00:00:00Z' },
-                { location_id: 'loc-1', coord_x: 20, coord_y: 30, timestamp: '2026-01-01T01:00:00Z' },
+                {
+                  location_id: 'loc-1',
+                  coord_x: 20,
+                  coord_y: 30,
+                  timestamp: '2026-01-01T00:00:00Z',
+                },
+                {
+                  location_id: 'loc-1',
+                  coord_x: 20,
+                  coord_y: 30,
+                  timestamp: '2026-01-01T01:00:00Z',
+                },
               ],
             },
           ],
@@ -323,14 +350,24 @@ describe('WorldMap', () => {
               exploration_id: 'expl-1',
               is_active: true,
               points: [
-                { location_id: 'loc-1', coord_x: 20, coord_y: 30, timestamp: '2026-01-01T00:00:00Z' },
+                {
+                  location_id: 'loc-1',
+                  coord_x: 20,
+                  coord_y: 30,
+                  timestamp: '2026-01-01T00:00:00Z',
+                },
               ],
             },
             {
               exploration_id: 'expl-2',
               is_active: true,
               points: [
-                { location_id: 'loc-2', coord_x: 30, coord_y: 40, timestamp: '2026-01-01T00:00:00Z' },
+                {
+                  location_id: 'loc-2',
+                  coord_x: 30,
+                  coord_y: 40,
+                  timestamp: '2026-01-01T00:00:00Z',
+                },
               ],
             },
           ],
@@ -363,14 +400,24 @@ describe('WorldMap', () => {
               exploration_id: 'active-1',
               is_active: true,
               points: [
-                { location_id: 'loc-1', coord_x: 10, coord_y: 10, timestamp: '2026-01-01T00:00:00Z' },
+                {
+                  location_id: 'loc-1',
+                  coord_x: 10,
+                  coord_y: 10,
+                  timestamp: '2026-01-01T00:00:00Z',
+                },
               ],
             },
             {
               exploration_id: 'done-1',
               is_active: false,
               points: [
-                { location_id: 'loc-2', coord_x: 70, coord_y: 10, timestamp: '2026-01-01T00:00:00Z' },
+                {
+                  location_id: 'loc-2',
+                  coord_x: 70,
+                  coord_y: 10,
+                  timestamp: '2026-01-01T00:00:00Z',
+                },
               ],
             },
           ],
@@ -592,6 +639,34 @@ describe('WorldMap', () => {
       expect(wrapper.findAll('.map-cluster')).toHaveLength(0)
       expect(wrapper.findAllComponents(MapMarkerStub)).toHaveLength(2)
     })
+
+    it('renders every discovery individually at max zoom instead of a badge', async () => {
+      // Twelve coincident discoveries cannot all separate onto the max-zoom
+      // grid (cell size 16/MAX_ZOOM = 4 map units) after the anti-overlap
+      // spread, so a badge would persist with no further zoom left for
+      // onClusterClick to split it. At max zoom clustering is disabled.
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: Array.from({ length: 12 }, (_, i) => discoveryLocation(`d-${i}`, 8, 8)),
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          fogDisabled: true,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.find('.map-cluster').exists()).toBe(true)
+
+      const vm = wrapper.vm as unknown as {
+        focusOnMarker: (x: number, y: number, minZoom?: number) => void
+      }
+      vm.focusOnMarker(80, 80, MAX_ZOOM)
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.find('.zoom-level').text()).toContain(`${Math.round(MAX_ZOOM * 100)}%`)
+      expect(wrapper.findAll('.map-cluster')).toHaveLength(0)
+      expect(wrapper.findAllComponents(MapMarkerStub)).toHaveLength(12)
+    })
   })
 
   describe('CRT styling', () => {
@@ -769,7 +844,9 @@ describe('WorldMap', () => {
         props: {
           locations: [],
           vaultMarkers: [],
-          playerVaults: [{ vault_id: 'v-mine', number: 121, coord_x: 40, coord_y: 8, is_mine: true }],
+          playerVaults: [
+            { vault_id: 'v-mine', number: 121, coord_x: 40, coord_y: 8, is_mine: true },
+          ],
           selectedMarkerId: null,
         },
         global: { stubs: defaultStubs },
@@ -895,7 +972,11 @@ describe('WorldMap', () => {
 
     it('shows a locked discovery as a hint pin once its area is explored', () => {
       const locked = discoveryLocation('loc-1', { is_unlocked: false })
-      const revealed = { ...discoveryLocation('loc-2'), coord_x: locked.coord_x, coord_y: locked.coord_y }
+      const revealed = {
+        ...discoveryLocation('loc-2'),
+        coord_x: locked.coord_x,
+        coord_y: locked.coord_y,
+      }
       const wrapper = mount(WorldMap, {
         props: { locations: [locked, revealed], vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
@@ -903,7 +984,7 @@ describe('WorldMap', () => {
 
       const hint = wrapper
         .findAllComponents(MapMarkerStub)
-        .find(marker => marker.props('is_unlocked') === false)
+        .find((marker) => marker.props('is_unlocked') === false)
       expect(hint).toBeTruthy()
       expect(hint!.props('unseen')).toBe(false)
     })
@@ -931,7 +1012,11 @@ describe('WorldMap', () => {
   describe('Marker list panel integration', () => {
     it('should render the MarkerListPanel component', () => {
       const wrapper = mount(WorldMap, {
-        props: { locations: createLocations(2), vaultMarkers: createVaultMarkers(1), selectedMarkerId: null },
+        props: {
+          locations: createLocations(2),
+          vaultMarkers: createVaultMarkers(1),
+          selectedMarkerId: null,
+        },
         global: { stubs: defaultStubs },
       })
 
@@ -952,7 +1037,11 @@ describe('WorldMap', () => {
 
     it('should dock the location index beside the map', () => {
       const wrapper = mount(WorldMap, {
-        props: { locations: createLocations(2), vaultMarkers: createVaultMarkers(1), selectedMarkerId: null },
+        props: {
+          locations: createLocations(2),
+          vaultMarkers: createVaultMarkers(1),
+          selectedMarkerId: null,
+        },
         global: { stubs: defaultStubs },
       })
 
@@ -1116,7 +1205,11 @@ describe('WorldMap', () => {
       const { singleVisited, multiVisited, origin, unknown } = fixture()
 
       const wrapper = mount(WorldMap, {
-        props: { locations: [singleVisited, multiVisited, origin, unknown], vaultMarkers: [], selectedMarkerId: null },
+        props: {
+          locations: [singleVisited, multiVisited, origin, unknown],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+        },
         global: { stubs: defaultStubs },
       })
       await zoomPastDeclutterThreshold(wrapper)
@@ -1187,7 +1280,9 @@ describe('WorldMap', () => {
       vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
         new Proxy({} as CanvasRenderingContext2D, { get: () => () => {}, set: () => true })
       )
-      vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,art')
+      vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue(
+        'data:image/png;base64,art'
+      )
 
       const wrapper = mount(WorldMap, {
         props: {

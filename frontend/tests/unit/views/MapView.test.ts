@@ -118,7 +118,13 @@ describe('MapView', () => {
           WorldMap: {
             name: 'WorldMap',
             template: '<div class="world-map-stub"></div>',
-            props: ['locations', 'vaultMarkers', 'explorerTracks', 'selectedMarkerId', 'fogDisabled'],
+            props: [
+              'locations',
+              'vaultMarkers',
+              'explorerTracks',
+              'selectedMarkerId',
+              'fogDisabled',
+            ],
             emits: ['marker-click', 'update:selectedMarkerId', 'vault-info'],
           },
           MarkerDetailModal: {
@@ -406,6 +412,66 @@ describe('MapView', () => {
       expect(fetchSpy).toHaveBeenCalledWith('test-token')
       expect(wrapper.findComponent({ name: 'VaultInfoModal' }).props('vault')).toEqual(vaultSummary)
       expect(mockPush).not.toHaveBeenCalled()
+    })
+
+    it('refetches the vault list when a stale store misses the selected vault', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      const vaultStore = useVaultStore()
+      vaultStore.vaults = [{ ...vaultSummary, id: 'vault-other', number: 999 }]
+      const fetchSpy = vi.spyOn(vaultStore, 'fetchVaults').mockImplementation(async () => {
+        vaultStore.vaults = [vaultSummary]
+        return true
+      })
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-2')
+      await flushPromises()
+
+      expect(fetchSpy).toHaveBeenCalledWith('test-token')
+      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
+      expect(modal.props('vault')).toEqual(vaultSummary)
+      expect(modal.props('loading')).toBe(false)
+    })
+
+    it('keeps loading until the newest request resolves (A to B race)', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      const vaultStore = useVaultStore()
+      vaultStore.vaults = []
+      const pending: Array<(value: boolean) => void> = []
+      vi.spyOn(vaultStore, 'fetchVaults').mockImplementation(
+        () => new Promise<boolean>((resolve) => pending.push(resolve))
+      )
+      const vaultSummaryB = { ...vaultSummary, id: 'vault-3', number: 122 }
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      const worldMap = wrapper.findComponent({ name: 'WorldMap' })
+      worldMap.vm.$emit('vault-info', 'vault-2')
+      await flushPromises()
+      worldMap.vm.$emit('vault-info', 'vault-3')
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
+      expect(modal.props('loading')).toBe(true)
+
+      // The stale request settling first must not clear the newer spinner.
+      pending[0]!(true)
+      await flushPromises()
+      expect(modal.props('loading')).toBe(true)
+
+      vaultStore.vaults = [vaultSummaryB]
+      pending[1]!(true)
+      await flushPromises()
+
+      expect(modal.props('loading')).toBe(false)
+      expect(modal.props('vault')).toEqual(vaultSummaryB)
     })
 
     it('shows the loading state until the vault list resolves', async () => {

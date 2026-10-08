@@ -132,16 +132,10 @@ watch(
   (query) => applyFiltersFromQuery(query, true)
 )
 
-const FILTER_QUERY_KEYS = [
-  'filter',
-  'ageGroup',
-  'gender',
-  'rarity',
-  'race',
-  'faction',
-  'sortBy',
-  'order',
-] as const
+/** Roster facets serialized by `filtersToQuery`; sorting is separate — it cannot empty a result set. */
+const FILTER_QUERY_KEYS = ['filter', 'ageGroup', 'gender', 'rarity', 'race', 'faction'] as const
+const SORT_QUERY_KEYS = ['sortBy', 'order'] as const
+const ALL_QUERY_KEYS = [...FILTER_QUERY_KEYS, ...SORT_QUERY_KEYS]
 
 function queryValue(value: LocationQueryValueRaw | LocationQueryValueRaw[] | undefined): string {
   if (Array.isArray(value))
@@ -173,10 +167,26 @@ function filtersToQuery(): LocationQueryRaw {
   return query
 }
 
+/** A facet is active whenever serializing emits a key: `filtersToQuery` already drops every default. */
+const hasActiveFilters = computed(() => {
+  const query = filtersToQuery()
+  return FILTER_QUERY_KEYS.some((key) => queryValue(query[key]) !== '')
+})
+
+/** Reset every roster facet to the default `filtersToQuery` encodes; the URL watcher drops their keys. */
+function clearFilters(): void {
+  dwellerStore.setFilterStatus('all')
+  dwellerStore.setFilterAgeGroup('all')
+  dwellerStore.setFilterGender('all')
+  dwellerStore.setFilterRarity('all')
+  dwellerStore.setFilterRace('all')
+  dwellerStore.setFilterFaction('all')
+}
+
 /** Replace (never push) so the URL tracks state without flooding browser history. */
 function syncFiltersToUrl(): void {
   const next = filtersToQuery()
-  const unchanged = FILTER_QUERY_KEYS.every(
+  const unchanged = ALL_QUERY_KEYS.every(
     (key) => queryValue(next[key]) === queryValue(route.query[key])
   )
   if (unchanged) return
@@ -706,6 +716,7 @@ const handleTreatIrradiated = async () => {
               v-else
               :dwellers="dwellerStore.dwellers"
               :generating-a-i="generatingAI"
+              :has-active-filters="hasActiveFilters"
               :is-loading="dwellerStore.isLoading"
               :rooms="roomStore.rooms"
               :view-mode="dwellerStore.viewMode"
@@ -715,6 +726,7 @@ const handleTreatIrradiated = async () => {
               @open-room="openRoomModal"
               @quick-unassign="handleQuickUnassign"
               @room-click="(roomId) => router.push(`/vault/${vaultId}?roomId=${roomId}`)"
+              @clear-filters="clearFilters"
             />
           </div>
         </PageContentRail>

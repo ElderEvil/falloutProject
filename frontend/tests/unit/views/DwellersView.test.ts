@@ -531,6 +531,35 @@ describe('DwellersView', () => {
     })
   })
 
+  describe('Empty roster recovery', () => {
+    it('clears every active filter and its query keys from the empty-state action', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      await router.push('/vault/vault-1/dwellers?filter=idle&ageGroup=adult&gender=male')
+      await router.isReady()
+      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
+      await flushPromises()
+
+      expect(_dwellerStore.filter.filterStatus).toBe('idle')
+      expect(wrapper.text()).toContain('No dwellers match these filters')
+
+      const clearButton = wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('Clear filters'))
+      expect(clearButton).toBeDefined()
+
+      await clearButton!.trigger('click')
+      await flushPromises()
+
+      expect(_dwellerStore.filter.filterStatus).toBe('all')
+      expect(_dwellerStore.filter.filterAgeGroup).toBe('all')
+      expect(_dwellerStore.filter.filterGender).toBe('all')
+      expect(router.currentRoute.value.query.filter).toBeUndefined()
+      expect(router.currentRoute.value.query.ageGroup).toBeUndefined()
+      expect(router.currentRoute.value.query.gender).toBeUndefined()
+      wrapper.unmount()
+    })
+  })
+
   describe('Urgent action summary', () => {
     const productionRoom = {
       id: 'garden-1',

@@ -5,6 +5,8 @@ import { createPinia, setActivePinia } from 'pinia'
 import WorldMap from '@/modules/map/components/WorldMap.vue'
 import { markerTypeMeta } from '@/modules/map/models/markerTypeMeta'
 import { bearingDegrees } from '@/modules/map/utils/bearing'
+import { isExploredTile } from '@/modules/map/utils/fog'
+import { ATLAS_TILES, registryToTile } from '@/modules/map/utils/atlasProjection'
 import { useMapStore, VIEWED_LOCATIONS_STORAGE_KEY } from '@/modules/map/stores/map'
 import type {
   ExpeditionSiteMarkerRead,
@@ -261,6 +263,7 @@ describe('WorldMap', () => {
           discoveryRoutes: [
             {
               exploration_id: 'expl-1',
+              is_active: true,
               points: [
                 { location_id: 'loc-1', coord_x: 20, coord_y: 30, timestamp: '2026-01-01T00:00:00Z' },
                 { location_id: 'loc-1', coord_x: 20, coord_y: 30, timestamp: '2026-01-01T01:00:00Z' },
@@ -271,11 +274,10 @@ describe('WorldMap', () => {
         global: { stubs: defaultStubs },
       })
 
-      const route = wrapper.find('polyline')
-      const points = route.attributes('points')!.split(' ')
-      // Straight trails: the rendered points are exactly the real waypoints
-      // (home + each visit, repeats included) with no hand-drawn wobble.
-      expect(points).toEqual(['80,80', '20,30', '20,30'])
+      const d = wrapper.find('.discovery-route-line').attributes('d')!
+      expect(d.startsWith('M 80 80')).toBe(true)
+      expect(d).toContain('C ')
+      expect(d.endsWith('20 30')).toBe(true)
     })
 
     it('anchors trails at the home vault coordinates', () => {
@@ -294,6 +296,7 @@ describe('WorldMap', () => {
           discoveryRoutes: [
             {
               exploration_id: 'expl-1',
+              is_active: true,
               points: [
                 { location_id: 'loc-1', coord_x: 20, coord_y: 30, timestamp: '2026-01-01T00:00:00Z' },
                 { location_id: 'loc-1', coord_x: 20, coord_y: 30, timestamp: '2026-01-01T01:00:00Z' },
@@ -304,13 +307,12 @@ describe('WorldMap', () => {
         global: { stubs: defaultStubs },
       })
 
-      const route = wrapper.find('polyline')
-      const points = route.attributes('points')!.split(' ')
-      expect(points[0]).toBe('50,50')
-      expect(points.at(-1)).toBe('20,30')
+      const d = wrapper.find('.discovery-route-line').attributes('d')!
+      expect(d.startsWith('M 50 50')).toBe(true)
+      expect(d.endsWith('20 30')).toBe(true)
     })
 
-    it('renders a dark casing polyline directly beneath the accent line per route', () => {
+    it('renders a dark casing path directly beneath the accent line per route', () => {
       const wrapper = mount(WorldMap, {
         props: {
           locations: [],
@@ -319,12 +321,14 @@ describe('WorldMap', () => {
           discoveryRoutes: [
             {
               exploration_id: 'expl-1',
+              is_active: true,
               points: [
                 { location_id: 'loc-1', coord_x: 20, coord_y: 30, timestamp: '2026-01-01T00:00:00Z' },
               ],
             },
             {
               exploration_id: 'expl-2',
+              is_active: true,
               points: [
                 { location_id: 'loc-2', coord_x: 30, coord_y: 40, timestamp: '2026-01-01T00:00:00Z' },
               ],
@@ -333,8 +337,6 @@ describe('WorldMap', () => {
         },
         global: { stubs: defaultStubs },
       })
-
-      expect(wrapper.findAll('polyline')).toHaveLength(4)
 
       expect(wrapper.findAll('.discovery-route-casing')).toHaveLength(2)
       expect(wrapper.findAll('.discovery-route-line')).toHaveLength(2)
@@ -345,8 +347,51 @@ describe('WorldMap', () => {
         const children = Array.from(group.element.children)
         expect(children[0]!.getAttribute('class')).toContain('discovery-route-casing')
         expect(children[1]!.getAttribute('class')).toContain('discovery-route-line')
-        expect(children[0]!.getAttribute('points')).toBe(children[1]!.getAttribute('points'))
+        expect(children[0]!.getAttribute('d')).toBe(children[1]!.getAttribute('d'))
+        expect(children[0]!.getAttribute('d')).toContain('C ')
       }
+    })
+
+    it('draws only active routes while the fog still uses inactive ones', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          discoveryRoutes: [
+            {
+              exploration_id: 'active-1',
+              is_active: true,
+              points: [
+                { location_id: 'loc-1', coord_x: 10, coord_y: 10, timestamp: '2026-01-01T00:00:00Z' },
+              ],
+            },
+            {
+              exploration_id: 'done-1',
+              is_active: false,
+              points: [
+                { location_id: 'loc-2', coord_x: 70, coord_y: 10, timestamp: '2026-01-01T00:00:00Z' },
+              ],
+            },
+          ],
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const drawn = wrapper.findAll('.discovery-route-line')
+      expect(drawn).toHaveLength(1)
+      expect(drawn[0]!.attributes('d')).toContain('10 10')
+      expect(drawn.some((line) => line.attributes('d')!.includes('70 10'))).toBe(false)
+
+      const explored = wrapper.findComponent({ name: 'FogLayer' }).props('explored') as Uint8Array
+      expect(
+        isExploredTile(
+          explored,
+          registryToTile(70, ATLAS_TILES),
+          registryToTile(10, ATLAS_TILES),
+          ATLAS_TILES
+        )
+      ).toBe(true)
     })
   })
 
@@ -1407,6 +1452,7 @@ describe('WorldMap', () => {
           discoveryRoutes: [
             {
               exploration_id: 'expl-2',
+              is_active: true,
               points: [
                 { coord_x: 0, coord_y: 10, timestamp: '2026-01-01T00:00:00Z' },
                 { coord_x: 10, coord_y: 10, timestamp: '2026-01-01T01:00:00Z' },

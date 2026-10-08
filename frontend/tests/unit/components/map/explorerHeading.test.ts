@@ -3,7 +3,7 @@ import { explorerHeading } from '@/modules/map/utils/explorerHeading'
 import type { DiscoveryRouteRead, ExplorerTrack } from '@/modules/map/models/map'
 
 function route(points: DiscoveryRouteRead['points']): DiscoveryRouteRead {
-  return { exploration_id: 'expl-1', points }
+  return { exploration_id: 'expl-1', points, is_active: true }
 }
 
 const home = { coord_x: 0, coord_y: 0 }

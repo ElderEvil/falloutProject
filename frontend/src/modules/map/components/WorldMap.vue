@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, toRef } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useRouter } from 'vue-router'
 import { Button } from '@/core/components/ui/button'
 import { formatRemaining } from '@/modules/exploration/composables/useExplorationProgress'
 import type {
@@ -24,7 +25,7 @@ import { registryToTile, ATLAS_TILES } from '../utils/atlasProjection'
 import { computeExploredMask, isExploredTile } from '../utils/fog'
 import { useMapSpread } from '../composables/useMapSpread'
 import { useMarkerSelection } from '../composables/useMarkerSelection'
-import { tracePoints } from '../utils/tracePath'
+import { smoothPath } from '../utils/tracePath'
 import { useMapZoomPan, MAX_ZOOM } from '../composables/useMapZoomPan'
 import { useMapStore } from '../stores/map'
 import { isKnownLocation } from '../utils/visibility'
@@ -135,17 +136,16 @@ const homeCoords = computed<[number, number]>(() => {
 
 // Amplitude 0 removes the hand-drawn wobble; steps 1 keeps only the real
 // waypoints, so each trail renders as clean straight segments between them.
+// Only in-progress runs draw a trail; the fog still consumes every route.
 const discoveryRouteLines = computed(() =>
-  props.discoveryRoutes.map((route) =>
-    tracePoints(
-      [
+  props.discoveryRoutes
+    .filter((route) => route.is_active)
+    .map((route) =>
+      smoothPath([
         homeCoords.value,
         ...route.points.map((point): [number, number] => [point.coord_x, point.coord_y]),
-      ],
-      0,
-      1
+      ])
     )
-  )
 )
 
 // ── Explorer tracking ────────────────────────────────────────────────────
@@ -219,6 +219,11 @@ const {
 const mapStore = useMapStore()
 const svgRef = ref<SVGSVGElement | null>(null)
 const vaultMarkers = toRef(props, 'vaultMarkers')
+const router = useRouter()
+
+function onOwnVaultClick(vault: PlayerVaultMarkerRead): void {
+  void router.push(`/vault/${vault.vault_id}/map`)
+}
 
 const groupIconByKey = computed(
   () => new Map(mapStore.placeGroups.map((group) => [group.key, group.icon])),
@@ -396,8 +401,8 @@ function handleTouchEnd(event: TouchEvent) {
           class="discovery-route"
           fill="none"
         >
-          <polyline :points="route" class="discovery-route-casing" />
-          <polyline :points="route" class="discovery-route-line" />
+          <path :d="route" class="discovery-route-casing" />
+          <path :d="route" class="discovery-route-line" />
         </g>
 
         <!-- Location markers (spread-adjusted positions; discoveries inside a
@@ -441,7 +446,8 @@ function handleTouchEnd(event: TouchEvent) {
           :name="`Vault ${pv.number}`"
           type="home_vault"
           label="Your Vault"
-          :interactive="false"
+          :status="`Open Vault ${pv.number}`"
+          @click="onOwnVaultClick(pv)"
         />
 
         <!-- Other vaults: anonymous hints, only where the fog is lifted and

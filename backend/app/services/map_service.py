@@ -437,7 +437,13 @@ class MapService:
             )
             if len(points) >= 2:
                 points.sort(key=lambda point: point.timestamp)
-                routes.append(DiscoveryRouteRead(exploration_id=exploration.id, points=points))
+                routes.append(
+                    DiscoveryRouteRead(
+                        exploration_id=exploration.id,
+                        points=points,
+                        is_active=exploration.is_in_progress(),
+                    )
+                )
         return routes
 
     @staticmethod

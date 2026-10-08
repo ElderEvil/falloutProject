@@ -33,7 +33,7 @@ function exploration(overrides: Partial<Exploration> = {}): Exploration {
 }
 
 function route(explorationId: string, points: DiscoveryRouteRead['points']): DiscoveryRouteRead {
-  return { exploration_id: explorationId, points }
+  return { exploration_id: explorationId, points, is_active: true }
 }
 
 describe('buildExplorerTracks', () => {

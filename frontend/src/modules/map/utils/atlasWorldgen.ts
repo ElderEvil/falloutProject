@@ -11,10 +11,12 @@
  * vault signals), so every vault sees the same biomes, rivers, and roads.
  *
  * Pipeline:
- *   1. three normalized fbm fields → 5 terrain classes (wasteland / ruins /
- *      hills / forest / water); a low-frequency base field gives broad
- *      land/water and coherent hill peaks, a separate field gives coherent
- *      ruined fields, a third low-frequency field gives a few forest groves
+ *   1. a small number of region seeds, each assigned a biome; seeds are relaxed
+ *      (Lloyd) into compact cells, every tile joins its nearest seed (Voronoi)
+ *      under a low-frequency domain warp plus per-seed distance noise, and a
+ *      small noise-driven interior pass textures each mass → a handful of
+ *      large, irregularly-bounded biome regions separated by large contiguous
+ *      wasteland voids
  *   2. seeded random-walk rivers carve water
  *   3. one vault slot per sector (snapped off water, spacing-nudged)
  *   4. settlement clusters (biased toward ruined fields) + archetype-placed
@@ -35,20 +37,68 @@
 export const HOURS_PER_COST = 0.5 // hours = round(cost * HOURS_PER_COST)
 
 // Noise / terrain
-// Two independent fbm fields, each min/max-normalized per map so the terrain
-// composition is stable across seeds. Thresholds are quantiles of the map's
-// own range: the fields are low-frequency (smooth), so the selected cores read
-// as a few coherent regions rather than per-tile speckle.
+// Biomes are placed as a small number of region seeds; every tile joins its
+// nearest seed (Voronoi), so each biome forms a few large contiguous masses
+// instead of scattered fbm patches. Seeds are Lloyd-relaxed into compact cells;
+// a low-frequency domain warp plus per-seed distance noise bend the cell
+// boundaries into ragged, organic edges; a small interior pass textures each
+// mass; and the majority-wasteland seed plan leaves large voids between masses.
 const NOISE_OCTAVES = 4
-const NOISE_FREQUENCY = 0.03 // base field — broad hill cores
 const NOISE_LACUNARITY = 2.0
 const NOISE_GAIN = 0.5
-const WATER_QUANTILE = 0.02 // bottom 2% of base field → a couple of small lakes
-const HILLS_QUANTILE = 0.17 // top 17% of base field → hill cores
-const RUINS_FREQUENCY = 0.022 // separate field — ruins form coherent fields
-const RUINS_QUANTILE = 0.17 // top 17% of ruins field → ruin cores
-const FOREST_FREQUENCY = 0.02 // separate field — forest forms a few broad groves
-const FOREST_QUANTILE = 0.14 // top 14% of forest field (over wasteland) → groves
+
+const REGION_WARP_FREQUENCY = 0.024 // broad domain warp → wavy cell boundaries
+const REGION_WARP_AMPLITUDE = 3.2 // tiles of warped coordinate displacement
+const REGION_EDGE_FREQUENCY = 0.075 // per-seed noise → ragged cell edges
+const REGION_EDGE_AMPLITUDE = 2.1 // tiles of per-seed distance perturbation
+const REGION_SEED_CANDIDATES = 24 // best-candidate samples per region seed
+const REGION_RELAX_ITERATIONS = 2 // Lloyd passes → compact, even-sized cells
+
+// Interior variation: each non-wasteland region carries one seeded pocket of a
+// companion biome, carved around a point near its seed with a noise-perturbed
+// radius. A single organic pocket (never speckle) adds interior texture without
+// fragmenting the mass; small wasteland islands left over are re-absorbed into
+// their surrounding biome so wasteland voids stay large and contiguous.
+const REGION_INTERIOR_RADIUS_MIN = 4 // pocket radius range (tiles) — a real mass
+const REGION_INTERIOR_RADIUS_MAX = 6
+const REGION_INTERIOR_OFFSET = 4 // max seeded offset of the pocket center from its seed
+const REGION_INTERIOR_WOBBLE = 1.2 // noise-perturbed pocket edge
+
+/** Interior pockets: each biome carries a few tiles of its successor. */
+const REGION_INTERIOR_COMPANION: Record<'forest' | 'hills' | 'ruins', TerrainType> = {
+  forest: 'hills',
+  hills: 'ruins',
+  ruins: 'forest',
+}
+
+// Wasteland islands below this size that touch no map border are absorbed into
+// the dominant surrounding non-water biome (see absorbWastelandIslands).
+const WASTELAND_ISLAND_MAX = 48
+
+/** How many of each biome's components survive consolidation (see keepLargestComponents). */
+// Matching the seed plan (3 cells each): pocket islands beyond the cells are
+// pruned and re-absorbed, leaving river splits with headroom under the
+// "≤ ~8 components" region goal across arbitrary seeds.
+const REGION_COMPONENT_KEEP: Record<Exclude<TerrainType, 'wasteland'>, number> = {
+  forest: 3,
+  ruins: 3,
+  hills: 3,
+  water: 7,
+}
+
+/**
+ * Region seed plan: how many Voronoi cells of each biome to start from. Counts
+ * are fixed (never random) so composition is stable across seeds. Wasteland
+ * holds the majority, keeping the biome masses separated by large voids.
+ */
+const REGION_PLAN: ReadonlyArray<readonly [TerrainType, number]> = [
+  ['wasteland', 12],
+  ['hills', 3],
+  ['ruins', 3],
+  ['forest', 3],
+  ['water', 1],
+]
+
 const MIN_REGION_COMPONENT = 40 // hills/ruins components below this are speckle → wasteland
 const FOREST_MIN_COMPONENT = 40 // forest components below this are speckle → wasteland
 const WATER_MIN_COMPONENT = 20 // water components below this are speckle → wasteland
@@ -139,7 +189,7 @@ export const DEFAULT_WORLD_CONFIG: WorldGenConfig = {
   height: 80,
   sectorCols: 10,
   sectorRows: 10,
-  locationCount: 100,
+  locationCount: 40,
   version: 1,
 }
 
@@ -290,7 +340,7 @@ function valueNoise(x: number, y: number, seed: number): number {
 }
 
 /** Fractal Brownian motion over value noise — broad coherent patches. */
-function fbm(x: number, y: number, seed: number, frequency = NOISE_FREQUENCY): number {
+function fbm(x: number, y: number, seed: number, frequency: number): number {
   let value = 0
   let amp = 1
   let freq = frequency
@@ -304,40 +354,20 @@ function fbm(x: number, y: number, seed: number, frequency = NOISE_FREQUENCY): n
   return value / norm
 }
 
-/** Min/max-normalize a field to [0, 1] in place (stable thresholds per map). */
-function normalizeInPlace(field: Float64Array): void {
-  let lo = Infinity
-  let hi = -Infinity
-  for (let i = 0; i < field.length; i++) {
-    if (field[i] < lo) lo = field[i]
-    if (field[i] > hi) hi = field[i]
-  }
-  const span = hi - lo || 1
-  for (let i = 0; i < field.length; i++) field[i] = (field[i] - lo) / span
-}
-
-/** Ascending-quantile value of a field — the cut that leaves ~q of tiles below it. */
-function quantileValue(field: Float64Array, q: number): number {
-  const sorted = Array.from(field).sort((a, b) => a - b)
-  const idx = Math.min(sorted.length - 1, Math.max(0, Math.floor(q * sorted.length)))
-  return sorted[idx]
-}
-
-/** Convert 4-connected components of `kind` smaller than minSize to `replacement`. */
-function filterSmallComponents(
+/** 4-connected components of `kind` as arrays of tile indices. */
+function collectComponents(
   terrain: TerrainType[],
   width: number,
   height: number,
   kind: TerrainType,
-  replacement: TerrainType,
-  minSize: number,
-): void {
+): number[][] {
   const seen = new Uint8Array(width * height)
+  const components: number[][] = []
   for (let i = 0; i < terrain.length; i++) {
     if (terrain[i] !== kind || seen[i] === 1) continue
+    const cells: number[] = []
     const queue: number[] = [i]
     seen[i] = 1
-    const cells: number[] = []
     let head = 0
     while (head < queue.length) {
       const cur = queue[head]
@@ -355,9 +385,43 @@ function filterSmallComponents(
         queue.push(nIdx)
       }
     }
-    if (cells.length < minSize) {
-      for (const c of cells) terrain[c] = replacement
-    }
+    components.push(cells)
+  }
+  return components
+}
+
+/** Convert 4-connected components of `kind` smaller than minSize to `replacement`. */
+function filterSmallComponents(
+  terrain: TerrainType[],
+  width: number,
+  height: number,
+  kind: TerrainType,
+  replacement: TerrainType,
+  minSize: number,
+): void {
+  for (const cells of collectComponents(terrain, width, height, kind)) {
+    if (cells.length < minSize) for (const c of cells) terrain[c] = replacement
+  }
+}
+
+/**
+ * Consolidate a biome into its `keep` largest components, returning every other
+ * fragment to wasteland. Guarantees the exposed mass is a handful of large
+ * contiguous regions rather than a scatter, and the pruned cells feed the
+ * wasteland voids instead of fragmenting further.
+ */
+function keepLargestComponents(
+  terrain: TerrainType[],
+  width: number,
+  height: number,
+  kind: TerrainType,
+  keep: number,
+): void {
+  const components = collectComponents(terrain, width, height, kind)
+  if (components.length <= keep) return
+  components.sort((a, b) => b.length - a.length)
+  for (let c = keep; c < components.length; c++) {
+    for (const idx of components[c]) terrain[idx] = 'wasteland'
   }
 }
 
@@ -423,50 +487,225 @@ function minDistTo(p: { x: number; y: number }, points: Array<{ x: number; y: nu
 
 // ── Terrain ────────────────────────────────────────────────────────────
 
-function generateTerrain(width: number, height: number, seed: string, version: number): TerrainType[] {
-  const noiseSeed = hashString(`${version}:${seed}:terrain`)
-  const baseField = new Float64Array(width * height)
-  const ruinsField = new Float64Array(width * height)
-  const forestField = new Float64Array(width * height)
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      baseField[y * width + x] = fbm(x, y, noiseSeed)
-      ruinsField[y * width + x] = fbm(x, y, noiseSeed + 777, RUINS_FREQUENCY)
-      forestField[y * width + x] = fbm(x, y, noiseSeed + 1337, FOREST_FREQUENCY)
+interface RegionSeed {
+  x: number
+  y: number
+  biome: TerrainType
+  noiseSeed: number
+}
+
+/**
+ * Deterministic best-candidate spread: each seed is the farthest of
+ * REGION_SEED_CANDIDATES samples from the seeds already placed. Count is exact
+ * and spacing is even, so cell sizes (and thus composition) stay stable.
+ */
+function placeRegionSeeds(
+  width: number,
+  height: number,
+  count: number,
+  rng: () => number,
+): Array<{ x: number; y: number }> {
+  const seeds: Array<{ x: number; y: number }> = []
+  for (let i = 0; i < count; i++) {
+    let best = { x: Math.floor(rng() * width), y: Math.floor(rng() * height) }
+    let bestDistance = -1
+    for (let c = 0; c < REGION_SEED_CANDIDATES; c++) {
+      const candidate = { x: Math.floor(rng() * width), y: Math.floor(rng() * height) }
+      const distance = minDistTo(candidate, seeds)
+      if (distance > bestDistance) {
+        bestDistance = distance
+        best = candidate
+      }
+    }
+    seeds.push(best)
+  }
+  return seeds
+}
+
+/**
+ * Deterministic Lloyd relaxation: each pass moves every seed to the centroid
+ * of its plain-distance Voronoi cell. Cells become compact and even-sized, so
+ * a biome region reads as a large, roughly round mass instead of a thin sliver
+ * wrapping around other regions.
+ */
+function relaxRegionSeeds(positions: Array<{ x: number; y: number }>, width: number, height: number): void {
+  for (let iter = 0; iter < REGION_RELAX_ITERATIONS; iter++) {
+    const sums = positions.map(() => ({ x: 0, y: 0, n: 0 }))
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        let best = 0
+        let bestD = Infinity
+        for (let i = 0; i < positions.length; i++) {
+          const dx = x - positions[i].x
+          const dy = y - positions[i].y
+          const d = dx * dx + dy * dy
+          if (d < bestD) {
+            bestD = d
+            best = i
+          }
+        }
+        sums[best].x += x
+        sums[best].y += y
+        sums[best].n++
+      }
+    }
+    for (let i = 0; i < positions.length; i++) {
+      if (sums[i].n === 0) continue
+      positions[i].x = Math.round(sums[i].x / sums[i].n)
+      positions[i].y = Math.round(sums[i].y / sums[i].n)
     }
   }
-  normalizeInPlace(baseField)
-  normalizeInPlace(ruinsField)
-  normalizeInPlace(forestField)
-  const waterCut = quantileValue(baseField, WATER_QUANTILE)
-  const hillsCut = quantileValue(baseField, 1 - HILLS_QUANTILE)
-  const ruinsCut = quantileValue(ruinsField, 1 - RUINS_QUANTILE)
+}
+
+/**
+ * Subtle interior variation: every non-wasteland region carries one pocket of
+ * its companion biome, carved around a seeded point near the region seed with
+ * a noise-perturbed radius. A single organic pocket sits inside the mass, so
+ * the surface is textured without ever fragmenting the region into speckle;
+ * pockets large enough to survive consolidation read as interior sub-features.
+ */
+function addInteriorVariation(
+  terrain: TerrainType[],
+  width: number,
+  height: number,
+  regions: RegionSeed[],
+  seed: string,
+  version: number,
+): void {
+  const rng = seededRng(seed, version, 'interior-pockets')
+  const edgeSeed = hashString(`${version}:${seed}:interior-pocket-edge`)
+  for (const region of regions) {
+    const biome = region.biome
+    if (biome === 'wasteland' || biome === 'water') continue
+    const companion = REGION_INTERIOR_COMPANION[biome]
+    const radius =
+      REGION_INTERIOR_RADIUS_MIN + rng() * (REGION_INTERIOR_RADIUS_MAX - REGION_INTERIOR_RADIUS_MIN)
+    const cx = clamp(region.x + Math.round((rng() - 0.5) * 2 * REGION_INTERIOR_OFFSET), 0, width - 1)
+    const cy = clamp(region.y + Math.round((rng() - 0.5) * 2 * REGION_INTERIOR_OFFSET), 0, height - 1)
+    const ring = Math.ceil(radius + 2)
+    for (let y = Math.max(0, cy - ring); y <= Math.min(height - 1, cy + ring); y++) {
+      for (let x = Math.max(0, cx - ring); x <= Math.min(width - 1, cx + ring); x++) {
+        const idx = y * width + x
+        if (terrain[idx] !== biome) continue
+        const dist = Math.hypot(x - cx, y - cy)
+        if (dist > radius + 1) continue
+        const wobble =
+          (valueNoise(x * REGION_EDGE_FREQUENCY, y * REGION_EDGE_FREQUENCY, edgeSeed) - 0.5) *
+          2 *
+          REGION_INTERIOR_WOBBLE
+        if (dist > radius + wobble) continue
+        terrain[idx] = companion
+      }
+    }
+  }
+}
+
+/**
+ * Re-absorb small interior wasteland islands into their dominant surrounding
+ * non-water biome. Fragments pruned by interior variation or speckle filtering
+ * can leave wasteland-coloured islands inside regions; absorbing them keeps the
+ * wasteland voids one large contiguous mass while never adding water.
+ */
+function absorbWastelandIslands(
+  terrain: TerrainType[],
+  width: number,
+  height: number,
+): void {
+  for (const cells of collectComponents(terrain, width, height, 'wasteland')) {
+    if (cells.length >= WASTELAND_ISLAND_MAX) continue
+    let border = false
+    for (const idx of cells) {
+      const x = idx % width
+      const y = Math.floor(idx / width)
+      if (x === 0 || y === 0 || x === width - 1 || y === height - 1) {
+        border = true
+        break
+      }
+    }
+    if (border) continue
+    const neighbors: Record<'forest' | 'hills' | 'ruins', number> = { forest: 0, ruins: 0, hills: 0 }
+    for (const idx of cells) {
+      const x = idx % width
+      const y = Math.floor(idx / width)
+      for (const [dx, dy] of ORTHO) {
+        const nx = x + dx
+        const ny = y + dy
+        if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue
+        const nb = terrain[ny * width + nx]
+        if (nb === 'forest' || nb === 'hills' || nb === 'ruins') neighbors[nb]++
+      }
+    }
+    let best: 'forest' | 'hills' | 'ruins' = 'forest'
+    let bestN = -1
+    for (const kind of ['forest', 'hills', 'ruins'] as const) {
+      if (neighbors[kind] > bestN) {
+        bestN = neighbors[kind]
+        best = kind
+      }
+    }
+    if (bestN === 0) continue
+    for (const idx of cells) terrain[idx] = best
+  }
+}
+
+/**
+ * Regional terrain: region seeds each carry a biome; every tile joins its
+ * nearest seed under a domain-warped, per-seed-noised metric. Warp bends the
+ * Voronoi edges into organic curves and the per-seed noise raggedens them, so
+ * biomes read as large cartographic masses separated by wasteland voids.
+ */
+function generateTerrain(width: number, height: number, seed: string, version: number): TerrainType[] {
+  const rng = seededRng(seed, version, 'regions')
+  const warpSeed = hashString(`${version}:${seed}:warp`)
+  const regionCount = REGION_PLAN.reduce((sum, [, n]) => sum + n, 0)
+  const positions = placeRegionSeeds(width, height, regionCount, rng)
+  relaxRegionSeeds(positions, width, height)
+  const biomes: TerrainType[] = []
+  for (const [kind, n] of REGION_PLAN) for (let i = 0; i < n; i++) biomes.push(kind)
+  for (let i = biomes.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    const tmp = biomes[i]
+    biomes[i] = biomes[j]
+    biomes[j] = tmp
+  }
+  const regions: RegionSeed[] = positions.map((p, i) => ({
+    ...p,
+    biome: biomes[i],
+    noiseSeed: hashString(`${version}:${seed}:region-edge:${i}`),
+  }))
+
   const terrain = Array.from({ length: width * height }, () => 'wasteland' as TerrainType)
-  for (let i = 0; i < width * height; i++) {
-    const b = baseField[i]
-    const r = ruinsField[i]
-    let t: TerrainType
-    if (b < waterCut) t = 'water'
-    else if (b > hillsCut) t = 'hills'
-    else if (r > ruinsCut) t = 'ruins'
-    else t = 'wasteland'
-    terrain[i] = t
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const wx = x + (fbm(x, y, warpSeed, REGION_WARP_FREQUENCY) - 0.5) * 2 * REGION_WARP_AMPLITUDE
+      const wy = y + (fbm(x, y, warpSeed + 4229, REGION_WARP_FREQUENCY) - 0.5) * 2 * REGION_WARP_AMPLITUDE
+      let best = regions[0]
+      let bestScore = Infinity
+      for (const region of regions) {
+        const dx = wx - region.x
+        const dy = wy - region.y
+        const edge =
+          (valueNoise(x * REGION_EDGE_FREQUENCY, y * REGION_EDGE_FREQUENCY, region.noiseSeed) - 0.5) *
+          2 *
+          REGION_EDGE_AMPLITUDE
+        const score = Math.sqrt(dx * dx + dy * dy) + edge
+        if (score < bestScore) {
+          bestScore = score
+          best = region
+        }
+      }
+      terrain[y * width + x] = best.biome
+    }
   }
-  // Forest groves are carved from wasteland only. The cut is a quantile of the
-  // forest field over wasteland tiles, so the grove share stays stable across
-  // seeds instead of drifting with where the smooth patches happen to land.
-  const forestValues = new Float64Array(width * height)
-  let forestCount = 0
-  for (let i = 0; i < width * height; i++) {
-    if (terrain[i] === 'wasteland') forestValues[forestCount++] = forestField[i]
-  }
-  const forestCut = quantileValue(forestValues.subarray(0, forestCount), 1 - FOREST_QUANTILE)
-  for (let i = 0; i < width * height; i++) {
-    if (terrain[i] === 'wasteland' && forestField[i] > forestCut) terrain[i] = 'forest'
-  }
+
+  addInteriorVariation(terrain, width, height, regions, seed, version)
   filterSmallComponents(terrain, width, height, 'hills', 'wasteland', MIN_REGION_COMPONENT)
   filterSmallComponents(terrain, width, height, 'ruins', 'wasteland', MIN_REGION_COMPONENT)
   filterSmallComponents(terrain, width, height, 'forest', 'wasteland', FOREST_MIN_COMPONENT)
+  for (const kind of ['hills', 'ruins', 'forest'] as const) {
+    keepLargestComponents(terrain, width, height, kind, REGION_COMPONENT_KEEP[kind])
+  }
+  absorbWastelandIslands(terrain, width, height)
   return terrain
 }
 

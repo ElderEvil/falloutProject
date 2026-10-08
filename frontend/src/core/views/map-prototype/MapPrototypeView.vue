@@ -30,6 +30,7 @@ import {
 } from '@/modules/map/utils/atlasWorldgen'
 import { isExplored, isVisible, revealDisc } from './fog'
 import { isFrontierTile, scoutBand, scoutProbeTarget } from './scout'
+import { extractTerrainRegions, type TerrainRegion } from './terrainRegions'
 import {
   fetchProdMap,
   registryToCanvas,
@@ -52,7 +53,9 @@ interface RouteResult {
   hours: number
 }
 
-// Muted terrain palette — deliberately desaturated so the green CRT accents pop.
+// Muted terrain palette — deliberately desaturated so the green CRT accents pop,
+// but hue- and value-separated so biomes read apart at a glance. `outline` is a
+// low-alpha darkened blend of the fill, stroked thin around every region.
 const costLabel = (cost: number): string => (Number.isFinite(cost) ? String(Math.round(cost * 100) / 100) : 'impassable')
 
 const TERRAIN_META = {
@@ -62,21 +65,6 @@ const TERRAIN_META = {
   hills: { color: '#3a3228', swatch: 'bg-[#3a3228]' },
   water: { color: '#2e3d4a', swatch: 'bg-[#2e3d4a]' },
 } satisfies Record<TerrainType, { color: string; swatch: string }>
-
-const hexToRgb = (hex: string): [number, number, number] => {
-  const value = Number.parseInt(hex.slice(1), 16)
-  return [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff]
-}
-
-// Precomputed RGB for the biome-blend blur — derived from TERRAIN_META so the
-// palette stays the single source of truth.
-const TERRAIN_RGB: Record<TerrainType, [number, number, number]> = {
-  wasteland: hexToRgb(TERRAIN_META.wasteland.color),
-  forest: hexToRgb(TERRAIN_META.forest.color),
-  ruins: hexToRgb(TERRAIN_META.ruins.color),
-  hills: hexToRgb(TERRAIN_META.hills.color),
-  water: hexToRgb(TERRAIN_META.water.color),
-}
 
 const FALLBACK_LOCATION_COLOR = '#9aa0a6'
 
@@ -92,9 +80,9 @@ const TERRAIN_LEGEND: Array<{ type: TerrainType; swatch: string; cost: string }>
 
 // ── Player-facing marker silhouettes ────────────────────────────────────
 // Icons are ~10–14px vector silhouettes centered on their tile — roughly 1.5
-// tiles wide, so dense maps (up to 600 locations) will overlap. That density
-// trade-off is accepted for readability; the Locations density control is the
-// decluttering mechanism, not icon culling.
+// tiles wide. The default (40 locations) keeps the map uncluttered; the
+// Locations density control (10–600) is the decluttering mechanism, not icon
+// culling, so raising it deliberately accepts the overlap.
 
 const ICON_OUTLINE = 'rgba(0, 0, 0, 0.85)'
 
@@ -470,29 +458,16 @@ const LAYER_TOGGLES: Array<{ key: LayerKey; label: string }> = [
   { key: 'route', label: 'Route' },
 ]
 
-// Minecraft-style biome blend: radius r blends each cell over a (2r+1)×(2r+1)
-// neighborhood in cell space. Default 3×3 (r = 1) — just enough to soften
-// seams without muddying biomes.
-const BLEND_OPTIONS: Array<{ label: string; radius: number }> = [
-  { label: 'Off', radius: 0 },
-  { label: '3×3', radius: 1 },
-  { label: '5×5', radius: 2 },
-  { label: '7×7', radius: 3 },
-  { label: '9×9', radius: 4 },
-  { label: '15×15', radius: 7 },
-]
-
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const seedInput = ref(DEFAULT_WORLD_CONFIG.seed)
 const locationCountInput = ref(String(DEFAULT_WORLD_CONFIG.locationCount))
 const world = shallowRef<GeneratedWorld>(generateWorld())
 const playerIcons = ref(true)
 const showMinorCaches = ref(true)
-const blendRadius = ref(1)
-// Cached biome-blended grid buffer — rebuilt only when the world or the blend
-// radius changes, so hover/route redraws stay cheap.
-let blendedBuffer: HTMLCanvasElement | null = null
-let blendedBufferRadius = -1
+// Cached smoothed region polygons — rebuilt only when the world is replaced,
+// so hover and route redraws stay cheap.
+let regionWorld: GeneratedWorld | null = null
+let regionCache: TerrainRegion[] | null = null
 const layers = ref<Record<LayerKey, boolean>>({
   terrain: true,
   grid: false, // hidden by default; still available via the toggle
@@ -892,85 +867,16 @@ const clampedLocationCount = (): number => {
 
 
 /**
- * Cached biome-blended grid buffer. When radius > 0, each cell's color is the
- * weighted average of its (2r+1)×(2r+1) neighborhood, computed as a separable
- * two-pass box blur in cell space over the raw pixel data. Edge cells clamp
- * their window to the grid bounds and divide by the actual sample count, so
- * the average stays exact — no edge darkening. The bilinear upscale in redraw()
- * then provides the sub-grid interpolation.
+ * Cached smoothed terrain region polygons for the current world. The tile grid
+ * stays the logic source of truth; these polygons only drive the terrain fill,
+ * so a world swap (identity change) is the only thing that invalidates them.
  */
-const getBlendedBuffer = (radius: number): HTMLCanvasElement | null => {
-  if (blendedBuffer !== null && blendedBufferRadius === radius) return blendedBuffer
+const getTerrainRegions = (): TerrainRegion[] => {
+  if (regionCache !== null && regionWorld === world.value) return regionCache
   const w = world.value
-  const { width, height } = w.config
-  const buffer = document.createElement('canvas')
-  buffer.width = width
-  buffer.height = height
-  const bctx = buffer.getContext('2d')
-  if (bctx === null) return null
-
-  const cellCount = width * height
-  const src = new Float32Array(cellCount * 3)
-  for (let i = 0; i < cellCount; i++) {
-    const rgb = TERRAIN_RGB[w.terrain[i]]
-    src[i * 3] = rgb[0]
-    src[i * 3 + 1] = rgb[1]
-    src[i * 3 + 2] = rgb[2]
-  }
-
-  // Horizontal pass — average each row over the clamped [x-r, x+r] window.
-  const tmp = new Float32Array(cellCount * 3)
-  for (let y = 0; y < height; y++) {
-    const row = y * width
-    for (let x = 0; x < width; x++) {
-      const x0 = Math.max(0, x - radius)
-      const x1 = Math.min(width - 1, x + radius)
-      let r = 0
-      let g = 0
-      let b = 0
-      for (let k = x0; k <= x1; k++) {
-        const i = (row + k) * 3
-        r += src[i]
-        g += src[i + 1]
-        b += src[i + 2]
-      }
-      const count = x1 - x0 + 1
-      const i = (row + x) * 3
-      tmp[i] = r / count
-      tmp[i + 1] = g / count
-      tmp[i + 2] = b / count
-    }
-  }
-
-  // Vertical pass — same window over columns, then write rounded RGB.
-  const image = bctx.createImageData(width, height)
-  const data = image.data
-  for (let y = 0; y < height; y++) {
-    const y0 = Math.max(0, y - radius)
-    const y1 = Math.min(height - 1, y + radius)
-    for (let x = 0; x < width; x++) {
-      let r = 0
-      let g = 0
-      let b = 0
-      for (let k = y0; k <= y1; k++) {
-        const i = (k * width + x) * 3
-        r += tmp[i]
-        g += tmp[i + 1]
-        b += tmp[i + 2]
-      }
-      const count = y1 - y0 + 1
-      const i = (y * width + x) * 4
-      data[i] = Math.round(r / count)
-      data[i + 1] = Math.round(g / count)
-      data[i + 2] = Math.round(b / count)
-      data[i + 3] = 255
-    }
-  }
-
-  bctx.putImageData(image, 0, 0)
-  blendedBuffer = buffer
-  blendedBufferRadius = radius
-  return buffer
+  regionCache = extractTerrainRegions(w.terrain, w.config.width, w.config.height)
+  regionWorld = w
+  return regionCache
 }
 
 const regenerate = (): void => {
@@ -981,8 +887,6 @@ const regenerate = (): void => {
   }
   baseWorld.value = generateWorld(config)
   world.value = anchoredPreview.value ? generateWorld(config, fixtureAnchors.value) : baseWorld.value
-  blendedBuffer = null
-  blendedBufferRadius = -1
   claimedIds.value = []
   hoverTile.value = null
   routeStart.value = null
@@ -1008,12 +912,6 @@ const applyLocationCount = (): void => {
 
 const toggleLayer = (key: LayerKey): void => {
   layers.value[key] = !layers.value[key]
-  redraw()
-}
-
-const setBlendRadius = (event: Event): void => {
-  const target = event.target as HTMLSelectElement
-  blendRadius.value = Number(target.value)
   redraw()
 }
 
@@ -1152,69 +1050,33 @@ const redraw = (): void => {
   ctx.fillRect(0, 0, canvas.width, canvas.height)
 
   if (layersOn.terrain) {
-    const radius = blendRadius.value
-    if (radius > 0) {
-      // Biome blend: upscale the blended grid buffer with high-quality bilinear
-      // smoothing — the sub-grid interpolation that turns cell gradients into
-      // seamless terrain transitions. No blur() filter here; the blend itself
-      // is the smoothing.
-      const blended = getBlendedBuffer(radius)
-      if (blended !== null) {
-        ctx.imageSmoothingEnabled = true
-        ctx.imageSmoothingQuality = 'high'
-        ctx.filter = 'none'
-        ctx.drawImage(blended, 0, 0, canvas.width, canvas.height)
-      }
-    } else {
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          ctx.fillStyle = TERRAIN_META[w.terrain[y * width + x]].color
-          ctx.fillRect(x * TILE, y * TILE, TILE, TILE)
+    // Smoothed region polygons: the wasteland base fills the map, then each
+    // biome region is one closed path of simplified + Chaikin-rounded rings.
+    // Rivers and lakes are water regions, so they get organic edges too.
+    ctx.fillStyle = TERRAIN_META.wasteland.color
+    ctx.fillRect(0, 0, width * TILE, height * TILE)
+    ctx.lineJoin = 'round'
+    for (const region of getTerrainRegions()) {
+      if (region.terrain === 'wasteland') continue
+      const meta = TERRAIN_META[region.terrain]
+      ctx.fillStyle = meta.color
+      ctx.strokeStyle = meta.outline
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      for (const ring of region.rings) {
+        const first = ring[0]
+        if (first === undefined) continue
+        ctx.moveTo(first.x * TILE, first.y * TILE)
+        for (let i = 1; i < ring.length; i++) {
+          const point = ring[i]
+          if (point === undefined) continue
+          ctx.lineTo(point.x * TILE, point.y * TILE)
         }
+        ctx.closePath()
       }
-      // Water as overlapping discs so rivers read smooth, not pixelated.
-      ctx.fillStyle = TERRAIN_META.water.color
-      const wr = TILE * 0.8
-      for (let i = 0; i < width * height; i++) {
-        if (w.terrain[i] !== 'water') continue
-        if (visibilityEnforced.value && !tileVisible(i % width, Math.floor(i / width))) continue
-        ctx.beginPath()
-        ctx.arc((i % width) * TILE + TILE / 2, Math.floor(i / width) * TILE + TILE / 2, wr, 0, Math.PI * 2)
-        ctx.fill()
-      }
-    }
-  }
-
-  if (layersOn.terrain) {
-    // Sparse texture marks so terrain reads by pattern as well as colour
-    // (contract DD6). Deterministic placement — no per-frame randomness.
-    ctx.lineWidth = 1
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        if ((x * 7 + y * 13) % 6 !== 0) continue
-        if (visibilityEnforced.value && !tileVisible(x, y)) continue
-        const t = w.terrain[y * width + x]
-        const cx = x * TILE + TILE / 2
-        const cy = y * TILE + TILE / 2
-        if (t === 'hills') {
-          ctx.strokeStyle = 'rgba(214, 200, 160, 0.22)'
-          ctx.lineWidth = 1.2
-          ctx.beginPath()
-          ctx.moveTo(cx - 3, cy + 2)
-          ctx.lineTo(cx, cy - 2)
-          ctx.lineTo(cx + 3, cy + 2)
-          ctx.stroke()
-          ctx.lineWidth = 1
-        } else if (t === 'ruins') {
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'
-          ctx.fillRect(cx - 1.5, cy - 1.5, 3, 3)
-        } else if (t === 'forest') {
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-          ctx.beginPath()
-          ctx.arc(cx, cy, 1.6, 0, Math.PI * 2)
-          ctx.fill()
-        }
-      }
+      ctx.fill()
+      // Thin darkened edge so adjacent similar biomes separate cleanly.
+      ctx.stroke()
     }
   }
 
@@ -1249,12 +1111,13 @@ const redraw = (): void => {
       }
       const last = pts[pts.length - 1]
       ctx.lineTo(last.x, last.y)
-      // Casing then fill, so roads stay crisp against textured terrain.
-      ctx.lineWidth = 3
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)'
+      // Casing then fill: a wide dark edge under a lighter tan keeps the road
+      // readable on the light wasteland base and the darker biomes alike.
+      ctx.lineWidth = 4
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.72)'
       ctx.stroke()
-      ctx.lineWidth = 1.5
-      ctx.strokeStyle = '#b8a06a'
+      ctx.lineWidth = 2
+      ctx.strokeStyle = '#d2b97c'
       ctx.stroke()
     }
   }
@@ -1446,8 +1309,6 @@ onMounted(() => {
     canvas.width = TILE * DEFAULT_WORLD_CONFIG.width
     canvas.height = TILE * DEFAULT_WORLD_CONFIG.height
   }
-  blendedBuffer = null
-  blendedBufferRadius = -1
   resetFog()
   redraw()
 })
@@ -1551,21 +1412,6 @@ onUnmounted(() => {
               {{ toggle.label }}
             </label>
 
-            <label
-              class="col-span-2 mt-1 flex items-center justify-between gap-2 text-theme-primary/80"
-            >
-              <span>Biome blend</span>
-              <select
-                :value="blendRadius"
-                class="h-8 w-24 cursor-pointer rounded-md border border-input bg-transparent px-2 font-mono text-xs text-theme-primary outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                aria-label="Biome blend radius"
-                @change="setBlendRadius"
-              >
-                <option v-for="option in BLEND_OPTIONS" :key="option.radius" :value="option.radius">
-                  {{ option.label }}
-                </option>
-              </select>
-            </label>
             <label
               class="col-span-2 mt-1 flex cursor-pointer items-center gap-2 text-theme-primary/80"
             >

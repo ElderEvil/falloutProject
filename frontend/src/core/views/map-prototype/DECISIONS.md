@@ -6,9 +6,10 @@ production map (`modules/map`). Route `/dev/map-prototype` lives inside the
 out of production builds. Run it with `cd frontend && pnpm exec vp dev`, then open
 `http://localhost:5174/dev/map-prototype` (port shifts if 5173 is taken).
 
-Files: `worldgen.ts` (pure deterministic generator, no deps), `fog.ts` (pure fog
-helpers), `MapPrototypeView.vue` (canvas view + controls),
-`tests/unit/views/map-prototype/` (worldgen + fog suites).
+Files: `worldgen.ts` (pure deterministic generator, no deps), `terrainRegions.ts`
+(pure terrain → smoothed region polygons), `fog.ts` (pure fog helpers),
+`MapPrototypeView.vue` (canvas view + controls), `tests/unit/views/map-prototype/`
+(worldgen + regions + fog suites).
 
 > **Contract:** cross-cutting decisions for the expedition-planning surface — the
 > `isVisible()` visibility predicate, road/ETA semantics, verified gaps, and the delivery
@@ -24,7 +25,7 @@ Generator (`worldgen.ts`):
 - 100 vault slots, one per 10×10 sector, snapped off water, spacing-nudged.
 - Locations with archetype rules (rockets near junctions, marts near settlements,
   factories on settlement edges, towers on hills, treatment near water, raider camps
-  off-road); density tunable 10–600, default 100; no overlaps, none on water/vaults.
+  off-road); density tunable 10–600, default 40; no overlaps, none on water/vaults.
 - Roads: MST + loop edges with seeded curvature waypoints, junction detection,
   bridges where roads cross water. No forced longest-edge trunks.
 - L-bend river (adjacent edges, mirrored endpoints) plus base-field lakes; high water
@@ -39,8 +40,15 @@ Generator (`worldgen.ts`):
 
 View (`MapPrototypeView.vue`):
 
-- Canvas render with biome blend (`Off / 3×3 … 15×15`, default 3×3) and overlapping-disc
-  water so rivers read smooth, not pixelated. No stacked blur.
+- Canvas render as smoothed terrain region polygons: every connected same-terrain
+  component is boundary-traced (cell-edge follow), simplified (Douglas–Peucker) and
+  rounded (Chaikin), then filled from `TERRAIN_META` over a wasteland base. Rivers and
+  lakes are water regions, so they read smooth; no per-tile wash, no blend buffer, no
+  stacked blur. Each filled region is stroked with a thin low-alpha darkened outline
+  so adjacent similar biomes separate cleanly.
+- Roads draw a wide dark casing under a lighter tan fill so they read as cartographic
+  lines on both the light wasteland base and the darker biomes; the default density is
+  40 locations (dial 10–600) so markers no longer swamp the map.
 - Player-icon silhouettes per kind with a debug-markers fallback; grid hidden by default.
 - Hover readout (coords/terrain/cost); selection shows name + ETA from origin.
 - Click vault → click location draws the A\* route with cost + hours; claim/unclaim button.
@@ -142,7 +150,7 @@ Product map (`modules/map`, real-user code — out of this spike, backlog separa
 Later decisions:
 
 - Python port / server-authoritative generator (the original endgame question).
-- Location density default (currently 100; dial 10–600 to taste).
+- Location density default (currently 40; dial 10–600 to taste).
 
 ## Tried and reverted (do not redo without new evidence)
 
@@ -153,8 +161,9 @@ Later decisions:
   Now an L-bend (adjacent edges) so land stays connected around its ends.
 - Vault access paths → invisible (never drawn) and redundant with reachability repair;
   deleted outright.
-- Smooth blur stacked on biome blend → mud. Removed; blend 3×3 only.
-- 200-location default → clutter; back to 100 with the guarantee as backstop.
+- Smooth blur stacked on biome blend → mud. Removed; blending later replaced by
+  smoothed region polygons (see Current), which also removed the tile-block wash.
+- 200-location default → clutter; dialed down (100, then 40 for legibility) with the guarantee as backstop.
 - Base-field lake removal → user wants lakes; restored. Water is river + a couple of lakes.
 - Displayed-value drift (legend vs hover rounding) → fixed by exact cost labels.
 
@@ -198,7 +207,8 @@ Road-discount comparison (5 seeds × 120 origin→target pairs = 600 journeys):
 - Render direction (heightmap vs CRT vs current canvas) — blocks any visual rework.
 - Whether roads should discount travel by default (measured: changes 96% of route
   choices) — keep-or-remove call pending; blocks freezing the ETA.
-- Density default and forest share — tune by looking, not by theory.
+- Density default (40 after the legibility polish) and forest share — tune by looking,
+  not by theory.
 - Fog tuning (origin/claim/sight radii, expedition speed, blind targeting, re-fogging?)
   and whether fog should ever lift permanently once real dwellers exist.
 - Live-backend verification of the prod overlay (real login + own vault): unlocked render,

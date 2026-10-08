@@ -119,7 +119,7 @@ describe('MapView', () => {
             name: 'WorldMap',
             template: '<div class="world-map-stub"></div>',
             props: ['locations', 'vaultMarkers', 'explorerTracks', 'selectedMarkerId', 'fogDisabled'],
-            emits: ['marker-click', 'update:selectedMarkerId'],
+            emits: ['marker-click', 'update:selectedMarkerId', 'vault-info'],
           },
           MarkerDetailModal: {
             name: 'MarkerDetailModal',
@@ -136,6 +136,12 @@ describe('MapView', () => {
               'suppliesLoading',
             ],
             emits: ['update:modelValue', 'dispatch'],
+          },
+          VaultInfoModal: {
+            name: 'VaultInfoModal',
+            template: '<div class="vault-info-stub"></div>',
+            props: ['open', 'vault', 'loading'],
+            emits: ['update:open', 'close'],
           },
           teleport: true,
         },
@@ -330,6 +336,140 @@ describe('MapView', () => {
       const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
       expect(modal.props('modelValue')).toBe(true)
       expect(modal.props('vaultMarker')).toEqual(vaultMarker)
+    })
+  })
+
+  describe('Own-vault info panel', () => {
+    const vaultSummary = {
+      id: 'vault-2',
+      number: 121,
+      bottle_caps: 1500,
+      happiness: 82,
+      power: 40,
+      power_max: 80,
+      food: 30,
+      food_max: 60,
+      water: 20,
+      water_max: 50,
+      population_max: null,
+      radio_mode: 'recruitment',
+      incidents_disabled: false,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-02T03:04:05Z',
+      room_count: 12,
+      dweller_count: 18,
+      stimpack: 5,
+      radaway: 3,
+    }
+
+    function mountMapWithVaults(vaults: (typeof vaultSummary)[]) {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      const vaultStore = useVaultStore()
+      vaultStore.vaults = vaults
+      return mountView()
+    }
+
+    it('opens the summary panel from store data without navigating', async () => {
+      const wrapper = mountMapWithVaults([vaultSummary])
+      await flushPromises()
+
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-2')
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
+      expect(modal.props('open')).toBe(true)
+      expect(modal.props('vault')).toEqual(vaultSummary)
+      expect(modal.props('loading')).toBe(false)
+      expect(wrapper.findComponent({ name: 'MarkerDetailModal' }).props('modelValue')).toBe(false)
+      expect(mockPush).not.toHaveBeenCalled()
+    })
+
+    it('hydrates the vault list when the store is empty', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      const vaultStore = useVaultStore()
+      vaultStore.vaults = []
+      const fetchSpy = vi.spyOn(vaultStore, 'fetchVaults').mockImplementation(async () => {
+        vaultStore.vaults = [vaultSummary]
+        return true
+      })
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-2')
+      await flushPromises()
+
+      expect(fetchSpy).toHaveBeenCalledWith('test-token')
+      expect(wrapper.findComponent({ name: 'VaultInfoModal' }).props('vault')).toEqual(vaultSummary)
+      expect(mockPush).not.toHaveBeenCalled()
+    })
+
+    it('shows the loading state until the vault list resolves', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      const vaultStore = useVaultStore()
+      vaultStore.vaults = []
+      let resolveFetch!: (value: boolean) => void
+      const gate = new Promise<boolean>((resolve) => {
+        resolveFetch = resolve
+      })
+      vi.spyOn(vaultStore, 'fetchVaults').mockReturnValue(gate)
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-2')
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
+      expect(modal.props('open')).toBe(true)
+      expect(modal.props('loading')).toBe(true)
+
+      vaultStore.vaults = [vaultSummary]
+      resolveFetch(true)
+      await flushPromises()
+
+      expect(modal.props('loading')).toBe(false)
+      expect(modal.props('vault')).toEqual(vaultSummary)
+    })
+
+    it('opens the unavailable state when the record cannot be resolved', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      const vaultStore = useVaultStore()
+      vaultStore.vaults = []
+      vi.spyOn(vaultStore, 'fetchVaults').mockResolvedValue(true)
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-404')
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
+      expect(modal.props('open')).toBe(true)
+      expect(modal.props('vault')).toBeNull()
+      expect(modal.props('loading')).toBe(false)
+    })
+
+    it('closes the panel when it emits update:open false', async () => {
+      const wrapper = mountMapWithVaults([vaultSummary])
+      await flushPromises()
+
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-2')
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
+      modal.vm.$emit('update:open', false)
+      await flushPromises()
+
+      expect(modal.props('open')).toBe(false)
     })
   })
 

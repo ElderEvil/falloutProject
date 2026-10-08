@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, toRef } from 'vue'
 import { Icon } from '@iconify/vue'
-import { useRouter } from 'vue-router'
 import { Button } from '@/core/components/ui/button'
 import { formatRemaining } from '@/modules/exploration/composables/useExplorationProgress'
 import type {
@@ -55,6 +54,8 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   (e: 'marker-click', payload: MarkerClickPayload): void
   (e: 'update:selectedMarkerId', value: string | null): void
+  /** Own-vault marker clicked: open its summary panel instead of navigating. */
+  (e: 'vault-info', vaultId: string): void
 }>()
 
 // ── Marker visibility filter ─────────────────────────────────────
@@ -219,10 +220,9 @@ const {
 const mapStore = useMapStore()
 const svgRef = ref<SVGSVGElement | null>(null)
 const vaultMarkers = toRef(props, 'vaultMarkers')
-const router = useRouter()
 
 function onOwnVaultClick(vault: PlayerVaultMarkerRead): void {
-  void router.push(`/vault/${vault.vault_id}/map`)
+  emit('vault-info', vault.vault_id)
 }
 
 const groupIconByKey = computed(
@@ -446,7 +446,7 @@ function handleTouchEnd(event: TouchEvent) {
           :name="`Vault ${pv.number}`"
           type="home_vault"
           label="Your Vault"
-          :status="`Open Vault ${pv.number}`"
+          :status="`View details`"
           @click="onOwnVaultClick(pv)"
         />
 

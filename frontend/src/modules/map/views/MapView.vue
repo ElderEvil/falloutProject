@@ -16,6 +16,7 @@ import { Skeleton } from '@/core/components/ui/skeleton'
 import { Button } from '@/core/components/ui/button'
 import WorldMap from '../components/WorldMap.vue'
 import MarkerDetailModal from '../components/MarkerDetailModal.vue'
+import VaultInfoModal from '../components/VaultInfoModal.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import type {
   ExpeditionSiteMarkerRead,
@@ -57,6 +58,43 @@ const selectedSite = computed<ExpeditionSiteMarkerRead | null>(() => {
   if (id === null || !id.startsWith('site-')) return null
   return mapStore.expeditionSites.find((s) => s.id === id.slice(5)) ?? null
 })
+
+// ── Own-vault info panel ─────────────────────────────────────────────
+// Clicking one of the player's own vault markers opens its summary instead
+// of navigating. The payload only carries `vault_id`, so the record comes
+// from the vault store: `/api/v1/vaults/my` already returns every counter the
+// selection card shows. Never `ensureVaultLoaded` here — loading another
+// vault adopts it and moves live polling/SSE off the vault being played.
+const showVaultInfo = ref(false)
+const vaultInfoId = ref<string | null>(null)
+const vaultInfoLoading = ref(false)
+
+function findVaultSummary(id: string) {
+  return vaultStore.loadedVaults[id] ?? vaultStore.vaults.find((vault) => vault.id === id) ?? null
+}
+
+const vaultInfoVault = computed(() =>
+  vaultInfoId.value ? findVaultSummary(vaultInfoId.value) : null
+)
+
+async function handleVaultInfo(infoVaultId: string) {
+  const token = authStore.token
+  if (!token || !infoVaultId) return
+  vaultInfoId.value = infoVaultId
+  showVaultInfo.value = true
+  if (findVaultSummary(infoVaultId)) {
+    vaultInfoLoading.value = false
+    return
+  }
+  // Marker is `is_mine`, so the hydrated list should cover it; fetch it only
+  // when the shell has not populated the store yet.
+  vaultInfoLoading.value = true
+  try {
+    if (vaultStore.vaults.length === 0) await vaultStore.fetchVaults(token)
+  } finally {
+    vaultInfoLoading.value = false
+  }
+}
 
 // Explorer tracking: active runs projected onto the map. Dispatched runs mark
 // their target location; free-roam runs surface at the last discovery point.
@@ -364,6 +402,7 @@ const mapPaneHeight = 'var(--map-pane-size)'
             :selected-marker-id="selectedMarkerId"
             @update:selected-marker-id="selectedMarkerId = $event"
             @marker-click="handleMarkerClick"
+            @vault-info="handleVaultInfo"
           />
 
           <!-- Admin debug: lift the fog to inspect the whole atlas -->
@@ -385,6 +424,15 @@ const mapPaneHeight = 'var(--map-pane-size)'
             :max-radaways="vaultMedicalSupplies.radaways"
             :supplies-loading="isPreparingDispatch"
             @dispatch="handleDispatch"
+          />
+
+          <!-- Own-vault summary: same fields as the vault-selection card -->
+          <VaultInfoModal
+            :open="showVaultInfo"
+            :vault="vaultInfoVault"
+            :loading="vaultInfoLoading"
+            @update:open="showVaultInfo = $event"
+            @close="showVaultInfo = false"
           />
 
         </PageContentRail>

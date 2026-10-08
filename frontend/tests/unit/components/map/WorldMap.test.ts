@@ -1584,5 +1584,27 @@ describe('WorldMap', () => {
       expect(mine!.props('label')).toBe('Your Vault')
       expect(markers.some((m) => m.props('name') === 'Vault 200')).toBe(false)
     })
+
+    it('emits vault-info with the vault id when an own-vault marker is clicked', async () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [],
+          vaultMarkers: [],
+          playerVaults: [
+            { vault_id: 'v-mine', number: 121, coord_x: 40, coord_y: 8, is_mine: true },
+          ],
+          selectedMarkerId: null,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const mine = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('name') === 'Vault 121')
+      await mine!.trigger('click')
+
+      expect(wrapper.emitted('vault-info')).toEqual([['v-mine']])
+      expect(wrapper.emitted('marker-click')).toBeUndefined()
+    })
   })
 })

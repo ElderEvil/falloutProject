@@ -44,6 +44,28 @@ export function producesResources(room: Room | null): boolean {
   return room?.category.toLowerCase() === 'production' && !!room.ability
 }
 
+export type ResourceName = 'power' | 'food' | 'water'
+
+/**
+ * Room ability → produced resource, mirroring the backend's `_apply_room_production`
+ * (strength → power, agility → food, perception → water). Endurance rooms produce
+ * every resource, so they are the fallback when no dedicated room exists.
+ */
+const RESOURCE_ABILITIES: Record<ResourceName, Room['ability'][]> = {
+  power: ['strength', 'endurance'],
+  food: ['agility', 'endurance'],
+  water: ['perception', 'endurance'],
+}
+
+/** The production room a player would open to fix a resource shortfall, or null if none exists. */
+export function findProductionRoom(rooms: Room[], resource: ResourceName): Room | null {
+  for (const ability of RESOURCE_ABILITIES[resource]) {
+    const match = rooms.find((room) => producesResources(room) && room.ability === ability)
+    if (match) return match
+  }
+  return null
+}
+
 export function isCraftingRoom(room: Room | null): boolean {
   return room?.category.toLowerCase() === 'crafting'
 }

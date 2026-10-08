@@ -1,11 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { createAxiosMock, createIconifyMock } from '../../helpers/mocks'
+import { createAxiosMock, createIconifyMock, createRouterMock } from '../../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import NotificationBell from '@/modules/vault/components/shell/NotificationBell.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
-import { removePendingReport, usePendingReports } from '@/modules/exploration/composables/usePendingReports'
+import {
+  removePendingReport,
+  usePendingReports,
+} from '@/modules/exploration/composables/usePendingReports'
 
 /**
  * NotificationBell SSE Watcher Regression Tests
@@ -33,11 +36,17 @@ import { removePendingReport, usePendingReports } from '@/modules/exploration/co
 
 // Mock Iconify (no-op icon component)
 vi.mock('@iconify/vue', () =>
-  createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon" data-testid="mock-icon" />' })
+  createIconifyMock({
+    template: '<span class="icon-mock" :data-icon="icon" data-testid="mock-icon" />',
+  })
 )
 
 // Mock the axios plugin: NotificationBell only needs resolved API responses
 vi.mock('@/core/plugins/axios', () => createAxiosMock())
+
+// Mock the router so actionable notification clicks can assert navigation.
+const { mockPush } = vi.hoisted(() => ({ mockPush: vi.fn() }))
+vi.mock('vue-router', () => createRouterMock({ push: mockPush }))
 
 import axios from '@/core/plugins/axios'
 
@@ -122,7 +131,10 @@ describe('NotificationBell SSE watcher null-safety', () => {
 
     // Any watcher getter error would surface here as a Vue warn
     errorSpy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
-      console.log('CAPTURED_CONSOLE_ERROR:', JSON.stringify(args, (k, v) => (v instanceof Error ? v.message : v)))
+      console.log(
+        'CAPTURED_CONSOLE_ERROR:',
+        JSON.stringify(args, (k, v) => (v instanceof Error ? v.message : v))
+      )
     })
   })
 
@@ -434,7 +446,9 @@ describe('NotificationBell SSE watcher null-safety', () => {
 
     // ASSERT: announced immediately (progression red line)
     expect(
-      toasts.value.some((t) => t.message === 'Megaton has been cleared. It will be ready to loot again soon.')
+      toasts.value.some(
+        (t) => t.message === 'Megaton has been cleared. It will be ready to loot again soon.'
+      )
     ).toBe(true)
 
     // ASSERT: the event also produced a bell entry with the cleared icon
@@ -517,14 +531,181 @@ describe('NotificationBell SSE watcher null-safety', () => {
     await flushPromises()
 
     // ASSERT: announced immediately (progression red line)
-    expect(
-      toasts.value.some((t) => t.message === 'Objective complete: Scrap 1 Baseball bat')
-    ).toBe(true)
+    expect(toasts.value.some((t) => t.message === 'Objective complete: Scrap 1 Baseball bat')).toBe(
+      true
+    )
 
     // ASSERT: the event also produced a bell entry
     await wrapper.find('button[aria-label="Notifications"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Objective Complete')
+
+    wrapper.unmount()
+  })
+})
+
+describe('NotificationBell popup accessibility', () => {
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  const actionableNotification = {
+    id: 'act-1',
+    vault_id: 'vault-1',
+    notification_type: 'level_up',
+    title: 'Actionable Alert',
+    message: 'Open the dweller list',
+    priority: 'normal',
+    is_read: false,
+    created_at: '2026-08-11T10:00:00',
+    meta_data: {},
+  }
+
+  const informationalNotification = {
+    id: 'info-1',
+    vault_id: null,
+    notification_type: 'resource_low',
+    title: 'Informational Note',
+    message: 'Power reserves are low',
+    priority: 'info',
+    is_read: false,
+    created_at: '2026-08-11T09:00:00',
+    meta_data: {},
+  }
+
+  const mockNotificationList = (items: Array<Record<string, unknown>>) => {
+    ;(axios.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+      if (url.includes('unread-count')) {
+        return Promise.resolve({ data: { count: items.filter((item) => !item.is_read).length } })
+      }
+      return Promise.resolve({ data: items })
+    })
+  }
+
+  const mountBell = async (items: Array<Record<string, unknown>>) => {
+    useAuthStore().token = 'test-token'
+    fetchMock.mockResolvedValue(createMockResponse([], { hang: true }))
+    mockNotificationList(items)
+    const wrapper = mount(NotificationBell, { attachTo: document.body })
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+    return wrapper
+  }
+
+  const mountAndOpen = async (items: Array<Record<string, unknown>>) => {
+    const wrapper = await mountBell(items)
+    await wrapper.get('button[aria-label="Notifications"]').trigger('click')
+    await flushPromises()
+    return wrapper
+  }
+
+  // Transition removal runs on requestAnimationFrame; step the fake clock so the
+  // popup has left the DOM before a close is asserted.
+  const settleClose = async () => {
+    await vi.advanceTimersByTimeAsync(100)
+    await flushPromises()
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    window.localStorage.clear()
+    setActivePinia(createPinia())
+    ;(axios.patch as ReturnType<typeof vi.fn>).mockResolvedValue({ data: {} })
+    ;(axios.post as ReturnType<typeof vi.fn>).mockResolvedValue({ data: {} })
+    fetchMock = vi.fn()
+    global.fetch = fetchMock
+    mockPush.mockClear()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  it('constrains the popup to the viewport and wires the bell/popup ARIA', async () => {
+    const wrapper = await mountBell([informationalNotification])
+    const bell = wrapper.get('button[aria-label="Notifications"]')
+
+    expect(bell.attributes('aria-haspopup')).toBe('dialog')
+    expect(bell.attributes('aria-expanded')).toBe('false')
+    expect(bell.attributes('aria-controls')).toBe('notifications-popup')
+
+    await bell.trigger('click')
+    await flushPromises()
+
+    const popup = wrapper.get('[role="dialog"]')
+    expect(popup.attributes('id')).toBe('notifications-popup')
+    expect(popup.attributes('aria-label')).toBe('Notifications')
+    // jsdom has no CSS pipeline, so the viewport clamp is asserted on the class attr.
+    const popupClass = popup.attributes('class') ?? ''
+    expect(popupClass).toMatch(/w-\[min\(24rem,calc\(100vw_-_1rem\)\)\]/)
+    expect(popupClass).not.toMatch(/(^|\s)w-96(\s|$)/)
+    expect(wrapper.get('.notification-backdrop').attributes('aria-hidden')).toBe('true')
+    expect(bell.attributes('aria-expanded')).toBe('true')
+
+    await bell.trigger('click')
+    await settleClose()
+    expect(bell.attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('closes on Escape and returns focus to the bell', async () => {
+    const wrapper = await mountAndOpen([informationalNotification])
+
+    expect(document.activeElement).toBe(wrapper.get('[role="dialog"]').element)
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await settleClose()
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.get('button[aria-label="Notifications"]').element)
+
+    wrapper.unmount()
+  })
+
+  it('closes on backdrop click and returns focus to the bell', async () => {
+    const wrapper = await mountAndOpen([informationalNotification])
+
+    await wrapper.get('.notification-backdrop').trigger('click')
+    await settleClose()
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.get('button[aria-label="Notifications"]').element)
+
+    wrapper.unmount()
+  })
+
+  it('renders actionable notifications as buttons and informational ones as content', async () => {
+    const wrapper = await mountAndOpen([actionableNotification, informationalNotification])
+
+    const actionableRow = wrapper.get('[data-notification-id="act-1"]')
+    expect(actionableRow.element.tagName).toBe('BUTTON')
+    expect(actionableRow.attributes('type')).toBe('button')
+    expect(actionableRow.find('[data-icon="mdi:chevron-right"]').exists()).toBe(true)
+
+    const informationalRow = wrapper.get('[data-notification-id="info-1"]')
+    expect(informationalRow.element.tagName).toBe('DIV')
+    expect(informationalRow.attributes('type')).toBeUndefined()
+    expect(informationalRow.text()).toContain('Informational Note')
+    expect(informationalRow.text()).toContain('Power reserves are low')
+    expect(informationalRow.find('[data-icon="mdi:chevron-right"]').exists()).toBe(false)
+
+    await informationalRow.trigger('click')
+    await flushPromises()
+    expect(axios.patch).not.toHaveBeenCalled()
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+
+    await actionableRow.trigger('click')
+    await settleClose()
+
+    expect(axios.patch).toHaveBeenCalledWith(
+      '/api/v1/notifications/act-1/read',
+      {},
+      { headers: { Authorization: 'Bearer test-token' } }
+    )
+    expect(mockPush).toHaveBeenCalledWith('/vault/vault-1/dwellers')
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.get('button[aria-label="Notifications"]').element)
 
     wrapper.unmount()
   })

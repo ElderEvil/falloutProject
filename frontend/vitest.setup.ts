@@ -7,7 +7,8 @@ import apiClient from '@/core/plugins/axios'
 // EnvironmentTeardownError ("Closing rpc while onUserConsoleLog was pending")
 // when fire-and-forget calls (e.g. the auth store's init fetchUser) log later.
 // Rejecting in a microtask lets those chains settle before teardown.
-apiClient.defaults.adapter = () => Promise.reject(new Error('Network requests are stubbed in unit tests'))
+apiClient.defaults.adapter = () =>
+  Promise.reject(new Error('Network requests are stubbed in unit tests'))
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {}
@@ -94,4 +95,23 @@ if (!globalThis.ResizeObserver) {
     unobserve() {}
     disconnect() {}
   } as unknown as typeof ResizeObserver
+}
+
+// jsdom lacks window.matchMedia, which components use for breakpoint state
+// (e.g. SidePanel's mobile drawer). Default to the desktop result.
+if (!window.matchMedia) {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  })
 }

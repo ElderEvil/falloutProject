@@ -1,10 +1,13 @@
 import { describe, it, expect, vi } from 'vitest'
 import { createIconifyMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import ResourceBar from '@/modules/vault/components/shell/ResourceBar.vue'
 
 // Mock @iconify/vue
-vi.mock('@iconify/vue', () => createIconifyMock({ template: '<div class="mock-icon" :data-icon="icon"></div>' }))
+vi.mock('@iconify/vue', () =>
+  createIconifyMock({ template: '<div class="mock-icon" :data-icon="icon"></div>' })
+)
 
 describe('ResourceBar', () => {
   describe('Props', () => {
@@ -362,6 +365,64 @@ describe('ResourceBar', () => {
 
       expect(draining.text()).toContain('Estimated empty: 6 min')
       expect(filling.text()).toContain('Estimated full: 6 min')
+    })
+  })
+
+  describe('Critical drain warning', () => {
+    const drainingProps = {
+      current: 15,
+      max: 100,
+      icon: 'mdi:food-apple',
+      label: 'Food',
+      productionRate: -5,
+    }
+
+    it('renders a persistent inline warning with the forecast while draining and low', () => {
+      const wrapper = mount(ResourceBar, { props: drainingProps })
+
+      expect(wrapper.find('.critical-warning').exists()).toBe(true)
+      expect(wrapper.text()).toContain('Food empty in ~3 min')
+    })
+
+    it('keeps the same forecast available in the tooltip', () => {
+      const contentStub = { template: '<div><slot /></div>' }
+      const wrapper = mount(ResourceBar, {
+        props: drainingProps,
+        global: { stubs: { TooltipContent: contentStub } },
+      })
+
+      expect(wrapper.text()).toContain('Estimated empty: 3 min')
+    })
+
+    it('links the warning to the production room route', async () => {
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes: [{ path: '/vault/:id', component: { template: '<div />' } }],
+      })
+      await router.push('/vault/vault-1')
+      await router.isReady()
+
+      const wrapper = mount(ResourceBar, {
+        props: { ...drainingProps, criticalTo: '/vault/vault-1?roomId=room-9' },
+        global: { plugins: [router] },
+      })
+
+      const link = wrapper.find('a.critical-warning')
+      expect(link.exists()).toBe(true)
+      expect(link.attributes('href')).toBe('/vault/vault-1?roomId=room-9')
+      expect(link.attributes('aria-label')).toContain('Food empty in ~3 min')
+    })
+
+    it('stays silent unless the resource is both draining and low', () => {
+      const medium = mount(ResourceBar, {
+        props: { ...drainingProps, current: 50 },
+      })
+      const filling = mount(ResourceBar, {
+        props: { ...drainingProps, productionRate: 5 },
+      })
+
+      expect(medium.find('.critical-warning').exists()).toBe(false)
+      expect(filling.find('.critical-warning').exists()).toBe(false)
     })
   })
 })

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { reactive, ref } from 'vue'
+import { defineComponent, inject, reactive, ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import App from '@/App.vue'
@@ -35,7 +35,10 @@ vi.mock('@/modules/profile/composables/useSoundProfileSync', () => ({
 
 vi.mock('@/core/composables/useVisualEffects', () => ({
   useVisualEffects: () => ({
-    flickering: ref(false),
+    // Raw preference on, but reduced motion gates the effective value off:
+    // App must forward the gated value, never the raw preference.
+    flickering: ref(true),
+    isFlickeringEnabled: ref(false),
     scanlines: ref(false),
     glowClass: ref(''),
     flickerOpacity: ref(1),
@@ -171,6 +174,37 @@ describe('App', () => {
     const secondChat = wrapper.findComponent(DwellerChatModal)
     expect(secondChat.props('dwellerId')).toBe('dweller-2')
     expect(fetchDweller).toHaveBeenCalledWith('dweller-2', 'mock-token')
+    wrapper.unmount()
+  })
+
+  it('forwards the motion-gated flicker state, not the raw preference', () => {
+    const DefaultLayoutProbe = defineComponent({
+      name: 'DefaultLayout',
+      props: { isFlickering: Boolean, flickerOpacity: Number },
+      template: '<main data-testid="default-layout"><slot /></main>',
+    })
+    const FlickerProbe = defineComponent({
+      setup() {
+        const isFlickering = inject('isFlickering', ref(false))
+        return { isFlickering }
+      },
+      template: '<span data-testid="flicker-probe">{{ isFlickering }}</span>',
+    })
+
+    const wrapper = mount(App, {
+      global: {
+        plugins: [createPinia()],
+        stubs: {
+          DefaultLayout: DefaultLayoutProbe,
+          'router-view': FlickerProbe,
+          GaryOverlay: true,
+          FakeCrashOverlay: true,
+        },
+      },
+    })
+
+    expect(wrapper.findComponent({ name: 'DefaultLayout' }).props('isFlickering')).toBe(false)
+    expect(wrapper.get('[data-testid="flicker-probe"]').text()).toBe('false')
     wrapper.unmount()
   })
 })

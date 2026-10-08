@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.189.0 (2026-10-08)
+
+### Features
+
+* **ui:** roster empty-filter state with clear action (wave 5) f90a827
+* **ui:** sidebar link semantics, hotkey guard, and mobile drawer (wave 3) 360a387
+* **ui:** surface urgent vault actions (wave 1) 8f9cf7f
+
+### Bug Fixes
+
+* **ui:** keep the rooms store off the critical path (bundle budget) faad785
+* **ui:** make flicker respect effects preference and reduced motion (wave 2) 26d924b
+* **ui:** notifications popup viewport, focus, and row semantics (wave 4) 76b4635
+* **ui:** preserve mobile navigation labels after desktop collapse 4916970
+* **ui:** reactive drawer breakpoint, mobile tooltip, resilient room-chunk load 2b11b05
+* **ui:** use RouterLink for overview chips and ratchet raw-control baseline 22c939b
+
 ## 2.188.0 (2026-10-08)
 
 ### Features

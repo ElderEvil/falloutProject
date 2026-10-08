@@ -62,6 +62,30 @@ describe('MapMarker', () => {
     expect(hit.attributes('fill')).toBe('transparent')
   })
 
+  it('renders a uniform dark backing disc directly beneath the icon', () => {
+    const wrapper = mount(MapMarker, {
+      props: {
+        x: 10,
+        y: 20,
+        name: 'Sunken Church',
+        type: 'origin',
+      },
+      global: {
+        stubs: { Icon: true },
+      },
+    })
+
+    const g = wrapper.find('g.map-marker')
+    const backing = g.find('circle.marker-backing')
+    expect(backing.exists()).toBe(true)
+    expect(backing.attributes('r')).toBe('3.8')
+
+    const children = Array.from(g.element.children)
+    expect(children.indexOf(backing.element)).toBeLessThan(
+      children.indexOf(g.find('foreignObject').element)
+    )
+  })
+
   it('still exposes the tooltip text via aria-label and native <title>', () => {
     const wrapper = mount(MapMarker, {
       props: {

@@ -901,6 +901,47 @@ describe('WorldMap', () => {
       expect(wrapper.emitted('marker-click')).toBeUndefined()
     })
 
+    it('suppresses the current-vault summary when hasDragMoved is true', async () => {
+      const home: WastelandLocationWithDwellers = {
+        ...createLocations(1)[0],
+        id: 'home-765',
+        name: 'Vault 765',
+        type: 'home_vault',
+        vault_id: 'v-current',
+      }
+      const wrapper = mount(WorldMap, {
+        props: { locations: [home], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const vm = wrapper.vm as any
+      vm.hasDragMoved = true
+      vm.onLocationMarkerClick(home)
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.emitted('vault-info')).toBeUndefined()
+    })
+
+    it('suppresses the own-vault summary when hasDragMoved is true', async () => {
+      const mine = { vault_id: 'v-mine', number: 121, coord_x: 40, coord_y: 8, is_mine: true }
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [],
+          vaultMarkers: [],
+          playerVaults: [mine],
+          selectedMarkerId: null,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const vm = wrapper.vm as any
+      vm.hasDragMoved = true
+      vm.onOwnVaultClick(mine)
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.emitted('vault-info')).toBeUndefined()
+    })
+
     it('should suppress marker-click when hasDragMoved is true', async () => {
       const locations = createLocations(1)
       const wrapper = mount(WorldMap, {

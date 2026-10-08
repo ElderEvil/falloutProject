@@ -228,6 +228,7 @@ const svgRef = ref<SVGSVGElement | null>(null)
 const vaultMarkers = toRef(props, 'vaultMarkers')
 
 function onOwnVaultClick(vault: PlayerVaultMarkerRead): void {
+  if (hasDragMoved.value) return
   emit('vault-info', vault.vault_id)
 }
 
@@ -275,6 +276,7 @@ const { hasDragMoved, onLocationClick, onSiteClick, onPanelMarkerSelect } = useM
 // marker, so route its click to the own-vault summary too; every other
 // location keeps the generic details flow.
 function onLocationMarkerClick(loc: WastelandLocationWithDwellers) {
+  if (hasDragMoved.value) return
   if (loc.type === 'home_vault') {
     emit('vault-info', loc.vault_id)
     return

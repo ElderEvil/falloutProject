@@ -361,6 +361,9 @@ land as one compatibility pass with migration notes, updated CI/container toolin
 
 - [ ] **Python 3.14 baseline** — raise the supported backend runtime from the current 3.12–3.13 range, then verify
   FastAPI, Pydantic, SQLModel, Dramatiq, database drivers, and production images across the supported environments.
+- [ ] **SQLModel ≥0.0.45 + SQLAlchemy 2.1 (#915)** — migrate naive-UTC datetimes to aware UTC
+  (`timestamp → timestamptz` with backfill), then bump SQLModel → 0.0.48 and SQLAlchemy → 2.1.x; verify PG enum
+  handling under the SA 2.1 named-type rework. Safe intermediate (0.0.44 + SA 2.0.52) ships separately beforehand.
 - [ ] **UUIDv7 identifiers** — use Python's standard-library `uuid.uuid7()` for new time-sortable identifiers where
   it improves database locality; preserve existing IDs and define the PostgreSQL/default/migration strategy before
   changing model factories or public API contracts.

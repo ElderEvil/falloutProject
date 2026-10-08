@@ -147,7 +147,7 @@ describe('MapView', () => {
             name: 'VaultInfoModal',
             template: '<div class="vault-info-stub"></div>',
             props: ['open', 'vault', 'loading'],
-            emits: ['update:open', 'close'],
+            emits: ['update:open'],
           },
           teleport: true,
         },

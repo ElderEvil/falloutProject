@@ -432,11 +432,9 @@ const mapPaneHeight = 'var(--map-pane-size)'
 
           <!-- Own-vault summary: same fields as the vault-selection card -->
           <VaultInfoModal
-            :open="showVaultInfo"
+            v-model:open="showVaultInfo"
             :vault="vaultInfoVault"
             :loading="vaultInfoLoading"
-            @update:open="showVaultInfo = $event"
-            @close="showVaultInfo = false"
           />
         </PageContentRail>
       </div>

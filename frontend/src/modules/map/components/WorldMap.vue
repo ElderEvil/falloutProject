@@ -271,6 +271,17 @@ const { hasDragMoved, onLocationClick, onSiteClick, onPanelMarkerSelect } = useM
   emit
 )
 
+// The home vault renders as a location marker rather than a player-vault
+// marker, so route its click to the own-vault summary too; every other
+// location keeps the generic details flow.
+function onLocationMarkerClick(loc: WastelandLocationWithDwellers) {
+  if (loc.type === 'home_vault') {
+    emit('vault-info', loc.vault_id)
+    return
+  }
+  onLocationClick(loc)
+}
+
 // ── Discovery clustering ──────────────────────────────────────────────
 // Discoveries render at every zoom, so on a dense atlas their count is what
 // swamps the map. Grid cells shrink as the map zooms in, so a badge expands
@@ -426,7 +437,7 @@ function handleTouchEnd(event: TouchEvent) {
           :cleared="loc.clear_state?.cleared ?? false"
           :exploring="exploringByLocation.has(loc.id)"
           :status="exploringByLocation.get(loc.id)"
-          @click="onLocationClick(loc)"
+          @click="onLocationMarkerClick(loc)"
         />
 
         <!-- Discovery clusters: one ×N badge per dense cell, clickable to zoom

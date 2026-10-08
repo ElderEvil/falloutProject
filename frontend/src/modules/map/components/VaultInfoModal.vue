@@ -10,22 +10,14 @@ import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 import type { VaultWithNumbers } from '@/modules/vault/stores/vault'
 
 interface Props {
-  open: boolean
   vault: VaultWithNumbers | null
   loading?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), { loading: false })
 
-const emit = defineEmits<{
-  (e: 'update:open', value: boolean): void
-  (e: 'close'): void
-}>()
-
-const isOpen = computed({
-  get: () => props.open,
-  set: (value: boolean) => emit('update:open', value),
-})
+// Single open-state contract: the parent owns visibility via v-model:open.
+const open = defineModel<boolean>('open', { required: true })
 
 const modalTitle = computed(() => (props.vault ? `Vault ${props.vault.number}` : 'Vault Record'))
 
@@ -33,25 +25,20 @@ const updatedAt = computed(() =>
   props.vault ? new Date(props.vault.updated_at).toLocaleString() : ''
 )
 
+// Local descriptor list so the three resource rows share one template block.
+const RESOURCE_ROWS = [
+  { key: 'power', icon: 'mdi:flash', label: 'Power' },
+  { key: 'food', icon: 'mdi:food', label: 'Food' },
+  { key: 'water', icon: 'mdi:water', label: 'Water' },
+] as const
+
 // Mirrors HomeView's card helper so both surfaces render the same fill.
 const resourcePercentage = (current: number, maximum: number) =>
   maximum > 0 ? (current / maximum) * 100 : 0
-
-function closeModal() {
-  isOpen.value = false
-  emit('close')
-}
 </script>
 
 <template>
-  <TerminalModal
-    :open="isOpen"
-    :title="modalTitle"
-    size="3xl"
-    max-height="75"
-    @update:open="isOpen = $event"
-    @close="emit('close')"
-  >
+  <TerminalModal v-model:open="open" :title="modalTitle" size="3xl" max-height="75">
     <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
       <TerminalLoadingState v-if="loading" message="Accessing vault records..." />
 
@@ -95,30 +82,12 @@ function closeModal() {
         </div>
 
         <div class="grid grid-cols-2 gap-3 border-t border-theme-primary/20 pt-4 lg:grid-cols-3">
-          <div class="grid gap-1.5">
-            <span><Icon icon="mdi:flash" /> Power</span>
-            <strong>{{ vault.power }} / {{ vault.power_max }}</strong>
+          <div v-for="row in RESOURCE_ROWS" :key="row.key" class="grid gap-1.5">
+            <span><Icon :icon="row.icon" /> {{ row.label }}</span>
+            <strong>{{ vault[row.key] }} / {{ vault[`${row.key}_max`] }}</strong>
             <Progress
-              :model-value="resourcePercentage(vault.power, vault.power_max)"
-              label="Power"
-              class="h-1.5"
-            />
-          </div>
-          <div class="grid gap-1.5">
-            <span><Icon icon="mdi:food" /> Food</span>
-            <strong>{{ vault.food }} / {{ vault.food_max }}</strong>
-            <Progress
-              :model-value="resourcePercentage(vault.food, vault.food_max)"
-              label="Food"
-              class="h-1.5"
-            />
-          </div>
-          <div class="grid gap-1.5">
-            <span><Icon icon="mdi:water" /> Water</span>
-            <strong>{{ vault.water }} / {{ vault.water_max }}</strong>
-            <Progress
-              :model-value="resourcePercentage(vault.water, vault.water_max)"
-              label="Water"
+              :model-value="resourcePercentage(vault[row.key], vault[`${row.key}_max`])"
+              :label="row.label"
               class="h-1.5"
             />
           </div>
@@ -127,7 +96,7 @@ function closeModal() {
     </div>
 
     <template #footer>
-      <Button variant="secondary" size="sm" @click="closeModal">Close</Button>
+      <Button variant="secondary" size="sm" @click="open = false">Close</Button>
     </template>
   </TerminalModal>
 </template>

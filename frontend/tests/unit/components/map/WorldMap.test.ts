@@ -859,7 +859,7 @@ describe('WorldMap', () => {
       expect(mine!.props('label')).toBe('Your Vault')
     })
 
-    it('does not render the current vault twice (home marker + owned vault)', () => {
+    it('does not render the current vault twice (home marker + owned vault)', async () => {
       const home: WastelandLocationWithDwellers = {
         ...createLocations(1)[0],
         id: 'home-765',
@@ -892,6 +892,13 @@ describe('WorldMap', () => {
       expect(vault765[0].props('label')).not.toBe('Your Vault')
 
       expect(markers.some((m) => m.props('name') === 'Vault 777')).toBe(true)
+
+      // The surviving marker is the home-vault location; clicking it must open
+      // the summary panel for the current vault, not the generic details modal.
+      await vault765[0].trigger('click')
+
+      expect(wrapper.emitted('vault-info')).toEqual([['v-current']])
+      expect(wrapper.emitted('marker-click')).toBeUndefined()
     })
 
     it('should suppress marker-click when hasDragMoved is true', async () => {

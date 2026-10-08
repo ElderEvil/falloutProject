@@ -25,11 +25,7 @@ function createVault(overrides: Partial<VaultWithNumbers> = {}): VaultWithNumber
   } as VaultWithNumbers
 }
 
-function mountModal(props: {
-  open: boolean
-  vault: VaultWithNumbers | null
-  loading?: boolean
-}) {
+function mountModal(props: { open: boolean; vault: VaultWithNumbers | null; loading?: boolean }) {
   return mount(VaultInfoModal, {
     props,
     global: { stubs: teleportStub },
@@ -82,7 +78,7 @@ describe('VaultInfoModal', () => {
     expect(wrapper.text()).toContain('Vault unavailable')
   })
 
-  it('closes via the close action and emits close', async () => {
+  it('closes via the close action', async () => {
     const wrapper = mountModal({ open: true, vault: createVault() })
 
     const closeButton = wrapper.findAll('button').find((button) => button.text() === 'Close')
@@ -90,14 +86,16 @@ describe('VaultInfoModal', () => {
     await closeButton!.trigger('click')
 
     expect(wrapper.emitted('update:open')).toEqual([[false]])
-    expect(wrapper.emitted('close')).toHaveLength(1)
+    expect(wrapper.emitted('close')).toBeUndefined()
   })
 
-  it('forwards TerminalModal close events', async () => {
+  it('closes when the modal shell dismisses (Escape / overlay)', async () => {
     const wrapper = mountModal({ open: true, vault: createVault() })
 
-    wrapper.findComponent(TerminalModal).vm.$emit('close')
+    wrapper.findComponent(TerminalModal).vm.$emit('update:open', false)
+    await wrapper.vm.$nextTick()
 
-    expect(wrapper.emitted('close')).toHaveLength(1)
+    expect(wrapper.emitted('update:open')).toEqual([[false]])
+    expect(wrapper.findComponent(TerminalModal).props('open')).toBe(false)
   })
 })

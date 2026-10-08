@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   craftingItemType,
+  findProductionRoom,
   getRoomDetailParts,
   isCraftingRoom,
   isElevator,
@@ -77,12 +78,16 @@ describe('getRoomDetailParts', () => {
   })
 
   it('renders radio stats and controls for radio rooms', () => {
-    const parts = getRoomDetailParts(room({ name: 'Radio Studio', category: 'misc.', ability: 'charisma' }))
+    const parts = getRoomDetailParts(
+      room({ name: 'Radio Studio', category: 'misc.', ability: 'charisma' })
+    )
     expect(names(parts)).toBe('preview,info,radioStats,dwellerList,actions,radioControls')
   })
 
   it('renders the briefing for the Overseer’s Office', () => {
-    const parts = getRoomDetailParts(room({ name: "Overseer's Office", category: 'misc.', ability: null }))
+    const parts = getRoomDetailParts(
+      room({ name: "Overseer's Office", category: 'misc.', ability: null })
+    )
     expect(names(parts)).toBe('preview,info,overseerBriefing,dwellerList,actions')
   })
 
@@ -92,12 +97,16 @@ describe('getRoomDetailParts', () => {
   })
 
   it('renders the crafting panel for workshop rooms', () => {
-    const parts = getRoomDetailParts(room({ name: 'Weapon workshop', category: 'crafting', ability: null }))
+    const parts = getRoomDetailParts(
+      room({ name: 'Weapon workshop', category: 'crafting', ability: null })
+    )
     expect(names(parts)).toBe('preview,info,crafting,dwellerList,actions')
   })
 
   it('omits crafting for crafting rooms that are not workshops', () => {
-    const parts = getRoomDetailParts(room({ name: 'Mystery bench', category: 'crafting', ability: null }))
+    const parts = getRoomDetailParts(
+      room({ name: 'Mystery bench', category: 'crafting', ability: null })
+    )
     expect(parts).not.toContain('crafting')
   })
 
@@ -106,11 +115,15 @@ describe('getRoomDetailParts', () => {
   })
 
   it('keeps arena precedence over a live incident', () => {
-    expect(getRoomDetailParts(room({ name: 'Arena', category: 'arena' }), incident())).toEqual(['arena'])
+    expect(getRoomDetailParts(room({ name: 'Arena', category: 'arena' }), incident())).toEqual([
+      'arena',
+    ])
   })
 
   it('renders the generic sections when no incident is live', () => {
-    expect(names(getRoomDetailParts(room(), null))).toBe('preview,info,productionStats,dwellerList,actions')
+    expect(names(getRoomDetailParts(room(), null))).toBe(
+      'preview,info,productionStats,dwellerList,actions'
+    )
   })
 
   it('shows the aftermath instead of the generic sections once an incident is over', () => {
@@ -122,9 +135,9 @@ describe('getRoomDetailParts', () => {
   })
 
   it('keeps arena precedence over an aftermath', () => {
-    expect(getRoomDetailParts(room({ name: 'Arena', category: 'arena' }), null, aftermath())).toEqual([
-      'arena',
-    ])
+    expect(
+      getRoomDetailParts(room({ name: 'Arena', category: 'arena' }), null, aftermath())
+    ).toEqual(['arena'])
   })
 })
 
@@ -170,13 +183,19 @@ describe('special room predicates', () => {
 
 describe('craftingItemType', () => {
   it('maps each workshop name to its catalog', () => {
-    expect(craftingItemType(room({ name: 'Weapon workshop', category: 'crafting', ability: null }))).toBe('weapon')
-    expect(craftingItemType(room({ name: 'Outfit workshop', category: 'crafting', ability: null }))).toBe('outfit')
+    expect(
+      craftingItemType(room({ name: 'Weapon workshop', category: 'crafting', ability: null }))
+    ).toBe('weapon')
+    expect(
+      craftingItemType(room({ name: 'Outfit workshop', category: 'crafting', ability: null }))
+    ).toBe('outfit')
   })
 
   it('returns null outside a recognised workshop', () => {
     expect(craftingItemType(room())).toBeNull()
-    expect(craftingItemType(room({ name: 'Mystery bench', category: 'crafting', ability: null }))).toBeNull()
+    expect(
+      craftingItemType(room({ name: 'Mystery bench', category: 'crafting', ability: null }))
+    ).toBeNull()
     expect(craftingItemType(null)).toBeNull()
   })
 
@@ -184,5 +203,32 @@ describe('craftingItemType', () => {
     expect(isCraftingRoom(room({ category: 'crafting' }))).toBe(true)
     expect(isCraftingRoom(room())).toBe(false)
     expect(isCraftingRoom(null)).toBe(false)
+  })
+})
+
+describe('findProductionRoom', () => {
+  it('maps each resource to its dedicated ability room', () => {
+    const rooms = [
+      room({ id: 'power-1', ability: 'strength' }),
+      room({ id: 'food-1', name: 'Garden', ability: 'agility' }),
+      room({ id: 'water-1', name: 'Water Treatment', ability: 'perception' }),
+    ]
+
+    expect(findProductionRoom(rooms, 'power')?.id).toBe('power-1')
+    expect(findProductionRoom(rooms, 'food')?.id).toBe('food-1')
+    expect(findProductionRoom(rooms, 'water')?.id).toBe('water-1')
+  })
+
+  it('falls back to an all-resource endurance room', () => {
+    const rooms = [room({ id: 'all-1', name: 'Lounge', ability: 'endurance' })]
+
+    expect(findProductionRoom(rooms, 'water')?.id).toBe('all-1')
+  })
+
+  it('ignores non-production rooms and returns null when nothing produces the resource', () => {
+    expect(
+      findProductionRoom([room({ category: 'training', name: 'Strength Room' })], 'power')
+    ).toBeNull()
+    expect(findProductionRoom([], 'power')).toBeNull()
   })
 })

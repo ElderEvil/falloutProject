@@ -9,6 +9,8 @@ import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import ResourceBar from '@/modules/vault/components/shell/ResourceBar.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
+import { useRoomStore } from '@/modules/rooms/stores/room'
+import type { Room } from '@/modules/rooms/models/room'
 import type { IncidentTeamMember } from '@/modules/combat/models/incident'
 import { audioManager } from '@/core/audio/audioManager'
 import type { User } from '@/modules/auth/types/user'
@@ -25,16 +27,28 @@ const vaultHeader = vi.hoisted(() => ({
   isVaultRoute: null as { value: boolean } | null,
   isReady: null as { value: boolean } | null,
   loadFailed: null as { value: boolean } | null,
+  energy: null as { value: { current: number; max: number } } | null,
+  food: null as { value: { current: number; max: number } } | null,
+  water: null as { value: { current: number; max: number } } | null,
+  resourceRates: null as { value: Record<'power' | 'food' | 'water', number> } | null,
 }))
 vi.mock('@/modules/vault/composables/useVaultHeaderContext', () => {
   const vault = ref<{ number: number } | null>(null)
   const isVaultRoute = ref(false)
   const isReady = ref(true)
   const loadFailed = ref(false)
+  const energy = ref({ current: 50, max: 100 })
+  const food = ref({ current: 60, max: 100 })
+  const water = ref({ current: 70, max: 100 })
+  const resourceRates = ref({ power: 1, food: 2, water: 3 })
   vaultHeader.vault = vault
   vaultHeader.isVaultRoute = isVaultRoute
   vaultHeader.isReady = isReady
   vaultHeader.loadFailed = loadFailed
+  vaultHeader.energy = energy
+  vaultHeader.food = food
+  vaultHeader.water = water
+  vaultHeader.resourceRates = resourceRates
   return {
     useVaultHeaderContext: () => ({
       vault,
@@ -46,10 +60,10 @@ vi.mock('@/modules/vault/composables/useVaultHeaderContext', () => {
       populationColor: ref('text-terminal-green'),
       happiness: ref(80),
       happinessColor: ref('text-terminal-green'),
-      energy: ref({ current: 50, max: 100 }),
-      food: ref({ current: 60, max: 100 }),
-      water: ref({ current: 70, max: 100 }),
-      resourceRates: ref({ power: 1, food: 2, water: 3 }),
+      energy,
+      food,
+      water,
+      resourceRates,
       bottleCaps: ref(500),
       dwellersTooltip: ref('10 of 20 dwellers'),
       happinessTooltip: ref('80% happiness'),
@@ -76,6 +90,10 @@ describe('NavBar', () => {
     vaultHeader.isVaultRoute!.value = false
     vaultHeader.isReady!.value = true
     vaultHeader.loadFailed!.value = false
+    vaultHeader.energy!.value = { current: 50, max: 100 }
+    vaultHeader.food!.value = { current: 60, max: 100 }
+    vaultHeader.water!.value = { current: 70, max: 100 }
+    vaultHeader.resourceRates!.value = { power: 1, food: 2, water: 3 }
     audioManager.setMuted(true)
     audioManager.setVolume('ui', 0.6)
     audioManager.setVolume('sfx', 0.8)
@@ -152,20 +170,17 @@ describe('NavBar', () => {
     expect(resources.element.nextElementSibling).toBe(currency.element)
     expect(currency.element.parentElement?.nextElementSibling).toBe(account.element)
     expect(account.classes()).toContain('ml-auto')
-    expect(population.findAllComponents(PageHeaderMetric).map((metric) => metric.props('label'))).toEqual([
-      'Dwellers',
-      'Happiness',
-    ])
+    expect(
+      population.findAllComponents(PageHeaderMetric).map((metric) => metric.props('label'))
+    ).toEqual(['Dwellers', 'Happiness'])
     expect(resources.findAllComponents(ResourceBar).map((bar) => bar.props('label'))).toEqual([
       'Power',
       'Food',
       'Water',
     ])
-    expect(resources.findAllComponents(ResourceBar).map((bar) => bar.props('productionRate'))).toEqual([
-      1,
-      2,
-      3,
-    ])
+    expect(
+      resources.findAllComponents(ResourceBar).map((bar) => bar.props('productionRate'))
+    ).toEqual([1, 2, 3])
     const [bottles, caps] = currency.findAllComponents(PageHeaderMetric)
     const bell = account.findComponent(NotificationBell)
     expect(bottles?.props('label')).toBe('Nuka bottles')
@@ -173,6 +188,33 @@ describe('NavBar', () => {
     expect(caps?.props('label')).toBe('Caps')
     expect(bell.exists()).toBe(true)
     expect(currency.element.textContent).toContain('500')
+  })
+
+  it('points a critical resource warning at the production room that fixes it', async () => {
+    useAuthStore().token = 'test-token'
+    vaultHeader.isVaultRoute!.value = true
+    vaultHeader.food!.value = { current: 15, max: 100 }
+    vaultHeader.resourceRates!.value = { power: 1, food: -5, water: 3 }
+    useRoomStore().rooms = [
+      { id: 'garden-1', name: 'Garden', category: 'production', ability: 'agility' },
+    ] as Room[]
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/vault/:id', component: { template: '<div />' } }],
+    })
+    await router.push('/vault/vault-1')
+    await router.isReady()
+
+    const wrapper = mount(NavBar, {
+      global: { plugins: [router], stubs: { Icon: true, NotificationBell: true } },
+    })
+
+    const foodBar = wrapper
+      .findAllComponents(ResourceBar)
+      .find((bar) => bar.props('label') === 'Food')
+    expect(foodBar?.props('criticalTo')).toBe('/vault/vault-1?roomId=garden-1')
+    expect(foodBar?.text()).toContain('Food empty in ~3 min')
   })
 
   it('shows loading and failure states without placeholder status values', async () => {

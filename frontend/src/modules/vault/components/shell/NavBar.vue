@@ -9,6 +9,8 @@ import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import { useVersionDetection } from '@/core/composables/useVersionDetection'
 import { audioManager } from '@/core/audio/audioManager'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
+import { useRoomStore } from '@/modules/rooms/stores/room'
+import { findProductionRoom, type ResourceName } from '@/modules/rooms/models/roomParts'
 import { useVaultHeaderContext } from '@/modules/vault/composables/useVaultHeaderContext'
 
 defineProps<{
@@ -19,6 +21,7 @@ defineProps<{
 
 const authStore = useAuthStore()
 const incidentStore = useIncidentStore()
+const roomStore = useRoomStore()
 const router = useRouter()
 const route = useRoute()
 const {
@@ -47,6 +50,16 @@ const { versionBadgeVisible, showChangelog } = useVersionDetection({
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const user = computed(() => authStore.user)
 const isProfileRoute = computed(() => route.path === '/profile')
+
+// Params of the currently open vault; a critical resource warning deep-links to the room that fixes it.
+const activeVaultId = computed(() => (typeof route.params.id === 'string' ? route.params.id : null))
+
+const productionRoomRoute = (resource: ResourceName): string | undefined => {
+  const id = activeVaultId.value
+  if (!id) return undefined
+  const room = findProductionRoom(roomStore.rooms, resource)
+  return room ? `/vault/${id}?roomId=${room.id}` : `/vault/${id}`
+}
 
 const logout = async () => {
   await authStore.logout()
@@ -158,8 +171,12 @@ onUnmounted(() => {
           <span class="hidden sm:inline">Vault </span>{{ vaultNumber }}
         </span>
       </div>
-      <div class="container mx-auto flex min-w-0 flex-1 items-center gap-5 px-0 sm:gap-6 sm:px-4 lg:px-8">
-        <div class="flex min-w-0 flex-1 items-center justify-between gap-5 overflow-x-auto sm:gap-6">
+      <div
+        class="container mx-auto flex min-w-0 flex-1 items-center gap-5 px-0 sm:gap-6 sm:px-4 lg:px-8"
+      >
+        <div
+          class="flex min-w-0 flex-1 items-center justify-between gap-5 overflow-x-auto sm:gap-6"
+        >
           <div
             v-if="isVaultRoute && isAuthenticated"
             class="flex shrink-0 items-center gap-2 sm:gap-3"
@@ -213,6 +230,7 @@ onUnmounted(() => {
                 icon="mdi:lightning-bolt"
                 label="Power"
                 :production-rate="resourceRates?.power"
+                :critical-to="productionRoomRoute('power')"
               />
               <ResourceBar
                 navbar
@@ -221,6 +239,7 @@ onUnmounted(() => {
                 icon="mdi:food-apple"
                 label="Food"
                 :production-rate="resourceRates?.food"
+                :critical-to="productionRoomRoute('food')"
               />
               <ResourceBar
                 navbar
@@ -229,6 +248,7 @@ onUnmounted(() => {
                 icon="mdi:water"
                 label="Water"
                 :production-rate="resourceRates?.water"
+                :critical-to="productionRoomRoute('water')"
               />
             </div>
           </div>

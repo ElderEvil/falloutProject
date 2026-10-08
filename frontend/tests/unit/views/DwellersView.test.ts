@@ -80,6 +80,11 @@ describe('DwellersView', () => {
           component: { template: '<div>Dweller Detail</div>' },
         },
         { path: '/vault/:id', component: { template: '<div>Vault View</div>' } },
+        {
+          path: '/vault/:id/happiness',
+          name: 'happiness',
+          component: { template: '<div>Happiness</div>' },
+        },
         { path: '/dweller/:id/chat', component: { template: '<div>Chat</div>' } },
       ],
     })
@@ -520,6 +525,149 @@ describe('DwellersView', () => {
         expect.any(Object)
       )
       wrapper.unmount()
+    })
+  })
+
+  describe('Urgent action summary', () => {
+    const productionRoom = {
+      id: 'garden-1',
+      name: 'Garden',
+      category: 'production',
+      ability: 'agility',
+    }
+
+    const dweller = (overrides: Record<string, unknown>) => ({
+      id: 'dweller-1',
+      first_name: 'Test',
+      last_name: 'Dweller',
+      level: 1,
+      health: 100,
+      max_health: 100,
+      radiation: 0,
+      happiness: 80,
+      status: 'working',
+      age_group: 'adult',
+      gender: 'male',
+      rarity: 'common',
+      room_id: null,
+      vault_id: 'vault-1',
+      ...overrides,
+    })
+
+    /** URL-aware mock: the view's request order is an implementation detail. */
+    const mockEndpoints = (dwellers: unknown[] = []) => {
+      vi.mocked(axios.get).mockImplementation((url: string) => {
+        if (url.includes('/dwellers/identity-options')) {
+          return Promise.resolve({ data: { races: [], factions_by_race: {}, states_by_race: {} } })
+        }
+        if (url.includes('/dwellers/vault/')) return Promise.resolve({ data: dwellers })
+        if (url.includes('/incidents')) {
+          return Promise.resolve({
+            data: { vault_id: 'vault-1', incident_count: 0, incidents: [] },
+          })
+        }
+        if (url.includes('/rooms/vault/')) return Promise.resolve({ data: [productionRoom] })
+        return Promise.resolve({ data: [] })
+      })
+    }
+
+    it('shows concrete idle and care counts instead of the vague attention text', async () => {
+      mockEndpoints([
+        dweller({ id: 'd1', status: 'idle' }),
+        dweller({ id: 'd2', first_name: 'Hurt', health: 20 }),
+        dweller({ id: 'd3', first_name: 'Rad', radiation: 30 }),
+      ])
+      const wrapper = await mountView()
+      await flushPromises()
+
+      const summary = wrapper.find('.happiness-overview summary')
+      expect(summary.text()).toContain('1 idle')
+      expect(summary.text()).toContain('2 need care')
+      expect(summary.text()).not.toContain('Attention needed')
+    })
+
+    it('deep-links the idle count to the roster idle filter', async () => {
+      mockEndpoints([dweller({ status: 'idle' })])
+      const wrapper = await mountView()
+      await flushPromises()
+
+      await wrapper
+        .find('button[aria-label="Filter the roster to 1 idle dwellers"]')
+        .trigger('click')
+      await flushPromises()
+
+      expect(router.currentRoute.value.query.filter).toBe('idle')
+      expect(_dwellerStore.filter.filterStatus).toBe('idle')
+    })
+
+    it('deep-links the care count to the happiness overview', async () => {
+      mockEndpoints([dweller({ health: 20 })])
+      const wrapper = await mountView()
+      await flushPromises()
+
+      await wrapper
+        .find(
+          'button[aria-label="Open the happiness overview to treat 1 injured or irradiated dwellers"]'
+        )
+        .trigger('click')
+      await flushPromises()
+
+      expect(router.currentRoute.value.name).toBe('happiness')
+    })
+
+    it('deep-links a critical resource to its production room', async () => {
+      vaultStore.loadedVaults['vault-1'].resource_warnings = [
+        { type: 'critical_food', message: 'Food critically low!' },
+      ]
+      mockEndpoints([])
+      const wrapper = await mountView()
+      await flushPromises()
+
+      const chip = wrapper.find(
+        'button[aria-label="Food critically low! — open the Food production room"]'
+      )
+      expect(chip.exists()).toBe(true)
+      await chip.trigger('click')
+      await flushPromises()
+
+      expect(router.currentRoute.value.path).toBe('/vault/vault-1')
+      expect(router.currentRoute.value.query.roomId).toBe('garden-1')
+    })
+
+    it('shows a re-armed vault error with a retry that reloads the overview', async () => {
+      delete vaultStore.loadedVaults['vault-1']
+      mockEndpoints([])
+      const ensured = vi
+        .spyOn(vaultStore, 'ensureVaultLoaded')
+        .mockRejectedValueOnce(new Error('Vault unavailable'))
+        .mockImplementationOnce(async (id: string) => {
+          vaultStore.loadedVaults[id] = {
+            id,
+            number: 101,
+            bottle_caps: 0,
+            power: 100,
+            power_max: 100,
+            food: 100,
+            food_max: 100,
+            water: 100,
+            water_max: 100,
+            dweller_count: 0,
+          } as any
+        })
+
+      const wrapper = await mountView()
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Vault overview unavailable')
+      expect(wrapper.text()).toContain('Vault unavailable')
+      expect(wrapper.text()).toContain('could not be loaded')
+
+      await wrapper.find('button[aria-label="Retry loading the vault overview"]').trigger('click')
+      await flushPromises()
+
+      expect(ensured).toHaveBeenCalledTimes(2)
+      expect(wrapper.text()).not.toContain('Vault overview unavailable')
+      expect(wrapper.text()).toContain('Happiness Overview')
     })
   })
 })

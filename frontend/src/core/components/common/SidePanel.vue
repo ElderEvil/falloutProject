@@ -143,6 +143,7 @@ const MOBILE_QUERY = '(max-width: 767.98px)'
 // as it crosses the breakpoint instead of staying stale after a resize.
 const isMobile = useMediaQuery(MOBILE_QUERY)
 const isMobileViewport = () => isMobile.value
+const showLabels = computed(() => isMobile.value || !isCollapsed.value)
 
 const isMobileOpen = ref(false)
 const toggleButtonRef = ref<HTMLButtonElement | null>(null)
@@ -267,13 +268,13 @@ watch(
                 :to="item.path"
                 class="nav-item"
                 :class="{ active: isActive(item.path) }"
-                :aria-label="`${item.label}${!isCollapsed && item.hotkey ? ' ' + item.hotkey : ''}`"
+                :aria-label="`${item.label}${showLabels && item.hotkey ? ' ' + item.hotkey : ''}`"
                 :aria-current="isActive(item.path) ? 'page' : undefined"
                 :aria-keyshortcuts="item.hotkey"
               >
                 <Icon :icon="item.icon" class="nav-icon" />
-                <span v-if="!isCollapsed" class="nav-label">{{ item.label }}</span>
-                <TooltipProvider v-if="!isCollapsed && item.wip" :delay-duration="200">
+                <span v-if="showLabels" class="nav-label">{{ item.label }}</span>
+                <TooltipProvider v-if="showLabels && item.wip" :delay-duration="200">
                   <Tooltip>
                     <TooltipTrigger as-child>
                       <span class="wip-badge">WIP</span>
@@ -282,7 +283,7 @@ watch(
                   </Tooltip>
                 </TooltipProvider>
                 <span
-                  v-else-if="!isCollapsed && item.hotkey"
+                  v-else-if="showLabels && item.hotkey"
                   class="hotkey-badge"
                   aria-hidden="true"
                   >{{ item.hotkey }}</span
@@ -296,7 +297,7 @@ watch(
         </TooltipProvider>
 
         <!-- Coming Soon Divider -->
-        <div v-if="!isCollapsed" class="nav-divider">
+        <div v-if="showLabels" class="nav-divider">
           <span class="divider-text">Upcoming Features</span>
         </div>
 
@@ -306,8 +307,8 @@ watch(
             <TooltipTrigger as-child>
               <div class="nav-item locked">
                 <Icon :icon="item.icon" class="nav-icon" />
-                <span v-if="!isCollapsed" class="nav-label locked-label">{{ item.label }}</span>
-                <span v-if="!isCollapsed" class="lock-icon-wrap">
+                <span v-if="showLabels" class="nav-label locked-label">{{ item.label }}</span>
+                <span v-if="showLabels" class="lock-icon-wrap">
                   <Icon icon="mdi:lock" class="lock-icon" />
                 </span>
               </div>

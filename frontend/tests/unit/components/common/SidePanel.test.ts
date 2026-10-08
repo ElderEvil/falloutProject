@@ -247,6 +247,29 @@ describe('SidePanel', () => {
   })
 
   describe('mobile drawer', () => {
+    it('shows mobile labels after collapsing desktop navigation and preserves desktop collapse', async () => {
+      const media = stubMatchMedia(false)
+      const wrapper = mountPanel()
+      const toggle = wrapper.find('button.toggle-btn')
+      await toggle.trigger('click')
+      expect(wrapper.find('.nav-label').exists()).toBe(false)
+
+      media.setMatches(true)
+      await nextTick()
+      await toggle.trigger('click')
+
+      expect(wrapper.findAll('a.nav-item .nav-label')).toHaveLength(10)
+      expect(wrapper.find('.locked-label').text()).toBe('Achievements')
+      expect(wrapper.find('.nav-divider').exists()).toBe(true)
+      expect(wrapper.find('.wip-badge').exists()).toBe(true)
+      expect(wrapper.find('.hotkey-badge').exists()).toBe(true)
+
+      media.setMatches(false)
+      await nextTick()
+      expect(wrapper.find('.nav-label').exists()).toBe(false)
+      expect(toggle.attributes('aria-label')).toBe('Expand navigation panel')
+    })
+
     it('tracks the mobile breakpoint reactively for the label, icon, and aria-expanded', async () => {
       const media = stubMatchMedia(false)
       const wrapper = mountPanel()

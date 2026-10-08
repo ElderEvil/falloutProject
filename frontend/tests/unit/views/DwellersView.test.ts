@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { ref } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
@@ -21,9 +22,11 @@ describe('DwellersView', () => {
   let incidentStore: any
   let pinia: ReturnType<typeof createPinia>
 
-  const mountView = async () => {
+  const mountView = async (isFlickering = false) => {
     await router.isReady()
-    return mount(DwellersView, { global: { plugins: [router, pinia] } })
+    return mount(DwellersView, {
+      global: { plugins: [router, pinia], provide: { isFlickering: ref(isFlickering) } },
+    })
   }
 
   it('hides the identity filters while the dead-dweller panel is shown', async () => {
@@ -668,6 +671,39 @@ describe('DwellersView', () => {
       expect(ensured).toHaveBeenCalledTimes(2)
       expect(wrapper.text()).not.toContain('Vault overview unavailable')
       expect(wrapper.text()).toContain('Happiness Overview')
+    })
+  })
+
+  describe('Flicker gating', () => {
+    it('applies the flicker treatment when the provided gated flag is enabled', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+
+      const wrapper = await mountView(true)
+      await flushPromises()
+
+      expect(wrapper.find('.main-content.flicker').exists()).toBe(true)
+      wrapper.unmount()
+    })
+
+    it('omits the flicker treatment when the provided gated flag is disabled', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+
+      const wrapper = await mountView(false)
+      await flushPromises()
+
+      expect(wrapper.find('.main-content.flicker').exists()).toBe(false)
+      wrapper.unmount()
+    })
+
+    it('defaults to no flicker when no provider is present', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+
+      await router.isReady()
+      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
+      await flushPromises()
+
+      expect(wrapper.find('.main-content.flicker').exists()).toBe(false)
+      wrapper.unmount()
     })
   })
 })

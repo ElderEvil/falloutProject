@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, defineAsyncComponent, inject, onMounted, ref, shallowRef, watch } from 'vue'
 import {
   useRouter,
   useRoute,
@@ -67,6 +67,7 @@ const roomStore = useRoomStore()
 const incidentStore = useIncidentStore()
 const explorationStore = useExplorationStore()
 const { isCollapsed } = useSidePanel()
+const isFlickeringEnabled = inject('isFlickering', ref(false))
 const toast = useToast()
 const router = useRouter()
 const route = useRoute()
@@ -575,7 +576,7 @@ const handleTreatIrradiated = async () => {
       <SidePanel />
 
       <!-- Main Content Area -->
-      <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
+      <div class="main-content" :class="{ flicker: isFlickeringEnabled, collapsed: isCollapsed }">
         <PageContentRail>
           <PageHeader
             title="Dwellers"

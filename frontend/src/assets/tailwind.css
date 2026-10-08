@@ -570,6 +570,9 @@ body {
 @media (prefers-reduced-motion: reduce) {
     .stat-highlight-pulse { animation: none; box-shadow: var(--glow-2); }
     .stat-badge-fade { animation: none; opacity: 1; }
+    .flicker,
+    .flicker-random,
+    .flicker-slow { animation: none; }
 }
 
 .badge-action {

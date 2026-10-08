@@ -215,6 +215,17 @@
     scroll-margin-top: var(--chrome-height);
 }
 
+/* Below md (< 768px) SidePanel.vue is an off-canvas drawer, so the fixed
+   240px panel offset must not be reserved. The many per-view scoped
+   `.main-content` rules each bake in `margin-left: 240px`/`64px` and are more
+   specific than this global selector (scoped attribute = extra specificity),
+   hence `!important` — this single rule replaces touching every view. */
+@media (max-width: 767.98px) {
+    .main-content {
+        margin-left: 0 !important;
+    }
+}
+
 /* === SHADCN-VUE SEMANTIC BRIDGE (Phase 0.2) === */
 /* shadcn components read --background/--primary/--border/--radius etc. These
    are ALIASED to the existing design tokens — never hard-coded. useTheme.ts is

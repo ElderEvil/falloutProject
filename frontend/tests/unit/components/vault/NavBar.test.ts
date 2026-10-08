@@ -213,7 +213,10 @@ describe('NavBar', () => {
     const foodBar = wrapper
       .findAllComponents(ResourceBar)
       .find((bar) => bar.props('label') === 'Food')
-    expect(foodBar?.props('criticalTo')).toBe('/vault/vault-1?roomId=garden-1')
+    // The rooms module resolves behind a dynamic import, so the link lands one tick later.
+    await vi.waitFor(() =>
+      expect(foodBar?.props('criticalTo')).toBe('/vault/vault-1?roomId=garden-1')
+    )
     expect(foodBar?.text()).toContain('Food empty in ~3 min')
   })
 

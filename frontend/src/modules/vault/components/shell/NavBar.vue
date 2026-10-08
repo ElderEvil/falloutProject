@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, useTemplateRef } from 'vue'
+import { ref, computed, onMounted, onUnmounted, useTemplateRef, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useRouter, useRoute } from 'vue-router'
@@ -9,8 +9,7 @@ import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import { useVersionDetection } from '@/core/composables/useVersionDetection'
 import { audioManager } from '@/core/audio/audioManager'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
-import { useRoomStore } from '@/modules/rooms/stores/room'
-import { findProductionRoom, type ResourceName } from '@/modules/rooms/models/roomParts'
+import type { ResourceName } from '@/modules/rooms/models/roomParts'
 import { useVaultHeaderContext } from '@/modules/vault/composables/useVaultHeaderContext'
 
 defineProps<{
@@ -21,7 +20,6 @@ defineProps<{
 
 const authStore = useAuthStore()
 const incidentStore = useIncidentStore()
-const roomStore = useRoomStore()
 const router = useRouter()
 const route = useRoute()
 const {
@@ -54,12 +52,48 @@ const isProfileRoute = computed(() => route.path === '/profile')
 // Params of the currently open vault; a critical resource warning deep-links to the room that fixes it.
 const activeVaultId = computed(() => (typeof route.params.id === 'string' ? route.params.id : null))
 
-const productionRoomRoute = (resource: ResourceName): string | undefined => {
-  const id = activeVaultId.value
-  if (!id) return undefined
-  const room = findProductionRoom(roomStore.rooms, resource)
-  return room ? `/vault/${id}?roomId=${room.id}` : `/vault/${id}`
+// The rooms module is heavy, so it stays out of the FCP/LCP critical path and is loaded
+// behind a dynamic import once a vault header is ready — the point at which a critical
+// resource warning can deep-link to the production room that fixes it.
+const productionRoomRoutes = ref<Partial<Record<ResourceName, string>>>({})
+let productionRoomsTracked = false
+let stopProductionRoomsWatch: (() => void) | undefined
+let isUnmounted = false
+
+async function trackProductionRooms() {
+  if (productionRoomsTracked) return
+  productionRoomsTracked = true
+  const [{ useRoomStore }, { findProductionRoom }] = await Promise.all([
+    import('@/modules/rooms/stores/room'),
+    import('@/modules/rooms/models/roomParts'),
+  ])
+  if (isUnmounted) return
+  const roomStore = useRoomStore()
+  stopProductionRoomsWatch = watch(
+    [() => roomStore.rooms, activeVaultId],
+    ([rooms, id]) => {
+      if (!id) return
+      for (const resource of ['power', 'food', 'water'] as const) {
+        const room = findProductionRoom(rooms, resource)
+        productionRoomRoutes.value[resource] = room
+          ? `/vault/${id}?roomId=${room.id}`
+          : `/vault/${id}`
+      }
+    },
+    { immediate: true }
+  )
 }
+
+watch(
+  [activeVaultId, isReady],
+  ([id, ready]) => {
+    if (id && ready) void trackProductionRooms()
+  },
+  { immediate: true }
+)
+
+const productionRoomRoute = (resource: ResourceName): string | undefined =>
+  productionRoomRoutes.value[resource]
 
 const logout = async () => {
   await authStore.logout()
@@ -121,6 +155,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  isUnmounted = true
+  stopProductionRoomsWatch?.()
   document.removeEventListener('click', handleClickOutside)
   navObserver?.disconnect()
   document.documentElement.style.removeProperty('--navbar-height')

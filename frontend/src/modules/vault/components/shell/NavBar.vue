@@ -63,25 +63,32 @@ let isUnmounted = false
 async function trackProductionRooms() {
   if (productionRoomsTracked) return
   productionRoomsTracked = true
-  const [{ useRoomStore }, { findProductionRoom }] = await Promise.all([
-    import('@/modules/rooms/stores/room'),
-    import('@/modules/rooms/models/roomParts'),
-  ])
-  if (isUnmounted) return
-  const roomStore = useRoomStore()
-  stopProductionRoomsWatch = watch(
-    [() => roomStore.rooms, activeVaultId],
-    ([rooms, id]) => {
-      if (!id) return
-      for (const resource of ['power', 'food', 'water'] as const) {
-        const room = findProductionRoom(rooms, resource)
-        productionRoomRoutes.value[resource] = room
-          ? `/vault/${id}?roomId=${room.id}`
-          : `/vault/${id}`
-      }
-    },
-    { immediate: true }
-  )
+  try {
+    const [{ useRoomStore }, { findProductionRoom }] = await Promise.all([
+      import('@/modules/rooms/stores/room'),
+      import('@/modules/rooms/models/roomParts'),
+    ])
+    if (isUnmounted) return
+    const roomStore = useRoomStore()
+    stopProductionRoomsWatch = watch(
+      [() => roomStore.rooms, activeVaultId],
+      ([rooms, id]) => {
+        if (!id) return
+        for (const resource of ['power', 'food', 'water'] as const) {
+          const room = findProductionRoom(rooms, resource)
+          productionRoomRoutes.value[resource] = room
+            ? `/vault/${id}?roomId=${room.id}`
+            : `/vault/${id}`
+        }
+      },
+      { immediate: true }
+    )
+  } catch (error) {
+    // A chunk can 404 after a deploy; reset the guard so the next watcher
+    // trigger retries the load instead of leaving the links unresolved.
+    productionRoomsTracked = false
+    console.error('[NavBar] Failed to load production room modules; will retry', error)
+  }
 }
 
 watch(

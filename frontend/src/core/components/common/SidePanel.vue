@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useMediaQuery } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import {
@@ -138,7 +139,10 @@ const navigate = (path: string) => {
 // flag: collapsing the desktop panel must not hide the mobile drawer (and the
 // reverse). The breakpoint mirrors the Tailwind `md` token (768px).
 const MOBILE_QUERY = '(max-width: 767.98px)'
-const isMobileViewport = () => window.matchMedia(MOBILE_QUERY).matches
+// Reactive so `toggleLabel`, `toggleIcon`, and `aria-expanded` follow the window
+// as it crosses the breakpoint instead of staying stale after a resize.
+const isMobile = useMediaQuery(MOBILE_QUERY)
+const isMobileViewport = () => isMobile.value
 
 const isMobileOpen = ref(false)
 const toggleButtonRef = ref<HTMLButtonElement | null>(null)
@@ -182,6 +186,12 @@ const toggleIcon = computed(() => {
   }
   return isCollapsed.value ? 'mdi:chevron-right' : 'mdi:chevron-left'
 })
+
+// Mirrors the button's label; Ctrl/Cmd+B only collapses the desktop panel, so
+// the shortcut hint would contradict the mobile drawer action.
+const toggleTooltip = computed(() =>
+  isMobileViewport() ? toggleLabel.value : `${toggleLabel.value} (Ctrl+B)`
+)
 
 // Shared editable-surface guard: number hotkeys and Ctrl/Cmd+B must not hijack
 // typing in inputs, textareas, or contenteditable surfaces.
@@ -324,7 +334,7 @@ watch(
             <Icon :icon="toggleIcon" class="h-6 w-6" />
           </button>
         </TooltipTrigger>
-        <TooltipContent>{{ `${isCollapsed ? 'Expand' : 'Collapse'} (Ctrl+B)` }}</TooltipContent>
+        <TooltipContent>{{ toggleTooltip }}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
 

@@ -32,20 +32,35 @@ const VAULT_PARAM_ROUTES = [
   '/vault/:id/trading',
 ]
 
+// jsdom ships no working matchMedia; this stub records VueUse's `change`
+// listener so a test can drive the window across the breakpoint.
 const stubMatchMedia = (matches: boolean) => {
+  const listeners = new Set<(event: { matches: boolean }) => void>()
+  const mediaQueryList = {
+    matches,
+    media: '',
+    onchange: null,
+    addListener: (listener: (event: { matches: boolean }) => void) => listeners.add(listener),
+    removeListener: (listener: (event: { matches: boolean }) => void) => listeners.delete(listener),
+    addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) =>
+      listeners.add(listener),
+    removeEventListener: (_type: string, listener: (event: { matches: boolean }) => void) =>
+      listeners.delete(listener),
+    dispatchEvent: vi.fn(),
+  }
   vi.stubGlobal(
     'matchMedia',
-    vi.fn((query: string) => ({
-      matches,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    }))
+    vi.fn((query: string) => {
+      mediaQueryList.media = query
+      return mediaQueryList
+    })
   )
+  return {
+    setMatches(next: boolean) {
+      mediaQueryList.matches = next
+      for (const listener of listeners) listener({ matches: next })
+    },
+  }
 }
 
 describe('SidePanel', () => {
@@ -232,6 +247,34 @@ describe('SidePanel', () => {
   })
 
   describe('mobile drawer', () => {
+    it('tracks the mobile breakpoint reactively for the label, icon, and aria-expanded', async () => {
+      const media = stubMatchMedia(false)
+      const wrapper = mountPanel()
+      const toggle = wrapper.find('button.toggle-btn')
+
+      expect(toggle.attributes('aria-label')).toBe('Collapse navigation panel')
+      expect(toggle.find('.icon-mock').attributes('data-icon')).toBe('mdi:chevron-left')
+      expect(toggle.attributes('aria-expanded')).toBe('true')
+
+      media.setMatches(true)
+      await nextTick()
+
+      expect(toggle.attributes('aria-label')).toBe('Open navigation panel')
+      expect(toggle.find('.icon-mock').attributes('data-icon')).toBe('mdi:menu')
+      expect(toggle.attributes('aria-expanded')).toBe('false')
+
+      await toggle.trigger('click')
+      await nextTick()
+      expect(toggle.attributes('aria-expanded')).toBe('true')
+
+      media.setMatches(false)
+      await nextTick()
+
+      expect(toggle.attributes('aria-label')).toBe('Collapse navigation panel')
+      expect(toggle.find('.icon-mock').attributes('data-icon')).toBe('mdi:chevron-left')
+      expect(toggle.attributes('aria-expanded')).toBe('true')
+    })
+
     it('opens and closes via the toggle, moving and returning focus', async () => {
       stubMatchMedia(true)
       const wrapper = mountPanel()
@@ -293,6 +336,30 @@ describe('SidePanel', () => {
       expect(wrapper.find('.side-panel.collapsed').exists()).toBe(true)
       expect(wrapper.find('.side-panel.mobile-open').exists()).toBe(false)
       expect(wrapper.find('button.toggle-btn').attributes('aria-expanded')).toBe('false')
+    })
+  })
+
+  describe('toggle tooltip', () => {
+    const openTooltip = async (wrapper: VueWrapper) => {
+      await wrapper.find('button.toggle-btn').trigger('focus')
+      await nextTick()
+      await nextTick()
+      return document.body.textContent ?? ''
+    }
+
+    it('keeps the Ctrl+B hint on desktop', async () => {
+      const wrapper = mountPanel()
+
+      expect(await openTooltip(wrapper)).toContain('Collapse navigation panel (Ctrl+B)')
+    })
+
+    it('omits the Ctrl+B hint on mobile, where the shortcut does not open the drawer', async () => {
+      stubMatchMedia(true)
+      const wrapper = mountPanel()
+
+      const bodyText = await openTooltip(wrapper)
+      expect(bodyText).toContain('Open navigation panel')
+      expect(bodyText).not.toContain('Ctrl+B')
     })
   })
 })

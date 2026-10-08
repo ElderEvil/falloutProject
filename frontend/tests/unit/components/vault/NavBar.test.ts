@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import NavBar from '@/modules/vault/components/shell/NavBar.vue'
@@ -21,6 +21,26 @@ vi.mock('@/core/composables/useVersionDetection', () => ({
     showChangelog: vi.fn(),
   }),
 }))
+
+// Armable one-shot failure for the lazily imported rooms module: the mock
+// namespace is created once, so the getter flips per import instead of being
+// cached by the module runner. The first read after arming rejects (simulating
+// a chunk-load failure after a deploy); later reads return the real export.
+const roomsLoadState = vi.hoisted(() => ({ failNext: false }))
+
+vi.mock('@/modules/rooms/models/roomParts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/modules/rooms/models/roomParts')>()
+  return {
+    ...actual,
+    get findProductionRoom() {
+      if (roomsLoadState.failNext) {
+        roomsLoadState.failNext = false
+        throw new Error('Failed to fetch dynamically imported module')
+      }
+      return actual.findProductionRoom
+    },
+  }
+})
 
 const vaultHeader = vi.hoisted(() => ({
   vault: null as { value: { number: number } | null } | null,
@@ -98,6 +118,11 @@ describe('NavBar', () => {
     audioManager.setVolume('ui', 0.6)
     audioManager.setVolume('sfx', 0.8)
     audioManager.setVolume('music', 0.4)
+  })
+
+  afterEach(() => {
+    roomsLoadState.failNext = false
+    vi.restoreAllMocks()
   })
 
   it('keeps the Vaults link aria-label verbatim', async () => {
@@ -218,6 +243,46 @@ describe('NavBar', () => {
       expect(foodBar?.props('criticalTo')).toBe('/vault/vault-1?roomId=garden-1')
     )
     expect(foodBar?.text()).toContain('Food empty in ~3 min')
+  })
+
+  it('retries the production rooms load after a failed dynamic import', async () => {
+    useAuthStore().token = 'test-token'
+    vaultHeader.isVaultRoute!.value = true
+    useRoomStore().rooms = [
+      { id: 'garden-1', name: 'Garden', category: 'production', ability: 'agility' },
+    ] as Room[]
+
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/vault/:id', component: { template: '<div />' } }],
+    })
+    await router.push('/vault/vault-1')
+    await router.isReady()
+
+    roomsLoadState.failNext = true
+    const wrapper = mount(NavBar, {
+      global: { plugins: [router], stubs: { Icon: true, NotificationBell: true } },
+    })
+
+    const foodBar = () =>
+      wrapper.findAllComponents(ResourceBar).find((bar) => bar.props('label') === 'Food')
+
+    await vi.waitFor(() =>
+      expect(consoleError).toHaveBeenCalledWith(
+        expect.stringContaining('production room'),
+        expect.any(Error)
+      )
+    )
+    expect(foodBar()?.props('criticalTo')).toBeUndefined()
+
+    vaultHeader.isReady!.value = false
+    await nextTick()
+    vaultHeader.isReady!.value = true
+    await vi.waitFor(() =>
+      expect(foodBar()?.props('criticalTo')).toBe('/vault/vault-1?roomId=garden-1')
+    )
   })
 
   it('shows loading and failure states without placeholder status values', async () => {

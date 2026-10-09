@@ -47,9 +47,7 @@ def test_populate_registers_one_marker_per_group():
         crud.link_dweller = AsyncMock()
         _, patcher = _patched_session()
         try:
-            result = runner.invoke(
-                cli, ["map-scenario", "populate", str(vault_id), "--dweller", str(dweller_id)]
-            )
+            result = runner.invoke(cli, ["map-scenario", "populate", str(vault_id), "--dweller", str(dweller_id)])
         finally:
             patcher.stop()
 

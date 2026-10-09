@@ -67,9 +67,7 @@ def populate(
         async with async_session_maker() as session:
             discoverer = discoverer_uuid
             if discoverer is None:
-                dweller = (
-                    await session.exec(select(Dweller).where(Dweller.vault_id == vault_uuid).limit(1))
-                ).first()
+                dweller = (await session.exec(select(Dweller).where(Dweller.vault_id == vault_uuid).limit(1))).first()
                 if dweller is None:
                     typer.echo("This vault has no dweller to link; create one first.", err=True)
                     raise typer.Exit(code=1)

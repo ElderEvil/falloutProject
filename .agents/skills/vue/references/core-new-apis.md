@@ -55,6 +55,17 @@ readonlyState.count++  // Warning, mutation blocked
 
 Note: `reactive()` loses reactivity on destructuring. Use `ref()` or `toRefs()`.
 
+### Inspecting reactive values
+
+```ts
+import { isRef, isReactive, isReadonly, isProxy, isShallow, unref, toRaw } from 'vue'
+
+isShallow(shallowRef(0))   // true, also true for shallowReactive/shallowReadonly
+isShallow(ref(0))          // false
+```
+
+`isShallow()` reports whether a proxy was created with `shallowRef`, `shallowReactive()`, or `shallowReadonly()`.
+
 ## Watchers
 
 ### watch
@@ -99,10 +110,10 @@ const id = ref(1)
 
 watchEffect(async () => {
   const controller = new AbortController()
-
+  
   // Cleanup on re-run or unmount (Vue 3.5+)
   onWatcherCleanup(() => controller.abort())
-
+  
   const res = await fetch(`/api/${id.value}`, { signal: controller.signal })
   data.value = await res.json()
 })
@@ -168,9 +179,9 @@ const scope = effectScope()
 scope.run(() => {
   const count = ref(0)
   const doubled = computed(() => count.value * 2)
-
+  
   watch(count, () => console.log(count.value))
-
+  
   // Cleanup when scope stops
   onScopeDispose(() => {
     console.log('Scope disposed')
@@ -225,7 +236,7 @@ export function useFetch(url: MaybeRefOrGetter<string>) {
   watchEffect(async () => {
     data.value = null
     error.value = null
-
+    
     try {
       const res = await fetch(toValue(url))
       data.value = await res.json()

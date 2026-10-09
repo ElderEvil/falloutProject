@@ -110,7 +110,7 @@ Render content to a different DOM location.
 ```vue
 <template>
   <button @click="open = true">Open Modal</button>
-
+  
   <Teleport to="body">
     <div v-if="open" class="modal">
       Modal content rendered at body
@@ -300,6 +300,18 @@ const vColor: Directive<HTMLElement, string> = {
 app.directive('focus', {
   mounted: (el) => el.focus()
 })
+```
+
+Type global directives by extending the `GlobalDirectives` interface (not `ComponentCustomProperties`):
+
+```ts
+import type { Directive } from 'vue'
+
+declare module 'vue' {
+  interface GlobalDirectives {
+    vFocus: Directive<HTMLElement>
+  }
+}
 ```
 
 <!--

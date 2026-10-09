@@ -28,16 +28,16 @@ defineConfig({
   test: {
     typecheck: {
       enabled: true,
-
+      
       // Only type check
       only: false,
-
+      
       // Checker: 'tsc' or 'vue-tsc'
       checker: 'tsc',
-
+      
       // Include patterns
       include: ['**/*.test-d.ts'],
-
+      
       // tsconfig to use
       tsconfig: './tsconfig.json',
     },
@@ -73,7 +73,7 @@ const value = 'hello'
 expectTypeOf(value).toBeString()
 
 const obj = { name: 'test', count: 42 }
-expectTypeOf(obj).toMatchTypeOf<{ name: string }>()
+expectTypeOf(obj).toExtend<{ name: string }>()
 expectTypeOf(obj).toHaveProperty('name')
 ```
 
@@ -105,17 +105,19 @@ expectTypeOf<User>().toHaveProperty('id')
 expectTypeOf<User>().toHaveProperty('name').toBeString()
 
 // Check shape
-expectTypeOf({ id: 1, name: 'test' }).toMatchTypeOf<User>()
+expectTypeOf({ id: 1, name: 'test' }).toExtend<User>()
 ```
 
 ## Equality vs Matching
+
+`toMatchTypeOf` is **deprecated** (expect-type v1.2+) — use `toExtend` for subset matching:
 
 ```ts
 interface A { x: number }
 interface B { x: number; y: string }
 
-// toMatchTypeOf - subset matching
-expectTypeOf<B>().toMatchTypeOf<A>()  // B extends A
+// toExtend - subset matching (replaces toMatchTypeOf)
+expectTypeOf<B>().toExtend<A>()  // B extends A
 
 // toEqualTypeOf - exact match
 expectTypeOf<A>().not.toEqualTypeOf<B>()  // Not exact match
@@ -165,10 +167,10 @@ function getUser(): User | null {
 
 test('returns user', () => {
   const result = getUser()
-
+  
   // @ts-expect-error - should fail type check
   assertType<string>(result)
-
+  
   // Correct type
   assertType<User | null>(result)
 })
@@ -181,7 +183,7 @@ Test that code produces type error:
 ```ts
 test('rejects wrong types', () => {
   function requireString(s: string) {}
-
+  
   // @ts-expect-error - number not assignable to string
   requireString(123)
 })
@@ -216,7 +218,7 @@ describe('createUser', () => {
   })
 
   test('types: returns User type', () => {
-    expectTypeOf(createUser).returns.toMatchTypeOf<{ name: string }>()
+    expectTypeOf(createUser).returns.toExtend<{ name: string }>()
   })
 })
 ```
@@ -225,12 +227,12 @@ describe('createUser', () => {
 
 - Use `.test-d.ts` for type-only tests
 - `expectTypeOf` for type assertions
-- `toMatchTypeOf` for subset matching
+- `toExtend` for subset matching (`toMatchTypeOf` is deprecated)
 - `toEqualTypeOf` for exact type matching
 - Use `@ts-expect-error` to test type errors
 - Run with `vitest typecheck` or `--typecheck`
 
-<!--
+<!-- 
 Source references:
 - https://vitest.dev/guide/testing-types.html
 - https://vitest.dev/api/expect-typeof.html

@@ -58,6 +58,8 @@ const emit = defineEmits<{
   (e: 'update:selectedMarkerId', value: string | null): void
   /** Own-vault marker clicked: open its summary panel instead of navigating. */
   (e: 'vault-info', vaultId: string): void
+  /** Free-roam explorer clicked: open its dweller popover at screen x/y. */
+  (e: 'dweller-click', payload: { track: ExplorerTrack; x: number; y: number }): void
 }>()
 
 // ── Marker visibility filter ─────────────────────────────────────
@@ -286,6 +288,26 @@ function onLocationMarkerClick(loc: WastelandLocationWithDwellers) {
   onLocationClick(loc)
 }
 
+// Explorer popover anchor: pointer activation carries screen coordinates.
+// Keyboard activation (Enter/Space) has none, so fall back to the focused
+// marker's on-screen box.
+function onExplorerClick(track: ExplorerTrack, event: Event) {
+  if (hasDragMoved.value) return
+  let x = 0
+  let y = 0
+  if (event instanceof MouseEvent) {
+    x = event.clientX
+    y = event.clientY
+  } else {
+    const rect = (event.target as Element | null)?.getBoundingClientRect()
+    if (rect) {
+      x = rect.left + rect.width / 2
+      y = rect.top + rect.height / 2
+    }
+  }
+  emit('dweller-click', { track, x, y })
+}
+
 // ── Discovery clustering ──────────────────────────────────────────────
 // Discoveries render at every zoom, so on a dense atlas their count is what
 // swamps the map. Grid cells shrink as the map zooms in, so a badge expands
@@ -498,7 +520,7 @@ function handleTouchEnd(event: TouchEvent) {
           @click="onSiteClick(site)"
         />
 
-        <!-- Free-roam explorer last-known positions (non-interactive) -->
+        <!-- Free-roam explorer last-known positions: clickable for the dweller popover -->
         <MapMarker
           v-for="track in freeRoamTracks"
           :key="`explorer-${track.explorationId}`"
@@ -510,7 +532,8 @@ function handleTouchEnd(event: TouchEvent) {
           :art-src="track.dwellerThumbnailUrl ?? null"
           label="Explorer"
           :status="track.dwellerName ? `Last known — ${track.dwellerName}` : 'Last known position'"
-          :interactive="false"
+          :interactive="true"
+          @click="onExplorerClick(track, $event)"
         />
 
         <!-- Travel-direction chevrons for free-roam explorers: a small accent

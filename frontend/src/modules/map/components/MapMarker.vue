@@ -34,18 +34,18 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  (e: 'click'): void
+  (e: 'click', event: Event): void
 }>()
 
 function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
-    emit('click')
+    emit('click', event)
   }
 }
 
-function handleClick() {
-  if (props.interactive) emit('click')
+function handleClick(event: MouseEvent) {
+  if (props.interactive) emit('click', event)
 }
 
 const meta = computed(() => markerTypeMeta(props.type))

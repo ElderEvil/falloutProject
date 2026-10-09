@@ -19,22 +19,22 @@ import type {
 // Stub child components that need complex DOM (Iconify, UTooltip)
 const MapMarkerStub = {
   name: 'MapMarker',
-  props: [
-    'x',
-    'y',
-    'name',
-    'type',
-    'selected',
-    'unseen',
-    'is_unlocked',
-    'icon',
-    'artSrc',
-    'label',
-    'cleared',
-    'exploring',
-    'status',
-    'interactive',
-  ],
+  props: {
+    x: null,
+    y: null,
+    name: null,
+    type: null,
+    selected: null,
+    unseen: null,
+    is_unlocked: null,
+    icon: null,
+    artSrc: { default: null },
+    label: null,
+    cleared: null,
+    exploring: null,
+    status: null,
+    interactive: null,
+  },
   template: '<g class="map-marker map-marker-stub" />',
 }
 
@@ -126,6 +126,20 @@ function createSite(overrides: Partial<ExpeditionSiteMarkerRead> = {}): Expediti
   }
 }
 
+function makeExplorerTrack(overrides: Partial<ExplorerTrack> = {}): ExplorerTrack {
+  return {
+    explorationId: 'expl-1',
+    dwellerId: 'dweller-1',
+    dwellerName: '',
+    status: 'active',
+    health: null,
+    radiation: null,
+    targetLocationId: null,
+    lastKnown: null,
+    ...overrides,
+  }
+}
+
 describe('WorldMap', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -207,17 +221,11 @@ describe('WorldMap', () => {
       expect(marker.props('icon')).toBe('mdi:gas-station')
     })
 
-    it('renders preserved prototype art for a mappable archetype', async () => {
+    it('renders a mappable archetype with its group icon and no canvas art', async () => {
       const store = useMapStore()
       store.placeGroups = [
         { key: 'gas_station', label: 'Gas Station', icon: 'mdi:gas-station' },
       ] as (typeof store.placeGroups)[number][]
-      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
-        new Proxy({} as CanvasRenderingContext2D, { get: () => () => {}, set: () => true })
-      )
-      vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue(
-        'data:image/png;base64,art'
-      )
       const [location] = createLocations(1)
       const grouped = { ...location, type: 'visited' as const, group_key: 'gas_station' }
 
@@ -227,9 +235,9 @@ describe('WorldMap', () => {
       })
       await zoomPastDeclutterThreshold(wrapper)
 
-      expect(wrapper.findAllComponents(MapMarkerStub)[0].props('artSrc')).toBe(
-        'data:image/png;base64,art'
-      )
+      const marker = wrapper.findAllComponents(MapMarkerStub)[0]
+      expect(marker.props('icon')).toBe('mdi:gas-station')
+      expect(marker.props('artSrc')).toBeNull()
     })
 
     it('falls back to the generic type icon without an archetype', async () => {
@@ -483,12 +491,11 @@ describe('WorldMap', () => {
     it('keeps an in-progress secondary marker visible at overview zoom', () => {
       const locations = createLocations(1)
       const tracks: ExplorerTrack[] = [
-        {
+        makeExplorerTrack({
           explorationId: 'expl-1',
           dwellerName: 'Ada',
           targetLocationId: locations[0].id,
-          lastKnown: null,
-        },
+        }),
       ]
       const wrapper = mount(WorldMap, {
         props: { locations, vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
@@ -1324,14 +1331,7 @@ describe('WorldMap', () => {
       expect(siteMarkers[0].props('artSrc')).toBeNull()
     })
 
-    it('renders prototype art for a site whose id maps to an archetype', () => {
-      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
-        new Proxy({} as CanvasRenderingContext2D, { get: () => () => {}, set: () => true })
-      )
-      vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue(
-        'data:image/png;base64,art'
-      )
-
+    it('renders expedition sites with the shared site icon and no art', () => {
       const wrapper = mount(WorldMap, {
         props: {
           locations: [],
@@ -1345,7 +1345,8 @@ describe('WorldMap', () => {
       const site = wrapper
         .findAllComponents(MapMarkerStub)
         .find((m) => m.props('type') === 'expedition_site')
-      expect(site!.props('artSrc')).toBe('data:image/png;base64,art')
+      expect(site!.props('icon')).toBe('mdi:map-marker-star')
+      expect(site!.props('artSrc')).toBeNull()
     })
 
     it('passes cleared + status for a ready site', () => {
@@ -1467,12 +1468,11 @@ describe('WorldMap', () => {
     it('marks a dispatched target location as exploring with the dweller name', () => {
       const locations = createLocations(1)
       const tracks: ExplorerTrack[] = [
-        {
+        makeExplorerTrack({
           explorationId: 'expl-1',
           dwellerName: 'Ada',
           targetLocationId: locations[0].id,
-          lastKnown: null,
-        },
+        }),
       ]
       const wrapper = mount(WorldMap, {
         props: { locations, vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
@@ -1487,12 +1487,11 @@ describe('WorldMap', () => {
     it('falls back to "Dispatching" when the dweller name is unknown', () => {
       const locations = createLocations(1)
       const tracks: ExplorerTrack[] = [
-        {
+        makeExplorerTrack({
           explorationId: 'expl-1',
           dwellerName: '',
           targetLocationId: locations[0].id,
-          lastKnown: null,
-        },
+        }),
       ]
       const wrapper = mount(WorldMap, {
         props: { locations, vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
@@ -1504,14 +1503,13 @@ describe('WorldMap', () => {
       expect(marker.props('status')).toBe('Dispatching')
     })
 
-    it('renders a non-interactive last-known marker for a free-roam explorer', () => {
+    it('renders an interactive last-known marker for a free-roam explorer', () => {
       const tracks: ExplorerTrack[] = [
-        {
+        makeExplorerTrack({
           explorationId: 'expl-2',
           dwellerName: 'Bob',
-          targetLocationId: null,
           lastKnown: { coord_x: 42, coord_y: 43 },
-        },
+        }),
       ]
       const wrapper = mount(WorldMap, {
         props: { locations: [], vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
@@ -1524,18 +1522,37 @@ describe('WorldMap', () => {
       expect(explorer).toBeTruthy()
       expect(explorer!.props('x')).toBe(42)
       expect(explorer!.props('y')).toBe(43)
-      expect(explorer!.props('interactive')).toBe(false)
+      expect(explorer!.props('interactive')).toBe(true)
       expect(explorer!.props('status')).toBe('Last known — Bob')
+    })
+
+    it('emits dweller-click with the screen anchor when a free-roam explorer is clicked', async () => {
+      const track = makeExplorerTrack({
+        explorationId: 'expl-2',
+        dwellerName: 'Bob',
+        lastKnown: { coord_x: 42, coord_y: 43 },
+      })
+      const wrapper = mount(WorldMap, {
+        props: { locations: [], vaultMarkers: [], explorerTracks: [track], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const explorer = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('type') === 'explorer')
+      await explorer!.trigger('click', { clientX: 120, clientY: 80 })
+
+      const emitted = wrapper.emitted('dweller-click')
+      expect(emitted).toHaveLength(1)
+      expect(emitted![0][0]).toEqual({ track, x: 120, y: 80 })
     })
 
     it('renders no explorer marker when a free-roam run has no trail yet', () => {
       const tracks: ExplorerTrack[] = [
-        {
+        makeExplorerTrack({
           explorationId: 'expl-2',
           dwellerName: 'Bob',
-          targetLocationId: null,
-          lastKnown: null,
-        },
+        }),
       ]
       const wrapper = mount(WorldMap, {
         props: { locations: [], vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
@@ -1550,13 +1567,12 @@ describe('WorldMap', () => {
 
     it('passes the dweller thumbnail as artSrc on a free-roam explorer marker', () => {
       const tracks: ExplorerTrack[] = [
-        {
+        makeExplorerTrack({
           explorationId: 'expl-2',
           dwellerName: 'Bob',
-          targetLocationId: null,
           lastKnown: { coord_x: 42, coord_y: 43 },
           dwellerThumbnailUrl: 'https://cdn.example/bob.png',
-        },
+        }),
       ]
       const wrapper = mount(WorldMap, {
         props: { locations: [], vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
@@ -1571,13 +1587,12 @@ describe('WorldMap', () => {
 
     it('forwards backend-static thumbnails as artSrc for the portrait to normalize', () => {
       const tracks: ExplorerTrack[] = [
-        {
+        makeExplorerTrack({
           explorationId: 'expl-2',
           dwellerName: 'Bob',
-          targetLocationId: null,
           lastKnown: { coord_x: 42, coord_y: 43 },
           dwellerThumbnailUrl: '/static/portraits/bob.png',
-        },
+        }),
       ]
       const wrapper = mount(WorldMap, {
         props: { locations: [], vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
@@ -1590,15 +1605,14 @@ describe('WorldMap', () => {
       expect(explorer!.props('artSrc')).toBe('/static/portraits/bob.png')
     })
 
-    it('falls back to the walk icon when a free-roam explorer has no thumbnail', () => {
+    it('falls back to the account icon when a free-roam explorer has no thumbnail', () => {
       const tracks: ExplorerTrack[] = [
-        {
+        makeExplorerTrack({
           explorationId: 'expl-2',
           dwellerName: 'Bob',
-          targetLocationId: null,
           lastKnown: { coord_x: 42, coord_y: 43 },
           dwellerThumbnailUrl: null,
-        },
+        }),
       ]
       const wrapper = mount(WorldMap, {
         props: { locations: [], vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
@@ -1609,17 +1623,16 @@ describe('WorldMap', () => {
         .findAllComponents(MapMarkerStub)
         .find((m) => m.props('type') === 'explorer')
       expect(explorer!.props('artSrc')).toBeNull()
-      expect(explorer!.props('icon')).toBe('mdi:walk')
+      expect(explorer!.props('icon')).toBe('mdi:account')
     })
 
     it('rotates the heading chevron along the free-roam trail', () => {
       const tracks: ExplorerTrack[] = [
-        {
+        makeExplorerTrack({
           explorationId: 'expl-2',
           dwellerName: 'Bob',
-          targetLocationId: null,
           lastKnown: { coord_x: 42, coord_y: 43 },
-        },
+        }),
       ]
       const wrapper = mount(WorldMap, {
         props: {
@@ -1649,12 +1662,12 @@ describe('WorldMap', () => {
 
     it('points the heading chevron home for a returning run without a usable trail', () => {
       const tracks: ExplorerTrack[] = [
-        {
+        makeExplorerTrack({
           explorationId: 'expl-2',
           dwellerName: 'Bob',
-          targetLocationId: null,
+          status: 'returning',
           lastKnown: { coord_x: 10, coord_y: 0 },
-        },
+        }),
       ]
       const home = { id: 'home', type: 'home_vault', coord_x: 0, coord_y: 0 }
       const expected = bearingDegrees({ x: 10, y: 0 }, { x: 0, y: 0 })
@@ -1675,18 +1688,15 @@ describe('WorldMap', () => {
 
     it('renders no heading chevron when a heading cannot be derived', () => {
       const tracks: ExplorerTrack[] = [
-        {
+        makeExplorerTrack({
           explorationId: 'expl-2',
           dwellerName: 'Bob',
-          targetLocationId: null,
-          lastKnown: null,
-        },
-        {
+        }),
+        makeExplorerTrack({
           explorationId: 'expl-3',
           dwellerName: 'Ann',
           targetLocationId: 'loc-1',
-          lastKnown: null,
-        },
+        }),
       ]
       const wrapper = mount(WorldMap, {
         props: { locations: [], vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },

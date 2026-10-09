@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useLocalStorage } from '@vueuse/core'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useMapStore } from '../stores/map'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
@@ -14,9 +15,11 @@ import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Skeleton } from '@/core/components/ui/skeleton'
 import { Button } from '@/core/components/ui/button'
+import { Switch } from '@/core/components/ui/switch'
 import WorldMap from '../components/WorldMap.vue'
 import MarkerDetailModal from '../components/MarkerDetailModal.vue'
 import VaultInfoModal from '../components/VaultInfoModal.vue'
+import DwellerMarkerPopover from '../components/DwellerMarkerPopover.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import type {
   ExpeditionSiteMarkerRead,
@@ -38,6 +41,10 @@ const toast = useToast()
 
 const vaultId = computed(() => route.params.id as string)
 
+// Marker color mode: state color by default, per-place-group tint when enabled.
+// Persisted like the legend/side panel so the choice survives reloads.
+const groupColors = useLocalStorage<boolean>('map:group-colors', false)
+
 // Modal state
 const showModal = ref(false)
 // Single selection identity; selected objects derive from store state so polling
@@ -58,6 +65,31 @@ const selectedSite = computed<ExpeditionSiteMarkerRead | null>(() => {
   if (id === null || !id.startsWith('site-')) return null
   return mapStore.expeditionSites.find((s) => s.id === id.slice(5)) ?? null
 })
+
+// ── Explorer dweller popover ─────────────────────────────────────────
+// Only one overlay at a time: opening the popover closes the marker modal and
+// clearing the selection, and a normal marker click closes the popover back.
+const selectedExplorer = ref<ExplorerTrack | null>(null)
+const explorerPos = ref<{ x: number; y: number } | null>(null)
+
+function closeExplorerPopover() {
+  selectedExplorer.value = null
+  explorerPos.value = null
+}
+
+function onDwellerClick(payload: { track: ExplorerTrack; x: number; y: number }) {
+  selectedExplorer.value = payload.track
+  explorerPos.value = { x: payload.x, y: payload.y }
+  selectedMarkerId.value = null
+  showModal.value = false
+}
+
+function openExplorerDetails() {
+  const track = selectedExplorer.value
+  if (!track?.dwellerId) return
+  void router.push(`/vault/${vaultId.value}/dwellers/${track.dwellerId}`)
+  closeExplorerPopover()
+}
 
 // ── Own-vault info panel ─────────────────────────────────────────────
 // Clicking one of the player's own vault markers opens its summary instead
@@ -245,6 +277,7 @@ function handleMarkerClick(
     | { kind: 'vault'; data: VaultMarkerRead }
     | { kind: 'site'; data: ExpeditionSiteMarkerRead }
 ) {
+  closeExplorerPopover()
   if (payload.kind === 'location') {
     selectedMarkerId.value = `loc-${payload.data.id}`
     mapStore.markLocationViewed(payload.data.vault_id, payload.data.id)
@@ -403,18 +436,48 @@ const mapPaneHeight = 'var(--map-pane-size)'
             :expedition-sites="mapStore.expeditionSites"
             :explorer-tracks="explorerTracks"
             :fog-disabled="fogDisabled"
+            :group-colors="groupColors"
             :selected-marker-id="selectedMarkerId"
             @update:selected-marker-id="selectedMarkerId = $event"
             @marker-click="handleMarkerClick"
             @vault-info="handleVaultInfo"
+            @dweller-click="onDwellerClick"
           />
 
-          <!-- Admin debug: lift the fog to inspect the whole atlas -->
-          <div v-if="authStore.isSuperuser" class="map-toolbar">
-            <Button variant="outline" size="sm" @click="fogDisabled = !fogDisabled">
+          <!-- Map toolbar: color mode for every user; fog debug stays superuser-only -->
+          <div class="map-toolbar">
+            <div class="flex items-center gap-2">
+              <Switch
+                id="map-group-colors"
+                v-model:checked="groupColors"
+                aria-label="Group colors"
+              />
+              <label
+                for="map-group-colors"
+                class="cursor-pointer text-xs tracking-wider uppercase text-theme-primary/70"
+              >
+                Group colors
+              </label>
+            </div>
+            <Button
+              v-if="authStore.isSuperuser"
+              variant="outline"
+              size="sm"
+              @click="fogDisabled = !fogDisabled"
+            >
               {{ fogDisabled ? 'Restore fog' : 'Remove fog (debug)' }}
             </Button>
           </div>
+
+          <!-- Explorer popover: dweller summary anchored to the clicked marker -->
+          <DwellerMarkerPopover
+            v-if="selectedExplorer && explorerPos"
+            :track="selectedExplorer"
+            :x="explorerPos.x"
+            :y="explorerPos.y"
+            @close="closeExplorerPopover"
+            @view-details="openExplorerDetails"
+          />
 
           <!-- Detail modal: also hosts the team dispatch menu for clearable points -->
           <MarkerDetailModal

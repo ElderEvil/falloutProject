@@ -115,6 +115,35 @@ describe('buildExplorerTracks', () => {
     expect(withoutMap[0].dwellerThumbnailUrl).toBeNull()
   })
 
+  it('carries the dweller id, status and vitals used by the dweller popover', () => {
+    const tracks = buildExplorerTracks(
+      [
+        exploration({
+          id: 'expl-1',
+          dweller_id: 'dweller-7',
+          status: 'returning',
+          health: 42,
+          radiation: 7,
+        }),
+      ],
+      [],
+      new Map()
+    )
+
+    expect(tracks[0].dwellerId).toBe('dweller-7')
+    expect(tracks[0].status).toBe('returning')
+    expect(tracks[0].health).toBe(42)
+    expect(tracks[0].radiation).toBe(7)
+  })
+
+  it('nulls vitals and keeps the active status when the run reports neither', () => {
+    const tracks = buildExplorerTracks([exploration({ id: 'expl-1' })], [], new Map())
+
+    expect(tracks[0].status).toBe('active')
+    expect(tracks[0].health).toBeNull()
+    expect(tracks[0].radiation).toBeNull()
+  })
+
   it('ignores completed and recalled runs', () => {
     const tracks = buildExplorerTracks(
       [

@@ -14,6 +14,15 @@ export type WorldSnapshotRead = components['schemas']['WorldSnapshotRead']
 
 export interface ExplorerTrack {
   explorationId: string
+  /**
+   * Dweller popover fields. Optional so the frozen `/dev/map-mockup` fixture
+   * (`MOCK_EXPLORER_TRACKS`, which predates them) still typechecks;
+   * `buildExplorerTracks` always populates every one of them.
+   */
+  dwellerId?: string
+  status?: 'active' | 'returning'
+  health?: number | null
+  radiation?: number | null
   dwellerName: string
   targetLocationId: string | null
   lastKnown: { coord_x: number; coord_y: number } | null

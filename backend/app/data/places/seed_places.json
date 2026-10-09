@@ -598,7 +598,7 @@
     "vault_number": 274,
     "coord_x": 65.4,
     "coord_y": 55.9,
-    "description": "Unexplored vault signal \u2014 raiding available in a future update.",
+    "description": "A Vault-Tec beacon loops an automated welcome. The door has never answered.",
     "roles": []
   },
   {
@@ -607,7 +607,7 @@
     "vault_number": 77,
     "coord_x": 88.9,
     "coord_y": 19.3,
-    "description": "Unexplored vault signal \u2014 raiding available in a future update.",
+    "description": "A weak carrier wave out of the north. The entrance is buried under rock and rust.",
     "roles": []
   },
   {
@@ -616,7 +616,7 @@
     "vault_number": 871,
     "coord_x": 65.3,
     "coord_y": 53.1,
-    "description": "Unexplored vault signal \u2014 raiding available in a future update.",
+    "description": "A dead channel with a live backup ping. Sealed, silent, and somehow still powered.",
     "roles": []
   },
   {
@@ -625,7 +625,7 @@
     "vault_number": 242,
     "coord_x": 68.2,
     "coord_y": 67.0,
-    "description": "Unexplored vault signal \u2014 raiding available in a future update.",
+    "description": "A vault door welded shut from the inside. The signal keeps ticking anyway.",
     "roles": []
   },
   {
@@ -634,7 +634,7 @@
     "vault_number": 521,
     "coord_x": 55.4,
     "coord_y": 72.3,
-    "description": "Unexplored vault signal \u2014 raiding available in a future update.",
+    "description": "A broadcast with no voice behind it. The sign is sun-bleached; the lights are off.",
     "roles": []
   },
   {

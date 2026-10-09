@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.190.0 (2026-10-09)
+
+### Features
+
+* **cli:** add map-scenario command to populate a vault's map by site-type group f985ff2
+* **map:** add in-world lore descriptions for seeded places 265e634
+* **map:** group-color toggle and clickable dweller popover a8f8db4
+
+### Bug Fixes
+
+* **map:** address CodeRabbit review on the dweller popover and legend 40f8057
+* **map:** define group colours as theme tokens f4b18f3
+* **map:** dweller navigation, marker thumbnail focus, and dispatch supply defaults 4af20e0
+* **map:** native SVG marker glyphs, state colours, group colours 14fd262
+* **map:** real dweller vitals in the popover; retire the dev mockup 7c3598d
+* **map:** register biography- and quest-referenced places in the seed roster b0a6f9d
+* **map:** render ungrouped places with their effective archetype icon 4c9b11b
+* **map:** replace placeholder NPC vault-signal copy 84c3304
+* **map:** widen the dispatch modal so the party slots fit b12eaa7
+
+### Documentation
+
+* add code review and Vue debugging skills 20cc56b
+* **map:** record map presentation P0-P5 plan b4d41f0
+* **skills:** drop the oversized vue-debug-guides skill 3007cad
+
 ## 2.189.0 (2026-10-08)
 
 ### Features

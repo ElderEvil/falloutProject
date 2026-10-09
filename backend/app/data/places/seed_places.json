@@ -671,5 +671,132 @@
     "description": "A chain of rusted fences around an abandoned industrial complex. Scavengers insist the air bends after radstorms and that shiny things appear where nobody left them. Engineers insist the scavengers drink too much.",
     "roles": ["visited"],
     "group": "exclusion_zone"
+  },
+  {
+    "name": "Boston",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ],
+    "group": "city"
+  },
+  {
+    "name": "Boston Airport",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ],
+    "group": "military"
+  },
+  {
+    "name": "Enclave Facility",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin"
+    ],
+    "group": "research"
+  },
+  {
+    "name": "Flagstaff",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin"
+    ],
+    "group": "city"
+  },
+  {
+    "name": "Goodsprings",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin"
+    ],
+    "group": "settlement"
+  },
+  {
+    "name": "Hoover Dam",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ],
+    "group": "power"
+  },
+  {
+    "name": "Jacobstown",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin"
+    ],
+    "group": "settlement"
+  },
+  {
+    "name": "Las Vegas",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin"
+    ],
+    "group": "city"
+  },
+  {
+    "name": "Los Angeles",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ],
+    "group": "city"
+  },
+  {
+    "name": "Mojave Outpost",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ],
+    "group": "military"
+  },
+  {
+    "name": "Mount Charleston",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ],
+    "group": "region"
+  },
+  {
+    "name": "Railroad HQ",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ],
+    "group": "settlement"
+  },
+  {
+    "name": "Vault 76",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin"
+    ],
+    "group": "vault_tec"
+  },
+  {
+    "name": "Griffith Observatory",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ],
+    "group": "landmark"
   }
 ]

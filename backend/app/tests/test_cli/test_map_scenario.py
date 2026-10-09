@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -28,28 +29,24 @@ def test_every_group_is_covered_by_the_scenario():
     assert covered == {group["key"] for group in load_place_groups()}
 
 
-def _patched_session():
-    session = AsyncMock()
-    patcher = patch("app.cli.map_scenario.async_session_maker")
-    maker = patcher.start()
-    maker.return_value.__aenter__ = AsyncMock(return_value=session)
-    maker.return_value.__aexit__ = AsyncMock(return_value=False)
-    return session, patcher
+@contextmanager
+def _patched_session(session: AsyncMock | None = None):
+    session = session or AsyncMock()
+    with patch("app.cli.map_scenario.async_session_maker") as maker:
+        maker.return_value.__aenter__ = AsyncMock(return_value=session)
+        maker.return_value.__aexit__ = AsyncMock(return_value=False)
+        yield session
 
 
 def test_populate_registers_one_marker_per_group():
     vault_id = uuid4()
     dweller_id = uuid4()
 
-    with patch("app.cli.map_scenario.wl_crud") as crud:
+    with patch("app.cli.map_scenario.wl_crud") as crud, _patched_session():
         crud.get_or_create_location = AsyncMock(return_value=SimpleNamespace(id=uuid4()))
         crud.get_or_create_state = AsyncMock()
         crud.link_dweller = AsyncMock()
-        _, patcher = _patched_session()
-        try:
-            result = runner.invoke(cli, ["map-scenario", "populate", str(vault_id), "--dweller", str(dweller_id)])
-        finally:
-            patcher.stop()
+        result = runner.invoke(cli, ["map-scenario", "populate", str(vault_id), "--dweller", str(dweller_id)])
 
     assert result.exit_code == 0
     expected = len(load_place_groups())
@@ -72,9 +69,7 @@ def test_populate_errors_without_a_dweller_to_link():
     execute_result.first.return_value = None
     session.exec = AsyncMock(return_value=execute_result)
 
-    with patch("app.cli.map_scenario.async_session_maker") as maker:
-        maker.return_value.__aenter__ = AsyncMock(return_value=session)
-        maker.return_value.__aexit__ = AsyncMock(return_value=False)
+    with _patched_session(session):
         result = runner.invoke(cli, ["map-scenario", "populate", str(vault_id)])
 
     assert result.exit_code == 1

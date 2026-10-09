@@ -2,7 +2,7 @@
   {
     "name": "Adams Air Force Base",
     "kind": "place",
-    "description": null,
+    "description": "Runways and hangars the Enclave claimed as a staging ground; the old jets never left.",
     "roles": [
       "origin",
       "visited"
@@ -12,7 +12,7 @@
   {
     "name": "Arefu",
     "kind": "place",
-    "description": null,
+    "description": "Shacks straddle a cracked overpass, ropes and ladders doing the work of streets.",
     "roles": [
       "origin",
       "visited"
@@ -22,7 +22,7 @@
   {
     "name": "Big Town",
     "kind": "place",
-    "description": null,
+    "description": "Sandbagged and full of kids who fled Little Lamplight and never looked back.",
     "roles": [
       "origin",
       "visited"
@@ -32,7 +32,7 @@
   {
     "name": "Bunker Hill",
     "kind": "place",
-    "description": null,
+    "description": "Traders crowd under a pre-war obelisk, caravans at the gate and prices at the throat.",
     "roles": [
       "origin",
       "visited"
@@ -42,7 +42,7 @@
   {
     "name": "Cambridge",
     "kind": "place",
-    "description": null,
+    "description": "Broken laboratories and a police station holding the line on the square.",
     "roles": [
       "origin"
     ],
@@ -51,7 +51,7 @@
   {
     "name": "Canterbury Commons",
     "kind": "place",
-    "description": null,
+    "description": "Two costumed idiots once warred over these rooftops; the town still talks about it.",
     "roles": [
       "origin",
       "visited"
@@ -61,7 +61,7 @@
   {
     "name": "Concord",
     "kind": "place",
-    "description": null,
+    "description": "A ruined town square of sandbags and raider camps, its museum the only thing standing proud.",
     "roles": [
       "origin",
       "visited"
@@ -71,7 +71,7 @@
   {
     "name": "County Crossing",
     "kind": "place",
-    "description": null,
+    "description": "A tanning rack, a water pump, and a shack or two on the road east of the city.",
     "roles": [
       "origin"
     ],
@@ -80,7 +80,7 @@
   {
     "name": "Covenant",
     "kind": "place",
-    "description": null,
+    "description": "Whitewashed walls and a lot of questions before anyone opens the gate.",
     "roles": [
       "origin"
     ],
@@ -89,7 +89,7 @@
   {
     "name": "Diamond City",
     "kind": "place",
-    "description": null,
+    "description": "A ballpark turned city, the great green wall glowing over a market that never stops haggling.",
     "roles": [
       "origin",
       "visited"
@@ -99,7 +99,7 @@
   {
     "name": "Filly",
     "kind": "place",
-    "description": null,
+    "description": "Hardscrabble hamlet north of the city, trading salvage for anything it cannot grow.",
     "roles": [
       "origin",
       "visited"
@@ -109,7 +109,7 @@
   {
     "name": "Galaxy News Radio",
     "kind": "place",
-    "description": null,
+    "description": "A radio tower and a DJ's booth, broadcasting the old songs and the day's bad news.",
     "roles": [
       "origin",
       "visited"
@@ -119,7 +119,7 @@
   {
     "name": "Goodneighbor",
     "kind": "place",
-    "description": null,
+    "description": "Neon lights, misfits, and chems, ruled by a mayor with a knife and a grudge.",
     "roles": [
       "origin",
       "visited"
@@ -129,7 +129,7 @@
   {
     "name": "Graygarden",
     "kind": "place",
-    "description": null,
+    "description": "Mr. Handys tend neat rows atop an overpass, forever short one supervisor.",
     "roles": [
       "origin"
     ],
@@ -138,7 +138,7 @@
   {
     "name": "Hollywood",
     "kind": "place",
-    "description": null,
+    "description": "Ruined marquees and studios still sell illusions to anyone with caps.",
     "roles": [
       "origin",
       "visited"
@@ -148,7 +148,7 @@
   {
     "name": "Jamaica Plain",
     "kind": "place",
-    "description": null,
+    "description": "A suburb swallowed by the city's sprawl, its buried treasure vault sealed since before the war.",
     "roles": [
       "origin"
     ],
@@ -157,7 +157,7 @@
   {
     "name": "Jefferson Memorial",
     "kind": "place",
-    "description": null,
+    "description": "A marble memorial to a dead president, its rotunda now a water purifier and a battleground.",
     "roles": [
       "origin",
       "visited"
@@ -167,7 +167,7 @@
   {
     "name": "Lexington",
     "kind": "place",
-    "description": null,
+    "description": "A factory town gone quiet, its streets a shooting gallery and its plant still running on ghosts.",
     "roles": [
       "origin",
       "visited"
@@ -177,7 +177,7 @@
   {
     "name": "Little Lamplight",
     "kind": "place",
-    "description": null,
+    "description": "Children hold a cave warren and banish anyone at sixteen; the gate is rocks and nerve.",
     "roles": [
       "origin",
       "visited"
@@ -187,7 +187,7 @@
   {
     "name": "Megaton",
     "kind": "place",
-    "description": null,
+    "description": "A scrap town ringed around an unexploded bomb, its church and its curse in equal measure.",
     "roles": [
       "origin",
       "visited"
@@ -197,7 +197,7 @@
   {
     "name": "National Archives",
     "kind": "place",
-    "description": null,
+    "description": "Vaults and file rooms guard a declaration worth more than most armies.",
     "roles": [
       "origin",
       "visited"
@@ -207,7 +207,7 @@
   {
     "name": "Novac",
     "kind": "place",
-    "description": null,
+    "description": "A motel strip under a fiberglass dinosaur, the best sniper perch for a hundred miles.",
     "roles": [
       "origin",
       "visited"
@@ -217,7 +217,7 @@
   {
     "name": "Nuka-World",
     "kind": "place",
-    "description": null,
+    "description": "A ruined amusement park of Nuka-Cola rides and raider gangs dividing the wreckage.",
     "roles": [
       "origin"
     ],
@@ -226,7 +226,7 @@
   {
     "name": "Oberland Station",
     "kind": "place",
-    "description": null,
+    "description": "Tin roofs and a hand pump by the tracks, close enough to hear the city breathe.",
     "roles": [
       "origin"
     ],
@@ -235,7 +235,7 @@
   {
     "name": "Paradise Falls",
     "kind": "place",
-    "description": null,
+    "description": "A mall turned slaver camp, collar in one hand and a smile that does not reach the eyes.",
     "roles": [
       "origin",
       "visited"
@@ -245,7 +245,7 @@
   {
     "name": "Primm",
     "kind": "place",
-    "description": null,
+    "description": "Casinos and a roller coaster off the highway, still pointing at a sky it cannot reach.",
     "roles": [
       "origin",
       "visited"
@@ -255,7 +255,7 @@
   {
     "name": "Quincy",
     "kind": "place",
-    "description": null,
+    "description": "A walled settlement that fell to gunners, its barricades facing the wrong way now.",
     "roles": [
       "origin",
       "visited"
@@ -265,7 +265,7 @@
   {
     "name": "Raven Rock",
     "kind": "place",
-    "description": null,
+    "description": "Steel doors and quieter rooms: the mountain bunker where the Enclave runs its command.",
     "roles": [
       "origin",
       "visited"
@@ -275,7 +275,7 @@
   {
     "name": "Republic of Dave",
     "kind": "place",
-    "description": null,
+    "description": "One man's backyard kingdom, complete with elections, a flag, and nobody else's vote.",
     "roles": [
       "origin",
       "visited"
@@ -285,7 +285,7 @@
   {
     "name": "Rivet City",
     "kind": "place",
-    "description": null,
+    "description": "An aircraft carrier wedged in the river mud, its flight deck a market and its hull a wall.",
     "roles": [
       "origin",
       "visited"
@@ -295,7 +295,7 @@
   {
     "name": "Sanctuary Hills",
     "kind": "place",
-    "description": null,
+    "description": "A pre-war cul-de-sac of tidy homes gone feral, the kind of quiet that listens back.",
     "roles": [
       "origin",
       "visited"
@@ -305,7 +305,7 @@
   {
     "name": "Shady Sands",
     "kind": "place",
-    "description": null,
+    "description": "Farm village that grew into the NCR's heart, still dusty and still certain of itself.",
     "roles": [
       "origin",
       "visited"
@@ -315,7 +315,7 @@
   {
     "name": "Somerville Place",
     "kind": "place",
-    "description": null,
+    "description": "A small farmstead south of the city, corn in the yard and a wall built one board at a time.",
     "roles": [
       "origin"
     ],
@@ -324,7 +324,7 @@
   {
     "name": "Tenpenny Tower",
     "kind": "place",
-    "description": null,
+    "description": "A luxury tower behind a private army, its penthouse views paid for by someone below.",
     "roles": [
       "origin",
       "visited"
@@ -334,7 +334,7 @@
   {
     "name": "The Boneyard",
     "kind": "place",
-    "description": null,
+    "description": "The skeletal sprawl of old Los Angeles, picked clean and still worth the trip.",
     "roles": [
       "origin",
       "visited"
@@ -344,7 +344,7 @@
   {
     "name": "The Citadel",
     "kind": "place",
-    "description": null,
+    "description": "The Pentagon's shell, rebuilt into the Brotherhood's fortress, armor on the ramparts and no welcome.",
     "roles": [
       "origin",
       "visited"
@@ -354,7 +354,7 @@
   {
     "name": "The Institute",
     "kind": "place",
-    "description": null,
+    "description": "A shadowy research body beneath the Commonwealth, doing its work and denying yours.",
     "roles": [
       "origin",
       "visited"
@@ -364,7 +364,7 @@
   {
     "name": "The Nucleus",
     "kind": "place",
-    "description": null,
+    "description": "A Children of Atom stronghold inside a beached submarine, glowing and unbothered.",
     "roles": [
       "origin",
       "visited"
@@ -374,7 +374,7 @@
   {
     "name": "The Slog",
     "kind": "place",
-    "description": null,
+    "description": "Ghouls work a tarberry farm in an old swimming pool, the one crop that asks nothing.",
     "roles": [
       "origin",
       "visited"
@@ -384,7 +384,7 @@
   {
     "name": "Vault 32",
     "kind": "place",
-    "description": null,
+    "description": "An experiment sealed behind a Vault-Tec door, its corridors quiet and its records wrong.",
     "roles": [
       "origin",
       "visited"
@@ -394,7 +394,7 @@
   {
     "name": "Vault 33",
     "kind": "place",
-    "description": null,
+    "description": "A Vault-Tec community that kept its decency and its door, right up until it could not.",
     "roles": [
       "origin",
       "visited"
@@ -404,7 +404,7 @@
   {
     "name": "Vault 101",
     "kind": "place",
-    "description": null,
+    "description": "A sealed Vault-Tec door, three generations deep, run like a school with a gun rack.",
     "roles": [
       "origin",
       "visited"
@@ -414,7 +414,7 @@
   {
     "name": "Vault 111",
     "kind": "place",
-    "description": null,
+    "description": "Cryopods and ice sleep under this hillside door, where the world ended twice and one woke.",
     "roles": [
       "origin"
     ],
@@ -423,7 +423,7 @@
   {
     "name": "Appalachia",
     "kind": "place",
-    "description": null,
+    "description": "Green hills and deep mines, where the Scorched walked and the Responders did not come back.",
     "roles": [
       "visited"
     ],
@@ -432,7 +432,7 @@
   {
     "name": "Big MT",
     "kind": "place",
-    "description": null,
+    "description": "A pre-war research crater of mad science, its labs gone quiet and its machines opinionated.",
     "roles": [
       "visited"
     ],
@@ -441,7 +441,7 @@
   {
     "name": "Far Harbor",
     "kind": "place",
-    "description": null,
+    "description": "Fog soaks an island off the Maine coast, its harbors hiding more than fish.",
     "roles": [
       "visited"
     ],
@@ -450,7 +450,7 @@
   {
     "name": "Fort Hagen",
     "kind": "place",
-    "description": null,
+    "description": "Old parade grounds, now a sniper's nest, the fort's orders still tacked to the wall.",
     "roles": [
       "visited"
     ],
@@ -459,7 +459,7 @@
   {
     "name": "Mass Pike Tunnel",
     "kind": "place",
-    "description": null,
+    "description": "A flooded highway tunnel under the Mass Pike, a shortcut that costs anyone who takes it.",
     "roles": [
       "visited"
     ],
@@ -468,7 +468,7 @@
   {
     "name": "Museum of Freedom",
     "kind": "place",
-    "description": null,
+    "description": "A colonial museum holding a suit of power armor and the Minutemen's last stand.",
     "roles": [
       "visited"
     ],
@@ -477,7 +477,7 @@
   {
     "name": "Point Lookout",
     "kind": "place",
-    "description": null,
+    "description": "A tidal marsh of boardwalks and inbred camps, the fog thick enough to swallow a lantern.",
     "roles": [
       "visited"
     ],
@@ -486,7 +486,7 @@
   {
     "name": "Poseidon Energy",
     "kind": "place",
-    "description": null,
+    "description": "A pre-war Poseidon Energy station, turbines dead and the grid still humming somewhere below.",
     "roles": [
       "visited"
     ],
@@ -495,7 +495,7 @@
   {
     "name": "Red Rocket",
     "kind": "place",
-    "description": null,
+    "description": "A Red Rocket stop on the roadside, its rocket sign still standing, its pumps long dry.",
     "roles": [
       "visited"
     ],
@@ -504,7 +504,7 @@
   {
     "name": "Starlight Drive-In",
     "kind": "place",
-    "description": null,
+    "description": "A cracked drive-in with a dead screen and a lot of open ground nobody guards well.",
     "roles": [
       "visited"
     ],
@@ -513,7 +513,7 @@
   {
     "name": "Vault-Tec HQ",
     "kind": "place",
-    "description": null,
+    "description": "Vault-Tec's regional offices, the paperwork gone quiet and the safes still full of promises.",
     "roles": [
       "visited"
     ],
@@ -522,7 +522,7 @@
   {
     "name": "the Capital Wasteland",
     "kind": "place",
-    "description": null,
+    "description": "The cratered bones of Washington, where the Metro maps matter more than the streets.",
     "roles": [
       "visited"
     ],
@@ -531,7 +531,7 @@
   {
     "name": "the Commonwealth",
     "kind": "place",
-    "description": null,
+    "description": "Boston's ruins and its outskirts, torn between the Institute and everyone it haunts.",
     "roles": [
       "visited"
     ],
@@ -540,7 +540,7 @@
   {
     "name": "the Divide",
     "kind": "place",
-    "description": null,
+    "description": "A storm-cut canyon of collapsed highways and buried silos, marked by old missiles.",
     "roles": [
       "visited"
     ],
@@ -549,7 +549,7 @@
   {
     "name": "the Glowing Sea",
     "kind": "place",
-    "description": null,
+    "description": "A crater of mashed suburbs and constant rads, where the sky itself looks wrong.",
     "roles": [
       "visited"
     ],
@@ -558,7 +558,7 @@
   {
     "name": "the Mojave desert",
     "kind": "place",
-    "description": null,
+    "description": "Scrub, sand, and broken highway, split between the NCR, the Legion, and Mr. House.",
     "roles": [
       "visited"
     ],
@@ -567,7 +567,7 @@
   {
     "name": "Zion Canyon",
     "kind": "place",
-    "description": null,
+    "description": "Red cliffs and green riverbottom, kept by the tribes and the Burned Man who guards it.",
     "roles": [
       "visited"
     ],
@@ -576,7 +576,7 @@
   {
     "name": "the Pitt",
     "kind": "place",
-    "description": null,
+    "description": "A smoking steel city of slag and slaves, churning out the one thing the wasteland still buys.",
     "roles": [
       "visited"
     ],
@@ -585,7 +585,7 @@
   {
     "name": "Nuka-Cola Plant",
     "kind": "place",
-    "description": null,
+    "description": "The Nuka-Cola bottling plant, its lines stopped and its syrup still rationed like gold.",
     "roles": [
       "origin",
       "visited"
@@ -640,28 +640,28 @@
   {
     "name": "Red Rocket - Springvale",
     "kind": "place",
-    "description": null,
+    "description": "The Red Rocket guarding Springvale's road, picked over and still good for a breather.",
     "roles": [],
     "group": "gas_station"
   },
   {
     "name": "Red Rocket - Cambridge",
     "kind": "place",
-    "description": null,
+    "description": "A Red Rocket at the Cambridge edge, close enough to the city to be watched.",
     "roles": [],
     "group": "gas_station"
   },
   {
     "name": "Super Duper Mart",
     "kind": "place",
-    "description": null,
+    "description": "Shelves stripped bare at the Super Duper Mart, the stockroom the only mystery left.",
     "roles": [],
     "group": "supermarket"
   },
   {
     "name": "Super Duper Mart - Quincy",
     "kind": "place",
-    "description": null,
+    "description": "A second Super Duper Mart near Quincy, shelves bare but the back rooms never quite cleared.",
     "roles": [],
     "group": "supermarket"
   },
@@ -675,7 +675,7 @@
   {
     "name": "Boston",
     "kind": "place",
-    "description": null,
+    "description": "The old colonial capital, a labyrinth of alleys where every block knows your business.",
     "roles": [
       "origin",
       "visited"
@@ -685,7 +685,7 @@
   {
     "name": "Boston Airport",
     "kind": "place",
-    "description": null,
+    "description": "Grounded runways the Brotherhood turned into a fortress of scrap plating and vertibirds.",
     "roles": [
       "visited"
     ],
@@ -694,7 +694,7 @@
   {
     "name": "Enclave Facility",
     "kind": "place",
-    "description": null,
+    "description": "A hidden Enclave installation, its laboratories sealed and its experiments left running.",
     "roles": [
       "origin"
     ],
@@ -703,7 +703,7 @@
   {
     "name": "Flagstaff",
     "kind": "place",
-    "description": null,
+    "description": "Caesar's seat of power, a city that answers to the Legion and little else.",
     "roles": [
       "origin"
     ],
@@ -712,7 +712,7 @@
   {
     "name": "Goodsprings",
     "kind": "place",
-    "description": null,
+    "description": "A one-saloon town at the edge of the Mojave, where the water is clean and the welcome is thin.",
     "roles": [
       "origin"
     ],
@@ -721,7 +721,7 @@
   {
     "name": "Hoover Dam",
     "kind": "place",
-    "description": null,
+    "description": "The Hoover Dam still turns the Colorado into power, still fought over by everyone downstream.",
     "roles": [
       "visited"
     ],
@@ -730,7 +730,7 @@
   {
     "name": "Jacobstown",
     "kind": "place",
-    "description": null,
+    "description": "Super mutants and nightkin keep a mountain retreat orderly, watched by a sheriff with a long memory.",
     "roles": [
       "origin"
     ],
@@ -739,7 +739,7 @@
   {
     "name": "Las Vegas",
     "kind": "place",
-    "description": null,
+    "description": "Neon still burns on the Strip, fenced off from the tribes that would tear it down.",
     "roles": [
       "origin"
     ],
@@ -748,7 +748,7 @@
   {
     "name": "Los Angeles",
     "kind": "place",
-    "description": null,
+    "description": "The old city sprawls for miles, its freeways a canyon system for anyone who can map it.",
     "roles": [
       "visited"
     ],
@@ -757,7 +757,7 @@
   {
     "name": "Mojave Outpost",
     "kind": "place",
-    "description": null,
+    "description": "Two statues and a chain-link gate: the NCR's line between the Mojave and the long road west.",
     "roles": [
       "visited"
     ],
@@ -766,7 +766,7 @@
   {
     "name": "Mount Charleston",
     "kind": "place",
-    "description": null,
+    "description": "Pines cover this mountain above the desert, cold enough to keep the worst of it at bay.",
     "roles": [
       "visited"
     ],
@@ -775,7 +775,7 @@
   {
     "name": "Railroad HQ",
     "kind": "place",
-    "description": null,
+    "description": "Under an old church, a hidden bolt-hole where the Railroad moves its people and its plans.",
     "roles": [
       "visited"
     ],
@@ -784,7 +784,7 @@
   {
     "name": "Vault 76",
     "kind": "place",
-    "description": null,
+    "description": "A Vault-Tec door that opened on Reclamation Day and never closed again.",
     "roles": [
       "origin"
     ],
@@ -793,7 +793,7 @@
   {
     "name": "Griffith Observatory",
     "kind": "place",
-    "description": null,
+    "description": "A white-domed observatory above the ruins, its telescope still pointed at a sky that answers nothing.",
     "roles": [
       "visited"
     ],

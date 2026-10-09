@@ -6,7 +6,8 @@ export function buildExplorerTracks(
   explorations: Exploration[],
   discoveryRoutes: DiscoveryRouteRead[],
   dwellerNames: ReadonlyMap<string, string>,
-  dwellerThumbnails: ReadonlyMap<string, string | null> = new Map()
+  dwellerThumbnails: ReadonlyMap<string, string | null> = new Map(),
+  dwellerMaxHealth: ReadonlyMap<string, number | null> = new Map()
 ): ExplorerTrack[] {
   const routesByExploration = new Map(discoveryRoutes.map((route) => [route.exploration_id, route]))
   return explorations
@@ -36,6 +37,7 @@ export function buildExplorerTracks(
         status: exploration.status,
         health: exploration.health ?? null,
         radiation: exploration.radiation ?? null,
+        maxHealth: dwellerMaxHealth.get(exploration.dweller_id) ?? null,
         targetLocationId: exploration.target_location_id ?? null,
         lastKnown: position,
         dwellerThumbnailUrl: dwellerThumbnails.get(exploration.dweller_id) ?? null,

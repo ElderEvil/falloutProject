@@ -32,9 +32,24 @@ const taskLabel = computed(() => (isReturning.value ? 'Heading home' : 'Explorin
 // STATUS_CONFIG_MAP has no `returning` entry: keep the badge on the valid
 // `exploring` status and carry "Heading home" on the task line instead.
 const badgeStatus = computed<'exploring'>(() => 'exploring')
-// Optional on the interface (frozen mockup fixture); real tracks build with nulls.
 const health = computed(() => props.track.health ?? null)
 const radiation = computed(() => props.track.radiation ?? null)
+const maxHealth = computed(() => props.track.maxHealth ?? null)
+const healthText = computed(() => formatVital(health.value))
+const radiationText = computed(() => formatVital(radiation.value))
+const healthPercent = computed(() => vitalPercent(health.value))
+const radiationPercent = computed(() => vitalPercent(radiation.value))
+
+function formatVital(value: number | null): string | null {
+  if (value === null) return null
+  return maxHealth.value ? `${value} / ${maxHealth.value}` : `${value}`
+}
+
+function vitalPercent(value: number | null): number {
+  if (value === null) return 0
+  const ratio = maxHealth.value && maxHealth.value > 0 ? (value / maxHealth.value) * 100 : value
+  return Math.max(0, Math.min(100, Math.round(ratio)))
+}
 
 const position = computed(() => ({
   left: `${Math.max(
@@ -97,17 +112,17 @@ onUnmounted(() => {
             class="flex items-baseline justify-between text-[10px] tracking-wider uppercase text-theme-primary/60"
           >
             <span>HP</span>
-            <span v-if="health !== null">{{ health }} / 100</span>
+            <span v-if="healthText">{{ healthText }}</span>
             <span v-else class="text-theme-primary/40">—</span>
           </div>
           <!-- @vue-ignore -->
           <Progress
             v-if="health !== null"
-            :model-value="health"
+            :model-value="healthPercent"
             size="xs"
             tone="success"
             label="Hit points"
-            :value-text="`${health} / 100`"
+            :value-text="healthText ?? undefined"
             class="mt-1"
           />
         </div>
@@ -116,17 +131,17 @@ onUnmounted(() => {
             class="flex items-baseline justify-between text-[10px] tracking-wider uppercase text-theme-primary/60"
           >
             <span>Radiation</span>
-            <span v-if="radiation !== null">{{ radiation }} / 100</span>
+            <span v-if="radiationText">{{ radiationText }}</span>
             <span v-else class="text-theme-primary/40">—</span>
           </div>
           <!-- @vue-ignore -->
           <Progress
             v-if="radiation !== null"
-            :model-value="radiation"
+            :model-value="radiationPercent"
             size="xs"
             tone="warning"
             label="Radiation"
-            :value-text="`${radiation} / 100`"
+            :value-text="radiationText ?? undefined"
             class="mt-1"
           />
         </div>

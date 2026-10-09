@@ -57,11 +57,6 @@ const router = createRouter({
             name: 'asset-gallery',
             component: () => import('@/core/views/AssetGalleryView.vue'),
           },
-          {
-            path: '/dev/map-mockup',
-            name: 'map-mockup',
-            component: () => import('@/modules/map/views/MapMockupView.vue'),
-          },
         ]
       : []),
     {

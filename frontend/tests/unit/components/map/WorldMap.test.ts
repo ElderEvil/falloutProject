@@ -134,6 +134,7 @@ function makeExplorerTrack(overrides: Partial<ExplorerTrack> = {}): ExplorerTrac
     status: 'active',
     health: null,
     radiation: null,
+    maxHealth: null,
     targetLocationId: null,
     lastKnown: null,
     ...overrides,

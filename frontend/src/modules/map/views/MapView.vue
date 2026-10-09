@@ -153,6 +153,14 @@ const dwellerThumbnails = computed(() => {
   return thumbnails
 })
 
+const dwellerMaxHealth = computed(() => {
+  const maxes = new Map<string, number | null>()
+  for (const dweller of dwellerStore.dwellers) {
+    maxes.set(dweller.id, dweller.max_health ?? null)
+  }
+  return maxes
+})
+
 const explorerTracks = computed<ExplorerTrack[]>(() =>
   buildExplorerTracks(
     // The store can still hold the previous vault's active runs after a vault
@@ -161,7 +169,8 @@ const explorerTracks = computed<ExplorerTrack[]>(() =>
     explorationStore.explorations.filter((e) => e.vault_id === vaultId.value),
     mapStore.discoveryRoutes,
     dwellerNames.value,
-    dwellerThumbnails.value
+    dwellerThumbnails.value,
+    dwellerMaxHealth.value
   )
 )
 

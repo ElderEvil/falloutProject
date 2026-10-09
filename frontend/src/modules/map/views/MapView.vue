@@ -340,6 +340,7 @@ function clearPlaceQuery() {
 watch(
   vaultId,
   () => {
+    closeExplorerPopover()
     loadMap()
   },
   { immediate: true }

@@ -87,7 +87,7 @@ onUnmounted(() => {
       role="dialog"
       aria-label="Explorer details"
       tabindex="-1"
-      class="fixed z-50 w-64 border border-theme-primary bg-surface p-3 font-mono text-theme-primary shadow-glow-md outline-none"
+      class="fixed z-50 max-h-[calc(100vh-1rem)] w-64 overflow-y-auto border border-theme-primary bg-surface p-3 font-mono text-theme-primary shadow-glow-md focus:outline-none focus:ring-2 focus:ring-theme-primary"
       :style="position"
       @keydown.esc="emit('close')"
     >

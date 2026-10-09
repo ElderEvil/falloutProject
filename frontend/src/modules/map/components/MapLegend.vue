@@ -18,7 +18,8 @@ const MARKER_STATES = [
   { key: 'unknown', label: 'Unknown / locked' },
   { key: 'cleared', label: 'Cleared' },
   { key: 'vault', label: 'Vault signal' },
-  { key: 'explorer', label: 'Explorer / new' },
+  { key: 'explorer', label: 'Explorer' },
+  { key: 'new', label: 'New discovery' },
 ] as const
 
 // The legend overlays the map pane, so it stays collapsed on first view and
@@ -225,10 +226,14 @@ const siteGroups = computed(() => {
   border-color: color-mix(in srgb, var(--color-warning) 40%, transparent);
 }
 
-/* Explorer/new discoveries pulse on the map; the key's dot pulses in step. */
 .legend-state-explorer {
   background: var(--color-theme-accent);
   border-color: color-mix(in srgb, var(--color-theme-accent) 40%, transparent);
+}
+
+/* An unseen discovery pulses in the primary colour on the map, so its key dot
+   pulses in step; the explorer marker (above) is a static accent. */
+.legend-state-new {
   animation: legend-pulse 2s ease-in-out infinite;
 }
 
@@ -253,7 +258,7 @@ const siteGroups = computed(() => {
 
 @media (prefers-reduced-motion: reduce) {
   .legend-unseen .legend-icon,
-  .legend-state-explorer {
+  .legend-state-new {
     animation: none;
   }
 }

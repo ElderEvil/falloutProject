@@ -69,7 +69,7 @@ describe('MapLegend', () => {
     const wrapper = mountLegend()
 
     expect(wrapper.findAll('.legend-icon-wrapper')).toHaveLength(6)
-    expect(wrapper.findAll('.legend-state-dot')).toHaveLength(5)
+    expect(wrapper.findAll('.legend-state-dot')).toHaveLength(6)
     expect(wrapper.text()).toContain('MARKER STATE')
     expect(wrapper.text()).toContain('Known / active')
   })

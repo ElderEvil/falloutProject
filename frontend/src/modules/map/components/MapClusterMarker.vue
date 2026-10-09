@@ -71,6 +71,7 @@ function handleKeydown(event: KeyboardEvent) {
   filter: drop-shadow(0 0 6px var(--color-theme-primary));
 }
 
+.map-cluster:focus,
 .map-cluster:focus-visible {
   outline: none;
 }

@@ -13,7 +13,7 @@ import type {
   VaultMarkerRead,
 } from '../models/map'
 import { EXPEDITION_SITE_ICON, locationMarkerIcon } from '../models/markerTypeMeta'
-import { markerArtDataUrl } from '../utils/markerIcons'
+import { groupColor } from '../models/groupColors'
 import MapClusterMarker from './MapClusterMarker.vue'
 import MapMarker from './MapMarker.vue'
 import MapLegend from './MapLegend.vue'
@@ -40,6 +40,7 @@ interface Props {
   expeditionSites?: ExpeditionSiteMarkerRead[]
   explorerTracks?: ExplorerTrack[]
   fogDisabled?: boolean
+  groupColors?: boolean
   selectedMarkerId: string | null
 }
 
@@ -49,6 +50,7 @@ const props = withDefaults(defineProps<Props>(), {
   expeditionSites: () => [],
   explorerTracks: () => [],
   fogDisabled: false,
+  groupColors: false,
 })
 
 const emit = defineEmits<{
@@ -56,6 +58,8 @@ const emit = defineEmits<{
   (e: 'update:selectedMarkerId', value: string | null): void
   /** Own-vault marker clicked: open its summary panel instead of navigating. */
   (e: 'vault-info', vaultId: string): void
+  /** Free-roam explorer clicked: open its dweller popover at screen x/y. */
+  (e: 'dweller-click', payload: { track: ExplorerTrack; x: number; y: number }): void
 }>()
 
 // ── Marker visibility filter ─────────────────────────────────────
@@ -284,6 +288,26 @@ function onLocationMarkerClick(loc: WastelandLocationWithDwellers) {
   onLocationClick(loc)
 }
 
+// Explorer popover anchor: pointer activation carries screen coordinates.
+// Keyboard activation (Enter/Space) has none, so fall back to the focused
+// marker's on-screen box.
+function onExplorerClick(track: ExplorerTrack, event: Event) {
+  if (hasDragMoved.value) return
+  let x = 0
+  let y = 0
+  if (event instanceof MouseEvent) {
+    x = event.clientX
+    y = event.clientY
+  } else {
+    const rect = (event.target as Element | null)?.getBoundingClientRect()
+    if (rect) {
+      x = rect.left + rect.width / 2
+      y = rect.top + rect.height / 2
+    }
+  }
+  emit('dweller-click', { track, x, y })
+}
+
 // ── Discovery clustering ──────────────────────────────────────────────
 // Discoveries render at every zoom, so on a dense atlas their count is what
 // swamps the map. Grid cells shrink as the map zooms in, so a badge expands
@@ -432,7 +456,7 @@ function handleTouchEnd(event: TouchEvent) {
           :name="loc.name"
           :type="loc.type"
           :icon="locationMarkerIcon(loc.type, loc.group_key, groupIconByKey)"
-          :art-src="markerArtDataUrl(loc.group_key)"
+          :color="groupColors ? groupColor(loc.group_key) : null"
           :is_unlocked="loc.is_unlocked"
           :unseen="mapStore.isUnseenDiscovery(loc)"
           :selected="selectedMarkerId === `loc-${loc.id}`"
@@ -490,14 +514,13 @@ function handleTouchEnd(event: TouchEvent) {
           :name="site.name"
           type="expedition_site"
           :icon="EXPEDITION_SITE_ICON"
-          :art-src="markerArtDataUrl(site.id)"
           :cleared="site.cleared"
           :status="siteStatus(site)"
           :selected="selectedMarkerId === `site-${site.id}`"
           @click="onSiteClick(site)"
         />
 
-        <!-- Free-roam explorer last-known positions (non-interactive) -->
+        <!-- Free-roam explorer last-known positions: clickable for the dweller popover -->
         <MapMarker
           v-for="track in freeRoamTracks"
           :key="`explorer-${track.explorationId}`"
@@ -505,11 +528,12 @@ function handleTouchEnd(event: TouchEvent) {
           :y="track.lastKnown!.coord_y"
           :name="track.dwellerName || 'Explorer'"
           type="explorer"
-          icon="mdi:walk"
+          icon="mdi:account"
           :art-src="track.dwellerThumbnailUrl ?? null"
           label="Explorer"
           :status="track.dwellerName ? `Last known — ${track.dwellerName}` : 'Last known position'"
-          :interactive="false"
+          :interactive="true"
+          @click="onExplorerClick(track, $event)"
         />
 
         <!-- Travel-direction chevrons for free-roam explorers: a small accent

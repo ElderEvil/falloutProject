@@ -14,7 +14,12 @@ export type WorldSnapshotRead = components['schemas']['WorldSnapshotRead']
 
 export interface ExplorerTrack {
   explorationId: string
+  dwellerId: string
   dwellerName: string
+  status: 'active' | 'returning'
+  health: number | null
+  radiation: number | null
+  maxHealth: number | null
   targetLocationId: string | null
   lastKnown: { coord_x: number; coord_y: number } | null
   dwellerThumbnailUrl?: string | null

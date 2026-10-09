@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, useId, watch, type CSSProperties } from 'vue'
 import { Icon } from '@iconify/vue'
-import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
+import { getStaticImageUrl, normalizeImageUrl } from '@/core/utils/image'
 import { markerTypeMeta, type MarkerType } from '../models/markerTypeMeta'
 import { isHintLocation } from '../utils/visibility'
 
@@ -15,6 +15,7 @@ interface Props {
   unseen?: boolean
   icon?: string
   artSrc?: string | null
+  color?: string | null
   label?: string
   cleared?: boolean
   exploring?: boolean
@@ -26,24 +27,25 @@ const props = withDefaults(defineProps<Props>(), {
   selected: false,
   is_unlocked: true,
   unseen: false,
+  color: null,
   cleared: false,
   exploring: false,
   interactive: true,
 })
 
 const emit = defineEmits<{
-  (e: 'click'): void
+  (e: 'click', event: Event): void
 }>()
 
 function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
-    emit('click')
+    emit('click', event)
   }
 }
 
-function handleClick() {
-  if (props.interactive) emit('click')
+function handleClick(event: MouseEvent) {
+  if (props.interactive) emit('click', event)
 }
 
 const meta = computed(() => markerTypeMeta(props.type))
@@ -56,6 +58,38 @@ const isLocked = computed(() => isHintLocation(props))
 const displayIcon = computed(() => (isLocked.value ? 'mdi:lock-question' : icon.value))
 const displayLabel = computed(() => (isLocked.value ? 'Unknown Location' : props.name))
 const shouldPulse = computed(() => isDiscovery.value && !isLocked.value && props.unseen)
+
+// Glyph size in marker user units; the backing disc is r=3.8, so this leaves a
+// ring of dark margin around every glyph. Passed to Iconify with an explicit
+// unit: a unitless nested-<svg> width is rejected by Chromium (it then
+// shrink-wraps each icon to its artwork) but honoured by Firefox.
+const GLYPH_SIZE = 5.4
+const GLYPH_SIZE_CSS = `${GLYPH_SIZE}px`
+const portraitClipId = useId()
+
+// Explorer thumbnail: normalise the backend static path and fall back to the
+// icon glyph if the image fails to load (restores DwellerPortrait's behaviour
+// after moving the glyph off <foreignObject>).
+const portraitUrl = computed(() =>
+  props.artSrc ? getStaticImageUrl(normalizeImageUrl(props.artSrc)) : null
+)
+const portraitFailed = ref(false)
+watch(portraitUrl, () => {
+  portraitFailed.value = false
+})
+const showPortrait = computed(
+  () => Boolean(portraitUrl.value) && !isLocked.value && !portraitFailed.value
+)
+
+// Colour by state, or by place group when a `color` is passed in. Applied as an
+// inline CSS colour on the glyph <g> (SVG inherits currentColor), so there is no
+// <foreignObject> and no per-state colour CSS to keep in sync.
+const glyphStyle = computed<CSSProperties>(() => {
+  if (isLocked.value) return { color: 'var(--color-gray-400)', opacity: 0.8 }
+  if (isVault.value) return { color: 'var(--color-warning)', opacity: 0.7 }
+  if (props.type === 'explorer') return { color: 'var(--color-theme-accent)' }
+  return { color: props.color ?? 'var(--color-theme-primary)' }
+})
 
 const tooltipText = computed(() => {
   const base = `${displayLabel.value} (${label.value})`
@@ -82,40 +116,47 @@ const tooltipText = computed(() => {
     @click="handleClick"
     @keydown="handleKeydown"
   >
-    <!-- Native SVG tooltip. IMPORTANT: keep the <foreignObject> a DIRECT child
-         of <g> - wrapping it in HTML elements (e.g. a tooltip <div>) collapses
-         it to 0x0 in Chromium and the marker becomes invisible. -->
     <circle class="marker-hit-area" r="6" fill="transparent" />
     <title>{{ tooltipText }}</title>
-    <!-- Dark knockout disc: keeps the icon and rings legible over any terrain -->
+    <!-- Dark knockout disc: keeps the glyph and rings legible over any terrain -->
     <circle class="marker-backing" r="3.8" />
     <circle v-if="selected" class="marker-select-ring" r="3.1" />
     <circle v-if="selected" class="marker-select-ping" r="3.1" />
     <circle v-if="exploring" class="marker-exploring-ring" r="3.1" />
-    <foreignObject x="-3.5" y="-3.5" width="7" height="7">
-      <div
-        v-bind="{ xmlns: 'http://www.w3.org/1999/xhtml' }"
-        class="marker-icon"
-        :class="{
-          'marker-discovery': shouldPulse,
-          'marker-vault': isVault,
-        }"
-      >
-        <DwellerPortrait
-          v-if="artSrc && !isLocked"
-          :image-url="artSrc"
-          :fallback-icon="displayIcon"
-          alt=""
-          image-class="h-full w-full rounded-full object-cover object-top"
-          fallback-class="h-full w-full"
-        />
-        <Icon v-else :icon="displayIcon" class="h-full w-full" />
-      </div>
-    </foreignObject>
+
+    <!-- Glyph, rendered natively in SVG (no <foreignObject>) so it lands the same
+         in every engine. Dweller thumbnails use <image> + a circular clip. -->
+    <template v-if="showPortrait">
+      <defs>
+        <clipPath :id="portraitClipId">
+          <circle r="3.1" />
+        </clipPath>
+      </defs>
+      <image
+        :href="portraitUrl ?? undefined"
+        x="-3.1"
+        y="-3.1"
+        width="6.2"
+        height="6.2"
+        :clip-path="`url(#${portraitClipId})`"
+        preserveAspectRatio="xMidYMin slice"
+        @error="portraitFailed = true"
+      />
+    </template>
+    <g
+      v-else
+      class="marker-glyph"
+      :class="{ 'marker-discovery': shouldPulse }"
+      :style="glyphStyle"
+      :transform="`translate(${-GLYPH_SIZE / 2}, ${-GLYPH_SIZE / 2})`"
+    >
+      <Icon :icon="displayIcon" :width="GLYPH_SIZE_CSS" :height="GLYPH_SIZE_CSS" />
+    </g>
+
     <!-- Cleared badge: small shield-check pinned to the marker's top-right -->
     <g v-if="cleared" class="marker-cleared-badge" aria-hidden="true">
       <circle cx="2.7" cy="-2.7" r="1.6" class="marker-cleared-badge-bg" />
-      <path d="M 2.1 -3.3 L 2.6 -2.7 L 3.4 -3.7" class="marker-cleared-badge-check" />
+      <path d="M 2.05 -2.7 L 2.5 -2.25 L 3.35 -3.15" class="marker-cleared-badge-check" />
     </g>
     <!-- Label: hidden by default, shown on hover/focus/selected via CSS -->
     <text class="marker-label" x="0" y="-3.4" text-anchor="middle" aria-hidden="true">{{
@@ -136,32 +177,26 @@ const tooltipText = computed(() => {
   pointer-events: none;
 }
 
-.map-marker:hover .marker-icon,
-.map-marker:focus-visible .marker-icon {
-  filter: drop-shadow(0 0 6px var(--color-theme-primary));
+/* Hover/focus emphasis is an SVG ring on the backing disc. */
+.map-marker:hover .marker-backing,
+.map-marker:focus-visible .marker-backing {
+  stroke: var(--color-theme-primary);
+  stroke-width: 0.35;
 }
 
+.map-marker:focus,
 .map-marker:focus-visible {
   outline: none;
-  filter: drop-shadow(0 0 4px var(--color-theme-primary));
 }
 
-.marker-icon {
-  width: 100%;
-  height: 100%;
-  padding: 9%;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-theme-primary);
-}
-
-/* Uniform dark backing behind every marker icon and ring. Slightly wider than
-   the icon box and near-opaque, so markers separate from light terrain without
-   changing the marker's own size. */
+/* Uniform dark backing behind every glyph and ring. Slightly wider than the
+   glyph, and near-opaque, so markers separate from light terrain. */
 .marker-backing {
   fill: color-mix(in srgb, var(--color-terminal-background) 90%, transparent);
+  pointer-events: none;
+}
+
+.marker-glyph {
   pointer-events: none;
 }
 
@@ -186,16 +221,6 @@ const tooltipText = computed(() => {
   transform-box: fill-box;
   transform-origin: center;
   animation: select-ping 600ms ease-out 1;
-}
-
-.marker-vault {
-  color: var(--color-warning);
-  opacity: 0.7;
-}
-
-.marker-locked .marker-icon {
-  opacity: 0.5;
-  stroke-dasharray: 4 2;
 }
 
 /* Cleared points: dimmed marker + shield-check badge in the top-right corner */
@@ -229,11 +254,6 @@ const tooltipText = computed(() => {
   animation: exploring-pulse 1.6s ease-in-out infinite;
 }
 
-/* Free-roam explorer last-known position: accent-tinted, non-interactive */
-.marker-explorer .marker-icon {
-  color: var(--color-theme-accent);
-}
-
 /* Label: hidden by default, visible on hover/focus/selected */
 .marker-label {
   fill: var(--color-theme-primary);
@@ -263,11 +283,9 @@ const tooltipText = computed(() => {
   0%,
   100% {
     opacity: 0.6;
-    transform: scale(1);
   }
   50% {
     opacity: 1;
-    transform: scale(1.15);
   }
 }
 

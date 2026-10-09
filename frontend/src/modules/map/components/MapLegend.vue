@@ -12,6 +12,16 @@ import {
 
 const legendItems = MARKER_TYPES
 
+// Color = state, glyph = group identity (mirrors MapMarker.vue's state styling).
+const MARKER_STATES = [
+  { key: 'known', label: 'Known / active' },
+  { key: 'unknown', label: 'Unknown / locked' },
+  { key: 'cleared', label: 'Cleared' },
+  { key: 'vault', label: 'Vault signal' },
+  { key: 'explorer', label: 'Explorer' },
+  { key: 'new', label: 'New discovery' },
+] as const
+
 // The legend overlays the map pane, so it stays collapsed on first view and
 // remembers its state: a revealed area under it is otherwise invisible.
 const LEGEND_COLLAPSED_KEY = 'map:legend-collapsed'
@@ -73,6 +83,12 @@ const siteGroups = computed(() => {
           <Icon :icon="item.icon" class="legend-icon" />
         </span>
         <span class="legend-label">{{ item.label }}</span>
+      </div>
+
+      <div class="legend-title legend-title-spaced">MARKER STATE</div>
+      <div v-for="state in MARKER_STATES" :key="state.key" class="legend-item">
+        <span class="legend-state-dot" :class="`legend-state-${state.key}`" />
+        <span class="legend-label">{{ state.label }}</span>
       </div>
 
       <div class="legend-title legend-title-spaced">TERRAIN</div>
@@ -185,6 +201,42 @@ const siteGroups = computed(() => {
   white-space: nowrap;
 }
 
+/* Marker state dots mirror MapMarker.vue's fill/opacity/animation so the legend
+   is a direct color key for "color = state". */
+.legend-state-dot {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 40%, transparent);
+  border-radius: 50%;
+  background: var(--color-theme-primary);
+}
+
+.legend-state-unknown {
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+
+.legend-state-cleared {
+  opacity: 0.45;
+}
+
+.legend-state-vault {
+  background: var(--color-warning);
+  border-color: color-mix(in srgb, var(--color-warning) 40%, transparent);
+}
+
+.legend-state-explorer {
+  background: var(--color-theme-accent);
+  border-color: color-mix(in srgb, var(--color-theme-accent) 40%, transparent);
+}
+
+/* An unseen discovery pulses in the primary colour on the map, so its key dot
+   pulses in step; the explorer marker (above) is a static accent. */
+.legend-state-new {
+  animation: legend-pulse 2s ease-in-out infinite;
+}
+
 .legend-vault .legend-icon {
   color: var(--color-warning);
   opacity: 0.85;
@@ -205,7 +257,8 @@ const siteGroups = computed(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .legend-unseen .legend-icon {
+  .legend-unseen .legend-icon,
+  .legend-state-new {
     animation: none;
   }
 }

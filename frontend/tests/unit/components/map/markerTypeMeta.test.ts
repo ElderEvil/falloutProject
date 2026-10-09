@@ -21,7 +21,7 @@ describe('markerTypeMeta', () => {
   it('returns icon and label for a known type', () => {
     expect(markerTypeMeta('discovery')).toEqual({
       type: 'discovery',
-      icon: 'mdi:compass',
+      icon: 'mdi:map-marker-question',
       label: 'Discovery',
     })
   })
@@ -52,7 +52,7 @@ describe('markerTypeMeta', () => {
 
   it('falls back to the generic type icon without an archetype', () => {
     const icons = new Map([['gas_station', 'mdi:gas-station']])
-    expect(locationMarkerIcon('discovery', null, icons)).toBe('mdi:compass')
-    expect(locationMarkerIcon('discovery', 'unknown_group', icons)).toBe('mdi:compass')
+    expect(locationMarkerIcon('discovery', null, icons)).toBe('mdi:map-marker-question')
+    expect(locationMarkerIcon('discovery', 'unknown_group', icons)).toBe('mdi:map-marker-question')
   })
 })

@@ -2,21 +2,19 @@ import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { Icon } from '@iconify/vue'
 import MapMarker from '@/modules/map/components/MapMarker.vue'
-import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 
 /**
- * Regression test for invisible markers on the World Map.
+ * Regression tests for invisible markers on the World Map.
  *
- * Bug: the icon lives inside an SVG <foreignObject> which was wrapped in
- * UTooltip's HTML <div>s. In Chromium, a <foreignObject> wrapped inside HTML
- * elements (a <div> between the SVG <g> and the <foreignObject>) collapses to
- * 0x0 and never renders. Markers were present in the DOM but invisible.
+ * Bug: the icon rendered inside an SVG <foreignObject> wrapped in HTML <div>s.
+ * In Chromium a <foreignObject> nested under an HTML element collapses to 0x0,
+ * so markers were present in the DOM but invisible.
  *
- * Fix: <foreignObject> must remain a DIRECT child of the <g> element (no HTML
- * wrapper in between).
+ * Fix: the glyph renders natively as a <g class="marker-glyph"> wrapping the
+ * Iconify <svg>, and dweller art as a clipped SVG <image>; no <foreignObject>.
  */
 describe('MapMarker', () => {
-  it('renders foreignObject as a direct child of <g> (no HTML div wrapper)', () => {
+  it('renders the glyph natively in SVG (no <foreignObject> wrapper)', () => {
     const wrapper = mount(MapMarker, {
       props: {
         x: 10,
@@ -32,17 +30,12 @@ describe('MapMarker', () => {
     const g = wrapper.find('g.map-marker')
     expect(g.exists()).toBe(true)
 
-    // The <g> must contain the <foreignObject> directly. An HTML <div>
-    // (e.g. from a tooltip wrapper) between them breaks Chromium rendering.
-    const directChildren = g.element.children
-    const hasHtmlDivWrapper = Array.from(directChildren).some(
-      (el) => el.tagName.toLowerCase() === 'div'
-    )
-    expect(hasHtmlDivWrapper).toBe(false)
+    // No foreignObject: the icon must stay a native SVG <svg>.
+    expect(g.find('foreignObject').exists()).toBe(false)
 
-    // The foreignObject must exist and be reachable directly under <g>
-    expect(g.find('foreignObject').exists()).toBe(true)
-    expect(g.find('foreignObject').element.parentElement).toBe(g.element)
+    const glyph = g.find('g.marker-glyph')
+    expect(glyph.exists()).toBe(true)
+    expect(glyph.findComponent(Icon).exists()).toBe(true)
   })
 
   it('renders an enlarged transparent hit area beneath the icon', () => {
@@ -62,7 +55,7 @@ describe('MapMarker', () => {
     expect(hit.attributes('fill')).toBe('transparent')
   })
 
-  it('renders a uniform dark backing disc directly beneath the icon', () => {
+  it('renders a uniform dark backing disc directly beneath the glyph', () => {
     const wrapper = mount(MapMarker, {
       props: {
         x: 10,
@@ -82,7 +75,7 @@ describe('MapMarker', () => {
 
     const children = Array.from(g.element.children)
     expect(children.indexOf(backing.element)).toBeLessThan(
-      children.indexOf(g.find('foreignObject').element)
+      children.indexOf(g.find('g.marker-glyph').element)
     )
   })
 
@@ -159,7 +152,7 @@ describe('MapMarker', () => {
       },
     })
 
-    expect(wrapper.find('.marker-icon').classes()).toContain('marker-discovery')
+    expect(wrapper.find('g.marker-glyph').classes()).toContain('marker-discovery')
   })
 
   it('stops the pulse once an unseen discovery becomes seen', async () => {
@@ -177,11 +170,11 @@ describe('MapMarker', () => {
       },
     })
 
-    expect(wrapper.find('.marker-icon').classes()).toContain('marker-discovery')
+    expect(wrapper.find('g.marker-glyph').classes()).toContain('marker-discovery')
 
     await wrapper.setProps({ unseen: false })
 
-    expect(wrapper.find('.marker-icon').classes()).not.toContain('marker-discovery')
+    expect(wrapper.find('g.marker-glyph').classes()).not.toContain('marker-discovery')
   })
 
   it('never pulses locked discoveries, even while unseen', () => {
@@ -199,7 +192,7 @@ describe('MapMarker', () => {
       },
     })
 
-    expect(wrapper.find('.marker-icon').classes()).not.toContain('marker-discovery')
+    expect(wrapper.find('g.marker-glyph').classes()).not.toContain('marker-discovery')
   })
 
   it('never pulses non-discovery types, even while unseen', () => {
@@ -217,7 +210,7 @@ describe('MapMarker', () => {
       },
     })
 
-    expect(wrapper.find('.marker-icon').classes()).not.toContain('marker-discovery')
+    expect(wrapper.find('g.marker-glyph').classes()).not.toContain('marker-discovery')
   })
 
   it('renders selection as a static ring without pulse animation', () => {
@@ -237,7 +230,7 @@ describe('MapMarker', () => {
     })
 
     expect(wrapper.find('.marker-select-ring').exists()).toBe(true)
-    expect(wrapper.find('.marker-icon').classes()).not.toContain('marker-discovery')
+    expect(wrapper.find('g.marker-glyph').classes()).not.toContain('marker-discovery')
   })
 
   it('renders no selection ring when unselected', () => {
@@ -416,8 +409,8 @@ describe('MapMarker', () => {
     })
   })
 
-  describe('Marker art (DwellerPortrait)', () => {
-    it('renders the shared DwellerPortrait with artSrc when art is present', () => {
+  describe('Marker art (portrait image)', () => {
+    it('renders a clipped SVG <image> when art is present', () => {
       const wrapper = mount(MapMarker, {
         props: {
           x: 10,
@@ -430,17 +423,35 @@ describe('MapMarker', () => {
         global: { stubs: { Icon: true } },
       })
 
-      const portrait = wrapper.findComponent(DwellerPortrait)
-      expect(portrait.exists()).toBe(true)
-      expect(portrait.props('imageUrl')).toBe('https://cdn.example/bob.png')
-      expect(portrait.props('fallbackIcon')).toBe('mdi:walk')
-      expect(portrait.find('img').attributes('src')).toBe('https://cdn.example/bob.png')
-      // Portrait classes own cover-crop + rounding (no raw <img> styling needed).
-      expect(portrait.find('img').attributes('class')).toContain('object-cover')
-      expect(portrait.find('img').attributes('class')).toContain('rounded-full')
+      const image = wrapper.find('g.map-marker image')
+      expect(image.exists()).toBe(true)
+      expect(image.attributes('href')).toBe('https://cdn.example/bob.png')
+      // A circular clip keeps the thumbnail inside the marker disc.
+      expect(image.attributes('clip-path')).toMatch(/^url\(#.+\)$/)
+      // The portrait replaces the icon glyph rather than stacking over it.
+      expect(wrapper.find('g.marker-glyph').exists()).toBe(false)
     })
 
-    it('resolves backend-static art against the API origin through the portrait', () => {
+    it('focuses the top of the portrait so thumbnails show the head', () => {
+      const wrapper = mount(MapMarker, {
+        props: {
+          x: 10,
+          y: 20,
+          name: 'Bob',
+          type: 'explorer',
+          icon: 'mdi:walk',
+          artSrc: 'https://cdn.example/bob.png',
+        },
+        global: { stubs: { Icon: true } },
+      })
+
+      // Matches DwellerPortrait's head focus; centering crops full-body portraits.
+      const image = wrapper.find('g.map-marker image').element.outerHTML
+      expect(image).toContain('xMidYMin slice')
+      expect(image).not.toContain('xMidYMid')
+    })
+
+    it('resolves backend-static art against the API origin', () => {
       const wrapper = mount(MapMarker, {
         props: {
           x: 10,
@@ -453,13 +464,12 @@ describe('MapMarker', () => {
         global: { stubs: { Icon: true } },
       })
 
-      const portrait = wrapper.findComponent(DwellerPortrait)
-      expect(portrait.find('img').attributes('src')).toBe(
+      expect(wrapper.find('g.map-marker image').attributes('href')).toBe(
         'http://localhost:8000/static/portraits/bob.png'
       )
     })
 
-    it('keeps location data-URL art working through the portrait', () => {
+    it('keeps location data-URL art working', () => {
       const wrapper = mount(MapMarker, {
         props: {
           x: 10,
@@ -471,8 +481,7 @@ describe('MapMarker', () => {
         global: { stubs: { Icon: true } },
       })
 
-      const portrait = wrapper.findComponent(DwellerPortrait)
-      expect(portrait.find('img').attributes('src')).toBe('data:image/png;base64,art')
+      expect(wrapper.find('g.map-marker image').attributes('href')).toBe('data:image/png;base64,art')
     })
 
     it('renders the marker icon when no art is present', () => {
@@ -487,7 +496,7 @@ describe('MapMarker', () => {
         global: { stubs: { Icon: true } },
       })
 
-      expect(wrapper.findComponent(DwellerPortrait).exists()).toBe(false)
+      expect(wrapper.find('g.map-marker image').exists()).toBe(false)
       expect(wrapper.findComponent(Icon).props('icon')).toBe('mdi:cave')
     })
 
@@ -504,7 +513,7 @@ describe('MapMarker', () => {
         global: { stubs: { Icon: true } },
       })
 
-      expect(wrapper.findComponent(DwellerPortrait).exists()).toBe(false)
+      expect(wrapper.find('g.map-marker image').exists()).toBe(false)
       expect(wrapper.findComponent(Icon).props('icon')).toBe('mdi:lock-question')
     })
 
@@ -521,12 +530,12 @@ describe('MapMarker', () => {
         global: { stubs: { Icon: true } },
       })
 
-      const portrait = wrapper.findComponent(DwellerPortrait)
-      await portrait.find('img').trigger('error')
+      await wrapper.find('g.map-marker image').trigger('error')
 
-      expect(portrait.find('img').exists()).toBe(false)
-      expect(portrait.find('[role="img"]').exists()).toBe(true)
-      expect(portrait.findComponent(Icon).props('icon')).toBe('mdi:walk')
+      expect(wrapper.find('g.map-marker image').exists()).toBe(false)
+      const glyph = wrapper.find('g.marker-glyph')
+      expect(glyph.exists()).toBe(true)
+      expect(glyph.findComponent(Icon).props('icon')).toBe('mdi:walk')
     })
   })
 })

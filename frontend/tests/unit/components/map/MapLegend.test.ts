@@ -65,11 +65,13 @@ describe('MapLegend', () => {
     expect(legend.attributes('aria-label')).toBe('Map legend')
   })
 
-  it('should render exactly 6 legend items', () => {
+  it('renders the 6 marker-type entries and the marker-state key', () => {
     const wrapper = mountLegend()
 
-    const items = wrapper.findAll('.legend-item')
-    expect(items).toHaveLength(6)
+    expect(wrapper.findAll('.legend-icon-wrapper')).toHaveLength(6)
+    expect(wrapper.findAll('.legend-state-dot')).toHaveLength(6)
+    expect(wrapper.text()).toContain('MARKER STATE')
+    expect(wrapper.text()).toContain('Known / active')
   })
 
   it('should render the five terrain swatches', () => {

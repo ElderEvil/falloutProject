@@ -13,7 +13,7 @@ import type {
   VaultMarkerRead,
 } from '../models/map'
 import { EXPEDITION_SITE_ICON, locationMarkerIcon } from '../models/markerTypeMeta'
-import { markerArtDataUrl } from '../utils/markerIcons'
+import { groupColor } from '../models/groupColors'
 import MapClusterMarker from './MapClusterMarker.vue'
 import MapMarker from './MapMarker.vue'
 import MapLegend from './MapLegend.vue'
@@ -40,6 +40,7 @@ interface Props {
   expeditionSites?: ExpeditionSiteMarkerRead[]
   explorerTracks?: ExplorerTrack[]
   fogDisabled?: boolean
+  groupColors?: boolean
   selectedMarkerId: string | null
 }
 
@@ -49,6 +50,7 @@ const props = withDefaults(defineProps<Props>(), {
   expeditionSites: () => [],
   explorerTracks: () => [],
   fogDisabled: false,
+  groupColors: false,
 })
 
 const emit = defineEmits<{
@@ -432,7 +434,7 @@ function handleTouchEnd(event: TouchEvent) {
           :name="loc.name"
           :type="loc.type"
           :icon="locationMarkerIcon(loc.type, loc.group_key, groupIconByKey)"
-          :art-src="markerArtDataUrl(loc.group_key)"
+          :color="groupColors ? groupColor(loc.group_key) : null"
           :is_unlocked="loc.is_unlocked"
           :unseen="mapStore.isUnseenDiscovery(loc)"
           :selected="selectedMarkerId === `loc-${loc.id}`"
@@ -490,7 +492,6 @@ function handleTouchEnd(event: TouchEvent) {
           :name="site.name"
           type="expedition_site"
           :icon="EXPEDITION_SITE_ICON"
-          :art-src="markerArtDataUrl(site.id)"
           :cleared="site.cleared"
           :status="siteStatus(site)"
           :selected="selectedMarkerId === `site-${site.id}`"
@@ -505,7 +506,7 @@ function handleTouchEnd(event: TouchEvent) {
           :y="track.lastKnown!.coord_y"
           :name="track.dwellerName || 'Explorer'"
           type="explorer"
-          icon="mdi:walk"
+          icon="mdi:account"
           :art-src="track.dwellerThumbnailUrl ?? null"
           label="Explorer"
           :status="track.dwellerName ? `Last known — ${track.dwellerName}` : 'Last known position'"

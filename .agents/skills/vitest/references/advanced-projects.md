@@ -38,7 +38,7 @@ defineConfig({
     projects: [
       // Glob patterns for config files
       'packages/*',
-      
+
       // Inline config
       {
         test: {
@@ -335,7 +335,7 @@ defineConfig({
 - Inline projects inherit root config by default (v5 `extends: true`); set `extends: false` to opt out
 - Referenced configs that declare `projects` provide nested projects (`name (child)`)
 
-<!-- 
+<!--
 Source references:
 - https://vitest.dev/guide/projects.html
 -->

@@ -60,54 +60,54 @@ defineConfig({
   test: {
     // Enable global APIs (describe, it, expect) without imports
     globals: true,
-    
+
     // Test environment: 'node', 'jsdom', 'happy-dom'
     environment: 'node',
-    
+
     // Setup files to run before each test file
     setupFiles: ['./tests/setup.ts'],
-    
+
     // Include patterns for test files
     include: ['**/*.{test,spec}.{js,ts,jsx,tsx}'],
-    
+
     // Exclude patterns
     exclude: ['**/node_modules/**', '**/dist/**'],
-    
+
     // Limit test discovery to a directory (faster than broad excludes)
     dir: './src',
 
     // Test timeout in ms
     testTimeout: 5000,
-    
+
     // Hook timeout in ms
     hookTimeout: 10000,
-    
+
     // Coverage configuration (v4+: define `include`, no more `all`)
     coverage: {
       provider: 'v8', // or 'istanbul'
       reporter: ['text', 'html'],
       include: ['src/**/*.ts'],
     },
-    
+
     // Run each file in an isolated module graph (threads/forks pools only)
     isolate: true,
-    
+
     // Pool: 'forks' (default), 'threads', 'vmForks', 'vmThreads'
     pool: 'forks',
-    
+
     // v4+: pool options are top-level (poolOptions was removed)
     maxWorkers: 4,
     fileParallelism: true,
-    
+
     // Clear mock call history before each test (v5: defaults to true)
     clearMocks: true,
-    
+
     // Restore spies created with vi.spyOn between tests
     restoreMocks: true,
-    
+
     // Retry failed tests
     retry: 0,
-    
+
     // Stop after first failure
     bail: 0,
 
@@ -209,7 +209,7 @@ defineConfig({
 - Test config uses `test` property, rest is Vite config
 - v5 requires **Vite >= 6.4.0** and **Node >= 22.12.0**; `vite` is a required peer dependency
 
-<!-- 
+<!--
 Source references:
 - https://vitest.dev/guide/#configuring-vitest
 - https://vitest.dev/config/

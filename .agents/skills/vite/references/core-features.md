@@ -196,11 +196,11 @@ if (import.meta.hot) {
   import.meta.hot.accept((newModule) => {
     // Handle update
   })
-  
+
   import.meta.hot.dispose((data) => {
     // Cleanup before module is replaced
   })
-  
+
   import.meta.hot.invalidate()  // Force full reload
 }
 ```

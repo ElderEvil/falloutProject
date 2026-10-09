@@ -113,7 +113,7 @@ Workspace packages can satisfy peer dependencies:
   }
 }
 
-// packages/components/package.json  
+// packages/components/package.json
 {
   "peerDependencies": {
     "react": "^17.0.0 || ^18.0.0"
@@ -198,4 +198,3 @@ Source references:
 - https://pnpm.io/settings#autoinstallpeers
 - https://pnpm.io/cli/peers
 -->
-

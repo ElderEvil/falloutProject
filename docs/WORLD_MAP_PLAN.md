@@ -181,12 +181,14 @@ it. The real gaps are group **coverage/fallback** and the absence of a key.
 
 | Phase | Scope | Notes |
 |---|---|---|
-| **P0** | Dev-only mockup route `/dev/map-mockup` | Decision gate: fixture data, real `WorldMap`, proposed controls + dweller popover. No production component changes; delete-or-promote after sign-off. |
-| **P1** | Icon clarity (kill the generic compass) | Unconditional `wasteland_site` fallback for ungrouped places (`utils/place_groups.effective_place_group`), a better `discovery` fallback, optional archetype art. **A minimal legend rides here** — distinct icons without a key re-create the same ambiguity. |
-| **P2** | Dwellers on map, clickable | Make live-explorer markers interactive and add the dweller popover. Optional: surface explorers server-side on `VaultMapResponse` built in `map_service` (query in CRUD) instead of the current client-side join. |
+| **P0** ✅ | Dev-only mockup route `/dev/map-mockup` | Decision gate: fixture data, real `WorldMap`, proposed controls + dweller popover. No production component changes; delete-or-promote after sign-off. |
+| **P1** ✅ | Icon clarity (kill the generic compass) | Shipped: the map wire now sends the **effective** archetype key (`map_service._group_key_for`), so an ungrouped place renders the `wasteland_site` icon instead of the generic `discovery` glyph; the `discovery` fallback icon is now `mdi:map-marker-question`. The `emergent_sites` flag still gates the archetype (narrative-only when off) rather than being removed — the earlier "unconditional" wording was wrong. Group-icon key = the legend's existing SITE TYPES section. |
+| **P2** ✅ | Dwellers on map, clickable | Shipped: live-explorer markers are interactive and open a `DwellerMarkerPopover` (portrait/status/vitals/task → dweller detail). Server-side explorer projection on `VaultMapResponse` remains an optional follow-up; the client-side join still drives it. |
 | **P3** | Site-type filter | Single-select over `place_groups`; one filter drives map + list + legend together. |
 | **P4** | Discovered/locked filter | Reuses `is_unlocked` and `utils/visibility.ts`; no new rule. |
-| **P5** | Readability & a11y polish | Marker state shape semantics, tooltip unification, keyboard/ARIA on markers, empty/loading states. |
+| **P5** ◐ | Readability & a11y polish | Done: marker focus/outline, reduced-motion, `MARKER STATE` legend. Open: marker state shape semantics, tooltip unification, empty/loading states. |
+
+**Shipped out of order:** per-group marker **colour** (listed as deferred) shipped as a persisted `Group colors` toggle on the map toolbar (palette in `frontend/src/modules/map/models/groupColors.ts`, ready to move into the catalog if it sticks). The canvas silhouette art was also retired in favour of MDI archetype icons.
 
 **Deferred:** fog UX, zoom/pan affordances, region filter, per-group colour, all-dwellers-on-map. The
 `GAME_MECHANICS.md` progression-visibility red line (toast/modal **plus** the bell) is unchanged by this work.

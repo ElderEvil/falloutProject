@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory, useRoute, useRouter } from 'vue-router'
 import { defineComponent, h, ref, watch } from 'vue'
@@ -73,10 +73,6 @@ const Parent = defineComponent({
   },
 })
 
-async function settle() {
-  await new Promise((resolve) => setTimeout(resolve, 20))
-}
-
 describe('map modal -> dweller navigation', () => {
   it('reaches the dweller route after clicking a linked dweller', async () => {
     setActivePinia(createPinia())
@@ -90,9 +86,9 @@ describe('map modal -> dweller navigation', () => {
     const modal = wrapper.findComponent(MarkerDetailModal)
     ;(modal.vm as unknown as { goToDweller: (id: string) => void }).goToDweller('d1')
 
-    await settle()
-
-    expect(router.currentRoute.value.path).toBe('/vault/v1/dwellers/d1')
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.path).toBe('/vault/v1/dwellers/d1')
+    })
   })
 
   it('drops ?place= and opens chat when a locked-location contact is clicked', async () => {
@@ -107,9 +103,9 @@ describe('map modal -> dweller navigation', () => {
     const modal = wrapper.findComponent(MarkerDetailModal)
     ;(modal.vm as unknown as { goToDwellerChat: (id: string) => void }).goToDwellerChat('d1')
 
-    await settle()
-
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query).toEqual({ chat: 'd1' })
+    })
     expect(router.currentRoute.value.path).toBe('/vault/v1/map')
-    expect(router.currentRoute.value.query).toEqual({ chat: 'd1' })
   })
 })

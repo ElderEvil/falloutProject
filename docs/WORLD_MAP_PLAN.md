@@ -161,6 +161,40 @@ need a migration.
 4. ✅ **Seed scope** — combinatorial discovery names stay emergent (not seeded).
 5. ✅ **Ordering** — resolved by events: race shipped first (v2.82.0), registry phases follow.
 
+## Map presentation & readability — P0–P5 (started 2026-10-09)
+
+**Decision (2026-10-09):** the map's next workstream is **UI/UX + readability** — "all the observability, limited
+options". Scope locked with the maintainer:
+
+- Dwellers on the map are limited to **live explorers** (position already lives on `Exploration.pos_x/pos_y`).
+- Clicking a dweller opens a **compact popover** (portrait, status, vitals, current task) that links to the full
+  dweller detail — it does not navigate away.
+- Place markers use **per-group icons**; the first control set is exactly **site-type filter + discovered/locked
+  filter**.
+
+**Root cause recorded:** the "generic compass" most markers show is the `discovery` **type** icon
+(`markerTypeMeta.MARKER_TYPES`) used when a place has no `group_key`, not a missing icon catalog.
+`backend/app/data/places/place_groups.json` already carries an `icon` per group, and the legend/list already render
+it. The real gaps are group **coverage/fallback** and the absence of a key.
+
+**Phases (one PR each; Semantic Release assigns the actual versions):**
+
+| Phase | Scope | Notes |
+|---|---|---|
+| **P0** | Dev-only mockup route `/dev/map-mockup` | Decision gate: fixture data, real `WorldMap`, proposed controls + dweller popover. No production component changes; delete-or-promote after sign-off. |
+| **P1** | Icon clarity (kill the generic compass) | Unconditional `wasteland_site` fallback for ungrouped places (`utils/place_groups.effective_place_group`), a better `discovery` fallback, optional archetype art. **A minimal legend rides here** — distinct icons without a key re-create the same ambiguity. |
+| **P2** | Dwellers on map, clickable | Make live-explorer markers interactive and add the dweller popover. Optional: surface explorers server-side on `VaultMapResponse` built in `map_service` (query in CRUD) instead of the current client-side join. |
+| **P3** | Site-type filter | Single-select over `place_groups`; one filter drives map + list + legend together. |
+| **P4** | Discovered/locked filter | Reuses `is_unlocked` and `utils/visibility.ts`; no new rule. |
+| **P5** | Readability & a11y polish | Marker state shape semantics, tooltip unification, keyboard/ARIA on markers, empty/loading states. |
+
+**Deferred:** fog UX, zoom/pan affordances, region filter, per-group colour, all-dwellers-on-map. The
+`GAME_MECHANICS.md` progression-visibility red line (toast/modal **plus** the bell) is unchanged by this work.
+
+**Constraints unchanged:** no group enum (`group_key` stays a data string); no DB migration for icon/metadata work;
+`place_groups.json` + `PlaceGroupRead` stay the single icon source; the map domain keeps its layered
+models → schemas → CRUD → service → thin-router shape.
+
 ## Deferred multiplayer phases (parked)
 
 Raiding and the social/multiplayer **state** layers remain deferred. The registry they would depend on (formerly

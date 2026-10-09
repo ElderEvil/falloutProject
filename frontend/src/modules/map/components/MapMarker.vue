@@ -139,7 +139,7 @@ const tooltipText = computed(() => {
         width="6.2"
         height="6.2"
         :clip-path="`url(#${portraitClipId})`"
-        preserveAspectRatio="xMidYMid slice"
+        preserveAspectRatio="xMidYMin slice"
         @error="portraitFailed = true"
       />
     </template>

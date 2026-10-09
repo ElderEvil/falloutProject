@@ -432,6 +432,25 @@ describe('MapMarker', () => {
       expect(wrapper.find('g.marker-glyph').exists()).toBe(false)
     })
 
+    it('focuses the top of the portrait so thumbnails show the head', () => {
+      const wrapper = mount(MapMarker, {
+        props: {
+          x: 10,
+          y: 20,
+          name: 'Bob',
+          type: 'explorer',
+          icon: 'mdi:walk',
+          artSrc: 'https://cdn.example/bob.png',
+        },
+        global: { stubs: { Icon: true } },
+      })
+
+      // Matches DwellerPortrait's head focus; centering crops full-body portraits.
+      const image = wrapper.find('g.map-marker image').element.outerHTML
+      expect(image).toContain('xMidYMin slice')
+      expect(image).not.toContain('xMidYMid')
+    })
+
     it('resolves backend-static art against the API origin', () => {
       const wrapper = mount(MapMarker, {
         props: {

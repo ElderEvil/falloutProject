@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { Badge } from '@/core/components/ui/badge'
@@ -182,6 +182,9 @@ const lootTableLabel = computed(() => clearState.value?.loot_table ?? '')
 // Send-team state for the in-modal dispatch section. Dispatch mode passes the
 // already-filtered candidates straight in (no eligibility fetch) and opens from
 // an empty party each time the modal lands on a location.
+// Suggested loadout: pre-fill 5/5 (clamped to vault stock) so sending a team is
+// one click, not a slider chore.
+const DISPATCH_SUPPLY_SUGGESTION = { stimpaks: 5, radaways: 5 }
 const {
   selectedDwellerIds,
   selectedStimpaks,
@@ -200,6 +203,7 @@ const {
   maxPartySize: () => props.maxPartySize,
   maxStimpaks: () => props.maxStimpaks,
   maxRadaways: () => props.maxRadaways,
+  supplySuggestion: () => DISPATCH_SUPPLY_SUGGESTION,
 })
 
 // The section and its footer confirm appear exactly where the old Dispatch
@@ -271,17 +275,27 @@ const modalTitle = computed(() => {
   return placeName.value
 })
 
-function goToDweller(dwellerId: string) {
+async function goToDweller(dwellerId: string) {
+  // Close, then let MapView's `?place=` cleanup (a router.replace triggered by the
+  // close) run before navigating: issuing the push in the same tick lets that
+  // replace cancel it, stranding the user on the map.
   isOpen.value = false
-  router.push(`/vault/${vaultId.value}/dwellers/${dwellerId}`)
+  await nextTick()
+  await router.push(`/vault/${vaultId.value}/dwellers/${dwellerId}`)
 }
 
-function goToDwellerChat(dwellerId: string) {
+async function goToDwellerChat(dwellerId: string) {
   // Chat opens as a global modal on the map route via `?chat=<id>`. The marker
   // modal closes first so the two dialogs do not stack and fight for focus; the
   // map view itself stays mounted underneath, so no marker state is lost.
+  // Wait out the close-triggered `?place=` cleanup, then drop `place` explicitly:
+  // a stale query would reopen the marker modal behind the chat dialog.
   isOpen.value = false
-  router.push({ query: { ...route.query, chat: dwellerId } })
+  await nextTick()
+  const query = { ...route.query }
+  delete query.place
+  query.chat = dwellerId
+  await router.push({ query })
 }
 
 function dwellerDisplayName(first: string, last: string | null) {

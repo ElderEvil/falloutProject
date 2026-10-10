@@ -84,6 +84,10 @@ class CRUDTeam(CRUDBase[Team, None, None]):
         result = await db_session.execute(statement)
         return result.scalars().one_or_none()
 
+    async def get_exploration_team_members(self, db_session: AsyncSession, exploration_id: UUID4) -> list[TeamMember]:
+        """All members of an exploration dispatch party, dweller eager-loaded, slot-ordered."""
+        return self._members(await self.get_exploration_team(db_session, exploration_id))
+
     async def get_exploration_team_dwellers(self, db_session: AsyncSession, exploration_id: UUID4) -> list[Dweller]:
         """The dispatch party's Dweller rows, weapon/outfit eager-loaded, in slot order."""
         team = await self.get_exploration_team(db_session, exploration_id)

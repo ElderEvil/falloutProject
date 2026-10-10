@@ -107,6 +107,7 @@ const loadData = async () => {
 
   try {
     await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
+    await explorationStore.fetchPartiesForActiveExplorations(vaultId.value)
     await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
     await questStore.fetchVaultQuests(vaultId.value)
     await questStore.fetchPartiesForActiveQuests(vaultId.value)
@@ -165,6 +166,7 @@ const pollExplorations = async () => {
 
   try {
     await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
+    await explorationStore.fetchPartiesForActiveExplorations(vaultId.value)
     await questStore.fetchVaultQuests(vaultId.value, { silent: true })
     await questStore.fetchPartiesForActiveQuests(vaultId.value)
   } catch (error) {
@@ -196,6 +198,23 @@ const getPartyMembersForQuest = (questId: string) => {
     .map((p) => dwellerStore.dwellers.find((d) => d.id === p.dweller_id))
     .filter((d): d is NonNullable<typeof d> => d !== undefined)
 }
+
+const getPartyMembersForExploration = (explorationId: string) => {
+  const party = explorationStore.explorationPartyMap[explorationId]
+  if (!party) return []
+  return party
+    .map((p) => dwellerStore.dwellers.find((d) => d.id === p.dweller_id))
+    .filter((d): d is NonNullable<typeof d> => d !== undefined)
+}
+
+// Active explorers counts dwellers across runs: a dispatch contributes its whole
+// party, a free-roam run (no team) contributes its single anchor.
+const activeExplorerCount = computed(() =>
+  activeExplorationsArray.value.reduce((total, exploration) => {
+    const party = explorationStore.explorationPartyMap[exploration.id]
+    return total + Math.max(party?.length ?? 0, 1)
+  }, 0)
+)
 
 // Travelling parties stay visible on Exploration until they arrive home.
 const activeQuestsWithParty = computed(() => {
@@ -258,7 +277,7 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
           <template #actions>
             <PageHeaderMetric
               icon="mdi:account-arrow-right"
-              :value="activeExplorationsArray.length"
+              :value="activeExplorerCount"
               label="Active explorers"
             />
           </template>
@@ -314,6 +333,7 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
                     :key="exploration.id"
                     :exploration="exploration"
                     :dweller="getDetailedDweller(exploration.dweller_id) ?? undefined"
+                    :party-members="getPartyMembersForExploration(exploration.id)"
                     :selected="selectedExplorerId === exploration.id"
                     @select="selectedExplorerId = exploration.id"
                     @complete="handleCompleteExploration"

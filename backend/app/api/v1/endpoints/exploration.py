@@ -6,10 +6,11 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app import crud
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403, verify_exploration_access
-from app.crud import exploration as crud_exploration
 from app.db.session import get_async_session
 from app.models.exploration import Exploration
+from app.models.team import TeamMember
 from app.schemas.expedition import (
     AvailableSiteView,
     ExpeditionEnterRequest,
@@ -19,6 +20,7 @@ from app.schemas.expedition import (
 from app.schemas.exploration import (
     ExpeditionDispatchRequest,
     ExplorationCompleteResponse,
+    ExplorationPartyMemberRead,
     ExplorationProgress,
     ExplorationRead,
     ExplorationReadShort,
@@ -30,9 +32,28 @@ from app.schemas.overflow import OverflowActionRequest, OverflowActionResponse
 from app.services.exploration.expedition import expedition_service
 from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
-from app.utils.exceptions import ValidationException
+from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 router = APIRouter(prefix="/explorations", tags=["Exploration"])
+
+
+def _to_exploration_party_member_read(
+    member: TeamMember, exploration_id: UUID4, vault_id: UUID4
+) -> ExplorationPartyMemberRead:
+    """Map a dispatch team member into the exploration wire contract (exploration/vault come from the run)."""
+    slot_number = member.slot_number
+    if slot_number is None:
+        raise ValidationException("Exploration team member is missing a slot number")
+    return ExplorationPartyMemberRead(
+        id=member.id,
+        exploration_id=exploration_id,
+        vault_id=vault_id,
+        dweller_id=member.dweller_id,
+        slot_number=slot_number,
+        status=member.status,
+        created_at=member.created_at.isoformat() if member.created_at else None,
+        updated_at=member.updated_at.isoformat() if member.updated_at else None,
+    )
 
 
 @router.post("/send", response_model=ExplorationRead)
@@ -119,11 +140,34 @@ async def list_explorations_by_vault(
         list[ExplorationReadShort]: List of explorations.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud_exploration.get_by_vault(
+    return await crud.exploration.get_by_vault(
         db_session,
         vault_id=vault_id,
         active_only=active_only,
     )
+
+
+@router.get("/vault/{vault_id}/{exploration_id}/party", response_model=list[ExplorationPartyMemberRead])
+async def get_exploration_party(
+    vault_id: UUID4,
+    exploration_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> list[ExplorationPartyMemberRead]:
+    """Get the dispatch party assigned to an exploration (empty for a free-roam run).
+
+    Returns:
+        list[ExplorationPartyMemberRead]: Party members in slot order.
+
+    Raises:
+        ResourceNotFoundException: If the exploration is unknown or belongs to another vault.
+    """
+    await get_user_vault_or_403(vault_id, user, db_session)
+    exploration = await crud.exploration.get(db_session, exploration_id)
+    if exploration.vault_id != vault_id:
+        raise ResourceNotFoundException(Exploration, identifier=exploration_id)
+    members = await crud.team_crud.get_exploration_team_members(db_session, exploration_id)
+    return [_to_exploration_party_member_read(member, exploration_id, vault_id) for member in members]
 
 
 @router.get("/vault/{vault_id}/pending-overflow", response_model=list[PendingOverflowRead])
@@ -149,7 +193,7 @@ async def get_exploration(
         ExplorationRead: Exploration details.
     """
     await verify_exploration_access(exploration_id, user, db_session)
-    return await crud_exploration.get(db_session, exploration_id)
+    return await crud.exploration.get(db_session, exploration_id)
 
 
 @router.get("/{exploration_id}/progress", response_model=ExplorationProgress)

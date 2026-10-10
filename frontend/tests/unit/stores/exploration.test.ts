@@ -14,6 +14,7 @@ vi.mock('@/core/plugins/axios')
 vi.mock('@/modules/exploration/api/exploration', () => ({
   explorationApi: {
     dispatchToLocation: vi.fn(),
+    getExplorationParty: vi.fn(),
   },
 }))
 vi.mock('@/modules/exploration/composables/usePendingReports', () => ({
@@ -866,6 +867,47 @@ describe('Exploration Store', () => {
       await nextTick()
 
       expect(mockDwellerFilter.fetchDwellerDetails).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('fetchPartiesForActiveExplorations Action', () => {
+    it('collects one roster per active run and retains empty dispatch parties', async () => {
+      const store = useExplorationStore()
+      store.activeExplorations = {
+        'exploration-1': { ...mockExploration },
+        'exploration-2': { ...mockExploration, id: 'exploration-2' },
+      }
+      vi.mocked(explorationApi.getExplorationParty)
+        .mockResolvedValueOnce([
+          {
+            id: 'member-1',
+            exploration_id: 'exploration-1',
+            vault_id: 'vault-1',
+            dweller_id: 'dweller-1',
+            slot_number: 1,
+            status: 'assigned',
+            created_at: null,
+            updated_at: null,
+          },
+        ])
+        .mockResolvedValueOnce([])
+
+      await store.fetchPartiesForActiveExplorations('vault-1')
+
+      expect(explorationApi.getExplorationParty).toHaveBeenCalledWith('vault-1', 'exploration-1')
+      expect(explorationApi.getExplorationParty).toHaveBeenCalledWith('vault-1', 'exploration-2')
+      expect(store.explorationPartyMap['exploration-1']).toHaveLength(1)
+      expect(store.explorationPartyMap['exploration-2']).toEqual([])
+    })
+
+    it('falls back to an empty roster when a party fetch fails', async () => {
+      const store = useExplorationStore()
+      store.activeExplorations = { 'exploration-1': { ...mockExploration } }
+      vi.mocked(explorationApi.getExplorationParty).mockRejectedValueOnce(new Error('network'))
+
+      await store.fetchPartiesForActiveExplorations('vault-1')
+
+      expect(store.explorationPartyMap).toEqual({ 'exploration-1': [] })
     })
   })
 })

@@ -4,6 +4,8 @@ import { flushPromises, mount, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ExplorationView from '@/modules/exploration/views/ExplorationView.vue'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
+import type { Exploration } from '@/modules/exploration/stores/exploration'
+import type { ExplorationPartyMember } from '@/modules/exploration/api/exploration'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -82,6 +84,48 @@ const partyMember = {
   updated_at: '2025-01-01',
 }
 
+const activeRun = (id: string, dwellerId: string): Exploration =>
+  ({
+    id,
+    vault_id: 'vault-123',
+    dweller_id: dwellerId,
+    status: 'active',
+    duration: 4,
+    start_time: '2025-01-02T00:00:00Z',
+    end_time: null,
+    events: [],
+    loot_collected: [],
+    total_distance: 0,
+    total_caps_found: 0,
+    enemies_encountered: 0,
+    created_at: '2025-01-01',
+    updated_at: '2025-01-01',
+    dweller_strength: 1,
+    dweller_perception: 1,
+    dweller_endurance: 1,
+    dweller_charisma: 1,
+    dweller_intelligence: 1,
+    dweller_agility: 1,
+    dweller_luck: 1,
+    stimpaks: 0,
+    radaways: 0,
+  }) as Exploration
+
+const explorationPartyMember = (
+  id: string,
+  dwellerId: string,
+  slot: number
+): ExplorationPartyMember => ({
+  id,
+  exploration_id: 'exploration-party',
+  vault_id: 'vault-123',
+  dweller_id: dwellerId,
+  slot_number: slot,
+  status: 'assigned',
+  created_at: null,
+  updated_at: null,
+})
+
 describe('ExplorationView', () => {
   let wrapper: VueWrapper
   let explorationStore: ReturnType<typeof useExplorationStore>
@@ -100,6 +144,7 @@ describe('ExplorationView', () => {
 
     // Keep onMounted off the network.
     vi.spyOn(explorationStore, 'fetchExplorationsByVault').mockResolvedValue([])
+    vi.spyOn(explorationStore, 'fetchPartiesForActiveExplorations').mockResolvedValue()
     vi.spyOn(explorationStore, 'fetchPendingOverflow').mockResolvedValue([])
     vi.spyOn(explorationStore, 'startSseSubscription').mockImplementation(() => {})
     vi.spyOn(explorationStore, 'stopSseSubscription').mockImplementation(() => {})
@@ -171,5 +216,47 @@ describe('ExplorationView', () => {
 
     wrapper.unmount()
     expect(soundMock.playMusic).toHaveBeenCalledWith('vaultAmbient')
+  })
+
+  it('passes dispatch party members to the card and counts dwellers across active runs', async () => {
+    explorationStore.activeExplorations = {
+      'exploration-party': activeRun('exploration-party', 'dweller-1'),
+      'exploration-solo': activeRun('exploration-solo', 'dweller-3'),
+    }
+    explorationStore.explorationPartyMap = {
+      'exploration-party': [
+        explorationPartyMember('p-1', 'dweller-1', 1),
+        explorationPartyMember('p-2', 'dweller-2', 2),
+      ],
+      'exploration-solo': [],
+    }
+    dwellerStore.dwellers = [
+      { id: 'dweller-1', first_name: 'Lucy', last_name: 'MacLean', level: 5 },
+      { id: 'dweller-2', first_name: 'Carla', last_name: 'Vault', level: 4 },
+      { id: 'dweller-3', first_name: 'Bea', last_name: 'Vault', level: 3 },
+    ]
+
+    wrapper = mount(ExplorationView, {
+      global: {
+        stubs: {
+          SidePanel: true,
+          QuestPartyCard: true,
+          ExplorationRewardsModal: true,
+          ExplorerCard: {
+            name: 'ExplorerCard',
+            template:
+              '<div class="explorer-card-stub" :data-exploration-id="exploration.id" :data-party-count="partyMembers?.length ?? 0" />',
+            props: ['exploration', 'dweller', 'partyMembers', 'selected'],
+            emits: ['select', 'complete', 'recall'],
+          },
+        },
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('.page-header-metric-value').text()).toBe('3')
+    expect(
+      wrapper.find('[data-exploration-id="exploration-party"]').attributes('data-party-count')
+    ).toBe('2')
   })
 })

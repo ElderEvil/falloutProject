@@ -8,7 +8,11 @@ import { addPendingReport } from '../composables/usePendingReports'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { explorationUpdatesDisabled } from '@/modules/profile/stores/profile'
-import { explorationApi, type ExplorationSendRequest } from '../api/exploration'
+import {
+  explorationApi,
+  type ExplorationPartyMember,
+  type ExplorationSendRequest,
+} from '../api/exploration'
 import type { ExplorationEventType } from '@/modules/exploration/models/exploration'
 
 export interface ExplorationEvent {
@@ -123,6 +127,7 @@ export const useExplorationStore = defineStore('exploration', () => {
 
   const explorations = ref<Exploration[]>([])
   const activeExplorations = ref<Record<string, Exploration>>({})
+  const explorationPartyMap = ref<Record<string, ExplorationPartyMember[]>>({})
   const lastRewards = ref<RewardsSummary | null>(null)
   const pendingSseRewards = ref<{
     rewards: RewardsSummary
@@ -409,6 +414,27 @@ export const useExplorationStore = defineStore('exploration', () => {
     }
   }
 
+  async function fetchPartiesForActiveExplorations(vaultId: string): Promise<void> {
+    const activeRuns = Object.values(activeExplorations.value)
+    const nextPartyMap: Record<string, ExplorationPartyMember[]> = {}
+    for (const exploration of activeRuns) {
+      try {
+        nextPartyMap[exploration.id] = await explorationApi.getExplorationParty(
+          vaultId,
+          exploration.id
+        )
+      } catch (err) {
+        handleStoreError(
+          err,
+          `Failed to fetch party for exploration ${exploration.id} in vault ${vaultId}`,
+          false
+        )
+        nextPartyMap[exploration.id] = []
+      }
+    }
+    explorationPartyMap.value = nextPartyMap
+  }
+
   async function fetchExplorationDetails(
     explorationId: string,
     token: string
@@ -542,6 +568,7 @@ export const useExplorationStore = defineStore('exploration', () => {
     // State
     explorations,
     activeExplorations,
+    explorationPartyMap,
     lastRewards,
     pendingSseRewards,
     isLoading,
@@ -553,6 +580,7 @@ export const useExplorationStore = defineStore('exploration', () => {
     sendDwellerToWasteland,
     dispatchToLocation,
     fetchExplorationsByVault,
+    fetchPartiesForActiveExplorations,
     fetchExplorationDetails,
     fetchExplorationProgress,
     recallDweller,

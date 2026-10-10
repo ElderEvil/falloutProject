@@ -168,14 +168,14 @@ jobs:
             state="/tmp/fallout-deploy-${{ github.run_id }}-${{ github.run_attempt }}.replicas"
             umask 077
             kubectl -n fallout get deployment backend dramatiq-worker -o json \
-              | jq -r '.items[] | [.metadata.name, (.spec.replicas // 1)] | @tsv' > "$state"
+              | python3 -c 'import json,sys; [print(x["metadata"]["name"], x["spec"].get("replicas", 1), sep="\t") for x in json.load(sys.stdin)["items"]]' > "$state"
             database=$(kubectl -n fallout exec deployment/backend -- python3 -c \
               'from app.core.config import settings; print(settings.POSTGRES_DB)')
             selector=$(kubectl -n fallout get service postgres-service -o json \
-              | jq -r '.spec.selector | to_entries | map("\(.key)=\(.value)") | join(",")')
+              | python3 -c 'import json,sys; print(",".join(k+"="+v for k,v in json.load(sys.stdin)["spec"]["selector"].items()))')
             test -n "$selector"
             postgres=$(kubectl -n fallout get pods -l "$selector" -o json \
-              | jq -r '.items[] | select(.status.phase == "Running") | .metadata.name' | head -n 1)
+              | python3 -c 'import json,sys; print(next(x["metadata"]["name"] for x in json.load(sys.stdin)["items"] if x["status"]["phase"] == "Running"))')
             test -n "$postgres"
             trap 'failure_status=$?; trap - ERR; while read -r workload replicas; do
               kubectl -n fallout scale "deployment/$workload" --replicas="$replicas"
@@ -183,7 +183,7 @@ jobs:
             kubectl -n fallout scale deployment/backend deployment/dramatiq-worker --replicas=0
             for workload in backend dramatiq-worker; do
               selector=$(kubectl -n fallout get deployment "$workload" -o json \
-                | jq -r '.spec.selector.matchLabels | to_entries | map("\(.key)=\(.value)") | join(",")')
+                | python3 -c 'import json,sys; print(",".join(k+"="+v for k,v in json.load(sys.stdin)["spec"]["selector"]["matchLabels"].items()))')
               pods=$(kubectl -n fallout get pods -l "$selector" -o name)
               if [ -n "$pods" ]; then
                 while read -r pod; do
@@ -208,17 +208,23 @@ jobs:
             set -euo pipefail
             job="fallout-migrate-${{ github.run_id }}-${{ github.run_attempt }}"
             kubectl -n fallout get deployment backend -o json \
-              | jq --arg name "$job" \
-                  --arg image '${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ inputs.image_tag }}' '
-                {apiVersion: "batch/v1", kind: "Job", metadata: {name: $name, namespace: "fallout"},
-                 spec: {backoffLimit: 0, activeDeadlineSeconds: 300, ttlSecondsAfterFinished: 86400,
-                   template: {metadata: {labels: {app: "fallout-migration"}}, spec: .spec.template.spec}}}
-                | .spec.template.spec.restartPolicy = "Never"
-                | .spec.template.spec.containers = [.spec.template.spec.containers[]
-                    | select(.name == "backend") | .image = $image
-                    | .command = ["sh", "-c", "uv run alembic current && uv run alembic upgrade head && uv run alembic current --check-heads"]
-                    | del(.args, .ports, .livenessProbe, .readinessProbe, .startupProbe)]
-              ' | kubectl apply -f -
+              | python3 -c '
+          import json, sys
+          deployment = json.load(sys.stdin)
+          pod = deployment["spec"]["template"]["spec"]
+          pod["restartPolicy"] = "Never"
+          pod["initContainers"] = [c for c in pod.get("initContainers", []) if c["name"] == "wait-for-db"]
+          container = next(c for c in pod["containers"] if c["name"] == "backend")
+          container["image"] = sys.argv[2]
+          container["command"] = ["sh", "-c", "uv run alembic current && uv run alembic upgrade head && uv run alembic current --check-heads"]
+          for key in ("args", "ports", "livenessProbe", "readinessProbe", "startupProbe"):
+              container.pop(key, None)
+          pod["containers"] = [container]
+          print(json.dumps({"apiVersion": "batch/v1", "kind": "Job",
+              "metadata": {"name": sys.argv[1], "namespace": "fallout"},
+              "spec": {"backoffLimit": 0, "activeDeadlineSeconds": 300, "ttlSecondsAfterFinished": 86400,
+                  "template": {"metadata": {"labels": {"app": "fallout-migration"}}, "spec": pod}}}))
+          ' "$job" '${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ inputs.image_tag }}' | kubectl apply -f -
             if ! kubectl -n fallout wait --for=condition=complete "job/$job" --timeout=330s; then
               kubectl -n fallout logs "job/$job" || true
               exit 1
@@ -234,6 +240,10 @@ jobs:
             set -e
             kubectl set image deployment/backend -n fallout \
               backend=${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ inputs.image_tag }}
+            if kubectl -n fallout get deployment backend -o jsonpath='{.spec.template.spec.initContainers[*].name}' | grep -qw run-migrations; then
+              kubectl set image deployment/backend -n fallout \
+                run-migrations=${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ inputs.image_tag }}
+            fi
             kubectl set image deployment/dramatiq-worker -n fallout \
               dramatiq-worker=${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ inputs.image_tag }}
             kubectl set image deployment/frontend -n fallout \

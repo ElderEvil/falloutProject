@@ -80,9 +80,10 @@ async def _run_incident_tick(chain_token: str | None) -> tuple[str | None, dict[
     """Claim the tick chain, then process one round of incident combat.
 
     Returns ``(next_chain_token, stats)``, or ``(None, None)`` when the chain
-    lease was lost to another worker (the periodiq watchdog will re-seed it).
-    A processing failure logs the error but still returns the claimed token,
-    so the chain keeps self-scheduling instead of stalling until lease expiry.
+    lease was lost to another worker (the periodiq watchdog will re-seed it,
+    taking over a stale lease once its heartbeat expires). A processing failure
+    logs the error but still returns the claimed token, so the chain keeps
+    self-scheduling instead of stalling until lease expiry.
     """
     from redis.asyncio import Redis
 
@@ -113,8 +114,10 @@ def incident_tick(chain_token: str | None = None):
     """Fast incident tick - processes combat for every vault's active incidents.
 
     Self-reschedules every ``incident_tick_seconds`` (independent of the 60s
-    game tick) so incident combat gives live feedback. A Redis lease makes the
-    periodiq cron below a low-frequency watchdog instead of a second tick chain.
+    game tick) so incident combat gives live feedback. A Redis lease plus a
+    short-TTL heartbeat lets the periodiq cron below act as a watchdog that
+    re-seeds the chain when it dies and takes over a stale lease once its
+    heartbeat expires, instead of waiting out the lease TTL.
     """
     next_chain_token = None
     try:
@@ -126,9 +129,11 @@ def incident_tick(chain_token: str | None = None):
             logger.info(f"Incident tick completed: {stats}")
     finally:
         if next_chain_token is not None:
+            delay_ms = game_config.game_loop.incident_tick_seconds * 1000
+            logger.debug("Rescheduling incident_tick in %d ms", delay_ms)
             incident_tick.send_with_options(
                 args=(next_chain_token,),
-                delay=game_config.game_loop.incident_tick_seconds * 1000,
+                delay=delay_ms,
             )
 
 

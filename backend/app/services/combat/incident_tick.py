@@ -58,6 +58,12 @@ async def process_vault_incidents(
         if game_state and not game_state.is_user_online():
             return stats
 
+        # Capacity shortages can outlive a fight; retry independently of active incidents.
+        from app.services.hazard_team_service import hazard_team_service
+
+        for finished in await incident_crud.get_pending_responder_returns(db_session, vault_id):
+            await hazard_team_service.return_dispatched_responders(db_session, finished)
+
         if await service.should_spawn_incident(db_session, vault_id, seconds_passed, game_state):
             new_incident = await service.spawn_incident(db_session, vault_id)
             if new_incident:
@@ -84,6 +90,10 @@ async def process_vault_incidents(
                 if incident.status.value in ("resolved", "failed"):
                     stats["resolved"] += 1
                     logger.info(f"Incident {incident.id} auto-resolved with status {incident.status}")
+                    # Put any auto-dispatched hazard-team responders back to work.
+                    returned = await hazard_team_service.return_dispatched_responders(db_session, incident)
+                    if returned:
+                        await db_session.commit()
 
             except (SQLAlchemyError, ValueError, RuntimeError) as e:
                 notification_service.discard_deferred_notifications(db_session)

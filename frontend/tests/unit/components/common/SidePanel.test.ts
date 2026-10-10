@@ -111,9 +111,12 @@ describe('SidePanel', () => {
       const wrapper = mountPanel()
       const links = wrapper.findAll('a.nav-item')
 
-      expect(links).toHaveLength(10)
+      expect(links).toHaveLength(11)
       expect(linkByLabel(links, 'Overview').attributes('href')).toBe('/vault/vault-1')
       expect(linkByLabel(links, 'Dwellers').attributes('href')).toBe('/vault/vault-1/dwellers')
+      expect(linkByLabel(links, 'Response Teams').attributes('href')).toBe(
+        '/vault/vault-1/response-teams'
+      )
       expect(linkByLabel(links, 'Trading Post').attributes('href')).toBe('/vault/vault-1/trading')
     })
 
@@ -258,7 +261,7 @@ describe('SidePanel', () => {
       await nextTick()
       await toggle.trigger('click')
 
-      expect(wrapper.findAll('a.nav-item .nav-label')).toHaveLength(10)
+      expect(wrapper.findAll('a.nav-item .nav-label')).toHaveLength(11)
       expect(wrapper.find('.locked-label').text()).toBe('Achievements')
       expect(wrapper.find('.nav-divider').exists()).toBe(true)
       expect(wrapper.find('.wip-badge').exists()).toBe(true)

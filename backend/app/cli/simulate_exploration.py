@@ -18,10 +18,24 @@ from __future__ import annotations
 
 import dataclasses
 import random
-import statistics
 from typing import Annotated, Any
 
 import typer
+
+from app.cli.simulate_common import (
+    CurvesMixin,
+    banner,
+    fmt_stats,
+    print_hourly_curves,
+    run_simulate_command,
+    stats,
+)
+from app.cli.simulate_common import (
+    print_sweep_report as shared_print_sweep_report,
+)
+from app.cli.simulate_common import (
+    run_parameter_sweep as shared_run_parameter_sweep,
+)
 
 DEFAULT_TICK_INTERVAL = 60
 DEFAULT_EVENT_INTERVAL = 600
@@ -626,7 +640,7 @@ class _Aggregates:
 
 
 @dataclasses.dataclass
-class _Curves:
+class _Curves(CurvesMixin):
     cumulative: list[float] = dataclasses.field(default_factory=list)
     total_map: list[float] = dataclasses.field(default_factory=list)
     pop: list[float] = dataclasses.field(default_factory=list)
@@ -636,10 +650,6 @@ class _Curves:
     food: list[float] = dataclasses.field(default_factory=list)
     water: list[float] = dataclasses.field(default_factory=list)
     happiness: list[float] = dataclasses.field(default_factory=list)
-
-    @classmethod
-    def zeroed(cls, hours: int) -> _Curves:
-        return cls(**{k: [0.0] * hours for k in dataclasses.asdict(cls())})
 
     def add_result(self, result: SimulationResult, hours: int) -> None:
         for h in range(hours):
@@ -652,12 +662,6 @@ class _Curves:
             self.food[h] += result.food_by_hour[h]
             self.water[h] += result.water_by_hour[h]
             self.happiness[h] += result.happiness_by_hour[h]
-
-    def divide(self, divisor: int) -> None:
-        for k in dataclasses.asdict(self):
-            arr = getattr(self, k)
-            for i in range(len(arr)):
-                arr[i] /= divisor
 
 
 @dataclasses.dataclass
@@ -680,16 +684,6 @@ class _MilestoneLists:
         self.total_map_4h.append(result.total_map_points_at_4h)
         self.total_map_24h.append(result.total_map_points_at_24h)
         self.total_map_72h.append(result.total_map_points_at_72h)
-
-
-def stats(values: list[int] | list[float]) -> dict[str, float]:
-    return {
-        "mean": statistics.mean(values),
-        "median": statistics.median(values),
-        "stdev": statistics.stdev(values) if len(values) > 1 else 0.0,
-        "min": min(values),
-        "max": max(values),
-    }
 
 
 def run_monte_carlo(config: ExplorationConfig, simulation_hours: int, runs: int) -> BatchResult:
@@ -760,29 +754,14 @@ SWEEP_RANGES: dict[str, list[Any]] = {
 def run_parameter_sweep(
     param_name: str, baseline: ExplorationConfig, simulation_hours: int, runs: int
 ) -> list[BatchResult]:
-    results: list[BatchResult] = []
-    values = SWEEP_RANGES.get(param_name, [])
-    if not values:
-        print(f"Unknown parameter '{param_name}'. Available: {list(SWEEP_RANGES.keys())}")
-        return results
-
-    for value in values:
-        cfg = dataclasses.replace(baseline, **{param_name: value})
-        result = run_monte_carlo(cfg, simulation_hours, runs)
-        results.append(result)
-    return results
-
-
-TERMINAL_WIDTH = 72
-
-
-def banner(text: str) -> str:
-    pad = (TERMINAL_WIDTH - len(text) - 4) // 2
-    return "=" * pad + f"  {text}  " + "=" * pad
-
-
-def fmt_stats(st: dict[str, float]) -> str:
-    return f"mean={st['mean']:.1f}  median={st['median']:.1f}  std={st['stdev']:.1f}  range=[{st['min']}, {st['max']}]"
+    return shared_run_parameter_sweep(
+        param_name,
+        baseline,
+        simulation_hours,
+        runs,
+        sweep_ranges=SWEEP_RANGES,
+        run_monte_carlo=run_monte_carlo,
+    )
 
 
 def _print_params(cfg: ExplorationConfig) -> None:
@@ -857,21 +836,7 @@ def _print_milestones(batch: BatchResult, hours: int) -> None:
 
 
 def _print_hourly_curves(batch: BatchResult, hours: int) -> None:
-    if hours > 24:
-        return
-    print("Hourly curves (average per run):")
-    print("  hour | POP | DEATHS | INCIDENTS | POWER | FOOD | WATER | HAPPY")
-    print("  " + "-" * 65)
-    for h in range(hours):
-        p = batch["pop_curve"][h]
-        d = batch["death_curve"][h]
-        i = batch["incident_curve"][h]
-        pw = batch["power_curve"][h]
-        f = batch["food_curve"][h]
-        w = batch["water_curve"][h]
-        hp = batch["happiness_curve"][h]
-        print(f"  {h:4} | {p:3.0f} | {d:6.1f} | {i:9.1f} | {pw:5.0f} | {f:4.0f} | {w:5.0f} | {hp:5.1f}")
-    print()
+    print_hourly_curves(batch, hours, deaths_key="death_curve", incidents_key="incident_curve")
 
 
 def _print_balance_assessment(batch: BatchResult, hours: int) -> None:
@@ -919,45 +884,43 @@ def print_report(batch: BatchResult, detailed: bool = False) -> None:
 
 
 def print_sweep_report(results: list[BatchResult], param_name: str) -> None:
-    print()
-    print(banner(f"Parameter sweep: {param_name}"))
-    print()
-    print(
-        f"{'Value':>12} | {'D/h':>5} | {'T/h':>5} | {'Pop':>5} | {'Death':>5} | {'Inc':>5} | "
-        f"{'Power':>5} | {'Food':>5} | {'Water':>5} | {'Happy':>5} | Verdict"
+    shared_print_sweep_report(
+        results,
+        param_name,
+        header=(
+            f"{'Value':>12} | {'D/h':>5} | {'T/h':>5} | {'Pop':>5} | {'Death':>5} | {'Inc':>5} | "
+            f"{'Power':>5} | {'Food':>5} | {'Water':>5} | {'Happy':>5} | Verdict"
+        ),
+        render_row=_render_sweep_row,
     )
-    print("-" * TERMINAL_WIDTH)
 
-    for r in results:
-        cfg: ExplorationConfig = r["config"]
-        value = getattr(cfg, param_name)
-        hours = r["simulation_hours"]
-        d_mean = r["discoveries"]["mean"]
-        rate = d_mean / hours if hours > 0 else 0
-        total_rate = r["total_map_points"]["mean"] / hours if hours > 0 else 0
-        pop = r["population"]["mean"]
-        deaths = r["deaths"]["mean"]
-        incidents = r["incidents"]["mean"]
-        power = r["final_power"]["mean"]
-        food = r["final_food"]["mean"]
-        water = r["final_water"]["mean"]
-        happy = r["final_happiness"]["mean"]
 
-        if rate < 0.3:
-            verdict = "slow"
-        elif rate < 0.8:
-            verdict = "moderate"
-        elif rate < 2.0:
-            verdict = "healthy"
-        else:
-            verdict = "fast"
+def _render_sweep_row(value: str, r: BatchResult) -> str:
+    hours = r["simulation_hours"]
+    d_mean = r["discoveries"]["mean"]
+    rate = d_mean / hours if hours > 0 else 0
+    total_rate = r["total_map_points"]["mean"] / hours if hours > 0 else 0
+    pop = r["population"]["mean"]
+    deaths = r["deaths"]["mean"]
+    incidents = r["incidents"]["mean"]
+    power = r["final_power"]["mean"]
+    food = r["final_food"]["mean"]
+    water = r["final_water"]["mean"]
+    happy = r["final_happiness"]["mean"]
 
-        vstr = f"{value:.2f}" if isinstance(value, float) else str(value)
-        print(
-            f"{vstr:>12} | {rate:>5.2f} | {total_rate:>5.2f} | {pop:>5.0f} | {deaths:>5.1f} | {incidents:>5.1f} | "
-            f"{power:>5.0f} | {food:>5.0f} | {water:>5.0f} | {happy:>5.1f} | {verdict}"
-        )
-    print()
+    if rate < 0.3:
+        verdict = "slow"
+    elif rate < 0.8:
+        verdict = "moderate"
+    elif rate < 2.0:
+        verdict = "healthy"
+    else:
+        verdict = "fast"
+
+    return (
+        f"{value:>12} | {rate:>5.2f} | {total_rate:>5.2f} | {pop:>5.0f} | {deaths:>5.1f} | {incidents:>5.1f} | "
+        f"{power:>5.0f} | {food:>5.0f} | {water:>5.0f} | {happy:>5.1f} | {verdict}"
+    )
 
 
 app = typer.Typer(help="Simulate vault balance for the Fallout Shelter game.")
@@ -1000,19 +963,19 @@ def simulate(
         base_production_rate=production_rate,
     )
 
-    if sweep:
-        if sweep not in SWEEP_RANGES:
-            typer.echo(f"Unknown parameter '{sweep}'. Available: {list(SWEEP_RANGES.keys())}", err=True)
-            raise typer.Exit(code=1)
-        results = run_parameter_sweep(sweep, baseline, hours, runs)
-        for r in results:
-            print_report(r, detailed=detailed)
-        print_sweep_report(results, sweep)
-    else:
-        if seed is not None:
-            random.seed(seed)
-        result = run_monte_carlo(baseline, hours, runs)
-        print_report(result, detailed=detailed)
+    run_simulate_command(
+        hours=hours,
+        runs=runs,
+        seed=seed,
+        sweep=sweep,
+        detailed=detailed,
+        sweep_ranges=SWEEP_RANGES,
+        baseline=baseline,
+        run_monte_carlo=run_monte_carlo,
+        run_parameter_sweep=run_parameter_sweep,
+        print_report=print_report,
+        print_sweep_report=print_sweep_report,
+    )
 
 
 def main() -> None:

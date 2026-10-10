@@ -2,6 +2,7 @@
 
 import logging
 from dataclasses import dataclass
+from typing import Any
 from uuid import uuid4
 
 from pydantic import UUID4
@@ -41,6 +42,59 @@ class MergeResult:
     # Capacity the vault already counts for the rooms this merge absorbs, so the
     # survivor's total replaces it instead of being added on top.
     previous_capacity: int = 0
+
+
+def _survivor_field_values(
+    source: RoomCreate | Room,
+    *,
+    vault_id: UUID4,
+    name: str,
+    tier: int,
+    coordinate_y: int,
+    size: int,
+    size_max: int,
+    capacity: int | None,
+    output: int | None,
+    image_url: str | None,
+) -> dict[str, Any]:
+    """Survivor fields shared by the merge preview and the created ``RoomCreate``."""
+    return {
+        "vault_id": vault_id,
+        "name": name,
+        "category": source.category,
+        "ability": source.ability,
+        "population_required": source.population_required,
+        "base_cost": source.base_cost,
+        "incremental_cost": source.incremental_cost,
+        "t2_upgrade_cost": source.t2_upgrade_cost,
+        "t3_upgrade_cost": source.t3_upgrade_cost,
+        "capacity": capacity,
+        "output": output,
+        "size_min": source.size_min,
+        "size_max": size_max,
+        "size": size,
+        "tier": tier,
+        "coordinate_y": coordinate_y,
+        "image_url": image_url,
+        "speedup_multiplier": source.speedup_multiplier,
+    }
+
+
+async def _apply_merged_size(
+    db_session: AsyncSession,
+    room_id: UUID4,
+    *,
+    size: int,
+    capacity: int | None,
+    output: int | None,
+    image_url: str | None,
+) -> Room:
+    """Persist a merge's total footprint onto the existing survivor room."""
+    return await crud.room.update(
+        db_session=db_session,
+        id=room_id,
+        obj_in=RoomUpdate(size=size, capacity=capacity, output=output, image_url=image_url),
+    )
 
 
 class RoomService:
@@ -147,29 +201,28 @@ class RoomService:
             new_output = crud.room.evaluate_output_formula(output_formula, tier, total_size)
         new_image_url = get_room_image_url(name, tier=tier, size=total_size)
 
+        # The preview and the created segment take the same survivor fields; only
+        # the coordinate_x differs (the preview follows the survivor, the created
+        # segment sits where the candidate was).
+        survivor_fields = _survivor_field_values(
+            source_for_preview,
+            vault_id=vault_id,
+            name=name,
+            tier=tier,
+            coordinate_y=coordinate_y,
+            size=total_size,
+            size_max=size_max,
+            capacity=new_capacity,
+            output=new_output,
+            image_url=new_image_url,
+        )
+
         if dry_run:
             preview_id = candidate_id or uuid4()
             preview = Room.model_construct(
                 id=preview_id,
-                vault_id=vault_id,
-                name=name,
-                category=source_for_preview.category,
-                ability=source_for_preview.ability,
-                population_required=source_for_preview.population_required,
-                base_cost=source_for_preview.base_cost,
-                incremental_cost=source_for_preview.incremental_cost,
-                t2_upgrade_cost=source_for_preview.t2_upgrade_cost,
-                t3_upgrade_cost=source_for_preview.t3_upgrade_cost,
-                capacity=new_capacity,
-                output=new_output,
-                size_min=source_for_preview.size_min,
-                size_max=size_max,
-                size=total_size,
-                tier=tier,
                 coordinate_x=coordinate_x if survivor_is_candidate else leftmost_existing_x,
-                coordinate_y=coordinate_y,
-                image_url=new_image_url,
-                speedup_multiplier=source_for_preview.speedup_multiplier,
+                **survivor_fields,
             )
             return MergeResult(
                 room=preview,
@@ -185,51 +238,30 @@ class RoomService:
                 survivor_room = await crud.room.create(
                     db_session,
                     obj_in=RoomCreate(
-                        vault_id=vault_id,
-                        name=name,
-                        category=candidate.category,
-                        ability=candidate.ability,
-                        population_required=candidate.population_required,
-                        base_cost=candidate.base_cost,
-                        incremental_cost=candidate.incremental_cost,
-                        t2_upgrade_cost=candidate.t2_upgrade_cost,
-                        t3_upgrade_cost=candidate.t3_upgrade_cost,
-                        capacity=new_capacity,
-                        output=new_output,
-                        size_min=candidate.size_min,
-                        size_max=size_max,
-                        size=total_size,
-                        tier=tier,
                         coordinate_x=coordinate_x,
-                        coordinate_y=coordinate_y,
-                        image_url=new_image_url,
-                        speedup_multiplier=candidate.speedup_multiplier,
+                        **survivor_fields,
                         capacity_formula=capacity_formula,
                         output_formula=output_formula,
                     ),
                 )
                 created = True
             else:
-                survivor_room = await crud.room.update(
-                    db_session=db_session,
-                    id=candidate_id,
-                    obj_in=RoomUpdate(
-                        size=total_size,
-                        capacity=new_capacity,
-                        output=new_output,
-                        image_url=new_image_url,
-                    ),
-                )
-        elif survivor_room is not None:
-            survivor_room = await crud.room.update(
-                db_session=db_session,
-                id=survivor_room.id,
-                obj_in=RoomUpdate(
+                survivor_room = await _apply_merged_size(
+                    db_session,
+                    candidate_id,
                     size=total_size,
                     capacity=new_capacity,
                     output=new_output,
                     image_url=new_image_url,
-                ),
+                )
+        elif survivor_room is not None:
+            survivor_room = await _apply_merged_size(
+                db_session,
+                survivor_room.id,
+                size=total_size,
+                capacity=new_capacity,
+                output=new_output,
+                image_url=new_image_url,
             )
         else:
             return MergeResult(room=None, absorbed_ids=[], merged=False)

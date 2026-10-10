@@ -517,7 +517,7 @@ const mapPaneHeight = 'var(--map-pane-size)'
                 size="sm"
                 @click="fogDisabled = !fogDisabled"
               >
-                {{ fogDisabled ? 'Restore fog' : 'Remove fog (debug)' }}
+                {{ fogDisabled ? 'Restore fog' : 'Remove fog' }}
               </Button>
             </div>
           </div>

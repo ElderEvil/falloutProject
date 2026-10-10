@@ -24,6 +24,7 @@ interface Props {
   risk?: string | null
   baseDifficulty?: number | null
   interactive?: boolean
+  scale?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -34,6 +35,7 @@ const props = withDefaults(defineProps<Props>(), {
   cleared: false,
   exploring: false,
   interactive: true,
+  scale: 1,
 })
 
 const emit = defineEmits<{
@@ -110,7 +112,7 @@ const tooltipText = computed(() => {
 
 <template>
   <g
-    :transform="`translate(${x}, ${y})`"
+    :transform="`translate(${x}, ${y})${scale === 1 ? '' : ` scale(${scale})`}`"
     class="map-marker"
     :class="{
       'cursor-pointer': interactive,

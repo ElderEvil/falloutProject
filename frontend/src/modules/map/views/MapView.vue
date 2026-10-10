@@ -213,9 +213,7 @@ const dwellerMaxHealth = computed(() => {
 // party entry stays absent and the anchor name alone drives the marker.
 const partyDwellerIdsByExploration = computed(() => {
   const byExploration = new Map<string, string[]>()
-  for (const [explorationId, party] of Object.entries(
-    explorationStore.explorationPartyMap
-  )) {
+  for (const [explorationId, party] of Object.entries(explorationStore.explorationPartyMap)) {
     byExploration.set(
       explorationId,
       party.map((member) => member.dweller_id)
@@ -500,8 +498,37 @@ const hasNoData = computed(
             </Button>
           </div>
 
-          <!-- Map + floating controls: an overlay keeps the pane free of a toolbar row -->
+          <!-- Filters have their own row so they cannot cover canvas controls. -->
           <div v-else class="map-stage">
+            <div
+              class="mb-2 flex flex-wrap items-center gap-2"
+              role="group"
+              aria-label="Map filters"
+            >
+              <Select v-if="siteGroupOptions.length" v-model="siteTypeFilterSelect">
+                <SelectTrigger
+                  aria-label="Filter by site type"
+                  class="h-auto rounded-sm border-theme-primary/30 bg-surface-sunken/60 px-2 py-1 text-xs text-theme-primary data-[size=default]:h-auto"
+                >
+                  <SelectValue placeholder="All sites" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All sites</SelectItem>
+                  <SelectItem v-for="group in siteGroupOptions" :key="group.key" :value="group.key">
+                    <Icon :icon="group.icon" />
+                    <span>{{ group.label }}</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                v-if="authStore.isSuperuser"
+                variant="outline"
+                size="sm"
+                @click="fogDisabled = !fogDisabled"
+              >
+                {{ fogDisabled ? 'Restore fog' : 'Remove fog' }}
+              </Button>
+            </div>
             <WorldMap
               :locations="mapStore.locations"
               :vault-markers="mapStore.vaultMarkers"
@@ -518,36 +545,6 @@ const hasNoData = computed(
               @vault-info="handleVaultInfo"
               @dweller-click="onDwellerClick"
             />
-
-            <div class="map-overlay-controls">
-              <Select v-if="siteGroupOptions.length" v-model="siteTypeFilterSelect">
-                <SelectTrigger
-                  aria-label="Filter by site type"
-                  class="h-auto rounded-sm border-theme-primary/30 bg-surface-sunken/60 px-2 py-1 text-xs text-theme-primary data-[size=default]:h-auto"
-                >
-                  <SelectValue placeholder="All sites" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All sites</SelectItem>
-                  <SelectItem
-                    v-for="group in siteGroupOptions"
-                    :key="group.key"
-                    :value="group.key"
-                  >
-                    <Icon :icon="group.icon" />
-                    <span>{{ group.label }}</span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                v-if="authStore.isSuperuser"
-                variant="outline"
-                size="sm"
-                @click="fogDisabled = !fogDisabled"
-              >
-                {{ fogDisabled ? 'Restore fog' : 'Remove fog' }}
-              </Button>
-            </div>
           </div>
 
           <!-- Explorer popover: dweller summary anchored to the clicked marker -->
@@ -589,19 +586,7 @@ const hasNoData = computed(
 <style scoped>
 .map-stage {
   position: relative;
-  width: fit-content;
-}
-
-/* Floating map controls: overlaid on the pane so they cost no vertical layout. */
-.map-overlay-controls {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.5rem;
+  width: 100%;
 }
 
 .vault-layout {

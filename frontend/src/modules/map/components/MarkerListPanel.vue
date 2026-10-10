@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, useId } from 'vue'
+import { Button } from '@/core/components/ui/button'
 import { Icon } from '@iconify/vue'
 import type {
   ExpeditionSiteMarkerRead,
@@ -35,6 +36,7 @@ const emit = defineEmits<{
 
 // Panel open/close state
 const isOpen = defineModel<boolean>('open', { default: false })
+const panelId = useId()
 
 interface MarkerGroupItem {
   id: string
@@ -102,8 +104,7 @@ const groups = computed<MarkerGroup[]>(() => {
 })
 
 const totalCount = computed(
-  () =>
-    filteredLocations.value.length + props.vaultMarkers.length + props.expeditionSites.length
+  () => filteredLocations.value.length + props.vaultMarkers.length + props.expeditionSites.length
 )
 
 // Per-group collapse state (expanded by default)
@@ -128,7 +129,8 @@ function rowRefFn(id: string) {
   }
 }
 
-function onListKeydown(event: KeyboardEvent) {  const keyTarget = event.target
+function onListKeydown(event: KeyboardEvent) {
+  const keyTarget = event.target
   if (
     (event.key === 'Enter' || event.key === ' ') &&
     keyTarget instanceof HTMLButtonElement &&
@@ -138,7 +140,13 @@ function onListKeydown(event: KeyboardEvent) {  const keyTarget = event.target
     keyTarget.click()
     return
   }
-  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Home' && event.key !== 'End') return
+  if (
+    event.key !== 'ArrowDown' &&
+    event.key !== 'ArrowUp' &&
+    event.key !== 'Home' &&
+    event.key !== 'End'
+  )
+    return
   const visibleIds: string[] = []
   for (const group of groups.value) {
     if (collapsedGroups.value.has(group.type)) continue
@@ -159,25 +167,27 @@ function onListKeydown(event: KeyboardEvent) {  const keyTarget = event.target
 </script>
 
 <template>
-  <div
-    class="marker-list-wrapper"
-    :class="{ docked: props.docked }"
-    @touchstart.stop
-    @wheel.stop
-  >
-    <!-- Toggle button -->
-    <button
+  <div class="marker-list-wrapper" :class="{ docked: props.docked }" @touchstart.stop @wheel.stop>
+    <!-- Toggle button; Button forwards aria-controls through its native attrs. -->
+    <!-- @vue-ignore -->
+    <Button
       v-if="!props.docked"
+      variant="outline"
+      size="sm"
       class="marker-list-toggle"
       :aria-label="isOpen ? 'Close marker list' : 'Open marker list'"
+      :aria-expanded="isOpen"
+      :aria-controls="panelId"
       :title="isOpen ? 'Close marker list' : 'Open marker list'"
       @click="isOpen = !isOpen"
     >
-      <Icon :icon="isOpen ? 'mdi:chevron-right' : 'mdi:format-list-bulleted'" class="toggle-icon" />
-    </button>
+      <Icon :icon="isOpen ? 'mdi:chevron-down' : 'mdi:format-list-bulleted'" class="toggle-icon" />
+      <slot name="toggle-label" :count="totalCount" />
+    </Button>
 
     <!-- Panel -->
     <aside
+      :id="panelId"
       v-show="props.docked || isOpen"
       class="marker-list-panel"
       role="complementary"
@@ -212,11 +222,11 @@ function onListKeydown(event: KeyboardEvent) {  const keyTarget = event.target
           </button>
 
           <div v-show="!collapsedGroups.has(group.type)">
-              <button
-                v-for="item in group.items"
-                :key="item.id"
-                :ref="rowRefFn(item.id)"
-                class="marker-row"
+            <button
+              v-for="item in group.items"
+              :key="item.id"
+              :ref="rowRefFn(item.id)"
+              class="marker-row"
               :class="{ selected: selectedMarkerId === item.id }"
               @click="handleItemClick(item)"
             >

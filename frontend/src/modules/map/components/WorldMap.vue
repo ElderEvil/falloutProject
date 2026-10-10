@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, toRef, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useMediaQuery } from '@vueuse/core'
 import { Button } from '@/core/components/ui/button'
 import { formatRemaining } from '@/modules/exploration/composables/useExplorationProgress'
 import type {
@@ -23,7 +24,6 @@ import AtlasTerrain from './AtlasTerrain.vue'
 import FogLayer from './FogLayer.vue'
 import { registryToTile, ATLAS_TILES } from '../utils/atlasProjection'
 import { computeExploredMask, isExploredTile } from '../utils/fog'
-import { useMapSpread } from '../composables/useMapSpread'
 import { useMarkerSelection } from '../composables/useMarkerSelection'
 import { smoothPath } from '../utils/tracePath'
 import { useMapZoomPan, MAX_ZOOM } from '../composables/useMapZoomPan'
@@ -110,9 +110,7 @@ function isExploredCoord(coord: { coord_x: number; coord_y: number }): boolean {
 // explorers render outside this list and are never filtered. Fog/declutter
 // downstream stay unchanged.
 const visibleLocations = computed(() => {
-  const filtered = props.locations.filter((loc) =>
-    matchesSiteTypeFilter(loc, props.siteTypeFilter)
-  )
+  const filtered = props.locations.filter((loc) => matchesSiteTypeFilter(loc, props.siteTypeFilter))
   return props.fogDisabled
     ? filtered
     : filtered.filter(
@@ -173,9 +171,7 @@ const exploringByLocation = computed(() => {
     if (!track.targetLocationId) continue
     byLocation.set(
       track.targetLocationId,
-      track.partyNames.length
-        ? `Exploring — ${track.partyNames.join(', ')}`
-        : 'Dispatching'
+      track.partyNames.length ? `Exploring — ${track.partyNames.join(', ')}` : 'Dispatching'
     )
   }
   return byLocation
@@ -236,9 +232,9 @@ const {
 } = useMapZoomPan()
 
 const mapStore = useMapStore()
+const isWideLayout = useMediaQuery('(min-width: 1280px)')
 const svgRef = ref<SVGSVGElement | null>(null)
 const containerRef = ref<HTMLDivElement | null>(null)
-const vaultMarkers = toRef(props, 'vaultMarkers')
 
 function onOwnVaultClick(vault: PlayerVaultMarkerRead): void {
   if (hasDragMoved.value) return
@@ -276,7 +272,8 @@ onBeforeUnmount(() => {
   resizeObserver = null
 })
 
-const { spreadMap, getSpread } = useMapSpread(visibleLocations, vaultMarkers)
+// Compensate for SVG zoom so markers grow with its square root.
+const markerScale = computed(() => 1 / Math.sqrt(zoom.value))
 
 // ── Declutter ─────────────────────────────────────────────────────────
 // Primary markers (home vault, selection, discoveries, active explorers and
@@ -307,7 +304,6 @@ const selectedMarkerId = computed<string | null>({
 
 const { hasDragMoved, onLocationClick, onSiteClick, onPanelMarkerSelect } = useMarkerSelection(
   selectedMarkerId,
-  spreadMap,
   focusOnMarker,
   emit
 )
@@ -363,10 +359,7 @@ const clusterableDiscoveries = computed(() =>
         selectedMarkerId.value !== `loc-${loc.id}` &&
         !exploringByLocation.value.has(loc.id)
     )
-    .map((loc) => {
-      const spread = getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y)
-      return { id: `loc-${loc.id}`, x: spread.renderX, y: spread.renderY }
-    })
+    .map((loc) => ({ id: `loc-${loc.id}`, x: loc.coord_x, y: loc.coord_y }))
 )
 
 const discoveryClusters = computed<MarkerCluster[]>(() =>
@@ -484,13 +477,14 @@ function handleTouchEnd(event: TouchEvent) {
           <path :d="route" class="discovery-route-line" />
         </g>
 
-        <!-- Location markers (spread-adjusted positions; discoveries inside a
+        <!-- Location markers (stored coordinates; discoveries inside a
              cluster are rendered as the badge below instead) -->
         <MapMarker
+          :scale="markerScale"
           v-for="loc in renderedLocationsIndividual"
           :key="`loc-${loc.id}`"
-          :x="getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y).renderX"
-          :y="getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y).renderY"
+          :x="loc.coord_x"
+          :y="loc.coord_y"
           :name="loc.name"
           :type="loc.type"
           :icon="locationMarkerIcon(loc.type, loc.group_key, groupIconByKey)"
@@ -509,6 +503,7 @@ function handleTouchEnd(event: TouchEvent) {
         <!-- Discovery clusters: one ×N badge per dense cell, clickable to zoom
              in until the cluster splits back into individual markers -->
         <MapClusterMarker
+          :scale="markerScale"
           v-for="cluster in clusterBadges"
           :key="cluster.id"
           :x="cluster.x"
@@ -520,6 +515,7 @@ function handleTouchEnd(event: TouchEvent) {
 
         <!-- Your vaults (identity shown) -->
         <MapMarker
+          :scale="markerScale"
           v-for="pv in ownPlayerVaults"
           :key="`pv-${pv.vault_id}`"
           :x="pv.coord_x"
@@ -534,6 +530,7 @@ function handleTouchEnd(event: TouchEvent) {
         <!-- Other vaults: anonymous hints, only where the fog is lifted and
              the map is zoomed past the declutter threshold -->
         <MapMarker
+          :scale="markerScale"
           v-for="hint in renderedVaultHints"
           :key="hint.key"
           :x="hint.coord_x"
@@ -547,6 +544,7 @@ function handleTouchEnd(event: TouchEvent) {
 
         <!-- Expedition site markers (fixed coordinates, already viewBox-scaled) -->
         <MapMarker
+          :scale="markerScale"
           v-for="site in expeditionSites"
           :key="`site-${site.id}`"
           :x="site.coord_x"
@@ -562,6 +560,7 @@ function handleTouchEnd(event: TouchEvent) {
 
         <!-- Free-roam explorer last-known positions: clickable for the dweller popover -->
         <MapMarker
+          :scale="markerScale"
           v-for="track in freeRoamTracks"
           :key="`explorer-${track.explorationId}`"
           :x="track.lastKnown!.coord_x"
@@ -582,7 +581,7 @@ function handleTouchEnd(event: TouchEvent) {
           v-for="entry in freeRoamChevrons"
           :key="`explorer-heading-${entry.track.explorationId}`"
           class="explorer-heading"
-          :transform="`translate(${entry.track.lastKnown!.coord_x}, ${entry.track.lastKnown!.coord_y}) rotate(${entry.heading})`"
+          :transform="`translate(${entry.track.lastKnown!.coord_x}, ${entry.track.lastKnown!.coord_y}) rotate(${entry.heading}) scale(${markerScale})`"
           aria-hidden="true"
         >
           <path class="explorer-heading-chevron" d="M -1.9 -4.7 L 0 -6.7 L 1.9 -4.7" />
@@ -612,25 +611,61 @@ function handleTouchEnd(event: TouchEvent) {
 
       <!-- Legend overlay -->
       <MapLegend :site-type-filter="siteTypeFilter" />
-
-      <!-- Location index: overlay drawer collapsed to a toggle button, so the
-           map owns the full pane. -->
-      <MarkerListPanel
-        :locations="knownLocations"
-        :vault-markers="[]"
-        :expedition-sites="expeditionSites"
-        :place-groups="mapStore.placeGroups"
-        :site-type-filter="siteTypeFilter"
-        :selected-marker-id="selectedMarkerId"
-        @marker-select="onPanelMarkerSelect"
-      />
     </div>
+    <!-- Keep the index beside the map on wide screens and below it on narrow ones. -->
+    <MarkerListPanel
+      class="map-index"
+      :docked="isWideLayout"
+      :locations="knownLocations"
+      :vault-markers="[]"
+      :expedition-sites="expeditionSites"
+      :place-groups="mapStore.placeGroups"
+      :site-type-filter="siteTypeFilter"
+      :selected-marker-id="selectedMarkerId"
+      @marker-select="onPanelMarkerSelect"
+    >
+      <template #toggle-label="{ count }">Places and sites · {{ count }}</template>
+    </MarkerListPanel>
   </div>
 </template>
 
 <style scoped>
 .world-map-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
   width: 100%;
+}
+
+.world-map-layout :deep(.marker-list-wrapper.map-index) {
+  position: static;
+  display: block;
+  min-width: 0;
+}
+
+.world-map-layout :deep(.map-index .marker-list-panel) {
+  width: 100%;
+  max-height: min(40vh, var(--map-pane-size));
+  margin-top: 4px;
+}
+
+.world-map-layout :deep(.map-index .marker-list-toggle) {
+  width: 100%;
+  height: 36px;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+@media (min-width: 1280px) {
+  .world-map-layout {
+    grid-template-columns: minmax(0, 1fr) 260px;
+    align-items: start;
+  }
+
+  .world-map-layout :deep(.map-index .marker-list-panel) {
+    max-height: var(--map-pane-size);
+    margin-top: 0;
+  }
 }
 
 /* Full-bleed pane: the map fills the content width under a viewport-relative

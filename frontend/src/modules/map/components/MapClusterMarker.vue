@@ -6,12 +6,14 @@ interface Props {
   y: number
   /** Number of individual markers collapsed into this badge. */
   count: number
+  scale?: number
   /** At least one member is an unseen discovery — keep the discovery pulse. */
   unseen?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   unseen: false,
+  scale: 1,
 })
 
 const emit = defineEmits<{
@@ -34,7 +36,7 @@ function handleKeydown(event: KeyboardEvent) {
 
 <template>
   <g
-    :transform="`translate(${x}, ${y})`"
+    :transform="`translate(${x}, ${y})${scale === 1 ? '' : ` scale(${scale})`}`"
     class="map-cluster"
     :class="{ 'cluster-unseen': unseen }"
     role="button"
@@ -56,7 +58,8 @@ function handleKeydown(event: KeyboardEvent) {
       text-anchor="middle"
       dominant-baseline="central"
       aria-hidden="true"
-    >×{{ count }}</text>
+      >×{{ count }}</text
+    >
   </g>
 </template>
 

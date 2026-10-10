@@ -1,18 +1,16 @@
-import { ref, type ComputedRef, type Ref } from 'vue'
+import { ref, type Ref } from 'vue'
 import type {
   ExpeditionSiteMarkerRead,
   MarkerClickPayload,
   VaultMarkerRead,
   WastelandLocationWithDwellers,
 } from '../models/map'
-import type { SpreadResult } from '../utils/spreadMarkers'
 
 export function useMarkerSelection(
   selectedMarkerId: Ref<string | null>,
-  spreadMap: ComputedRef<Map<string, SpreadResult>>,
   focusOnMarker: (x: number, y: number) => void,
   emit: (event: 'marker-click', payload: MarkerClickPayload) => void,
-  isDisabled?: () => boolean,
+  isDisabled?: () => boolean
 ) {
   const hasDragMoved = ref(false)
 
@@ -49,8 +47,7 @@ export function useMarkerSelection(
   function onPanelMarkerSelect(payload: MarkerClickPayload) {
     if (blocked()) return
     const id = markerId(payload)
-    const pos = spreadMap.value.get(id)
-    focusOnMarker(pos?.renderX ?? payload.data.coord_x, pos?.renderY ?? payload.data.coord_y)
+    focusOnMarker(payload.data.coord_x, payload.data.coord_y)
     selectedMarkerId.value = id
     emit('marker-click', payload)
   }

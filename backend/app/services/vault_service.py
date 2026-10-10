@@ -100,13 +100,6 @@ class VaultService:
         data.update(vault_id=vault_id, size=size, tier=tier, coordinate_x=x, coordinate_y=y)
         return RoomCreate(**data)
 
-    @staticmethod
-    def _prepare_room_data(
-        rooms: list[RoomCreateWithoutVaultID], room_name: str, vault_id: UUID4, x: int, y: int
-    ) -> dict:
-        rooms_by_name = {r.name.lower(): r for r in rooms}
-        return VaultService._build_room(rooms_by_name, room_name, vault_id, x, y).model_dump()
-
     def _prepare_initial_rooms(
         self,
         rooms: list[RoomCreateWithoutVaultID],

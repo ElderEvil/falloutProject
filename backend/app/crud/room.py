@@ -88,10 +88,15 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         return {row[0]: row[1] for row in response.all()}
 
     @staticmethod
+    async def get_names_by_vault(db_session: AsyncSession, vault_id: UUID4) -> list[str]:
+        """Raw (non-normalized) names of every room in a vault."""
+        response = await db_session.execute(select(Room.name).where(Room.vault_id == vault_id))
+        return list(response.scalars().all())
+
+    @staticmethod
     async def get_existing_room_names(*, db_session: AsyncSession, vault_id: UUID4) -> set[str]:
         """Get set of lowercase room names that exist in a vault."""
-        response = await db_session.execute(select(Room.name).where(Room.vault_id == vault_id))
-        return {name.lower() for name in response.scalars().all()}
+        return {name.lower() for name in await CRUDRoom.get_names_by_vault(db_session, vault_id)}
 
     @staticmethod
     async def has_room_type(db_session: AsyncSession, vault_id: UUID4, room_type: str) -> bool:
@@ -99,8 +104,8 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         normalized = normalize_room_type(room_type)
         if normalized is None:
             return False
-        response = await db_session.execute(select(Room.name).where(Room.vault_id == vault_id))
-        return any(normalize_room_type(name) == normalized for name in response.scalars().all())
+        names = await CRUDRoom.get_names_by_vault(db_session, vault_id)
+        return any(normalize_room_type(name) == normalized for name in names)
 
     @staticmethod
     async def get_by_name_pattern(db_session: AsyncSession, vault_id: UUID4, pattern: str) -> list[Room]:
@@ -183,22 +188,21 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         return list((await db_session.execute(query)).scalars().all())
 
     @staticmethod
-    def evaluate_capacity_formula(formula: str, level: int, size: int) -> int:
+    def _evaluate_formula_logged(formula: str, level: int, size: int, *, label: str) -> int:
         try:
             result = _evaluate_room_formula(formula, level, size)
             return int(result)
         except (ValueError, SyntaxError) as e:
-            logger.exception("Error evaluating capacity formula.", exc_info=e)
+            logger.exception("Error evaluating %s formula.", label, exc_info=e)
             return 0
 
     @staticmethod
+    def evaluate_capacity_formula(formula: str, level: int, size: int) -> int:
+        return CRUDRoom._evaluate_formula_logged(formula, level, size, label="capacity")
+
+    @staticmethod
     def evaluate_output_formula(formula: str, level: int, size: int) -> int:
-        try:
-            result = _evaluate_room_formula(formula, level, size)
-            return int(result)
-        except (ValueError, SyntaxError) as e:
-            logger.exception("Error evaluating output formula.", exc_info=e)
-            return 0
+        return CRUDRoom._evaluate_formula_logged(formula, level, size, label="output")
 
     @staticmethod
     async def get_room_by_coordinates(

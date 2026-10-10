@@ -4,6 +4,7 @@ import {
   getProgressPercentage,
   getTimeRemaining,
   isReadyToComplete,
+  linearProgress,
 } from '@/modules/exploration/composables/useExplorationProgress'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 
@@ -12,6 +13,24 @@ const exploration = {
   start_time: '2026-08-21T12:00:00Z',
   status: 'active',
 } as Exploration
+
+describe('linearProgress', () => {
+  it('returns the clamped elapsed fraction across the window', () => {
+    expect(linearProgress(0, 100, 0)).toBe(0)
+    expect(linearProgress(0, 100, 50)).toBe(50)
+    expect(linearProgress(0, 100, 100)).toBe(100)
+  })
+
+  it('clamps outside either end of the window', () => {
+    expect(linearProgress(1000, 2000, 500)).toBe(0)
+    expect(linearProgress(1000, 2000, 5000)).toBe(100)
+  })
+
+  it('reads a zero or negative window as complete', () => {
+    expect(linearProgress(1000, 1000, 1000)).toBe(100)
+    expect(linearProgress(2000, 1000, 1500)).toBe(100)
+  })
+})
 
 describe('getProgressPercentage', () => {
   it('clamps a future exploration start time to zero percent', () => {

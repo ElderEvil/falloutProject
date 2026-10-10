@@ -172,4 +172,18 @@ describe('PreferencesView', () => {
 
     expect(switchButton.attributes('aria-checked')).toBe('false')
   })
+
+  it('toggles map marker colours', async () => {
+    const store = useProfileStore()
+    store.profile = mockProfile
+    const wrapper = mountView()
+
+    const switchButton = wrapper.find('button#map-group-colors')
+    expect(wrapper.find('label[for="map-group-colors"]').text()).toContain('Colourful Map Markers')
+    expect(switchButton.attributes('aria-checked')).toBe('false')
+
+    await switchButton.trigger('click')
+
+    expect(switchButton.attributes('aria-checked')).toBe('true')
+  })
 })

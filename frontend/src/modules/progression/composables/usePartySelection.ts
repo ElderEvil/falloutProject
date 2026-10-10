@@ -14,6 +14,12 @@ export interface PartySelectionOptions {
   maxStimpaks: MaybeRefOrGetter<number>
   /** Radaways available in the vault (ref or getter). Slider max is min(this, 15). */
   maxRadaways: MaybeRefOrGetter<number>
+  /**
+   * Supplies pre-filled when the picker opens, clamped to availability and applied
+   * again if availability arrives after opening (until the user moves a slider).
+   * Omit, or use zeros, for no suggestion.
+   */
+  supplySuggestion?: MaybeRefOrGetter<{ stimpaks: number; radaways: number }>
 }
 
 export interface PartySelection {
@@ -36,7 +42,7 @@ export interface PartySelection {
   toggleDweller: (dwellerId: string) => void
   setStimpaks: (value: number[] | undefined) => void
   setRadaways: (value: number[] | undefined) => void
-  /** Sync selection to the opening party and clear supplies (call when the picker opens). */
+  /** Sync selection to the opening party and reset supplies to the suggestion (call when the picker opens). */
   resetOnOpen: (currentPartyIds: string[]) => void
   /** Clamp both supply selections to the availability passed into the composable. */
   clampToAvailability: () => void
@@ -58,23 +64,40 @@ export function usePartySelection(options: PartySelectionOptions): PartySelectio
   const selectedDwellerIds = ref<string[]>([])
   const selectedStimpaks = ref(0)
   const selectedRadaways = ref(0)
+  // Set once the user moves a supply slider; a late availability load must not
+  // then overwrite their choice with the suggestion.
+  let suppliesTouched = false
 
   const stimpakMax = computed(() => Math.min(toValue(options.maxStimpaks), SUPPLY_SLIDER_CAP))
   const radawayMax = computed(() => Math.min(toValue(options.maxRadaways), SUPPLY_SLIDER_CAP))
+
+  const applySuggestion = () => {
+    const suggested = toValue(options.supplySuggestion) ?? { stimpaks: 0, radaways: 0 }
+    selectedStimpaks.value = Math.min(suggested.stimpaks, stimpakMax.value)
+    selectedRadaways.value = Math.min(suggested.radaways, radawayMax.value)
+  }
 
   const clampToAvailability = () => {
     selectedStimpaks.value = Math.min(selectedStimpaks.value, toValue(options.maxStimpaks))
     selectedRadaways.value = Math.min(selectedRadaways.value, toValue(options.maxRadaways))
   }
 
-  // Supplies shrink while the picker stays open — never carry more than what is available.
-  watch(() => [toValue(options.maxStimpaks), toValue(options.maxRadaways)], clampToAvailability)
+  // Supplies shrink while the picker stays open — never carry more than what is
+  // available. Until the user touches a slider, availability arriving late (a
+  // fresh dispatch opens before the vault's stock has loaded) re-applies the
+  // suggestion so the pre-fill is not lost.
+  watch(
+    () => [toValue(options.maxStimpaks), toValue(options.maxRadaways)],
+    () => (suppliesTouched ? clampToAvailability() : applySuggestion())
+  )
 
   const setStimpaks = (value: number[] | undefined) => {
+    suppliesTouched = true
     selectedStimpaks.value = Math.min(value?.[0] ?? 0, stimpakMax.value)
   }
 
   const setRadaways = (value: number[] | undefined) => {
+    suppliesTouched = true
     selectedRadaways.value = Math.min(value?.[0] ?? 0, radawayMax.value)
   }
 
@@ -103,8 +126,8 @@ export function usePartySelection(options: PartySelectionOptions): PartySelectio
 
   const resetOnOpen = (currentPartyIds: string[]) => {
     selectedDwellerIds.value = [...currentPartyIds]
-    selectedStimpaks.value = 0
-    selectedRadaways.value = 0
+    suppliesTouched = false
+    applySuggestion()
   }
 
   const suppliesPayload = () => ({

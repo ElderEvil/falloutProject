@@ -161,6 +161,42 @@ need a migration.
 4. ✅ **Seed scope** — combinatorial discovery names stay emergent (not seeded).
 5. ✅ **Ordering** — resolved by events: race shipped first (v2.82.0), registry phases follow.
 
+## Map presentation & readability — P0–P5 (started 2026-10-09)
+
+**Decision (2026-10-09):** the map's next workstream is **UI/UX + readability** — "all the observability, limited
+options". Scope locked with the maintainer:
+
+- Dwellers on the map are limited to **live explorers** (position already lives on `Exploration.pos_x/pos_y`).
+- Clicking a dweller opens a **compact popover** (portrait, status, vitals, current task) that links to the full
+  dweller detail — it does not navigate away.
+- Place markers use **per-group icons**; the first control set is exactly **site-type filter + discovered/locked
+  filter**.
+
+**Root cause recorded:** the "generic compass" most markers show is the `discovery` **type** icon
+(`markerTypeMeta.MARKER_TYPES`) used when a place has no `group_key`, not a missing icon catalog.
+`backend/app/data/places/place_groups.json` already carries an `icon` per group, and the legend/list already render
+it. The real gaps are group **coverage/fallback** and the absence of a key.
+
+**Phases (one PR each; Semantic Release assigns the actual versions):**
+
+| Phase | Scope | Notes |
+|---|---|---|
+| **P0** ✅ | Dev-only mockup route `/dev/map-mockup` | Decision gate: fixture data, real `WorldMap`, proposed controls + dweller popover. No production component changes; delete-or-promote after sign-off. |
+| **P1** ✅ | Icon clarity (kill the generic compass) | Shipped: the map wire now sends the **effective** archetype key (`map_service._group_key_for`), so an ungrouped place renders the `wasteland_site` icon instead of the generic `discovery` glyph; the `discovery` fallback icon is now `mdi:map-marker-question`. The `emergent_sites` flag still gates the archetype (narrative-only when off) rather than being removed — the earlier "unconditional" wording was wrong. Group-icon key = the legend's existing SITE TYPES section. |
+| **P2** ✅ | Dwellers on map, clickable | Shipped: live-explorer markers are interactive and open a `DwellerMarkerPopover` (portrait/status/vitals/task → dweller detail). Server-side explorer projection on `VaultMapResponse` remains an optional follow-up; the client-side join still drives it. |
+| **P3** | Site-type filter | Single-select over `place_groups`; one filter drives map + list + legend together. |
+| **P4** | Discovered/locked filter | Reuses `is_unlocked` and `utils/visibility.ts`; no new rule. |
+| **P5** ◐ | Readability & a11y polish | Done: marker focus/outline, reduced-motion, `MARKER STATE` legend. Open: marker state shape semantics, tooltip unification, empty/loading states. |
+
+**Shipped out of order:** per-group marker **colour** (listed as deferred) shipped as a persisted `Group colors` toggle on the map toolbar (palette in `frontend/src/modules/map/models/groupColors.ts`, ready to move into the catalog if it sticks). The canvas silhouette art was also retired in favour of MDI archetype icons.
+
+**Deferred:** fog UX, zoom/pan affordances, region filter, per-group colour, all-dwellers-on-map. The
+`GAME_MECHANICS.md` progression-visibility red line (toast/modal **plus** the bell) is unchanged by this work.
+
+**Constraints unchanged:** no group enum (`group_key` stays a data string); no DB migration for icon/metadata work;
+`place_groups.json` + `PlaceGroupRead` stay the single icon source; the map domain keeps its layered
+models → schemas → CRUD → service → thin-router shape.
+
 ## Deferred multiplayer phases (parked)
 
 Raiding and the social/multiplayer **state** layers remain deferred. The registry they would depend on (formerly

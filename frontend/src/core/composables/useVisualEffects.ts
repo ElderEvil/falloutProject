@@ -182,6 +182,7 @@ export function useVisualEffects() {
   return {
     // State
     flickering: isFlickeringEnabled,
+    isFlickeringEnabled,
     scanlines: areScanlinesEnabled,
     glowIntensity: computed(() => glowIntensity.value),
     isGlowEnabled,

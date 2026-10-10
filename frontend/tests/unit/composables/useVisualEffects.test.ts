@@ -25,22 +25,26 @@ describe('useVisualEffects', () => {
   })
 
   it('should initialize with defaults', () => {
-    const { flickering, scanlines, glowIntensity, isGlowEnabled } = useVisualEffects()
+    const { flickering, isFlickeringEnabled, scanlines, glowIntensity, isGlowEnabled } =
+      useVisualEffects()
 
     expect(flickering.value).toBe(false)
+    expect(isFlickeringEnabled.value).toBe(false)
     expect(scanlines.value).toBe(true)
     expect(glowIntensity.value).toBe('normal')
     expect(isGlowEnabled.value).toBe(true)
   })
 
   it('toggleFlickering flips the value', () => {
-    const { flickering, toggleFlickering } = useVisualEffects()
+    const { flickering, isFlickeringEnabled, toggleFlickering } = useVisualEffects()
 
     toggleFlickering()
     expect(flickering.value).toBe(true)
+    expect(isFlickeringEnabled.value).toBe(true)
 
     toggleFlickering()
     expect(flickering.value).toBe(false)
+    expect(isFlickeringEnabled.value).toBe(false)
   })
 
   it('toggleScanlines flips the value', () => {
@@ -148,12 +152,14 @@ describe('useVisualEffects', () => {
 
   it('stops flickering when reduced motion becomes preferred', async () => {
     vi.useFakeTimers()
-    const { flickering, prefersReducedMotion, toggleFlickering } = useVisualEffects()
+    const { flickering, isFlickeringEnabled, prefersReducedMotion, toggleFlickering } =
+      useVisualEffects()
 
     try {
       toggleFlickering()
       await nextTick()
       expect(flickering.value).toBe(true)
+      expect(isFlickeringEnabled.value).toBe(true)
       expect(vi.getTimerCount()).toBe(1)
 
       motionState.preference!.value = 'reduce'
@@ -161,6 +167,7 @@ describe('useVisualEffects', () => {
 
       expect(prefersReducedMotion.value).toBe(true)
       expect(flickering.value).toBe(false)
+      expect(isFlickeringEnabled.value).toBe(false)
       expect(vi.getTimerCount()).toBe(0)
     } finally {
       vi.useRealTimers()

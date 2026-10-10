@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import { capitalize } from '@/core/utils/format'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 import type { VisualAttributes } from '../models/dweller'
 import DwellerIdentitySignal from './DwellerIdentitySignal.vue'
@@ -15,9 +16,6 @@ const visualAttributes = computed<VisualAttributes | null>(
 )
 const generatingAppearance = computed(() => ctx.generatingAppearance.value)
 const isAnyGenerating = computed(() => ctx.isAnyGenerating.value)
-
-// Helper to capitalize first letter
-const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
 
 // Format attributes for display
 const formattedAttributes = computed(() => {

@@ -94,6 +94,12 @@ uv run fo-cli ops check-ai --api-url https://fallout-api.evillab.tech --skip-cha
 4. Leave RustFS variables unset if storage is intentionally unavailable; the backend now starts without it. Configure
    them when media uploads are required.
 5. Run the **Deploy to Hetzner** workflow with the versioned backend image tag and migrations enabled when applicable.
+   Migrations run in a dedicated Job using the target image before application images change. A failed Job aborts rollout.
+   Enable `maintenance_mode` for incompatible schema changes, including the upgrade from v2.165.1 that drops
+   `dweller.is_adult`: the workflow records API/worker replica counts, stops both writers, creates and verifies a
+   PostgreSQL dump under the server user's `~/fallout-backups/`, migrates, then restores the replicas on the new image.
+   Plan a brief API maintenance window. Migration failure keeps writers stopped for inspection; retain the backup
+   and restore the previous schema/image together rather than restarting old code against a changed schema.
 6. Confirm rollout and health after deployment:
 
    ```bash

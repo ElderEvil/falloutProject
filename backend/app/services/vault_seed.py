@@ -144,6 +144,14 @@ BOOSTED_SEED_OUTFITS: tuple[tuple[str, int], ...] = (
     ("Hazmat suit", 3),
 )
 BOOSTED_LEGENDARY_DWELLER_COUNT = 4
+# Pets a boosted vault starts with (in storage, unassigned) so equip and the
+# bonus display are testable immediately. Names must exist in the pet art/effect
+# catalog, or the seed silently produces art-less, effect-less pets.
+BOOSTED_SEED_PETS: tuple[tuple[str, RarityEnum], ...] = (
+    ("Dogmeat (Fallout 4)", RarityEnum.LEGENDARY),
+    ("CX404", RarityEnum.LEGENDARY),
+    ("Vault-Tec Parrot", RarityEnum.RARE),
+)
 
 
 @dataclass(slots=True)

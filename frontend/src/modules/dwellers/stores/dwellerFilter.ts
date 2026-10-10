@@ -3,6 +3,11 @@ import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
 import {
+  GENDER_CONFIG_MAP,
+  RACE_CONFIG_MAP,
+  RARITY_CONFIG_MAP,
+} from '@/modules/dwellers/models/dweller'
+import {
   DEFAULT_TABLE_COLUMNS,
   DWELLER_TABLE_PRESETS,
   canonicalColumnOrder,
@@ -52,6 +57,27 @@ export interface DwellerStatusCounts {
   byStatus: Record<DwellerStatus, number>
 }
 
+export interface DwellerGenderCounts {
+  /** Matched dwellers across every gender. */
+  all: number
+  /** Matched dwellers per gender; every known gender key is present and zero-initialized. */
+  byGender: Record<string, number>
+}
+
+export interface DwellerRarityCounts {
+  /** Matched dwellers across every rarity. */
+  all: number
+  /** Matched dwellers per rarity; every known rarity key is present and zero-initialized. */
+  byRarity: Record<string, number>
+}
+
+export interface DwellerRaceCounts {
+  /** Matched dwellers across every race. */
+  all: number
+  /** Matched dwellers per race; every known race key is present and zero-initialized. */
+  byRace: Record<string, number>
+}
+
 export const DWELLER_SORT_KEYS = [
   'name',
   'level',
@@ -69,17 +95,17 @@ export type DwellerSortBy = (typeof DWELLER_SORT_KEYS)[number]
 export const SORT_DIRECTIONS = ['asc', 'desc'] as const
 export type SortDirection = (typeof SORT_DIRECTIONS)[number]
 
-export const isDwellerStatus = (value: unknown): value is DwellerStatus =>
-  typeof value === 'string' && (DWELLER_STATUSES as readonly string[]).includes(value)
+function isOneOf<T extends string>(values: readonly T[]): (value: unknown) => value is T {
+  return (value: unknown): value is T =>
+    typeof value === 'string' && (values as readonly string[]).includes(value)
+}
 
-export const isDwellerAgeGroup = (value: unknown): value is DwellerAgeGroup =>
-  typeof value === 'string' && (DWELLER_AGE_GROUPS as readonly string[]).includes(value)
-
-export const isDwellerSortBy = (value: unknown): value is DwellerSortBy =>
-  typeof value === 'string' && (DWELLER_SORT_KEYS as readonly string[]).includes(value)
-
-export const isSortDirection = (value: unknown): value is SortDirection =>
-  typeof value === 'string' && (SORT_DIRECTIONS as readonly string[]).includes(value)
+export const isDwellerStatus = isOneOf(DWELLER_STATUSES)
+export const isDwellerAgeGroup = isOneOf(DWELLER_AGE_GROUPS)
+export const isDwellerGender = isOneOf(Object.keys(GENDER_CONFIG_MAP))
+export const isDwellerRarity = isOneOf(Object.keys(RARITY_CONFIG_MAP))
+export const isDwellerSortBy = isOneOf(DWELLER_SORT_KEYS)
+export const isSortDirection = isOneOf(SORT_DIRECTIONS)
 
 /**
  * Roster ordering, shared by the store and the unassigned panel. The second copy that
@@ -106,9 +132,20 @@ export function matchesAgeGroup(dweller: DwellerShort, ageGroup: DwellerAgeGroup
   return ageGroup === 'all' || dweller.age_group === ageGroup
 }
 export type DwellerViewMode = 'list' | 'grid' | 'table'
+/** Every facet a chip preview can narrow by; the counted facet is excluded by callers. */
+type FacetFilters = {
+  status: DwellerStatus | 'all'
+  ageGroup: DwellerAgeGroup
+  gender: string
+  rarity: string
+  race: string
+  faction: string
+}
 type DwellerFetchOptions = {
   status?: DwellerStatus | 'all'
   ageGroup?: DwellerAgeGroup
+  gender?: string
+  rarity?: string
   race?: string
   faction?: string
   search?: string
@@ -142,6 +179,8 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     return {
       status: options.status !== 'all' ? options.status : undefined,
       ageGroup: options.ageGroup !== 'all' ? options.ageGroup : undefined,
+      gender: options.gender !== 'all' ? options.gender : undefined,
+      rarity: options.rarity !== 'all' ? options.rarity : undefined,
       race: options.race !== 'all' ? options.race : undefined,
       faction: options.faction !== 'all' ? options.faction : undefined,
       search: options.search,
@@ -174,6 +213,8 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   // Filter and sort state (persisted in localStorage)
   const filterStatus = useLocalStorage<DwellerStatus | 'all'>('dwellerFilterStatus', 'all')
   const filterAgeGroup = useLocalStorage<DwellerAgeGroup>('dwellerFilterAgeGroup', 'all')
+  const filterGender = useLocalStorage<string>('dwellerFilterGender', 'all')
+  const filterRarity = useLocalStorage<string>('dwellerFilterRarity', 'all')
   // Identity lives in visual_attributes; 'all' means unfiltered.
   const filterRace = useLocalStorage<string>('dwellerFilterRace', 'all')
   const filterFaction = useLocalStorage<string>('dwellerFilterFaction', 'all')
@@ -199,6 +240,8 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     (status) => {
       if (status !== 'dead') return
       filterAgeGroup.value = 'all'
+      filterGender.value = 'all'
+      filterRarity.value = 'all'
       filterRace.value = 'all'
       filterFaction.value = 'all'
     },
@@ -266,33 +309,74 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   })
 
   /**
-   * Count every status under the given non-status filters, from the unfiltered
-   * allDwellers collection. The backend-narrowed `dwellers` list would only ever
-   * report the currently selected status, so a chip could not preview its own result.
+   * Shared facet-count loop behind the chip previews. Filters the unfiltered
+   * allDwellers collection by every facet save the one being counted (callers
+   * pass 'all' for it) and buckets each match via `bucket` — including the
+   * 'unknown' fallback keys both originals injected.
    */
-  function countByStatus(filters: {
-    ageGroup: DwellerAgeGroup
-    race: string
-    faction: string
-  }): DwellerStatusCounts {
-    const byStatus = Object.fromEntries(DWELLER_STATUSES.map((status) => [status, 0])) as Record<
-      DwellerStatus,
-      number
-    >
+  function countBy<B extends string>(
+    filters: FacetFilters,
+    keys: readonly B[],
+    bucket: (dweller: DwellerShort) => B
+  ): { all: number; by: Record<B, number> } {
+    const by = Object.fromEntries(keys.map((key) => [key, 0])) as Record<B, number>
     const factionActive = featureFlags.factionMechanics && filters.faction !== 'all'
     let all = 0
 
     for (const dweller of allDwellers.value) {
+      if (filters.status !== 'all' && dweller.status !== filters.status) continue
       if (!matchesAgeGroup(dweller, filters.ageGroup)) continue
+      if (filters.gender !== 'all' && dweller.gender !== filters.gender) continue
+      if (filters.rarity !== 'all' && dweller.rarity !== filters.rarity) continue
       if (filters.race !== 'all' && dweller.visual_attributes?.race !== filters.race) continue
       if (factionActive && dweller.visual_attributes?.faction !== filters.faction) continue
 
-      const status = isDwellerStatus(dweller.status) ? dweller.status : 'idle'
-      byStatus[status] += 1
+      const key = bucket(dweller)
+      by[key] = (by[key] ?? 0) + 1
       all += 1
     }
 
+    return { all, by }
+  }
+
+  /** Count every status under the given non-status filters. */
+  function countByStatus(filters: Omit<FacetFilters, 'status'>): DwellerStatusCounts {
+    const { all, by: byStatus } = countBy(
+      { ...filters, status: 'all' },
+      DWELLER_STATUSES,
+      (dweller) => (isDwellerStatus(dweller.status) ? dweller.status : 'idle')
+    )
     return { all, byStatus }
+  }
+
+  /** Count every gender under the given non-gender filters. */
+  function countByGender(filters: Omit<FacetFilters, 'gender'>): DwellerGenderCounts {
+    const { all, by: byGender } = countBy(
+      { ...filters, gender: 'all' },
+      Object.keys(GENDER_CONFIG_MAP),
+      (dweller) => dweller.gender ?? 'unknown'
+    )
+    return { all, byGender }
+  }
+
+  /** Count every rarity under the given non-rarity filters. */
+  function countByRarity(filters: Omit<FacetFilters, 'rarity'>): DwellerRarityCounts {
+    const { all, by: byRarity } = countBy(
+      { ...filters, rarity: 'all' },
+      Object.keys(RARITY_CONFIG_MAP),
+      (dweller) => dweller.rarity ?? 'unknown'
+    )
+    return { all, byRarity }
+  }
+
+  /** Count every race under the given non-race filters. */
+  function countByRace(filters: Omit<FacetFilters, 'race'>): DwellerRaceCounts {
+    const { all, by: byRace } = countBy(
+      { ...filters, race: 'all' },
+      Object.keys(RACE_CONFIG_MAP),
+      (dweller) => dweller.visual_attributes?.race ?? 'unknown'
+    )
+    return { all, byRace }
   }
 
   async function fetchDwellersByVault(
@@ -312,6 +396,8 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       ...options,
       status: filterStatus.value,
       ageGroup: filterAgeGroup.value,
+      gender: filterGender.value,
+      rarity: filterRarity.value,
       race: filterRace.value,
       // The API rejects a faction filter while the switch is off, so never send it.
       faction: featureFlags.factionMechanics ? filterFaction.value : 'all',
@@ -330,12 +416,20 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     const requestSeq = ++allDwellersRequestSeq
 
     try {
-      const data = await getDwellersByVault(vaultId, token, {
+      let page = await getDwellersByVault(vaultId, token, {
         skip: 0,
         limit: ALL_DWELLERS_FETCH_LIMIT,
       })
+      const collected: DwellerShort[] = [...page]
+      while (page.length === ALL_DWELLERS_FETCH_LIMIT) {
+        page = await getDwellersByVault(vaultId, token, {
+          skip: collected.length,
+          limit: ALL_DWELLERS_FETCH_LIMIT,
+        })
+        collected.push(...page)
+      }
       if (requestSeq === allDwellersRequestSeq && allDwellersVaultId === vaultId) {
-        allDwellers.value = data
+        allDwellers.value = collected
       }
     } catch (error) {
       handleStoreError(error, `Failed to fetch all dwellers for vault ${vaultId}`)
@@ -370,6 +464,14 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
 
   function setFilterAgeGroup(ageGroup: DwellerAgeGroup): void {
     filterAgeGroup.value = ageGroup
+  }
+
+  function setFilterGender(gender: string): void {
+    filterGender.value = gender
+  }
+
+  function setFilterRarity(rarity: string): void {
+    filterRarity.value = rarity
   }
 
   function setFilterRace(race: string): void {
@@ -417,6 +519,8 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     isLoading,
     filterStatus,
     filterAgeGroup,
+    filterGender,
+    filterRarity,
     filterRace,
     filterFaction,
     sortBy,
@@ -427,12 +531,17 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     getDwellersByStatus,
     filteredAndSortedDwellers,
     countByStatus,
+    countByGender,
+    countByRarity,
+    countByRace,
     fetchDwellersByVault,
     fetchWithCurrentFilters,
     fetchAllDwellers,
     fetchDwellerDetails,
     setFilterStatus,
     setFilterAgeGroup,
+    setFilterGender,
+    setFilterRarity,
     setFilterRace,
     setFilterFaction,
     setSortBy,

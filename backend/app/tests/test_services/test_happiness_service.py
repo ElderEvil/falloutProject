@@ -8,11 +8,13 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.models.dweller import Dweller
 from app.models.incident import Incident, IncidentStatus, IncidentType
+from app.models.pet import Pet
 from app.models.room import Room
 from app.models.vault import Vault
+from app.schemas.common import RarityEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
-from app.services.happiness_service import happiness_service
+from app.services.happiness_service import HappinessService, happiness_service
 from app.tests.factory.dwellers import create_fake_dweller
 from app.tests.factory.rooms import create_fake_room
 
@@ -479,3 +481,119 @@ class TestHappinessService:
         # Incident penalty should show up
         negative_names = [m["name"] for m in modifiers["negative"]]
         assert any("Incident" in name for name in negative_names)
+
+    async def test_pet_happiness_bonus(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+    ):
+        """An equipped happiness pet adds its capped fraction to the per-tick delta."""
+        dweller_data = create_fake_dweller()
+        dweller_data.update(
+            {
+                "first_name": "Pet",
+                "last_name": "Owner",
+                "status": "training",
+                "happiness": 50,
+                "health": 100,
+                "max_health": 100,
+                "radiation": 0,
+            }
+        )
+        dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+        dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+
+        vault_factors = {
+            "has_low_resources": False,
+            "has_critical_resources": False,
+            "active_incident_count": 0,
+            "power_ratio": 0.9,
+            "food_ratio": 0.9,
+            "water_ratio": 0.9,
+            "radio_happiness_bonus": 0.0,
+        }
+
+        # Pet-less dweller keeps the baseline delta (no pet contribution)
+        baseline = await HappinessService._calculate_happiness_change(
+            async_session,
+            dweller,
+            vault_factors,
+            seconds_passed=60,
+        )
+
+        # Equip a happiness pet (Mr. Pebbles: happiness=0.25)
+        dweller.pet = Pet(name="Mr. Pebbles", rarity="Legendary")
+        with_pet = await HappinessService._calculate_happiness_change(
+            async_session,
+            dweller,
+            vault_factors,
+            seconds_passed=60,
+        )
+
+        assert with_pet == pytest.approx(baseline + 0.25)
+
+    async def test_pet_happiness_bonus_end_to_end(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+    ):
+        """A dweller with an equipped happiness pet gains more happiness per tick."""
+        dweller_data = create_fake_dweller()
+        dweller_data.update(
+            {
+                "first_name": "Pet",
+                "last_name": "Owner",
+                "status": "training",
+                "happiness": 50,
+                "health": 100,
+                "max_health": 100,
+                "radiation": 0,
+            }
+        )
+        dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+        dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+
+        no_pet_data = create_fake_dweller()
+        no_pet_data.update(
+            {
+                "first_name": "No",
+                "last_name": "Pet",
+                "status": "training",
+                "happiness": 50,
+                "health": 100,
+                "max_health": 100,
+                "radiation": 0,
+            }
+        )
+        no_pet_in = DwellerCreate(**no_pet_data, vault_id=vault.id)
+        no_pet_dweller = await crud.dweller.create(db_session=async_session, obj_in=no_pet_in)
+
+        # Equip a happiness pet (Mr. Pebbles: happiness=0.25) through the real
+        # FK-only equip path; get_multi_by_vault's selectinload(Dweller.pet)
+        # (B7) is what makes the bonus visible to the tick sweep.
+        pet = await crud.pet.create(
+            async_session,
+            obj_in={"name": "Mr. Pebbles", "rarity": RarityEnum.LEGENDARY, "value": 500},
+        )
+        await crud.pet.equip(db_session=async_session, item_id=pet.id, dweller_id=dweller.id)
+
+        # Good vault conditions
+        vault.power = 90
+        vault.power_max = 100
+        vault.food = 90
+        vault.food_max = 100
+        vault.water = 90
+        vault.water_max = 100
+        async_session.add(vault)
+        await async_session.commit()
+
+        await happiness_service.update_vault_happiness(
+            async_session,
+            vault.id,
+            seconds_passed=60,
+        )
+
+        await async_session.refresh(dweller)
+        await async_session.refresh(no_pet_dweller)
+
+        assert dweller.happiness > no_pet_dweller.happiness

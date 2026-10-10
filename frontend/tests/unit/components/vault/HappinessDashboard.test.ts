@@ -182,12 +182,12 @@ describe('HappinessDashboard', () => {
     }
   })
 
-  it('should emit treat-irradiated when irradiated dwellers exist', async () => {
+  it('should emit treat-irradiated when multiple dwellers are severely irradiated', async () => {
     const wrapper = mount(HappinessDashboard, {
       props: {
         ...defaultProps,
         idleDwellerCount: 1,
-        irradiatedDwellerCount: 4,
+        severelyIrradiatedDwellerCount: 4,
       },
     })
 
@@ -197,15 +197,28 @@ describe('HappinessDashboard', () => {
     expect(wrapper.emitted('treat-irradiated')).toBeTruthy()
   })
 
-  it('should hide the treatment button when nobody is irradiated', () => {
+  it('should hide the treatment button when nobody is severely irradiated', () => {
     const wrapper = mount(HappinessDashboard, {
       props: {
         ...defaultProps,
         idleDwellerCount: 1,
-        irradiatedDwellerCount: 0,
+        severelyIrradiatedDwellerCount: 0,
       },
     })
 
+    expect(wrapper.text()).not.toContain('Treat Irradiated')
+  })
+
+  it('should hide the treatment button for a single severely irradiated dweller', () => {
+    const wrapper = mount(HappinessDashboard, {
+      props: {
+        ...defaultProps,
+        idleDwellerCount: 5,
+        severelyIrradiatedDwellerCount: 1,
+      },
+    })
+
+    expect(wrapper.text()).toContain('QUICK ACTIONS')
     expect(wrapper.text()).not.toContain('Treat Irradiated')
   })
 

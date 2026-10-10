@@ -6,6 +6,7 @@ type WeaponRead = components['schemas']['WeaponRead']
 type OutfitRead = components['schemas']['OutfitRead']
 type JunkRead = components['schemas']['JunkRead']
 type ItemRead = components['schemas']['ItemRead']
+type PetRead = components['schemas']['PetRead']
 type LunchboxOpened = components['schemas']['LunchboxOpened']
 type LunchboxOpenRequest = components['schemas']['LunchboxOpenRequest']
 
@@ -14,6 +15,7 @@ export interface StorageItemsResponse {
   outfits: OutfitRead[]
   junk: JunkRead[]
   items: ItemRead[]
+  pets: PetRead[]
 }
 
 export const storageService = {

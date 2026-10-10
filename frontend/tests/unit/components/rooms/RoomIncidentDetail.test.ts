@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { createToastMock } from '../../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import RoomIncidentDetail from '@/modules/rooms/components/RoomIncidentDetail.vue'
 import type { Incident, IncidentTeamMember } from '@/modules/combat/models/incident'
@@ -7,6 +8,7 @@ const assignResponders = vi.fn()
 const fetchIncidentTeam = vi.fn()
 const getIncidentTeam = vi.fn(() => [])
 const warning = vi.fn()
+const mockToast = createToastMock({ warning })
 
 vi.mock('@/modules/combat/stores/incident', () => ({
   useIncidentStore: () => ({ assignResponders, fetchIncidentTeam, getIncidentTeam }),
@@ -17,7 +19,7 @@ vi.mock('@/modules/auth/stores/auth', () => ({
 }))
 
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({ success: vi.fn(), error: vi.fn(), warning, info: vi.fn() }),
+  useToast: () => mockToast,
 }))
 
 const incident = (overrides: Partial<Incident> = {}): Incident =>
@@ -42,7 +44,7 @@ const dweller = (overrides: Record<string, unknown> = {}) => ({
   level: 5,
   health: 90,
   max_health: 100,
-  is_adult: true,
+  age_group: 'adult',
   room_id: 'room-2',
   status: 'idle',
   combat_power: 10,
@@ -146,7 +148,7 @@ describe('RoomIncidentDetail', () => {
       dwellers: [
         dweller({ id: 'd1', first_name: 'Away', status: 'exploring' }),
         dweller({ id: 'd2', first_name: 'Gone', status: 'dead' }),
-        dweller({ id: 'd3', first_name: 'Child', is_adult: false }),
+        dweller({ id: 'd3', first_name: 'Child', age_group: 'child' }),
         dweller({ id: 'd4', first_name: 'Hurt', health: 0 }),
       ],
     })

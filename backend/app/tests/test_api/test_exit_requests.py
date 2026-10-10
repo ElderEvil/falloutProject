@@ -100,7 +100,7 @@ async def test_grant_exit_is_permanent_and_removes_the_request(
     assert remaining.json() == []
 
 
-async def test_refuse_exit_keeps_the_request_standing(
+async def test_refuse_exit_resolves_the_request_and_costs_the_vault(
     async_client: AsyncClient,
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
@@ -115,11 +115,14 @@ async def test_refuse_exit_keeps_the_request_standing(
     assert response.status_code == 200
     body = response.json()
     assert body["granted"] is False
-    assert body["happiness"] == 80 - game_config.exit_request.refusal_happiness_penalty
+    assert body["happiness"] == 80 - game_config.exit_request.vault_refusal_happiness_penalty
 
     await async_session.refresh(dwelling)
-    assert dwelling.exit_requested_at is not None
+    assert dwelling.exit_requested_at is None
     assert dwelling.is_dead is False
+
+    remaining = await async_client.get(f"/dwellers/vault/{vault.id}/exit-requests", headers=superuser_token_headers)
+    assert remaining.json() == []
 
 
 async def test_grant_without_a_request_is_rejected(

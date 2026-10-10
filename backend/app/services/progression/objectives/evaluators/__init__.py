@@ -25,6 +25,7 @@ from app.services.progression.objectives.evaluators.concrete import (
     ExpeditionEvaluator,
     LevelUpEvaluator,
     ReachEvaluator,
+    ScrapEvaluator,
     TrainEvaluator,
 )
 from app.services.progression.objectives.evaluators.manager import (
@@ -42,6 +43,7 @@ __all__ = [
     "ObjectiveEvaluator",
     "ObjectiveEvaluatorManager",
     "ReachEvaluator",
+    "ScrapEvaluator",
     "TrainEvaluator",
     "async_session_maker",
     "current_session_maker",

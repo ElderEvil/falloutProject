@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useMediaQuery } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import {
@@ -22,13 +23,15 @@ interface NavItem {
   id: string
   label: string
   icon: string
-  path?: string
+  path: string
   hotkey?: string
   wip?: boolean
-  comingSoon?: {
-    phase: string
-    quarter: string
-  }
+}
+
+interface ComingSoonItem {
+  id: string
+  label: string
+  icon: string
 }
 
 const navItems = computed((): NavItem[] => {
@@ -115,18 +118,11 @@ const navItems = computed((): NavItem[] => {
   return navItems
 })
 
-const comingSoonItems = computed((): NavItem[] => [
-  {
-    id: 'workshop',
-    label: 'Workshop',
-    icon: 'mdi:hammer-wrench',
-    comingSoon: { phase: 'Phase 1', quarter: 'Jan-Feb 2026' },
-  },
+const comingSoonItems = computed((): ComingSoonItem[] => [
   {
     id: 'achievements',
     label: 'Achievements',
     icon: 'mdi:trophy',
-    comingSoon: { phase: 'Phase 3', quarter: 'Mar-Apr 2026' },
   },
 ])
 
@@ -134,32 +130,95 @@ const activePath = computed(
   () =>
     navItems.value
       .map((item) => item.path)
-      .filter(
-        (path): path is string =>
-          Boolean(path) && (route.path === path || route.path.startsWith(`${path}/`))
-      )
+      .filter((path) => route.path === path || route.path.startsWith(`${path}/`))
       .sort((first, second) => second.length - first.length)[0]
 )
 
-const isActive = (path: string | undefined) => path === activePath.value
+const isActive = (path: string) => path === activePath.value
 
-const navigate = (path: string | undefined) => {
-  if (path) {
-    router.push(path)
+const navigate = (path: string) => {
+  router.push(path)
+}
+
+// --- Mobile drawer ---------------------------------------------------------
+// Drawer visibility is kept separate from the persisted desktop `isCollapsed`
+// flag: collapsing the desktop panel must not hide the mobile drawer (and the
+// reverse). The breakpoint mirrors the Tailwind `md` token (768px).
+const MOBILE_QUERY = '(max-width: 767.98px)'
+// Reactive so `toggleLabel`, `toggleIcon`, and `aria-expanded` follow the window
+// as it crosses the breakpoint instead of staying stale after a resize.
+const isMobile = useMediaQuery(MOBILE_QUERY)
+const isMobileViewport = () => isMobile.value
+const showLabels = computed(() => isMobile.value || !isCollapsed.value)
+
+const isMobileOpen = ref(false)
+const toggleButtonRef = ref<HTMLButtonElement | null>(null)
+const panelSurfaceRef = ref<HTMLElement | null>(null)
+
+const openMobile = () => {
+  isMobileOpen.value = true
+  // Move focus into the drawer so keyboard users land on the nav, not the page.
+  nextTick(() => panelSurfaceRef.value?.focus())
+}
+
+const closeMobile = () => {
+  if (!isMobileOpen.value) return
+  isMobileOpen.value = false
+  // Return focus to the invoking toggle.
+  nextTick(() => toggleButtonRef.value?.focus())
+}
+
+const handleToggleClick = () => {
+  if (!isMobileViewport()) {
+    toggle()
+    return
+  }
+  if (isMobileOpen.value) {
+    closeMobile()
+  } else {
+    openMobile()
   }
 }
 
+const toggleLabel = computed(() => {
+  if (isMobileViewport()) {
+    return isMobileOpen.value ? 'Close navigation panel' : 'Open navigation panel'
+  }
+  return isCollapsed.value ? 'Expand navigation panel' : 'Collapse navigation panel'
+})
+
+const toggleIcon = computed(() => {
+  if (isMobileViewport()) {
+    return isMobileOpen.value ? 'mdi:close' : 'mdi:menu'
+  }
+  return isCollapsed.value ? 'mdi:chevron-right' : 'mdi:chevron-left'
+})
+
+// Mirrors the button's label; Ctrl/Cmd+B only collapses the desktop panel, so
+// the shortcut hint would contradict the mobile drawer action.
+const toggleTooltip = computed(() =>
+  isMobileViewport() ? toggleLabel.value : `${toggleLabel.value} (Ctrl+B)`
+)
+
+// Shared editable-surface guard: number hotkeys and Ctrl/Cmd+B must not hijack
+// typing in inputs, textareas, or contenteditable surfaces.
+const isEditableTarget = (target: EventTarget | null): boolean =>
+  target instanceof HTMLElement &&
+  (target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target.isContentEditable)
+
 // Keyboard shortcuts
 const handleKeyPress = (e: KeyboardEvent) => {
+  // Escape closes the mobile drawer (focus returns to the toggle).
+  if (e.key === 'Escape' && isMobileOpen.value) {
+    closeMobile()
+    return
+  }
+
   // Toggle panel with Ctrl/Cmd + B (layout-independent via code)
   if ((e.ctrlKey || e.metaKey) && e.code === 'KeyB') {
-    // Don't hijack text editing shortcuts
-    const target = e.target as HTMLElement
-    if (
-      target instanceof HTMLInputElement ||
-      target instanceof HTMLTextAreaElement ||
-      target.isContentEditable
-    ) {
+    if (isEditableTarget(e.target)) {
       return
     }
 
@@ -168,13 +227,17 @@ const handleKeyPress = (e: KeyboardEvent) => {
     return
   }
 
-  // Navigate with number keys (only if not in an input)
-  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+  // Number hotkeys must not fire while a modifier is held (Ctrl/Cmd/Alt+1..9
+  // belong to the browser/OS) or while an editable surface has focus.
+  if (e.ctrlKey || e.metaKey || e.altKey) {
+    return
+  }
+  if (isEditableTarget(e.target)) {
     return
   }
 
   const item = navItems.value.find((item) => item.hotkey === e.key)
-  if (item && item.path) {
+  if (item) {
     e.preventDefault()
     navigate(item.path)
   }
@@ -187,98 +250,103 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyPress)
 })
+
+// Navigating away from a drawer-opened item closes the drawer.
+watch(
+  () => route.fullPath,
+  () => closeMobile()
+)
 </script>
 
 <template>
-  <nav class="side-panel" :class="{ collapsed: isCollapsed }" aria-label="Game navigation panel">
+  <nav
+    class="side-panel"
+    :class="{ collapsed: isCollapsed, 'mobile-open': isMobileOpen }"
+    aria-label="Game navigation panel"
+  >
+    <div id="side-panel-nav" ref="panelSurfaceRef" class="panel-surface" tabindex="-1">
+      <!-- Navigation Items -->
+      <div class="nav-items">
+        <TooltipProvider :delay-duration="200">
+          <Tooltip v-for="item in navItems" :key="item.id">
+            <TooltipTrigger as-child>
+              <RouterLink
+                :to="item.path"
+                class="nav-item"
+                :class="{ active: isActive(item.path) }"
+                :aria-label="`${item.label}${showLabels && item.hotkey ? ' ' + item.hotkey : ''}`"
+                :aria-current="isActive(item.path) ? 'page' : undefined"
+                :aria-keyshortcuts="item.hotkey"
+              >
+                <Icon :icon="item.icon" class="nav-icon" />
+                <span v-if="showLabels" class="nav-label">{{ item.label }}</span>
+                <TooltipProvider v-if="showLabels && item.wip" :delay-duration="200">
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="wip-badge">WIP</span>
+                    </TooltipTrigger>
+                    <TooltipContent>Work in progress</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <span
+                  v-else-if="showLabels && item.hotkey"
+                  class="hotkey-badge"
+                  aria-hidden="true"
+                  >{{ item.hotkey }}</span
+                >
+              </RouterLink>
+            </TooltipTrigger>
+            <TooltipContent>{{
+              `${item.label}${item.hotkey ? ' (Shortcut: ' + item.hotkey + ')' : ''}`
+            }}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <!-- Coming Soon Divider -->
+        <div v-if="showLabels" class="nav-divider">
+          <span class="divider-text">Upcoming Features</span>
+        </div>
+
+        <!-- Coming Soon Items -->
+        <TooltipProvider :delay-duration="200">
+          <Tooltip v-for="item in comingSoonItems" :key="item.id">
+            <TooltipTrigger as-child>
+              <div class="nav-item locked">
+                <Icon :icon="item.icon" class="nav-icon" />
+                <span v-if="showLabels" class="nav-label locked-label">{{ item.label }}</span>
+                <span v-if="showLabels" class="lock-icon-wrap">
+                  <Icon icon="mdi:lock" class="lock-icon" />
+                </span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>{{ `${item.label} - Coming soon` }}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    </div>
+
     <!-- Toggle Button -->
     <TooltipProvider :delay-duration="200">
       <Tooltip>
         <TooltipTrigger as-child>
           <button
-            @click="toggle"
+            ref="toggleButtonRef"
+            type="button"
             class="toggle-btn"
-            :aria-label="isCollapsed ? 'Expand navigation panel' : 'Collapse navigation panel'"
+            :aria-label="toggleLabel"
+            :aria-expanded="isMobileViewport() ? isMobileOpen : !isCollapsed"
+            aria-controls="side-panel-nav"
+            @click="handleToggleClick"
           >
-            <Icon :icon="isCollapsed ? 'mdi:chevron-right' : 'mdi:chevron-left'" class="h-6 w-6" />
+            <Icon :icon="toggleIcon" class="h-6 w-6" />
           </button>
         </TooltipTrigger>
-        <TooltipContent>{{ `${isCollapsed ? 'Expand' : 'Collapse'} (Ctrl+B)` }}</TooltipContent>
+        <TooltipContent>{{ toggleTooltip }}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
 
-    <!-- Navigation Items -->
-    <div class="nav-items">
-      <TooltipProvider :delay-duration="200">
-        <Tooltip v-for="item in navItems" :key="item.id">
-          <TooltipTrigger as-child>
-            <button
-              @click="item.path && navigate(item.path)"
-              class="nav-item"
-              :class="{
-                active: isActive(item.path),
-                locked: item.comingSoon,
-              }"
-              :aria-label="`${item.label}${!isCollapsed && item.hotkey ? ' ' + item.hotkey : ''}`"
-              :aria-keyshortcuts="item.hotkey"
-            >
-              <Icon :icon="item.icon" class="nav-icon" />
-              <span
-                v-if="!isCollapsed"
-                class="nav-label"
-                :class="{ 'locked-label': item.comingSoon }"
-                >{{ item.label }}</span
-              >
-              <span v-if="!isCollapsed && item.comingSoon" class="lock-icon-wrap">
-                <Icon icon="mdi:lock" class="lock-icon" />
-              </span>
-              <TooltipProvider v-if="!isCollapsed && item.wip" :delay-duration="200">
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <span class="wip-badge">WIP</span>
-                  </TooltipTrigger>
-                  <TooltipContent>Work in progress</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <span
-                v-else-if="!isCollapsed && item.hotkey"
-                class="hotkey-badge"
-                aria-hidden="true"
-                >{{ item.hotkey }}</span
-              >
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>{{
-            item.comingSoon
-              ? `${item.label} - ${item.comingSoon.phase} (${item.comingSoon.quarter})`
-              : `${item.label}${item.hotkey ? ' (Shortcut: ' + item.hotkey + ')' : ''}`
-          }}</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-
-      <!-- Coming Soon Divider -->
-      <div v-if="!isCollapsed" class="nav-divider">
-        <span class="divider-text">Upcoming Features</span>
-      </div>
-
-      <!-- Coming Soon Items -->
-      <TooltipProvider :delay-duration="200">
-        <Tooltip v-for="item in comingSoonItems" :key="item.id">
-          <TooltipTrigger as-child>
-            <div class="nav-item locked">
-              <Icon :icon="item.icon" class="nav-icon" />
-              <span v-if="!isCollapsed" class="nav-label locked-label">{{ item.label }}</span>
-              <span v-if="!isCollapsed && item.comingSoon" class="lock-icon-wrap">
-                <Icon icon="mdi:lock" class="lock-icon" />
-              </span>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent v-if="isCollapsed">{{
-            `${item.label} - ${item.comingSoon?.phase}`
-          }}</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    </div>
+    <!-- Mobile drawer backdrop -->
+    <div v-if="isMobileOpen" class="panel-backdrop" aria-hidden="true" @click="closeMobile" />
   </nav>
 </template>
 
@@ -334,6 +402,18 @@ onUnmounted(() => {
   box-shadow: 0 0 0 3px var(--color-theme-glow);
 }
 
+/* WCAG 2.2 AA pointer target: keep the 24px visual, extend the hit area to 44x44. */
+.toggle-btn::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+}
+
+/* Mobile drawer backdrop; shown only inside the drawer media query below. */
+.panel-backdrop {
+  display: none;
+}
+
 .nav-items {
   display: flex;
   flex-direction: column;
@@ -352,6 +432,7 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.2s;
   text-align: left;
+  text-decoration: none;
   gap: 12px;
   position: relative;
   width: 100%;
@@ -476,5 +557,110 @@ onUnmounted(() => {
   );
   opacity: 0.15;
   pointer-events: none;
+}
+
+/* === Mobile drawer (< md) ===
+   Below 768px the panel becomes an off-canvas drawer: the surface slides in
+   from the left over a backdrop, while the toggle stays pinned under the
+   navbar so it remains reachable while the drawer is closed. */
+@media (max-width: 767.98px) {
+  .side-panel,
+  .side-panel.collapsed {
+    width: 0;
+    background: transparent;
+    border-right: none;
+    box-shadow: none;
+  }
+
+  .side-panel::before {
+    display: none;
+  }
+
+  .panel-surface {
+    position: fixed;
+    top: var(--chrome-height);
+    bottom: 0;
+    left: 0;
+    width: 240px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.95);
+    border-right: 2px solid var(--color-theme-primary);
+    box-shadow: var(--glow-1);
+    transform: translateX(-100%);
+    /* visibility keeps the closed drawer out of the tab order and the a11y
+       tree; it flips immediately on open and after the slide on close. */
+    visibility: hidden;
+    transition:
+      transform 0.3s ease,
+      visibility 0s linear 0.3s;
+  }
+
+  .side-panel.mobile-open .panel-surface {
+    transform: translateX(0);
+    visibility: visible;
+    transition:
+      transform 0.3s ease,
+      visibility 0s;
+  }
+
+  .panel-surface:focus {
+    outline: none;
+  }
+
+  /* Scanline overlay lives on the sliding surface while off-canvas. */
+  .panel-surface::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      var(--color-theme-glow) 0px,
+      transparent 1px,
+      transparent 2px,
+      var(--color-theme-glow) 3px
+    );
+    opacity: 0.15;
+    pointer-events: none;
+  }
+
+  /* The persisted desktop collapse state must not shrink the drawer. */
+  .side-panel.collapsed .nav-item {
+    justify-content: flex-start;
+    padding: 12px 16px;
+  }
+
+  .side-panel.collapsed .nav-label {
+    display: block;
+  }
+
+  .side-panel.collapsed .hotkey-badge {
+    display: inline-block;
+  }
+
+  /* Keep the first item clear of the pinned toggle. */
+  .nav-items {
+    padding-top: 64px;
+  }
+
+  .toggle-btn {
+    left: 10px;
+    right: auto;
+    top: 12px;
+  }
+
+  .panel-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: rgba(0, 0, 0, 0.6);
+  }
+}
+
+@media (max-width: 767.98px) and (prefers-reduced-motion: reduce) {
+  .panel-surface {
+    transition: none;
+  }
 }
 </style>

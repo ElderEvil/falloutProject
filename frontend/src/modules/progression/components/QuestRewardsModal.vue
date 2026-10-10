@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
 import RewardCard from '@/core/components/common/RewardCard.vue'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
 import type { QuestReward, VaultQuest } from '../models/quest'
 import { questCategoryIcon, QUEST_ITEM_LABELS } from '../models/quest'
@@ -78,17 +78,15 @@ const rewardMeta = (reward: QuestReward): { icon: string, label: string } => {
 </script>
 
 <template>
-  <Dialog :open="show && !!quest" @update:open="(open) => { if (!open) emit('close') }">
-    <DialogContent
-      class="flex max-h-[75vh] w-full max-w-xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-xl"
-    >
-      <DialogHeader
-        class="quest-complete-header flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
-      >
-        <Icon icon="mdi:treasure-chest" class="h-8 w-8 text-theme-primary terminal-glow" />
-        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">Quest Complete!</DialogTitle>
-      </DialogHeader>
-
+  <TerminalModal
+    :open="show && !!quest"
+    title="Quest Complete!"
+    icon="mdi:treasure-chest"
+    size="xl"
+    max-height="75"
+    header-class="quest-complete-header flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
+    @close="emit('close')"
+  >
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
 
     <div v-if="quest" class="quest-return-banner mb-6 flex items-center gap-3 rounded-md border border-theme-primary/30 bg-theme-primary/10 p-4 text-lg text-theme-primary">
@@ -113,19 +111,16 @@ const rewardMeta = (reward: QuestReward): { icon: string, label: string } => {
 
       </div>
 
-      <DialogFooter
-        class="flex-shrink-0 justify-end border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
-      >
-        <TerminalModalActions
-          cancel-label="Review Later"
-          confirm-label="Confirm & Claim"
-          confirm-icon="mdi:check-bold"
-          alignment="between"
-          :confirm-disabled="isSubmitting"
-          @cancel="emit('close')"
-          @confirm="emit('confirm')"
-        />
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
+    <template #footer>
+      <TerminalModalActions
+        cancel-label="Review Later"
+        confirm-label="Confirm & Claim"
+        confirm-icon="mdi:check-bold"
+        alignment="between"
+        :confirm-disabled="isSubmitting"
+        @cancel="emit('close')"
+        @confirm="emit('confirm')"
+      />
+    </template>
+  </TerminalModal>
 </template>

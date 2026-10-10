@@ -152,7 +152,6 @@ async def test_auto_assign_respects_age_group_filter(
             luck=3,
             status=DwellerStatusEnum.IDLE,
             age_group="teen",
-            is_adult=False,
         ),
     )
 
@@ -246,6 +245,105 @@ async def test_auto_assign_training_room_sets_training_status(
             training = await crud.training.training.get_active_by_dweller(async_session, dweller_id)
             assert training is not None, "Training dwellers must have sessions for the training queue"
             assert training.room_id == training_room.id
+
+
+@pytest.mark.asyncio
+async def test_auto_assign_crafting_rooms_endpoint(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+):
+    """Crafting auto-assign endpoint fills workshops with highest-total-SPECIAL adults."""
+    from app.models.room import RoomTypeEnum
+    from app.schemas.common import DwellerStatusEnum
+    from app.schemas.dweller import DwellerCreate
+    from app.schemas.room import RoomCreate
+
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault = await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
+
+    workshop = await crud.room.create(
+        async_session,
+        RoomCreate(
+            name="Weapon workshop",
+            vault_id=vault.id,
+            category=RoomTypeEnum.CRAFTING,
+            ability=None,
+            population_required=12,
+            base_cost=100,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            tier=1,
+            size=9,
+            size_min=9,
+            size_max=9,
+        ),
+    )
+
+    high = await crud.dweller.create(
+        async_session,
+        DwellerCreate(
+            first_name="High",
+            last_name="Crafter",
+            vault_id=vault.id,
+            gender="male",
+            rarity="common",
+            strength=7,
+            perception=7,
+            endurance=7,
+            charisma=7,
+            intelligence=7,
+            agility=7,
+            luck=7,
+            status=DwellerStatusEnum.IDLE,
+        ),
+    )
+    low = await crud.dweller.create(
+        async_session,
+        DwellerCreate(
+            first_name="Low",
+            last_name="Crafter",
+            vault_id=vault.id,
+            gender="female",
+            rarity="common",
+            strength=1,
+            perception=1,
+            endurance=1,
+            charisma=1,
+            intelligence=1,
+            agility=1,
+            luck=1,
+            status=DwellerStatusEnum.IDLE,
+        ),
+    )
+
+    response = await async_client.post(
+        f"/vaults/{vault.id}/dwellers/auto-assign-crafting",
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["assigned_count"] == 2
+    assert [a["dweller_id"] for a in result["assignments"]] == [str(high.id), str(low.id)]
+    assert all(a["room_id"] == str(workshop.id) for a in result["assignments"])
+
+
+@pytest.mark.asyncio
+async def test_auto_assign_crafting_rejects_foreign_vault(
+    async_client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    vault,
+):
+    """An authenticated user cannot auto-assign crafting in another user's vault."""
+    response = await async_client.post(
+        f"/vaults/{vault.id}/dwellers/auto-assign-crafting",
+        headers=normal_user_token_headers,
+    )
+
+    assert response.status_code == 403
 
 
 @pytest.mark.smoke

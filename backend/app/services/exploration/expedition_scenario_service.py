@@ -156,7 +156,6 @@ class ExpeditionScenarioService:
                 last_name="Scenario",
                 gender=GenderEnum.MALE,
                 rarity=RarityEnum.COMMON,
-                is_adult=True,
                 age_group=AgeGroupEnum.ADULT,
                 birth_date=_now(),
                 vault_id=vault.id,

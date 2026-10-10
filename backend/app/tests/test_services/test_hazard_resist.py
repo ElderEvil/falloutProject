@@ -64,7 +64,7 @@ async def test_fire_suit_reduces_fire_damage(async_session: AsyncSession, room_w
     )
     await async_session.commit()
 
-    with patch("app.services.combat.incident_math.fire_damage", return_value=20.0):
+    with patch("app.services.combat.incident_math.containment_damage", return_value=20.0):
         await incident_service.process_incident(async_session, incident, 2)
 
     await async_session.refresh(dwellers[0])
@@ -155,7 +155,7 @@ async def test_both_hazard_outfit_protects_against_fire_and_radiation(
     assert outfit_fire_resist(wearer.__dict__.get("outfit")) == entry["fire_resist"]
     assert outfit_radiation_resist(wearer.__dict__.get("outfit")) == 1.0
 
-    with patch("app.services.combat.incident_math.fire_damage", return_value=20.0):
+    with patch("app.services.combat.incident_math.containment_damage", return_value=20.0):
         await incident_service.process_incident(async_session, incident, 2)
 
     await async_session.refresh(dweller)

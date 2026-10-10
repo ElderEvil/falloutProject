@@ -18,6 +18,7 @@ import type { Incident } from '@/modules/combat/models/incident'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
 import type { Room } from '../models/room'
 import { getTrainingRoomCapacity, hasElevatorAbove, isLevelBuildable } from '@/modules/rooms/utils/room'
+import { ADULT_AGE_GROUPS } from '@/modules/dwellers/models/dweller'
 import RoomGridCell from './RoomGridCell.vue'
 
 // Lazy load heavy modal
@@ -208,7 +209,8 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
     // Check room capacity. Youth apprentices sit outside worker capacity
     // (backend policy: one per production room) — gate adults on staffed
     // slots only; apprentices never count toward them.
-    if (targetRoom && dwellerStore.dwellers.find((d) => d.id === dwellerId)?.is_adult !== false) {
+    const dweller = dwellerStore.dwellers.find((d) => d.id === dwellerId)
+    if (targetRoom && (!dweller || ADULT_AGE_GROUPS.has(dweller.age_group))) {
       const capacity = getTrainingRoomCapacity(targetRoom)
       const staffedDwellers = dwellerStore.dwellers.filter(
         (d) => d.room_id === roomId && !d.apprentice_stat

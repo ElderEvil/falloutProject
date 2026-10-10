@@ -57,6 +57,13 @@ const bonusSources = (key: StatKey): string[] => {
   return row ? describeBonusSources(row) : []
 }
 
+/** Pet chip text, e.g. "Dogmeat +2"; null when the pet grants nothing to this stat. */
+const petSource = (key: StatKey): string | null => {
+  const row = breakdownByKey.value.get(key)
+  if (!row || row.pet === 0 || !row.petName) return null
+  return `${row.petName} +${row.pet}`
+}
+
 interface BarModel {
   base: number
   bonus: number
@@ -205,6 +212,10 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
         <p v-if="bonusSources(stat.key).length > 0" class="stat-breakdown">
           {{ statValue(stat.key) }} → {{ effectiveValue(stat.key) }} ({{ bonusSources(stat.key).join(' · ') }})
         </p>
+        <span v-if="petSource(stat.key)" class="stat-pet-chip">
+          <Icon icon="mdi:paw" class="stat-pet-icon" />
+          {{ petSource(stat.key) }}
+        </span>
         <p class="stat-description">{{ stat.description }}</p>
       </div>
     </div>
@@ -390,6 +401,24 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
   color: var(--color-theme-accent);
   line-height: 1.3;
   margin-bottom: 0.25rem;
+}
+
+.stat-pet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--color-theme-accent);
+  border: 1px solid var(--color-theme-glow);
+  border-radius: 4px;
+  padding: 0.125rem 0.375rem;
+  margin-bottom: 0.25rem;
+}
+
+.stat-pet-icon {
+  width: 0.75rem;
+  height: 0.75rem;
 }
 
 .stat-value-group {

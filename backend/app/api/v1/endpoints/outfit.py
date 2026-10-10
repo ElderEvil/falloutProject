@@ -159,7 +159,7 @@ async def scrap_outfit(
         AccessDeniedException: If the user doesn't own the outfit's vault.
     """
     await verify_item_access(outfit_id, Outfit, user, db_session)
-    junk_list = await crud.outfit.scrap(db_session=db_session, item_id=outfit_id)
+    junk_list = await item_service.scrap_item(db_session, item_id=outfit_id, model=Outfit)
     return JunkListResponse(junk=junk_list)
 
 

@@ -2,16 +2,44 @@ import { describe, expect, it } from 'vitest'
 import { shallowMount, mount } from '@vue/test-utils'
 import DwellersList from '@/modules/dwellers/components/DwellersList.vue'
 
+const dweller = (overrides: Record<string, unknown> = {}) => ({
+  id: 'dweller-1',
+  first_name: 'Sarah',
+  last_name: 'Lyons',
+  thumbnail_url: null,
+  level: 5,
+  health: 80,
+  max_health: 100,
+  radiation: 0,
+  happiness: 75,
+  room_id: null,
+  status: 'working',
+  age_group: 'adult',
+  gender: 'female',
+  rarity: 'rare',
+  strength: 8,
+  perception: 4,
+  endurance: 4,
+  charisma: 4,
+  intelligence: 4,
+  agility: 4,
+  luck: 4,
+  ...overrides,
+})
+
+const baseProps = (overrides: Record<string, unknown> = {}) => ({
+  dwellers: [],
+  generatingAI: {},
+  isLoading: false,
+  rooms: [],
+  viewMode: 'list',
+  ...overrides,
+})
+
 describe('DwellersList', () => {
   it('renders the list layout for list mode', () => {
     const wrapper = shallowMount(DwellersList, {
-      props: {
-        dwellers: [],
-        generatingAI: {},
-        isLoading: false,
-        rooms: [],
-        viewMode: 'list',
-      },
+      props: baseProps({ dwellers: [dweller()] }),
     })
 
     expect(wrapper.find('ul').exists()).toBe(true)
@@ -20,13 +48,7 @@ describe('DwellersList', () => {
 
   it('renders the grid layout for grid mode', () => {
     const wrapper = shallowMount(DwellersList, {
-      props: {
-        dwellers: [],
-        generatingAI: {},
-        isLoading: false,
-        rooms: [],
-        viewMode: 'grid',
-      },
+      props: baseProps({ dwellers: [dweller()], viewMode: 'grid' }),
     })
 
     expect(wrapper.find('.dweller-grid').exists()).toBe(true)
@@ -34,19 +56,60 @@ describe('DwellersList', () => {
 
   it('renders the table layout for table mode', () => {
     const wrapper = mount(DwellersList, {
-      props: {
-        dwellers: [],
-        generatingAI: {},
-        isLoading: false,
-        rooms: [],
-        viewMode: 'table',
-      },
+      props: baseProps({ dwellers: [dweller()], viewMode: 'table' }),
       global: { stubs: { Icon: true } },
     })
 
     expect(wrapper.find('table').exists()).toBe(true)
     expect(wrapper.find('ul').exists()).toBe(false)
     expect(wrapper.find('.dweller-grid').exists()).toBe(false)
+  })
+
+  describe('Empty state', () => {
+    it('offers a clear-filters action when no dweller matches the active filters', async () => {
+      const wrapper = mount(DwellersList, {
+        props: baseProps({ hasActiveFilters: true }),
+        global: { stubs: { Icon: true } },
+      })
+
+      expect(wrapper.text()).toContain('No dwellers match these filters')
+
+      const clearButton = wrapper.get('button')
+      expect(clearButton.text()).toContain('Clear filters')
+
+      await clearButton.trigger('click')
+
+      expect(wrapper.emitted('clear-filters')).toHaveLength(1)
+    })
+
+    it('shows the empty-vault message without a clear action when no filters are active', () => {
+      const wrapper = mount(DwellersList, {
+        props: baseProps(),
+        global: { stubs: { Icon: true } },
+      })
+
+      expect(wrapper.text()).toContain('No dwellers yet')
+      expect(wrapper.text()).not.toContain('No dwellers match these filters')
+      expect(wrapper.find('button').exists()).toBe(false)
+    })
+
+    it('keeps the list skeletons instead of the empty state while loading', () => {
+      const wrapper = shallowMount(DwellersList, {
+        props: baseProps({ isLoading: true }),
+      })
+
+      expect(wrapper.text()).not.toContain('No dwellers yet')
+      expect(wrapper.find('ul').exists()).toBe(true)
+    })
+
+    it('keeps rendering rows when the filtered list is not empty', () => {
+      const wrapper = shallowMount(DwellersList, {
+        props: baseProps({ dwellers: [dweller()], hasActiveFilters: true }),
+      })
+
+      expect(wrapper.text()).not.toContain('No dwellers match these filters')
+      expect(wrapper.find('ul').exists()).toBe(true)
+    })
   })
 
   it('shows the dweller combat power', () => {
@@ -65,7 +128,6 @@ describe('DwellersList', () => {
             happiness: 75,
             room_id: 'room-1',
             status: 'working',
-            is_adult: true,
             age_group: 'adult',
             gender: 'female',
             rarity: 'rare',
@@ -106,7 +168,6 @@ describe('DwellersList', () => {
             happiness: 75,
             room_id: null,
             status: 'resting',
-            is_adult: true,
             age_group: 'adult',
             gender: 'male',
             rarity: 'common',

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { createIconifyMock, createToastMock } from '../../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
@@ -10,20 +11,10 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
 // Mock Iconify
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-mock" :data-icon="icon"></span>',
-    props: ['icon'],
-  },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 // Mock useToast
-const mockToast = {
-  success: vi.fn(),
-  info: vi.fn(),
-  error: vi.fn(),
-}
+const mockToast = createToastMock()
 vi.mock('@/core/composables/useToast', () => ({
   useToast: () => mockToast,
 }))
@@ -129,7 +120,6 @@ describe('WastelandPanel', () => {
         {
           id: 'dweller-1',
           first_name: 'Test',
-          is_adult: true,
           age_group: 'adult',
           visual_attributes: { race: 'super_mutant' },
         },

@@ -14,6 +14,7 @@ from app.models.dweller import Dweller
 from app.models.incident import Incident
 from app.models.room import Room
 from app.models.vault import Vault
+from app.options.pet_modifiers import MAX_PCT_BONUS, pet_modifiers_for
 from app.services.radio_service import RadioService
 from app.utils.exceptions import ResourceNotFoundException
 
@@ -277,6 +278,11 @@ class HappinessService:
         # Radio happiness bonus (when in happiness mode)
         if vault_factors["radio_happiness_bonus"] > 0:
             change += vault_factors["radio_happiness_bonus"] * tick_multiplier
+
+        # Pet happiness bonus (additive fraction, capped)
+        pet_effect = pet_modifiers_for(dweller)
+        if pet_effect.happiness:
+            change += min(pet_effect.happiness, MAX_PCT_BONUS) * tick_multiplier
 
         return round(change, 2)
 

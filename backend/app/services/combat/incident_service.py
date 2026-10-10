@@ -11,7 +11,13 @@ from app.crud.room import room as room_crud
 from app.crud.team import team_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
-from app.models.incident import Incident, IncidentStatus, IncidentType, get_incident_definition
+from app.models.incident import (
+    Incident,
+    IncidentObjective,
+    IncidentStatus,
+    IncidentType,
+    get_incident_definition,
+)
 from app.schemas.incident import (
     IncidentEventRead,
     IncidentListItem,
@@ -147,7 +153,7 @@ class IncidentService:
     ) -> IncidentRead:
         """Build the stable, type-aware incident contract consumed by the UI."""
         definition = get_incident_definition(incident.type)
-        if incident.type == IncidentType.FIRE:
+        if definition.objective == IncidentObjective.CONTAIN:
             progress = IncidentProgress(
                 current=min(100, int(incident.combat_progress * 100)), target=100, label=definition.progress_label
             )
@@ -198,20 +204,6 @@ class IncidentService:
     ) -> Incident | None:
         """Spawn orchestration — see incident_spawning."""
         return await incident_spawning.spawn_incident(db_session, vault_id, incident_type)
-
-    async def _no_defender_outcome(self, db_session: AsyncSession, incident: Incident) -> IncidentRoundResult:
-        """Round engine — see incident_round."""
-        return await incident_round.no_defender_outcome(db_session, incident)
-
-    async def _apply_damage(
-        self, db_session: AsyncSession, incident: Incident, dwellers: list[Dweller], damage_to_dwellers: float
-    ) -> tuple[int, int, int]:
-        """Round engine — see incident_round."""
-        return await incident_round.apply_damage(db_session, incident, dwellers, damage_to_dwellers)
-
-    async def _resolve_victory(self, db_session: AsyncSession, incident: Incident, dwellers: list[Dweller]) -> int:
-        """Round engine — see incident_round."""
-        return await incident_round.resolve_victory(db_session, incident, dwellers)
 
     async def process_incident(
         self, db_session: AsyncSession, incident: Incident, seconds_passed: int

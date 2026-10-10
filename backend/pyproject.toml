@@ -1,6 +1,6 @@
 [project]
 name = "fallout-shelter-fast-api"
-version = "2.156.0"
+version = "2.191.2"
 authors = [{ name = "ElderEvil", email = "elder.evil.dev@proton.me" }, ]
 description = "Fallout Shelter FastAPI Game is a web-based simulation game where the player manages a vault full of dwellers, balancing their needs and resources to keep the vault thriving."
 requires-python = ">=3.13,<3.14"
@@ -26,7 +26,7 @@ dependencies = [
     "httpcore>=1.0.9",
     "httptools>=0.8.0,<1",
     "greenlet>=3.5.3",
-    "pydantic-ai-slim[openai, anthropic, logfire]>=2.30.0",
+    "pydantic-ai-slim[anthropic,logfire,openai]>=2.52.0",
     "aiosmtplib>=5.1.2",
     "python-json-logger>=4.0.0",
     "uvloop>=0.21.0; sys_platform != 'win32'",
@@ -36,12 +36,18 @@ dependencies = [
     "guard-core>=3.12.0,<5",
 ]
 
+[project.optional-dependencies]
+typesafe = [
+    "pydantic-ai-slim[typesafe]>=2.52.0",
+]
+
 [dependency-groups]
 test = [
     "aiosqlite>=0.22.1",
     "coverage>=7.15.4",
     "factory-boy>=3.3.3",
     "fakeredis[lua]>=2.36.2",
+    "pydantic-ai-slim[typesafe]>=2.52.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.0.0",

@@ -5,9 +5,10 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { getIncidentIcon, type Incident, type IncidentTeamMember } from '@/modules/combat/models/incident'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
-import { getCombatPower } from '@/modules/dwellers/models/dweller'
+import { getCombatPower, isMature } from '@/modules/dwellers/models/dweller'
 import DwellerListRow from '@/modules/dwellers/components/DwellerListRow.vue'
 import { Button } from '@/core/components/ui/button'
+import { threatName } from '@/core/utils/format'
 import { useToast } from '@/core/composables/useToast'
 import IncidentScene from './IncidentScene.vue'
 import IncidentBattleLog from './IncidentBattleLog.vue'
@@ -30,14 +31,14 @@ const isSendingBest = ref(false)
 // in-flight request would race the first.
 const isAssigning = computed(() => assigningDwellerId.value !== null || isSendingBest.value)
 
-const threatName = computed(() => props.incident.type.replace(/_/g, ' ').toUpperCase())
+const threatLabel = computed(() => threatName(props.incident.type))
 const icon = computed(() => getIncidentIcon(props.incident.type))
 const progress = computed(() => props.incident.progress)
 
 const availableResponders = computed(() =>
   props.dwellers.filter(
     (dweller) =>
-      dweller.is_adult &&
+      isMature(dweller) &&
       dweller.health > 0 &&
       dweller.room_id !== props.incident.room_id &&
       !['exploring', 'questing', 'dead'].includes(dweller.status)
@@ -145,7 +146,7 @@ const assignResponder = async (dwellerId: string) => {
     <header class="flex items-center gap-3">
       <Icon :icon="icon" class="h-8 w-8 shrink-0 text-danger" />
       <div>
-        <h3 class="text-base font-semibold text-terminal-green">{{ threatName }}</h3>
+        <h3 class="text-base font-semibold text-terminal-green">{{ threatLabel }}</h3>
         <p class="text-xs text-terminal-green-dim">
           {{ incident.family.toUpperCase() }} · {{ incident.objective.toUpperCase() }} ·
           {{ progress.label.toUpperCase() }} {{ progress.current }} / {{ progress.target }}

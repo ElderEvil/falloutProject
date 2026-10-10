@@ -382,3 +382,101 @@ async def test_process_event_publishes_followup_events(
     assert published_types == ["loot", "equip", "item_use"]
     assert exploration.stimpaks == 0
     assert dweller.health == 60
+
+
+@pytest.mark.asyncio
+async def test_auto_radaway_fires_at_quarter_max_health_radiation(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """Radiation at/above 25% of max health consumes one RadAway and raises the ceiling."""
+    dweller.health = 100
+    dweller.max_health = 100
+    dweller.radiation = 25
+    async_session.add(dweller)
+    await async_session.flush()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4, radaways=1)
+    item = ItemSchema(name="Wonderglue", rarity="Common", value=5)
+    loot_event = LootEventSchema(
+        description="Found some Wonderglue", loot=LootSchema(item=item, item_type="junk", caps=0)
+    )
+    await _process_loot_event(async_session, exploration, loot_event)
+
+    assert exploration.radaways == 0
+    assert dweller.radiation == 0
+    assert dweller.health == 100
+
+
+@pytest.mark.asyncio
+async def test_auto_radaway_skips_below_quarter_max_health_radiation(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """Radiation below 25% of max health does not consume a RadAway."""
+    dweller.health = 100
+    dweller.max_health = 100
+    dweller.radiation = 24
+    async_session.add(dweller)
+    await async_session.flush()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4, radaways=1)
+    item = ItemSchema(name="Wonderglue", rarity="Common", value=5)
+    loot_event = LootEventSchema(
+        description="Found some Wonderglue", loot=LootSchema(item=item, item_type="junk", caps=0)
+    )
+    await _process_loot_event(async_session, exploration, loot_event)
+
+    assert exploration.radaways == 1
+    assert dweller.radiation == 24
+
+
+@pytest.mark.asyncio
+async def test_auto_stimpak_gate_uses_full_max_health(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """The Stimpak gate compares against FULL max health, so radiation never hides a wound."""
+    dweller.health = 45
+    dweller.max_health = 100
+    dweller.radiation = 30
+    async_session.add(dweller)
+    await async_session.flush()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4, stimpaks=1)
+    item = ItemSchema(name="Wonderglue", rarity="Common", value=5)
+    loot_event = LootEventSchema(
+        description="Found some Wonderglue", loot=LootSchema(item=item, item_type="junk", caps=0)
+    )
+    await _process_loot_event(async_session, exploration, loot_event)
+
+    assert exploration.stimpaks == 0
+    assert dweller.health == 70  # 45 + 40, capped at effective_max_health (100 - 30)
+
+
+@pytest.mark.asyncio
+async def test_auto_stimpak_skips_at_radiation_capped_health(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """A dweller at the radiation-reduced ceiling must not spend a Stimpak on 0 healing."""
+    dweller.health = 40
+    dweller.max_health = 100
+    dweller.radiation = 60
+    async_session.add(dweller)
+    await async_session.flush()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4, stimpaks=1)
+    item = ItemSchema(name="Wonderglue", rarity="Common", value=5)
+    loot_event = LootEventSchema(
+        description="Found some Wonderglue", loot=LootSchema(item=item, item_type="junk", caps=0)
+    )
+    await _process_loot_event(async_session, exploration, loot_event)
+
+    assert exploration.stimpaks == 1
+    assert dweller.health == 40
+    assert not [e for e in exploration.events if e["type"] == "item_use"]

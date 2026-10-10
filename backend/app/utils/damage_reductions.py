@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, cast
 
 from app.core.enums import DamageChannel
 from app.options.identity_modifiers import identity_modifiers_for
+from app.options.pet_modifiers import MAX_RESIST_PCT, pet_modifiers_for
 from app.utils.equipped import equipped_outfit
 from app.utils.hazard_resist import outfit_fire_resist, outfit_radiation_resist
 
@@ -30,8 +31,8 @@ class DamageReductions:
 
     @property
     def combined_share(self) -> float:
-        """Multiplicative-complement combination: 1 - product(1 - r). Order-independent."""
-        return 1.0 - reduce(mul, (1.0 - share for share in self.shares), 1.0)
+        """Multiplicative-complement combination: 1 - product(1 - r). Order-independent, capped at MAX_RESIST_PCT."""
+        return min(MAX_RESIST_PCT, 1.0 - reduce(mul, (1.0 - share for share in self.shares), 1.0))
 
     def apply(self, amount: int) -> int:
         """The amount after reductions — one truncation, at the end. Immune means zero."""
@@ -49,21 +50,26 @@ def damage_reductions(
 ) -> DamageReductions:
     """The reduction shares a dweller contributes on a channel.
 
-    PHYSICAL → identity ``incident_response_pct``.
-    FIRE → identity ``incident_response_pct`` + ``outfit_fire_resist``.
-    RADIATION → identity ``radiation_resist_pct`` (+ immunity from ``radiation_immune``)
+    PHYSICAL → identity + pet ``incident_response_pct``.
+    FIRE → identity + pet ``incident_response_pct`` + ``outfit_fire_resist``.
+    RADIATION → identity + pet ``radiation_resist_pct`` (+ immunity from ``radiation_immune``)
     + ``outfit_radiation_resist`` when ``resisted_by_outfit``.
     ``team_share`` is added for every channel when > 0.
     """
     modifiers = identity_modifiers_for(dweller)
+    pet = pet_modifiers_for(dweller)
     shares: list[float] = []
     immune = False
     if channel is DamageChannel.PHYSICAL:
         if modifiers.incident_response_pct:
             shares.append(modifiers.incident_response_pct)
+        if pet.incident_response_pct:
+            shares.append(pet.incident_response_pct)
     elif channel is DamageChannel.FIRE:
         if modifiers.incident_response_pct:
             shares.append(modifiers.incident_response_pct)
+        if pet.incident_response_pct:
+            shares.append(pet.incident_response_pct)
         fire_resist = outfit_fire_resist(cast("Outfit | None", equipped_outfit(dweller)))
         if fire_resist:
             shares.append(fire_resist)
@@ -71,6 +77,8 @@ def damage_reductions(
         immune = modifiers.radiation_immune
         if modifiers.radiation_resist_pct:
             shares.append(modifiers.radiation_resist_pct)
+        if pet.radiation_resist_pct:
+            shares.append(pet.radiation_resist_pct)
         if resisted_by_outfit:
             rad_resist = outfit_radiation_resist(cast("Outfit | None", equipped_outfit(dweller)))
             if rad_resist:

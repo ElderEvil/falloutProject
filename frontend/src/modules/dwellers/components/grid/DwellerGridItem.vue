@@ -8,7 +8,12 @@ import DwellerRarityBadge from '../DwellerRarityBadge.vue'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
 import type { DwellerShort } from '../../models/dweller'
-import { getEffectiveMaxHealth, getHealthDisplay, getRadiationPercentage } from '../../models/dweller'
+import {
+  getDwellerDisplayName,
+  getEffectiveMaxHealth,
+  getHealthDisplay,
+  getRadiationPercentage,
+} from '../../models/dweller'
 import DwellerPortrait from '../DwellerPortrait.vue'
 import DwellerIdentitySignal from '../DwellerIdentitySignal.vue'
 
@@ -110,7 +115,7 @@ const getStatColorClass = (value: number) => {
     <div class="info-section">
       <!-- Name & Status -->
       <div class="header">
-        <h3 class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</h3>
+        <h3 class="dweller-name">{{ getDwellerDisplayName(dweller) }}</h3>
         <div class="header-badges">
           <DwellerIdentitySignal :visual-attributes="dweller.visual_attributes" compact />
           <DwellerAgeBadge :age-group="dweller.age_group" size="sm" />

@@ -28,7 +28,7 @@ from app.schemas.exploration_event import (
     WeaponSchema,
 )
 from app.services.exploration import data_loader
-from app.services.exploration.event_generator import event_generator
+from app.services.exploration.event_generator import describe_discovery, event_generator
 from app.services.notification_service import notification_service
 from app.services.radiation_service import apply_radiation_gain, radiation_removal_amount
 from app.services.stream_manager import sse_manager
@@ -136,6 +136,58 @@ def apply_loot_find(
         exploration.radaways += 1
 
 
+async def auto_use_supplies(db_session: AsyncSession, exploration: Exploration) -> list[dict]:
+    """Auto-use a RadAway then a Stimpak when the explorer needs them; returns the item_use records.
+
+    RadAway fires first once radiation has cut the ceiling by at least
+    radaway_auto_use_threshold_pct of max health — it raises the ceiling so the
+    Stimpak can heal into it. The Stimpak gate uses FULL max health, so radiation
+    never hides a wound.
+    """
+    dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+    if dweller_obj.is_dead:
+        return []
+    records: list[dict] = []
+    max_health = dweller_obj.max_health
+
+    radaway_floor = max_health * game_config.health.radaway_auto_use_threshold_pct
+    if (
+        exploration.radaways > 0
+        and dweller_obj.radiation > 0
+        and can_use_radaway(dweller_obj)
+        and dweller_obj.radiation >= radaway_floor
+    ):
+        reduction = radiation_removal_amount(dweller_obj.radiation, max_health)
+        dweller_obj.radiation -= reduction
+        exploration.radaways -= 1
+        records.append(
+            exploration.add_event(
+                event_type=ExplorationEventType.ITEM_USE,
+                description=f"Dweller used a RadAway. Removed {reduction} radiation. {exploration.radaways} left.",
+                radiation_removed=reduction,
+            )
+        )
+        db_session.add(dweller_obj)
+        db_session.add(exploration)
+
+    if exploration.stimpaks > 0 and dweller_obj.health < max_health * 0.5:
+        healing = max(1, int(max_health * game_config.health.stimpack_heal_percent))
+        actual_healing = min(dweller_obj.effective_max_health, dweller_obj.health + healing) - dweller_obj.health
+        if actual_healing > 0:
+            dweller_obj.health += actual_healing
+            exploration.stimpaks -= 1
+            records.append(
+                exploration.add_event(
+                    event_type=ExplorationEventType.ITEM_USE,
+                    description=f"Dweller used a Stimpak. Healed {actual_healing} HP. {exploration.stimpaks} left.",
+                    health_restored=actual_healing,
+                )
+            )
+            db_session.add(dweller_obj)
+            db_session.add(exploration)
+    return records
+
+
 class EventService:
     """Applies generated wasteland events to explorations and dwellers."""
 
@@ -164,19 +216,34 @@ class EventService:
 
         # Resolve a discovery's world-map location before persisting so the event
         # can carry location_id + coordinates for deep-linking and route drawing.
+        # Spatial runs discover what they pass: an existing place within the fog's
+        # site radius is claimed in place, else a new place is snapped near the
+        # current position. Legacy runs keep the name-derived registry placement.
         location_name = getattr(event, "location_name", None)
         location = None
         if location_name:
             try:
                 from app.services.map_service import map_service
 
-                location = await map_service.register_discovery(
-                    db_session,
-                    exploration.vault_id,
-                    exploration.id,
-                    exploration.dweller_id,
-                    location_name,
-                )
+                if exploration.heading_degrees is not None:
+                    if exploration.pos_x is not None and exploration.pos_y is not None:
+                        location = await map_service.register_spatial_discovery(
+                            db_session,
+                            exploration.vault_id,
+                            exploration.id,
+                            exploration.dweller_id,
+                            location_name,
+                            (exploration.pos_x, exploration.pos_y),
+                            exploration.world_version,
+                        )
+                else:
+                    location = await map_service.register_discovery(
+                        db_session,
+                        exploration.vault_id,
+                        exploration.id,
+                        exploration.dweller_id,
+                        location_name,
+                    )
             except Exception:
                 logger.exception(
                     "Failed to register discovery: vault=%s exploration=%s location=%r",
@@ -187,6 +254,13 @@ class EventService:
         location_id = location.id if location else None
         coord_x = location.coord_x if location else None
         coord_y = location.coord_y if location else None
+        if location is not None:
+            # The journal, map, and bio all describe the resolved place — never
+            # the generated name when it pointed somewhere else.
+            location_name = location.name
+            description = describe_discovery(location.name)
+        else:
+            description = event.description
 
         # Convert loot schema to dict for JSON storage
         loot_dict = None
@@ -196,7 +270,7 @@ class EventService:
 
         event_record = exploration.add_event(
             event_type=event.type,
-            description=event.description,
+            description=description,
             loot=loot_dict,
             location_name=location_name,
             location_id=location_id,
@@ -231,7 +305,7 @@ class EventService:
                 orm.attributes.flag_modified(exploration, "events")
 
         # Trigger auto-heal check (if health low or radiation high)
-        event_records.extend(await self._handle_auto_heal(db_session, exploration))
+        event_records.extend(await auto_use_supplies(db_session, exploration))
 
         # Update distance traveled for all events
         exploration.total_distance += random.randint(1, 3)
@@ -337,47 +411,6 @@ class EventService:
         dweller_obj.health = min(dweller_obj.effective_max_health, old_health + healing)
         db_session.add(dweller_obj)
         return dweller_obj.health - old_health
-
-    async def _handle_auto_heal(self, db_session: AsyncSession, exploration: Exploration) -> list[dict]:
-        """Automatically use stimpaks/radaways if needed; returns the item_use event records."""
-        if (dweller_obj := await self._get_living_dweller(db_session, exploration)) is None:
-            return []
-
-        records: list[dict] = []
-
-        radaway_threshold = game_config.health.radaway_auto_use_threshold
-        if exploration.radaways > 0 and can_use_radaway(dweller_obj) and dweller_obj.radiation > radaway_threshold:
-            reduction = radiation_removal_amount(dweller_obj.radiation, dweller_obj.max_health)
-            dweller_obj.radiation -= reduction
-            exploration.radaways -= 1
-            records.append(
-                exploration.add_event(
-                    event_type=ExplorationEventType.ITEM_USE,
-                    description=f"Dweller used a RadAway. Removed {reduction} radiation. {exploration.radaways} left.",
-                    radiation_removed=reduction,
-                )
-            )
-            db_session.add(dweller_obj)
-            db_session.add(exploration)
-
-        # Auto-use Stimpak if health < 50%
-        health_percentage = (dweller_obj.health / dweller_obj.effective_max_health) * 100
-        if exploration.stimpaks > 0 and health_percentage < 50:
-            healing = max(1, int(dweller_obj.max_health * game_config.health.stimpack_heal_percent))
-            actual_healing = min(dweller_obj.effective_max_health, dweller_obj.health + healing) - dweller_obj.health
-            dweller_obj.health += actual_healing
-            exploration.stimpaks -= 1
-            records.append(
-                exploration.add_event(
-                    event_type=ExplorationEventType.ITEM_USE,
-                    description=f"Dweller used a Stimpak. Healed {actual_healing} HP. {exploration.stimpaks} left.",
-                    health_restored=actual_healing,
-                )
-            )
-            db_session.add(dweller_obj)
-            db_session.add(exploration)
-
-        return records
 
     async def _handle_auto_equip(
         self,

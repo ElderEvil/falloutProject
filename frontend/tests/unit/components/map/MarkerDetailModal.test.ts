@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createRouterMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import MarkerDetailModal from '@/modules/map/components/MarkerDetailModal.vue'
+import SupplySliders from '@/modules/progression/components/party/SupplySliders.vue'
 import { useMapStore } from '@/modules/map/stores/map'
+import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type {
   ExpeditionSiteMarkerRead,
   WastelandLocationWithDwellers,
@@ -10,11 +13,8 @@ import type {
 } from '@/modules/map/models/map'
 
 // Mock vue-router
-const mockPush = vi.fn()
-vi.mock('vue-router', () => ({
-  useRouter: () => ({ push: mockPush }),
-  useRoute: () => ({ params: { id: 'vault-1' }, query: {} }),
-}))
+const mockPush = vi.hoisted(() => vi.fn())
+vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' }, query: {}, push: mockPush }))
 
 function createLocation(
   overrides: Partial<WastelandLocationWithDwellers> = {}
@@ -347,6 +347,7 @@ describe('MarkerDetailModal', () => {
       expect(wrapper.text()).toContain('John Doe')
       expect(wrapper.findAll('button.dweller-contact')).toHaveLength(2)
       expect(wrapper.text()).not.toContain('origin')
+      expect(wrapper.text()).not.toContain('Dispatch')
     })
 
     it('opens a linked dweller chat from a locked location', async () => {
@@ -425,6 +426,14 @@ describe('MarkerDetailModal', () => {
       expect(wrapper.text()).not.toContain('CLEARED')
     })
 
+    it('keeps the dispatch footer on one row like the pre-wrapper layout', () => {
+      const wrapper = mountWithClearState(clearableState)
+      const footer = wrapper.find('[data-slot="dialog-footer"]')
+
+      expect(footer.exists()).toBe(true)
+      expect(footer.attributes('class')).toContain('flex-row')
+    })
+
     it('shows a CLEARED badge with the clear count and a reclear countdown while cooling down', () => {
       const wrapper = mountWithClearState({
         ...clearableState,
@@ -477,8 +486,19 @@ describe('MarkerDetailModal', () => {
     })
 
     it('emits dispatch when the Dispatch button is clicked', async () => {
-      const wrapper = mountWithClearState(clearableState)
+      const wrapper = mount(MarkerDetailModal, {
+        props: {
+          modelValue: true,
+          location: createLocation({ clear_state: clearableState }),
+          vaultMarker: null,
+          dwellers: [
+            { id: 'dweller-1', first_name: 'Ada', last_name: null, level: 1, status: 'idle' },
+          ] as DwellerShort[],
+        },
+        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+      })
 
+      await wrapper.find('.dweller-item').trigger('click')
       const dispatchButton = wrapper.findAll('button').find((b) => b.text().includes('Dispatch'))
       await dispatchButton!.trigger('click')
 
@@ -588,6 +608,117 @@ describe('MarkerDetailModal', () => {
         return text.includes('Dispatch') || text.includes('Enter')
       })
       expect(buttons).toHaveLength(0)
+    })
+  })
+
+  describe('Send-team section (issue 772 phase 2)', () => {
+    const clearableState = {
+      clearable: true,
+      cleared: false,
+      clear_count: 0,
+      tier: 2,
+      time_remaining_seconds: 0,
+      loot_table: 'raider_camp_loot',
+    }
+
+    const candidates: DwellerShort[] = [
+      { id: 'dweller-1', first_name: 'Ada', last_name: 'Lovelace', level: 3, status: 'idle' },
+      { id: 'dweller-2', first_name: 'Max', last_name: null, level: 1, status: 'idle' },
+    ] as DwellerShort[]
+
+    function mountActionable(overrides: Record<string, unknown> = {}) {
+      return mount(MarkerDetailModal, {
+        props: {
+          modelValue: true,
+          location: createLocation({ clear_state: clearableState }),
+          vaultMarker: null,
+          dwellers: candidates,
+          maxPartySize: 3,
+          maxStimpaks: 8,
+          maxRadaways: 4,
+          ...overrides,
+        },
+        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+      })
+    }
+
+    const dispatchButton = (wrapper: ReturnType<typeof mountActionable>) =>
+      wrapper.findAll('button').find((b) => b.text().includes('Dispatch'))
+
+    it('renders the party slots, dweller list and supply sliders when actionable', () => {
+      const wrapper = mountActionable()
+
+      expect(wrapper.text()).toContain('SEND TEAM')
+      expect(wrapper.find('.party-slots').exists()).toBe(true)
+      expect(wrapper.find('.available-dwellers').exists()).toBe(true)
+      expect(wrapper.findAllComponents(SupplySliders)).toHaveLength(1)
+      expect(wrapper.find('.dweller-item').text()).toContain('Ada Lovelace')
+    })
+
+    it('pre-fills the suggested 5/5 dispatch loadout, clamped to vault stock', () => {
+      // mountActionable passes maxStimpaks: 8, maxRadaways: 4.
+      const wrapper = mountActionable()
+      const sliders = wrapper.findComponent(SupplySliders)
+
+      expect(sliders.props('selectedStimpaks')).toBe(5)
+      expect(sliders.props('selectedRadaways')).toBe(4)
+    })
+
+    it('hides the section and confirm while the re-clear cooldown runs', () => {
+      const wrapper = mountActionable({
+        location: createLocation({
+          clear_state: {
+            ...clearableState,
+            cleared: true,
+            clear_count: 1,
+            time_remaining_seconds: 3600,
+          },
+        }),
+      })
+
+      expect(wrapper.find('.party-slots').exists()).toBe(false)
+      expect(dispatchButton(wrapper)).toBeUndefined()
+    })
+
+    it('hides the section for a non-clearable location', () => {
+      const wrapper = mountActionable({ location: createLocation() })
+
+      expect(wrapper.find('.party-slots').exists()).toBe(false)
+      expect(dispatchButton(wrapper)).toBeUndefined()
+    })
+
+    it('emits dispatch with the selected team and supplies on confirm', async () => {
+      const wrapper = mountActionable()
+
+      await wrapper.find('.dweller-item').trigger('click')
+      wrapper.findComponent(SupplySliders).vm.$emit('update:stimpaks', [3])
+      wrapper.findComponent(SupplySliders).vm.$emit('update:radaways', [1])
+      await wrapper.vm.$nextTick()
+
+      await dispatchButton(wrapper)!.trigger('click')
+
+      expect(wrapper.emitted('dispatch')).toEqual([
+        [{ dwellerIds: ['dweller-1'], supplies: { stimpaks: 3, radaways: 1 } }],
+      ])
+    })
+
+    it('disables the confirm until a dweller is selected', async () => {
+      const wrapper = mountActionable()
+      expect(dispatchButton(wrapper)!.attributes('disabled')).toBeDefined()
+
+      await wrapper.find('.dweller-item').trigger('click')
+
+      expect(dispatchButton(wrapper)!.attributes('disabled')).toBeUndefined()
+    })
+
+    it('closes the modal from Cancel without dispatching', async () => {
+      const wrapper = mountActionable()
+
+      const cancel = wrapper.findAll('button').find((b) => b.text().includes('Cancel'))!
+      await cancel.trigger('click')
+
+      expect(wrapper.emitted('dispatch')).toBeFalsy()
+      expect(wrapper.emitted('update:modelValue')![0][0]).toBe(false)
     })
   })
 })

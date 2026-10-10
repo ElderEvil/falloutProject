@@ -212,11 +212,12 @@ export function useChatWebSocket(userId: string, dwellerId: string, token?: stri
     }
   }
 
-  const sendMessage = (content: string) => {
+  const sendMessage = (content: string, debug = false) => {
     if (ws.state.value === 'connected') {
       ws.send({
         type: 'message',
         content,
+        debug,
       })
     } else {
       console.debug(`Cannot send message: WebSocket is ${ws.state.value}, not connected`)

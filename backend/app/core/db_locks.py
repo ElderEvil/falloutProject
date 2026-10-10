@@ -95,6 +95,22 @@ async def try_advisory_xact_lock(db_session: AsyncSession, lock_key: str) -> boo
     return bool(result.scalar())
 
 
+async def advisory_xact_lock(db_session: AsyncSession, lock_key: str) -> None:
+    """Wait for a transaction-scoped advisory lock; no-op outside PostgreSQL.
+
+    Use when a read-modify-write must be serialized across worker processes rather
+    than only within one event loop. The lock releases when the surrounding
+    transaction ends, so the critical section must commit (or roll back) promptly.
+    """
+    if db_session.get_bind().dialect.name != "postgresql":
+        return
+
+    await db_session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended(:lock_key, 0))"),
+        {"lock_key": lock_key},
+    )
+
+
 async def postgres_ping(engine: AsyncEngine) -> None:
     """Open a connection and run SELECT 1; raises on failure."""
     async with engine.connect() as conn:

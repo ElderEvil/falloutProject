@@ -13,6 +13,7 @@ from .llm_interaction import LLMInteraction
 from .notification import Notification, NotificationCreate, NotificationRead
 from .objective import Objective
 from .outfit import Outfit
+from .pet import Pet
 from .pregnancy import Pregnancy
 from .prompt import Prompt
 from .quest import Quest, QuestType
@@ -26,5 +27,8 @@ from .training import Training
 from .user import User
 from .user_profile import UserProfile
 from .vault import Vault
+from .vault_recipe_unlock import VaultRecipeUnlock
+from .vault_slot import VaultSlot
 from .weapon import Weapon
 from .world_location import DwellerLocation, VaultLocationState, WorldLocation
+from .world_snapshot import WorldSnapshot

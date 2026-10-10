@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createIconifyMock, createToastMock } from '../../helpers/mocks'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import CraftingPanel from '@/modules/crafting/components/CraftingPanel.vue'
 import { craftingService } from '@/modules/crafting/services/craftingService'
 import type { CraftingOrder, CraftingRecipe } from '@/modules/crafting/models/crafting'
 
-const mockToast = { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }
+const mockToast = createToastMock()
 const mockPlaySound = vi.fn()
 
 vi.mock('@/core/composables/useToast', () => ({ useToast: () => mockToast }))
@@ -19,9 +20,9 @@ vi.mock('@/modules/crafting/services/craftingService', () => ({
     collectOrder: vi.fn(),
   },
 }))
-vi.mock('@iconify/vue', () => ({
-  Icon: { name: 'Icon', props: ['icon'], template: '<i class="icon" :data-icon="icon" />' },
-}))
+vi.mock('@iconify/vue', () =>
+  createIconifyMock({ template: '<i class="icon" :data-icon="icon" />' })
+)
 
 const recipe = (overrides: Partial<CraftingRecipe> = {}): CraftingRecipe =>
   ({
@@ -39,6 +40,9 @@ const recipe = (overrides: Partial<CraftingRecipe> = {}): CraftingRecipe =>
     caps_cost: 0,
     can_craft: true,
     missing_junk: 0,
+    has_junk: true,
+    unlocked: true,
+    unlock_hint: null,
     ...overrides,
   }) as CraftingRecipe
 
@@ -108,8 +112,8 @@ describe('CraftingPanel', () => {
 
   it('filters schematics by rarity, craftability and name', async () => {
     vi.mocked(craftingService.listRecipes).mockResolvedValue([
-      recipe({ name: 'Pipe pistol', rarity: 'common', can_craft: true }),
-      recipe({ name: 'Baseball bat', rarity: 'rare', can_craft: false, junk_materials: { common: 3, rare: 3 } }),
+      recipe({ name: 'Pipe pistol', rarity: 'common', can_craft: true, has_junk: true }),
+      recipe({ name: 'Baseball bat', rarity: 'rare', can_craft: false, has_junk: false, junk_materials: { common: 3, rare: 3 } }),
     ])
     const wrapper = mountPanel()
     await flushPromises()
@@ -259,5 +263,40 @@ describe('CraftingPanel', () => {
 
     expect(wrapper.text()).toContain('Assault rifle')
     expect(wrapper.text()).not.toContain('Pipe pistol')
+  })
+
+  it('filters to craftable recipes when "Craftable now" is checked', async () => {
+    vi.mocked(craftingService.listRecipes).mockResolvedValue([
+      recipe({ name: 'Pipe pistol', has_junk: true }),
+      recipe({ name: 'Assault rifle', can_craft: false, has_junk: false, missing_junk: 3 }),
+    ])
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Pipe pistol')
+    expect(wrapper.text()).toContain('Assault rifle')
+
+    await wrapper.get('input[type="checkbox"]').setValue(true)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Pipe pistol')
+    expect(wrapper.text()).not.toContain('Assault rifle')
+  })
+
+  it('marks a locked recipe: dashed state, unlock hint, and disabled Start', async () => {
+    vi.mocked(craftingService.listRecipes).mockResolvedValue([
+      recipe({
+        name: 'Laser pistol',
+        rarity: 'legendary',
+        unlocked: false,
+        unlock_hint: 'Scrap a Power fist to reverse-engineer this schematic',
+      }),
+    ])
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.find('.locked-recipe').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Scrap a Power fist to reverse-engineer this schematic')
+    expect(findButton(wrapper, 'Start').attributes('disabled')).toBeDefined()
   })
 })

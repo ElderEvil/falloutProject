@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
+import { createIconifyMock, createRouterMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
@@ -8,19 +9,14 @@ import ExplorerActions from '@/modules/exploration/components/ExplorerActions.vu
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 
-vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: { id: 'vault-1' } }),
-  useRouter: () => ({ push: vi.fn() }),
-}))
+vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' } }))
 
 vi.mock('@/modules/dwellers/services/dwellerService', () => ({
   getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
   getIdentityOptions: vi.fn().mockResolvedValue({ races: [], factions_by_race: {}, states_by_race: {} }),
 }))
 
-vi.mock('@iconify/vue', () => ({
-  Icon: { name: 'Icon', template: '<span class="icon-mock" />' },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" />' }))
 
 const exploration = {
   id: 'exploration-1',
@@ -81,19 +77,25 @@ describe('ExplorerCard', () => {
     expect(wrapper.find('.dweller-portrait').attributes('src')).toBe('http://example.com/thumb.png')
   })
 
-  it('keeps long equipment names within their exploration-card slots', () => {
+  it('renders mission metrics and the equipped weapon and outfit', () => {
     const wrapper = mount(ExplorerCard, {
       props: {
-        exploration,
+        exploration: {
+          ...exploration,
+          loot_collected: [{ name: 'Loot' }],
+          total_caps_found: 12,
+        },
         dweller: {
           ...dweller,
-          weapon: { name: 'Experimental Plasma Rifle With an Extremely Long Name' },
+          weapon: { name: 'Experimental Plasma Rifle' },
+          outfit: { name: 'Vault Suit' },
         },
       },
     })
 
-    expect(wrapper.find('.equipment-slot').classes()).toContain('min-w-0')
-    expect(wrapper.find('.equip-name').text()).toContain('Experimental Plasma Rifle')
+    expect(wrapper.text()).toContain('Distance')
+    expect(wrapper.text()).toContain('Experimental Plasma Rifle')
+    expect(wrapper.text()).toContain('Vault Suit')
   })
 
   it('updates progress and remaining time while mounted, then stops its clock when unmounted', async () => {
@@ -146,5 +148,19 @@ describe('ExplorerCard', () => {
 
     expect(wrapper.emitted('complete')).toEqual([['exploration-1']])
     expect(wrapper.emitted('recall')).toEqual([['exploration-1']])
+  })
+
+  it('links dispatched explorers to their map marker', () => {
+    const wrapper = mount(ExplorerCard, {
+      props: { exploration: { ...exploration, target_location_id: 'loc-9' }, dweller },
+    })
+
+    expect(wrapper.find('.view-on-map').attributes('href')).toBe('/vault/vault-1/map?place=loc-9')
+  })
+
+  it('links free-roam explorers to the plain map', () => {
+    const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
+
+    expect(wrapper.find('.view-on-map').attributes('href')).toBe('/vault/vault-1/map')
   })
 })

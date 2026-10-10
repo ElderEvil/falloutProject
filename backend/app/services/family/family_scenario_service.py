@@ -331,7 +331,7 @@ class FamilyScenarioService:
         """Create a child of the couple whose ``birth_date`` is ``age_hours`` ago.
 
         The growth check (``age_children``) advances children to teens halfway
-        through ``child_growth_duration_hours`` and to adults at its end (24h by
+        through ``child_growth_duration_hours`` and to adults at its end (60h by
         default). Backdating makes lifecycle states testable on the next tick.
         """
         from app.services.dweller_service import dweller_service
@@ -343,7 +343,6 @@ class FamilyScenarioService:
             register_bio_places=False,
         )
         child.age_group = AgeGroupEnum.CHILD
-        child.is_adult = False
         child.birth_date = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=age_hours)
         child.parent_1_id = couple.dweller_1.id
         child.parent_2_id = couple.dweller_2.id

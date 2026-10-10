@@ -102,20 +102,15 @@ class TestWorldPlaceRegistryMigration:
         assert orphan_links == 0, "every dweller link must resolve to a registry row"
 
     @pytest.mark.asyncio
-    async def test_home_markers_pinned_and_coords_on_grid(self, live_pg_engine: AsyncEngine) -> None:
-        # Seeded NPC vaults are scattered signals by design; only player home
-        # markers (non-seed VAULT rows) must sit at the centre.
-        bad_home = await _scalar(
+    async def test_home_markers_placed_on_grid(self, live_pg_engine: AsyncEngine) -> None:
+        # Player home markers sit at their vault's slot (not the centre); seeded NPC
+        # vaults are scattered signals too. All must stay on the 0-100 grid.
+        off_grid = await _scalar(
             live_pg_engine,
-            "SELECT count(*) FROM worldlocation WHERE kind = 'VAULT' AND COALESCE(source, '') <> 'seed' "
-            "AND (coord_x <> 50.0 OR coord_y <> 50.0)",
+            "SELECT count(*) FROM worldlocation WHERE kind = 'VAULT' "
+            "AND (coord_x < 0 OR coord_x > 100 OR coord_y < 0 OR coord_y > 100)",
         )
-        out_of_range = await _scalar(
-            live_pg_engine,
-            "SELECT count(*) FROM worldlocation WHERE coord_x < 0 OR coord_x > 100 OR coord_y < 0 OR coord_y > 100",
-        )
-        assert bad_home == 0, "vault-kind registry rows must sit at (50, 50)"
-        assert out_of_range == 0, "registry coordinates must stay on the 0-100 grid"
+        assert off_grid == 0, "vault-kind registry rows must stay on the 0-100 grid"
 
     @pytest.mark.asyncio
     async def test_every_home_state_maps_to_a_vault_registry_row(self, live_pg_engine: AsyncEngine) -> None:
@@ -127,13 +122,10 @@ class TestWorldPlaceRegistryMigration:
             JOIN vault v ON v.id = s.vault_id
             JOIN worldlocation gl ON gl.id = s.location_id
             WHERE s.type = 'HOME_VAULT'
-              AND NOT (gl.kind = 'VAULT' AND gl.vault_number = v.number
-                       AND gl.coord_x = 50.0 AND gl.coord_y = 50.0)
+              AND NOT (gl.kind = 'VAULT' AND gl.vault_number = v.number)
             """,
         )
-        assert mismatched == 0, (
-            "every HOME_VAULT state must sit on a VAULT registry row with its vault number at (50, 50)"
-        )
+        assert mismatched == 0, "every HOME_VAULT state must sit on a VAULT registry row with its vault number"
 
     @pytest.mark.asyncio
     async def test_place_coordinates_are_unique(self, live_pg_engine: AsyncEngine) -> None:

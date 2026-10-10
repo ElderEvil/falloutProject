@@ -26,7 +26,7 @@ from app.utils.places import WORLD_SCALE, normalize_place_name
 
 @pytest.mark.asyncio
 async def test_register_bio_places_rarity_scaled(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """VISITED cap follows rarity: COMMON→1, LEGENDARY→3 for 6 provided names each."""
+    """VISITED cap follows rarity: COMMON→0, LEGENDARY→2 for 6 provided names each."""
     common_names = [
         "Megaton",
         "Rivet City",
@@ -54,33 +54,48 @@ async def test_register_bio_places_rarity_scaled(async_session: AsyncSession, va
     origin_rows = [r for r in rows if r.type == LocationTypeEnum.ORIGIN]
     visited_rows = [r for r in rows if r.type == LocationTypeEnum.VISITED]
     assert len(origin_rows) == 1
-    assert len(visited_rows) == 4
+    assert len(visited_rows) == 2
 
 
 @pytest.mark.asyncio
-async def test_register_bio_places_uncapped_for_curated_templates(
+async def test_register_bio_places_caps_curated_templates_at_rarity(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """Curated template places bypass the rarity cap: all 4 register for a legendary."""
+    """Curated places obey the same rarity cap: a legendary registers 2, not all 4."""
     dweller.rarity = RarityEnum.LEGENDARY
     await map_service.register_bio_places(
         async_session,
         dweller,
         origin_place="Rivet City",
         visited_places=["National Archives", "Megaton", "Canterbury Commons", "Tenpenny Tower"],
-        cap_visited=False,
     )
 
     rows = (await async_session.execute(select(VaultLocationState))).scalars().all()
     visited_rows = [r for r in rows if r.type == LocationTypeEnum.VISITED]
-    assert len(visited_rows) == 4
+    assert len(visited_rows) == 2
 
 
 @pytest.mark.asyncio
-async def test_template_dweller_creation_registers_all_curated_places(
-    async_session: AsyncSession, vault: Vault
-) -> None:
-    """Abraham Washington's 4 curated visits all reach the map despite the legendary cap of 3."""
+async def test_common_bio_registers_origin_only(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
+    """A common dweller keeps its origin but registers no traveled history."""
+    dweller.rarity = RarityEnum.COMMON
+    await map_service.register_bio_places(
+        async_session,
+        dweller,
+        origin_place="Megaton",
+        visited_places=["Rivet City", "Tenpenny Tower", "Canterbury Commons"],
+    )
+
+    rows = (await async_session.execute(select(VaultLocationState))).scalars().all()
+    origin_rows = [r for r in rows if r.type == LocationTypeEnum.ORIGIN]
+    visited_rows = [r for r in rows if r.type == LocationTypeEnum.VISITED]
+    assert len(origin_rows) == 1
+    assert len(visited_rows) == 0
+
+
+@pytest.mark.asyncio
+async def test_template_dweller_creation_registers_capped_places(async_session: AsyncSession, vault: Vault) -> None:
+    """Abraham Washington's 4 curated visits register capped to the legendary limit of 2."""
     from app.services.dweller_service import dweller_service
 
     dweller = await dweller_service.create_dweller_from_template(async_session, vault.id, "abraham-washington")
@@ -88,7 +103,7 @@ async def test_template_dweller_creation_registers_all_curated_places(
     rows = (await async_session.execute(select(VaultLocationState))).scalars().all()
     visited_rows = [r for r in rows if r.type == LocationTypeEnum.VISITED]
     assert dweller.bio.startswith("Curator of the Capitol Preservation Society")
-    assert len(visited_rows) == 4
+    assert len(visited_rows) == 2
 
 
 @pytest.mark.asyncio
@@ -224,6 +239,7 @@ async def test_get_vault_map_unlocked_only_hides_locked(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
     """unlocked_only=True excludes non-VAULT locations that are locked."""
+    dweller.rarity = RarityEnum.LEGENDARY
     await map_service.register_bio_places(async_session, dweller, origin_place="Megaton", visited_places=["Rivet City"])
 
     full = await map_service.get_vault_map(async_session, vault)
@@ -397,16 +413,32 @@ async def test_get_vault_map_clear_state_none_for_non_clearable_group(
 
 
 @pytest.mark.asyncio
-async def test_get_vault_map_clear_state_none_without_group_key(
+async def test_get_vault_map_clear_state_for_ungrouped_place(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """Emergent places without a group key carry no clear_state."""
+    """An ungrouped emergent PLACE falls back to the default clearable archetype."""
     await map_service.register_bio_places(async_session, dweller, origin_place="Race Town", visited_places=[])
 
     map_data = await map_service.get_vault_map(async_session, vault)
     race_town = next(loc for loc in map_data.locations if loc.normalized_name == "race town")
 
-    assert race_town.group_key is None
+    assert race_town.group_key == "wasteland_site"
+    assert race_town.clear_state is not None
+    assert race_town.clear_state.clearable is True
+    assert race_town.clear_state.loot_table == "low"
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_clear_state_none_when_emergent_sites_disabled(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With the flag off, an ungrouped PLACE carries no clear_state."""
+    monkeypatch.setattr(game_config.features, "emergent_sites", False)
+    await map_service.register_bio_places(async_session, dweller, origin_place="Race Town", visited_places=[])
+
+    map_data = await map_service.get_vault_map(async_session, vault)
+    race_town = next(loc for loc in map_data.locations if loc.normalized_name == "race town")
+
     assert race_town.clear_state is None
 
 
@@ -433,6 +465,50 @@ async def test_get_location_detail_includes_clear_state(
     assert detail.clear_state.clear_count == 0
     assert detail.clear_state.tier == 0
     assert detail.clear_state.loot_table == "low"
+
+
+@pytest.mark.asyncio
+async def test_location_detail_prefers_canonical_description(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A canonical registry description wins over the per-vault description."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
+    location = (
+        await async_session.execute(select(WorldLocation).where(WorldLocation.name == "Red Rocket"))
+    ).scalar_one()
+    location.description = "Canonical lore"
+    state = (
+        await async_session.execute(
+            select(VaultLocationState).where(
+                VaultLocationState.vault_id == vault.id,
+                VaultLocationState.location_id == location.id,
+            )
+        )
+    ).scalar_one()
+    state.description = "Per-vault lore"
+    async_session.add(location)
+    async_session.add(state)
+    await async_session.commit()
+
+    detail = await map_service.get_location_detail(async_session, vault, location.id)
+
+    assert detail.description == "Canonical lore"
+
+
+@pytest.mark.asyncio
+async def test_location_detail_falls_back_to_group_lore(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A place with no description shows its archetype's shared lore."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
+    location = (
+        await async_session.execute(select(WorldLocation).where(WorldLocation.name == "Red Rocket"))
+    ).scalar_one()
+
+    detail = await map_service.get_location_detail(async_session, vault, location.id)
+
+    assert detail.description is not None
+    assert "roadside fuel stop" in detail.description
 
 
 # ---------------------------------------------------------------------------
@@ -536,11 +612,25 @@ async def test_sweep_reclears_skips_missing_vault_owner(
 # ---------------------------------------------------------------------------
 
 
+async def _legacy_journey(async_session: AsyncSession, vault: Vault) -> None:
+    """An in-progress legacy (non-spatial) journey, so the catalog fallback applies."""
+    from app import crud
+    from app.schemas.dweller import DwellerCreate
+    from app.services.exploration_service import exploration_service
+    from app.tests.factory.dwellers import create_fake_adult_dweller
+
+    dweller = await crud.dweller.create(
+        async_session, obj_in=DwellerCreate(**create_fake_adult_dweller(), vault_id=str(vault.id))
+    )
+    await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+
+
 @pytest.mark.asyncio
 async def test_get_vault_map_expedition_sites_ready(async_session: AsyncSession, vault: Vault) -> None:
     """No runs yet: every site is ready with zeroed cooldown and scaled coords."""
     from app.services.exploration import data_loader
 
+    await _legacy_journey(async_session, vault)
     map_data = await map_service.get_vault_map(async_session, vault)
     by_id = {site.id: site for site in map_data.expedition_sites}
     assert set(by_id) == {"red_rocket", "super_duper_mart"}
@@ -560,6 +650,7 @@ async def test_get_vault_map_expedition_sites_open(async_session: AsyncSession, 
     """An open run for a vault+site marks that site as blocked by 'open'."""
     from app.models.exploration import ExpeditionRun, ExpeditionRunStatus
 
+    await _legacy_journey(async_session, vault)
     async_session.add(
         ExpeditionRun(
             exploration_id=uuid4(),
@@ -583,6 +674,7 @@ async def test_get_vault_map_expedition_sites_cooldown(async_session: AsyncSessi
     """A recent terminal run puts the site in cooldown with remaining seconds."""
     from app.models.exploration import ExpeditionRun, ExpeditionRunStatus
 
+    await _legacy_journey(async_session, vault)
     async_session.add(
         ExpeditionRun(
             exploration_id=uuid4(),
@@ -611,6 +703,7 @@ async def test_get_vault_map_expedition_sites_cooldown_not_cleared(
     """A retreat/death within the anti-farm window blocks re-entry but is NOT 'cleared'."""
     from app.models.exploration import ExpeditionRun
 
+    await _legacy_journey(async_session, vault)
     async_session.add(
         ExpeditionRun(
             exploration_id=uuid4(),
@@ -629,3 +722,98 @@ async def test_get_vault_map_expedition_sites_cooldown_not_cleared(
     assert by_id["red_rocket"].cooldown_remaining_seconds > 0
     assert by_id["super_duper_mart"].block_reason is None
     assert by_id["super_duper_mart"].cleared is False
+
+
+async def _spatial_journey_near_red_rocket(async_session: AsyncSession, vault: Vault, dweller: Dweller):
+    """An in-progress spatial run whose trail passes red_rocket (30, 25)."""
+    from app.crud.vault_slot import vault_slot
+    from app.services.exploration_service import exploration_service
+    from app.services.world_snapshot_service import world_snapshot_service
+
+    slot = await vault_slot.get_by_vault(async_session, vault.id)
+    if slot is None:
+        await vault_slot.claim_next(db_session=async_session, vault_id=vault.id)
+        await async_session.commit()
+    await world_snapshot_service.get_or_generate(async_session)
+    dweller.level = 10
+    dweller.health = 100
+    dweller.max_health = 100
+    async_session.add(dweller)
+    await async_session.commit()
+    exploration = await exploration_service.send_dweller(
+        async_session, vault.id, dweller.id, duration=24, heading_degrees=90
+    )
+    exploration.pos_x, exploration.pos_y = 30.0, 25.0
+    exploration.trail = [*exploration.trail, {"x": 30.0, "y": 25.0, "t": datetime.utcnow().isoformat()}]
+    async_session.add(exploration)
+    await async_session.commit()
+    await async_session.refresh(exploration)
+    return exploration
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_spatial_journey_exposes_only_offered_sites(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A spatial journey shows only trail-offered sites; consumption removes one."""
+    from app import crud
+
+    exploration = await _spatial_journey_near_red_rocket(async_session, vault, dweller)
+
+    map_data = await map_service.get_vault_map(async_session, vault)
+    assert {site.id for site in map_data.expedition_sites} == {"red_rocket"}
+
+    run = await crud.expedition_run.create_run(
+        async_session, exploration_id=exploration.id, vault_id=vault.id, site_id="red_rocket"
+    )
+    run.status = ExpeditionRunStatus.CLEARED
+    run.finished_at = datetime.utcnow()
+    async_session.add(run)
+    await async_session.commit()
+
+    map_data = await map_service.get_vault_map(async_session, vault)
+    assert map_data.expedition_sites == []
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_no_journey_has_no_site_markers(async_session: AsyncSession, vault: Vault) -> None:
+    """Without an in-progress journey, the temporary encounter markers are absent."""
+    map_data = await map_service.get_vault_map(async_session, vault)
+
+    assert map_data.expedition_sites == []
+
+
+@pytest.mark.asyncio
+async def test_get_vault_map_unions_offers_across_journeys(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """Every in-progress spatial journey contributes its own discovered encounters."""
+    from app import crud
+    from app.schemas.dweller import DwellerCreate
+    from app.services.exploration_service import exploration_service
+    from app.services.world_snapshot_service import world_snapshot_service
+    from app.tests.factory.dwellers import create_fake_adult_dweller
+
+    await _spatial_journey_near_red_rocket(async_session, vault, dweller)
+
+    other = await crud.dweller.create(
+        async_session, obj_in=DwellerCreate(**create_fake_adult_dweller(), vault_id=str(vault.id))
+    )
+    other.level = 10
+    other.health = 100
+    other.max_health = 100
+    async_session.add(other)
+    await async_session.commit()
+    await world_snapshot_service.get_or_generate(async_session)
+    second = await exploration_service.send_dweller(async_session, vault.id, other.id, duration=24, heading_degrees=90)
+    second.pos_x, second.pos_y = 72.0, 68.0
+    second.trail = [*second.trail, {"x": 72.0, "y": 68.0, "t": datetime.utcnow().isoformat()}]
+    async_session.add(second)
+    await async_session.commit()
+
+    map_data = await map_service.get_vault_map(async_session, vault)
+    by_id = {site.id: site for site in map_data.expedition_sites}
+
+    assert {"red_rocket", "super_duper_mart"} <= set(by_id)
+    assert by_id["red_rocket"].exploration_id is not None
+    assert by_id["red_rocket"].exploration_id != by_id["super_duper_mart"].exploration_id

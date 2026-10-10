@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useVaultStore } from '../stores/vault'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { isSeverelyIrradiated } from '@/modules/dwellers/models/dweller'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSidePanel } from '@/core/composables/useSidePanel'
@@ -102,8 +103,8 @@ const handleViewLowHappiness = () => {
   router.push(`/vault/${vaultId.value}/dwellers?sortBy=happiness&order=asc`)
 }
 
-const irradiatedDwellerCount = computed(
-  () => dwellerStore.dwellers.filter((d) => d.radiation > 0).length
+const severelyIrradiatedDwellerCount = computed(
+  () => dwellerStore.dwellers.filter((d) => isSeverelyIrradiated(d.radiation, d.max_health)).length
 )
 const isTreatingDwellers = ref(false)
 
@@ -163,7 +164,7 @@ onMounted(() => {
             :activeIncidentCount="happinessDashboardData.activeIncidentCount"
             :lowResourceCount="happinessDashboardData.lowResourceCount"
             :radioHappinessMode="happinessDashboardData.radioHappinessMode"
-            :irradiatedDwellerCount="irradiatedDwellerCount"
+            :severelyIrradiatedDwellerCount="severelyIrradiatedDwellerCount"
             :treatingDwellers="isTreatingDwellers"
             @assign-idle="handleAssignIdle"
             @activate-radio="handleActivateRadio"

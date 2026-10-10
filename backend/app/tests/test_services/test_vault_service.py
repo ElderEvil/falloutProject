@@ -151,24 +151,6 @@ def _make_storage(
 
 
 # ---------------------------------------------------------------------------
-# Test _prepare_room_data
-# ---------------------------------------------------------------------------
-
-
-class TestPrepareRoomData:
-    """Unit tests for _prepare_room_data static method."""
-
-    def test_with_output_formula(self) -> None:
-        vault_id = VAULT_ID
-        rooms = [
-            _make_room_create(name="Power Generator", ability=SPECIALEnum.STRENGTH, output_formula="tier * size * 3"),
-        ]
-        with patch("app.services.vault_service.room_crud.evaluate_output_formula", return_value=9):
-            result = VaultService._prepare_room_data(rooms, "power generator", vault_id, x=0, y=1)
-        assert result["output"] == 9
-
-
-# ---------------------------------------------------------------------------
 # Test _prepare_initial_rooms
 # ---------------------------------------------------------------------------
 
@@ -466,6 +448,31 @@ class TestCreateInitialItems:
 
         outfits = await get_items_by_vault(async_session, Outfit, vault.id)
         assert not any(o.name in {"Firefighter suit", "Hazmat suit"} for o in outfits)
+
+    async def test_boosted_vault_seeds_pets(self, async_session, vault) -> None:
+        """Boosted vaults start with unassigned pets in storage for quick testing."""
+        from app.crud.item_base import get_items_by_vault
+        from app.models.pet import Pet
+        from app.services.vault_seed import BOOSTED_SEED_PETS
+
+        storage = await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
+        await VaultService()._create_initial_items(async_session, vault.id, is_boosted=True)
+
+        pets = await get_items_by_vault(async_session, Pet, vault.id)
+        assert {p.name for p in pets} == {name for name, _ in BOOSTED_SEED_PETS}
+        assert all(p.storage_id == storage.id and p.dweller_id is None for p in pets)
+        assert all(p.image_url for p in pets)
+
+    async def test_standard_vault_has_no_seeded_pets(self, async_session, vault) -> None:
+        """Standard vaults do not receive seeded pets."""
+        from app.crud.item_base import get_items_by_vault
+        from app.models.pet import Pet
+
+        await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
+        await VaultService()._create_initial_items(async_session, vault.id, is_boosted=False)
+
+        pets = await get_items_by_vault(async_session, Pet, vault.id)
+        assert pets == []
 
     async def test_seeded_outfits_carry_special_bonuses(self, async_session, vault) -> None:
         """Seed outfits declare SPECIAL bonuses that flow through build_outfit."""

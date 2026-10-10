@@ -380,7 +380,6 @@ async def test_process_incident_does_not_damage_child(
     room = room_with_dwellers["room"]
     child_data = {
         **dweller_data,
-        "is_adult": False,
         "age_group": AgeGroupEnum.CHILD,
         "health": 100,
         "max_health": 100,
@@ -1232,7 +1231,7 @@ class TestTickCommitBoundaries:
             patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock, return_value=False),
             patch("app.services.combat.incident_math.damage_to_dwellers", return_value=0.0),
             patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
-            patch("app.services.combat.incident_math.fire_suppression", return_value=0.0),
+            patch("app.services.combat.incident_math.containment_progress", return_value=0.0),
         ):
             stats = await incident_service.process_vault_incidents(async_session, vault.id, 2)
 

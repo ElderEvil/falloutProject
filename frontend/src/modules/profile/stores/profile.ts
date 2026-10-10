@@ -4,7 +4,7 @@ import type { UserProfile, ProfileUpdate } from '../models/profile'
 import type { AIUsageStats } from '../models/aiUsage'
 import { fetchAIUsage as fetchAIUsageRequest } from '../services/aiUsageService'
 import { handleStoreError } from '@/core/utils/errorHandler'
-import axios from '@/core/plugins/axios'
+import { apiGet, apiPut } from '@/core/utils/api'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 import type { DeathStatistics } from '@/core/types/death'
 
@@ -47,8 +47,7 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   async function loadProfile(): Promise<UserProfile> {
-    const response = await axios.get<UserProfile>('/api/v1/users/me/profile')
-    return response.data
+    return apiGet<UserProfile>('/api/v1/users/me/profile')
   }
 
   async function fetchProfile(): Promise<void> {
@@ -86,10 +85,10 @@ export const useProfileStore = defineStore('profile', () => {
     loading.value = true
     error.value = null
     try {
-      const response = await axios.put<UserProfile>('/api/v1/users/me/profile', data)
+      const nextProfile = await apiPut<UserProfile>('/api/v1/users/me/profile', data)
       if (requestSession !== session) return
       profileVersion += 1
-      applyProfile(response.data)
+      applyProfile(nextProfile)
     } catch (err: unknown) {
       error.value = handleStoreError(err, 'Failed to update profile')
       throw err
@@ -120,12 +119,12 @@ export const useProfileStore = defineStore('profile', () => {
   async function savePreferences(patch: Record<string, unknown>): Promise<void> {
     const requestSession = session
     const run = saveChain.then(async () => {
-      const response = await axios.put<UserProfile>('/api/v1/users/me/profile', {
+      const nextProfile = await apiPut<UserProfile>('/api/v1/users/me/profile', {
         preferences: { ...profile.value?.preferences, ...patch },
       })
       if (requestSession !== session) return
       profileVersion += 1
-      applyProfile(response.data)
+      applyProfile(nextProfile)
     })
     saveChain = run.catch(() => {})
     return run
@@ -135,10 +134,10 @@ export const useProfileStore = defineStore('profile', () => {
     const requestSession = session
     deathStatsLoading.value = true
     try {
-      const response = await axios.get<DeathStatistics>('/api/v1/users/me/profile/statistics')
+      const stats = await apiGet<DeathStatistics>('/api/v1/users/me/profile/statistics')
       if (requestSession !== session) return null
-      deathStatistics.value = response.data
-      return response.data
+      deathStatistics.value = stats
+      return stats
     } catch (err: unknown) {
       handleStoreError(err, 'Failed to fetch death statistics')
       return null

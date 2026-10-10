@@ -7,14 +7,9 @@ import DwellerChat from './DwellerChat.vue'
 import { isMature, type Dweller } from '@/modules/dwellers/models/dweller'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import TerminalLoadingState from '@/core/components/common/TerminalLoadingState.vue'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import { Button } from '@/core/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/core/components/ui/dialog'
+import { DialogDescription } from '@/core/components/ui/dialog'
 
 const props = defineProps<{
   dwellerId: string
@@ -84,29 +79,21 @@ watch(
   <!-- Boxed dialog with a header bar: the title carries the dweller's full name
        (the chat's identity line shows the first name only) and the close button
        emits directly instead of relying on the dialog's dismiss chain. -->
-  <Dialog
+  <TerminalModal
     :open="true"
-    @update:open="
-      (open) => {
-        if (!open) emit('close')
-      }
-    "
+    :title="title"
+    size="3xl"
+    max-height="80"
+    :show-close="false"
+    header-class="flex flex-shrink-0 flex-row items-center justify-between gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
+    @close="emit('close')"
   >
-    <DialogContent
-      :show-close-button="false"
-      class="flex max-h-[80vh] w-full max-w-3xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-3xl"
-    >
-      <DialogHeader
-        class="flex flex-shrink-0 flex-row items-center justify-between gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
-      >
-        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">{{
-          title
-        }}</DialogTitle>
+      <template #header-extra>
         <DialogDescription class="sr-only">Conversation with {{ title }}</DialogDescription>
         <Button variant="ghost" size="icon-sm" aria-label="Close chat" @click="emit('close')">
           <Icon icon="mdi:close" class="h-4 w-4" />
         </Button>
-      </DialogHeader>
+      </template>
 
       <div class="flex min-h-0 flex-1 flex-col p-5">
         <TerminalLoadingState v-if="isLoading" message="Establishing connection to dweller..." />
@@ -121,11 +108,12 @@ watch(
           :dweller-status="dweller.status"
           :room-name="dweller.room?.name"
           :dweller-can-explore="isMature(dweller)"
+          :is-dead="dweller.is_dead"
+          :is-permanently-dead="dweller.is_permanently_dead"
         />
         <div v-else class="flex flex-1 items-center justify-center text-theme-primary/60">
           <p>Dweller information unavailable.</p>
         </div>
       </div>
-    </DialogContent>
-  </Dialog>
+  </TerminalModal>
 </template>

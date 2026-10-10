@@ -18,6 +18,10 @@ export type AssignToRoomAction = components['schemas']['AssignToRoomAction']
 export type StartTrainingAction = components['schemas']['StartTrainingAction']
 export type StartExplorationAction = components['schemas']['StartExplorationAction']
 export type RecallExplorationAction = components['schemas']['RecallExplorationAction']
+
+// Dev diagnostics returned only when a chat turn opts in with ?debug=true.
+export type ChatDebug = components['schemas']['ChatDebug']
+export type ChatGuardrailDebug = components['schemas']['ChatGuardrailDebug']
 export type RequestStimpakAction = components['schemas']['RequestStimpakAction']
 export type RequestRadawayAction = components['schemas']['RequestRadawayAction']
 export type BioAddendumAction = components['schemas']['BioAddendumAction']

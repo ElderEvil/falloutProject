@@ -1,9 +1,10 @@
 import { describe, it, expect, vi } from 'vitest'
+import { createIconifyMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import SpecialGuideModal from '@/modules/dwellers/components/stats/SpecialGuideModal.vue'
 import { SPECIAL_GUIDE } from '@/modules/dwellers/models/specialGuide'
 
-vi.mock('@iconify/vue', () => ({ Icon: { template: '<i />' } }))
+vi.mock('@iconify/vue', () => createIconifyMock({ template: '<i />' }))
 
 describe('SpecialGuideModal', () => {
   it('should render all seven guide entries when open', () => {

@@ -4,6 +4,8 @@ import { Icon } from '@iconify/vue'
 import { useLineage } from '../composables/useLineage'
 import type { LineageMember } from '../services/lineageService'
 import { useDwellerDetailContext } from './DwellerDetailContext'
+import { getDwellerDisplayName } from '../models/dweller'
+import { capitalize } from '@/core/utils/format'
 
 const ctx = useDwellerDetailContext()
 
@@ -21,12 +23,9 @@ const { lineage, isLoading, error, load, select } = useLineage(
 const isDead = (member: LineageMember) => member.is_dead
 const partnerStage = (member: LineageMember) => member.relationship_type ?? 'partner'
 
-const ageLabel = (age: string) => age.charAt(0).toUpperCase() + age.slice(1)
-
-
 const selfAge = computed(() => {
   const age = ctx.dweller.value?.age_group
-  return age ? ageLabel(age) : ''
+  return age ? capitalize(age) : ''
 })
 </script>
 
@@ -58,10 +57,10 @@ const selfAge = computed(() => {
             <span class="member-info">
               <span class="member-name">
                 <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
-                {{ member.first_name }} {{ member.last_name }}
+                {{ getDwellerDisplayName(member) }}
                 <span v-if="isDead(member)" class="sr-only">(deceased)</span>
               </span>
-              <span class="member-age">{{ ageLabel(member.age_group) }}</span>
+              <span class="member-age">{{ capitalize(member.age_group) }}</span>
             </span>
           </button>
           <span v-if="!lineage.parents.length" class="tree-empty">—</span>
@@ -96,10 +95,10 @@ const selfAge = computed(() => {
                 <span class="member-info">
                   <span class="member-name">
                 <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
-                {{ member.first_name }} {{ member.last_name }}
+                {{ getDwellerDisplayName(member) }}
                 <span v-if="isDead(member)" class="sr-only">(deceased)</span>
               </span>
-                  <span class="member-age">{{ ageLabel(member.age_group) }}</span>
+                  <span class="member-age">{{ capitalize(member.age_group) }}</span>
                   <span class="member-relation">
                     {{ partnerStage(member) }}
                     <span v-if="member.affinity != null" class="bond-affinity">
@@ -127,10 +126,10 @@ const selfAge = computed(() => {
               <span class="member-info">
                 <span class="member-name">
                 <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
-                {{ member.first_name }} {{ member.last_name }}
+                {{ getDwellerDisplayName(member) }}
                 <span v-if="isDead(member)" class="sr-only">(deceased)</span>
               </span>
-                <span class="member-age">{{ ageLabel(member.age_group) }}</span>
+                <span class="member-age">{{ capitalize(member.age_group) }}</span>
               </span>
             </button>
           </div>
@@ -153,10 +152,10 @@ const selfAge = computed(() => {
             <span class="member-info">
               <span class="member-name">
                 <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
-                {{ member.first_name }} {{ member.last_name }}
+                {{ getDwellerDisplayName(member) }}
                 <span v-if="isDead(member)" class="sr-only">(deceased)</span>
               </span>
-              <span class="member-age">{{ ageLabel(member.age_group) }}</span>
+              <span class="member-age">{{ capitalize(member.age_group) }}</span>
             </span>
           </button>
           <span v-if="!lineage.children.length" class="tree-empty">—</span>

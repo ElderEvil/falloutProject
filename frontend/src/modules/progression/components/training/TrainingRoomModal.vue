@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
 import { Button } from '@/core/components/ui/button'
 import { Alert } from '@/core/components/ui/alert'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TrainingProgressCard from './TrainingProgressCard.vue'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import type { components } from '@/core/types/api.generated'
-import type { Dweller } from '@/modules/dwellers/models/dweller'
+import { getDwellerDisplayName, type Dweller } from '@/modules/dwellers/models/dweller'
 import type { Room } from '@/modules/rooms/models/room'
 
 type TrainingRead = components['schemas']['TrainingRead']
@@ -83,7 +83,7 @@ const availableDwellers = computed(() => {
 
 const getDwellerName = (dwellerId: string): string => {
   const dweller = dwellers.find((d) => d.id === dwellerId)
-  return dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Unknown'
+  return getDwellerDisplayName(dweller) || 'Unknown'
 }
 
 const close = () => {
@@ -152,16 +152,13 @@ watch(
 </script>
 
 <template>
-  <Dialog :open="modelValue" @update:open="(open) => { if (!open) close() }">
-    <DialogContent
-      class="flex max-h-[80vh] w-full max-w-5xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-5xl"
-    >
-      <DialogHeader
-        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
-      >
-        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">{{ room ? `${room.name} - Training Room` : 'Training Room' }}</DialogTitle>
-      </DialogHeader>
-
+  <TerminalModal
+    :open="modelValue"
+    :title="room ? `${room.name} - Training Room` : 'Training Room'"
+    size="5xl"
+    max-height="80"
+    @close="close"
+  >
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
 
     <div v-if="room" class="training-modal">
@@ -236,7 +233,7 @@ watch(
             :disabled="loading"
           >
             <div class="dweller-info">
-              <span class="dweller-name"> {{ dweller.first_name }} {{ dweller.last_name }} </span>
+              <span class="dweller-name"> {{ getDwellerDisplayName(dweller) }} </span>
               <span class="dweller-level">Lvl {{ dweller.level }}</span>
             </div>
             <div class="dweller-stat">
@@ -259,8 +256,7 @@ watch(
       </div>
       </div>
     </div>
-    </DialogContent>
-  </Dialog>
+  </TerminalModal>
 </template>
 
 <style scoped>
@@ -442,8 +438,8 @@ watch(
 .stat-value {
   font-size: 1.25rem;
   font-weight: bold;
-  color: rgb(250 204 21);
-  text-shadow: 0 0 4px rgb(250 204 21 / 0.6);
+  color: var(--color-warning);
+  text-shadow: 0 0 4px color-mix(in srgb, var(--color-warning) 60%, transparent);
 }
 
 .capacity-alert {

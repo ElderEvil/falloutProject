@@ -20,6 +20,7 @@ from app.models.vault import Vault
 from app.models.weapon import Weapon
 from app.schemas.dweller import DwellerCreate
 from app.services.crafting_service import crafting_service
+from app.services.recipe_unlock_service import recipe_unlock_service
 from app.utils.exceptions import (
     InsufficientResourcesException,
     ResourceConflictException,
@@ -39,6 +40,12 @@ def _junk_cost(rarity: RarityEnum) -> int:
 
 def _caps_cost(rarity: RarityEnum) -> int:
     return game_config.crafting.caps_cost(rarity.value)
+
+
+async def _unlock_weapon(async_session: AsyncSession, vault: Vault, name: str) -> None:
+    """Learn a gated weapon recipe, so material tests are independent of the lock."""
+    await recipe_unlock_service.record_scrap(async_session, vault_id=vault.id, item_type="weapon", item_name=name)
+    await async_session.commit()
 
 
 async def _make_storage(async_session: AsyncSession, vault: Vault, max_space: int = 100) -> Storage:
@@ -198,7 +205,7 @@ async def test_catalog_entries_without_craftable_flag_are_excluded(
         "value": 10,
     }
 
-    async def fake_catalog(_item_type: str) -> list[dict]:
+    def fake_catalog(_item_type: str) -> list[dict]:
         return [unflagged]
 
     monkeypatch.setattr(crafting_service, "_catalog", fake_catalog)
@@ -219,6 +226,7 @@ async def test_start_order_consumes_materials_and_caps(async_session: AsyncSessi
     await _add_junk(async_session, storage, RarityEnum.RARE, rare_count)
     vault.bottle_caps = 1_000
     await async_session.commit()
+    await _unlock_weapon(async_session, vault, RARE_WEAPON)
 
     order = await crafting_service.start_order(async_session, vault.id, RARE_WEAPON, "weapon")
 
@@ -239,11 +247,12 @@ async def test_start_order_consumes_materials_and_caps(async_session: AsyncSessi
 
 @pytest.mark.asyncio
 async def test_only_the_items_junk_types_count(async_session: AsyncSession, vault: Vault) -> None:
-    """A melee item takes steel/leather, so circuitry scrap cannot pay for it."""
+    """A melee item takes steel/adhesive, so circuitry scrap cannot pay for it."""
     storage = await _make_storage(async_session, vault)
     await _add_workshop(async_session, vault, "Weapon workshop")
     await _add_junk(async_session, storage, RarityEnum.COMMON, 10, JunkTypeEnum.CIRCUITRY)
     await _add_junk(async_session, storage, RarityEnum.RARE, 10, JunkTypeEnum.CIRCUITRY)
+    await _unlock_weapon(async_session, vault, RARE_WEAPON)
 
     with pytest.raises(InsufficientResourcesException):
         await crafting_service.start_order(async_session, vault.id, RARE_WEAPON, "weapon")
@@ -255,6 +264,7 @@ async def test_each_tier_needs_its_own_rarity(async_session: AsyncSession, vault
     storage = await _make_storage(async_session, vault)
     await _add_workshop(async_session, vault, "Weapon workshop")
     await _add_junk(async_session, storage, RarityEnum.RARE, 10)
+    await _unlock_weapon(async_session, vault, RARE_WEAPON)
 
     with pytest.raises(InsufficientResourcesException):
         await crafting_service.start_order(async_session, vault.id, RARE_WEAPON, "weapon")
@@ -327,6 +337,7 @@ async def test_start_order_insufficient_caps(async_session: AsyncSession, vault:
     await _add_junk(async_session, storage, RarityEnum.RARE, _junk_cost(RarityEnum.RARE))
     vault.bottle_caps = 0
     await async_session.commit()
+    await _unlock_weapon(async_session, vault, RARE_WEAPON)
 
     with pytest.raises(InsufficientResourcesException):
         await crafting_service.start_order(async_session, vault.id, RARE_WEAPON, "weapon")

@@ -13,6 +13,7 @@ from app.services.progression.objectives.evaluators.concrete import (
     ExpeditionEvaluator,
     LevelUpEvaluator,
     ReachEvaluator,
+    ScrapEvaluator,
     TrainEvaluator,
 )
 
@@ -45,6 +46,7 @@ class ObjectiveEvaluatorManager:
 
             evaluator_classes: list[type[ObjectiveEvaluator]] = [
                 CollectEvaluator,
+                ScrapEvaluator,
                 BuildEvaluator,
                 TrainEvaluator,
                 AssignEvaluator,

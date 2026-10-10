@@ -9,12 +9,13 @@ import { useExplorationFinish } from '@/modules/exploration/composables/useExplo
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
-import { canUseRadaway, type Dweller } from '@/modules/dwellers/models/dweller'
+import { canUseRadaway, getDwellerDisplayName, type Dweller } from '@/modules/dwellers/models/dweller'
 import WastelandDropzone from '@/modules/exploration/components/WastelandDropzone.vue'
 import ActiveExplorationList from '@/modules/exploration/components/ActiveExplorationList.vue'
 import ExplorationDurationModal from '@/modules/exploration/components/ExplorationDurationModal.vue'
 import ExplorationRewardsModal from '@/modules/exploration/components/ExplorationRewardsModal.vue'
 import { useSendToWasteland } from '@/modules/exploration/composables/useSendToWasteland'
+import { formatHeading } from '@/modules/map/utils/bearing'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -90,7 +91,7 @@ watch(
     const dweller = getDwellerById(pending.dwellerId)
     openRewards(
       pending.rewards,
-      dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller',
+      getDwellerDisplayName(dweller) || 'Dweller',
       pending.explorationId ?? ''
     )
     explorationStore.clearPendingSseRewards()
@@ -218,8 +219,18 @@ const detailedDwellerMap = computed(
       :allow-radaway="
         canUseRadaway(getDwellerById(sendWasteland.pendingDweller.value?.dwellerId ?? ''))
       "
+      :heading="
+        sendWasteland.headingDegrees.value !== null
+          ? formatHeading(sendWasteland.headingDegrees.value)
+          : null
+      "
+      :heading-degrees="sendWasteland.headingDegrees.value"
+      :can-reroll="true"
+      :is-suggesting-heading="sendWasteland.isSuggestingHeading.value"
       @confirm="handleSendWastelandConfirm"
       @cancel="sendWasteland.cancel"
+      @reroll="sendWasteland.reroll"
+      @select-heading="sendWasteland.setHeading"
     />
 
     <!-- Rewards Modal -->

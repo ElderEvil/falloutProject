@@ -16,6 +16,7 @@ from app.models.base import SPECIALModel
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.training import Training, TrainingStatus
+from app.options.pet_modifiers import MAX_PCT_BONUS, pet_modifiers_for
 from app.services.notification_service import notification_service
 from app.services.room_assignment_policy import calculate_room_capacity
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
@@ -138,6 +139,9 @@ class TrainingService:
 
         # Refresh to ensure all SPECIAL stats are loaded
         await db_session.refresh(dweller)
+        # refresh() expires relationship attributes, dropping the eager-loaded
+        # pet; re-read so the training-speed snapshot below sees it (B7).
+        dweller = await dweller_crud.get(db_session, dweller_id)
 
         room = await room_crud.get(db_session, room_id)
         if not room:
@@ -160,6 +164,14 @@ class TrainingService:
 
         # Calculate duration
         duration_seconds = self.calculate_training_duration(current_stat_value, room.tier)
+
+        # Pet training-speed bonus shortens the duration. Snapshotted here
+        # (estimated_completion_at); tick/progress code never re-applies it.
+        # Neutral when the pet is not loaded (B7 eager-loads it). MAX_PCT_BONUS
+        # caps the reduction, flooring the duration at 50% of base.
+        pet_effect = pet_modifiers_for(dweller)
+        training_speed_pct = min(pet_effect.training_speed_pct, MAX_PCT_BONUS)
+        duration_seconds = int(duration_seconds * (1 - training_speed_pct))
 
         # Create training session
         now = datetime.utcnow()

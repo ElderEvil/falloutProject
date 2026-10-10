@@ -22,6 +22,7 @@ from app.models.exploration import Exploration
 from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.weapon import Weapon
+from app.options.pet_modifiers import MAX_PCT_BONUS, pet_modifiers_for
 from app.schemas.exploration import PendingOverflowRead
 from app.schemas.exploration_event import RewardsSchema
 from app.services.exploration import data_loader
@@ -388,6 +389,7 @@ class RewardsService:
         # Transfer caps to vault
         total_caps = exploration.total_caps_found
         if total_caps > 0:
+            total_caps = int(total_caps * (1 + min(pet_modifiers_for(dweller_obj).caps_pct, MAX_PCT_BONUS)))
             vault = await crud_vault.get(db_session, exploration.vault_id)
             credited = await vault_service.deposit_caps(
                 db_session=db_session, vault_obj=vault, amount=total_caps, commit=commit, emit_event=False

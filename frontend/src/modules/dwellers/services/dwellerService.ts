@@ -9,6 +9,8 @@ export type FeatureFlags = components['schemas']['FeaturesResponse']
 export interface DwellerQueryParams {
   status?: string
   ageGroup?: string
+  gender?: string
+  rarity?: string
   race?: string
   faction?: string
   search?: string
@@ -27,6 +29,8 @@ export async function getDwellersByVault(
   const query = new URLSearchParams()
   if (params?.status) query.append('status', params.status)
   if (params?.ageGroup) query.append('age_group', params.ageGroup)
+  if (params?.gender) query.append('gender', params.gender)
+  if (params?.rarity) query.append('rarity', params.rarity)
   if (params?.race) query.append('race', params.race)
   if (params?.faction) query.append('faction', params.faction)
   if (params?.search) query.append('search', params.search)

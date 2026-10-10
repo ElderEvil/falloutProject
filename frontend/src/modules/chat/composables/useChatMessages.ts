@@ -5,7 +5,7 @@ import type { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { getStaticImageUrl } from '@/core/utils/image'
 import { useSound } from '@/core/composables/useSound'
-import type { ChatMessageDisplay, MapDiscovery } from '@/modules/chat/models/chat'
+import type { ChatMessageDisplay, ChatDebug, MapDiscovery } from '@/modules/chat/models/chat'
 
 export interface UseChatMessagesOptions {
   dwellerId: string
@@ -13,6 +13,8 @@ export interface UseChatMessagesOptions {
   token: Ref<string | null> | string | null
   userImageUrl?: MaybeRefOrGetter<string | undefined>
   chatWs?: ReturnType<typeof useChatWebSocket>
+  /** Admin/dev only: request the opt-in debug payload and expose it for the panel. */
+  debugEnabled?: MaybeRefOrGetter<boolean>
 }
 
 export const normalizeUnlockedPlaces = (places: unknown): MapDiscovery[] =>
@@ -33,6 +35,8 @@ export function useChatMessages(options: UseChatMessagesOptions) {
   const userMessage = ref('')
   const chatMessages = ref<HTMLElement | null>(null)
   const isTyping = ref(false)
+  // Latest debug payload from the last turn, when opt-in is enabled.
+  const lastChatDebug = ref<ChatDebug | null>(null)
 
   // Streaming state: the dweller message being built from token events, and
   // the resolver that settles sendMessage once the stream completes.
@@ -100,6 +104,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
         }
         streamingIndex = null
       }
+      lastChatDebug.value = msg.debug ?? lastChatDebug.value
       isTyping.value = false
       sendResolver?.()
       sendResolver = null
@@ -192,7 +197,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
       isTyping.value = true
 
       if (isWsConnected && options.chatWs) {
-        options.chatWs.sendMessage(messageToSend)
+        options.chatWs.sendMessage(messageToSend, toValue(options.debugEnabled) === true)
         await new Promise<void>((resolve) => {
           sendResolver = resolve
         })
@@ -209,8 +214,10 @@ export function useChatMessages(options: UseChatMessagesOptions) {
             headers: {
               Authorization: `Bearer ${getToken()}`,
             },
+            params: { debug: toValue(options.debugEnabled) ? true : undefined },
           }
         )
+        lastChatDebug.value = response.data.debug ?? null
         appendDwellerResponse(response.data)
       } catch (error) {
         const reason = handleStoreError(error, 'Error sending message')
@@ -311,6 +318,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     dwellerAvatarUrl,
     canSend,
     latestActionSuggestionIndex,
+    lastChatDebug,
     handleMessagesScroll,
     appendDwellerResponse,
 

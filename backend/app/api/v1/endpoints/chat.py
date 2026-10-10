@@ -3,7 +3,7 @@
 from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 from fastapi.responses import Response
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -25,6 +25,9 @@ async def chat_with_dweller(
     user: CurrentActiveUser,
     message: ChatMessage,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    debug: Annotated[
+        bool, Query(description="Include dev diagnostics (tokens, guardrail/Jev) in the response")
+    ] = False,
 ) -> DwellerChatResponse:
     """Send a text message and publish the resulting chat notifications."""
     response = await chat_service.process_text_message(
@@ -32,6 +35,7 @@ async def chat_with_dweller(
         user=user,
         dweller_id=dweller_id,
         message_text=message.message,
+        debug=debug and user.is_superuser,
     )
     await chat_service.send_chat_notification(
         user_id=user.id,

@@ -6,6 +6,7 @@ import {
   getOutfitFireResist,
   getOutfitRadiationResist,
   getOutfitStats,
+  getPetStats,
   getRarityBorderClass,
   getRarityColor,
   getRarityTextClass,
@@ -160,5 +161,42 @@ describe('stat rows', () => {
 
     const plain = getOutfitStats({ fire_resist: 0, strength: 1 }).map((s) => s.label)
     expect(plain).not.toContain('Fire resist')
+  })
+
+  it('builds pet stat rows from the effect, omitting zero bonuses', () => {
+    const stats = getPetStats({
+      strength: 2,
+      luck: 1,
+      max_health: 50,
+      damage_pct: 0.25,
+      xp_pct: 0.5,
+    })
+
+    expect(stats).toEqual([
+      { label: 'Strength', value: '+2', icon: 'mdi:chevron-up' },
+      { label: 'Luck', value: '+1', icon: 'mdi:chevron-up' },
+      { label: 'Max HP', value: '+50', icon: 'mdi:heart-plus' },
+      { label: 'Damage', value: '+25%', icon: 'mdi:percent' },
+      { label: 'XP', value: '+50%', icon: 'mdi:percent' },
+    ])
+  })
+
+  it('renders pet percent fields as rounded percentages', () => {
+    const stats = getPetStats({ incident_response_pct: 0.333, radiation_resist_pct: 1 })
+    expect(stats).toContainEqual({ label: 'Incident response', value: '+33%', icon: 'mdi:percent' })
+    expect(stats).toContainEqual({ label: 'RAD resist', value: '+100%', icon: 'mdi:percent' })
+  })
+
+  it('renders no pet stat rows for a neutral effect', () => {
+    expect(getPetStats({})).toEqual([])
+    expect(
+      getPetStats({
+        strength: 0,
+        max_health: 0,
+        damage_pct: 0,
+        happiness: 0,
+        training_speed_pct: 0,
+      })
+    ).toEqual([])
   })
 })

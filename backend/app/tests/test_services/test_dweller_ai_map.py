@@ -273,8 +273,10 @@ async def test_failed_map_write_preserves_bio_and_usage_without_partial_places(a
     from app.models.llm_interaction import LLMInteraction
     from app.models.notification import Notification, NotificationType
     from app.models.world_location import DwellerLocation, WorldLocation
+    from app.schemas.common import RarityEnum
 
     dweller.bio = "Original biography."
+    dweller.rarity = RarityEnum.LEGENDARY
     await async_session.commit()
     dweller_id = dweller.id
     user = await crud.user.get(async_session, vault.user_id)

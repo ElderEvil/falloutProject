@@ -3,3 +3,4 @@
 AI_USAGE_CACHE_KEY = "user:{user_id}:ai_usage"
 
 QUOTA_TRACKING_OPERATION = "quota_tracking"
+JEV_OPERATION = "jev_decision"

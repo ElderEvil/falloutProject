@@ -5,13 +5,14 @@ import logging
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import HazardTeam
 from app.core.game_config import game_config
 from app.crud.dweller import dweller as crud_dweller
 from app.models.dweller import Dweller
 from app.models.incident import (
     Incident,
+    IncidentObjective,
     IncidentStatus,
-    IncidentType,
     effects_for_incident_type,
     get_incident_definition,
     hazard_team_for,
@@ -173,15 +174,16 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
     team = hazard_team_for(incident.type)
     active_ids = team_result.active_ids
 
-    # Fire is a containment operation: responders suppress a hazard rather
-    # than defeat enemies. Other types retain the combat loop.
+    # The declared objective picks the flow: containment suppresses a hazard
+    # rather than defeating enemies. Combat objectives keep the combat loop.
+    definition = get_incident_definition(incident.type)
     dweller_power = incident_math.dweller_combat_power(dwellers)
     if active_ids:
         dweller_power = int(dweller_power * (1 + TEAM_RESPONSE_BONUS * len(active_ids)))
     threat_power = incident_math.raider_power(incident.difficulty)
-    if incident.type == IncidentType.FIRE:  # TODO: make it more generic
-        damage_to_dwellers = incident_math.fire_damage(threat_power, seconds_passed)
-        response_progress = incident_math.fire_suppression(dweller_power, threat_power, seconds_passed)
+    if definition.objective == IncidentObjective.CONTAIN:
+        damage_to_dwellers = incident_math.containment_damage(threat_power, seconds_passed)
+        response_progress = incident_math.containment_progress(dweller_power, threat_power, seconds_passed)
         damage_to_raiders = 0.0
     else:
         damage_to_dwellers = incident_math.damage_to_dwellers(threat_power, seconds_passed)
@@ -201,19 +203,25 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
     if threat_power > 0:
         previous_kills = incident.enemies_defeated
         incident.combat_progress += response_progress
-        if incident.type != IncidentType.FIRE:
+        if definition.objective != IncidentObjective.CONTAIN:
             incident.enemies_defeated = int(incident.combat_progress)
         enemies_this_tick = incident.enemies_defeated - previous_kills
 
     # Check victory condition (defeated enough raiders based on difficulty)
     expected_raider_count = incident.difficulty * 2  # Each difficulty = 2 raiders
 
-    if incident.type == IncidentType.FIRE and response_progress > 0:  # TODO: Not hardcoded, must be a system for this
+    if definition.objective == IncidentObjective.CONTAIN and response_progress > 0:
+        if team == HazardTeam.FIRE:
+            containment_label = "Fire containment"
+        elif team == HazardTeam.RADIATION:
+            containment_label = "Radiation containment"
+        else:
+            containment_label = "Containment"
         incident_publishing.record_event(
             db_session,
             incident,
             "containment",
-            f"Fire containment increased by {max(1, int(response_progress * 100))}%.",
+            f"{containment_label} increased by {max(1, int(response_progress * 100))}%.",
             {"target": "hazard", "amount": response_progress},
         )
     else:
@@ -227,7 +235,7 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
 
     resolved = (
         incident.combat_progress >= 1
-        if incident.type == IncidentType.FIRE
+        if definition.objective == IncidentObjective.CONTAIN
         else incident.enemies_defeated >= expected_raider_count
     )
     caps_earned = 0

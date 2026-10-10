@@ -28,6 +28,8 @@ from app.cli.debug import app as debug
 from app.cli.dweller_bios import dweller_bios as _dweller_bios
 from app.cli.expedition_scenario import app as expedition_scenario
 from app.cli.family_scenario import app as family_scenario
+from app.cli.jev_eval import app as jev_eval
+from app.cli.map_scenario import app as map_scenario
 from app.cli.ops import app as ops
 from app.cli.pregen_dwellers import pregen_dwellers as _pregen_dwellers
 from app.cli.seed_places import seed_places as _seed_places
@@ -49,6 +51,7 @@ cli = typer.Typer(
 
 # Register sub-command groups
 cli.add_typer(family_scenario, name="family-scenario", help="Dev/QA: build family/breeding test scenarios")
+cli.add_typer(jev_eval, name="jev-eval", help="Dev/QA: measure Jev guardrail accuracy and calibrate thresholds")
 cli.add_typer(apprentice_scenario, name="apprentice-scenario", help="Dev/QA: build youth apprenticeship test scenarios")
 cli.add_typer(
     expedition_scenario,
@@ -57,6 +60,7 @@ cli.add_typer(
 )
 cli.add_typer(backfills, name="backfill", help="Retroactive backfill commands")
 cli.add_typer(debug, name="debug", help="Dev/QA: emit game events, inspect objectives/evaluators, simulate builds")
+cli.add_typer(map_scenario, name="map-scenario", help="Dev/QA: populate a vault's map with a place per site-type group")
 cli.add_typer(ops, name="ops", help="One-off operations and infrastructure tasks")
 cli.add_typer(transfer, name="transfer", help="Move dwellers between vaults safely")
 cli.add_typer(wiki_images, name="wiki-images", help="Download Fallout Shelter wiki image assets")

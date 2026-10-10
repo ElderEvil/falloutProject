@@ -10,6 +10,7 @@ from app.crud.base import CRUDBase
 from app.models.item import Item
 from app.models.junk import Junk
 from app.models.outfit import Outfit
+from app.models.pet import Pet
 from app.models.storage import Storage, StorageBase
 from app.models.weapon import Weapon
 from app.utils.exceptions import ResourceNotFoundException
@@ -45,7 +46,12 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
         )
         items_count = items_result.scalar() or 0
 
-        total = weapons_count + outfits_count + junk_count + items_count
+        pets_result = await db_session.execute(
+            select(func.count()).select_from(Pet).where(Pet.storage_id == storage_id)
+        )
+        pets_count = pets_result.scalar() or 0
+
+        total = weapons_count + outfits_count + junk_count + items_count + pets_count
 
         logger.debug(
             "Counted storage items",
@@ -55,6 +61,7 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
                 "outfits": outfits_count,
                 "junk": junk_count,
                 "items": items_count,
+                "pets": pets_count,
                 "total": total,
             },
         )
@@ -190,18 +197,20 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
 
     async def get_all_items(
         self, db_session: AsyncSession, storage_id: UUID4
-    ) -> dict[str, list[Weapon] | list[Outfit] | list[Junk] | list[Item]]:
+    ) -> dict[str, list[Weapon] | list[Outfit] | list[Junk] | list[Item] | list[Pet]]:
         """Get all items in storage."""
         weapons_result = await db_session.execute(select(Weapon).where(Weapon.storage_id == storage_id))
         outfits_result = await db_session.execute(select(Outfit).where(Outfit.storage_id == storage_id))
         junk_result = await db_session.execute(select(Junk).where(Junk.storage_id == storage_id))
         items_result = await db_session.execute(select(Item).where(Item.storage_id == storage_id))
+        pets_result = await db_session.execute(select(Pet).where(Pet.storage_id == storage_id))
 
         return {
             "weapons": list(weapons_result.scalars().all()),
             "outfits": list(outfits_result.scalars().all()),
             "junk": list(junk_result.scalars().all()),
             "items": list(items_result.scalars().all()),
+            "pets": list(pets_result.scalars().all()),
         }
 
     async def get_unopened_lunchbox(self, db_session: AsyncSession, item_id: UUID4, vault_id: UUID4) -> Item | None:

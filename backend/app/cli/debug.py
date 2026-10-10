@@ -52,9 +52,11 @@ def _run(body):
         from app.core.config import settings
         from app.services.progression.objectives.evaluators import evaluator_manager, set_current_session_maker
         from app.services.progression.objectives.notifications import register_objective_event_handlers
+        from app.services.recipe_unlock_service import register_recipe_unlock_handlers
 
         evaluator_manager.initialize()
         register_objective_event_handlers()
+        register_recipe_unlock_handlers()
         engine = create_async_engine(str(settings.ASYNC_DATABASE_URI), echo=False, future=True, pool_pre_ping=True)
         session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
         set_current_session_maker(session_maker)

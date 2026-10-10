@@ -42,6 +42,7 @@ const storageItems = ref<StorageItemsResponse>({
   outfits: [],
   junk: [],
   items: [],
+  pets: [],
 })
 
 const { run: runFetchStorageData, isLoading } = useAsyncAction(
@@ -58,7 +59,7 @@ const { run: runFetchStorageData, isLoading } = useAsyncAction(
   { context: 'Failed to load storage data', showToast: false }
 )
 
-const activeTab = ref<'weapons' | 'outfits' | 'junk' | 'supplies'>('weapons')
+const activeTab = ref<'weapons' | 'outfits' | 'junk' | 'supplies' | 'pets'>('weapons')
 type StorageTab = typeof activeTab.value
 type StorageItem =
   | StorageItemsResponse[Exclude<StorageTab, 'supplies'>][number]
@@ -71,7 +72,13 @@ interface DisplayStorageItem {
 }
 
 const selectTab = (tab: string) => {
-  if (tab === 'weapons' || tab === 'outfits' || tab === 'junk' || tab === 'supplies')
+  if (
+    tab === 'weapons' ||
+    tab === 'outfits' ||
+    tab === 'junk' ||
+    tab === 'supplies' ||
+    tab === 'pets'
+  )
     activeTab.value = tab
 }
 
@@ -80,6 +87,7 @@ const tabs = computed<Array<{ key: StorageTab; label: string }>>(() => [
   { key: 'outfits', label: `Outfits (${outfits.value.length})` },
   { key: 'junk', label: `Junk (${junk.value.length})` },
   { key: 'supplies', label: `Supplies (${supplies.value.length})` },
+  { key: 'pets', label: `Pets (${pets.value.length})` },
 ])
 
 // Fetch storage data
@@ -105,9 +113,15 @@ const weapons = computed(() => storageItems.value.weapons || [])
 const outfits = computed(() => storageItems.value.outfits || [])
 const junk = computed(() => storageItems.value.junk || [])
 const supplies = computed(() => storageItems.value.items || [])
+const pets = computed(() => storageItems.value.pets || [])
 
 const totalItems = computed(
-  () => weapons.value.length + outfits.value.length + junk.value.length + supplies.value.length
+  () =>
+    weapons.value.length +
+    outfits.value.length +
+    junk.value.length +
+    supplies.value.length +
+    pets.value.length
 )
 
 // Group junk items by name and add count
@@ -161,6 +175,7 @@ const cardItemType = (entry: DisplayStorageItem): string => {
   if (activeTab.value === 'weapons') return 'weapon'
   if (activeTab.value === 'outfits') return 'outfit'
   if (activeTab.value === 'junk') return 'junk'
+  if (activeTab.value === 'pets') return 'pet'
   return 'item_type' in entry.item ? String(entry.item.item_type) : 'misc'
 }
 
@@ -175,6 +190,8 @@ const activeItems = computed<DisplayStorageItem[]>(() => {
       return groupedSupplies.value
     case 'junk':
       return groupedJunk.value
+    case 'pets':
+      return pets.value.map((item) => ({ id: item.id, item, count: 1, ids: [item.id] }))
     default:
       return []
   }
@@ -277,7 +294,10 @@ const closeLunchboxModal = async () => {
   <div class="relative min-h-screen bg-terminal-background font-mono text-theme-primary">
     <SidePanel />
 
-    <div class="flex-1 transition-[margin] duration-300" :class="isCollapsed ? 'ml-16' : 'ml-60'">
+    <div
+      class="flex-1 transition-[margin] duration-300 max-md:ml-0"
+      :class="isCollapsed ? 'ml-16' : 'ml-60'"
+    >
       <PageContentRail>
         <PageHeader
           title="Vault Storage"

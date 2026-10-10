@@ -160,7 +160,12 @@ class ResourceManager:
         return {k: round(v, 2) for k, v in production_totals.items()}
 
     def _calculate_room_production(self, room: Room, dwellers: list[Dweller], seconds_passed: int) -> float:
-        """Calculate production from workers; apprentices train in a dedicated room slot."""
+        """Calculate production from the room's workers.
+
+        Youth posted to a production room are junior workers: they assist at the
+        ``junior_worker_output_multiplier`` rate while their apprenticeship trains the
+        room's SPECIAL, so a room with a child/teen produces more than adults alone.
+        """
         ability = room.ability
         if ability is None:
             return 0.0
@@ -169,22 +174,25 @@ class ResourceManager:
         if output is None:
             return 0.0
 
-        workers = [dweller for dweller in dwellers if dweller.apprentice_stat is None]
-        # Each worker contributes their own stats scaled by their own faction perk: a
-        # production bonus is personal, so it must not inflate neutral coworkers.
-        ability_sum = sum(
-            effective_stat(dweller, ability.lower()) * (1 + identity_modifiers_for(dweller).production_pct)
-            for dweller in workers
-        )
+        junior_mult = game_config.resource.junior_worker_output_multiplier
+
+        def contribution(dweller: Dweller) -> float:
+            # Each worker contributes their own stats scaled by their own faction perk: a
+            # production bonus is personal, so it must not inflate neutral coworkers.
+            base = effective_stat(dweller, ability.lower()) * (1 + identity_modifiers_for(dweller).production_pct)
+            return base if dweller.apprentice_stat is None else base * junior_mult
+
+        ability_sum = sum(contribution(dweller) for dweller in dwellers)
         tier_mult = game_config.resource.get_tier_multiplier(room.tier)
         rate = game_config.resource.base_production_rate
         if MEDICAL_ROOM_PRODUCTION.get(room.name.lower()):
             rate = game_config.resource.medical_production_rate
         production = output * ability_sum * rate * tier_mult * seconds_passed
 
+        juniors = sum(1 for dweller in dwellers if dweller.apprentice_stat is not None)
         self.logger.info(
             f"Room {room.name} producing: output={room.output}, ability_sum={ability_sum}, "
-            f"production={production:.2f} (tier={room.tier}, workers={len(workers)})"
+            f"production={production:.2f} (tier={room.tier}, adults={len(dwellers) - juniors}, juniors={juniors})"
         )
 
         return production

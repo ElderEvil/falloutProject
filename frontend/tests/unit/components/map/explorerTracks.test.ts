@@ -33,7 +33,7 @@ function exploration(overrides: Partial<Exploration> = {}): Exploration {
 }
 
 function route(explorationId: string, points: DiscoveryRouteRead['points']): DiscoveryRouteRead {
-  return { exploration_id: explorationId, points }
+  return { exploration_id: explorationId, points, is_active: true }
 }
 
 describe('buildExplorerTracks', () => {
@@ -87,6 +87,63 @@ describe('buildExplorerTracks', () => {
     expect(tracks[0].dwellerName).toBe('')
   })
 
+  it('resolves the dweller thumbnail from the provided map', () => {
+    const tracks = buildExplorerTracks(
+      [exploration({ id: 'expl-1', dweller_id: 'dweller-1' })],
+      [],
+      new Map(),
+      new Map([['dweller-1', 'https://cdn.example/ada.png']])
+    )
+
+    expect(tracks[0].dwellerThumbnailUrl).toBe('https://cdn.example/ada.png')
+  })
+
+  it('leaves the dweller thumbnail null when absent or unprovided', () => {
+    const withNull = buildExplorerTracks(
+      [exploration({ id: 'expl-1', dweller_id: 'dweller-1' })],
+      [],
+      new Map(),
+      new Map([['dweller-1', null]])
+    )
+    const withoutMap = buildExplorerTracks(
+      [exploration({ id: 'expl-1', dweller_id: 'dweller-1' })],
+      [],
+      new Map()
+    )
+
+    expect(withNull[0].dwellerThumbnailUrl).toBeNull()
+    expect(withoutMap[0].dwellerThumbnailUrl).toBeNull()
+  })
+
+  it('carries the dweller id, status and vitals used by the dweller popover', () => {
+    const tracks = buildExplorerTracks(
+      [
+        exploration({
+          id: 'expl-1',
+          dweller_id: 'dweller-7',
+          status: 'returning',
+          health: 42,
+          radiation: 7,
+        }),
+      ],
+      [],
+      new Map()
+    )
+
+    expect(tracks[0].dwellerId).toBe('dweller-7')
+    expect(tracks[0].status).toBe('returning')
+    expect(tracks[0].health).toBe(42)
+    expect(tracks[0].radiation).toBe(7)
+  })
+
+  it('nulls vitals and keeps the active status when the run reports neither', () => {
+    const tracks = buildExplorerTracks([exploration({ id: 'expl-1' })], [], new Map())
+
+    expect(tracks[0].status).toBe('active')
+    expect(tracks[0].health).toBeNull()
+    expect(tracks[0].radiation).toBeNull()
+  })
+
   it('ignores completed and recalled runs', () => {
     const tracks = buildExplorerTracks(
       [
@@ -109,5 +166,20 @@ describe('buildExplorerTracks', () => {
 
     expect(tracks).toHaveLength(1)
     expect(tracks[0].targetLocationId).toBe('loc-9')
+  })
+
+  it('prefers the authoritative position over the route end', () => {
+    const tracks = buildExplorerTracks(
+      [exploration({ id: 'expl-1', pos_x: 40, pos_y: 41 })],
+      [
+        route('expl-1', [
+          { location_id: null, coord_x: 20, coord_y: 30, timestamp: '2026-01-01T00:00:00Z' },
+        ]),
+      ],
+      new Map()
+    )
+
+    expect(tracks[0].lastKnown?.coord_x).toBeCloseTo(64, 10)
+    expect(tracks[0].lastKnown?.coord_y).toBeCloseTo(65.6, 10)
   })
 })

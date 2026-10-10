@@ -23,6 +23,7 @@ from app.schemas.exploration import (
     ExplorationRead,
     ExplorationReadShort,
     ExplorationSendRequest,
+    HeadingSuggestion,
     PendingOverflowRead,
 )
 from app.schemas.overflow import OverflowActionRequest, OverflowActionResponse
@@ -41,26 +42,27 @@ async def send_dweller_to_wasteland(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Exploration:
-    """Send a dweller to the wasteland for exploration.
+    """The single departure boundary: one roster, optional destination.
 
-    Returns:
-        ExplorationRead: The created exploration.
+    `target_location_id` present → travel and clear a known place (party allowed);
+    absent → roam (exactly one dweller). Roster/branch validation lives in the
+    service; the endpoint only maps the request.
 
     Raises:
-        ValidationException: If the dweller cannot be sent.
+        ValidationException: If the roster is empty/oversized, or a dweller cannot be sent.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    try:
-        return await exploration_service.send_dweller(
-            db_session,
-            vault_id=vault_id,
-            dweller_id=request.dweller_id,
-            duration=request.duration,
-            stimpaks=request.stimpaks,
-            radaways=request.radaways,
-        )
-    except ValueError as e:
-        raise ValidationException(str(e)) from e
+    roster = list(request.dweller_ids or ([request.dweller_id] if request.dweller_id else []))
+    return await exploration_service.depart(
+        db_session,
+        vault_id=vault_id,
+        dweller_ids=roster,
+        target_location_id=request.target_location_id,
+        duration=request.duration,
+        stimpaks=request.stimpaks,
+        radaways=request.radaways,
+        heading_degrees=request.heading_degrees,
+    )
 
 
 @router.post("/dispatch", response_model=ExplorationRead)
@@ -85,7 +87,23 @@ async def dispatch_dweller(
         vault_id=vault_id,
         dweller_ids=request.dweller_ids,
         location_id=request.location_id,
+        stimpaks=request.stimpaks,
+        radaways=request.radaways,
     )
+
+
+@router.get("/suggest-heading", response_model=HeadingSuggestion)
+async def suggest_heading(
+    vault_id: Annotated[UUID4, Query()],
+    seed: Annotated[str, Query(min_length=1)],
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    duration: Annotated[int, Query(ge=1, le=24)] = 4,
+) -> HeadingSuggestion:
+    """Suggest a heading for an auto departure; null when the vault has no map placement."""
+    await get_user_vault_or_403(vault_id, user, db_session)
+    heading = await exploration_service.suggest_heading(db_session, vault_id, duration=duration, seed=seed)
+    return HeadingSuggestion(heading_degrees=heading)
 
 
 @router.get("/vault/{vault_id}", response_model=list[ExplorationReadShort])

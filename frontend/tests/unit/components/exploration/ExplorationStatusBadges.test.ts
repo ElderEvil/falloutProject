@@ -1,12 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createIconifyMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import ExplorationStatusBadges from '@/modules/exploration/components/ExplorationStatusBadges.vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 
-vi.mock('@iconify/vue', () => ({
-  Icon: { name: 'Icon', template: '<span class="icon-mock" />' },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" />', props: [] }))
 
 const exploration = {
   id: 'exploration-1',

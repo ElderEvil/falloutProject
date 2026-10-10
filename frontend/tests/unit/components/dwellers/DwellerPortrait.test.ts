@@ -1,14 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
+import { createIconifyMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    props: ['icon'],
-    template: '<span class="icon-mock" :data-icon="icon" />',
-  },
-}))
+vi.mock('@iconify/vue', () =>
+  createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon" />' })
+)
 
 describe('DwellerPortrait', () => {
   it('prefers and normalizes the full portrait URL', () => {

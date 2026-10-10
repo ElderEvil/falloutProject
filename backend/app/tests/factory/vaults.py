@@ -18,4 +18,5 @@ def create_fake_vault():
         "power": random.randint(1, 100),
         "food": random.randint(1, 100),
         "water": random.randint(1, 100),
+        "population_max": 50,
     }

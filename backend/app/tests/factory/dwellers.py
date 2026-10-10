@@ -17,7 +17,7 @@ def create_fake_dweller():
     return stats | {
         "first_name": fake.first_name(),
         "last_name": fake.last_name(),
-        "is_adult": random.choice([True, False]),
+        "age_group": random.choice(list(AgeGroupEnum)),
         "gender": random.choice(list(GenderEnum)),
         "rarity": rarity,
         "level": random.randint(1, 50),
@@ -32,7 +32,7 @@ def create_fake_dweller():
 
 
 def create_fake_adult_dweller():
-    return create_fake_dweller() | {"is_adult": True, "age_group": AgeGroupEnum.ADULT}
+    return create_fake_dweller() | {"age_group": AgeGroupEnum.ADULT}
 
 
 def create_random_common_dweller(gender: GenderEnum | None = None):
@@ -49,6 +49,6 @@ def create_random_common_dweller(gender: GenderEnum | None = None):
         "max_health": 100,
         "health": 100,
         "happiness": 50,
-        "is_adult": True,
+        "age_group": AgeGroupEnum.ADULT,
         "visual_attributes": {"race": "human", "faction": "vault_dweller"},
     } | stats

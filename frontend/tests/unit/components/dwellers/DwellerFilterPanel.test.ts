@@ -249,6 +249,124 @@ describe('Status counts', () => {
   })
 })
 
+describe('Gender counts', () => {
+  const chipByLabel = (wrapper: ReturnType<typeof mount>, label: string) =>
+    wrapper.findAll('.filter-chip').find((chip) => chip.text().includes(label))!
+
+  it('shows a count per gender and a total', async () => {
+    const store = useDwellerStore().filter
+    store.allDwellers = [
+      { id: '1', status: 'idle', gender: 'male' },
+      { id: '2', status: 'idle', gender: 'male' },
+      { id: '3', status: 'working', gender: 'female' },
+    ] as never
+
+    const wrapper = mount(DwellerFilterPanel, { props: { showGenderFilter: true } })
+    await wrapper.vm.$nextTick()
+
+    expect(chipByLabel(wrapper, 'Male').find('.filter-count').text()).toBe('2')
+    expect(chipByLabel(wrapper, 'Female').find('.filter-count').text()).toBe('1')
+    expect(chipByLabel(wrapper, 'All Genders').find('.filter-count').text()).toBe('3')
+
+    wrapper.unmount()
+  })
+
+  it('shows no gender counts until the roster has loaded', async () => {
+    const wrapper = mount(DwellerFilterPanel, { props: { showGenderFilter: true } })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.filter-count').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})
+
+describe('Filter accents', () => {
+  const chipByLabel = (wrapper: ReturnType<typeof mount>, label: string) =>
+    wrapper.findAll('.filter-chip').find((chip) => chip.text().includes(label))!
+
+  it('tints the active age chip with the age accent color', async () => {
+    const store = useDwellerStore().filter
+    store.allDwellers = [{ id: '1', status: 'idle', age_group: 'adult' }] as never
+
+    const wrapper = mount(DwellerFilterPanel, { props: { showAgeFilter: true } })
+    await chipByLabel(wrapper, 'Adult').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    const chip = chipByLabel(wrapper, 'Adult')
+    expect(chip.classes()).toContain('active')
+    expect(chip.attributes('style') ?? '').toContain('--filter-accent: var(--badge-age-adult)')
+    wrapper.unmount()
+  })
+
+  it('tints the active gender chip with the gender accent color', async () => {
+    const store = useDwellerStore().filter
+    store.allDwellers = [{ id: '1', status: 'idle', gender: 'male' }] as never
+
+    const wrapper = mount(DwellerFilterPanel, { props: { showGenderFilter: true } })
+    await chipByLabel(wrapper, 'Male').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    const chip = chipByLabel(wrapper, 'Male')
+    expect(chip.classes()).toContain('active')
+    expect(chip.attributes('style') ?? '').toContain('--filter-accent: var(--badge-gender-male)')
+    wrapper.unmount()
+  })
+})
+
+describe('Rarity counts', () => {
+  const chipByLabel = (wrapper: ReturnType<typeof mount>, label: string) =>
+    wrapper.findAll('.filter-chip').find((chip) => chip.text().includes(label))!
+
+  it('shows a count per rarity and a total', async () => {
+    const store = useDwellerStore().filter
+    store.allDwellers = [
+      { id: '1', status: 'idle', rarity: 'common' },
+      { id: '2', status: 'idle', rarity: 'common' },
+      { id: '3', status: 'working', rarity: 'legendary' },
+    ] as never
+
+    const wrapper = mount(DwellerFilterPanel, { props: { showRarityFilter: true } })
+    await wrapper.vm.$nextTick()
+
+    expect(chipByLabel(wrapper, 'Common').find('.filter-count').text()).toBe('2')
+    expect(chipByLabel(wrapper, 'Legendary').find('.filter-count').text()).toBe('1')
+    expect(chipByLabel(wrapper, 'All Rarities').find('.filter-count').text()).toBe('3')
+
+    wrapper.unmount()
+  })
+
+  it('shows no rarity counts until the roster has loaded', async () => {
+    const wrapper = mount(DwellerFilterPanel, { props: { showRarityFilter: true } })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.filter-count').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})
+
+describe('Race counts', () => {
+  const chipByLabel = (wrapper: ReturnType<typeof mount>, label: string) =>
+    wrapper.findAll('.filter-chip').find((chip) => chip.text().includes(label))!
+
+  it('shows a count per race and a total', async () => {
+    const store = useDwellerStore().filter
+    store.allDwellers = [
+      { id: '1', status: 'idle', visual_attributes: { race: 'ghoul' } },
+      { id: '2', status: 'idle', visual_attributes: { race: 'ghoul' } },
+      { id: '3', status: 'working', visual_attributes: { race: 'human' } },
+    ] as never
+
+    const wrapper = mount(DwellerFilterPanel, { props: { showIdentityFilters: true } })
+    await flushPromises()
+
+    expect(chipByLabel(wrapper, 'Ghoul').find('.filter-count').text()).toBe('2')
+    expect(chipByLabel(wrapper, 'Human').find('.filter-count').text()).toBe('1')
+    expect(chipByLabel(wrapper, 'All Races').find('.filter-count').text()).toBe('3')
+
+    wrapper.unmount()
+  })
+})
+
 describe('Active filter summary', () => {
   it('stays hidden while no filters are active', () => {
     const wrapper = mount(DwellerFilterPanel, { props: { showActiveFilterSummary: true } })

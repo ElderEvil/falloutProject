@@ -1323,7 +1323,7 @@ export interface paths {
         put?: never;
         /**
          * Refuse Exit Request
-         * @description Refuse the ask: the dweller takes a happiness hit and the request stands.
+         * @description Refuse the ask: the request is resolved and the whole vault pays a morale cost.
          *
          *     Returns:
          *         ExitDecisionResponse: The refusal outcome and updated happiness.
@@ -1346,13 +1346,14 @@ export interface paths {
         put?: never;
         /**
          * Send Dweller To Wasteland
-         * @description Send a dweller to the wasteland for exploration.
+         * @description The single departure boundary: one roster, optional destination.
          *
-         *     Returns:
-         *         ExplorationRead: The created exploration.
+         *     `target_location_id` present → travel and clear a known place (party allowed);
+         *     absent → roam (exactly one dweller). Roster/branch validation lives in the
+         *     service; the endpoint only maps the request.
          *
          *     Raises:
-         *         ValidationException: If the dweller cannot be sent.
+         *         ValidationException: If the roster is empty/oversized, or a dweller cannot be sent.
          */
         post: operations["send_dweller_to_wasteland_api_v1_explorations_send_post"];
         delete?: never;
@@ -1382,6 +1383,26 @@ export interface paths {
          *         ValidationException: If a dweller cannot go or the point cannot be cleared.
          */
         post: operations["dispatch_dweller_api_v1_explorations_dispatch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/explorations/suggest-heading": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Suggest Heading
+         * @description Suggest a heading for an auto departure; null when the vault has no map placement.
+         */
+        get: operations["suggest_heading_api_v1_explorations_suggest_heading_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2139,6 +2160,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/map/world": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get World Snapshot
+         * @description Return the shared backend-generated base world (authenticated, public snapshot).
+         *
+         *     Terrain and land-safe slots only — never ownership, discoveries, or expedition
+         *     state. The snapshot is generated once and read; this endpoint never regenerates.
+         */
+        get: operations["get_world_snapshot_api_v1_map_world_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/map/vault/{vault_id}": {
         parameters: {
             query?: never;
@@ -2624,6 +2668,111 @@ export interface paths {
         get: operations["read_outfits_data_api_v1_outfits_read_data__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pets/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Pet List
+         * @description Retrieve a paginated list of a vault's pets.
+         *
+         *     Every pet lives in a vault's storage or on one of its dwellers, so the vault
+         *     is required rather than optional: an unscoped list would enumerate other
+         *     players' pets.
+         *
+         *     Returns:
+         *         List of pets.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user doesn't own the vault.
+         */
+        get: operations["read_pet_list_api_v1_pets__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pets/{pet_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Pet
+         * @description Retrieve a pet by ID.
+         *
+         *     Returns:
+         *         The requested pet.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user doesn't own the pet's vault.
+         */
+        get: operations["read_pet_api_v1_pets__pet_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pets/{dweller_id}/equip/{pet_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Equip Pet
+         * @description Equip a pet on a dweller.
+         *
+         *     Returns:
+         *         The equipped pet.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user owns neither the dweller nor the pet.
+         */
+        post: operations["equip_pet_api_v1_pets__dweller_id__equip__pet_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pets/{pet_id}/unequip/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unequip Pet
+         * @description Unequip a pet from a dweller.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user doesn't own the pet's vault.
+         */
+        post: operations["unequip_pet_api_v1_pets__pet_id__unequip__post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3640,11 +3789,11 @@ export interface paths {
          * @description Get all items in a vault's storage.
          *
          *     Returns:
-         *         Lists of weapons, outfits, junk, and generic items in storage.
+         *         Lists of weapons, outfits, junk, generic items, and pets in storage.
          *
          *     Raises:
-         *         HTTPException: 403 if user lacks access to the vault.
-         *         HTTPException: 404 if storage not found for vault.
+         *         AccessDeniedException: If the user lacks access to the vault.
+         *         ResourceNotFoundException: If the vault has no storage row.
          */
         get: operations["get_storage_items_api_v1_storage_vault__vault_id__items_get"];
         put?: never;
@@ -4514,6 +4663,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/vaults/{vault_id}/dwellers/auto-assign-crafting": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Auto Assign Crafting Rooms
+         * @description Fill crafting rooms with unassigned adults ranked by total SPECIAL (highest first).
+         *
+         *     Crafting rooms have no fixed SPECIAL ability (it varies per recipe), so the total
+         *     SPECIAL sum is the ranking heuristic.
+         *
+         *     Returns:
+         *         Response with count of assigned dwellers.
+         */
+        post: operations["auto_assign_crafting_rooms_api_v1_vaults__vault_id__dwellers_auto_assign_crafting_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/weapons/": {
         parameters: {
             query?: never;
@@ -4783,6 +4958,7 @@ export interface components {
         AISettingsRead: {
             profile?: components["schemas"]["AISettingsProfile"] | null;
             effective: components["schemas"]["AISettingsEffective"];
+            jev: components["schemas"]["JevStatus"];
         };
         /** AISettingsTestInput */
         AISettingsTestInput: {
@@ -5210,6 +5386,106 @@ export interface components {
             changes: components["schemas"]["ChangeEntry"][];
         };
         /**
+         * ChatDebug
+         * @description Dev-only diagnostics for one chat turn. Populated only when opt-in requested.
+         *
+         *     Never persisted: this rides the live response (and the streamed done event) so
+         *     stored history stays bounded, and any message-shaped schema may embed it as an
+         *     optional field.
+         */
+        ChatDebug: {
+            /**
+             * Provider
+             * @description Provider id used for this turn
+             */
+            provider?: string | null;
+            /**
+             * Model
+             * @description Model id used for this turn
+             */
+            model?: string | null;
+            /**
+             * Prompt Tokens
+             * @description Input tokens billed
+             */
+            prompt_tokens?: number | null;
+            /**
+             * Completion Tokens
+             * @description Output tokens billed
+             */
+            completion_tokens?: number | null;
+            /**
+             * Total Tokens
+             * @description Total tokens billed
+             */
+            total_tokens?: number | null;
+            /** @description Input screen outcome */
+            guardrail?: components["schemas"]["ChatGuardrailDebug"] | null;
+            /**
+             * Jev Decisions
+             * @description Jev decisions that fired this turn, in the order they ran
+             */
+            jev_decisions?: components["schemas"]["ChatJevDecision"][];
+        };
+        /**
+         * ChatGuardrailDebug
+         * @description Whether the input screen ran and what it decided.
+         */
+        ChatGuardrailDebug: {
+            /**
+             * Ran
+             * @description Whether the guardrail judged this message
+             */
+            ran: boolean;
+            /**
+             * Blocked
+             * @description Whether the message was blocked
+             */
+            blocked: boolean;
+            /**
+             * Reason
+             * @description Human-readable block reason, if any
+             */
+            reason?: string | null;
+        };
+        /**
+         * ChatJevDecision
+         * @description One Jev decision that fired: its named fields, each answered with confidence.
+         */
+        ChatJevDecision: {
+            /**
+             * Name
+             * @description Decision identifier, e.g. 'guardrail'
+             */
+            name: string;
+            /**
+             * Fields
+             * @description Field name -> {answer, confidence}
+             */
+            fields?: {
+                [key: string]: components["schemas"]["ChatJevField"];
+            };
+        };
+        /**
+         * ChatJevField
+         * @description One judged Jev field, answer and confidence together.
+         *
+         *     ``confidence`` is the probability of ``answer``; a ``False`` at 0.96 means
+         *     "96% sure it is not this", so the pair must be read together.
+         */
+        ChatJevField: {
+            /**
+             * Answer
+             * @description The field's answer
+             */
+            answer: boolean;
+            /**
+             * Confidence
+             * @description Probability of that answer, 0-1
+             */
+            confidence: number;
+        };
+        /**
          * ChatMessage
          * @description Request schema for sending a text message to a dweller.
          */
@@ -5427,7 +5703,11 @@ export interface components {
         };
         /**
          * CraftingRecipeRead
-         * @description One craftable catalog entry with its cost and current affordability.
+         * @description One catalog entry with its costs, affordability, and unlock state.
+         *
+         *     A gated schematic the vault has not learned is still listed so the player can
+         *     see what is out there; ``unlocked``/``unlock_hint`` tell the UI to disable it
+         *     and explain how to learn it.
          */
         CraftingRecipeRead: {
             /** Name */
@@ -5482,6 +5762,18 @@ export interface components {
              * @default 0
              */
             missing_junk: number;
+            /**
+             * Has Junk
+             * @default false
+             */
+            has_junk: boolean;
+            /**
+             * Unlocked
+             * @default true
+             */
+            unlocked: boolean;
+            /** Unlock Hint */
+            unlock_hint?: string | null;
         };
         /**
          * CraftingRecipesRead
@@ -5589,14 +5881,14 @@ export interface components {
         };
         /**
          * DiscoveryRoutePoint
-         * @description One persisted discovery event, projected into map coordinates.
+         * @description One journey point, projected into map coordinates.
+         *
+         *     Legacy runs contribute discovery events (each with a location id); spatial
+         *     runs contribute their movement trail, whose points have no single location.
          */
         DiscoveryRoutePoint: {
-            /**
-             * Location Id
-             * Format: uuid4
-             */
-            location_id: string;
+            /** Location Id */
+            location_id?: string | null;
             /** Coord X */
             coord_x: number;
             /** Coord Y */
@@ -5607,6 +5899,9 @@ export interface components {
         /**
          * DiscoveryRouteRead
          * @description Ordered discovery trail for a single exploration.
+         *
+         *     ``is_active`` marks an in-progress run. Routes are always returned (the fog
+         *     corridor is derived from every route), but only active ones draw a trail.
          */
         DiscoveryRouteRead: {
             /**
@@ -5616,6 +5911,8 @@ export interface components {
             exploration_id: string;
             /** Points */
             points: components["schemas"]["DiscoveryRoutePoint"][];
+            /** Is Active */
+            is_active: boolean;
         };
         /**
          * DwellerAppearanceOptions
@@ -5694,6 +5991,8 @@ export interface components {
              * @description Map locations newly unlocked by this conversation
              */
             unlocked_places?: components["schemas"]["UnlockedPlace"][];
+            /** @description Dev diagnostics (tokens, model, guardrail/Jev decisions); only when debug is requested */
+            debug?: components["schemas"]["ChatDebug"] | null;
         };
         /** DwellerCreate */
         DwellerCreate: {
@@ -5736,11 +6035,6 @@ export interface components {
             first_name: string;
             /** Last Name */
             last_name?: string | null;
-            /**
-             * Is Adult
-             * @default true
-             */
-            is_adult: boolean;
             /** @default adult */
             age_group: components["schemas"]["AgeGroupEnum"];
             /** Birth Date */
@@ -5810,6 +6104,8 @@ export interface components {
             status: components["schemas"]["DwellerStatusEnum"];
             /** Exit Requested At */
             exit_requested_at?: string | null;
+            /** Despair Since */
+            despair_since?: string | null;
             /**
              * Is Dead
              * @default false
@@ -5889,11 +6185,6 @@ export interface components {
             first_name: string;
             /** Last Name */
             last_name?: string | null;
-            /**
-             * Is Adult
-             * @default true
-             */
-            is_adult: boolean;
             /** @default adult */
             age_group: components["schemas"]["AgeGroupEnum"];
             /** Birth Date */
@@ -5963,6 +6254,8 @@ export interface components {
             status: components["schemas"]["DwellerStatusEnum"];
             /** Exit Requested At */
             exit_requested_at?: string | null;
+            /** Despair Since */
+            despair_since?: string | null;
             /**
              * Is Dead
              * @default false
@@ -6086,11 +6379,6 @@ export interface components {
             first_name: string;
             /** Last Name */
             last_name?: string | null;
-            /**
-             * Is Adult
-             * @default true
-             */
-            is_adult: boolean;
             /** @default adult */
             age_group: components["schemas"]["AgeGroupEnum"];
             /** Birth Date */
@@ -6160,6 +6448,8 @@ export interface components {
             status: components["schemas"]["DwellerStatusEnum"];
             /** Exit Requested At */
             exit_requested_at?: string | null;
+            /** Despair Since */
+            despair_since?: string | null;
             /**
              * Is Dead
              * @default false
@@ -6190,6 +6480,7 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            pet?: components["schemas"]["PetRead"] | null;
             /**
              * Effective Max Health
              * @description Maximum health available after radiation damage.
@@ -6239,11 +6530,6 @@ export interface components {
             first_name: string;
             /** Last Name */
             last_name?: string | null;
-            /**
-             * Is Adult
-             * @default true
-             */
-            is_adult: boolean;
             /** @default adult */
             age_group: components["schemas"]["AgeGroupEnum"];
             /** Birth Date */
@@ -6313,6 +6599,8 @@ export interface components {
             status: components["schemas"]["DwellerStatusEnum"];
             /** Exit Requested At */
             exit_requested_at?: string | null;
+            /** Despair Since */
+            despair_since?: string | null;
             /**
              * Is Dead
              * @default false
@@ -6343,6 +6631,7 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            pet?: components["schemas"]["PetRead"] | null;
             /**
              * Vault Id
              * Format: uuid4
@@ -6386,8 +6675,6 @@ export interface components {
             /** Room Id */
             room_id?: string | null;
             status: components["schemas"]["DwellerStatusEnum"];
-            /** Is Adult */
-            is_adult: boolean;
             age_group: components["schemas"]["AgeGroupEnum"];
             gender: components["schemas"]["GenderEnum"];
             rarity: components["schemas"]["RarityEnum"];
@@ -6414,6 +6701,7 @@ export interface components {
             weapon_type?: components["schemas"]["WeaponTypeEnum"] | null;
             /** Combat Power */
             combat_power?: number | null;
+            pet?: components["schemas"]["PetRead"] | null;
             /** Partner Id */
             partner_id?: string | null;
             /** Parent 1 Id */
@@ -6467,11 +6755,6 @@ export interface components {
             first_name: string;
             /** Last Name */
             last_name?: string | null;
-            /**
-             * Is Adult
-             * @default true
-             */
-            is_adult: boolean;
             /** @default adult */
             age_group: components["schemas"]["AgeGroupEnum"];
             /** Birth Date */
@@ -6541,6 +6824,8 @@ export interface components {
             status: components["schemas"]["DwellerStatusEnum"];
             /** Exit Requested At */
             exit_requested_at?: string | null;
+            /** Despair Since */
+            despair_since?: string | null;
             /**
              * Is Dead
              * @default false
@@ -6571,6 +6856,7 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            pet?: components["schemas"]["PetRead"] | null;
             /**
              * Room Id
              * Format: uuid4
@@ -6831,6 +7117,8 @@ export interface components {
             happiness: number;
             /** Requested At */
             requested_at?: string | null;
+            /** Refusal Happiness Penalty */
+            refusal_happiness_penalty: number;
         };
         /**
          * ExpeditionDispatchRequest
@@ -6847,6 +7135,18 @@ export interface components {
              * Format: uuid4
              */
             location_id: string;
+            /**
+             * Stimpaks
+             * @description Number of Stimpaks to bring
+             * @default 0
+             */
+            stimpaks: number;
+            /**
+             * Radaways
+             * @description Number of Radaways to bring
+             * @default 0
+             */
+            radaways: number;
         };
         /**
          * ExpeditionEnterRequest
@@ -6893,6 +7193,8 @@ export interface components {
             cooldown_remaining_seconds: number;
             /** Block Reason */
             block_reason?: ("open" | "cooldown") | null;
+            /** Exploration Id */
+            exploration_id?: string | null;
         };
         /** ExperienceGranted */
         ExperienceGranted: {
@@ -7044,6 +7346,24 @@ export interface components {
             stimpaks: number;
             /** Radaways */
             radaways: number;
+            /** World Version */
+            world_version?: number | null;
+            /** Origin X */
+            origin_x?: number | null;
+            /** Origin Y */
+            origin_y?: number | null;
+            /** Heading Degrees */
+            heading_degrees?: number | null;
+            /** Pos X */
+            pos_x?: number | null;
+            /** Pos Y */
+            pos_y?: number | null;
+            /** Trail */
+            trail?: {
+                [key: string]: unknown;
+            }[];
+            /** Position As Of */
+            position_as_of?: string | null;
         };
         /**
          * ExplorationReadShort
@@ -7091,20 +7411,43 @@ export interface components {
             stimpaks: number;
             /** Radaways */
             radaways: number;
+            /** Pos X */
+            pos_x?: number | null;
+            /** Pos Y */
+            pos_y?: number | null;
         };
         /**
          * ExplorationSendRequest
-         * @description Schema for sending a dweller to wasteland.
+         * @description Schema for sending dwellers out — the single departure boundary.
+         *
+         *     One roster, one optional destination: `dweller_ids` (or the legacy single
+         *     `dweller_id`) is the roster; `target_location_id` present means travel to a
+         *     known place (clear), absent means roam. Roaming sends exactly one dweller.
          */
         ExplorationSendRequest: {
             /**
              * Dweller Id
-             * Format: uuid4
+             * @description Single dweller (legacy/roam)
              */
-            dweller_id: string;
+            dweller_id?: string | null;
+            /**
+             * Dweller Ids
+             * @description Roster; up to the party limit when clearing
+             */
+            dweller_ids?: string[] | null;
+            /**
+             * Target Location Id
+             * @description Known place to travel to and clear; omit to roam
+             */
+            target_location_id?: string | null;
+            /**
+             * Heading Degrees
+             * @description Compass heading (0=N, 90=E) for a spatial roam
+             */
+            heading_degrees?: number | null;
             /**
              * Duration
-             * @description Duration in hours
+             * @description Duration in hours (roam only)
              * @default 4
              */
             duration: number;
@@ -7331,6 +7674,14 @@ export interface components {
             active: components["schemas"]["HazardTeamMemberRead"][];
             /** Reserve */
             reserve: components["schemas"]["HazardTeamMemberRead"][];
+        };
+        /**
+         * HeadingSuggestion
+         * @description A server-suggested compass heading for an auto departure; null without a placement.
+         */
+        HeadingSuggestion: {
+            /** Heading Degrees */
+            heading_degrees?: number | null;
         };
         /**
          * IdentityModifiersRead
@@ -7663,6 +8014,20 @@ export interface components {
          * @enum {string}
          */
         ItemTypeEnum: "misc" | "weapon" | "outfit" | "junk" | "consumable" | "lunchbox" | "pet" | "dweller";
+        /**
+         * JevStatus
+         * @description Read-only Jev (TypeSafe) decision-model status; the key is env-only, never shown.
+         */
+        JevStatus: {
+            /** Enabled */
+            enabled: boolean;
+            /** Configured */
+            configured: boolean;
+            /** Model */
+            model: string;
+            /** Timeout Seconds */
+            timeout_seconds: number;
+        };
         /** JunkCreate */
         JunkCreate: {
             /** Name */
@@ -8041,7 +8406,7 @@ export interface components {
          * @description Types of notifications
          * @enum {string}
          */
-        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready";
+        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "objective_completed" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready";
         /** Objective */
         Objective: {
             /** Challenge */
@@ -8444,6 +8809,121 @@ export interface components {
             }[];
         };
         /**
+         * PetEffectRead
+         * @description Wire shape for the catalog-resolved bonus a pet grants.
+         *
+         *     Mirrors ``PetEffect``; all-zero for pets without a catalog entry, so the
+         *     client can always read the shape without a null check.
+         */
+        PetEffectRead: {
+            /**
+             * Strength
+             * @default 0
+             */
+            strength: number;
+            /**
+             * Perception
+             * @default 0
+             */
+            perception: number;
+            /**
+             * Endurance
+             * @default 0
+             */
+            endurance: number;
+            /**
+             * Charisma
+             * @default 0
+             */
+            charisma: number;
+            /**
+             * Intelligence
+             * @default 0
+             */
+            intelligence: number;
+            /**
+             * Agility
+             * @default 0
+             */
+            agility: number;
+            /**
+             * Luck
+             * @default 0
+             */
+            luck: number;
+            /**
+             * Max Health
+             * @default 0
+             */
+            max_health: number;
+            /**
+             * Damage Pct
+             * @default 0
+             */
+            damage_pct: number;
+            /**
+             * Incident Response Pct
+             * @default 0
+             */
+            incident_response_pct: number;
+            /**
+             * Radiation Resist Pct
+             * @default 0
+             */
+            radiation_resist_pct: number;
+            /**
+             * Happiness
+             * @default 0
+             */
+            happiness: number;
+            /**
+             * Caps Pct
+             * @default 0
+             */
+            caps_pct: number;
+            /**
+             * Xp Pct
+             * @default 0
+             */
+            xp_pct: number;
+            /**
+             * Training Speed Pct
+             * @default 0
+             */
+            training_speed_pct: number;
+        };
+        /** PetRead */
+        PetRead: {
+            /** Name */
+            name: string;
+            rarity: components["schemas"]["RarityEnum"];
+            /** Value */
+            value?: number | null;
+            /** Image Url */
+            image_url?: string | null;
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Dweller Id */
+            dweller_id?: string | null;
+            /** Storage Id */
+            storage_id?: string | null;
+            /** @description The pet's catalog-resolved bonus, so clients can explain its contribution. */
+            readonly effect: components["schemas"]["PetEffectRead"];
+        };
+        /**
          * PlaceGroupRead
          * @description A wasteland site-type archetype from the group catalog.
          */
@@ -8469,6 +8949,28 @@ export interface components {
             loot_table?: string | null;
             /** Base Difficulty */
             base_difficulty?: number | null;
+        };
+        /**
+         * PlayerVaultMarkerRead
+         * @description A real player vault placed on the shared atlas, discoverable by other users.
+         */
+        PlayerVaultMarkerRead: {
+            /**
+             * Vault Id
+             * Format: uuid4
+             */
+            vault_id: string;
+            /** Number */
+            number: number;
+            /** Coord X */
+            coord_x: number;
+            /** Coord Y */
+            coord_y: number;
+            /**
+             * Is Mine
+             * @default false
+             */
+            is_mine: boolean;
         };
         /**
          * PregnancyRead
@@ -9451,6 +9953,11 @@ export interface components {
              * @description Generic items in storage
              */
             items?: components["schemas"]["ItemRead"][];
+            /**
+             * Pets
+             * @description Pets in storage
+             */
+            pets?: components["schemas"]["PetRead"][];
         };
         /**
          * StorageSpaceResponse
@@ -9996,6 +10503,8 @@ export interface components {
              * Format: uuid4
              */
             user_id?: string;
+            /** Last Exit Request At */
+            last_exit_request_at?: string | null;
         };
         /** VaultCreate */
         VaultCreate: {
@@ -10067,6 +10576,11 @@ export interface components {
             locations: components["schemas"]["WastelandLocationWithDwellers"][];
             /** Vault Markers */
             vault_markers: components["schemas"]["VaultMarkerRead"][];
+            /**
+             * Player Vaults
+             * @default []
+             */
+            player_vaults: components["schemas"]["PlayerVaultMarkerRead"][];
             /**
              * Discovery Routes
              * @default []
@@ -10556,6 +11070,43 @@ export interface components {
             /** Storage Id */
             storage_id?: string | null;
         };
+        /**
+         * WorldSlotRead
+         * @description One land-safe slot: stable index + registry coordinate.
+         */
+        WorldSlotRead: {
+            /** Slot Index */
+            slot_index: number;
+            /** Coord X */
+            coord_x: number;
+            /** Coord Y */
+            coord_y: number;
+        };
+        /**
+         * WorldSnapshotRead
+         * @description Public base-world snapshot the production map renders.
+         *
+         *     Terrain is row-major over ``width x height`` tiles. Private ownership,
+         *     discoveries, and expedition state are never part of this payload.
+         */
+        WorldSnapshotRead: {
+            /** World Id */
+            world_id: string;
+            /** Generator Version */
+            generator_version: number;
+            /** Recipe Fingerprint */
+            recipe_fingerprint: string;
+            /** Snapshot Checksum */
+            snapshot_checksum: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /** Terrain */
+            terrain: string[];
+            /** Slots */
+            slots: components["schemas"]["WorldSlotRead"][];
+        };
     };
     responses: never;
     parameters: never;
@@ -11014,7 +11565,10 @@ export interface operations {
     };
     chat_with_dweller_api_v1_chat__dweller_id__post: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Include dev diagnostics (tokens, guardrail/Jev) in the response */
+                debug?: boolean;
+            };
             header?: never;
             path: {
                 dweller_id: string;
@@ -11632,6 +12186,8 @@ export interface operations {
                 limit?: number;
                 status?: components["schemas"]["DwellerStatusEnum"] | null;
                 age_group?: components["schemas"]["AgeGroupEnum"] | null;
+                gender?: components["schemas"]["GenderEnum"] | null;
+                rarity?: components["schemas"]["RarityEnum"] | null;
                 search?: string | null;
                 race?: components["schemas"]["RaceEnum"] | null;
                 faction?: components["schemas"]["FactionEnum"] | null;
@@ -12519,6 +13075,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExplorationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggest_heading_api_v1_explorations_suggest_heading_get: {
+        parameters: {
+            query: {
+                vault_id: string;
+                seed: string;
+                duration?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeadingSuggestion"];
                 };
             };
             /** @description Validation Error */
@@ -13674,6 +14263,26 @@ export interface operations {
             };
         };
     };
+    get_world_snapshot_api_v1_map_world_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorldSnapshotRead"];
+                };
+            };
+        };
+    };
     get_vault_map_api_v1_map_vault__vault_id__get: {
         parameters: {
             query?: {
@@ -14375,6 +14984,133 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OutfitCreate"][];
+                };
+            };
+        };
+    };
+    read_pet_list_api_v1_pets__get: {
+        parameters: {
+            query: {
+                vault_id: string;
+                skip?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PetRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_pet_api_v1_pets__pet_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pet_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PetRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    equip_pet_api_v1_pets__dweller_id__equip__pet_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dweller_id: string;
+                pet_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PetRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unequip_pet_api_v1_pets__pet_id__unequip__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pet_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -16999,6 +17735,39 @@ export interface operations {
         };
     };
     auto_assign_training_rooms_api_v1_vaults__vault_id__dwellers_auto_assign_training_post: {
+        parameters: {
+            query?: {
+                age_group?: components["schemas"]["AgeGroupEnum"] | null;
+            };
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoAssignResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    auto_assign_crafting_rooms_api_v1_vaults__vault_id__dwellers_auto_assign_crafting_post: {
         parameters: {
             query?: {
                 age_group?: components["schemas"]["AgeGroupEnum"] | null;

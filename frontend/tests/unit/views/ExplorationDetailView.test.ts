@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { createIconifyMock, createToastMock } from '../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
@@ -11,16 +12,10 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useExpeditionSiteStore } from '@/modules/exploration/stores/expeditionSite'
 import ExpeditionSiteModal from '@/modules/exploration/components/ExpeditionSiteModal.vue'
-import type { SiteRoomView } from '@/modules/exploration/api/expeditionSite'
+import type { AvailableSiteView, SiteRoomView } from '@/modules/exploration/api/expeditionSite'
 
 // Mock Iconify
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-mock" :data-icon="icon"></span>',
-    props: ['icon'],
-  },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 // Mock ExplorationRewardsModal
 vi.mock('@/modules/exploration/components/ExplorationRewardsModal.vue', () => ({
@@ -33,12 +28,9 @@ vi.mock('@/modules/exploration/components/ExplorationRewardsModal.vue', () => ({
 }))
 
 // Mock useToast
+const mockToast = createToastMock()
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-  }),
+  useToast: () => mockToast,
 }))
 
 // Mock usePolling - call immediate fn once, no interval
@@ -68,6 +60,7 @@ describe('ExplorationDetailView', () => {
   let dwellerStore: ReturnType<typeof useDwellerStore>['filter']
   let authStore: ReturnType<typeof useAuthStore>
   let vaultStore: ReturnType<typeof useVaultStore>
+  let siteStore: ReturnType<typeof useExpeditionSiteStore>
 
   const mockExploration = {
     id: 'expl-1',
@@ -121,7 +114,6 @@ describe('ExplorationDetailView', () => {
     thumbnail_url: null,
     room_id: null,
     status: 'exploring',
-    is_adult: true,
     age_group: 'adult',
     gender: 'female',
     birth_date: null,
@@ -143,6 +135,7 @@ describe('ExplorationDetailView', () => {
     dwellerStore = useDwellerStore().filter
     authStore = useAuthStore()
     vaultStore = useVaultStore()
+    siteStore = useExpeditionSiteStore()
 
     // Mock store methods
     vi.spyOn(explorationStore, 'fetchExplorationsByVault').mockResolvedValue([mockExploration])
@@ -153,6 +146,18 @@ describe('ExplorationDetailView', () => {
     // The view opens a live SSE stream on mount; keep that off the network.
     vi.spyOn(explorationStore, 'startSseSubscription').mockImplementation(() => {})
     vi.spyOn(explorationStore, 'stopSseSubscription').mockImplementation(() => {})
+    // Both actions are stubbed so the store's scope-reset never clears this
+    // snapshot; a non-empty default keeps the CTA enabled unless a test empties it.
+    const availableSite = {
+      id: 'site-1',
+      name: 'Test Site',
+      flavor: 'A test site.',
+      min_dweller_level: 1,
+      room_total: 3,
+    }
+    siteStore.availableSites = [availableSite]
+    vi.spyOn(siteStore, 'fetchCurrentRoom').mockResolvedValue(null)
+    vi.spyOn(siteStore, 'fetchAvailableSites').mockResolvedValue([availableSite])
 
     // Set up mock data
     authStore.token = 'mock-token'
@@ -208,7 +213,7 @@ describe('ExplorationDetailView', () => {
 
       expect(wrapper.text()).toContain('1 / 1')
       expect(wrapper.text()).toContain('Back to Exploration')
-      expect(wrapper.find('.explorer-navigation').classes()).toContain('w-full')
+      expect(wrapper.find('.explorer-navigation').exists()).toBe(true)
       expect(wrapper.find('.exploration-detail-content').exists()).toBe(true)
     })
 
@@ -342,107 +347,6 @@ describe('ExplorationDetailView', () => {
       expect(wrapper.find('.event-log-section').classes()).toContain('mt-4')
     })
 
-    it('renders the HP trend for legacy damage descriptions without structured health data', async () => {
-      explorationStore.activeExplorations['expl-1'] = {
-        ...mockExploration,
-        events: [
-          {
-            type: 'danger',
-            description: 'Encountered toxic waste. Health reduced by 7.',
-            timestamp: '2026-01-01T00:00:00Z',
-            time_elapsed_hours: 1,
-          },
-          {
-            type: 'item_use',
-            description: 'Used a stimpak. Healed 5 health.',
-            timestamp: '2026-01-01T00:30:00Z',
-            time_elapsed_hours: 1.5,
-          },
-        ],
-      }
-
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      expect(wrapper.find('.health-trend').exists()).toBe(true)
-      expect(wrapper.find('.health-trend').classes()).toContain('mt-4')
-      expect(wrapper.find('.health-sparkline-frame').classes()).toContain('border')
-      expect(wrapper.find('.health-sparkline-frame svg').classes()).toContain('w-[240px]')
-      expect(wrapper.text()).toContain('-7')
-      expect(wrapper.text()).toContain('+5')
-      expect(wrapper.find('.health-trend .text-theme-primary').exists()).toBe(true)
-    })
-
-    it('renders the trend panel for a radiation-only journey without health metrics', async () => {
-      explorationStore.activeExplorations['expl-1'] = {
-        ...mockExploration,
-        events: [
-          {
-            type: 'danger',
-            description: 'Encountered a radiation storm.',
-            timestamp: '2026-01-01T00:00:00Z',
-            time_elapsed_hours: 1,
-            radiation_gain: 15,
-          },
-          {
-            type: 'item_use',
-            description: 'Used a RadAway.',
-            timestamp: '2026-01-01T00:30:00Z',
-            time_elapsed_hours: 1.5,
-            radiation_removed: 10,
-          },
-        ],
-      }
-
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      expect(wrapper.find('.health-trend').exists()).toBe(true)
-      expect(wrapper.find('.radiation-sparkline-frame').exists()).toBe(true)
-      expect(wrapper.find('.health-sparkline-frame').exists()).toBe(false)
-      expect(wrapper.text()).not.toContain('damage')
-      expect(wrapper.text()).not.toContain('healed')
-      expect(wrapper.find('.health-trend .font-bold.text-warning').text()).toBe('-10')
-    })
-
-    it('does not render a misleading -0 rad badge when radiation was only gained', async () => {
-      explorationStore.activeExplorations['expl-1'] = {
-        ...mockExploration,
-        events: [
-          {
-            type: 'danger',
-            description: 'Encountered a radiation storm.',
-            timestamp: '2026-01-01T00:00:00Z',
-            time_elapsed_hours: 1,
-            radiation_gain: 15,
-          },
-        ],
-      }
-
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      expect(wrapper.find('.health-trend').exists()).toBe(true)
-      expect(wrapper.find('.radiation-sparkline-frame').exists()).toBe(true)
-      expect(wrapper.find('.health-trend .font-bold.text-warning').exists()).toBe(false)
-      expect(wrapper.text()).not.toContain('-0')
-    })
-
     it('renders action buttons', async () => {
       const wrapper = mount(ExplorationDetailView, {
         global: {
@@ -455,6 +359,39 @@ describe('ExplorationDetailView', () => {
       expect(wrapper.text()).toContain('Recall Dweller')
       // progress < 100% so Complete button should not be visible
       expect(wrapper.text()).not.toContain('Complete Exploration')
+    })
+
+    it('disables the Expedition site CTA when no sites are available', async () => {
+      siteStore.availableSites = []
+      vi.spyOn(siteStore, 'fetchAvailableSites').mockResolvedValue([])
+
+      const wrapper = mount(ExplorationDetailView, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      await flushPromises()
+
+      const siteButton = wrapper
+        .findAll('button')
+        .find((b) => b.text().includes('Expedition site'))
+      expect((siteButton?.element as HTMLButtonElement).disabled).toBe(true)
+    })
+
+    it('keeps the Expedition site CTA enabled when sites are available', async () => {
+      const wrapper = mount(ExplorationDetailView, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      await flushPromises()
+
+      const siteButton = wrapper
+        .findAll('button')
+        .find((b) => b.text().includes('Expedition site'))
+      expect(siteButton?.attributes('disabled')).toBeUndefined()
     })
   })
 
@@ -596,6 +533,44 @@ describe('ExplorationDetailView', () => {
       await flushPromises()
 
       expect(wrapper.findComponent(ExpeditionSiteModal).props('show')).toBe(false)
+      wrapper.unmount()
+    })
+
+    it('does not let a stale site-options response disable the new explorer CTA', async () => {
+      const siteStore = useExpeditionSiteStore()
+      let resolveFirstSites!: (sites: AvailableSiteView[]) => void
+      // First call (expl-1) stays pending; the second (expl-2) rejects.
+      vi.spyOn(siteStore, 'fetchAvailableSites')
+        .mockImplementationOnce(
+          () =>
+            new Promise<AvailableSiteView[]>((resolve) => {
+              resolveFirstSites = resolve
+            })
+        )
+        .mockRejectedValueOnce(new Error('network failure'))
+      vi.spyOn(explorationStore, 'fetchExplorationDetails').mockImplementation(
+        async (id: string) => ({
+          ...mockExploration,
+          id,
+        })
+      )
+      explorationStore.activeExplorations['expl-2'] = { ...mockExploration, id: 'expl-2' }
+
+      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
+      await flushPromises()
+      await router.push('/vault/test-vault/exploration/expl-2')
+      await flushPromises()
+
+      // The stale expl-1 response lands after the switch; it must not mark the
+      // current explorer's options as loaded (which would disable the CTA).
+      resolveFirstSites([])
+      await flushPromises()
+
+      const siteButton = wrapper
+        .findAll('button')
+        .find((b) => b.text().includes('Expedition site'))
+      expect(siteButton?.attributes('disabled')).toBeUndefined()
+      expect((wrapper.vm as any).siteOptionsLoaded).toBe(false)
       wrapper.unmount()
     })
   })

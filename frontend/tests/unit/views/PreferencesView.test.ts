@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createRouterMock } from '../helpers/mocks'
 import { flushPromises, mount, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import PreferencesView from '@/modules/profile/views/PreferencesView.vue'
@@ -10,10 +11,7 @@ import type { UserProfile } from '@/models/profile'
 
 vi.mock('@/core/plugins/axios')
 
-vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: {}, query: {} }),
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
-}))
+vi.mock('vue-router', () => createRouterMock())
 
 const mockProfile: UserProfile = {
   id: 'profile-123',
@@ -173,5 +171,19 @@ describe('PreferencesView', () => {
     await switchButton.trigger('click')
 
     expect(switchButton.attributes('aria-checked')).toBe('false')
+  })
+
+  it('toggles map marker colours', async () => {
+    const store = useProfileStore()
+    store.profile = mockProfile
+    const wrapper = mountView()
+
+    const switchButton = wrapper.find('button#map-group-colors')
+    expect(wrapper.find('label[for="map-group-colors"]').text()).toContain('Colourful Map Markers')
+    expect(switchButton.attributes('aria-checked')).toBe('false')
+
+    await switchButton.trigger('click')
+
+    expect(switchButton.attributes('aria-checked')).toBe('true')
   })
 })

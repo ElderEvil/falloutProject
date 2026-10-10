@@ -1,16 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createRouterMock, createToastMock } from '../helpers/mocks'
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { mountWithSetup } from '../helpers/mountWithSetup'
 import TradingPostView from '@/modules/trading/views/TradingPostView.vue'
 import { tradingService } from '@/modules/trading/services/tradingService'
 import type { TradeMarketResponse } from '@/modules/trading/models/trading'
 
-const mockToast = { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }
+const mockToast = createToastMock()
 
-vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: { id: 'vault-1' } }),
-  useRouter: () => ({ push: vi.fn() }),
-}))
+vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' } }))
 
 vi.mock('@/core/composables/useToast', () => ({ useToast: () => mockToast }))
 // The auth store auto-fetches the user when a token exists; resolve it so the

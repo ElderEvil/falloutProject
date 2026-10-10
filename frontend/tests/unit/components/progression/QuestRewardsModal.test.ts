@@ -1,16 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
+import { createIconifyMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { Button } from '@/core/components/ui/button'
 import QuestRewardsModal from '@/modules/progression/components/QuestRewardsModal.vue'
 import type { QuestReward, VaultQuest } from '@/modules/progression/models/quest'
 
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-mock" :data-icon="icon"></span>',
-    props: ['icon'],
-  },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 const quest = {
   id: 'quest-1',

@@ -8,39 +8,46 @@ import type {
 import type { SpreadResult } from '../utils/spreadMarkers'
 
 export function useMarkerSelection(
-  vaultMarkers: Ref<VaultMarkerRead[]>,
+  selectedMarkerId: Ref<string | null>,
   spreadMap: ComputedRef<Map<string, SpreadResult>>,
   focusOnMarker: (x: number, y: number) => void,
-  emit: (event: 'marker-click', payload: MarkerClickPayload) => void
+  emit: (event: 'marker-click', payload: MarkerClickPayload) => void,
+  isDisabled?: () => boolean,
 ) {
-  const selectedMarkerId = ref<string | null>(null)
   const hasDragMoved = ref(false)
 
+  function blocked(): boolean {
+    return hasDragMoved.value || (isDisabled?.() ?? false)
+  }
+
+  // Vault markers have no stable backend IDs (computed signals), so key them by
+  // name, which survives replacement and reordering unlike array indexes.
   function markerId(payload: MarkerClickPayload): string {
     if (payload.kind === 'location') return `loc-${payload.data.id}`
     if (payload.kind === 'site') return `site-${payload.data.id}`
-    return `vault-${vaultMarkers.value.indexOf(payload.data)}`
+    return `vault-${payload.data.name}`
   }
 
   function onLocationClick(loc: WastelandLocationWithDwellers) {
-    if (hasDragMoved.value) return
+    if (blocked()) return
     selectedMarkerId.value = `loc-${loc.id}`
     emit('marker-click', { kind: 'location', data: loc })
   }
 
   function onVaultClick(marker: VaultMarkerRead) {
-    if (hasDragMoved.value) return
-    selectedMarkerId.value = `vault-${vaultMarkers.value.indexOf(marker)}`
+    if (blocked()) return
+    selectedMarkerId.value = `vault-${marker.name}`
     emit('marker-click', { kind: 'vault', data: marker })
   }
 
   function onSiteClick(site: ExpeditionSiteMarkerRead) {
-    if (hasDragMoved.value) return
+    if (blocked()) return
     selectedMarkerId.value = `site-${site.id}`
     emit('marker-click', { kind: 'site', data: site })
   }
 
   function onPanelMarkerSelect(payload: MarkerClickPayload) {
+    if (blocked()) return
     const id = markerId(payload)
     const pos = spreadMap.value.get(id)
     focusOnMarker(pos?.renderX ?? payload.data.coord_x, pos?.renderY ?? payload.data.coord_y)

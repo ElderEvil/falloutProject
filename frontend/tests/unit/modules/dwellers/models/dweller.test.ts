@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { ADULT_AGE_GROUPS, canUseRadaway, isMature } from '@/modules/dwellers/models/dweller'
+import {
+  ADULT_AGE_GROUPS,
+  canUseRadaway,
+  getDwellerDisplayName,
+  getHappinessColor,
+  getHappinessLevel,
+  isMature,
+  isSeverelyIrradiated,
+} from '@/modules/dwellers/models/dweller'
 
 /**
  * Regression: `isMature` checked `age_group === 'adult'` while the backend's
@@ -17,15 +25,16 @@ describe('isMature', () => {
   const youths = ['teen', 'child'] as const
 
   it.each(grownUps)('accepts a mature %s', (age_group) => {
-    expect(isMature({ is_adult: true, age_group })).toBe(true)
+    expect(isMature({ age_group })).toBe(true)
   })
 
   it.each(youths)('rejects a %s', (age_group) => {
-    expect(isMature({ is_adult: true, age_group })).toBe(false)
+    expect(isMature({ age_group })).toBe(false)
   })
 
-  it('still requires the is_adult flag', () => {
-    expect(isMature({ is_adult: false, age_group: 'adult' })).toBe(false)
+  it('derives maturity from age_group alone', () => {
+    expect(isMature({ age_group: 'adult' })).toBe(true)
+    expect(isMature({ age_group: 'elder' })).toBe(true)
   })
 })
 
@@ -40,5 +49,65 @@ describe('canUseRadaway', () => {
 
   it('defaults missing race to human eligibility', () => {
     expect(canUseRadaway({ visual_attributes: null })).toBe(true)
+  })
+})
+
+describe('getDwellerDisplayName', () => {
+  it('joins first and last name', () => {
+    expect(getDwellerDisplayName({ first_name: 'Lucy', last_name: 'MacLean' })).toBe('Lucy MacLean')
+  })
+
+  it('omits a null last name instead of rendering "null"', () => {
+    expect(getDwellerDisplayName({ first_name: 'Gary', last_name: null })).toBe('Gary')
+  })
+
+  it('omits an undefined last name', () => {
+    expect(getDwellerDisplayName({ first_name: 'Gary' })).toBe('Gary')
+  })
+
+  it('returns an empty string without a dweller or first name', () => {
+    expect(getDwellerDisplayName(null)).toBe('')
+    expect(getDwellerDisplayName(undefined)).toBe('')
+    expect(getDwellerDisplayName({ first_name: null, last_name: 'Smith' })).toBe('')
+  })
+})
+
+describe('isSeverelyIrradiated', () => {
+  it('is true at or above half of max health', () => {
+    expect(isSeverelyIrradiated(50, 100)).toBe(true)
+    expect(isSeverelyIrradiated(60, 100)).toBe(true)
+    expect(isSeverelyIrradiated(5, 10)).toBe(true)
+  })
+
+  it('is false below half of max health', () => {
+    expect(isSeverelyIrradiated(49, 100)).toBe(false)
+    expect(isSeverelyIrradiated(1, 100)).toBe(false)
+  })
+
+  it('is false without radiation or a positive maximum', () => {
+    expect(isSeverelyIrradiated(0, 100)).toBe(false)
+    expect(isSeverelyIrradiated(null, 100)).toBe(false)
+    expect(isSeverelyIrradiated(50, 0)).toBe(false)
+  })
+})
+
+describe('getHappinessLevel', () => {
+  it('bands happiness into high / medium / low / critical', () => {
+    expect(getHappinessLevel(80)).toBe('high')
+    expect(getHappinessLevel(75)).toBe('high')
+    expect(getHappinessLevel(74)).toBe('medium')
+    expect(getHappinessLevel(50)).toBe('medium')
+    expect(getHappinessLevel(49)).toBe('low')
+    expect(getHappinessLevel(25)).toBe('low')
+    expect(getHappinessLevel(24)).toBe('critical')
+  })
+})
+
+describe('getHappinessColor', () => {
+  it('maps each band to its theme token', () => {
+    expect(getHappinessColor(getHappinessLevel(80))).toBe('var(--color-theme-primary)')
+    expect(getHappinessColor(getHappinessLevel(60))).toBe('var(--color-terminal-green-dark)')
+    expect(getHappinessColor(getHappinessLevel(30))).toBe('var(--color-warning)')
+    expect(getHappinessColor(getHappinessLevel(10))).toBe('var(--color-danger)')
   })
 })

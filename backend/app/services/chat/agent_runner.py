@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.agents.chat_prompts import dweller_trait_lines
 from app.agents.chat_tools import load_family_members
 from app.agents.dweller_chat_agent import (
+    CHAT_USAGE_LIMITS,
     DwellerChatDeps,
     DwellerChatOutput,
     compute_happiness_delta,
@@ -31,14 +32,10 @@ logger = logging.getLogger(__name__)
 
 
 def extract_usage(usage: RunUsage | None) -> tuple[int | None, int | None, int | None]:
-    """Return null counts when provider usage metadata is absent or malformed."""
+    """Return null counts when provider usage metadata is absent."""
     if usage is None:
         return None, None, None
-    try:
-        return usage.input_tokens, usage.output_tokens, usage.total_tokens
-    except Exception:
-        logger.exception("Failed to extract usage info from agent result")
-        return None, None, None
+    return usage.input_tokens, usage.output_tokens, usage.total_tokens
 
 
 def build_dweller_prompt(
@@ -120,7 +117,9 @@ async def run_chat_agent(
 
     try:
         async with db_session.begin_nested():
-            result = await dweller_chat_agent.run(message_text, deps=deps, instructions=instructions)
+            result = await dweller_chat_agent.run(
+                message_text, deps=deps, instructions=instructions, usage_limits=CHAT_USAGE_LIMITS
+            )
             output: DwellerChatOutput = result.output
 
             delta = compute_happiness_delta(output.sentiment_score)

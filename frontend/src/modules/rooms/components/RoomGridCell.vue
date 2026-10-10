@@ -270,8 +270,8 @@ const cellTitle = computed(() => {
   color: var(--color-warning);
   font-weight: 700;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
-  background: rgba(251, 191, 36, 0.15);
-  border: 1px solid rgba(251, 191, 36, 0.4);
+  background: color-mix(in srgb, var(--color-warning) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 40%, transparent);
   border-radius: 3px;
   padding: 0 3px;
   line-height: 1.3;
@@ -322,10 +322,10 @@ const cellTitle = computed(() => {
   top: 0.35rem;
   right: 0.35rem;
   min-width: 1.25rem;
-  border: 1px solid rgb(250 204 21 / 0.8);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 80%, transparent);
   border-radius: 9999px;
   background: rgb(0 0 0 / 0.75);
-  color: rgb(253 224 71);
+  color: var(--color-warning);
   font-size: 0.75rem;
   font-weight: 700;
   line-height: 1.25rem;
@@ -370,8 +370,8 @@ const cellTitle = computed(() => {
 }
 
 .upgrade-button:hover {
-  background: rgba(251, 191, 36, 0.1);
-  box-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-warning) 50%, transparent);
 }
 
 .upgrade-cost {
@@ -396,7 +396,7 @@ const cellTitle = computed(() => {
   border: 1px solid var(--color-danger);
   box-shadow:
     inset 0 0 12px color-mix(in srgb, var(--color-danger) 30%, transparent),
-    0 0 15px rgba(255, 51, 51, 0.6);
+    0 0 15px color-mix(in srgb, var(--color-danger) 60%, transparent);
   animation: incident-pulse 2s ease-in-out infinite;
 }
 
@@ -405,12 +405,12 @@ const cellTitle = computed(() => {
   100% {
     box-shadow:
       inset 0 0 12px color-mix(in srgb, var(--color-danger) 30%, transparent),
-      0 0 15px rgba(255, 51, 51, 0.6);
+      0 0 15px color-mix(in srgb, var(--color-danger) 60%, transparent);
   }
   50% {
     box-shadow:
       inset 0 0 12px color-mix(in srgb, var(--color-danger) 30%, transparent),
-      0 0 30px rgba(255, 51, 51, 0.9);
+      0 0 30px color-mix(in srgb, var(--color-danger) 90%, transparent);
   }
 }
 

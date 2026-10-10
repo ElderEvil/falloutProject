@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { createIconifyMock, createToastMock } from '../../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import UnassignedDwellers from '@/modules/dwellers/components/UnassignedDwellers.vue'
@@ -7,13 +8,7 @@ import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
 // Mock Iconify
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-mock" :data-icon="icon"></span>',
-    props: ['icon'],
-  },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 // Mock components
 vi.mock('@/modules/dwellers/components/stats/DwellerStatusBadge.vue', () => ({
@@ -41,12 +36,7 @@ vi.mock('@/modules/auth/services/authService', () => ({
 }))
 
 // Mock toast composable
-const mockToast = {
-  success: vi.fn(),
-  error: vi.fn(),
-  info: vi.fn(),
-  warning: vi.fn(),
-}
+const mockToast = createToastMock()
 
 vi.mock('@/core/composables/useToast', () => ({
   useToast: () => mockToast,

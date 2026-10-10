@@ -19,7 +19,6 @@ def _make_dweller(**overrides) -> Dweller:
         "last_name": "Dweller",
         "gender": GenderEnum.MALE,
         "rarity": RarityEnum.COMMON,
-        "is_adult": True,
         "age_group": AgeGroupEnum.ADULT,
         "health": 100,
         "is_dead": False,
@@ -38,7 +37,6 @@ def test_mature_healthy_dweller_passes() -> None:
     ("overrides", "expected_reason"),
     [
         ({"is_deleted": True}, "dweller is deleted"),
-        ({"is_adult": False}, "dweller is not an adult"),
         ({"age_group": AgeGroupEnum.CHILD}, "dweller is not an adult"),
         ({"age_group": AgeGroupEnum.TEEN}, "dweller is not an adult"),
         ({"is_dead": True}, "dweller is dead"),
@@ -73,7 +71,6 @@ def test_require_healthy_false_accepts_zero_health_dweller() -> None:
         ({"is_dead": True}, False),
         ({"status": DwellerStatusEnum.EXPLORING}, False),
         ({"is_deleted": True}, False),
-        ({"is_adult": False}, False),
     ],
 )
 def test_is_available_mirrors_availability_error(overrides: dict, require_healthy: bool) -> None:
@@ -84,8 +81,8 @@ def test_is_available_mirrors_availability_error(overrides: dict, require_health
 
 
 def test_available_dweller_conditions_counts() -> None:
-    assert len(available_dweller_conditions()) == 5
-    assert len(available_dweller_conditions(require_healthy=True)) == 6
+    assert len(available_dweller_conditions()) == 4
+    assert len(available_dweller_conditions(require_healthy=True)) == 5
 
 
 def test_unavailable_statuses_match_enum_members() -> None:

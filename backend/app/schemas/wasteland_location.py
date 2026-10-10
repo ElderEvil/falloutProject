@@ -84,20 +84,39 @@ class VaultMarkerRead(SQLModel):
     description: str
 
 
-class DiscoveryRoutePoint(SQLModel):
-    """One persisted discovery event, projected into map coordinates."""
+class PlayerVaultMarkerRead(SQLModel):
+    """A real player vault placed on the shared atlas, discoverable by other users."""
 
-    location_id: UUID4
+    vault_id: UUID4
+    number: int
+    coord_x: float
+    coord_y: float
+    is_mine: bool = False
+
+
+class DiscoveryRoutePoint(SQLModel):
+    """One journey point, projected into map coordinates.
+
+    Legacy runs contribute discovery events (each with a location id); spatial
+    runs contribute their movement trail, whose points have no single location.
+    """
+
+    location_id: UUID4 | None = None
     coord_x: float
     coord_y: float
     timestamp: str
 
 
 class DiscoveryRouteRead(SQLModel):
-    """Ordered discovery trail for a single exploration."""
+    """Ordered discovery trail for a single exploration.
+
+    ``is_active`` marks an in-progress run. Routes are always returned (the fog
+    corridor is derived from every route), but only active ones draw a trail.
+    """
 
     exploration_id: UUID4
     points: list[DiscoveryRoutePoint]
+    is_active: bool
 
 
 class ExpeditionSiteMarkerRead(SQLModel):
@@ -118,6 +137,8 @@ class ExpeditionSiteMarkerRead(SQLModel):
     cleared: bool
     cooldown_remaining_seconds: int
     block_reason: Literal["open", "cooldown"] | None = None
+    # Journey identity for temporary encounter offers; None for catalog/legacy markers.
+    exploration_id: UUID4 | None = None
 
 
 class VaultMapResponse(SQLModel):
@@ -125,6 +146,7 @@ class VaultMapResponse(SQLModel):
 
     locations: list[WastelandLocationWithDwellers]
     vault_markers: list[VaultMarkerRead]
+    player_vaults: list[PlayerVaultMarkerRead] = []
     discovery_routes: list[DiscoveryRouteRead] = []
     place_groups: list[PlaceGroupRead] = []
     expedition_sites: list[ExpeditionSiteMarkerRead] = []

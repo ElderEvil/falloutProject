@@ -1,7 +1,13 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { nextTick } from 'vue'
+import { mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import WorldMap from '@/modules/map/components/WorldMap.vue'
+import { MAX_ZOOM } from '@/modules/map/composables/useMapZoomPan'
+import { markerTypeMeta } from '@/modules/map/models/markerTypeMeta'
+import { bearingDegrees } from '@/modules/map/utils/bearing'
+import { isExploredTile } from '@/modules/map/utils/fog'
+import { ATLAS_TILES, registryToTile } from '@/modules/map/utils/atlasProjection'
 import { useMapStore, VIEWED_LOCATIONS_STORAGE_KEY } from '@/modules/map/stores/map'
 import type {
   ExpeditionSiteMarkerRead,
@@ -13,27 +19,35 @@ import type {
 // Stub child components that need complex DOM (Iconify, UTooltip)
 const MapMarkerStub = {
   name: 'MapMarker',
-  props: [
-    'x',
-    'y',
-    'name',
-    'type',
-    'selected',
-    'unseen',
-    'is_unlocked',
-    'icon',
-    'label',
-    'cleared',
-    'exploring',
-    'status',
-    'interactive',
-  ],
-  template: '<g class="map-marker-stub" />',
+  props: {
+    x: null,
+    y: null,
+    name: null,
+    type: null,
+    selected: null,
+    unseen: null,
+    is_unlocked: null,
+    icon: null,
+    artSrc: { default: null },
+    label: null,
+    cleared: null,
+    exploring: null,
+    status: null,
+    interactive: null,
+  },
+  template: '<g class="map-marker map-marker-stub" />',
 }
 
 const MarkerListPanelStub = {
   name: 'MarkerListPanel',
-  props: ['locations', 'vaultMarkers', 'expeditionSites', 'selectedMarkerId', 'docked'],
+  props: [
+    'locations',
+    'vaultMarkers',
+    'expeditionSites',
+    'siteTypeFilter',
+    'selectedMarkerId',
+    'docked',
+  ],
   emits: ['marker-select'],
   template: '<div class="marker-list-panel-stub" />',
 }
@@ -50,11 +64,28 @@ const IconStub = {
   template: '<span class="icon-stub" />',
 }
 
+const AtlasTerrainStub = { name: 'AtlasTerrain', template: '<g class="atlas-terrain-stub" />' }
+const FogLayerStub = {
+  name: 'FogLayer',
+  props: ['explored'],
+  template: '<g class="fog-layer-stub" />',
+}
+
 const defaultStubs = {
   MapMarker: MapMarkerStub,
   MarkerListPanel: MarkerListPanelStub,
   Button: ButtonStub,
   Icon: IconStub,
+  AtlasTerrain: AtlasTerrainStub,
+  FogLayer: FogLayerStub,
+}
+
+async function zoomPastDeclutterThreshold(wrapper: VueWrapper) {
+  ;(wrapper.vm as unknown as { focusOnMarker: (x: number, y: number) => void }).focusOnMarker(
+    80,
+    80
+  )
+  await wrapper.vm.$nextTick()
 }
 
 function createLocations(count: number): WastelandLocationWithDwellers[] {
@@ -102,29 +133,64 @@ function createSite(overrides: Partial<ExpeditionSiteMarkerRead> = {}): Expediti
   }
 }
 
+function makeExplorerTrack(overrides: Partial<ExplorerTrack> = {}): ExplorerTrack {
+  return {
+    explorationId: 'expl-1',
+    dwellerId: 'dweller-1',
+    dwellerName: '',
+    status: 'active',
+    health: null,
+    radiation: null,
+    maxHealth: null,
+    targetLocationId: null,
+    lastKnown: null,
+    ...overrides,
+  }
+}
+
 describe('WorldMap', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     localStorage.removeItem(VIEWED_LOCATIONS_STORAGE_KEY)
+    vi.restoreAllMocks()
   })
 
   describe('Marker rendering', () => {
-    it('should render 7 markers given 3 locations + 4 vault markers', () => {
+    it('hides seeded vault signals until the area is explored', () => {
       const locations = createLocations(3)
       const vaultMarkers = createVaultMarkers(4)
 
       const wrapper = mount(WorldMap, {
-        props: { locations, vaultMarkers },
+        props: { locations, vaultMarkers, selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
-      const markers = wrapper.findAll('.map-marker-stub')
-      expect(markers).toHaveLength(7)
+      const names = wrapper.findAllComponents(MapMarkerStub).map((m) => m.props('name'))
+      expect(names).not.toContain('Vault 100')
+    })
+
+    it('drops fog and reveals fog-gated markers when fogDisabled', async () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [],
+          vaultMarkers: createVaultMarkers(1),
+          selectedMarkerId: null,
+          fogDisabled: true,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.findComponent({ name: 'FogLayer' }).exists()).toBe(false)
+
+      await zoomPastDeclutterThreshold(wrapper)
+      expect(
+        wrapper.findAllComponents(MapMarkerStub).some((m) => m.props('name') === 'Unknown vault')
+      ).toBe(true)
     })
 
     it('should render zero markers when both arrays are empty', () => {
       const wrapper = mount(WorldMap, {
-        props: { locations: [], vaultMarkers: [] },
+        props: { locations: [], vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
@@ -132,29 +198,81 @@ describe('WorldMap', () => {
       expect(markers).toHaveLength(0)
     })
 
-    it('should render only location markers when vaultMarkers is empty', () => {
+    it('should render only location markers when vaultMarkers is empty', async () => {
       const locations = createLocations(5)
 
       const wrapper = mount(WorldMap, {
-        props: { locations, vaultMarkers: [] },
+        props: { locations, vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
+      await zoomPastDeclutterThreshold(wrapper)
 
       const markers = wrapper.findAll('.map-marker-stub')
       expect(markers).toHaveLength(5)
     })
+
+    it('renders the site-type archetype icon on a grouped location marker', async () => {
+      const store = useMapStore()
+      store.placeGroups = [
+        { key: 'gas_station', label: 'Gas Station', icon: 'mdi:gas-station' },
+      ] as (typeof store.placeGroups)[number][]
+      const [location] = createLocations(1)
+      const grouped = { ...location, type: 'visited' as const, group_key: 'gas_station' }
+
+      const wrapper = mount(WorldMap, {
+        props: { locations: [grouped], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+      await zoomPastDeclutterThreshold(wrapper)
+
+      const marker = wrapper.findAllComponents(MapMarkerStub)[0]
+      expect(marker.props('icon')).toBe('mdi:gas-station')
+    })
+
+    it('renders a mappable archetype with its group icon and no canvas art', async () => {
+      const store = useMapStore()
+      store.placeGroups = [
+        { key: 'gas_station', label: 'Gas Station', icon: 'mdi:gas-station' },
+      ] as (typeof store.placeGroups)[number][]
+      const [location] = createLocations(1)
+      const grouped = { ...location, type: 'visited' as const, group_key: 'gas_station' }
+
+      const wrapper = mount(WorldMap, {
+        props: { locations: [grouped], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+      await zoomPastDeclutterThreshold(wrapper)
+
+      const marker = wrapper.findAllComponents(MapMarkerStub)[0]
+      expect(marker.props('icon')).toBe('mdi:gas-station')
+      expect(marker.props('artSrc')).toBeNull()
+    })
+
+    it('falls back to the generic type icon without an archetype', async () => {
+      const store = useMapStore()
+      store.placeGroups = []
+      const [location] = createLocations(1)
+      const plain = { ...location, type: 'visited' as const, group_key: null }
+
+      const wrapper = mount(WorldMap, {
+        props: { locations: [plain], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+      await zoomPastDeclutterThreshold(wrapper)
+
+      const marker = wrapper.findAllComponents(MapMarkerStub)[0]
+      expect(marker.props('icon')).toBe(markerTypeMeta('visited').icon)
+    })
   })
 
   describe('Grid lines', () => {
-    it('should render grid lines every 10 units', () => {
+    it('should not render grid lines (quiet player preview)', () => {
       const wrapper = mount(WorldMap, {
-        props: { locations: [], vaultMarkers: [] },
+        props: { locations: [], vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
-      // 0..160 step 10 = 17 lines each direction = 34 total
-      const lines = wrapper.findAll('line')
-      expect(lines).toHaveLength(34)
+      expect(wrapper.findAll('line.grid-line')).toHaveLength(0)
     })
   })
 
@@ -164,12 +282,24 @@ describe('WorldMap', () => {
         props: {
           locations: [],
           vaultMarkers: [],
+          selectedMarkerId: null,
           discoveryRoutes: [
             {
               exploration_id: 'expl-1',
+              is_active: true,
               points: [
-                { location_id: 'loc-1', coord_x: 20, coord_y: 30, timestamp: '2026-01-01T00:00:00Z' },
-                { location_id: 'loc-1', coord_x: 20, coord_y: 30, timestamp: '2026-01-01T01:00:00Z' },
+                {
+                  location_id: 'loc-1',
+                  coord_x: 20,
+                  coord_y: 30,
+                  timestamp: '2026-01-01T00:00:00Z',
+                },
+                {
+                  location_id: 'loc-1',
+                  coord_x: 20,
+                  coord_y: 30,
+                  timestamp: '2026-01-01T01:00:00Z',
+                },
               ],
             },
           ],
@@ -177,11 +307,10 @@ describe('WorldMap', () => {
         global: { stubs: defaultStubs },
       })
 
-      const route = wrapper.find('polyline')
-      const points = route.attributes('points')!.split(' ')
-      expect(points[0]).toBe('80,80')
-      expect(points.at(-1)).toBe('20,30')
-      expect(points.length).toBeGreaterThan(3)
+      const d = wrapper.find('.discovery-route-line').attributes('d')!
+      expect(d.startsWith('M 80 80')).toBe(true)
+      expect(d).toContain('C ')
+      expect(d.endsWith('20 30')).toBe(true)
     })
 
     it('anchors trails at the home vault coordinates', () => {
@@ -196,12 +325,24 @@ describe('WorldMap', () => {
             } as WastelandLocationWithDwellers,
           ],
           vaultMarkers: [],
+          selectedMarkerId: null,
           discoveryRoutes: [
             {
               exploration_id: 'expl-1',
+              is_active: true,
               points: [
-                { location_id: 'loc-1', coord_x: 20, coord_y: 30, timestamp: '2026-01-01T00:00:00Z' },
-                { location_id: 'loc-1', coord_x: 20, coord_y: 30, timestamp: '2026-01-01T01:00:00Z' },
+                {
+                  location_id: 'loc-1',
+                  coord_x: 20,
+                  coord_y: 30,
+                  timestamp: '2026-01-01T00:00:00Z',
+                },
+                {
+                  location_id: 'loc-1',
+                  coord_x: 20,
+                  coord_y: 30,
+                  timestamp: '2026-01-01T01:00:00Z',
+                },
               ],
             },
           ],
@@ -209,17 +350,344 @@ describe('WorldMap', () => {
         global: { stubs: defaultStubs },
       })
 
-      const route = wrapper.find('polyline')
-      const points = route.attributes('points')!.split(' ')
-      expect(points[0]).toBe('50,50')
-      expect(points.at(-1)).toBe('20,30')
+      const d = wrapper.find('.discovery-route-line').attributes('d')!
+      expect(d.startsWith('M 50 50')).toBe(true)
+      expect(d.endsWith('20 30')).toBe(true)
+    })
+
+    it('renders a dark casing path directly beneath the accent line per route', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          discoveryRoutes: [
+            {
+              exploration_id: 'expl-1',
+              is_active: true,
+              points: [
+                {
+                  location_id: 'loc-1',
+                  coord_x: 20,
+                  coord_y: 30,
+                  timestamp: '2026-01-01T00:00:00Z',
+                },
+              ],
+            },
+            {
+              exploration_id: 'expl-2',
+              is_active: true,
+              points: [
+                {
+                  location_id: 'loc-2',
+                  coord_x: 30,
+                  coord_y: 40,
+                  timestamp: '2026-01-01T00:00:00Z',
+                },
+              ],
+            },
+          ],
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.findAll('.discovery-route-casing')).toHaveLength(2)
+      expect(wrapper.findAll('.discovery-route-line')).toHaveLength(2)
+
+      const groups = wrapper.findAll('g.discovery-route')
+      expect(groups).toHaveLength(2)
+      for (const group of groups) {
+        const children = Array.from(group.element.children)
+        expect(children[0]!.getAttribute('class')).toContain('discovery-route-casing')
+        expect(children[1]!.getAttribute('class')).toContain('discovery-route-line')
+        expect(children[0]!.getAttribute('d')).toBe(children[1]!.getAttribute('d'))
+        expect(children[0]!.getAttribute('d')).toContain('C ')
+      }
+    })
+
+    it('draws only active routes while the fog still uses inactive ones', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          discoveryRoutes: [
+            {
+              exploration_id: 'active-1',
+              is_active: true,
+              points: [
+                {
+                  location_id: 'loc-1',
+                  coord_x: 10,
+                  coord_y: 10,
+                  timestamp: '2026-01-01T00:00:00Z',
+                },
+              ],
+            },
+            {
+              exploration_id: 'done-1',
+              is_active: false,
+              points: [
+                {
+                  location_id: 'loc-2',
+                  coord_x: 70,
+                  coord_y: 10,
+                  timestamp: '2026-01-01T00:00:00Z',
+                },
+              ],
+            },
+          ],
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const drawn = wrapper.findAll('.discovery-route-line')
+      expect(drawn).toHaveLength(1)
+      expect(drawn[0]!.attributes('d')).toContain('10 10')
+      expect(drawn.some((line) => line.attributes('d')!.includes('70 10'))).toBe(false)
+
+      const explored = wrapper.findComponent({ name: 'FogLayer' }).props('explored') as Uint8Array
+      expect(
+        isExploredTile(
+          explored,
+          registryToTile(70, ATLAS_TILES),
+          registryToTile(10, ATLAS_TILES),
+          ATLAS_TILES
+        )
+      ).toBe(true)
+    })
+  })
+
+  describe('Zoom declutter', () => {
+    it('hides secondary location markers at overview zoom and reveals them when zoomed in', async () => {
+      const locations = createLocations(2)
+      const wrapper = mount(WorldMap, {
+        props: { locations, vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.findAllComponents(MapMarkerStub)).toHaveLength(0)
+
+      await zoomPastDeclutterThreshold(wrapper)
+
+      expect(wrapper.findAllComponents(MapMarkerStub)).toHaveLength(2)
+    })
+
+    it('keeps primary markers at overview zoom', () => {
+      const locations = createLocations(4)
+      const wrapper = mount(WorldMap, {
+        props: { locations, vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const types = wrapper.findAllComponents(MapMarkerStub).map((m) => m.props('type'))
+      expect(types).toEqual(['discovery', 'home_vault'])
+    })
+
+    it('keeps a selected secondary marker visible at overview zoom', () => {
+      const locations = createLocations(1)
+      const wrapper = mount(WorldMap, {
+        props: { locations, vaultMarkers: [], selectedMarkerId: `loc-${locations[0].id}` },
+        global: { stubs: defaultStubs },
+      })
+
+      const markers = wrapper.findAllComponents(MapMarkerStub)
+      expect(markers).toHaveLength(1)
+      expect(markers[0].props('selected')).toBe(true)
+    })
+
+    it('keeps an in-progress secondary marker visible at overview zoom', () => {
+      const locations = createLocations(1)
+      const tracks: ExplorerTrack[] = [
+        makeExplorerTrack({
+          explorationId: 'expl-1',
+          dwellerName: 'Ada',
+          targetLocationId: locations[0].id,
+        }),
+      ]
+      const wrapper = mount(WorldMap, {
+        props: { locations, vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const markers = wrapper.findAllComponents(MapMarkerStub)
+      expect(markers).toHaveLength(1)
+      expect(markers[0].props('exploring')).toBe(true)
+    })
+
+    it('hides anonymous vault hints at overview zoom and reveals them when zoomed in', async () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [],
+          vaultMarkers: createVaultMarkers(3),
+          selectedMarkerId: null,
+          fogDisabled: true,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const hintCount = () => wrapper.findAllComponents(MapMarkerStub).length
+      expect(hintCount()).toBe(0)
+
+      await zoomPastDeclutterThreshold(wrapper)
+
+      expect(hintCount()).toBe(3)
+    })
+  })
+
+  describe('Discovery clustering', () => {
+    function discoveryLocation(
+      id: string,
+      coord_x: number,
+      coord_y: number,
+      overrides: Partial<WastelandLocationWithDwellers> = {}
+    ): WastelandLocationWithDwellers {
+      return {
+        id,
+        name: `Discovery ${id}`,
+        normalized_name: `discovery ${id}`,
+        type: 'discovery',
+        coord_x,
+        coord_y,
+        description: 'An uncharted signal',
+        vault_id: 'vault-1',
+        exploration_id: null,
+        created_at: null,
+        is_unlocked: true,
+        dwellers: [],
+        ...overrides,
+      } as WastelandLocationWithDwellers
+    }
+
+    it('collapses nearby discoveries into a single ×N badge', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [discoveryLocation('d-1', 20, 24), discoveryLocation('d-2', 30, 24)],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          fogDisabled: true,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const badges = wrapper.findAll('.map-cluster')
+      expect(badges).toHaveLength(1)
+      expect(badges[0].text()).toContain('×2')
+      expect(badges[0].attributes('role')).toBe('button')
+      expect(badges[0].attributes('aria-label')).toContain('2')
+      expect(wrapper.findAllComponents(MapMarkerStub)).toHaveLength(0)
+    })
+
+    it('leaves discoveries in different cells as individual markers', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [discoveryLocation('d-1', 20, 24), discoveryLocation('d-2', 100, 100)],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          fogDisabled: true,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.findAll('.map-cluster')).toHaveLength(0)
+      expect(wrapper.findAllComponents(MapMarkerStub)).toHaveLength(2)
+    })
+
+    it('never clusters locked discoveries away from their lock pins', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [
+            discoveryLocation('d-1', 20, 24, { is_unlocked: false }),
+            discoveryLocation('d-2', 30, 24, { is_unlocked: false }),
+          ],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          fogDisabled: true,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.findAll('.map-cluster')).toHaveLength(0)
+      expect(wrapper.findAllComponents(MapMarkerStub)).toHaveLength(2)
+    })
+
+    it('keeps a selected discovery pinned outside the cluster', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [
+            discoveryLocation('d-1', 20, 24),
+            discoveryLocation('d-2', 30, 24),
+            discoveryLocation('d-3', 40, 24),
+          ],
+          vaultMarkers: [],
+          selectedMarkerId: 'loc-d-3',
+          fogDisabled: true,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.find('.map-cluster').text()).toContain('×2')
+
+      const markers = wrapper.findAllComponents(MapMarkerStub)
+      expect(markers).toHaveLength(1)
+      expect(markers[0].props('selected')).toBe(true)
+      expect(markers[0].props('name')).toBe('Discovery d-3')
+    })
+
+    it('zooms in and splits the cluster when the badge is clicked', async () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [discoveryLocation('d-1', 20, 24), discoveryLocation('d-2', 30, 24)],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          fogDisabled: true,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.find('.zoom-level').exists()).toBe(false)
+
+      await wrapper.find('.map-cluster').trigger('click')
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.find('.zoom-level').text()).toContain('200%')
+      expect(wrapper.findAll('.map-cluster')).toHaveLength(0)
+      expect(wrapper.findAllComponents(MapMarkerStub)).toHaveLength(2)
+    })
+
+    it('renders every discovery individually at max zoom instead of a badge', async () => {
+      // Twelve coincident discoveries cannot all separate onto the max-zoom
+      // grid (cell size 16/MAX_ZOOM = 4 map units) after the anti-overlap
+      // spread, so a badge would persist with no further zoom left for
+      // onClusterClick to split it. At max zoom clustering is disabled.
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: Array.from({ length: 12 }, (_, i) => discoveryLocation(`d-${i}`, 8, 8)),
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          fogDisabled: true,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.find('.map-cluster').exists()).toBe(true)
+
+      const vm = wrapper.vm as unknown as {
+        focusOnMarker: (x: number, y: number, minZoom?: number) => void
+      }
+      vm.focusOnMarker(80, 80, MAX_ZOOM)
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.find('.zoom-level').text()).toContain(`${Math.round(MAX_ZOOM * 100)}%`)
+      expect(wrapper.findAll('.map-cluster')).toHaveLength(0)
+      expect(wrapper.findAllComponents(MapMarkerStub)).toHaveLength(12)
     })
   })
 
   describe('CRT styling', () => {
     it('should have crt-screen class on the container', () => {
       const wrapper = mount(WorldMap, {
-        props: { locations: [], vaultMarkers: [] },
+        props: { locations: [], vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
@@ -229,7 +697,7 @@ describe('WorldMap', () => {
 
     it('should have the SVG element with correct viewBox at default zoom', () => {
       const wrapper = mount(WorldMap, {
-        props: { locations: [], vaultMarkers: [] },
+        props: { locations: [], vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
@@ -239,7 +707,7 @@ describe('WorldMap', () => {
 
     it('should NOT have role="img" on the SVG (children must be accessible)', () => {
       const wrapper = mount(WorldMap, {
-        props: { locations: [], vaultMarkers: [] },
+        props: { locations: [], vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
@@ -253,7 +721,7 @@ describe('WorldMap', () => {
     it('should emit marker-click with kind=location when a location marker is clicked', async () => {
       const locations = createLocations(1)
       const wrapper = mount(WorldMap, {
-        props: { locations, vaultMarkers: [] },
+        props: { locations, vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
@@ -267,27 +735,34 @@ describe('WorldMap', () => {
       expect(emitted![0][0]).toEqual({ kind: 'location', data: locations[0] })
     })
 
-    it('should emit marker-click with kind=vault when a vault marker is clicked', async () => {
-      const vaultMarkers = createVaultMarkers(1)
+    it('renders foreign vaults as non-interactive anonymous hints where explored', async () => {
+      const [base] = createLocations(1)
+      const home = { ...base, id: 'home', type: 'home_vault' as const, coord_x: 50, coord_y: 50 }
       const wrapper = mount(WorldMap, {
-        props: { locations: [], vaultMarkers },
+        props: {
+          locations: [home],
+          vaultMarkers: [],
+          playerVaults: [
+            { vault_id: 'v-other', number: 200, coord_x: 50, coord_y: 50, is_mine: false },
+          ],
+          selectedMarkerId: null,
+        },
         global: { stubs: defaultStubs },
       })
+      await zoomPastDeclutterThreshold(wrapper)
 
-      const vm = wrapper.vm as any
-      vm.onVaultClick(vaultMarkers[0])
-      await wrapper.vm.$nextTick()
-
-      const emitted = wrapper.emitted('marker-click')
-      expect(emitted).toBeTruthy()
-      expect(emitted![0][0]).toEqual({ kind: 'vault', data: vaultMarkers[0] })
+      const hint = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('name') === 'Unknown vault')
+      expect(hint).toBeTruthy()
+      expect(hint!.props('interactive')).toBe(false)
     })
   })
 
   describe('Empty store (failure case)', () => {
     it('should render the SVG with zero markers and no exceptions', () => {
       const wrapper = mount(WorldMap, {
-        props: { locations: [], vaultMarkers: [] },
+        props: { locations: [], vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
@@ -302,7 +777,7 @@ describe('WorldMap', () => {
   describe('Zoom controls', () => {
     it('should render zoom in, zoom out, and reset buttons', () => {
       const wrapper = mount(WorldMap, {
-        props: { locations: [], vaultMarkers: [] },
+        props: { locations: [], vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
@@ -315,7 +790,7 @@ describe('WorldMap', () => {
 
     it('should have an aria-label on the zoom controls group', () => {
       const wrapper = mount(WorldMap, {
-        props: { locations: [], vaultMarkers: [] },
+        props: { locations: [], vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
@@ -325,7 +800,7 @@ describe('WorldMap', () => {
 
     it('should show zoom level percentage when zoomed', async () => {
       const wrapper = mount(WorldMap, {
-        props: { locations: [], vaultMarkers: [] },
+        props: { locations: [], vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
@@ -343,14 +818,16 @@ describe('WorldMap', () => {
   })
 
   describe('Selected marker wiring', () => {
-    it('should pass selected=false to all markers by default', () => {
+    it('should pass selected=false to all markers by default', async () => {
       const locations = createLocations(3)
       const wrapper = mount(WorldMap, {
-        props: { locations, vaultMarkers: [] },
+        props: { locations, vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
+      await zoomPastDeclutterThreshold(wrapper)
 
       const markers = wrapper.findAllComponents(MapMarkerStub)
+      expect(markers).toHaveLength(3)
       for (const marker of markers) {
         expect(marker.props('selected')).toBe(false)
       }
@@ -359,7 +836,7 @@ describe('WorldMap', () => {
     it('should pass selected=true to a marker after it is clicked', async () => {
       const locations = createLocations(2)
       const wrapper = mount(WorldMap, {
-        props: { locations, vaultMarkers: [] },
+        props: { locations, vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
@@ -367,15 +844,123 @@ describe('WorldMap', () => {
       vm.onLocationClick(locations[0])
       await wrapper.vm.$nextTick()
 
+      expect(wrapper.emitted('update:selectedMarkerId')).toBeTruthy()
+      expect(wrapper.emitted('update:selectedMarkerId')![0][0]).toBe(`loc-${locations[0].id}`)
+      await wrapper.setProps({ selectedMarkerId: `loc-${locations[0].id}` })
+      await zoomPastDeclutterThreshold(wrapper)
+
       const markers = wrapper.findAllComponents(MapMarkerStub)
       expect(markers[0].props('selected')).toBe(true)
       expect(markers[1].props('selected')).toBe(false)
     })
 
+    it('renders your own vault with identity regardless of fog', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [],
+          vaultMarkers: [],
+          playerVaults: [
+            { vault_id: 'v-mine', number: 121, coord_x: 40, coord_y: 8, is_mine: true },
+          ],
+          selectedMarkerId: null,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const mine = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('name') === 'Vault 121')
+      expect(mine).toBeTruthy()
+      expect(mine!.props('label')).toBe('Your Vault')
+    })
+
+    it('does not render the current vault twice (home marker + owned vault)', async () => {
+      const home: WastelandLocationWithDwellers = {
+        ...createLocations(1)[0],
+        id: 'home-765',
+        name: 'Vault 765',
+        type: 'home_vault',
+        vault_id: 'v-current',
+      }
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [home],
+          vaultMarkers: [],
+          playerVaults: [
+            {
+              vault_id: 'v-current',
+              number: 765,
+              coord_x: home.coord_x,
+              coord_y: home.coord_y,
+              is_mine: true,
+            },
+            { vault_id: 'v-other', number: 777, coord_x: 90, coord_y: 60, is_mine: true },
+          ],
+          selectedMarkerId: null,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const markers = wrapper.findAllComponents(MapMarkerStub)
+      const vault765 = markers.filter((m) => m.props('name') === 'Vault 765')
+      expect(vault765).toHaveLength(1)
+      expect(vault765[0].props('label')).not.toBe('Your Vault')
+
+      expect(markers.some((m) => m.props('name') === 'Vault 777')).toBe(true)
+
+      // The surviving marker is the home-vault location; clicking it must open
+      // the summary panel for the current vault, not the generic details modal.
+      await vault765[0].trigger('click')
+
+      expect(wrapper.emitted('vault-info')).toEqual([['v-current']])
+      expect(wrapper.emitted('marker-click')).toBeUndefined()
+    })
+
+    it('suppresses the current-vault summary when hasDragMoved is true', async () => {
+      const home: WastelandLocationWithDwellers = {
+        ...createLocations(1)[0],
+        id: 'home-765',
+        name: 'Vault 765',
+        type: 'home_vault',
+        vault_id: 'v-current',
+      }
+      const wrapper = mount(WorldMap, {
+        props: { locations: [home], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const vm = wrapper.vm as any
+      vm.hasDragMoved = true
+      vm.onLocationMarkerClick(home)
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.emitted('vault-info')).toBeUndefined()
+    })
+
+    it('suppresses the own-vault summary when hasDragMoved is true', async () => {
+      const mine = { vault_id: 'v-mine', number: 121, coord_x: 40, coord_y: 8, is_mine: true }
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [],
+          vaultMarkers: [],
+          playerVaults: [mine],
+          selectedMarkerId: null,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const vm = wrapper.vm as any
+      vm.hasDragMoved = true
+      vm.onOwnVaultClick(mine)
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.emitted('vault-info')).toBeUndefined()
+    })
+
     it('should suppress marker-click when hasDragMoved is true', async () => {
       const locations = createLocations(1)
       const wrapper = mount(WorldMap, {
-        props: { locations, vaultMarkers: [] },
+        props: { locations, vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
@@ -410,10 +995,10 @@ describe('WorldMap', () => {
       } as WastelandLocationWithDwellers
     }
 
-    it('should pass unseen=true to an unlocked discovery the player has not viewed', () => {
+    it('passes unseen=true to an unlocked discovery the player has not viewed', () => {
       const locations = [discoveryLocation('loc-1')]
       const wrapper = mount(WorldMap, {
-        props: { locations, vaultMarkers: [] },
+        props: { locations, vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
@@ -426,7 +1011,7 @@ describe('WorldMap', () => {
       const store = useMapStore()
       const locations = [discoveryLocation('loc-1')]
       const wrapper = mount(WorldMap, {
-        props: { locations, vaultMarkers: [] },
+        props: { locations, vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
@@ -438,17 +1023,36 @@ describe('WorldMap', () => {
       expect(wrapper.findAllComponents(MapMarkerStub)[0].props('unseen')).toBe(false)
     })
 
-    it('should pass unseen=false to locked discoveries even when unviewed', () => {
+    it('hides a locked discovery in the fog until its area is explored', () => {
       const locations = [discoveryLocation('loc-1', { is_unlocked: false })]
       const wrapper = mount(WorldMap, {
-        props: { locations, vaultMarkers: [] },
+        props: { locations, vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
-      expect(wrapper.findAllComponents(MapMarkerStub)[0].props('unseen')).toBe(false)
+      expect(wrapper.findAllComponents(MapMarkerStub)).toHaveLength(0)
     })
 
-    it('should pass unseen=false to non-discovery locations', () => {
+    it('shows a locked discovery as a hint pin once its area is explored', () => {
+      const locked = discoveryLocation('loc-1', { is_unlocked: false })
+      const revealed = {
+        ...discoveryLocation('loc-2'),
+        coord_x: locked.coord_x,
+        coord_y: locked.coord_y,
+      }
+      const wrapper = mount(WorldMap, {
+        props: { locations: [locked, revealed], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const hint = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((marker) => marker.props('is_unlocked') === false)
+      expect(hint).toBeTruthy()
+      expect(hint!.props('unseen')).toBe(false)
+    })
+
+    it('should pass unseen=false to non-discovery locations', async () => {
       const locations = [
         discoveryLocation('loc-1', {
           type: 'visited' as const,
@@ -459,9 +1063,10 @@ describe('WorldMap', () => {
         }),
       ]
       const wrapper = mount(WorldMap, {
-        props: { locations, vaultMarkers: [] },
+        props: { locations, vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
+      await zoomPastDeclutterThreshold(wrapper)
 
       expect(wrapper.findAllComponents(MapMarkerStub)[0].props('unseen')).toBe(false)
     })
@@ -470,29 +1075,36 @@ describe('WorldMap', () => {
   describe('Marker list panel integration', () => {
     it('should render the MarkerListPanel component', () => {
       const wrapper = mount(WorldMap, {
-        props: { locations: createLocations(2), vaultMarkers: createVaultMarkers(1) },
+        props: {
+          locations: createLocations(2),
+          vaultMarkers: createVaultMarkers(1),
+          selectedMarkerId: null,
+        },
         global: { stubs: defaultStubs },
       })
 
       expect(wrapper.findComponent(MarkerListPanelStub).exists()).toBe(true)
     })
 
-    it('should pass locations and vaultMarkers to the panel', () => {
+    it('passes locations to the panel and no unrelated vault signals', () => {
       const locations = createLocations(2)
-      const vaultMarkers = createVaultMarkers(1)
       const wrapper = mount(WorldMap, {
-        props: { locations, vaultMarkers },
+        props: { locations, vaultMarkers: createVaultMarkers(1), selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
       const panel = wrapper.findComponent(MarkerListPanelStub)
       expect(panel.props('locations')).toEqual(locations)
-      expect(panel.props('vaultMarkers')).toEqual(vaultMarkers)
+      expect(panel.props('vaultMarkers')).toEqual([])
     })
 
     it('should dock the location index beside the map', () => {
       const wrapper = mount(WorldMap, {
-        props: { locations: createLocations(2), vaultMarkers: createVaultMarkers(1) },
+        props: {
+          locations: createLocations(2),
+          vaultMarkers: createVaultMarkers(1),
+          selectedMarkerId: null,
+        },
         global: { stubs: defaultStubs },
       })
 
@@ -502,7 +1114,7 @@ describe('WorldMap', () => {
     it('should emit marker-click when panel emits marker-select', async () => {
       const locations = createLocations(1)
       const wrapper = mount(WorldMap, {
-        props: { locations, vaultMarkers: [] },
+        props: { locations, vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
@@ -517,13 +1129,16 @@ describe('WorldMap', () => {
     it('should set selectedMarkerId when panel selects a marker', async () => {
       const locations = createLocations(2)
       const wrapper = mount(WorldMap, {
-        props: { locations, vaultMarkers: [] },
+        props: { locations, vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
       const panel = wrapper.findComponent(MarkerListPanelStub)
       await panel.vm.$emit('marker-select', { kind: 'location', data: locations[0] })
       await wrapper.vm.$nextTick()
+
+      expect(wrapper.emitted('update:selectedMarkerId')).toBeTruthy()
+      await wrapper.setProps({ selectedMarkerId: `loc-${locations[0].id}` })
 
       const markers = wrapper.findAllComponents(MapMarkerStub)
       expect(markers[0].props('selected')).toBe(true)
@@ -534,7 +1149,7 @@ describe('WorldMap', () => {
   describe('Wheel zoom prevention', () => {
     it('should have @wheel.prevent on the container', () => {
       const wrapper = mount(WorldMap, {
-        props: { locations: [], vaultMarkers: [] },
+        props: { locations: [], vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
@@ -545,8 +1160,78 @@ describe('WorldMap', () => {
     })
   })
 
-  describe('Visibility filter (single-dweller visited)', () => {
-    it('should hide unknown locations from the index while keeping the map decluttered', () => {
+  describe('Touch interaction', () => {
+    async function mountZoomed() {
+      const wrapper = mount(WorldMap, {
+        props: { locations: [], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+        attachTo: document.body,
+      })
+      const vm = wrapper.vm as unknown as { focusOnMarker: (x: number, y: number) => void }
+      vm.focusOnMarker(80, 80)
+      await nextTick()
+      const svg = wrapper.find('.world-map-svg')
+      vi.spyOn(svg.element, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        top: 0,
+        width: 400,
+        height: 400,
+        right: 400,
+        bottom: 400,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      } as DOMRect)
+      return { wrapper, container: wrapper.find('.world-map-container'), svg }
+    }
+
+    it('should neutralize browser gestures on the container', () => {
+      const wrapper = mount(WorldMap, {
+        props: { locations: [], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.find('.world-map-container').classes()).toContain('touch-none')
+    })
+
+    it('should pan with a single finger when zoomed', async () => {
+      const { wrapper, container, svg } = await mountZoomed()
+      expect(svg.attributes('viewBox')).toBe('40 40 80 80')
+
+      await container.trigger('touchstart', { touches: [{ clientX: 200, clientY: 200 }] })
+      expect(container.classes()).toContain('is-dragging')
+
+      await container.trigger('touchmove', { touches: [{ clientX: 220, clientY: 200 }] })
+      expect(svg.attributes('viewBox')).toBe('36 40 80 80')
+
+      await container.trigger('touchend', { touches: [] })
+      expect(container.classes()).not.toContain('is-dragging')
+      wrapper.unmount()
+    })
+
+    it('should zoom out on a pinch-in with two fingers', async () => {
+      const { wrapper, container, svg } = await mountZoomed()
+
+      await container.trigger('touchstart', {
+        touches: [
+          { clientX: 50, clientY: 200 },
+          { clientX: 350, clientY: 200 },
+        ],
+      })
+      await container.trigger('touchmove', {
+        touches: [
+          { clientX: 150, clientY: 200 },
+          { clientX: 250, clientY: 200 },
+        ],
+      })
+
+      expect(svg.attributes('viewBox')).toBe('0 0 160 160')
+      wrapper.unmount()
+    })
+  })
+
+  describe('Visibility filter (locked hints + single-dweller visited)', () => {
+    function fixture() {
       const visited = createLocations(1)[0]
       const singleVisited: WastelandLocationWithDwellers = {
         ...visited,
@@ -576,20 +1261,182 @@ describe('WorldMap', () => {
         type: 'discovery',
         is_unlocked: false,
       }
+      return { singleVisited, multiVisited, origin, unknown }
+    }
+
+    it('renders a locked place as a dimmed hint pin while keeping the index known-only', async () => {
+      const { singleVisited, multiVisited, origin, unknown } = fixture()
 
       const wrapper = mount(WorldMap, {
-        props: { locations: [singleVisited, multiVisited, origin, unknown], vaultMarkers: [] },
+        props: {
+          locations: [singleVisited, multiVisited, origin, unknown],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+        },
         global: { stubs: defaultStubs },
       })
+      await zoomPastDeclutterThreshold(wrapper)
 
-      // The map still renders discovered signals; only the single visited marker is decluttered.
+      // The locked discovery still renders as a hint; the single visited marker is decluttered.
       const markers = wrapper.findAll('.map-marker-stub')
       expect(markers).toHaveLength(3)
+
+      const hint = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('name') === 'Unidentified Signal')
+      expect(hint).toBeTruthy()
+      expect(hint!.props('is_unlocked')).toBe(false)
 
       // The index only receives locations whose names are known to the vault.
       const panel = wrapper.findComponent(MarkerListPanelStub)
       expect(panel.props('locations')).toHaveLength(3)
       expect(panel.props('locations')).not.toContain(unknown)
+    })
+
+    it('always renders the home vault even when it is not unlocked', () => {
+      const { unknown } = fixture()
+      const home: WastelandLocationWithDwellers = {
+        ...unknown,
+        id: 'home-1',
+        name: 'Vault 121',
+        type: 'home_vault',
+        is_unlocked: false,
+        coord_x: 80,
+        coord_y: 80,
+      }
+
+      const wrapper = mount(WorldMap, {
+        props: { locations: [home, unknown], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const homeMarker = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('type') === 'home_vault')
+      expect(homeMarker).toBeTruthy()
+      expect(homeMarker!.props('name')).toBe('Vault 121')
+    })
+  })
+
+  describe('Site-type filter', () => {
+    function siteLocation(
+      id: string,
+      name: string,
+      group_key: string | null,
+      overrides: Partial<WastelandLocationWithDwellers> = {}
+    ): WastelandLocationWithDwellers {
+      return {
+        ...createLocations(1)[0],
+        id,
+        name,
+        type: 'discovery',
+        coord_x: 20,
+        coord_y: 20,
+        is_unlocked: true,
+        group_key,
+        dwellers: [],
+        ...overrides,
+      } as WastelandLocationWithDwellers
+    }
+
+    function markerNames(wrapper: VueWrapper) {
+      return wrapper.findAllComponents(MapMarkerStub).map((m) => m.props('name'))
+    }
+
+    it('renders only locations whose group matches the filter', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [
+            siteLocation('g1', 'Gas Stop', 'gas_station'),
+            siteLocation('m1', 'Army Base', 'military', { coord_x: 60, coord_y: 60 }),
+            siteLocation('g2', 'Second Gas Stop', 'gas_station', { coord_x: 100, coord_y: 100 }),
+          ],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          fogDisabled: true,
+          siteTypeFilter: 'gas_station',
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const names = markerNames(wrapper)
+      expect(names).toContain('Gas Stop')
+      expect(names).toContain('Second Gas Stop')
+      expect(names).not.toContain('Army Base')
+    })
+
+    it('shows every location when the filter is null', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [
+            siteLocation('g1', 'Gas Stop', 'gas_station'),
+            siteLocation('m1', 'Army Base', 'military', { coord_x: 60, coord_y: 60 }),
+          ],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          fogDisabled: true,
+          siteTypeFilter: null,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const names = markerNames(wrapper)
+      expect(names).toContain('Gas Stop')
+      expect(names).toContain('Army Base')
+    })
+
+    it('keeps the home vault and non-place marker families unfiltered', () => {
+      const home = siteLocation('h1', 'Vault 121', null, {
+        type: 'home_vault',
+        coord_x: 80,
+        coord_y: 80,
+      })
+      const track = makeExplorerTrack({
+        explorationId: 'expl-1',
+        dwellerName: 'Bob',
+        lastKnown: { coord_x: 42, coord_y: 43 },
+      })
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [
+            home,
+            siteLocation('g1', 'Gas Stop', 'gas_station'),
+            siteLocation('m1', 'Army Base', 'military'),
+          ],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          fogDisabled: true,
+          siteTypeFilter: 'gas_station',
+          expeditionSites: [createSite()],
+          explorerTracks: [track],
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const types = wrapper.findAllComponents(MapMarkerStub).map((m) => m.props('type'))
+      expect(types).toContain('home_vault')
+      expect(types).toContain('expedition_site')
+      expect(types).toContain('explorer')
+      expect(markerNames(wrapper)).toContain('Gas Stop')
+      expect(markerNames(wrapper)).not.toContain('Army Base')
+    })
+
+    it('forwards the filter to the marker list panel and the legend', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [siteLocation('g1', 'Gas Stop', 'gas_station')],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          fogDisabled: true,
+          siteTypeFilter: 'gas_station',
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.findComponent(MarkerListPanelStub).props('siteTypeFilter')).toBe('gas_station')
+      expect(wrapper.findComponent({ name: 'MapLegend' }).props('siteTypeFilter')).toBe(
+        'gas_station'
+      )
     })
   })
 
@@ -599,6 +1446,7 @@ describe('WorldMap', () => {
         props: {
           locations: [],
           vaultMarkers: [],
+          selectedMarkerId: null,
           expeditionSites: [createSite(), createSite({ id: 'site-2', name: 'Crater Store' })],
         },
         global: { stubs: defaultStubs },
@@ -610,6 +1458,25 @@ describe('WorldMap', () => {
       expect(siteMarkers).toHaveLength(2)
       expect(siteMarkers[0].props('name')).toBe('Red Rocket Gas Station')
       expect(siteMarkers[0].props('icon')).toBe('mdi:map-marker-star')
+      expect(siteMarkers[0].props('artSrc')).toBeNull()
+    })
+
+    it('renders expedition sites with the shared site icon and no art', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          expeditionSites: [createSite({ id: 'red_rocket' })],
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const site = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('type') === 'expedition_site')
+      expect(site!.props('icon')).toBe('mdi:map-marker-star')
+      expect(site!.props('artSrc')).toBeNull()
     })
 
     it('passes cleared + status for a ready site', () => {
@@ -617,6 +1484,7 @@ describe('WorldMap', () => {
         props: {
           locations: [],
           vaultMarkers: [],
+          selectedMarkerId: null,
           expeditionSites: [createSite()],
         },
         global: { stubs: defaultStubs },
@@ -632,6 +1500,7 @@ describe('WorldMap', () => {
         props: {
           locations: [],
           vaultMarkers: [],
+          selectedMarkerId: null,
           expeditionSites: [
             createSite({
               cleared: true,
@@ -654,6 +1523,7 @@ describe('WorldMap', () => {
         props: {
           locations: [],
           vaultMarkers: [],
+          selectedMarkerId: null,
           expeditionSites: [
             createSite({
               cleared: false,
@@ -676,6 +1546,7 @@ describe('WorldMap', () => {
         props: {
           locations: [],
           vaultMarkers: [],
+          selectedMarkerId: null,
           expeditionSites: [createSite({ block_reason: 'open' })],
         },
         global: { stubs: defaultStubs },
@@ -692,6 +1563,7 @@ describe('WorldMap', () => {
         props: {
           locations: [],
           vaultMarkers: [],
+          selectedMarkerId: null,
           expeditionSites: [site],
         },
         global: { stubs: defaultStubs },
@@ -712,6 +1584,7 @@ describe('WorldMap', () => {
         props: {
           locations: [],
           vaultMarkers: [],
+          selectedMarkerId: null,
           expeditionSites: sites,
         },
         global: { stubs: defaultStubs },
@@ -725,15 +1598,14 @@ describe('WorldMap', () => {
     it('marks a dispatched target location as exploring with the dweller name', () => {
       const locations = createLocations(1)
       const tracks: ExplorerTrack[] = [
-        {
+        makeExplorerTrack({
           explorationId: 'expl-1',
           dwellerName: 'Ada',
           targetLocationId: locations[0].id,
-          lastKnown: null,
-        },
+        }),
       ]
       const wrapper = mount(WorldMap, {
-        props: { locations, vaultMarkers: [], explorerTracks: tracks },
+        props: { locations, vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
@@ -745,15 +1617,14 @@ describe('WorldMap', () => {
     it('falls back to "Dispatching" when the dweller name is unknown', () => {
       const locations = createLocations(1)
       const tracks: ExplorerTrack[] = [
-        {
+        makeExplorerTrack({
           explorationId: 'expl-1',
           dwellerName: '',
           targetLocationId: locations[0].id,
-          lastKnown: null,
-        },
+        }),
       ]
       const wrapper = mount(WorldMap, {
-        props: { locations, vaultMarkers: [], explorerTracks: tracks },
+        props: { locations, vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
@@ -762,17 +1633,16 @@ describe('WorldMap', () => {
       expect(marker.props('status')).toBe('Dispatching')
     })
 
-    it('renders a non-interactive last-known marker for a free-roam explorer', () => {
+    it('renders an interactive last-known marker for a free-roam explorer', () => {
       const tracks: ExplorerTrack[] = [
-        {
+        makeExplorerTrack({
           explorationId: 'expl-2',
           dwellerName: 'Bob',
-          targetLocationId: null,
           lastKnown: { coord_x: 42, coord_y: 43 },
-        },
+        }),
       ]
       const wrapper = mount(WorldMap, {
-        props: { locations: [], vaultMarkers: [], explorerTracks: tracks },
+        props: { locations: [], vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
@@ -782,21 +1652,40 @@ describe('WorldMap', () => {
       expect(explorer).toBeTruthy()
       expect(explorer!.props('x')).toBe(42)
       expect(explorer!.props('y')).toBe(43)
-      expect(explorer!.props('interactive')).toBe(false)
+      expect(explorer!.props('interactive')).toBe(true)
       expect(explorer!.props('status')).toBe('Last known — Bob')
+    })
+
+    it('emits dweller-click with the screen anchor when a free-roam explorer is clicked', async () => {
+      const track = makeExplorerTrack({
+        explorationId: 'expl-2',
+        dwellerName: 'Bob',
+        lastKnown: { coord_x: 42, coord_y: 43 },
+      })
+      const wrapper = mount(WorldMap, {
+        props: { locations: [], vaultMarkers: [], explorerTracks: [track], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const explorer = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('type') === 'explorer')
+      await explorer!.trigger('click', { clientX: 120, clientY: 80 })
+
+      const emitted = wrapper.emitted('dweller-click')
+      expect(emitted).toHaveLength(1)
+      expect(emitted![0][0]).toEqual({ track, x: 120, y: 80 })
     })
 
     it('renders no explorer marker when a free-roam run has no trail yet', () => {
       const tracks: ExplorerTrack[] = [
-        {
+        makeExplorerTrack({
           explorationId: 'expl-2',
           dwellerName: 'Bob',
-          targetLocationId: null,
-          lastKnown: null,
-        },
+        }),
       ]
       const wrapper = mount(WorldMap, {
-        props: { locations: [], vaultMarkers: [], explorerTracks: tracks },
+        props: { locations: [], vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
 
@@ -806,12 +1695,154 @@ describe('WorldMap', () => {
       expect(explorers).toHaveLength(0)
     })
 
-    it('does not mark locations when no explorer tracks exist', () => {
-      const locations = createLocations(1)
+    it('passes the dweller thumbnail as artSrc on a free-roam explorer marker', () => {
+      const tracks: ExplorerTrack[] = [
+        makeExplorerTrack({
+          explorationId: 'expl-2',
+          dwellerName: 'Bob',
+          lastKnown: { coord_x: 42, coord_y: 43 },
+          dwellerThumbnailUrl: 'https://cdn.example/bob.png',
+        }),
+      ]
       const wrapper = mount(WorldMap, {
-        props: { locations, vaultMarkers: [] },
+        props: { locations: [], vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
+
+      const explorer = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('type') === 'explorer')
+      expect(explorer!.props('artSrc')).toBe('https://cdn.example/bob.png')
+    })
+
+    it('forwards backend-static thumbnails as artSrc for the portrait to normalize', () => {
+      const tracks: ExplorerTrack[] = [
+        makeExplorerTrack({
+          explorationId: 'expl-2',
+          dwellerName: 'Bob',
+          lastKnown: { coord_x: 42, coord_y: 43 },
+          dwellerThumbnailUrl: '/static/portraits/bob.png',
+        }),
+      ]
+      const wrapper = mount(WorldMap, {
+        props: { locations: [], vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const explorer = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('type') === 'explorer')
+      expect(explorer!.props('artSrc')).toBe('/static/portraits/bob.png')
+    })
+
+    it('falls back to the account icon when a free-roam explorer has no thumbnail', () => {
+      const tracks: ExplorerTrack[] = [
+        makeExplorerTrack({
+          explorationId: 'expl-2',
+          dwellerName: 'Bob',
+          lastKnown: { coord_x: 42, coord_y: 43 },
+          dwellerThumbnailUrl: null,
+        }),
+      ]
+      const wrapper = mount(WorldMap, {
+        props: { locations: [], vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const explorer = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('type') === 'explorer')
+      expect(explorer!.props('artSrc')).toBeNull()
+      expect(explorer!.props('icon')).toBe('mdi:account')
+    })
+
+    it('rotates the heading chevron along the free-roam trail', () => {
+      const tracks: ExplorerTrack[] = [
+        makeExplorerTrack({
+          explorationId: 'expl-2',
+          dwellerName: 'Bob',
+          lastKnown: { coord_x: 42, coord_y: 43 },
+        }),
+      ]
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [],
+          vaultMarkers: [],
+          explorerTracks: tracks,
+          selectedMarkerId: null,
+          discoveryRoutes: [
+            {
+              exploration_id: 'expl-2',
+              is_active: true,
+              points: [
+                { coord_x: 0, coord_y: 10, timestamp: '2026-01-01T00:00:00Z' },
+                { coord_x: 10, coord_y: 10, timestamp: '2026-01-01T01:00:00Z' },
+              ],
+            },
+          ],
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const chevron = wrapper.find('.explorer-heading')
+      expect(chevron.exists()).toBe(true)
+      // Due east along the trail.
+      expect(chevron.attributes('transform')).toContain('rotate(90)')
+    })
+
+    it('points the heading chevron home for a returning run without a usable trail', () => {
+      const tracks: ExplorerTrack[] = [
+        makeExplorerTrack({
+          explorationId: 'expl-2',
+          dwellerName: 'Bob',
+          status: 'returning',
+          lastKnown: { coord_x: 10, coord_y: 0 },
+        }),
+      ]
+      const home = { id: 'home', type: 'home_vault', coord_x: 0, coord_y: 0 }
+      const expected = bearingDegrees({ x: 10, y: 0 }, { x: 0, y: 0 })
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [home as WastelandLocationWithDwellers],
+          vaultMarkers: [],
+          explorerTracks: tracks,
+          selectedMarkerId: null,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const chevron = wrapper.find('.explorer-heading')
+      expect(chevron.exists()).toBe(true)
+      expect(chevron.attributes('transform')).toContain(`rotate(${expected})`)
+    })
+
+    it('renders no heading chevron when a heading cannot be derived', () => {
+      const tracks: ExplorerTrack[] = [
+        makeExplorerTrack({
+          explorationId: 'expl-2',
+          dwellerName: 'Bob',
+        }),
+        makeExplorerTrack({
+          explorationId: 'expl-3',
+          dwellerName: 'Ann',
+          targetLocationId: 'loc-1',
+        }),
+      ]
+      const wrapper = mount(WorldMap, {
+        props: { locations: [], vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.find('.explorer-heading').exists()).toBe(false)
+    })
+
+    it('does not mark locations when no explorer tracks exist', async () => {
+      const locations = createLocations(1)
+      const wrapper = mount(WorldMap, {
+        props: { locations, vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+      await zoomPastDeclutterThreshold(wrapper)
 
       const marker = wrapper.findAllComponents(MapMarkerStub)[0]
       expect(marker.props('exploring')).toBe(false)
@@ -820,7 +1851,7 @@ describe('WorldMap', () => {
   })
 
   describe('Cleared location markers', () => {
-    it('passes cleared=true to a location whose clear_state is cleared', () => {
+    it('passes cleared=true to a location whose clear_state is cleared', async () => {
       const locations = createLocations(1)
       locations[0].clear_state = {
         clearable: true,
@@ -831,20 +1862,67 @@ describe('WorldMap', () => {
         loot_table: null,
       }
       const wrapper = mount(WorldMap, {
-        props: { locations, vaultMarkers: [] },
+        props: { locations, vaultMarkers: [], selectedMarkerId: null },
         global: { stubs: defaultStubs },
       })
+      await zoomPastDeclutterThreshold(wrapper)
 
       expect(wrapper.findAllComponents(MapMarkerStub)[0].props('cleared')).toBe(true)
     })
 
-    it('passes cleared=false when clear_state is absent', () => {
+    it('passes cleared=false when clear_state is absent', async () => {
       const wrapper = mount(WorldMap, {
-        props: { locations: createLocations(1), vaultMarkers: [] },
+        props: { locations: createLocations(1), vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+      await zoomPastDeclutterThreshold(wrapper)
+
+      expect(wrapper.findAllComponents(MapMarkerStub)[0].props('cleared')).toBe(false)
+    })
+  })
+
+  describe('Player vaults on the shared atlas', () => {
+    it('shows the user own vaults but not other players identities', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [],
+          vaultMarkers: [],
+          playerVaults: [
+            { vault_id: 'v-mine', number: 121, coord_x: 40, coord_y: 8, is_mine: true },
+            { vault_id: 'v-other', number: 200, coord_x: 90, coord_y: 60, is_mine: false },
+          ],
+          selectedMarkerId: null,
+        },
         global: { stubs: defaultStubs },
       })
 
-      expect(wrapper.findAllComponents(MapMarkerStub)[0].props('cleared')).toBe(false)
+      const markers = wrapper.findAllComponents(MapMarkerStub)
+      const mine = markers.find((m) => m.props('name') === 'Vault 121')
+      expect(mine!.props('type')).toBe('home_vault')
+      expect(mine!.props('label')).toBe('Your Vault')
+      expect(markers.some((m) => m.props('name') === 'Vault 200')).toBe(false)
+    })
+
+    it('emits vault-info with the vault id when an own-vault marker is clicked', async () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [],
+          vaultMarkers: [],
+          playerVaults: [
+            { vault_id: 'v-mine', number: 121, coord_x: 40, coord_y: 8, is_mine: true },
+          ],
+          selectedMarkerId: null,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const mine = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('name') === 'Vault 121')
+      await mine!.trigger('click')
+
+      expect(wrapper.emitted('vault-info')).toEqual([['v-mine']])
+      expect(wrapper.emitted('marker-click')).toBeUndefined()
     })
   })
 })

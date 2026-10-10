@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useDwellerStore } from '../stores/dweller'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '../models/dweller'
+import { getDwellerDisplayName } from '../models/dweller'
 import DwellerPortrait from './DwellerPortrait.vue'
 
 interface Props {
@@ -53,11 +54,11 @@ const handleDragEnd = () => {
       draggable="true"
       @dragstart="handleDragStart($event, dweller)"
       @dragend="handleDragEnd"
-      :title="`${dweller.first_name} ${dweller.last_name} (Lv${dweller.level})`"
+      :title="`${getDwellerDisplayName(dweller)} (Lv${dweller.level})`"
     >
       <DwellerPortrait
         :thumbnail-url="dweller.thumbnail_url"
-        :alt="`${dweller.first_name} ${dweller.last_name}`"
+        :alt="getDwellerDisplayName(dweller)"
         image-class="avatar-image"
         fallback-class="h-10 w-10 icon-primary"
       />

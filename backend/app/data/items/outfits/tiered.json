@@ -17,8 +17,8 @@
     "stat": "perception",
     "craft": {
       "types": [
-        "cloth",
-        "leather"
+        "leather",
+        "steel"
       ],
       "unlock": null
     }
@@ -42,7 +42,7 @@
     "craft": {
       "types": [
         "cloth",
-        "leather"
+        "valuables"
       ],
       "unlock": null
     }
@@ -66,7 +66,7 @@
     "craft": {
       "types": [
         "cloth",
-        "leather"
+        "valuables"
       ],
       "unlock": null
     }

@@ -11,7 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.enums import ItemTypeEnum, JunkTypeEnum, RarityEnum
 from app.core.game_config import game_config
 from app.crud.base import CRUDBase
-from app.models import Outfit, Storage, Vault, Weapon
+from app.models import Outfit, Pet, Storage, Vault, Weapon
 from app.models.dweller import Dweller
 from app.models.junk import Junk
 from app.utils.exceptions import (
@@ -21,7 +21,7 @@ from app.utils.exceptions import (
     ResourceNotFoundException,
 )
 
-ItemT = TypeVar("ItemT", Weapon, Outfit)
+ItemT = TypeVar("ItemT", Weapon, Outfit, Pet)
 
 
 async def get_items_by_vault(
@@ -64,7 +64,7 @@ async def get_items_by_vault(
     return list(result.scalars().all())
 
 
-async def get_item_vault_id(db_session: AsyncSession, item: Weapon | Outfit | Junk) -> UUID4 | None:
+async def get_item_vault_id(db_session: AsyncSession, item: Weapon | Outfit | Junk | Pet) -> UUID4 | None:
     """Resolve the vault owning an item via its storage or equipping dweller, without lazy loads."""
     if item.storage_id:
         result = await db_session.execute(select(Storage.vault_id).where(Storage.id == item.storage_id))
@@ -75,7 +75,7 @@ async def get_item_vault_id(db_session: AsyncSession, item: Weapon | Outfit | Ju
     return None
 
 
-class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSchemaType: SQLModel](
+class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, UpdateSchemaType: SQLModel](
     CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]
 ):
     async def count_in_storage_by_name(self, db_session: AsyncSession, storage_id: UUID4, name: str) -> int:
@@ -157,7 +157,7 @@ class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSch
     ) -> ModelType:
         from sqlalchemy.orm import selectinload
 
-        # Determine which relationship to eager load (weapon or outfit)
+        # Determine which relationship to eager load (weapon, outfit or pet)
         item_attr = self.model.__name__.lower()
 
         dweller_result = await db_session.execute(
@@ -185,19 +185,22 @@ class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSch
                 # Mid-expedition upgrade: the displaced item stays with the
                 # expedition (held state) instead of returning to storage.
                 current_item.storage_id = None
-                current_item.exploration_id = held_exploration_id
+                if hasattr(self.model, "exploration_id"):
+                    current_item.exploration_id = held_exploration_id
             else:
                 current_item.storage_id = dweller.vault.storage.id
-                current_item.exploration_id = None
+                if hasattr(self.model, "exploration_id"):
+                    current_item.exploration_id = None
             db_session.add(current_item)
 
         # Equip the new item via FK updates only. Touching the dweller's
-        # weapon/outfit relationship here would orphan-cascade-delete the old
-        # item (Dweller.weapon/outfit use cascade_delete=True) instead of
+        # weapon/outfit/pet relationship here would orphan-cascade-delete the old
+        # item (Dweller.weapon/outfit/pet use cascade_delete=True) instead of
         # returning it to storage.
         item.dweller_id = dweller.id
         item.storage_id = None
-        item.exploration_id = None
+        if hasattr(self.model, "exploration_id"):
+            item.exploration_id = None
 
         db_session.add(item)
         if commit:
@@ -232,16 +235,22 @@ class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSch
     async def _fetch_unequip_data(
         db_session: AsyncSession, item_id: UUID4
     ) -> tuple[Dweller, UUID4, str] | tuple[None, None, None]:
-        weapon_alias, outfit_alias = aliased(Weapon), aliased(Outfit)
+        weapon_alias, outfit_alias, pet_alias = aliased(Weapon), aliased(Outfit), aliased(Pet)
 
         query = (
-            select(Dweller, Storage.id.label("storage_id"), weapon_alias.id.is_not(None).label("is_weapon"))
+            select(
+                Dweller,
+                Storage.id.label("storage_id"),
+                weapon_alias.id.is_not(None).label("is_weapon"),
+                pet_alias.id.is_not(None).label("is_pet"),
+            )
             .select_from(Dweller)
             .join(Vault, Dweller.vault_id == Vault.id)
             .join(Storage, Vault.id == Storage.vault_id)
             .outerjoin(weapon_alias, (Dweller.id == weapon_alias.dweller_id) & (weapon_alias.id == item_id))
             .outerjoin(outfit_alias, (Dweller.id == outfit_alias.dweller_id) & (outfit_alias.id == item_id))
-            .where((weapon_alias.id == item_id) | (outfit_alias.id == item_id))
+            .outerjoin(pet_alias, (Dweller.id == pet_alias.dweller_id) & (pet_alias.id == item_id))
+            .where((weapon_alias.id == item_id) | (outfit_alias.id == item_id) | (pet_alias.id == item_id))
         )
 
         result = await db_session.execute(query)
@@ -250,18 +259,32 @@ class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSch
         if not row:
             return None, None, None
 
-        dweller, storage_id, is_weapon = row
-        item_type = ItemTypeEnum.WEAPON if is_weapon else ItemTypeEnum.OUTFIT
+        dweller, storage_id, is_weapon, is_pet = row
+        if is_weapon:
+            item_type = ItemTypeEnum.WEAPON
+        elif is_pet:
+            item_type = ItemTypeEnum.PET
+        else:
+            item_type = ItemTypeEnum.OUTFIT
 
         return dweller, storage_id, item_type
 
     @staticmethod
-    def _get_item_model(item_type: str) -> type[Weapon | Outfit]:
-        return Weapon if item_type == ItemTypeEnum.WEAPON else Outfit
+    def _get_item_model(item_type: str) -> type[Weapon | Outfit | Pet]:
+        match item_type:
+            case ItemTypeEnum.WEAPON:
+                return Weapon
+            case ItemTypeEnum.OUTFIT:
+                return Outfit
+            case ItemTypeEnum.PET:
+                return Pet
+            case _:
+                msg = f"Unsupported item type for equip/unequip: {item_type}"
+                raise ValueError(msg)
 
     @staticmethod
     async def _update_item(
-        db_session: AsyncSession, item_model: type[Weapon | Outfit], item_id: UUID4, storage_id: UUID4
+        db_session: AsyncSession, item_model: type[Weapon | Outfit | Pet], item_id: UUID4, storage_id: UUID4
     ) -> None:
         await db_session.execute(
             update(item_model).where(item_model.id == item_id).values(dweller_id=None, storage_id=storage_id)

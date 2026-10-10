@@ -78,5 +78,15 @@
     "target_amount": 1,
     "sequence": 7,
     "description": "Costs 1000 caps — keep exploring and selling loot."
+  },
+  {
+    "challenge": "Reverse-engineer a schematic",
+    "reward": "300 caps",
+    "category": "starter",
+    "objective_type": "scrap",
+    "target_entity": {"item_type": "weapon", "rarity": "rare"},
+    "target_amount": 1,
+    "sequence": 8,
+    "description": "Find a rare weapon in the wasteland and scrap it to learn its schematic."
   }
 ]

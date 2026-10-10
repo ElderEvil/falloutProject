@@ -389,4 +389,225 @@ describe('MarkerListPanel', () => {
       expect(wrapper.text()).not.toContain('Expedition Sites')
     })
   })
+
+  describe('Keyboard navigation', () => {
+    function mountAttached(locations: WastelandLocationWithDwellers[]) {
+      return mount(MarkerListPanel, {
+        props: { locations, vaultMarkers: [], open: true },
+        global: { stubs: { Icon: IconStub } },
+        attachTo: document.body,
+      })
+    }
+
+    function keydown(el: Element, key: string) {
+      el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+    }
+
+    it('moves focus with ArrowDown and ArrowUp across rows', async () => {
+      const wrapper = mountAttached([
+        createLocation('discovery', 'Alpha'),
+        createLocation('discovery', 'Beta'),
+      ])
+
+      const rows = wrapper.findAll('button.marker-row')
+      expect(rows).toHaveLength(2)
+      ;(rows[0].element as HTMLElement).focus()
+      expect(document.activeElement).toBe(rows[0].element)
+
+      keydown(wrapper.find('.panel-body').element, 'ArrowDown')
+      await wrapper.vm.$nextTick()
+      expect(document.activeElement).toBe(rows[1].element)
+
+      keydown(wrapper.find('.panel-body').element, 'ArrowUp')
+      await wrapper.vm.$nextTick()
+      expect(document.activeElement).toBe(rows[0].element)
+      wrapper.unmount()
+    })
+
+    it('wraps focus at the ends and jumps with Home and End', async () => {
+      const wrapper = mountAttached([
+        createLocation('discovery', 'Alpha'),
+        createLocation('discovery', 'Beta'),
+      ])
+
+      const body = wrapper.find('.panel-body').element
+      const rows = wrapper.findAll('button.marker-row')
+      ;(rows[1].element as HTMLElement).focus()
+
+      keydown(body, 'ArrowDown')
+      await wrapper.vm.$nextTick()
+      expect(document.activeElement).toBe(rows[0].element)
+
+      keydown(body, 'End')
+      await wrapper.vm.$nextTick()
+      expect(document.activeElement).toBe(rows[1].element)
+
+      keydown(body, 'Home')
+      await wrapper.vm.$nextTick()
+      expect(document.activeElement).toBe(rows[0].element)
+      wrapper.unmount()
+    })
+
+    it('skips rows in collapsed groups', async () => {
+      const wrapper = mountAttached([
+        createLocation('discovery', 'Alpha'),
+        createLocation('visited', 'Beta'),
+      ])
+
+      const headers = wrapper.findAll('button.group-header')
+      expect(headers.length).toBeGreaterThanOrEqual(2)
+      await headers[0].trigger('click')
+
+      const rows = wrapper.findAll('button.marker-row')
+      ;(rows[1].element as HTMLElement).focus()
+      keydown(wrapper.find('.panel-body').element, 'ArrowDown')
+      await wrapper.vm.$nextTick()
+      expect(document.activeElement).toBe(rows[1].element)
+      wrapper.unmount()
+    })
+
+    it('activates the focused row with Enter', async () => {
+      const loc = createLocation('origin', 'Megaton')
+      const wrapper = mountAttached([loc])
+
+      const row = wrapper.findAll('button.marker-row')[0]
+      ;(row.element as HTMLElement).focus()
+      keydown(row.element, 'Enter')
+      await wrapper.vm.$nextTick()
+
+      const emitted = wrapper.emitted('marker-select')
+      expect(emitted).toBeTruthy()
+      expect(emitted![0][0]).toEqual({ kind: 'location', data: loc })
+      wrapper.unmount()
+    })
+  })
+
+  describe('Site-type filter', () => {
+    const PLACE_GROUPS = [
+      {
+        key: 'gas_station',
+        label: 'Gas Station',
+        icon: 'mdi:gas-station',
+        risk: 'low',
+        description: 'A roadside fuel stop.',
+        clearable: false,
+      },
+      {
+        key: 'military',
+        label: 'Military',
+        icon: 'mdi:shield-cross',
+        risk: 'high',
+        description: 'A fortified base.',
+        clearable: false,
+      },
+    ]
+
+    function groupedLocation(type: string, name: string, groupKey: string) {
+      return { ...createLocation(type, name), group_key: groupKey }
+    }
+
+    function mountFiltered(locations: WastelandLocationWithDwellers[], filter: string | null) {
+      return mount(MarkerListPanel, {
+        props: {
+          locations,
+          vaultMarkers: [],
+          placeGroups: PLACE_GROUPS,
+          siteTypeFilter: filter,
+          open: true,
+        },
+        global: { stubs: { Icon: IconStub } },
+      })
+    }
+
+    it('lists only locations of the selected site type', () => {
+      const wrapper = mountFiltered(
+        [
+          groupedLocation('visited', 'Gas Stop', 'gas_station'),
+          groupedLocation('visited', 'Army Base', 'military'),
+        ],
+        'gas_station'
+      )
+
+      const rows = wrapper.findAll('.marker-row')
+      expect(rows).toHaveLength(1)
+      expect(rows[0].text()).toContain('Gas Stop')
+      expect(wrapper.text()).not.toContain('Army Base')
+    })
+
+    it('recomputes the total count from the filtered set', () => {
+      const wrapper = mountFiltered(
+        [
+          groupedLocation('visited', 'Gas Stop', 'gas_station'),
+          groupedLocation('visited', 'Army Base', 'military'),
+        ],
+        'gas_station'
+      )
+
+      expect(wrapper.find('.panel-count').text()).toBe('1')
+    })
+
+    it('drops groups left without items under the filter', () => {
+      const wrapper = mountFiltered(
+        [
+          groupedLocation('discovery', 'Unknown Ruins', 'gas_station'),
+          groupedLocation('visited', 'Gas Stop', 'gas_station'),
+          groupedLocation('visited', 'Army Base', 'military'),
+        ],
+        'military'
+      )
+
+      const headers = wrapper.findAll('.group-header')
+      expect(headers).toHaveLength(1)
+      expect(headers[0].text()).toContain('Visited')
+      expect(wrapper.text()).not.toContain('Unknown Ruins')
+      expect(wrapper.text()).not.toContain('Gas Stop')
+    })
+
+    it('shows every location when the filter is null', () => {
+      const wrapper = mountFiltered(
+        [
+          groupedLocation('visited', 'Gas Stop', 'gas_station'),
+          groupedLocation('visited', 'Army Base', 'military'),
+        ],
+        null
+      )
+
+      expect(wrapper.findAll('.marker-row')).toHaveLength(2)
+      expect(wrapper.find('.panel-count').text()).toBe('2')
+    })
+
+    it('keeps the home vault, which is not a site type', () => {
+      const wrapper = mountFiltered(
+        [
+          groupedLocation('visited', 'Gas Stop', 'gas_station'),
+          createLocation('home_vault', 'Vault 42'),
+        ],
+        'gas_station'
+      )
+
+      expect(wrapper.text()).toContain('Gas Stop')
+      expect(wrapper.text()).toContain('Vault 42')
+    })
+
+    it('still counts vaults and expedition sites under a filter', () => {
+      const wrapper = mount(MarkerListPanel, {
+        props: {
+          locations: [
+            groupedLocation('visited', 'Gas Stop', 'gas_station'),
+            groupedLocation('visited', 'Army Base', 'military'),
+          ],
+          vaultMarkers: [createVault('Vault 88')],
+          expeditionSites: [createSite()],
+          placeGroups: PLACE_GROUPS,
+          siteTypeFilter: 'gas_station',
+          open: true,
+        },
+        global: { stubs: { Icon: IconStub } },
+      })
+
+      expect(wrapper.find('.panel-count').text()).toBe('3')
+      expect(wrapper.text()).toContain('Vault 88')
+      expect(wrapper.text()).toContain('Red Rocket Gas Station')
+    })
+  })
 })

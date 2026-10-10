@@ -28,7 +28,7 @@
     "risk": "low",
     "description": "A roadside fuel stop, picked over a hundred times but never quite empty.",
     "clearable": true,
-    "reclear_hours": 48,
+    "reclear_hours": 168,
     "loot_table": "low",
     "base_difficulty": 2
   },
@@ -39,7 +39,7 @@
     "risk": "low",
     "description": "A pre-war grocery with aisles of salvage and a stockroom nobody has fully cleared.",
     "clearable": true,
-    "reclear_hours": 48,
+    "reclear_hours": 168,
     "loot_table": "low",
     "base_difficulty": 2
   },
@@ -50,7 +50,7 @@
     "risk": "medium",
     "description": "Industrial machinery and raw scrap, guarded by whatever moved in after the bombs.",
     "clearable": true,
-    "reclear_hours": 72,
+    "reclear_hours": 168,
     "loot_table": "medium",
     "base_difficulty": 3
   },
@@ -61,7 +61,7 @@
     "risk": "medium",
     "description": "Collapsed transit tunnels: a shortcut for the bold and a den for everything else.",
     "clearable": true,
-    "reclear_hours": 72,
+    "reclear_hours": 168,
     "loot_table": "medium",
     "base_difficulty": 3
   },
@@ -72,7 +72,7 @@
     "risk": "high",
     "description": "Armored remnants of the old world, still holding ordnance worth dying for.",
     "clearable": true,
-    "reclear_hours": 96,
+    "reclear_hours": 168,
     "loot_table": "high",
     "base_difficulty": 4
   },
@@ -83,7 +83,7 @@
     "risk": "high",
     "description": "A steel-and-lasers chapter holding, jealous of its technology and its borders.",
     "clearable": true,
-    "reclear_hours": 96,
+    "reclear_hours": 168,
     "loot_table": "high",
     "base_difficulty": 4
   },
@@ -94,7 +94,7 @@
     "risk": "high",
     "description": "Labs and think tanks where the pre-war world experimented on things it could not control.",
     "clearable": true,
-    "reclear_hours": 96,
+    "reclear_hours": 168,
     "loot_table": "high",
     "base_difficulty": 4
   },
@@ -105,7 +105,7 @@
     "risk": "medium",
     "description": "Reactors and substations humming with a current that never learned to stop.",
     "clearable": true,
-    "reclear_hours": 72,
+    "reclear_hours": 168,
     "loot_table": "medium",
     "base_difficulty": 3
   },
@@ -116,7 +116,7 @@
     "risk": "low",
     "description": "Theatres, parks, and drive-ins — the old world's amusements, now quieter.",
     "clearable": true,
-    "reclear_hours": 48,
+    "reclear_hours": 168,
     "loot_table": "low",
     "base_difficulty": 2
   },
@@ -138,7 +138,7 @@
     "risk": "medium",
     "description": "Vault-Tec property. The door is the only honest part of it.",
     "clearable": true,
-    "reclear_hours": 72,
+    "reclear_hours": 168,
     "loot_table": "medium",
     "base_difficulty": 3
   },
@@ -149,7 +149,7 @@
     "risk": "medium",
     "description": "A settlement that did not make it — bones of a town, loot for whoever braves them.",
     "clearable": true,
-    "reclear_hours": 72,
+    "reclear_hours": 168,
     "loot_table": "medium",
     "base_difficulty": 3
   },
@@ -171,8 +171,19 @@
     "risk": "high",
     "description": "A chain of rusted fences around an abandoned industrial complex. Scavengers insist the air bends after radstorms and that shiny things appear where nobody left them. Engineers insist the scavengers drink too much.",
     "clearable": true,
-    "reclear_hours": 96,
+    "reclear_hours": 168,
     "loot_table": "high",
     "base_difficulty": 4
+  },
+  {
+    "key": "wasteland_site",
+    "label": "Wasteland Site",
+    "icon": "mdi:map-marker-alert",
+    "risk": "low",
+    "description": "An unmapped ruin of the old world. Nobody wrote down what it was, and nobody who went in came back with a straight answer.",
+    "clearable": true,
+    "reclear_hours": 168,
+    "loot_table": "low",
+    "base_difficulty": 2
   }
 ]

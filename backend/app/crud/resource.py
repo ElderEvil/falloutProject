@@ -45,7 +45,9 @@ class CRUDResource:
                 # Production reads the outfit for its SPECIAL bonus, so it must
                 # be loaded here. selectinload batches it into one extra query
                 # for the whole vault rather than one per dweller per tick.
-                .options(selectinload(Dweller.outfit))
+                # The pet is loaded too: effective_stat also consumes the
+                # equipped pet's SPECIAL bonus (B7 eager-load fan-out).
+                .options(selectinload(Dweller.outfit), selectinload(Dweller.pet))
             )
         ).all()
 

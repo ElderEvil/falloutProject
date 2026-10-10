@@ -21,6 +21,7 @@ from app.services.progression.objectives.evaluators import (
     ExpeditionEvaluator,
     LevelUpEvaluator,
     ReachEvaluator,
+    ScrapEvaluator,
     TrainEvaluator,
 )
 from app.tests.factory.users import create_fake_user
@@ -642,6 +643,178 @@ async def test_level_up_evaluator_dweller_leveled_up(
 
     await async_session.refresh(link)
     assert link.progress == 1
+
+
+@pytest.mark.asyncio
+async def test_scrap_evaluator_matches_rare_weapon(
+    async_session: AsyncSession,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """Test ScrapEvaluator completes a rare-weapon objective on a matching scrap."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    objective = Objective(
+        challenge="Scrap a Rare Weapon",
+        reward="150 caps",
+        objective_type="scrap",
+        target_entity={"item_type": "weapon", "rarity": "rare"},
+        target_amount=1,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
+    )
+    async_session.add(objective)
+    await async_session.commit()
+    await async_session.refresh(objective)
+
+    link = VaultObjectiveProgressLink(
+        vault_id=vault.id, objective_id=objective.id, progress=0, total=1, is_completed=False
+    )
+    async_session.add(link)
+    await async_session.commit()
+
+    ScrapEvaluator(fresh_event_bus)
+
+    await fresh_event_bus.emit(
+        GameEvent.ITEM_SCRAPPED,
+        vault.id,
+        {"item_name": "Baseball bat", "item_type": "weapon", "rarity": "rare"},
+    )
+
+    await async_session.refresh(link)
+    assert link.progress == 1
+    assert link.is_completed is True
+
+
+@pytest.mark.asyncio
+async def test_scrap_evaluator_ignores_rarity_mismatch(
+    async_session: AsyncSession,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """Test ScrapEvaluator ignores a common scrap for a rare objective."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    objective = Objective(
+        challenge="Scrap a Rare Weapon",
+        reward="150 caps",
+        objective_type="scrap",
+        target_entity={"item_type": "weapon", "rarity": "rare"},
+        target_amount=1,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
+    )
+    async_session.add(objective)
+    await async_session.commit()
+    await async_session.refresh(objective)
+
+    link = VaultObjectiveProgressLink(
+        vault_id=vault.id, objective_id=objective.id, progress=0, total=1, is_completed=False
+    )
+    async_session.add(link)
+    await async_session.commit()
+
+    ScrapEvaluator(fresh_event_bus)
+
+    await fresh_event_bus.emit(
+        GameEvent.ITEM_SCRAPPED,
+        vault.id,
+        {"item_name": "Rusty pipe", "item_type": "weapon", "rarity": "common"},
+    )
+
+    await async_session.refresh(link)
+    assert link.progress == 0
+    assert link.is_completed is False
+
+
+@pytest.mark.asyncio
+async def test_scrap_evaluator_ignores_item_type_mismatch(
+    async_session: AsyncSession,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """Test ScrapEvaluator ignores an outfit scrap for a weapon objective."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    objective = Objective(
+        challenge="Scrap a Rare Weapon",
+        reward="150 caps",
+        objective_type="scrap",
+        target_entity={"item_type": "weapon", "rarity": "rare"},
+        target_amount=1,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
+    )
+    async_session.add(objective)
+    await async_session.commit()
+    await async_session.refresh(objective)
+
+    link = VaultObjectiveProgressLink(
+        vault_id=vault.id, objective_id=objective.id, progress=0, total=1, is_completed=False
+    )
+    async_session.add(link)
+    await async_session.commit()
+
+    ScrapEvaluator(fresh_event_bus)
+
+    await fresh_event_bus.emit(
+        GameEvent.ITEM_SCRAPPED,
+        vault.id,
+        {"item_name": "Worn vault suit", "item_type": "outfit", "rarity": "rare"},
+    )
+
+    await async_session.refresh(link)
+    assert link.progress == 0
+    assert link.is_completed is False
+
+
+@pytest.mark.asyncio
+async def test_scrap_evaluator_rarity_only_matches_any_item_type(
+    async_session: AsyncSession,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """Test a rarity-only scrap objective matches any item type."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    objective = Objective(
+        challenge="Reverse-engineer a Legendary",
+        reward="5000 caps",
+        objective_type="scrap",
+        target_entity={"rarity": "legendary"},
+        target_amount=1,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
+    )
+    async_session.add(objective)
+    await async_session.commit()
+    await async_session.refresh(objective)
+
+    link = VaultObjectiveProgressLink(
+        vault_id=vault.id, objective_id=objective.id, progress=0, total=1, is_completed=False
+    )
+    async_session.add(link)
+    await async_session.commit()
+
+    ScrapEvaluator(fresh_event_bus)
+
+    await fresh_event_bus.emit(
+        GameEvent.ITEM_SCRAPPED,
+        vault.id,
+        {"item_name": "Legendary power armor", "item_type": "outfit", "rarity": "legendary"},
+    )
+
+    await async_session.refresh(link)
+    assert link.progress == 1
+    assert link.is_completed is True
 
 
 def test_facade_reexports_canonical_evaluator_surface() -> None:

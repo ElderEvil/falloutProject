@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.194.0 (2026-10-10)
+
+### Features
+
+* **simulator:** mirror the incident engine and seed from real vaults ([#827](https://github.com/ElderEvil/falloutProject/issues/827)) ea23c45
+
 ## 2.193.0 (2026-10-10)
 
 ### Features

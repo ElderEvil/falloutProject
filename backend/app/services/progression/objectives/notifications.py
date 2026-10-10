@@ -72,7 +72,11 @@ async def handle_objective_completed(_event_type: str, vault_id: UUID4, data: di
                 vault_id=vault_id,
                 objective_challenge=challenge,
                 reward=objective.reward,
-                meta_data={"objective_id": str(objective_id), "reward": objective.reward},
+                meta_data={
+                    "objective_id": str(objective_id),
+                    "reward": objective.reward,
+                    "ready_to_claim": data.get("ready_to_claim", False),
+                },
             )
 
             logger.info(f"Objective completion notification sent for '{challenge}' to user {user_id}")

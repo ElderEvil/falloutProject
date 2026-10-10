@@ -1,7 +1,7 @@
 """Objective evaluator base: the shared event-handling engine.
 
 Each evaluator listens for specific game events, finds matching active objectives
-for the vault, updates progress, and auto-completes when the target is reached.
+for the vault, updates progress, and marks rewards ready when the target is reached.
 
 Example flow:
     Player collects 100 caps
@@ -9,7 +9,7 @@ Example flow:
     -> CollectEvaluator receives event
     -> Finds "Collect 100 Caps" objective for vault
     -> Updates progress: 50 -> 100
-    -> Auto-completes and grants reward
+    -> Makes the reward ready to claim
 """
 
 import abc
@@ -117,36 +117,22 @@ class ObjectiveEvaluator(abc.ABC):
         )
 
         if link.progress >= objective.target_amount:
-            await self._auto_complete(db_session, vault_id, objective, link)
+            await self._mark_ready(db_session, vault_id, objective, link)
         else:
             await db_session.commit()
 
-    async def _auto_complete(
+    async def _mark_ready(
         self,
         db_session: AsyncSession,
         vault_id: UUID4,
         objective: Objective,
         link: VaultObjectiveProgressLink,
     ) -> None:
-        """Auto-complete objective and grant reward in single transaction."""
-        from app.services.reward_service import reward_service
-        from app.utils.reward_delivery import defer_reward_delivery
-
+        """Persist earned progress; the owner must explicitly claim the reward."""
         link.progress = objective.target_amount
-
-        try:
-            async with defer_reward_delivery(db_session):
-                await reward_service.process_objective_reward(db_session, vault_id, link)
-                link.is_completed = True
-                await db_session.commit()
-        except Exception:
-            await db_session.rollback()
-            logger.exception(f"Failed to grant reward for objective '{objective.challenge}' in vault {vault_id}")
-            return
-
+        await db_session.commit()
         await self._event_bus.emit(
             GameEvent.OBJECTIVE_COMPLETED,
             vault_id,
-            {"objective_id": str(objective.id), "challenge": objective.challenge},
+            {"objective_id": str(objective.id), "challenge": objective.challenge, "ready_to_claim": True},
         )
-        logger.info(f"Objective '{objective.challenge}' auto-completed and reward granted for vault {vault_id}")

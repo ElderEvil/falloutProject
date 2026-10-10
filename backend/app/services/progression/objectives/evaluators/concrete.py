@@ -237,7 +237,7 @@ class ReachEvaluator(ObjectiveEvaluator):
         )
 
         if link.progress >= objective.target_amount:
-            await self._auto_complete(db_session, vault_id, objective, link)
+            await self._mark_ready(db_session, vault_id, objective, link)
         else:
             await db_session.commit()
 

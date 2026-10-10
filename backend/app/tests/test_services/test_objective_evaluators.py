@@ -287,7 +287,7 @@ async def test_reach_evaluator_population_reached(
 
     # Refresh and check completion
     await async_session.refresh(link)
-    assert link.is_completed is True
+    assert link.is_completed is False
 
 
 @pytest.mark.asyncio
@@ -339,7 +339,7 @@ async def test_reach_evaluator_reacts_to_dweller_added(
     await fresh_event_bus.emit(GameEvent.DWELLER_ADDED, vault.id, {"dweller_id": "test"})
     await async_session.refresh(link)
     assert link.progress == 10
-    assert link.is_completed is True
+    assert link.is_completed is False
 
 
 @pytest.mark.asyncio
@@ -371,7 +371,13 @@ async def test_collect_evaluator_keeps_objective_active_when_reward_fails(
     await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "caps", "amount": 1})
 
     await async_session.refresh(link)
-    assert link.progress == 0
+    assert link.progress == 1
+    from app.services.reward_service import reward_service
+
+    with pytest.raises(ValueError):
+        await reward_service.claim_objective_reward(async_session, objective.id, vault.id)
+    await async_session.refresh(link)
+    assert link.progress == 1
     assert link.is_completed is False
 
 
@@ -409,6 +415,13 @@ async def test_collect_evaluator_does_not_reprocess_its_reward(
 
     await async_session.refresh(link)
     await async_session.refresh(vault)
+    assert link.is_completed is False
+    assert vault.bottle_caps == initial_caps
+    from app.services.reward_service import reward_service
+
+    await reward_service.claim_objective_reward(async_session, objective.id, vault.id)
+    await async_session.refresh(vault)
+    await async_session.refresh(link)
     assert link.is_completed is True
     assert vault.bottle_caps == initial_caps + 10
 
@@ -495,7 +508,10 @@ async def test_completing_current_starter_step_advances_to_next(
 
     await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "caps", "amount": 1})
     await async_session.refresh(links[0])
-    assert links[0].is_completed is True
+    assert links[0].is_completed is False
+    from app.services.reward_service import reward_service
+
+    await reward_service.claim_objective_reward(async_session, links[0].objective_id, vault.id)
 
     await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "caps", "amount": 1})
     await async_session.refresh(links[1])
@@ -685,7 +701,7 @@ async def test_scrap_evaluator_matches_rare_weapon(
 
     await async_session.refresh(link)
     assert link.progress == 1
-    assert link.is_completed is True
+    assert link.is_completed is False
 
 
 @pytest.mark.asyncio
@@ -814,7 +830,7 @@ async def test_scrap_evaluator_rarity_only_matches_any_item_type(
 
     await async_session.refresh(link)
     assert link.progress == 1
-    assert link.is_completed is True
+    assert link.is_completed is False
 
 
 def test_facade_reexports_canonical_evaluator_surface() -> None:
@@ -845,3 +861,40 @@ def test_facade_reexports_canonical_evaluator_surface() -> None:
     )
     for name in names:
         assert getattr(facade, name) is getattr(canonical, name)
+
+
+async def test_objective_target_waits_for_claim_and_announces_once(
+    async_session: AsyncSession, fresh_event_bus, patched_session_maker
+) -> None:
+    """Reaching a target makes rewards ready; repeated events never pay or notify again."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    objective = Objective(
+        challenge="Collect two caps",
+        reward="50 caps",
+        category=ObjectiveCategoryEnum.STARTER,
+        objective_type="collect",
+        target_entity={"resource_type": "caps"},
+        target_amount=2,
+        sequence=0,
+    )
+    link = VaultObjectiveProgressLink(vault_id=vault.id, objective_id=objective.id, total=2)
+    async_session.add_all([objective, link])
+    await async_session.commit()
+    initial_caps = vault.bottle_caps
+    announced = []
+
+    async def record(_event, _vault, data):
+        announced.append(data)
+
+    fresh_event_bus.subscribe(GameEvent.OBJECTIVE_COMPLETED, record)
+    CollectEvaluator(fresh_event_bus)
+    for _ in range(2):
+        await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "caps", "amount": 2})
+    await async_session.refresh(link)
+    await async_session.refresh(vault)
+    assert link.progress == 2
+    assert link.is_completed is False
+    assert vault.bottle_caps == initial_caps
+    assert len(announced) == 1
+    assert announced[0]["ready_to_claim"] is True

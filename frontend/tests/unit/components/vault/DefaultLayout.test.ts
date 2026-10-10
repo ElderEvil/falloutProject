@@ -12,7 +12,7 @@ const mountLayout = (scanlines?: boolean) =>
     props: { isFlickering: false },
     global: {
       provide: scanlines === undefined ? {} : { scanlines: ref(scanlines) },
-      stubs: { NavBar: true, ExitRequestModal: true },
+      stubs: { NavBar: true, ExitRequestModal: true, ObjectiveGuide: true },
     },
   })
 
@@ -28,5 +28,4 @@ describe('DefaultLayout', () => {
   it('defaults the overlay to enabled when no preference is provided', () => {
     expect(mountLayout().findAll('.scanlines')).toHaveLength(1)
   })
-
 })

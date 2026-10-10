@@ -21,7 +21,7 @@ from app.models.storage import Storage
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.options.races import can_use_radaway
 from app.services.user_service import user_service
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
+from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 from app.utils.item_factory import build_outfit, build_weapon
 from app.utils.reward_delivery import defer_reward_delivery, persist_reward_change, reward_delivery_is_deferred
 
@@ -586,6 +586,36 @@ class RewardService:
         logger.info(f"Processed objective reward '{reward_str}' for vault {vault_id}")
         return result
 
+    async def claim_objective_reward(
+        self, db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4
+    ) -> VaultObjectiveProgressLink:
+        """Claim an assigned, earned reward atomically and reject repeat claims."""
+        from app.crud.vault import vault as vault_crud
+
+        await vault_crud.lock_for_update(db_session, vault_id)
+        link = await objective_crud.get_link_for_update(db_session, objective_id, vault_id)
+        if link is None:
+            raise ResourceNotFoundException(Objective, objective_id)
+        if link.is_completed:
+            raise ResourceConflictException("Objective reward already claimed")
+        from app.services.progression.objectives.guidance import current_state_progress
+
+        objective = await objective_crud.get(db_session, objective_id)
+        progress = link.progress
+        if objective.category == "starter":
+            if await objective_crud.get_current_starter_id(db_session, vault_id) != objective_id:
+                raise ValidationException("Claim the current guided objective before moving to the next step")
+            progress = max(progress, await current_state_progress(db_session, vault_id, objective))
+        if progress < link.total:
+            raise ValidationException("Complete the objective before claiming its reward")
+        link.progress = max(link.progress, min(progress, link.total))
+        try:
+            await self._settle_objective_link(db_session, vault_id, link)
+        except Exception:
+            await db_session.rollback()
+            raise
+        return link
+
     async def settle_objective_completion(
         self, db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4
     ) -> Objective:
@@ -620,10 +650,7 @@ class RewardService:
             return link
 
         link.progress = progress
-        if link.progress < link.total:
-            await db_session.commit()
-        else:
-            await self._settle_objective_link(db_session, vault_id, link)
+        await db_session.commit()
         await db_session.refresh(link)
         return link
 

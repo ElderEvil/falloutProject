@@ -2387,6 +2387,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/objectives/{vault_id}/{objective_id}/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Claim Objective Reward
+         * @description Let a vault owner claim a reward after its objective target is met.
+         */
+        post: operations["claim_objective_reward_api_v1_objectives__vault_id___objective_id__claim_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/objectives/{vault_id}/{objective_id}/complete": {
         parameters: {
             query?: never;
@@ -10594,6 +10614,34 @@ export interface components {
              */
             boosted: boolean;
         };
+        /** VaultObjectiveProgressLink */
+        VaultObjectiveProgressLink: {
+            /**
+             * Vault Id
+             * Format: uuid4
+             */
+            vault_id: string;
+            /**
+             * Objective Id
+             * Format: uuid4
+             */
+            objective_id: string;
+            /**
+             * Progress
+             * @default 0
+             */
+            progress: number;
+            /**
+             * Total
+             * @default 1
+             */
+            total: number;
+            /**
+             * Is Completed
+             * @default false
+             */
+            is_completed: boolean;
+        };
         /** VaultRead */
         VaultRead: {
             /** Number */
@@ -14501,6 +14549,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObjectiveRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    claim_objective_reward_api_v1_objectives__vault_id___objective_id__claim_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                objective_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VaultObjectiveProgressLink"];
                 };
             };
             /** @description Validation Error */

@@ -34,16 +34,16 @@ async def test_update_objective_progress(async_session: AsyncSession) -> None:
     )
 
     initial_caps = vault.bottle_caps
-    # Update progress to 5 (with total=1 by default, this will auto-complete since 5 >= 1)
+    # Update progress beyond the target; a claim is still required.
     link = await reward_service.settle_objective_progress(
         db_session=async_session, objective_id=objective.id, vault_id=vault.id, progress=5
     )
 
     assert link.progress == 5
-    # With total=1 by default, progress=5 should auto-complete since 5 >= 1
-    assert link.is_completed is True
+    # Progress reaching the target makes the reward claimable, without paying it.
+    assert link.is_completed is False
     await async_session.refresh(vault)
-    assert vault.bottle_caps == initial_caps + 500
+    assert vault.bottle_caps == initial_caps
 
 
 @pytest.mark.asyncio
@@ -139,7 +139,7 @@ async def test_update_progress_creates_link_if_not_exists(async_session: AsyncSe
     objective = await crud.objective_crud.create(async_session, obj_in=objective_data)
 
     initial_caps = vault.bottle_caps
-    # Update progress (should create and complete the link)
+    # Update progress (should create a claimable link).
     link = await reward_service.settle_objective_progress(
         db_session=async_session, objective_id=objective.id, vault_id=vault.id, progress=3
     )
@@ -147,9 +147,9 @@ async def test_update_progress_creates_link_if_not_exists(async_session: AsyncSe
     assert link.vault_id == vault.id
     assert link.objective_id == objective.id
     assert link.progress == 3
-    assert link.is_completed is True
+    assert link.is_completed is False
     await async_session.refresh(vault)
-    assert vault.bottle_caps == initial_caps + 50
+    assert vault.bottle_caps == initial_caps
 
 
 @pytest.mark.asyncio
@@ -276,6 +276,7 @@ async def test_completed_link_progress_not_mutated(async_session: AsyncSession) 
     link = await reward_service.settle_objective_progress(
         db_session=async_session, objective_id=objective.id, vault_id=vault.id, progress=5
     )
+    await reward_service.claim_objective_reward(async_session, objective.id, vault.id)
     assert link.is_completed is True
     assert link.progress == 5
 

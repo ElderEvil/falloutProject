@@ -124,7 +124,7 @@ class ObjectiveAssignmentService:
         links = [
             link
             for link in await objective_crud.get_links_for_vault(self._db_session, vault_id)
-            if link.objective_id in category_objective_ids
+            if link.objective_id in category_objective_ids and (link.is_completed or link.progress < link.total)
         ]
 
         await objective_crud.delete_links(self._db_session, links)

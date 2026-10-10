@@ -318,3 +318,18 @@ class TestConstants:
 
     def test_weekly_count_is_3(self) -> None:
         assert ObjectiveAssignmentService.WEEKLY_COUNT == 3
+
+
+async def test_daily_reset_preserves_earned_unclaimed_rewards() -> None:
+    """A midnight refresh cannot erase a reward that the player has earned."""
+    session = AsyncMock()
+    earned = VaultObjectiveProgressLink(vault_id=_VAULT_ID, objective_id=_O1, progress=5, total=5)
+    unfinished = VaultObjectiveProgressLink(vault_id=_VAULT_ID, objective_id=_O2, progress=1, total=5)
+    service = ObjectiveAssignmentService(session)
+    with (
+        patch.object(objective_crud, "get_by_category", return_value=[_make_objective(_O1), _make_objective(_O2)]),
+        patch.object(objective_crud, "get_links_for_vault", return_value=[earned, unfinished]),
+        patch.object(objective_crud, "delete_links", new=AsyncMock()) as delete,
+    ):
+        assert await service.clear_daily_objectives(_VAULT_ID) == 1
+        assert delete.call_args.args[1] == [unfinished]

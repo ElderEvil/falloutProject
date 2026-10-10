@@ -1,12 +1,14 @@
 import contextlib
 import logging
 from collections.abc import Sequence
+from uuid import UUID
 
 from pydantic import UUID4
 from sqlalchemy import or_
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel.sql.expression import SelectOfScalar
 
 from app.core.enums import ObjectiveCategoryEnum
 from app.crud.base import CRUDBase
@@ -109,6 +111,24 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
         )
         return result.scalar_one_or_none() is not None
 
+    def _current_starter_query(self, vault_id: UUID4) -> SelectOfScalar[UUID]:
+        """Select the earliest unclaimed guided step independently of pagination."""
+        return (
+            select(self.model.id)
+            .join(self.link_model)
+            .where(
+                self.link_model.vault_id == vault_id,
+                col(self.link_model.is_completed).is_(False),
+                col(self.model.category) == ObjectiveCategoryEnum.STARTER,
+            )
+            .order_by(col(self.model.sequence).asc().nulls_last(), col(self.model.id))
+            .limit(1)
+        )
+
+    async def get_current_starter_id(self, db_session: AsyncSession, vault_id: UUID4) -> UUID | None:
+        """Identify the current guided objective without loading every progress row."""
+        return (await db_session.execute(self._current_starter_query(vault_id))).scalar_one_or_none()
+
     async def get_active_with_links(
         self, db_session: AsyncSession, vault_id: UUID4, objective_type: str
     ) -> list[tuple[Objective, VaultObjectiveProgressLink]]:
@@ -119,31 +139,23 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
         so evaluators never progress an out-of-order objective. Non-starter
         categories are unaffected.
         """
-        current_starter_id = (
-            select(self.model.id)
-            .join(self.link_model)
-            .where(
-                self.link_model.vault_id == vault_id,
-                self.link_model.is_completed.is_(False),
-                col(self.model.category) == ObjectiveCategoryEnum.STARTER,
-            )
-            .order_by(col(self.model.sequence))
-            .limit(1)
-        )
+        current_starter_id = self._current_starter_query(vault_id)
         query = (
             select(self.model, self.link_model)
             .join(self.link_model)
             .where(
                 self.link_model.vault_id == vault_id,
-                self.link_model.is_completed.is_(False),
+                col(self.link_model.is_completed).is_(False),
                 self.model.objective_type == objective_type,
+                self.link_model.progress < self.link_model.total,
                 or_(
                     col(self.model.category) != ObjectiveCategoryEnum.STARTER,
                     col(self.model.id).in_(current_starter_id),
                 ),
             )
         )
-        return list((await db_session.execute(query)).all())
+        query = query.with_for_update(of=self.link_model).execution_options(populate_existing=True)
+        return [(objective, link) for objective, link in (await db_session.execute(query)).all()]
 
     async def assign_initial(self, db_session: AsyncSession, vault_id: UUID4, *, is_boosted: bool) -> int:
         """Assign the deterministic starter objective set for a new vault.
@@ -225,6 +237,7 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
             select(self.link_model)
             .where(self.link_model.vault_id == vault_id, self.link_model.objective_id == objective_id)
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
         return result.scalar_one_or_none()
 
@@ -240,8 +253,8 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
         """
         query = (
             select(self.model)
-            .where(self.model.objective_type.is_not(None))
-            .where(self.model.target_entity.is_not(None))
+            .where(col(self.model.objective_type).is_not(None))
+            .where(col(self.model.target_entity).is_not(None))
             .where(self.model.target_amount > 1)
             .offset(skip)
             .limit(limit)

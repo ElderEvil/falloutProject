@@ -8,7 +8,7 @@ import { addPendingReport } from '../composables/usePendingReports'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { explorationUpdatesDisabled } from '@/modules/profile/stores/profile'
-import { explorationApi } from '../api/exploration'
+import { explorationApi, type ExplorationSendRequest } from '../api/exploration'
 import type { ExplorationEventType } from '@/modules/exploration/models/exploration'
 
 export interface ExplorationEvent {
@@ -73,6 +73,9 @@ export interface Exploration {
   radaways: number
   health?: number
   radiation?: number
+  /** Authoritative registry position for spatial runs; absent on legacy runs. */
+  pos_x?: number | null
+  pos_y?: number | null
 }
 
 export interface ExplorationProgress {
@@ -308,19 +311,22 @@ export const useExplorationStore = defineStore('exploration', () => {
     duration: number,
     token: string,
     stimpaks: number = 0,
-    radaways: number = 0
+    radaways: number = 0,
+    headingDegrees?: number
   ): Promise<Exploration> {
     isLoading.value = true
     error.value = null
     try {
+      const body: ExplorationSendRequest = {
+        dweller_id: dwellerId,
+        duration,
+        stimpaks,
+        radaways,
+      }
+      if (headingDegrees !== undefined) body.heading_degrees = headingDegrees
       const response = await axios.post(
         `/api/v1/explorations/send?vault_id=${vaultId}`,
-        {
-          dweller_id: dwellerId,
-          duration,
-          stimpaks,
-          radaways,
-        },
+        body,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -343,7 +349,8 @@ export const useExplorationStore = defineStore('exploration', () => {
   async function dispatchToLocation(
     vaultId: string,
     dwellerIds: string[],
-    locationId: string
+    locationId: string,
+    supplies: { stimpaks: number; radaways: number } = { stimpaks: 0, radaways: 0 }
   ): Promise<Exploration> {
     isLoading.value = true
     error.value = null
@@ -355,6 +362,8 @@ export const useExplorationStore = defineStore('exploration', () => {
       const exploration = (await explorationApi.dispatchToLocation(token, vaultId, {
         dwellerIds,
         locationId,
+        stimpaks: supplies.stimpaks,
+        radaways: supplies.radaways,
       })) as unknown as Exploration
       upsertExploration(exploration)
       return exploration
@@ -366,7 +375,6 @@ export const useExplorationStore = defineStore('exploration', () => {
       isLoading.value = false
     }
   }
-
   async function fetchExplorationsByVault(
     vaultId: string,
     token: string,

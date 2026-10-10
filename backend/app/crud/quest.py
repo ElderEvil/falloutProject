@@ -365,11 +365,13 @@ class CRUDQuest(
         """Adult, unassigned dwellers of a vault eligible for quest assignment.
 
         Weapon/outfit are eager-loaded so the party-eligibility policy can evaluate
-        ITEM/ATTACK/STAT gates against each candidate without lazy IO.
+        ITEM/ATTACK/STAT gates against each candidate without lazy IO. The pet is
+        loaded too: STAT gates resolve through ``effective_stat``, which consumes
+        the equipped pet's SPECIAL bonus.
         """
         result = await db_session.execute(
             select(Dweller)
-            .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit))
+            .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit), selectinload(Dweller.pet))
             .where(Dweller.vault_id == vault_id, *available_dweller_conditions())
         )
         return list(result.scalars().all())

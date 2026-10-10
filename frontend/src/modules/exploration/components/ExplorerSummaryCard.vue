@@ -2,6 +2,10 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
+import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
+import DwellerAgeBadge from '@/modules/dwellers/components/DwellerAgeBadge.vue'
+import DwellerGenderBadge from '@/modules/dwellers/components/DwellerGenderBadge.vue'
+import DwellerRarityBadge from '@/modules/dwellers/components/DwellerRarityBadge.vue'
 import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
 import { Progress } from '@/core/components/ui/progress'
 import { getEffectiveMaxHealth, getHealthDisplay, getRadiationPercentage } from '@/modules/dwellers/models/dweller'
@@ -60,12 +64,20 @@ const healthPercentage = computed(
         </div>
       </div>
       <div class="flex flex-1 flex-col justify-center">
-        <h2
-          class="mb-2 text-xl font-bold text-theme-primary [text-shadow:0_0_10px_var(--color-theme-glow)] max-md:text-2xl"
-        >
-          {{ dwellerName }}
-        </h2>
-        <ExplorationStatusBadges :exploration="exploration" :dweller="dweller" class="mb-2" />
+        <div class="flex items-start justify-between gap-3">
+          <h2
+            class="text-xl font-bold text-theme-primary [text-shadow:0_0_10px_var(--color-theme-glow)] max-md:text-2xl"
+          >
+            {{ dwellerName }}
+          </h2>
+          <ExplorationStatusBadges :exploration="exploration" :dweller="dweller" class="shrink-0" />
+        </div>
+        <div class="mt-1 mb-2 flex flex-wrap items-center gap-1.5">
+          <DwellerAgeBadge :age-group="dweller?.age_group" :show-label="true" />
+          <DwellerGenderBadge :gender="dweller?.gender" :show-label="true" />
+          <DwellerRarityBadge :rarity="dweller?.rarity" :show-label="true" />
+          <DwellerIdentitySignal :visual-attributes="dweller?.visual_attributes" />
+        </div>
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2">
             <span class="min-w-[50px] text-xs text-theme-primary/80">Health</span>

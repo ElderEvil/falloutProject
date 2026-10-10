@@ -115,11 +115,11 @@ def damage_to_raiders(dweller_power: float, seconds: int) -> float:
     return damage_per_second * seconds
 
 
-def fire_damage(hazard_power: float, seconds: int) -> float:
-    """Fire harms occupants more slowly than an armed attack."""
+def containment_damage(hazard_power: float, seconds: int) -> float:
+    """A contained hazard harms occupants more slowly than an armed attack."""
     return hazard_power / 20 * seconds
 
 
-def fire_suppression(dweller_power: float, hazard_power: float, seconds: int) -> float:
-    """Return fractional containment progress, where one fully extinguishes a fire."""
+def containment_progress(dweller_power: float, hazard_power: float, seconds: int) -> float:
+    """Return fractional containment progress, where one fully contains a hazard."""
     return dweller_power / max(1, hazard_power) * seconds / 5

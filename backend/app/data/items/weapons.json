@@ -12,7 +12,7 @@
         "craft": {
             "types": [
                 "steel",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -48,7 +48,7 @@
         "craft": {
             "types": [
                 "steel",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -66,7 +66,7 @@
         "craft": {
             "types": [
                 "steel",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -84,7 +84,7 @@
         "craft": {
             "types": [
                 "steel",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -102,7 +102,7 @@
         "craft": {
             "types": [
                 "steel",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -156,7 +156,7 @@
         "craft": {
             "types": [
                 "steel",
-                "leather"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -282,7 +282,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -300,7 +300,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -318,7 +318,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -336,7 +336,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -354,7 +354,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -372,7 +372,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -390,7 +390,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -408,7 +408,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -426,7 +426,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -443,8 +443,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry",
-                "steel"
+                "steel",
+                "adhesive"
             ],
             "unlock": null
         }
@@ -461,8 +461,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry",
-                "steel"
+                "steel",
+                "adhesive"
             ],
             "unlock": null
         }
@@ -479,8 +479,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry",
-                "steel"
+                "steel",
+                "adhesive"
             ],
             "unlock": null
         }
@@ -497,7 +497,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -514,7 +515,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -531,7 +533,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -548,7 +551,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -565,7 +569,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -582,7 +587,9 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science",
+                "steel"
             ],
             "unlock": null
         }
@@ -599,7 +606,9 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science",
+                "steel"
             ],
             "unlock": null
         }
@@ -616,7 +625,9 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science",
+                "steel"
             ],
             "unlock": null
         }
@@ -633,7 +644,9 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science",
+                "steel"
             ],
             "unlock": null
         }
@@ -650,7 +663,9 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science",
+                "steel"
             ],
             "unlock": null
         }
@@ -667,7 +682,9 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science",
+                "steel"
             ],
             "unlock": null
         }
@@ -685,7 +702,8 @@
         "craft": {
             "types": [
                 "steel",
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -702,8 +720,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "steel",
-                "circuitry"
+                "circuitry",
+                "adhesive"
             ],
             "unlock": null
         }
@@ -720,8 +738,9 @@
         "craftable": true,
         "craft": {
             "types": [
+                "circuitry",
                 "steel",
-                "circuitry"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -739,7 +758,8 @@
         "craft": {
             "types": [
                 "steel",
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -757,7 +777,8 @@
         "craft": {
             "types": [
                 "steel",
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -774,8 +795,9 @@
         "craftable": true,
         "craft": {
             "types": [
+                "circuitry",
                 "steel",
-                "circuitry"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -792,7 +814,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -827,8 +850,9 @@
         "craftable": true,
         "craft": {
             "types": [
+                "circuitry",
                 "steel",
-                "circuitry"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -864,7 +888,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -882,7 +906,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -918,7 +942,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -936,7 +960,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -954,7 +978,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -990,7 +1014,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -1026,7 +1050,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -1044,7 +1068,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -1062,7 +1086,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -1079,8 +1103,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry",
-                "steel"
+                "steel",
+                "adhesive"
             ],
             "unlock": null
         }
@@ -1097,8 +1121,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry",
-                "steel"
+                "steel",
+                "adhesive"
             ],
             "unlock": null
         }
@@ -1115,8 +1139,9 @@
         "craftable": true,
         "craft": {
             "types": [
+                "circuitry",
                 "steel",
-                "circuitry"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -1133,7 +1158,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -1151,7 +1177,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -1223,7 +1249,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -1240,8 +1266,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry",
-                "steel"
+                "steel",
+                "adhesive"
             ],
             "unlock": null
         }
@@ -1258,8 +1284,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "steel",
-                "circuitry"
+                "circuitry",
+                "adhesive"
             ],
             "unlock": null
         }
@@ -1277,7 +1303,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -1294,8 +1320,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry",
-                "steel"
+                "steel",
+                "adhesive"
             ],
             "unlock": null
         }
@@ -1313,7 +1339,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -1366,7 +1392,9 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science",
+                "steel"
             ],
             "unlock": null
         }
@@ -1401,7 +1429,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -1418,7 +1447,9 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science",
+                "steel"
             ],
             "unlock": null
         }
@@ -1435,7 +1466,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -1470,8 +1502,9 @@
         "craftable": true,
         "craft": {
             "types": [
+                "circuitry",
                 "steel",
-                "circuitry"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -1506,7 +1539,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -1524,7 +1558,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -1542,7 +1576,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -1614,7 +1648,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -1631,8 +1665,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry",
-                "steel"
+                "steel",
+                "adhesive"
             ],
             "unlock": null
         }
@@ -1649,8 +1683,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "steel",
-                "circuitry"
+                "circuitry",
+                "adhesive"
             ],
             "unlock": null
         }
@@ -1668,7 +1702,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -1686,7 +1720,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -1703,8 +1737,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry",
-                "steel"
+                "steel",
+                "adhesive"
             ],
             "unlock": null
         }
@@ -1739,8 +1773,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry",
-                "steel"
+                "steel",
+                "adhesive"
             ],
             "unlock": null
         }
@@ -1758,7 +1792,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -1811,7 +1845,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -1828,7 +1863,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -1846,7 +1882,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -1864,7 +1900,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -1881,8 +1917,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "steel",
-                "circuitry"
+                "circuitry",
+                "adhesive"
             ],
             "unlock": null
         }
@@ -1900,7 +1936,8 @@
         "craft": {
             "types": [
                 "steel",
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -1917,8 +1954,9 @@
         "craftable": true,
         "craft": {
             "types": [
+                "circuitry",
                 "steel",
-                "circuitry"
+                "adhesive"
             ],
             "unlock": null
         }
@@ -1935,7 +1973,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -1953,7 +1992,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -1989,7 +2028,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -2043,7 +2082,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -2060,8 +2099,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry",
-                "steel"
+                "steel",
+                "adhesive"
             ],
             "unlock": null
         }
@@ -2078,8 +2117,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "steel",
-                "circuitry"
+                "circuitry",
+                "adhesive"
             ],
             "unlock": null
         }
@@ -2096,7 +2135,9 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science",
+                "steel"
             ],
             "unlock": null
         }
@@ -2113,7 +2154,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -2130,7 +2172,9 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science",
+                "steel"
             ],
             "unlock": null
         }
@@ -2148,7 +2192,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -2165,8 +2209,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry",
-                "steel"
+                "steel",
+                "adhesive"
             ],
             "unlock": null
         }
@@ -2184,7 +2228,7 @@
         "craft": {
             "types": [
                 "circuitry",
-                "steel"
+                "leather"
             ],
             "unlock": null
         }
@@ -2237,7 +2281,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -2309,7 +2354,8 @@
         "craft": {
             "types": [
                 "steel",
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -2344,7 +2390,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -2361,7 +2408,9 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science",
+                "steel"
             ],
             "unlock": null
         }
@@ -2378,7 +2427,8 @@
         "craftable": true,
         "craft": {
             "types": [
-                "circuitry"
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -2395,8 +2445,9 @@
         "craftable": true,
         "craft": {
             "types": [
+                "circuitry",
                 "steel",
-                "circuitry"
+                "adhesive"
             ],
             "unlock": null
         }

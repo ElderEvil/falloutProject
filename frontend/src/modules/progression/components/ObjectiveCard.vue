@@ -5,6 +5,7 @@ import type { Objective } from '../models/objective'
 import { Badge } from '@/core/components/ui/badge'
 import { Card } from '@/core/components/ui/card'
 import { Progress } from '@/core/components/ui/progress'
+import { capitalize } from '@/core/utils/format'
 
 interface Props {
   objective: Objective
@@ -38,7 +39,7 @@ const objectiveIcon = computed(() => {
 const category = computed(() => props.objective.category)
 
 const categoryLabel = computed(() => {
-  return category.value.charAt(0).toUpperCase() + category.value.slice(1)
+  return capitalize(category.value)
 })
 
 const isCompleted = computed(() => {

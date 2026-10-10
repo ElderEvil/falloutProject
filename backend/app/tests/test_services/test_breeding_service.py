@@ -747,7 +747,6 @@ async def test_age_children_progress_through_teen_to_adult(
         "gender": GenderEnum.MALE,
         "rarity": RarityEnum.COMMON,
         "age_group": AgeGroupEnum.CHILD,
-        "is_adult": False,
         "birth_date": birth_date,
         "level": 1,
         "experience": 0,
@@ -776,7 +775,6 @@ async def test_age_children_progress_through_teen_to_adult(
 
     await async_session.refresh(child)
     assert child.age_group == AgeGroupEnum.TEEN
-    assert child.is_adult is False
     assert child.strength == 3
     assert child.charisma == 3
 
@@ -788,7 +786,6 @@ async def test_age_children_progress_through_teen_to_adult(
     assert len(aged) == 1
     await async_session.refresh(child)
     assert child.age_group == AgeGroupEnum.ADULT
-    assert child.is_adult is True
 
     # Stats are restored only when the teen becomes an adult (3 / 0.5 = 6).
     assert child.strength == 6
@@ -808,7 +805,6 @@ async def test_age_children_promotes_only_old_adults_to_elders(
         "gender": GenderEnum.MALE,
         "rarity": RarityEnum.COMMON,
         "age_group": AgeGroupEnum.ADULT,
-        "is_adult": True,
         "birth_date": elder_birth_threshold(datetime.utcnow()) - timedelta(days=1),
         "level": 1,
         "experience": 0,
@@ -836,7 +832,6 @@ async def test_age_children_promotes_only_old_adults_to_elders(
     await async_session.refresh(old_adult)
     await async_session.refresh(young_adult)
     assert old_adult.age_group == AgeGroupEnum.ELDER
-    assert old_adult.is_adult is True
     assert young_adult.age_group == AgeGroupEnum.ADULT
 
 
@@ -861,7 +856,6 @@ async def test_age_children_leaves_ageless_adults_as_adults(
                 gender=GenderEnum.MALE,
                 rarity=RarityEnum.COMMON,
                 age_group=AgeGroupEnum.ADULT,
-                is_adult=True,
                 birth_date=ancient_birth,
                 level=1,
                 experience=0,
@@ -916,4 +910,4 @@ def test_breeding_config_values():
 
     assert 0.0 <= game_config.breeding.conception_chance_per_tick <= 1.0
     assert game_config.breeding.pregnancy_duration_hours > 0
-    assert game_config.breeding.child_growth_duration_hours == 24
+    assert game_config.breeding.child_growth_duration_hours == 60

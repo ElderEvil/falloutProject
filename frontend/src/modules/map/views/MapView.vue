@@ -1,20 +1,34 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useLocalStorage } from '@vueuse/core'
+import { Icon } from '@iconify/vue'
+import type { AcceptableValue } from 'reka-ui'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useMapStore } from '../stores/map'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useVaultStore } from '@/modules/vault/stores/vault'
+import { isMature, type DwellerShort } from '@/modules/dwellers/models/dweller'
 import { useToast } from '@/core/composables/useToast'
+import { useGroupColors } from '@/core/composables/useGroupColors'
 import { getErrorMessage } from '@/core/utils/errorHandler'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Skeleton } from '@/core/components/ui/skeleton'
 import { Button } from '@/core/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/core/components/ui/select'
 import WorldMap from '../components/WorldMap.vue'
 import MarkerDetailModal from '../components/MarkerDetailModal.vue'
-import PartySelectionModal from '@/modules/progression/components/PartySelectionModal.vue'
+import VaultInfoModal from '../components/VaultInfoModal.vue'
+import DwellerMarkerPopover from '../components/DwellerMarkerPopover.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import type {
   ExpeditionSiteMarkerRead,
@@ -28,6 +42,7 @@ const authStore = useAuthStore()
 const mapStore = useMapStore()
 const explorationStore = useExplorationStore()
 const { filter: dwellerStore } = useDwellerStore()
+const vaultStore = useVaultStore()
 const route = useRoute()
 const router = useRouter()
 const { isCollapsed } = useSidePanel()
@@ -35,11 +50,134 @@ const toast = useToast()
 
 const vaultId = computed(() => route.params.id as string)
 
+// Marker colour mode lives on the Preferences page (like the badge palette).
+const { groupColors } = useGroupColors()
+
+// Site-type filter (P3): narrow the map to one place_groups archetype.
+// Persisted like the color mode; `null` means "All sites".
+const siteTypeFilter = useLocalStorage<string | null>('map:site-type-filter', null)
+
+// `exclusion_zone` is a one-off easter-egg site, not a browsable archetype, so it
+// stays off the filter and out of the stale-guard below.
+const NON_FILTERABLE_SITE_TYPES = new Set(['exclusion_zone'])
+
+// Archetypes actually present on this vault's map, in catalog order — the only
+// offerable options, and the guard that keeps a stale stored key inert.
+const presentSiteKeys = computed(
+  () =>
+    new Set(
+      mapStore.locations
+        .map((loc) => loc.group_key)
+        .filter(
+          (key): key is string => key != null && key !== '' && !NON_FILTERABLE_SITE_TYPES.has(key)
+        )
+    )
+)
+const siteGroupOptions = computed(() =>
+  mapStore.placeGroups.filter((group) => presentSiteKeys.value.has(group.key))
+)
+// A stored key whose group is gone (other vault, reseeded atlas) degrades to
+// "All sites" rather than blanking the map.
+const activeSiteType = computed(() =>
+  siteTypeFilter.value && presentSiteKeys.value.has(siteTypeFilter.value)
+    ? siteTypeFilter.value
+    : null
+)
+// reka-ui's Select modelValue is AcceptableValue and reserves empty strings;
+// bridge the nullable key at the Select boundary.
+const siteTypeFilterSelect = computed<AcceptableValue>({
+  get: () => siteTypeFilter.value ?? 'all',
+  set: (value: AcceptableValue) => {
+    siteTypeFilter.value = value === null || value === 'all' ? null : String(value)
+  },
+})
+
 // Modal state
 const showModal = ref(false)
-const selectedLocation = ref<WastelandLocationWithDwellers | null>(null)
-const selectedVaultMarker = ref<VaultMarkerRead | null>(null)
-const selectedSite = ref<ExpeditionSiteMarkerRead | null>(null)
+// Single selection identity; selected objects derive from store state so polling
+// refreshes them automatically instead of manual re-selection after each refresh.
+const selectedMarkerId = ref<string | null>(null)
+const selectedLocation = computed<WastelandLocationWithDwellers | null>(() => {
+  const id = selectedMarkerId.value
+  if (id === null || !id.startsWith('loc-')) return null
+  return mapStore.locations.find((l) => l.id === id.slice(4)) ?? null
+})
+const selectedVaultMarker = computed<VaultMarkerRead | null>(() => {
+  const id = selectedMarkerId.value
+  if (id === null || !id.startsWith('vault-')) return null
+  return mapStore.vaultMarkers.find((m) => m.name === id.slice(6)) ?? null
+})
+const selectedSite = computed<ExpeditionSiteMarkerRead | null>(() => {
+  const id = selectedMarkerId.value
+  if (id === null || !id.startsWith('site-')) return null
+  return mapStore.expeditionSites.find((s) => s.id === id.slice(5)) ?? null
+})
+
+// ── Explorer dweller popover ─────────────────────────────────────────
+// Only one overlay at a time: opening the popover closes the marker modal and
+// clearing the selection, and a normal marker click closes the popover back.
+const selectedExplorer = ref<ExplorerTrack | null>(null)
+const explorerPos = ref<{ x: number; y: number } | null>(null)
+
+function closeExplorerPopover() {
+  selectedExplorer.value = null
+  explorerPos.value = null
+}
+
+function onDwellerClick(payload: { track: ExplorerTrack; x: number; y: number }) {
+  selectedExplorer.value = payload.track
+  explorerPos.value = { x: payload.x, y: payload.y }
+  selectedMarkerId.value = null
+  showModal.value = false
+}
+
+function openExplorerDetails() {
+  const track = selectedExplorer.value
+  if (!track?.dwellerId) return
+  void router.push(`/vault/${vaultId.value}/dwellers/${track.dwellerId}`)
+  closeExplorerPopover()
+}
+
+// ── Own-vault info panel ─────────────────────────────────────────────
+// Clicking one of the player's own vault markers opens its summary instead
+// of navigating. The payload only carries `vault_id`, so the record comes
+// from the vault store: `/api/v1/vaults/my` already returns every counter the
+// selection card shows. Never `ensureVaultLoaded` here — loading another
+// vault adopts it and moves live polling/SSE off the vault being played.
+const showVaultInfo = ref(false)
+const vaultInfoId = ref<string | null>(null)
+const vaultInfoLoading = ref(false)
+// Monotonic id for in-flight summary lookups: a slow older request must not
+// clear the loading state of a newer one when it settles.
+let vaultInfoRequest = 0
+
+function findVaultSummary(id: string) {
+  return vaultStore.loadedVaults[id] ?? vaultStore.vaults.find((vault) => vault.id === id) ?? null
+}
+
+const vaultInfoVault = computed(() =>
+  vaultInfoId.value ? findVaultSummary(vaultInfoId.value) : null
+)
+
+async function handleVaultInfo(infoVaultId: string) {
+  const token = authStore.token
+  if (!token || !infoVaultId) return
+  const requestId = ++vaultInfoRequest
+  vaultInfoId.value = infoVaultId
+  showVaultInfo.value = true
+  if (findVaultSummary(infoVaultId)) {
+    vaultInfoLoading.value = false
+    return
+  }
+  // The marker is `is_mine`, so the hydrated list should cover it; refetch
+  // whenever the current list does not contain it.
+  vaultInfoLoading.value = true
+  try {
+    await vaultStore.fetchVaults(token)
+  } finally {
+    if (requestId === vaultInfoRequest) vaultInfoLoading.value = false
+  }
+}
 
 // Explorer tracking: active runs projected onto the map. Dispatched runs mark
 // their target location; free-roam runs surface at the last discovery point.
@@ -52,6 +190,24 @@ const dwellerNames = computed(() => {
   return names
 })
 
+// Explorer markers show the dweller's thumbnail when the vault roster has one;
+// otherwise the map falls back to the walking icon.
+const dwellerThumbnails = computed(() => {
+  const thumbnails = new Map<string, string | null>()
+  for (const dweller of dwellerStore.dwellers) {
+    thumbnails.set(dweller.id, dweller.thumbnail_url ?? null)
+  }
+  return thumbnails
+})
+
+const dwellerMaxHealth = computed(() => {
+  const maxes = new Map<string, number | null>()
+  for (const dweller of dwellerStore.dwellers) {
+    maxes.set(dweller.id, dweller.max_health ?? null)
+  }
+  return maxes
+})
+
 const explorerTracks = computed<ExplorerTrack[]>(() =>
   buildExplorerTracks(
     // The store can still hold the previous vault's active runs after a vault
@@ -59,46 +215,65 @@ const explorerTracks = computed<ExplorerTrack[]>(() =>
     // stale run could match a location on the new map. Scope to this vault.
     explorationStore.explorations.filter((e) => e.vault_id === vaultId.value),
     mapStore.discoveryRoutes,
-    dwellerNames.value
+    dwellerNames.value,
+    dwellerThumbnails.value,
+    dwellerMaxHealth.value
   )
 )
 
-// Dispatch picker state (issue 772, phase 4b)
-const showDispatchModal = ref(false)
-const dispatchLocation = ref<WastelandLocationWithDwellers | null>(null)
+// Dispatch state (issue 772). The team menu now lives inside the location
+// details modal; the map only preloads its data and routes the confirm.
 // Blocks repeated Dispatch confirms while the request is in flight.
 const isDispatching = ref(false)
+// True while the vault record / dweller roster feeding the in-modal Send-team
+// section loads, so the modal's confirm stays disabled until supplies are real.
+const isPreparingDispatch = ref(false)
 
-function handleDispatchRequest() {
-  if (selectedLocation.value) void openDispatchPicker(selectedLocation.value)
-}
-
-async function openDispatchPicker(location: WastelandLocationWithDwellers) {
-  dispatchLocation.value = location
-  showDispatchModal.value = true
-  if (vaultId.value && authStore.token && dwellerStore.dwellers.length === 0) {
-    await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
+async function ensureDispatchData() {
+  const requestedVaultId = vaultId.value
+  const token = authStore.token
+  if (!requestedVaultId || !token) return
+  isPreparingDispatch.value = true
+  try {
+    // The shell hydrates loadedVaults asynchronously; showing the Send-team
+    // section before that lands renders the supply sliders as zeros. Load the
+    // vault record, then the roster, and let a failure leave supplies at zero.
+    await vaultStore.ensureVaultLoaded(requestedVaultId, token)
+    // A route change mid-load means this data no longer belongs to the view.
+    if (vaultId.value !== requestedVaultId || authStore.token !== token) return
+    if (dwellerStore.dwellers.length === 0) {
+      await dwellerStore.fetchDwellersByVault(requestedVaultId, token)
+    }
+  } catch {
+    // Unloadable vault: the section still renders, supplies just stay at zero.
+  } finally {
+    isPreparingDispatch.value = false
   }
 }
 
-async function handleDispatch(dwellerIds: string[]) {
-  const location = dispatchLocation.value
+async function handleDispatch(payload: {
+  dwellerIds: string[]
+  supplies: { stimpaks: number; radaways: number }
+}) {
+  const location = selectedLocation.value
   if (
     isDispatching.value ||
     !location ||
-    dwellerIds.length === 0 ||
+    payload.dwellerIds.length === 0 ||
     !vaultId.value ||
     !authStore.token
   )
     return
   isDispatching.value = true
   try {
-    await explorationStore.dispatchToLocation(vaultId.value, dwellerIds, location.id)
-    showDispatchModal.value = false
-    dispatchLocation.value = null
+    await explorationStore.dispatchToLocation(
+      vaultId.value,
+      payload.dwellerIds,
+      location.id,
+      payload.supplies
+    )
+    showModal.value = false
     await mapStore.refreshMap(vaultId.value, authStore.token)
-    const refreshed = mapStore.locations.find((l) => l.id === location.id)
-    if (refreshed) selectedLocation.value = refreshed
     toast.success(`${location.name} — dispatch sent`)
   } catch (err) {
     toast.error(getErrorMessage(err))
@@ -107,31 +282,74 @@ async function handleDispatch(dwellerIds: string[]) {
   }
 }
 
+// Admin debug tool: reveal the whole atlas by dropping the fog layer.
+const fogDisabled = ref(false)
+
+const vaultMedicalSupplies = computed(() => {
+  const vault = vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null
+  return { stimpaks: vault?.stimpack ?? 0, radaways: vault?.radaway ?? 0 }
+})
+
+// Dwellers already out (active or returning) cannot be sent again; the details
+// modal's dispatch picker only offers eligible, mature candidates.
+const departingDwellerIds = computed(
+  () =>
+    new Set(
+      explorationStore.explorations
+        .filter(
+          (exploration) =>
+            exploration.vault_id === vaultId.value &&
+            (exploration.status === 'active' || exploration.status === 'returning')
+        )
+        .map((exploration) => exploration.dweller_id)
+    )
+)
+
+// Mirror the backend availability policy (app/utils/dweller_availability): a
+// dweller is unavailable when dead or already out (exploring/questing). The
+// status check keeps this correct even when the exploration store is empty or
+// stale, which the loaded-records set alone cannot cover. A dead dweller carries
+// the `dead` status, so listing it here covers `is_dead` too.
+const UNAVAILABLE_DEPARTURE_STATUSES = new Set(['exploring', 'questing', 'dead'])
+
+function isAvailableForDeparture(dweller: DwellerShort): boolean {
+  return (
+    isMature(dweller) &&
+    !UNAVAILABLE_DEPARTURE_STATUSES.has(dweller.status) &&
+    !departingDwellerIds.value.has(dweller.id)
+  )
+}
+
+const departureCandidates = computed(() => dwellerStore.dwellers.filter(isAvailableForDeparture))
+
+function isDirectDispatchable(loc: WastelandLocationWithDwellers): boolean {
+  const clearState = loc.clear_state
+  return !!clearState?.clearable && (!clearState.cleared || clearState.time_remaining_seconds <= 0)
+}
+
 function handleMarkerClick(
   payload:
     | { kind: 'location'; data: WastelandLocationWithDwellers }
     | { kind: 'vault'; data: VaultMarkerRead }
     | { kind: 'site'; data: ExpeditionSiteMarkerRead }
 ) {
+  closeExplorerPopover()
   if (payload.kind === 'location') {
-    selectedLocation.value = payload.data
-    selectedVaultMarker.value = null
-    selectedSite.value = null
+    selectedMarkerId.value = `loc-${payload.data.id}`
     mapStore.markLocationViewed(payload.data.vault_id, payload.data.id)
     // Symmetric deep-link: a clicked marker owns ?place= so the URL is
     // shareable and survives reload; the ?place= watcher opens the modal.
     if (route.query.place !== payload.data.id) {
       void router.push({ query: { ...route.query, place: payload.data.id } })
     }
+    // Team dispatch now lives in the details modal; preload the vault supplies
+    // and roster so its Send-team section is usable when it opens.
+    if (isDirectDispatchable(payload.data)) void ensureDispatchData()
   } else if (payload.kind === 'site') {
-    selectedLocation.value = null
-    selectedVaultMarker.value = null
-    selectedSite.value = payload.data
+    selectedMarkerId.value = `site-${payload.data.id}`
     clearPlaceQuery()
   } else {
-    selectedLocation.value = null
-    selectedVaultMarker.value = payload.data
-    selectedSite.value = null
+    selectedMarkerId.value = `vault-${payload.data.name}`
     clearPlaceQuery()
   }
   showModal.value = true
@@ -141,7 +359,9 @@ async function loadMap() {
   if (!authStore.isAuthenticated || !vaultId.value) return
   const token = authStore.token as string
   mapStore.stopPolling()
-  await mapStore.fetchMap(vaultId.value, token)
+  // Snapshot first: terrain needs no vault context and is version-pinned, so it
+  // loads independently of (and is never refetched by) the vault-map poll loop.
+  await Promise.all([mapStore.fetchWorldSnapshot(token), mapStore.fetchMap(vaultId.value, token)])
   mapStore.startPolling(vaultId.value, token)
   tryOpenPlaceFromQuery()
 }
@@ -167,6 +387,7 @@ function clearPlaceQuery() {
 watch(
   vaultId,
   () => {
+    closeExplorerPopover()
     loadMap()
   },
   { immediate: true }
@@ -262,35 +483,85 @@ const mapPaneHeight = 'var(--map-pane-size)'
             </Button>
           </div>
 
-          <!-- Map -->
-          <WorldMap
-            v-else
-            :locations="mapStore.locations"
-            :vault-markers="mapStore.vaultMarkers"
-            :discovery-routes="mapStore.discoveryRoutes"
-            :expedition-sites="mapStore.expeditionSites"
-            :explorer-tracks="explorerTracks"
-            @marker-click="handleMarkerClick"
+          <!-- Map + floating controls: an overlay keeps the pane free of a toolbar row -->
+          <div v-else class="map-stage">
+            <WorldMap
+              :locations="mapStore.locations"
+              :vault-markers="mapStore.vaultMarkers"
+              :player-vaults="mapStore.playerVaults"
+              :discovery-routes="mapStore.discoveryRoutes"
+              :expedition-sites="mapStore.expeditionSites"
+              :explorer-tracks="explorerTracks"
+              :fog-disabled="fogDisabled"
+              :group-colors="groupColors"
+              :site-type-filter="activeSiteType"
+              :selected-marker-id="selectedMarkerId"
+              @update:selected-marker-id="selectedMarkerId = $event"
+              @marker-click="handleMarkerClick"
+              @vault-info="handleVaultInfo"
+              @dweller-click="onDwellerClick"
+            />
+
+            <div class="map-overlay-controls">
+              <Select v-if="siteGroupOptions.length" v-model="siteTypeFilterSelect">
+                <SelectTrigger
+                  aria-label="Filter by site type"
+                  class="h-auto rounded-sm border-theme-primary/30 bg-surface-sunken/60 px-2 py-1 text-xs text-theme-primary data-[size=default]:h-auto"
+                >
+                  <SelectValue placeholder="All sites" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All sites</SelectItem>
+                  <SelectItem
+                    v-for="group in siteGroupOptions"
+                    :key="group.key"
+                    :value="group.key"
+                  >
+                    <Icon :icon="group.icon" />
+                    <span>{{ group.label }}</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                v-if="authStore.isSuperuser"
+                variant="outline"
+                size="sm"
+                @click="fogDisabled = !fogDisabled"
+              >
+                {{ fogDisabled ? 'Restore fog' : 'Remove fog' }}
+              </Button>
+            </div>
+          </div>
+
+          <!-- Explorer popover: dweller summary anchored to the clicked marker -->
+          <DwellerMarkerPopover
+            v-if="selectedExplorer && explorerPos"
+            :track="selectedExplorer"
+            :x="explorerPos.x"
+            :y="explorerPos.y"
+            @close="closeExplorerPopover"
+            @view-details="openExplorerDetails"
           />
 
-          <!-- Detail modal -->
+          <!-- Detail modal: also hosts the team dispatch menu for clearable points -->
           <MarkerDetailModal
             v-model="showModal"
             :location="selectedLocation"
             :vault-marker="selectedVaultMarker"
             :site="selectedSite"
-            @dispatch="handleDispatchRequest"
+            :dwellers="departureCandidates"
+            :max-party-size="3"
+            :max-stimpaks="vaultMedicalSupplies.stimpaks"
+            :max-radaways="vaultMedicalSupplies.radaways"
+            :supplies-loading="isPreparingDispatch"
+            @dispatch="handleDispatch"
           />
 
-          <!-- Dispatch dweller picker (solo; parties arrive in a later phase) -->
-          <PartySelectionModal
-            v-model="showDispatchModal"
-            :quest="null"
-            :vault-id="vaultId"
-            :dwellers="dwellerStore.dwellers"
-            :current-party="[]"
-            :max-party-size="3"
-            @assign="handleDispatch"
+          <!-- Own-vault summary: same fields as the vault-selection card -->
+          <VaultInfoModal
+            v-model:open="showVaultInfo"
+            :vault="vaultInfoVault"
+            :loading="vaultInfoLoading"
           />
         </PageContentRail>
       </div>
@@ -299,6 +570,23 @@ const mapPaneHeight = 'var(--map-pane-size)'
 </template>
 
 <style scoped>
+.map-stage {
+  position: relative;
+  width: fit-content;
+}
+
+/* Floating map controls: overlaid on the pane so they cost no vertical layout. */
+.map-overlay-controls {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
 .vault-layout {
   display: flex;
   min-height: 100vh;

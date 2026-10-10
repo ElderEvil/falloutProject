@@ -28,7 +28,7 @@ const dweller = (overrides: Record<string, unknown> = {}) => ({
   level: 5,
   health: 90,
   max_health: 100,
-  is_adult: true,
+  age_group: 'adult',
   room_id: 'room-1',
   status: 'idle',
   combat_power: 42,

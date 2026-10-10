@@ -6,6 +6,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core
 import { getItemIcon } from '@/core/models/items'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller, DetailedDweller } from '@/modules/dwellers/models/dweller'
+import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 import {
   canRecall,
   getProgressPercentage,
@@ -45,6 +46,12 @@ const getDwellerWeapon = (dwellerId: string) => {
 const getDwellerOutfit = (dwellerId: string) => {
   const detailed = getDetailedDweller(dwellerId)
   if (detailed?.outfit) return detailed.outfit
+  return null
+}
+
+const getDwellerPet = (dwellerId: string) => {
+  const detailed = getDetailedDweller(dwellerId)
+  if (detailed?.pet) return detailed.pet
   return null
 }
 
@@ -90,12 +97,12 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
             <div class="flex min-w-0 items-center gap-1.5">
               <Icon icon="mdi:account" class="h-4 w-4 shrink-0 text-wasteland" />
               <span class="truncate text-xs font-bold text-wasteland"
-                >{{ getDwellerById(exploration.dweller_id)?.first_name }}
-                {{ getDwellerById(exploration.dweller_id)?.last_name }}</span
+                >{{ getDwellerDisplayName(getDwellerById(exploration.dweller_id)) }}</span
               >
               <ExplorationStatusBadges
                 :exploration="exploration"
                 :dweller="getDwellerForBadges(exploration.dweller_id)"
+                compact
               />
             </div>
             <span class="flex shrink-0 items-center gap-1">
@@ -138,7 +145,9 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
           </div>
           <div
             v-if="
-              getDwellerWeapon(exploration.dweller_id) || getDwellerOutfit(exploration.dweller_id)
+              getDwellerWeapon(exploration.dweller_id) ||
+              getDwellerOutfit(exploration.dweller_id) ||
+              getDwellerPet(exploration.dweller_id)
             "
             class="flex min-w-0 flex-col gap-0.5 text-[0.7rem] leading-tight"
           >
@@ -172,6 +181,22 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>{{ getDwellerOutfit(exploration.dweller_id)?.name }}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider v-if="getDwellerPet(exploration.dweller_id)" :delay-duration="200">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <span class="stat-item min-w-0 text-emerald-400">
+                    <Icon
+                      :icon="getItemIcon('pet', getDwellerPet(exploration.dweller_id) ?? {})"
+                      class="h-3 w-3 shrink-0"
+                    />
+                    <span class="min-w-0 flex-1 truncate">{{
+                      getDwellerPet(exploration.dweller_id)?.name
+                    }}</span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{{ getDwellerPet(exploration.dweller_id)?.name }}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>

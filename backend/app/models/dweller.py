@@ -17,12 +17,14 @@ from app.core.enums import (
     WeaponTypeEnum,
 )
 from app.models.base import BaseUUIDModel, SoftDeleteMixin, SPECIALModel, TimeStampMixin
+from app.options.pet_modifiers import pet_modifiers_for
 
 BIO_MAX_CHARS = 2_048
 
 if TYPE_CHECKING:
     from app.models.notification import Notification
     from app.models.outfit import Outfit
+    from app.models.pet import Pet
     from app.models.room import Room
     from app.models.team import TeamMember
     from app.models.training import Training
@@ -34,7 +36,6 @@ class DwellerBaseWithoutStats(SQLModel):
     # General info
     first_name: str = Field(index=True, min_length=2, max_length=32)
     last_name: str | None = Field(default=None, index=True, max_length=32)
-    is_adult: bool = True
     age_group: AgeGroupEnum = Field(default=AgeGroupEnum.ADULT)
     birth_date: datetime | None = Field(default=None)
     gender: GenderEnum = Field()
@@ -42,8 +43,8 @@ class DwellerBaseWithoutStats(SQLModel):
 
     @property
     def is_mature(self) -> bool:
-        """Adult by both flags — children and teens can't take combat assignments."""
-        return self.is_adult and self.age_group in ADULT_AGE_GROUPS
+        """Adult or elder — children and teens can't take combat assignments."""
+        return self.age_group in ADULT_AGE_GROUPS
 
     @property
     def display_name(self) -> str:
@@ -72,7 +73,7 @@ class DwellerBaseWithoutStats(SQLModel):
     @property
     def effective_max_health(self) -> int:
         """Maximum health available after radiation damage."""
-        return max(1, self.max_health - self.radiation)
+        return max(1, self.max_health + pet_modifiers_for(self).max_health - self.radiation)
 
     # Inventory
     stimpack: int = Field(default=0, ge=0, le=15)
@@ -81,8 +82,10 @@ class DwellerBaseWithoutStats(SQLModel):
     # Status
     status: DwellerStatusEnum = Field(default=DwellerStatusEnum.IDLE, index=True)
 
-    # Exit requests: a dweller who asks to leave stands by the ask until it is granted or withdrawn.
+    # Exit requests: a dweller in despair asks to leave once they have been unhappy long enough;
+    # the ask is resolved by granting or refusing it, or withdrawn when their mood recovers.
     exit_requested_at: datetime | None = Field(default=None)
+    despair_since: datetime | None = Field(default=None)
 
     # Death system
     is_dead: bool = Field(default=False, index=True)
@@ -183,6 +186,12 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
     # Inventory
     weapon: "Weapon" = Relationship(back_populates="dweller", cascade_delete=True)
     outfit: "Outfit" = Relationship(back_populates="dweller", cascade_delete=True)
+    pet: "Pet" = Relationship(back_populates="dweller", cascade_delete=True)
+
+    @property
+    def pet_loaded(self) -> "Pet | None":
+        """The equipped pet if already loaded, else None (never triggers lazy IO)."""
+        return self.__dict__.get("pet")
 
     @property
     def weapon_type(self) -> WeaponTypeEnum | None:

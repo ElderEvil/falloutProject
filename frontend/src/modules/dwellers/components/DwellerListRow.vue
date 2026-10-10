@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DwellerShort } from '../models/dweller'
+import { getDwellerDisplayName } from '../models/dweller'
 import DwellerPortrait from './DwellerPortrait.vue'
 import DwellerAgeBadge from './DwellerAgeBadge.vue'
 import DwellerGenderBadge from './DwellerGenderBadge.vue'
@@ -45,7 +46,7 @@ function activate() {
 
     <div class="dweller-identity flex w-44 min-w-0 flex-col">
       <h3 class="truncate text-base font-bold text-terminal-green">
-        {{ dweller.first_name }} {{ dweller.last_name }}
+        {{ getDwellerDisplayName(dweller) }}
       </h3>
       <div class="flex items-center gap-2">
         <p class="text-sm text-theme-primary/60">Level {{ dweller.level }}</p>

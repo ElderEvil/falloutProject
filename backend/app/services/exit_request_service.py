@@ -6,14 +6,16 @@ write, so the caps-revival window is skipped and they never come back.
 """
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.db_locks import try_advisory_xact_lock
 from app.core.enums import DeathCauseEnum, DwellerStatusEnum
 from app.core.game_config import game_config
 from app.crud.dweller import dweller as dweller_crud
+from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.services.family.death_service import death_service
@@ -61,7 +63,20 @@ class ExitRequestService:
         if reason:
             raise VaultOperationException(detail=reason)
 
-        dweller.exit_requested_at = datetime.now(UTC).replace(tzinfo=None)
+        now = datetime.now(UTC).replace(tzinfo=None)
+        if not await self._lock_exit_requests(db_session, dweller.vault_id):
+            raise VaultOperationException(detail="Another exit request is already being handled")
+
+        vault = await vault_crud.get(db_session, dweller.vault_id)
+        if vault is not None:
+            reason = await self._daily_cap_block(db_session, vault, now)
+            if reason:
+                raise VaultOperationException(detail=reason)
+
+        dweller.exit_requested_at = now
+        if vault is not None:
+            vault.last_exit_request_at = now
+            db_session.add(vault)
         db_session.add(dweller)
         if commit:
             await db_session.commit()
@@ -74,19 +89,29 @@ class ExitRequestService:
         return dweller
 
     async def refuse_exit(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID4) -> Dweller:
-        """Decline the ask: the dweller takes a happiness hit and the request stands."""
+        """Decline the ask: the request is answered, and the whole vault pays for it."""
+        if not await self._lock_exit_requests(db_session, vault.id):
+            raise VaultOperationException(detail="Another exit request is already being handled")
         dweller = await self._get_pending(db_session, vault, dweller_id)
+        vault_penalty = game_config.exit_request.vault_refusal_happiness_penalty
 
-        dweller.happiness = max(10, dweller.happiness - game_config.exit_request.refusal_happiness_penalty)
+        for member in await dweller_crud.get_living_in_vault(db_session, vault.id):
+            member.happiness = max(10, member.happiness - vault_penalty)
+
+        dweller.exit_requested_at = None
+        vault.last_exit_request_at = datetime.now(UTC).replace(tzinfo=None)
+        db_session.add(vault)
         db_session.add(dweller)
         await db_session.commit()
         await db_session.refresh(dweller)
 
-        logger.info("Vault %s refused %s's exit request", vault.id, dweller_id)
+        logger.info("Vault %s refused %s's exit request; morale -%d", vault.id, dweller_id, vault_penalty)
         return dweller
 
     async def grant_exit(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID4) -> Dweller:
         """Let the dweller go: permanent death by exile, with no revive window."""
+        if not await self._lock_exit_requests(db_session, vault.id):
+            raise VaultOperationException(detail="Another exit request is already being handled")
         dweller = await self._get_pending(db_session, vault, dweller_id)
         reason = self._eligibility_reason(dweller)
         if reason:
@@ -96,6 +121,8 @@ class ExitRequestService:
             raise VaultOperationException(detail=reason)
 
         dweller.exit_requested_at = None
+        vault.last_exit_request_at = datetime.now(UTC).replace(tzinfo=None)
+        db_session.add(vault)
         db_session.add(dweller)
         await db_session.flush()
 
@@ -113,29 +140,68 @@ class ExitRequestService:
         now = datetime.now(UTC).replace(tzinfo=None)
 
         asked = await self._ask_the_despairing(db_session, vault_id, threshold, now)
-        withdrawn = await self._withdraw_recovered(db_session, vault_id, threshold)
+        await self._withdraw_recovered(db_session, vault_id, threshold)
         for dweller in asked:
             await self._announce_request(db_session, dweller, commit=False)
-        if asked or withdrawn:
-            await db_session.commit()
+        await db_session.commit()
         await notification_service.deliver_deferred_notifications(db_session)
         if asked:
             logger.info("%d dweller(s) in vault %s asked to leave", len(asked), vault_id)
         return asked
 
+    async def _lock_exit_requests(self, db_session: AsyncSession, vault_id: UUID4) -> bool:
+        """Serialize the cap check-and-stamp per vault (a no-op outside PostgreSQL)."""
+        return await try_advisory_xact_lock(db_session, f"exit-request:{vault_id}")
+
+    async def _daily_cap_block(self, db_session: AsyncSession, vault: Vault, now: datetime) -> str | None:
+        """Why the vault cannot raise another ask right now, or None when it can."""
+        if await dweller_crud.get_pending_exit_requests(db_session, vault.id):
+            return "A dweller is already waiting on an answer"
+        per_day = game_config.exit_request.max_exit_requests_per_day
+        throttle = timedelta(days=1) / per_day
+        if vault.last_exit_request_at is not None and now - vault.last_exit_request_at < throttle:
+            return "The vault has already heard an exit request in the last day"
+        return None
+
     async def _ask_the_despairing(
         self, db_session: AsyncSession, vault_id: UUID4, threshold: int, now: datetime
     ) -> list[Dweller]:
-        candidates = await dweller_crud.get_despairing_without_exit_request(db_session, vault_id, threshold)
-        asked: list[Dweller] = []
-        if await self._population_block(db_session, vault_id):
-            return asked
-        for dweller in candidates:
-            if self._eligibility_reason(dweller):
+        vault = await vault_crud.get(db_session, vault_id)
+        if vault is None:
+            return []
+
+        if await self._lock_exit_requests(db_session, vault_id):
+            block = await self._daily_cap_block(db_session, vault, now)
+            if block is None:
+                block = await self._population_block(db_session, vault_id)
+        else:
+            block = "Another exit request is already being handled"
+
+        grace = timedelta(hours=game_config.exit_request.despair_grace_hours)
+        eligible: list[Dweller] = []
+        for dweller in await dweller_crud.get_living_in_vault(db_session, vault_id):
+            if dweller.happiness > threshold:
+                dweller.despair_since = None
                 continue
+            if dweller.despair_since is None:
+                dweller.despair_since = now
+            if (
+                dweller.exit_requested_at is None
+                and now - dweller.despair_since >= grace
+                and self._eligibility_reason(dweller) is None
+            ):
+                eligible.append(dweller)
+
+        if block:
+            return []
+
+        eligible.sort(key=lambda dweller: dweller.happiness)
+        asked = eligible[:1]
+        for dweller in asked:
             dweller.exit_requested_at = now
-            db_session.add(dweller)
-            asked.append(dweller)
+        if asked:
+            vault.last_exit_request_at = now
+            db_session.add(vault)
         return asked
 
     async def _withdraw_recovered(self, db_session: AsyncSession, vault_id: UUID4, threshold: int) -> list[Dweller]:

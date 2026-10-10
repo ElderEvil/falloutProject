@@ -1,4 +1,5 @@
 import type { components } from '@/core/types/api.generated'
+import { humanizePreserveCase } from '@/core/utils/format'
 
 // Re-export generated API types
 // Dweller is the full type with all relations (vault, room, weapon, outfit)
@@ -18,26 +19,40 @@ export function canUseRadaway(
 }
 
 export function formatIdentityLabel(value: string): string {
-  return value
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
+  return humanizePreserveCase(value)
+}
+
+/** Dweller display name; last names are nullable, so this never renders `"null"`. */
+export function getDwellerDisplayName(
+  dweller: { first_name?: string | null; last_name?: string | null } | null | undefined
+): string {
+  if (!dweller?.first_name) return ''
+  return [dweller.first_name, dweller.last_name].filter(Boolean).join(' ')
 }
 
 /** Race → display config — single source of truth for race badges and the identity signal. */
-export const RACE_CONFIG_MAP: Record<string, { icon: string; label: string }> = {
-  human: { icon: 'mdi:account', label: 'Human' },
-  ghoul: { icon: 'mdi:radioactive', label: 'Ghoul' },
-  super_mutant: { icon: 'mdi:arm-flex', label: 'Super Mutant' },
-  synth: { icon: 'mdi:robot-outline', label: 'Synth' },
+export const RACE_CONFIG_MAP: Record<string, { icon: string; label: string; color: string }> = {
+  human: { icon: 'mdi:account', label: 'Human', color: 'var(--badge-race-human)' },
+  ghoul: { icon: 'mdi:radioactive', label: 'Ghoul', color: 'var(--badge-race-ghoul)' },
+  super_mutant: {
+    icon: 'mdi:arm-flex',
+    label: 'Super Mutant',
+    color: 'var(--badge-race-super-mutant)',
+  },
+  synth: { icon: 'mdi:robot-outline', label: 'Synth', color: 'var(--badge-race-synth)' },
 }
 
-export function getRaceConfig(race: string | null | undefined): { icon: string; label: string } {
+export function getRaceConfig(race: string | null | undefined): {
+  icon: string
+  label: string
+  color: string
+} {
   const key = String(race ?? '').toLowerCase()
   return (
     RACE_CONFIG_MAP[key] ?? {
       icon: 'mdi:account-question-outline',
       label: formatIdentityLabel(key),
+      color: 'var(--color-theme-primary)',
     }
   )
 }
@@ -265,6 +280,20 @@ export function getRadiationPercentage(
   return Math.min(100, (radiation / maxHealth) * 100)
 }
 
+/**
+ * Radiation share of max health at or above which a dweller reads as severely
+ * irradiated (matches the explorer "heavy radiation" badge threshold).
+ */
+export const SEVERE_RADIATION_PERCENT = 50
+
+/** True when radiation consumes at least {@link SEVERE_RADIATION_PERCENT}% of max health. */
+export function isSeverelyIrradiated(
+  radiation: number | null | undefined,
+  maxHealth: number
+): boolean {
+  return getRadiationPercentage(radiation, maxHealth) >= SEVERE_RADIATION_PERCENT
+}
+
 /** Health ceiling after radiation damage, kept at one so existing death rules still apply. */
 export function getEffectiveMaxHealth(
   radiation: number | null | undefined,
@@ -437,7 +466,12 @@ export function getActivitySummary(dweller: Pick<Dweller, 'status' | 'room' | 'i
  */
 export const ADULT_AGE_GROUPS: ReadonlySet<string> = new Set(['adult', 'elder'])
 
-/** Adult by both flags, mirroring the backend's ``Dweller.is_mature``. */
-export function isMature(dweller: Pick<Dweller, 'is_adult' | 'age_group'>): boolean {
-  return dweller.is_adult && ADULT_AGE_GROUPS.has(dweller.age_group)
+/** Mature by age group, mirroring the backend's ``Dweller.is_mature``. */
+export function isMature(dweller: Pick<Dweller, 'age_group'>): boolean {
+  return ADULT_AGE_GROUPS.has(dweller.age_group)
+}
+
+/** A dweller with no room assignment that is not dead or away from the vault (available to assign). */
+export function isAvailableUnassignedDweller(dweller: { room_id?: string | null; status: string }): boolean {
+  return !dweller.room_id && !['dead', 'questing', 'exploring'].includes(dweller.status)
 }

@@ -50,6 +50,27 @@ class TestValidateTargetEntity:
         assert len(errors) == 1
         assert "Invalid item_type" in errors[0]
 
+    def test_validate_item_type_wildcards_valid(self):
+        assert validate_target_entity("collect", {"item_type": "any"}) == []
+        assert validate_target_entity("collect", {"item_type": "*"}) == []
+
+    def test_validate_scrap_valid(self):
+        assert validate_target_entity("scrap", {"item_type": "weapon", "rarity": "rare"}) == []
+        assert validate_target_entity("scrap", {"rarity": "legendary"}) == []
+
+    def test_validate_scrap_wildcards_valid(self):
+        assert validate_target_entity("scrap", {"item_type": "any", "rarity": "rare"}) == []
+        assert validate_target_entity("scrap", {"item_type": "*", "rarity": "any"}) == []
+
+    def test_validate_scrap_invalid(self):
+        errors = validate_target_entity("scrap", {"item_type": "invalid_item"})
+        assert len(errors) == 1
+        assert "Invalid item_type" in errors[0]
+
+        errors = validate_target_entity("scrap", {"rarity": "invalid"})
+        assert len(errors) == 1
+        assert "Invalid rarity" in errors[0]
+
     def test_validate_reach_valid(self):
         errors = validate_target_entity("reach", {"reach_type": "dweller_count"})
         assert errors == []

@@ -6,6 +6,7 @@
  */
 import type { components } from '@/core/types/api.generated'
 import { getItemIcon } from '@/core/models/items'
+import { capitalize } from '@/core/utils/format'
 
 export type GrantedReward = components['schemas']['QuestCompleteResponse']['granted_rewards'][number]
 export interface Quest {
@@ -110,7 +111,7 @@ export function formatQuestReward(reward: QuestReward): string {
       return `${rewardAmount(data.amount)} Caps`
     case 'resource': {
       const resourceType = rewardText(data.resource_type) || 'resource'
-      return `${rewardAmount(data.amount)} ${resourceType.charAt(0).toUpperCase() + resourceType.slice(1)}`
+      return `${rewardAmount(data.amount)} ${capitalize(resourceType)}`
     }
     case 'experience':
       return `${rewardAmount(data.amount)} XP`
@@ -144,7 +145,7 @@ export function formatQuestReward(reward: QuestReward): string {
     case 'lunchbox':
       return 'Lunchbox (3 items + 1 dweller)'
     default:
-      return type.charAt(0).toUpperCase() + type.slice(1)
+      return capitalize(type)
   }
 }
 
@@ -172,7 +173,7 @@ export const QUEST_TYPE_COLORS: Record<string, { bg: string, text: string, borde
 
 export function questTypeLabel(questType: string | null | undefined): string {
   const normalized = questType || 'side'
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+  return capitalize(normalized)
 }
 
 export function isSideQuestType(questType: string | null | undefined): boolean {
@@ -213,8 +214,7 @@ export function compareQuestsByAvailableSort(
 /** Humanize a backend slug for display: underscores become spaces, first letter capitalized. */
 export function humanizeSlug(value: unknown): string {
   const label = rewardText(value) || 'stat'
-  const spaced = label.replace(/_/g, ' ')
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
+  return capitalize(label.replace(/_/g, ' '))
 }
 
 /** Icon for a quest reward; item rewards resolve via category, then item name, so only unknown items use the generic icon. */

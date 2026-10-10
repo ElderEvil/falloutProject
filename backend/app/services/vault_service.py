@@ -22,6 +22,7 @@ from app.core.game_data import get_static_game_data
 from app.core.grid_config import SHAFT_X
 from app.crud import dweller as dweller_crud
 from app.crud import outfit as outfit_crud
+from app.crud import pet as pet_crud
 from app.crud import room as room_crud
 from app.crud import weapon as weapon_crud
 from app.crud.relationship import relationship_crud
@@ -44,6 +45,7 @@ from app.services.vault_seed import (
     BOOSTED_MERGED_LIVING_ROOM,
     BOOSTED_SEED_JUNK,
     BOOSTED_SEED_OUTFITS,
+    BOOSTED_SEED_PETS,
     BOOSTED_TRAINING_STATS,
     SEED_OUTFITS,
     SEED_WEAPONS,
@@ -62,7 +64,7 @@ from app.utils.exceptions import (
     ResourceConflictException,
     ResourceNotFoundException,
 )
-from app.utils.item_factory import build_catalog_item, build_outfit, build_weapon
+from app.utils.item_factory import build_catalog_item, build_outfit, build_pet, build_weapon
 from app.utils.junk_assets import get_junk_image_url
 from app.utils.resource_warnings import get_resource_warnings
 
@@ -97,13 +99,6 @@ class VaultService:
             data["output"] = room_crud.evaluate_output_formula(data["output_formula"], tier, size)
         data.update(vault_id=vault_id, size=size, tier=tier, coordinate_x=x, coordinate_y=y)
         return RoomCreate(**data)
-
-    @staticmethod
-    def _prepare_room_data(
-        rooms: list[RoomCreateWithoutVaultID], room_name: str, vault_id: UUID4, x: int, y: int
-    ) -> dict:
-        rooms_by_name = {r.name.lower(): r for r in rooms}
-        return VaultService._build_room(rooms_by_name, room_name, vault_id, x, y).model_dump()
 
     def _prepare_initial_rooms(
         self,
@@ -378,7 +373,6 @@ class VaultService:
             db_session,
             youth_id,
             {
-                "is_adult": False,
                 "age_group": AgeGroupEnum.TEEN,
                 "birth_date": datetime.utcnow() - timedelta(hours=YOUTH_APPRENTICE_BIRTH_AGE_HOURS),
                 "room_id": room.id,
@@ -453,7 +447,6 @@ class VaultService:
                 "parent_1_id": mother.id,
                 "parent_2_id": father.id,
                 "last_name": surname,
-                "is_adult": False,
                 "age_group": AgeGroupEnum.TEEN if room else AgeGroupEnum.CHILD,
                 "birth_date": datetime.utcnow()
                 - timedelta(hours=YOUTH_APPRENTICE_BIRTH_AGE_HOURS if room else SEEDED_CHILD_AGE_HOURS),
@@ -592,6 +585,12 @@ class VaultService:
             await db_session.commit()
             self.logger.info(f"Seeded {seeded} crafting materials into storage {storage_id}")
 
+    async def _seed_boosted_pets(self, db_session: AsyncSession, storage_id: UUID4) -> None:
+        """Seed unassigned pets into a boosted vault's storage so equip and bonuses are testable immediately."""
+        pets = [build_pet({"name": name}, rarity, storage_id) for name, rarity in BOOSTED_SEED_PETS]
+        await pet_crud.create_many(db_session, pets)
+        self.logger.info(f"Seeded {len(pets)} pets into storage {storage_id}")
+
     def _build_boosted_outfits(self, storage_id: UUID4) -> list[Outfit]:
         """Spare hazard-team suits from the outfit catalog, so resists stay correct."""
         from app.services.exploration.data_loader import load_outfits
@@ -620,6 +619,7 @@ class VaultService:
         await outfit_crud.create_many(db_session, outfits)
         if is_boosted:
             await self._seed_boosted_junk(db_session, storage.id)
+            await self._seed_boosted_pets(db_session, storage.id)
         self.logger.info(f"Created initial items for vault {vault_id}")
 
     async def _create_boosted_legendary_dwellers(self, db_session: AsyncSession, vault_id: UUID4) -> None:

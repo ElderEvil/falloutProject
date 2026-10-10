@@ -27,9 +27,7 @@ interface Props {
   generatingPortrait?: boolean
   availableStimpaks?: number
   availableRadaways?: number
-  issuingMedicalSupply?: boolean
-  usingStimpak?: boolean
-  usingRadAway?: boolean
+  healingSupply?: 'stimpack' | 'radaway' | null
 }
 
 const props = defineProps<Props>()
@@ -39,12 +37,11 @@ const emit = defineEmits<{
   (e: 'assign'): void
   (e: 'recall'): void
   (e: 'train'): void
-  (e: 'use-stimpak'): void
-  (e: 'use-radaway'): void
+  (e: 'heal-stimpack'): void
+  (e: 'heal-radaway'): void
   (e: 'unassign'): void
   (e: 'send-wasteland'): void
   (e: 'generate-portrait'): void
-  (e: 'issue-medical-supply', supply: 'stimpack' | 'radaway'): void
 }>()
 
 const getImageUrl = (imagePath: string) => {
@@ -71,10 +68,15 @@ const happinessColor = computed(() => getHappinessColor(getHappinessLevel(props.
 
 const availableStimpaksCount = computed(() => props.availableStimpaks ?? 0)
 const availableRadawaysCount = computed(() => props.availableRadaways ?? 0)
+const carriedStimpacks = computed(() => props.dweller.stimpack || 0)
+const carriedRadaways = computed(() => props.dweller.radaway || 0)
+
+// Healing is refused server-side for the deceased (409). Revival UI owns the
+// dead state, so the card never offers a medical action on a corpse.
+const isDead = computed(() => props.dweller.is_dead === true)
 
 // Supplies are shown only when this dweller has a reason to care: they carry
-// the item, or they need it and the vault can supply it. A healthy dweller with
-// empty pockets sees nothing.
+// the item, or they need it. A healthy dweller with empty pockets sees nothing.
 const isInjured = computed(
   () =>
     props.dweller.health < getEffectiveMaxHealth(props.dweller.radiation, props.dweller.max_health)
@@ -82,35 +84,33 @@ const isInjured = computed(
 const isRadiated = computed(() => (props.dweller.radiation || 0) > 0)
 
 const showStimpackSection = computed(
-  () => (props.dweller.stimpack || 0) > 0 || (isInjured.value && availableStimpaksCount.value > 0)
+  () => !isDead.value && (carriedStimpacks.value > 0 || isInjured.value)
 )
 const showRadawaySection = computed(
   () =>
+    !isDead.value &&
     isRadawayEligible(props.dweller) &&
-    ((props.dweller.radaway || 0) > 0 || (isRadiated.value && availableRadawaysCount.value > 0))
+    (carriedRadaways.value > 0 || isRadiated.value)
 )
 const showInventory = computed(() => showStimpackSection.value || showRadawaySection.value)
-
-const canIssueStimpack = computed(
-  () => (props.dweller.stimpack || 0) < 15 && availableStimpaksCount.value > 0
-)
-const canIssueRadaway = computed(
-  () =>
-    isRadawayEligible(props.dweller) &&
-    (props.dweller.radaway || 0) < 15 &&
-    availableRadawaysCount.value > 0
+const isHealing = computed(
+  () => props.healingSupply === 'stimpack' || props.healingSupply === 'radaway'
 )
 
-const canUseStimpak = computed(
+// One Heal button per row: enabled while a heal can actually run, using the
+// carried stock or auto-issuing one from the vault first when empty-pocketed.
+const canHealStimpack = computed(
   () =>
-    (props.dweller.stimpack || 0) > 0 &&
-    props.dweller.health < getEffectiveMaxHealth(props.dweller.radiation, props.dweller.max_health)
+    !isDead.value &&
+    isInjured.value &&
+    (carriedStimpacks.value > 0 || availableStimpaksCount.value > 0)
 )
-const canUseRadaway = computed(
+const canHealRadaway = computed(
   () =>
+    !isDead.value &&
     isRadawayEligible(props.dweller) &&
-    (props.dweller.radaway || 0) > 0 &&
-    (props.dweller.radiation || 0) > 0
+    isRadiated.value &&
+    (carriedRadaways.value > 0 || availableRadawaysCount.value > 0)
 )
 </script>
 
@@ -183,32 +183,24 @@ const canUseRadaway = computed(
           <div v-if="showStimpackSection" class="supply-row supply-stimpack">
             <Icon icon="mdi:medical-bag" class="supply-icon" :ariaHidden="true" />
             <span class="supply-name">Stimpack</span>
-            <span class="supply-count" :title="`Carrying ${dweller.stimpack || 0} of 15`">
-              {{ dweller.stimpack || 0 }}
+            <span class="supply-count" :title="`Carrying ${carriedStimpacks} of 15`">
+              {{ carriedStimpacks }}
             </span>
             <div class="supply-actions">
               <Button
-                v-if="canUseStimpak"
                 variant="outline"
                 size="xs"
                 aria-label="Use Stimpack"
-                title="Use one Stimpak (heals dweller)"
-                :disabled="usingStimpak"
-                @click="emit('use-stimpak')"
+                :title="`Heal with one Stimpak; ${availableStimpaksCount} in vault storage`"
+                :disabled="isHealing || !canHealStimpack"
+                @click="emit('heal-stimpack')"
               >
-                <Icon v-if="usingStimpak" icon="mdi:loading" class="mr-1 animate-spin" />
-                Use
-              </Button>
-              <Button
-                v-if="canIssueStimpack"
-                variant="outline"
-                size="xs"
-                aria-label="Issue Stimpack from vault"
-                :title="`Issue one Stimpak from vault (${availableStimpaksCount} available)`"
-                :disabled="issuingMedicalSupply"
-                @click="emit('issue-medical-supply', 'stimpack')"
-              >
-                <Icon icon="mdi:plus" class="supply-issue-icon" />
+                <Icon
+                  v-if="healingSupply === 'stimpack'"
+                  icon="mdi:loading"
+                  class="mr-1 animate-spin"
+                />
+                Use · vault {{ availableStimpaksCount }}
               </Button>
             </div>
           </div>
@@ -216,32 +208,24 @@ const canUseRadaway = computed(
           <div v-if="showRadawaySection" class="supply-row supply-radaway">
             <Icon icon="mdi:radiation" class="supply-icon" :ariaHidden="true" />
             <span class="supply-name">RadAway</span>
-            <span class="supply-count" :title="`Carrying ${dweller.radaway || 0} of 15`">
-              {{ dweller.radaway || 0 }}
+            <span class="supply-count" :title="`Carrying ${carriedRadaways} of 15`">
+              {{ carriedRadaways }}
             </span>
             <div class="supply-actions">
               <Button
-                v-if="canUseRadaway"
                 variant="outline"
                 size="xs"
                 aria-label="Use RadAway"
-                title="Use one RadAway (reduces radiation)"
-                :disabled="usingRadAway"
-                @click="emit('use-radaway')"
+                :title="`Heal with one RadAway; ${availableRadawaysCount} in vault storage`"
+                :disabled="isHealing || !canHealRadaway"
+                @click="emit('heal-radaway')"
               >
-                <Icon v-if="usingRadAway" icon="mdi:loading" class="mr-1 animate-spin" />
-                Use
-              </Button>
-              <Button
-                v-if="canIssueRadaway"
-                variant="outline"
-                size="xs"
-                aria-label="Issue RadAway from vault"
-                :title="`Issue one RadAway from vault (${availableRadawaysCount} available)`"
-                :disabled="issuingMedicalSupply"
-                @click="emit('issue-medical-supply', 'radaway')"
-              >
-                <Icon icon="mdi:plus" class="supply-issue-icon" />
+                <Icon
+                  v-if="healingSupply === 'radaway'"
+                  icon="mdi:loading"
+                  class="mr-1 animate-spin"
+                />
+                Use · vault {{ availableRadawaysCount }}
               </Button>
             </div>
           </div>
@@ -456,10 +440,5 @@ const canUseRadaway = computed(
   align-items: center;
   gap: 0.25rem;
   margin-left: auto;
-}
-
-.supply-issue-icon {
-  width: 0.85rem;
-  height: 0.85rem;
 }
 </style>

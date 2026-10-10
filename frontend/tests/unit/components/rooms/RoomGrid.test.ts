@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { createRouterMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import RoomGrid from '@/modules/rooms/components/RoomGrid.vue'
@@ -9,9 +10,7 @@ import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
 
-vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: { id: 'vault-1' } }),
-}))
+vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' } }))
 
 // TooltipLabel is a thin presentational wrapper; stubbing it lets isolated cell
 // mounts skip the TooltipProvider ancestor and exposes each label as text.
@@ -772,7 +771,7 @@ describe('RoomGrid', () => {
         first_name: 'X',
         last_name: 'Y',
         room_id: 'production-room-123',
-        is_adult: true,
+        age_group: 'adult',
         apprentice_stat: null,
         ...overrides,
       }) as any
@@ -790,7 +789,7 @@ describe('RoomGrid', () => {
     it('lets a youth apprentice be dropped on a fully staffed production room', async () => {
       const dwellerStore = setupDrop([
         ...staffedFull,
-        dwellerIn({ id: 'teen-1', room_id: null, is_adult: false, age_group: 'teen' }),
+        dwellerIn({ id: 'teen-1', room_id: null, age_group: 'teen' }),
       ])
 
       const assignSpy = vi
@@ -822,7 +821,7 @@ describe('RoomGrid', () => {
     it('does not count an apprentice against worker capacity for adults', async () => {
       const dwellerStore = setupDrop([
         dwellerIn({ id: 'adult-1' }),
-        dwellerIn({ id: 'teen-1', is_adult: false, age_group: 'teen', apprentice_stat: 'strength' }),
+        dwellerIn({ id: 'teen-1', age_group: 'teen', apprentice_stat: 'strength' }),
         dwellerIn({ id: 'adult-3', room_id: null }),
       ])
 

@@ -30,6 +30,22 @@ from typing import Annotated, Any
 
 import typer
 
+from app.cli.simulate_common import (
+    CurvesMixin,
+    banner,
+    fmt_stats,
+    print_hourly_curves,
+    run_simulate_command,
+)
+from app.cli.simulate_common import (
+    print_sweep_report as shared_print_sweep_report,
+)
+from app.cli.simulate_common import (
+    run_parameter_sweep as shared_run_parameter_sweep,
+)
+from app.cli.simulate_common import (
+    stats as _stats,
+)
 from app.core.game_config import game_config
 from app.models.incident import IncidentType
 from app.services.combat.incident_sim import DefenderProfile, SimDefender, resolve_incident
@@ -401,7 +417,7 @@ class _Aggregates:
 
 
 @dataclasses.dataclass
-class _Curves:
+class _Curves(CurvesMixin):
     pop: list[float] = dataclasses.field(default_factory=list)
     deaths: list[float] = dataclasses.field(default_factory=list)
     incidents: list[float] = dataclasses.field(default_factory=list)
@@ -409,10 +425,6 @@ class _Curves:
     food: list[float] = dataclasses.field(default_factory=list)
     water: list[float] = dataclasses.field(default_factory=list)
     happiness: list[float] = dataclasses.field(default_factory=list)
-
-    @classmethod
-    def zeroed(cls, hours: int) -> _Curves:
-        return cls(**{k: [0.0] * hours for k in dataclasses.asdict(cls())})
 
     def add_result(self, result: SimulationResult, hours: int) -> None:
         for h in range(hours):
@@ -423,22 +435,6 @@ class _Curves:
             self.food[h] += result.food_by_hour[h]
             self.water[h] += result.water_by_hour[h]
             self.happiness[h] += result.happiness_by_hour[h]
-
-    def divide(self, divisor: int) -> None:
-        for k in dataclasses.asdict(self):
-            arr = getattr(self, k)
-            for i in range(len(arr)):
-                arr[i] /= divisor
-
-
-def _stats(values: list[int] | list[float]) -> dict[str, float]:
-    return {
-        "mean": statistics.mean(values),
-        "median": statistics.median(values),
-        "stdev": statistics.stdev(values) if len(values) > 1 else 0.0,
-        "min": min(values),
-        "max": max(values),
-    }
 
 
 def run_monte_carlo(
@@ -520,29 +516,14 @@ def run_parameter_sweep(
     base_roster: list[DefenderProfile] | None = None,
     roster_loader: Callable[[], list[DefenderProfile]] | None = None,
 ) -> list[BatchResult]:
-    results: list[BatchResult] = []
-    values = SWEEP_RANGES.get(param_name, [])
-    if not values:
-        print(f"Unknown parameter '{param_name}'. Available: {list(SWEEP_RANGES.keys())}")
-        return results
-
-    for value in values:
-        cfg = dataclasses.replace(baseline, **{param_name: value})
-        result = run_monte_carlo(cfg, simulation_hours, runs, base_roster=base_roster, roster_loader=roster_loader)
-        results.append(result)
-    return results
-
-
-TERMINAL_WIDTH = 72
-
-
-def banner(text: str) -> str:
-    pad = (TERMINAL_WIDTH - len(text) - 4) // 2
-    return "=" * pad + f"  {text}  " + "=" * pad
-
-
-def fmt_stats(st: dict[str, float]) -> str:
-    return f"mean={st['mean']:.1f}  median={st['median']:.1f}  std={st['stdev']:.1f}  range=[{st['min']}, {st['max']}]"
+    return shared_run_parameter_sweep(
+        param_name,
+        baseline,
+        simulation_hours,
+        runs,
+        sweep_ranges=SWEEP_RANGES,
+        run_monte_carlo=partial(run_monte_carlo, base_roster=base_roster, roster_loader=roster_loader),
+    )
 
 
 def _print_params(cfg: IncidentConfig) -> None:
@@ -603,21 +584,7 @@ def _print_resources(batch: BatchResult) -> None:
 
 
 def _print_hourly_curves(batch: BatchResult, hours: int) -> None:
-    if hours > 24:
-        return
-    print("Hourly curves (average per run):")
-    print("  hour | POP | DEATHS | INCIDENTS | POWER | FOOD | WATER | HAPPY")
-    print("  " + "-" * 65)
-    for h in range(hours):
-        p = batch["pop_curve"][h]
-        d = batch["deaths_curve"][h]
-        i = batch["incidents_curve"][h]
-        pw = batch["power_curve"][h]
-        f = batch["food_curve"][h]
-        w = batch["water_curve"][h]
-        hp = batch["happiness_curve"][h]
-        print(f"  {h:4} | {p:3.0f} | {d:6.1f} | {i:9.1f} | {pw:5.0f} | {f:4.0f} | {w:5.0f} | {hp:5.1f}")
-    print()
+    print_hourly_curves(batch, hours, deaths_key="deaths_curve", incidents_key="incidents_curve")
 
 
 def _print_balance(batch: BatchResult, hours: int) -> None:
@@ -660,40 +627,38 @@ def print_report(batch: BatchResult, detailed: bool = False) -> None:
 
 
 def print_sweep_report(results: list[BatchResult], param_name: str) -> None:
-    print()
-    print(banner(f"Parameter sweep: {param_name}"))
-    print()
-    print(
-        f"{'Value':>12} | {'Inc':>5} | {'Res':>5} | {'Fail':>5} | {'Death':>5} | "
-        f"{'Surv%':>5} | {'Pop':>5} | {'Power':>5} | {'Food':>5} | {'Water':>5} | Verdict"
+    shared_print_sweep_report(
+        results,
+        param_name,
+        header=(
+            f"{'Value':>12} | {'Inc':>5} | {'Res':>5} | {'Fail':>5} | {'Death':>5} | "
+            f"{'Surv%':>5} | {'Pop':>5} | {'Power':>5} | {'Food':>5} | {'Water':>5} | Verdict"
+        ),
+        render_row=_render_sweep_row,
     )
-    print("-" * TERMINAL_WIDTH)
 
-    for r in results:
-        cfg: IncidentConfig = r["config"]
-        value = getattr(cfg, param_name)
-        inc = r["total_incidents"]["mean"]
-        res = r["incidents_resolved"]["mean"]
-        fail = r["incidents_failed"]["mean"]
-        deaths = r["total_deaths"]["mean"]
-        surv = r["survival_rate"]["mean"] * 100
-        pop = r["population"]["mean"]
-        power = r["final_power"]["mean"]
-        food = r["final_food"]["mean"]
-        water = r["final_water"]["mean"]
 
-        if surv < 50:
-            verdict = "deadly"
-        elif surv < 80:
-            verdict = "challenging"
-        else:
-            verdict = "easy"
+def _render_sweep_row(value: str, r: BatchResult) -> str:
+    inc = r["total_incidents"]["mean"]
+    res = r["incidents_resolved"]["mean"]
+    fail = r["incidents_failed"]["mean"]
+    deaths = r["total_deaths"]["mean"]
+    surv = r["survival_rate"]["mean"] * 100
+    pop = r["population"]["mean"]
+    power = r["final_power"]["mean"]
+    food = r["final_food"]["mean"]
+    water = r["final_water"]["mean"]
 
-        vstr = f"{value:.2f}" if isinstance(value, float) else str(value)
-        line = f"{vstr:>12} | {inc:>5.1f} | {res:>5.1f} | {fail:>5.1f} | {deaths:>5.1f}"
-        line += f" | {surv:>5.1f} | {pop:>5.0f} | {power:>5.0f} | {food:>5.0f} | {water:>5.0f} | {verdict}"
-        print(line)
-    print()
+    if surv < 50:
+        verdict = "deadly"
+    elif surv < 80:
+        verdict = "challenging"
+    else:
+        verdict = "easy"
+
+    line = f"{value:>12} | {inc:>5.1f} | {res:>5.1f} | {fail:>5.1f} | {deaths:>5.1f}"
+    line += f" | {surv:>5.1f} | {pop:>5.0f} | {power:>5.0f} | {food:>5.0f} | {water:>5.0f} | {verdict}"
+    return line
 
 
 def _load_roster(vault_id: uuid.UUID) -> list[DefenderProfile]:

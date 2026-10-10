@@ -1,19 +1,16 @@
-import apiClient from '@/core/plugins/axios'
+import { apiGet, apiPost, apiPut } from '@/core/utils/api'
 import type { AISettingsRead, AISettingsTestResult, AISettingsUpdate } from '../models/aiSettings'
 
 export const aiSettingsService = {
   async get(): Promise<AISettingsRead> {
-    const response = await apiClient.get<AISettingsRead>('/api/v1/ai-settings/')
-    return response.data
+    return apiGet<AISettingsRead>('/api/v1/ai-settings/')
   },
 
   async update(data: AISettingsUpdate): Promise<AISettingsRead> {
-    const response = await apiClient.put<AISettingsRead>('/api/v1/ai-settings/', data)
-    return response.data
+    return apiPut<AISettingsRead>('/api/v1/ai-settings/', data)
   },
 
   async test(overrides: AISettingsUpdate = {}): Promise<AISettingsTestResult> {
-    const response = await apiClient.post<AISettingsTestResult>('/api/v1/ai-settings/test', overrides)
-    return response.data
+    return apiPost<AISettingsTestResult>('/api/v1/ai-settings/test', overrides)
   },
 }

@@ -14,6 +14,7 @@ class ExitRequestRead(BaseModel):
     level: int
     happiness: int
     requested_at: datetime | None = None
+    refusal_happiness_penalty: int
 
 
 class ExitDecisionResponse(BaseModel):

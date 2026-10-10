@@ -2,6 +2,7 @@
  * Single source of truth for item display: icons, rarity styling and stat rows.
  * Shared by combat (EquipmentCard), storage (StorageItemCard) and exploration loot lists.
  */
+import { humanize } from '@/core/utils/format'
 
 // Weapon subtype -> icon (game-icons used where MDI has no glyph)
 export const WEAPON_SUBTYPE_ICONS: Record<string, string> = {
@@ -164,11 +165,7 @@ const OUTFIT_BONUS_KEYS = [
  * ("rare_outfit") — so both go through here to read the same way.
  */
 export function formatItemLabel(value: string | null | undefined): string {
-  if (!value) return ''
-  return value
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join(' ')
+  return humanize(value)
 }
 
 export function getOutfitBonuses(outfit: BonusSource): { stat: string; bonus: number }[] {
@@ -250,6 +247,66 @@ export function getOutfitStats(outfit: OutfitStatsSource): ItemStat[] {
   return stats
 }
 
+// Pet effect keys -> display labels, mirroring the outfit bonus rows.
+const PET_SPECIAL_LABELS: Record<string, string> = {
+  strength: 'Strength',
+  perception: 'Perception',
+  endurance: 'Endurance',
+  charisma: 'Charisma',
+  intelligence: 'Intelligence',
+  agility: 'Agility',
+  luck: 'Luck',
+}
+
+// Fractional (0-1) pet effect keys -> display labels; rendered as +X%.
+const PET_PERCENT_LABELS: Record<string, string> = {
+  damage_pct: 'Damage',
+  incident_response_pct: 'Incident response',
+  radiation_resist_pct: 'RAD resist',
+  happiness: 'Happiness',
+  caps_pct: 'Caps',
+  xp_pct: 'XP',
+  training_speed_pct: 'Training speed',
+}
+
+export interface PetEffectSource {
+  strength?: number
+  perception?: number
+  endurance?: number
+  charisma?: number
+  intelligence?: number
+  agility?: number
+  luck?: number
+  max_health?: number
+  damage_pct?: number
+  incident_response_pct?: number
+  radiation_resist_pct?: number
+  happiness?: number
+  caps_pct?: number
+  xp_pct?: number
+  training_speed_pct?: number
+}
+
+/**
+ * Readable stat rows for a pet's catalog-resolved effect: SPECIAL ints as
+ * `+N`, `+N Max HP`, and the fractional fields as `+X%`. Zero-valued effects
+ * are omitted so a neutral pet renders no rows.
+ */
+export function getPetStats(effect: PetEffectSource): ItemStat[] {
+  const stats: ItemStat[] = []
+  for (const [key, label] of Object.entries(PET_SPECIAL_LABELS)) {
+    const value = effect[key as keyof PetEffectSource] ?? 0
+    if (value > 0) stats.push({ label, value: `+${value}`, icon: 'mdi:chevron-up' })
+  }
+  if ((effect.max_health ?? 0) > 0)
+    stats.push({ label: 'Max HP', value: `+${effect.max_health}`, icon: 'mdi:heart-plus' })
+  for (const [key, label] of Object.entries(PET_PERCENT_LABELS)) {
+    const value = effect[key as keyof PetEffectSource] ?? 0
+    if (value > 0) stats.push({ label, value: `+${Math.round(value * 100)}%`, icon: 'mdi:percent' })
+  }
+  return stats
+}
+
 /**
  * Permissive structural shape of anything an item card renders. Declared here
  * instead of imported from a feature module because `core/` may not depend on
@@ -270,4 +327,6 @@ export interface ItemCardSource extends ItemIconSource, BonusSource, ResistSourc
   weapon_type?: string
   outfit_type?: string
   junk_type?: string | null
+  // Present on pets only; the catalog-resolved bonus the card summarizes.
+  effect?: PetEffectSource
 }

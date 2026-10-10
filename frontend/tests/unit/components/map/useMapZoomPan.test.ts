@@ -5,6 +5,8 @@ import {
   computeViewBox,
   computeFocusPan,
   computeZoomAtPoint,
+  computePinchPan,
+  useMapZoomPan,
   MIN_ZOOM,
   MAX_ZOOM,
 } from '@/modules/map/composables/useMapZoomPan'
@@ -129,6 +131,135 @@ describe('useMapZoomPan — pure functions', () => {
       // viewSize at zoom=2 is 80, newPan = 70 - 0.5*80 = 30
       expect(result.panX).toBe(30)
       expect(result.panY).toBe(30)
+    })
+  })
+
+  describe('computePinchPan', () => {
+    it('should double zoom when pinch distance doubles, anchored at center', () => {
+      const result = computePinchPan(2, 40, 40, 100, 200, 0.5, 0.5, 0.5, 0.5)
+      expect(result.zoom).toBe(4)
+      expect(result.panX).toBe(60)
+      expect(result.panY).toBe(60)
+    })
+
+    it('should halve zoom when pinch distance halves', () => {
+      const result = computePinchPan(2, 40, 40, 200, 100, 0.5, 0.5, 0.5, 0.5)
+      expect(result.zoom).toBe(1)
+      expect(result.panX).toBe(0)
+      expect(result.panY).toBe(0)
+    })
+
+    it('should clamp zoom at MAX_ZOOM', () => {
+      const result = computePinchPan(4, 60, 60, 100, 400, 0.5, 0.5, 0.5, 0.5)
+      expect(result.zoom).toBe(MAX_ZOOM)
+      expect(result.panX).toBe(60)
+      expect(result.panY).toBe(60)
+    })
+
+    it('should pan when the midpoint moves without zoom change', () => {
+      const result = computePinchPan(2, 40, 40, 100, 100, 0.5, 0.5, 0.6, 0.5)
+      expect(result.zoom).toBe(2)
+      expect(result.panX).toBeCloseTo(32)
+      expect(result.panY).toBe(40)
+    })
+
+    it('should return the start state when start distance is zero', () => {
+      const result = computePinchPan(2, 40, 40, 0, 100, 0.5, 0.5, 0.5, 0.5)
+      expect(result).toEqual({ zoom: 2, panX: 40, panY: 40 })
+    })
+  })
+
+  describe('touch handlers', () => {
+    const rect = { left: 0, top: 0, width: 400, height: 400 } as DOMRect
+
+    function touchEvent(points: { x: number; y: number }[]): TouchEvent {
+      return {
+        touches: points.map((p) => ({ clientX: p.x, clientY: p.y })),
+      } as unknown as TouchEvent
+    }
+
+    it('should pan on single-finger drag when zoomed', () => {
+      const map = useMapZoomPan()
+      map.focusOnMarker(80, 80)
+      expect(map.zoom.value).toBe(2)
+
+      map.onTouchStart(touchEvent([{ x: 200, y: 200 }]), rect)
+      expect(map.isDragging.value).toBe(true)
+      map.onTouchMove(touchEvent([{ x: 220, y: 200 }]), rect)
+
+      // dx=20px on a 400px element at zoom=2 (viewSize=80): svgDx = 4
+      expect(map.panX.value).toBe(36)
+      expect(map.panY.value).toBe(40)
+
+      map.onTouchEnd(touchEvent([]))
+      expect(map.isDragging.value).toBe(false)
+    })
+
+    it('should ignore single-finger drag at zoom=1', () => {
+      const map = useMapZoomPan()
+      map.onTouchStart(touchEvent([{ x: 200, y: 200 }]), rect)
+      expect(map.isDragging.value).toBe(false)
+      map.onTouchMove(touchEvent([{ x: 250, y: 250 }]), rect)
+      expect(map.panX.value).toBe(0)
+      expect(map.panY.value).toBe(0)
+    })
+
+    it('should zoom on pinch-out and clear state on touch end', () => {
+      const map = useMapZoomPan()
+      map.focusOnMarker(80, 80)
+
+      map.onTouchStart(
+        touchEvent([
+          { x: 100, y: 200 },
+          { x: 300, y: 200 },
+        ]),
+        rect
+      )
+      expect(map.isPinching.value).toBe(true)
+
+      map.onTouchMove(
+        touchEvent([
+          { x: 50, y: 200 },
+          { x: 350, y: 200 },
+        ]),
+        rect
+      )
+      expect(map.zoom.value).toBeCloseTo(3)
+      expect(map.panX.value).toBeCloseTo(160 / 3)
+      expect(map.panY.value).toBeCloseTo(160 / 3)
+
+      map.onTouchEnd(touchEvent([]))
+      expect(map.isPinching.value).toBe(false)
+      expect(map.isDragging.value).toBe(false)
+    })
+
+    it('should continue panning with the remaining finger after a pinch', () => {
+      const map = useMapZoomPan()
+      map.focusOnMarker(80, 80)
+      map.onTouchStart(
+        touchEvent([
+          { x: 100, y: 200 },
+          { x: 300, y: 200 },
+        ]),
+        rect
+      )
+      map.onTouchMove(
+        touchEvent([
+          { x: 50, y: 200 },
+          { x: 350, y: 200 },
+        ]),
+        rect
+      )
+      const zoomAfterPinch = map.zoom.value
+
+      map.onTouchEnd(touchEvent([{ x: 50, y: 200 }]))
+      expect(map.isPinching.value).toBe(false)
+      expect(map.isDragging.value).toBe(true)
+
+      const panBefore = map.panX.value
+      map.onTouchMove(touchEvent([{ x: 70, y: 200 }]), rect)
+      expect(map.zoom.value).toBe(zoomAfterPinch)
+      expect(map.panX.value).toBeLessThan(panBefore)
     })
   })
 })

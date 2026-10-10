@@ -43,7 +43,7 @@ async def test_create_dweller(
     response_data = response.json()
     assert response_data["first_name"] == dweller_data["first_name"]
     assert response_data["last_name"] == dweller_data["last_name"]
-    assert response_data["is_adult"] == dweller_data["is_adult"]
+    assert response_data["age_group"] == dweller_data["age_group"]
     assert response_data["gender"] == dweller_data["gender"]
     assert response_data["rarity"] == dweller_data["rarity"]
     assert response_data["level"] == dweller_data["level"]
@@ -293,6 +293,38 @@ async def test_read_dweller_exposes_effective_max_health(
 
 
 @pytest.mark.asyncio
+async def test_read_dweller_effective_max_health_includes_pet_bonus(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    dweller: Dweller,
+) -> None:
+    """DwellerReadFull must carry the equipped pet's max_health bonus (wire == ORM)."""
+    from app.options.pet_modifiers import PET_EFFECT_BY_NAME
+
+    pet = await crud.pet.create(
+        async_session,
+        obj_in={"name": "Dogmeat (Fallout 4)", "rarity": RarityEnum.LEGENDARY, "value": 500},
+    )
+    await crud.pet.equip(db_session=async_session, item_id=pet.id, dweller_id=dweller.id)
+
+    dweller.max_health = 100
+    dweller.health = 30
+    dweller.radiation = 40
+    async_session.add(dweller)
+    await async_session.commit()
+
+    response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
+    assert response.status_code == 200
+    body = response.json()
+    pet_bonus = PET_EFFECT_BY_NAME["dogmeat (fallout 4)"].max_health
+    assert body["effective_max_health"] == max(1, 100 + pet_bonus - 40)
+
+    reloaded = await crud.dweller.get(async_session, dweller.id)
+    assert reloaded.effective_max_health == body["effective_max_health"]
+
+
+@pytest.mark.asyncio
 async def test_read_dweller_list_exposes_effective_max_health(
     async_client: AsyncClient,
     async_session: AsyncSession,
@@ -305,6 +337,42 @@ async def test_read_dweller_list_exposes_effective_max_health(
     assert response.status_code == 200
     by_id = {d["id"]: d for d in response.json()}
     assert by_id[str(dweller.id)]["effective_max_health"] == 60
+
+
+@pytest.mark.asyncio
+async def test_read_dweller_list_effective_max_health_includes_pet_bonus(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    dweller: Dweller,
+) -> None:
+    """The list endpoint's effective_max_health matches the ORM value with a pet equipped.
+
+    get_multi_by_vault must selectinload(Dweller.pet) (B7) or the wire value
+    silently drops the pet's max_health bonus.
+    """
+    from app.options.pet_modifiers import PET_EFFECT_BY_NAME
+
+    pet = await crud.pet.create(
+        async_session,
+        obj_in={"name": "Dogmeat (Fallout 4)", "rarity": RarityEnum.LEGENDARY, "value": 500},
+    )
+    await crud.pet.equip(db_session=async_session, item_id=pet.id, dweller_id=dweller.id)
+
+    dweller.max_health = 100
+    dweller.health = 30
+    dweller.radiation = 40
+    async_session.add(dweller)
+    await async_session.commit()
+
+    response = await async_client.get("/dwellers/", headers=superuser_token_headers)
+    assert response.status_code == 200
+    by_id = {d["id"]: d for d in response.json()}
+    pet_bonus = PET_EFFECT_BY_NAME["dogmeat (fallout 4)"].max_health
+    assert by_id[str(dweller.id)]["effective_max_health"] == max(1, 100 + pet_bonus - 40)
+
+    reloaded = (await crud.dweller.get_multi_by_vault(async_session, dweller.vault_id))[0]
+    assert reloaded.effective_max_health == by_id[str(dweller.id)]["effective_max_health"]
 
 
 @pytest.mark.asyncio
@@ -549,6 +617,75 @@ async def test_filter_dwellers_by_race_and_faction(
         f"/dwellers/vault/{vault.id}/?race=human&faction=vault_dweller", headers=superuser_token_headers
     )
     assert [row["id"] for row in combined.json()] == [str(human.id)]
+
+
+@pytest.mark.asyncio
+async def test_filter_dwellers_by_gender(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+) -> None:
+    """Roster filters narrow by gender, a real enum column on the dweller."""
+    from app.schemas.dweller import DwellerCreate
+    from app.tests.factory.dwellers import create_fake_dweller
+
+    def dweller_of_gender(gender: GenderEnum) -> DwellerCreate:
+        data = create_fake_dweller()
+        data.update({"vault_id": vault.id, "gender": gender})
+        return DwellerCreate(**data)
+
+    male = await crud.dweller.create(async_session, dweller_of_gender(GenderEnum.MALE))
+    female = await crud.dweller.create(async_session, dweller_of_gender(GenderEnum.FEMALE))
+
+    by_male = await async_client.get(f"/dwellers/vault/{vault.id}/?gender=male", headers=superuser_token_headers)
+    assert by_male.status_code == 200
+    assert [row["id"] for row in by_male.json()] == [str(male.id)]
+
+    by_female = await async_client.get(f"/dwellers/vault/{vault.id}/?gender=female", headers=superuser_token_headers)
+    assert by_female.status_code == 200
+    assert [row["id"] for row in by_female.json()] == [str(female.id)]
+
+    invalid = await async_client.get(f"/dwellers/vault/{vault.id}/?gender=invalid", headers=superuser_token_headers)
+    assert invalid.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_filter_dwellers_by_rarity(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+) -> None:
+    """Roster filters narrow by rarity, a real enum column on the dweller."""
+    from app.schemas.dweller import DwellerCreate
+    from app.tests.factory.dwellers import create_fake_dweller
+
+    def dweller_of_rarity(rarity: RarityEnum) -> DwellerCreate:
+        data = create_fake_dweller()
+        data.update({"vault_id": vault.id, "rarity": rarity})
+        return DwellerCreate(**data)
+
+    common = await crud.dweller.create(async_session, dweller_of_rarity(RarityEnum.COMMON))
+    rare = await crud.dweller.create(async_session, dweller_of_rarity(RarityEnum.RARE))
+    legendary = await crud.dweller.create(async_session, dweller_of_rarity(RarityEnum.LEGENDARY))
+
+    by_common = await async_client.get(f"/dwellers/vault/{vault.id}/?rarity=common", headers=superuser_token_headers)
+    assert by_common.status_code == 200
+    assert [row["id"] for row in by_common.json()] == [str(common.id)]
+
+    by_rare = await async_client.get(f"/dwellers/vault/{vault.id}/?rarity=rare", headers=superuser_token_headers)
+    assert by_rare.status_code == 200
+    assert [row["id"] for row in by_rare.json()] == [str(rare.id)]
+
+    by_legendary = await async_client.get(
+        f"/dwellers/vault/{vault.id}/?rarity=legendary", headers=superuser_token_headers
+    )
+    assert by_legendary.status_code == 200
+    assert [row["id"] for row in by_legendary.json()] == [str(legendary.id)]
+
+    invalid = await async_client.get(f"/dwellers/vault/{vault.id}/?rarity=invalid", headers=superuser_token_headers)
+    assert invalid.status_code == 422
 
 
 @pytest.mark.asyncio

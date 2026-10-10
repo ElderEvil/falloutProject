@@ -55,6 +55,37 @@ describe('getSpecialBreakdown', () => {
     expect(rows[3].effective).toBe(5)
   })
 
+  it('should fold the equipped pet bonus into effective and name the pet', () => {
+    const rows = getSpecialBreakdown(
+      makeDweller({
+        pet: { name: 'Dogmeat', effect: { strength: 2, luck: 1 } } as never,
+      })
+    )
+    expect(rows[0].pet).toBe(2)
+    expect(rows[0].petName).toBe('Dogmeat')
+    expect(rows[0].effective).toBe(12)
+    expect(rows[6].pet).toBe(1)
+    expect(rows[6].petName).toBe('Dogmeat')
+    expect(rows[6].effective).toBe(9)
+  })
+
+  it('should combine identity, outfit and pet bonuses in backend order', () => {
+    const rows = getSpecialBreakdown(
+      makeDweller({
+        outfit: { name: 'Vault Suit', strength: 5 } as never,
+        identity_modifiers: { strength: 1 } as never,
+        pet: { name: 'Dogmeat', effect: { strength: 2 } } as never,
+      })
+    )
+    expect(rows[0].effective).toBe(18)
+  })
+
+  it('should leave pet fields empty without an equipped pet', () => {
+    const [strength] = getSpecialBreakdown(makeDweller())
+    expect(strength.pet).toBe(0)
+    expect(strength.petName).toBeNull()
+  })
+
   it('should floor effective at 1', () => {
     const rows = getSpecialBreakdown(
       makeDweller({ S: 1, identity_modifiers: { strength: -5 } as never })
@@ -77,6 +108,26 @@ describe('describeBonusSources', () => {
       })
     )
     expect(describeBonusSources(strength)).toEqual(['+5 Vault Suit', '+1 identity'])
+  })
+
+  it('should describe the pet source', () => {
+    const [strength] = getSpecialBreakdown(
+      makeDweller({
+        pet: { name: 'Dogmeat', effect: { strength: 2 } } as never,
+      })
+    )
+    expect(describeBonusSources(strength)).toEqual(['+2 Dogmeat'])
+  })
+
+  it('should list outfit, identity and pet sources together', () => {
+    const [strength] = getSpecialBreakdown(
+      makeDweller({
+        outfit: { name: 'Vault Suit', strength: 5 } as never,
+        identity_modifiers: { strength: 1 } as never,
+        pet: { name: 'Dogmeat', effect: { strength: 2 } } as never,
+      })
+    )
+    expect(describeBonusSources(strength)).toEqual(['+5 Vault Suit', '+1 identity', '+2 Dogmeat'])
   })
 
   it('should return empty list without bonuses', () => {

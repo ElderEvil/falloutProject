@@ -107,9 +107,9 @@
         },
         {
           "reward_type": "ITEM",
-          "reward_data": {"item_name": "Power Armor", "quantity": 1},
+          "reward_data": {"item_name": "T-45a power armor", "quantity": 1},
           "reward_chance": 0.5,
-          "item_data": {"name": "Power Armor", "rarity": "legendary", "value": 500}
+          "item_data": {"name": "T-45a power armor", "rarity": "legendary", "value": 500}
         }
       ]
     },

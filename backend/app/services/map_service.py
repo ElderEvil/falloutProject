@@ -18,7 +18,9 @@ from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum, Rarity
 from app.core.game_config import game_config
 from app.crud.exploration import exploration as exploration_crud
 from app.crud.vault import vault as vault_crud
+from app.crud.vault_slot import vault_slot as vault_slot_crud
 from app.crud.world_location import world_location as wl_crud
+from app.crud.world_snapshot import world_snapshot as world_snapshot_crud
 from app.models.notification import NotificationPriority, NotificationType
 from app.models.world_location import VaultLocationState, WorldLocation
 from app.schemas.wasteland_location import (
@@ -28,15 +30,24 @@ from app.schemas.wasteland_location import (
     ExpeditionSiteMarkerRead,
     LocationClearStateRead,
     PlaceGroupRead,
+    PlayerVaultMarkerRead,
     VaultMapResponse,
     VaultMarkerRead,
     WastelandLocationWithDwellers,
 )
 from app.services.exploration.data_loader import load_expedition_sites
-from app.services.exploration.expedition import site_block_state
+from app.services.exploration.expedition import (
+    SiteBlockState,
+    journey_offer_context,
+    site_block_state,
+    site_is_offered,
+)
 from app.services.notification_service import notification_service
-from app.utils.place_groups import get_place_group, load_place_groups
+from app.services.world_generation_service import WORLD_ID
+from app.utils import world_terrain
+from app.utils.place_groups import effective_place_group, load_place_groups
 from app.utils.places import GENERIC_ORIGIN_SKIP, WORLD_SCALE, normalize_place_name
+from app.utils.vault_slots import slot_coords
 
 if TYPE_CHECKING:
     from sqlmodel.ext.asyncio.session import AsyncSession
@@ -83,8 +94,10 @@ class MapService:
     # ------------------------------------------------------------------
 
     async def ensure_home_marker(self, db_session: AsyncSession, vault: Vault) -> WorldLocation:
-        """Idempotent home-vault registry row at exactly (50.0, 50.0) + per-vault HOME_VAULT state."""
-        home = await wl_crud.get_or_create_home_marker(db_session, vault)
+        """Home-vault marker at the vault's slot placement + per-vault HOME_VAULT state."""
+        slot = await vault_slot_crud.get_by_vault(db_session, vault.id)
+        coord_x, coord_y = slot_coords(slot.slot_index) if slot is not None else (50.0, 50.0)
+        home = await wl_crud.get_or_create_home_marker(db_session, vault, coord_x=coord_x, coord_y=coord_y)
         await wl_crud.ensure_home_state(
             db_session,
             vault.id,
@@ -114,17 +127,15 @@ class MapService:
         explicit_origin: str | None = None,
         *,
         commit: bool = True,
-        cap_visited: bool = True,
     ) -> bool:
         """Upsert bio origin + rarity-scaled visited location rows — best-effort.
 
         *effective origin* = *explicit_origin* when truthy, else *origin_place*.
         If the effective origin normalises to a generic skip token we suppress it.
         Every visited name (max 64 chars, skip-list applied) is upserted, capped
-        at ``game_config.bio.max_visited`` for the dweller's rarity. Curated
-        template registrations pass ``cap_visited=False``: their places are
-        schema-bounded and bio-authoritative, so capping would orphan mentioned
-        locations.
+        at ``game_config.bio.max_visited`` for the dweller's rarity. The cap is
+        uniform: curated templates obey it too (they author the best N places,
+        not every mention).
 
         A failed attempt rolls back its savepoint before retrying. With commit=False,
         the caller owns persistence and must notify failure after its own commit.
@@ -146,7 +157,6 @@ class MapService:
                         origin_place,
                         visited_places,
                         explicit_origin,
-                        cap_visited,
                     )
             except Exception:
                 if attempt == 0:
@@ -192,7 +202,6 @@ class MapService:
         origin_place: str,
         visited_places: list[str],
         explicit_origin: str | None,
-        cap_visited: bool = True,
     ) -> None:
         """Register bio places once; callers handle best-effort recovery."""
         effective_origin = explicit_origin or origin_place
@@ -220,7 +229,7 @@ class MapService:
         visited = 0
         max_visited = game_config.bio.max_visited(dweller.rarity.value)
         for raw_name in visited_places:
-            if cap_visited and visited >= max_visited:
+            if visited >= max_visited:
                 break
             if not raw_name or self._should_skip(raw_name):
                 continue
@@ -279,6 +288,32 @@ class MapService:
     # discovery registration
     # ------------------------------------------------------------------
 
+    async def _link_discovery(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        exploration_id: UUID4,
+        dweller_id: UUID4,
+        location: WorldLocation,
+    ) -> None:
+        """Create the vault state + dweller link for a resolved discovery place."""
+        await wl_crud.get_or_create_state(
+            db_session,
+            vault_id,
+            location.id,
+            LocationTypeEnum.DISCOVERY,
+            exploration_id=exploration_id,
+            commit=False,
+        )
+        await wl_crud.link_dweller(
+            db_session,
+            dweller_id,
+            location.id,
+            DwellerLocationRelationEnum.VISITED,
+            is_unlocked=True,
+            commit=False,
+        )
+
     async def register_discovery(
         self,
         db_session: AsyncSession,
@@ -294,22 +329,7 @@ class MapService:
                 location_name[:64],
                 commit=False,
             )
-            await wl_crud.get_or_create_state(
-                db_session,
-                vault_id,
-                location.id,
-                LocationTypeEnum.DISCOVERY,
-                exploration_id=exploration_id,
-                commit=False,
-            )
-            await wl_crud.link_dweller(
-                db_session,
-                dweller_id,
-                location.id,
-                DwellerLocationRelationEnum.VISITED,
-                is_unlocked=True,
-                commit=False,
-            )
+            await self._link_discovery(db_session, vault_id, exploration_id, dweller_id, location)
         except Exception:
             # A failed flush leaves SQLAlchemy's transaction unusable. This
             # registration is best-effort and runs before the event mutation,
@@ -325,43 +345,162 @@ class MapService:
         else:
             return location
 
-    async def _get_discovery_routes(self, db_session: AsyncSession, vault_id: UUID4) -> list[DiscoveryRouteRead]:
-        """Project discovery events into ordered map trails.
+    async def _create_journey_place(
+        self,
+        db_session: AsyncSession,
+        exploration_id: UUID4,
+        location_name: str,
+        coord_x: float,
+        coord_y: float,
+    ) -> WorldLocation:
+        """A new spatial row keyed to journey and position, not to the name.
 
-        A ``WastelandLocation`` is intentionally de-duplicated by place name,
-        so it cannot faithfully represent repeated visits across expeditions.
-        Event records are the journey history and therefore the route authority.
-        Older events without the Journal coordinate fields are simply omitted.
+        Identity is a pure function of the inputs, so concurrent discoveries
+        cannot race on allocation: same position merges (one place), different
+        positions never compete for one row.
+        """
+        key = f"{exploration_id}:{coord_x:.1f},{coord_y:.1f}"
+        return await wl_crud.get_or_create_location(
+            db_session,
+            location_name[:64],
+            coords=(coord_x, coord_y),
+            normalized_name=key,
+            commit=False,
+        )
+
+    async def register_spatial_discovery(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        exploration_id: UUID4,
+        dweller_id: UUID4,
+        location_name: str,
+        position: tuple[float, float],
+        world_version: int | None,
+    ) -> WorldLocation | None:
+        """Register a discovery found while moving: nearby place, else journey-scoped.
+
+        An existing PLACE row within the fog's site radius is claimed where it
+        stands (its coordinates never move); otherwise a new place is created
+        at the explorer's position snapped to the nearest land tile, keyed to
+        the journey so distant same-name rows can never hijack it.
+        Best-effort like ``register_discovery``.
+        """
+        try:
+            coord_x, coord_y = position
+            snapshot = (
+                await world_snapshot_crud.get_version(db_session, world_id=WORLD_ID, generator_version=world_version)
+                if world_version is not None
+                else None
+            )
+            if snapshot is not None:
+                radius = world_terrain.reveal_radius_registry(snapshot, world_terrain.SITE_REVEAL_TILES)
+                nearby = await wl_crud.get_nearest_within(db_session, coord_x, coord_y, radius)
+                if nearby is not None:
+                    location = nearby
+                else:
+                    coord_x, coord_y = world_terrain.nearest_land(snapshot, coord_x, coord_y)
+                    location = await self._create_journey_place(
+                        db_session, exploration_id, location_name, coord_x, coord_y
+                    )
+            else:
+                location = await self._create_journey_place(db_session, exploration_id, location_name, coord_x, coord_y)
+            await self._link_discovery(db_session, vault_id, exploration_id, dweller_id, location)
+        except Exception:
+            await db_session.rollback()
+            logger.exception(
+                "register_spatial_discovery failed: vault=%s exploration=%s name=%r",
+                vault_id,
+                exploration_id,
+                location_name,
+            )
+            return None
+        else:
+            return location
+
+    async def _get_discovery_routes(self, db_session: AsyncSession, vault_id: UUID4) -> list[DiscoveryRouteRead]:
+        """Project a journey into ordered map coordinates.
+
+        Spatial runs use their persisted movement trail: the durable path
+        segments the fog corridor follows. Legacy runs use discovery events —
+        a ``WastelandLocation`` is de-duplicated by place name, so it cannot
+        faithfully represent repeated visits, and event records are the journey
+        authority there. Older events without coordinate fields are omitted.
         """
         explorations = await exploration_crud.get_by_vault(db_session, vault_id=vault_id)
         routes: list[DiscoveryRouteRead] = []
         for exploration in explorations:
-            points: list[DiscoveryRoutePoint] = []
-            for event in exploration.events:
-                if event.get("type") != "discovery":
-                    continue
-                location_id = event.get("location_id")
-                coord_x = event.get("coord_x")
-                coord_y = event.get("coord_y")
-                timestamp = event.get("timestamp")
-                if location_id is None or coord_x is None or coord_y is None or not isinstance(timestamp, str):
-                    continue
-                points.append(
-                    DiscoveryRoutePoint(
-                        location_id=location_id,
-                        coord_x=round(float(coord_x) * WORLD_SCALE, 1),
-                        coord_y=round(float(coord_y) * WORLD_SCALE, 1),
-                        timestamp=timestamp,
-                    )
-                )
+            points = (
+                self._movement_route_points(exploration)
+                if exploration.heading_degrees is not None
+                else self._discovery_route_points(exploration)
+            )
             if len(points) >= 2:
                 points.sort(key=lambda point: point.timestamp)
-                routes.append(DiscoveryRouteRead(exploration_id=exploration.id, points=points))
+                routes.append(
+                    DiscoveryRouteRead(
+                        exploration_id=exploration.id,
+                        points=points,
+                        is_active=exploration.is_in_progress(),
+                    )
+                )
         return routes
+
+    @staticmethod
+    def _movement_route_points(exploration) -> list[DiscoveryRoutePoint]:
+        """A spatial run's traveled path, scaled into wire coordinates."""
+        points: list[DiscoveryRoutePoint] = []
+        for step in exploration.trail or []:
+            coord_x = step.get("x")
+            coord_y = step.get("y")
+            timestamp = step.get("t")
+            if coord_x is None or coord_y is None or not isinstance(timestamp, str):
+                continue
+            points.append(
+                DiscoveryRoutePoint(
+                    coord_x=round(float(coord_x) * WORLD_SCALE, 1),
+                    coord_y=round(float(coord_y) * WORLD_SCALE, 1),
+                    timestamp=timestamp,
+                )
+            )
+        return points
+
+    @staticmethod
+    def _discovery_route_points(exploration) -> list[DiscoveryRoutePoint]:
+        """A legacy run's discovery events, scaled into wire coordinates."""
+        points: list[DiscoveryRoutePoint] = []
+        for event in exploration.events:
+            if event.get("type") != "discovery":
+                continue
+            location_id = event.get("location_id")
+            coord_x = event.get("coord_x")
+            coord_y = event.get("coord_y")
+            timestamp = event.get("timestamp")
+            if location_id is None or coord_x is None or coord_y is None or not isinstance(timestamp, str):
+                continue
+            points.append(
+                DiscoveryRoutePoint(
+                    location_id=location_id,
+                    coord_x=round(float(coord_x) * WORLD_SCALE, 1),
+                    coord_y=round(float(coord_y) * WORLD_SCALE, 1),
+                    timestamp=timestamp,
+                )
+            )
+        return points
 
     # ------------------------------------------------------------------
     # map assembly
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _description_for(state: VaultLocationState, location: WorldLocation) -> str | None:
+        """Canonical lore, then per-vault description, then the archetype's shared lore."""
+        if location.description:
+            return location.description
+        if state.description:
+            return state.description
+        group = effective_place_group(location.group_key, location.kind)
+        return group.get("description") if group else None
 
     @staticmethod
     def _clear_state_for(state: VaultLocationState, location: WorldLocation) -> LocationClearStateRead | None:
@@ -370,7 +509,7 @@ class MapService:
         Availability is computed from ``now`` and never persisted; non-clearable
         groups and ungrouped points carry no clear state on the wire.
         """
-        group = get_place_group(location.group_key)
+        group = effective_place_group(location.group_key, location.kind)
         if group is None or not group.get("clearable"):
             return None
         now = datetime.utcnow()
@@ -382,6 +521,17 @@ class MapService:
             time_remaining_seconds=state.time_remaining_seconds(now),
             loot_table=group.get("loot_table"),
         )
+
+    @staticmethod
+    def _group_key_for(location: WorldLocation) -> str | None:
+        """Effective archetype key for the wire.
+
+        An ungrouped PLACE resolves to the default ``wasteland_site`` archetype
+        (when emergent sites are enabled), so the client renders a real site icon
+        instead of falling back to a bare marker-type glyph.
+        """
+        group = effective_place_group(location.group_key, location.kind)
+        return group["key"] if group else None
 
     async def get_location_detail(
         self,
@@ -418,8 +568,8 @@ class MapService:
             type=state.type,
             coord_x=round(location.coord_x * WORLD_SCALE, 1),
             coord_y=round(location.coord_y * WORLD_SCALE, 1),
-            description=state.description,
-            group_key=location.group_key,
+            description=self._description_for(state, location),
+            group_key=self._group_key_for(location),
             vault_id=vault.id,
             exploration_id=state.exploration_id,
             created_at=state.created_at,
@@ -502,8 +652,8 @@ class MapService:
                     type=state.type,
                     coord_x=round(location.coord_x * WORLD_SCALE, 1),
                     coord_y=round(location.coord_y * WORLD_SCALE, 1),
-                    description=state.description,
-                    group_key=location.group_key,
+                    description=self._description_for(state, location),
+                    group_key=self._group_key_for(location),
                     vault_id=vault.id,
                     exploration_id=state.exploration_id,
                     created_at=state.created_at,
@@ -521,39 +671,85 @@ class MapService:
                 coord_x=round(row.coord_x * WORLD_SCALE, 1),
                 coord_y=round(row.coord_y * WORLD_SCALE, 1),
                 type="vault",
-                description=row.description or "Unexplored vault signal — raiding available in a future update.",
+                description=row.description or "An unclassified vault signal. No contact established.",
             )
             for row in seeded_vaults
         ]
 
         discovery_routes = await self._get_discovery_routes(db_session, vault.id)
 
-        # --- interactive expedition sites (per-vault anti-farm state) ---
-        expedition_sites: list[ExpeditionSiteMarkerRead] = []
-        for site in load_expedition_sites():
-            block = await site_block_state(db_session, vault.id, site.id)
-            expedition_sites.append(
-                ExpeditionSiteMarkerRead(
-                    id=site.id,
-                    name=site.name,
-                    flavor=site.flavor,
-                    coord_x=round(site.coord_x * WORLD_SCALE, 1),
-                    coord_y=round(site.coord_y * WORLD_SCALE, 1),
-                    min_dweller_level=site.min_dweller_level,
-                    room_total=len(site.rooms),
-                    cleared=block.cleared,
-                    cooldown_remaining_seconds=block.cooldown_remaining_seconds,
-                    block_reason=block.reason,
-                )
+        # --- real player vaults on the shared atlas (discoverable by all users) ---
+        slot_rows = await vault_slot_crud.list_markers(db_session)
+        player_vaults = [
+            PlayerVaultMarkerRead(
+                vault_id=slot_vault_id,
+                number=number,
+                coord_x=round(slot_coords(slot_index)[0] * WORLD_SCALE, 1),
+                coord_y=round(slot_coords(slot_index)[1] * WORLD_SCALE, 1),
+                is_mine=slot_user_id == vault.user_id,
             )
+            for slot_index, slot_vault_id, number, slot_user_id in slot_rows
+        ]
+
+        expedition_sites = await self._expedition_site_markers(db_session, vault)
 
         return VaultMapResponse(
             locations=locations,
             vault_markers=vault_markers,
+            player_vaults=player_vaults,
             discovery_routes=discovery_routes,
             place_groups=[PlaceGroupRead(**group) for group in load_place_groups()],
             expedition_sites=expedition_sites,
         )
+
+    @staticmethod
+    def _site_marker(site, block: SiteBlockState, exploration_id=None) -> ExpeditionSiteMarkerRead:
+        """Project one catalog site plus its journey/anti-farm block state onto the wire."""
+        return ExpeditionSiteMarkerRead(
+            id=site.id,
+            name=site.name,
+            flavor=site.flavor,
+            coord_x=round(site.coord_x * WORLD_SCALE, 1),
+            coord_y=round(site.coord_y * WORLD_SCALE, 1),
+            min_dweller_level=site.min_dweller_level,
+            room_total=len(site.rooms),
+            cleared=block.cleared,
+            cooldown_remaining_seconds=block.cooldown_remaining_seconds,
+            block_reason=block.reason,
+            exploration_id=exploration_id,
+        )
+
+    async def _expedition_site_markers(self, db_session: AsyncSession, vault: Vault) -> list[ExpeditionSiteMarkerRead]:
+        """Journey-offered sites across in-progress spatial runs, else the legacy catalog.
+
+        Every in-progress spatial journey contributes the sites near its traveled
+        trail (consumed ones drop out), carrying its exploration id so the client can
+        route entry to the right journey. Legacy journeys keep the catalog with
+        anti-farm cooldowns. With no in-progress journey there are no temporary
+        markers at all — they expire with the journey rather than reverting to a
+        permanent catalog.
+        """
+        explorations = await exploration_crud.get_by_vault(db_session, vault_id=vault.id, active_only=True)
+        spatial = [exploration for exploration in explorations if exploration.heading_degrees is not None]
+        if spatial:
+            markers: list[ExpeditionSiteMarkerRead] = []
+            offered_ids: set[str] = set()
+            for exploration in spatial:
+                context = await journey_offer_context(db_session, exploration)
+                if context is None:
+                    continue
+                for site in load_expedition_sites():
+                    if site.id in offered_ids or not site_is_offered(site, context):
+                        continue
+                    markers.append(self._site_marker(site, SiteBlockState(), exploration.id))
+                    offered_ids.add(site.id)
+            return markers
+        if not explorations:
+            return []
+        return [
+            self._site_marker(site, await site_block_state(db_session, vault.id, site.id))
+            for site in load_expedition_sites()
+        ]
 
 
 # ------------------------------------------------------------------

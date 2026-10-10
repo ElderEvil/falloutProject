@@ -123,3 +123,29 @@ class TestResourceManager:
         ]
         assert storage.stimpack == starting_stimpacks + expected_delta
         assert medical_amounts == ([expected_delta] if expected_delta else [])
+
+    @pytest.mark.asyncio
+    async def test_junior_worker_assists_production_at_the_reduced_rate(self):
+        """A youth posted to a production room adds production at the junior reduced rate."""
+        from app.core.enums import AgeGroupEnum
+        from app.core.game_config import game_config
+
+        manager = ResourceManager()
+        room = Room(
+            name="Power",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=SPECIALEnum.STRENGTH,
+            output=10.0,
+            tier=1,
+            size=1,
+        )
+        adult = Dweller(strength=10)
+        junior = Dweller(strength=10, age_group=AgeGroupEnum.TEEN, apprentice_stat=SPECIALEnum.STRENGTH)
+
+        adult_only = manager._calculate_production([(room, [adult])], seconds_passed=60, current_power=10)["power"]
+        with_junior = manager._calculate_production([(room, [adult, junior])], seconds_passed=60, current_power=10)[
+            "power"
+        ]
+
+        assert adult_only > 0
+        assert with_junior == pytest.approx(adult_only * (1 + game_config.resource.junior_worker_output_multiplier))

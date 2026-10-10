@@ -15,13 +15,22 @@ import { useToast } from '@/core/composables/useToast'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useMapStore } from '@/modules/map/stores/map'
 import { appendBioAddendum } from '@/modules/dwellers/services/dwellerService'
-import { isMature } from '@/modules/dwellers/models/dweller'
+import { isMature, type Dweller } from '@/modules/dwellers/models/dweller'
+import type { PendingExplorer, WastelandPrefill } from '@/modules/exploration/composables/useSendToWasteland'
 
 export interface UseChatActionsOptions {
   dwellerId: string
   dwellerName: string
   messages: Ref<ChatMessageDisplay[]>
   vaultId?: string | null
+  /** Shared send-wasteland flow; the modal it renders confirms the departure. */
+  sendWasteland?: {
+    open: (
+      dweller: PendingExplorer,
+      knownDweller?: Pick<Dweller, 'age_group'>,
+      prefill?: WastelandPrefill
+    ) => void
+  }
 }
 
 export function useChatActions(options: UseChatActionsOptions) {
@@ -137,50 +146,45 @@ export function useChatActions(options: UseChatActionsOptions) {
     }
   }
 
-  const handleStartExploration = async (action: StartExplorationAction): Promise<boolean> => {
-    if (!authStore.token) return false
+  const handleStartExploration = (action: StartExplorationAction): Promise<boolean> => {
+    if (!authStore.token) return Promise.resolve(false)
 
     const vaultId = options.vaultId ?? vaultStore.activeVaultId
     if (!vaultId) {
       toast.error('No vault selected')
-      return false
+      return Promise.resolve(false)
+    }
+    if (!options.sendWasteland) return Promise.resolve(false)
+
+    const dweller = dwellerStore.dwellers.find((d) => d.id === options.dwellerId)
+    if (!dweller) {
+      toast.error('Dweller not found')
+      return Promise.resolve(false)
+    }
+    if (!isMature(dweller)) {
+      toast.error(`${options.dwellerName} is too young for the wasteland`)
+      return Promise.resolve(false)
     }
 
-    isPerformingAction.value = true
-    try {
-      const dweller = dwellerStore.dwellers.find((d) => d.id === options.dwellerId)
-      if (!dweller) {
-        toast.error('Dweller not found')
-        return false
+    // Route through the shared send flow: the modal opens prefilled with the
+    // suggestion's plan and the server still supplies the heading (or the
+    // user picks one on the compass dial). Opening only presents the modal —
+    // success is unknown until the departure is confirmed — so this reports
+    // false and the chat keeps the suggestion card until the send succeeds.
+    options.sendWasteland.open(
+      {
+        dwellerId: options.dwellerId,
+        firstName: dweller.first_name,
+        lastName: dweller.last_name ?? undefined,
+      },
+      dweller,
+      {
+        duration: action.duration_hours,
+        stimpaks: action.stimpaks,
+        radaways: action.radaways,
       }
-      if (!isMature(dweller)) {
-        toast.error(`${options.dwellerName} is too young for the wasteland`)
-        return false
-      }
-
-      if (dweller.room_id) {
-        await dwellerManagementStore.unassignDwellerFromRoom(options.dwellerId, authStore.token)
-      }
-
-      toast.info(`Sending ${options.dwellerName} to wasteland...`)
-      await explorationStore.sendDwellerToWasteland(
-        vaultId,
-        options.dwellerId,
-        action.duration_hours,
-        authStore.token,
-        action.stimpaks,
-        action.radaways
-      )
-      toast.success(`${options.dwellerName} sent to the wasteland!`)
-
-      await dwellerStore.fetchDwellerDetails(options.dwellerId, authStore.token, true)
-      return true
-    } catch {
-      toast.error('Failed to send dweller to wasteland')
-      return false
-    } finally {
-      isPerformingAction.value = false
-    }
+    )
+    return Promise.resolve(false)
   }
 
   const handleRecallExploration = async (action: RecallExplorationAction): Promise<boolean> => {

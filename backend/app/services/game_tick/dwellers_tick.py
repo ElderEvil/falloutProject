@@ -103,12 +103,53 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
         return
     exploration = locked
 
-    # A returning dweller only waits for arrival; no events fire on the way home.
-    if exploration.is_returning():
-        if exploration.return_time_remaining_seconds() <= 0:
+    # Spatial runs move through the world; advance() owns their movement clock,
+    # the forward->return transition, and arrival detection. Events still fire
+    # during the forward phase (with name-derived registry placement suppressed).
+    if exploration.heading_degrees is not None:
+        was_active = exploration.is_active()
+        await exploration_service.advance(db_session, exploration.id)
+        await db_session.refresh(exploration)
+        if was_active and exploration.is_returning():
+            stats["returning"] += 1
+        if exploration.is_returning() and exploration.return_time_remaining_seconds() <= 0:
+            # An open site encounter defers arrival: the dweller is inside, not home.
+            if await crud_expedition_run.get_open_for_exploration(db_session, exploration.id) is None:
+                await exploration_service.finalize_return(db_session, exploration.id)
+                stats["completed"] += 1
+                logger.info(f"Finalized returning exploration {exploration.id} for dweller {exploration.dweller_id}")
+            return
+        if not exploration.is_in_progress():
+            return
+        if exploration.is_returning():
+            return
+        # A paused encounter freezes the travel clock: never expire the run while
+        # the dweller is inside, or a long site visit would force an early return.
+        if exploration.paused_at is not None:
+            return
+    elif exploration.is_returning():
+        if (
+            exploration.return_time_remaining_seconds() <= 0
+            and await crud_expedition_run.get_open_for_exploration(db_session, exploration.id) is None
+        ):
             await exploration_service.finalize_return(db_session, exploration.id)
             stats["completed"] += 1
             logger.info(f"Finalized returning exploration {exploration.id} for dweller {exploration.dweller_id}")
+        return
+
+    # Spatial dispatch arrival is positional: the dweller reached its target.
+    # Never while an encounter is open (dispatch parties cannot enter sites,
+    # so this is a backstop, not a reachable branch).
+    if (
+        exploration.heading_degrees is not None
+        and exploration.target_location_id is not None
+        and exploration.is_active()
+        and await exploration_service.has_arrived(db_session, exploration)
+        and await crud_expedition_run.get_open_for_exploration(db_session, exploration.id) is None
+    ):
+        await resolve_dispatch_arrival(db_session, exploration.id, arrived=True)
+        stats["returning"] += 1
+        logger.info(f"Exploration {exploration.id} arrived; dweller {exploration.dweller_id} is clearing")
         return
 
     # Exploring is done: send the dweller home; loot and rewards wait for arrival.

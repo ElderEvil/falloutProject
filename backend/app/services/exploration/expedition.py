@@ -19,8 +19,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.core.enums import SPECIAL_STATS
 from app.crud import dweller as dweller_crud
+from app.crud.world_snapshot import world_snapshot as world_snapshot_crud
 from app.models.dweller import Dweller
-from app.models.exploration import ExpeditionRun, ExpeditionRunStatus, Exploration
+from app.models.exploration import CONSUMING_STATUSES, ExpeditionRun, ExpeditionRunStatus, Exploration
 from app.schemas.expedition import (
     AvailableSiteView,
     EnemySpec,
@@ -40,10 +41,13 @@ from app.services.exploration.event_service import (
     apply_exploration_damage,
     apply_exploration_radiation,
     apply_loot_find,
+    auto_use_supplies,
 )
 from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration.loot_calculator import loot_calculator
 from app.services.notification_service import notification_service
+from app.services.world_generation_service import WORLD_ID
+from app.utils import world_terrain
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)
@@ -76,6 +80,41 @@ class SiteBlockState:
     reason: Literal["open", "cooldown"] | None = None
     cooldown_remaining_seconds: int = 0
     cleared: bool = False
+
+
+@dataclass(frozen=True)
+class JourneyOfferContext:
+    """Trail-relative inputs that decide which sites a spatial journey offers."""
+
+    trail: list[tuple[float, float]]
+    radius: float
+    consumed_site_ids: frozenset[str]
+
+
+async def journey_offer_context(db_session: AsyncSession, exploration: Exploration) -> JourneyOfferContext | None:
+    """Trail offer inputs for a spatial run, or None when terrain/version is unavailable."""
+    if exploration.heading_degrees is None or exploration.world_version is None:
+        return None
+    snapshot = await world_snapshot_crud.get_version(
+        db_session, world_id=WORLD_ID, generator_version=exploration.world_version
+    )
+    if snapshot is None:
+        return None
+    consumed = await crud.expedition_run.get_consumed_site_ids_for_exploration(
+        db_session, exploration_id=exploration.id
+    )
+    return JourneyOfferContext(
+        trail=[(float(step["x"]), float(step["y"])) for step in (exploration.trail or [])],
+        radius=world_terrain.reveal_radius_registry(snapshot, world_terrain.SITE_REVEAL_TILES),
+        consumed_site_ids=frozenset(consumed),
+    )
+
+
+def site_is_offered(site: SiteDefinition, context: JourneyOfferContext) -> bool:
+    """True when a spatial journey offers *site*: near its trail and not yet consumed."""
+    return site.id not in context.consumed_site_ids and world_terrain.path_passes_near(
+        context.trail, (site.coord_x, site.coord_y), context.radius
+    )
 
 
 def success_odds(stat_value: int, difficulty: int) -> float:
@@ -185,8 +224,10 @@ async def _site_block_reason(
     return (await site_block_state(db_session, vault_id, site_id, include_open=include_open)).reason
 
 
-async def _log_site_event(db_session: AsyncSession, exploration: Exploration, description: str) -> None:
-    exploration.add_event(event_type="site", description=description)
+async def _log_site_event(
+    db_session: AsyncSession, exploration: Exploration, description: str, *, health_loss: int = 0
+) -> None:
+    exploration.add_event(event_type="site", description=description, health_loss=health_loss or None)
     db_session.add(exploration)
     await db_session.flush()
 
@@ -429,13 +470,33 @@ async def _refresh_run(db_session: AsyncSession, run: ExpeditionRun) -> Expediti
     return run
 
 
+async def _reopen_run(db_session: AsyncSession, run: ExpeditionRun) -> ExpeditionRun:
+    """Resume a retreated run at its saved cursor, clearing the terminal stamp."""
+    run.status = ExpeditionRunStatus.IN_ROOM
+    run.finished_at = None
+    return await _refresh_run(db_session, run)
+
+
 class ExpeditionService:
     """Enter, resolve, retreat, and inspect expedition site runs."""
 
+    async def _require_site_near_trail(self, db_session: AsyncSession, exploration: Exploration, site) -> None:
+        """Reject a spatial entry whose site was never traveled past (list/enter parity)."""
+        context = await journey_offer_context(db_session, exploration)
+        if context is None:
+            return
+        if not world_terrain.path_passes_near(context.trail, (site.coord_x, site.coord_y), context.radius):
+            raise ValidationException(f"{site.name} is not on this journey's traveled path")
+
     async def enter_run(self, db_session: AsyncSession, exploration_id: UUID4, site_id: str) -> SiteRoomView:
-        """Start a site run on an active exploration (anti-farm + level gates enforced)."""
+        """Start (or resume) a site run on an in-progress exploration.
+
+        Re-entering the same open site is an idempotent reconnect; re-entering a
+        retreated site resumes from its saved room cursor. A different site still
+        conflicts with the one open run, and a consumed site stays spent.
+        """
         exploration = await lock_exploration_with_vault_claim(db_session, exploration_id)
-        if not exploration.is_active():
+        if not exploration.is_in_progress():
             raise ValidationException("Expedition sites need an active exploration")
         if exploration.team_id is not None:
             raise ValidationException("Party dispatches cannot enter expedition sites")
@@ -450,36 +511,78 @@ class ExpeditionService:
             raise ValidationException(
                 f"{site.name} needs dweller level {site.min_dweller_level} (dweller is {dweller_obj.level})"
             )
-        if await crud.expedition_run.get_open_for_exploration(db_session, exploration_id) is not None:
+        open_run = await crud.expedition_run.get_open_for_exploration_for_update(db_session, exploration_id)
+        if open_run is not None:
+            if open_run.site_id == site_id:
+                return build_view(exploration_id, site, open_run, exploration, dweller=dweller_obj)
             raise ResourceConflictException("This exploration already has an open expedition run")
-        blocked = await _site_block_reason(db_session, exploration.vault_id, site_id)
-        if blocked == "open":
-            raise ResourceConflictException(f"{site_id} already has an open expedition run")
-        if blocked == "cooldown":
-            raise ResourceConflictException(f"{site.name} is quiet after a recent expedition")
-        run = await crud.expedition_run.create_run(
-            db_session,
-            exploration_id=exploration_id,
-            vault_id=exploration.vault_id,
-            site_id=site_id,
+        if (
+            await crud.expedition_run.get_consumed_for_exploration_site(
+                db_session, exploration_id=exploration_id, site_id=site_id
+            )
+            is not None
+        ):
+            raise ResourceConflictException(f"{site.name} is already spent for this journey")
+        if exploration.heading_degrees is not None:
+            await self._require_site_near_trail(db_session, exploration, site)
+        else:
+            blocked = await _site_block_reason(db_session, exploration.vault_id, site_id)
+            if blocked == "open":
+                raise ResourceConflictException(f"{site_id} already has an open expedition run")
+            if blocked == "cooldown":
+                raise ResourceConflictException(f"{site.name} is quiet after a recent expedition")
+
+        latest = await crud.expedition_run.get_latest_for_exploration_site(
+            db_session, exploration_id=exploration_id, site_id=site_id
         )
+        if latest is not None and latest.status == ExpeditionRunStatus.RETREATED:
+            run = await _reopen_run(db_session, latest)
+        else:
+            run = await crud.expedition_run.create_run(
+                db_session,
+                exploration_id=exploration_id,
+                vault_id=exploration.vault_id,
+                site_id=site_id,
+            )
+
+        from app.services.exploration_service import exploration_service
+
+        await exploration_service.pause_for_encounter(db_session, exploration)
         await _log_site_event(db_session, exploration, f"Entered {site.name}: {site.rooms[0].flavor}")
         await db_session.commit()
         return build_view(exploration_id, site, run, exploration, dweller=dweller_obj)
 
     async def list_available_sites(self, db_session: AsyncSession, exploration_id: UUID4) -> list[AvailableSiteView]:
-        """List expedition sites the dweller may currently enter (level + anti-farm gates)."""
+        """List expedition sites the dweller may currently enter.
+
+        Spatial runs are offered the catalog sites near their traveled trail
+        (one-time journey consumption replaces the vault-wide repeat cooldown);
+        legacy runs keep catalog listing with the anti-farm gates.
+        """
         exploration = await _get_exploration(db_session, exploration_id)
-        if not exploration.is_active():
+        if not exploration.is_in_progress():
             raise ValidationException("Expedition sites need an active exploration")
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
         if dweller_obj.is_dead:
             return []
+        context = await journey_offer_context(db_session, exploration)
+        consumed = (
+            context.consumed_site_ids
+            if context is not None
+            else await crud.expedition_run.get_consumed_site_ids_for_exploration(
+                db_session, exploration_id=exploration_id
+            )
+        )
         available: list[AvailableSiteView] = []
         for site in data_loader.load_expedition_sites():
             if dweller_obj.level < site.min_dweller_level:
                 continue
-            if await _site_block_reason(db_session, exploration.vault_id, site.id) is not None:
+            if context is not None:
+                if not site_is_offered(site, context):
+                    continue
+            elif await _site_block_reason(db_session, exploration.vault_id, site.id) is not None:
+                continue
+            if site.id in consumed:
                 continue
             available.append(
                 AvailableSiteView(
@@ -510,7 +613,7 @@ class ExpeditionService:
         """Resolve the current room node and advance the cursor (or finish the run)."""
         db_session.info.pop("deferred_notification_deliveries", None)
         exploration = await lock_exploration_with_vault_claim(db_session, exploration_id)
-        if not exploration.is_active():
+        if not exploration.is_in_progress():
             raise ValidationException("Expedition sites need an active exploration")
         run = await _get_open_run(db_session, exploration_id)
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
@@ -525,12 +628,18 @@ class ExpeditionService:
             raise ValidationException(f"Unknown expedition site: {run.site_id!r}")
         room = site.rooms[run.room_cursor]
 
-        # The finale pays the reward vault; re-check the cooldown under the claim
+        # The finale pays the reward vault; re-check eligibility under the claim
         # so a run that outlived a terminal sibling cannot pay into a locked site.
-        if room.node.kind == "finale" and await _site_block_reason(
-            db_session, exploration.vault_id, run.site_id, include_open=False
-        ):
-            raise ValidationException(f"{site.name} is quiet after a recent expedition")
+        # Spatial runs check journey consumption instead of the vault cooldown.
+        if room.node.kind == "finale":
+            if exploration.heading_degrees is not None:
+                consumed = await crud.expedition_run.get_consumed_for_exploration_site(
+                    db_session, exploration_id=exploration_id, site_id=run.site_id
+                )
+                if consumed is not None:
+                    raise ValidationException(f"{site.name} is already spent for this journey")
+            elif await _site_block_reason(db_session, exploration.vault_id, run.site_id, include_open=False):
+                raise ValidationException(f"{site.name} is quiet after a recent expedition")
 
         result = BranchResult()
         pending = run.flags.get("pending_fight")
@@ -550,7 +659,13 @@ class ExpeditionService:
             loot_gained=result.loot_gained,
             combat=result.combat,
         )
-        await _log_site_event(db_session, exploration, f"{site.name} — {room.name}: {outcome.text}")
+        await _log_site_event(
+            db_session,
+            exploration,
+            f"{site.name} — {room.name}: {outcome.text}",
+            health_loss=result.damage_taken,
+        )
+        await auto_use_supplies(db_session, exploration)
 
         if result.dweller_died:
             run.status = ExpeditionRunStatus.DIED
@@ -575,6 +690,10 @@ class ExpeditionService:
             run.flags = flags
             run.room_cursor = min(run.room_cursor + 1, len(site.rooms) - 1)
         run = await _refresh_run(db_session, run)
+        if run.status in CONSUMING_STATUSES:
+            from app.services.exploration_service import exploration_service
+
+            exploration_service.resume_from_encounter(exploration)
         await db_session.commit()
         await notification_service.deliver_deferred_notifications(db_session)
         return build_view(
@@ -591,7 +710,7 @@ class ExpeditionService:
     async def retreat_run(self, db_session: AsyncSession, exploration_id: UUID4) -> SiteRoomView:
         """Abandon the run at a room boundary: room loot kept, finale forfeited."""
         exploration = await lock_exploration_with_vault_claim(db_session, exploration_id)
-        if not exploration.is_active():
+        if not exploration.is_in_progress():
             raise ValidationException("Expedition sites need an active exploration")
         run = await _get_open_run(db_session, exploration_id)
         site = data_loader.get_expedition_site(run.site_id)
@@ -600,6 +719,10 @@ class ExpeditionService:
         run.status = ExpeditionRunStatus.RETREATED
         run.finished_at = datetime.utcnow()
         run = await _refresh_run(db_session, run)
+
+        from app.services.exploration_service import exploration_service
+
+        exploration_service.resume_from_encounter(exploration)
         await _log_site_event(db_session, exploration, f"Retreated from {site.name} with whatever was carried.")
         await db_session.commit()
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)

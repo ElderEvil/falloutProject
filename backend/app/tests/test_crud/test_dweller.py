@@ -24,7 +24,7 @@ from app.utils.exceptions import (
     ResourceConflictException,
     ValidationException,
 )
-from backend.app.tests.factory.dwellers import create_fake_dweller
+from backend.app.tests.factory.dwellers import create_fake_adult_dweller, create_fake_dweller
 
 RACE_VALUES = {race.value for race in RaceOption}
 
@@ -77,7 +77,7 @@ async def test_move_dweller_to_room(async_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_move_teen_with_is_adult_flag_to_arena_rejected(async_session: AsyncSession):
+async def test_move_teen_to_arena_rejected(async_session: AsyncSession):
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)
     user = await crud.user.create(async_session, obj_in=user_in)
@@ -89,7 +89,6 @@ async def test_move_teen_with_is_adult_flag_to_arena_rejected(async_session: Asy
     dweller_data = create_fake_dweller()
     dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
     dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
-    dweller.is_adult = True
     dweller.age_group = AgeGroupEnum.TEEN
     await async_session.commit()
 
@@ -121,7 +120,6 @@ async def test_move_child_to_training_room_rejected(
     _, vault = user_with_vault
     vault.population_max = 1
     dweller_in_vault.age_group = AgeGroupEnum.CHILD
-    dweller_in_vault.is_adult = False
     await async_session.commit()
 
     room_data = create_fake_room()
@@ -144,10 +142,9 @@ async def test_move_adult_to_arena_sets_fighting_status(async_session: AsyncSess
     vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
-    dweller_data = create_fake_dweller()
+    dweller_data = create_fake_adult_dweller()
     dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
     dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
-    dweller.is_adult = True
     await async_session.commit()
 
     starter_room = await crud.room.create(async_session, obj_in=RoomCreate(**create_fake_room(), vault_id=vault.id))

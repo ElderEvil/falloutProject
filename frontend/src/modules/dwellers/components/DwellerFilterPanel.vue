@@ -7,7 +7,14 @@ import {
   type DwellerAgeGroup,
 } from '@/modules/dwellers/stores/dweller'
 import type { components } from '@/core/types/api.generated'
-import { formatIdentityLabel, getRaceConfig, FACTION_CONFIG_MAP } from '../models/dweller'
+import {
+  formatIdentityLabel,
+  getRaceConfig,
+  AGE_CONFIG_MAP,
+  FACTION_CONFIG_MAP,
+  GENDER_CONFIG_MAP,
+  RARITY_CONFIG_MAP,
+} from '../models/dweller'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
 import { useIdentityOptions } from '../composables/useIdentityOptions'
 import DwellerFilterGroup from './DwellerFilterGroup.vue'
@@ -15,6 +22,8 @@ import DwellerFilterGroup from './DwellerFilterGroup.vue'
 interface Props {
   showStatusFilter?: boolean
   showAgeFilter?: boolean
+  showGenderFilter?: boolean
+  showRarityFilter?: boolean
   showIdentityFilters?: boolean
   showActiveFilterSummary?: boolean
 }
@@ -22,6 +31,8 @@ interface Props {
 const {
   showStatusFilter = true,
   showAgeFilter = false,
+  showGenderFilter = false,
+  showRarityFilter = false,
   showIdentityFilters = false,
   showActiveFilterSummary = false,
 } = defineProps<Props>()
@@ -54,7 +65,7 @@ const raceSelectOptions = computed(() => [
   { value: 'all', label: 'All Races', icon: 'mdi:account-multiple' },
   ...races.value.map((race) => {
     const config = getRaceConfig(race)
-    return { value: race, label: config.label, icon: config.icon }
+    return { value: race, label: config.label, icon: config.icon, accent: config.color }
   }),
 ])
 
@@ -86,7 +97,7 @@ function dropStrandedFaction() {
 watch(() => dwellerStore.filterRace, dropStrandedFaction)
 
 const statusOptions = [
-  { value: 'all', label: 'All', icon: 'mdi:account-multiple' },
+  { value: 'all', label: 'All Statuses', icon: 'mdi:account-multiple' },
   { value: 'idle', label: 'Idle', icon: 'mdi:coffee-outline' },
   { value: 'resting', label: 'Socializing', icon: 'mdi:heart-outline' },
   { value: 'working', label: 'Working', icon: 'mdi:hammer-wrench' },
@@ -99,10 +110,35 @@ const statusOptions = [
 
 const ageGroupOptions = [
   { value: 'all', label: 'All Ages', icon: 'mdi:account-multiple' },
-  { value: 'child', label: 'Child', icon: 'mdi:baby' },
-  { value: 'teen', label: 'Teen', icon: 'mdi:human-child' },
-  { value: 'adult', label: 'Adult', icon: 'mdi:account' },
-  { value: 'elder', label: 'Elder', icon: 'mdi:account-cowboy-hat' },
+  { value: 'child', label: 'Child', icon: 'mdi:baby', accent: AGE_CONFIG_MAP.child.color },
+  { value: 'teen', label: 'Teen', icon: 'mdi:human-child', accent: AGE_CONFIG_MAP.teen.color },
+  { value: 'adult', label: 'Adult', icon: 'mdi:account', accent: AGE_CONFIG_MAP.adult.color },
+  {
+    value: 'elder',
+    label: 'Elder',
+    icon: 'mdi:account-cowboy-hat',
+    accent: AGE_CONFIG_MAP.elder.color,
+  },
+]
+
+const genderOptions = [
+  { value: 'all', label: 'All Genders', icon: 'mdi:account-multiple' },
+  ...Object.entries(GENDER_CONFIG_MAP).map(([value, config]) => ({
+    value,
+    label: config.label,
+    icon: config.icon,
+    accent: config.color,
+  })),
+]
+
+const rarityOptions = [
+  { value: 'all', label: 'All Rarities', icon: 'mdi:account-multiple' },
+  ...Object.entries(RARITY_CONFIG_MAP).map(([value, config]) => ({
+    value,
+    label: config.label,
+    icon: config.icon,
+    accent: config.color,
+  })),
 ]
 
 const currentFilterStatus = computed({
@@ -113,6 +149,16 @@ const currentFilterStatus = computed({
 const currentFilterAgeGroup = computed({
   get: () => dwellerStore.filterAgeGroup,
   set: (value: DwellerAgeGroup) => dwellerStore.setFilterAgeGroup(value),
+})
+
+const currentFilterGender = computed({
+  get: () => dwellerStore.filterGender,
+  set: (value: string) => dwellerStore.setFilterGender(value),
+})
+
+const currentFilterRarity = computed({
+  get: () => dwellerStore.filterRarity,
+  set: (value: string) => dwellerStore.setFilterRarity(value),
 })
 
 const currentFilterRace = computed({
@@ -131,6 +177,8 @@ const statusCounts = computed<Record<string, number> | undefined>(() => {
 
   const { all, byStatus } = dwellerStore.countByStatus({
     ageGroup: showAgeFilter ? dwellerStore.filterAgeGroup : 'all',
+    gender: showGenderFilter ? dwellerStore.filterGender : 'all',
+    rarity: showRarityFilter ? dwellerStore.filterRarity : 'all',
     race: showIdentityFilters ? dwellerStore.filterRace : 'all',
     faction: showIdentityFilters ? dwellerStore.filterFaction : 'all',
   })
@@ -142,6 +190,51 @@ const statusCounts = computed<Record<string, number> | undefined>(() => {
     counts[status] = byStatus[status]
   }
   return counts
+})
+
+/** Gender chips preview their own result set, following every filter except gender itself. */
+const genderCounts = computed<Record<string, number> | undefined>(() => {
+  if (!showGenderFilter || dwellerStore.allDwellers.length === 0) return undefined
+
+  const { all, byGender } = dwellerStore.countByGender({
+    status: showStatusFilter ? dwellerStore.filterStatus : 'all',
+    ageGroup: showAgeFilter ? dwellerStore.filterAgeGroup : 'all',
+    rarity: showRarityFilter ? dwellerStore.filterRarity : 'all',
+    race: showIdentityFilters ? dwellerStore.filterRace : 'all',
+    faction: showIdentityFilters ? dwellerStore.filterFaction : 'all',
+  })
+
+  return { all, ...byGender }
+})
+
+/** Rarity chips preview their own result set, following every filter except rarity itself. */
+const rarityCounts = computed<Record<string, number> | undefined>(() => {
+  if (!showRarityFilter || dwellerStore.allDwellers.length === 0) return undefined
+
+  const { all, byRarity } = dwellerStore.countByRarity({
+    status: showStatusFilter ? dwellerStore.filterStatus : 'all',
+    ageGroup: showAgeFilter ? dwellerStore.filterAgeGroup : 'all',
+    gender: showGenderFilter ? dwellerStore.filterGender : 'all',
+    race: showIdentityFilters ? dwellerStore.filterRace : 'all',
+    faction: showIdentityFilters ? dwellerStore.filterFaction : 'all',
+  })
+
+  return { all, ...byRarity }
+})
+
+/** Race chips preview their own result set, following every filter except race itself. */
+const raceCounts = computed<Record<string, number> | undefined>(() => {
+  if (!showIdentityFilters || dwellerStore.allDwellers.length === 0) return undefined
+
+  const { all, byRace } = dwellerStore.countByRace({
+    status: showStatusFilter ? dwellerStore.filterStatus : 'all',
+    ageGroup: showAgeFilter ? dwellerStore.filterAgeGroup : 'all',
+    gender: showGenderFilter ? dwellerStore.filterGender : 'all',
+    rarity: showRarityFilter ? dwellerStore.filterRarity : 'all',
+    faction: showIdentityFilters ? dwellerStore.filterFaction : 'all',
+  })
+
+  return { all, ...byRace }
 })
 
 function labelFor(options: readonly { value: string; label: string }[], value: string): string {
@@ -156,6 +249,12 @@ const activeFilterLabels = computed(() => {
   }
   if (showAgeFilter && dwellerStore.filterAgeGroup !== 'all') {
     labels.push(labelFor(ageGroupOptions, dwellerStore.filterAgeGroup))
+  }
+  if (showGenderFilter && dwellerStore.filterGender !== 'all') {
+    labels.push(labelFor(genderOptions, dwellerStore.filterGender))
+  }
+  if (showRarityFilter && dwellerStore.filterRarity !== 'all') {
+    labels.push(labelFor(rarityOptions, dwellerStore.filterRarity))
   }
   if (showIdentityFilters && dwellerStore.filterRace !== 'all') {
     labels.push(formatIdentityLabel(dwellerStore.filterRace))
@@ -175,6 +274,8 @@ const hasActiveFilters = computed(() => activeFilterLabels.value.length > 0)
 function clearFilters(): void {
   dwellerStore.setFilterStatus('all')
   dwellerStore.setFilterAgeGroup('all')
+  dwellerStore.setFilterGender('all')
+  dwellerStore.setFilterRarity('all')
   dwellerStore.setFilterRace('all')
   dwellerStore.setFilterFaction('all')
 }
@@ -208,10 +309,31 @@ function clearFilters(): void {
       />
 
       <DwellerFilterGroup
+        v-if="showGenderFilter"
+        label="Filter by Gender"
+        icon="mdi:gender-male-female"
+        :options="genderOptions"
+        :model-value="currentFilterGender"
+        :counts="genderCounts"
+        @update:model-value="currentFilterGender = $event"
+      />
+
+      <DwellerFilterGroup
+        v-if="showRarityFilter"
+        label="Filter by Rarity"
+        icon="mdi:star-four-points"
+        :options="rarityOptions"
+        :model-value="currentFilterRarity"
+        :counts="rarityCounts"
+        @update:model-value="currentFilterRarity = $event"
+      />
+
+      <DwellerFilterGroup
         v-if="showIdentityFilters"
         label="Filter by Race"
         icon="mdi:account-star"
         :options="raceSelectOptions"
+        :counts="raceCounts"
         :model-value="currentFilterRace"
         @update:model-value="currentFilterRace = $event"
       />

@@ -22,6 +22,28 @@ Deaths, injuries, critical resource/power alerts, exit requests, combat events, 
 and hazard-team confirmations are always enabled. Every `NotificationType` must be deliberately mapped in
 `app.core.notification_preferences`; unknown future types default to enabled.
 
+## Exit requests (Someone Wants Out)
+
+A dweller in despair eventually asks to leave. The rules are deliberately slow and costly so the decision
+is real, not a rerollable button:
+
+- **Grace period** — a dweller must stay at or below `EXIT_DESPAIR_HAPPINESS` (15) for
+  `EXIT_DESPAIR_GRACE_HOURS` (6) before they will ask. `dweller.despair_since` records the first tick of
+  despair and is cleared on recovery, so a transient dip never raises a request.
+- **One ask per day** — the vault raises at most `EXIT_MAX_EXIT_REQUESTS_PER_DAY` (1) per rolling 24h
+  (`vault.last_exit_request_at`), and never while a request is pending. The chat-driven ask
+  (`request_exit`) enforces the same cap, so it cannot slip a second ask in. **Answering** a request
+  (grant or refuse) restarts the same window, so a dweller still in despair cannot re-ask immediately.
+- **Refusal is final for that ask and costs the vault** — refusing answers the request
+  (`exit_requested_at` cleared) and takes `EXIT_VAULT_REFUSAL_HAPPINESS_PENALTY` (10) from every living
+  dweller (the refused dweller included). It must never leave the request standing, or the action becomes
+  repeatable for free.
+- **Granting** stays one-way: permanent death by `EXILE` — the entry point for the wasteland-pool idea in
+  issue #831.
+
+The UI states the cost before the click (modal copy + button label) and surfaces the outcome as a toast;
+the ask keeps its always-on bell notification.
+
 ## Race and faction switches
 
 Race mechanics are **on** (`FEATURE_RACE_MECHANICS`) and faction mechanics are **off**
@@ -75,7 +97,10 @@ Drought radiation accrues at 1% of max health per tick after `dehydration_grace_
 water, counting only the ticks past the grace boundary. Radiation saturates at the dweller's own
 `max_health` — never a flat cap — so the health ceiling bottoms out at 1 HP and radiation alone
 never kills. Recovery is the one-shot **Treat Irradiated Dwellers** action: RadAway first (raises
-the ceiling), then a Stimpack heals into it.
+the ceiling), then a Stimpack heals into it. Wasteland auto-use mirrors that order: RadAway fires
+first once radiation has cut the ceiling by 25% of max health, then a Stimpak heals into it (gate:
+health below 50% of full max health, so radiation never hides a wound); expedition-site damage is
+recorded in the journey log.
 
 ## Damage and radiation reductions
 

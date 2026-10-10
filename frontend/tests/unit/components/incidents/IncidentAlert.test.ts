@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createIconifyMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import IncidentAlert from '@/modules/combat/components/incidents/IncidentAlert.vue'
@@ -7,13 +8,7 @@ import { IncidentType, IncidentStatus } from '@/modules/combat/models/incident'
 import type { Incident, IncidentTeamMember } from '@/modules/combat/models/incident'
 
 // Mock @iconify/vue
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    props: ['icon'],
-    template: '<div class="mock-icon" :data-icon="icon"></div>',
-  },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock({ template: '<div class="mock-icon" :data-icon="icon"></div>' }))
 
 describe('IncidentAlert', () => {
   const mockIncident: Incident = {

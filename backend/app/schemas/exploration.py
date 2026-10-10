@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import UUID4, Field
+from pydantic import UUID4, Field, model_validator
 from sqlmodel import SQLModel
 
 from app.models.exploration import ExplorationStatus
@@ -68,6 +68,16 @@ class ExplorationRead(ExplorationBase):
     stimpaks: int
     radaways: int
 
+    # Spatial movement (slice 1): null for legacy runs.
+    world_version: int | None = None
+    origin_x: float | None = None
+    origin_y: float | None = None
+    heading_degrees: float | None = None
+    pos_x: float | None = None
+    pos_y: float | None = None
+    trail: list[dict] = Field(default_factory=list)
+    position_as_of: datetime | None = None
+
 
 class ExplorationReadShort(SQLModel):
     """Schema for reading exploration data (short version for lists)."""
@@ -87,6 +97,9 @@ class ExplorationReadShort(SQLModel):
     enemies_encountered: int
     stimpaks: int
     radaways: int
+    # Authoritative registry position for spatial runs (map markers); null on legacy runs.
+    pos_x: float | None = None
+    pos_y: float | None = None
 
 
 class ExplorationProgress(SQLModel):
@@ -116,12 +129,33 @@ class ExplorationEvent(SQLModel):
 
 
 class ExplorationSendRequest(SQLModel):
-    """Schema for sending a dweller to wasteland."""
+    """Schema for sending dwellers out — the single departure boundary.
 
-    dweller_id: UUID4
-    duration: int = Field(default=4, ge=1, le=24, description="Duration in hours")
+    One roster, one optional destination: `dweller_ids` (or the legacy single
+    `dweller_id`) is the roster; `target_location_id` present means travel to a
+    known place (clear), absent means roam. Roaming sends exactly one dweller.
+    """
+
+    dweller_id: UUID4 | None = Field(default=None, description="Single dweller (legacy/roam)")
+    dweller_ids: list[UUID4] | None = Field(
+        default=None, min_length=1, description="Roster; up to the party limit when clearing"
+    )
+    target_location_id: UUID4 | None = Field(
+        default=None, description="Known place to travel to and clear; omit to roam"
+    )
+    heading_degrees: float | None = Field(
+        default=None, ge=0, lt=360, description="Compass heading (0=N, 90=E) for a spatial roam"
+    )
+    duration: int = Field(default=4, ge=1, le=24, description="Duration in hours (roam only)")
     stimpaks: int = Field(default=0, ge=0, le=25, description="Number of Stimpaks to bring")
     radaways: int = Field(default=0, ge=0, le=25, description="Number of Radaways to bring")
+
+    @model_validator(mode="after")
+    def _single_roster_source(self) -> "ExplorationSendRequest":
+        """Reject conflicting roster fields instead of silently preferring one."""
+        if self.dweller_id is not None and self.dweller_ids is not None:
+            raise ValueError("Provide either dweller_id or dweller_ids, not both")
+        return self
 
 
 class ExpeditionDispatchRequest(SQLModel):
@@ -129,6 +163,8 @@ class ExpeditionDispatchRequest(SQLModel):
 
     dweller_ids: list[UUID4] = Field(min_length=1, description="Party of 1-3 dwellers, no leader")
     location_id: UUID4
+    stimpaks: int = Field(default=0, ge=0, le=25, description="Number of Stimpaks to bring")
+    radaways: int = Field(default=0, ge=0, le=25, description="Number of Radaways to bring")
 
 
 class ExplorationRecallRequest(SQLModel):
@@ -152,3 +188,9 @@ class PendingOverflowRead(SQLModel):
     exploration_id: UUID4
     dweller_id: UUID4
     unclaimed_loot: list[dict]
+
+
+class HeadingSuggestion(SQLModel):
+    """A server-suggested compass heading for an auto departure; null without a placement."""
+
+    heading_degrees: float | None = None

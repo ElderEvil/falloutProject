@@ -9,7 +9,7 @@ withDefaults(defineProps<{ items: LootItem[] }>(), { items: () => [] })
 <template>
   <div
     v-if="items.length > 0"
-    class="mb-4 rounded-lg border-2 border-theme-primary bg-terminal-background p-4 shadow-[0_0_20px_var(--color-theme-glow)]"
+    class="mt-4 mb-4 rounded-lg border-2 border-theme-primary bg-terminal-background p-4 shadow-[0_0_20px_var(--color-theme-glow)]"
   >
     <h3 class="section-title mb-2 flex items-center text-base font-bold text-theme-primary">
       <Icon icon="mdi:package-variant" class="mr-2" />

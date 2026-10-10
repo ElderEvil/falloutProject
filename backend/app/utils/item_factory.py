@@ -1,10 +1,11 @@
-"""Shared constructors for catalog-backed weapons, outfits, and junk.
+"""Shared constructors for catalog-backed weapons, outfits, junk, and pets.
 
 Both reward settlement and crafting build items from the same JSON catalogs
 (`items/weapons.json`, `items/outfits/*.json`), so the mapping from catalog
 shape to ORM model lives here exactly once. Junk rows carry no catalog row:
 pricing and prose stay caller-owned because incidents and exploration value
-and describe held junk differently.
+and describe held junk differently. Pets carry no catalog-owned stats either —
+bonuses resolve by name at read time (`app.options.pet_modifiers`).
 
 These are the only sanctioned constructors for these models — building an item
 directly leaves every catalog-owned column at its default, a state no test can
@@ -20,8 +21,10 @@ from pydantic import UUID4
 from app.core.enums import GenderEnum, JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
 from app.models.junk import Junk
 from app.models.outfit import Outfit
+from app.models.pet import Pet
 from app.models.weapon import Weapon
 from app.utils.outfit_assets import get_outfit_image_url
+from app.utils.pet_assets import get_pet_image_url
 from app.utils.weapon_assets import get_weapon_image_url
 
 
@@ -86,6 +89,23 @@ def build_junk(
     )
 
 
+def build_pet(data: dict[str, Any], rarity: RarityEnum | str, storage_id: UUID4 | None = None) -> Pet:
+    """Build a Pet from reward data; art resolves from the pet name.
+
+    Pets persist identity and ownership only — no effect columns — so the only
+    derived value here is the image URL, preferring an explicit one and falling
+    back to the name-keyed art map.
+    """
+    name = str(data["name"])
+    return Pet(
+        name=name,
+        rarity=RarityEnum(rarity),
+        value=data.get("value"),
+        image_url=data.get("image_url") or get_pet_image_url(name),
+        storage_id=storage_id,
+    )
+
+
 def build_catalog_item(
     item_type: str,
     name: str,
@@ -102,12 +122,12 @@ def build_catalog_item(
     building from the schema dump.
     """
     if item_type == "weapon":
-        weapon_data = next((w for w in weapons_data if w["name"] == name), None)
+        weapon_data = next((w for w in weapons_data if str(w["name"]).lower() == name.lower()), None)
         if weapon_data is None:
             return None
         return build_weapon(weapon_data, rarity, storage_id)
     if item_type == "outfit":
-        outfit_data = next((o for o in outfits_data if o["name"] == name), None)
+        outfit_data = next((o for o in outfits_data if str(o["name"]).lower() == name.lower()), None)
         if outfit_data is None:
             return None
         return build_outfit(outfit_data, rarity, storage_id)

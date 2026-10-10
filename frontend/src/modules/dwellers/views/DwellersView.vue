@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, defineAsyncComponent, inject, onMounted, ref, shallowRef, watch } from 'vue'
 import {
+  RouterLink,
   useRouter,
   useRoute,
   type LocationQuery,
   type LocationQueryRaw,
   type LocationQueryValueRaw,
+  type RouteLocationRaw,
 } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -19,19 +21,24 @@ import { happinessService } from '@/modules/dwellers/services/happinessService'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { setRadioMode } from '@/modules/radio/api/radio'
 import type { Room } from '@/modules/rooms/models/room'
+import { findProductionRoom, type ResourceName } from '@/modules/rooms/models/roomParts'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { Skeleton } from '@/core/components/ui/skeleton'
+import { Button } from '@/core/components/ui/button'
 import HappinessDashboard from '@/modules/vault/components/HappinessDashboard.vue'
 import {
   useDwellerStore,
   isDwellerAgeGroup,
+  isDwellerGender,
+  isDwellerRarity,
   isDwellerSortBy,
   isDwellerStatus,
   isSortDirection,
 } from '../stores/dweller'
+import { getEffectiveMaxHealth, isSeverelyIrradiated } from '../models/dweller'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
 import DwellerFilterPanel from '../components/DwellerFilterPanel.vue'
 import DwellerDisplayControls from '../components/DwellerDisplayControls.vue'
@@ -61,6 +68,7 @@ const roomStore = useRoomStore()
 const incidentStore = useIncidentStore()
 const explorationStore = useExplorationStore()
 const { isCollapsed } = useSidePanel()
+const isFlickeringEnabled = inject('isFlickering', ref(false))
 const toast = useToast()
 const router = useRouter()
 const route = useRoute()
@@ -85,19 +93,30 @@ const shownCount = computed(() =>
 // still fills the gaps a bare link leaves; after that the URL is authoritative and an
 // absent key means the default again.
 function applyFiltersFromQuery(query: LocationQuery, resetMissing: boolean): void {
-  const { filter, ageGroup, race, faction, sortBy, order } = query
+  const { filter, ageGroup, gender, rarity, race, faction, sortBy, order } = query
 
   if (isDwellerStatus(filter)) dwellerStore.setFilterStatus(filter)
   else if (resetMissing) dwellerStore.setFilterStatus('all')
 
-  if (isDwellerAgeGroup(ageGroup)) dwellerStore.setFilterAgeGroup(ageGroup)
+  // A dead roster is served without facet data, so the store drops these facets on entry;
+  // a stale link must not put one back.
+  const facetsAvailable = dwellerStore.filterStatus !== 'dead'
+
+  if (facetsAvailable && isDwellerAgeGroup(ageGroup)) dwellerStore.setFilterAgeGroup(ageGroup)
   else if (resetMissing) dwellerStore.setFilterAgeGroup('all')
 
-  if (typeof race === 'string' && race) dwellerStore.setFilterRace(race)
+  if (facetsAvailable && isDwellerGender(gender)) dwellerStore.setFilterGender(gender)
+  else if (resetMissing) dwellerStore.setFilterGender('all')
+
+  if (facetsAvailable && isDwellerRarity(rarity)) dwellerStore.setFilterRarity(rarity)
+  else if (resetMissing) dwellerStore.setFilterRarity('all')
+
+  if (facetsAvailable && typeof race === 'string' && race) dwellerStore.setFilterRace(race)
   else if (resetMissing) dwellerStore.setFilterRace('all')
 
-  if (typeof faction === 'string' && faction) dwellerStore.setFilterFaction(faction)
-  else if (resetMissing) dwellerStore.setFilterFaction('all')
+  if (facetsAvailable && typeof faction === 'string' && faction) {
+    dwellerStore.setFilterFaction(faction)
+  } else if (resetMissing) dwellerStore.setFilterFaction('all')
 
   if (isDwellerSortBy(sortBy)) dwellerStore.setSortBy(sortBy)
   else if (resetMissing) dwellerStore.setSortBy('name')
@@ -114,7 +133,10 @@ watch(
   (query) => applyFiltersFromQuery(query, true)
 )
 
-const FILTER_QUERY_KEYS = ['filter', 'ageGroup', 'race', 'faction', 'sortBy', 'order'] as const
+/** Roster facets serialized by `filtersToQuery`; sorting is separate — it cannot empty a result set. */
+const FILTER_QUERY_KEYS = ['filter', 'ageGroup', 'gender', 'rarity', 'race', 'faction'] as const
+const SORT_QUERY_KEYS = ['sortBy', 'order'] as const
+const ALL_QUERY_KEYS = [...FILTER_QUERY_KEYS, ...SORT_QUERY_KEYS]
 
 function queryValue(value: LocationQueryValueRaw | LocationQueryValueRaw[] | undefined): string {
   if (Array.isArray(value))
@@ -132,6 +154,8 @@ function filtersToQuery(): LocationQueryRaw {
 
   set('filter', dwellerStore.filterStatus === 'all' ? undefined : dwellerStore.filterStatus)
   set('ageGroup', dwellerStore.filterAgeGroup === 'all' ? undefined : dwellerStore.filterAgeGroup)
+  set('gender', dwellerStore.filterGender === 'all' ? undefined : dwellerStore.filterGender)
+  set('rarity', dwellerStore.filterRarity === 'all' ? undefined : dwellerStore.filterRarity)
   set('race', dwellerStore.filterRace === 'all' ? undefined : dwellerStore.filterRace)
   set(
     'faction',
@@ -144,10 +168,26 @@ function filtersToQuery(): LocationQueryRaw {
   return query
 }
 
+/** A facet is active whenever serializing emits a key: `filtersToQuery` already drops every default. */
+const hasActiveFilters = computed(() => {
+  const query = filtersToQuery()
+  return FILTER_QUERY_KEYS.some((key) => queryValue(query[key]) !== '')
+})
+
+/** Reset every roster facet to the default `filtersToQuery` encodes; the URL watcher drops their keys. */
+function clearFilters(): void {
+  dwellerStore.setFilterStatus('all')
+  dwellerStore.setFilterAgeGroup('all')
+  dwellerStore.setFilterGender('all')
+  dwellerStore.setFilterRarity('all')
+  dwellerStore.setFilterRace('all')
+  dwellerStore.setFilterFaction('all')
+}
+
 /** Replace (never push) so the URL tracks state without flooding browser history. */
 function syncFiltersToUrl(): void {
   const next = filtersToQuery()
-  const unchanged = FILTER_QUERY_KEYS.every(
+  const unchanged = ALL_QUERY_KEYS.every(
     (key) => queryValue(next[key]) === queryValue(route.query[key])
   )
   if (unchanged) return
@@ -158,6 +198,8 @@ watch(
   () => [
     dwellerStore.filterStatus,
     dwellerStore.filterAgeGroup,
+    dwellerStore.filterGender,
+    dwellerStore.filterRarity,
     dwellerStore.filterRace,
     dwellerStore.filterFaction,
     dwellerStore.sortBy,
@@ -173,6 +215,7 @@ const distributionCache = shallowRef<ReturnType<
   typeof happinessService.calculateDistribution
 > | null>(null)
 const vaultLoadError = ref<string | null>(null)
+const isRetryingVaultLoad = ref(false)
 
 const isDashboardLoading = computed(
   () =>
@@ -227,7 +270,128 @@ const happinessDashboardData = computed(() => {
     lowResourceCount,
     radioHappinessMode: currentVault.value.radio_mode === 'happiness',
     irradiatedDwellerCount: population.filter((d) => d.radiation > 0).length,
+    severelyIrradiatedDwellerCount: population.filter((d) =>
+      isSeverelyIrradiated(d.radiation, d.max_health)
+    ).length,
+    // Union of the hurt (health below the radiation-reduced ceiling) and the irradiated.
+    careDwellerCount: population.filter(
+      (d) => d.health < getEffectiveMaxHealth(d.radiation, d.max_health) || d.radiation > 0
+    ).length,
   }
+})
+
+const RESOURCE_LABELS: Record<ResourceName, string> = {
+  power: 'Power',
+  food: 'Food',
+  water: 'Water',
+}
+
+interface CriticalResource {
+  name: ResourceName
+  label: string
+  message: string
+}
+
+/** Maps a backend warning type (`critical_food`, `critical_dehydration`, …) to its resource. */
+function resourceFromWarning(type: string): ResourceName | null {
+  if (type.includes('power')) return 'power'
+  if (type.includes('food')) return 'food'
+  if (type.includes('water')) return 'water'
+  return null
+}
+
+/** The server's critical warning when present, else the live tick rate draining toward empty. */
+const criticalResource = computed<CriticalResource | null>(() => {
+  const vault = currentVault.value
+  if (!vault) return null
+
+  const warning = (vault.resource_warnings ?? []).find((item) => item.type.startsWith('critical_'))
+  const warningResource = warning ? resourceFromWarning(warning.type) : null
+  if (warning && warningResource) {
+    return {
+      name: warningResource,
+      label: RESOURCE_LABELS[warningResource],
+      message: warning.message,
+    }
+  }
+
+  const rates = vaultStore.resourceRates[vaultId.value]
+  if (!rates) return null
+  const worst = (Object.keys(RESOURCE_LABELS) as ResourceName[])
+    .map((name) => ({
+      name,
+      rate: rates[name],
+      ratio: vault[name] / (vault[`${name}_max`] || 1),
+      minutes: rates[name] < 0 ? vault[name] / -rates[name] : Number.POSITIVE_INFINITY,
+    }))
+    .filter((entry) => entry.rate < 0 && entry.ratio <= 0.2)
+    .sort((a, b) => a.minutes - b.minutes)[0]
+
+  if (!worst) return null
+  return {
+    name: worst.name,
+    label: RESOURCE_LABELS[worst.name],
+    message: `${RESOURCE_LABELS[worst.name]} draining ${Math.round(worst.rate)}/min`,
+  }
+})
+
+const criticalResourceRoute = computed(() => {
+  const resource = criticalResource.value
+  const room = resource ? findProductionRoom(roomStore.rooms, resource.name) : null
+  return room ? `/vault/${vaultId.value}?roomId=${room.id}` : `/vault/${vaultId.value}`
+})
+
+interface SummaryIssue {
+  id: string
+  icon: string
+  label: string
+  ariaLabel: string
+  to: RouteLocationRaw
+  tone: 'critical' | 'warning'
+}
+
+/** Concrete, clickable problems for the collapsed overview, each with its next action. */
+const summaryIssues = computed<SummaryIssue[]>(() => {
+  const data = happinessDashboardData.value
+  if (!data) return []
+
+  const issues: SummaryIssue[] = []
+
+  if (data.idleDwellerCount > 0) {
+    issues.push({
+      id: 'idle',
+      icon: 'mdi:coffee-outline',
+      label: `${data.idleDwellerCount} idle`,
+      ariaLabel: `Filter the roster to ${data.idleDwellerCount} idle dwellers`,
+      to: { query: { ...filtersToQuery(), filter: 'idle' } },
+      tone: 'warning',
+    })
+  }
+
+  if (data.careDwellerCount > 0) {
+    issues.push({
+      id: 'care',
+      icon: 'mdi:heart-pulse',
+      label: `${data.careDwellerCount} need care`,
+      ariaLabel: `Open the happiness overview to treat ${data.careDwellerCount} injured or irradiated dwellers`,
+      to: `/vault/${vaultId.value}/happiness`,
+      tone: 'critical',
+    })
+  }
+
+  const resource = criticalResource.value
+  if (resource) {
+    issues.push({
+      id: `resource-${resource.name}`,
+      icon: 'mdi:alert-circle',
+      label: `${resource.label} critical`,
+      ariaLabel: `${resource.message} — open the ${resource.label} production room`,
+      to: criticalResourceRoute.value,
+      tone: 'critical',
+    })
+  }
+
+  return issues
 })
 
 const fetchDwellers = async (signal?: AbortSignal) => {
@@ -239,34 +403,47 @@ const fetchDwellers = async (signal?: AbortSignal) => {
   }
 }
 
-onMounted(async () => {
-  // Dashboard aggregates, incidents, and rooms load concurrently: the
-  // dashboard's loading flag then flips once instead of flapping
-  // skeleton -> content -> skeleton per sequential fetch.
-  if (authStore.isAuthenticated && vaultId.value) {
-    vaultLoadError.value = null
-    isAllDwellersLoading.value = true
-    isIncidentsLoading.value = true
-    await Promise.all([
-      fetchDwellers(),
-      vaultStore
-        .ensureVaultLoaded(vaultId.value, authStore.token as string)
-        .catch((error: unknown) => {
-          vaultLoadError.value = error instanceof Error ? error.message : 'Failed to load vault'
-        }),
-      dwellerStore.fetchAllDwellers(vaultId.value, authStore.token as string).finally(() => {
-        isAllDwellersLoading.value = false
-      }),
-      incidentStore.fetchIncidents(vaultId.value, authStore.token as string).finally(() => {
-        isIncidentsLoading.value = false
-      }),
-      roomStore.fetchRooms(vaultId.value, authStore.token as string),
-      // Recall gating reads the exploration store; a failed load must not block the roster.
-      explorationStore
-        .fetchExplorationsByVault(vaultId.value, authStore.token as string)
-        .catch(() => undefined),
-    ])
+/**
+ * Shared by the initial mount and the inline retry: dashboard aggregates,
+ * incidents, and rooms load concurrently so the loading flag flips once
+ * instead of flapping skeleton -> content -> skeleton per sequential fetch.
+ */
+async function loadVaultOverview(): Promise<void> {
+  const id = vaultId.value
+  if (!authStore.isAuthenticated || !id) return
+
+  vaultLoadError.value = null
+  isAllDwellersLoading.value = true
+  isIncidentsLoading.value = true
+  await Promise.all([
+    fetchDwellers(),
+    vaultStore.ensureVaultLoaded(id, authStore.token as string).catch((error: unknown) => {
+      vaultLoadError.value = error instanceof Error ? error.message : 'Failed to load vault'
+    }),
+    dwellerStore.fetchAllDwellers(id, authStore.token as string).finally(() => {
+      isAllDwellersLoading.value = false
+    }),
+    incidentStore.fetchIncidents(id, authStore.token as string).finally(() => {
+      isIncidentsLoading.value = false
+    }),
+    roomStore.fetchRooms(id, authStore.token as string),
+    // Recall gating reads the exploration store; a failed load must not block the roster.
+    explorationStore.fetchExplorationsByVault(id, authStore.token as string).catch(() => undefined),
+  ])
+}
+
+const retryVaultLoad = async (): Promise<void> => {
+  if (isRetryingVaultLoad.value) return
+  isRetryingVaultLoad.value = true
+  try {
+    await loadVaultOverview()
+  } finally {
+    isRetryingVaultLoad.value = false
   }
+}
+
+onMounted(async () => {
+  await loadVaultOverview()
 
   // Reflect the restored state so a copied link reproduces this exact view.
   syncFiltersToUrl()
@@ -277,6 +454,8 @@ watch(
   () => [
     dwellerStore.filterStatus,
     dwellerStore.filterAgeGroup,
+    dwellerStore.filterGender,
+    dwellerStore.filterRarity,
     dwellerStore.filterRace,
     dwellerStore.filterFaction,
     dwellerStore.sortBy,
@@ -408,7 +587,7 @@ const handleTreatIrradiated = async () => {
       <SidePanel />
 
       <!-- Main Content Area -->
-      <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
+      <div class="main-content" :class="{ flicker: isFlickeringEnabled, collapsed: isCollapsed }">
         <PageContentRail>
           <PageHeader
             title="Dwellers"
@@ -419,7 +598,42 @@ const handleTreatIrradiated = async () => {
           <!-- Happiness Dashboard -->
           <div class="mb-6">
             <Skeleton v-if="!currentVault && !vaultLoadError" class="h-[120px] w-full rounded-lg" />
-            <p v-else-if="vaultLoadError" role="alert" class="text-danger">{{ vaultLoadError }}</p>
+            <div
+              v-else-if="vaultLoadError"
+              role="alert"
+              class="vault-load-error flex flex-wrap items-center gap-3 rounded-lg border-2 border-danger/60 bg-danger/10 px-4 py-3"
+            >
+              <Icon
+                icon="mdi:alert-octagon"
+                class="h-6 w-6 shrink-0 text-danger"
+                :ariaHidden="true"
+              />
+              <div class="min-w-0 flex-1 text-sm">
+                <p class="font-bold uppercase tracking-wide text-danger">
+                  Vault overview unavailable
+                </p>
+                <p class="text-danger/90">{{ vaultLoadError }}</p>
+                <p class="text-theme-primary/70">
+                  Resource levels, happiness and the overview summary could not be loaded.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                class="border-2 border-theme-primary bg-transparent hover:shadow-glow-md"
+                :disabled="isRetryingVaultLoad"
+                aria-label="Retry loading the vault overview"
+                @click="retryVaultLoad"
+              >
+                <Icon
+                  :icon="isRetryingVaultLoad ? 'mdi:loading' : 'mdi:refresh'"
+                  class="h-4 w-4"
+                  :class="{ 'animate-spin': isRetryingVaultLoad }"
+                  :ariaHidden="true"
+                />
+                Retry
+              </Button>
+            </div>
             <details v-else-if="happinessDashboardData" class="happiness-overview">
               <summary
                 class="flex cursor-pointer flex-wrap items-center justify-between gap-4 rounded-lg border-2 border-theme-primary/20 bg-surface-sunken px-4 py-3 text-theme-primary"
@@ -432,18 +646,18 @@ const handleTreatIrradiated = async () => {
                   <span class="text-theme-primary/60"
                     >{{ happinessDashboardData.dwellerCount }} dwellers</span
                   >
-                  <span
-                    v-if="
-                      happinessDashboardData.lowResourceCount ||
-                      happinessDashboardData.activeIncidentCount ||
-                      happinessDashboardData.irradiatedDwellerCount ||
-                      happinessDashboardData.idleDwellerCount >= 3 ||
-                      happinessDashboardData.vaultHappiness < 50
-                    "
-                    class="text-warning"
+                  <RouterLink
+                    v-for="issue in summaryIssues"
+                    :key="issue.id"
+                    :to="issue.to"
+                    class="flex items-center gap-1 rounded-full border border-current px-2 py-0.5 text-xs font-bold no-underline transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary"
+                    :class="issue.tone === 'critical' ? 'text-danger' : 'text-warning'"
+                    :aria-label="issue.ariaLabel"
+                    @click.stop
                   >
-                    Attention needed
-                  </span>
+                    <Icon :icon="issue.icon" class="h-3.5 w-3.5" :ariaHidden="true" />
+                    {{ issue.label }}
+                  </RouterLink>
                   <Icon icon="mdi:chevron-down" class="h-5 w-5" :ariaHidden="true" />
                 </span>
               </summary>
@@ -456,7 +670,9 @@ const handleTreatIrradiated = async () => {
                 :activeIncidentCount="happinessDashboardData.activeIncidentCount"
                 :lowResourceCount="happinessDashboardData.lowResourceCount"
                 :radioHappinessMode="happinessDashboardData.radioHappinessMode"
-                :irradiatedDwellerCount="happinessDashboardData.irradiatedDwellerCount"
+                :severelyIrradiatedDwellerCount="
+                  happinessDashboardData.severelyIrradiatedDwellerCount
+                "
                 :treatingDwellers="treatingDwellers"
                 @assign-idle="handleAssignIdle"
                 @activate-radio="handleActivateRadio"
@@ -470,6 +686,8 @@ const handleTreatIrradiated = async () => {
           <div class="w-full mb-4">
             <DwellerFilterPanel
               :show-age-filter="!isDeadFilter"
+              :show-gender-filter="!isDeadFilter"
+              :show-rarity-filter="!isDeadFilter"
               :show-identity-filters="!isDeadFilter"
               :show-active-filter-summary="true"
             />
@@ -499,6 +717,7 @@ const handleTreatIrradiated = async () => {
               v-else
               :dwellers="dwellerStore.dwellers"
               :generating-a-i="generatingAI"
+              :has-active-filters="hasActiveFilters"
               :is-loading="dwellerStore.isLoading"
               :rooms="roomStore.rooms"
               :view-mode="dwellerStore.viewMode"
@@ -508,6 +727,7 @@ const handleTreatIrradiated = async () => {
               @open-room="openRoomModal"
               @quick-unassign="handleQuickUnassign"
               @room-click="(roomId) => router.push(`/vault/${vaultId}?roomId=${roomId}`)"
+              @clear-filters="clearFilters"
             />
           </div>
         </PageContentRail>

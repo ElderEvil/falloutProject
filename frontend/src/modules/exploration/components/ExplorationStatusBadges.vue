@@ -15,6 +15,8 @@ import {
 interface Props {
   exploration: Exploration
   dweller?: DetailedDweller | Dweller | DwellerShort | null
+  /** Icon-only chips (list surfaces); false keeps the labeled form (detail page). */
+  compact?: boolean
 }
 
 const props = defineProps<Props>()
@@ -42,56 +44,77 @@ const timeRemaining = computed(() => getTimeRemaining(props.exploration))
 
 // Reuse the dweller status visuals for the persistent EXPLORING chip.
 const exploringConfig = getStatusConfig('exploring')
+// Every non-alert state shares one colour treatment so the chip reads consistently.
+const statusBadgeClass = [exploringConfig.color, exploringConfig.bgColor, exploringConfig.borderColor]
+// Compact chips drop the text label and tighten padding, like the small icon-only dweller badges.
+const compactClass = computed(() => (props.compact ? 'gap-0 px-1.5 py-0.5' : ''))
+
+interface StatusChip {
+  key: string
+  icon: string
+  label: string
+  tooltip: string
+  classes: string[] | string
+  ariaLabel?: string
+}
+
+// One data-driven source for the status chips, in display order.
+const chips = computed<StatusChip[]>(() => {
+  const list: StatusChip[] = []
+  if (isExploring.value) {
+    list.push({
+      key: 'exploring',
+      icon: exploringConfig.icon,
+      label: 'EXPLORING',
+      tooltip: `Exploring — ${Math.round(progress.value)}%`,
+      classes: statusBadgeClass,
+    })
+  }
+  if (isReturning.value) {
+    list.push({
+      key: 'returning',
+      icon: 'mdi:home-import-outline',
+      label: 'RETURNING',
+      tooltip: timeRemaining.value,
+      classes: statusBadgeClass,
+    })
+  }
+  if (isReady.value) {
+    list.push({
+      key: 'ready',
+      icon: 'mdi:checkbox-marked-circle-outline',
+      label: 'READY',
+      tooltip: 'Expedition finished — ready to collect',
+      classes: statusBadgeClass,
+    })
+  }
+  if (isAtRisk.value) {
+    list.push({
+      key: 'at-risk',
+      icon: 'mdi:heart-pulse',
+      label: 'AT RISK',
+      tooltip: riskTitle.value,
+      classes: 'border-warning/50 bg-warning/10 text-warning',
+      ariaLabel: 'Dweller at risk',
+    })
+  }
+  return list
+})
 </script>
 
 <template>
-  <div v-if="isExploring || isReturning || isReady || isAtRisk" class="flex flex-wrap items-center gap-1.5">
-    <TooltipProvider v-if="isExploring" :delay-duration="200">
+  <div v-if="chips.length" class="flex flex-wrap items-center gap-1.5">
+    <TooltipProvider v-for="chip in chips" :key="chip.key" :delay-duration="200">
       <Tooltip>
         <TooltipTrigger as-child>
-          <span>
-            <Badge
-              variant="outline"
-              :class="[exploringConfig.color, exploringConfig.bgColor, exploringConfig.borderColor]"
-            >
-              <Icon :icon="exploringConfig.icon" class="h-3 w-3" />
-              EXPLORING
+          <span :aria-label="compact ? chip.label : chip.ariaLabel">
+            <Badge variant="outline" :class="[chip.classes, compactClass]">
+              <Icon :icon="chip.icon" class="h-3 w-3" />
+              <span v-if="!compact">{{ chip.label }}</span>
             </Badge>
           </span>
         </TooltipTrigger>
-        <TooltipContent>Exploring — {{ Math.round(progress) }}%</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-
-    <TooltipProvider v-if="isReturning" :delay-duration="200">
-      <Tooltip>
-        <TooltipTrigger as-child>
-          <span><Badge variant="secondary">RETURNING</Badge></span>
-        </TooltipTrigger>
-        <TooltipContent>{{ timeRemaining }}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-
-    <TooltipProvider v-if="isReady" :delay-duration="200">
-      <Tooltip>
-        <TooltipTrigger as-child>
-          <span><Badge variant="default">READY</Badge></span>
-        </TooltipTrigger>
-        <TooltipContent>Expedition finished — ready to collect</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-
-    <TooltipProvider v-if="isAtRisk" :delay-duration="200">
-      <Tooltip>
-        <TooltipTrigger as-child>
-          <span aria-label="Dweller at risk">
-            <Badge variant="outline" class="border-warning/50 bg-warning/10 text-warning">
-              <Icon icon="mdi:heart-pulse" class="h-3 w-3" />
-              AT RISK
-            </Badge>
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>{{ riskTitle }}</TooltipContent>
+        <TooltipContent>{{ chip.tooltip }}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   </div>

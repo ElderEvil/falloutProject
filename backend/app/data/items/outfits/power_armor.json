@@ -16,8 +16,9 @@
         "stat": "perception",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "steel",
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -39,8 +40,9 @@
         "stat": "perception",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "steel",
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -62,8 +64,9 @@
         "stat": "perception",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "steel",
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -85,8 +88,9 @@
         "stat": "strength",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "steel",
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -108,8 +112,9 @@
         "stat": "strength",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "steel",
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -131,8 +136,9 @@
         "stat": "strength",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "steel",
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -154,8 +160,9 @@
         "stat": "endurance",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "steel",
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -177,8 +184,9 @@
         "stat": "endurance",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "steel",
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -200,8 +208,9 @@
         "stat": "endurance",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "steel",
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -223,8 +232,9 @@
         "stat": "strength",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "steel",
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -246,8 +256,9 @@
         "stat": "strength",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "steel",
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -269,8 +280,9 @@
         "stat": "strength",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "steel",
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -293,8 +305,9 @@
         "stat": "strength",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "steel",
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -317,8 +330,9 @@
         "stat": "endurance",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "steel",
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -341,8 +355,9 @@
         "stat": "endurance",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "steel",
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -365,8 +380,9 @@
         "stat": "strength",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "steel",
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }
@@ -389,8 +405,9 @@
         "stat": "strength",
         "craft": {
             "types": [
-                "cloth",
-                "leather"
+                "steel",
+                "circuitry",
+                "science"
             ],
             "unlock": null
         }

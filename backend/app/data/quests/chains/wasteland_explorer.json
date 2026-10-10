@@ -84,15 +84,15 @@
         },
         {
           "reward_type": "ITEM",
-          "reward_data": {"item_name": "Rare Weapon", "quantity": 1},
+          "reward_data": {"item_name": "Assault rifle", "quantity": 1},
           "reward_chance": 0.8,
-          "item_data": {"name": "Rare Weapon", "rarity": "rare", "value": 100}
+          "item_data": {"name": "Assault rifle", "rarity": "rare", "value": 100}
         },
         {
           "reward_type": "ITEM",
-          "reward_data": {"item_name": "Rare Outfit", "quantity": 1},
+          "reward_data": {"item_name": "Hazmat suit", "quantity": 1},
           "reward_chance": 0.8,
-          "item_data": {"name": "Rare Outfit", "rarity": "rare", "value": 100}
+          "item_data": {"name": "Hazmat suit", "rarity": "rare", "value": 100}
         }
       ]
     }

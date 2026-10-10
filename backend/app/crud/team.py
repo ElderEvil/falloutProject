@@ -68,7 +68,7 @@ class CRUDTeam(CRUDBase[Team, None, None]):
             return []
         result = await db_session.execute(
             select(Dweller)
-            .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit))
+            .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit), selectinload(Dweller.pet))
             .where(Dweller.id.in_([member.dweller_id for member in members]))
         )
         by_id = {dweller.id: dweller for dweller in result.scalars().all()}
@@ -92,7 +92,7 @@ class CRUDTeam(CRUDBase[Team, None, None]):
             return []
         result = await db_session.execute(
             select(Dweller)
-            .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit))
+            .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit), selectinload(Dweller.pet))
             .where(Dweller.id.in_([member.dweller_id for member in members]))
         )
         by_id = {dweller.id: dweller for dweller in result.scalars().all()}

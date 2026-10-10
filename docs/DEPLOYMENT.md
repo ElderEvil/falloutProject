@@ -509,6 +509,12 @@ docker compose exec fastapi uv run alembic downgrade -1
 docker compose exec fastapi uv run alembic revision --autogenerate -m "description"
 ```
 
+### Content seeding
+Game content (quests, objectives, places) loads from JSON at **backend startup**, so a deploy's rollout
+picks up new rows automatically. Seeding is **insert-only** — an existing row is never updated — so
+**editing an existing seed's content requires a data migration** (or a manual `UPDATE`); re-running the
+seeder will not change rows that already exist.
+
 ## Health Checks
 
 **Basic:**

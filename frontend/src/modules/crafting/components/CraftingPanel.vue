@@ -98,11 +98,13 @@ const search = ref('')
 const filteredRecipes = computed(() =>
   recipes.value.filter((recipe) => {
     if (rarityFilter.value !== 'all' && recipe.rarity !== rarityFilter.value) return false
-    if (onlyCraftable.value && !recipe.can_craft) return false
+    if (onlyCraftable.value && !recipe.has_junk) return false
     const term = search.value.trim().toLowerCase()
     return term === '' || recipe.name.toLowerCase().includes(term)
   })
 )
+
+const isLocked = (recipe: CraftingRecipe) => recipe.unlocked === false
 
 function formatDuration(seconds: number): string {
   if (seconds >= 3600) {
@@ -326,8 +328,8 @@ watch(() => [props.vaultId, props.itemType], loadAll)
           a11y-correct association.
         -->
         <Label class="gap-1.5 text-xs text-theme-primary/80">
-          <input v-model="onlyCraftable" type="checkbox" />
-          Craftable now
+          <input v-model="onlyCraftable" type="checkbox" class="craftable-checkbox" />
+          Have materials
         </Label>
       </div>
 
@@ -336,6 +338,7 @@ watch(() => [props.vaultId, props.itemType], loadAll)
           v-for="recipe in filteredRecipes"
           :key="recipe.name"
           class="flex items-center gap-3 rounded-sm border border-theme-primary/20 bg-surface-sunken/60 px-3 py-2"
+          :class="{ 'locked-recipe': isLocked(recipe) }"
         >
           <!--
             TooltipProvider delayDuration (200ms) preserves the previous tooltip
@@ -345,6 +348,7 @@ watch(() => [props.vaultId, props.itemType], loadAll)
           <TooltipProvider :delay-duration="200">
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">
+                <Icon v-if="isLocked(recipe)" icon="mdi:lock" class="h-3.5 w-3.5 shrink-0 text-warning" />
                 <span class="truncate text-sm font-bold" :class="getRarityTextClass(recipe.rarity)">
                   {{ recipe.name }}
                 </span>
@@ -384,6 +388,13 @@ watch(() => [props.vaultId, props.itemType], loadAll)
                   <Icon icon="mdi:clock-outline" class="h-3.5 w-3.5 shrink-0" />
                   {{ formatDuration(recipe.duration_seconds) }}
                 </span>
+                <span
+                  v-if="isLocked(recipe) && recipe.unlock_hint"
+                  class="flex items-center gap-1 text-warning"
+                >
+                  <Icon icon="mdi:hammer-wrench" class="h-3.5 w-3.5 shrink-0" />
+                  {{ recipe.unlock_hint }}
+                </span>
               </div>
             </div>
             <Tooltip>
@@ -392,7 +403,7 @@ watch(() => [props.vaultId, props.itemType], loadAll)
                   variant="default"
                   size="sm"
                   class="shrink-0 border-2 border-theme-primary font-mono"
-                  :disabled="!recipe.can_craft || busyKey !== null"
+                  :disabled="isLocked(recipe) || !recipe.can_craft || busyKey !== null"
                   @click="handleStart(recipe)"
                 >
                   <Icon
@@ -404,7 +415,7 @@ watch(() => [props.vaultId, props.itemType], loadAll)
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{{
-                recipe.can_craft ? `Queue ${recipe.name}` : materialsLabel(recipe)
+                isLocked(recipe) ? (recipe.unlock_hint ?? 'Recipe locked') : recipe.can_craft ? `Queue ${recipe.name}` : materialsLabel(recipe)
               }}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -417,7 +428,7 @@ watch(() => [props.vaultId, props.itemType], loadAll)
 
       <p class="mt-2 text-[0.7rem] text-theme-primary/50">
         Materials come from scrapping gear and wasteland salvage. Dwellers working the workshop
-        finish orders faster.
+        finish orders faster. Scrap an item to reverse-engineer its schematic.
       </p>
     </template>
   </Card>
@@ -430,5 +441,44 @@ watch(() => [props.vaultId, props.itemType], loadAll)
 
 .queue-ready {
   border-color: color-mix(in srgb, var(--color-theme-accent) 60%, transparent);
+}
+
+.locked-recipe {
+  opacity: 0.65;
+  border-style: dashed;
+}
+
+.craftable-checkbox {
+  appearance: none;
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 60%, transparent);
+  border-radius: 2px;
+  background: var(--color-surface-sunken);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.craftable-checkbox:hover {
+  border-color: var(--color-theme-primary);
+}
+
+.craftable-checkbox:checked {
+  background-color: var(--color-theme-primary);
+  border-color: var(--color-theme-primary);
+  box-shadow: 0 0 8px var(--color-theme-glow);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 0.7rem;
+}
+
+.craftable-checkbox:focus-visible {
+  outline: 2px solid var(--color-theme-primary);
+  outline-offset: 2px;
 }
 </style>

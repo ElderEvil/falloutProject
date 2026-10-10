@@ -1,22 +1,19 @@
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
+import { createIconifyMock, createRouterMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { Progress } from '@/core/components/ui/progress'
 import QuestPartyCard from '@/modules/exploration/components/QuestPartyCard.vue'
 import type { VaultQuest } from '@/modules/progression/models/quest'
 
-vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: { id: 'vault-1' } }),
-}))
+vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' } }))
 
 vi.mock('@/modules/dwellers/services/dwellerService', () => ({
   getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
   getIdentityOptions: vi.fn().mockResolvedValue({ races: [], factions_by_race: {}, states_by_race: {} }),
 }))
 
-vi.mock('@iconify/vue', () => ({
-  Icon: { name: 'Icon', template: '<span class="icon-mock" />' },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" />', props: [] }))
 
 const quest = {
   id: 'quest-1',
@@ -45,13 +42,14 @@ describe('QuestPartyCard', () => {
 
     expect(wrapper.findComponent(Progress).props('modelValue')).toBeGreaterThan(0)
     expect(wrapper.text()).toContain('Quest party')
+    expect(wrapper.text()).toContain('QUESTING')
     expect(wrapper.text()).toContain('Lucy MacLean')
     expect(wrapper.text()).toContain('2 / 3 assigned')
 
     wrapper.unmount()
   })
 
-  it('shows a travelling badge and ETA instead of progress while the party returns', () => {
+  it('shows a returning badge and return progress while the party travels home', () => {
     const wrapper = mount(QuestPartyCard, {
       props: {
         quest: {
@@ -66,7 +64,8 @@ describe('QuestPartyCard', () => {
 
     expect(wrapper.text()).toContain('RETURNING')
     expect(wrapper.text()).toContain('Travelling home')
-    expect(wrapper.findComponent(Progress).exists()).toBe(false)
+    expect(wrapper.findComponent(Progress).exists()).toBe(true)
+    expect(wrapper.findComponent(Progress).props('modelValue')).toBeGreaterThan(0)
 
     wrapper.unmount()
   })

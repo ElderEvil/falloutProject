@@ -53,6 +53,31 @@ class ItemService:
 
         await event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault_id, {"resource_type": "caps", "amount": credited})
 
+    async def scrap_item(self, db_session: AsyncSession, *, item_id: UUID4, model: ItemModel) -> list[Junk]:
+        """Scrap an item into junk, then publish ITEM_SCRAPPED once it has committed."""
+        item = await _crud_for(model).get_or_none(db_session, item_id)
+        if not item:
+            raise ResourceNotFoundException(model, identifier=item_id)
+
+        vault_id = await get_item_vault_id(db_session, item)
+        item_name = item.name
+        item_type = "weapon" if model is Weapon else "outfit"
+        rarity = str(item.rarity)
+
+        junk_list = await _crud_for(model).scrap(db_session=db_session, item_id=item_id)
+
+        # Publish only after the scrap commits: the unlock handler runs on a
+        # separate session and must never observe a rolled-back scrap.
+        if vault_id:
+            from app.core.event_bus import GameEvent, event_bus
+
+            await event_bus.emit(
+                GameEvent.ITEM_SCRAPPED,
+                vault_id,
+                {"item_name": item_name, "item_type": item_type, "rarity": rarity},
+            )
+        return junk_list
+
     async def _credit_caps(self, db_session: AsyncSession, vault_id: UUID4, value: int) -> int:
         """Credit the sale value to the vault via VaultService without committing or emitting.
 

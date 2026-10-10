@@ -7,14 +7,17 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import update
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import DwellerLocationRelationEnum
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
-from app.models.exploration import ExplorationStatus
+from app.models.exploration import Exploration, ExplorationStatus
 from app.models.notification import Notification, NotificationType
+from app.models.storage import Storage
 from app.models.vault import Vault
 from app.models.world_location import VaultLocationState, WorldLocation
 from app.schemas.dweller import DwellerCreate
@@ -25,6 +28,7 @@ from app.services.exploration_service import dispatch_travel_hours, exploration_
 from app.services.game_tick.dwellers_tick import process_explorations
 from app.services.map_service import map_service
 from app.services.notification_service import NotificationService
+from app.services.world_snapshot_service import world_snapshot_service
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 STRONG_STATS = {
@@ -59,6 +63,12 @@ async def _register_clearable(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, name: str = "Red Rocket"
 ) -> tuple[WorldLocation, VaultLocationState]:
     """Register a clearable map point (gas_station group) for the vault."""
+    # Dispatches originate from the vault's slot placement; claim one so the run
+    # has an authoritative origin (no map-centre fallback).
+    from app.crud.vault_slot import vault_slot
+
+    await vault_slot.claim_next(db_session=async_session, vault_id=vault.id)
+    await async_session.commit()
     await map_service.register_bio_places(async_session, dweller, origin_place=name, visited_places=[])
     result = await async_session.execute(
         select(VaultLocationState)
@@ -67,6 +77,13 @@ async def _register_clearable(
     )
     state = result.scalar_one()
     location = await crud.world_location.get_registry(async_session, state.location_id)
+    await crud.world_location.link_dweller(
+        async_session,
+        dweller.id,
+        state.location_id,
+        DwellerLocationRelationEnum.VISITED,
+        is_unlocked=True,
+    )
     return location, state
 
 
@@ -143,7 +160,9 @@ async def test_dispatch_creates_targeted_run(async_session: AsyncSession, vault:
 
     assert exploration.target_location_id == location.id
     assert exploration.clear_tier == 0
-    expected_duration = dispatch_travel_hours(math.dist((50.0, 50.0), (location.coord_x, location.coord_y)))
+    origin = await exploration_service._vault_origin(async_session, vault.id)
+    assert origin is not None
+    expected_duration = dispatch_travel_hours(math.dist(origin, (location.coord_x, location.coord_y)))
     assert exploration.duration == expected_duration
     assert exploration.stimpaks == 0
     assert exploration.radaways == 0
@@ -164,6 +183,24 @@ async def test_dispatch_rejects_unknown_location(async_session: AsyncSession, va
     """An unknown location id raises ResourceNotFoundException."""
     with pytest.raises(ResourceNotFoundException):
         await exploration_service.dispatch(async_session, vault.id, [dweller.id], uuid4())
+
+
+@pytest.mark.asyncio
+async def test_dispatch_rejects_slotless_vault(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
+    """A vault without a slot cannot dispatch: no map-centre fallback origin."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
+    result = await async_session.execute(
+        select(VaultLocationState)
+        .join(WorldLocation, WorldLocation.id == VaultLocationState.location_id)
+        .where(VaultLocationState.vault_id == vault.id, WorldLocation.name == "Red Rocket")
+    )
+    state = result.scalar_one()
+    await crud.world_location.link_dweller(
+        async_session, dweller.id, state.location_id, DwellerLocationRelationEnum.VISITED, is_unlocked=True
+    )
+
+    with pytest.raises(ValidationException, match="no map placement"):
+        await exploration_service.dispatch(async_session, vault.id, [dweller.id], state.location_id)
 
 
 @pytest.mark.asyncio
@@ -243,7 +280,7 @@ async def test_dispatch_arrival_win_clears_state_and_loot(
     assert state.cleared_at is not None
     assert state.clear_count == 1
     assert state.reclear_available_at is not None
-    expected_reclear = state.cleared_at + timedelta(hours=48)  # gas_station reclear_hours
+    expected_reclear = state.cleared_at + timedelta(hours=168)  # all clearable groups share the 168h window
     assert abs((state.reclear_available_at - expected_reclear).total_seconds()) < 1
     assert len(exploration.loot_collected) == 3  # low table has 3 items
     assert exploration.total_caps_found > 0
@@ -835,3 +872,131 @@ async def test_free_roam_creates_no_team(async_session: AsyncSession, vault: Vau
     assert exploration.team_id is None
     await async_session.refresh(dweller)
     assert dweller.status.value == "exploring"
+
+
+@pytest.mark.asyncio
+async def test_dispatch_carries_supplies_from_vault_storage(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """Dispatch supplies are reserved from vault storage and recorded on the run."""
+    location, _state = await _register_clearable(async_session, vault, dweller)
+    storage = Storage(vault_id=vault.id, max_space=100, stimpack=5, radaway=3)
+    async_session.add(storage)
+    await async_session.commit()
+
+    exploration = await exploration_service.dispatch(
+        async_session, vault.id, [dweller.id], location.id, stimpaks=2, radaways=1
+    )
+
+    assert exploration.stimpaks == 2
+    assert exploration.radaways == 1
+    await async_session.refresh(storage)
+    assert storage.stimpack == 3
+    assert storage.radaway == 2
+
+
+@pytest.mark.asyncio
+async def test_dispatch_rejects_supplies_beyond_storage(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """Requesting more supplies than the vault holds is rejected."""
+    location, _state = await _register_clearable(async_session, vault, dweller)
+    async_session.add(Storage(vault_id=vault.id, max_space=100, stimpack=1, radaway=0))
+    await async_session.commit()
+
+    with pytest.raises(ValidationException, match="available stimpaks"):
+        await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id, stimpaks=5)
+
+
+@pytest.mark.asyncio
+async def test_depart_targeted_forwards_requested_supplies(async_session: AsyncSession) -> None:
+    """A targeted /send depart forwards stimpaks and radaways to dispatch."""
+    vault_id, dweller_id, location_id = uuid4(), uuid4(), uuid4()
+
+    with patch.object(exploration_service, "dispatch", new_callable=AsyncMock) as mock_dispatch:
+        await exploration_service.depart(
+            async_session,
+            vault_id,
+            [dweller_id],
+            target_location_id=location_id,
+            stimpaks=3,
+            radaways=2,
+        )
+
+    mock_dispatch.assert_awaited_once()
+    assert mock_dispatch.await_args.kwargs["stimpaks"] == 3
+    assert mock_dispatch.await_args.kwargs["radaways"] == 2
+    assert mock_dispatch.await_args.kwargs["location_id"] == location_id
+
+
+@pytest.mark.asyncio
+async def test_dispatch_snapshot_commit_cannot_strand_supplies(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A snapshot-generation commit must not persist supplies without the run.
+
+    Snapshot generation commits the session; a failure right after it must leave
+    vault storage untouched, because the deduction and the run share one commit.
+    """
+    location, _state = await _register_clearable(async_session, vault, dweller)
+    storage = Storage(vault_id=vault.id, max_space=100, stimpack=5, radaway=3)
+    async_session.add(storage)
+    await async_session.commit()
+
+    async def _commit_then_fail(db_session: AsyncSession, recipe=None):
+        await db_session.commit()
+        raise RuntimeError("snapshot generation failed")
+
+    with (
+        patch.object(world_snapshot_service, "get_or_generate", new=AsyncMock(side_effect=_commit_then_fail)),
+        pytest.raises(RuntimeError),
+    ):
+        await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id, stimpaks=2, radaways=1)
+
+    await async_session.refresh(storage)
+    assert storage.stimpack == 5
+    assert storage.radaway == 3
+
+
+@pytest.mark.asyncio
+async def test_dispatch_revalidates_supplies_after_snapshot_commit(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A spend committed in the snapshot-commit window must reject the dispatch.
+
+    Snapshot generation commits the session; a competing deduction that lands in
+    that window must not be overwritten by the pre-commit validation. The locked
+    re-read sees the spent row, so the dispatch is rejected without consuming
+    supplies or creating a run.
+    """
+    location, _state = await _register_clearable(async_session, vault, dweller)
+    storage = Storage(vault_id=vault.id, max_space=100, stimpack=3, radaway=1)
+    async_session.add(storage)
+    await async_session.commit()
+
+    real_get_or_generate = world_snapshot_service.get_or_generate
+
+    async def _spend_then_generate(db_session: AsyncSession, recipe=None):
+        # Simulate a competing dispatch committing its deduction before this one
+        # stages: the raw UPDATE bypasses the identity map, leaving the session's
+        # pre-commit read stale.
+        await db_session.execute(
+            update(Storage)
+            .where(Storage.vault_id == vault.id)
+            .values(stimpack=0, radaway=0)
+            .execution_options(synchronize_session=False)
+        )
+        await db_session.commit()
+        return await real_get_or_generate(db_session, recipe)
+
+    with (
+        patch.object(world_snapshot_service, "get_or_generate", new=AsyncMock(side_effect=_spend_then_generate)),
+        pytest.raises(ValidationException, match="available stimpaks"),
+    ):
+        await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id, stimpaks=2, radaways=1)
+
+    await async_session.refresh(storage)
+    assert storage.stimpack == 0
+    assert storage.radaway == 0
+    runs = (await async_session.execute(select(Exploration).where(Exploration.vault_id == vault.id))).scalars().all()
+    assert runs == []

@@ -6,6 +6,7 @@ from collections.abc import AsyncGenerator
 from pydantic_ai.exceptions import UnexpectedModelBehavior
 
 from app.agents.dweller_chat_agent import (
+    CHAT_USAGE_LIMITS,
     DwellerChatDeps,
     compute_happiness_delta,
     derive_reason_code,
@@ -32,7 +33,9 @@ async def stream_structured(
     """Stream structured output and collect its final metadata in ``bundle``."""
     async with (
         deps.db_session.begin_nested(),
-        dweller_chat_agent.run_stream(message_text, deps=deps, instructions=instructions) as result,
+        dweller_chat_agent.run_stream(
+            message_text, deps=deps, instructions=instructions, usage_limits=CHAT_USAGE_LIMITS
+        ) as result,
     ):
         previous_text = ""
         async for partial in result.stream_output():

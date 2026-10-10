@@ -8,46 +8,138 @@ import type {
   ExpeditionSiteMarkerRead,
   ExplorerTrack,
   MarkerClickPayload,
+  PlayerVaultMarkerRead,
   WastelandLocationWithDwellers,
   VaultMarkerRead,
 } from '../models/map'
-import { EXPEDITION_SITE_ICON } from '../models/markerTypeMeta'
+import { EXPEDITION_SITE_ICON, locationMarkerIcon } from '../models/markerTypeMeta'
+import { groupColor } from '../models/groupColors'
+import MapClusterMarker from './MapClusterMarker.vue'
 import MapMarker from './MapMarker.vue'
 import MapLegend from './MapLegend.vue'
 import MarkerListPanel from './MarkerListPanel.vue'
-import TerrainLayer from './TerrainLayer.vue'
+import AtlasTerrain from './AtlasTerrain.vue'
+import FogLayer from './FogLayer.vue'
+import { registryToTile, ATLAS_TILES } from '../utils/atlasProjection'
+import { computeExploredMask, isExploredTile } from '../utils/fog'
 import { useMapSpread } from '../composables/useMapSpread'
 import { useMarkerSelection } from '../composables/useMarkerSelection'
-import { tracePoints } from '../utils/tracePath'
-import { useMapZoomPan } from '../composables/useMapZoomPan'
+import { smoothPath } from '../utils/tracePath'
+import { useMapZoomPan, MAX_ZOOM } from '../composables/useMapZoomPan'
 import { useMapStore } from '../stores/map'
+import { isKnownLocation } from '../utils/visibility'
+import { isMarkerVisible } from '../utils/declutter'
+import { clusterMarkers, type MarkerCluster } from '../utils/clusterMarkers'
+import { buildRoutesByExploration } from '../utils/explorerTracks'
+import { explorerHeading } from '../utils/explorerHeading'
+import { matchesSiteTypeFilter } from '../utils/siteFilter'
 
 interface Props {
   locations: WastelandLocationWithDwellers[]
   vaultMarkers: VaultMarkerRead[]
+  playerVaults?: PlayerVaultMarkerRead[]
   discoveryRoutes?: DiscoveryRouteRead[]
   expeditionSites?: ExpeditionSiteMarkerRead[]
   explorerTracks?: ExplorerTrack[]
+  fogDisabled?: boolean
+  groupColors?: boolean
+  siteTypeFilter?: string | null
+  selectedMarkerId: string | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  playerVaults: () => [],
   discoveryRoutes: () => [],
   expeditionSites: () => [],
   explorerTracks: () => [],
+  fogDisabled: false,
+  groupColors: false,
+  siteTypeFilter: null,
 })
 
 const emit = defineEmits<{
   (e: 'marker-click', payload: MarkerClickPayload): void
+  (e: 'update:selectedMarkerId', value: string | null): void
+  /** Own-vault marker clicked: open its summary panel instead of navigating. */
+  (e: 'vault-info', vaultId: string): void
+  /** Free-roam explorer clicked: open its dweller popover at screen x/y. */
+  (e: 'dweller-click', payload: { track: ExplorerTrack; x: number; y: number }): void
 }>()
 
 // ── Marker visibility filter ─────────────────────────────────────
-// Hide single-dweller VISITED locations from the SVG to reduce clutter
-// (they remain in the marker list panel and detail modal).
-const visibleLocations = computed(() =>
-  props.locations.filter((loc) => !(loc.type === 'visited' && loc.dwellers.length < 2))
+// The index stays known-only. The SVG shows known markers plus dimmed "?" hint
+// pins, but only where the derived fog of war has been explored — fogged tiles
+// reveal nothing. The home vault is always revealed.
+const knownLocations = computed(() => props.locations.filter(isKnownLocation))
+
+// Fog/mask grid resolution follows the backend snapshot when loaded, so fog
+// cells align with rendered terrain cells; defaults preserve current behavior.
+const gridTiles = computed(() => mapStore.worldSnapshot?.width ?? ATLAS_TILES)
+
+const exploredMask = computed(() =>
+  computeExploredMask(
+    {
+      home: props.locations.find((loc) => loc.type === 'home_vault') ?? null,
+      discovered: props.locations.filter(isKnownLocation),
+      trailPoints: props.discoveryRoutes.flatMap((route) => route.points),
+      // Movement trails (every point location-free) interpolate their
+      // segments; legacy discovery hops keep circle-only reveals.
+      travelRoutes: props.discoveryRoutes
+        .filter(
+          (route) =>
+            route.points.length > 0 && route.points.every((point) => point.location_id == null)
+        )
+        .map((route) => route.points),
+    },
+    gridTiles.value
+  )
 )
 
-const knownLocations = computed(() => props.locations.filter((loc) => loc.is_unlocked !== false))
+function isExploredCoord(coord: { coord_x: number; coord_y: number }): boolean {
+  return isExploredTile(
+    exploredMask.value,
+    registryToTile(coord.coord_x, gridTiles.value),
+    registryToTile(coord.coord_y, gridTiles.value),
+    gridTiles.value
+  )
+}
+
+// P3 site-type filter: place markers only. The home vault is not an archetype
+// and always stays; vault signals, own-vault markers, expedition sites and
+// explorers render outside this list and are never filtered. Fog/declutter
+// downstream stay unchanged.
+const visibleLocations = computed(() => {
+  const filtered = props.locations.filter((loc) =>
+    matchesSiteTypeFilter(loc, props.siteTypeFilter)
+  )
+  return props.fogDisabled
+    ? filtered
+    : filtered.filter(
+        (loc) => !(loc.type === 'visited' && loc.dwellers.length < 2) && isExploredCoord(loc)
+      )
+})
+
+// Only the player's own vaults render with identity; every other vault — other
+// players' and the seeded NPC signals — is an anonymous hint, and only where the
+// fog has been lifted, so the shared atlas does not flood the map with unrelated
+// vaults.
+const ownPlayerVaults = computed(() => {
+  const homeVaultId = props.locations.find((loc) => loc.type === 'home_vault')?.vault_id
+  return props.playerVaults.filter((pv) => pv.is_mine && pv.vault_id !== homeVaultId)
+})
+
+const foreignVaultHints = computed(() =>
+  [
+    ...props.playerVaults
+      .filter((pv) => !pv.is_mine)
+      .map((pv) => ({ key: `pv-${pv.vault_id}`, coord_x: pv.coord_x, coord_y: pv.coord_y })),
+    ...props.vaultMarkers.map((vm) => ({
+      key: `vm-${vm.name}`,
+      coord_x: vm.coord_x,
+      coord_y: vm.coord_y,
+    })),
+  ].filter((hint) => props.fogDisabled || isExploredCoord(hint))
+)
 
 // Expeditions start at the home vault — anchor every trail there.
 const homeCoords = computed<[number, number]>(() => {
@@ -55,13 +147,18 @@ const homeCoords = computed<[number, number]>(() => {
   return home ? [home.coord_x, home.coord_y] : [80, 80]
 })
 
+// Amplitude 0 removes the hand-drawn wobble; steps 1 keeps only the real
+// waypoints, so each trail renders as clean straight segments between them.
+// Only in-progress runs draw a trail; the fog still consumes every route.
 const discoveryRouteLines = computed(() =>
-  props.discoveryRoutes.map((route) =>
-    tracePoints([
-      homeCoords.value,
-      ...route.points.map((point): [number, number] => [point.coord_x, point.coord_y]),
-    ])
-  )
+  props.discoveryRoutes
+    .filter((route) => route.is_active)
+    .map((route) =>
+      smoothPath([
+        homeCoords.value,
+        ...route.points.map((point): [number, number] => [point.coord_x, point.coord_y]),
+      ])
+    )
 )
 
 // ── Explorer tracking ────────────────────────────────────────────────────
@@ -82,6 +179,18 @@ const exploringByLocation = computed(() => {
 const freeRoamTracks = computed(() =>
   props.explorerTracks.filter((track) => !track.targetLocationId && track.lastKnown)
 )
+
+// Heading chevrons for the free-roam markers: trail vector when the run has a
+// usable outbound trail, otherwise the bearing back home. Tracks with neither
+// keep the bare thumbnail/marker (no chevron).
+const freeRoamChevrons = computed(() => {
+  const routesByExploration = buildRoutesByExploration(props.discoveryRoutes)
+  const home = { coord_x: homeCoords.value[0], coord_y: homeCoords.value[1] }
+  return freeRoamTracks.value.flatMap((track) => {
+    const heading = explorerHeading(track, routesByExploration.get(track.explorationId), home)
+    return heading === null ? [] : [{ track, heading }]
+  })
+})
 
 // ── Expedition site state ────────────────────────────────────────────────
 function siteStatus(site: ExpeditionSiteMarkerRead): string {
@@ -112,16 +221,148 @@ const {
   onDragStart,
   onDragMove,
   onDragEnd,
+  isPinching,
+  onTouchStart,
+  onTouchMove,
+  onTouchEnd,
 } = useMapZoomPan()
 
 const mapStore = useMapStore()
 const svgRef = ref<SVGSVGElement | null>(null)
 const vaultMarkers = toRef(props, 'vaultMarkers')
 
+function onOwnVaultClick(vault: PlayerVaultMarkerRead): void {
+  if (hasDragMoved.value) return
+  emit('vault-info', vault.vault_id)
+}
+
+const groupIconByKey = computed(
+  () => new Map([...mapStore.placeGroupByKey].map(([key, group]) => [key, group.icon]))
+)
+
 const { spreadMap, getSpread } = useMapSpread(visibleLocations, vaultMarkers)
 
-const { selectedMarkerId, hasDragMoved, onLocationClick, onVaultClick, onSiteClick, onPanelMarkerSelect } =
-  useMarkerSelection(vaultMarkers, spreadMap, focusOnMarker, emit)
+// ── Declutter ─────────────────────────────────────────────────────────
+// Primary markers (home vault, selection, discoveries, active explorers and
+// expedition sites) always render — dense discoveries collapse into cluster
+// badges instead of being hidden. Secondary locations and anonymous vault
+// hints stay hidden at overview zoom and reappear as the player zooms in.
+const renderedLocations = computed(() =>
+  visibleLocations.value.filter((loc) =>
+    isMarkerVisible(
+      {
+        type: loc.type,
+        selected: props.selectedMarkerId === `loc-${loc.id}`,
+        exploring: exploringByLocation.value.has(loc.id),
+      },
+      zoom.value
+    )
+  )
+)
+
+const renderedVaultHints = computed(() =>
+  foreignVaultHints.value.filter(() => isMarkerVisible({ type: 'vault' }, zoom.value))
+)
+
+const selectedMarkerId = computed<string | null>({
+  get: () => props.selectedMarkerId,
+  set: (value) => emit('update:selectedMarkerId', value),
+})
+
+const { hasDragMoved, onLocationClick, onSiteClick, onPanelMarkerSelect } = useMarkerSelection(
+  selectedMarkerId,
+  spreadMap,
+  focusOnMarker,
+  emit
+)
+
+// The home vault renders as a location marker rather than a player-vault
+// marker, so route its click to the own-vault summary too; every other
+// location keeps the generic details flow.
+function onLocationMarkerClick(loc: WastelandLocationWithDwellers) {
+  if (hasDragMoved.value) return
+  if (loc.type === 'home_vault') {
+    emit('vault-info', loc.vault_id)
+    return
+  }
+  onLocationClick(loc)
+}
+
+// Explorer popover anchor: pointer activation carries screen coordinates.
+// Keyboard activation (Enter/Space) has none, so fall back to the focused
+// marker's on-screen box.
+function onExplorerClick(track: ExplorerTrack, event: Event) {
+  if (hasDragMoved.value) return
+  let x = 0
+  let y = 0
+  if (event instanceof MouseEvent) {
+    x = event.clientX
+    y = event.clientY
+  } else {
+    const rect = (event.target as Element | null)?.getBoundingClientRect()
+    if (rect) {
+      x = rect.left + rect.width / 2
+      y = rect.top + rect.height / 2
+    }
+  }
+  emit('dweller-click', { track, x, y })
+}
+
+// ── Discovery clustering ──────────────────────────────────────────────
+// Discoveries render at every zoom, so on a dense atlas their count is what
+// swamps the map. Grid cells shrink as the map zooms in, so a badge expands
+// into individual, fully interactive markers on its own; a badge click zooms
+// one step further, centered on the cluster. Selection and active explorers
+// stay pinned individually so their rings and labels never disappear.
+const locationByMarkerId = computed(
+  () => new Map(renderedLocations.value.map((loc) => [`loc-${loc.id}`, loc]))
+)
+
+const clusterableDiscoveries = computed(() =>
+  renderedLocations.value
+    .filter(
+      (loc) =>
+        loc.type === 'discovery' &&
+        loc.is_unlocked !== false &&
+        selectedMarkerId.value !== `loc-${loc.id}` &&
+        !exploringByLocation.value.has(loc.id)
+    )
+    .map((loc) => {
+      const spread = getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y)
+      return { id: `loc-${loc.id}`, x: spread.renderX, y: spread.renderY }
+    })
+)
+
+const discoveryClusters = computed<MarkerCluster[]>(() =>
+  // At max zoom a badge could not be split any further, so every discovery
+  // renders individually instead of persisting as an unopenable cluster.
+  zoom.value >= MAX_ZOOM ? [] : clusterMarkers(clusterableDiscoveries.value, { zoom: zoom.value })
+)
+
+const clusterBadges = computed(() =>
+  discoveryClusters.value.filter((cluster) => cluster.members.length > 1)
+)
+
+const clusteredIds = computed(
+  () =>
+    new Set(clusterBadges.value.flatMap((cluster) => cluster.members.map((member) => member.id)))
+)
+
+const renderedLocationsIndividual = computed(() =>
+  renderedLocations.value.filter((loc) => !clusteredIds.value.has(`loc-${loc.id}`))
+)
+
+function clusterHasUnseen(cluster: MarkerCluster): boolean {
+  return cluster.members.some((member) => {
+    const loc = locationByMarkerId.value.get(member.id)
+    return loc ? mapStore.isUnseenDiscovery(loc) : false
+  })
+}
+
+function onClusterClick(cluster: MarkerCluster) {
+  if (hasDragMoved.value) return
+  focusOnMarker(cluster.x, cluster.y, Math.min(MAX_ZOOM, zoom.value + 1))
+}
 
 function getSvgRect(): DOMRect {
   return svgRef.value?.getBoundingClientRect() ?? new DOMRect(0, 0, 0, 0)
@@ -148,19 +389,36 @@ function handleMouseUp() {
   onDragEnd()
 }
 
-// ── Grid lines ─────────────────────────────────────────────────────────
-const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
+function handleTouchStart(event: TouchEvent) {
+  hasDragMoved.value = false
+  onTouchStart(event, getSvgRect())
+}
+
+function handleTouchMove(event: TouchEvent) {
+  if (isDragging.value || isPinching.value) {
+    onTouchMove(event, getSvgRect())
+    hasDragMoved.value = true
+  }
+}
+
+function handleTouchEnd(event: TouchEvent) {
+  onTouchEnd(event)
+}
 </script>
 
 <template>
   <div class="world-map-layout">
     <div
-      class="world-map-container crt-screen"
+      class="world-map-container crt-screen touch-none"
       :class="{ 'is-zoomed': isZoomed, 'is-dragging': isDragging }"
       @mousemove="handleMouseMove"
       @mouseup="handleMouseUp"
       @mouseleave="handleMouseUp"
       @wheel.prevent="handleWheel"
+      @touchstart="handleTouchStart"
+      @touchmove="handleTouchMove"
+      @touchend="handleTouchEnd"
+      @touchcancel="handleTouchEnd"
     >
       <svg
         ref="svgRef"
@@ -170,65 +428,81 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
         focusable="false"
         @mousedown="handleMouseDown"
       >
-        <!-- Terrain layer (bottom — behind grid and markers) -->
-        <TerrainLayer />
+        <!-- Terrain layer (bottom — behind markers): biomes, rivers, roads -->
+        <AtlasTerrain />
 
-        <!-- Grid lines -->
-        <line
-          v-for="pos in gridLines"
-          :key="`h-${pos}`"
-          :x1="0"
-          :y1="pos"
-          :x2="160"
-          :y2="pos"
-          class="grid-line"
-        />
-        <line
-          v-for="pos in gridLines"
-          :key="`v-${pos}`"
-          :x1="pos"
-          :y1="0"
-          :x2="pos"
-          :y2="160"
-          class="grid-line"
-        />
+        <!-- Fog of war: derived explored mask over the terrain -->
+        <FogLayer v-if="!fogDisabled" :explored="exploredMask" :tiles="gridTiles" />
 
-        <!-- Discovery routes (per-exploration trail) -->
-        <polyline
+        <!-- Discovery routes: dark casing under the accent line so trails read
+             as roads (still above terrain/fog and below markers) -->
+        <g
           v-for="(route, i) in discoveryRouteLines"
           :key="`route-${i}`"
-          :points="route"
-          class="stroke-(--color-theme-accent) stroke-[0.4] opacity-[0.55] [stroke-dasharray:2_2] [stroke-linecap:round]"
+          class="discovery-route"
           fill="none"
-        />
+        >
+          <path :d="route" class="discovery-route-casing" />
+          <path :d="route" class="discovery-route-line" />
+        </g>
 
-        <!-- Location markers (spread-adjusted positions) -->
+        <!-- Location markers (spread-adjusted positions; discoveries inside a
+             cluster are rendered as the badge below instead) -->
         <MapMarker
-          v-for="loc in visibleLocations"
+          v-for="loc in renderedLocationsIndividual"
           :key="`loc-${loc.id}`"
           :x="getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y).renderX"
           :y="getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y).renderY"
           :name="loc.name"
           :type="loc.type"
+          :icon="locationMarkerIcon(loc.type, loc.group_key, groupIconByKey)"
+          :color="groupColors ? groupColor(loc.group_key) : null"
           :is_unlocked="loc.is_unlocked"
           :unseen="mapStore.isUnseenDiscovery(loc)"
           :selected="selectedMarkerId === `loc-${loc.id}`"
           :cleared="loc.clear_state?.cleared ?? false"
           :exploring="exploringByLocation.has(loc.id)"
           :status="exploringByLocation.get(loc.id)"
-          @click="onLocationClick(loc)"
+          @click="onLocationMarkerClick(loc)"
         />
 
-        <!-- Vault markers (spread-adjusted positions) -->
+        <!-- Discovery clusters: one ×N badge per dense cell, clickable to zoom
+             in until the cluster splits back into individual markers -->
+        <MapClusterMarker
+          v-for="cluster in clusterBadges"
+          :key="cluster.id"
+          :x="cluster.x"
+          :y="cluster.y"
+          :count="cluster.members.length"
+          :unseen="clusterHasUnseen(cluster)"
+          @click="onClusterClick(cluster)"
+        />
+
+        <!-- Your vaults (identity shown) -->
         <MapMarker
-          v-for="(vm, idx) in vaultMarkers"
-          :key="`vault-${idx}`"
-          :x="getSpread(`vault-${idx}`, vm.coord_x, vm.coord_y).renderX"
-          :y="getSpread(`vault-${idx}`, vm.coord_x, vm.coord_y).renderY"
-          :name="vm.name"
-          :type="vm.type"
-          :selected="selectedMarkerId === `vault-${idx}`"
-          @click="onVaultClick(vm)"
+          v-for="pv in ownPlayerVaults"
+          :key="`pv-${pv.vault_id}`"
+          :x="pv.coord_x"
+          :y="pv.coord_y"
+          :name="`Vault ${pv.number}`"
+          type="home_vault"
+          label="Your Vault"
+          :status="`View details`"
+          @click="onOwnVaultClick(pv)"
+        />
+
+        <!-- Other vaults: anonymous hints, only where the fog is lifted and
+             the map is zoomed past the declutter threshold -->
+        <MapMarker
+          v-for="hint in renderedVaultHints"
+          :key="hint.key"
+          :x="hint.coord_x"
+          :y="hint.coord_y"
+          name="Unknown vault"
+          type="vault"
+          icon="mdi:help-circle-outline"
+          label="Unexplored signal"
+          :interactive="false"
         />
 
         <!-- Expedition site markers (fixed coordinates, already viewBox-scaled) -->
@@ -246,7 +520,7 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
           @click="onSiteClick(site)"
         />
 
-        <!-- Free-roam explorer last-known positions (non-interactive) -->
+        <!-- Free-roam explorer last-known positions: clickable for the dweller popover -->
         <MapMarker
           v-for="track in freeRoamTracks"
           :key="`explorer-${track.explorationId}`"
@@ -254,11 +528,25 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
           :y="track.lastKnown!.coord_y"
           :name="track.dwellerName || 'Explorer'"
           type="explorer"
-          icon="mdi:walk"
+          icon="mdi:account"
+          :art-src="track.dwellerThumbnailUrl ?? null"
           label="Explorer"
           :status="track.dwellerName ? `Last known — ${track.dwellerName}` : 'Last known position'"
-          :interactive="false"
+          :interactive="true"
+          @click="onExplorerClick(track, $event)"
         />
+
+        <!-- Travel-direction chevrons for free-roam explorers: a small accent
+             wedge rotated around the marker center. aria-hidden + non-interactive. -->
+        <g
+          v-for="entry in freeRoamChevrons"
+          :key="`explorer-heading-${entry.track.explorationId}`"
+          class="explorer-heading"
+          :transform="`translate(${entry.track.lastKnown!.coord_x}, ${entry.track.lastKnown!.coord_y}) rotate(${entry.heading})`"
+          aria-hidden="true"
+        >
+          <path class="explorer-heading-chevron" d="M -1.7 -3.4 L 0 -5.5 L 1.7 -3.4" />
+        </g>
       </svg>
 
       <!-- Zoom controls overlay -->
@@ -266,13 +554,7 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
         <Button variant="ghost" size="xs" aria-label="Zoom in" class="zoom-btn" @click="zoomIn()">
           <Icon icon="mdi:plus" class="zoom-icon" />
         </Button>
-        <Button
-          variant="ghost"
-          size="xs"
-          aria-label="Zoom out"
-          class="zoom-btn"
-          @click="zoomOut()"
-        >
+        <Button variant="ghost" size="xs" aria-label="Zoom out" class="zoom-btn" @click="zoomOut()">
           <Icon icon="mdi:minus" class="zoom-icon" />
         </Button>
         <Button
@@ -289,16 +571,17 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
       </div>
 
       <!-- Legend overlay -->
-      <MapLegend />
+      <MapLegend :site-type-filter="siteTypeFilter" />
     </div>
 
     <!-- Persistent desktop location index -->
     <MarkerListPanel
       :docked="true"
       :locations="knownLocations"
-      :vault-markers="vaultMarkers"
+      :vault-markers="[]"
       :expedition-sites="expeditionSites"
       :place-groups="mapStore.placeGroups"
+      :site-type-filter="siteTypeFilter"
       :selected-marker-id="selectedMarkerId"
       @marker-select="onPanelMarkerSelect"
     />
@@ -332,6 +615,12 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
   cursor: grab;
 }
 
+/* Locked ("Unknown Location") labels stay hidden at overview zoom to avoid
+   wallpapering the map; zooming in means intent to inspect, so reveal them. */
+.world-map-container.is-zoomed :deep(.map-marker.marker-locked .marker-label) {
+  opacity: 1;
+}
+
 .world-map-container.is-dragging {
   cursor: grabbing;
 }
@@ -346,10 +635,40 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
   display: block;
 }
 
-.grid-line {
-  stroke: var(--color-theme-primary);
-  stroke-width: 0.15;
-  stroke-opacity: 0.12;
+/* Cased discovery routes: a wider, near-opaque dark under-stroke reads as a
+   road edge; the brighter accent line on top keeps the trail legible wherever
+   routes cross each other or busy terrain. */
+.discovery-route {
+  pointer-events: none;
+}
+
+.discovery-route-casing {
+  stroke: color-mix(in srgb, var(--color-terminal-background) 92%, transparent);
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 2 1.4;
+}
+
+.discovery-route-line {
+  stroke: var(--color-theme-accent);
+  stroke-width: 0.45;
+  opacity: 0.8;
+  stroke-linecap: round;
+  stroke-dasharray: 2 1.4;
+}
+
+/* Free-roam explorer travel direction: accent chevron outside the marker ring. */
+.explorer-heading {
+  pointer-events: none;
+}
+
+.explorer-heading-chevron {
+  fill: none;
+  stroke: var(--color-theme-accent);
+  stroke-width: 0.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 /* Zoom controls overlay */

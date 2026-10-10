@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createIconifyMock, createRouterMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import RoomMenuItem from '@/modules/rooms/components/RoomMenuItem.vue'
 import { getRoomImageUrl } from '@/core/utils/image'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
-vi.mock('vue-router', () => ({ useRoute: () => ({ params: { id: 'vault-1' } }) }))
-vi.mock('@iconify/vue', () => ({ Icon: { props: ['icon'], template: '<i :data-icon="icon" />' } }))
+vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' } }))
+vi.mock('@iconify/vue', () => createIconifyMock({ template: '<i :data-icon="icon" />' }))
 
 const room = {
   name: 'Power Generator',

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createToastMock } from '../../helpers/mocks'
 import { flushPromises } from '@vue/test-utils'
 import { mountWithSetup } from '../../helpers/mountWithSetup'
 import TradingPostPanel from '@/modules/trading/components/TradingPostPanel.vue'
@@ -6,7 +7,7 @@ import { tradingService } from '@/modules/trading/services/tradingService'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { TradeMarketResponse, TradeOffer, TradeResultResponse } from '@/modules/trading/models/trading'
 
-const mockToast = { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }
+const mockToast = createToastMock()
 
 vi.mock('@/core/composables/useToast', () => ({ useToast: () => mockToast }))
 // The auth store auto-fetches the user when a token exists; resolve it so the

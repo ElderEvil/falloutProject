@@ -403,6 +403,39 @@ async def test_test_model_invokes_social_context_for_family_questions() -> None:
 
 
 @pytest.mark.asyncio
+async def test_chat_agent_caps_runaway_tool_calls() -> None:
+    """A model that loops on one tool is capped instead of running away with the turn."""
+    from pydantic_ai.exceptions import UsageLimitExceeded
+
+    from app.agents.dweller_chat_agent import CHAT_USAGE_LIMITS
+
+    deps = DwellerChatDeps(db_session=_family_free_session(), dweller=_make_dweller(), vault_id=uuid4())
+    # A valid no_action output keeps the output validator happy, so the only thing
+    # that can stop the repeated tool calls is the tool-call limit.
+    model = TestModel(
+        call_tools=["get_dweller_social_context"] * 50,
+        custom_output_args={
+            "response_text": "ok",
+            "sentiment_score": 0,
+            "reason_text": "neutral",
+            "action_type": "no_action",
+            "action_reason": "none",
+        },
+    )
+
+    with (
+        patch(
+            "app.agents.dweller_chat_agent.build_dweller_social_context",
+            new_callable=AsyncMock,
+            return_value={},
+        ),
+        dweller_chat_agent.override(model=model),
+        pytest.raises(UsageLimitExceeded),
+    ):
+        await dweller_chat_agent.run("tell me about everyone", deps=deps, usage_limits=CHAT_USAGE_LIMITS)
+
+
+@pytest.mark.asyncio
 async def test_social_context_reports_live_status_family_and_affinity() -> None:
     dweller_id, partner_id, child_id = uuid4(), uuid4(), uuid4()
     dweller = MagicMock(id=dweller_id, room_id=uuid4(), partner_id=partner_id, parent_1_id=None, parent_2_id=None)

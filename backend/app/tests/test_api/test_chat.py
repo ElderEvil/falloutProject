@@ -66,7 +66,6 @@ async def chat_dweller_fixture(
             "first_name": "John",
             "last_name": "Doe",
             "gender": GenderEnum.MALE,
-            "is_adult": True,
             "level": 5,
             "happiness": 80,
             "max_health": 100,
@@ -238,6 +237,37 @@ class TestTextChat:
         assert data["dweller_message_id"] in [message["id"] for message in history.json()]
 
     @patch("app.services.chat.agent_runner.dweller_chat_agent")
+    async def test_debug_payload_is_superuser_only(
+        self,
+        mock_agent: MagicMock,
+        async_client: AsyncClient,
+        normal_user_token_headers: dict[str, str],
+        chat_dweller: Dweller,
+        superuser_token_headers: dict[str, str],
+    ):
+        """?debug=true must be ignored for non-superusers, honored for admins."""
+        mock_result = MagicMock(spec=AgentRunResult)
+        mock_result.output = create_mock_agent_output(response_text="Hi", sentiment_score=0)
+        mock_result.usage = RunUsage(input_tokens=5, output_tokens=5)
+        mock_agent.run = AsyncMock(return_value=mock_result)
+
+        normal = await async_client.post(
+            f"chat/{chat_dweller.id}?debug=true",
+            headers=normal_user_token_headers,
+            json={"message": "Hello"},
+        )
+        admin = await async_client.post(
+            f"chat/{chat_dweller.id}?debug=true",
+            headers=superuser_token_headers,
+            json={"message": "Hello"},
+        )
+
+        assert normal.status_code == 200
+        assert normal.json()["debug"] is None
+        assert admin.json()["debug"] is not None
+        assert admin.json()["debug"]["total_tokens"] == 10
+
+    @patch("app.services.chat.agent_runner.dweller_chat_agent")
     @patch("app.services.chat.agent_runner.get_ai_service")
     async def test_chat_fallback_on_agent_failure(
         self,
@@ -384,7 +414,6 @@ class TestExplorationActions:
                 "first_name": "Explorer",
                 "last_name": "Test",
                 "gender": GenderEnum.MALE,
-                "is_adult": True,
                 "level": 10,
                 "happiness": 75,
                 "max_health": 100,
@@ -411,7 +440,6 @@ class TestExplorationActions:
                 "first_name": "LowSupply",
                 "last_name": "Test",
                 "gender": GenderEnum.FEMALE,
-                "is_adult": True,
                 "max_health": 100,
                 "health": 100,
                 "radiation": 0,

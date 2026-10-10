@@ -21,8 +21,10 @@ from app.core.enums import (
 from app.models.dweller import DwellerBase
 from app.options.factions import FactionOption, faction_restrictions
 from app.options.identity_modifiers import identity_modifiers_for
+from app.options.pet_modifiers import pet_effect_for_name
 from app.options.races import RaceOption
 from app.schemas.outfit import OutfitRead
+from app.schemas.pet import PetRead
 from app.schemas.room import RoomRead
 from app.schemas.vault import VaultRead
 from app.schemas.weapon import WeaponRead
@@ -258,7 +260,6 @@ class DwellerReadLess(SQLModel):
     happiness: int
     room_id: UUID4 | None = None
     status: DwellerStatusEnum
-    is_adult: bool
     age_group: AgeGroupEnum
     gender: GenderEnum
     rarity: RarityEnum
@@ -279,6 +280,7 @@ class DwellerReadLess(SQLModel):
     # Relationships
     weapon_type: WeaponTypeEnum | None = None
     combat_power: float | None = None
+    pet: PetRead | None = Field(default=None, validation_alias="pet_loaded")
     partner_id: UUID4 | None = None
     parent_1_id: UUID4 | None = None
     parent_2_id: UUID4 | None = None
@@ -289,7 +291,9 @@ class DwellerReadLess(SQLModel):
     @property
     def effective_max_health(self) -> int:
         """Maximum health available after radiation damage."""
-        return max(1, self.max_health - max(0, self.radiation))
+        pet = getattr(self, "pet", None)
+        pet_bonus = pet_effect_for_name(pet.name).max_health if pet is not None else 0
+        return max(1, self.max_health + pet_bonus - max(0, self.radiation))
 
     # TBD
 
@@ -316,12 +320,15 @@ class DwellerRead(DwellerBase):
     id: UUID4
     created_at: datetime
     updated_at: datetime
+    pet: PetRead | None = Field(default=None, validation_alias="pet_loaded")
 
     @computed_field
     @property
     def effective_max_health(self) -> int:
         """Maximum health available after radiation damage."""
-        return max(1, self.max_health - max(0, self.radiation))
+        pet = getattr(self, "pet", None)
+        pet_bonus = pet_effect_for_name(pet.name).max_health if pet is not None else 0
+        return max(1, self.max_health + pet_bonus - max(0, self.radiation))
 
     @computed_field
     @property
@@ -346,6 +353,12 @@ class DwellerReadFull(DwellerRead):
     room: RoomRead | None
     weapon: WeaponRead | None
     outfit: OutfitRead | None
+    # pet_loaded alias (same as DwellerRead/DwellerReadLess): reads the ORM's
+    # __dict__ via the pet_loaded property, so serializing a dweller whose pet
+    # was not eager-loaded yields None instead of triggering lazy IO. Feeders
+    # (crud.dweller.get / get_full_info) eager-load pet, so the wire value is
+    # the real equipped pet; the alias is the defensive backstop.
+    pet: PetRead | None = Field(default=None, validation_alias="pet_loaded")
 
     model_config = SQLModelConfig(from_attributes=True)
 

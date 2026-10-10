@@ -2,7 +2,7 @@
 import { computed, toRef } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
-import { getHealthDisplay } from '@/modules/dwellers/models/dweller'
+import { getDwellerDisplayName, getHealthDisplay } from '@/modules/dwellers/models/dweller'
 import {
   orderedVisibleColumns,
   type DwellerTableColumnId,
@@ -104,7 +104,7 @@ function activate(dwellerId: string) {
               v-else-if="column.id === 'name'"
               class="block max-w-[18rem] truncate font-semibold text-terminal-green"
             >
-              {{ dweller.first_name }} {{ dweller.last_name }}
+              {{ getDwellerDisplayName(dweller) }}
             </span>
             <span v-else-if="column.id === 'level'">{{ dweller.level }}</span>
             <DwellerRarityBadge

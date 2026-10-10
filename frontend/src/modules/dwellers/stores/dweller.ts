@@ -13,6 +13,8 @@ export {
   SORT_DIRECTIONS,
   compareDwellers,
   isDwellerAgeGroup,
+  isDwellerGender,
+  isDwellerRarity,
   isDwellerSortBy,
   isDwellerStatus,
   isSortDirection,

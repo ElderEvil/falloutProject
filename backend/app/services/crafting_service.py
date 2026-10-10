@@ -7,7 +7,6 @@ are consumed when an order starts; the item is collected once the tick marks
 the order complete.
 """
 
-import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import Any
@@ -25,6 +24,7 @@ from app.models.room import Room
 from app.models.storage import Storage
 from app.schemas.crafting import CraftingRecipeRead, CraftResultRead
 from app.services.exploration import data_loader
+from app.services.recipe_unlock_service import is_gated, recipe_unlock_service, unlock_hint
 from app.services.vault_service import vault_service
 from app.utils.exceptions import (
     InsufficientResourcesException,
@@ -58,9 +58,10 @@ class CraftingService:
         raise ValidationException(f"No workshop room is configured for {item_type}s")
 
     @staticmethod
-    async def _catalog(item_type: str) -> list[dict[str, Any]]:
+    def _catalog(item_type: str) -> list[dict[str, Any]]:
+        """Catalog entries for one workshop type; the loader behind it is cached."""
         loader = data_loader.load_weapons if item_type == "weapon" else data_loader.load_outfits
-        return await asyncio.to_thread(loader)
+        return loader()
 
     @staticmethod
     def craft_types(entry: dict[str, Any]) -> list[str]:
@@ -70,25 +71,34 @@ class CraftingService:
         return [str(junk_type).lower() for junk_type in types]
 
     @staticmethod
-    def _spend_plan(junk: list[Junk], rarity: RarityEnum, types: list[str]) -> tuple[list[Junk], dict[str, int]]:
+    def _usable_junk(junk: list[Junk], types: list[str]) -> dict[str, list[Junk]]:
+        """The junk a recipe accepts, grouped by the material's own rarity.
+
+        Only the item's listed junk types count, so scrap of the wrong kind cannot
+        pay for the order; each rarity tier stays separate.
+        """
+        allowed = {junk_type.lower() for junk_type in types}
+        pools: dict[str, list[Junk]] = {}
+        for item in junk:
+            if allowed and JunkTypeEnum(item.junk_type).value not in allowed:
+                continue
+            pools.setdefault(RarityEnum(item.rarity).value, []).append(item)
+        return pools
+
+    @classmethod
+    def _spend_plan(cls, junk: list[Junk], rarity: RarityEnum, types: list[str]) -> tuple[list[Junk], dict[str, int]]:
         """Pick the exact materials this rarity needs, plus any per-material shortfall.
 
         Each tier requires its own rarity, so cheaper scrap cannot substitute for
-        a legendary requirement, and only the item's listed junk types count.
-        Within a material rarity the cheapest pieces go first.
+        a legendary requirement. Within a material rarity the cheapest pieces go first.
         """
         recipe = game_config.crafting.junk_recipe(rarity.value)
-        allowed = {junk_type.lower() for junk_type in types}
-        pools: dict[str, list[Junk]] = {material: [] for material in recipe}
-        for item in junk:
-            key = RarityEnum(item.rarity).value
-            if key in pools and (not allowed or JunkTypeEnum(item.junk_type).value in allowed):
-                pools[key].append(item)
+        pools = cls._usable_junk(junk, types)
 
         plan: list[Junk] = []
         shortfall: dict[str, int] = {}
         for material, needed in recipe.items():
-            pool = sorted(pools[material], key=lambda item: (item.value or 0, item.name))
+            pool = sorted(pools.get(material, []), key=lambda item: (item.value or 0, item.name))
             plan.extend(pool[:needed])
             if len(pool) < needed:
                 shortfall[material] = needed - len(pool)
@@ -99,7 +109,7 @@ class CraftingService:
         return game_config.crafting.junk_cost(rarity.value), game_config.crafting.caps_cost(rarity.value)
 
     async def _find_craftable(self, item_type: str, item_name: str) -> dict[str, Any]:
-        catalog = await self._catalog(item_type)
+        catalog = self._catalog(item_type)
         entry = next((item for item in catalog if str(item.get("name", "")).lower() == item_name.lower()), None)
         if entry is None:
             raise ValidationException(f"Unknown {item_type}: {item_name}")
@@ -121,10 +131,13 @@ class CraftingService:
         room = await self._workshop_room(db_session, vault_id, self.workshop_name(item_type))
         crew = await crud.dweller.get_by_room(db_session, room.id) if room else []
 
+        unlocked_names = await crud.vault_recipe_unlock.unlocked_names(db_session, vault_id, item_type)
         recipes: list[CraftingRecipeRead] = []
-        for entry in await self._catalog(item_type):
+        for entry in self._catalog(item_type):
             if not entry.get("craftable", False):
                 continue
+            recipe_name = str(entry["name"])
+            unlocked = not is_gated(entry) or recipe_name in unlocked_names
             rarity = RarityEnum(entry["rarity"])
             junk_cost, caps_cost = self._cost(rarity)
             craft_types = self.craft_types(entry)
@@ -136,7 +149,7 @@ class CraftingService:
             materials = game_config.crafting.junk_recipe(rarity.value)
             recipes.append(
                 CraftingRecipeRead(
-                    name=str(entry["name"]),
+                    name=recipe_name,
                     item_type=item_type,
                     rarity=rarity,
                     value=entry.get("value"),
@@ -149,23 +162,19 @@ class CraftingService:
                     junk_cost=junk_cost,
                     caps_cost=caps_cost,
                     can_craft=missing == 0 and vault.bottle_caps >= caps_cost,
+                    has_junk=missing == 0,
                     missing_junk=missing,
+                    unlocked=unlocked,
+                    unlock_hint=None if unlocked else unlock_hint(entry),
                 )
             )
 
         return sorted(recipes, key=lambda recipe: (_RARITY_ORDER[recipe.rarity], recipe.name))
 
-    @staticmethod
-    def _available_by_rarity(junk: list[Junk], types: list[str]) -> dict[str, int]:
+    @classmethod
+    def _available_by_rarity(cls, junk: list[Junk], types: list[str]) -> dict[str, int]:
         """How much usable junk the vault holds, per material rarity."""
-        allowed = {junk_type.lower() for junk_type in types}
-        counts: dict[str, int] = {}
-        for item in junk:
-            if allowed and JunkTypeEnum(item.junk_type).value not in allowed:
-                continue
-            key = RarityEnum(item.rarity).value
-            counts[key] = counts.get(key, 0) + 1
-        return counts
+        return {material: len(pool) for material, pool in cls._usable_junk(junk, types).items()}
 
     @staticmethod
     def _required_stat(entry: dict[str, Any]) -> str:
@@ -216,6 +225,10 @@ class CraftingService:
             raise ValidationException(f"Build the {workshop} to craft {item_type}s")
 
         entry = await self._find_craftable(item_type, item_name)
+        recipe_name = str(entry["name"])
+        if not await recipe_unlock_service.is_unlocked(db_session, vault_id=vault_id, item_type=item_type, entry=entry):
+            raise ValidationException(f"{recipe_name} is locked. {unlock_hint(entry)}")
+
         rarity = RarityEnum(entry["rarity"])
         junk_cost, caps_cost = self._cost(rarity)
 

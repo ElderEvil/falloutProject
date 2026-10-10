@@ -2,6 +2,458 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.191.2 (2026-10-10)
+
+### Code Refactoring
+
+* **dwellers:** extract AppearanceSelect to dedup the appearance editor b92f100
+* **frontend:** DRY sweep — filter counts, happiness, map builders, predicates ba8fb76
+
+## 2.191.1 (2026-10-10)
+
+### Bug Fixes
+
+* **dwellers:** flag the injured alert only when severely damaged df53f32
+* **dwellers:** threshold the injured alert on base max HP 92da72b
+
+## 2.191.0 (2026-10-10)
+
+### Features
+
+* **map:** site-type filter driving markers, list, and legend 26c309f
+
+### Code Refactoring
+
+* **map:** move marker colours to Preferences and float the site-type filter e283bf7
+* **map:** share the site-type filter predicate 79580fe
+
+## 2.190.0 (2026-10-09)
+
+### Features
+
+* **cli:** add map-scenario command to populate a vault's map by site-type group f985ff2
+* **map:** add in-world lore descriptions for seeded places 265e634
+* **map:** group-color toggle and clickable dweller popover a8f8db4
+
+### Bug Fixes
+
+* **map:** address CodeRabbit review on the dweller popover and legend 40f8057
+* **map:** define group colours as theme tokens f4b18f3
+* **map:** dweller navigation, marker thumbnail focus, and dispatch supply defaults 4af20e0
+* **map:** native SVG marker glyphs, state colours, group colours 14fd262
+* **map:** real dweller vitals in the popover; retire the dev mockup 7c3598d
+* **map:** register biography- and quest-referenced places in the seed roster b0a6f9d
+* **map:** render ungrouped places with their effective archetype icon 4c9b11b
+* **map:** replace placeholder NPC vault-signal copy 84c3304
+* **map:** widen the dispatch modal so the party slots fit b12eaa7
+
+### Documentation
+
+* add code review and Vue debugging skills 20cc56b
+* **map:** record map presentation P0-P5 plan b4d41f0
+* **skills:** drop the oversized vue-debug-guides skill 3007cad
+
+## 2.189.0 (2026-10-08)
+
+### Features
+
+* **ui:** roster empty-filter state with clear action (wave 5) f90a827
+* **ui:** sidebar link semantics, hotkey guard, and mobile drawer (wave 3) 360a387
+* **ui:** surface urgent vault actions (wave 1) 8f9cf7f
+
+### Bug Fixes
+
+* **ui:** keep the rooms store off the critical path (bundle budget) faad785
+* **ui:** make flicker respect effects preference and reduced motion (wave 2) 26d924b
+* **ui:** notifications popup viewport, focus, and row semantics (wave 4) 76b4635
+* **ui:** preserve mobile navigation labels after desktop collapse 4916970
+* **ui:** reactive drawer breakpoint, mobile tooltip, resilient room-chunk load 2b11b05
+* **ui:** use RouterLink for overview chips and ratchet raw-control baseline 22c939b
+
+## 2.188.0 (2026-10-08)
+
+### Features
+
+* **map:** marker clarity, zoom clustering, and cased dashed routes 55de1a9
+* **map:** show vault info panel when clicking own vaults 5bf32cc
+* **map:** transient curved routes, stable duration modal, clickable own vaults d5d47a5
+
+### Bug Fixes
+
+* **map:** address PR review — cluster at max zoom, vault-info race ade383c
+* **map:** guard home-vault and own-vault marker clicks against drag d3ddd32
+* **map:** stop rendering the current vault twice 1d4673a
+
+### Code Refactoring
+
+* **map:** apply owner review — dead renderer, modal contract, home-vault info 23cd2e2
+
+## 2.187.0 (2026-10-07)
+
+### Features
+
+* **frontend:** typed API client boundary with auth/profile migration ([#911](https://github.com/ElderEvil/falloutProject/issues/911)) f78ef47
+
+## 2.186.0 (2026-10-07)
+
+### Features
+
+* **frontend:** read-only chat and no medical offers for dead dwellers 23bb2eb
+
+## 2.185.0 (2026-10-07)
+
+### Features
+
+* **frontend:** retire map-click send, add compass dial, route chat through send flow 4ca7223
+
+### Bug Fixes
+
+* **frontend:** guard chat dispatch unassign and suggestion dismissal faf1af9
+
+## 2.184.0 (2026-10-07)
+
+### Features
+
+* **frontend:** one-click heal with vault count and auto-issue a2ea9de
+
+## 2.183.1 (2026-10-07)
+
+### Bug Fixes
+
+* **backend:** block healing and chat for dead dwellers 8ce3946
+
+## 2.183.0 (2026-10-06)
+
+### Features
+
+* **exploration:** unify map departures with auto-heading, team dispatch, and supplies 0c64b95
+* **map:** merge dispatch into location details modal a01c507
+
+### Bug Fixes
+
+* **frontend:** polish dispatch picker header, footer and status badge e34b82b
+* **frontend:** use Button primitive for modal header actions 12c5c99
+* **map:** address review findings, unify explorer markers and trails 416cbd2
+* **review:** storage lock refresh and party picker a11y 7d4859f
+
+### Documentation
+
+* record pets as shipped and world activation as deferred 227b3b2
+
+## 2.182.0 (2026-10-05)
+
+### Features
+
+* **exploration:** journey-scoped site encounters (slice 3b) edf5aa7
+
+### Bug Fixes
+
+* **exploration:** encounter integration fixes (paused expiry, atomicity, return-leg UI, multi-journey offers) 57c116a, closes #900
+* **exploration:** encounter lifecycle review fixes e50b868, closes #900
+
+## 2.181.0 (2026-10-05)
+
+### Features
+
+* **exploration:** travel-backed clearing with 168h cooldown (slice 3a) 1908fe9
+
+### Bug Fixes
+
+* **exploration:** blocked-route return timing and traversable arrival (slice 3a review) f1f3b7e
+
+## 2.180.0 (2026-10-05)
+
+### Features
+
+* **exploration:** corridor fog and local discoveries (slice 2) a36ba2e
+
+### Bug Fixes
+
+* **exploration:** corridor fog, pos marker, consistent discovery records 36095bc
+* **exploration:** disambiguate distant same-name twins in spatial discovery 60f2dc4
+* **exploration:** position-derived journey identity for spatial discoveries 4d97705
+* **exploration:** wire-scale markers, short-schema pos, journey-sequence identity e88989e
+
+## 2.179.0 (2026-10-05)
+
+### Features
+
+* **exploration:** spatial movement core for roam departures 641ca97
+* **map:** heading-based departure from map clicks d6ff349
+
+### Bug Fixes
+
+* **rewards:** refuse dweller rewards at the population cap 6229428
+
+## 2.178.1 (2026-10-04)
+
+### Bug Fixes
+
+* **map:** collapse legend by default and remember its state fadfc88
+* **map:** survive unavailable storage, undim locked labels 3fe5b40
+
+## 2.178.0 (2026-10-04)
+
+### Features
+
+* **dwellers:** slow down aging across the board e725a13
+
+## 2.177.3 (2026-10-04)
+
+### Bug Fixes
+
+* **combat:** derive containment copy from the hazard team d8cd475
+* **combat:** use neutral containment copy for non-fire incidents d643d20
+
+### Code Refactoring
+
+* **combat:** select containment flow from the incident objective 07a893d
+
+## 2.177.2 (2026-10-04)
+
+### Code Refactoring
+
+* **dwellers:** drop is_adult column and remaining writes d43df00
+
+## 2.177.1 (2026-10-04)
+
+### Bug Fixes
+
+* **dwellers:** reconstruct is_adult from age_group on downgrade dcb5c83
+
+### Code Refactoring
+
+* **dwellers:** drop is_adult in favor of age_group maturity 3ddbe48
+* **dwellers:** keep is_adult column with age_group authoritative 000fdd0
+
+## 2.177.0 (2026-10-04)
+
+### Features
+
+* **map:** map-first departure picker, retire scouting (frontend) 9869cee
+
+### Bug Fixes
+
+* **map:** exclude unavailable dwellers from the departure picker 587d719
+* **map:** guard stale departure loads and filter eligible dwellers f37cc3e
+
+## 2.176.0 (2026-10-03)
+
+### Features
+
+* **dwellers:** canon-shaped starting levels for rare and legendary bbacce5
+* **map:** admin remove-fog debug toggle f0f1929
+* **map:** match prototype terrain palette and blend biomes 0e9006f
+* **map:** show prototype archetype art on expedition sites d55d863
+
+### Bug Fixes
+
+* **dwellers:** initialize starting XP with the starting level e21ff24
+* **map:** collapsible legend and own-vaults-with-hints 53b781b
+
+## 2.175.0 (2026-10-03)
+
+### Features
+
+* **exploration:** unify departure behind one send boundary a075392
+
+### Bug Fixes
+
+* **exploration:** validate depart target and roster in the service 1d4a549
+
+## 2.174.0 (2026-10-03)
+
+### Features
+
+* **bio:** rarity-scale visited places and apply the cap to templates 58b8dc9
+
+## 2.173.0 (2026-10-03)
+
+### Features
+
+* **exploration:** link dispatched explorers to their map marker d3e6fca, closes #812
+* **map:** adopt preserved prototype marker art 2001a59
+* **map:** render site-type archetype icons on map markers 1f98d2f
+
+### Bug Fixes
+
+* **frontend:** count only lowercase native tags in raw-control check 137031b
+* **map:** move marker art palette into theme tokens a0ae195
+* **vault:** release map slot on soft-delete and re-claim on restore 5816d09
+
+### Documentation
+
+* land stranded feature docs and fix stale publication note 8295183, closes #859-862
+
+## 2.172.0 (2026-10-03)
+
+### Features
+
+* **map:** render backend world snapshot in production atlas 57b5fb0
+
+### Bug Fixes
+
+* **map:** surface snapshot failure and enforce square grid 3a6ddfd
+
+## 2.171.0 (2026-10-03)
+
+### Features
+
+* **world:** persist generated world snapshot b9addf5
+
+### Bug Fixes
+
+* **world:** enforce snapshot uniqueness and persist full config 7de6992
+* **world:** join vault-slot and snapshot migration heads ecbdd3a
+
+## 2.170.0 (2026-10-03)
+
+### Features
+
+* **world:** deterministic backend world generation core ad3ff88
+
+### Bug Fixes
+
+* **world:** honor config in generation (forest, zero quantiles, reachable slots) aceefd4
+
+## 2.169.0 (2026-10-03)
+
+### Features
+
+* **map:** scouting action and production scouting UI 5dbf932
+
+### Bug Fixes
+
+* **map:** honest scout band, vault-scoped state, dead code 9648eb6
+* **map:** pass registry scout target to WorldMap highlight b198a3e
+* **map:** scout-mode interaction guards and dweller loading 32287c7
+
+## 2.168.0 (2026-10-03)
+
+### Features
+
+* **map:** persisted vault slots, ownership markers, and atomic allocation 1cf0a1e
+
+### Bug Fixes
+
+* **map:** place home markers at the vault slot; pin slot migration tests 0c4239c
+* **map:** self-contained slot migrations and missing id index 12dd07f
+
+## 2.167.0 (2026-10-03)
+
+### Features
+
+* **map:** shared atlas generator, terrain, coordinates, and derived fog 6c88993
+
+### Bug Fixes
+
+* **map:** drop hardcoded fog fallback in favor of --color-fog token 66e183a
+* **map:** pixelated terrain image, delink missing contract, honest projection test 4af17c4
+
+## 2.166.0 (2026-10-03)
+
+### Features
+
+* **map:** interactive production map with discovery-only visibility 23ed46a
+
+### Bug Fixes
+
+* **map:** use name-based vault IDs for spread and selection d386c80
+
+## 2.165.1 (2026-10-01)
+
+### Bug Fixes
+
+* **pets:** show equipped pet bonuses in SPECIAL and storage cards ([#858](https://github.com/ElderEvil/falloutProject/issues/858)) d37ddc9
+
+## 2.165.0 (2026-10-01)
+
+### Features
+
+* **jev:** TypeSafe Jev decision client and chat guardrail ([#853](https://github.com/ElderEvil/falloutProject/issues/853)) 1eefe21
+
+## 2.164.1 (2026-10-01)
+
+### Bug Fixes
+
+* **chat:** cap runaway tool-call loops in the dweller agent ([#852](https://github.com/ElderEvil/falloutProject/issues/852)) 002989f
+
+## 2.164.0 (2026-10-01)
+
+### Features
+
+* **pets:** pet domain with dweller equip and catalog-resolved bonuses ([#851](https://github.com/ElderEvil/falloutProject/issues/851)) 90e1c69, closes #470
+
+## 2.163.1 (2026-09-30)
+
+### Bug Fixes
+
+* **dwellers:** use the VueUse 15 scheduler option for useNow ([#848](https://github.com/ElderEvil/falloutProject/issues/848)) 0396c99, closes #849
+
+## 2.163.0 (2026-09-30)
+
+### Features
+
+* **objectives:** distinguish objective-completion notifications ([#846](https://github.com/ElderEvil/falloutProject/issues/846)) 4b4776d
+
+### Bug Fixes
+
+* **quests:** canonicalize authored gear and drop dead objective code ([#844](https://github.com/ElderEvil/falloutProject/issues/844)) 710a4c1
+
+## 2.162.2 (2026-09-30)
+
+### Bug Fixes
+
+* **objectives:** migrate the non-catalog Collect 3 Outfits reward ([#843](https://github.com/ElderEvil/falloutProject/issues/843)) 2fdc786
+
+## 2.162.1 (2026-09-30)
+
+### Bug Fixes
+
+* parse lunchbox rewards, catalog-back reward gear, and serialize the scrap counter ([#842](https://github.com/ElderEvil/falloutProject/issues/842)) 87ca097
+
+## 2.162.0 (2026-09-30)
+
+### Features
+
+* **crafting:** unlock recipes by scrapping the exact item ([#836](https://github.com/ElderEvil/falloutProject/issues/836)) dc3af39
+
+## 2.161.0 (2026-09-29)
+
+### Features
+
+* **dwellers:** crafting auto-assign, roster bulk actions, and happiness overview ([#835](https://github.com/ElderEvil/falloutProject/issues/835)) 2ce7861
+
+## 2.160.0 (2026-09-29)
+
+### Features
+
+* **exploration:** unify wasteland explorer cards and fix supply use ([#834](https://github.com/ElderEvil/falloutProject/issues/834)) e45e012
+
+## 2.159.0 (2026-09-29)
+
+### Features
+
+* **dwellers:** make refusing an exit request a real decision ([#832](https://github.com/ElderEvil/falloutProject/issues/832)) 1092ca0
+
+## 2.158.1 (2026-09-29)
+
+### Bug Fixes
+
+* **dwellers:** clear radiation when a dweller is revived ([#833](https://github.com/ElderEvil/falloutProject/issues/833)) 1e641fe
+
+## 2.158.0 (2026-09-29)
+
+### Features
+
+* **dwellers:** add rarity filter, race colours, and chip counts to the roster ([#829](https://github.com/ElderEvil/falloutProject/issues/829)) afdab2c
+
+## 2.157.0 (2026-09-29)
+
+### Features
+
+* **dwellers:** add a server-side gender filter to the roster ([#826](https://github.com/ElderEvil/falloutProject/issues/826)) 32ab705
+
 ## 2.156.0 (2026-09-28)
 
 ### Features

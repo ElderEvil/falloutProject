@@ -1,6 +1,6 @@
 """Internal data records shared by chat collaborators."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from pydantic import UUID4
 
@@ -18,6 +18,7 @@ class AgentChatResult:
     prompt_tokens: int | None
     completion_tokens: int | None
     total_tokens: int | None
+    jev_decisions: dict[str, dict[str, float]] = field(default_factory=dict)
 
 
 @dataclass
@@ -35,6 +36,7 @@ class StreamBundle:
     prompt_id: UUID4 | None = None
     instructions_hash: str | None = None
     instructions_snapshot: str | None = None
+    jev_decisions: dict[str, dict[str, float]] = field(default_factory=dict)
 
 
 @dataclass

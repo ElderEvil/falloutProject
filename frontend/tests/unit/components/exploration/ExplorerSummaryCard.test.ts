@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { setActivePinia, createPinia } from 'pinia'
 import ExplorerSummaryCard from '@/modules/exploration/components/ExplorerSummaryCard.vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 
@@ -53,6 +54,10 @@ function mountCard(props: Record<string, unknown> = {}) {
 }
 
 describe('ExplorerSummaryCard', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
   it('renders the irradiated health display with effective and base maximums', () => {
     const wrapper = mountCard({ health: 102, maxHealth: 125, radiation: 20 })
 

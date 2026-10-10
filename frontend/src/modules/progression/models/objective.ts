@@ -14,6 +14,7 @@ export type ObjectiveType =
   | 'expedition'
   | 'level_up'
   | 'reach'
+  | 'scrap'
   | 'train'
 
 export interface Objective {

@@ -9,6 +9,7 @@ import pytest
 
 from app.core.enums import SPECIALEnum
 from app.core.game_config import game_config
+from app.models.pet import Pet
 from app.options.factions import FACTION_PERKS, FactionOption, FactionPerks, faction_restrictions, perks_for_faction
 from app.options.identity_modifiers import (
     SPECIAL_STATS,
@@ -84,6 +85,10 @@ def _feral_ghoul_with_stat() -> SimpleNamespace:
     entity = _feral_ghoul()
     entity.charisma = 5
     return entity
+
+
+def _pet(name: str) -> Pet:
+    return Pet(name=name, rarity="Legendary")
 
 
 class TestRaceHelpers:
@@ -311,6 +316,25 @@ class TestFactionPerks:
         assert perks_for_faction(_dweller("human")) == FactionPerks()
         assert perks_for_faction(_dweller("human", faction="bogus")) == FactionPerks()
 
+    def test_pet_damage_bonus_stacks_with_faction_perk(self) -> None:
+        dweller = _dweller("human", faction="brotherhood_of_steel")
+        dweller.pet = _pet("dogmeat (fallout 4)")  # damage_pct 0.25
+        assert weapon_damage_pct(dweller, "energy") == pytest.approx(0.15 + 0.25)
+
+    def test_pet_damage_bonus_applies_without_faction_perk(self) -> None:
+        dweller = _dweller("human")
+        dweller.pet = _pet("husky")  # damage_pct 0.25
+        assert weapon_damage_pct(dweller, "energy") == pytest.approx(0.25)
+
+    def test_weapon_damage_pct_caps_total_multiplier(self, monkeypatch) -> None:
+        from app.options.pet_modifiers import PET_EFFECT_BY_NAME, PetEffect
+
+        monkeypatch.setitem(PET_EFFECT_BY_NAME, "cap test pet", PetEffect(damage_pct=1.5))
+        dweller = _dweller("human", faction="brotherhood_of_steel")
+        dweller.pet = _pet("cap test pet")
+        # 1 + 0.15 + 1.5 = 2.65 → capped at 2.0 → bonus 1.0
+        assert weapon_damage_pct(dweller, "energy") == pytest.approx(1.0)
+
     def test_impossible_race_faction_pair_earns_no_perk(self) -> None:
         """Stored JSONB can bypass the write-time validator, so the pair is re-checked on read."""
         assert perks_for_faction(_dweller("synth", faction="brotherhood_of_steel")) == FactionPerks()
@@ -330,6 +354,18 @@ class TestEffectiveStats:
         mutant = _dweller("super_mutant")
         mutant.perception = 1
         assert effective_stat(mutant, "perception") == 1
+
+    def test_effective_stat_includes_equipped_pet(self) -> None:
+        mutant = _dweller("super_mutant")
+        mutant.strength = 5
+        mutant.pet = _pet("dogmeat (fallout 4)")  # strength +2
+        assert effective_stat(mutant, "strength") == 10  # 5 + 3 (race) + 2 (pet)
+
+    def test_effective_stat_ignores_pet_without_stat_bonus(self) -> None:
+        mutant = _dweller("super_mutant")
+        mutant.strength = 5
+        mutant.pet = _pet("cx404")  # luck/caps/xp only
+        assert effective_stat(mutant, "strength") == 8
 
     def test_unknown_stat_is_rejected(self) -> None:
         with pytest.raises(ValueError, match="Unknown SPECIAL stat"):

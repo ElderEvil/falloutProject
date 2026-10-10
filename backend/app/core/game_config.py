@@ -305,8 +305,11 @@ class HealthConfig(BaseSettings):
         gt=0.0,
         le=1.0,
     )
-    radaway_auto_use_threshold: int = Field(
-        default=30, description="RAD level that triggers auto RadAway use in the wasteland", ge=1
+    radaway_auto_use_threshold_pct: float = Field(
+        default=0.25,
+        description="Share of max health lost to RAD that triggers auto RadAway use in the wasteland",
+        gt=0.0,
+        le=1.0,
     )
     stimpack_heal_percent: float = Field(
         default=0.4, description="Share of max health restored per stimpack", gt=0.0, le=1.0
@@ -432,6 +435,12 @@ class ResourceConfig(BaseSettings):
         description="Per INT point per second for Medbay/Science Lab only",
         ge=0.0,
     )
+    junior_worker_output_multiplier: float = Field(
+        default=0.5,
+        description="A youth junior worker's production contribution as a fraction of a mature worker's",
+        ge=0.0,
+        le=1.0,
+    )
     tier_1_multiplier: float = Field(default=1.0, ge=0.0)
     tier_2_multiplier: float = Field(default=1.5, ge=0.0)
     tier_3_multiplier: float = Field(default=2.0, ge=0.0)
@@ -546,7 +555,7 @@ class BreedingConfig(BaseSettings):
     )
 
     # Youth maturity
-    child_growth_duration_hours: int = Field(default=24, description="Total hours from child to adult", ge=2)
+    child_growth_duration_hours: int = Field(default=60, description="Total hours from child to adult", ge=2)
     child_special_multiplier: float = Field(default=0.5, description="Children have 50% of adult stats", ge=0.0, le=1.0)
     child_consumption_multiplier: float = Field(
         default=0.7,
@@ -567,6 +576,14 @@ class LevelingConfig(BaseSettings):
 
     hp_gain_per_level: int = Field(default=5, description="Health gained per level up", ge=1)
     max_level: int = Field(default=50, description="Maximum dweller level", ge=1, le=100)
+
+    # Starting level bands for generated dwellers, canon-shaped (Fallout Shelter
+    # rare ~6-10, legendary 19-43). Commons always start at level 1.
+    base_max_health: int = Field(default=100, description="Max health at level 1", ge=1)
+    rare_start_level_min: int = Field(default=6, ge=1)
+    rare_start_level_max: int = Field(default=10, ge=1)
+    legendary_start_level_min: int = Field(default=19, ge=1)
+    legendary_start_level_max: int = Field(default=43, ge=1)
 
     # XP sources
     exploration_xp_per_distance: int = Field(default=10, description="Per mile traveled", ge=0)
@@ -630,8 +647,10 @@ class BioConfig(BaseSettings):
 
     # Max visited places registered to the world map from a dweller bio, by rarity.
     # Keyed by RarityEnum value string so env overrides stay JSON-friendly.
+    # Origin is always registered; only traveled history is rarity-gated, so a
+    # common vault-born dweller is origin-only while a legendary knows two places.
     visited_by_rarity: dict[str, int] = Field(
-        default={"common": 1, "rare": 2, "legendary": 3},
+        default={"common": 0, "rare": 1, "legendary": 2},
         description="Max visited map places per rarity (common/rare/legendary)",
     )
 
@@ -797,7 +816,7 @@ class DwellerConfig(BaseSettings):
         return dict(self.race_weights)
 
     elder_age_years: int = Field(
-        default=60,
+        default=70,
         ge=50,
         le=90,
         description="Adults whose birth date is at least this many years ago are elders",
@@ -983,6 +1002,10 @@ class CraftingConfig(BaseSettings):
         le=1.0,
         description="Fastest an order can get, as a fraction of its base duration",
     )
+    unlock_scrap_count_by_rarity: dict[str, int] = Field(
+        default_factory=lambda: {"rare": 1, "legendary": 1},
+        description="Scraps of the exact item needed to learn its recipe, keyed by rarity; absent = unlocked",
+    )
 
     @field_validator("caps_cost_by_rarity", "order_seconds_by_rarity", mode="before")
     @classmethod
@@ -999,6 +1022,18 @@ class CraftingConfig(BaseSettings):
         if any(isinstance(cost, bool) or not isinstance(cost, int) or cost < 0 for cost in normalized.values()):
             raise ValueError("Crafting costs must be non-negative integers")
         return normalized
+
+    @field_validator("unlock_scrap_count_by_rarity", mode="before")
+    @classmethod
+    def validate_unlock_counts(cls, v: dict[str, int]) -> dict[str, int]:
+        normalized = {str(key).lower(): count for key, count in v.items()}
+        if any(isinstance(count, bool) or not isinstance(count, int) or count < 0 for count in normalized.values()):
+            raise ValueError("Unlock scrap counts must be non-negative integers")
+        return normalized
+
+    def scrap_unlock_count(self, rarity: str) -> int:
+        """Scraps of this rarity needed to learn its recipe; 0 means already unlocked."""
+        return self.unlock_scrap_count_by_rarity.get(rarity.lower(), 0)
 
     @field_validator("junk_recipe_by_rarity", mode="before")
     @classmethod
@@ -1060,6 +1095,13 @@ class FeatureConfig(BaseSettings):
             "(choice, filters, dossier) is deliberately not gated by it."
         ),
     )
+    emergent_sites: bool = Field(
+        default=True,
+        description=(
+            "Treat an ungrouped emergent PLACE (from a bio or discovery) as the default clearable "
+            "'Wasteland Site' archetype so it can be dispatched. Off keeps such places narrative-only."
+        ),
+    )
 
 
 class ExitConfig(BaseSettings):
@@ -1073,17 +1115,36 @@ class ExitConfig(BaseSettings):
         le=100,
         description="Happiness at or below which a dweller starts asking to leave",
     )
-    refusal_happiness_penalty: int = Field(
-        default=10,
-        ge=0,
-        le=100,
-        description="Happiness the asking dweller loses when the vault refuses",
-    )
     min_population: int = Field(
         default=2,
         ge=1,
         description="The vault will not grant an exit that drops it below this many dwellers",
     )
+    max_exit_requests_per_day: int = Field(
+        default=1,
+        ge=1,
+        description="Most exit requests the vault raises per day",
+    )
+    vault_refusal_happiness_penalty: int = Field(
+        default=10,
+        ge=0,
+        le=100,
+        description="Happiness every living dweller loses when the vault refuses an exit request",
+    )
+    despair_grace_hours: int = Field(
+        default=6,
+        ge=0,
+        description="Hours a dweller must stay in despair before they will ask to leave",
+    )
+
+
+class VaultSlotConfig(BaseSettings):
+    """Shared atlas slot grid: how many vaults can be placed and the grid width."""
+
+    model_config = SettingsConfigDict(env_prefix="VAULT_SLOT_")
+
+    count: int = Field(default=100, description="Total vault slots on the shared atlas", ge=1)
+    columns: int = Field(default=10, description="Slot grid columns (rows are derived)", ge=1)
 
 
 class GameConfig(BaseSettings):
@@ -1112,6 +1173,7 @@ class GameConfig(BaseSettings):
     crafting: CraftingConfig = Field(default_factory=CraftingConfig)
     exit_request: ExitConfig = Field(default_factory=ExitConfig)
     features: FeatureConfig = Field(default_factory=FeatureConfig)
+    vault_slots: VaultSlotConfig = Field(default_factory=VaultSlotConfig)
 
 
 # Singleton instance

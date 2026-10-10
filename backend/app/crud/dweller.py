@@ -56,8 +56,14 @@ def determine_status_for_room(room_category: RoomTypeEnum | None, room_name: str
 
 
 class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
+    def _living_conditions(self, vault_id: UUID4 | None = None) -> list[Any]:
+        """WHERE predicates for non-deleted, non-dead dwellers, optionally vault-scoped."""
+        if vault_id is None:
+            return [~self.model.is_deleted, ~self.model.is_dead]
+        return [self.model.vault_id == vault_id, ~self.model.is_deleted, ~self.model.is_dead]
+
     async def get(self, db_session: AsyncSession, id: UUID4, include_deleted: bool = False) -> Dweller:
-        """Override to eager load weapon and outfit relationships."""
+        """Override to eager load weapon, outfit and pet relationships."""
         query = (
             select(self.model)
             .where(self.model.id == id)
@@ -66,6 +72,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
                 selectinload(Dweller.room),
                 selectinload(Dweller.weapon),
                 selectinload(Dweller.outfit),
+                selectinload(Dweller.pet),
             )
         )
 
@@ -80,15 +87,19 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         return db_obj
 
     async def get_with_equipment(self, db_session: AsyncSession, dweller_id: UUID4) -> Dweller | None:
-        """One dweller with weapon and outfit eager-loaded, or None when absent.
+        """One dweller with weapon, outfit and pet eager-loaded, or None when absent.
 
-        Live combat reads (``expedition_combat_profile``) need the equipped weapon and
-        outfit without raising on a missing row.
+        Live combat reads (``expedition_combat_profile``, dispatch party power)
+        need the equipped weapon, outfit and pet without raising on a missing row.
         """
         query = (
             select(self.model)
             .where(self.model.id == dweller_id)
-            .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit))
+            .options(
+                selectinload(Dweller.weapon),
+                selectinload(Dweller.outfit),
+                selectinload(Dweller.pet),
+            )
         )
         result = await db_session.execute(query)
         return result.scalar_one_or_none()
@@ -109,13 +120,17 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     async def get_multi(
         self, db_session: AsyncSession, skip: int = 0, limit: int = 100, include_deleted: bool = False
     ) -> Sequence[Dweller]:
-        """Override to eager load weapon and outfit (needed for weapon_type and combat_power)."""
+        """Override to eager load weapon, outfit and pet (needed for weapon_type, combat_power and pet bonuses)."""
         query = (
             select(self.model)
             .offset(skip)
             .limit(limit)
             .order_by(self.model.id)
-            .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit))
+            .options(
+                selectinload(Dweller.weapon),
+                selectinload(Dweller.outfit),
+                selectinload(Dweller.pet),
+            )
         )
         if not include_deleted:
             query = query.where(~self.model.is_deleted)
@@ -130,6 +145,8 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         limit: int = 100,
         status: DwellerStatusEnum | None = None,
         age_group: AgeGroupEnum | None = None,
+        gender: GenderEnum | None = None,
+        rarity: RarityEnum | None = None,
         search: str | None = None,
         race: str | None = None,
         faction: str | None = None,
@@ -151,6 +168,14 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         # Filter by age group
         if age_group:
             query = query.where(self.model.age_group == age_group)
+
+        # Filter by gender
+        if gender:
+            query = query.where(self.model.gender == gender)
+
+        # Filter by rarity
+        if rarity is not None:
+            query = query.where(self.model.rarity == rarity)
 
         # Race and faction live in the visual_attributes JSONB, so filter through the column.
         identity_attrs = self.model.__table__.c.visual_attributes
@@ -180,7 +205,15 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             else:
                 query = query.order_by(sort_column.desc())
 
-        query = query.offset(skip).limit(limit).options(selectinload(Dweller.weapon), selectinload(Dweller.outfit))
+        query = (
+            query.offset(skip)
+            .limit(limit)
+            .options(
+                selectinload(Dweller.weapon),
+                selectinload(Dweller.outfit),
+                selectinload(Dweller.pet),
+            )
+        )
         response = await db_session.execute(query)
         return response.scalars().all()
 
@@ -225,9 +258,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         """Live dwellers in a vault whose parent_1 or parent_2 is one of the given ids."""
         query = (
             select(self.model)
-            .where(self.model.vault_id == vault_id)
-            .where(~self.model.is_deleted)
-            .where(~self.model.is_dead)
+            .where(*self._living_conditions(vault_id))
             .where(or_(self.model.parent_1_id.in_(parent_ids), self.model.parent_2_id.in_(parent_ids)))
         )
         if exclude_id is not None:
@@ -238,13 +269,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         self, db_session: AsyncSession, vault_id: UUID4, dweller_id: UUID4
     ) -> Sequence[Dweller]:
         """Live dwellers in a vault whose partner_id points at this dweller."""
-        query = (
-            select(self.model)
-            .where(self.model.vault_id == vault_id)
-            .where(~self.model.is_deleted)
-            .where(~self.model.is_dead)
-            .where(self.model.partner_id == dweller_id)
-        )
+        query = select(self.model).where(*self._living_conditions(vault_id)).where(self.model.partner_id == dweller_id)
         return list((await db_session.execute(query)).scalars().all())
 
     async def count_death_stats(self, db_session: AsyncSession, vault_ids: Sequence[UUID4]) -> tuple[int, int]:
@@ -289,7 +314,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         self, db_session: AsyncSession, vault_id: UUID4, *, min_level: int | None = None
     ) -> int:
         """Count living, non-deleted dwellers of a vault, optionally with a level floor."""
-        conditions = [self.model.vault_id == vault_id, ~self.model.is_deleted, ~self.model.is_dead]
+        conditions = self._living_conditions(vault_id)
         if min_level is not None:
             conditions.append(self.model.level >= min_level)
         result = await db_session.execute(select(func.count(self.model.id)).where(and_(*conditions)))
@@ -297,11 +322,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
     async def get_max_level(self, db_session: AsyncSession, vault_id: UUID4) -> int | None:
         """Highest level among a vault's non-deleted dwellers, or None when the vault has none."""
-        result = await db_session.execute(
-            select(func.max(self.model.level)).where(
-                self.model.vault_id == vault_id, ~self.model.is_deleted, ~self.model.is_dead
-            )
-        )
+        result = await db_session.execute(select(func.max(self.model.level)).where(*self._living_conditions(vault_id)))
         return result.scalar_one_or_none()
 
     async def count_alive_with_weapon_attack(self, db_session: AsyncSession, vault_id: UUID4, min_attack: int) -> int:
@@ -311,12 +332,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         query = (
             select(func.count(self.model.id))
             .join(Weapon, Weapon.dweller_id == self.model.id)
-            .where(
-                self.model.vault_id == vault_id,
-                ~self.model.is_deleted,
-                ~self.model.is_dead,
-                (Weapon.damage_min + Weapon.damage_max) >= 2 * min_attack,
-            )
+            .where(*self._living_conditions(vault_id), (Weapon.damage_min + Weapon.damage_max) >= 2 * min_attack)
         )
         return int((await db_session.execute(query)).scalar_one())
 
@@ -328,44 +344,27 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
         result = await db_session.execute(
             select(self.model)
-            .options(selectinload(self.model.outfit))
-            .where(self.model.vault_id == vault_id, ~self.model.is_deleted, ~self.model.is_dead)
+            .options(selectinload(self.model.outfit), selectinload(self.model.pet))
+            .where(*self._living_conditions(vault_id))
         )
         return sum(1 for dweller in result.scalars().all() if effective_stat(dweller, stat) >= min_value)
 
     async def count_living_in_vault(self, db_session: AsyncSession, vault_id: UUID4) -> int:
         """Count dwellers still alive in a vault (soft-deleted and dead excluded)."""
-        conditions = [
-            self.model.vault_id == vault_id,
-            ~self.model.is_deleted,
-            ~self.model.is_dead,
-        ]
-        result = await db_session.execute(select(func.count(self.model.id)).where(and_(*conditions)))
-        return result.scalar_one()
+        return await self.count_alive_in_vault(db_session, vault_id)
 
     async def get_pending_exit_requests(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
         """Living dwellers who have asked to leave and are still waiting."""
         query = (
             select(self.model)
-            .where(self.model.vault_id == vault_id)
+            .where(*self._living_conditions(vault_id))
             .where(self.model.exit_requested_at.is_not(None))
-            .where(~self.model.is_deleted)
-            .where(~self.model.is_dead)
         )
         return (await db_session.execute(query)).scalars().all()
 
-    async def get_despairing_without_exit_request(
-        self, db_session: AsyncSession, vault_id: UUID4, threshold: int
-    ) -> Sequence[Dweller]:
-        """Living dwellers at or below a happiness threshold who have not asked to leave."""
-        query = (
-            select(self.model)
-            .where(self.model.vault_id == vault_id)
-            .where(~self.model.is_deleted)
-            .where(~self.model.is_dead)
-            .where(self.model.exit_requested_at.is_(None))
-            .where(self.model.happiness <= threshold)
-        )
+    async def get_living_in_vault(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
+        """Every living (non-deleted, non-dead) dweller in a vault."""
+        query = select(self.model).where(*self._living_conditions(vault_id))
         return (await db_session.execute(query)).scalars().all()
 
     async def get_exit_requests_above_happiness(
@@ -374,18 +373,17 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         """Living dwellers who asked to leave but are no longer below the despair threshold."""
         query = (
             select(self.model)
-            .where(self.model.vault_id == vault_id)
+            .where(*self._living_conditions(vault_id))
             .where(self.model.exit_requested_at.is_not(None))
             .where(self.model.happiness > threshold)
-            .where(~self.model.is_deleted)
-            .where(~self.model.is_dead)
         )
         return (await db_session.execute(query)).scalars().all()
 
     async def count_room_names_by_type(self, db_session: AsyncSession, vault_id: UUID4) -> list[str]:
         """Room names of a vault (for callers that classify them by normalized type)."""
-        result = await db_session.execute(select(Room.name).where(Room.vault_id == vault_id))
-        return list(result.scalars().all())
+        from app.crud.room import room as room_crud
+
+        return await room_crud.get_names_by_vault(db_session, vault_id)
 
     async def count_in_room(self, db_session: AsyncSession, room_id: UUID4, *, include_apprentices: bool = True) -> int:
         """Count room occupants, optionally excluding the dedicated apprentice slot."""
@@ -401,12 +399,10 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         """Idle adults without a room, optionally narrowed to one age group."""
         query = (
             select(self.model)
-            .where(self.model.vault_id == vault_id)
+            .where(*self._living_conditions(vault_id))
             .where(self.model.status == DwellerStatusEnum.IDLE)
             .where(self.model.room_id.is_(None))
             .where(*adult_assignment_conditions())
-            .where(~self.model.is_deleted)
-            .where(~self.model.is_dead)
         )
         if age_group:
             query = query.where(self.model.age_group == age_group)
@@ -416,19 +412,21 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         """Idle non-adult dwellers without a room (apprentice candidates)."""
         query = (
             select(self.model)
-            .where(self.model.vault_id == vault_id)
+            .where(*self._living_conditions(vault_id))
             .where(self.model.status == DwellerStatusEnum.IDLE)
             .where(self.model.room_id.is_(None))
-            .where(~self.model.is_adult)
-            .where(~self.model.is_deleted)
-            .where(~self.model.is_dead)
+            .where(~self.model.age_group.in_(ADULT_AGE_GROUPS))
         )
         result = await db_session.execute(query)
         return list(result.scalars().all())
 
     async def get_all_in_vault(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
         """Every dweller row of a vault, no status/deleted filters (tick processing)."""
-        query = select(self.model).options(selectinload(self.model.outfit)).where(self.model.vault_id == vault_id)
+        query = (
+            select(self.model)
+            .options(selectinload(self.model.outfit), selectinload(self.model.pet))
+            .where(self.model.vault_id == vault_id)
+        )
         result = await db_session.execute(query)
         return result.scalars().all()
 
@@ -440,11 +438,9 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     async def get_active_apprentices(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
         """All active apprentices of a vault."""
         query = select(self.model).where(
-            self.model.vault_id == vault_id,
+            *self._living_conditions(vault_id),
             self.model.apprentice_stat.is_not(None),
             self.model.apprentice_started_at.is_not(None),
-            ~self.model.is_deleted,
-            ~self.model.is_dead,
         )
         return (await db_session.execute(query)).scalars().all()
 
@@ -473,12 +469,13 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         ]
 
     async def get_healthy_adults_in_room(self, db_session: AsyncSession, room_id: UUID4) -> Sequence[Dweller]:
-        """Adult dwellers with positive health in a room, weapon/outfit eager-loaded."""
+        """Adult dwellers with positive health in a room, weapon/outfit/pet eager-loaded."""
         query = (
             select(self.model)
             .options(
                 selectinload(self.model.weapon),
                 selectinload(self.model.outfit),
+                selectinload(self.model.pet),
             )
             .where(self.model.room_id == room_id, *self._healthy_adult_conditions())
         )
@@ -507,7 +504,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     def _arena_fighter_conditions(room_id: UUID4, *, require_alive: bool = True) -> list[Any]:
         conditions = [
             Dweller.room_id == room_id,
-            Dweller.is_adult,
             Dweller.age_group.in_(ADULT_AGE_GROUPS),
         ]
         if require_alive:
@@ -517,10 +513,14 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     async def get_arena_fighters(
         self, db_session: AsyncSession, room_id: UUID4, *, ids: Sequence[UUID4] | None = None
     ) -> Sequence[Dweller]:
-        """Adult, alive dwellers assigned to a room (arena fighters), weapon/outfit eager-loaded."""
+        """Adult, alive dwellers assigned to a room (arena fighters), weapon/outfit/pet eager-loaded."""
         query = (
             select(self.model)
-            .options(selectinload(self.model.weapon), selectinload(self.model.outfit))
+            .options(
+                selectinload(self.model.weapon),
+                selectinload(self.model.outfit),
+                selectinload(self.model.pet),
+            )
             .where(*self._arena_fighter_conditions(room_id))
         )
         if ids is not None:
@@ -529,7 +529,12 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
     async def get_arena_roster(self, db_session: AsyncSession, room_id: UUID4) -> Sequence[Dweller]:
         """Adult, alive dwellers assigned to a room, oldest first (arena roster)."""
-        query = select(self.model).where(*self._arena_fighter_conditions(room_id)).order_by(self.model.created_at)
+        query = (
+            select(self.model)
+            .options(selectinload(self.model.pet))
+            .where(*self._arena_fighter_conditions(room_id))
+            .order_by(self.model.created_at)
+        )
         return (await db_session.execute(query)).scalars().all()
 
     async def get_first_active_apprentice(self, db_session: AsyncSession, vault_id: UUID4) -> Dweller | None:
@@ -537,11 +542,9 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         query = (
             select(self.model)
             .where(
-                self.model.vault_id == vault_id,
+                *self._living_conditions(vault_id),
                 self.model.apprentice_stat.is_not(None),
                 self.model.apprentice_started_at.is_not(None),
-                ~self.model.is_deleted,
-                ~self.model.is_dead,
             )
             .order_by(self.model.apprentice_started_at)
         )
@@ -756,6 +759,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
                 selectinload(self.model.room),
                 selectinload(self.model.weapon),
                 selectinload(self.model.outfit),
+                selectinload(self.model.pet),
             )
             .where(self.model.id == dweller_id)
         )
@@ -812,7 +816,11 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             .where(self.model.vault_id == vault_id)
             .where(self.model.is_deleted)
             .order_by(self.model.deleted_at.desc())
-            .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit))
+            .options(
+                selectinload(Dweller.weapon),
+                selectinload(Dweller.outfit),
+                selectinload(Dweller.pet),
+            )
             .offset(skip)
             .limit(limit)
         )
@@ -837,7 +845,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         exclude_vault_id: UUID4 | None = None,
         limit: int | None = None,
     ) -> Sequence[Dweller]:
-        """Soft-deleted, non-dead dwellers, newest deletions first, weapon eager-loaded.
+        """Soft-deleted, non-dead dwellers, newest deletions first, weapon/outfit/pet eager-loaded.
 
         Optionally scoped to one vault (``vault_id``) or to every other vault
         (``exclude_vault_id``), optionally capped at ``limit``.
@@ -847,7 +855,11 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             .where(self.model.is_deleted)
             .where(~self.model.is_dead)
             .order_by(self.model.deleted_at.desc())
-            .options(selectinload(Dweller.weapon))
+            .options(
+                selectinload(Dweller.weapon),
+                selectinload(Dweller.outfit),
+                selectinload(Dweller.pet),
+            )
         )
         if vault_id is not None:
             query = query.where(self.model.vault_id == vault_id)

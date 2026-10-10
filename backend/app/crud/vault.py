@@ -3,6 +3,7 @@ from logging import getLogger
 
 from pydantic import UUID4
 from sqlalchemy import Row, and_, func
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -11,7 +12,7 @@ from app.models import Dweller, Room, Storage
 from app.models.game_state import GameState
 from app.models.vault import Vault
 from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultNumber, VaultUpdate
-from app.utils.exceptions import ValidationException
+from app.utils.exceptions import ResourceAlreadyExistsException, ResourceNotFoundException, ValidationException
 from app.utils.place_seed import get_seeded_vault_numbers
 
 logger = getLogger(__name__)
@@ -217,23 +218,89 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
     async def create_with_user_id(
         self, *, db_session: AsyncSession, obj_in: VaultCreate | VaultNumber | dict, user_id: UUID4
     ) -> Vault:
+        """Create a vault and claim its atlas slot in one transaction.
+
+        The vault is added and flushed (not committed); the slot claim inserts under
+        savepoints without committing; a single commit makes both durable or neither.
+        An allocation failure rolls the vault back, so a vault is never persisted
+        without a slot.
+        """
+        from app.crud.vault_slot import vault_slot as vault_slot_crud
+
         obj_data = obj_in.model_dump() if hasattr(obj_in, "model_dump") else obj_in
         obj_data["user_id"] = user_id
         obj_in = VaultCreateWithUserID(**obj_data)
         _validate_vault_number(obj_in.number)
-        return await super().create(db_session, obj_in)
+
+        vault = Vault.model_validate(obj_in)
+        try:
+            db_session.add(vault)
+            await db_session.flush()
+            await vault_slot_crud.claim_for_new_vault(db_session=db_session, vault_id=vault.id)
+        except IntegrityError as e:
+            await db_session.rollback()
+            raise ResourceAlreadyExistsException(self.model, vault.number, headers={"detail": str(e)}) from e
+        except Exception:
+            await db_session.rollback()
+            raise
+        await db_session.commit()
+        await db_session.refresh(vault)
+        return vault
 
     async def delete(self, db_session: AsyncSession, id: UUID4, soft: bool = True) -> Vault:
-        """Delete vault and its associated gamestate."""
+        """Delete vault and its associated gamestate.
+
+        On soft delete the vault's map slot is released in the same transaction,
+        so deleted vaults cannot exhaust slot capacity. Hard delete relies on the
+        slot's ``CASCADE`` and keeps the base-class path.
+        """
         # First, delete the associated gamestate if it exists
         result = await db_session.execute(select(GameState).where(GameState.vault_id == id))
         gamestate = result.scalar_one_or_none()
         if gamestate:
             await db_session.delete(gamestate)
-            await db_session.commit()
 
-        # Now delete the vault using the base class method with soft parameter
-        return await super().delete(db_session, id, soft=soft)
+        if not soft:
+            await db_session.commit()
+            return await super().delete(db_session, id, soft=False)
+
+        from app.crud.vault_slot import vault_slot as vault_slot_crud
+
+        response = await db_session.execute(select(Vault).where(Vault.id == id))
+        obj = response.scalar_one_or_none()
+        if not obj:
+            raise ResourceNotFoundException(self.model, identifier=id)
+
+        if hasattr(obj, "soft_delete"):
+            obj.soft_delete()
+            db_session.add(obj)
+        slot = await vault_slot_crud.get_by_vault(db_session, id)
+        if slot is not None:
+            await db_session.delete(slot)
+        await db_session.commit()
+        await db_session.refresh(obj)
+        return obj
+
+    async def restore(self, db_session: AsyncSession, id: UUID4) -> Vault:
+        """Restore a soft-deleted vault, claiming a fresh map slot first.
+
+        The claim happens before ``is_deleted`` is cleared and commits with it,
+        so a full atlas fails the restore instead of partially reviving the vault.
+        """
+        from app.crud.vault_slot import vault_slot as vault_slot_crud
+
+        obj = await self.get(db_session=db_session, id=id, include_deleted=True)
+
+        if not hasattr(obj, "restore"):
+            raise AttributeError(f"{self.model.__name__} does not support soft delete")
+
+        if obj.is_deleted:
+            await vault_slot_crud.claim_for_new_vault(db_session=db_session, vault_id=obj.id)
+        obj.restore()
+        db_session.add(obj)
+        await db_session.commit()
+        await db_session.refresh(obj)
+        return obj
 
 
 vault = CRUDVault(Vault)

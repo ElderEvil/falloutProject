@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.194.1 (2026-10-10)
+
+### Bug Fixes
+
+* **exploration:** unify party cards and improve map tracking and controls ([#937](https://github.com/ElderEvil/falloutProject/issues/937)) 5966427
+
 ## 2.194.0 (2026-10-10)
 
 ### Features

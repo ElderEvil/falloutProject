@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.193.0 (2026-10-10)
+
+### Features
+
+* **response-teams:** standing hazard teams, auto-dispatch, and roster UI ([#828](https://github.com/ElderEvil/falloutProject/issues/828)) 2705da9
+
 ## 2.192.1 (2026-10-10)
 
 ### Bug Fixes

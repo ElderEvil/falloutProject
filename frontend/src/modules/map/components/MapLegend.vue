@@ -49,6 +49,16 @@ function toggleCollapsed() {
 const mapStore = useMapStore()
 const hasUnseen = computed(() => mapStore.hasUnseenDiscoveries)
 
+// The active P3 site-type filter (same value the map/list receive): the chosen
+// archetype stays lit, the rest recede. Non-interactive — the legend never
+// drives the filter itself.
+withDefaults(
+  defineProps<{
+    siteTypeFilter?: string | null
+  }>(),
+  { siteTypeFilter: null }
+)
+
 // Site-type archetypes actually present on this map, in catalog order.
 const siteGroups = computed(() => {
   const present = new Set(mapStore.locations.map((loc) => loc.group_key).filter(Boolean))
@@ -99,7 +109,15 @@ const siteGroups = computed(() => {
 
       <template v-if="siteGroups.length">
         <div class="legend-title legend-title-spaced">SITE TYPES</div>
-        <div v-for="group in siteGroups" :key="group.key" class="legend-item">
+        <div
+          v-for="group in siteGroups"
+          :key="group.key"
+          class="legend-item legend-site-item"
+          :class="{
+            'legend-site-selected': siteTypeFilter === group.key,
+            'legend-site-dimmed': siteTypeFilter !== null && siteTypeFilter !== group.key,
+          }"
+        >
           <span class="legend-icon-wrapper">
             <Icon :icon="group.icon" class="legend-icon" />
           </span>
@@ -240,6 +258,22 @@ const siteGroups = computed(() => {
 .legend-vault .legend-icon {
   color: var(--color-warning);
   opacity: 0.85;
+}
+
+/* P3 site-type filter: keep the selected archetype lit and recede the rest so
+   the key mirrors the filtered map without becoming interactive. */
+.legend-site-dimmed {
+  opacity: 0.35;
+}
+
+.legend-site-selected .legend-icon-wrapper {
+  background: var(--color-theme-glow);
+  border-radius: 2px;
+  box-shadow: 0 0 5px var(--color-theme-glow);
+}
+
+.legend-site-selected .legend-label {
+  text-shadow: 0 0 5px var(--color-theme-glow);
 }
 
 .legend-unseen .legend-icon {

@@ -31,6 +31,7 @@ import { isKnownLocation } from '../utils/visibility'
 import { isMarkerVisible } from '../utils/declutter'
 import { clusterMarkers, type MarkerCluster } from '../utils/clusterMarkers'
 import { explorerHeading } from '../utils/explorerHeading'
+import { matchesSiteTypeFilter } from '../utils/siteFilter'
 
 interface Props {
   locations: WastelandLocationWithDwellers[]
@@ -41,6 +42,7 @@ interface Props {
   explorerTracks?: ExplorerTrack[]
   fogDisabled?: boolean
   groupColors?: boolean
+  siteTypeFilter?: string | null
   selectedMarkerId: string | null
 }
 
@@ -51,6 +53,7 @@ const props = withDefaults(defineProps<Props>(), {
   explorerTracks: () => [],
   fogDisabled: false,
   groupColors: false,
+  siteTypeFilter: null,
 })
 
 const emit = defineEmits<{
@@ -100,13 +103,20 @@ function isExploredLocation(loc: { coord_x: number; coord_y: number }): boolean 
   )
 }
 
-const visibleLocations = computed(() =>
-  props.fogDisabled
-    ? props.locations
-    : props.locations.filter(
+// P3 site-type filter: place markers only. The home vault is not an archetype
+// and always stays; vault signals, own-vault markers, expedition sites and
+// explorers render outside this list and are never filtered. Fog/declutter
+// downstream stay unchanged.
+const visibleLocations = computed(() => {
+  const filtered = props.locations.filter((loc) =>
+    matchesSiteTypeFilter(loc, props.siteTypeFilter)
+  )
+  return props.fogDisabled
+    ? filtered
+    : filtered.filter(
         (loc) => !(loc.type === 'visited' && loc.dwellers.length < 2) && isExploredLocation(loc)
       )
-)
+})
 
 function isExploredCoord(coord: { coord_x: number; coord_y: number }): boolean {
   return isExploredTile(
@@ -571,7 +581,7 @@ function handleTouchEnd(event: TouchEvent) {
       </div>
 
       <!-- Legend overlay -->
-      <MapLegend />
+      <MapLegend :site-type-filter="siteTypeFilter" />
     </div>
 
     <!-- Persistent desktop location index -->
@@ -581,6 +591,7 @@ function handleTouchEnd(event: TouchEvent) {
       :vault-markers="[]"
       :expedition-sites="expeditionSites"
       :place-groups="mapStore.placeGroups"
+      :site-type-filter="siteTypeFilter"
       :selected-marker-id="selectedMarkerId"
       @marker-select="onPanelMarkerSelect"
     />

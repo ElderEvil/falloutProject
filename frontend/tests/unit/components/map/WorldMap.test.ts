@@ -40,7 +40,14 @@ const MapMarkerStub = {
 
 const MarkerListPanelStub = {
   name: 'MarkerListPanel',
-  props: ['locations', 'vaultMarkers', 'expeditionSites', 'selectedMarkerId', 'docked'],
+  props: [
+    'locations',
+    'vaultMarkers',
+    'expeditionSites',
+    'siteTypeFilter',
+    'selectedMarkerId',
+    'docked',
+  ],
   emits: ['marker-select'],
   template: '<div class="marker-list-panel-stub" />',
 }
@@ -1308,6 +1315,128 @@ describe('WorldMap', () => {
         .find((m) => m.props('type') === 'home_vault')
       expect(homeMarker).toBeTruthy()
       expect(homeMarker!.props('name')).toBe('Vault 121')
+    })
+  })
+
+  describe('Site-type filter', () => {
+    function siteLocation(
+      id: string,
+      name: string,
+      group_key: string | null,
+      overrides: Partial<WastelandLocationWithDwellers> = {}
+    ): WastelandLocationWithDwellers {
+      return {
+        ...createLocations(1)[0],
+        id,
+        name,
+        type: 'discovery',
+        coord_x: 20,
+        coord_y: 20,
+        is_unlocked: true,
+        group_key,
+        dwellers: [],
+        ...overrides,
+      } as WastelandLocationWithDwellers
+    }
+
+    function markerNames(wrapper: VueWrapper) {
+      return wrapper.findAllComponents(MapMarkerStub).map((m) => m.props('name'))
+    }
+
+    it('renders only locations whose group matches the filter', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [
+            siteLocation('g1', 'Gas Stop', 'gas_station'),
+            siteLocation('m1', 'Army Base', 'military', { coord_x: 60, coord_y: 60 }),
+            siteLocation('g2', 'Second Gas Stop', 'gas_station', { coord_x: 100, coord_y: 100 }),
+          ],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          fogDisabled: true,
+          siteTypeFilter: 'gas_station',
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const names = markerNames(wrapper)
+      expect(names).toContain('Gas Stop')
+      expect(names).toContain('Second Gas Stop')
+      expect(names).not.toContain('Army Base')
+    })
+
+    it('shows every location when the filter is null', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [
+            siteLocation('g1', 'Gas Stop', 'gas_station'),
+            siteLocation('m1', 'Army Base', 'military', { coord_x: 60, coord_y: 60 }),
+          ],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          fogDisabled: true,
+          siteTypeFilter: null,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const names = markerNames(wrapper)
+      expect(names).toContain('Gas Stop')
+      expect(names).toContain('Army Base')
+    })
+
+    it('keeps the home vault and non-place marker families unfiltered', () => {
+      const home = siteLocation('h1', 'Vault 121', null, {
+        type: 'home_vault',
+        coord_x: 80,
+        coord_y: 80,
+      })
+      const track = makeExplorerTrack({
+        explorationId: 'expl-1',
+        dwellerName: 'Bob',
+        lastKnown: { coord_x: 42, coord_y: 43 },
+      })
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [
+            home,
+            siteLocation('g1', 'Gas Stop', 'gas_station'),
+            siteLocation('m1', 'Army Base', 'military'),
+          ],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          fogDisabled: true,
+          siteTypeFilter: 'gas_station',
+          expeditionSites: [createSite()],
+          explorerTracks: [track],
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const types = wrapper.findAllComponents(MapMarkerStub).map((m) => m.props('type'))
+      expect(types).toContain('home_vault')
+      expect(types).toContain('expedition_site')
+      expect(types).toContain('explorer')
+      expect(markerNames(wrapper)).toContain('Gas Stop')
+      expect(markerNames(wrapper)).not.toContain('Army Base')
+    })
+
+    it('forwards the filter to the marker list panel and the legend', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [siteLocation('g1', 'Gas Stop', 'gas_station')],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          fogDisabled: true,
+          siteTypeFilter: 'gas_station',
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.findComponent(MarkerListPanelStub).props('siteTypeFilter')).toBe('gas_station')
+      expect(wrapper.findComponent({ name: 'MapLegend' }).props('siteTypeFilter')).toBe(
+        'gas_station'
+      )
     })
   })
 

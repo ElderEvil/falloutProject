@@ -30,6 +30,7 @@ import { useMapStore } from '../stores/map'
 import { isKnownLocation } from '../utils/visibility'
 import { isMarkerVisible } from '../utils/declutter'
 import { clusterMarkers, type MarkerCluster } from '../utils/clusterMarkers'
+import { buildRoutesByExploration } from '../utils/explorerTracks'
 import { explorerHeading } from '../utils/explorerHeading'
 import { matchesSiteTypeFilter } from '../utils/siteFilter'
 
@@ -94,11 +95,11 @@ const exploredMask = computed(() =>
   )
 )
 
-function isExploredLocation(loc: { coord_x: number; coord_y: number }): boolean {
+function isExploredCoord(coord: { coord_x: number; coord_y: number }): boolean {
   return isExploredTile(
     exploredMask.value,
-    registryToTile(loc.coord_x, gridTiles.value),
-    registryToTile(loc.coord_y, gridTiles.value),
+    registryToTile(coord.coord_x, gridTiles.value),
+    registryToTile(coord.coord_y, gridTiles.value),
     gridTiles.value
   )
 }
@@ -114,18 +115,9 @@ const visibleLocations = computed(() => {
   return props.fogDisabled
     ? filtered
     : filtered.filter(
-        (loc) => !(loc.type === 'visited' && loc.dwellers.length < 2) && isExploredLocation(loc)
+        (loc) => !(loc.type === 'visited' && loc.dwellers.length < 2) && isExploredCoord(loc)
       )
 })
-
-function isExploredCoord(coord: { coord_x: number; coord_y: number }): boolean {
-  return isExploredTile(
-    exploredMask.value,
-    registryToTile(coord.coord_x, gridTiles.value),
-    registryToTile(coord.coord_y, gridTiles.value),
-    gridTiles.value
-  )
-}
 
 // Only the player's own vaults render with identity; every other vault — other
 // players' and the seeded NPC signals — is an anonymous hint, and only where the
@@ -192,9 +184,7 @@ const freeRoamTracks = computed(() =>
 // usable outbound trail, otherwise the bearing back home. Tracks with neither
 // keep the bare thumbnail/marker (no chevron).
 const freeRoamChevrons = computed(() => {
-  const routesByExploration = new Map(
-    props.discoveryRoutes.map((route) => [route.exploration_id, route])
-  )
+  const routesByExploration = buildRoutesByExploration(props.discoveryRoutes)
   const home = { coord_x: homeCoords.value[0], coord_y: homeCoords.value[1] }
   return freeRoamTracks.value.flatMap((track) => {
     const heading = explorerHeading(track, routesByExploration.get(track.explorationId), home)
@@ -247,7 +237,7 @@ function onOwnVaultClick(vault: PlayerVaultMarkerRead): void {
 }
 
 const groupIconByKey = computed(
-  () => new Map(mapStore.placeGroups.map((group) => [group.key, group.icon]))
+  () => new Map([...mapStore.placeGroupByKey].map(([key, group]) => [key, group.icon]))
 )
 
 const { spreadMap, getSpread } = useMapSpread(visibleLocations, vaultMarkers)

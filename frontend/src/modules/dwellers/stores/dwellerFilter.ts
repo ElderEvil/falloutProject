@@ -95,23 +95,17 @@ export type DwellerSortBy = (typeof DWELLER_SORT_KEYS)[number]
 export const SORT_DIRECTIONS = ['asc', 'desc'] as const
 export type SortDirection = (typeof SORT_DIRECTIONS)[number]
 
-export const isDwellerStatus = (value: unknown): value is DwellerStatus =>
-  typeof value === 'string' && (DWELLER_STATUSES as readonly string[]).includes(value)
+function isOneOf<T extends string>(values: readonly T[]): (value: unknown) => value is T {
+  return (value: unknown): value is T =>
+    typeof value === 'string' && (values as readonly string[]).includes(value)
+}
 
-export const isDwellerAgeGroup = (value: unknown): value is DwellerAgeGroup =>
-  typeof value === 'string' && (DWELLER_AGE_GROUPS as readonly string[]).includes(value)
-
-export const isDwellerGender = (value: unknown): value is string =>
-  typeof value === 'string' && Object.keys(GENDER_CONFIG_MAP).includes(value)
-
-export const isDwellerRarity = (value: unknown): value is string =>
-  typeof value === 'string' && Object.keys(RARITY_CONFIG_MAP).includes(value)
-
-export const isDwellerSortBy = (value: unknown): value is DwellerSortBy =>
-  typeof value === 'string' && (DWELLER_SORT_KEYS as readonly string[]).includes(value)
-
-export const isSortDirection = (value: unknown): value is SortDirection =>
-  typeof value === 'string' && (SORT_DIRECTIONS as readonly string[]).includes(value)
+export const isDwellerStatus = isOneOf(DWELLER_STATUSES)
+export const isDwellerAgeGroup = isOneOf(DWELLER_AGE_GROUPS)
+export const isDwellerGender = isOneOf(Object.keys(GENDER_CONFIG_MAP))
+export const isDwellerRarity = isOneOf(Object.keys(RARITY_CONFIG_MAP))
+export const isDwellerSortBy = isOneOf(DWELLER_SORT_KEYS)
+export const isSortDirection = isOneOf(SORT_DIRECTIONS)
 
 /**
  * Roster ordering, shared by the store and the unassigned panel. The second copy that
@@ -138,6 +132,15 @@ export function matchesAgeGroup(dweller: DwellerShort, ageGroup: DwellerAgeGroup
   return ageGroup === 'all' || dweller.age_group === ageGroup
 }
 export type DwellerViewMode = 'list' | 'grid' | 'table'
+/** Every facet a chip preview can narrow by; the counted facet is excluded by callers. */
+type FacetFilters = {
+  status: DwellerStatus | 'all'
+  ageGroup: DwellerAgeGroup
+  gender: string
+  rarity: string
+  race: string
+  faction: string
+}
 type DwellerFetchOptions = {
   status?: DwellerStatus | 'all'
   ageGroup?: DwellerAgeGroup
@@ -306,132 +309,73 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   })
 
   /**
-   * Count every status under the given non-status filters, from the unfiltered
-   * allDwellers collection. The backend-narrowed `dwellers` list would only ever
-   * report the currently selected status, so a chip could not preview its own result.
+   * Shared facet-count loop behind the chip previews. Filters the unfiltered
+   * allDwellers collection by every facet save the one being counted (callers
+   * pass 'all' for it) and buckets each match via `bucket` — including the
+   * 'unknown' fallback keys both originals injected.
    */
-  function countByStatus(filters: {
-    ageGroup: DwellerAgeGroup
-    gender: string
-    rarity: string
-    race: string
-    faction: string
-  }): DwellerStatusCounts {
-    const byStatus = Object.fromEntries(DWELLER_STATUSES.map((status) => [status, 0])) as Record<
-      DwellerStatus,
-      number
-    >
+  function countBy<B extends string>(
+    filters: FacetFilters,
+    keys: readonly B[],
+    bucket: (dweller: DwellerShort) => B
+  ): { all: number; by: Record<B, number> } {
+    const by = Object.fromEntries(keys.map((key) => [key, 0])) as Record<B, number>
     const factionActive = featureFlags.factionMechanics && filters.faction !== 'all'
     let all = 0
 
     for (const dweller of allDwellers.value) {
+      if (filters.status !== 'all' && dweller.status !== filters.status) continue
       if (!matchesAgeGroup(dweller, filters.ageGroup)) continue
       if (filters.gender !== 'all' && dweller.gender !== filters.gender) continue
       if (filters.rarity !== 'all' && dweller.rarity !== filters.rarity) continue
       if (filters.race !== 'all' && dweller.visual_attributes?.race !== filters.race) continue
       if (factionActive && dweller.visual_attributes?.faction !== filters.faction) continue
 
-      const status = isDwellerStatus(dweller.status) ? dweller.status : 'idle'
-      byStatus[status] += 1
+      const key = bucket(dweller)
+      by[key] = (by[key] ?? 0) + 1
       all += 1
     }
 
+    return { all, by }
+  }
+
+  /** Count every status under the given non-status filters. */
+  function countByStatus(filters: Omit<FacetFilters, 'status'>): DwellerStatusCounts {
+    const { all, by: byStatus } = countBy(
+      { ...filters, status: 'all' },
+      DWELLER_STATUSES,
+      (dweller) => (isDwellerStatus(dweller.status) ? dweller.status : 'idle')
+    )
     return { all, byStatus }
   }
 
-  /**
-   * Count every gender under the given non-gender filters, from the unfiltered
-   * allDwellers collection. Mirrors countByStatus so a chip previews its own result.
-   */
-  function countByGender(filters: {
-    status: DwellerStatus | 'all'
-    ageGroup: DwellerAgeGroup
-    rarity: string
-    race: string
-    faction: string
-  }): DwellerGenderCounts {
-    const byGender: Record<string, number> = Object.fromEntries(
-      Object.keys(GENDER_CONFIG_MAP).map((gender) => [gender, 0])
+  /** Count every gender under the given non-gender filters. */
+  function countByGender(filters: Omit<FacetFilters, 'gender'>): DwellerGenderCounts {
+    const { all, by: byGender } = countBy(
+      { ...filters, gender: 'all' },
+      Object.keys(GENDER_CONFIG_MAP),
+      (dweller) => dweller.gender ?? 'unknown'
     )
-    const factionActive = featureFlags.factionMechanics && filters.faction !== 'all'
-    let all = 0
-
-    for (const dweller of allDwellers.value) {
-      if (filters.status !== 'all' && dweller.status !== filters.status) continue
-      if (!matchesAgeGroup(dweller, filters.ageGroup)) continue
-      if (filters.rarity !== 'all' && dweller.rarity !== filters.rarity) continue
-      if (filters.race !== 'all' && dweller.visual_attributes?.race !== filters.race) continue
-      if (factionActive && dweller.visual_attributes?.faction !== filters.faction) continue
-
-      const gender = dweller.gender ?? 'unknown'
-      byGender[gender] = (byGender[gender] ?? 0) + 1
-      all += 1
-    }
-
     return { all, byGender }
   }
 
-  /**
-   * Count every rarity under the given non-rarity filters, from the unfiltered
-   * allDwellers collection. Mirrors countByStatus so a chip previews its own result.
-   */
-  function countByRarity(filters: {
-    status: DwellerStatus | 'all'
-    ageGroup: DwellerAgeGroup
-    gender: string
-    race: string
-    faction: string
-  }): DwellerRarityCounts {
-    const byRarity: Record<string, number> = Object.fromEntries(
-      Object.keys(RARITY_CONFIG_MAP).map((rarity) => [rarity, 0])
+  /** Count every rarity under the given non-rarity filters. */
+  function countByRarity(filters: Omit<FacetFilters, 'rarity'>): DwellerRarityCounts {
+    const { all, by: byRarity } = countBy(
+      { ...filters, rarity: 'all' },
+      Object.keys(RARITY_CONFIG_MAP),
+      (dweller) => dweller.rarity ?? 'unknown'
     )
-    const factionActive = featureFlags.factionMechanics && filters.faction !== 'all'
-    let all = 0
-
-    for (const dweller of allDwellers.value) {
-      if (filters.status !== 'all' && dweller.status !== filters.status) continue
-      if (!matchesAgeGroup(dweller, filters.ageGroup)) continue
-      if (filters.gender !== 'all' && dweller.gender !== filters.gender) continue
-      if (filters.race !== 'all' && dweller.visual_attributes?.race !== filters.race) continue
-      if (factionActive && dweller.visual_attributes?.faction !== filters.faction) continue
-
-      const rarity = dweller.rarity ?? 'unknown'
-      byRarity[rarity] = (byRarity[rarity] ?? 0) + 1
-      all += 1
-    }
-
     return { all, byRarity }
   }
 
-  /**
-   * Count every race under the given non-race filters, from the unfiltered
-   * allDwellers collection. Mirrors countByStatus so a chip previews its own result.
-   */
-  function countByRace(filters: {
-    status: DwellerStatus | 'all'
-    ageGroup: DwellerAgeGroup
-    gender: string
-    rarity: string
-    faction: string
-  }): DwellerRaceCounts {
-    const byRace: Record<string, number> = Object.fromEntries(
-      Object.keys(RACE_CONFIG_MAP).map((race) => [race, 0])
+  /** Count every race under the given non-race filters. */
+  function countByRace(filters: Omit<FacetFilters, 'race'>): DwellerRaceCounts {
+    const { all, by: byRace } = countBy(
+      { ...filters, race: 'all' },
+      Object.keys(RACE_CONFIG_MAP),
+      (dweller) => dweller.visual_attributes?.race ?? 'unknown'
     )
-    const factionActive = featureFlags.factionMechanics && filters.faction !== 'all'
-    let all = 0
-
-    for (const dweller of allDwellers.value) {
-      if (filters.status !== 'all' && dweller.status !== filters.status) continue
-      if (!matchesAgeGroup(dweller, filters.ageGroup)) continue
-      if (filters.gender !== 'all' && dweller.gender !== filters.gender) continue
-      if (filters.rarity !== 'all' && dweller.rarity !== filters.rarity) continue
-      if (factionActive && dweller.visual_attributes?.faction !== filters.faction) continue
-
-      const race = dweller.visual_attributes?.race ?? 'unknown'
-      byRace[race] = (byRace[race] ?? 0) + 1
-      all += 1
-    }
-
     return { all, byRace }
   }
 

@@ -5,7 +5,13 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
 import { Icon } from '@iconify/vue'
 import type { components } from '@/core/types/api.generated'
-import { GENDER_CONFIG_MAP, getDwellerDisplayName, type DwellerShort } from '../models/dweller'
+import { getRarityColor } from '@/core/models/items'
+import {
+  GENDER_CONFIG_MAP,
+  getDwellerDisplayName,
+  isUnassignable,
+  type DwellerShort,
+} from '../models/dweller'
 import DwellerAgeBadge from './DwellerAgeBadge.vue'
 import DwellerGenderBadge from './DwellerGenderBadge.vue'
 import DwellerRarityBadge from './DwellerRarityBadge.vue'
@@ -27,26 +33,17 @@ const toast = useToast()
 const filterRarity = ref<RarityFilter>('all')
 const filterGender = ref<GenderFilter>('all')
 
-const RARITY_ACCENT: Record<string, string> = {
-  common: 'var(--color-rarity-common)',
-  rare: 'var(--color-rarity-rare)',
-  legendary: 'var(--color-rarity-legendary)',
-}
-
 const RARITY_FILTERS: { value: RarityFilter; label: string; icon: string; accent?: string }[] = [
   { value: 'all', label: 'All', icon: 'mdi:star-circle-outline' },
-  { value: 'common', label: 'Common', icon: 'mdi:star-outline', accent: RARITY_ACCENT.common },
-  { value: 'rare', label: 'Rare', icon: 'mdi:star', accent: RARITY_ACCENT.rare },
+  { value: 'common', label: 'Common', icon: 'mdi:star-outline', accent: getRarityColor('common') },
+  { value: 'rare', label: 'Rare', icon: 'mdi:star', accent: getRarityColor('rare') },
   {
     value: 'legendary',
     label: 'Legendary',
     icon: 'mdi:star-four-points',
-    accent: RARITY_ACCENT.legendary,
+    accent: getRarityColor('legendary'),
   },
 ]
-
-const rarityColor = (rarity?: string | null): string =>
-  RARITY_ACCENT[String(rarity ?? '').toLowerCase()] ?? 'var(--color-rarity-common)'
 
 const GENDER_FILTERS: { value: GenderFilter; label: string; icon: string; accent?: string }[] = [
   { value: 'all', label: 'All', icon: 'mdi:account-multiple' },
@@ -57,11 +54,6 @@ const GENDER_FILTERS: { value: GenderFilter; label: string; icon: string; accent
     accent: config.color,
   })),
 ]
-
-// Must not have a room assignment, and must not be out of the vault
-// (exploring or on a quest) or dead.
-const isUnassignable = (dweller: DwellerShort): boolean =>
-  !dweller.room_id && !['dead', 'questing', 'exploring'].includes(dweller.status)
 
 const hasAnyUnassigned = computed(() => dwellerStore.dwellersWithStatus.some(isUnassignable))
 
@@ -227,7 +219,7 @@ const handleDropZoneDrop = async (event: DragEvent) => {
           @dragend="handleDragEnd"
         >
           <div class="dweller-top">
-            <div class="dweller-avatar" :style="{ '--rarity-ring': rarityColor(dweller.rarity) }">
+            <div class="dweller-avatar" :style="{ '--rarity-ring': getRarityColor(dweller.rarity) }">
               <DwellerPortrait
                 :thumbnail-url="dweller.thumbnail_url"
                 :alt="getDwellerDisplayName(dweller)"

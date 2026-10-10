@@ -10,7 +10,6 @@ from app import crud
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403, verify_exploration_access
 from app.db.session import get_async_session
 from app.models.exploration import Exploration
-from app.models.team import TeamMember
 from app.schemas.expedition import (
     AvailableSiteView,
     ExpeditionEnterRequest,
@@ -32,28 +31,9 @@ from app.schemas.overflow import OverflowActionRequest, OverflowActionResponse
 from app.services.exploration.expedition import expedition_service
 from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
-from app.utils.exceptions import ResourceNotFoundException, ValidationException
+from app.utils.exceptions import ValidationException
 
 router = APIRouter(prefix="/explorations", tags=["Exploration"])
-
-
-def _to_exploration_party_member_read(
-    member: TeamMember, exploration_id: UUID4, vault_id: UUID4
-) -> ExplorationPartyMemberRead:
-    """Map a dispatch team member into the exploration wire contract (exploration/vault come from the run)."""
-    slot_number = member.slot_number
-    if slot_number is None:
-        raise ValidationException("Exploration team member is missing a slot number")
-    return ExplorationPartyMemberRead(
-        id=member.id,
-        exploration_id=exploration_id,
-        vault_id=vault_id,
-        dweller_id=member.dweller_id,
-        slot_number=slot_number,
-        status=member.status,
-        created_at=member.created_at.isoformat() if member.created_at else None,
-        updated_at=member.updated_at.isoformat() if member.updated_at else None,
-    )
 
 
 @router.post("/send", response_model=ExplorationRead)
@@ -163,11 +143,7 @@ async def get_exploration_party(
         ResourceNotFoundException: If the exploration is unknown or belongs to another vault.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    exploration = await crud.exploration.get(db_session, exploration_id)
-    if exploration.vault_id != vault_id:
-        raise ResourceNotFoundException(Exploration, identifier=exploration_id)
-    members = await crud.team_crud.get_exploration_team_members(db_session, exploration_id)
-    return [_to_exploration_party_member_read(member, exploration_id, vault_id) for member in members]
+    return await exploration_service.get_party(db_session, vault_id, exploration_id)
 
 
 @router.get("/vault/{vault_id}/pending-overflow", response_model=list[PendingOverflowRead])

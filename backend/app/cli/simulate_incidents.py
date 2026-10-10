@@ -35,7 +35,6 @@ from app.cli.simulate_common import (
     banner,
     fmt_stats,
     print_hourly_curves,
-    run_simulate_command,
 )
 from app.cli.simulate_common import (
     print_sweep_report as shared_print_sweep_report,
@@ -225,9 +224,10 @@ class IncidentSimulator:
 
         roster = [
             SimDefender(profile=profile, health=profile.max_health)
-            for profile in (base_roster or self._build_synthetic_roster())
+            for profile in (base_roster if base_roster is not None else self._build_synthetic_roster())
         ]
-        vault = VaultState(population=len(roster), adults=len(roster), children=0, roster=roster)
+        population = len(roster) if base_roster is not None else max(self.cfg.starting_dwellers, len(roster))
+        vault = VaultState(population=population, adults=len(roster), children=population - len(roster), roster=roster)
         last_spawn_time = -self.cfg.spawn_cooldown_seconds
         max_concurrent = 0
         resolution_times: list[int] = []
@@ -452,7 +452,7 @@ def run_monte_carlo(
     incidents_by_type: dict[IncidentType, list[int]] = {t: [] for t in INCIDENT_TYPES}
 
     for i in range(runs):
-        run_seed = (seed if seed is not None else 0) + i
+        run_seed = seed + i if seed is not None else None
         roster = roster_loader() if roster_loader is not None else base_roster
         result = sim.run(simulation_hours, seed=run_seed, base_roster=roster)
         ag.collect(result)
@@ -515,14 +515,21 @@ def run_parameter_sweep(
     runs: int,
     base_roster: list[DefenderProfile] | None = None,
     roster_loader: Callable[[], list[DefenderProfile]] | None = None,
+    seed: int | None = None,
 ) -> list[BatchResult]:
+    def run_batch(config: IncidentConfig, hours: int, count: int) -> BatchResult:
+        if param_name == "starting_dwellers" and base_roster is None and roster_loader is None:
+            ratio = baseline.starting_adults / max(1, baseline.starting_dwellers)
+            config = dataclasses.replace(config, starting_adults=int(config.starting_dwellers * ratio))
+        return run_monte_carlo(config, hours, count, seed=seed, base_roster=base_roster, roster_loader=roster_loader)
+
     return shared_run_parameter_sweep(
         param_name,
         baseline,
         simulation_hours,
         runs,
         sweep_ranges=SWEEP_RANGES,
-        run_monte_carlo=partial(run_monte_carlo, base_roster=base_roster, roster_loader=roster_loader),
+        run_monte_carlo=run_batch,
     )
 
 
@@ -741,7 +748,7 @@ def simulate(
             typer.echo(f"Unknown parameter '{sweep}'. Available: {list(SWEEP_RANGES.keys())}", err=True)
             raise typer.Exit(code=1)
         results = run_parameter_sweep(
-            sweep, baseline, hours, runs, base_roster=base_roster, roster_loader=roster_loader
+            sweep, baseline, hours, runs, base_roster=base_roster, roster_loader=roster_loader, seed=seed
         )
         for r in results:
             print_report(r, detailed=detailed)

@@ -463,7 +463,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         """Shared WHERE-conditions for a healthy adult: alive, grown-up, not soft-deleted."""
         return [
             Dweller.health > 0,
-            Dweller.is_adult,
+            ~Dweller.is_dead,
             Dweller.age_group.in_(ADULT_AGE_GROUPS),
             ~Dweller.is_deleted,
         ]

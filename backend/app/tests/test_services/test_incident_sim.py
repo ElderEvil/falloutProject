@@ -57,8 +57,8 @@ def test_kernel_matches_incident_math_fire():
     power = 1000.0
     outcome = resolve_incident(IncidentType.FIRE, difficulty, [_defender(power)], dt=dt)
 
-    dmg = incident_math.fire_damage(threat, dt)
-    expected_progress = incident_math.fire_suppression(power, threat, dt)
+    dmg = incident_math.containment_damage(threat, dt)
+    expected_progress = incident_math.containment_progress(power, threat, dt)
 
     assert outcome.resolved
     assert outcome.ticks == 1
@@ -202,3 +202,11 @@ async def test_snapshot_vault_defenders_only_healthy_adults(async_session: Async
     assert profiles[0].max_health == adult.effective_max_health
     loaded = await crud.dweller.get(async_session, adult.id)
     assert profiles[0].power == pytest.approx(combat_power(loaded))
+
+
+def test_defended_fight_continues_past_no_responder_deadline():
+    defender = _defender(1, health=10000)
+    outcome = resolve_incident(IncidentType.RAIDER_ATTACK, 2, [defender], dt=2, duration=2)
+    assert outcome.resolved
+    assert not outcome.failed
+    assert outcome.ticks > 1

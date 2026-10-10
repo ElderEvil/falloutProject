@@ -68,3 +68,13 @@ def test_cli_runs_and_prints_report():
     assert result.exit_code == 0, result.output
     assert "Incident Simulation" in result.output
     assert "Balance assessment" in result.output
+
+
+def test_empty_real_roster_stays_empty():
+    result = IncidentSimulator(IncidentConfig(spawn_chance_per_hour=0)).run(1, seed=7, base_roster=[])
+    assert result.population_by_hour == [0]
+
+
+def test_population_sweep_changes_actual_starting_population():
+    results = sim_cli.run_parameter_sweep("starting_dwellers", IncidentConfig(spawn_chance_per_hour=0), 1, 1)
+    assert [result["pop_curve"][0] for result in results] == sim_cli.SWEEP_RANGES["starting_dwellers"]

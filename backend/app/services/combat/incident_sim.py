@@ -15,7 +15,7 @@ only; there is no team ledger, no outfit auto-equip, and no RAD gain.
 from dataclasses import dataclass
 
 from app.core.enums import DamageChannel
-from app.models.incident import IncidentType, effects_for_incident_type
+from app.models.incident import IncidentObjective, IncidentType, effects_for_incident_type, get_incident_definition
 from app.services.combat import incident_math
 from app.utils.damage_reductions import DamageReductions
 
@@ -83,13 +83,17 @@ def resolve_incident(
     elapsed = 0
     ticks = 0
 
-    while elapsed < effective_duration:
+    if dt <= 0:
+        raise ValueError("incident_dt must be positive")
+    while True:
         living = [defender for defender in responders if defender.health > 0]
+        if not living and elapsed >= effective_duration:
+            break
         power = sum(defender.profile.power for defender in living)
 
-        if channel is DamageChannel.FIRE:
-            dmg = incident_math.fire_damage(threat, dt)
-            progress += incident_math.fire_suppression(power, threat, dt)
+        if get_incident_definition(incident_type).objective == IncidentObjective.CONTAIN:
+            dmg = incident_math.containment_damage(threat, dt)
+            progress += incident_math.containment_progress(power, threat, dt)
             won = progress >= 1
         else:
             dmg = incident_math.damage_to_dwellers(threat, dt)

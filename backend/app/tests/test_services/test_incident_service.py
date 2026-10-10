@@ -1035,6 +1035,7 @@ class TestProcessVaultIncidents:
             patch("app.services.combat.incident_tick.incident_crud") as mock_crud,
         ):
             mock_crud.get_active_by_vault = AsyncMock(return_value=[])
+            mock_crud.get_pending_responder_returns = AsyncMock(return_value=[])
             result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
         assert result["spawned"] == 1
         assert result["active_count"] == 0
@@ -1049,6 +1050,7 @@ class TestProcessVaultIncidents:
             patch("app.services.combat.incident_tick.incident_crud") as mock_crud,
         ):
             mock_crud.get_active_by_vault = AsyncMock(return_value=[MagicMock()])
+            mock_crud.get_pending_responder_returns = AsyncMock(return_value=[])
             result = await incident_service.process_vault_incidents(async_session, vault.id, 2, game_state)
 
         assert result["active_count"] == 1
@@ -1064,6 +1066,7 @@ class TestProcessVaultIncidents:
             patch("app.services.combat.incident_tick.incident_crud") as mock_crud,
         ):
             mock_crud.get_active_by_vault = AsyncMock(return_value=[MagicMock()])
+            mock_crud.get_pending_responder_returns = AsyncMock(return_value=[])
             result = await incident_service.process_vault_incidents(async_session, vault.id, 2, game_state)
 
         assert result["active_count"] == 1
@@ -1084,6 +1087,7 @@ class TestProcessVaultIncidents:
             patch("app.services.combat.incident_tick.incident_crud") as mock_crud,
         ):
             mock_crud.get_active_by_vault = AsyncMock(return_value=[MagicMock()])
+            mock_crud.get_pending_responder_returns = AsyncMock(return_value=[])
             result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
 
         assert result["active_count"] == 1
@@ -1109,6 +1113,7 @@ class TestProcessVaultIncidents:
             patch.object(async_session, "refresh", new_callable=AsyncMock),
         ):
             mock_crud.get_active_by_vault = AsyncMock(return_value=[mock_incident])
+            mock_crud.get_pending_responder_returns = AsyncMock(return_value=[])
             mock_vault_crud.get = AsyncMock(return_value=vault)
             result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
         assert result["active_count"] == 1
@@ -1132,6 +1137,7 @@ class TestProcessVaultIncidents:
             patch.object(async_session, "refresh", new_callable=AsyncMock),
         ):
             mock_crud.get_active_by_vault = AsyncMock(return_value=[mock_incident])
+            mock_crud.get_pending_responder_returns = AsyncMock(return_value=[])
             result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
         assert result["active_count"] == 1
         assert result["processed"] == 0
@@ -1165,6 +1171,7 @@ class TestProcessVaultIncidents:
             patch.object(async_session, "refresh", new_callable=AsyncMock),
         ):
             mock_crud.get_active_by_vault = AsyncMock(return_value=[inc1, inc2])
+            mock_crud.get_pending_responder_returns = AsyncMock(return_value=[])
             result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
         assert result["active_count"] == 2
         # The first incident raised, but processing must continue to the second.
@@ -1303,6 +1310,7 @@ async def test_failed_incident_rolls_back_before_the_next_one(async_session: Asy
         patch.object(async_session, "rollback", new=AsyncMock(wraps=async_session.rollback)) as rollback_spy,
     ):
         mock_crud.get_active_by_vault = AsyncMock(return_value=[MagicMock()])
+        mock_crud.get_pending_responder_returns = AsyncMock(return_value=[])
         result = await incident_service.process_vault_incidents(async_session, vault_id, 2)
 
     assert result["active_count"] == 1

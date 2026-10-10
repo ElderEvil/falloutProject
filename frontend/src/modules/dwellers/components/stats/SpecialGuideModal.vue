@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import { SPECIAL_BARS_GUIDE, SPECIAL_GUIDE } from '../../models/specialGuide'
 
 defineProps<{
@@ -14,17 +14,14 @@ const close = () => emit('update:modelValue', false)
 </script>
 
 <template>
-  <Dialog :open="modelValue" @update:open="(open) => { if (!open) close() }">
-    <DialogContent
-      class="flex max-h-[65vh] w-full max-w-md flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-md"
-    >
-      <DialogHeader
-        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
-      >
-        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">S.P.E.C.I.A.L. Field Guide</DialogTitle>
-      </DialogHeader>
-
-      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+  <TerminalModal
+    :open="modelValue"
+    title="S.P.E.C.I.A.L. Field Guide"
+    size="md"
+    max-height="65"
+    @close="close"
+  >
+    <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
     <div class="guide-list">
       <div v-for="entry in SPECIAL_GUIDE" :key="entry.letter" class="guide-entry">
         <div class="guide-header">
@@ -40,9 +37,8 @@ const close = () => emit('update:modelValue', false)
       </div>
     </div>
     <p class="guide-bars">{{ SPECIAL_BARS_GUIDE }}</p>
-      </div>
-    </DialogContent>
-  </Dialog>
+    </div>
+  </TerminalModal>
 </template>
 
 <style scoped>

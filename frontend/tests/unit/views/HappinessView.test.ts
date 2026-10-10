@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createRouterMock, createToastMock } from '../helpers/mocks'
 import { flushPromises } from '@vue/test-utils'
 import { mountWithSetup } from '../helpers/mountWithSetup'
 import HappinessView from '@/modules/vault/views/HappinessView.vue'
@@ -6,17 +7,15 @@ import axios from '@/core/plugins/axios'
 
 vi.mock('@/core/plugins/axios')
 
-vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: { id: 'vault-1' } }),
-  useRouter: () => ({ push: vi.fn() }),
-}))
+vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' } }))
 
 vi.mock('@/core/composables/useSidePanel', () => ({
   useSidePanel: () => ({ isCollapsed: { value: false } }),
 }))
 
+const mockToast = createToastMock()
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }),
+  useToast: () => mockToast,
 }))
 
 // The auth store auto-fetches the user when a token exists; resolve it so the

@@ -15,6 +15,7 @@ import ActiveExplorationList from '@/modules/exploration/components/ActiveExplor
 import ExplorationDurationModal from '@/modules/exploration/components/ExplorationDurationModal.vue'
 import ExplorationRewardsModal from '@/modules/exploration/components/ExplorationRewardsModal.vue'
 import { useSendToWasteland } from '@/modules/exploration/composables/useSendToWasteland'
+import { formatHeading } from '@/modules/map/utils/bearing'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -218,8 +219,18 @@ const detailedDwellerMap = computed(
       :allow-radaway="
         canUseRadaway(getDwellerById(sendWasteland.pendingDweller.value?.dwellerId ?? ''))
       "
+      :heading="
+        sendWasteland.headingDegrees.value !== null
+          ? formatHeading(sendWasteland.headingDegrees.value)
+          : null
+      "
+      :heading-degrees="sendWasteland.headingDegrees.value"
+      :can-reroll="true"
+      :is-suggesting-heading="sendWasteland.isSuggestingHeading.value"
       @confirm="handleSendWastelandConfirm"
       @cancel="sendWasteland.cancel"
+      @reroll="sendWasteland.reroll"
+      @select-heading="sendWasteland.setHeading"
     />
 
     <!-- Rewards Modal -->

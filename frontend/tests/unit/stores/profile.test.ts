@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { createApiClientMock } from '../helpers/mocks'
 import { setActivePinia, createPinia } from 'pinia'
 import { useProfileStore } from '@/modules/profile/stores/profile'
-import axios from '@/core/plugins/axios'
+import { apiGet, apiPut } from '@/core/utils/api'
 import type { UserProfile, ProfileUpdate } from '@/models/profile'
 
-vi.mock('@/core/plugins/axios')
+vi.mock('@/core/utils/api', () => createApiClientMock())
 
 describe('Profile Store', () => {
   beforeEach(() => {
@@ -68,13 +69,13 @@ describe('Profile Store', () => {
   describe('fetchProfile Action', () => {
     it('should fetch profile successfully', async () => {
       const store = useProfileStore()
-      const mockResponse = { data: mockProfile }
+      const mockResponse = mockProfile
 
-      vi.mocked(axios.get).mockResolvedValueOnce(mockResponse)
+      vi.mocked(apiGet).mockResolvedValueOnce(mockResponse)
 
       await store.fetchProfile()
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me/profile')
+      expect(apiGet).toHaveBeenCalledWith('/api/v1/users/me/profile')
       expect(store.profile).toEqual(mockProfile)
       expect(store.loading).toBe(false)
       expect(store.error).toBeNull()
@@ -82,9 +83,9 @@ describe('Profile Store', () => {
 
     it('should set loading state during fetch', async () => {
       const store = useProfileStore()
-      const mockResponse = { data: mockProfile }
+      const mockResponse = mockProfile
 
-      vi.mocked(axios.get).mockImplementation(() => {
+      vi.mocked(apiGet).mockImplementation(() => {
         expect(store.loading).toBe(true)
         return Promise.resolve(mockResponse)
       })
@@ -103,7 +104,7 @@ describe('Profile Store', () => {
         },
       }
 
-      vi.mocked(axios.get).mockRejectedValueOnce(mockError)
+      vi.mocked(apiGet).mockRejectedValueOnce(mockError)
 
       await expect(store.fetchProfile()).rejects.toEqual(mockError)
       expect(store.error).toBe('Profile not found')
@@ -115,7 +116,7 @@ describe('Profile Store', () => {
       const store = useProfileStore()
       const mockError = new Error('Network error')
 
-      vi.mocked(axios.get).mockRejectedValueOnce(mockError)
+      vi.mocked(apiGet).mockRejectedValueOnce(mockError)
 
       await expect(store.fetchProfile()).rejects.toEqual(mockError)
       expect(store.error).toBe('Network error')
@@ -126,10 +127,10 @@ describe('Profile Store', () => {
   describe('refreshProfile Action', () => {
     it('refreshes the record without entering the page-loading state', async () => {
       const store = useProfileStore()
-      vi.mocked(axios.get).mockImplementation(() => {
+      vi.mocked(apiGet).mockImplementation(() => {
         expect(store.profileRefreshing).toBe(true)
         expect(store.loading).toBe(false)
-        return Promise.resolve({ data: mockProfile })
+        return Promise.resolve(mockProfile)
       })
 
       await store.refreshProfile()
@@ -140,15 +141,15 @@ describe('Profile Store', () => {
 
     it('does not overwrite a saved profile with an older refresh response', async () => {
       const store = useProfileStore()
-      let resolveRefresh!: (value: { data: UserProfile }) => void
-      vi.mocked(axios.get).mockReturnValueOnce(new Promise((resolve) => { resolveRefresh = resolve }))
+      let resolveRefresh!: (value: UserProfile) => void
+      vi.mocked(apiGet).mockReturnValueOnce(new Promise((resolve) => { resolveRefresh = resolve }))
 
       const refresh = store.refreshProfile()
       const savedProfile = { ...mockProfile, bio: 'Saved bio' }
-      vi.mocked(axios.put).mockResolvedValueOnce({ data: savedProfile })
+      vi.mocked(apiPut).mockResolvedValueOnce(savedProfile)
       await store.updateProfile({ bio: savedProfile.bio })
 
-      resolveRefresh({ data: mockProfile })
+      resolveRefresh(mockProfile)
       await refresh
 
       expect(store.profile).toEqual(savedProfile)
@@ -165,13 +166,13 @@ describe('Profile Store', () => {
     it('should update profile successfully', async () => {
       const store = useProfileStore()
       const updatedProfile = { ...mockProfile, ...updateData }
-      const mockResponse = { data: updatedProfile }
+      const mockResponse = updatedProfile
 
-      vi.mocked(axios.put).mockResolvedValueOnce(mockResponse)
+      vi.mocked(apiPut).mockResolvedValueOnce(mockResponse)
 
       await store.updateProfile(updateData)
 
-      expect(axios.put).toHaveBeenCalledWith('/api/v1/users/me/profile', updateData)
+      expect(apiPut).toHaveBeenCalledWith('/api/v1/users/me/profile', updateData)
       expect(store.profile).toEqual(updatedProfile)
       expect(store.loading).toBe(false)
       expect(store.error).toBeNull()
@@ -179,9 +180,9 @@ describe('Profile Store', () => {
 
     it('should set loading state during update', async () => {
       const store = useProfileStore()
-      const mockResponse = { data: mockProfile }
+      const mockResponse = mockProfile
 
-      vi.mocked(axios.put).mockImplementation(() => {
+      vi.mocked(apiPut).mockImplementation(() => {
         expect(store.loading).toBe(true)
         return Promise.resolve(mockResponse)
       })
@@ -200,7 +201,7 @@ describe('Profile Store', () => {
         },
       }
 
-      vi.mocked(axios.put).mockRejectedValueOnce(mockError)
+      vi.mocked(apiPut).mockRejectedValueOnce(mockError)
 
       await expect(store.updateProfile(updateData)).rejects.toEqual(mockError)
       expect(store.error).toBe('Validation error')
@@ -211,7 +212,7 @@ describe('Profile Store', () => {
       const store = useProfileStore()
       const mockError = new Error('Network error')
 
-      vi.mocked(axios.put).mockRejectedValueOnce(mockError)
+      vi.mocked(apiPut).mockRejectedValueOnce(mockError)
 
       await expect(store.updateProfile(updateData)).rejects.toEqual(mockError)
       expect(store.error).toBe('Network error')
@@ -222,13 +223,13 @@ describe('Profile Store', () => {
       const store = useProfileStore()
       const partialUpdate: ProfileUpdate = { bio: 'New bio only' }
       const updatedProfile = { ...mockProfile, bio: 'New bio only' }
-      const mockResponse = { data: updatedProfile }
+      const mockResponse = updatedProfile
 
-      vi.mocked(axios.put).mockResolvedValueOnce(mockResponse)
+      vi.mocked(apiPut).mockResolvedValueOnce(mockResponse)
 
       await store.updateProfile(partialUpdate)
 
-      expect(axios.put).toHaveBeenCalledWith('/api/v1/users/me/profile', partialUpdate)
+      expect(apiPut).toHaveBeenCalledWith('/api/v1/users/me/profile', partialUpdate)
       expect(store.profile?.bio).toBe('New bio only')
     })
 
@@ -236,9 +237,9 @@ describe('Profile Store', () => {
       const store = useProfileStore()
       const nullUpdate: ProfileUpdate = { bio: null, avatar_url: null }
       const updatedProfile = { ...mockProfile, bio: null, avatar_url: null }
-      const mockResponse = { data: updatedProfile }
+      const mockResponse = updatedProfile
 
-      vi.mocked(axios.put).mockResolvedValueOnce(mockResponse)
+      vi.mocked(apiPut).mockResolvedValueOnce(mockResponse)
 
       await store.updateProfile(nullUpdate)
 
@@ -250,11 +251,11 @@ describe('Profile Store', () => {
   describe('ensureProfileLoaded Action', () => {
     it('fetches the profile when empty', async () => {
       const store = useProfileStore()
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+      vi.mocked(apiGet).mockResolvedValueOnce(mockProfile)
 
       await store.ensureProfileLoaded()
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me/profile')
+      expect(apiGet).toHaveBeenCalledWith('/api/v1/users/me/profile')
       expect(store.profile).toEqual(mockProfile)
     })
 
@@ -264,7 +265,7 @@ describe('Profile Store', () => {
 
       await store.ensureProfileLoaded()
 
-      expect(axios.get).not.toHaveBeenCalled()
+      expect(apiGet).not.toHaveBeenCalled()
     })
 
     it('skips the fetch while loading is true', async () => {
@@ -273,13 +274,13 @@ describe('Profile Store', () => {
 
       await store.ensureProfileLoaded()
 
-      expect(axios.get).not.toHaveBeenCalled()
+      expect(apiGet).not.toHaveBeenCalled()
     })
 
     it('swallows fetch errors', async () => {
       const store = useProfileStore()
       const mockError = new Error('Network error')
-      vi.mocked(axios.get).mockRejectedValueOnce(mockError)
+      vi.mocked(apiGet).mockRejectedValueOnce(mockError)
 
       await expect(store.ensureProfileLoaded()).resolves.toBeUndefined()
       expect(store.error).toBe('Network error')
@@ -330,11 +331,11 @@ describe('Profile Store', () => {
         ...mockProfile,
         preferences: { theme: 'dark', notifications: { version: 1, disabled_categories: ['advancement'] } },
       }
-      vi.mocked(axios.put).mockResolvedValueOnce({ data: updatedProfile })
+      vi.mocked(apiPut).mockResolvedValueOnce(updatedProfile)
 
       await store.savePreferences({ notifications: { version: 1, disabled_categories: ['advancement'] } })
 
-      expect(axios.put).toHaveBeenCalledWith('/api/v1/users/me/profile', {
+      expect(apiPut).toHaveBeenCalledWith('/api/v1/users/me/profile', {
         preferences: updatedProfile.preferences,
       })
       expect(store.profile).toEqual(updatedProfile)
@@ -347,11 +348,11 @@ describe('Profile Store', () => {
         ...mockProfile,
         preferences: { theme: 'fnv', sound: { muted: false } },
       }
-      vi.mocked(axios.put).mockResolvedValueOnce({ data: updatedProfile })
+      vi.mocked(apiPut).mockResolvedValueOnce(updatedProfile)
 
       await store.savePreferences({ sound: { muted: false } })
 
-      expect(axios.put).toHaveBeenCalledWith('/api/v1/users/me/profile', {
+      expect(apiPut).toHaveBeenCalledWith('/api/v1/users/me/profile', {
         preferences: { theme: 'fnv', sound: { muted: false } },
       })
       expect(store.profile).toEqual(updatedProfile)
@@ -362,27 +363,28 @@ describe('Profile Store', () => {
     it('serializes overlapping saves and merges each with the latest preferences', async () => {
       const store = useProfileStore()
       store.profile = { ...mockProfile, preferences: { theme: 'fnv' } }
-      let resolveFirst!: (value: { data: UserProfile }) => void
-      vi.mocked(axios.put).mockReturnValueOnce(
+      let resolveFirst!: (value: UserProfile) => void
+      vi.mocked(apiPut).mockReturnValueOnce(
         new Promise((resolve) => {
           resolveFirst = resolve
         })
       )
-      vi.mocked(axios.put).mockResolvedValueOnce({
-        data: { ...mockProfile, preferences: { theme: 'fnv', sound: { muted: false } } },
+      vi.mocked(apiPut).mockResolvedValueOnce({
+        ...mockProfile,
+        preferences: { theme: 'fnv', sound: { muted: false } },
       })
 
       const first = store.savePreferences({ theme: 'fnv' })
       const second = store.savePreferences({ sound: { muted: false } })
       await Promise.resolve()
-      expect(axios.put).toHaveBeenCalledTimes(1)
+      expect(apiPut).toHaveBeenCalledTimes(1)
 
-      resolveFirst({ data: { ...mockProfile, preferences: { theme: 'fnv' } } })
+      resolveFirst({ ...mockProfile, preferences: { theme: 'fnv' } })
       await first
       await second
 
-      expect(axios.put).toHaveBeenCalledTimes(2)
-      expect(axios.put).toHaveBeenLastCalledWith('/api/v1/users/me/profile', {
+      expect(apiPut).toHaveBeenCalledTimes(2)
+      expect(apiPut).toHaveBeenLastCalledWith('/api/v1/users/me/profile', {
         preferences: { theme: 'fnv', sound: { muted: false } },
       })
     })
@@ -390,8 +392,8 @@ describe('Profile Store', () => {
     it('ignores a save response that arrives after the profile is cleared', async () => {
       const store = useProfileStore()
       store.profile = mockProfile
-      let resolveSave!: (value: { data: UserProfile }) => void
-      vi.mocked(axios.put).mockReturnValueOnce(
+      let resolveSave!: (value: UserProfile) => void
+      vi.mocked(apiPut).mockReturnValueOnce(
         new Promise((resolve) => {
           resolveSave = resolve
         })
@@ -399,7 +401,7 @@ describe('Profile Store', () => {
 
       const pending = store.savePreferences({ theme: 'light' })
       store.clearProfile()
-      resolveSave({ data: { ...mockProfile, preferences: { theme: 'light' } } })
+      resolveSave({ ...mockProfile, preferences: { theme: 'light' } })
       await pending
 
       expect(store.profile).toBeNull()
@@ -408,7 +410,7 @@ describe('Profile Store', () => {
     it('throws on failure without setting error or loading', async () => {
       const store = useProfileStore()
       const mockError = new Error('Network error')
-      vi.mocked(axios.put).mockRejectedValueOnce(mockError)
+      vi.mocked(apiPut).mockRejectedValueOnce(mockError)
 
       await expect(store.savePreferences({ theme: 'light' })).rejects.toEqual(mockError)
       expect(store.error).toBeNull()
@@ -450,13 +452,13 @@ describe('Profile Store', () => {
 
     it('should fetch death statistics successfully', async () => {
       const store = useProfileStore()
-      const mockResponse = { data: mockDeathStats }
+      const mockResponse = mockDeathStats
 
-      vi.mocked(axios.get).mockResolvedValueOnce(mockResponse)
+      vi.mocked(apiGet).mockResolvedValueOnce(mockResponse)
 
       const result = await store.fetchDeathStatistics()
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me/profile/statistics')
+      expect(apiGet).toHaveBeenCalledWith('/api/v1/users/me/profile/statistics')
       expect(store.deathStatistics).toEqual(mockDeathStats)
       expect(result).toEqual(mockDeathStats)
       expect(store.deathStatsLoading).toBe(false)
@@ -464,9 +466,9 @@ describe('Profile Store', () => {
 
     it('should set loading state during fetch', async () => {
       const store = useProfileStore()
-      const mockResponse = { data: mockDeathStats }
+      const mockResponse = mockDeathStats
 
-      vi.mocked(axios.get).mockImplementation(() => {
+      vi.mocked(apiGet).mockImplementation(() => {
         expect(store.deathStatsLoading).toBe(true)
         return Promise.resolve(mockResponse)
       })
@@ -479,7 +481,7 @@ describe('Profile Store', () => {
       const store = useProfileStore()
       const mockError = new Error('Network error')
 
-      vi.mocked(axios.get).mockRejectedValueOnce(mockError)
+      vi.mocked(apiGet).mockRejectedValueOnce(mockError)
 
       const result = await store.fetchDeathStatistics()
 

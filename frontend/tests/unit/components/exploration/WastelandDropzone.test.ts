@@ -1,15 +1,10 @@
 import { describe, it, expect, vi } from 'vitest'
+import { createIconifyMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import WastelandDropzone from '@/modules/exploration/components/WastelandDropzone.vue'
 
 // Mock Iconify
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-mock" :data-icon="icon"></span>',
-    props: ['icon'],
-  },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 describe('WastelandDropzone', () => {
   it('renders the wasteland title and subtitle', () => {

@@ -1,20 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createIconifyMock, createToastMock } from '../../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ArenaModal from '@/modules/rooms/components/ArenaModal.vue'
 import type { ArenaRoomState } from '@/modules/rooms/api/arena'
 
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    props: ['icon'],
-    template: '<div class="mock-icon" :data-icon="icon"></div>',
-  },
-}))
+const mockToast = createToastMock()
 
-vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }),
-}))
+vi.mock('@iconify/vue', () =>
+  createIconifyMock({ template: '<div class="mock-icon" :data-icon="icon"></div>' })
+)
+
+vi.mock('@/core/composables/useToast', () => ({ useToast: () => mockToast }))
 
 vi.mock('@/core/composables/usePolling', () => ({
   usePolling: () => vi.fn(),

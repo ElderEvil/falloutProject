@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { createToastMock } from '../../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import RoomIncidentDetail from '@/modules/rooms/components/RoomIncidentDetail.vue'
 import type { Incident, IncidentTeamMember } from '@/modules/combat/models/incident'
@@ -7,6 +8,7 @@ const assignResponders = vi.fn()
 const fetchIncidentTeam = vi.fn()
 const getIncidentTeam = vi.fn(() => [])
 const warning = vi.fn()
+const mockToast = createToastMock({ warning })
 
 vi.mock('@/modules/combat/stores/incident', () => ({
   useIncidentStore: () => ({ assignResponders, fetchIncidentTeam, getIncidentTeam }),
@@ -17,7 +19,7 @@ vi.mock('@/modules/auth/stores/auth', () => ({
 }))
 
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({ success: vi.fn(), error: vi.fn(), warning, info: vi.fn() }),
+  useToast: () => mockToast,
 }))
 
 const incident = (overrides: Partial<Incident> = {}): Incident =>

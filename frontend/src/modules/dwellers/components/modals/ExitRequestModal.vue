@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useIntervalFn, useLocalStorage } from '@vueuse/core'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useExitRequestStore } from '../../stores/exitRequests'
 
@@ -58,62 +58,49 @@ const decideLater = () => {
 </script>
 
 <template>
-  <Dialog
+  <TerminalModal
     :open="isOpen"
-    @update:open="
-      (open) => {
-        if (!open) decideLater()
-      }
-    "
+    title="Someone Wants Out"
+    size="xl"
+    max-height="65"
+    @close="decideLater"
   >
-    <DialogContent
-      class="flex max-h-[65vh] w-full max-w-xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-xl"
-    >
-      <DialogHeader
-        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
-      >
-        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow"
-          >Someone Wants Out</DialogTitle
-        >
-      </DialogHeader>
-
-      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
-        <div v-if="current" class="exit-request-modal">
-          <div class="subject">
-            <Icon icon="mdi:exit-run" class="subject-icon" />
-            <div class="subject-details">
-              <span class="subject-name">{{ current.dweller_name }}</span>
-              <span class="subject-meta">
-                Level {{ current.level }} · Happiness {{ current.happiness }}/100
-              </span>
-            </div>
-          </div>
-
-          <p class="description">
-            They have asked to go outside. Refusing keeps them here: the whole vault loses
-            {{ current.refusal_happiness_penalty }} happiness. They will not ask again for a day.
-            Letting them go means they are not coming back.
-          </p>
-
-          <div class="modal-actions">
-            <Button variant="secondary" :disabled="isDeciding" @click="decideLater">
-              <Icon icon="mdi:clock-outline" />
-              Decide Later
-            </Button>
-            <Button variant="secondary" :disabled="isDeciding" @click="decide(false)">
-              <Icon icon="mdi:hand-back-right-outline" />
-              Refuse — vault −{{ current.refusal_happiness_penalty }}
-              <Icon icon="mdi:emoticon-sad-outline" />
-            </Button>
-            <Button variant="destructive" :disabled="isDeciding" @click="decide(true)">
-              <Icon icon="mdi:exit-run" />
-              Let Them Go
-            </Button>
+    <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+      <div v-if="current" class="exit-request-modal">
+        <div class="subject">
+          <Icon icon="mdi:exit-run" class="subject-icon" />
+          <div class="subject-details">
+            <span class="subject-name">{{ current.dweller_name }}</span>
+            <span class="subject-meta">
+              Level {{ current.level }} · Happiness {{ current.happiness }}/100
+            </span>
           </div>
         </div>
+
+        <p class="description">
+          They have asked to go outside. Refusing keeps them here: the whole vault loses
+          {{ current.refusal_happiness_penalty }} happiness. They will not ask again for a day.
+          Letting them go means they are not coming back.
+        </p>
+
+        <div class="modal-actions">
+          <Button variant="secondary" :disabled="isDeciding" @click="decideLater">
+            <Icon icon="mdi:clock-outline" />
+            Decide Later
+          </Button>
+          <Button variant="secondary" :disabled="isDeciding" @click="decide(false)">
+            <Icon icon="mdi:hand-back-right-outline" />
+            Refuse — vault −{{ current.refusal_happiness_penalty }}
+            <Icon icon="mdi:emoticon-sad-outline" />
+          </Button>
+          <Button variant="destructive" :disabled="isDeciding" @click="decide(true)">
+            <Icon icon="mdi:exit-run" />
+            Let Them Go
+          </Button>
+        </div>
       </div>
-    </DialogContent>
-  </Dialog>
+    </div>
+  </TerminalModal>
 </template>
 
 <style scoped>

@@ -12,6 +12,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.enums import PlaceKindEnum
 from app.crud.vault_slot import vault_slot
 from app.models.dweller import Dweller
+from app.models.exploration import ExplorationStatus
 from app.models.vault import Vault
 from app.models.world_location import WorldLocation
 from app.schemas.exploration_event import DiscoveryEventSchema
@@ -72,6 +73,31 @@ async def test_spatial_route_follows_the_movement_trail(
     assert len(route.points) == 2
     assert [point.location_id for point in route.points] == [None, None]
     assert route.points[0].coord_x < route.points[1].coord_x  # heading east
+
+
+@pytest.mark.asyncio
+async def test_route_is_active_only_while_the_run_is_in_progress(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """The route keeps its points after the run ends, but only an in-progress run is active."""
+    exploration, _origin, _snapshot = await _depart(async_session, vault, dweller, heading=90)
+    await exploration_service.advance(async_session, exploration.id, now=exploration.start_time + timedelta(hours=1))
+
+    routes = await map_service._get_discovery_routes(async_session, vault.id)
+    route = next(r for r in routes if r.exploration_id == exploration.id)
+    assert route.is_active is True
+
+    exploration.start_return()
+    async_session.add(exploration)
+    await async_session.commit()
+    routes = await map_service._get_discovery_routes(async_session, vault.id)
+    assert next(r for r in routes if r.exploration_id == exploration.id).is_active is True
+
+    exploration.status = ExplorationStatus.COMPLETED
+    async_session.add(exploration)
+    await async_session.commit()
+    routes = await map_service._get_discovery_routes(async_session, vault.id)
+    assert next(r for r in routes if r.exploration_id == exploration.id).is_active is False
 
 
 @pytest.mark.asyncio

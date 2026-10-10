@@ -312,30 +312,31 @@ describe('DwellerCard', () => {
 
       expect(wrapper.find('.supply-radaway').exists()).toBe(false)
     })
-    it('lets the overseer issue one supply from the counter', async () => {
+    it('shows the vault count inline on the single Heal button', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
           imageUrl: null,
-          availableStimpaks: 1,
+          availableStimpaks: 12,
         },
       })
 
-      await wrapper.get('[aria-label="Issue Stimpack from vault"]').trigger('click')
-
-      expect(wrapper.emitted('issue-medical-supply')).toEqual([['stimpack']])
+      const heal = wrapper.find('[aria-label="Use Stimpack"]')
+      expect(heal.exists()).toBe(true)
+      expect(heal.text()).toContain('vault 12')
     })
 
-    it('waits for vault stock before enabling supply issue', () => {
+    it('disables the Heal button when the dweller needs healing but no supply exists anywhere', () => {
       const wrapper = mount(DwellerCard, {
         props: {
-          dweller: mockDweller,
+          dweller: { ...mockDweller, stimpack: 0 },
           imageUrl: null,
           availableStimpaks: 0,
         },
       })
 
-      expect(wrapper.find('[aria-label="Issue Stimpack from vault"]').exists()).toBe(false)
+      expect(wrapper.find('.supply-stimpack').exists()).toBe(true)
+      expect(wrapper.find('[aria-label="Use Stimpack"]').attributes('disabled')).toBeDefined()
     })
 
     it('should display stimpack count', () => {
@@ -490,10 +491,10 @@ describe('DwellerCard', () => {
       expect(wrapper.find('.supplies').exists()).toBe(false)
     })
 
-    it('hides the stimpack row when the dweller neither carries nor needs one', () => {
+    it('hides the stimpack row for a healthy empty-pocketed dweller', () => {
       const wrapper = mount(DwellerCard, {
         props: {
-          dweller: { ...mockDweller, stimpack: 0 },
+          dweller: { ...mockDweller, health: 100, stimpack: 0 },
           imageUrl: null,
         },
       })
@@ -501,7 +502,7 @@ describe('DwellerCard', () => {
       expect(wrapper.find('.supply-stimpack').exists()).toBe(false)
     })
 
-    it('shows the stimpack row with an issue action when hurt and the vault has stock', () => {
+    it('offers an enabled Heal button when hurt and the vault has stock', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: { ...mockDweller, stimpack: 0 },
@@ -511,12 +512,14 @@ describe('DwellerCard', () => {
       })
 
       expect(wrapper.find('.supply-stimpack').exists()).toBe(true)
-      expect(wrapper.find('[aria-label="Issue Stimpack from vault"]').exists()).toBe(true)
-      expect(wrapper.find('[aria-label="Use Stimpack"]').exists()).toBe(false)
+      const heal = wrapper.find('[aria-label="Use Stimpack"]')
+      expect(heal.exists()).toBe(true)
+      expect(heal.attributes('disabled')).toBeUndefined()
     })
 
-    it('offers Use only when the supply would actually do something', () => {
-      // Carries a RadAway but has no radiation to clear, so no Use action.
+    it('disables the supply Heal action when it would actually do nothing', () => {
+      // Carries a RadAway but has no radiation to clear, so the row shows with a
+      // disabled single Heal button rather than two separate actions.
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
@@ -525,8 +528,8 @@ describe('DwellerCard', () => {
       })
 
       expect(wrapper.find('.supply-radaway').exists()).toBe(true)
-      expect(wrapper.find('[aria-label="Use RadAway"]').exists()).toBe(false)
-      expect(wrapper.find('[aria-label="Use Stimpack"]').exists()).toBe(true)
+      expect(wrapper.find('[aria-label="Use RadAway"]').attributes('disabled')).toBeDefined()
+      expect(wrapper.find('[aria-label="Use Stimpack"]').attributes('disabled')).toBeUndefined()
     })
 
     it('should enable radaway use button when radiation exists', () => {
@@ -543,7 +546,30 @@ describe('DwellerCard', () => {
       expect(useRadAwayBtn.attributes('disabled')).toBeUndefined()
     })
 
-    it('emits use-stimpak when the Use button is clicked', async () => {
+    it('shows no medical rows for a dead dweller', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: {
+            ...mockDweller,
+            is_dead: true,
+            health: 20,
+            radiation: 30,
+            stimpack: 4,
+            radaway: 3,
+          },
+          imageUrl: null,
+          availableStimpaks: 5,
+          availableRadaways: 5,
+        },
+      })
+
+      expect(wrapper.find('.supply-stimpack').exists()).toBe(false)
+      expect(wrapper.find('.supply-radaway').exists()).toBe(false)
+      expect(wrapper.find('[aria-label="Use Stimpack"]').exists()).toBe(false)
+      expect(wrapper.find('[aria-label="Use RadAway"]').exists()).toBe(false)
+    })
+
+    it('emits heal-stimpack when the Heal button is clicked', async () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
@@ -552,10 +578,10 @@ describe('DwellerCard', () => {
       })
 
       await wrapper.find('[aria-label="Use Stimpack"]').trigger('click')
-      expect(wrapper.emitted('use-stimpak')).toBeTruthy()
+      expect(wrapper.emitted('heal-stimpack')).toBeTruthy()
     })
 
-    it('emits use-radaway when the Use button is clicked', async () => {
+    it('emits heal-radaway when the Heal button is clicked', async () => {
       const dwellerWithRadiation = { ...mockDweller, radiation: 10 }
       const wrapper = mount(DwellerCard, {
         props: {
@@ -565,7 +591,32 @@ describe('DwellerCard', () => {
       })
 
       await wrapper.find('[aria-label="Use RadAway"]').trigger('click')
-      expect(wrapper.emitted('use-radaway')).toBeTruthy()
+      expect(wrapper.emitted('heal-radaway')).toBeTruthy()
+    })
+
+    it('enables the Heal button when empty-pocketed and the vault can auto-issue', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: { ...mockDweller, stimpack: 0 },
+          imageUrl: null,
+          availableStimpaks: 4,
+        },
+      })
+
+      expect(wrapper.find('[aria-label="Use Stimpack"]').attributes('disabled')).toBeUndefined()
+    })
+
+    it('shows no supply offers for a dead dweller even when they carried supplies', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: { ...mockDweller, is_dead: true },
+          imageUrl: null,
+          availableStimpaks: 5,
+        },
+      })
+
+      expect(wrapper.find('.supplies').exists()).toBe(false)
+      expect(wrapper.find('[aria-label="Use Stimpack"]').exists()).toBe(false)
     })
   })
 

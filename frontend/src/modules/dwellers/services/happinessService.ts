@@ -53,33 +53,4 @@ export const happinessService = {
 
     return distribution
   },
-
-  /**
-   * Get happiness level category
-   */
-  getHappinessLevel(happiness: number): 'high' | 'medium' | 'low' | 'critical' {
-    if (happiness >= 75) return 'high'
-    if (happiness >= 50) return 'medium'
-    if (happiness >= 25) return 'low'
-    return 'critical'
-  },
-
-  /**
-   * Get color for happiness level
-   */
-  getHappinessColor(happiness: number): string {
-    const level = this.getHappinessLevel(happiness)
-    switch (level) {
-      case 'high':
-        return 'var(--color-theme-primary)'
-      case 'medium':
-        return 'var(--color-terminal-green-dark)'
-      case 'low':
-        return 'var(--color-warning)'
-      case 'critical':
-        return 'var(--color-danger)'
-      default:
-        return 'var(--color-theme-primary)'
-    }
-  },
 }

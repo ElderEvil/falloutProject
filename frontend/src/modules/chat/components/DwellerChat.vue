@@ -16,7 +16,15 @@ import { useChatActions } from '../composables/useChatActions'
 import { useSound } from '@/core/composables/useSound'
 import { useToast } from '@/core/composables/useToast'
 import { useMapStore } from '@/modules/map/stores/map'
+import { useDwellerDeathStore } from '@/modules/dwellers/stores/dwellerDeath'
 import type { MapPlaceLink } from '@/modules/dwellers/models/dweller'
+import { canUseRadaway } from '@/modules/dwellers/models/dweller'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useSendToWasteland } from '@/modules/exploration/composables/useSendToWasteland'
+import { formatHeading } from '@/modules/map/utils/bearing'
+import { formatShortDate } from '@/core/utils/format'
+import ExplorationDurationModal from '@/modules/exploration/components/ExplorationDurationModal.vue'
 import ChatMessageList from './ChatMessageList.vue'
 import ChatDebugPanel from './ChatDebugPanel.vue'
 import { Button } from '@/core/components/ui/button'
@@ -38,13 +46,43 @@ const props = withDefaults(
     dwellerStatus?: string
     roomName?: string | null
     dwellerCanExplore?: boolean
+    isDead?: boolean
+    isPermanentlyDead?: boolean
   }>(),
-  { dwellerCanExplore: true }
+  { dwellerCanExplore: true, isDead: false, isPermanentlyDead: false }
 )
 
 const authStore = useAuthStore()
 const profileStore = useProfileStore()
 const mapStore = useMapStore()
+const dwellerDeathStore = useDwellerDeathStore()
+
+// The backend rejects sends from a dead dweller (HTTP 400); the composer must
+// stay readable but unsendable until the Overseer revives them. `locallyRevived`
+// flips the chat live after a successful revive without waiting for a refetch.
+const locallyRevived = ref(false)
+const isReviving = ref(false)
+const isDead = computed(() => props.isDead && !locallyRevived.value)
+const canRevive = computed(() => isDead.value && !props.isPermanentlyDead)
+
+watch(
+  () => props.isDead,
+  () => {
+    locallyRevived.value = false
+  }
+)
+const vaultStore = useVaultStore()
+const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
+
+// Chat's own send-wasteland session: the shared flow owns the modal state, the
+// server heading suggestion, and the departure dispatch.
+const sendWasteland = useSendToWasteland(() => props.vaultId ?? null)
+
+const chatVault = computed(() => (props.vaultId ? vaultStore.loadedVaults[props.vaultId] : null))
+const chatMaxStimpaks = computed(() => chatVault.value?.stimpack ?? 0)
+const chatMaxRadaways = computed(() => chatVault.value?.radaway ?? 0)
+const chatDweller = computed(() => dwellerStore.detailedDwellers[props.dwellerId] ?? null)
+const chatAllowRadaway = computed(() => canUseRadaway(chatDweller.value))
 
 const isSendingAudio = ref(false)
 const audioMode = ref(false)
@@ -65,13 +103,7 @@ const isQuotaExceeded = computed(() => profileStore.quotaExceeded)
 const resetDate = computed(() => {
   const resetDateStr = profileStore.aiUsageStats?.reset_date || ''
   if (!resetDateStr) return 'soon'
-  const [year, month, day] = resetDateStr.split('-')
-  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  return formatShortDate(resetDateStr)
 })
 
 const chatBudgetSummary = computed(() => {
@@ -154,11 +186,81 @@ const { isPerformingAction, handleActionConfirm, refreshAfterChat } = useChatAct
   dwellerName: props.dwellerName,
   messages,
   vaultId: props.vaultId,
+  sendWasteland,
 })
 
+// The chat's departure keeps the instant path's guard: the dweller is released
+// from their room before dispatch. It runs at modal-confirm time so cancelling
+// the modal never strands a worker without a room, and a failed or duplicate
+// dispatch restores the dweller to the room they were released from.
+const restoreDwellerRoom = async (roomId: string | null) => {
+  if (!roomId || !authStore.token) return
+  try {
+    await dwellerManagementStore.assignDwellerToRoom(props.dwellerId, roomId, authStore.token)
+  } catch {
+    // Best-effort rollback; the send failure is already surfaced to the user.
+  }
+}
+
+const handleChatSendConfirm = async (payload: {
+  duration: number
+  stimpaks: number
+  radaways: number
+}): Promise<boolean> => {
+  // Duplicate-dispatch guard: a second confirm while the first send is still in
+  // flight must not release the room again.
+  if (sendWasteland.isSending.value) return false
+
+  // The roster list carries room_id; the full detail shape exposes room only.
+  const dweller = dwellerStore.dwellers.find((d) => d.id === props.dwellerId)
+  const originalRoomId = dweller?.room_id ?? null
+  let releasedRoom = false
+
+  try {
+    if (originalRoomId && props.vaultId && authStore.token) {
+      await dwellerManagementStore.unassignDwellerFromRoom(props.dwellerId, authStore.token)
+      releasedRoom = true
+    }
+    toast.info(`Sending ${props.dwellerName} to wasteland...`)
+    const sent = await sendWasteland.confirm(payload, async () => {
+      await dwellerStore.fetchDwellerDetails(props.dwellerId, authStore.token as string, true)
+    })
+    if (!sent) {
+      if (releasedRoom) await restoreDwellerRoom(originalRoomId)
+      toast.error('Failed to send dweller to wasteland')
+      return false
+    }
+    dismissAction(latestActionSuggestionIndex.value)
+    return true
+  } catch {
+    if (releasedRoom) await restoreDwellerRoom(originalRoomId)
+    toast.error('Failed to send dweller to wasteland')
+    return false
+  }
+}
+
 const handleSendMessage = async () => {
+  if (isDead.value) return
   await sendMessage()
   refreshAfterChat()
+}
+
+const handleRetryMessage = (index: number) => {
+  if (isDead.value) return
+  retryMessage(index)
+}
+
+// Reuses the dwellers' revive flow (which owns the success/failure toasts);
+// flipping local state re-enables the composer without a page reload.
+const handleRevive = async () => {
+  if (isReviving.value || !canRevive.value || !authStore.token) return
+  isReviving.value = true
+  try {
+    const result = await dwellerDeathStore.reviveDweller(props.dwellerId, authStore.token)
+    if (result) locallyRevived.value = true
+  } finally {
+    isReviving.value = false
+  }
 }
 
 // Register WebSocket event handlers during setup
@@ -331,7 +433,7 @@ onUnmounted(() => {
         @stop-audio="stopAudio"
         @confirm-action="handleActionConfirm"
         @dismiss-action="dismissAction"
-        @retry-message="retryMessage"
+        @retry-message="handleRetryMessage"
       />
     </div>
 
@@ -345,7 +447,49 @@ onUnmounted(() => {
       </RouterLink>
     </div>
 
-    <div v-if="isQuotaExceeded" class="chat-input quota-exceeded">
+    <div
+      v-if="isDead"
+      class="flex flex-col gap-2 border-t border-theme-glow bg-black/80 p-4"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <p class="dead-notice flex items-center gap-1.5 text-xs text-theme-primary/70">
+          <Icon icon="mdi:heart-broken" class="h-4 w-4" />
+          The dead cannot reply — revive to continue
+        </p>
+        <Button
+          v-if="canRevive"
+          variant="default"
+          size="sm"
+          class="dead-revive-btn"
+          :disabled="isReviving"
+          @click="handleRevive"
+        >
+          <Icon
+            :icon="isReviving ? 'mdi:loading' : 'mdi:heart-pulse'"
+            class="h-4 w-4"
+            :class="{ 'animate-spin': isReviving }"
+          />
+          Revive
+        </Button>
+        <span v-else class="text-xs uppercase tracking-wider text-theme-primary/50">
+          Permanently dead
+        </span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="terminal-prompt">&gt;</span>
+        <Input
+          v-model="userMessage"
+          class="chat-input-field"
+          placeholder="The dead cannot reply"
+          disabled
+        />
+        <Button variant="ghost" class="chat-send-btn h-auto" disabled aria-label="Send message">
+          <Icon icon="mdi:send" class="h-5 w-5" />
+        </Button>
+      </div>
+    </div>
+
+    <div v-else-if="isQuotaExceeded" class="chat-input quota-exceeded">
       <div class="quota-blocked-message">
         <Icon icon="mdi:alert-circle" class="quota-icon" />
         <div class="quota-text">
@@ -459,6 +603,31 @@ onUnmounted(() => {
       </label>
       <ChatDebugPanel v-if="showDebug" :debug="lastChatDebug" />
     </div>
+
+    <ExplorationDurationModal
+      :show="sendWasteland.showModal.value"
+      :dweller-name="
+        `${sendWasteland.pendingDweller.value?.firstName ?? ''} ${sendWasteland.pendingDweller.value?.lastName ?? ''}`
+      "
+      :max-stimpaks="chatMaxStimpaks"
+      :max-radaways="chatMaxRadaways"
+      :allow-radaway="chatAllowRadaway"
+      :heading="
+        sendWasteland.headingDegrees.value !== null
+          ? formatHeading(sendWasteland.headingDegrees.value)
+          : null
+      "
+      :heading-degrees="sendWasteland.headingDegrees.value"
+      :can-reroll="true"
+      :is-suggesting-heading="sendWasteland.isSuggestingHeading.value"
+      :initial-duration="sendWasteland.pendingPrefill.value?.duration"
+      :initial-stimpaks="sendWasteland.pendingPrefill.value?.stimpaks"
+      :initial-radaways="sendWasteland.pendingPrefill.value?.radaways"
+      @confirm="handleChatSendConfirm"
+      @cancel="sendWasteland.cancel"
+      @reroll="sendWasteland.reroll"
+      @select-heading="sendWasteland.setHeading"
+    />
   </div>
 </template>
 

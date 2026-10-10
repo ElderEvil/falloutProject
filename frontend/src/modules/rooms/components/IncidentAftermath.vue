@@ -7,6 +7,7 @@ import { getIncidentIcon, type IncidentAftermath } from '@/modules/combat/models
 import RewardCard from '@/core/components/common/RewardCard.vue'
 import { Button } from '@/core/components/ui/button'
 import { getRarityBorderClass, getRarityTextClass } from '@/core/models/items'
+import { threatName } from '@/core/utils/format'
 
 const props = defineProps<{ aftermath: IncidentAftermath; vaultId: string }>()
 
@@ -15,7 +16,7 @@ const incidentStore = useIncidentStore()
 const acting = ref<{ index: number; action: 'take' | 'sell' } | null>(null)
 const isActing = computed(() => acting.value !== null)
 
-const threatName = computed(() => props.aftermath.type.replace(/_/g, ' ').toUpperCase())
+const threatLabel = computed(() => threatName(props.aftermath.type))
 const threatIcon = computed(() => getIncidentIcon(props.aftermath.type))
 
 const outcomeLabel = computed(() => {
@@ -66,7 +67,7 @@ const dismiss = () => incidentStore.clearAftermath(props.aftermath.roomId)
         <p class="flex items-center gap-1.5 text-xs text-terminal-green-dim">
           <Icon :icon="threatIcon" class="h-3.5 w-3.5 shrink-0" />
           <span class="truncate">
-            {{ threatName }}<template v-if="aftermath.roomName"> · {{ aftermath.roomName }}</template>
+            {{ threatLabel }}<template v-if="aftermath.roomName"> · {{ aftermath.roomName }}</template>
           </span>
         </p>
       </div>

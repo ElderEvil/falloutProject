@@ -349,7 +349,8 @@ export const useExplorationStore = defineStore('exploration', () => {
   async function dispatchToLocation(
     vaultId: string,
     dwellerIds: string[],
-    locationId: string
+    locationId: string,
+    supplies: { stimpaks: number; radaways: number } = { stimpaks: 0, radaways: 0 }
   ): Promise<Exploration> {
     isLoading.value = true
     error.value = null
@@ -361,6 +362,8 @@ export const useExplorationStore = defineStore('exploration', () => {
       const exploration = (await explorationApi.dispatchToLocation(token, vaultId, {
         dwellerIds,
         locationId,
+        stimpaks: supplies.stimpaks,
+        radaways: supplies.radaways,
       })) as unknown as Exploration
       upsertExploration(exploration)
       return exploration

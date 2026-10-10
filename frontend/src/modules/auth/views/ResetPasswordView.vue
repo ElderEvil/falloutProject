@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import axios from '@/core/plugins/axios'
+import { apiPost } from '@/core/utils/api'
+import { getErrorMessage } from '@/core/utils/errorHandler'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import { Input } from '@/core/components/ui/input'
@@ -40,19 +41,18 @@ const handleSubmit = async () => {
   loading.value = true
 
   try {
-    await axios.post('/api/v1/auth/reset-password', {
+    await apiPost('/api/v1/auth/reset-password', {
       token: token.value,
       new_password: newPassword.value,
     })
 
     success.value = true
 
-    // Redirect to login after 3 seconds
     setTimeout(() => {
       router.push('/login')
     }, 3000)
-  } catch (err: any) {
-    error.value = err.response?.data?.detail || 'Failed to reset password'
+  } catch (err) {
+    error.value = getErrorMessage(err, 'Failed to reset password')
   } finally {
     loading.value = false
   }

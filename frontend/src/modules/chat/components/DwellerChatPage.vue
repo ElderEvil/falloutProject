@@ -79,6 +79,8 @@ onMounted(async () => {
             :dweller-status="dweller.status"
             :room-name="dweller.room?.name"
             :dweller-can-explore="isMature(dweller)"
+            :is-dead="dweller.is_dead"
+            :is-permanently-dead="dweller.is_permanently_dead"
           />
         </div>
       </PageContentRail>

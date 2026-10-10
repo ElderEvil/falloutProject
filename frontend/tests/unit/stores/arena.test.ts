@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { createToastMock } from '../helpers/mocks'
 import { setActivePinia, createPinia } from 'pinia'
 import { useArenaStore } from '@/modules/rooms/stores/arena'
 import { arenaApi } from '@/modules/rooms/api/arena'
@@ -6,8 +7,9 @@ import type { ArenaState, ArenaRoomState } from '@/modules/rooms/api/arena'
 
 vi.mock('@/modules/rooms/api/arena')
 
+const mockToast = createToastMock()
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }),
+  useToast: () => mockToast,
 }))
 
 const mockRoom: ArenaRoomState = {

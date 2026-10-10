@@ -7,7 +7,7 @@
  * Data comes from the authenticated read_data endpoints; log in first.
  */
 import { computed, onMounted, ref } from 'vue'
-import axios from '@/core/plugins/axios'
+import { apiGet } from '@/core/utils/api'
 
 import { getStaticImageUrl } from '@/core/utils/image'
 import { Badge } from '@/core/components/ui/badge'
@@ -168,15 +168,15 @@ function setActiveTab(value: unknown) {
 onMounted(async () => {
   try {
     const [w, o, d, j] = await Promise.all([
-      axios.get<Weapon[]>('/api/v1/weapons/read_data/'),
-      axios.get<Outfit[]>('/api/v1/outfits/read_data/'),
-      axios.get<DwellerTemplate[]>('/api/v1/dwellers/read_data/'),
-      axios.get<Junk[]>('/api/v1/junk/read_data/'),
+      apiGet<Weapon[]>('/api/v1/weapons/read_data/'),
+      apiGet<Outfit[]>('/api/v1/outfits/read_data/'),
+      apiGet<DwellerTemplate[]>('/api/v1/dwellers/read_data/'),
+      apiGet<Junk[]>('/api/v1/junk/read_data/'),
     ])
-    weapons.value = w.data
-    outfits.value = o.data
-    dwellers.value = d.data
-    junks.value = j.data
+    weapons.value = w
+    outfits.value = o
+    dwellers.value = d
+    junks.value = j
   } catch (err) {
     loadError.value = err instanceof Error ? err.message : 'Failed to load catalog data.'
   }

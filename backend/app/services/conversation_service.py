@@ -151,6 +151,8 @@ class ConversationService:
             raise ValidationException(detail="Empty audio file")
         async with db_session.begin_nested():
             dweller = await get_accessible_dweller(dweller_id, user, db_session)
+            if dweller.is_dead:
+                raise ValidationException(detail="Cannot chat with a dead dweller.")
 
             logger.info("Transcribing audio message from user %s to dweller %s", user.id, dweller_id)
             transcribed_text, user_audio_url, audio_duration = await self._transcribe_audio(

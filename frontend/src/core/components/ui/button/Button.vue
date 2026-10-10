@@ -16,6 +16,8 @@ interface Props extends PrimitiveProps {
   ariaLabel?: string
   'aria-expanded'?: boolean
   ariaExpanded?: boolean
+  'aria-pressed'?: boolean
+  ariaPressed?: boolean
   title?: string
   type?: string
 }
@@ -42,6 +44,7 @@ const rootAttrs = computed<Record<string, unknown>>(() => ({
   type: props.type,
   'aria-label': props.ariaLabel ?? props['aria-label'],
   'aria-expanded': props.ariaExpanded ?? props['aria-expanded'],
+  'aria-pressed': props.ariaPressed ?? props['aria-pressed'],
   title: props.title,
   onClick: (event: MouseEvent) => emit('click', event),
   class: cn(buttonVariants({ variant: props.variant, size: props.size }), props.class),

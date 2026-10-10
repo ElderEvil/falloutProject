@@ -26,7 +26,7 @@
   "src/modules/profile/views/ChangelogView.vue": 1,
   "src/modules/profile/views/PreferencesView.vue": 1,
   "src/modules/progression/components/ObjectiveCard.vue": 1,
-  "src/modules/progression/components/PartySelectionModal.vue": 1,
+  "src/modules/progression/components/party/PartySlots.vue": 1,
   "src/modules/progression/components/training/TrainingQueuePanel.vue": 1,
   "src/modules/progression/components/training/TrainingRoomModal.vue": 1,
   "src/modules/progression/views/QuestsView.vue": 1,
@@ -47,6 +47,6 @@
   "src/modules/social/components/relationships/RelationshipDweller.vue": 1,
   "src/modules/vault/components/shell/GameControlPanel.vue": 2,
   "src/modules/vault/components/shell/NavBar.vue": 4,
-  "src/modules/vault/components/shell/NotificationBell.vue": 3,
+  "src/modules/vault/components/shell/NotificationBell.vue": 2,
   "src/modules/vault/views/HomeView.vue": 1
 }

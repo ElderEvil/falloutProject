@@ -12,6 +12,7 @@ import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import VaultNumberField from '../components/VaultNumberField.vue'
+import { formatDateTime } from '@/core/utils/format'
 
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
@@ -206,7 +207,7 @@ onMounted(async () => {
                     <p class="text-[0.65rem] font-bold tracking-[0.12em] text-theme-primary">VAULT RECORD</p>
                     <h3 class="mt-1 text-xl font-bold text-theme-primary">Vault {{ vault.number }}</h3>
                   </div>
-                  <p class="text-right text-xs text-theme-primary/60">Updated {{ new Date(vault.updated_at).toLocaleString() }}</p>
+                  <p class="text-right text-xs text-theme-primary/60">Updated {{ formatDateTime(vault.updated_at) }}</p>
                 </header>
 
                 <div class="grid grid-cols-2 gap-2 lg:grid-cols-4">

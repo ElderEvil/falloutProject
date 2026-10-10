@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import { Card } from '@/core/components/ui/card'
 import { Skeleton } from '@/core/components/ui/skeleton'
+import { getHappinessColor, getHappinessLevel } from '@/modules/dwellers/models/dweller'
 
 interface DwellerDistribution {
   high: number // 75-100
@@ -47,28 +48,9 @@ const emit = defineEmits<{
 
 const dwellerDistribution = computed<DwellerDistribution>(() => distribution)
 
-const happinessLevel = computed(() => {
-  const h = vaultHappiness
-  if (h >= 75) return 'high'
-  if (h >= 50) return 'medium'
-  if (h >= 25) return 'low'
-  return 'critical'
-})
+const happinessLevel = computed(() => getHappinessLevel(vaultHappiness))
 
-const happinessColor = computed(() => {
-  switch (happinessLevel.value) {
-    case 'high':
-      return 'var(--color-theme-primary)'
-    case 'medium':
-      return 'var(--color-terminal-green-dark)'
-    case 'low':
-      return 'var(--color-warning)'
-    case 'critical':
-      return 'var(--color-danger)'
-    default:
-      return 'var(--color-theme-primary)'
-  }
-})
+const happinessColor = computed(() => getHappinessColor(happinessLevel.value))
 
 const happinessLabel = computed(() => {
   switch (happinessLevel.value) {

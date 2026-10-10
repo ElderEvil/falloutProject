@@ -2,6 +2,144 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.191.2 (2026-10-10)
+
+### Code Refactoring
+
+* **dwellers:** extract AppearanceSelect to dedup the appearance editor b92f100
+* **frontend:** DRY sweep — filter counts, happiness, map builders, predicates ba8fb76
+
+## 2.191.1 (2026-10-10)
+
+### Bug Fixes
+
+* **dwellers:** flag the injured alert only when severely damaged df53f32
+* **dwellers:** threshold the injured alert on base max HP 92da72b
+
+## 2.191.0 (2026-10-10)
+
+### Features
+
+* **map:** site-type filter driving markers, list, and legend 26c309f
+
+### Code Refactoring
+
+* **map:** move marker colours to Preferences and float the site-type filter e283bf7
+* **map:** share the site-type filter predicate 79580fe
+
+## 2.190.0 (2026-10-09)
+
+### Features
+
+* **cli:** add map-scenario command to populate a vault's map by site-type group f985ff2
+* **map:** add in-world lore descriptions for seeded places 265e634
+* **map:** group-color toggle and clickable dweller popover a8f8db4
+
+### Bug Fixes
+
+* **map:** address CodeRabbit review on the dweller popover and legend 40f8057
+* **map:** define group colours as theme tokens f4b18f3
+* **map:** dweller navigation, marker thumbnail focus, and dispatch supply defaults 4af20e0
+* **map:** native SVG marker glyphs, state colours, group colours 14fd262
+* **map:** real dweller vitals in the popover; retire the dev mockup 7c3598d
+* **map:** register biography- and quest-referenced places in the seed roster b0a6f9d
+* **map:** render ungrouped places with their effective archetype icon 4c9b11b
+* **map:** replace placeholder NPC vault-signal copy 84c3304
+* **map:** widen the dispatch modal so the party slots fit b12eaa7
+
+### Documentation
+
+* add code review and Vue debugging skills 20cc56b
+* **map:** record map presentation P0-P5 plan b4d41f0
+* **skills:** drop the oversized vue-debug-guides skill 3007cad
+
+## 2.189.0 (2026-10-08)
+
+### Features
+
+* **ui:** roster empty-filter state with clear action (wave 5) f90a827
+* **ui:** sidebar link semantics, hotkey guard, and mobile drawer (wave 3) 360a387
+* **ui:** surface urgent vault actions (wave 1) 8f9cf7f
+
+### Bug Fixes
+
+* **ui:** keep the rooms store off the critical path (bundle budget) faad785
+* **ui:** make flicker respect effects preference and reduced motion (wave 2) 26d924b
+* **ui:** notifications popup viewport, focus, and row semantics (wave 4) 76b4635
+* **ui:** preserve mobile navigation labels after desktop collapse 4916970
+* **ui:** reactive drawer breakpoint, mobile tooltip, resilient room-chunk load 2b11b05
+* **ui:** use RouterLink for overview chips and ratchet raw-control baseline 22c939b
+
+## 2.188.0 (2026-10-08)
+
+### Features
+
+* **map:** marker clarity, zoom clustering, and cased dashed routes 55de1a9
+* **map:** show vault info panel when clicking own vaults 5bf32cc
+* **map:** transient curved routes, stable duration modal, clickable own vaults d5d47a5
+
+### Bug Fixes
+
+* **map:** address PR review — cluster at max zoom, vault-info race ade383c
+* **map:** guard home-vault and own-vault marker clicks against drag d3ddd32
+* **map:** stop rendering the current vault twice 1d4673a
+
+### Code Refactoring
+
+* **map:** apply owner review — dead renderer, modal contract, home-vault info 23cd2e2
+
+## 2.187.0 (2026-10-07)
+
+### Features
+
+* **frontend:** typed API client boundary with auth/profile migration ([#911](https://github.com/ElderEvil/falloutProject/issues/911)) f78ef47
+
+## 2.186.0 (2026-10-07)
+
+### Features
+
+* **frontend:** read-only chat and no medical offers for dead dwellers 23bb2eb
+
+## 2.185.0 (2026-10-07)
+
+### Features
+
+* **frontend:** retire map-click send, add compass dial, route chat through send flow 4ca7223
+
+### Bug Fixes
+
+* **frontend:** guard chat dispatch unassign and suggestion dismissal faf1af9
+
+## 2.184.0 (2026-10-07)
+
+### Features
+
+* **frontend:** one-click heal with vault count and auto-issue a2ea9de
+
+## 2.183.1 (2026-10-07)
+
+### Bug Fixes
+
+* **backend:** block healing and chat for dead dwellers 8ce3946
+
+## 2.183.0 (2026-10-06)
+
+### Features
+
+* **exploration:** unify map departures with auto-heading, team dispatch, and supplies 0c64b95
+* **map:** merge dispatch into location details modal a01c507
+
+### Bug Fixes
+
+* **frontend:** polish dispatch picker header, footer and status badge e34b82b
+* **frontend:** use Button primitive for modal header actions 12c5c99
+* **map:** address review findings, unify explorer markers and trails 416cbd2
+* **review:** storage lock refresh and party picker a11y 7d4859f
+
+### Documentation
+
+* record pets as shipped and world activation as deferred 227b3b2
+
 ## 2.182.0 (2026-10-05)
 
 ### Features

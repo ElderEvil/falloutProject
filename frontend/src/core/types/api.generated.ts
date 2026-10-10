@@ -1369,6 +1369,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/explorations/suggest-heading": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Suggest Heading
+         * @description Suggest a heading for an auto departure; null when the vault has no map placement.
+         */
+        get: operations["suggest_heading_api_v1_explorations_suggest_heading_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/explorations/vault/{vault_id}": {
         parameters: {
             query?: never;
@@ -5859,6 +5879,9 @@ export interface components {
         /**
          * DiscoveryRouteRead
          * @description Ordered discovery trail for a single exploration.
+         *
+         *     ``is_active`` marks an in-progress run. Routes are always returned (the fog
+         *     corridor is derived from every route), but only active ones draw a trail.
          */
         DiscoveryRouteRead: {
             /**
@@ -5868,6 +5891,8 @@ export interface components {
             exploration_id: string;
             /** Points */
             points: components["schemas"]["DiscoveryRoutePoint"][];
+            /** Is Active */
+            is_active: boolean;
         };
         /**
          * DwellerAppearanceOptions
@@ -7090,6 +7115,18 @@ export interface components {
              * Format: uuid4
              */
             location_id: string;
+            /**
+             * Stimpaks
+             * @description Number of Stimpaks to bring
+             * @default 0
+             */
+            stimpaks: number;
+            /**
+             * Radaways
+             * @description Number of Radaways to bring
+             * @default 0
+             */
+            radaways: number;
         };
         /**
          * ExpeditionEnterRequest
@@ -7605,6 +7642,14 @@ export interface components {
             active: components["schemas"]["HazardTeamMemberRead"][];
             /** Reserve */
             reserve: components["schemas"]["HazardTeamMemberRead"][];
+        };
+        /**
+         * HeadingSuggestion
+         * @description A server-suggested compass heading for an auto departure; null without a placement.
+         */
+        HeadingSuggestion: {
+            /** Heading Degrees */
+            heading_degrees?: number | null;
         };
         /**
          * IdentityModifiersRead
@@ -12961,6 +13006,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExplorationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggest_heading_api_v1_explorations_suggest_heading_get: {
+        parameters: {
+            query: {
+                vault_id: string;
+                seed: string;
+                duration?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeadingSuggestion"];
                 };
             };
             /** @description Validation Error */

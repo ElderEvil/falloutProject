@@ -72,7 +72,13 @@ interface DisplayStorageItem {
 }
 
 const selectTab = (tab: string) => {
-  if (tab === 'weapons' || tab === 'outfits' || tab === 'junk' || tab === 'supplies' || tab === 'pets')
+  if (
+    tab === 'weapons' ||
+    tab === 'outfits' ||
+    tab === 'junk' ||
+    tab === 'supplies' ||
+    tab === 'pets'
+  )
     activeTab.value = tab
 }
 
@@ -288,7 +294,10 @@ const closeLunchboxModal = async () => {
   <div class="relative min-h-screen bg-terminal-background font-mono text-theme-primary">
     <SidePanel />
 
-    <div class="flex-1 transition-[margin] duration-300" :class="isCollapsed ? 'ml-16' : 'ml-60'">
+    <div
+      class="flex-1 transition-[margin] duration-300 max-md:ml-0"
+      :class="isCollapsed ? 'ml-16' : 'ml-60'"
+    >
       <PageContentRail>
         <PageHeader
           title="Vault Storage"

@@ -108,10 +108,15 @@ class DiscoveryRoutePoint(SQLModel):
 
 
 class DiscoveryRouteRead(SQLModel):
-    """Ordered discovery trail for a single exploration."""
+    """Ordered discovery trail for a single exploration.
+
+    ``is_active`` marks an in-progress run. Routes are always returned (the fog
+    corridor is derived from every route), but only active ones draw a trail.
+    """
 
     exploration_id: UUID4
     points: list[DiscoveryRoutePoint]
+    is_active: bool
 
 
 class ExpeditionSiteMarkerRead(SQLModel):

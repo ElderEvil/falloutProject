@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createIconifyMock } from '../../helpers/mocks'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
@@ -8,13 +9,7 @@ import ExpeditionSiteModal from '@/modules/exploration/components/ExpeditionSite
 import { useExpeditionSiteStore } from '@/modules/exploration/stores/expeditionSite'
 import type { AvailableSiteView, SiteRoomView } from '@/modules/exploration/api/expeditionSite'
 
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-mock" :data-icon="icon"></span>',
-    props: ['icon'],
-  },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 const { mockList, mockEnter, mockResolve, mockRetreat } = vi.hoisted(() => ({
   mockList: vi.fn(),

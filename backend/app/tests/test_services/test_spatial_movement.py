@@ -2,6 +2,7 @@
 
 import math
 from datetime import datetime, timedelta
+from uuid import uuid4
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -168,8 +169,76 @@ async def test_double_processing_is_noop(async_session: AsyncSession, vault: Vau
 
 
 @pytest.mark.asyncio
-async def test_legacy_null_heading_run_untouched(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """A legacy run (heading NULL) keeps today's behavior: advance() is a no-op."""
+async def test_auto_heading_depart_is_spatial(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
+    """A heading-less send with a placement auto-picks a heading and moves on the map."""
+    slot_index = await _claim_slot(async_session, vault)
+    await _ensure_snapshot(async_session)
+    origin = slot_coords(slot_index)
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+
+    assert exploration.heading_degrees is not None
+    assert 0 <= exploration.heading_degrees < 360
+    assert (exploration.origin_x, exploration.origin_y) == origin
+    assert (exploration.pos_x, exploration.pos_y) == origin
+    assert exploration.position_as_of is not None
+    assert len(exploration.trail) == 1
+
+
+@pytest.mark.asyncio
+async def test_choose_heading_is_deterministic(async_session: AsyncSession, vault: Vault) -> None:
+    """The same seed always yields the same heading."""
+    slot_index = await _claim_slot(async_session, vault)
+    snapshot = await _ensure_snapshot(async_session)
+    origin = slot_coords(slot_index)
+    seed = uuid4()
+
+    first = exploration_service.choose_heading(snapshot, origin, 4, seed=seed)
+    second = exploration_service.choose_heading(snapshot, origin, 4, seed=seed)
+
+    assert first == second
+
+
+@pytest.mark.asyncio
+async def test_choose_heading_prefers_clear_ground(async_session: AsyncSession, vault: Vault) -> None:
+    """The chosen heading is one of the candidates with the greatest clear distance."""
+    slot_index = await _claim_slot(async_session, vault)
+    snapshot = await _ensure_snapshot(async_session)
+    origin = slot_coords(slot_index)
+    outbound = SPEED * 4 / 2
+    scores = {
+        heading: min(exploration_service._clear_distance(snapshot, origin, heading, outbound), outbound)
+        for heading in range(0, 360, 15)
+    }
+
+    chosen = exploration_service.choose_heading(snapshot, origin, 4, seed=uuid4())
+
+    assert scores[chosen] == pytest.approx(max(scores.values()))
+
+
+@pytest.mark.asyncio
+async def test_suggest_heading_returns_heading_with_slot(async_session: AsyncSession, vault: Vault) -> None:
+    """The preview endpoint's service returns a valid heading for a placed vault."""
+    await _claim_slot(async_session, vault)
+    await _ensure_snapshot(async_session)
+
+    heading = await exploration_service.suggest_heading(async_session, vault.id, duration=4, seed="nonce-1")
+
+    assert heading is not None
+    assert 0 <= heading < 360
+
+
+@pytest.mark.asyncio
+async def test_suggest_heading_is_none_without_slot(async_session: AsyncSession, vault: Vault) -> None:
+    """A vault without a placement has no suggested heading."""
+    heading = await exploration_service.suggest_heading(async_session, vault.id, duration=4, seed="nonce-1")
+
+    assert heading is None
+
+
+@pytest.mark.asyncio
+async def test_no_slot_send_stays_legacy(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
+    """A vault without a placement keeps the legacy run: advance() is a no-op."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     assert exploration.heading_degrees is None
     assert exploration.pos_x is None

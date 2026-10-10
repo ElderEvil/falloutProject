@@ -435,6 +435,12 @@ class ResourceConfig(BaseSettings):
         description="Per INT point per second for Medbay/Science Lab only",
         ge=0.0,
     )
+    junior_worker_output_multiplier: float = Field(
+        default=0.5,
+        description="A youth junior worker's production contribution as a fraction of a mature worker's",
+        ge=0.0,
+        le=1.0,
+    )
     tier_1_multiplier: float = Field(default=1.0, ge=0.0)
     tier_2_multiplier: float = Field(default=1.5, ge=0.0)
     tier_3_multiplier: float = Field(default=2.0, ge=0.0)
@@ -1087,6 +1093,13 @@ class FeatureConfig(BaseSettings):
             "Faction perks: weapon damage, production, incident response and faction radiation resistance. "
             "Ships dark until the world is deep enough for factions to mean something; faction identity "
             "(choice, filters, dossier) is deliberately not gated by it."
+        ),
+    )
+    emergent_sites: bool = Field(
+        default=True,
+        description=(
+            "Treat an ungrouped emergent PLACE (from a bio or discovery) as the default clearable "
+            "'Wasteland Site' archetype so it can be dispatched. Off keeps such places narrative-only."
         ),
     )
 

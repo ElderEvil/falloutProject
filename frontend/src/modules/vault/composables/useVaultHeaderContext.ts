@@ -1,6 +1,7 @@
 import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { getHappinessLevel, type HappinessLevel } from '@/modules/dwellers/models/dweller'
 import { useVaultStore, type VaultWithNumbers } from '../stores/vault'
 
 export type ResourceRates = Record<'power' | 'food' | 'water', number>
@@ -25,6 +26,21 @@ export interface VaultHeaderContext {
   dwellersTooltip: ComputedRef<string>
   happinessTooltip: ComputedRef<string>
   capsTooltip: ComputedRef<string>
+}
+
+// The header renders these as Tailwind text classes, so the strings stay local
+// (getHappinessColor returns theme CSS vars); the >=75/50/25 banding is canonical.
+const HAPPINESS_TEXT_CLASS: Record<HappinessLevel, string> = {
+  high: 'text-terminal-green',
+  medium: 'text-green-400',
+  low: 'text-yellow-400',
+  critical: 'text-red-500',
+}
+const HAPPINESS_MORALE_TEXT: Record<HappinessLevel, string> = {
+  high: '😊 Excellent morale!',
+  medium: '😐 Acceptable morale',
+  low: '😟 Low morale - needs attention',
+  critical: '😢 Critical - dwellers are unhappy!',
 }
 
 /**
@@ -84,13 +100,7 @@ export function useVaultHeaderContext(): VaultHeaderContext {
   })
 
   const happiness = computed(() => vault.value?.happiness ?? 0)
-  const happinessColor = computed(() => {
-    const h = happiness.value
-    if (h >= 75) return 'text-terminal-green'
-    if (h >= 50) return 'text-green-400'
-    if (h >= 25) return 'text-yellow-400'
-    return 'text-red-500'
-  })
+  const happinessColor = computed(() => HAPPINESS_TEXT_CLASS[getHappinessLevel(happiness.value)])
 
   const energy = computed(() => ({
     current: vault.value?.power ?? 0,
@@ -115,15 +125,7 @@ export function useVaultHeaderContext(): VaultHeaderContext {
   )
   const happinessTooltip = computed(
     () =>
-      `Vault Happiness: ${happiness.value}%\n${
-        happiness.value >= 75
-          ? '😊 Excellent morale!'
-          : happiness.value >= 50
-            ? '😐 Acceptable morale'
-            : happiness.value >= 25
-              ? '😟 Low morale - needs attention'
-              : '😢 Critical - dwellers are unhappy!'
-      }`
+      `Vault Happiness: ${happiness.value}%\n${HAPPINESS_MORALE_TEXT[getHappinessLevel(happiness.value)]}`
   )
   const capsTooltip = computed(
     () => `Bottle Caps: ${bottleCaps.value}\nVault currency for construction and upgrades`

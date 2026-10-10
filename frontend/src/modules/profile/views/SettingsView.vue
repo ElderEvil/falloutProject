@@ -109,7 +109,7 @@
                   <SettingItem
                     v-for="(weight, type) in settings.incident.spawn_weights"
                     :key="type"
-                    :label="formatIncidentType(String(type))"
+                    :label="humanizePreserveCase(String(type))"
                     :value="weight"
                   />
                 </CardContent>
@@ -125,7 +125,7 @@
                   <SettingItem
                     v-for="(range, type) in settings.incident.difficulty_ranges"
                     :key="type"
-                    :label="formatIncidentType(String(type))"
+                    :label="humanizePreserveCase(String(type))"
                     :value="`${range[0]} - ${range[1]}`"
                   />
                 </CardContent>
@@ -604,7 +604,8 @@ import { useToast } from '@/core/composables/useToast'
 import { useBackNavigation } from '@/core/composables/useBackNavigation'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import apiClient from '@/core/plugins/axios'
+import { apiGet } from '@/core/utils/api'
+import { humanizePreserveCase } from '@/core/utils/format'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
@@ -646,22 +647,13 @@ const error = ref<string | null>(null)
 
 async function loadSettings() {
   try {
-    const response = await apiClient.get('/api/v1/game/balance')
-    settings.value = response.data
+    settings.value = await apiGet('/api/v1/game/balance')
   } catch (err) {
     error.value = 'Failed to load game balance settings'
     showError('Failed to load game balance settings')
   } finally {
     loading.value = false
   }
-}
-
-function formatIncidentType(type: string): string {
-  return type
-    .replace(/_/g, ' ')
-    .split(' ')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
 }
 
 onMounted(() => {

@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Alert } from '@/core/components/ui/alert'
 import { Button } from '@/core/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -125,18 +125,15 @@ const close = () => {
 </script>
 
 <template>
-  <Dialog :open="modelValue" @update:open="(open) => { if (!open) close() }">
-    <DialogContent
-      class="flex max-h-[65vh] w-full max-w-md flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-md"
-    >
-      <DialogHeader
-        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
-      >
-        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">Start Training</DialogTitle>
-      </DialogHeader>
-
-      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
-        <div class="training-start-modal">
+  <TerminalModal
+    :open="modelValue"
+    title="Start Training"
+    size="md"
+    max-height="65"
+    @close="close"
+  >
+    <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+      <div class="training-start-modal">
           <p class="description">
             Select a SPECIAL stat to improve for
             <span class="dweller-name">{{ getDwellerDisplayName(dweller) }}</span
@@ -193,9 +190,8 @@ const close = () => {
             </Button>
           </div>
         </div>
-      </div>
-    </DialogContent>
-  </Dialog>
+    </div>
+  </TerminalModal>
 </template>
 
 <style scoped>

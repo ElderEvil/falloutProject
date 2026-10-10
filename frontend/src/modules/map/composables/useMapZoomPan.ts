@@ -191,9 +191,9 @@ export function useMapZoomPan() {
     panY.value = 0
   }
 
-  function focusOnMarker(x: number, y: number): void {
+  function focusOnMarker(x: number, y: number, minZoom = 2): void {
     // Zoom to at least 2x for focus
-    const targetZoom = Math.max(zoom.value, 2)
+    const targetZoom = clampZoom(Math.max(zoom.value, minZoom))
     zoom.value = targetZoom
     const result = computeFocusPan(x, y, targetZoom)
     panX.value = result.panX

@@ -184,20 +184,6 @@ class IncidentService:
         """Spawn orchestration — see incident_spawning."""
         return await incident_spawning.spawn_incident(db_session, vault_id, incident_type)
 
-    async def _no_defender_outcome(self, db_session: AsyncSession, incident: Incident) -> IncidentRoundResult:
-        """Round engine — see incident_round."""
-        return await incident_round.no_defender_outcome(db_session, incident)
-
-    async def _apply_damage(
-        self, db_session: AsyncSession, incident: Incident, dwellers: list[Dweller], damage_to_dwellers: float
-    ) -> tuple[int, int, int]:
-        """Round engine — see incident_round."""
-        return await incident_round.apply_damage(db_session, incident, dwellers, damage_to_dwellers)
-
-    async def _resolve_victory(self, db_session: AsyncSession, incident: Incident, dwellers: list[Dweller]) -> int:
-        """Round engine — see incident_round."""
-        return await incident_round.resolve_victory(db_session, incident, dwellers)
-
     async def process_incident(
         self, db_session: AsyncSession, incident: Incident, seconds_passed: int
     ) -> IncidentRoundResult:

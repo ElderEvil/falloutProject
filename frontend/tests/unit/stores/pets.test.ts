@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { createToastMock } from '../helpers/mocks'
 import { setActivePinia, createPinia } from 'pinia'
 import { usePetsStore } from '@/modules/pets/stores/pets'
 import * as petsService from '@/modules/pets/services/pets'
@@ -6,12 +7,7 @@ import type { Pet } from '@/modules/pets/models/pet'
 
 vi.mock('@/modules/pets/services/pets')
 
-const toastMock = vi.hoisted(() => ({
-  success: vi.fn(),
-  error: vi.fn(),
-  warning: vi.fn(),
-  info: vi.fn(),
-}))
+const toastMock = createToastMock()
 
 vi.mock('@/core/composables/useToast', () => ({
   useToast: () => toastMock,

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { createIconifyMock, createToastMock } from '../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
@@ -10,17 +11,12 @@ import axios from '@/core/plugins/axios'
 vi.mock('@/core/plugins/axios')
 
 // Mock Iconify so icon-only assertions read the resolved icon name
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-mock" :data-icon="icon"></span>',
-    props: ['icon'],
-  },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 // Composables outside the scope of the pets-bucket tests
+const mockToast = createToastMock()
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }),
+  useToast: () => mockToast,
 }))
 vi.mock('@/core/composables/useSidePanel', () => ({
   useSidePanel: () => ({ isCollapsed: { value: false } }),

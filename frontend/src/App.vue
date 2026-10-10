@@ -45,7 +45,7 @@ const closeChat = () => {
 
 // Visual effects (replaces old useFlickering)
 const visualEffects = useVisualEffects()
-const { flickering, scanlines, glowClass, flickerOpacity } = visualEffects
+const { isFlickeringEnabled, scanlines, glowClass, flickerOpacity } = visualEffects
 
 // Theme system
 const { currentTheme, setTheme, availableThemes } = useTheme()
@@ -95,8 +95,9 @@ provide('visualEffects', visualEffects)
 provide('scanlines', scanlines)
 provide('glowClass', glowClass)
 
-// Legacy support for old useFlickering consumers
-provide('isFlickering', flickering)
+// Legacy support for old useFlickering consumers: the stored preference gated
+// by prefers-reduced-motion, so reduced-motion users never start the JS loop.
+provide('isFlickering', isFlickeringEnabled)
 provide('toggleFlickering', visualEffects.toggleFlickering)
 
 // Theme providers
@@ -107,7 +108,7 @@ provide('availableThemes', availableThemes)
 
 <template>
   <div>
-    <DefaultLayout :isFlickering="flickering" :flicker-opacity="flickerOpacity">
+    <DefaultLayout :isFlickering="isFlickeringEnabled" :flicker-opacity="flickerOpacity">
       <router-view></router-view>
     </DefaultLayout>
     <Toaster />

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { createIconifyMock, createToastMock } from '../../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
@@ -8,22 +9,18 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 
 // Mock Iconify
-vi.mock('@iconify/vue', () => ({
-  Icon: {
-    name: 'Icon',
-    template: '<span class="icon-mock" :data-icon="icon"></span>',
-    props: ['icon'],
-  },
-}))
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 // Avoid real network call for vault map place links
 vi.mock('@/modules/map/services/mapService', () => ({
   getVaultMap: vi.fn().mockResolvedValue({ locations: [] }),
 }))
 
+const mockToast = createToastMock()
+
 // Composables outside the scope of this test
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }),
+  useToast: () => mockToast,
 }))
 vi.mock('@/core/composables/useSidePanel', () => ({
   useSidePanel: () => ({ isCollapsed: { value: false } }),
@@ -36,8 +33,11 @@ vi.mock('@/modules/exploration/composables/useSendToWasteland', () => ({
     open: vi.fn(),
     cancel: vi.fn(),
     confirm: vi.fn(),
+    reroll: vi.fn(),
     showModal: { value: false },
     pendingDweller: { value: null },
+    headingDegrees: { value: null },
+    isSuggestingHeading: { value: false },
   }),
 }))
 

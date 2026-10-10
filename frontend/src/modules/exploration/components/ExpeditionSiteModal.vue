@@ -2,14 +2,8 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/core/components/ui/dialog'
 import { Progress } from '@/core/components/ui/progress'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
 import ExpeditionOutcomeLines from './ExpeditionOutcomeLines.vue'
 import { isTerminal, useExpeditionSiteStore } from '../stores/expeditionSite'
@@ -206,25 +200,17 @@ const terminalBanner = computed(() => {
 </script>
 
 <template>
-  <Dialog
+  <TerminalModal
     :open="show"
-    @update:open="
-      (open) => {
-        if (!open) handleDialogClose()
-      }
-    "
+    :title="room ? room.site_name : 'Expedition Site'"
+    icon="mdi:radio-tower"
+    icon-class="inline h-6 w-6 shrink-0 text-theme-primary"
+    title-class="truncate text-2xl font-bold text-theme-primary terminal-glow"
+    size="xl"
+    max-height="75"
+    header-class="flex flex-shrink-0 flex-row items-center gap-2 border-b border-theme-primary/25 bg-theme-primary/5 pt-6 pr-14 pb-4 pl-6"
+    @close="handleDialogClose"
   >
-    <DialogContent
-      class="flex max-h-[75vh] w-full max-w-xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-xl"
-    >
-      <DialogHeader
-        class="flex flex-shrink-0 flex-row items-center gap-2 border-b border-theme-primary/25 bg-theme-primary/5 pt-6 pr-14 pb-4 pl-6"
-      >
-        <Icon icon="mdi:radio-tower" class="inline h-6 w-6 shrink-0 text-theme-primary" />
-        <DialogTitle class="truncate text-2xl font-bold text-theme-primary terminal-glow">
-          {{ room ? room.site_name : 'Expedition Site' }}
-        </DialogTitle>
-      </DialogHeader>
 
       <div
         v-if="room && (showHealthBar || showTimer)"
@@ -524,9 +510,7 @@ const terminalBanner = computed(() => {
         </template>
       </div>
 
-      <DialogFooter
-        class="flex flex-shrink-0 justify-end border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
-      >
+    <template #footer>
         <!-- PICKER footer -->
         <Button v-if="!room" variant="secondary" size="lg" @click="emit('close')">
           <Icon icon="mdi:close" class="h-5 w-5" />
@@ -572,9 +556,8 @@ const terminalBanner = computed(() => {
             Retreat
           </Button>
         </template>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
+    </template>
+  </TerminalModal>
 </template>
 
 <style scoped>

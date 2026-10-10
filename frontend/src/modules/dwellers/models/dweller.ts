@@ -472,3 +472,8 @@ export const ADULT_AGE_GROUPS: ReadonlySet<string> = new Set(['adult', 'elder'])
 export function isMature(dweller: Pick<Dweller, 'age_group'>): boolean {
   return ADULT_AGE_GROUPS.has(dweller.age_group)
 }
+
+/** True when a dweller can be assigned to a room: no room and not dead or away from the vault. */
+export function isUnassignable(dweller: { room_id?: string | null; status: string }): boolean {
+  return !dweller.room_id && !['dead', 'questing', 'exploring'].includes(dweller.status)
+}

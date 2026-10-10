@@ -5,6 +5,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useVaultStore } from '../stores/vault'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { isUnassignable } from '@/modules/dwellers/models/dweller'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { useSound } from '@/core/composables/useSound'
@@ -82,10 +83,7 @@ const questingCount = computed(
   () => dwellerStore.dwellers.filter((dweller) => dweller.status === 'questing').length
 )
 const unassignedCount = computed(
-  () =>
-    dwellerStore.dwellers.filter(
-      (dweller) => !dweller.room_id && !['dead', 'questing', 'exploring'].includes(dweller.status)
-    ).length
+  () => dwellerStore.dwellers.filter((dweller) => isUnassignable(dweller)).length
 )
 const dwellersPath = computed(() => `/vault/${vaultId.value}/dwellers`)
 const overseerBriefing = computed(() => ({

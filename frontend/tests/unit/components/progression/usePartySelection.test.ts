@@ -18,18 +18,21 @@ const makeSelection = (
     maxPartySize: number
     maxStimpaks: number
     maxRadaways: number
+    supplySuggestion: { stimpaks: number; radaways: number }
   }> = {}
 ) => {
   const dwellers = ref<DwellerShort[]>(overrides.dwellers ?? [])
   const maxPartySize = ref(overrides.maxPartySize ?? 3)
   const maxStimpaks = ref(overrides.maxStimpaks ?? 0)
   const maxRadaways = ref(overrides.maxRadaways ?? 0)
+  const supplySuggestion = ref(overrides.supplySuggestion ?? { stimpaks: 0, radaways: 0 })
   return {
     selection: usePartySelection({
       dwellers,
       maxPartySize,
       maxStimpaks,
       maxRadaways,
+      supplySuggestion,
     }),
     maxStimpaks,
     maxRadaways,
@@ -131,5 +134,49 @@ describe('usePartySelection', () => {
 
     expect(selection.selectedDwellers.value.map((d) => d.id)).toEqual(['a'])
     expect(selection.suppliesPayload()).toEqual({ stimpaks: 2, radaways: 0 })
+  })
+
+  it('pre-fills the supply suggestion on open, clamped to availability', () => {
+    const { selection } = makeSelection({
+      maxStimpaks: 8,
+      maxRadaways: 2,
+      supplySuggestion: { stimpaks: 5, radaways: 5 },
+    })
+
+    selection.resetOnOpen([])
+
+    expect(selection.selectedStimpaks.value).toBe(5)
+    expect(selection.selectedRadaways.value).toBe(2)
+  })
+
+  it('applies the suggestion once availability arrives after opening', async () => {
+    const { selection, maxStimpaks, maxRadaways } = makeSelection({
+      supplySuggestion: { stimpaks: 5, radaways: 5 },
+    })
+
+    selection.resetOnOpen([])
+    expect(selection.selectedStimpaks.value).toBe(0)
+
+    maxStimpaks.value = 10
+    maxRadaways.value = 10
+    await nextTick()
+
+    expect(selection.selectedStimpaks.value).toBe(5)
+    expect(selection.selectedRadaways.value).toBe(5)
+  })
+
+  it('keeps a user-chosen supply when availability arrives late', async () => {
+    const { selection, maxStimpaks } = makeSelection({
+      maxStimpaks: 5,
+      supplySuggestion: { stimpaks: 5, radaways: 5 },
+    })
+
+    selection.resetOnOpen([])
+    selection.setStimpaks([1])
+
+    maxStimpaks.value = 10
+    await nextTick()
+
+    expect(selection.selectedStimpaks.value).toBe(1)
   })
 })

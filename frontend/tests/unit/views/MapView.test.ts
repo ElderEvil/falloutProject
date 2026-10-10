@@ -102,6 +102,7 @@ describe('MapView', () => {
     )
     setActivePinia(createPinia())
     localStorage.removeItem(VIEWED_LOCATIONS_STORAGE_KEY)
+    localStorage.removeItem('map:site-type-filter')
     mapStore = useMapStore()
     mockRoute.query = {}
     vi.clearAllMocks()
@@ -118,8 +119,15 @@ describe('MapView', () => {
           WorldMap: {
             name: 'WorldMap',
             template: '<div class="world-map-stub"></div>',
-            props: ['locations', 'vaultMarkers', 'explorerTracks', 'selectedMarkerId', 'fogDisabled'],
-            emits: ['marker-click', 'update:selectedMarkerId'],
+            props: [
+              'locations',
+              'vaultMarkers',
+              'explorerTracks',
+              'siteTypeFilter',
+              'selectedMarkerId',
+              'fogDisabled',
+            ],
+            emits: ['marker-click', 'update:selectedMarkerId', 'vault-info'],
           },
           MarkerDetailModal: {
             name: 'MarkerDetailModal',
@@ -136,6 +144,12 @@ describe('MapView', () => {
               'suppliesLoading',
             ],
             emits: ['update:modelValue', 'dispatch'],
+          },
+          VaultInfoModal: {
+            name: 'VaultInfoModal',
+            template: '<div class="vault-info-stub"></div>',
+            props: ['open', 'vault', 'loading'],
+            emits: ['update:open'],
           },
           teleport: true,
         },
@@ -330,6 +344,200 @@ describe('MapView', () => {
       const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
       expect(modal.props('modelValue')).toBe(true)
       expect(modal.props('vaultMarker')).toEqual(vaultMarker)
+    })
+  })
+
+  describe('Own-vault info panel', () => {
+    const vaultSummary = {
+      id: 'vault-2',
+      number: 121,
+      bottle_caps: 1500,
+      happiness: 82,
+      power: 40,
+      power_max: 80,
+      food: 30,
+      food_max: 60,
+      water: 20,
+      water_max: 50,
+      population_max: null,
+      radio_mode: 'recruitment',
+      incidents_disabled: false,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-02T03:04:05Z',
+      room_count: 12,
+      dweller_count: 18,
+      stimpack: 5,
+      radaway: 3,
+    }
+
+    function mountMapWithVaults(vaults: (typeof vaultSummary)[]) {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      const vaultStore = useVaultStore()
+      vaultStore.vaults = vaults
+      return mountView()
+    }
+
+    it('opens the summary panel from store data without navigating', async () => {
+      const wrapper = mountMapWithVaults([vaultSummary])
+      await flushPromises()
+
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-2')
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
+      expect(modal.props('open')).toBe(true)
+      expect(modal.props('vault')).toEqual(vaultSummary)
+      expect(modal.props('loading')).toBe(false)
+      expect(wrapper.findComponent({ name: 'MarkerDetailModal' }).props('modelValue')).toBe(false)
+      expect(mockPush).not.toHaveBeenCalled()
+    })
+
+    it('hydrates the vault list when the store is empty', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      const vaultStore = useVaultStore()
+      vaultStore.vaults = []
+      const fetchSpy = vi.spyOn(vaultStore, 'fetchVaults').mockImplementation(async () => {
+        vaultStore.vaults = [vaultSummary]
+        return true
+      })
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-2')
+      await flushPromises()
+
+      expect(fetchSpy).toHaveBeenCalledWith('test-token')
+      expect(wrapper.findComponent({ name: 'VaultInfoModal' }).props('vault')).toEqual(vaultSummary)
+      expect(mockPush).not.toHaveBeenCalled()
+    })
+
+    it('refetches the vault list when a stale store misses the selected vault', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      const vaultStore = useVaultStore()
+      vaultStore.vaults = [{ ...vaultSummary, id: 'vault-other', number: 999 }]
+      const fetchSpy = vi.spyOn(vaultStore, 'fetchVaults').mockImplementation(async () => {
+        vaultStore.vaults = [vaultSummary]
+        return true
+      })
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-2')
+      await flushPromises()
+
+      expect(fetchSpy).toHaveBeenCalledWith('test-token')
+      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
+      expect(modal.props('vault')).toEqual(vaultSummary)
+      expect(modal.props('loading')).toBe(false)
+    })
+
+    it('keeps loading until the newest request resolves (A to B race)', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      const vaultStore = useVaultStore()
+      vaultStore.vaults = []
+      const pending: Array<(value: boolean) => void> = []
+      vi.spyOn(vaultStore, 'fetchVaults').mockImplementation(
+        () => new Promise<boolean>((resolve) => pending.push(resolve))
+      )
+      const vaultSummaryB = { ...vaultSummary, id: 'vault-3', number: 122 }
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      const worldMap = wrapper.findComponent({ name: 'WorldMap' })
+      worldMap.vm.$emit('vault-info', 'vault-2')
+      await flushPromises()
+      worldMap.vm.$emit('vault-info', 'vault-3')
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
+      expect(modal.props('loading')).toBe(true)
+
+      // The stale request settling first must not clear the newer spinner.
+      pending[0]!(true)
+      await flushPromises()
+      expect(modal.props('loading')).toBe(true)
+
+      vaultStore.vaults = [vaultSummaryB]
+      pending[1]!(true)
+      await flushPromises()
+
+      expect(modal.props('loading')).toBe(false)
+      expect(modal.props('vault')).toEqual(vaultSummaryB)
+    })
+
+    it('shows the loading state until the vault list resolves', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      const vaultStore = useVaultStore()
+      vaultStore.vaults = []
+      let resolveFetch!: (value: boolean) => void
+      const gate = new Promise<boolean>((resolve) => {
+        resolveFetch = resolve
+      })
+      vi.spyOn(vaultStore, 'fetchVaults').mockReturnValue(gate)
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-2')
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
+      expect(modal.props('open')).toBe(true)
+      expect(modal.props('loading')).toBe(true)
+
+      vaultStore.vaults = [vaultSummary]
+      resolveFetch(true)
+      await flushPromises()
+
+      expect(modal.props('loading')).toBe(false)
+      expect(modal.props('vault')).toEqual(vaultSummary)
+    })
+
+    it('opens the unavailable state when the record cannot be resolved', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      const vaultStore = useVaultStore()
+      vaultStore.vaults = []
+      vi.spyOn(vaultStore, 'fetchVaults').mockResolvedValue(true)
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-404')
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
+      expect(modal.props('open')).toBe(true)
+      expect(modal.props('vault')).toBeNull()
+      expect(modal.props('loading')).toBe(false)
+    })
+
+    it('closes the panel when it emits update:open false', async () => {
+      const wrapper = mountMapWithVaults([vaultSummary])
+      await flushPromises()
+
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-2')
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
+      modal.vm.$emit('update:open', false)
+      await flushPromises()
+
+      expect(modal.props('open')).toBe(false)
     })
   })
 
@@ -579,6 +787,110 @@ describe('MapView', () => {
       await flushPromises()
 
       expect(wrapper.findComponent({ name: 'WorldMap' }).props('fogDisabled')).toBe(true)
+    })
+  })
+
+  describe('site-type filter', () => {
+    function seedSites() {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [{ ...mockLocation, group_key: 'gas_station' }]
+      mapStore.placeGroups = [
+        {
+          key: 'gas_station',
+          label: 'Gas Station',
+          icon: 'mdi:gas-station',
+          risk: 'low',
+          description: 'A roadside fuel stop.',
+        },
+      ] as never
+      mapStore.isLoading = false
+    }
+
+    const worldMapProps = (wrapper: ReturnType<typeof mountView>) =>
+      wrapper.findComponent({ name: 'WorldMap' }).props()
+
+    it('passes a stored site-type filter down to the map', async () => {
+      // Null default selects the raw "any" serializer: store the bare key.
+      localStorage.setItem('map:site-type-filter', 'gas_station')
+      seedSites()
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(worldMapProps(wrapper).siteTypeFilter).toBe('gas_station')
+    })
+
+    it('degrades a stored filter whose group is absent from this vault to All', async () => {
+      localStorage.setItem('map:site-type-filter', 'military')
+      seedSites()
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(worldMapProps(wrapper).siteTypeFilter).toBeNull()
+    })
+
+    it('does not render the control when the map has no site groups', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(wrapper.find('[aria-label="Filter by site type"]').exists()).toBe(false)
+    })
+
+    it('renders the control with the persisted selection when groups exist', async () => {
+      localStorage.setItem('map:site-type-filter', 'gas_station')
+      seedSites()
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      const trigger = wrapper.find('[aria-label="Filter by site type"]')
+      expect(trigger.exists()).toBe(true)
+    })
+
+    it('does not offer the exclusion-zone easter egg as a filter option', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [{ ...mockLocation, group_key: 'exclusion_zone' }]
+      mapStore.placeGroups = [
+        {
+          key: 'exclusion_zone',
+          label: 'Restricted Exclusion Site',
+          icon: 'mdi:fence',
+          risk: 'high',
+          description: 'A restricted complex.',
+        },
+      ] as never
+      mapStore.isLoading = false
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(wrapper.find('[aria-label="Filter by site type"]').exists()).toBe(false)
+    })
+
+    it('degrades a stored exclusion-zone filter to All', async () => {
+      localStorage.setItem('map:site-type-filter', 'exclusion_zone')
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [{ ...mockLocation, group_key: 'exclusion_zone' }]
+      mapStore.placeGroups = [
+        {
+          key: 'exclusion_zone',
+          label: 'Restricted Exclusion Site',
+          icon: 'mdi:fence',
+          risk: 'high',
+          description: 'A restricted complex.',
+        },
+      ] as never
+      mapStore.isLoading = false
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(worldMapProps(wrapper).siteTypeFilter).toBeNull()
     })
   })
 })

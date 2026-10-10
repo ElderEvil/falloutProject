@@ -31,7 +31,6 @@ from app.services.game_tick.tick_results import (
     RelationshipsStats,
     TrainingStats,
     VaultTickResult,
-    WorkXpStats,
 )
 from app.services.resource_manager import ResourceManager
 from app.services.stream_manager import sse_manager
@@ -255,10 +254,6 @@ class GameLoopService:
     async def _process_explorations(self, db_session: AsyncSession, vault_id: UUID4) -> ExplorationStats:
         """Process all active explorations for a vault."""
         return await dwellers_tick.process_explorations(db_session, vault_id)
-
-    async def _award_work_xp(self, db_session: AsyncSession, dweller, room) -> WorkXpStats:
-        """Award work XP to a dweller and check for level-up."""
-        return await dwellers_tick.award_work_xp(db_session, dweller, room)
 
     async def _process_dwellers(
         self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int | None = None

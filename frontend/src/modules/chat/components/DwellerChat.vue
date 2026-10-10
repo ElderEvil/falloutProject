@@ -23,6 +23,7 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useSendToWasteland } from '@/modules/exploration/composables/useSendToWasteland'
 import { formatHeading } from '@/modules/map/utils/bearing'
+import { formatShortDate } from '@/core/utils/format'
 import ExplorationDurationModal from '@/modules/exploration/components/ExplorationDurationModal.vue'
 import ChatMessageList from './ChatMessageList.vue'
 import ChatDebugPanel from './ChatDebugPanel.vue'
@@ -102,13 +103,7 @@ const isQuotaExceeded = computed(() => profileStore.quotaExceeded)
 const resetDate = computed(() => {
   const resetDateStr = profileStore.aiUsageStats?.reset_date || ''
   if (!resetDateStr) return 'soon'
-  const [year, month, day] = resetDateStr.split('-')
-  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  return formatShortDate(resetDateStr)
 })
 
 const chatBudgetSummary = computed(() => {

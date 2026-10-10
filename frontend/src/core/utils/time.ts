@@ -63,37 +63,6 @@ export function formatRemaining(seconds: number): string {
   return formatDuration(seconds, { omitZeroHours: true, suffix: 'remaining' })
 }
 
-export interface FormatClockOptions {
-  /** Pad minutes to two digits (IncidentAlert `MM:SS` style). */
-  padMinutes?: boolean
-  /** Always render hours as `HH:MM:SS` (quest countdown). */
-  showHours?: boolean
-}
-
-/**
- * Format a duration as a clock/stopwatch string.
- * - default: `m:ss` with unpadded minutes (audio recording)
- * - `padMinutes`: `MM:SS` with padded minutes, no hours (incident elapsed time)
- * - `showHours`: `HH:MM:SS` with hours and minutes padded (quest countdown)
- */
-export function formatClock(
-  totalSeconds: number,
-  opts: FormatClockOptions = {}
-): string {
-  const { padMinutes = false, showHours = false } = opts
-  const total = Math.max(0, Math.floor(totalSeconds))
-  const pad2 = (value: number) => String(value).padStart(2, '0')
-
-  if (showHours) {
-    const hours = Math.floor(total / 3600)
-    const minutes = Math.floor((total % 3600) / 60)
-    return `${pad2(hours)}:${pad2(minutes)}:${pad2(total % 60)}`
-  }
-
-  const minutes = Math.floor(total / 60)
-  return `${padMinutes ? pad2(minutes) : minutes}:${pad2(total % 60)}`
-}
-
 /** Relative "ago" label over a UTC timestamp (notification bell). */
 export function formatRelativeTime(isoUtc: string, nowMs: number = Date.now()): string {
   const diff = nowMs - parseUtcMs(isoUtc)

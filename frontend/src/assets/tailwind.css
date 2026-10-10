@@ -88,16 +88,25 @@
        terrain and markers do not ghost through. Themeable. */
     --color-fog: #0a0908;
 
-    /* Marker archetype art — the prototype's silhouette palette, retained.
-       Read at draw time for the canvas marker icons. Themeable. */
-    --color-marker-settlement: #00ff00;
-    --color-marker-rocket: #ff6b6b;
-    --color-marker-store: #ffd43b;
-    --color-marker-factory: #c8b9ae;
-    --color-marker-tower: #00d9ff;
-    --color-marker-water: #4dabf7;
-    --color-marker-raider: #ff7043;
-    --color-marker-cache: #d4a24e;
+    /* Site-type identity colours for the optional group-colour map mode.
+       Identity coding only — never state. Themeable. */
+    --color-group-settlement: #b57a3a;
+    --color-group-city: #4f86d6;
+    --color-group-gas_station: #e04b45;
+    --color-group-supermarket: #a9d94b;
+    --color-group-factory: #6f8494;
+    --color-group-metro: #2fb3a8;
+    --color-group-military: #7d8f3f;
+    --color-group-brotherhood_outpost: #5f6fa0;
+    --color-group-research: #b06fd6;
+    --color-group-power: #ffd60a;
+    --color-group-entertainment: #e86fb0;
+    --color-group-landmark: #d9b53a;
+    --color-group-vault_tec: #3556c9;
+    --color-group-ruin: #8a5a3b;
+    --color-group-region: #5fae6a;
+    --color-group-exclusion_zone: #d96f26;
+    --color-group-wasteland_site: #bcc4a8;
 
     /* Rarity Colors */
     --color-rarity-common: #808080;
@@ -213,6 +222,17 @@
 /* Skip link (#main-content) must land below the fixed navbar. */
 #main-content {
     scroll-margin-top: var(--chrome-height);
+}
+
+/* Below md (< 768px) SidePanel.vue is an off-canvas drawer, so the fixed
+   240px panel offset must not be reserved. The many per-view scoped
+   `.main-content` rules each bake in `margin-left: 240px`/`64px` and are more
+   specific than this global selector (scoped attribute = extra specificity),
+   hence `!important` — this single rule replaces touching every view. */
+@media (max-width: 767.98px) {
+    .main-content {
+        margin-left: 0 !important;
+    }
 }
 
 /* === SHADCN-VUE SEMANTIC BRIDGE (Phase 0.2) === */
@@ -570,6 +590,9 @@ body {
 @media (prefers-reduced-motion: reduce) {
     .stat-highlight-pulse { animation: none; box-shadow: var(--glow-2); }
     .stat-badge-fade { animation: none; opacity: 1; }
+    .flicker,
+    .flicker-random,
+    .flicker-slow { animation: none; }
 }
 
 .badge-action {

@@ -1,7 +1,7 @@
+import { formatClock } from '@/core/utils/format'
 import { describe, expect, it } from 'vitest'
 import {
   computeRemainingSeconds,
-  formatClock,
   formatDaysRemaining,
   formatDuration,
   formatRelativeTime,
@@ -75,13 +75,13 @@ describe('formatDuration', () => {
 
 describe('formatClock', () => {
   it('formats audio-style m:ss with unpadded minutes by default', () => {
-    expect(formatClock(65)).toBe('1:05')
-    expect(formatClock(5)).toBe('0:05')
+    expect(formatClock(65, { showHours: false, padMinutes: false })).toBe('1:05')
+    expect(formatClock(5, { showHours: false, padMinutes: false })).toBe('0:05')
   })
 
   it('allows padded minutes without overflowing to hours', () => {
-    expect(formatClock(65, { padMinutes: true })).toBe('01:05')
-    expect(formatClock(3661, { padMinutes: true })).toBe('61:01')
+    expect(formatClock(65, { showHours: false, padMinutes: true })).toBe('01:05')
+    expect(formatClock(3661, { showHours: false, padMinutes: true })).toBe('61:01')
   })
 
   it('pads hours and minutes when showHours is set', () => {

@@ -20,7 +20,7 @@ export const MARKER_TYPES: readonly MarkerTypeMeta[] = [
   { type: 'home_vault', icon: 'mdi:home-city', label: 'Home Vault' },
   { type: 'origin', icon: 'mdi:flag', label: 'Origin' },
   { type: 'visited', icon: 'mdi:eye', label: 'Visited' },
-  { type: 'discovery', icon: 'mdi:compass', label: 'Discovery' },
+  { type: 'discovery', icon: 'mdi:map-marker-question', label: 'Discovery' },
   { type: 'vault', icon: 'mdi:radioactive', label: 'Vault Signal' },
   { type: 'expedition_site', icon: EXPEDITION_SITE_ICON, label: 'Expedition Sites' },
 ]

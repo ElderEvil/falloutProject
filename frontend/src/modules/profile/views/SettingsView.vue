@@ -109,7 +109,7 @@
                   <SettingItem
                     v-for="(weight, type) in settings.incident.spawn_weights"
                     :key="type"
-                    :label="formatIncidentType(String(type))"
+                    :label="humanizePreserveCase(String(type))"
                     :value="weight"
                   />
                 </CardContent>
@@ -125,7 +125,7 @@
                   <SettingItem
                     v-for="(range, type) in settings.incident.difficulty_ranges"
                     :key="type"
-                    :label="formatIncidentType(String(type))"
+                    :label="humanizePreserveCase(String(type))"
                     :value="`${range[0]} - ${range[1]}`"
                   />
                 </CardContent>
@@ -605,6 +605,7 @@ import { useBackNavigation } from '@/core/composables/useBackNavigation'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { apiGet } from '@/core/utils/api'
+import { humanizePreserveCase } from '@/core/utils/format'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
@@ -653,14 +654,6 @@ async function loadSettings() {
   } finally {
     loading.value = false
   }
-}
-
-function formatIncidentType(type: string): string {
-  return type
-    .replace(/_/g, ' ')
-    .split(' ')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
 }
 
 onMounted(() => {

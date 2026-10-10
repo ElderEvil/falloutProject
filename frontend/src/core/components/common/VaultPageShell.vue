@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { inject, ref } from 'vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import SidePanel from './SidePanel.vue'
 
@@ -7,12 +8,16 @@ withDefaults(defineProps<{ flicker?: boolean }>(), {
 })
 
 const { isCollapsed } = useSidePanel()
+const isFlickeringEnabled = inject('isFlickering', ref(false))
 </script>
 
 <template>
   <div class="vault-page-shell vault-layout">
     <SidePanel />
-    <main class="vault-page-main main-content" :class="{ collapsed: isCollapsed, flicker }">
+    <main
+      class="vault-page-main main-content"
+      :class="{ collapsed: isCollapsed, flicker: flicker && isFlickeringEnabled }"
+    >
       <slot />
     </main>
   </div>

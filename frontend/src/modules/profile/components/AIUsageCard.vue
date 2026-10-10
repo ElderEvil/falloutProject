@@ -7,6 +7,7 @@ import { Progress } from '@/core/components/ui/progress'
 import { Skeleton } from '@/core/components/ui/skeleton'
 import { Button } from '@/core/components/ui/button'
 import type { AIOperationStats, AIUsageStats } from '../models/aiUsage'
+import { formatMonthDay } from '@/core/utils/format'
 
 interface Props {
   stats: AIUsageStats | null
@@ -47,8 +48,7 @@ const quotaFillColor = computed(() => {
 
 const resetDateFormatted = computed(() => {
   if (!stats?.reset_date) return ''
-  const date = new Date(stats.reset_date)
-  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
+  return formatMonthDay(stats.reset_date)
 })
 
 const isEmpty = computed(() => {

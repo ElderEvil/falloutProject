@@ -437,7 +437,13 @@ class MapService:
             )
             if len(points) >= 2:
                 points.sort(key=lambda point: point.timestamp)
-                routes.append(DiscoveryRouteRead(exploration_id=exploration.id, points=points))
+                routes.append(
+                    DiscoveryRouteRead(
+                        exploration_id=exploration.id,
+                        points=points,
+                        is_active=exploration.is_in_progress(),
+                    )
+                )
         return routes
 
     @staticmethod
@@ -516,6 +522,17 @@ class MapService:
             loot_table=group.get("loot_table"),
         )
 
+    @staticmethod
+    def _group_key_for(location: WorldLocation) -> str | None:
+        """Effective archetype key for the wire.
+
+        An ungrouped PLACE resolves to the default ``wasteland_site`` archetype
+        (when emergent sites are enabled), so the client renders a real site icon
+        instead of falling back to a bare marker-type glyph.
+        """
+        group = effective_place_group(location.group_key, location.kind)
+        return group["key"] if group else None
+
     async def get_location_detail(
         self,
         db_session: AsyncSession,
@@ -552,7 +569,7 @@ class MapService:
             coord_x=round(location.coord_x * WORLD_SCALE, 1),
             coord_y=round(location.coord_y * WORLD_SCALE, 1),
             description=self._description_for(state, location),
-            group_key=location.group_key,
+            group_key=self._group_key_for(location),
             vault_id=vault.id,
             exploration_id=state.exploration_id,
             created_at=state.created_at,
@@ -636,7 +653,7 @@ class MapService:
                     coord_x=round(location.coord_x * WORLD_SCALE, 1),
                     coord_y=round(location.coord_y * WORLD_SCALE, 1),
                     description=self._description_for(state, location),
-                    group_key=location.group_key,
+                    group_key=self._group_key_for(location),
                     vault_id=vault.id,
                     exploration_id=state.exploration_id,
                     created_at=state.created_at,
@@ -654,7 +671,7 @@ class MapService:
                 coord_x=round(row.coord_x * WORLD_SCALE, 1),
                 coord_y=round(row.coord_y * WORLD_SCALE, 1),
                 type="vault",
-                description=row.description or "Unexplored vault signal — raiding available in a future update.",
+                description=row.description or "An unclassified vault signal. No contact established.",
             )
             for row in seeded_vaults
         ]

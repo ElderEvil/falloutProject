@@ -11,6 +11,7 @@ import { Card } from '@/core/components/ui/card'
 import { formatDaysRemaining } from '@/core/utils/time'
 import type { DwellerDead } from '@/modules/dwellers/models/dweller'
 import { getDeathCauseIcon, getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
+import { capitalize } from '@/core/utils/format'
 
 interface Props {
   dweller: DwellerDead
@@ -29,7 +30,7 @@ const emit = defineEmits<Emits>()
 // Formatting for death cause text
 const deathCauseText = computed(() => {
   if (!dweller.death_cause) return 'Unknown'
-  return dweller.death_cause.charAt(0).toUpperCase() + dweller.death_cause.slice(1)
+  return capitalize(dweller.death_cause)
 })
 
 // Warning state for imminent permanent death (less than 3 days)

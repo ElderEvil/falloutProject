@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import { ref, shallowRef, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, shallowRef, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSse, type SseEvent } from '@/core/composables/useEventStream'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
@@ -30,7 +35,10 @@ const authStore = useAuthStore()
 const router = useRouter()
 const { playSound } = useSound()
 const toast = useToast()
+const POPUP_ID = 'notifications-popup'
 const showPopup = ref(false)
+const bellButtonRef = ref<HTMLButtonElement | null>(null)
+const popupRef = ref<HTMLElement | null>(null)
 const notifications = ref<Notification[]>([])
 const unreadCount = ref(0)
 const { run: runFetchNotifications, isLoading } = useAsyncAction(
@@ -158,9 +166,7 @@ watch(currentSseEvent, (evt) => {
   // A cleared point's loot haul is asynchronous; announce it (progression red line).
   if (notificationData.notification_type === 'location_cleared') {
     const locationName = notificationData.meta_data?.location_name
-    toast.success(
-      locationName ? `${locationName} cleared — loot hauled` : notificationData.message
-    )
+    toast.success(locationName ? `${locationName} cleared — loot hauled` : notificationData.message)
   }
   // A point is re-lootable; announce it (progression red line).
   if (notificationData.notification_type === 'location_ready') {
@@ -187,9 +193,29 @@ const fetchUnreadCount = async () => {
   if (authStore.token) await runFetchUnreadCount(authStore.token)
 }
 
+const isActionable = (notification: Notification): boolean =>
+  getNotificationRoute(notification) !== null
+
+const closePopup = () => {
+  if (!showPopup.value) return
+  showPopup.value = false
+  // Every close path (Escape, backdrop, activation) returns focus to the bell.
+  nextTick(() => bellButtonRef.value?.focus())
+}
+
+const handleKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') closePopup()
+}
+
 const togglePopup = async () => {
-  showPopup.value = !showPopup.value
-  if (showPopup.value && notifications.value.length === 0) {
+  if (showPopup.value) {
+    closePopup()
+    return
+  }
+  showPopup.value = true
+  // Move focus into the popup so keyboard users can traverse the list.
+  nextTick(() => popupRef.value?.focus())
+  if (notifications.value.length === 0) {
     await fetchNotifications()
   }
 }
@@ -218,7 +244,7 @@ const enqueuePendingReport = (notification: Notification): void => {
 
 const handleNotificationClick = async (notification: Notification) => {
   if (!notification.is_read) await markAsRead(notification.id)
-  showPopup.value = false
+  closePopup()
   enqueuePendingReport(notification)
   const route = getNotificationRoute(notification)
   if (route) await router.push(route)
@@ -258,6 +284,7 @@ const getPriorityColor = (priority: string): string => {
 }
 
 onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
   fetchUnreadCount()
   if (authStore.token) {
     startSse()
@@ -265,6 +292,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleKeydown)
   sse.value?.close()
 })
 </script>
@@ -276,10 +304,14 @@ onBeforeUnmount(() => {
       <Tooltip>
         <TooltipTrigger as-child>
           <button
+            ref="bellButtonRef"
             @click="togglePopup"
             class="relative flex items-center justify-center rounded p-2 transition-all duration-200 hover:bg-surface-warm-hover"
             :class="{ 'bg-surface-warm-dark': showPopup }"
             aria-label="Notifications"
+            aria-haspopup="dialog"
+            :aria-expanded="showPopup"
+            :aria-controls="POPUP_ID"
           >
             <Icon
               icon="mdi:bell"
@@ -304,7 +336,12 @@ onBeforeUnmount(() => {
     <Transition name="fade">
       <div
         v-if="showPopup"
-        class="absolute right-0 top-12 z-50 w-96 rounded border border-theme-primary/30 bg-surface-warm shadow-2xl"
+        :id="POPUP_ID"
+        ref="popupRef"
+        role="dialog"
+        aria-label="Notifications"
+        tabindex="-1"
+        class="fixed left-2 top-[var(--chrome-height)] z-50 mt-2 w-[min(24rem,calc(100vw_-_1rem))] rounded border border-theme-primary/30 bg-surface-warm shadow-2xl focus:outline-none sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:mt-0"
       >
         <!-- Header -->
         <div class="flex items-center justify-between border-b border-surface-warm-hover px-4 py-3">
@@ -332,16 +369,25 @@ onBeforeUnmount(() => {
           </div>
 
           <div v-else class="divide-y divide-surface-warm-hover">
-            <button
+            <!-- Actionable rows (getNotificationRoute resolves) are buttons;
+                 informational rows render as plain content, never dead buttons. -->
+            <component
+              :is="isActionable(notification) ? 'button' : 'div'"
               v-for="notification in notifications"
               :key="notification.id"
-              type="button"
-              @click="handleNotificationClick(notification)"
-              class="w-full border-0 p-4 text-left transition-colors cursor-pointer"
+              :data-notification-id="notification.id"
+              :type="isActionable(notification) ? 'button' : null"
+              class="block w-full border-0 p-4 text-left"
               :class="{
                 'bg-surface-warm-dark': !notification.is_read,
-                'hover:bg-surface-warm-hover': true,
+                'cursor-pointer transition-colors hover:bg-surface-warm-hover':
+                  isActionable(notification),
               }"
+              v-on="
+                isActionable(notification)
+                  ? { click: () => handleNotificationClick(notification) }
+                  : {}
+              "
             >
               <div class="flex items-start space-x-3">
                 <Icon
@@ -372,8 +418,14 @@ onBeforeUnmount(() => {
                     <span class="ml-2 text-xs text-theme-primary">New</span>
                   </div>
                 </div>
+                <Icon
+                  v-if="isActionable(notification)"
+                  icon="mdi:chevron-right"
+                  class="h-5 w-5 mt-0.5 flex-shrink-0 text-gray-500"
+                  :ariaHidden="true"
+                />
               </div>
-            </button>
+            </component>
           </div>
         </div>
       </div>
@@ -381,7 +433,12 @@ onBeforeUnmount(() => {
 
     <!-- Backdrop -->
     <Transition name="fade">
-      <div v-if="showPopup" @click="showPopup = false" class="fixed inset-0 z-40"></div>
+      <div
+        v-if="showPopup"
+        @click="closePopup"
+        class="notification-backdrop fixed inset-0 z-40"
+        aria-hidden="true"
+      ></div>
     </Transition>
   </div>
 </template>

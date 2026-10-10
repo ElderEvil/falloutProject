@@ -655,6 +655,15 @@ describe('MarkerDetailModal', () => {
       expect(wrapper.find('.dweller-item').text()).toContain('Ada Lovelace')
     })
 
+    it('pre-fills the suggested 5/5 dispatch loadout, clamped to vault stock', () => {
+      // mountActionable passes maxStimpaks: 8, maxRadaways: 4.
+      const wrapper = mountActionable()
+      const sliders = wrapper.findComponent(SupplySliders)
+
+      expect(sliders.props('selectedStimpaks')).toBe(5)
+      expect(sliders.props('selectedRadaways')).toBe(4)
+    })
+
     it('hides the section and confirm while the re-clear cooldown runs', () => {
       const wrapper = mountActionable({
         location: createLocation({

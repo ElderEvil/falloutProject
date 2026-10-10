@@ -6,19 +6,26 @@ import type { Exploration } from '@/modules/exploration/stores/exploration'
 
 export { formatRemaining, parseStartTimeMs }
 
+/** Clamped 0–100 elapsed fraction of a `[startedAtMs, endsAtMs]` window; a zero-length window reads as complete. */
+export function linearProgress(
+  startedAtMs: number,
+  endsAtMs: number,
+  nowMs = Date.now()
+): number {
+  const total = endsAtMs - startedAtMs
+  if (total <= 0) return 100
+  return Math.max(0, Math.min(100, ((nowMs - startedAtMs) / total) * 100))
+}
+
 export function getProgressPercentage(exploration: Exploration, nowMs = Date.now()): number {
   if (exploration.status === 'returning') {
     const { return_started_at: startedAt, return_completes_at: completesAt } = exploration
     if (!startedAt || !completesAt) return 100
-    const start = parseStartTimeMs(startedAt)
-    const total = parseStartTimeMs(completesAt) - start
-    if (total <= 0) return 100
-    return Math.max(0, Math.min(100, ((nowMs - start) / total) * 100))
+    return linearProgress(parseStartTimeMs(startedAt), parseStartTimeMs(completesAt), nowMs)
   }
   if (exploration.status !== 'active') return 100
   const start = parseStartTimeMs(exploration.start_time)
-  const durationMs = exploration.duration * 3600 * 1000
-  return Math.max(0, Math.min(100, ((nowMs - start) / durationMs) * 100))
+  return linearProgress(start, start + exploration.duration * 3600 * 1000, nowMs)
 }
 
 export function getTimeRemaining(exploration: Exploration, nowMs = Date.now()): string {

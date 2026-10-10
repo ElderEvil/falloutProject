@@ -7,7 +7,7 @@ import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
 import { useExplorationStore, type RewardsSummary } from '@/modules/exploration/stores/exploration'
-import { getRarityColor } from '@/modules/exploration/models/exploration'
+import ExplorationItemRow from '@/modules/exploration/components/ExplorationItemRow.vue'
 
 interface Props {
   rewards: RewardsSummary | null
@@ -52,7 +52,9 @@ watch(
 )
 
 const hasOverflow = computed(() => unclaimed.value.length > 0)
-const resolvedExplorationId = computed(() => safeRewards.value.exploration_id || props.explorationId)
+const resolvedExplorationId = computed(
+  () => safeRewards.value.exploration_id || props.explorationId
+)
 const busyIndex = ref<number | null>(null)
 const legacyOverflow = ref(false)
 const requiresResolution = computed(() => hasOverflow.value && !legacyOverflow.value)
@@ -70,7 +72,9 @@ const resolveOverflow = async (action: 'take' | 'sell', index: number) => {
     )
     unclaimed.value = result.unclaimed_loot
     emit('resolved')
-    toast.success(action === 'take' ? `Stored ${name}` : `Sold ${name} for +${result.caps_granted} caps`)
+    toast.success(
+      action === 'take' ? `Stored ${name}` : `Sold ${name} for +${result.caps_granted} caps`
+    )
     return result
   } catch (error) {
     if ((error as { response?: { status?: number } }).response?.status === 404) {
@@ -102,9 +106,9 @@ const tryClose = () => emit('close', requiresResolution.value)
     max-height="75"
     @close="tryClose"
   >
-      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
-        <!-- Dweller Name -->
-        <div class="dweller-name">
+    <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+      <!-- Dweller Name -->
+      <div class="dweller-name">
         <Icon icon="mdi:account-check" class="mr-2 h-6 w-6 shrink-0" />
         {{ dwellerName }} has returned from the wasteland!
       </div>
@@ -112,8 +116,8 @@ const tryClose = () => emit('close', requiresResolution.value)
       <!-- Recalled Early Banner -->
       <div v-if="safeRewards.recalled_early" class="recalled-banner">
         <Icon icon="mdi:information" class="mr-2 h-6 w-6 shrink-0" />
-        Recalled early ({{ Math.round(safeRewards.progress_percentage || 0) }}% complete) -
-        Reduced rewards
+        Recalled early ({{ Math.round(safeRewards.progress_percentage || 0) }}% complete) - Reduced
+        rewards
       </div>
 
       <!-- Rewards Grid -->
@@ -159,25 +163,9 @@ const tryClose = () => emit('close', requiresResolution.value)
           {{ requiresResolution ? 'Stored in Vault' : 'Items Found' }}
         </h3>
         <div class="items-list">
-          <div
-            v-for="(item, index) in safeRewards.items"
-            :key="index"
-            class="item-entry"
-            :style="{ borderColor: getRarityColor(item.rarity) }"
-          >
-            <div class="item-info">
-              <div class="item-name" :style="{ color: getRarityColor(item.rarity) }">
-                {{ item.item_name }}
-              </div>
-              <div class="item-meta">
-                <span class="item-rarity" :style="{ color: getRarityColor(item.rarity) }">
-                  {{ item.rarity }}
-                </span>
-                <span class="item-quantity">x{{ item.quantity }}</span>
-              </div>
-            </div>
+          <ExplorationItemRow v-for="(item, index) in safeRewards.items" :key="index" :item="item">
             <Icon icon="mdi:check-circle" class="item-check" />
-          </div>
+          </ExplorationItemRow>
         </div>
       </div>
 
@@ -187,53 +175,58 @@ const tryClose = () => emit('close', requiresResolution.value)
       </div>
 
       <!-- Overflow Items (Storage Full) -->
-      <div
-        v-if="hasOverflow"
-        class="items-section overflow-section"
-      >
+      <div v-if="hasOverflow" class="items-section overflow-section">
         <h3 class="section-title overflow-title">
           <Icon icon="mdi:package-variant-closed-remove" class="mr-2" />
-          {{ legacyOverflow ? 'Storage Full — Items Left Behind' : 'Storage Full — Needs Decision' }}
+          {{
+            legacyOverflow ? 'Storage Full — Items Left Behind' : 'Storage Full — Needs Decision'
+          }}
         </h3>
         <p v-if="legacyOverflow" class="text-sm text-theme-primary/70">
           This report predates overflow resolution. These items were left behind.
         </p>
         <div v-else class="items-list">
-          <div
+          <ExplorationItemRow
             v-for="(item, index) in unclaimed"
             :key="`${item.item_name}-${index}`"
-            class="item-entry overflow-item"
-            :style="{ borderColor: getRarityColor(item.rarity) }"
+            :item="item"
+            class="overflow-item"
           >
-            <div class="item-info">
-              <div class="item-name" :style="{ color: getRarityColor(item.rarity) }">{{ item.item_name }}</div>
-              <div class="item-meta">
-                <span class="item-rarity" :style="{ color: getRarityColor(item.rarity) }">{{ item.rarity }}</span>
-                <span class="item-quantity">x{{ item.quantity }}</span>
-              </div>
-            </div>
             <div class="overflow-actions">
-              <Button size="sm" :disabled="busyIndex !== null" @click="resolveOverflow('take', index)">
+              <Button
+                size="sm"
+                :disabled="busyIndex !== null"
+                @click="resolveOverflow('take', index)"
+              >
                 <Icon v-if="busyIndex === index" icon="mdi:loading" class="mr-1 animate-spin" />
                 Take
               </Button>
-              <Button size="sm" variant="secondary" :disabled="busyIndex !== null" @click="resolveOverflow('sell', index)">
+              <Button
+                size="sm"
+                variant="secondary"
+                :disabled="busyIndex !== null"
+                @click="resolveOverflow('sell', index)"
+              >
                 Sell
               </Button>
             </div>
-          </div>
-          <Button v-if="unclaimed.length > 1" size="sm" variant="secondary" class="sell-all-btn self-end" :disabled="busyIndex !== null" @click="sellAll">
+          </ExplorationItemRow>
+          <Button
+            v-if="unclaimed.length > 1"
+            size="sm"
+            variant="secondary"
+            class="sell-all-btn self-end"
+            :disabled="busyIndex !== null"
+            @click="sellAll"
+          >
             Sell all remaining
           </Button>
         </div>
       </div>
-      </div>
+    </div>
 
     <template #footer>
-      <button
-        @click="tryClose"
-        class="collect-btn"
-      >
+      <button @click="tryClose" class="collect-btn">
         <Icon :icon="hasOverflow ? 'mdi:clock-outline' : 'mdi:check-bold'" class="mr-2" />
         {{ hasOverflow ? 'Resolve Later' : 'Collect Rewards' }}
       </button>
@@ -298,50 +291,10 @@ const tryClose = () => emit('close', requiresResolution.value)
   gap: 0.75rem;
 }
 
-.item-entry {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem;
-  background: rgba(0, 0, 0, 0.3);
-  border: 2px solid;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-}
-
 .overflow-actions {
   display: flex;
   flex-shrink: 0;
   gap: 0.5rem;
-}
-
-.item-entry:hover {
-  background: color-mix(in srgb, var(--color-theme-primary) 8%, transparent);
-  transform: translateX(4px);
-}
-
-.item-info {
-  flex: 1;
-}
-
-.item-name {
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-}
-
-.item-meta {
-  display: flex;
-  gap: 1rem;
-  font-size: 0.875rem;
-}
-
-.item-rarity {
-  font-weight: 600;
-}
-
-.item-quantity {
-  color: color-mix(in srgb, var(--color-theme-primary) 70%, transparent);
 }
 
 .item-check {

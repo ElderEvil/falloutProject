@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, useTemplateRef } from 'vue'
+import { ref, computed, onMounted, onUnmounted, useTemplateRef, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useRouter, useRoute } from 'vue-router'
@@ -9,6 +9,7 @@ import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import { useVersionDetection } from '@/core/composables/useVersionDetection'
 import { audioManager } from '@/core/audio/audioManager'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
+import type { ResourceName } from '@/modules/rooms/models/roomParts'
 import { useVaultHeaderContext } from '@/modules/vault/composables/useVaultHeaderContext'
 
 defineProps<{
@@ -47,6 +48,59 @@ const { versionBadgeVisible, showChangelog } = useVersionDetection({
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const user = computed(() => authStore.user)
 const isProfileRoute = computed(() => route.path === '/profile')
+
+// Params of the currently open vault; a critical resource warning deep-links to the room that fixes it.
+const activeVaultId = computed(() => (typeof route.params.id === 'string' ? route.params.id : null))
+
+// The rooms module is heavy, so it stays out of the FCP/LCP critical path and is loaded
+// behind a dynamic import once a vault header is ready — the point at which a critical
+// resource warning can deep-link to the production room that fixes it.
+const productionRoomRoutes = ref<Partial<Record<ResourceName, string>>>({})
+let productionRoomsTracked = false
+let stopProductionRoomsWatch: (() => void) | undefined
+let isUnmounted = false
+
+async function trackProductionRooms() {
+  if (productionRoomsTracked) return
+  productionRoomsTracked = true
+  try {
+    const [{ useRoomStore }, { findProductionRoom }] = await Promise.all([
+      import('@/modules/rooms/stores/room'),
+      import('@/modules/rooms/models/roomParts'),
+    ])
+    if (isUnmounted) return
+    const roomStore = useRoomStore()
+    stopProductionRoomsWatch = watch(
+      [() => roomStore.rooms, activeVaultId],
+      ([rooms, id]) => {
+        if (!id) return
+        for (const resource of ['power', 'food', 'water'] as const) {
+          const room = findProductionRoom(rooms, resource)
+          productionRoomRoutes.value[resource] = room
+            ? `/vault/${id}?roomId=${room.id}`
+            : `/vault/${id}`
+        }
+      },
+      { immediate: true }
+    )
+  } catch (error) {
+    // A chunk can 404 after a deploy; reset the guard so the next watcher
+    // trigger retries the load instead of leaving the links unresolved.
+    productionRoomsTracked = false
+    console.error('[NavBar] Failed to load production room modules; will retry', error)
+  }
+}
+
+watch(
+  [activeVaultId, isReady],
+  ([id, ready]) => {
+    if (id && ready) void trackProductionRooms()
+  },
+  { immediate: true }
+)
+
+const productionRoomRoute = (resource: ResourceName): string | undefined =>
+  productionRoomRoutes.value[resource]
 
 const logout = async () => {
   await authStore.logout()
@@ -108,6 +162,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  isUnmounted = true
+  stopProductionRoomsWatch?.()
   document.removeEventListener('click', handleClickOutside)
   navObserver?.disconnect()
   document.documentElement.style.removeProperty('--navbar-height')
@@ -158,8 +214,12 @@ onUnmounted(() => {
           <span class="hidden sm:inline">Vault </span>{{ vaultNumber }}
         </span>
       </div>
-      <div class="container mx-auto flex min-w-0 flex-1 items-center gap-5 px-0 sm:gap-6 sm:px-4 lg:px-8">
-        <div class="flex min-w-0 flex-1 items-center justify-between gap-5 overflow-x-auto sm:gap-6">
+      <div
+        class="container mx-auto flex min-w-0 flex-1 items-center gap-5 px-0 sm:gap-6 sm:px-4 lg:px-8"
+      >
+        <div
+          class="flex min-w-0 flex-1 items-center justify-between gap-5 overflow-x-auto sm:gap-6"
+        >
           <div
             v-if="isVaultRoute && isAuthenticated"
             class="flex shrink-0 items-center gap-2 sm:gap-3"
@@ -213,6 +273,7 @@ onUnmounted(() => {
                 icon="mdi:lightning-bolt"
                 label="Power"
                 :production-rate="resourceRates?.power"
+                :critical-to="productionRoomRoute('power')"
               />
               <ResourceBar
                 navbar
@@ -221,6 +282,7 @@ onUnmounted(() => {
                 icon="mdi:food-apple"
                 label="Food"
                 :production-rate="resourceRates?.food"
+                :critical-to="productionRoomRoute('food')"
               />
               <ResourceBar
                 navbar
@@ -229,6 +291,7 @@ onUnmounted(() => {
                 icon="mdi:water"
                 label="Water"
                 :production-rate="resourceRates?.water"
+                :critical-to="productionRoomRoute('water')"
               />
             </div>
           </div>

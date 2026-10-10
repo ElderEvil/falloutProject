@@ -42,10 +42,11 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useNow } from '@/core/composables/useNow'
-import { formatClock, parseUtcMs } from '@/core/utils/time'
+import { parseUtcMs } from '@/core/utils/time'
 import type { Incident } from '../../models/incident'
 import { getIncidentIcon } from '../../models/incident'
 import { useIncidentStore } from '../../stores/incident'
+import { formatClock, threatName } from '@/core/utils/format'
 
 interface Props {
   incidents: Incident[]
@@ -72,7 +73,7 @@ const incidentIcon = computed(() => (primaryIncident.value ? getIncidentIcon(pri
 const incidentTitle = computed(() => {
   if (!primaryIncident.value) return 'INCIDENT ALERT'
 
-  return primaryIncident.value.type.replace(/_/g, ' ').toUpperCase()
+  return threatName(primaryIncident.value.type)
 })
 
 const incidentSubtitle = computed(() => {
@@ -89,7 +90,7 @@ const elapsedTime = computed(() => {
 
   const startMs = parseUtcMs(primaryIncident.value.start_time)
   const elapsed = Math.floor((currentTime.value - startMs) / 1000)
-  return formatClock(elapsed, { padMinutes: true })
+  return formatClock(elapsed, { showHours: false })
 })
 
 // The designated responder roster is a fact about the incident: informational

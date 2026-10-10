@@ -6,12 +6,12 @@ import { Button } from '@/core/components/ui/button'
 import { Card } from '@/core/components/ui/card'
 import { Progress } from '@/core/components/ui/progress'
 import { useNow } from '@/core/composables/useNow'
-import { formatClock } from '@/core/utils/time'
+import { formatClock } from '@/core/utils/format'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
-import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
+import { linearProgress, parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
 import { QUEST_TYPE_COLORS } from '../models/quest'
 import { isStateQuestCategory } from '../models/quest'
 import type { QuestPartyMember, QuestRequirement, VaultQuest } from '../models/quest'
@@ -68,18 +68,19 @@ const questProgress = computed(() => {
   void now.value
   if (!quest.started_at || !quest.duration_minutes) return 0
 
-  const elapsed = Date.now() - parseStartTimeMs(quest.started_at)
-  return Math.min(100, Math.max(0, (elapsed / (quest.duration_minutes * 60 * 1000)) * 100))
+  const start = parseStartTimeMs(quest.started_at)
+  return linearProgress(start, start + quest.duration_minutes * 60 * 1000, Date.now())
 })
 
 const returnProgress = computed(() => {
   void now.value
   if (!quest.return_started_at || !quest.return_completes_at) return 0
 
-  const start = parseStartTimeMs(quest.return_started_at)
-  const total = parseStartTimeMs(quest.return_completes_at) - start
-  if (total <= 0) return 100
-  return Math.min(100, Math.max(0, ((Date.now() - start) / total) * 100))
+  return linearProgress(
+    parseStartTimeMs(quest.return_started_at),
+    parseStartTimeMs(quest.return_completes_at),
+    Date.now()
+  )
 })
 
 const displayedQuestProgress = computed(() => {

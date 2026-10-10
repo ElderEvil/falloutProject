@@ -65,11 +65,13 @@ describe('MapLegend', () => {
     expect(legend.attributes('aria-label')).toBe('Map legend')
   })
 
-  it('should render exactly 6 legend items', () => {
+  it('renders the 6 marker-type entries and the marker-state key', () => {
     const wrapper = mountLegend()
 
-    const items = wrapper.findAll('.legend-item')
-    expect(items).toHaveLength(6)
+    expect(wrapper.findAll('.legend-icon-wrapper')).toHaveLength(6)
+    expect(wrapper.findAll('.legend-state-dot')).toHaveLength(6)
+    expect(wrapper.text()).toContain('MARKER STATE')
+    expect(wrapper.text()).toContain('Known / active')
   })
 
   it('should render the five terrain swatches', () => {
@@ -186,5 +188,60 @@ describe('MapLegend', () => {
     } finally {
       vi.restoreAllMocks()
     }
+  })
+
+  describe('Site-type filter emphasis', () => {
+    const GAS_STATION = {
+      key: 'gas_station',
+      label: 'Gas Station',
+      icon: 'mdi:gas-station',
+      risk: 'low',
+      description: 'A roadside fuel stop.',
+    }
+    const MILITARY = {
+      key: 'military',
+      label: 'Military',
+      icon: 'mdi:shield-cross',
+      risk: 'high',
+      description: 'A fortified base.',
+    }
+
+    function mountWithSites(filter: string | null) {
+      const store = useMapStore()
+      store.placeGroups = [GAS_STATION, MILITARY] as never
+      store.locations = [
+        { ...discoveryLocation('loc-1'), group_key: 'gas_station' },
+        { ...discoveryLocation('loc-2'), group_key: 'military' },
+      ] as never
+      localStorage.setItem('map:legend-collapsed', 'false')
+      return mount(MapLegend, {
+        props: { siteTypeFilter: filter },
+        global: { stubs: { Icon: true } },
+      })
+    }
+
+    function siteItem(wrapper: ReturnType<typeof mount>, label: string) {
+      const item = wrapper.findAll('.legend-site-item').find((el) => el.text().includes(label))
+      expect(item).toBeTruthy()
+      return item!
+    }
+
+    it('emphasizes the selected archetype and dims the rest', () => {
+      const wrapper = mountWithSites('gas_station')
+
+      expect(siteItem(wrapper, 'Gas Station').classes()).toContain('legend-site-selected')
+      expect(siteItem(wrapper, 'Gas Station').classes()).not.toContain('legend-site-dimmed')
+      expect(siteItem(wrapper, 'Military').classes()).toContain('legend-site-dimmed')
+      expect(siteItem(wrapper, 'Military').classes()).not.toContain('legend-site-selected')
+    })
+
+    it('leaves every archetype neutral when the filter is null', () => {
+      const wrapper = mountWithSites(null)
+
+      for (const item of wrapper.findAll('.legend-site-item')) {
+        expect(item.classes()).not.toContain('legend-site-selected')
+        expect(item.classes()).not.toContain('legend-site-dimmed')
+      }
+    })
   })
 })

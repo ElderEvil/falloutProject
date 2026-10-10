@@ -3,6 +3,8 @@ import {
   ADULT_AGE_GROUPS,
   canUseRadaway,
   getDwellerDisplayName,
+  getHappinessColor,
+  getHappinessLevel,
   isMature,
   isSeverelyIrradiated,
 } from '@/modules/dwellers/models/dweller'
@@ -86,5 +88,26 @@ describe('isSeverelyIrradiated', () => {
     expect(isSeverelyIrradiated(0, 100)).toBe(false)
     expect(isSeverelyIrradiated(null, 100)).toBe(false)
     expect(isSeverelyIrradiated(50, 0)).toBe(false)
+  })
+})
+
+describe('getHappinessLevel', () => {
+  it('bands happiness into high / medium / low / critical', () => {
+    expect(getHappinessLevel(80)).toBe('high')
+    expect(getHappinessLevel(75)).toBe('high')
+    expect(getHappinessLevel(74)).toBe('medium')
+    expect(getHappinessLevel(50)).toBe('medium')
+    expect(getHappinessLevel(49)).toBe('low')
+    expect(getHappinessLevel(25)).toBe('low')
+    expect(getHappinessLevel(24)).toBe('critical')
+  })
+})
+
+describe('getHappinessColor', () => {
+  it('maps each band to its theme token', () => {
+    expect(getHappinessColor(getHappinessLevel(80))).toBe('var(--color-theme-primary)')
+    expect(getHappinessColor(getHappinessLevel(60))).toBe('var(--color-terminal-green-dark)')
+    expect(getHappinessColor(getHappinessLevel(30))).toBe('var(--color-warning)')
+    expect(getHappinessColor(getHappinessLevel(10))).toBe('var(--color-danger)')
   })
 })

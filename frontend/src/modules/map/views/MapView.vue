@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useLocalStorage } from '@vueuse/core'
+import { Icon } from '@iconify/vue'
+import type { AcceptableValue } from 'reka-ui'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useMapStore } from '../stores/map'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
@@ -8,14 +11,24 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { isMature, type DwellerShort } from '@/modules/dwellers/models/dweller'
 import { useToast } from '@/core/composables/useToast'
+import { useGroupColors } from '@/core/composables/useGroupColors'
 import { getErrorMessage } from '@/core/utils/errorHandler'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Skeleton } from '@/core/components/ui/skeleton'
 import { Button } from '@/core/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/core/components/ui/select'
 import WorldMap from '../components/WorldMap.vue'
 import MarkerDetailModal from '../components/MarkerDetailModal.vue'
+import VaultInfoModal from '../components/VaultInfoModal.vue'
+import DwellerMarkerPopover from '../components/DwellerMarkerPopover.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import type {
   ExpeditionSiteMarkerRead,
@@ -36,6 +49,48 @@ const { isCollapsed } = useSidePanel()
 const toast = useToast()
 
 const vaultId = computed(() => route.params.id as string)
+
+// Marker colour mode lives on the Preferences page (like the badge palette).
+const { groupColors } = useGroupColors()
+
+// Site-type filter (P3): narrow the map to one place_groups archetype.
+// Persisted like the color mode; `null` means "All sites".
+const siteTypeFilter = useLocalStorage<string | null>('map:site-type-filter', null)
+
+// `exclusion_zone` is a one-off easter-egg site, not a browsable archetype, so it
+// stays off the filter and out of the stale-guard below.
+const NON_FILTERABLE_SITE_TYPES = new Set(['exclusion_zone'])
+
+// Archetypes actually present on this vault's map, in catalog order — the only
+// offerable options, and the guard that keeps a stale stored key inert.
+const presentSiteKeys = computed(
+  () =>
+    new Set(
+      mapStore.locations
+        .map((loc) => loc.group_key)
+        .filter(
+          (key): key is string => key != null && key !== '' && !NON_FILTERABLE_SITE_TYPES.has(key)
+        )
+    )
+)
+const siteGroupOptions = computed(() =>
+  mapStore.placeGroups.filter((group) => presentSiteKeys.value.has(group.key))
+)
+// A stored key whose group is gone (other vault, reseeded atlas) degrades to
+// "All sites" rather than blanking the map.
+const activeSiteType = computed(() =>
+  siteTypeFilter.value && presentSiteKeys.value.has(siteTypeFilter.value)
+    ? siteTypeFilter.value
+    : null
+)
+// reka-ui's Select modelValue is AcceptableValue and reserves empty strings;
+// bridge the nullable key at the Select boundary.
+const siteTypeFilterSelect = computed<AcceptableValue>({
+  get: () => siteTypeFilter.value ?? 'all',
+  set: (value: AcceptableValue) => {
+    siteTypeFilter.value = value === null || value === 'all' ? null : String(value)
+  },
+})
 
 // Modal state
 const showModal = ref(false)
@@ -58,6 +113,72 @@ const selectedSite = computed<ExpeditionSiteMarkerRead | null>(() => {
   return mapStore.expeditionSites.find((s) => s.id === id.slice(5)) ?? null
 })
 
+// ── Explorer dweller popover ─────────────────────────────────────────
+// Only one overlay at a time: opening the popover closes the marker modal and
+// clearing the selection, and a normal marker click closes the popover back.
+const selectedExplorer = ref<ExplorerTrack | null>(null)
+const explorerPos = ref<{ x: number; y: number } | null>(null)
+
+function closeExplorerPopover() {
+  selectedExplorer.value = null
+  explorerPos.value = null
+}
+
+function onDwellerClick(payload: { track: ExplorerTrack; x: number; y: number }) {
+  selectedExplorer.value = payload.track
+  explorerPos.value = { x: payload.x, y: payload.y }
+  selectedMarkerId.value = null
+  showModal.value = false
+}
+
+function openExplorerDetails() {
+  const track = selectedExplorer.value
+  if (!track?.dwellerId) return
+  void router.push(`/vault/${vaultId.value}/dwellers/${track.dwellerId}`)
+  closeExplorerPopover()
+}
+
+// ── Own-vault info panel ─────────────────────────────────────────────
+// Clicking one of the player's own vault markers opens its summary instead
+// of navigating. The payload only carries `vault_id`, so the record comes
+// from the vault store: `/api/v1/vaults/my` already returns every counter the
+// selection card shows. Never `ensureVaultLoaded` here — loading another
+// vault adopts it and moves live polling/SSE off the vault being played.
+const showVaultInfo = ref(false)
+const vaultInfoId = ref<string | null>(null)
+const vaultInfoLoading = ref(false)
+// Monotonic id for in-flight summary lookups: a slow older request must not
+// clear the loading state of a newer one when it settles.
+let vaultInfoRequest = 0
+
+function findVaultSummary(id: string) {
+  return vaultStore.loadedVaults[id] ?? vaultStore.vaults.find((vault) => vault.id === id) ?? null
+}
+
+const vaultInfoVault = computed(() =>
+  vaultInfoId.value ? findVaultSummary(vaultInfoId.value) : null
+)
+
+async function handleVaultInfo(infoVaultId: string) {
+  const token = authStore.token
+  if (!token || !infoVaultId) return
+  const requestId = ++vaultInfoRequest
+  vaultInfoId.value = infoVaultId
+  showVaultInfo.value = true
+  if (findVaultSummary(infoVaultId)) {
+    vaultInfoLoading.value = false
+    return
+  }
+  // The marker is `is_mine`, so the hydrated list should cover it; refetch
+  // whenever the current list does not contain it.
+  vaultInfoLoading.value = true
+  try {
+    await vaultStore.fetchVaults(token)
+  } finally {
+    if (requestId === vaultInfoRequest) vaultInfoLoading.value = false
+  }
+}
+
 // Explorer tracking: active runs projected onto the map. Dispatched runs mark
 // their target location; free-roam runs surface at the last discovery point.
 const dwellerNames = computed(() => {
@@ -79,6 +200,14 @@ const dwellerThumbnails = computed(() => {
   return thumbnails
 })
 
+const dwellerMaxHealth = computed(() => {
+  const maxes = new Map<string, number | null>()
+  for (const dweller of dwellerStore.dwellers) {
+    maxes.set(dweller.id, dweller.max_health ?? null)
+  }
+  return maxes
+})
+
 const explorerTracks = computed<ExplorerTrack[]>(() =>
   buildExplorerTracks(
     // The store can still hold the previous vault's active runs after a vault
@@ -87,7 +216,8 @@ const explorerTracks = computed<ExplorerTrack[]>(() =>
     explorationStore.explorations.filter((e) => e.vault_id === vaultId.value),
     mapStore.discoveryRoutes,
     dwellerNames.value,
-    dwellerThumbnails.value
+    dwellerThumbnails.value,
+    dwellerMaxHealth.value
   )
 )
 
@@ -169,10 +299,10 @@ const departingDwellerIds = computed(
         .filter(
           (exploration) =>
             exploration.vault_id === vaultId.value &&
-            (exploration.status === 'active' || exploration.status === 'returning'),
+            (exploration.status === 'active' || exploration.status === 'returning')
         )
-        .map((exploration) => exploration.dweller_id),
-    ),
+        .map((exploration) => exploration.dweller_id)
+    )
 )
 
 // Mirror the backend availability policy (app/utils/dweller_availability): a
@@ -203,6 +333,7 @@ function handleMarkerClick(
     | { kind: 'vault'; data: VaultMarkerRead }
     | { kind: 'site'; data: ExpeditionSiteMarkerRead }
 ) {
+  closeExplorerPopover()
   if (payload.kind === 'location') {
     selectedMarkerId.value = `loc-${payload.data.id}`
     mapStore.markLocationViewed(payload.data.vault_id, payload.data.id)
@@ -256,6 +387,7 @@ function clearPlaceQuery() {
 watch(
   vaultId,
   () => {
+    closeExplorerPopover()
     loadMap()
   },
   { immediate: true }
@@ -351,27 +483,65 @@ const mapPaneHeight = 'var(--map-pane-size)'
             </Button>
           </div>
 
-          <!-- Map -->
-          <WorldMap
-            v-else
-            :locations="mapStore.locations"
-            :vault-markers="mapStore.vaultMarkers"
-            :player-vaults="mapStore.playerVaults"
-            :discovery-routes="mapStore.discoveryRoutes"
-            :expedition-sites="mapStore.expeditionSites"
-            :explorer-tracks="explorerTracks"
-            :fog-disabled="fogDisabled"
-            :selected-marker-id="selectedMarkerId"
-            @update:selected-marker-id="selectedMarkerId = $event"
-            @marker-click="handleMarkerClick"
-          />
+          <!-- Map + floating controls: an overlay keeps the pane free of a toolbar row -->
+          <div v-else class="map-stage">
+            <WorldMap
+              :locations="mapStore.locations"
+              :vault-markers="mapStore.vaultMarkers"
+              :player-vaults="mapStore.playerVaults"
+              :discovery-routes="mapStore.discoveryRoutes"
+              :expedition-sites="mapStore.expeditionSites"
+              :explorer-tracks="explorerTracks"
+              :fog-disabled="fogDisabled"
+              :group-colors="groupColors"
+              :site-type-filter="activeSiteType"
+              :selected-marker-id="selectedMarkerId"
+              @update:selected-marker-id="selectedMarkerId = $event"
+              @marker-click="handleMarkerClick"
+              @vault-info="handleVaultInfo"
+              @dweller-click="onDwellerClick"
+            />
 
-          <!-- Admin debug: lift the fog to inspect the whole atlas -->
-          <div v-if="authStore.isSuperuser" class="map-toolbar">
-            <Button variant="outline" size="sm" @click="fogDisabled = !fogDisabled">
-              {{ fogDisabled ? 'Restore fog' : 'Remove fog (debug)' }}
-            </Button>
+            <div class="map-overlay-controls">
+              <Select v-if="siteGroupOptions.length" v-model="siteTypeFilterSelect">
+                <SelectTrigger
+                  aria-label="Filter by site type"
+                  class="h-auto rounded-sm border-theme-primary/30 bg-surface-sunken/60 px-2 py-1 text-xs text-theme-primary data-[size=default]:h-auto"
+                >
+                  <SelectValue placeholder="All sites" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All sites</SelectItem>
+                  <SelectItem
+                    v-for="group in siteGroupOptions"
+                    :key="group.key"
+                    :value="group.key"
+                  >
+                    <Icon :icon="group.icon" />
+                    <span>{{ group.label }}</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                v-if="authStore.isSuperuser"
+                variant="outline"
+                size="sm"
+                @click="fogDisabled = !fogDisabled"
+              >
+                {{ fogDisabled ? 'Restore fog' : 'Remove fog' }}
+              </Button>
+            </div>
           </div>
+
+          <!-- Explorer popover: dweller summary anchored to the clicked marker -->
+          <DwellerMarkerPopover
+            v-if="selectedExplorer && explorerPos"
+            :track="selectedExplorer"
+            :x="explorerPos.x"
+            :y="explorerPos.y"
+            @close="closeExplorerPopover"
+            @view-details="openExplorerDetails"
+          />
 
           <!-- Detail modal: also hosts the team dispatch menu for clearable points -->
           <MarkerDetailModal
@@ -387,6 +557,12 @@ const mapPaneHeight = 'var(--map-pane-size)'
             @dispatch="handleDispatch"
           />
 
+          <!-- Own-vault summary: same fields as the vault-selection card -->
+          <VaultInfoModal
+            v-model:open="showVaultInfo"
+            :vault="vaultInfoVault"
+            :loading="vaultInfoLoading"
+          />
         </PageContentRail>
       </div>
     </div>
@@ -394,11 +570,21 @@ const mapPaneHeight = 'var(--map-pane-size)'
 </template>
 
 <style scoped>
-.map-toolbar {
+.map-stage {
+  position: relative;
+  width: fit-content;
+}
+
+/* Floating map controls: overlaid on the pane so they cost no vertical layout. */
+.map-overlay-controls {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-top: 0.75rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
 }
 
 .vault-layout {

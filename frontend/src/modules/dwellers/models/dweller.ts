@@ -1,4 +1,5 @@
 import type { components } from '@/core/types/api.generated'
+import { humanizePreserveCase } from '@/core/utils/format'
 
 // Re-export generated API types
 // Dweller is the full type with all relations (vault, room, weapon, outfit)
@@ -18,10 +19,7 @@ export function canUseRadaway(
 }
 
 export function formatIdentityLabel(value: string): string {
-  return value
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
+  return humanizePreserveCase(value)
 }
 
 /** Dweller display name; last names are nullable, so this never renders `"null"`. */
@@ -471,4 +469,9 @@ export const ADULT_AGE_GROUPS: ReadonlySet<string> = new Set(['adult', 'elder'])
 /** Mature by age group, mirroring the backend's ``Dweller.is_mature``. */
 export function isMature(dweller: Pick<Dweller, 'age_group'>): boolean {
   return ADULT_AGE_GROUPS.has(dweller.age_group)
+}
+
+/** A dweller with no room assignment that is not dead or away from the vault (available to assign). */
+export function isAvailableUnassignedDweller(dweller: { room_id?: string | null; status: string }): boolean {
+  return !dweller.room_id && !['dead', 'questing', 'exploring'].includes(dweller.status)
 }

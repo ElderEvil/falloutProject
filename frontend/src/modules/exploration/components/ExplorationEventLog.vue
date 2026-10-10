@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { getEventIcon, getEventColor } from '@/modules/exploration/models/exploration'
+import { formatClock } from '@/core/utils/format'
 import type { ExplorationEvent } from '@/modules/exploration/stores/exploration'
 
 interface Props {
@@ -27,12 +28,6 @@ const orderedEvents = computed(() => {
   if (!props.reverse) return props.events
   return [...props.events].reverse()
 })
-
-const formatEventTime = (hours: number): string => {
-  const h = Math.floor(hours)
-  const m = Math.floor((hours - h) * 60)
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
-}
 
 const hasLoot = (event: ExplorationEvent): boolean => {
   return !!event.loot && (!!event.loot.item || !!event.loot.caps)
@@ -84,7 +79,7 @@ const getLootDisplay = (event: ExplorationEvent): string => {
         >
           <span
             class="event-time pt-0.5 text-sm font-bold tabular-nums text-theme-primary [text-shadow:0_0_5px_var(--color-theme-glow)]"
-            >{{ formatEventTime(event.time_elapsed_hours) }}</span
+            >{{ formatClock(event.time_elapsed_hours * 3600, { showSeconds: false }) }}</span
           >
           <Icon
             :icon="getEventIcon(event.type)"

@@ -422,7 +422,7 @@ async def test_get_vault_map_clear_state_for_ungrouped_place(
     map_data = await map_service.get_vault_map(async_session, vault)
     race_town = next(loc for loc in map_data.locations if loc.normalized_name == "race town")
 
-    assert race_town.group_key is None
+    assert race_town.group_key == "wasteland_site"
     assert race_town.clear_state is not None
     assert race_town.clear_state.clearable is True
     assert race_town.clear_state.loot_table == "low"

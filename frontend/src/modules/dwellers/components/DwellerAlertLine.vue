@@ -18,7 +18,9 @@ const alerts = computed<Alert[]>(() => {
 
   const out: Alert[] = []
   const effectiveMax = getEffectiveMaxHealth(d.radiation, d.max_health)
-  if (d.health < effectiveMax) {
+  // Only flag severe damage (below half the radiation-reduced ceiling): a scratch
+  // is not worth an alert chip.
+  if (d.health < effectiveMax / 2) {
     out.push({ icon: 'mdi:heart-pulse', text: `Injured — ${d.health}/${effectiveMax} HP`, tone: 'danger' })
   }
   if ((d.radiation ?? 0) > 0) {

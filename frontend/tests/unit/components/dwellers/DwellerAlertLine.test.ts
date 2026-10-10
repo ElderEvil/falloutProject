@@ -31,12 +31,19 @@ describe('DwellerAlertLine', () => {
     expect(wrapper.findAll('.alert-chip')).toHaveLength(0)
   })
 
-  it('flags injury against the radiation-reduced ceiling', () => {
-    const wrapper = mountAlertLine({ health: 40, radiation: 20 })
+  it('flags severe injury against the radiation-reduced ceiling', () => {
+    const wrapper = mountAlertLine({ health: 30, radiation: 20 })
 
     const text = wrapper.text()
     expect(text).toContain('Injured')
-    expect(text).toContain('40/80 HP')
+    expect(text).toContain('30/80 HP')
+  })
+
+  it('stays silent for a lightly damaged dweller', () => {
+    const wrapper = mountAlertLine({ health: 70 })
+
+    expect(wrapper.text()).not.toContain('Injured')
+    expect(wrapper.findAll('.alert-chip')).toHaveLength(0)
   })
 
   it('flags radiation', () => {

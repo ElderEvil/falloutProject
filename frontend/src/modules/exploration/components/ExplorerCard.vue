@@ -3,7 +3,11 @@ import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
-import { getDwellerDisplayName, type Dweller } from '@/modules/dwellers/models/dweller'
+import {
+  getDwellerDisplayName,
+  type Dweller,
+  type DwellerShort,
+} from '@/modules/dwellers/models/dweller'
 import { useExplorationProgress } from '@/modules/exploration/composables/useExplorationProgress'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
@@ -21,6 +25,7 @@ import ExplorerActions from './ExplorerActions.vue'
 interface Props {
   exploration: Exploration
   dweller: Dweller | undefined
+  partyMembers?: DwellerShort[]
   selected?: boolean
 }
 
@@ -51,6 +56,11 @@ const {
 } = useExplorationProgress(() => props.exploration)
 
 const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse() ?? [])
+
+// The anchor is the card's primary identity; only the rest of the dispatch party renders below.
+const companions = computed(() =>
+  (props.partyMembers ?? []).filter((member) => member.id !== props.exploration.dweller_id)
+)
 </script>
 
 <template>
@@ -135,6 +145,34 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
       <div class="equipment-slot min-w-0">
         <Icon :icon="getItemIcon('pet', dweller?.pet ?? {})" class="equip-icon" />
         <span class="equip-name min-w-0">{{ dweller?.pet?.name || 'No Pet' }}</span>
+      </div>
+    </div>
+
+    <!-- Dispatch party companions (the anchor is the identity above). -->
+    <div v-if="companions.length > 0" class="party-section">
+      <div class="party-header">
+        <span>Team</span>
+        <span>{{ companions.length + 1 }} exploring</span>
+      </div>
+      <div class="party-members">
+        <div v-for="member in companions" :key="member.id" class="party-member">
+          <DwellerPortrait
+            :thumbnail-url="member.thumbnail_url"
+            prefer-thumbnail
+            :alt="`${getDwellerDisplayName(member)} portrait`"
+            image-class="party-portrait h-8 w-8 rounded-full border border-theme-primary object-cover"
+            fallback-class="party-portrait h-8 w-8 text-theme-primary"
+          />
+          <div class="member-info">
+            <span class="member-name">{{ getDwellerDisplayName(member) }}</span>
+            <div class="member-badges">
+              <DwellerAgeBadge :age-group="member.age_group" size="sm" />
+              <DwellerGenderBadge :gender="member.gender" size="sm" />
+              <DwellerRarityBadge :rarity="member.rarity" size="sm" />
+            </div>
+          </div>
+          <span class="member-level">Lv.{{ member.level }}</span>
+        </div>
       </div>
     </div>
 
@@ -329,6 +367,63 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.party-section {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
+  padding-top: 10px;
+}
+
+.party-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--color-theme-primary);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+  text-transform: uppercase;
+}
+
+.party-members {
+  display: grid;
+  gap: 5px;
+}
+
+.party-member {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-theme-primary);
+  font-size: 0.85rem;
+}
+
+.member-info {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.member-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.member-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-level {
+  margin-left: auto;
+  color: var(--color-theme-accent);
+  font-size: 0.75rem;
 }
 
 .recent-events {

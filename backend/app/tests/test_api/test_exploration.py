@@ -1,6 +1,7 @@
 """Tests for exploration API endpoints."""
 
 from datetime import datetime, timedelta
+from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -10,14 +11,18 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.core.enums import DwellerLocationRelationEnum
 from app.models.dweller import Dweller
-from app.models.exploration import ExplorationStatus
+from app.models.exploration import Exploration, ExplorationStatus
 from app.models.room import Room
+from app.models.team import Team, TeamMember
+from app.models.user import User
 from app.models.vault import Vault
 from app.models.world_location import VaultLocationState, WorldLocation
 from app.schemas.common import AgeGroupEnum
 from app.schemas.exploration import ExplorationCreate
+from app.schemas.vault import VaultCreateWithUserID
 from app.services.exploration_service import exploration_service
 from app.services.map_service import map_service
+from app.tests.factory.dwellers import create_fake_dweller
 
 
 async def _claim_slot(async_session: AsyncSession, vault: Vault) -> None:
@@ -519,3 +524,152 @@ async def test_generate_event_success(
 
     # Event generation is probabilistic, but exploration should be returned
     assert data["id"] == str(exploration.id)
+
+
+async def _make_exploration(async_session: AsyncSession, vault: Vault, anchor: Dweller) -> Exploration:
+    exploration = Exploration(
+        dweller_id=anchor.id,
+        vault_id=vault.id,
+        duration=4,
+        dweller_strength=5,
+        dweller_perception=5,
+        dweller_endurance=5,
+        dweller_charisma=5,
+        dweller_intelligence=5,
+        dweller_agility=5,
+        dweller_luck=5,
+    )
+    async_session.add(exploration)
+    await async_session.commit()
+    return exploration
+
+
+async def _attach_dispatch_team(
+    async_session: AsyncSession, vault: Vault, exploration: Exploration, dwellers: list[Dweller]
+) -> Team:
+    team = Team(vault_id=vault.id, exploration_id=exploration.id)
+    async_session.add(team)
+    await async_session.flush()
+    async_session.add_all(
+        [
+            TeamMember(team_id=team.id, dweller_id=dweller.id, slot_number=slot, status="assigned")
+            for slot, dweller in enumerate(dwellers, start=1)
+        ]
+    )
+    exploration.team_id = team.id
+    async_session.add(exploration)
+    await async_session.commit()
+    return team
+
+
+@pytest.mark.asyncio
+async def test_get_exploration_party_returns_slot_ordered_members(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """A party dispatch surfaces every member in slot order, anchor first."""
+    party = [
+        dweller,
+        Dweller(**create_fake_dweller(), vault_id=vault.id),
+        Dweller(**create_fake_dweller(), vault_id=vault.id),
+    ]
+    async_session.add_all(party[1:])
+    await async_session.commit()
+
+    exploration = await _make_exploration(async_session, vault, dweller)
+    await _attach_dispatch_team(async_session, vault, exploration, party)
+
+    response = await async_client.get(
+        f"/explorations/vault/{vault.id}/{exploration.id}/party",
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert [member["slot_number"] for member in data] == [1, 2, 3]
+    assert [member["dweller_id"] for member in data] == [str(d.id) for d in party]
+    assert data[0]["exploration_id"] == str(exploration.id)
+    assert data[0]["vault_id"] == str(vault.id)
+    assert data[0]["status"] == "assigned"
+
+
+@pytest.mark.asyncio
+async def test_get_exploration_party_empty_for_free_roam_run(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """A run with no team (free-roam) has an empty party, not an error."""
+    exploration = await _make_exploration(async_session, vault, dweller)
+
+    response = await async_client.get(
+        f"/explorations/vault/{vault.id}/{exploration.id}/party",
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.asyncio
+async def test_get_exploration_party_missing_run_returns_404(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+) -> None:
+    """An unknown exploration id is a 404 in the caller's own vault."""
+    response = await async_client.get(
+        f"/explorations/vault/{vault.id}/{uuid4()}/party",
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_exploration_party_foreign_vault_returns_404(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    vault_data: dict,
+    superuser: User,
+) -> None:
+    """A run that belongs to another vault is not readable under this vault path."""
+    exploration = await _make_exploration(async_session, vault, dweller)
+    other_vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**vault_data, user_id=superuser.id),
+    )
+
+    response = await async_client.get(
+        f"/explorations/vault/{other_vault.id}/{exploration.id}/party",
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_exploration_party_foreign_user_returns_403(
+    async_client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """A user who does not own the vault cannot read its party."""
+    exploration = await _make_exploration(async_session, vault, dweller)
+
+    response = await async_client.get(
+        f"/explorations/vault/{vault.id}/{exploration.id}/party",
+        headers=normal_user_token_headers,
+    )
+
+    assert response.status_code == 403

@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app import crud
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403, verify_exploration_access
-from app.crud import exploration as crud_exploration
 from app.db.session import get_async_session
 from app.models.exploration import Exploration
 from app.schemas.expedition import (
@@ -19,6 +19,7 @@ from app.schemas.expedition import (
 from app.schemas.exploration import (
     ExpeditionDispatchRequest,
     ExplorationCompleteResponse,
+    ExplorationPartyMemberRead,
     ExplorationProgress,
     ExplorationRead,
     ExplorationReadShort,
@@ -119,11 +120,30 @@ async def list_explorations_by_vault(
         list[ExplorationReadShort]: List of explorations.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud_exploration.get_by_vault(
+    return await crud.exploration.get_by_vault(
         db_session,
         vault_id=vault_id,
         active_only=active_only,
     )
+
+
+@router.get("/vault/{vault_id}/{exploration_id}/party", response_model=list[ExplorationPartyMemberRead])
+async def get_exploration_party(
+    vault_id: UUID4,
+    exploration_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> list[ExplorationPartyMemberRead]:
+    """Get the dispatch party assigned to an exploration (empty for a free-roam run).
+
+    Returns:
+        list[ExplorationPartyMemberRead]: Party members in slot order.
+
+    Raises:
+        ResourceNotFoundException: If the exploration is unknown or belongs to another vault.
+    """
+    await get_user_vault_or_403(vault_id, user, db_session)
+    return await exploration_service.get_party(db_session, vault_id, exploration_id)
 
 
 @router.get("/vault/{vault_id}/pending-overflow", response_model=list[PendingOverflowRead])
@@ -149,7 +169,7 @@ async def get_exploration(
         ExplorationRead: Exploration details.
     """
     await verify_exploration_access(exploration_id, user, db_session)
-    return await crud_exploration.get(db_session, exploration_id)
+    return await crud.exploration.get(db_session, exploration_id)
 
 
 @router.get("/{exploration_id}/progress", response_model=ExplorationProgress)

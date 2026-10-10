@@ -102,6 +102,19 @@ class ExplorationReadShort(SQLModel):
     pos_y: float | None = None
 
 
+class ExplorationPartyMemberRead(SQLModel):
+    """Exploration dispatch party member read schema (mirrors QuestPartyMemberRead)."""
+
+    id: UUID4
+    exploration_id: UUID4
+    vault_id: UUID4
+    dweller_id: UUID4
+    slot_number: int
+    status: str
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
 class ExplorationProgress(SQLModel):
     """Schema for exploration progress updates."""
 

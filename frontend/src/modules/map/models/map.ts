@@ -16,6 +16,12 @@ export interface ExplorerTrack {
   explorationId: string
   dwellerId: string
   dwellerName: string
+  /**
+   * Display names of the dispatch party, anchor first, resolved from the
+   * exploration party endpoint. Holds just the anchor for a solo run and is
+   * empty when no name is known; free-roam runs never render it.
+   */
+  partyNames: string[]
   status: 'active' | 'returning'
   health: number | null
   radiation: number | null

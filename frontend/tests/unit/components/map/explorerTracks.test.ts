@@ -168,6 +168,71 @@ describe('buildExplorerTracks', () => {
     expect(tracks[0].targetLocationId).toBe('loc-9')
   })
 
+  it('resolves the dispatch party names anchor-first from the party id map', () => {
+    const tracks = buildExplorerTracks(
+      [exploration({ id: 'expl-1', dweller_id: 'dweller-1', target_location_id: 'loc-9' })],
+      [],
+      new Map([
+        ['dweller-1', 'Stephanie Boyd'],
+        ['dweller-2', 'Cooper Howard'],
+      ]),
+      new Map(),
+      new Map(),
+      new Map([['expl-1', ['dweller-2', 'dweller-1', 'dweller-3']]])
+    )
+
+    expect(tracks[0].partyNames).toEqual(['Stephanie Boyd', 'Cooper Howard'])
+  })
+
+  it('collapses a dispatch to the anchor name when the party map holds only the anchor', () => {
+    const tracks = buildExplorerTracks(
+      [exploration({ id: 'expl-1', dweller_id: 'dweller-1' })],
+      [],
+      new Map([['dweller-1', 'Ada Lovelace']]),
+      new Map(),
+      new Map(),
+      new Map([['expl-1', ['dweller-1']]])
+    )
+
+    expect(tracks[0].partyNames).toEqual(['Ada Lovelace'])
+  })
+
+  it('falls back to the anchor name when no party data is present', () => {
+    const tracks = buildExplorerTracks(
+      [exploration({ id: 'expl-1', dweller_id: 'dweller-1' })],
+      [],
+      new Map([['dweller-1', 'Ada Lovelace']])
+    )
+
+    expect(tracks[0].partyNames).toEqual(['Ada Lovelace'])
+  })
+
+  it('drops party members whose names are not in the roster', () => {
+    const tracks = buildExplorerTracks(
+      [exploration({ id: 'expl-1', dweller_id: 'dweller-1' })],
+      [],
+      new Map([['dweller-1', 'Ada Lovelace']]),
+      new Map(),
+      new Map(),
+      new Map([['expl-1', ['dweller-1', 'dweller-unknown']]])
+    )
+
+    expect(tracks[0].partyNames).toEqual(['Ada Lovelace'])
+  })
+
+  it('leaves partyNames empty when no name resolves', () => {
+    const tracks = buildExplorerTracks(
+      [exploration({ id: 'expl-1', dweller_id: 'dweller-9', target_location_id: 'loc-9' })],
+      [],
+      new Map(),
+      new Map(),
+      new Map(),
+      new Map([['expl-1', ['dweller-9', 'dweller-unknown']]])
+    )
+
+    expect(tracks[0].partyNames).toEqual([])
+  })
+
   it('prefers the authoritative position over the route end', () => {
     const tracks = buildExplorerTracks(
       [exploration({ id: 'expl-1', pos_x: 40, pos_y: 41 })],

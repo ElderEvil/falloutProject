@@ -12,6 +12,22 @@ on:
         type: boolean
         default: true
 
+      maintenance_mode:
+        description: 'Stop API and worker, back up the database, migrate, then start the new release'
+        required: false
+        type: boolean
+        default: false
+
+      preflight_only:
+        description: 'Read production schema/capacity without modifying production'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: fallout-production-deployment
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
@@ -19,6 +35,7 @@ jobs:
   deploy:
     name: Deploy to Hetzner k3s
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Check out deployment manifests
@@ -32,12 +49,14 @@ jobs:
           ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
 
       - name: Log in to Docker Hub
+        if: ${{ !inputs.preflight_only }}
         uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Validate image tag exists
+        if: ${{ !inputs.preflight_only }}
         env:
           IMAGE_TAG: ${{ inputs.image_tag }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -56,7 +75,40 @@ jobs:
             fi
           done
 
+      - name: Read production schema and capacity
+        timeout-minutes: 2
+        run: |
+          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
+            set -euo pipefail
+            kubectl -n fallout get pvc backend-logs-pvc
+            kubectl -n fallout get deployment backend dramatiq-worker frontend \
+              -o custom-columns=NAME:.metadata.name,READY:.status.readyReplicas,DESIRED:.spec.replicas
+            kubectl -n fallout exec -i deployment/backend -- python3 - <<'PYTHON'
+          import asyncio
+          import json
+          import os
+          from sqlalchemy import text
+          from app.core.config import settings
+          from app.db.session import async_engine
+
+          async def check():
+              assert settings.ENVIRONMENT == "production"
+              async with async_engine.connect() as connection:
+                  revision = (await connection.execute(text("SELECT version_num FROM alembic_version"))).scalar_one()
+                  vaults = (await connection.execute(text("SELECT count(*) FROM vault WHERE is_deleted = false"))).scalar_one()
+              count = int(os.getenv("VAULT_SLOT_COUNT", "100"))
+              columns = int(os.getenv("VAULT_SLOT_COLUMNS", "10"))
+              assert count == 100 and columns == 10, "Slot geometry must match the frozen home-marker migration"
+              assert vaults <= count, "Live vaults exceed slot capacity"
+              print(json.dumps({"environment": settings.ENVIRONMENT, "schema_revision": revision,
+                                "live_vaults": vaults, "slot_count": count, "slot_columns": columns}))
+
+          asyncio.run(check())
+          PYTHON
+          SHELL
+
       - name: Configure AI Gateway and Logfire
+        if: ${{ !inputs.preflight_only }}
         env:
           PYDANTIC_AI_GATEWAY_API_KEY: ${{ secrets.PYDANTIC_AI_GATEWAY_API_KEY }}
           PYDANTIC_AI_GATEWAY_ROUTE: ${{ secrets.PYDANTIC_AI_GATEWAY_ROUTE }}
@@ -103,28 +155,120 @@ jobs:
             --arg email_from_name "${EMAIL_FROM_NAME:-Fallout Shelter}" \
             --arg frontend_url "${FRONTEND_URL:-https://fallout.evillab.tech}" \
             '{apiVersion: "v1", kind: "Secret", metadata: {name: "backend-env", namespace: "fallout"}, type: "Opaque", stringData: {PYDANTIC_AI_GATEWAY_API_KEY: $gateway_key, PYDANTIC_AI_GATEWAY_ROUTE: $gateway_route, PYDANTIC_AI_GATEWAY_BASE_URL: $gateway_base_url, LOGFIRE_TOKEN: $logfire_token, AI_PROVIDER: "openai", AI_MODEL: $ai_model, OPENAI_API_KEY: $openai_key, TYPESAFE_API_KEY: $typesafe_key, JEV_ENABLED: $jev_enabled, SMTP_HOST: $smtp_host, SMTP_PORT: $smtp_port, SMTP_USER: $smtp_user, SMTP_PASSWORD: $smtp_password, SMTP_TLS: $smtp_tls, SMTP_SSL: $smtp_ssl, EMAIL_FROM_ADDRESS: $email_from_address, EMAIL_FROM_NAME: $email_from_name, FRONTEND_URL: $frontend_url}}' \
-            | ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
+            | ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
               'kubectl apply -f - && kubectl -n fallout set env deployment/backend deployment/dramatiq-worker --from=secret/backend-env'
 
-      - name: Update images
+      - name: Prepare maintenance and database backup
+        if: ${{ inputs.maintenance_mode && !inputs.preflight_only }}
         run: |
-          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
+          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
+            set -euo pipefail
+            test "${{ inputs.run_migrations }}" = "true"
+            test "$(kubectl -n fallout get pvc backend-logs-pvc -o jsonpath='{.status.phase}')" = "Bound"
+            state="/tmp/fallout-deploy-${{ github.run_id }}-${{ github.run_attempt }}.replicas"
+            umask 077
+            kubectl -n fallout get deployment backend dramatiq-worker -o json \
+              | python3 -c 'import json,sys; [print(x["metadata"]["name"], x["spec"].get("replicas", 1), sep="\t") for x in json.load(sys.stdin)["items"]]' > "$state"
+            database=$(kubectl -n fallout exec deployment/backend -- python3 -c \
+              'from app.core.config import settings; print(settings.POSTGRES_DB)')
+            selector=$(kubectl -n fallout get service postgres-service -o json \
+              | python3 -c 'import json,sys; print(",".join(k+"="+v for k,v in json.load(sys.stdin)["spec"]["selector"].items()))')
+            test -n "$selector"
+            postgres=$(kubectl -n fallout get pods -l "$selector" -o json \
+              | python3 -c 'import json,sys; print(next(x["metadata"]["name"] for x in json.load(sys.stdin)["items"] if x["status"]["phase"] == "Running"))')
+            test -n "$postgres"
+            trap 'failure_status=$?; trap - ERR; while read -r workload replicas; do
+              kubectl -n fallout scale "deployment/$workload" --replicas="$replicas"
+            done < "$state"; exit "$failure_status"' ERR
+            kubectl -n fallout scale deployment/backend deployment/dramatiq-worker --replicas=0
+            for workload in backend dramatiq-worker; do
+              selector=$(kubectl -n fallout get deployment "$workload" -o json \
+                | python3 -c 'import json,sys; print(",".join(k+"="+v for k,v in json.load(sys.stdin)["spec"]["selector"]["matchLabels"].items()))')
+              pods=$(kubectl -n fallout get pods -l "$selector" -o name)
+              if [ -n "$pods" ]; then
+                while read -r pod; do
+                  kubectl -n fallout wait --for=delete "$pod" --timeout=180s
+                done <<< "$pods"
+              fi
+            done
+            mkdir -p "$HOME/fallout-backups"
+            backup="$HOME/fallout-backups/pre-${{ inputs.image_tag }}-${{ github.run_id }}.dump"
+            kubectl -n fallout exec "$postgres" -- sh -c \
+              'pg_dump -U "$POSTGRES_USER" -d "$1" --format=custom' backup "$database" > "$backup"
+            test -s "$backup"
+            kubectl -n fallout exec -i "$postgres" -- pg_restore --list < "$backup" >/dev/null
+            trap - ERR
+            echo "Database backup verified: $backup"
+          SHELL
+
+      - name: Run migrations with the target image before rollout
+        if: ${{ inputs.run_migrations && !inputs.preflight_only }}
+        run: |
+          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
+            set -euo pipefail
+            job="fallout-migrate-${{ github.run_id }}-${{ github.run_attempt }}"
+            kubectl -n fallout get deployment backend -o json \
+              | python3 -c '
+          import json, sys
+          deployment = json.load(sys.stdin)
+          pod = deployment["spec"]["template"]["spec"]
+          pod["restartPolicy"] = "Never"
+          pod["initContainers"] = [c for c in pod.get("initContainers", []) if c["name"] == "wait-for-db"]
+          container = next(c for c in pod["containers"] if c["name"] == "backend")
+          container["image"] = sys.argv[2]
+          container["command"] = ["sh", "-c", "uv run alembic current && uv run alembic upgrade head && uv run alembic current --check-heads"]
+          for key in ("args", "ports", "livenessProbe", "readinessProbe", "startupProbe"):
+              container.pop(key, None)
+          pod["containers"] = [container]
+          print(json.dumps({"apiVersion": "batch/v1", "kind": "Job",
+              "metadata": {"name": sys.argv[1], "namespace": "fallout"},
+              "spec": {"backoffLimit": 0, "activeDeadlineSeconds": 300, "ttlSecondsAfterFinished": 86400,
+                  "template": {"metadata": {"labels": {"app": "fallout-migration"}}, "spec": pod}}}))
+          ' "$job" '${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ inputs.image_tag }}' | kubectl apply -f -
+            if ! kubectl -n fallout wait --for=condition=complete "job/$job" --timeout=330s; then
+              kubectl -n fallout logs "job/$job" || true
+              exit 1
+            fi
+            kubectl -n fallout logs "job/$job"
+            kubectl -n fallout delete job "$job"
+          SHELL
+
+      - name: Update images
+        if: ${{ !inputs.preflight_only }}
+        run: |
+          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
             set -e
             kubectl set image deployment/backend -n fallout \
               backend=${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ inputs.image_tag }}
+            if kubectl -n fallout get deployment backend -o jsonpath='{.spec.template.spec.initContainers[*].name}' | grep -qw run-migrations; then
+              kubectl set image deployment/backend -n fallout \
+                run-migrations=${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ inputs.image_tag }}
+            fi
             kubectl set image deployment/dramatiq-worker -n fallout \
               dramatiq-worker=${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ inputs.image_tag }}
             kubectl set image deployment/frontend -n fallout \
               frontend=${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:${{ inputs.image_tag }}
           EOF
 
+      - name: Restore maintenance replica counts
+        if: ${{ inputs.maintenance_mode && !inputs.preflight_only }}
+        run: |
+          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
+            set -euo pipefail
+            state="/tmp/fallout-deploy-${{ github.run_id }}-${{ github.run_attempt }}.replicas"
+            while read -r workload replicas; do
+              kubectl -n fallout scale "deployment/$workload" --replicas="$replicas"
+            done < "$state"
+          SHELL
+
       - name: Configure persistent application logs
+        if: ${{ !inputs.preflight_only }}
         run: |
           set -euo pipefail
-          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
+          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
             'kubectl apply -n fallout -f -' < deployment/k3s/backend-logs-pvc.yaml
 
-          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
+          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
             set -euo pipefail
 
             kubectl -n fallout set env deployment/backend \
@@ -136,8 +280,9 @@ jobs:
           SHELL
 
       - name: Restart deployments and wait for rollout
+        if: ${{ !inputs.preflight_only }}
         run: |
-          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
+          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
             set -e
 
             for deployment in backend dramatiq-worker frontend; do
@@ -153,27 +298,14 @@ jobs:
             echo "All rollouts complete."
           EOF
 
-      - name: Run database migrations
-        if: ${{ inputs.run_migrations }}
-        run: |
-          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
-            set -e
-
-            echo "Running alembic upgrade head..."
-            kubectl exec deployment/backend -n fallout -- \
-              uv run alembic upgrade head
-
-            echo "Migrations completed."
-          EOF
-
       - name: Verify production environment
         run: |
-          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
+          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
             "kubectl exec deployment/backend -n fallout -- python3 -c \"from app.core.config import settings; assert settings.ENVIRONMENT == 'production', f'Expected ENVIRONMENT=production, got {settings.ENVIRONMENT!r}'\""
 
       - name: Health check
         run: |
-          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
+          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
             set -e
 
             echo "Checking backend health..."
@@ -200,7 +332,7 @@ jobs:
 
       - name: Verify persistent API logs
         run: |
-          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
+          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
             set -euo pipefail
 
             test "$(kubectl -n fallout get pvc backend-logs-pvc -o jsonpath='{.status.phase}')" = "Bound"
@@ -209,16 +341,18 @@ jobs:
           SHELL
 
       - name: Verify AI Gateway and Logfire
+        if: ${{ !inputs.preflight_only }}
         run: |
-          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
+          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
             set -e
 
             kubectl exec deployment/backend -n fallout -- python3 -c 'import asyncio; from app.core.config import settings; from app.core.logfire_config import configure_logfire, is_logfire_enabled; from app.services.ai_service import get_ai_service; assert settings.ai_provider_mode == "gateway", "AI Gateway is not configured"; assert settings.logfire_enabled, "LOGFIRE_TOKEN is not configured"; configure_logfire(); service = get_ai_service(); assert service.using_gateway and service.is_available(), "AI Gateway model is unavailable"; result = asyncio.run(service.chat_completion_with_usage([{"role": "user", "content": "Reply with exactly: gateway-production-check"}])); assert result.text, "Gateway returned an empty response"; assert is_logfire_enabled(), "Logfire instrumentation did not initialize"; print("Gateway and Logfire verification request completed")'
           SHELL
 
       - name: Clean up old images
+        if: ${{ !inputs.preflight_only }}
         run: |
-          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
+          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
             set -e
 
             echo "Pruning unused container images..."

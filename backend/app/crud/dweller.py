@@ -458,6 +458,16 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         )
         return (await db_session.execute(query)).scalars().all()
 
+    @staticmethod
+    def _healthy_adult_conditions() -> list[Any]:
+        """Shared WHERE-conditions for a healthy adult: alive, grown-up, not soft-deleted."""
+        return [
+            Dweller.health > 0,
+            ~Dweller.is_dead,
+            Dweller.age_group.in_(ADULT_AGE_GROUPS),
+            ~Dweller.is_deleted,
+        ]
+
     async def get_healthy_adults_in_room(self, db_session: AsyncSession, room_id: UUID4) -> Sequence[Dweller]:
         """Adult dwellers with positive health in a room, weapon/outfit/pet eager-loaded."""
         query = (
@@ -467,9 +477,19 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
                 selectinload(self.model.outfit),
                 selectinload(self.model.pet),
             )
-            .where(
-                (self.model.room_id == room_id) & (self.model.health > 0) & self.model.age_group.in_(ADULT_AGE_GROUPS)
+            .where(self.model.room_id == room_id, *self._healthy_adult_conditions())
+        )
+        return list((await db_session.execute(query)).scalars().all())
+
+    async def get_healthy_adults_by_vault(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
+        """Adult dwellers with positive health in a vault, weapon/outfit eager-loaded."""
+        query = (
+            select(self.model)
+            .options(
+                selectinload(self.model.weapon),
+                selectinload(self.model.outfit),
             )
+            .where(self.model.vault_id == vault_id, *self._healthy_adult_conditions())
         )
         return list((await db_session.execute(query)).scalars().all())
 

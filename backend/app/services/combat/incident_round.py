@@ -74,10 +74,10 @@ async def apply_damage(
     deaths_count = 0
     damage_taken = 0
     incoming_damage = max(0, int(damage_to_dwellers))
-    damage_per_dweller, remainder = divmod(incoming_damage, len(dwellers))
+    split = incident_math.split_damage(incoming_damage, len(dwellers))
     effects = effects_for_incident_type(incident.type)
     for index, dweller in enumerate(dwellers):
-        dweller_damage = damage_per_dweller + (1 if index < remainder else 0)
+        dweller_damage = split[index]
         is_active_member = active_member_ids and getattr(dweller, "id", None) in active_member_ids
         team_share = TEAM_HAZARD_RESIST if is_active_member else 0.0
         reductions = damage_reductions(dweller, effects.damage, team_share=team_share)

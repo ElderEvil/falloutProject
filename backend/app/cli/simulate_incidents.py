@@ -2,20 +2,30 @@
 
 Simulates incident spawning, combat resolution, spread mechanics, deaths,
 and resource impact to help balance vault defenses and incident difficulty.
-Run standalone without the full backend.
+Incident kinds, spawn weights, difficulty ranges and the tuning baseline are
+read from ``game_config``, so the check always covers every kind the game can
+roll. Combat is resolved by the pure kernel in
+``app.services.combat.incident_sim`` — a faithful mirror of the production
+round engine — seeded either from synthetic defenders or from a real vault's
+healthy adults. Run standalone without the full backend.
 
 Usage:
     cd backend
     uv run fo-cli simulate-incidents
     uv run fo-cli simulate-incidents --days 3 --runs 50
     uv run fo-cli simulate-incidents --sweep spawn_chance_per_hour
+    uv run fo-cli simulate-incidents --vault-id <uuid>
 """
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import random
 import statistics
+import uuid
+from collections.abc import Callable
+from functools import partial
 from typing import Annotated, Any
 
 import typer
@@ -25,7 +35,6 @@ from app.cli.simulate_common import (
     banner,
     fmt_stats,
     print_hourly_curves,
-    run_simulate_command,
 )
 from app.cli.simulate_common import (
     print_sweep_report as shared_print_sweep_report,
@@ -37,61 +46,54 @@ from app.cli.simulate_common import (
     stats as _stats,
 )
 from app.core.game_config import game_config
+from app.models.incident import IncidentType
+from app.services.combat.incident_sim import DefenderProfile, SimDefender, resolve_incident
+from app.services.combat.incident_sim_roster import synthetic_defenders
 
-DEFAULT_TICK_INTERVAL = 60
 DEFAULT_SIMULATION_DAYS = 3
 DEFAULT_RUNS = 50
 
+# Simulator-only assumptions with no game_config analogue.
 DEFAULT_STARTING_DWELLERS = 20
 DEFAULT_STARTING_ADULTS = 18
 DEFAULT_AVG_SPECIAL = 4.0
 DEFAULT_AVG_WEAPON_DAMAGE = 10.0
 DEFAULT_AVG_LEVEL = 5
-
-DEFAULT_SPAWN_CHANCE_PER_HOUR = 0.05
-DEFAULT_MIN_VAULT_POPULATION = 5
-DEFAULT_MAX_ACTIVE_INCIDENTS = 5
-DEFAULT_SPAWN_COOLDOWN_SECONDS = 120
-DEFAULT_SPREAD_DURATION = 60
-DEFAULT_MAX_SPREAD_COUNT = 3
-
-DEFAULT_BASE_RAIDER_POWER = 10
-DEFAULT_LEVEL_BONUS_MULTIPLIER = 2
-
-DEFAULT_CAPS_REWARD_BASE = 50
-DEFAULT_CAPS_REWARD_PER_DIFFICULTY = 20
-
 DEFAULT_RESOURCE_DRAIN_PER_TICK = 0.5
-DEFAULT_HAPPINESS_PENALTY_ACTIVE = 3.0
 DEFAULT_HAPPINESS_PENALTY_SPREAD = 3.0
 
+# Incident knobs come from game_config, not a second copy, so new kinds and
+# tuning changes flow straight into the balance check.
+DEFAULT_TICK_INTERVAL = game_config.game_loop.tick_interval
+DEFAULT_INCIDENT_DT = game_config.game_loop.incident_tick_seconds
+DEFAULT_SPAWN_CHANCE_PER_HOUR = game_config.incident.spawn_chance_per_hour
+DEFAULT_MIN_VAULT_POPULATION = game_config.incident.min_vault_population
+DEFAULT_MAX_ACTIVE_INCIDENTS = game_config.incident.max_active_incidents
+DEFAULT_SPAWN_COOLDOWN_SECONDS = game_config.incident.spawn_cooldown_seconds
+DEFAULT_SPREAD_DURATION = game_config.incident.spread_duration
+DEFAULT_MAX_SPREAD_COUNT = game_config.incident.max_spread_count
 
-INCIDENT_TYPES = ["fire", "radroach", "mole_rat", "raider", "feral_ghoul", "deathclaw"]
+DEFAULT_BASE_RAIDER_POWER = game_config.combat.base_raider_power
+DEFAULT_LEVEL_BONUS_MULTIPLIER = game_config.combat.level_bonus_multiplier
 
-INCIDENT_WEIGHTS: dict[str, int] = {
-    "fire": 20,
-    "radroach": 30,
-    "mole_rat": 25,
-    "raider": 10,
-    "feral_ghoul": 5,
-    "deathclaw": 2,
-}
+DEFAULT_CAPS_REWARD_BASE = game_config.combat.caps_reward_base
+DEFAULT_CAPS_REWARD_PER_DIFFICULTY = game_config.combat.caps_reward_per_difficulty
 
-INCIDENT_DIFFICULTY: dict[str, tuple[int, int]] = {
-    "fire": (2, 4),
-    "radroach": (1, 3),
-    "mole_rat": (2, 5),
-    "raider": (4, 7),
-    "feral_ghoul": (5, 8),
-    "deathclaw": (8, 10),
-}
+DEFAULT_HAPPINESS_PENALTY_ACTIVE = game_config.happiness.incident_penalty
+DEFAULT_HEAL_PER_TICK = game_config.health.regen_per_tick
 
-EXTERNAL_INCIDENTS = {"raider", "feral_ghoul", "deathclaw"}
+# Responder-selection knobs (simulator-only).
+DEFAULT_DEFENDERS_PER_INCIDENT = 6
+DEFAULT_RESPONSE_RATE = 1.0
+
+INCIDENT_TYPES: list[IncidentType] = list(IncidentType)
+EXTERNAL_INCIDENTS: set[IncidentType] = {IncidentType(value) for value in game_config.incident.vault_door_incidents}
 
 
 @dataclasses.dataclass(frozen=True)
 class IncidentConfig:
     tick_interval: int = DEFAULT_TICK_INTERVAL
+    incident_dt: int = DEFAULT_INCIDENT_DT
     spawn_chance_per_hour: float = DEFAULT_SPAWN_CHANCE_PER_HOUR
     min_vault_population: int = DEFAULT_MIN_VAULT_POPULATION
     max_active_incidents: int = DEFAULT_MAX_ACTIVE_INCIDENTS
@@ -115,22 +117,23 @@ class IncidentConfig:
     starting_dwellers: int = DEFAULT_STARTING_DWELLERS
     starting_adults: int = DEFAULT_STARTING_ADULTS
 
+    defenders_per_incident: int = DEFAULT_DEFENDERS_PER_INCIDENT
+    response_rate: float = DEFAULT_RESPONSE_RATE
+    heal_per_tick: int = DEFAULT_HEAL_PER_TICK
+
     power_max: float = 100.0
     food_max: float = 100.0
     water_max: float = 100.0
 
-    def roll_difficulty(self, incident_type: str) -> int:
-        low, high = INCIDENT_DIFFICULTY[incident_type]
-        return random.randint(low, high)
-
-    def get_spawn_weights(self) -> dict[str, int]:
-        return INCIDENT_WEIGHTS.copy()
+    def roll_difficulty(self, incident_type: IncidentType, rng: random.Random) -> int:
+        low, high = game_config.incident.get_difficulty_range(incident_type)
+        return rng.randint(low, high)
 
 
 @dataclasses.dataclass
 class Incident:
     start_time: int
-    incident_type: str
+    incident_type: IncidentType
     difficulty: int
     spread_count: int = 0
     resolved: bool = False
@@ -149,6 +152,7 @@ class VaultState:
     population: int = DEFAULT_STARTING_DWELLERS
     adults: int = DEFAULT_STARTING_ADULTS
     children: int = DEFAULT_STARTING_DWELLERS - DEFAULT_STARTING_ADULTS
+    roster: list[SimDefender] = dataclasses.field(default_factory=list)
     power: float = 100.0
     food: float = 100.0
     water: float = 100.0
@@ -156,8 +160,12 @@ class VaultState:
     caps: int = 500
     incidents: list[Incident] = dataclasses.field(default_factory=list)
     total_deaths: int = 0
-    deaths_by_type: dict[str, int] = dataclasses.field(default_factory=lambda: dict.fromkeys(INCIDENT_TYPES, 0))
-    incidents_by_type: dict[str, int] = dataclasses.field(default_factory=lambda: dict.fromkeys(INCIDENT_TYPES, 0))
+    deaths_by_type: dict[IncidentType, int] = dataclasses.field(
+        default_factory=lambda: dict.fromkeys(INCIDENT_TYPES, 0)
+    )
+    incidents_by_type: dict[IncidentType, int] = dataclasses.field(
+        default_factory=lambda: dict.fromkeys(INCIDENT_TYPES, 0)
+    )
     incidents_resolved: int = 0
     incidents_failed: int = 0
     total_caps_from_incidents: int = 0
@@ -173,8 +181,8 @@ class SimulationResult:
     total_deaths: int
     total_caps_rewarded: int
 
-    deaths_by_type: dict[str, int]
-    incidents_by_type: dict[str, int]
+    deaths_by_type: dict[IncidentType, int]
+    incidents_by_type: dict[IncidentType, int]
 
     population_by_hour: list[int]
     deaths_by_hour: list[int]
@@ -192,15 +200,34 @@ class SimulationResult:
 class IncidentSimulator:
     def __init__(self, config: IncidentConfig) -> None:
         self.cfg = config
+        if config.tick_interval % config.incident_dt != 0:
+            raise ValueError("tick_interval must be a multiple of incident_dt")
 
-    def run(self, simulation_hours: int, seed: int | None = None) -> SimulationResult:
-        if seed is not None:
-            random.seed(seed)
+    def _build_synthetic_roster(self) -> list[DefenderProfile]:
+        return synthetic_defenders(
+            self.cfg.starting_adults,
+            avg_special=self.cfg.avg_special,
+            avg_weapon_damage=self.cfg.avg_weapon_damage,
+            avg_level=self.cfg.avg_level,
+        )
+
+    def run(
+        self,
+        simulation_hours: int,
+        seed: int | None = None,
+        base_roster: list[DefenderProfile] | None = None,
+    ) -> SimulationResult:
+        rng = random.Random(seed)
 
         duration_seconds = simulation_hours * 3600
         ticks = duration_seconds // self.cfg.tick_interval + 1
 
-        vault = VaultState(population=self.cfg.starting_dwellers, adults=self.cfg.starting_adults)
+        roster = [
+            SimDefender(profile=profile, health=profile.max_health)
+            for profile in (base_roster if base_roster is not None else self._build_synthetic_roster())
+        ]
+        population = len(roster) if base_roster is not None else max(self.cfg.starting_dwellers, len(roster))
+        vault = VaultState(population=population, adults=len(roster), children=population - len(roster), roster=roster)
         last_spawn_time = -self.cfg.spawn_cooldown_seconds
         max_concurrent = 0
         resolution_times: list[int] = []
@@ -217,8 +244,8 @@ class IncidentSimulator:
             now = tick * self.cfg.tick_interval
             hour_idx = min(now // 3600, simulation_hours - 1)
 
-            self._resolve_incidents(vault, now, resolution_times)
-            spawned = self._spawn_incidents(vault, now, last_spawn_time)
+            self._resolve_incidents(vault, resolution_times, rng)
+            spawned = self._spawn_incidents(vault, now, last_spawn_time, rng)
             active_after = len([i for i in vault.incidents if not i.resolved])
             max_concurrent = max(max_concurrent, active_after)
 
@@ -228,6 +255,8 @@ class IncidentSimulator:
             if spawned:
                 last_spawn_time = now
                 incidents_curve[hour_idx] += 1
+
+            self._regen_defenders(vault)
 
             pop_curve[hour_idx] = vault.population
             deaths_curve[hour_idx] = vault.total_deaths
@@ -264,45 +293,48 @@ class IncidentSimulator:
             max_concurrent_incidents=max_concurrent,
         )
 
-    def _resolve_incidents(self, vault: VaultState, now: int, resolution_times: list[int]) -> None:
+    def _resolve_incidents(self, vault: VaultState, resolution_times: list[int], rng: random.Random) -> None:
         for incident in vault.incidents:
             if incident.resolved:
                 continue
 
-            elapsed = incident.elapsed(now)
-            if elapsed >= self.cfg.spread_duration:
-                if incident.spread_count < self.cfg.max_spread_count:
-                    incident.spread_count += 1
-                    vault.happiness -= self.cfg.happiness_penalty_spread
-                else:
-                    incident.resolved = True
-                    vault.incidents_failed += 1
-                    resolution_times.append(elapsed // self.cfg.tick_interval)
-                    continue
+            living = [defender for defender in vault.roster if defender.health > 0]
+            if rng.random() < self.cfg.response_rate:
+                k = min(self.cfg.defenders_per_incident, len(living))
+                responders = rng.sample(living, k) if k > 0 else []
+            else:
+                responders = []
 
-            dweller_power = self._calculate_dweller_power(vault)
-            raider_power = incident.difficulty * self.cfg.base_raider_power
+            outcome = resolve_incident(
+                incident.incident_type,
+                incident.difficulty,
+                responders,
+                dt=self.cfg.incident_dt,
+                duration=self.cfg.spread_duration,
+                max_spread_count=self.cfg.max_spread_count,
+                base_raider_power=self.cfg.base_raider_power,
+            )
 
-            if dweller_power > raider_power:
+            incident.deaths += outcome.deaths
+            vault.total_deaths += outcome.deaths
+            vault.deaths_by_type[incident.incident_type] += outcome.deaths
+            vault.adults = max(0, vault.adults - outcome.deaths)
+            vault.population = max(0, vault.population - outcome.deaths)
+
+            if outcome.resolved:
                 incident.resolved = True
                 vault.incidents_resolved += 1
                 reward = self.cfg.caps_reward_base + incident.difficulty * self.cfg.caps_reward_per_difficulty
                 incident.caps_rewarded = reward
                 vault.caps += reward
                 vault.total_caps_from_incidents += reward
-                resolution_times.append(elapsed // self.cfg.tick_interval)
-                continue
+                resolution_times.append(outcome.ticks)
+            elif outcome.failed:
+                incident.resolved = True
+                vault.incidents_failed += 1
+                resolution_times.append(outcome.ticks)
 
-            damage = max(1, int((raider_power - dweller_power) * 0.1))
-            death_chance = min(0.3, damage / (vault.population * 10))
-            if random.random() < death_chance and vault.adults > 0:
-                vault.adults -= 1
-                vault.population -= 1
-                vault.total_deaths += 1
-                incident.deaths += 1
-                vault.deaths_by_type[incident.incident_type] += 1
-
-    def _spawn_incidents(self, vault: VaultState, now: int, last_spawn_time: int) -> bool:
+    def _spawn_incidents(self, vault: VaultState, now: int, last_spawn_time: int, rng: random.Random) -> bool:
         if vault.population < self.cfg.min_vault_population:
             return False
 
@@ -316,12 +348,12 @@ class IncidentSimulator:
 
         hours_passed = min(self.cfg.tick_interval / 3600, 2.0)
         spawn_chance = self.cfg.spawn_chance_per_hour * hours_passed
-        if random.random() >= spawn_chance:
+        if rng.random() >= spawn_chance:
             return False
 
-        weights = self.cfg.get_spawn_weights()
-        incident_type = random.choices(list(weights.keys()), weights=list(weights.values()), k=1)[0]
-        difficulty = self.cfg.roll_difficulty(incident_type)
+        weights = game_config.incident.get_spawn_weights()
+        incident_type = rng.choices(list(weights), weights=list(weights.values()), k=1)[0]
+        difficulty = self.cfg.roll_difficulty(incident_type, rng)
 
         incident = Incident(
             start_time=now,
@@ -333,13 +365,13 @@ class IncidentSimulator:
         vault.happiness -= self.cfg.happiness_penalty_active
         return True
 
-    def _calculate_dweller_power(self, vault: VaultState) -> float:
-        if vault.adults <= 0:
-            return 0.0
-        unarmed_weights = game_config.combat.weapon_stat_weights["unarmed"]
-        stat_power = self.cfg.avg_special * sum(unarmed_weights.values())
-        per_dweller = stat_power + self.cfg.avg_weapon_damage + self.cfg.avg_level * self.cfg.level_bonus_multiplier
-        return vault.adults * per_dweller
+    def _regen_defenders(self, vault: VaultState) -> None:
+        if self.cfg.heal_per_tick <= 0:
+            return
+        for defender in vault.roster:
+            if defender.health <= 0:
+                continue
+            defender.health = min(defender.profile.max_health, defender.health + self.cfg.heal_per_tick)
 
     def _apply_incident_pressure(self, vault: VaultState) -> None:
         active_count = len([i for i in vault.incidents if not i.resolved])
@@ -406,15 +438,24 @@ class _Curves(CurvesMixin):
             self.happiness[h] += result.happiness_by_hour[h]
 
 
-def run_monte_carlo(config: IncidentConfig, simulation_hours: int, runs: int) -> BatchResult:
+def run_monte_carlo(
+    config: IncidentConfig,
+    simulation_hours: int,
+    runs: int,
+    seed: int | None = None,
+    base_roster: list[DefenderProfile] | None = None,
+    roster_loader: Callable[[], list[DefenderProfile]] | None = None,
+) -> BatchResult:
     sim = IncidentSimulator(config)
     ag = _Aggregates()
     curves = _Curves.zeroed(simulation_hours)
-    deaths_by_type: dict[str, list[int]] = {t: [] for t in INCIDENT_TYPES}
-    incidents_by_type: dict[str, list[int]] = {t: [] for t in INCIDENT_TYPES}
+    deaths_by_type: dict[IncidentType, list[int]] = {t: [] for t in INCIDENT_TYPES}
+    incidents_by_type: dict[IncidentType, list[int]] = {t: [] for t in INCIDENT_TYPES}
 
     for i in range(runs):
-        result = sim.run(simulation_hours, seed=i)
+        run_seed = seed + i if seed is not None else None
+        roster = roster_loader() if roster_loader is not None else base_roster
+        result = sim.run(simulation_hours, seed=run_seed, base_roster=roster)
         ag.collect(result)
         curves.add_result(result, simulation_hours)
         for t in INCIDENT_TYPES:
@@ -461,27 +502,42 @@ SWEEP_RANGES: dict[str, list[Any]] = {
     "starting_dwellers": [5, 10, 20, 30, 50],
     "avg_special": [2.0, 3.0, 4.0, 5.0, 6.0],
     "avg_weapon_damage": [5.0, 10.0, 15.0, 20.0],
+    "defenders_per_incident": [1, 2, 4, 6, 10],
+    "response_rate": [0.0, 0.25, 0.5, 0.75, 1.0],
     "resource_drain_per_tick": [0.0, 0.5, 1.0, 2.0, 3.0],
     "happiness_penalty_active": [1.0, 3.0, 5.0, 8.0, 10.0],
 }
 
 
 def run_parameter_sweep(
-    param_name: str, baseline: IncidentConfig, simulation_hours: int, runs: int
+    param_name: str,
+    baseline: IncidentConfig,
+    simulation_hours: int,
+    runs: int,
+    base_roster: list[DefenderProfile] | None = None,
+    roster_loader: Callable[[], list[DefenderProfile]] | None = None,
+    seed: int | None = None,
 ) -> list[BatchResult]:
+    def run_batch(config: IncidentConfig, hours: int, count: int) -> BatchResult:
+        if param_name == "starting_dwellers" and base_roster is None and roster_loader is None:
+            ratio = baseline.starting_adults / max(1, baseline.starting_dwellers)
+            config = dataclasses.replace(config, starting_adults=int(config.starting_dwellers * ratio))
+        return run_monte_carlo(config, hours, count, seed=seed, base_roster=base_roster, roster_loader=roster_loader)
+
     return shared_run_parameter_sweep(
         param_name,
         baseline,
         simulation_hours,
         runs,
         sweep_ranges=SWEEP_RANGES,
-        run_monte_carlo=run_monte_carlo,
+        run_monte_carlo=run_batch,
     )
 
 
 def _print_params(cfg: IncidentConfig) -> None:
     print("Parameters:")
     print(f"  tick_interval       = {cfg.tick_interval}s")
+    print(f"  incident_dt         = {cfg.incident_dt}s")
     print(f"  spawn_chance        = {cfg.spawn_chance_per_hour:.2%}/hour")
     print(f"  max_active          = {cfg.max_active_incidents}")
     print(f"  spread_duration     = {cfg.spread_duration}s")
@@ -491,6 +547,9 @@ def _print_params(cfg: IncidentConfig) -> None:
     print(f"  avg_special         = {cfg.avg_special:.1f}")
     print(f"  avg_weapon_damage   = {cfg.avg_weapon_damage:.1f}")
     print(f"  avg_level           = {cfg.avg_level}")
+    print(f"  defenders/incident  = {cfg.defenders_per_incident}")
+    print(f"  response_rate       = {cfg.response_rate:.0%}")
+    print(f"  heal_per_tick       = {cfg.heal_per_tick}")
     print(f"  resource_drain      = {cfg.resource_drain_per_tick:.1f}/tick")
     print(f"  happiness_penalty   = {cfg.happiness_penalty_active:.1f}/tick")
     print()
@@ -514,7 +573,9 @@ def _print_casualties(batch: BatchResult) -> None:
         i = batch["incidents_by_type"][t]
         if i["mean"] > 0:
             death_rate = d["mean"] / i["mean"] if i["mean"] > 0 else 0
-            print(f"  {t:15} : {d['mean']:.1f} deaths from {i['mean']:.1f} incidents (death_rate={death_rate:.2f})")
+            print(
+                f"  {t.value:20} : {d['mean']:.1f} deaths from {i['mean']:.1f} incidents (death_rate={death_rate:.2f})"
+            )
     print(f"  total deaths        : {fmt_stats(batch['total_deaths'])}")
     print()
 
@@ -539,6 +600,7 @@ def _print_balance(batch: BatchResult, hours: int) -> None:
     mean_survival = batch["survival_rate"]["mean"]
     mean_incidents = batch["total_incidents"]["mean"]
     mean_pop = batch["population"]["mean"]
+    starting_pop = batch["pop_curve"][0] if batch["pop_curve"] else 0
 
     print("Balance assessment:")
     if mean_survival < 0.5:
@@ -551,7 +613,7 @@ def _print_balance(batch: BatchResult, hours: int) -> None:
         print(f"  Deaths per incident={mean_deaths / mean_incidents:.2f} over {hours}h")
     else:
         print(f"  Deaths per incident=n/a (no incidents spawned) over {hours}h")
-    print(f"  Population survived={mean_pop:.0f} from {DEFAULT_STARTING_DWELLERS}")
+    print(f"  Population survived={mean_pop:.0f} from {starting_pop:.0f}")
     print()
 
 
@@ -607,6 +669,18 @@ def _render_sweep_row(value: str, r: BatchResult) -> str:
     return line
 
 
+def _load_roster(vault_id: uuid.UUID) -> list[DefenderProfile]:
+    """Load a vault's healthy adults as the simulator's base roster."""
+    from app.db.session import async_session_maker
+    from app.services.combat.incident_sim_roster import snapshot_vault_defenders
+
+    async def _load() -> list[DefenderProfile]:
+        async with async_session_maker() as session:
+            return await snapshot_vault_defenders(session, vault_id)
+
+    return asyncio.run(_load())
+
+
 app = typer.Typer(help="Simulate incident balance for the Fallout Shelter game.")
 
 
@@ -616,6 +690,7 @@ def simulate(
     runs: Annotated[int, typer.Option(help="Monte Carlo runs (higher = smoother)")] = DEFAULT_RUNS,
     sweep: Annotated[str | None, typer.Option(help="Parameter to sweep")] = None,
     tick_interval: Annotated[int, typer.Option()] = DEFAULT_TICK_INTERVAL,
+    incident_dt: Annotated[int, typer.Option()] = DEFAULT_INCIDENT_DT,
     spawn_chance: Annotated[float, typer.Option()] = DEFAULT_SPAWN_CHANCE_PER_HOUR,
     max_active: Annotated[int, typer.Option()] = DEFAULT_MAX_ACTIVE_INCIDENTS,
     spread_duration: Annotated[int, typer.Option()] = DEFAULT_SPREAD_DURATION,
@@ -625,8 +700,17 @@ def simulate(
     avg_special: Annotated[float, typer.Option()] = DEFAULT_AVG_SPECIAL,
     avg_weapon_damage: Annotated[float, typer.Option()] = DEFAULT_AVG_WEAPON_DAMAGE,
     avg_level: Annotated[int, typer.Option()] = DEFAULT_AVG_LEVEL,
+    defenders_per_incident: Annotated[int, typer.Option()] = DEFAULT_DEFENDERS_PER_INCIDENT,
+    response_rate: Annotated[float, typer.Option()] = DEFAULT_RESPONSE_RATE,
+    heal_per_tick: Annotated[int, typer.Option()] = DEFAULT_HEAL_PER_TICK,
     resource_drain: Annotated[float, typer.Option()] = DEFAULT_RESOURCE_DRAIN_PER_TICK,
     happiness_penalty: Annotated[float, typer.Option()] = DEFAULT_HAPPINESS_PENALTY_ACTIVE,
+    vault_id: Annotated[
+        uuid.UUID | None, typer.Option(help="Seed the roster from a real vault's healthy adults")
+    ] = None,
+    resample: Annotated[
+        bool, typer.Option("--resample/--no-resample", help="Re-load the vault roster each run")
+    ] = False,
     detailed: Annotated[bool, typer.Option(help="Show hourly cumulative curves")] = False,
     seed: Annotated[int | None, typer.Option(help="Fix random seed for reproducibility")] = None,
 ) -> None:
@@ -634,6 +718,7 @@ def simulate(
 
     baseline = IncidentConfig(
         tick_interval=tick_interval,
+        incident_dt=incident_dt,
         spawn_chance_per_hour=spawn_chance,
         max_active_incidents=max_active,
         spread_duration=spread_duration,
@@ -644,23 +729,34 @@ def simulate(
         avg_special=avg_special,
         avg_weapon_damage=avg_weapon_damage,
         avg_level=avg_level,
+        defenders_per_incident=defenders_per_incident,
+        response_rate=response_rate,
+        heal_per_tick=heal_per_tick,
         resource_drain_per_tick=resource_drain,
         happiness_penalty_active=happiness_penalty,
     )
 
-    run_simulate_command(
-        hours=hours,
-        runs=runs,
-        seed=seed,
-        sweep=sweep,
-        detailed=detailed,
-        sweep_ranges=SWEEP_RANGES,
-        baseline=baseline,
-        run_monte_carlo=run_monte_carlo,
-        run_parameter_sweep=run_parameter_sweep,
-        print_report=print_report,
-        print_sweep_report=print_sweep_report,
-    )
+    base_roster: list[DefenderProfile] | None = None
+    roster_loader: Callable[[], list[DefenderProfile]] | None = None
+    if vault_id is not None:
+        if resample:
+            roster_loader = partial(_load_roster, vault_id)
+        else:
+            base_roster = _load_roster(vault_id)
+
+    if sweep:
+        if sweep not in SWEEP_RANGES:
+            typer.echo(f"Unknown parameter '{sweep}'. Available: {list(SWEEP_RANGES.keys())}", err=True)
+            raise typer.Exit(code=1)
+        results = run_parameter_sweep(
+            sweep, baseline, hours, runs, base_roster=base_roster, roster_loader=roster_loader, seed=seed
+        )
+        for r in results:
+            print_report(r, detailed=detailed)
+        print_sweep_report(results, sweep)
+    else:
+        result = run_monte_carlo(baseline, hours, runs, seed=seed, base_roster=base_roster, roster_loader=roster_loader)
+        print_report(result, detailed=detailed)
 
 
 def main() -> None:

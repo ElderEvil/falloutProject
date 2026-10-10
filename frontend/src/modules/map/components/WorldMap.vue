@@ -45,6 +45,7 @@ interface Props {
   fogDisabled?: boolean
   groupColors?: boolean
   siteTypeFilter?: string | null
+  readyLocationIds?: string[] | null
   selectedMarkerId: string | null
 }
 
@@ -56,6 +57,7 @@ const props = withDefaults(defineProps<Props>(), {
   fogDisabled: false,
   groupColors: false,
   siteTypeFilter: null,
+  readyLocationIds: null,
 })
 
 const emit = defineEmits<{
@@ -63,6 +65,8 @@ const emit = defineEmits<{
   (e: 'update:selectedMarkerId', value: string | null): void
   /** Own-vault marker clicked: open its summary panel instead of navigating. */
   (e: 'vault-info', vaultId: string): void
+  /** Dispatched party clicked: open its exploration details. */
+  (e: 'party-click', explorationId: string): void
   /** Free-roam explorer clicked: open its dweller popover at screen x/y. */
   (e: 'dweller-click', payload: { track: ExplorerTrack; x: number; y: number }): void
 }>()
@@ -71,7 +75,16 @@ const emit = defineEmits<{
 // The index stays known-only. The SVG shows known markers plus dimmed "?" hint
 // pins, but only where the derived fog of war has been explored — fogged tiles
 // reveal nothing. The home vault is always revealed.
-const knownLocations = computed(() => props.locations.filter(isKnownLocation))
+const readyIds = computed(() =>
+  props.readyLocationIds === null ? null : new Set(props.readyLocationIds)
+)
+const matchesReadyFilter = (loc: WastelandLocationWithDwellers) =>
+  readyIds.value === null ||
+  loc.type === 'home_vault' ||
+  (isKnownLocation(loc) && readyIds.value.has(loc.id))
+const knownLocations = computed(() =>
+  props.locations.filter((loc) => isKnownLocation(loc) && matchesReadyFilter(loc))
+)
 
 // Fog/mask grid resolution follows the backend snapshot when loaded, so fog
 // cells align with rendered terrain cells; defaults preserve current behavior.
@@ -110,8 +123,10 @@ function isExploredCoord(coord: { coord_x: number; coord_y: number }): boolean {
 // explorers render outside this list and are never filtered. Fog/declutter
 // downstream stay unchanged.
 const visibleLocations = computed(() => {
-  const filtered = props.locations.filter((loc) => matchesSiteTypeFilter(loc, props.siteTypeFilter))
-  return props.fogDisabled
+  const filtered = props.locations.filter(
+    (loc) => matchesSiteTypeFilter(loc, props.siteTypeFilter) && matchesReadyFilter(loc)
+  )
+  return props.fogDisabled || readyIds.value !== null
     ? filtered
     : filtered.filter(
         (loc) => !(loc.type === 'visited' && loc.dwellers.length < 2) && isExploredCoord(loc)
@@ -177,9 +192,8 @@ const exploringByLocation = computed(() => {
   return byLocation
 })
 
-const freeRoamTracks = computed(() =>
-  props.explorerTracks.filter((track) => !track.targetLocationId && track.lastKnown)
-)
+const movingTracks = computed(() => props.explorerTracks.filter((track) => track.lastKnown))
+const freeRoamTracks = computed(() => movingTracks.value.filter((track) => !track.targetLocationId))
 
 // Heading chevrons for the free-roam markers: trail vector when the run has a
 // usable outbound trail, otherwise the bearing back home. Tracks with neither
@@ -281,15 +295,17 @@ const markerScale = computed(() => 1 / Math.sqrt(zoom.value))
 // badges instead of being hidden. Secondary locations and anonymous vault
 // hints stay hidden at overview zoom and reappear as the player zooms in.
 const renderedLocations = computed(() =>
-  visibleLocations.value.filter((loc) =>
-    isMarkerVisible(
-      {
-        type: loc.type,
-        selected: props.selectedMarkerId === `loc-${loc.id}`,
-        exploring: exploringByLocation.value.has(loc.id),
-      },
-      zoom.value
-    )
+  visibleLocations.value.filter(
+    (loc) =>
+      readyIds.value !== null ||
+      isMarkerVisible(
+        {
+          type: loc.type,
+          selected: props.selectedMarkerId === `loc-${loc.id}`,
+          exploring: exploringByLocation.value.has(loc.id),
+        },
+        zoom.value
+      )
   )
 )
 
@@ -325,6 +341,10 @@ function onLocationMarkerClick(loc: WastelandLocationWithDwellers) {
 // marker's on-screen box.
 function onExplorerClick(track: ExplorerTrack, event: Event) {
   if (hasDragMoved.value) return
+  if (track.targetLocationId) {
+    emit('party-click', track.explorationId)
+    return
+  }
   let x = 0
   let y = 0
   if (event instanceof MouseEvent) {
@@ -558,19 +578,31 @@ function handleTouchEnd(event: TouchEvent) {
           @click="onSiteClick(site)"
         />
 
-        <!-- Free-roam explorer last-known positions: clickable for the dweller popover -->
+        <!-- Moving parties open exploration details; solo explorers retain their popover. -->
         <MapMarker
           :scale="markerScale"
-          v-for="track in freeRoamTracks"
+          v-for="track in movingTracks"
           :key="`explorer-${track.explorationId}`"
           :x="track.lastKnown!.coord_x"
           :y="track.lastKnown!.coord_y"
-          :name="track.dwellerName || 'Explorer'"
+          :name="
+            track.targetLocationId
+              ? track.partyNames.join(', ') || 'Exploration party'
+              : track.dwellerName || 'Explorer'
+          "
           type="explorer"
-          icon="mdi:account"
-          :art-src="track.dwellerThumbnailUrl ?? null"
-          label="Explorer"
-          :status="track.dwellerName ? `Last known — ${track.dwellerName}` : 'Last known position'"
+          :icon="track.targetLocationId ? 'mdi:account-group' : 'mdi:account'"
+          :art-src="track.targetLocationId ? null : (track.dwellerThumbnailUrl ?? null)"
+          :label="track.targetLocationId ? 'Exploration party' : 'Explorer'"
+          :status="
+            track.targetLocationId
+              ? track.status === 'returning'
+                ? 'Heading home'
+                : 'On expedition'
+              : track.dwellerName
+                ? `Last known — ${track.dwellerName}`
+                : 'Last known position'
+          "
           :interactive="true"
           @click="onExplorerClick(track, $event)"
         />
@@ -607,6 +639,10 @@ function handleTouchEnd(event: TouchEvent) {
           <Icon icon="mdi:arrow-expand-all" class="zoom-icon" />
         </Button>
         <span v-if="isZoomed" class="zoom-level">{{ Math.round(zoom * 100) }}%</span>
+      </div>
+
+      <div v-if="$slots.status" class="absolute right-2 top-2 z-10 flex flex-col gap-1 sm:flex-row">
+        <slot name="status" />
       </div>
 
       <!-- Legend overlay -->

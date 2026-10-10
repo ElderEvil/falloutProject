@@ -1133,6 +1133,33 @@ describe('WorldMap', () => {
       expect(panel.props('vaultMarkers')).toEqual([])
     })
 
+    it('filters ready locations in the map and index without hiding the home vault', async () => {
+      const locations = [
+        { ...createLocations(1)[0], id: 'home', type: 'home_vault' as const },
+        { ...createLocations(1)[0], id: 'ready', type: 'visited' as const, dwellers: [] },
+        { ...createLocations(1)[0], id: 'other', type: 'visited' as const },
+        { ...createLocations(1)[0], id: 'locked', is_unlocked: false },
+      ]
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations,
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          readyLocationIds: ['ready', 'locked'],
+        },
+        global: { stubs: defaultStubs },
+      })
+      expect(wrapper.findAllComponents(MapMarkerStub)).toHaveLength(2)
+      expect(
+        wrapper
+          .findComponent(MarkerListPanelStub)
+          .props('locations')
+          .map((loc: WastelandLocationWithDwellers) => loc.id)
+      ).toEqual(['home', 'ready'])
+      await wrapper.setProps({ readyLocationIds: [] })
+      expect(wrapper.findAllComponents(MapMarkerStub)).toHaveLength(1)
+    })
+
     it('keeps the location index outside the canvas so it cannot cover markers', () => {
       const wrapper = mount(WorldMap, {
         props: {
@@ -1731,6 +1758,36 @@ describe('WorldMap', () => {
       expect(marker.props('exploring')).toBe(true)
       expect(marker.props('status')).toBe('Dispatching')
     })
+
+    it.each(['active', 'returning'] as const)(
+      'renders a moving dispatched party while %s',
+      async (status) => {
+        const track = makeExplorerTrack({
+          status,
+          targetLocationId: 'target',
+          lastKnown: { coord_x: 42, coord_y: 43 },
+          partyNames: ['Ada', 'Bob'],
+        })
+        const wrapper = mount(WorldMap, {
+          props: {
+            locations: [],
+            vaultMarkers: [],
+            explorerTracks: [track],
+            selectedMarkerId: null,
+          },
+          global: { stubs: defaultStubs },
+        })
+        const party = wrapper
+          .findAllComponents(MapMarkerStub)
+          .find((m) => m.props('type') === 'explorer')!
+        expect(party.props('x')).toBe(42)
+        expect(party.props('y')).toBe(43)
+        expect(party.props('icon')).toBe('mdi:account-group')
+        expect(party.props('artSrc')).toBeNull()
+        await party.trigger('click')
+        expect(wrapper.emitted('party-click')![0]).toEqual([track.explorationId])
+      }
+    )
 
     it('renders an interactive last-known marker for a free-roam explorer', () => {
       const tracks: ExplorerTrack[] = [

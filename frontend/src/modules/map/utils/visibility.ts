@@ -1,3 +1,5 @@
+import type { WastelandLocationWithDwellers } from '../models/map'
+
 /**
  * Discovery-only visibility contract for the production map.
  *
@@ -19,4 +21,15 @@ export function isKnownLocation(loc: VisibilityInput): boolean {
 /** Shown as an anonymous hint: a place that is not known and not already a signal. */
 export function isHintLocation(loc: VisibilityInput): boolean {
   return loc.type !== 'home_vault' && loc.type !== 'vault' && !loc.is_unlocked
+}
+
+/** Known, clearable place whose clearing cooldown has ended. */
+export function isReadyToClear(loc: WastelandLocationWithDwellers): boolean {
+  const state = loc.clear_state
+  return (
+    loc.type !== 'home_vault' &&
+    isKnownLocation(loc) &&
+    !!state?.clearable &&
+    (!state.cleared || state.time_remaining_seconds <= 0)
+  )
 }

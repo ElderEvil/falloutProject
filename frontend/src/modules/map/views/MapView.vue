@@ -37,6 +37,7 @@ import type {
   VaultMarkerRead,
 } from '../models/map'
 import { buildExplorerTracks } from '../utils/explorerTracks'
+import { isReadyToClear } from '../utils/visibility'
 
 const authStore = useAuthStore()
 const mapStore = useMapStore()
@@ -236,6 +237,34 @@ const explorerTracks = computed<ExplorerTrack[]>(() =>
   )
 )
 
+const readyOnly = ref(false)
+const partiesOut = computed(
+  () => explorerTracks.value.filter((track) => track.targetLocationId).length
+)
+const readyLocationIds = computed(() => {
+  const occupied = new Set(explorerTracks.value.map((track) => track.targetLocationId))
+  return mapStore.locations
+    .filter((loc) => isReadyToClear(loc) && !occupied.has(loc.id))
+    .map((loc) => loc.id)
+})
+
+function toggleReadyPlaces() {
+  readyOnly.value = !readyOnly.value
+  if (readyOnly.value) siteTypeFilter.value = null
+}
+
+function openExploration(explorationId?: string) {
+  void router.push(
+    explorationId
+      ? { name: 'exploration-detail', params: { id: vaultId.value, explorationId } }
+      : { name: 'exploration', params: { id: vaultId.value } }
+  )
+}
+
+watch(vaultId, () => {
+  readyOnly.value = false
+})
+
 // Dispatch state (issue 772). The team menu now lives inside the location
 // details modal; the map only preloads its data and routes the confirm.
 // Blocks repeated Dispatch confirms while the request is in flight.
@@ -337,11 +366,6 @@ function isAvailableForDeparture(dweller: DwellerShort): boolean {
 
 const departureCandidates = computed(() => dwellerStore.dwellers.filter(isAvailableForDeparture))
 
-function isDirectDispatchable(loc: WastelandLocationWithDwellers): boolean {
-  const clearState = loc.clear_state
-  return !!clearState?.clearable && (!clearState.cleared || clearState.time_remaining_seconds <= 0)
-}
-
 function handleMarkerClick(
   payload:
     | { kind: 'location'; data: WastelandLocationWithDwellers }
@@ -359,7 +383,7 @@ function handleMarkerClick(
     }
     // Team dispatch now lives in the details modal; preload the vault supplies
     // and roster so its Send-team section is usable when it opens.
-    if (isDirectDispatchable(payload.data)) void ensureDispatchData()
+    if (isReadyToClear(payload.data)) void ensureDispatchData()
   } else if (payload.kind === 'site') {
     selectedMarkerId.value = `site-${payload.data.id}`
     clearPlaceQuery()
@@ -539,12 +563,38 @@ const hasNoData = computed(
               :fog-disabled="fogDisabled"
               :group-colors="groupColors"
               :site-type-filter="activeSiteType"
+              :ready-location-ids="readyOnly ? readyLocationIds : null"
               :selected-marker-id="selectedMarkerId"
               @update:selected-marker-id="selectedMarkerId = $event"
               @marker-click="handleMarkerClick"
               @vault-info="handleVaultInfo"
               @dweller-click="onDwellerClick"
-            />
+              @party-click="openExploration"
+            >
+              <template #status>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="bg-surface"
+                  :disabled="partiesOut === 0"
+                  @click="openExploration()"
+                >
+                  <Icon icon="mdi:account-group" class="size-4" />
+                  Parties out · {{ partiesOut }}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="bg-surface"
+                  :aria-pressed="readyOnly"
+                  :disabled="readyLocationIds.length === 0 && !readyOnly"
+                  @click="toggleReadyPlaces"
+                >
+                  <Icon icon="mdi:flag-checkered" class="size-4" />
+                  Ready to clear · {{ readyLocationIds.length }}
+                </Button>
+              </template>
+            </WorldMap>
           </div>
 
           <!-- Explorer popover: dweller summary anchored to the clicked marker -->

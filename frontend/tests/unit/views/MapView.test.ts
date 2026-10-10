@@ -851,5 +851,46 @@ describe('MapView', () => {
       const trigger = wrapper.find('[aria-label="Filter by site type"]')
       expect(trigger.exists()).toBe(true)
     })
+
+    it('does not offer the exclusion-zone easter egg as a filter option', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [{ ...mockLocation, group_key: 'exclusion_zone' }]
+      mapStore.placeGroups = [
+        {
+          key: 'exclusion_zone',
+          label: 'Restricted Exclusion Site',
+          icon: 'mdi:fence',
+          risk: 'high',
+          description: 'A restricted complex.',
+        },
+      ] as never
+      mapStore.isLoading = false
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(wrapper.find('[aria-label="Filter by site type"]').exists()).toBe(false)
+    })
+
+    it('degrades a stored exclusion-zone filter to All', async () => {
+      localStorage.setItem('map:site-type-filter', 'exclusion_zone')
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [{ ...mockLocation, group_key: 'exclusion_zone' }]
+      mapStore.placeGroups = [
+        {
+          key: 'exclusion_zone',
+          label: 'Restricted Exclusion Site',
+          icon: 'mdi:fence',
+          risk: 'high',
+          description: 'A restricted complex.',
+        },
+      ] as never
+      mapStore.isLoading = false
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(worldMapProps(wrapper).siteTypeFilter).toBeNull()
+    })
   })
 })

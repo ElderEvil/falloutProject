@@ -57,10 +57,21 @@ const { groupColors } = useGroupColors()
 // Persisted like the color mode; `null` means "All sites".
 const siteTypeFilter = useLocalStorage<string | null>('map:site-type-filter', null)
 
+// `exclusion_zone` is a one-off easter-egg site, not a browsable archetype, so it
+// stays off the filter and out of the stale-guard below.
+const NON_FILTERABLE_SITE_TYPES = new Set(['exclusion_zone'])
+
 // Archetypes actually present on this vault's map, in catalog order — the only
 // offerable options, and the guard that keeps a stale stored key inert.
 const presentSiteKeys = computed(
-  () => new Set(mapStore.locations.map((loc) => loc.group_key).filter(Boolean))
+  () =>
+    new Set(
+      mapStore.locations
+        .map((loc) => loc.group_key)
+        .filter(
+          (key): key is string => key != null && key !== '' && !NON_FILTERABLE_SITE_TYPES.has(key)
+        )
+    )
 )
 const siteGroupOptions = computed(() =>
   mapStore.placeGroups.filter((group) => presentSiteKeys.value.has(group.key))

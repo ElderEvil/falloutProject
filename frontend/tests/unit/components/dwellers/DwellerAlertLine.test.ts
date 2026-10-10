@@ -31,12 +31,28 @@ describe('DwellerAlertLine', () => {
     expect(wrapper.findAll('.alert-chip')).toHaveLength(0)
   })
 
-  it('flags injury against the radiation-reduced ceiling', () => {
-    const wrapper = mountAlertLine({ health: 40, radiation: 20 })
+  it('flags severe injury below half of max health', () => {
+    const wrapper = mountAlertLine({ health: 30, radiation: 20 })
 
     const text = wrapper.text()
     expect(text).toContain('Injured')
-    expect(text).toContain('40/80 HP')
+    expect(text).toContain('30/80 HP')
+  })
+
+  it('flags a damaged, heavily-irradiated dweller the effective ceiling would hide', () => {
+    // 35/100 HP with 40 radiation: effective max 60, so 35 sits above 60/2 and the
+    // radiation-reduced threshold missed it; the absolute half rule catches it.
+    const wrapper = mountAlertLine({ health: 35, radiation: 40 })
+
+    expect(wrapper.text()).toContain('Injured')
+    expect(wrapper.text()).toContain('35/60 HP')
+  })
+
+  it('stays silent for a lightly damaged dweller', () => {
+    const wrapper = mountAlertLine({ health: 70 })
+
+    expect(wrapper.text()).not.toContain('Injured')
+    expect(wrapper.findAll('.alert-chip')).toHaveLength(0)
   })
 
   it('flags radiation', () => {

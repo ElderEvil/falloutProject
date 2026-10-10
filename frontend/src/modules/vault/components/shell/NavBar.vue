@@ -1,9 +1,17 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, useTemplateRef, watch } from 'vue'
+import {
+  ref,
+  computed,
+  onMounted,
+  onUnmounted,
+  useTemplateRef,
+  watch,
+  defineAsyncComponent,
+} from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useRouter, useRoute } from 'vue-router'
-import NotificationBell from './NotificationBell.vue'
+const NotificationBell = defineAsyncComponent(() => import('./NotificationBell.vue'))
 import ResourceBar from './ResourceBar.vue'
 import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import { useVersionDetection } from '@/core/composables/useVersionDetection'

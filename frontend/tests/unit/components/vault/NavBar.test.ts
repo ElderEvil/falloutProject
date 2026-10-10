@@ -4,7 +4,6 @@ import { nextTick, ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import NavBar from '@/modules/vault/components/shell/NavBar.vue'
-import NotificationBell from '@/modules/vault/components/shell/NotificationBell.vue'
 import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import ResourceBar from '@/modules/vault/components/shell/ResourceBar.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -207,7 +206,7 @@ describe('NavBar', () => {
       resources.findAllComponents(ResourceBar).map((bar) => bar.props('productionRate'))
     ).toEqual([1, 2, 3])
     const [bottles, caps] = currency.findAllComponents(PageHeaderMetric)
-    const bell = account.findComponent(NotificationBell)
+    const bell = account.find('notification-bell-stub')
     expect(bottles?.props('label')).toBe('Nuka bottles')
     expect(bottles?.props('value')).toBe('—')
     expect(caps?.props('label')).toBe('Caps')

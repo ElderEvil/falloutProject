@@ -73,6 +73,7 @@ export function formatLongDateTime(value: DateInput): string {
 
 interface ClockOptions {
   /** Emit the leading hours segment, disable for an `mm:ss` clock ("01:30" → "90:00"). */
+  padMinutes?: boolean
   showHours?: boolean
   /** Emit the trailing seconds segment, disable for an `hh:mm` clock. */
   showSeconds?: boolean
@@ -80,12 +81,12 @@ interface ClockOptions {
 
 /** Zero-padded clock from a whole-second count, defaulting to `hh:mm:ss`. */
 export function formatClock(totalSeconds: number, options: ClockOptions = {}): string {
-  const { showHours = true, showSeconds = true } = options
+  const { showHours = true, showSeconds = true, padMinutes = true } = options
   const seconds = Math.floor(totalSeconds)
   const minutes = showHours ? Math.floor((seconds % 3600) / 60) : Math.floor(seconds / 60)
   const segments = [
     ...(showHours ? [String(Math.floor(seconds / 3600)).padStart(2, '0')] : []),
-    String(minutes).padStart(2, '0'),
+    padMinutes ? String(minutes).padStart(2, '0') : String(minutes),
     ...(showSeconds ? [String(seconds % 60).padStart(2, '0')] : []),
   ]
   return segments.join(':')

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Card } from '@/core/components/ui/card'
 import { Badge } from '@/core/components/ui/badge'
 import { Progress } from '@/core/components/ui/progress'
+import { useNow } from '@/core/composables/useNow'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
@@ -23,18 +24,7 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{ select: [] }>()
 
-const now = ref(Date.now())
-let timerInterval: ReturnType<typeof setInterval> | null = null
-
-onMounted(() => {
-  timerInterval = setInterval(() => {
-    now.value = Date.now()
-  }, 1000)
-})
-
-onUnmounted(() => {
-  if (timerInterval) clearInterval(timerInterval)
-})
+const now = useNow(1000)
 
 const isReturning = computed(() => isQuestReturning(props.quest))
 

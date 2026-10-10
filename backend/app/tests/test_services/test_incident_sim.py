@@ -210,3 +210,19 @@ def test_defended_fight_continues_past_no_responder_deadline():
     assert outcome.resolved
     assert not outcome.failed
     assert outcome.ticks > 1
+
+
+def test_threat_baseline_changes_combat_damage():
+    normal = resolve_incident(IncidentType.RAIDER_ATTACK, 1, [_defender(1000)], dt=2, base_raider_power=10)
+    stronger = resolve_incident(IncidentType.RAIDER_ATTACK, 1, [_defender(1000)], dt=2, base_raider_power=20)
+    assert stronger.damage_taken > normal.damage_taken
+    assert stronger.progress < normal.progress
+
+
+async def test_snapshot_rejects_unknown_vault(async_session: AsyncSession):
+    from uuid import uuid4
+
+    from app.utils.exceptions import ResourceNotFoundException
+
+    with pytest.raises(ResourceNotFoundException):
+        await snapshot_vault_defenders(async_session, uuid4())

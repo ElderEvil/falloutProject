@@ -6,7 +6,10 @@ damage, suppression, damage-split and victory formulas — but synchronous,
 deterministic and roster-driven, so the balance simulator can run thousands of
 incidents without a database.
 
-One intentional divergence from production: the hazard-team response bonus
+Simulation limitations: without room topology, unopposed spread is modeled
+as an extended escalation window, not adjacent-room spawning.
+
+Other intentional divergences from production: the hazard-team response bonus
 (``TEAM_RESPONSE_BONUS``) and radiation accumulation are NOT modeled. Responders
 fight with their raw ``combat_power`` and take damage on the incident's channel
 only; there is no team ledger, no outfit auto-equip, and no RAD gain.
@@ -59,6 +62,7 @@ def resolve_incident(
     dt: int,
     duration: int = 60,
     max_spread_count: int = 0,
+    base_raider_power: float | None = None,
 ) -> IncidentOutcome:
     """Resolve one incident to completion against the given responders.
 
@@ -72,7 +76,9 @@ def resolve_incident(
     production engine; when > 0 it extends the effective duration (one extra
     ``duration`` per spread), otherwise the default path fails at ``duration``.
     """
-    threat = incident_math.raider_power(difficulty)
+    threat = incident_math.raider_power(difficulty) if base_raider_power is None else difficulty * base_raider_power
+    if threat <= 0:
+        raise ValueError("Threat power must be positive")
     effects = effects_for_incident_type(incident_type)
     channel = effects.damage
     effective_duration = duration * (1 + max_spread_count)

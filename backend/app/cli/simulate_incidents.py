@@ -312,6 +312,7 @@ class IncidentSimulator:
                 dt=self.cfg.incident_dt,
                 duration=self.cfg.spread_duration,
                 max_spread_count=self.cfg.max_spread_count,
+                base_raider_power=self.cfg.base_raider_power,
             )
 
             incident.deaths += outcome.deaths

@@ -42,6 +42,27 @@ logger = logging.getLogger(__name__)
 #: Hard ceiling on one incident's designated responder roster.
 MAX_INCIDENT_RESPONDERS = 6
 
+#: Member statuses that commit a dweller to an incident response.
+COMMITTED_MEMBER_STATUSES: frozenset[str] = frozenset({"assigned", "dispatched"})
+
+
+async def committed_responder_ids(
+    db_session: AsyncSession, vault_id: UUID4, *, exclude_incident_id: UUID4 | None = None
+) -> set[UUID4]:
+    """Dweller ids rostered on another ACTIVE incident and therefore unavailable.
+
+    A dweller holding an ``assigned`` or ``dispatched`` slot on any live incident
+    other than ``exclude_incident_id`` is already committed to that response and
+    must not be drafted again; ``completed`` members are free.
+    """
+    committed: set[UUID4] = set()
+    for incident in await incident_crud.get_active_by_vault(db_session, vault_id):
+        if exclude_incident_id is not None and incident.id == exclude_incident_id:
+            continue
+        members = await team_crud.get_incident_team(db_session, incident.id, vault_id)
+        committed.update(member.dweller_id for member in members if member.status in COMMITTED_MEMBER_STATUSES)
+    return committed
+
 
 def _build_held_item(loot_item: dict, storage_id):
     """Rebuild one held incident item for storage, priced the same as its sale."""
@@ -308,20 +329,33 @@ class IncidentService:
         if unavailable:
             raise ValidationException("Only healthy adult dwellers in the vault can respond")
 
+        committed_ids = await committed_responder_ids(db_session, incident.vault_id, exclude_incident_id=incident.id)
+        skipped = [dweller for dweller in dwellers if dweller.id in committed_ids]
+        eligible = [dweller for dweller in dwellers if dweller.id not in committed_ids]
+        if not eligible:
+            raise ValidationException("All chosen responders are already committed to another active incident")
+
         existing_members = await team_crud.get_incident_team(db_session, incident.id, incident.vault_id)
         existing_member_ids = {member.dweller_id for member in existing_members}
-        if len(existing_member_ids | set(unique_ids)) > MAX_INCIDENT_RESPONDERS:
+        eligible_ids = [dweller.id for dweller in eligible]
+        if len(existing_member_ids | set(eligible_ids)) > MAX_INCIDENT_RESPONDERS:
             raise ValidationException("An incident team holds at most 6 responders")
 
-        await team_crud.add_incident_team_members(db_session, incident.id, incident.vault_id, unique_ids)
+        await team_crud.add_incident_team_members(db_session, incident.id, incident.vault_id, eligible_ids)
 
         from app.services.dweller_service import dweller_service
 
-        for dweller in dwellers:
+        for dweller in eligible:
             await dweller_service.update_dweller(db_session, dweller.id, {"room_id": incident.room_id})
-        self._record_event(db_session, incident, "responders_assigned", f"{len(unique_ids)} responder(s) assigned.")
+        self._record_event(
+            db_session,
+            incident,
+            "responders_assigned",
+            f"{len(eligible_ids)} responder(s) assigned.",
+            data={"skipped": [dweller.first_name for dweller in skipped]} if skipped else None,
+        )
         await db_session.commit()
-        return unique_ids
+        return eligible_ids
 
     async def get_incident_team_read(
         self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4

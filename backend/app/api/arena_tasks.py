@@ -25,7 +25,8 @@ async def _run_arena_tick(chain_token: str | None) -> tuple[str | None, dict | N
     """Claim the tick chain, then run one fight round across all arena rooms.
 
     Returns ``(next_chain_token, stats)``, or ``(None, None)`` when the chain
-    lease was lost to another worker (the periodiq watchdog will re-seed it).
+    lease was lost to another worker (the periodiq watchdog will re-seed it,
+    taking over a stale lease once its heartbeat expires).
     """
     from redis.asyncio import Redis
 
@@ -52,8 +53,8 @@ def arena_tick(chain_token: str | None = None):
     Reschedules itself every ``arena_tick_seconds`` while holding a Redis
     chain lease (periodiq 6-field crons only resolve at minute granularity),
     so combat updates read as live instead of once per minute. The periodiq
-    cron below acts as a low-frequency watchdog that re-seeds the chain if it
-    ever dies or the lease expires.
+    cron below acts as a watchdog that re-seeds the chain if it ever dies and
+    takes over a stale lease once its heartbeat expires.
     """
     next_chain_token = None
     try:
@@ -65,9 +66,11 @@ def arena_tick(chain_token: str | None = None):
             logger.info(f"Arena tick completed: {stats}")
     finally:
         if next_chain_token is not None:
+            delay_ms = game_config.game_loop.arena_tick_seconds * 1000
+            logger.debug("Rescheduling arena_tick in %d ms", delay_ms)
             arena_tick.send_with_options(
                 args=(next_chain_token,),
-                delay=game_config.game_loop.arena_tick_seconds * 1000,
+                delay=delay_ms,
             )
 
 

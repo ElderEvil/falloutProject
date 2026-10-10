@@ -216,6 +216,16 @@ describe('RoomIncidentDetail', () => {
     expect(wrapper.text()).toContain('POW 10')
   })
 
+  it('badges dispatched responders in the on-scene roster', async () => {
+    getIncidentTeam.mockReturnValue([{ ...teamMember('d1'), status: 'dispatched' }])
+    const wrapper = await mountDetail({
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice', combat_power: 10 })],
+    })
+
+    expect(wrapper.text()).toContain('Alice')
+    expect(wrapper.text()).toContain('DISPATCHED')
+  })
+
   it('falls back to a short id for team members missing from the dweller list', async () => {
     getIncidentTeam.mockReturnValue([teamMember('dweller-unknown-1234')])
     const wrapper = await mountDetail({ dwellers: [] })
@@ -327,5 +337,63 @@ describe('RoomIncidentDetail', () => {
     expect(wrapper.findAll('button').some((button) => button.attributes('disabled') === undefined)).toBe(
       true
     )
+  })
+
+  it('shows the level of on-scene team members', async () => {
+    getIncidentTeam.mockReturnValue([teamMember('d1')])
+    const wrapper = await mountDetail({
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice', level: 7 })],
+    })
+
+    expect(wrapper.text()).toContain('Alice')
+    expect(wrapper.text()).toContain('· Lv 7')
+  })
+
+  it('shows the level of available responders', async () => {
+    const wrapper = await mountDetail({
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice', level: 9 })],
+    })
+
+    expect(wrapper.text()).toContain('· Lv 9')
+  })
+
+  it('hints that the first round is pending while the team waits on scene', async () => {
+    getIncidentTeam.mockReturnValue([teamMember('d1')])
+    const wrapper = await mountDetail({
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice' })],
+      incident: incident({ events: [] }),
+    })
+
+    expect(wrapper.text()).toContain('Awaiting next round…')
+  })
+
+  it('hides the pending-round hint once a round has been fought', async () => {
+    getIncidentTeam.mockReturnValue([teamMember('d1')])
+    const wrapper = await mountDetail({
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice' })],
+      incident: incident({
+        events: [{ id: 'e1', kind: 'round', message: 'Trade fire.', data: null }],
+      }),
+    })
+
+    expect(wrapper.text()).not.toContain('Awaiting next round')
+  })
+
+  it('treats a containment event as a fought round', async () => {
+    getIncidentTeam.mockReturnValue([teamMember('d1')])
+    const wrapper = await mountDetail({
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice' })],
+      incident: incident({
+        events: [{ id: 'e1', kind: 'containment', message: 'Foam spreads.', data: null }],
+      }),
+    })
+
+    expect(wrapper.text()).not.toContain('Awaiting next round')
+  })
+
+  it('hides the pending-round hint when no team is on scene', async () => {
+    const wrapper = await mountDetail({ dwellers: [] })
+
+    expect(wrapper.text()).not.toContain('Awaiting next round')
   })
 })

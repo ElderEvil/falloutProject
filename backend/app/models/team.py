@@ -30,6 +30,9 @@ if TYPE_CHECKING:
 #: ``reserve`` (bench).
 ACTIVE_STATUS = "active"
 RESERVE_STATUS = "reserve"
+#: Marks an incident responder placed by hazard auto-dispatch (not the player),
+#: so the return-to-work pass can find exactly the dwellers it moved.
+DISPATCHED_STATUS = "dispatched"
 
 
 class Team(BaseUUIDModel, TimeStampMixin, table=True):

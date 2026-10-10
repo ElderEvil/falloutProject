@@ -21,7 +21,7 @@
   "src/modules/exploration/components/ExplorerNavbar.vue": 2,
   "src/modules/exploration/views/ExplorationView.vue": 1,
   "src/modules/map/components/MarkerDetailModal.vue": 2,
-  "src/modules/map/components/MarkerListPanel.vue": 3,
+  "src/modules/map/components/MarkerListPanel.vue": 2,
   "src/modules/profile/views/AboutView.vue": 1,
   "src/modules/profile/views/ChangelogView.vue": 1,
   "src/modules/profile/views/PreferencesView.vue": 1,

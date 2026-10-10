@@ -77,45 +77,46 @@ const siteGroups = computed(() => {
       @click="toggleCollapsed"
     >
       <span class="legend-title">MAP KEY</span>
-      <Icon
-        :icon="collapsed ? 'mdi:chevron-up' : 'mdi:chevron-down'"
-        class="legend-toggle-icon"
-      />
+      <Icon :icon="collapsed ? 'mdi:chevron-up' : 'mdi:chevron-down'" class="legend-toggle-icon" />
     </Button>
-    <template v-if="!collapsed">
-      <div v-for="item in legendItems" :key="item.type" class="legend-item">
-        <span
-          class="legend-icon-wrapper"
-          :class="{
-            'legend-vault': item.type === 'vault',
-            'legend-unseen': item.type === 'discovery' && hasUnseen,
-          }"
-        >
-          <Icon :icon="item.icon" class="legend-icon" />
-        </span>
-        <span class="legend-label">{{ item.label }}</span>
+    <div v-if="!collapsed" class="legend-content" @wheel.stop @touchmove.stop>
+      <div class="legend-types">
+        <div v-for="item in legendItems" :key="item.type" class="legend-item">
+          <span
+            class="legend-icon-wrapper"
+            :class="{
+              'legend-vault': item.type === 'vault',
+              'legend-unseen': item.type === 'discovery' && hasUnseen,
+            }"
+          >
+            <Icon :icon="item.icon" class="legend-icon" />
+          </span>
+          <span class="legend-label">{{ item.label }}</span>
+        </div>
       </div>
-
-      <div class="legend-title legend-title-spaced">MARKER STATE</div>
-      <div v-for="state in MARKER_STATES" :key="state.key" class="legend-item">
-        <span class="legend-state-dot" :class="`legend-state-${state.key}`" />
-        <span class="legend-label">{{ state.label }}</span>
-      </div>
-
-      <div class="legend-title legend-title-spaced">TERRAIN</div>
-      <div v-for="terrain in ATLAS_TERRAIN_ORDER" :key="terrain" class="legend-terrain">
-        <span class="legend-swatch" :class="ATLAS_TERRAIN_CLASS[terrain]" />
-        <span class="legend-label">{{ ATLAS_TERRAIN_LABEL[terrain] }}</span>
-      </div>
-
-      <div class="legend-title legend-title-spaced">DANGER</div>
-      <div v-for="entry in DANGER_RAMP" :key="entry.level" class="legend-danger">
-        <span class="legend-danger-swatch" :class="`legend-danger-${entry.level}`" />
-        <span class="legend-label">{{ entry.label }}</span>
-      </div>
-
-      <template v-if="siteGroups.length">
-        <div class="legend-title legend-title-spaced">SITE TYPES</div>
+      <details class="legend-section">
+        <summary class="legend-title">MARKER STATE</summary>
+        <div v-for="state in MARKER_STATES" :key="state.key" class="legend-item">
+          <span class="legend-state-dot" :class="`legend-state-${state.key}`" />
+          <span class="legend-label">{{ state.label }}</span>
+        </div>
+      </details>
+      <details class="legend-section">
+        <summary class="legend-title">TERRAIN</summary>
+        <div v-for="terrain in ATLAS_TERRAIN_ORDER" :key="terrain" class="legend-terrain">
+          <span class="legend-swatch" :class="ATLAS_TERRAIN_CLASS[terrain]" />
+          <span class="legend-label">{{ ATLAS_TERRAIN_LABEL[terrain] }}</span>
+        </div>
+      </details>
+      <details class="legend-section">
+        <summary class="legend-title">DANGER</summary>
+        <div v-for="entry in DANGER_RAMP" :key="entry.level" class="legend-danger">
+          <span class="legend-danger-swatch" :class="`legend-danger-${entry.level}`" />
+          <span class="legend-label">{{ entry.label }}</span>
+        </div>
+      </details>
+      <details v-if="siteGroups.length" class="legend-section">
+        <summary class="legend-title">SITE TYPES</summary>
         <div
           v-for="group in siteGroups"
           :key="group.key"
@@ -130,8 +131,8 @@ const siteGroups = computed(() => {
           </span>
           <span class="legend-label">{{ group.label }}</span>
         </div>
-      </template>
-    </template>
+      </details>
+    </div>
   </div>
 </template>
 
@@ -141,20 +142,45 @@ const siteGroups = computed(() => {
   bottom: 8px;
   left: 8px;
   z-index: 10;
+  width: min(220px, calc(100% - 16px));
   padding: 6px 8px;
   background-color: color-mix(in srgb, var(--color-surface) 85%, transparent);
   border: 1px solid var(--color-theme-primary);
   border-radius: 2px;
   box-shadow: 0 0 6px var(--color-theme-glow);
   font-family: var(--font-family-mono);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-theme-primary);
   pointer-events: none;
   user-select: none;
 }
 
+/* Bound expanded reference material so it cannot swallow the map. */
+.legend-content {
+  max-height: min(45vh, 260px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+}
+
+.legend-types {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px 10px;
+}
+
+.legend-section {
+  margin-top: 6px;
+  border-top: 1px solid var(--color-theme-primary);
+}
+
+.legend-section summary {
+  padding: 5px 0;
+  cursor: pointer;
+}
+
 .legend-title {
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   opacity: 0.6;
   text-transform: uppercase;
@@ -179,10 +205,6 @@ const siteGroups = computed(() => {
   width: 12px;
   height: 12px;
   opacity: 0.7;
-}
-
-.legend-title-spaced {
-  margin-top: 6px;
 }
 
 .legend-item {
@@ -250,6 +272,8 @@ const siteGroups = computed(() => {
 }
 
 .legend-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -333,25 +357,25 @@ const siteGroups = computed(() => {
 
 @media (max-width: 768px) {
   .map-legend {
-    font-size: 8px;
-    padding: 4px 6px;
+    font-size: 13px;
+    padding: 6px 8px;
     bottom: 4px;
     left: 4px;
   }
 
   .legend-icon-wrapper {
-    width: 10px;
-    height: 10px;
+    width: 14px;
+    height: 14px;
   }
 
   .legend-icon {
-    width: 8px;
-    height: 8px;
+    width: 12px;
+    height: 12px;
   }
 
   .legend-danger-swatch {
-    width: 8px;
-    height: 8px;
+    width: 12px;
+    height: 12px;
   }
 }
 </style>

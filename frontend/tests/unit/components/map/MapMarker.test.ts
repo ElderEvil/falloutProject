@@ -601,3 +601,15 @@ describe('MapMarker', () => {
     })
   })
 })
+
+describe('MapMarker zoom compensation', () => {
+  it('scales around its coordinate without shifting the location', () => {
+    const wrapper = mount(MapMarker, {
+      props: { x: 20, y: 30, name: 'Depot', type: 'visited', scale: 0.5 },
+      global: { stubs: { Icon: true } },
+    })
+    expect(wrapper.find('g.map-marker').attributes('transform')).toBe(
+      'translate(20, 30) scale(0.5)'
+    )
+  })
+})

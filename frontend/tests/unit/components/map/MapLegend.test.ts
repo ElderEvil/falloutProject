@@ -40,6 +40,14 @@ describe('MapLegend', () => {
     return items[3]
   }
 
+  it('keeps long reference sections collapsed until requested', () => {
+    const wrapper = mountLegend()
+    const sections = wrapper.findAll('details')
+    expect(sections.length).toBeGreaterThanOrEqual(3)
+    for (const section of sections) expect(section.attributes('open')).toBeUndefined()
+    expect(wrapper.findAll('summary').map((summary) => summary.text())).toContain('TERRAIN')
+  })
+
   it('should render the MAP KEY title', () => {
     const wrapper = mountLegend()
 

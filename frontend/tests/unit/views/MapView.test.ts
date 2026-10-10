@@ -118,7 +118,7 @@ describe('MapView', () => {
           USkeleton: true,
           WorldMap: {
             name: 'WorldMap',
-            template: '<div class="world-map-stub"></div>',
+            template: '<div class="world-map-stub"><slot name="status" /></div>',
             props: [
               'locations',
               'vaultMarkers',
@@ -126,6 +126,7 @@ describe('MapView', () => {
               'siteTypeFilter',
               'selectedMarkerId',
               'fogDisabled',
+              'readyLocationIds',
             ],
             emits: ['marker-click', 'update:selectedMarkerId', 'vault-info'],
           },
@@ -755,6 +756,55 @@ describe('MapView', () => {
     })
   })
 
+  describe('map opportunity counters', () => {
+    it('counts dispatched parties once and excludes unavailable places from ready sites', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      const state = {
+        clearable: true,
+        cleared: false,
+        clear_count: 0,
+        tier: 1,
+        time_remaining_seconds: 0,
+      }
+      mapStore.locations = [
+        { ...mockLocation, id: 'ready', clear_state: state },
+        { ...mockLocation, id: 'busy', clear_state: state },
+        { ...mockLocation, id: 'locked', is_unlocked: false, clear_state: state },
+        {
+          ...mockLocation,
+          id: 'cooldown',
+          clear_state: { ...state, cleared: true, time_remaining_seconds: 30 },
+        },
+        { ...mockLocation, id: 'reset', clear_state: { ...state, cleared: true } },
+      ]
+      const store = useExplorationStore()
+      vi.spyOn(store, 'fetchExplorationsByVault').mockResolvedValue([])
+      store.explorations = [
+        exploration({ id: 'party', target_location_id: 'busy' }),
+        exploration({ id: 'return', status: 'returning', target_location_id: 'cooldown' }),
+        exploration({ id: 'solo', target_location_id: null }),
+        exploration({ id: 'other', vault_id: 'another-vault', target_location_id: 'ready' }),
+        exploration({ id: 'done', status: 'completed', target_location_id: 'ready' }),
+      ]
+      const wrapper = mountView()
+      await flushPromises()
+      const parties = wrapper.findAll('button').find((b) => b.text().includes('Parties out'))!
+      const ready = wrapper.findAll('button').find((b) => b.text().includes('Ready to clear'))!
+      expect(parties.text()).toContain('2')
+      expect(ready.text()).toContain('2')
+      await parties.trigger('click')
+      expect(mockPush).toHaveBeenCalledWith({ name: 'exploration', params: { id: 'vault-1' } })
+      await ready.trigger('click')
+      expect(wrapper.findComponent({ name: 'WorldMap' }).props('readyLocationIds')).toEqual([
+        'ready',
+        'reset',
+      ])
+      expect(ready.attributes('aria-pressed')).toBe('true')
+      await ready.trigger('click')
+      expect(wrapper.findComponent({ name: 'WorldMap' }).props('readyLocationIds')).toBeNull()
+    })
+  })
+
   describe('admin fog debug tool', () => {
     it('is hidden for non-admins', async () => {
       vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
@@ -808,6 +858,27 @@ describe('MapView', () => {
 
     const worldMapProps = (wrapper: ReturnType<typeof mountView>) =>
       wrapper.findComponent({ name: 'WorldMap' }).props()
+
+    it('clears the ready filter when selecting a site type', async () => {
+      seedSites()
+      mapStore.locations[0]!.clear_state = {
+        clearable: true,
+        cleared: false,
+        clear_count: 0,
+        tier: 1,
+        time_remaining_seconds: 0,
+      }
+      const wrapper = mountView()
+      await flushPromises()
+      const ready = wrapper.findAll('button').find((b) => b.text().includes('Ready to clear'))!
+      await ready.trigger('click')
+      expect(worldMapProps(wrapper).readyLocationIds).not.toBeNull()
+      wrapper.findComponent({ name: 'Select' }).vm.$emit('update:modelValue', 'gas_station')
+      await flushPromises()
+      expect(worldMapProps(wrapper).siteTypeFilter).toBe('gas_station')
+      expect(worldMapProps(wrapper).readyLocationIds).toBeNull()
+      expect(ready.attributes('aria-pressed')).toBe('false')
+    })
 
     it('passes a stored site-type filter down to the map', async () => {
       // Null default selects the raw "any" serializer: store the bare key.
@@ -979,9 +1050,9 @@ describe('MapView', () => {
       const wrapper = mountView()
       await flushPromises()
 
-      const tracks = wrapper.findComponent({ name: 'WorldMap' }).props(
-        'explorerTracks'
-      ) as ExplorerTrack[]
+      const tracks = wrapper
+        .findComponent({ name: 'WorldMap' })
+        .props('explorerTracks') as ExplorerTrack[]
       expect(tracks).toHaveLength(1)
       expect(tracks[0].partyNames).toEqual(['Stephanie Boyd', 'Cooper Howard'])
       wrapper.unmount()
@@ -1006,9 +1077,9 @@ describe('MapView', () => {
       const wrapper = mountView()
       await flushPromises()
 
-      const tracks = wrapper.findComponent({ name: 'WorldMap' }).props(
-        'explorerTracks'
-      ) as ExplorerTrack[]
+      const tracks = wrapper
+        .findComponent({ name: 'WorldMap' })
+        .props('explorerTracks') as ExplorerTrack[]
       expect(tracks[0].partyNames).toEqual(['Stephanie Boyd'])
       wrapper.unmount()
     })

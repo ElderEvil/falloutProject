@@ -37,6 +37,7 @@ import type {
   VaultMarkerRead,
 } from '../models/map'
 import { buildExplorerTracks } from '../utils/explorerTracks'
+import { isReadyToClear } from '../utils/visibility'
 
 const authStore = useAuthStore()
 const mapStore = useMapStore()
@@ -89,6 +90,7 @@ const siteTypeFilterSelect = computed<AcceptableValue>({
   get: () => siteTypeFilter.value ?? 'all',
   set: (value: AcceptableValue) => {
     siteTypeFilter.value = value === null || value === 'all' ? null : String(value)
+    if (siteTypeFilter.value) readyOnly.value = false
   },
 })
 
@@ -213,9 +215,7 @@ const dwellerMaxHealth = computed(() => {
 // party entry stays absent and the anchor name alone drives the marker.
 const partyDwellerIdsByExploration = computed(() => {
   const byExploration = new Map<string, string[]>()
-  for (const [explorationId, party] of Object.entries(
-    explorationStore.explorationPartyMap
-  )) {
+  for (const [explorationId, party] of Object.entries(explorationStore.explorationPartyMap)) {
     byExploration.set(
       explorationId,
       party.map((member) => member.dweller_id)
@@ -237,6 +237,34 @@ const explorerTracks = computed<ExplorerTrack[]>(() =>
     partyDwellerIdsByExploration.value
   )
 )
+
+const readyOnly = ref(false)
+const partiesOut = computed(
+  () => explorerTracks.value.filter((track) => track.targetLocationId).length
+)
+const readyLocationIds = computed(() => {
+  const occupied = new Set(explorerTracks.value.map((track) => track.targetLocationId))
+  return mapStore.locations
+    .filter((loc) => isReadyToClear(loc) && !occupied.has(loc.id))
+    .map((loc) => loc.id)
+})
+
+function toggleReadyPlaces() {
+  readyOnly.value = !readyOnly.value
+  if (readyOnly.value) siteTypeFilter.value = null
+}
+
+function openExploration(explorationId?: string) {
+  void router.push(
+    explorationId
+      ? { name: 'exploration-detail', params: { id: vaultId.value, explorationId } }
+      : { name: 'exploration', params: { id: vaultId.value } }
+  )
+}
+
+watch(vaultId, () => {
+  readyOnly.value = false
+})
 
 // Dispatch state (issue 772). The team menu now lives inside the location
 // details modal; the map only preloads its data and routes the confirm.
@@ -339,11 +367,6 @@ function isAvailableForDeparture(dweller: DwellerShort): boolean {
 
 const departureCandidates = computed(() => dwellerStore.dwellers.filter(isAvailableForDeparture))
 
-function isDirectDispatchable(loc: WastelandLocationWithDwellers): boolean {
-  const clearState = loc.clear_state
-  return !!clearState?.clearable && (!clearState.cleared || clearState.time_remaining_seconds <= 0)
-}
-
 function handleMarkerClick(
   payload:
     | { kind: 'location'; data: WastelandLocationWithDwellers }
@@ -361,7 +384,7 @@ function handleMarkerClick(
     }
     // Team dispatch now lives in the details modal; preload the vault supplies
     // and roster so its Send-team section is usable when it opens.
-    if (isDirectDispatchable(payload.data)) void ensureDispatchData()
+    if (isReadyToClear(payload.data)) void ensureDispatchData()
   } else if (payload.kind === 'site') {
     selectedMarkerId.value = `site-${payload.data.id}`
     clearPlaceQuery()
@@ -500,26 +523,13 @@ const hasNoData = computed(
             </Button>
           </div>
 
-          <!-- Map + floating controls: an overlay keeps the pane free of a toolbar row -->
+          <!-- Filters have their own row so they cannot cover canvas controls. -->
           <div v-else class="map-stage">
-            <WorldMap
-              :locations="mapStore.locations"
-              :vault-markers="mapStore.vaultMarkers"
-              :player-vaults="mapStore.playerVaults"
-              :discovery-routes="mapStore.discoveryRoutes"
-              :expedition-sites="mapStore.expeditionSites"
-              :explorer-tracks="explorerTracks"
-              :fog-disabled="fogDisabled"
-              :group-colors="groupColors"
-              :site-type-filter="activeSiteType"
-              :selected-marker-id="selectedMarkerId"
-              @update:selected-marker-id="selectedMarkerId = $event"
-              @marker-click="handleMarkerClick"
-              @vault-info="handleVaultInfo"
-              @dweller-click="onDwellerClick"
-            />
-
-            <div class="map-overlay-controls">
+            <div
+              class="mb-2 flex flex-wrap items-center gap-2"
+              role="group"
+              aria-label="Map filters"
+            >
               <Select v-if="siteGroupOptions.length" v-model="siteTypeFilterSelect">
                 <SelectTrigger
                   aria-label="Filter by site type"
@@ -529,11 +539,7 @@ const hasNoData = computed(
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All sites</SelectItem>
-                  <SelectItem
-                    v-for="group in siteGroupOptions"
-                    :key="group.key"
-                    :value="group.key"
-                  >
+                  <SelectItem v-for="group in siteGroupOptions" :key="group.key" :value="group.key">
                     <Icon :icon="group.icon" />
                     <span>{{ group.label }}</span>
                   </SelectItem>
@@ -548,6 +554,48 @@ const hasNoData = computed(
                 {{ fogDisabled ? 'Restore fog' : 'Remove fog' }}
               </Button>
             </div>
+            <WorldMap
+              :locations="mapStore.locations"
+              :vault-markers="mapStore.vaultMarkers"
+              :player-vaults="mapStore.playerVaults"
+              :discovery-routes="mapStore.discoveryRoutes"
+              :expedition-sites="mapStore.expeditionSites"
+              :explorer-tracks="explorerTracks"
+              :fog-disabled="fogDisabled"
+              :group-colors="groupColors"
+              :site-type-filter="activeSiteType"
+              :ready-location-ids="readyOnly ? readyLocationIds : null"
+              :selected-marker-id="selectedMarkerId"
+              @update:selected-marker-id="selectedMarkerId = $event"
+              @marker-click="handleMarkerClick"
+              @vault-info="handleVaultInfo"
+              @dweller-click="onDwellerClick"
+              @party-click="openExploration"
+            >
+              <template #status>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="bg-surface"
+                  :disabled="partiesOut === 0"
+                  @click="openExploration()"
+                >
+                  <Icon icon="mdi:account-group" class="size-4" />
+                  Parties out · {{ partiesOut }}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="bg-surface"
+                  :aria-pressed="readyOnly"
+                  :disabled="readyLocationIds.length === 0 && !readyOnly"
+                  @click="toggleReadyPlaces"
+                >
+                  <Icon icon="mdi:flag-checkered" class="size-4" />
+                  Ready to clear · {{ readyLocationIds.length }}
+                </Button>
+              </template>
+            </WorldMap>
           </div>
 
           <!-- Explorer popover: dweller summary anchored to the clicked marker -->
@@ -589,19 +637,7 @@ const hasNoData = computed(
 <style scoped>
 .map-stage {
   position: relative;
-  width: fit-content;
-}
-
-/* Floating map controls: overlaid on the pane so they cost no vertical layout. */
-.map-overlay-controls {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.5rem;
+  width: 100%;
 }
 
 .vault-layout {

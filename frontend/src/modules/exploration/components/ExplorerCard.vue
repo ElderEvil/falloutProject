@@ -17,10 +17,16 @@ import DwellerRarityBadge from '@/modules/dwellers/components/DwellerRarityBadge
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import { Card } from '@/core/components/ui/card'
 import { Progress } from '@/core/components/ui/progress'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import { getItemIcon } from '@/core/models/items'
 import ExplorationStatusBadges from './ExplorationStatusBadges.vue'
 import ExplorerActions from './ExplorerActions.vue'
+import PartyRoster from './PartyRoster.vue'
 
 interface Props {
   exploration: Exploration
@@ -57,10 +63,20 @@ const {
 
 const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse() ?? [])
 
-// The anchor is the card's primary identity; only the rest of the dispatch party renders below.
-const companions = computed(() =>
-  (props.partyMembers ?? []).filter((member) => member.id !== props.exploration.dweller_id)
+const isParty = computed(
+  () => !!props.exploration.target_location_id || (props.partyMembers?.length ?? 0) > 1
 )
+const party = computed<(DwellerShort | Dweller)[]>(() => {
+  const members = props.partyMembers ?? []
+  const anchor =
+    members.find((member) => member.id === props.exploration.dweller_id) ?? props.dweller
+  return anchor
+    ? [
+        { ...anchor, id: props.exploration.dweller_id },
+        ...members.filter((member) => member.id !== props.exploration.dweller_id),
+      ]
+    : members
+})
 </script>
 
 <template>
@@ -72,7 +88,16 @@ const companions = computed(() =>
   >
     <!-- Header: identity left, status top-right -->
     <div class="card-header">
-      <TooltipProvider :delay-duration="200">
+      <div v-if="isParty" class="grid min-w-0 gap-2">
+        <div
+          class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-theme-primary"
+        >
+          <Icon icon="mdi:account-group" class="size-4 text-theme-accent" />
+          Expedition party
+        </div>
+        <h3 class="text-lg font-bold text-theme-primary">{{ exploration.duration }}h expedition</h3>
+      </div>
+      <TooltipProvider v-else :delay-duration="200">
         <Tooltip>
           <TooltipTrigger as-child>
             <button type="button" class="dweller-info dweller-link" @click.stop="openDwellerDetail">
@@ -104,7 +129,9 @@ const companions = computed(() =>
         <TooltipProvider v-if="selected" :delay-duration="200">
           <Tooltip>
             <TooltipTrigger as-child>
-              <button class="expand-indicator" aria-label="Event timeline open"><Icon icon="mdi:timeline-text" /></button>
+              <button class="expand-indicator" aria-label="Event timeline open">
+                <Icon icon="mdi:timeline-text" />
+              </button>
             </TooltipTrigger>
             <TooltipContent>Event timeline open</TooltipContent>
           </Tooltip>
@@ -115,7 +142,7 @@ const companions = computed(() =>
     <!-- Progress Bar -->
     <div class="progress-section">
       <div class="progress-info">
-        <span>Mission progress</span>
+        <span>{{ isReturning ? 'Return progress' : 'Mission progress' }}</span>
         <span class="progress-percentage">{{ Math.round(progressPercentage) }}%</span>
       </div>
       <Progress :model-value="progressPercentage" class="h-2" />
@@ -124,16 +151,40 @@ const companions = computed(() =>
 
     <!-- Stats Grid -->
     <div class="stats-grid">
-      <TerminalMetric icon="mdi:map-marker-distance" label="Distance" :value="`${exploration.total_distance} mi`" />
-      <TerminalMetric icon="mdi:treasure-chest" label="Items" :value="exploration.loot_collected?.length || 0" />
+      <TerminalMetric
+        v-if="!isParty"
+        icon="mdi:map-marker-distance"
+        label="Distance"
+        :value="`${exploration.total_distance} mi`"
+      />
+      <TerminalMetric
+        icon="mdi:treasure-chest"
+        label="Items"
+        :value="exploration.loot_collected?.length || 0"
+      />
       <TerminalMetric icon="mdi:currency-usd" label="Caps" :value="exploration.total_caps_found" />
-      <TerminalMetric icon="mdi:medical-bag" label="Stimpaks" :value="exploration.stimpaks || 0" />
-      <TerminalMetric icon="mdi:pill" label="RadAway" :value="exploration.radaways || 0" />
-      <TerminalMetric icon="mdi:skull" label="Enemies" :value="exploration.enemies_encountered" />
+      <TerminalMetric
+        v-if="!isParty"
+        icon="mdi:medical-bag"
+        label="Stimpaks"
+        :value="exploration.stimpaks || 0"
+      />
+      <TerminalMetric
+        v-if="!isParty"
+        icon="mdi:pill"
+        label="RadAway"
+        :value="exploration.radaways || 0"
+      />
+      <TerminalMetric
+        v-if="!isParty"
+        icon="mdi:skull"
+        label="Enemies"
+        :value="exploration.enemies_encountered"
+      />
     </div>
 
     <!-- Equipment Slots -->
-    <div class="equipment-section">
+    <div v-if="!isParty" class="equipment-section">
       <div class="equipment-slot min-w-0">
         <Icon :icon="getItemIcon('weapon', dweller?.weapon ?? {})" class="equip-icon" />
         <span class="equip-name min-w-0">{{ dweller?.weapon?.name || 'Unarmed' }}</span>
@@ -148,36 +199,10 @@ const companions = computed(() =>
       </div>
     </div>
 
-    <!-- Dispatch party companions (the anchor is the identity above). -->
-    <div v-if="companions.length > 0" class="party-section">
-      <div class="party-header">
-        <span>Team</span>
-        <span>{{ companions.length + 1 }} exploring</span>
-      </div>
-      <div class="party-members">
-        <div v-for="member in companions" :key="member.id" class="party-member">
-          <DwellerPortrait
-            :thumbnail-url="member.thumbnail_url"
-            prefer-thumbnail
-            :alt="`${getDwellerDisplayName(member)} portrait`"
-            image-class="party-portrait h-8 w-8 rounded-full border border-theme-primary object-cover"
-            fallback-class="party-portrait h-8 w-8 text-theme-primary"
-          />
-          <div class="member-info">
-            <span class="member-name">{{ getDwellerDisplayName(member) }}</span>
-            <div class="member-badges">
-              <DwellerAgeBadge :age-group="member.age_group" size="sm" />
-              <DwellerGenderBadge :gender="member.gender" size="sm" />
-              <DwellerRarityBadge :rarity="member.rarity" size="sm" />
-            </div>
-          </div>
-          <span class="member-level">Lv.{{ member.level }}</span>
-        </div>
-      </div>
-    </div>
+    <PartyRoster v-if="isParty" :members="party" />
 
     <!-- Recent Events Preview -->
-    <div v-if="recentEvents.length > 0" class="recent-events">
+    <div v-if="!isParty && recentEvents.length > 0" class="recent-events">
       <div class="recent-events-header">
         <Icon icon="mdi:history" class="mr-1" />
         Recent Activity
@@ -367,63 +392,6 @@ const companions = computed(() =>
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.party-section {
-  display: grid;
-  gap: 8px;
-  border-top: 1px solid color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
-  padding-top: 10px;
-}
-
-.party-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  color: var(--color-theme-primary);
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
-  opacity: 0.8;
-  text-transform: uppercase;
-}
-
-.party-members {
-  display: grid;
-  gap: 5px;
-}
-
-.party-member {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--color-theme-primary);
-  font-size: 0.85rem;
-}
-
-.member-info {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.member-badges {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.member-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.member-level {
-  margin-left: auto;
-  color: var(--color-theme-accent);
-  font-size: 0.75rem;
 }
 
 .recent-events {

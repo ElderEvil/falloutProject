@@ -170,15 +170,19 @@ const discoveryRouteLines = computed(() =>
 )
 
 // ── Explorer tracking ────────────────────────────────────────────────────
-// Dispatched runs mark their target location as "exploring"; free-roam runs
-// get a small last-known-position marker at the end of their discovery trail.
+// Dispatched runs mark their target location as "exploring"; the status lists
+// the whole dispatch party (anchor first) when party data is present, and a
+// solo run collapses to the single anchor. Free-roam runs get a small
+// last-known-position marker at the end of their discovery trail instead.
 const exploringByLocation = computed(() => {
   const byLocation = new Map<string, string>()
   for (const track of props.explorerTracks) {
     if (!track.targetLocationId) continue
     byLocation.set(
       track.targetLocationId,
-      track.dwellerName ? `Exploring — ${track.dwellerName}` : 'Dispatching'
+      track.partyNames.length
+        ? `Exploring — ${track.partyNames.join(', ')}`
+        : 'Dispatching'
     )
   }
   return byLocation

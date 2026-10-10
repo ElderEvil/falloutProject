@@ -7,7 +7,8 @@ export function buildExplorerTracks(
   discoveryRoutes: DiscoveryRouteRead[],
   dwellerNames: ReadonlyMap<string, string>,
   dwellerThumbnails: ReadonlyMap<string, string | null> = new Map(),
-  dwellerMaxHealth: ReadonlyMap<string, number | null> = new Map()
+  dwellerMaxHealth: ReadonlyMap<string, number | null> = new Map(),
+  partyDwellerIds: ReadonlyMap<string, string[]> = new Map()
 ): ExplorerTrack[] {
   const routesByExploration = new Map(discoveryRoutes.map((route) => [route.exploration_id, route]))
   return explorations
@@ -30,10 +31,19 @@ export function buildExplorerTracks(
           : lastPoint
             ? { coord_x: lastPoint.coord_x, coord_y: lastPoint.coord_y }
             : null
+      const dwellerName = dwellerNames.get(exploration.dweller_id) ?? ''
+      const partyNames = [
+        ...(dwellerName ? [dwellerName] : []),
+        ...(partyDwellerIds.get(exploration.id) ?? [])
+          .filter((id) => id !== exploration.dweller_id)
+          .map((id) => dwellerNames.get(id))
+          .filter((name): name is string => name !== undefined),
+      ]
       return {
         explorationId: exploration.id,
         dwellerId: exploration.dweller_id,
-        dwellerName: dwellerNames.get(exploration.dweller_id) ?? '',
+        dwellerName,
+        partyNames,
         status: exploration.status,
         health: exploration.health ?? null,
         radiation: exploration.radiation ?? null,

@@ -208,6 +208,22 @@ const dwellerMaxHealth = computed(() => {
   return maxes
 })
 
+// Dispatch parties (parent PR): slot-ordered membership per active run, only
+// surfaced for dispatched tracks. Free-roam runs have no team row, so their
+// party entry stays absent and the anchor name alone drives the marker.
+const partyDwellerIdsByExploration = computed(() => {
+  const byExploration = new Map<string, string[]>()
+  for (const [explorationId, party] of Object.entries(
+    explorationStore.explorationPartyMap
+  )) {
+    byExploration.set(
+      explorationId,
+      party.map((member) => member.dweller_id)
+    )
+  }
+  return byExploration
+})
+
 const explorerTracks = computed<ExplorerTrack[]>(() =>
   buildExplorerTracks(
     // The store can still hold the previous vault's active runs after a vault
@@ -217,7 +233,8 @@ const explorerTracks = computed<ExplorerTrack[]>(() =>
     mapStore.discoveryRoutes,
     dwellerNames.value,
     dwellerThumbnails.value,
-    dwellerMaxHealth.value
+    dwellerMaxHealth.value,
+    partyDwellerIdsByExploration.value
   )
 )
 
@@ -403,12 +420,16 @@ watch(
 
 // Explorer tracking rides the existing 30s map poll: every poll replaces the
 // locations array, so this watcher re-syncs active explorations (targets and
-// discovery trails) without any new polling or SSE wiring.
+// discovery trails) and their dispatch parties without any new polling or
+// SSE wiring. Party membership only exists for dispatched runs.
 watch(
   () => mapStore.locations,
   () => {
     if (vaultId.value && authStore.token) {
-      explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token).catch(() => {})
+      explorationStore
+        .fetchExplorationsByVault(vaultId.value, authStore.token)
+        .then(() => explorationStore.fetchPartiesForActiveExplorations(vaultId.value))
+        .catch(() => {})
     }
   }
 )

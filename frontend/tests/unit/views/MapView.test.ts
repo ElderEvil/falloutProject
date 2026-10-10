@@ -893,4 +893,124 @@ describe('MapView', () => {
       expect(worldMapProps(wrapper).siteTypeFilter).toBeNull()
     })
   })
+
+  describe('Dispatch party visibility', () => {
+    function seedPartyRun() {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+      const explorationStore = useExplorationStore()
+      vi.spyOn(explorationStore, 'fetchExplorationsByVault').mockResolvedValue([])
+      vi.spyOn(explorationStore, 'fetchPartiesForActiveExplorations').mockResolvedValue(undefined)
+      explorationStore.explorations = [
+        exploration({
+          id: 'expl-own',
+          dweller_id: 'dweller-1',
+          target_location_id: 'loc-1',
+        }),
+      ]
+      explorationStore.explorationPartyMap = {
+        'expl-own': [
+          {
+            id: 'member-1',
+            exploration_id: 'expl-own',
+            vault_id: 'vault-1',
+            dweller_id: 'dweller-1',
+            slot_number: 1,
+            status: 'assigned',
+            created_at: null,
+            updated_at: null,
+          },
+          {
+            id: 'member-2',
+            exploration_id: 'expl-own',
+            vault_id: 'vault-1',
+            dweller_id: 'dweller-2',
+            slot_number: 2,
+            status: 'assigned',
+            created_at: null,
+            updated_at: null,
+          },
+        ],
+      }
+      const { filter: dwellerFilter } = useDwellerStore()
+      dwellerFilter.dwellers = [
+        {
+          id: 'dweller-1',
+          first_name: 'Stephanie',
+          last_name: 'Boyd',
+          age_group: 'adult',
+          is_adult: true,
+          status: 'idle',
+        },
+        {
+          id: 'dweller-2',
+          first_name: 'Cooper',
+          last_name: 'Howard',
+          age_group: 'adult',
+          is_adult: true,
+          status: 'idle',
+        },
+      ] as never
+      return explorationStore
+    }
+
+    it('refreshes dispatch parties when the map reloads explorations', async () => {
+      const explorationStore = seedPartyRun()
+      const partySpy = vi
+        .spyOn(explorationStore, 'fetchPartiesForActiveExplorations')
+        .mockResolvedValue(undefined)
+
+      const wrapper = mountView()
+      await flushPromises()
+      // The 30s poll replaces the locations array; the watcher then re-syncs
+      // active explorations and their parties.
+      mapStore.locations = [...mapStore.locations]
+      await flushPromises()
+
+      expect(partySpy).toHaveBeenCalledWith('vault-1')
+      wrapper.unmount()
+    })
+
+    it('threads the dispatch party names into the explorer tracks', async () => {
+      seedPartyRun()
+      mapStore.locations = [mockLocation]
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      const tracks = wrapper.findComponent({ name: 'WorldMap' }).props(
+        'explorerTracks'
+      ) as ExplorerTrack[]
+      expect(tracks).toHaveLength(1)
+      expect(tracks[0].partyNames).toEqual(['Stephanie Boyd', 'Cooper Howard'])
+      wrapper.unmount()
+    })
+
+    it('collapses a solo dispatch track to just the anchor name', async () => {
+      seedPartyRun()
+      const explorationStore = useExplorationStore()
+      explorationStore.explorationPartyMap = {}
+      const { filter: dwellerFilter } = useDwellerStore()
+      dwellerFilter.dwellers = [
+        {
+          id: 'dweller-1',
+          first_name: 'Stephanie',
+          last_name: 'Boyd',
+          age_group: 'adult',
+          is_adult: true,
+          status: 'idle',
+        },
+      ] as never
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      const tracks = wrapper.findComponent({ name: 'WorldMap' }).props(
+        'explorerTracks'
+      ) as ExplorerTrack[]
+      expect(tracks[0].partyNames).toEqual(['Stephanie Boyd'])
+      wrapper.unmount()
+    })
+  })
 })

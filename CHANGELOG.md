@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.192.1 (2026-10-10)
+
+### Bug Fixes
+
+* **exploration:** surface the dispatch party in the list and on the map ([#933](https://github.com/ElderEvil/falloutProject/issues/933)) bf222f5
+
 ## 2.192.0 (2026-10-10)
 
 ### Features

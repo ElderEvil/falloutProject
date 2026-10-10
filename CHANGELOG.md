@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.191.1 (2026-10-10)
+
+### Bug Fixes
+
+* **dwellers:** flag the injured alert only when severely damaged df53f32
+* **dwellers:** threshold the injured alert on base max HP 92da72b
+
 ## 2.191.0 (2026-10-10)
 
 ### Features

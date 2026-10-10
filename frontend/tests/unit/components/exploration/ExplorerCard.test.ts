@@ -7,7 +7,7 @@ import { Progress } from '@/core/components/ui/progress'
 import ExplorerCard from '@/modules/exploration/components/ExplorerCard.vue'
 import ExplorerActions from '@/modules/exploration/components/ExplorerActions.vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
-import type { Dweller } from '@/modules/dwellers/models/dweller'
+import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
 
 vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' } }))
 
@@ -163,4 +163,41 @@ describe('ExplorerCard', () => {
 
     expect(wrapper.find('.view-on-map').attributes('href')).toBe('/vault/vault-1/map')
   })
+
+  it('renders the dispatch companions after the anchor identity', () => {
+    const partyMembers = [
+      companion('dweller-1', 'Lucy'),
+      companion('dweller-2', 'Carla'),
+      companion('dweller-3', 'Bea'),
+    ]
+    const wrapper = mount(ExplorerCard, { props: { exploration, dweller, partyMembers } })
+
+    expect(wrapper.find('.dweller-name').text()).toBe('Lucy MacLean')
+    expect(wrapper.findAll('.party-member')).toHaveLength(2)
+    expect(wrapper.findAll('.member-name').map((node) => node.text())).toEqual([
+      'Carla Vault',
+      'Bea Vault',
+    ])
+  })
+
+  it('renders no companion row for a solo run', () => {
+    const wrapper = mount(ExplorerCard, {
+      props: { exploration, dweller, partyMembers: [companion('dweller-1', 'Lucy')] },
+    })
+
+    expect(wrapper.find('.party-section').exists()).toBe(false)
+  })
 })
+
+function companion(id: string, firstName: string): DwellerShort {
+  return {
+    id,
+    first_name: firstName,
+    last_name: 'Vault',
+    level: 3,
+    thumbnail_url: `example.com/${id}.png`,
+    age_group: 'adult',
+    gender: 'female',
+    rarity: 'common',
+  } as DwellerShort
+}

@@ -138,6 +138,7 @@ function makeExplorerTrack(overrides: Partial<ExplorerTrack> = {}): ExplorerTrac
     explorationId: 'expl-1',
     dwellerId: 'dweller-1',
     dwellerName: '',
+    partyNames: [],
     status: 'active',
     health: null,
     radiation: null,
@@ -1601,6 +1602,7 @@ describe('WorldMap', () => {
         makeExplorerTrack({
           explorationId: 'expl-1',
           dwellerName: 'Ada',
+          partyNames: ['Ada'],
           targetLocationId: locations[0].id,
         }),
       ]
@@ -1612,6 +1614,65 @@ describe('WorldMap', () => {
       const marker = wrapper.findAllComponents(MapMarkerStub)[0]
       expect(marker.props('exploring')).toBe(true)
       expect(marker.props('status')).toBe('Exploring — Ada')
+    })
+
+    it('names the whole dispatch party on the target marker status', () => {
+      const locations = createLocations(1)
+      const tracks: ExplorerTrack[] = [
+        makeExplorerTrack({
+          explorationId: 'expl-1',
+          dwellerName: 'Stephanie Boyd',
+          partyNames: ['Stephanie Boyd', 'Cooper Howard'],
+          targetLocationId: locations[0].id,
+        }),
+      ]
+      const wrapper = mount(WorldMap, {
+        props: { locations, vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const marker = wrapper.findAllComponents(MapMarkerStub)[0]
+      expect(marker.props('exploring')).toBe(true)
+      expect(marker.props('status')).toBe('Exploring — Stephanie Boyd, Cooper Howard')
+    })
+
+    it('keeps a solo dispatch status on the single anchor', () => {
+      const locations = createLocations(1)
+      const tracks: ExplorerTrack[] = [
+        makeExplorerTrack({
+          explorationId: 'expl-1',
+          dwellerName: 'Ada',
+          partyNames: ['Ada'],
+          targetLocationId: locations[0].id,
+        }),
+      ]
+      const wrapper = mount(WorldMap, {
+        props: { locations, vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const marker = wrapper.findAllComponents(MapMarkerStub)[0]
+      expect(marker.props('status')).toBe('Exploring — Ada')
+    })
+
+    it('leaves a free-roam explorer marker status on the anchor alone', () => {
+      const tracks: ExplorerTrack[] = [
+        makeExplorerTrack({
+          explorationId: 'expl-2',
+          dwellerName: 'Bob',
+          partyNames: ['Bob', 'Ann'],
+          lastKnown: { coord_x: 42, coord_y: 43 },
+        }),
+      ]
+      const wrapper = mount(WorldMap, {
+        props: { locations: [], vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+
+      const explorer = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('type') === 'explorer')
+      expect(explorer!.props('status')).toBe('Last known — Bob')
     })
 
     it('falls back to "Dispatching" when the dweller name is unknown', () => {

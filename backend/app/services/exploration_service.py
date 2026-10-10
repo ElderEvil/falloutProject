@@ -18,6 +18,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.enums import DwellerStatusEnum
 from app.core.game_config import game_config
 from app.crud import exploration as crud_exploration
+from app.crud import team_crud
 from app.crud import training as training_crud
 from app.crud import world_location as crud_world_location
 from app.crud.dweller import dweller as dweller_crud
@@ -32,7 +33,7 @@ from app.models.training import TrainingStatus
 from app.models.world_location import WorldLocation
 from app.options.races import can_use_radaway
 from app.schemas.dweller import DwellerUpdate
-from app.schemas.exploration import ExplorationProgress
+from app.schemas.exploration import ExplorationPartyMemberRead, ExplorationProgress
 from app.schemas.exploration_event import ExplorationEvent, RewardsSchema
 from app.services.exploration.coordinator import ERROR_NOT_ACTIVE, exploration_coordinator
 from app.services.exploration.event_generator import event_generator
@@ -60,6 +61,25 @@ def dispatch_travel_hours(distance: float) -> int:
     return max(1, min(24, math.ceil(total_hours)))
 
 
+def _to_exploration_party_member_read(
+    member: TeamMember, exploration_id: UUID4, vault_id: UUID4
+) -> ExplorationPartyMemberRead:
+    """Map a dispatch team member into the exploration wire contract (exploration/vault come from the run)."""
+    slot_number = member.slot_number
+    if slot_number is None:
+        raise ValidationException("Exploration team member is missing a slot number")
+    return ExplorationPartyMemberRead(
+        id=member.id,
+        exploration_id=exploration_id,
+        vault_id=vault_id,
+        dweller_id=member.dweller_id,
+        slot_number=slot_number,
+        status=member.status,
+        created_at=member.created_at.isoformat() if member.created_at else None,
+        updated_at=member.updated_at.isoformat() if member.updated_at else None,
+    )
+
+
 class ExplorationService:
     """Exploration service for managing wasteland explorations.
 
@@ -76,6 +96,16 @@ class ExplorationService:
         :rtype: ExplorationEvent | None
         """
         return event_generator.generate_event(exploration)
+
+    async def get_party(
+        self, db_session: AsyncSession, vault_id: UUID4, exploration_id: UUID4
+    ) -> list[ExplorationPartyMemberRead]:
+        """Read the slot-ordered party for a run belonging to the requested vault."""
+        exploration = await crud_exploration.get(db_session, exploration_id)
+        if exploration.vault_id != vault_id:
+            raise ResourceNotFoundException(Exploration, identifier=exploration_id)
+        members = await team_crud.get_exploration_team_members(db_session, exploration_id)
+        return [_to_exploration_party_member_read(member, exploration_id, vault_id) for member in members]
 
     async def process_event(self, db_session: AsyncSession, exploration: Exploration) -> Exploration:
         """Process and add a generated event to an exploration.

@@ -1412,6 +1412,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/explorations/vault/{vault_id}/{exploration_id}/party": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Exploration Party
+         * @description Get the dispatch party assigned to an exploration (empty for a free-roam run).
+         *
+         *     Returns:
+         *         list[ExplorationPartyMemberRead]: Party members in slot order.
+         *
+         *     Raises:
+         *         ResourceNotFoundException: If the exploration is unknown or belongs to another vault.
+         */
+        get: operations["get_exploration_party_api_v1_explorations_vault__vault_id___exploration_id__party_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/explorations/vault/{vault_id}/pending-overflow": {
         parameters: {
             query?: never;
@@ -7205,6 +7231,40 @@ export interface components {
             rewards_summary?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /**
+         * ExplorationPartyMemberRead
+         * @description Exploration dispatch party member read schema (mirrors QuestPartyMemberRead).
+         */
+        ExplorationPartyMemberRead: {
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /**
+             * Exploration Id
+             * Format: uuid4
+             */
+            exploration_id: string;
+            /**
+             * Vault Id
+             * Format: uuid4
+             */
+            vault_id: string;
+            /**
+             * Dweller Id
+             * Format: uuid4
+             */
+            dweller_id: string;
+            /** Slot Number */
+            slot_number: number;
+            /** Status */
+            status: string;
+            /** Created At */
+            created_at?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
         };
         /**
          * ExplorationProgress
@@ -13072,6 +13132,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExplorationReadShort"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_exploration_party_api_v1_explorations_vault__vault_id___exploration_id__party_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                exploration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplorationPartyMemberRead"][];
                 };
             };
             /** @description Validation Error */

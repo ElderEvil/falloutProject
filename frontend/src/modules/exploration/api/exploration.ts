@@ -4,6 +4,8 @@ import type { components } from '@/core/types/api.generated'
 export type ExplorationRead = components['schemas']['ExplorationRead']
 export type ExplorationSendRequest = components['schemas']['ExplorationSendRequest']
 
+export type ExplorationPartyMember = components['schemas']['ExplorationPartyMemberRead']
+
 export const explorationApi = {
   /**
    * Dispatch a party to clear a map point (issue 772, phase 3).
@@ -42,5 +44,16 @@ export const explorationApi = {
       }
     )
     return response.data.heading_degrees
+  },
+
+  /** Fetch the dispatch party for an exploration, slot-ordered; empty for a free-roam run. */
+  async getExplorationParty(
+    vaultId: string,
+    explorationId: string
+  ): Promise<ExplorationPartyMember[]> {
+    const response = await axios.get<ExplorationPartyMember[]>(
+      `/api/v1/explorations/vault/${vaultId}/${explorationId}/party`
+    )
+    return response.data
   },
 }

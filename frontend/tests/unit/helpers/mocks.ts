@@ -80,8 +80,6 @@ export interface ApiClientSpies {
   apiGet: Mock
   apiPost: Mock
   apiPut: Mock
-  apiPatch: Mock
-  apiDelete: Mock
   apiRequest: Mock
   api: {
     get: Mock
@@ -105,25 +103,20 @@ export function createApiClientMock(overrides: Partial<ApiClientSpies> = {}): Ap
   const apiGet = overrides.apiGet ?? vi.fn()
   const apiPost = overrides.apiPost ?? vi.fn()
   const apiPut = overrides.apiPut ?? vi.fn()
-  const apiPatch = overrides.apiPatch ?? vi.fn()
-  const apiDelete = overrides.apiDelete ?? vi.fn()
   const apiRequest = overrides.apiRequest ?? vi.fn()
   return {
     apiGet,
     apiPost,
     apiPut,
-    apiPatch,
-    apiDelete,
     apiRequest,
-    api:
-      overrides.api ?? {
-        get: apiGet,
-        post: apiPost,
-        put: apiPut,
-        patch: apiPatch,
-        delete: apiDelete,
-        request: apiRequest,
-      },
+    api: overrides.api ?? {
+      get: apiGet,
+      post: apiPost,
+      put: apiPut,
+      patch: vi.fn(),
+      delete: vi.fn(),
+      request: apiRequest,
+    },
   }
 }
 

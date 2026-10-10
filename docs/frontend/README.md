@@ -138,7 +138,7 @@ The 7-day delay can slow urgent security patches. When a verified fix must ship 
 [`HTTP_CLIENT_MIGRATION.md`](./HTTP_CLIENT_MIGRATION.md). The approved sequence:
 
 1. `src/core/utils/api.ts` is the shared API boundary over `@/core/plugins/axios`
-   (Batch 1, in review). Use `apiGet`/`apiPost`/`apiPut`/`apiPatch`/`apiDelete` (or the `api.*` sugar);
+   (Batch 1, in review). Use `apiGet`/`apiPost`/`apiPut`, or the `api.*` sugar for `patch`/`delete`;
    `apiRequest` returns the full `AxiosResponse` where callers need response status or headers. Errors normalize to
    `ApiError { status, detail, fields, headers, cause }`.
 2. Batches 2–4 migrate the remaining services, stores, and exploration/chat call sites.

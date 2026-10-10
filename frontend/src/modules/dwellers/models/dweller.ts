@@ -1,4 +1,5 @@
 import type { components } from '@/core/types/api.generated'
+import { humanizePreserveCase } from '@/core/utils/format'
 
 // Re-export generated API types
 // Dweller is the full type with all relations (vault, room, weapon, outfit)
@@ -18,10 +19,7 @@ export function canUseRadaway(
 }
 
 export function formatIdentityLabel(value: string): string {
-  return value
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
+  return humanizePreserveCase(value)
 }
 
 /** Dweller display name; last names are nullable, so this never renders `"null"`. */

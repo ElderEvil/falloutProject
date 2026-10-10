@@ -8,6 +8,7 @@ import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { formatRemaining } from '@/modules/exploration/composables/useExplorationProgress'
+import { formatDate } from '@/core/utils/format'
 import { usePartySelection } from '@/modules/progression/composables/usePartySelection'
 import PartySlots from '@/modules/progression/components/party/PartySlots.vue'
 import AvailableDwellers from '@/modules/progression/components/party/AvailableDwellers.vue'
@@ -112,7 +113,7 @@ const recordStatus = computed(() => {
 
 const recordedAt = computed(() => {
   if (!props.location?.created_at) return 'NO DATE LOGGED'
-  return new Date(props.location.created_at).toLocaleDateString()
+  return formatDate(props.location.created_at)
 })
 
 const linkedDwellers = computed(() => {

@@ -10,7 +10,7 @@ import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentity
 import DwellerAgeBadge from '@/modules/dwellers/components/DwellerAgeBadge.vue'
 import DwellerGenderBadge from '@/modules/dwellers/components/DwellerGenderBadge.vue'
 import DwellerRarityBadge from '@/modules/dwellers/components/DwellerRarityBadge.vue'
-import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
+import { linearProgress, parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
 import { isQuestReturning } from '@/modules/progression/models/quest'
 import type { VaultQuest } from '@/modules/progression/models/quest'
 
@@ -41,16 +41,16 @@ const isReturning = computed(() => isQuestReturning(props.quest))
 const progressPercentage = computed(() => {
   if (isReturning.value) {
     if (!props.quest.return_started_at || !props.quest.return_completes_at) return 100
-    const start = parseStartTimeMs(props.quest.return_started_at)
-    const total = parseStartTimeMs(props.quest.return_completes_at) - start
-    if (total <= 0) return 100
-    return Math.min(100, Math.max(0, ((now.value - start) / total) * 100))
+    return linearProgress(
+      parseStartTimeMs(props.quest.return_started_at),
+      parseStartTimeMs(props.quest.return_completes_at),
+      now.value
+    )
   }
   if (!props.quest.started_at || !props.quest.duration_minutes) return 0
 
   const start = parseStartTimeMs(props.quest.started_at)
-  const duration = props.quest.duration_minutes * 60 * 1000
-  return Math.min(100, Math.max(0, ((now.value - start) / duration) * 100))
+  return linearProgress(start, start + props.quest.duration_minutes * 60 * 1000, now.value)
 })
 
 const timeRemaining = computed(() => {

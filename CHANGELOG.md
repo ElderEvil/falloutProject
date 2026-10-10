@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.191.0 (2026-10-10)
+
+### Features
+
+* **map:** site-type filter driving markers, list, and legend 26c309f
+
+### Code Refactoring
+
+* **map:** move marker colours to Preferences and float the site-type filter e283bf7
+* **map:** share the site-type filter predicate 79580fe
+
 ## 2.190.0 (2026-10-09)
 
 ### Features

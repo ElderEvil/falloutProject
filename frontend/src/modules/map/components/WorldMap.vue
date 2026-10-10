@@ -31,6 +31,7 @@ import { isKnownLocation } from '../utils/visibility'
 import { isMarkerVisible } from '../utils/declutter'
 import { clusterMarkers, type MarkerCluster } from '../utils/clusterMarkers'
 import { explorerHeading } from '../utils/explorerHeading'
+import { matchesSiteTypeFilter } from '../utils/siteFilter'
 
 interface Props {
   locations: WastelandLocationWithDwellers[]
@@ -107,11 +108,9 @@ function isExploredLocation(loc: { coord_x: number; coord_y: number }): boolean 
 // explorers render outside this list and are never filtered. Fog/declutter
 // downstream stay unchanged.
 const visibleLocations = computed(() => {
-  const filtered = props.siteTypeFilter
-    ? props.locations.filter(
-        (loc) => loc.type === 'home_vault' || loc.group_key === props.siteTypeFilter
-      )
-    : props.locations
+  const filtered = props.locations.filter((loc) =>
+    matchesSiteTypeFilter(loc, props.siteTypeFilter)
+  )
   return props.fogDisabled
     ? filtered
     : filtered.filter(

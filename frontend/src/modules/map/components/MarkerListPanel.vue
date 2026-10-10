@@ -9,6 +9,7 @@ import type {
   VaultMarkerRead,
 } from '../models/map'
 import { MARKER_TYPES } from '../models/markerTypeMeta'
+import { matchesSiteTypeFilter } from '../utils/siteFilter'
 
 interface Props {
   locations: WastelandLocationWithDwellers[]
@@ -56,11 +57,7 @@ const groupByKey = computed(() => new Map(props.placeGroups.map((group) => [grou
 // (plus the home vault, which is not a site type and mirrors the map); groups
 // left without items disappear from `groups` below.
 const filteredLocations = computed(() =>
-  props.siteTypeFilter
-    ? props.locations.filter(
-        (loc) => loc.type === 'home_vault' || loc.group_key === props.siteTypeFilter
-      )
-    : props.locations
+  props.locations.filter((loc) => matchesSiteTypeFilter(loc, props.siteTypeFilter))
 )
 
 const groups = computed<MarkerGroup[]>(() => {

@@ -490,6 +490,7 @@ describe('MarkerListPanel', () => {
         icon: 'mdi:gas-station',
         risk: 'low',
         description: 'A roadside fuel stop.',
+        clearable: false,
       },
       {
         key: 'military',
@@ -497,6 +498,7 @@ describe('MarkerListPanel', () => {
         icon: 'mdi:shield-cross',
         risk: 'high',
         description: 'A fortified base.',
+        clearable: false,
       },
     ]
 

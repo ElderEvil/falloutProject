@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Progress } from '@/core/components/ui/progress'
+import { useNow } from '@/core/composables/useNow'
+import { formatDuration } from '@/core/utils/time'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
@@ -12,18 +14,7 @@ import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorati
 const dwellerStore = useDwellerFilterStore()
 const roomStore = useRoomStore()
 
-const now = ref(Date.now())
-let intervalId: number | null = null
-
-onMounted(() => {
-  intervalId = window.setInterval(() => {
-    now.value = Date.now()
-  }, 1000)
-})
-
-onUnmounted(() => {
-  if (intervalId) clearInterval(intervalId)
-})
+const now = useNow(1000)
 
 // Mirrors backend TrainingService.calculate_training_duration (seconds).
 const TRAINING_BASE_SECONDS = 7200
@@ -75,10 +66,8 @@ const apprenticeCards = computed<ApprenticeProgress[]>(() => {
       : 0
 
     const remainingMs = durationSeconds * 1000 - elapsed
-    const hours = Math.floor(remainingMs / (1000 * 60 * 60))
-    const minutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60))
     const timeRemaining =
-      remainingMs <= 0 ? 'Ready!' : hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
+      remainingMs <= 0 ? 'Ready!' : formatDuration(remainingMs / 1000, { omitZeroHours: true })
 
     return {
       id: dweller.id,

@@ -12,6 +12,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { IncidentType } from '@/modules/combat/models/incident'
 import { handleStoreError } from '@/core/utils/errorHandler'
+import { formatDuration } from '@/core/utils/time'
 
 const vaultStore = useVaultStore()
 const authStore = useAuthStore()
@@ -37,15 +38,9 @@ const testIncidents = [
   { type: IncidentType.DEATHCLAW_ATTACK, label: 'Deathclaw', icon: 'mdi:axe-battle' },
 ]
 
-const formatGameTime = (seconds: number): string => {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  return `${hours}h ${minutes}m`
-}
-
 const totalGameTime = computed(() => {
   if (vaultStore.gameState?.total_game_time) {
-    return formatGameTime(vaultStore.gameState.total_game_time)
+    return formatDuration(vaultStore.gameState.total_game_time)
   }
   return '0h 0m'
 })

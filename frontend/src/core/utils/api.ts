@@ -82,7 +82,7 @@ function errorResponse(error: unknown): {
 }
 
 /** Normalize any thrown value (axios error, ApiError, Error, …) to ApiError. */
-export function toApiError(error: unknown): ApiError {
+function toApiError(error: unknown): ApiError {
   if (error instanceof ApiError) return error
 
   const response = errorResponse(error)
@@ -130,9 +130,13 @@ export async function apiRequest<T = unknown>(
     if (method === 'delete')
       return hasConfig ? await apiClient.delete<T>(url, config) : await apiClient.delete<T>(url)
     if (method === 'post')
-      return hasConfig ? await apiClient.post<T>(url, body, config) : await apiClient.post<T>(url, body)
+      return hasConfig
+        ? await apiClient.post<T>(url, body, config)
+        : await apiClient.post<T>(url, body)
     if (method === 'put')
-      return hasConfig ? await apiClient.put<T>(url, body, config) : await apiClient.put<T>(url, body)
+      return hasConfig
+        ? await apiClient.put<T>(url, body, config)
+        : await apiClient.put<T>(url, body)
     return hasConfig
       ? await apiClient.patch<T>(url, body, config)
       : await apiClient.patch<T>(url, body)
@@ -167,29 +171,14 @@ export async function apiPut<T = unknown>(
   return response.data
 }
 
-export async function apiPatch<T = unknown>(
-  url: string,
-  body?: unknown,
-  options: ApiRequestOptions = {}
-): Promise<T> {
-  const response = await apiRequest<T>('patch', url, body, options)
-  return response.data
-}
-
-export async function apiDelete<T = unknown>(
-  url: string,
-  options: ApiRequestOptions = {}
-): Promise<T> {
-  const response = await apiRequest<T>('delete', url, undefined, options)
-  return response.data
-}
-
-/** Sugar object over the named functions (single implementation). */
+/** Sugar object over the named helpers; patch/delete inline their single use. */
 export const api = {
   get: apiGet,
   post: apiPost,
   put: apiPut,
-  patch: apiPatch,
-  delete: apiDelete,
+  patch: async <T = unknown>(url: string, body?: unknown, options: ApiRequestOptions = {}) =>
+    (await apiRequest<T>('patch', url, body, options)).data,
+  delete: async <T = unknown>(url: string, options: ApiRequestOptions = {}) =>
+    (await apiRequest<T>('delete', url, undefined, options)).data,
   request: apiRequest,
 }

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.191.2 (2026-10-10)
+
+### Code Refactoring
+
+* **dwellers:** extract AppearanceSelect to dedup the appearance editor b92f100
+* **frontend:** DRY sweep — filter counts, happiness, map builders, predicates ba8fb76
+
 ## 2.191.1 (2026-10-10)
 
 ### Bug Fixes

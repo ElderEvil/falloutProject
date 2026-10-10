@@ -523,7 +523,7 @@ lua = [
 
 [[package]]
 name = "fallout-shelter-fast-api"
-version = "2.191.1"
+version = "2.191.2"
 source = { editable = "." }
 default-groups = ["lint", "test"]
 dependencies = [

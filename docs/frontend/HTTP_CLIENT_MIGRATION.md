@@ -14,9 +14,9 @@ without user gain.
 ## Approved sequence
 
 1. **Now (Batch 1):** create `src/core/utils/api.ts` as a **typed boundary** over
-   `@/core/plugins/axios`. Named helpers (`apiGet`/`apiPost`/`apiPut`/`apiPatch`/`apiDelete`),
-   an `api.*` sugar object, and `apiRequest` (full `AxiosResponse` escape hatch —
-   see below). Errors normalize to `ApiError { status, detail, fields,
+   `@/core/plugins/axios`. Named helpers (`apiGet`/`apiPost`/`apiPut`), an `api.*` sugar object
+   (`api.patch`/`api.delete` inline their single-use wrappers), and `apiRequest` (full `AxiosResponse`
+   escape hatch — see below). Errors normalize to `ApiError { status, detail, fields,
    headers, cause }`; `getErrorMessage` reads both `ApiError` and raw `AxiosError`.
 2. **Batches 2–4:** migrate remaining services, stores, and the exploration/chat call sites in
    module-sized slices.
@@ -99,7 +99,7 @@ store + SettingsView, and ai-settings service.
 
 - **Prohibited**: Any new direct runtime imports from the `axios` package (e.g., `import axios from 'axios'`) (type-only imports like `import type { AxiosResponse } from 'axios'` are allowed).
 - **Prohibited**: Any new direct plugin-level axios consumers (e.g., `import apiClient from '@/core/plugins/axios'`).
-- **Required**: Use the centralized HTTP boundary in `src/core/utils/api.ts` for runtime calls (e.g., `apiGet`, `apiPost`, `apiPut`, `apiPatch`, `apiDelete`).
+- **Required**: Use the centralized HTTP boundary in `src/core/utils/api.ts` for runtime calls (e.g., `apiGet`, `apiPost`, `apiPut`, or `api.patch`/`api.delete`).
 - **Allowed**: Type-only imports from `axios` for typing purposes only (e.g., `import type { AxiosResponse } from 'axios'`), but prefer migrating to adapter-compatible types.
 - **Legacy code**: If legacy direct axios usage already exists:
   - Wrap it with a `// TODO: Migrate to src/core/utils/api.ts - see HTTP_CLIENT_MIGRATION.md` comment.

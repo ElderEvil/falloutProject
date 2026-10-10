@@ -2,6 +2,13 @@ import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { DiscoveryRouteRead, ExplorerTrack } from '../models/map'
 import { registryToWire } from './atlasProjection'
 
+/** Discovery routes indexed by exploration id — shared by track building and the map's free-roam headings. */
+export function buildRoutesByExploration(
+  discoveryRoutes: DiscoveryRouteRead[]
+): Map<string, DiscoveryRouteRead> {
+  return new Map(discoveryRoutes.map((route) => [route.exploration_id, route]))
+}
+
 export function buildExplorerTracks(
   explorations: Exploration[],
   discoveryRoutes: DiscoveryRouteRead[],
@@ -10,7 +17,7 @@ export function buildExplorerTracks(
   dwellerMaxHealth: ReadonlyMap<string, number | null> = new Map(),
   partyDwellerIds: ReadonlyMap<string, string[]> = new Map()
 ): ExplorerTrack[] {
-  const routesByExploration = new Map(discoveryRoutes.map((route) => [route.exploration_id, route]))
+  const routesByExploration = buildRoutesByExploration(discoveryRoutes)
   return explorations
     .filter(
       (e): e is Exploration & { status: 'active' | 'returning' } =>

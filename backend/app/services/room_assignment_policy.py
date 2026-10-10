@@ -39,7 +39,11 @@ def adult_assignment_conditions() -> tuple:
 
 
 async def validate_room_assignment(db_session: AsyncSession, dweller: Dweller, room: Room) -> None:
-    """Allow one youth apprentice in each production room, training its ability."""
+    """Allow one youth junior worker in each production room, training its ability.
+
+    A junior worker both assists production (at the reduced junior rate in the
+    resource manager) and advances the room's SPECIAL while they are posted there.
+    """
     if dweller.is_mature:
         return
     if room.category == RoomTypeEnum.ARENA:

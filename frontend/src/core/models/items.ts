@@ -2,6 +2,7 @@
  * Single source of truth for item display: icons, rarity styling and stat rows.
  * Shared by combat (EquipmentCard), storage (StorageItemCard) and exploration loot lists.
  */
+import { humanize } from '@/core/utils/format'
 
 // Weapon subtype -> icon (game-icons used where MDI has no glyph)
 export const WEAPON_SUBTYPE_ICONS: Record<string, string> = {
@@ -164,11 +165,7 @@ const OUTFIT_BONUS_KEYS = [
  * ("rare_outfit") — so both go through here to read the same way.
  */
 export function formatItemLabel(value: string | null | undefined): string {
-  if (!value) return ''
-  return value
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join(' ')
+  return humanize(value)
 }
 
 export function getOutfitBonuses(outfit: BonusSource): { stat: string; bonus: number }[] {

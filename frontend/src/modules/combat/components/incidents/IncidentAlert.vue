@@ -44,6 +44,7 @@ import { Icon } from '@iconify/vue'
 import type { Incident } from '../../models/incident'
 import { getIncidentIcon } from '../../models/incident'
 import { useIncidentStore } from '../../stores/incident'
+import { threatName } from '@/core/utils/format'
 
 interface Props {
   incidents: Incident[]
@@ -81,7 +82,7 @@ const incidentIcon = computed(() => (primaryIncident.value ? getIncidentIcon(pri
 const incidentTitle = computed(() => {
   if (!primaryIncident.value) return 'INCIDENT ALERT'
 
-  return primaryIncident.value.type.replace(/_/g, ' ').toUpperCase()
+  return threatName(primaryIncident.value.type)
 })
 
 const incidentSubtitle = computed(() => {

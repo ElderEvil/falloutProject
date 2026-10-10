@@ -17,6 +17,7 @@ import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useProfileStore } from '../stores/profile'
+import { formatLongDateTime } from '@/core/utils/format'
 import ProfileEditor from '../components/ProfileEditor.vue'
 import AIUsageCard from '../components/AIUsageCard.vue'
 import VaultOperationsCard from '../components/VaultOperationsCard.vue'
@@ -114,16 +115,6 @@ watch(
     avatarLoadFailed.value = false
   }
 )
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
 </script>
 
 <template>
@@ -280,13 +271,13 @@ const formatDate = (dateString: string) => {
                         <div>
                           <dt class="text-theme-primary/60">Joined</dt>
                           <dd class="mt-1 text-theme-primary/85">
-                            {{ formatDate(profileStore.profile.created_at) }}
+                            {{ formatLongDateTime(profileStore.profile.created_at) }}
                           </dd>
                         </div>
                         <div>
                           <dt class="text-theme-primary/60">Profile updated</dt>
                           <dd class="mt-1 text-theme-primary/85">
-                            {{ formatDate(profileStore.profile.updated_at) }}
+                            {{ formatLongDateTime(profileStore.profile.updated_at) }}
                           </dd>
                         </div>
                       </dl>

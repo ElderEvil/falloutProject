@@ -266,7 +266,7 @@ describe('WorldMap', () => {
       expect(marker.props('icon')).toBe(markerTypeMeta('visited').icon)
     })
 
-    it('forwards the place-group risk and difficulty to its location marker', () => {
+    it('forwards the place-group risk and difficulty to its location marker', async () => {
       const store = useMapStore()
       store.placeGroups = [
         {
@@ -282,10 +282,16 @@ describe('WorldMap', () => {
       const grouped = { ...location, type: 'visited' as const, group_key: 'raider_camp' }
 
       const wrapper = mount(WorldMap, {
-        props: { locations: [grouped], vaultMarkers: [], selectedMarkerId: null },
+        props: {
+          locations: [grouped],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          fogDisabled: true,
+        },
         global: { stubs: defaultStubs },
       })
 
+      await zoomPastDeclutterThreshold(wrapper)
       const marker = wrapper.findAllComponents(MapMarkerStub)[0]
       expect(marker.props('risk')).toBe('high')
       expect(marker.props('baseDifficulty')).toBe(4)

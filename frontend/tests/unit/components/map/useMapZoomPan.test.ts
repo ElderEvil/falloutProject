@@ -312,3 +312,18 @@ describe('useMapZoomPan — pure functions', () => {
     })
   })
 })
+
+describe('viewport resize after panning', () => {
+  it.each([
+    [400, 400],
+    [400, 800],
+  ])('clamps a wide viewport pan when resized to %s × %s', (width, height) => {
+    const map = useMapZoomPan()
+    map.syncViewport({ width: 800, height: 400 } as DOMRect)
+    map.panY.value = 40
+    map.syncViewport({ width, height } as DOMRect)
+    expect(map.panY.value).toBe(0)
+    expect(map.panX.value).toBe(0)
+    expect(map.viewBox.value).toBe('0 0 160 160')
+  })
+})

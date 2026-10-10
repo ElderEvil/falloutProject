@@ -71,7 +71,7 @@ describe('MapMarker', () => {
     const g = wrapper.find('g.map-marker')
     const backing = g.find('circle.marker-backing')
     expect(backing.exists()).toBe(true)
-    expect(backing.attributes('r')).toBe('3.8')
+    expect(backing.attributes('r')).toBe('4.2')
 
     const children = Array.from(g.element.children)
     expect(children.indexOf(backing.element)).toBeLessThan(
@@ -481,7 +481,9 @@ describe('MapMarker', () => {
         global: { stubs: { Icon: true } },
       })
 
-      expect(wrapper.find('g.map-marker image').attributes('href')).toBe('data:image/png;base64,art')
+      expect(wrapper.find('g.map-marker image').attributes('href')).toBe(
+        'data:image/png;base64,art'
+      )
     })
 
     it('renders the marker icon when no art is present', () => {
@@ -553,7 +555,7 @@ describe('MapMarker', () => {
       })
 
       expect(wrapper.find('g.map-marker.marker-risk-high').exists()).toBe(true)
-      expect(wrapper.find('circle.marker-disc').exists()).toBe(true)
+      expect(wrapper.find('circle.marker-backing').exists()).toBe(true)
     })
 
     it('falls back to the base difficulty band when the risk is missing', () => {

@@ -208,6 +208,9 @@ export function useMapZoomPan() {
    */
   function syncViewport(svgRect: DOMRect): void {
     viewportAspect.value = svgRect.height > 0 ? svgRect.width / svgRect.height : 1
+    const bounded = clampPan(panX.value, panY.value, zoom.value, viewportAspect.value)
+    panX.value = bounded.panX
+    panY.value = bounded.panY
   }
 
   function zoomIn(): void {
@@ -320,11 +323,7 @@ export function useMapZoomPan() {
     return Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY)
   }
 
-  function touchMidFraction(
-    t1: Touch,
-    t2: Touch,
-    svgRect: DOMRect
-  ): { mx: number; my: number } {
+  function touchMidFraction(t1: Touch, t2: Touch, svgRect: DOMRect): { mx: number; my: number } {
     const midX = (t1.clientX + t2.clientX) / 2
     const midY = (t1.clientY + t2.clientY) / 2
     return {

@@ -102,6 +102,7 @@ describe('MapView', () => {
     )
     setActivePinia(createPinia())
     localStorage.removeItem(VIEWED_LOCATIONS_STORAGE_KEY)
+    localStorage.removeItem('map:site-type-filter')
     mapStore = useMapStore()
     mockRoute.query = {}
     vi.clearAllMocks()
@@ -122,6 +123,7 @@ describe('MapView', () => {
               'locations',
               'vaultMarkers',
               'explorerTracks',
+              'siteTypeFilter',
               'selectedMarkerId',
               'fogDisabled',
             ],
@@ -785,6 +787,69 @@ describe('MapView', () => {
       await flushPromises()
 
       expect(wrapper.findComponent({ name: 'WorldMap' }).props('fogDisabled')).toBe(true)
+    })
+  })
+
+  describe('site-type filter', () => {
+    function seedSites() {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [{ ...mockLocation, group_key: 'gas_station' }]
+      mapStore.placeGroups = [
+        {
+          key: 'gas_station',
+          label: 'Gas Station',
+          icon: 'mdi:gas-station',
+          risk: 'low',
+          description: 'A roadside fuel stop.',
+        },
+      ] as never
+      mapStore.isLoading = false
+    }
+
+    const worldMapProps = (wrapper: ReturnType<typeof mountView>) =>
+      wrapper.findComponent({ name: 'WorldMap' }).props()
+
+    it('passes a stored site-type filter down to the map', async () => {
+      // Null default selects the raw "any" serializer: store the bare key.
+      localStorage.setItem('map:site-type-filter', 'gas_station')
+      seedSites()
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(worldMapProps(wrapper).siteTypeFilter).toBe('gas_station')
+    })
+
+    it('degrades a stored filter whose group is absent from this vault to All', async () => {
+      localStorage.setItem('map:site-type-filter', 'military')
+      seedSites()
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(worldMapProps(wrapper).siteTypeFilter).toBeNull()
+    })
+
+    it('does not render the control when the map has no site groups', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation]
+      mapStore.isLoading = false
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(wrapper.find('[aria-label="Filter by site type"]').exists()).toBe(false)
+    })
+
+    it('renders the control with the persisted selection when groups exist', async () => {
+      localStorage.setItem('map:site-type-filter', 'gas_station')
+      seedSites()
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      const trigger = wrapper.find('[aria-label="Filter by site type"]')
+      expect(trigger.exists()).toBe(true)
     })
   })
 })

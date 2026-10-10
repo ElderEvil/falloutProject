@@ -481,4 +481,131 @@ describe('MarkerListPanel', () => {
       wrapper.unmount()
     })
   })
+
+  describe('Site-type filter', () => {
+    const PLACE_GROUPS = [
+      {
+        key: 'gas_station',
+        label: 'Gas Station',
+        icon: 'mdi:gas-station',
+        risk: 'low',
+        description: 'A roadside fuel stop.',
+      },
+      {
+        key: 'military',
+        label: 'Military',
+        icon: 'mdi:shield-cross',
+        risk: 'high',
+        description: 'A fortified base.',
+      },
+    ]
+
+    function groupedLocation(type: string, name: string, groupKey: string) {
+      return { ...createLocation(type, name), group_key: groupKey }
+    }
+
+    function mountFiltered(locations: WastelandLocationWithDwellers[], filter: string | null) {
+      return mount(MarkerListPanel, {
+        props: {
+          locations,
+          vaultMarkers: [],
+          placeGroups: PLACE_GROUPS,
+          siteTypeFilter: filter,
+          open: true,
+        },
+        global: { stubs: { Icon: IconStub } },
+      })
+    }
+
+    it('lists only locations of the selected site type', () => {
+      const wrapper = mountFiltered(
+        [
+          groupedLocation('visited', 'Gas Stop', 'gas_station'),
+          groupedLocation('visited', 'Army Base', 'military'),
+        ],
+        'gas_station'
+      )
+
+      const rows = wrapper.findAll('.marker-row')
+      expect(rows).toHaveLength(1)
+      expect(rows[0].text()).toContain('Gas Stop')
+      expect(wrapper.text()).not.toContain('Army Base')
+    })
+
+    it('recomputes the total count from the filtered set', () => {
+      const wrapper = mountFiltered(
+        [
+          groupedLocation('visited', 'Gas Stop', 'gas_station'),
+          groupedLocation('visited', 'Army Base', 'military'),
+        ],
+        'gas_station'
+      )
+
+      expect(wrapper.find('.panel-count').text()).toBe('1')
+    })
+
+    it('drops groups left without items under the filter', () => {
+      const wrapper = mountFiltered(
+        [
+          groupedLocation('discovery', 'Unknown Ruins', 'gas_station'),
+          groupedLocation('visited', 'Gas Stop', 'gas_station'),
+          groupedLocation('visited', 'Army Base', 'military'),
+        ],
+        'military'
+      )
+
+      const headers = wrapper.findAll('.group-header')
+      expect(headers).toHaveLength(1)
+      expect(headers[0].text()).toContain('Visited')
+      expect(wrapper.text()).not.toContain('Unknown Ruins')
+      expect(wrapper.text()).not.toContain('Gas Stop')
+    })
+
+    it('shows every location when the filter is null', () => {
+      const wrapper = mountFiltered(
+        [
+          groupedLocation('visited', 'Gas Stop', 'gas_station'),
+          groupedLocation('visited', 'Army Base', 'military'),
+        ],
+        null
+      )
+
+      expect(wrapper.findAll('.marker-row')).toHaveLength(2)
+      expect(wrapper.find('.panel-count').text()).toBe('2')
+    })
+
+    it('keeps the home vault, which is not a site type', () => {
+      const wrapper = mountFiltered(
+        [
+          groupedLocation('visited', 'Gas Stop', 'gas_station'),
+          createLocation('home_vault', 'Vault 42'),
+        ],
+        'gas_station'
+      )
+
+      expect(wrapper.text()).toContain('Gas Stop')
+      expect(wrapper.text()).toContain('Vault 42')
+    })
+
+    it('still counts vaults and expedition sites under a filter', () => {
+      const wrapper = mount(MarkerListPanel, {
+        props: {
+          locations: [
+            groupedLocation('visited', 'Gas Stop', 'gas_station'),
+            groupedLocation('visited', 'Army Base', 'military'),
+          ],
+          vaultMarkers: [createVault('Vault 88')],
+          expeditionSites: [createSite()],
+          placeGroups: PLACE_GROUPS,
+          siteTypeFilter: 'gas_station',
+          open: true,
+        },
+        global: { stubs: { Icon: IconStub } },
+      })
+
+      expect(wrapper.find('.panel-count').text()).toBe('3')
+      expect(wrapper.text()).toContain('Vault 88')
+      expect(wrapper.text()).toContain('Red Rocket Gas Station')
+    })
+  })
 })

@@ -15,6 +15,7 @@ interface Props {
   vaultMarkers: VaultMarkerRead[]
   expeditionSites?: ExpeditionSiteMarkerRead[]
   placeGroups?: PlaceGroup[]
+  siteTypeFilter?: string | null
   selectedMarkerId?: string | null
   docked?: boolean
 }
@@ -22,6 +23,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   expeditionSites: () => [],
   placeGroups: () => [],
+  siteTypeFilter: null,
   selectedMarkerId: null,
   docked: false,
 })
@@ -50,10 +52,21 @@ interface MarkerGroup {
 
 const groupByKey = computed(() => new Map(props.placeGroups.map((group) => [group.key, group])))
 
+// P3 site-type filter: the index lists only locations of the selected archetype
+// (plus the home vault, which is not a site type and mirrors the map); groups
+// left without items disappear from `groups` below.
+const filteredLocations = computed(() =>
+  props.siteTypeFilter
+    ? props.locations.filter(
+        (loc) => loc.type === 'home_vault' || loc.group_key === props.siteTypeFilter
+      )
+    : props.locations
+)
+
 const groups = computed<MarkerGroup[]>(() => {
   const byType = new Map<string, MarkerGroupItem[]>()
 
-  for (const loc of props.locations) {
+  for (const loc of filteredLocations.value) {
     if (!byType.has(loc.type)) byType.set(loc.type, [])
     const meta = loc.group_key ? groupByKey.value.get(loc.group_key) : undefined
     byType.get(loc.type)!.push({
@@ -92,7 +105,8 @@ const groups = computed<MarkerGroup[]>(() => {
 })
 
 const totalCount = computed(
-  () => props.locations.length + props.vaultMarkers.length + props.expeditionSites.length
+  () =>
+    filteredLocations.value.length + props.vaultMarkers.length + props.expeditionSites.length
 )
 
 // Per-group collapse state (expanded by default)

@@ -2,6 +2,8 @@
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useLocalStorage } from '@vueuse/core'
+import { Icon } from '@iconify/vue'
+import type { AcceptableValue } from 'reka-ui'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useMapStore } from '../stores/map'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
@@ -16,6 +18,13 @@ import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Skeleton } from '@/core/components/ui/skeleton'
 import { Button } from '@/core/components/ui/button'
 import { Switch } from '@/core/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/core/components/ui/select'
 import WorldMap from '../components/WorldMap.vue'
 import MarkerDetailModal from '../components/MarkerDetailModal.vue'
 import VaultInfoModal from '../components/VaultInfoModal.vue'
@@ -44,6 +53,34 @@ const vaultId = computed(() => route.params.id as string)
 // Marker color mode: state color by default, per-place-group tint when enabled.
 // Persisted like the legend/side panel so the choice survives reloads.
 const groupColors = useLocalStorage<boolean>('map:group-colors', false)
+
+// Site-type filter (P3): narrow the map to one place_groups archetype.
+// Persisted like the color mode; `null` means "All sites".
+const siteTypeFilter = useLocalStorage<string | null>('map:site-type-filter', null)
+
+// Archetypes actually present on this vault's map, in catalog order — the only
+// offerable options, and the guard that keeps a stale stored key inert.
+const presentSiteKeys = computed(
+  () => new Set(mapStore.locations.map((loc) => loc.group_key).filter(Boolean))
+)
+const siteGroupOptions = computed(() =>
+  mapStore.placeGroups.filter((group) => presentSiteKeys.value.has(group.key))
+)
+// A stored key whose group is gone (other vault, reseeded atlas) degrades to
+// "All sites" rather than blanking the map.
+const activeSiteType = computed(() =>
+  siteTypeFilter.value && presentSiteKeys.value.has(siteTypeFilter.value)
+    ? siteTypeFilter.value
+    : null
+)
+// reka-ui's Select modelValue is AcceptableValue and reserves empty strings;
+// bridge the nullable key at the Select boundary.
+const siteTypeFilterSelect = computed<AcceptableValue>({
+  get: () => siteTypeFilter.value ?? 'all',
+  set: (value: AcceptableValue) => {
+    siteTypeFilter.value = value === null || value === 'all' ? null : String(value)
+  },
+})
 
 // Modal state
 const showModal = ref(false)
@@ -447,6 +484,7 @@ const mapPaneHeight = 'var(--map-pane-size)'
             :explorer-tracks="explorerTracks"
             :fog-disabled="fogDisabled"
             :group-colors="groupColors"
+            :site-type-filter="activeSiteType"
             :selected-marker-id="selectedMarkerId"
             @update:selected-marker-id="selectedMarkerId = $event"
             @marker-click="handleMarkerClick"
@@ -454,8 +492,27 @@ const mapPaneHeight = 'var(--map-pane-size)'
             @dweller-click="onDwellerClick"
           />
 
-          <!-- Map toolbar: color mode for every user; fog debug stays superuser-only -->
+          <!-- Map toolbar: site-type filter + color mode for every user; fog debug stays superuser-only -->
           <div class="map-toolbar">
+            <Select v-if="siteGroupOptions.length" v-model="siteTypeFilterSelect">
+              <SelectTrigger
+                aria-label="Filter by site type"
+                class="h-auto rounded-sm border-theme-primary/30 bg-surface-sunken/60 px-2 py-1 text-xs text-theme-primary data-[size=default]:h-auto"
+              >
+                <SelectValue placeholder="All sites" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All sites</SelectItem>
+                <SelectItem
+                  v-for="group in siteGroupOptions"
+                  :key="group.key"
+                  :value="group.key"
+                >
+                  <Icon :icon="group.icon" />
+                  <span>{{ group.label }}</span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
             <div class="flex items-center gap-2">
               <Switch
                 id="map-group-colors"
@@ -518,6 +575,7 @@ const mapPaneHeight = 'var(--map-pane-size)'
 <style scoped>
 .map-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
   margin-top: 0.75rem;

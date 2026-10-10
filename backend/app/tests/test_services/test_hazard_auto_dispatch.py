@@ -334,3 +334,41 @@ async def test_return_marks_dead_dispatched_completed_without_returning(
     assert returned == len(dwellers) - 1
     members = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
     assert all(member.status == "completed" for member in members)
+
+
+@pytest.mark.parametrize("success", [True, False])
+async def test_tick_retries_returns_for_finished_incident(
+    async_session: AsyncSession, room_with_dwellers: dict, success: bool
+):
+    """A capacity conflict must not strand a dispatched responder after the fight ends."""
+    from unittest.mock import AsyncMock
+
+    from app.models.game_state import GameState
+    from app.utils.exceptions import ResourceConflictException
+
+    vault = room_with_dwellers["vault"]
+    dwellers = room_with_dwellers["dwellers"]
+    for index, dweller in enumerate(dwellers):
+        await crud.room.create(
+            async_session,
+            _work_room(vault.id, f"Retry Work {index}", get_highest_special(dweller), index + 1, 9),
+        )
+        await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
+    incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
+    assert incident is not None
+    await crud.incident_crud.resolve(async_session, incident.id, success=success)
+    with patch.object(
+        dweller_service, "auto_assign_to_best_room", side_effect=ResourceConflictException("Production rooms full")
+    ):
+        assert await hazard_team_service.return_dispatched_responders(async_session, incident) == 0
+    members = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
+    assert all(member.status == DISPATCHED_STATUS for member in members)
+    with patch.object(incident_service, "should_spawn_incident", new=AsyncMock(return_value=False)):
+        await incident_service.process_vault_incidents(
+            async_session, vault.id, 5, game_state=GameState(vault_id=vault.id)
+        )
+    members = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
+    assert all(member.status == "completed" for member in members)
+    for dweller in dwellers:
+        await async_session.refresh(dweller)
+        assert dweller.room_id != incident.room_id

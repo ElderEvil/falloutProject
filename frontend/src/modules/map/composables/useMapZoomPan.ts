@@ -2,22 +2,60 @@ import { ref, computed } from 'vue'
 
 // ── Constants ──────────────────────────────────────────────────────────
 export const MIN_ZOOM = 1
-export const MAX_ZOOM = 4
+export const MAX_ZOOM = 5
 export const WHEEL_STEP = 0.12
 export const MAP_SIZE = 160
 
 // ── Pure functions (unit-testable) ─────────────────────────────────────
 
 /**
- * Clamp pan values so the visible viewBox stays within the 0..160 map bounds.
- * At zoom=1 the viewBox covers the entire map, so pan must be 0,0.
+ * The map fills a full-bleed rectangular screen with a cover ("slice") fit, so
+ * the visible SVG window is the viewBox on one axis and cropped on the other.
+ * `aspect` is viewport width / height; a square viewport (0, missing or
+ * non-finite input) preserves the historical square-pane behaviour.
  */
-export function clampPan(panX: number, panY: number, zoom: number): { panX: number; panY: number } {
+function normalizedAspect(aspect: number): number {
+  return Number.isFinite(aspect) && aspect > 0 ? aspect : 1
+}
+
+/** Visible SVG span per axis for the cover fit at this zoom. */
+export function visibleSpan(zoom: number, aspect = 1): { x: number; y: number } {
   const viewSize = MAP_SIZE / zoom
-  const maxPan = MAP_SIZE - viewSize
+  const ratio = normalizedAspect(aspect)
+  return { x: viewSize * Math.min(1, ratio), y: viewSize * Math.min(1, 1 / ratio) }
+}
+
+/**
+ * Whether any pan is possible at this zoom: true once the visible window is
+ * smaller than the world on either axis — including zoom=1 on a full-bleed
+ * viewport whose cover fit crops one axis.
+ */
+export function canPanAt(zoom: number, aspect = 1): boolean {
+  const span = visibleSpan(zoom, aspect)
+  return span.x < MAP_SIZE || span.y < MAP_SIZE
+}
+
+/**
+ * Clamp pan values so the visible window stays within the 0..160 map bounds.
+ * The viewBox centre is pinned to the viewport centre, so the visible window
+ * sits centred on the viewBox. With a square viewport this is the historical
+ * behaviour: at zoom=1 the window covers the entire map, so pan must be 0,0.
+ */
+export function clampPan(
+  panX: number,
+  panY: number,
+  zoom: number,
+  aspect = 1
+): { panX: number; panY: number } {
+  const viewSize = MAP_SIZE / zoom
+  const span = visibleSpan(zoom, aspect)
+  const minX = (span.x - viewSize) / 2
+  const maxX = MAP_SIZE - (viewSize + span.x) / 2
+  const minY = (span.y - viewSize) / 2
+  const maxY = MAP_SIZE - (viewSize + span.y) / 2
   return {
-    panX: Math.max(0, Math.min(maxPan, panX)),
-    panY: Math.max(0, Math.min(maxPan, panY)),
+    panX: Math.max(minX, Math.min(maxX, panX)),
+    panY: Math.max(minY, Math.min(maxY, panY)),
   }
 }
 
@@ -36,10 +74,11 @@ export function computeViewBox(zoom: number, panX: number, panY: number): string
 export function computeFocusPan(
   targetX: number,
   targetY: number,
-  zoom: number
+  zoom: number,
+  aspect = 1
 ): { panX: number; panY: number } {
   const viewSize = MAP_SIZE / zoom
-  return clampPan(targetX - viewSize / 2, targetY - viewSize / 2, zoom)
+  return clampPan(targetX - viewSize / 2, targetY - viewSize / 2, zoom, aspect)
 }
 
 /**
@@ -61,7 +100,8 @@ export function computeZoomAtPoint(
   mouseFracX: number,
   mouseFracY: number,
   panX: number,
-  panY: number
+  panY: number,
+  aspect = 1
 ): { zoom: number; panX: number; panY: number } {
   const clampedZoom = clampZoom(newZoom)
   if (clampedZoom === currentZoom) {
@@ -69,16 +109,19 @@ export function computeZoomAtPoint(
   }
 
   const currentViewSize = MAP_SIZE / currentZoom
-  // SVG coordinate under the cursor
-  const svgX = panX + mouseFracX * currentViewSize
-  const svgY = panY + mouseFracY * currentViewSize
+  const currentSpan = visibleSpan(currentZoom, aspect)
+  // SVG coordinate under the cursor within the visibly cropped window
+  const svgX = panX + (currentViewSize - currentSpan.x) / 2 + mouseFracX * currentSpan.x
+  const svgY = panY + (currentViewSize - currentSpan.y) / 2 + mouseFracY * currentSpan.y
 
   const newViewSize = MAP_SIZE / clampedZoom
+  const newSpan = visibleSpan(clampedZoom, aspect)
   // Keep the same SVG point at the same fractional position
   const newPan = clampPan(
-    svgX - mouseFracX * newViewSize,
-    svgY - mouseFracY * newViewSize,
-    clampedZoom
+    svgX - mouseFracX * newSpan.x - (newViewSize - newSpan.x) / 2,
+    svgY - mouseFracY * newSpan.y - (newViewSize - newSpan.y) / 2,
+    clampedZoom,
+    aspect
   )
 
   return { zoom: clampedZoom, panX: newPan.panX, panY: newPan.panY }
@@ -100,7 +143,8 @@ export function computePinchPan(
   startMidFracX: number,
   startMidFracY: number,
   curMidFracX: number,
-  curMidFracY: number
+  curMidFracY: number,
+  aspect = 1
 ): { zoom: number; panX: number; panY: number } {
   if (startDist <= 0) {
     return { zoom: startZoom, panX: startPanX, panY: startPanY }
@@ -113,15 +157,17 @@ export function computePinchPan(
     startMidFracX,
     startMidFracY,
     startPanX,
-    startPanY
+    startPanY,
+    aspect
   )
 
   // Track midpoint movement: midpoint drifting right pulls the map right (pan decreases)
-  const newViewSize = MAP_SIZE / base.zoom
+  const newSpan = visibleSpan(base.zoom, aspect)
   const shifted = clampPan(
-    base.panX - (curMidFracX - startMidFracX) * newViewSize,
-    base.panY - (curMidFracY - startMidFracY) * newViewSize,
-    base.zoom
+    base.panX - (curMidFracX - startMidFracX) * newSpan.x,
+    base.panY - (curMidFracY - startMidFracY) * newSpan.y,
+    base.zoom,
+    aspect
   )
 
   return { zoom: base.zoom, panX: shifted.panX, panY: shifted.panY }
@@ -133,6 +179,7 @@ export function useMapZoomPan() {
   const zoom = ref(MIN_ZOOM)
   const panX = ref(0)
   const panY = ref(0)
+  const viewportAspect = ref(1)
 
   // Drag state
   const isDragging = ref(false)
@@ -152,6 +199,19 @@ export function useMapZoomPan() {
 
   const viewBox = computed(() => computeViewBox(zoom.value, panX.value, panY.value))
   const isZoomed = computed(() => zoom.value > MIN_ZOOM)
+  const isPanned = computed(() => panX.value !== 0 || panY.value !== 0)
+  const canPan = computed(() => canPanAt(zoom.value, viewportAspect.value))
+
+  /**
+   * Record the rendered viewport shape so the cover-fit pan bounds and
+   * zoom-at-point math know which axis is cropped. Call on resize.
+   */
+  function syncViewport(svgRect: DOMRect): void {
+    viewportAspect.value = svgRect.height > 0 ? svgRect.width / svgRect.height : 1
+    const bounded = clampPan(panX.value, panY.value, zoom.value, viewportAspect.value)
+    panX.value = bounded.panX
+    panY.value = bounded.panY
+  }
 
   function zoomIn(): void {
     const newZoom = clampZoom(zoom.value + WHEEL_STEP * 2)
@@ -162,7 +222,8 @@ export function useMapZoomPan() {
       centerFrac,
       centerFrac,
       panX.value,
-      panY.value
+      panY.value,
+      viewportAspect.value
     )
     zoom.value = result.zoom
     panX.value = result.panX
@@ -178,7 +239,8 @@ export function useMapZoomPan() {
       centerFrac,
       centerFrac,
       panX.value,
-      panY.value
+      panY.value,
+      viewportAspect.value
     )
     zoom.value = result.zoom
     panX.value = result.panX
@@ -195,7 +257,7 @@ export function useMapZoomPan() {
     // Zoom to at least 2x for focus
     const targetZoom = clampZoom(Math.max(zoom.value, minZoom))
     zoom.value = targetZoom
-    const result = computeFocusPan(x, y, targetZoom)
+    const result = computeFocusPan(x, y, targetZoom, viewportAspect.value)
     panX.value = result.panX
     panY.value = result.panY
   }
@@ -205,6 +267,7 @@ export function useMapZoomPan() {
    * Returns true if the event was consumed (zoom changed).
    */
   function onWheel(event: WheelEvent, svgRect: DOMRect): boolean {
+    syncViewport(svgRect)
     const fracX = (event.clientX - svgRect.left) / svgRect.width
     const fracY = (event.clientY - svgRect.top) / svgRect.height
 
@@ -215,7 +278,15 @@ export function useMapZoomPan() {
     const direction = event.deltaY < 0 ? 1 : -1
     const newZoom = clampZoom(zoom.value + direction * WHEEL_STEP)
 
-    const result = computeZoomAtPoint(zoom.value, newZoom, mx, my, panX.value, panY.value)
+    const result = computeZoomAtPoint(
+      zoom.value,
+      newZoom,
+      mx,
+      my,
+      panX.value,
+      panY.value,
+      viewportAspect.value
+    )
     const changed =
       result.zoom !== zoom.value || result.panX !== panX.value || result.panY !== panY.value
 
@@ -230,12 +301,20 @@ export function useMapZoomPan() {
     const dx = clientX - dragStartX
     const dy = clientY - dragStartY
 
-    // Convert pixel delta to SVG units
+    // The square viewBox is cover-fitted, so one pixel is the same number of
+    // SVG units on both axes: the longest edge drives the scale.
     const viewSize = MAP_SIZE / zoom.value
-    const svgDx = (dx / svgRect.width) * viewSize
-    const svgDy = (dy / svgRect.height) * viewSize
+    const scale = Math.max(svgRect.width, svgRect.height) / viewSize
+    if (scale <= 0) return
+    const svgDx = dx / scale
+    const svgDy = dy / scale
 
-    const result = clampPan(dragStartPanX - svgDx, dragStartPanY - svgDy, zoom.value)
+    const result = clampPan(
+      dragStartPanX - svgDx,
+      dragStartPanY - svgDy,
+      zoom.value,
+      viewportAspect.value
+    )
     panX.value = result.panX
     panY.value = result.panY
   }
@@ -244,11 +323,7 @@ export function useMapZoomPan() {
     return Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY)
   }
 
-  function touchMidFraction(
-    t1: Touch,
-    t2: Touch,
-    svgRect: DOMRect
-  ): { mx: number; my: number } {
+  function touchMidFraction(t1: Touch, t2: Touch, svgRect: DOMRect): { mx: number; my: number } {
     const midX = (t1.clientX + t2.clientX) / 2
     const midY = (t1.clientY + t2.clientY) / 2
     return {
@@ -260,8 +335,9 @@ export function useMapZoomPan() {
   /**
    * Start a drag operation. Call on mousedown.
    */
-  function onDragStart(event: MouseEvent, _svgRect: DOMRect): void {
-    if (zoom.value <= MIN_ZOOM) return
+  function onDragStart(event: MouseEvent, svgRect: DOMRect): void {
+    syncViewport(svgRect)
+    if (!canPan.value) return
     isDragging.value = true
     dragStartX = event.clientX
     dragStartY = event.clientY
@@ -285,14 +361,15 @@ export function useMapZoomPan() {
   }
 
   /**
-   * Touch start: single finger begins a pan drag (when zoomed), two fingers
-   * begin a pinch. The map container uses `touch-action: none` CSS so no
-   * preventDefault is needed here.
+   * Touch start: single finger begins a pan drag (whenever the cover fit
+   * leaves anything to pan), two fingers begin a pinch. The map container uses
+   * `touch-action: none` CSS so no preventDefault is needed here.
    */
   function onTouchStart(event: TouchEvent, svgRect: DOMRect): void {
+    syncViewport(svgRect)
     const touches = event.touches
     if (touches.length === 1 && touches[0]) {
-      if (zoom.value <= MIN_ZOOM) {
+      if (!canPan.value) {
         isDragging.value = false
         return
       }
@@ -333,7 +410,8 @@ export function useMapZoomPan() {
         pinchStartMidX,
         pinchStartMidY,
         curMid.mx,
-        curMid.my
+        curMid.my,
+        viewportAspect.value
       )
       zoom.value = result.zoom
       panX.value = result.panX
@@ -355,7 +433,7 @@ export function useMapZoomPan() {
     if (remaining === 0) {
       isDragging.value = false
     } else if (remaining === 1 && event.touches[0]) {
-      if (zoom.value > MIN_ZOOM) {
+      if (canPan.value) {
         isDragging.value = true
         dragStartX = event.touches[0].clientX
         dragStartY = event.touches[0].clientY
@@ -374,14 +452,18 @@ export function useMapZoomPan() {
     panY,
     isDragging,
     isPinching,
+    viewportAspect,
     // Computed
     viewBox,
     isZoomed,
+    isPanned,
+    canPan,
     // Actions
     zoomIn,
     zoomOut,
     resetZoom,
     focusOnMarker,
+    syncViewport,
     // Event handlers
     onWheel,
     onDragStart,

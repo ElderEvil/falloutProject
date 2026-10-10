@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import { MARKER_TYPES } from '../models/markerTypeMeta'
+import { DANGER_RAMP } from '../utils/dangerStyle'
 import { useMapStore } from '../stores/map'
 import {
   ATLAS_TERRAIN_CLASS,
@@ -107,6 +108,12 @@ const siteGroups = computed(() => {
         <span class="legend-label">{{ ATLAS_TERRAIN_LABEL[terrain] }}</span>
       </div>
 
+      <div class="legend-title legend-title-spaced">DANGER</div>
+      <div v-for="entry in DANGER_RAMP" :key="entry.level" class="legend-danger">
+        <span class="legend-danger-swatch" :class="`legend-danger-${entry.level}`" />
+        <span class="legend-label">{{ entry.label }}</span>
+      </div>
+
       <template v-if="siteGroups.length">
         <div class="legend-title legend-title-spaced">SITE TYPES</div>
         <div
@@ -190,6 +197,33 @@ const siteGroups = computed(() => {
   align-items: center;
   gap: 6px;
   line-height: 1.6;
+}
+
+.legend-danger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.6;
+}
+
+.legend-danger-swatch {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 40%, transparent);
+}
+
+.legend-danger-low {
+  background-color: var(--color-success);
+}
+
+.legend-danger-medium {
+  background-color: var(--color-warning);
+}
+
+.legend-danger-high {
+  background-color: var(--color-danger);
 }
 
 .legend-icon-wrapper {
@@ -311,6 +345,11 @@ const siteGroups = computed(() => {
   }
 
   .legend-icon {
+    width: 8px;
+    height: 8px;
+  }
+
+  .legend-danger-swatch {
     width: 8px;
     height: 8px;
   }

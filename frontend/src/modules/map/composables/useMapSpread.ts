@@ -2,6 +2,9 @@ import { computed, type Ref } from 'vue'
 import type { WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
 import { spreadMarkers } from '../utils/spreadMarkers'
 
+/** Matches the rendered MapMarker disc (r 4.2 + stroke) so clusters never overlap. */
+const MARKER_SPREAD_RADIUS = 9
+
 export function useMapSpread(
   locations: Ref<WastelandLocationWithDwellers[]>,
   vaultMarkers: Ref<VaultMarkerRead[]>
@@ -16,7 +19,7 @@ export function useMapSpread(
           y: vm.coord_y,
         })),
       ],
-      { collisionRadius: 7.2, maxDisplace: 4.0, iterations: 5 }
+      { collisionRadius: MARKER_SPREAD_RADIUS, maxDisplace: 4.0, iterations: 5 }
     )
   )
 

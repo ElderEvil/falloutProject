@@ -3,6 +3,7 @@ import { computed, ref, useId, watch, type CSSProperties } from 'vue'
 import { Icon } from '@iconify/vue'
 import { getStaticImageUrl, normalizeImageUrl } from '@/core/utils/image'
 import { markerTypeMeta, type MarkerType } from '../models/markerTypeMeta'
+import { riskToDangerStyle } from '../utils/dangerStyle'
 import { isHintLocation } from '../utils/visibility'
 
 interface Props {
@@ -20,6 +21,8 @@ interface Props {
   cleared?: boolean
   exploring?: boolean
   status?: string
+  risk?: string | null
+  baseDifficulty?: number | null
   interactive?: boolean
 }
 
@@ -91,6 +94,14 @@ const glyphStyle = computed<CSSProperties>(() => {
   return { color: props.color ?? 'var(--color-theme-primary)' }
 })
 
+// Locked places are mysteries: their catalog risk must not leak through the
+// marker colour, so the ramp only applies once a place is known.
+const dangerClass = computed(() =>
+  !isLocked.value && (props.risk != null || props.baseDifficulty != null)
+    ? riskToDangerStyle(props.risk, props.baseDifficulty).className
+    : null
+)
+
 const tooltipText = computed(() => {
   const base = `${displayLabel.value} (${label.value})`
   return props.status ? `${base} — ${props.status}` : base
@@ -104,6 +115,7 @@ const tooltipText = computed(() => {
     :class="{
       'cursor-pointer': interactive,
       'marker-non-interactive': !interactive,
+      [dangerClass ?? '']: dangerClass !== null,
       'marker-selected': selected,
       'marker-type-vault': isVault,
       'marker-locked': isLocked,
@@ -119,7 +131,7 @@ const tooltipText = computed(() => {
     <circle class="marker-hit-area" r="6" fill="transparent" />
     <title>{{ tooltipText }}</title>
     <!-- Dark knockout disc: keeps the glyph and rings legible over any terrain -->
-    <circle class="marker-backing" r="3.8" />
+    <circle class="marker-backing" r="4.2" />
     <circle v-if="selected" class="marker-select-ring" r="3.1" />
     <circle v-if="selected" class="marker-select-ping" r="3.1" />
     <circle v-if="exploring" class="marker-exploring-ring" r="3.1" />
@@ -167,7 +179,29 @@ const tooltipText = computed(() => {
 
 <style scoped>
 .map-marker {
+  --marker-accent: var(--color-theme-primary);
+  --marker-glow: 1.2px;
+
   transition: transform 150ms ease;
+}
+
+/* Catalog risk → Fallout danger ramp: quiet green, amber warning, red danger. */
+.marker-risk-low {
+  --marker-accent: var(--color-success);
+}
+
+.marker-risk-medium {
+  --marker-accent: var(--color-warning);
+  --marker-glow: 1.8px;
+}
+
+.marker-risk-high {
+  --marker-accent: var(--color-danger);
+  --marker-glow: 2.4px;
+}
+
+.marker-risk-unknown {
+  --marker-accent: var(--color-theme-primary);
 }
 
 /* Non-interactive markers (free-roam explorer last-known positions) are
@@ -193,6 +227,9 @@ const tooltipText = computed(() => {
    glyph, and near-opaque, so markers separate from light terrain. */
 .marker-backing {
   fill: color-mix(in srgb, var(--color-terminal-background) 90%, transparent);
+  stroke: var(--marker-accent);
+  stroke-width: 0.45;
+  filter: drop-shadow(0 0 var(--marker-glow) var(--marker-accent));
   pointer-events: none;
 }
 

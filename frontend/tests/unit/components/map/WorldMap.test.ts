@@ -34,6 +34,8 @@ const MapMarkerStub = {
     exploring: null,
     status: null,
     interactive: null,
+    risk: null,
+    baseDifficulty: null,
   },
   template: '<g class="map-marker map-marker-stub" />',
 }
@@ -263,6 +265,37 @@ describe('WorldMap', () => {
 
       const marker = wrapper.findAllComponents(MapMarkerStub)[0]
       expect(marker.props('icon')).toBe(markerTypeMeta('visited').icon)
+    })
+
+    it('forwards the place-group risk and difficulty to its location marker', async () => {
+      const store = useMapStore()
+      store.placeGroups = [
+        {
+          key: 'raider_camp',
+          label: 'Raider Camp',
+          icon: 'mdi:skull',
+          risk: 'high',
+          description: 'A fortified camp.',
+          base_difficulty: 4,
+        },
+      ] as (typeof store.placeGroups)[number][]
+      const [location] = createLocations(1)
+      const grouped = { ...location, type: 'visited' as const, group_key: 'raider_camp' }
+
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [grouped],
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          fogDisabled: true,
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      await zoomPastDeclutterThreshold(wrapper)
+      const marker = wrapper.findAllComponents(MapMarkerStub)[0]
+      expect(marker.props('risk')).toBe('high')
+      expect(marker.props('baseDifficulty')).toBe(4)
     })
   })
 
@@ -1099,7 +1132,7 @@ describe('WorldMap', () => {
       expect(panel.props('vaultMarkers')).toEqual([])
     })
 
-    it('should dock the location index beside the map', () => {
+    it('renders the location index as an in-pane overlay, not a side dock', () => {
       const wrapper = mount(WorldMap, {
         props: {
           locations: createLocations(2),
@@ -1109,7 +1142,11 @@ describe('WorldMap', () => {
         global: { stubs: defaultStubs },
       })
 
-      expect(wrapper.findComponent(MarkerListPanelStub).props('docked')).toBe(true)
+      const panel = wrapper.findComponent(MarkerListPanelStub)
+      expect(panel.props('docked')).toBeFalsy()
+      expect(wrapper.find('.world-map-container').findComponent(MarkerListPanelStub).exists()).toBe(
+        true
+      )
     })
 
     it('should emit marker-click when panel emits marker-select', async () => {

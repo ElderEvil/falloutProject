@@ -74,19 +74,22 @@
     --color-water: #4dabf7;
     --color-caps: #ffd43b;
 
-    /* Atlas terrain biomes — shared atlas geography. Hue-separated so regions read
-       by colour, kept quiet so markers stay dominant. Themes may retint these.
+    /* Atlas terrain biomes — Fallout 1/2 overworld palette: dark olive and
+       brown land with muted slate water. Hue-separated so regions read by
+       colour, kept quiet so markers stay dominant. Themes may retint these.
        See docs/frontend/STYLEGUIDE.md. */
-    --color-terrain-wasteland: #45402e;
-    --color-terrain-forest: #2e4030;
-    --color-terrain-ruins: #5c5144;
-    --color-terrain-hills: #3a3228;
-    --color-terrain-water: #2e3d4a;
+    --color-terrain-wasteland: #3f3a25;
+    --color-terrain-forest: #2c3520;
+    --color-terrain-ruins: #4d4638;
+    --color-terrain-hills: #3a2b18;
+    --color-terrain-water: #253440;
+    /* Reserved for a future road layer: no road data exists yet, do not draw. */
     --color-terrain-road: #e6c886;
 
-    /* Fog of war — unexplored atlas regions. Near-black, fully opaque so hidden
-       terrain and markers do not ghost through. Themeable. */
-    --color-fog: #0a0908;
+    /* Fog of war — unexplored atlas regions. Near-black olive drawn from the
+       terrain palette, fully opaque so hidden terrain and markers do not ghost
+       through. Themeable. */
+    --color-fog: #0c0b07;
 
     /* Site-type identity colours for the optional group-colour map mode.
        Identity coding only — never state. Themeable. */

@@ -1,17 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import PartyRoster from './PartyRoster.vue'
 import { Icon } from '@iconify/vue'
 import { Card } from '@/core/components/ui/card'
 import { Badge } from '@/core/components/ui/badge'
 import { Progress } from '@/core/components/ui/progress'
 import { useNow } from '@/core/composables/useNow'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
-import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
-import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
-import DwellerAgeBadge from '@/modules/dwellers/components/DwellerAgeBadge.vue'
-import DwellerGenderBadge from '@/modules/dwellers/components/DwellerGenderBadge.vue'
-import DwellerRarityBadge from '@/modules/dwellers/components/DwellerRarityBadge.vue'
-import { linearProgress, parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
+import {
+  linearProgress,
+  parseStartTimeMs,
+} from '@/modules/exploration/composables/useExplorationProgress'
 import { isQuestReturning } from '@/modules/progression/models/quest'
 import type { VaultQuest } from '@/modules/progression/models/quest'
 
@@ -60,8 +59,6 @@ const timeRemaining = computed(() => {
   const hours = Math.floor(remainingMinutes / 60)
   return hours > 0 ? `${hours}h ${remainingMinutes % 60}m left` : `${remainingMinutes}m left`
 })
-
-const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigned`)
 </script>
 
 <template>
@@ -76,10 +73,7 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
         <Icon icon="mdi:sword-cross" class="mission-icon" />
         <span>Quest party</span>
       </div>
-      <Badge
-        variant="outline"
-        class="border-theme-accent/50 bg-theme-accent/10 text-theme-accent"
-      >
+      <Badge variant="outline" class="border-theme-accent/50 bg-theme-accent/10 text-theme-accent">
         <Icon :icon="isReturning ? 'mdi:home-import-outline' : 'mdi:sword-cross'" class="h-3 w-3" />
         {{ isReturning ? 'RETURNING' : 'QUESTING' }}
       </Badge>
@@ -96,27 +90,7 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
       <span class="mission-time">{{ timeRemaining }}</span>
     </div>
 
-    <div class="party-section">
-      <div class="party-header">
-        <span>Team</span>
-        <span>{{ partyCountLabel }}</span>
-      </div>
-      <div class="party-members">
-        <div v-for="member in partyMembers" :key="member.id" class="party-member">
-          <Icon icon="mdi:account" class="member-icon" />
-          <div class="member-info">
-            <span class="member-name">{{ getDwellerDisplayName(member) }}</span>
-            <div class="member-badges">
-              <DwellerAgeBadge :age-group="member.age_group" size="sm" />
-              <DwellerGenderBadge :gender="member.gender" size="sm" />
-              <DwellerRarityBadge :rarity="member.rarity" size="sm" />
-              <DwellerIdentitySignal :visual-attributes="member.visual_attributes" compact />
-            </div>
-          </div>
-          <span class="member-level">Lv.{{ member.level }}</span>
-        </div>
-      </div>
-    </div>
+    <PartyRoster :members="partyMembers" />
   </Card>
 </template>
 
@@ -143,16 +117,13 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
 
 .mission-header,
 .mission-type,
-.progress-labels,
-.party-header,
-.party-member {
+.progress-labels {
   display: flex;
   align-items: center;
 }
 
 .mission-header,
-.progress-labels,
-.party-header {
+.progress-labels {
   justify-content: space-between;
   gap: 12px;
 }
@@ -166,9 +137,7 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
   text-transform: uppercase;
 }
 
-.mission-icon,
-.member-icon,
-.member-level {
+.mission-icon {
   color: var(--color-theme-accent);
 }
 
@@ -186,9 +155,7 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
   line-height: 1.25;
 }
 
-.mission-progress,
-.party-section,
-.party-members {
+.mission-progress {
   display: grid;
 }
 
@@ -196,53 +163,11 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
   gap: 6px;
 }
 
-.progress-labels,
-.party-header {
+.progress-labels {
   color: var(--color-theme-primary);
   font-size: 0.72rem;
   letter-spacing: 0.06em;
   opacity: 0.8;
   text-transform: uppercase;
-}
-
-.party-section {
-  gap: 8px;
-  border-top: 1px solid color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
-  padding-top: 12px;
-}
-
-.party-members {
-  gap: 5px;
-}
-
-.party-member {
-  gap: 8px;
-  color: var(--color-theme-primary);
-  font-size: 0.85rem;
-}
-
-.member-info {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.member-badges {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.member-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.member-level {
-  font-size: 0.75rem;
-  margin-left: auto;
 }
 </style>

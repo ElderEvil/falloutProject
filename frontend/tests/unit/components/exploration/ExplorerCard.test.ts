@@ -13,7 +13,9 @@ vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' } }))
 
 vi.mock('@/modules/dwellers/services/dwellerService', () => ({
   getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
-  getIdentityOptions: vi.fn().mockResolvedValue({ races: [], factions_by_race: {}, states_by_race: {} }),
+  getIdentityOptions: vi
+    .fn()
+    .mockResolvedValue({ races: [], factions_by_race: {}, states_by_race: {} }),
 }))
 
 vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" />' }))
@@ -63,7 +65,9 @@ describe('ExplorerCard', () => {
   it('shows the exploring dweller portrait', () => {
     const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
 
-    expect(wrapper.find('.dweller-portrait').attributes('src')).toBe('http://example.com/lucy-thumb.png')
+    expect(wrapper.find('.dweller-portrait').attributes('src')).toBe(
+      'http://example.com/lucy-thumb.png'
+    )
     expect(wrapper.find('.dweller-portrait').attributes('alt')).toBe('Lucy MacLean portrait')
 
     wrapper.unmount()
@@ -71,7 +75,10 @@ describe('ExplorerCard', () => {
 
   it('uses the thumbnail when image_url is blank', () => {
     const wrapper = mount(ExplorerCard, {
-      props: { exploration, dweller: { ...dweller, image_url: '', thumbnail_url: 'example.com/thumb.png' } },
+      props: {
+        exploration,
+        dweller: { ...dweller, image_url: '', thumbnail_url: 'example.com/thumb.png' },
+      },
     })
 
     expect(wrapper.find('.dweller-portrait').attributes('src')).toBe('http://example.com/thumb.png')
@@ -164,7 +171,7 @@ describe('ExplorerCard', () => {
     expect(wrapper.find('.view-on-map').attributes('href')).toBe('/vault/vault-1/map')
   })
 
-  it('renders the dispatch companions after the anchor identity', () => {
+  it('renders the whole dispatch party as compact quest-style member rows', () => {
     const partyMembers = [
       companion('dweller-1', 'Lucy'),
       companion('dweller-2', 'Carla'),
@@ -172,12 +179,32 @@ describe('ExplorerCard', () => {
     ]
     const wrapper = mount(ExplorerCard, { props: { exploration, dweller, partyMembers } })
 
-    expect(wrapper.find('.dweller-name').text()).toBe('Lucy MacLean')
-    expect(wrapper.findAll('.party-member')).toHaveLength(2)
+    expect(wrapper.find('.dweller-info').exists()).toBe(false)
+    expect(wrapper.find('.equipment-section').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Expedition party')
+    expect(wrapper.findAll('.party-member')).toHaveLength(3)
     expect(wrapper.findAll('.member-name').map((node) => node.text())).toEqual([
+      'Lucy Vault',
       'Carla Vault',
       'Bea Vault',
     ])
+  })
+
+  it('keeps a dispatched solo party compact while its roster loads', () => {
+    const wrapper = mount(ExplorerCard, {
+      props: {
+        exploration: {
+          ...exploration,
+          target_location_id: 'site-1',
+          events: [{ description: 'Old activity' }],
+        },
+        dweller,
+      },
+    })
+    expect(wrapper.find('.dweller-info').exists()).toBe(false)
+    expect(wrapper.find('.recent-events').exists()).toBe(false)
+    expect(wrapper.findAll('.member-name').map((node) => node.text())).toEqual(['Lucy MacLean'])
+    expect(wrapper.findComponent(ExplorerActions).props('compact')).toBe(true)
   })
 
   it('renders no companion row for a solo run', () => {

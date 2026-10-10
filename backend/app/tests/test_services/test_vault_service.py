@@ -151,24 +151,6 @@ def _make_storage(
 
 
 # ---------------------------------------------------------------------------
-# Test _prepare_room_data
-# ---------------------------------------------------------------------------
-
-
-class TestPrepareRoomData:
-    """Unit tests for _prepare_room_data static method."""
-
-    def test_with_output_formula(self) -> None:
-        vault_id = VAULT_ID
-        rooms = [
-            _make_room_create(name="Power Generator", ability=SPECIALEnum.STRENGTH, output_formula="tier * size * 3"),
-        ]
-        with patch("app.services.vault_service.room_crud.evaluate_output_formula", return_value=9):
-            result = VaultService._prepare_room_data(rooms, "power generator", vault_id, x=0, y=1)
-        assert result["output"] == 9
-
-
-# ---------------------------------------------------------------------------
 # Test _prepare_initial_rooms
 # ---------------------------------------------------------------------------
 

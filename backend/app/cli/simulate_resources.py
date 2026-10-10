@@ -9,7 +9,7 @@ Usage:
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Iterator, Sequence
+from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from typing import Annotated
 
@@ -67,7 +67,10 @@ def _make_room(name: str) -> Room:
 
 
 def _make_workers(ability: str, count: int, special: int) -> list[Dweller]:
-    return [Dweller(**{ability: special}) for _ in range(count)]
+    workers = [Dweller() for _ in range(count)]
+    for worker in workers:
+        setattr(worker, ability, special)
+    return workers
 
 
 def _build_scenario(config: ResourceEconomyConfig) -> tuple[Vault, Sequence[Room], list[tuple[Room, list[Dweller]]]]:
@@ -100,7 +103,7 @@ def _forecast_minutes(current: float, maximum: float, rate: float) -> float | No
 
 
 @contextmanager
-def _production_rate_override(rate: float | None) -> Iterator[None]:
+def _production_rate_override(rate: float | None) -> Generator[None]:
     if rate is None:
         yield
         return

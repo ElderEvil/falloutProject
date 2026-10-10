@@ -15,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncGenerator
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,7 +26,7 @@ _UNLOCK_SQL = text("SELECT pg_advisory_unlock(hashtextextended(:lock_key, 0))")
 
 
 @asynccontextmanager
-async def hold_advisory_lock(source: AsyncSession, lock_key: str) -> AsyncIterator[bool]:
+async def hold_advisory_lock(source: AsyncSession, lock_key: str) -> AsyncGenerator[bool]:
     """Hold a session-level advisory lock for a whole block, on one dedicated connection.
 
     A tick spans many commits, so the lock must not ride the caller's session: after

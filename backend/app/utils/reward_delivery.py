@@ -1,6 +1,6 @@
 """Transaction helpers for all-or-nothing reward settlement."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -10,7 +10,7 @@ _DEFERRED_REWARD_DELIVERY = "deferred_reward_delivery"
 
 
 @asynccontextmanager
-async def defer_reward_delivery(db_session: AsyncSession) -> AsyncIterator[None]:
+async def defer_reward_delivery(db_session: AsyncSession) -> AsyncGenerator[None]:
     """Defer reward commits and events until the caller settles the transaction."""
     previous = db_session.info.get(_DEFERRED_REWARD_DELIVERY, False)
     db_session.info[_DEFERRED_REWARD_DELIVERY] = True

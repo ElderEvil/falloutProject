@@ -473,7 +473,7 @@ export function isMature(dweller: Pick<Dweller, 'age_group'>): boolean {
   return ADULT_AGE_GROUPS.has(dweller.age_group)
 }
 
-/** True when a dweller can be assigned to a room: no room and not dead or away from the vault. */
-export function isUnassignable(dweller: { room_id?: string | null; status: string }): boolean {
+/** A dweller with no room assignment that is not dead or away from the vault (available to assign). */
+export function isAvailableUnassignedDweller(dweller: { room_id?: string | null; status: string }): boolean {
   return !dweller.room_id && !['dead', 'questing', 'exploring'].includes(dweller.status)
 }

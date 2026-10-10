@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
-import { ADULT_AGE_GROUPS, isUnassignable } from '@/modules/dwellers/models/dweller'
+import { ADULT_AGE_GROUPS, isAvailableUnassignedDweller } from '@/modules/dwellers/models/dweller'
 import RoomDwellerCard from './RoomDwellerCard.vue'
 
 interface Props {
@@ -23,7 +23,7 @@ const availableDwellers = computed(() =>
   dwellerStore.dwellers
     .filter(
       (dweller) =>
-        isUnassignable(dweller) &&
+        isAvailableUnassignedDweller(dweller) &&
         (assignmentMode.value === 'apprentice'
           ? !ADULT_AGE_GROUPS.has(dweller.age_group)
           : ADULT_AGE_GROUPS.has(dweller.age_group))

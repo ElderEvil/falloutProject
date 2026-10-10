@@ -20,6 +20,22 @@ from typing import Annotated, Any
 
 import typer
 
+from app.cli.simulate_common import (
+    CurvesMixin,
+    banner,
+    fmt_stats,
+    run_simulate_command,
+)
+from app.cli.simulate_common import (
+    print_sweep_report as shared_print_sweep_report,
+)
+from app.cli.simulate_common import (
+    run_parameter_sweep as shared_run_parameter_sweep,
+)
+from app.cli.simulate_common import (
+    stats as _stats,
+)
+
 DEFAULT_TICK_INTERVAL = 60
 DEFAULT_SIMULATION_DAYS = 3
 DEFAULT_RUNS = 50
@@ -402,17 +418,13 @@ class _Aggregates:
 
 
 @dataclasses.dataclass
-class _Curves:
+class _Curves(CurvesMixin):
     happiness: list[float] = dataclasses.field(default_factory=list)
     productivity: list[float] = dataclasses.field(default_factory=list)
     power: list[float] = dataclasses.field(default_factory=list)
     food: list[float] = dataclasses.field(default_factory=list)
     water: list[float] = dataclasses.field(default_factory=list)
     incidents: list[float] = dataclasses.field(default_factory=list)
-
-    @classmethod
-    def zeroed(cls, hours: int) -> _Curves:
-        return cls(**{k: [0.0] * hours for k in dataclasses.asdict(cls())})
 
     def add_result(self, result: SimulationResult, hours: int) -> None:
         for h in range(hours):
@@ -422,22 +434,6 @@ class _Curves:
             self.food[h] += result.food_pct_by_hour[h]
             self.water[h] += result.water_pct_by_hour[h]
             self.incidents[h] += result.incidents_by_hour[h]
-
-    def divide(self, divisor: int) -> None:
-        for k in dataclasses.asdict(self):
-            arr = getattr(self, k)
-            for i in range(len(arr)):
-                arr[i] /= divisor
-
-
-def _stats(values: list[int] | list[float]) -> dict[str, float]:
-    return {
-        "mean": statistics.mean(values),
-        "median": statistics.median(values),
-        "stdev": statistics.stdev(values) if len(values) > 1 else 0.0,
-        "min": min(values),
-        "max": max(values),
-    }
 
 
 def run_monte_carlo(config: HappinessConfig, simulation_hours: int, runs: int) -> BatchResult:
@@ -510,29 +506,14 @@ SWEEP_RANGES: dict[str, list[Any]] = {
 def run_parameter_sweep(
     param_name: str, baseline: HappinessConfig, simulation_hours: int, runs: int
 ) -> list[BatchResult]:
-    results: list[BatchResult] = []
-    values = SWEEP_RANGES.get(param_name, [])
-    if not values:
-        print(f"Unknown parameter '{param_name}'. Available: {list(SWEEP_RANGES.keys())}")
-        return results
-
-    for value in values:
-        cfg = dataclasses.replace(baseline, **{param_name: value})
-        result = run_monte_carlo(cfg, simulation_hours, runs)
-        results.append(result)
-    return results
-
-
-TERMINAL_WIDTH = 72
-
-
-def banner(text: str) -> str:
-    pad = (TERMINAL_WIDTH - len(text) - 4) // 2
-    return "=" * pad + f"  {text}  " + "=" * pad
-
-
-def fmt_stats(st: dict[str, float]) -> str:
-    return f"mean={st['mean']:.1f}  median={st['median']:.1f}  std={st['stdev']:.1f}  range=[{st['min']}, {st['max']}]"
+    return shared_run_parameter_sweep(
+        param_name,
+        baseline,
+        simulation_hours,
+        runs,
+        sweep_ranges=SWEEP_RANGES,
+        run_monte_carlo=run_monte_carlo,
+    )
 
 
 def _print_params(cfg: HappinessConfig) -> None:
@@ -650,43 +631,41 @@ def print_report(batch: BatchResult, detailed: bool = False) -> None:
 
 
 def print_sweep_report(results: list[BatchResult], param_name: str) -> None:
-    print()
-    print(banner(f"Parameter sweep: {param_name}"))
-    print()
-    print(
-        f"{'Value':>12} | {'Happy':>5} | {'Prod%':>5} | {'<20':>5} | {'<50':>5} | "
-        f"{'<75':>5} | {'>90':>5} | {'Min':>5} | {'Max':>5} | Verdict"
+    shared_print_sweep_report(
+        results,
+        param_name,
+        header=(
+            f"{'Value':>12} | {'Happy':>5} | {'Prod%':>5} | {'<20':>5} | {'<50':>5} | "
+            f"{'<75':>5} | {'>90':>5} | {'Min':>5} | {'Max':>5} | Verdict"
+        ),
+        render_row=_render_sweep_row,
     )
-    print("-" * TERMINAL_WIDTH)
 
-    for r in results:
-        cfg: HappinessConfig = r["config"]
-        value = getattr(cfg, param_name)
-        happy = r["mean_happiness"]["mean"]
-        prod = r["mean_productivity"]["mean"] * 100
-        b20 = r["time_below_20"]["mean"] * 100
-        b50 = r["time_below_50"]["mean"] * 100
-        b75 = r["time_below_75"]["mean"] * 100
-        a90 = r["time_above_90"]["mean"] * 100
-        mn = r["min_happiness"]["mean"]
-        mx = r["max_happiness"]["mean"]
 
-        if happy < 30:
-            verdict = "critical"
-        elif happy < 50:
-            verdict = "low"
-        elif happy < 70:
-            verdict = "ok"
-        elif happy < 85:
-            verdict = "good"
-        else:
-            verdict = "great"
+def _render_sweep_row(value: str, r: BatchResult) -> str:
+    happy = r["mean_happiness"]["mean"]
+    prod = r["mean_productivity"]["mean"] * 100
+    b20 = r["time_below_20"]["mean"] * 100
+    b50 = r["time_below_50"]["mean"] * 100
+    b75 = r["time_below_75"]["mean"] * 100
+    a90 = r["time_above_90"]["mean"] * 100
+    mn = r["min_happiness"]["mean"]
+    mx = r["max_happiness"]["mean"]
 
-        vstr = f"{value:.2f}" if isinstance(value, float) else str(value)
-        line = f"{vstr:>12} | {happy:>5.1f} | {prod:>5.1f} | {b20:>5.1f} | {b50:>5.1f}"
-        line += f" | {b75:>5.1f} | {a90:>5.1f} | {mn:>5.1f} | {mx:>5.1f} | {verdict}"
-        print(line)
-    print()
+    if happy < 30:
+        verdict = "critical"
+    elif happy < 50:
+        verdict = "low"
+    elif happy < 70:
+        verdict = "ok"
+    elif happy < 85:
+        verdict = "good"
+    else:
+        verdict = "great"
+
+    line = f"{value:>12} | {happy:>5.1f} | {prod:>5.1f} | {b20:>5.1f} | {b50:>5.1f}"
+    line += f" | {b75:>5.1f} | {a90:>5.1f} | {mn:>5.1f} | {mx:>5.1f} | {verdict}"
+    return line
 
 
 app = typer.Typer(help="Simulate happiness balance for the Fallout Shelter game.")
@@ -733,19 +712,19 @@ def simulate(
         resource_drift=resource_drift,
     )
 
-    if sweep:
-        if sweep not in SWEEP_RANGES:
-            typer.echo(f"Unknown parameter '{sweep}'. Available: {list(SWEEP_RANGES.keys())}", err=True)
-            raise typer.Exit(code=1)
-        results = run_parameter_sweep(sweep, baseline, hours, runs)
-        for r in results:
-            print_report(r, detailed=detailed)
-        print_sweep_report(results, sweep)
-    else:
-        if seed is not None:
-            random.seed(seed)
-        result = run_monte_carlo(baseline, hours, runs)
-        print_report(result, detailed=detailed)
+    run_simulate_command(
+        hours=hours,
+        runs=runs,
+        seed=seed,
+        sweep=sweep,
+        detailed=detailed,
+        sweep_ranges=SWEEP_RANGES,
+        baseline=baseline,
+        run_monte_carlo=run_monte_carlo,
+        run_parameter_sweep=run_parameter_sweep,
+        print_report=print_report,
+        print_sweep_report=print_sweep_report,
+    )
 
 
 def main() -> None:

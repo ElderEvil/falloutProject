@@ -660,22 +660,28 @@ class ExplorationService:
         exploration.return_completes_at = return_started_at + timedelta(hours=return_hours)
         exploration.status = ExplorationStatus.RETURNING
 
-    async def _advance_forward(
-        self, db_session: AsyncSession, exploration: Exploration, now: datetime, snapshot, position_as_of: datetime
+    async def _advance_forward_to(
+        self, exploration: Exploration, at_time: datetime, snapshot, position_as_of: datetime
     ) -> None:
         """Move the dweller forward along the heading; block on water and map bounds."""
-        new_x, new_y = self._forward_position(exploration, now)
+        new_x, new_y = self._forward_position(exploration, at_time)
         pos_x, pos_y = self._position(exploration)
         valid_x, valid_y = self._last_valid_point(snapshot, pos_x, pos_y, new_x, new_y)
         if (valid_x, valid_y) != (new_x, new_y):
             exploration.pos_x, exploration.pos_y = valid_x, valid_y
-            self._append_trail(exploration, valid_x, valid_y, now)
+            self._append_trail(exploration, valid_x, valid_y, at_time)
             self._begin_spatial_return(
                 exploration, self._obstruction_time(position_as_of, (pos_x, pos_y), (valid_x, valid_y))
             )
             return
         exploration.pos_x, exploration.pos_y = new_x, new_y
-        self._append_trail(exploration, new_x, new_y, now)
+        self._append_trail(exploration, new_x, new_y, at_time)
+
+    async def _advance_forward(
+        self, db_session: AsyncSession, exploration: Exploration, now: datetime, snapshot, position_as_of: datetime
+    ) -> None:
+        """Move the dweller forward along the heading; block on water and map bounds."""
+        await self._advance_forward_to(exploration, now, snapshot, position_as_of)
 
     async def _snap_to_forward_end(
         self,
@@ -686,18 +692,7 @@ class ExplorationService:
         position_as_of: datetime,
     ) -> None:
         """Set the position to the outbound budget point, unless blocked earlier."""
-        new_x, new_y = self._forward_position(exploration, forward_end)
-        pos_x, pos_y = self._position(exploration)
-        valid_x, valid_y = self._last_valid_point(snapshot, pos_x, pos_y, new_x, new_y)
-        if (valid_x, valid_y) != (new_x, new_y):
-            exploration.pos_x, exploration.pos_y = valid_x, valid_y
-            self._append_trail(exploration, valid_x, valid_y, forward_end)
-            self._begin_spatial_return(
-                exploration, self._obstruction_time(position_as_of, (pos_x, pos_y), (valid_x, valid_y))
-            )
-            return
-        exploration.pos_x, exploration.pos_y = new_x, new_y
-        self._append_trail(exploration, new_x, new_y, forward_end)
+        await self._advance_forward_to(exploration, forward_end, snapshot, position_as_of)
 
     async def _advance_dispatch(
         self,

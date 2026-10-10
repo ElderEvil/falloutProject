@@ -9,7 +9,7 @@ import { getRarityColor } from '@/core/models/items'
 import {
   GENDER_CONFIG_MAP,
   getDwellerDisplayName,
-  isUnassignable,
+  isAvailableUnassignedDweller,
   type DwellerShort,
 } from '../models/dweller'
 import DwellerAgeBadge from './DwellerAgeBadge.vue'
@@ -55,14 +55,14 @@ const GENDER_FILTERS: { value: GenderFilter; label: string; icon: string; accent
   })),
 ]
 
-const hasAnyUnassigned = computed(() => dwellerStore.dwellersWithStatus.some(isUnassignable))
+const hasAnyUnassigned = computed(() => dwellerStore.dwellersWithStatus.some(isAvailableUnassignedDweller))
 
 // Use unfiltered dwellers from store, but only show unassigned ones, ordered by the
 // shared sort preference without being affected by the global status filter.
 const unassignedDwellers = computed(() => {
   const filtered = dwellerStore.dwellersWithStatus.filter(
     (dweller) =>
-      isUnassignable(dweller) &&
+      isAvailableUnassignedDweller(dweller) &&
       matchesAgeGroup(dweller, dwellerStore.filterAgeGroup) &&
       (filterRarity.value === 'all' || dweller.rarity === filterRarity.value) &&
       (filterGender.value === 'all' || dweller.gender === filterGender.value)

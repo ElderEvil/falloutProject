@@ -6,6 +6,7 @@ import { useVisualEffects, type EffectIntensity } from '@/core/composables/useVi
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 import { useRoomRendering } from '@/core/composables/useRoomRendering'
 import { useBadgeStyle } from '@/core/composables/useBadgeStyle'
+import { useGroupColors } from '@/core/composables/useGroupColors'
 import { audioManager, type AudioBus } from '@/core/audio/audioManager'
 import { useProfileStore } from '../stores/profile'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -42,6 +43,7 @@ const {
 const { currentTheme, availableThemes, setTheme } = useTheme()
 const { showRoomImages, toggleRoomImages } = useRoomRendering()
 const { isMonochrome, toggleBadgeStyle } = useBadgeStyle()
+const { groupColors, toggleGroupColors } = useGroupColors()
 const profileStore = useProfileStore()
 
 const notificationCategories = [
@@ -331,28 +333,47 @@ const handleGlowSelect = (value: unknown) => {
                   </div>
                 </div>
 
-                <div class="setting-row">
-                  <Label for="room-images" class="setting-info flex-col items-start cursor-pointer">
-                    <span class="setting-label">Room Images</span>
-                    <span class="setting-description">Show detailed vault artwork; turn off on slower devices.</span>
-                  </Label>
-                  <Switch
-                    id="room-images"
-                    :checked="showRoomImages"
-                    @update:checked="() => toggleRoomImages()"
-                  />
-                </div>
+                <div>
+                  <h3 class="subsection-label">Display</h3>
+                  <p class="text-theme-primary/60 mb-3 text-xs">
+                    Toggle optional artwork and colour accents.
+                  </p>
 
-                <div class="setting-row">
-                  <Label for="colourful-badges" class="setting-info flex-col items-start cursor-pointer">
-                    <span class="setting-label">Colourful Badges</span>
-                    <span class="setting-description">Use category colours instead of one terminal tone.</span>
-                  </Label>
-                  <Switch
-                    id="colourful-badges"
-                    :checked="!isMonochrome"
-                    @update:checked="() => toggleBadgeStyle()"
-                  />
+                  <div class="setting-row">
+                    <Label for="room-images" class="setting-info flex-col items-start cursor-pointer">
+                      <span class="setting-label">Room Images</span>
+                      <span class="setting-description">Show detailed vault artwork; turn off on slower devices.</span>
+                    </Label>
+                    <Switch
+                      id="room-images"
+                      :checked="showRoomImages"
+                      @update:checked="() => toggleRoomImages()"
+                    />
+                  </div>
+
+                  <div class="setting-row">
+                    <Label for="colourful-badges" class="setting-info flex-col items-start cursor-pointer">
+                      <span class="setting-label">Colourful Badges</span>
+                      <span class="setting-description">Use category colours instead of one terminal tone.</span>
+                    </Label>
+                    <Switch
+                      id="colourful-badges"
+                      :checked="!isMonochrome"
+                      @update:checked="() => toggleBadgeStyle()"
+                    />
+                  </div>
+
+                  <div class="setting-row">
+                    <Label for="map-group-colors" class="setting-info flex-col items-start cursor-pointer">
+                      <span class="setting-label">Colourful Map Markers</span>
+                      <span class="setting-description">Tint world-map markers by site type instead of by state.</span>
+                    </Label>
+                    <Switch
+                      id="map-group-colors"
+                      :checked="groupColors"
+                      @update:checked="() => toggleGroupColors()"
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>

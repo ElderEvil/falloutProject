@@ -11,13 +11,13 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { isMature, type DwellerShort } from '@/modules/dwellers/models/dweller'
 import { useToast } from '@/core/composables/useToast'
+import { useGroupColors } from '@/core/composables/useGroupColors'
 import { getErrorMessage } from '@/core/utils/errorHandler'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Skeleton } from '@/core/components/ui/skeleton'
 import { Button } from '@/core/components/ui/button'
-import { Switch } from '@/core/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -50,9 +50,8 @@ const toast = useToast()
 
 const vaultId = computed(() => route.params.id as string)
 
-// Marker color mode: state color by default, per-place-group tint when enabled.
-// Persisted like the legend/side panel so the choice survives reloads.
-const groupColors = useLocalStorage<boolean>('map:group-colors', false)
+// Marker colour mode lives on the Preferences page (like the badge palette).
+const { groupColors } = useGroupColors()
 
 // Site-type filter (P3): narrow the map to one place_groups archetype.
 // Persisted like the color mode; `null` means "All sites".
@@ -473,67 +472,54 @@ const mapPaneHeight = 'var(--map-pane-size)'
             </Button>
           </div>
 
-          <!-- Map -->
-          <WorldMap
-            v-else
-            :locations="mapStore.locations"
-            :vault-markers="mapStore.vaultMarkers"
-            :player-vaults="mapStore.playerVaults"
-            :discovery-routes="mapStore.discoveryRoutes"
-            :expedition-sites="mapStore.expeditionSites"
-            :explorer-tracks="explorerTracks"
-            :fog-disabled="fogDisabled"
-            :group-colors="groupColors"
-            :site-type-filter="activeSiteType"
-            :selected-marker-id="selectedMarkerId"
-            @update:selected-marker-id="selectedMarkerId = $event"
-            @marker-click="handleMarkerClick"
-            @vault-info="handleVaultInfo"
-            @dweller-click="onDwellerClick"
-          />
+          <!-- Map + floating controls: an overlay keeps the pane free of a toolbar row -->
+          <div v-else class="map-stage">
+            <WorldMap
+              :locations="mapStore.locations"
+              :vault-markers="mapStore.vaultMarkers"
+              :player-vaults="mapStore.playerVaults"
+              :discovery-routes="mapStore.discoveryRoutes"
+              :expedition-sites="mapStore.expeditionSites"
+              :explorer-tracks="explorerTracks"
+              :fog-disabled="fogDisabled"
+              :group-colors="groupColors"
+              :site-type-filter="activeSiteType"
+              :selected-marker-id="selectedMarkerId"
+              @update:selected-marker-id="selectedMarkerId = $event"
+              @marker-click="handleMarkerClick"
+              @vault-info="handleVaultInfo"
+              @dweller-click="onDwellerClick"
+            />
 
-          <!-- Map toolbar: site-type filter + color mode for every user; fog debug stays superuser-only -->
-          <div class="map-toolbar">
-            <Select v-if="siteGroupOptions.length" v-model="siteTypeFilterSelect">
-              <SelectTrigger
-                aria-label="Filter by site type"
-                class="h-auto rounded-sm border-theme-primary/30 bg-surface-sunken/60 px-2 py-1 text-xs text-theme-primary data-[size=default]:h-auto"
-              >
-                <SelectValue placeholder="All sites" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All sites</SelectItem>
-                <SelectItem
-                  v-for="group in siteGroupOptions"
-                  :key="group.key"
-                  :value="group.key"
+            <div class="map-overlay-controls">
+              <Select v-if="siteGroupOptions.length" v-model="siteTypeFilterSelect">
+                <SelectTrigger
+                  aria-label="Filter by site type"
+                  class="h-auto rounded-sm border-theme-primary/30 bg-surface-sunken/60 px-2 py-1 text-xs text-theme-primary data-[size=default]:h-auto"
                 >
-                  <Icon :icon="group.icon" />
-                  <span>{{ group.label }}</span>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            <div class="flex items-center gap-2">
-              <Switch
-                id="map-group-colors"
-                v-model:checked="groupColors"
-                aria-label="Group colors"
-              />
-              <label
-                for="map-group-colors"
-                class="cursor-pointer text-xs tracking-wider uppercase text-theme-primary/70"
+                  <SelectValue placeholder="All sites" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All sites</SelectItem>
+                  <SelectItem
+                    v-for="group in siteGroupOptions"
+                    :key="group.key"
+                    :value="group.key"
+                  >
+                    <Icon :icon="group.icon" />
+                    <span>{{ group.label }}</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                v-if="authStore.isSuperuser"
+                variant="outline"
+                size="sm"
+                @click="fogDisabled = !fogDisabled"
               >
-                Group colors
-              </label>
+                {{ fogDisabled ? 'Restore fog' : 'Remove fog (debug)' }}
+              </Button>
             </div>
-            <Button
-              v-if="authStore.isSuperuser"
-              variant="outline"
-              size="sm"
-              @click="fogDisabled = !fogDisabled"
-            >
-              {{ fogDisabled ? 'Restore fog' : 'Remove fog (debug)' }}
-            </Button>
           </div>
 
           <!-- Explorer popover: dweller summary anchored to the clicked marker -->
@@ -573,12 +559,21 @@ const mapPaneHeight = 'var(--map-pane-size)'
 </template>
 
 <style scoped>
-.map-toolbar {
+.map-stage {
+  position: relative;
+  width: fit-content;
+}
+
+/* Floating map controls: overlaid on the pane so they cost no vertical layout. */
+.map-overlay-controls {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-  margin-top: 0.75rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
 }
 
 .vault-layout {

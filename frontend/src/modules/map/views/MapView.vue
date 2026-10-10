@@ -90,6 +90,7 @@ const siteTypeFilterSelect = computed<AcceptableValue>({
   get: () => siteTypeFilter.value ?? 'all',
   set: (value: AcceptableValue) => {
     siteTypeFilter.value = value === null || value === 'all' ? null : String(value)
+    if (siteTypeFilter.value) readyOnly.value = false
   },
 })
 

@@ -859,6 +859,27 @@ describe('MapView', () => {
     const worldMapProps = (wrapper: ReturnType<typeof mountView>) =>
       wrapper.findComponent({ name: 'WorldMap' }).props()
 
+    it('clears the ready filter when selecting a site type', async () => {
+      seedSites()
+      mapStore.locations[0]!.clear_state = {
+        clearable: true,
+        cleared: false,
+        clear_count: 0,
+        tier: 1,
+        time_remaining_seconds: 0,
+      }
+      const wrapper = mountView()
+      await flushPromises()
+      const ready = wrapper.findAll('button').find((b) => b.text().includes('Ready to clear'))!
+      await ready.trigger('click')
+      expect(worldMapProps(wrapper).readyLocationIds).not.toBeNull()
+      wrapper.findComponent({ name: 'Select' }).vm.$emit('update:modelValue', 'gas_station')
+      await flushPromises()
+      expect(worldMapProps(wrapper).siteTypeFilter).toBe('gas_station')
+      expect(worldMapProps(wrapper).readyLocationIds).toBeNull()
+      expect(ready.attributes('aria-pressed')).toBe('false')
+    })
+
     it('passes a stored site-type filter down to the map', async () => {
       // Null default selects the raw "any" serializer: store the bare key.
       localStorage.setItem('map:site-type-filter', 'gas_station')

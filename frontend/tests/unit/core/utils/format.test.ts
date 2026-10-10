@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   capitalize,
+  formatClock,
   formatDate,
   formatDateTime,
   formatLongDateTime,
@@ -71,5 +72,28 @@ describe('date helpers', () => {
 
   it('formatLongDateTime renders a long en-US date and time', () => {
     expect(formatLongDateTime(new Date(2026, 0, 2, 15, 4))).toBe('January 2, 2026 at 03:04 PM')
+  })
+})
+
+describe('formatClock', () => {
+  it('renders a zero-padded hh:mm:ss clock by default', () => {
+    expect(formatClock(0)).toBe('00:00:00')
+    expect(formatClock(360)).toBe('00:06:00')
+    expect(formatClock(3661)).toBe('01:01:01')
+    expect(formatClock(500)).toBe('00:08:20')
+  })
+
+  it('floors a fractional second count', () => {
+    expect(formatClock(65.9)).toBe('00:01:05')
+  })
+
+  it('folds hours into cumulative minutes for an mm:ss clock', () => {
+    expect(formatClock(65, { showHours: false })).toBe('01:05')
+    expect(formatClock(5400, { showHours: false })).toBe('90:00')
+  })
+
+  it('omits the seconds segment for an hh:mm clock', () => {
+    expect(formatClock(3600, { showSeconds: false })).toBe('01:00')
+    expect(formatClock(3661, { showSeconds: false })).toBe('01:01')
   })
 })

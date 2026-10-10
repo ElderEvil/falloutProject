@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.192.0 (2026-10-10)
+
+### Features
+
+* **dwellers:** junior workers assist production at reduced rate ([#902](https://github.com/ElderEvil/falloutProject/issues/902)) 15efedf, closes #889
+
+### Code Refactoring
+
+* DRY sweep (backend helpers + dweller predicate rename) ([#931](https://github.com/ElderEvil/falloutProject/issues/931)) 5a4be54
+* **frontend:** DRY/utils sweep (formatting, progress, reward row) ([#935](https://github.com/ElderEvil/falloutProject/issues/935)) dc31691, closes #909
+
 ## 2.191.2 (2026-10-10)
 
 ### Code Refactoring

@@ -15,6 +15,7 @@ import type {
   VaultMarkerRead,
 } from '../models/map'
 import { EXPEDITION_SITE_ICON, locationMarkerIcon } from '../models/markerTypeMeta'
+import { groupColor } from '../models/groupColors'
 import MapClusterMarker from './MapClusterMarker.vue'
 import MapMarker from './MapMarker.vue'
 import MapLegend from './MapLegend.vue'
@@ -41,6 +42,7 @@ interface Props {
   discoveryRoutes?: DiscoveryRouteRead[]
   expeditionSites?: ExpeditionSiteMarkerRead[]
   explorerTracks?: ExplorerTrack[]
+  groupColors?: boolean
   fogDisabled?: boolean
   siteTypeFilter?: string | null
   readyLocationIds?: string[] | null
@@ -52,6 +54,7 @@ const props = withDefaults(defineProps<Props>(), {
   discoveryRoutes: () => [],
   expeditionSites: () => [],
   explorerTracks: () => [],
+  groupColors: false,
   fogDisabled: false,
   siteTypeFilter: null,
   readyLocationIds: null,
@@ -546,6 +549,7 @@ function handleTouchEnd(event: TouchEvent) {
           :is_unlocked="loc.is_unlocked"
           :unseen="mapStore.isUnseenDiscovery(loc)"
           :selected="selectedMarkerId === `loc-${loc.id}`"
+          :color="groupColors ? groupColor(loc.group_key) : null"
           :cleared="loc.clear_state?.cleared ?? false"
           :cooldown="
             Boolean(loc.clear_state?.cleared && loc.clear_state.time_remaining_seconds > 0)

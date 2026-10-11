@@ -10,6 +10,7 @@ import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { isMature, type DwellerShort } from '@/modules/dwellers/models/dweller'
+import { useGroupColors } from '@/core/composables/useGroupColors'
 import { useToast } from '@/core/composables/useToast'
 import { getErrorMessage } from '@/core/utils/errorHandler'
 import SidePanel from '@/core/components/common/SidePanel.vue'
@@ -55,6 +56,7 @@ const vaultId = computed(() => route.params.id as string)
 
 // Site-type filter (P3): narrow the map to one place_groups archetype.
 // Persisted like the color mode; `null` means "All sites".
+const { groupColors } = useGroupColors()
 const siteTypeFilter = useLocalStorage<string | null>('map:site-type-filter', null)
 
 // `exclusion_zone` is a one-off easter-egg site, not a browsable archetype, so it
@@ -578,6 +580,7 @@ const hasNoData = computed(
               :discovery-routes="mapStore.discoveryRoutes"
               :expedition-sites="mapStore.expeditionSites"
               :explorer-tracks="explorerTracks"
+              :group-colors="groupColors"
               :fog-disabled="fogDisabled"
               :site-type-filter="activeSiteType"
               :ready-location-ids="readyOnly ? readyLocationIds : null"

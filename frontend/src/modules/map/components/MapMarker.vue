@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useId, watch } from 'vue'
+import { computed, ref, useId, watch, type CSSProperties } from 'vue'
 import { Icon } from '@iconify/vue'
 import { getStaticImageUrl, normalizeImageUrl } from '@/core/utils/image'
 import { markerTypeMeta, type MarkerType } from '../models/markerTypeMeta'
@@ -16,6 +16,7 @@ interface Props {
   unseen?: boolean
   icon?: string
   artSrc?: string | null
+  color?: string | null
   label?: string
   cooldown?: boolean
   cleared?: boolean
@@ -28,6 +29,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  color: null,
   selected: false,
   is_unlocked: true,
   unseen: false,
@@ -85,6 +87,10 @@ watch(portraitUrl, () => {
 const showPortrait = computed(
   () => Boolean(portraitUrl.value) && !isLocked.value && !portraitFailed.value
 )
+
+const glyphStyle = computed<CSSProperties>(() => ({
+  color: !isLocked.value && props.color ? props.color : 'var(--color-theme-primary)',
+}))
 
 const tooltipText = computed(() => {
   const base = `${displayLabel.value} (${label.value})`
@@ -145,7 +151,8 @@ const tooltipText = computed(() => {
     </template>
     <g
       v-else
-      class="marker-glyph text-theme-primary"
+      class="marker-glyph"
+      :style="glyphStyle"
       :class="{ 'marker-discovery': shouldPulse, 'opacity-50': isLocked }"
       :transform="`translate(${-GLYPH_SIZE / 2}, ${-GLYPH_SIZE / 2})`"
     >

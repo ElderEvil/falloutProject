@@ -21,7 +21,7 @@
  * </PageHeader>
  */
 import { useVisualEffects } from '@/core/composables/useVisualEffects'
-import PageHelp from './PageHelp.vue'
+import { defineAsyncComponent } from 'vue'
 import { Icon } from '@iconify/vue'
 
 interface Props {
@@ -56,6 +56,8 @@ defineSlots<{
   /** Right-aligned actions (buttons, badges, stats) */
   actions?: () => unknown
 }>()
+
+const PageHelp = defineAsyncComponent(() => import('./PageHelp.vue'))
 
 const { glowClass } = useVisualEffects()
 </script>

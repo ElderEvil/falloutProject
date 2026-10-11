@@ -98,6 +98,11 @@ describe('RelationshipsView', () => {
       })
       await flushPromises()
       expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+      await vi.waitFor(() =>
+        expect(wrapper.find('button[aria-label="About Relationships & Family"]').exists()).toBe(
+          true
+        )
+      )
       await wrapper.find('button[aria-label="About Relationships & Family"]').trigger('click')
       await flushPromises()
       const help = wrapper.find('[role="dialog"]')

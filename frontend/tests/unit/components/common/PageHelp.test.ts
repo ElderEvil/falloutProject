@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 
@@ -18,6 +18,9 @@ describe('Page help', () => {
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('Membership is earned')
     expect(wrapper.text()).toContain('2 open places')
+    await vi.waitFor(() =>
+      expect(wrapper.find('button[aria-label="About Response Teams"]').exists()).toBe(true)
+    )
     await wrapper.find('button[aria-label="About Response Teams"]').trigger('click')
     await flushPromises()
     const dialog = wrapper.find('[role="dialog"]')
@@ -27,6 +30,9 @@ describe('Page help', () => {
     await dialog.trigger('keydown', { key: 'Escape' })
     await flushPromises()
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    await vi.waitFor(() =>
+      expect(wrapper.find('button[aria-label="About Response Teams"]').exists()).toBe(true)
+    )
     await wrapper.find('button[aria-label="About Response Teams"]').trigger('click')
     await flushPromises()
     await wrapper.find('[role="dialog"]').find('button').trigger('click')

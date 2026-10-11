@@ -179,6 +179,9 @@ describe('ExplorationView', () => {
     })
     await flushPromises()
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    await vi.waitFor(() =>
+      expect(wrapper.find('button[aria-label="About Wasteland Exploration"]').exists()).toBe(true)
+    )
     await wrapper.find('button[aria-label="About Wasteland Exploration"]').trigger('click')
     await flushPromises()
     const help = wrapper.find('[role="dialog"]')

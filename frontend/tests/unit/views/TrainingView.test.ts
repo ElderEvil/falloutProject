@@ -45,6 +45,9 @@ describe('TrainingView', () => {
       wrapper.find('[data-testid="training-queue"]').element.parentElement?.className
     ).toContain('w-full')
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    await vi.waitFor(() =>
+      expect(wrapper.find('button[aria-label="About Training Center"]').exists()).toBe(true)
+    )
     await wrapper.find('button[aria-label="About Training Center"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('About Training Center')

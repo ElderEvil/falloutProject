@@ -144,7 +144,9 @@ describe('ResponseTeamsView', () => {
       false
     )
     expect(wrapper.text()).not.toContain('View vault incidents')
-    expect(wrapper.find('button[aria-label="About Response Teams"]').exists()).toBe(true)
+    await vi.waitFor(() =>
+      expect(wrapper.find('button[aria-label="About Response Teams"]').exists()).toBe(true)
+    )
   })
 
   it('hides the metrics while the roster is loading', () => {

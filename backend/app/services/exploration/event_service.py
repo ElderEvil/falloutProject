@@ -12,7 +12,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.enums import RarityEnum
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
-from app.crud import vault as crud_vault
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.outfit import Outfit
@@ -487,17 +486,15 @@ class EventService:
         equipped = db_session.info.pop(_PENDING_EQUIP_NOTIFICATIONS, [])
         if not equipped:
             return
-        try:
-            vault = await crud_vault.get(db_session, exploration.vault_id)
+
+        async def send(user_id: UUID4) -> None:
             dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
-            if not vault or not vault.user_id or dweller_obj is None:
-                return
             dweller_name = f"{dweller_obj.first_name} {dweller_obj.last_name or ''}".strip()
             for item_type, item_name in equipped:
                 await notification_service.notify_exploration_update(
                     db_session,
-                    user_id=vault.user_id,
-                    vault_id=vault.id,
+                    user_id=user_id,
+                    vault_id=exploration.vault_id,
                     dweller_id=exploration.dweller_id,
                     dweller_name=dweller_name,
                     event_description=f"equipped a better {item_type} found in the wasteland: {item_name}",
@@ -507,8 +504,13 @@ class EventService:
                         "item_type": item_type,
                     },
                 )
-        except Exception:
-            logger.exception("Failed to send equip notifications: exploration=%s", exploration.id)
+
+        await notification_service.notify_owner(
+            db_session,
+            exploration.vault_id,
+            sender=send,
+            context=f"exploration equips vault={exploration.vault_id} exploration={exploration.id}",
+        )
 
     def _item_score(self, item: Weapon | Outfit | None) -> tuple:
         """Comparable strength score so weapon and outfit candidates rank uniformly."""

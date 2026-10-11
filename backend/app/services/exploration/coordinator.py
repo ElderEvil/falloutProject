@@ -9,7 +9,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.crud import dweller as dweller_crud
 from app.crud import expedition_run as crud_expedition_run
 from app.crud import exploration as crud_exploration
-from app.crud import vault as crud_vault
 from app.crud.team import team_crud
 from app.models.exploration import ExpeditionRunStatus, Exploration
 from app.schemas.exploration_event import RewardsSchema
@@ -137,34 +136,33 @@ class ExplorationCoordinator:
 
     async def _notify_arrival(self, db_session: AsyncSession, exploration: Exploration, rewards: RewardsSchema) -> None:
         """Send the arrival notification; best-effort, never breaks finalization."""
-        try:
-            dweller = await dweller_crud.get(db_session, exploration.dweller_id)
-            vault = await crud_vault.get(db_session, exploration.vault_id)
 
-            if vault and vault.user_id and dweller:
-                dweller_name = f"{dweller.first_name} {dweller.last_name or ''}".strip()
-                await notification_service.notify_exploration_complete(
-                    db_session,
-                    user_id=vault.user_id,
-                    vault_id=exploration.vault_id,
-                    dweller_id=dweller.id,
-                    dweller_name=dweller_name,
-                    meta_data={
-                        "exploration_id": str(exploration.id),
-                        "caps_earned": rewards.caps,
-                        "xp_earned": rewards.experience,
-                        "items_found": len(rewards.items),
-                        "dweller_id": str(dweller.id),
-                        "dweller_name": dweller_name,
-                        "rewards": rewards.model_dump(mode="json"),
-                    },
-                )
-        except Exception:
-            logger.exception(
-                "Failed to send exploration complete notification: vault_id=%s, dweller_id=%s",
-                exploration.vault_id,
-                exploration.dweller_id,
+        async def send(user_id: UUID4) -> None:
+            dweller = await dweller_crud.get(db_session, exploration.dweller_id)
+            dweller_name = f"{dweller.first_name} {dweller.last_name or ''}".strip()
+            await notification_service.notify_exploration_complete(
+                db_session,
+                user_id=user_id,
+                vault_id=exploration.vault_id,
+                dweller_id=dweller.id,
+                dweller_name=dweller_name,
+                meta_data={
+                    "exploration_id": str(exploration.id),
+                    "caps_earned": rewards.caps,
+                    "xp_earned": rewards.experience,
+                    "items_found": len(rewards.items),
+                    "dweller_id": str(dweller.id),
+                    "dweller_name": dweller_name,
+                    "rewards": rewards.model_dump(mode="json"),
+                },
             )
+
+        await notification_service.notify_owner(
+            db_session,
+            exploration.vault_id,
+            sender=send,
+            context=f"exploration complete vault={exploration.vault_id} dweller={exploration.dweller_id}",
+        )
 
     async def _restore_dweller_status(self, db_session: AsyncSession, dweller_id: UUID4) -> None:
         """Restore one dweller's room-appropriate status after exploration."""

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.199.0 (2026-10-11)
+
+### Features
+
+* consolidate map filters and legend in places panel ([#949](https://github.com/ElderEvil/falloutProject/issues/949)) 6f78dbd
+
 ## 2.198.0 (2026-10-11)
 
 ### Features

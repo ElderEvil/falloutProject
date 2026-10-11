@@ -871,3 +871,44 @@ async def test_lunchbox_dweller_at_capacity_is_refused_and_box_kept(async_sessio
     assert await crud.dweller.count_living_in_vault(async_session, vault_id) == 1
     remaining = (await async_session.execute(select(Item))).scalars().all()
     assert [item.item_type for item in remaining] == ["lunchbox"]
+
+
+def test_reward_junk_uses_data_supplied_type_value_prose_and_art() -> None:
+    """Migrated _build_junk forwards reward-data fields into the factory row unchanged."""
+    from uuid import uuid4
+
+    from app.core.enums import JunkTypeEnum
+    from app.models.junk import Junk
+
+    storage_id = uuid4()
+    junk = reward_service._build_junk(
+        "Desk Fan",
+        "rare",
+        {"junk_type": JunkTypeEnum.CIRCUITRY, "value": 42, "description": "A dusty fan", "image_url": "/custom.png"},
+        storage_id,
+    )
+
+    assert isinstance(junk, Junk)
+    assert (junk.name, junk.junk_type, junk.value, junk.description, junk.image_url, junk.storage_id) == (
+        "Desk Fan",
+        JunkTypeEnum.CIRCUITRY,
+        42,
+        "A dusty fan",
+        "/custom.png",
+        storage_id,
+    )
+
+
+def test_reward_junk_falls_back_to_valuables_and_name_keyed_art() -> None:
+    """Absent reward data keeps the exploration default: valuables, name-keyed art, rarity value."""
+    from uuid import uuid4
+
+    from app.core.enums import JunkTypeEnum
+    from app.utils.junk_assets import get_junk_image_url
+
+    junk = reward_service._build_junk("Desk Fan", "common", {}, uuid4())
+
+    assert junk.junk_type is JunkTypeEnum.VALUABLES
+    assert junk.description == "Desk Fan"
+    assert junk.value is None
+    assert junk.image_url == get_junk_image_url("Desk Fan")

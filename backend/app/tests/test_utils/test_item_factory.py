@@ -8,9 +8,9 @@ column cannot be forgotten in ``build_outfit`` / ``build_weapon`` without failin
 
 import pytest
 
-from app.core.enums import OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
+from app.core.enums import JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
 from app.services.exploration.data_loader import load_outfits, load_weapons
-from app.utils.item_factory import build_outfit, build_weapon
+from app.utils.item_factory import build_junk, build_outfit, build_weapon
 
 SPECIAL_KEYS = ("strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck")
 
@@ -54,3 +54,33 @@ def test_factory_normalizes_a_raw_rarity_string() -> None:
     outfit = build_outfit({"name": "Probe suit", "rarity": "Legendary", "outfit_type": "legendary_outfit"}, "Legendary")
 
     assert outfit.rarity is RarityEnum.LEGENDARY
+
+
+def test_build_junk_defaults_to_valuables_without_art() -> None:
+    """Bare junk keeps the exploration shape: valuables, no art, caller-owned value."""
+    junk = build_junk("Bottle Cap", "Common", None, value=1, description="Found during wasteland exploration")
+
+    assert (junk.junk_type, junk.value, junk.description, junk.image_url) == (
+        JunkTypeEnum.VALUABLES,
+        1,
+        "Found during wasteland exploration",
+        None,
+    )
+
+
+def test_build_junk_keeps_caller_type_value_prose_and_art() -> None:
+    """The widened factory forwards every caller-owned junk field unchanged."""
+    junk = build_junk(
+        "Desk Fan",
+        "Rare",
+        None,
+        value=42,
+        description="A dusty desk fan",
+        junk_type=JunkTypeEnum.CIRCUITRY,
+        image_url="/static/junk_images/FOS Desk fan.png",
+    )
+
+    assert junk.junk_type is JunkTypeEnum.CIRCUITRY
+    assert junk.value == 42
+    assert junk.description == "A dusty desk fan"
+    assert junk.image_url == "/static/junk_images/FOS Desk fan.png"

@@ -64,7 +64,7 @@ from app.utils.exceptions import (
     ResourceConflictException,
     ResourceNotFoundException,
 )
-from app.utils.item_factory import build_catalog_item, build_outfit, build_pet, build_weapon
+from app.utils.item_factory import build_catalog_item, build_junk, build_outfit, build_pet, build_weapon
 from app.utils.junk_assets import get_junk_image_url
 from app.utils.resource_warnings import get_resource_warnings
 
@@ -557,7 +557,6 @@ class VaultService:
 
     async def _seed_boosted_junk(self, db_session: AsyncSession, storage_id: UUID4) -> None:
         """Drop craftable materials into a vault so item creation is testable."""
-        from app.models.junk import Junk
         from app.services.exploration.data_loader import load_junk_items
 
         catalog = {
@@ -570,14 +569,14 @@ class VaultService:
                 continue
             for _ in range(count):
                 db_session.add(
-                    Junk(
-                        name=str(entry["name"]),
-                        junk_type=junk_type,
-                        rarity=rarity,
+                    build_junk(
+                        str(entry["name"]),
+                        rarity,
+                        storage_id,
                         value=entry.get("value"),
                         description=str(entry.get("description") or entry["name"]),
+                        junk_type=junk_type,
                         image_url=entry.get("image_url") or get_junk_image_url(str(entry["name"])),
-                        storage_id=storage_id,
                     )
                 )
                 seeded += 1

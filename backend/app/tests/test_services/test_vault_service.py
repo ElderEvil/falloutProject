@@ -463,6 +463,24 @@ class TestCreateInitialItems:
         assert all(p.storage_id == storage.id and p.dweller_id is None for p in pets)
         assert all(p.image_url for p in pets)
 
+    async def test_boosted_vault_seeds_crafting_junk_from_catalog(self, async_session, vault) -> None:
+        """Boosted-vault junk rows carry their catalog type/value/prose, assigned to storage."""
+        from sqlmodel import select
+
+        from app.models.junk import Junk
+        from app.services.vault_seed import BOOSTED_SEED_JUNK
+
+        storage = await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
+        await VaultService()._create_initial_items(async_session, vault.id, is_boosted=True)
+
+        junk_items = list(
+            (await async_session.execute(select(Junk).where(Junk.storage_id == storage.id))).scalars().all()
+        )
+        assert len(junk_items) == sum(count for _, _, count in BOOSTED_SEED_JUNK)
+        assert {j.junk_type for j in junk_items} == {junk_type for junk_type, _, _ in BOOSTED_SEED_JUNK}
+        assert all(j.storage_id == storage.id for j in junk_items)
+        assert all(j.description and j.value for j in junk_items)
+
     async def test_standard_vault_has_no_seeded_pets(self, async_session, vault) -> None:
         """Standard vaults do not receive seeded pets."""
         from app.crud.item_base import get_items_by_vault

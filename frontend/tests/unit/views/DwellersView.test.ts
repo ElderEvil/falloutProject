@@ -76,7 +76,7 @@ describe('DwellersView', () => {
     router = createRouter({
       history: createMemoryHistory(),
       routes: [
-        { path: '/vault/:id/dwellers', component: DwellersView },
+        { path: '/vault/:id/dwellers', name: 'dwellers', component: DwellersView },
         {
           path: '/vault/:id/dwellers/:dwellerId',
           name: 'dwellerDetail',
@@ -630,19 +630,87 @@ describe('DwellersView', () => {
       expect(_dwellerStore.filter.filterStatus).toBe('idle')
     })
 
-    it('deep-links the care count to the happiness overview', async () => {
+    it.each(['summary', 'dashboard'])(
+      'clears care attention when opening idle through %s',
+      async (entry) => {
+        mockEndpoints([dweller({ status: 'idle', health: 20, happiness: 10 })])
+        const wrapper = await mountView()
+        await flushPromises()
+        await wrapper
+          .find('a[aria-label="Filter the roster to 1 injured or irradiated dwellers"]')
+          .trigger('click')
+        await flushPromises()
+        expect(_dwellerStore.filter.filterFocus).toBe('needs_care')
+
+        if (entry === 'summary') {
+          await wrapper
+            .find('a[aria-label="Filter the roster to 1 idle dwellers"]')
+            .trigger('click')
+        } else {
+          const action = wrapper
+            .findAll('button')
+            .find((button) => button.text().includes('Assign Idle'))
+          expect(action).toBeTruthy()
+          await action!.trigger('click')
+        }
+        await flushPromises()
+        expect(_dwellerStore.filter.filterStatus).toBe('idle')
+        expect(_dwellerStore.filter.filterFocus).toBe('all')
+        expect(router.currentRoute.value.query.filter).toBe('idle')
+        expect(router.currentRoute.value.query.focus).toBeUndefined()
+        wrapper.unmount()
+      }
+    )
+
+    it('filters injured and irradiated dwellers without using medicine', async () => {
       mockEndpoints([dweller({ health: 20 })])
       const wrapper = await mountView()
       await flushPromises()
 
       await wrapper
-        .find(
-          'a[aria-label="Open the happiness overview to treat 1 injured or irradiated dwellers"]'
-        )
+        .find('a[aria-label="Filter the roster to 1 injured or irradiated dwellers"]')
         .trigger('click')
       await flushPromises()
 
-      expect(router.currentRoute.value.name).toBe('happiness')
+      expect(router.currentRoute.value.name).toBe('dwellers')
+      expect(router.currentRoute.value.query.focus).toBe('needs_care')
+      expect(_dwellerStore.filter.filterFocus).toBe('needs_care')
+      expect(axios.post).not.toHaveBeenCalled()
+    })
+
+    it('clears unrelated filters when opening low happiness and sends the attention query', async () => {
+      mockEndpoints([dweller({ happiness: 10 })])
+      await router.push({
+        path: '/vault/vault-1/dwellers',
+        query: {
+          filter: 'working',
+          ageGroup: 'adult',
+          gender: 'male',
+          rarity: 'rare',
+          race: 'human',
+          sortBy: 'level',
+          order: 'desc',
+        },
+      })
+      const wrapper = await mountView()
+      await flushPromises()
+      const action = wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('View Low Happiness'))
+      expect(action).toBeTruthy()
+      await action!.trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query).toEqual({
+        focus: 'low_happiness',
+        sortBy: 'happiness',
+      })
+      expect(_dwellerStore.filter.filterStatus).toBe('all')
+      expect(_dwellerStore.filter.filterFocus).toBe('low_happiness')
+      expect(wrapper.find('.filter-panel summary').text()).toContain('Low Happiness')
+      expect(
+        vi.mocked(axios.get).mock.calls.some(([url]) => String(url).includes('focus=low_happiness'))
+      ).toBe(true)
+      expect(axios.post).not.toHaveBeenCalled()
     })
 
     it('deep-links a critical resource to its production room', async () => {

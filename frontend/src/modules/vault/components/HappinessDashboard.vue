@@ -23,6 +23,7 @@ interface Props {
   radioHappinessMode?: boolean
   severelyIrradiatedDwellerCount?: number
   treatingDwellers?: boolean
+  embedded?: boolean
   loading?: boolean
 }
 
@@ -33,6 +34,7 @@ const {
   radioHappinessMode = false,
   severelyIrradiatedDwellerCount = 0,
   treatingDwellers = false,
+  embedded = false,
   loading = false,
   distribution,
   dwellerCount,
@@ -162,6 +164,10 @@ const hasNegativeModifiers = computed(() => {
   return activeModifiers.value.some((m) => m.severity === 'negative')
 })
 
+const hasLowHappiness = computed(
+  () => dwellerDistribution.value.low > 0 || dwellerDistribution.value.critical > 0
+)
+
 const showTreatmentAction = computed(
   () => severelyIrradiatedDwellerCount >= TREATMENT_MIN_SEVERE_COUNT
 )
@@ -223,13 +229,15 @@ const distributionAriaLabel = computed(() =>
 <template>
   <Card
     v-if="loading"
-    class="happiness-dashboard gap-0 rounded-lg border-2 border-theme-primary/20 bg-surface-raised p-4 shadow-none ring-0"
+    class="happiness-dashboard gap-0 bg-surface-raised p-4 shadow-none ring-0"
+    :class="embedded ? 'rounded-none border-0' : 'rounded-lg border-2 border-theme-primary/20'"
   >
     <Skeleton :style="{ width: '100%', height: '120px' }" class="rounded-lg" />
   </Card>
   <Card
     v-else
-    class="happiness-dashboard gap-0 rounded-lg border-2 border-theme-primary/20 bg-surface-raised p-4 shadow-none ring-0"
+    class="happiness-dashboard gap-0 bg-surface-raised p-4 shadow-none ring-0"
+    :class="embedded ? 'rounded-none border-0' : 'rounded-lg border-2 border-theme-primary/20'"
   >
     <div class="dashboard-content compact-dashboard">
       <!-- Main Happiness Gauge -->
@@ -317,7 +325,10 @@ const distributionAriaLabel = computed(() =>
     </div>
 
     <!-- Quick Actions Footer -->
-    <div v-if="hasNegativeModifiers || showTreatmentAction" class="actions-footer">
+    <div
+      v-if="hasNegativeModifiers || showTreatmentAction || hasLowHappiness"
+      class="actions-footer"
+    >
       <h4 class="section-title">QUICK ACTIONS</h4>
       <div class="actions-grid">
         <Button
@@ -356,7 +367,7 @@ const distributionAriaLabel = computed(() =>
         </Button>
 
         <Button
-          v-if="dwellerDistribution.critical > 0 || dwellerDistribution.low > 0"
+          v-if="hasLowHappiness"
           variant="outline"
           size="sm"
           @click="emit('view-low-happiness')"

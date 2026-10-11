@@ -10,6 +10,22 @@ export type DetailedDweller = DwellerFull
 export type DwellerShort = components['schemas']['DwellerReadLess']
 export type DwellerCreate = components['schemas']['DwellerCreate']
 
+/** Attention filters and overview counts share the API's pet-adjusted health ceiling. */
+export function needsCare(dweller: DwellerShort): boolean {
+  return (
+    dweller.status !== 'dead' &&
+    (dweller.radiation > 0 ||
+      dweller.health <
+        (dweller.effective_max_health ??
+          getEffectiveMaxHealth(dweller.radiation, dweller.max_health)))
+  )
+}
+
+export function hasLowHappiness(dweller: DwellerShort): boolean {
+  const band = getHappinessLevel(dweller.happiness)
+  return dweller.status !== 'dead' && (band === 'low' || band === 'critical')
+}
+
 /** Match the server's medical eligibility rule for supply controls. */
 export function canUseRadaway(
   dweller: { visual_attributes?: { race?: string | null } | null } | null | undefined
@@ -472,6 +488,9 @@ export function isMature(dweller: Pick<Dweller, 'age_group'>): boolean {
 }
 
 /** A dweller with no room assignment that is not dead or away from the vault (available to assign). */
-export function isAvailableUnassignedDweller(dweller: { room_id?: string | null; status: string }): boolean {
+export function isAvailableUnassignedDweller(dweller: {
+  room_id?: string | null
+  status: string
+}): boolean {
   return !dweller.room_id && !['dead', 'questing', 'exploring'].includes(dweller.status)
 }

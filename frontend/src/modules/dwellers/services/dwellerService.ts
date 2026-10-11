@@ -7,6 +7,7 @@ export type AppearanceOptions = components['schemas']['DwellerAppearanceOptions'
 export type FeatureFlags = components['schemas']['FeaturesResponse']
 
 export interface DwellerQueryParams {
+  focus?: components['schemas']['DwellerRosterFocus']
   status?: string
   ageGroup?: string
   gender?: string
@@ -27,6 +28,7 @@ export async function getDwellersByVault(
   params?: DwellerQueryParams
 ): Promise<DwellerShort[]> {
   const query = new URLSearchParams()
+  if (params?.focus) query.append('focus', params.focus)
   if (params?.status) query.append('status', params.status)
   if (params?.ageGroup) query.append('age_group', params.ageGroup)
   if (params?.gender) query.append('gender', params.gender)
@@ -56,7 +58,11 @@ export async function getDweller(id: string, token: string): Promise<Dweller> {
   return response.data
 }
 
-export async function appendBioAddendum(dwellerId: string, text: string, token: string): Promise<Dweller> {
+export async function appendBioAddendum(
+  dwellerId: string,
+  text: string,
+  token: string
+): Promise<Dweller> {
   const response = await axios.post<Dweller>(
     `/api/v1/dwellers/${dwellerId}/bio/addendum/`,
     { text },

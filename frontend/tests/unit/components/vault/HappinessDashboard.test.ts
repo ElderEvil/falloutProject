@@ -14,6 +14,39 @@ describe('HappinessDashboard', () => {
     },
   }
 
+  it.each([false, true])(
+    'only exposes embedded dashboard content when loaded, loading=%s',
+    (loading) => {
+      const wrapper = mount(HappinessDashboard, {
+        props: { ...defaultProps, embedded: true, loading },
+      })
+      expect(wrapper.text().includes('DWELLER DISTRIBUTION')).toBe(!loading)
+      expect(wrapper.findAll('button').length > 0).toBe(!loading)
+      wrapper.unmount()
+    }
+  )
+
+  it('keeps attention actions usable without embedding', async () => {
+    const wrapper = mount(HappinessDashboard, { props: defaultProps })
+    expect(wrapper.text()).toContain('75%')
+    const action = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('View Low Happiness'))
+    expect(action).toBeTruthy()
+    await action!.trigger('click')
+    expect(wrapper.emitted('view-low-happiness')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('offers low-happiness attention even without resource, incident, idle, or care warnings', () => {
+    const wrapper = mount(HappinessDashboard, {
+      props: { ...defaultProps, radioHappinessMode: true },
+    })
+    expect(
+      wrapper.findAll('button').some((button) => button.text().includes('View Low Happiness'))
+    ).toBe(true)
+  })
+
   it('should render happiness gauge with correct percentage', () => {
     const wrapper = mount(HappinessDashboard, {
       props: defaultProps,

@@ -594,20 +594,19 @@ const hasNoData = computed(
                 </div>
               </template>
               <template v-if="authStore.isSuperuser" #tools>
-                <details
-                  class="rounded border border-theme-primary/30 bg-surface-raised p-2 text-xs text-theme-primary"
+                <Button
+                  :variant="fogDisabled ? 'default' : 'outline'"
+                  size="sm"
+                  :class="fogDisabled ? '' : 'bg-surface-raised'"
+                  :aria-pressed="fogDisabled"
+                  @click="fogDisabled = !fogDisabled"
                 >
-                  <summary class="cursor-pointer">Map tools</summary>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    class="mt-2"
-                    :aria-pressed="fogDisabled"
-                    @click="fogDisabled = !fogDisabled"
-                  >
-                    {{ fogDisabled ? 'Restore fog' : 'Remove fog' }}
-                  </Button>
-                </details>
+                  <Icon
+                    :icon="fogDisabled ? 'mdi:weather-fog' : 'mdi:eye-outline'"
+                    class="size-4"
+                  />
+                  {{ fogDisabled ? 'Restore fog' : 'Reveal fog' }}
+                </Button>
               </template>
             </WorldMap>
           </div>

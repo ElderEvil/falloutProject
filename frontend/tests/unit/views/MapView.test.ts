@@ -821,7 +821,7 @@ describe('MapView', () => {
       const wrapper = mountView()
       await flushPromises()
 
-      expect(wrapper.text()).not.toContain('Remove fog')
+      expect(wrapper.text()).not.toContain('Reveal fog')
     })
 
     it('toggles fog removal for admins', async () => {
@@ -838,12 +838,20 @@ describe('MapView', () => {
       const wrapper = mountView()
       await flushPromises()
 
-      const button = wrapper.findAll('button').find((b) => b.text().includes('Remove fog'))
+      const button = wrapper.findAll('button').find((b) => b.text().includes('Reveal fog'))
       expect(button).toBeTruthy()
       await button!.trigger('click')
       await flushPromises()
 
       expect(wrapper.findComponent({ name: 'WorldMap' }).props('fogDisabled')).toBe(true)
+      expect(button!.text()).toContain('Restore fog')
+      expect(button!.attributes('aria-pressed')).toBe('true')
+      expect(wrapper.find('details').exists()).toBe(false)
+      await button!.trigger('click')
+      await flushPromises()
+      expect(wrapper.findComponent({ name: 'WorldMap' }).props('fogDisabled')).toBe(false)
+      expect(button!.text()).toContain('Reveal fog')
+      expect(button!.attributes('aria-pressed')).toBe('false')
     })
   })
 

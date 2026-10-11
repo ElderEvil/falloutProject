@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.195.0 (2026-10-11)
+
+### Features
+
+* improve response team roster clarity and navigation ([#941](https://github.com/ElderEvil/falloutProject/issues/941)) 1877a10
+
+### Documentation
+
+* preserve game-flow continuity research ([#939](https://github.com/ElderEvil/falloutProject/issues/939)) 13cf79f
+
 ## 2.194.2 (2026-10-11)
 
 ### Bug Fixes

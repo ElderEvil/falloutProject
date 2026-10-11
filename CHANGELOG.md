@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.197.0 (2026-10-11)
+
+### Features
+
+* organize exploration activities into tabs ([#948](https://github.com/ElderEvil/falloutProject/issues/948)) f1022e8
+
 ## 2.196.0 (2026-10-11)
 
 ### Features

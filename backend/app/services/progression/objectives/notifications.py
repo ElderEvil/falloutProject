@@ -19,14 +19,6 @@ from app.utils.exceptions import ResourceNotFoundException
 logger = logging.getLogger(__name__)
 
 
-async def _get_vault_owner(db_session: AsyncSession, vault_id: UUID4) -> UUID4 | None:
-    """Get the owner user_id for a vault."""
-    from app.crud.vault import vault as vault_crud
-
-    vault = await vault_crud.get_or_none(db_session, id=vault_id)
-    return vault.user_id if vault else None
-
-
 async def _get_objective(db_session: AsyncSession, objective_id: UUID4) -> Objective | None:
     """Get objective by ID."""
     from app.crud.objective import objective_crud
@@ -59,23 +51,21 @@ async def handle_objective_completed(_event_type: str, vault_id: UUID4, data: di
                 logger.warning(f"Objective {objective_id} not found")
                 return
 
-            # Get vault owner
-            user_id = await _get_vault_owner(db_session, vault_id)
-            if not user_id:
-                logger.warning(f"Vault {vault_id} has no owner, skipping notification")
-                return
-
-            # Send notification
-            await notification_service.notify_objective_completed(
-                db=db_session,
-                user_id=user_id,
-                vault_id=vault_id,
-                objective_challenge=challenge,
-                reward=objective.reward,
-                meta_data={"objective_id": str(objective_id), "reward": objective.reward},
+            await notification_service.notify_owner(
+                db_session,
+                vault_id,
+                sender=lambda user_id: notification_service.notify_objective_completed(
+                    db=db_session,
+                    user_id=user_id,
+                    vault_id=vault_id,
+                    objective_challenge=challenge,
+                    reward=objective.reward,
+                    meta_data={"objective_id": str(objective_id), "reward": objective.reward},
+                ),
+                context=f"objective_completed vault={vault_id} objective={objective_id}",
             )
 
-            logger.info(f"Objective completion notification sent for '{challenge}' to user {user_id}")
+            logger.info(f"Objective completion notification sent for '{challenge}' to vault {vault_id}")
 
         except Exception:
             logger.exception(f"Failed to send objective completion notification for {objective_id}")

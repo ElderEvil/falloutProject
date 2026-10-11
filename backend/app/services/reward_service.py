@@ -164,17 +164,17 @@ class RewardService:
 
     def _build_junk(self, name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
         from app.core.enums import JunkTypeEnum
-        from app.models.junk import Junk
+        from app.utils.item_factory import build_junk
         from app.utils.junk_assets import get_junk_image_url
 
-        return Junk(
-            name=name,
-            rarity=rarity,
-            junk_type=data.get("junk_type", JunkTypeEnum.VALUABLES),
-            description=data.get("description", name),
+        return build_junk(
+            name,
+            rarity,
+            storage_id,
             value=data.get("value"),
+            description=data.get("description", name),
+            junk_type=data.get("junk_type", JunkTypeEnum.VALUABLES),
             image_url=data.get("image_url") or get_junk_image_url(name),
-            storage_id=storage_id,
         )
 
     def _build_pet(self, name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):

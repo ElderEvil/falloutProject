@@ -75,16 +75,19 @@ def build_junk(
     rarity: RarityEnum | str,
     storage_id: UUID4 | None = None,
     *,
-    value: int,
+    value: int | None,
     description: str,
+    junk_type: JunkTypeEnum = JunkTypeEnum.VALUABLES,
+    image_url: str | None = None,
 ) -> Junk:
-    """Build a Junk row; value and description stay caller-owned."""
+    """Build a Junk row; pricing, prose, type and art stay caller-owned."""
     return Junk(
         name=name,
-        junk_type=JunkTypeEnum.VALUABLES,
+        junk_type=junk_type,
         rarity=RarityEnum(rarity),
         value=value,
         description=description,
+        image_url=image_url,
         storage_id=storage_id,
     )
 

@@ -686,10 +686,6 @@ function handleTouchEnd(event: TouchEvent) {
         <span v-if="isZoomed" class="zoom-level">{{ Math.round(zoom * 100) }}%</span>
       </div>
 
-      <div v-if="$slots.status" class="absolute right-2 top-2 z-10 flex flex-col gap-1 sm:flex-row">
-        <slot name="status" />
-      </div>
-
       <section
         v-if="chosenExplorers.length"
         class="absolute bottom-2 right-2 z-20 w-[calc(100%-1rem)] max-w-72 rounded border border-theme-primary bg-surface p-2 text-sm shadow-lg"

@@ -16,6 +16,7 @@ import { getErrorMessage } from '@/core/utils/errorHandler'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
+import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import { Skeleton } from '@/core/components/ui/skeleton'
 import { Button } from '@/core/components/ui/button'
 import {
@@ -488,7 +489,38 @@ const hasNoData = computed(
             title="World Map"
             icon="mdi:map"
             subtitle="Track discoveries, expeditions & the wider wasteland."
-          />
+          >
+            <template #actions>
+              <Button
+                variant="ghost"
+                class="h-auto p-0"
+                aria-label="View parties out"
+                :disabled="partiesOut === 0"
+                @click="openExploration()"
+              >
+                <PageHeaderMetric
+                  icon="mdi:account-group"
+                  :value="partiesOut"
+                  label="Parties out"
+                />
+              </Button>
+              <Button
+                variant="ghost"
+                class="h-auto p-0"
+                aria-label="Filter ready to clear places"
+                :aria-pressed="readyOnly"
+                :disabled="readyLocationIds.length === 0 && !readyOnly"
+                @click="toggleReadyPlaces"
+              >
+                <PageHeaderMetric
+                  icon="mdi:flag-checkered"
+                  :value="readyLocationIds.length"
+                  label="Ready to clear"
+                  :class="{ 'ring-1 ring-theme-primary': readyOnly }"
+                />
+              </Button>
+            </template>
+          </PageHeader>
 
           <!-- Loading skeleton -->
           <div v-if="mapStore.isLoading" class="map-skeleton">
@@ -571,31 +603,7 @@ const hasNoData = computed(
               @vault-info="handleVaultInfo"
               @dweller-click="onDwellerClick"
               @party-click="openExploration"
-            >
-              <template #status>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  class="bg-surface"
-                  :disabled="partiesOut === 0"
-                  @click="openExploration()"
-                >
-                  <Icon icon="mdi:account-group" class="size-4" />
-                  Parties out · {{ partiesOut }}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  class="bg-surface"
-                  :aria-pressed="readyOnly"
-                  :disabled="readyLocationIds.length === 0 && !readyOnly"
-                  @click="toggleReadyPlaces"
-                >
-                  <Icon icon="mdi:flag-checkered" class="size-4" />
-                  Ready to clear · {{ readyLocationIds.length }}
-                </Button>
-              </template>
-            </WorldMap>
+            />
           </div>
 
           <!-- Explorer popover: dweller summary anchored to the clicked marker -->

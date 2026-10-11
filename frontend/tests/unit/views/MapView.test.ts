@@ -114,7 +114,10 @@ describe('MapView', () => {
       global: {
         stubs: {
           SidePanel: true,
-          PageHeader: true,
+          PageHeader: {
+            name: 'PageHeader',
+            template: '<header class="page-header-stub"><slot name="actions" /></header>',
+          },
           USkeleton: true,
           WorldMap: {
             name: 'WorldMap',
@@ -790,6 +793,9 @@ describe('MapView', () => {
       await flushPromises()
       const parties = wrapper.findAll('button').find((b) => b.text().includes('Parties out'))!
       const ready = wrapper.findAll('button').find((b) => b.text().includes('Ready to clear'))!
+      expect(wrapper.find('.page-header-stub').text()).toContain('Parties out')
+      expect(wrapper.find('.page-header-stub').text()).toContain('Ready to clear')
+      expect(wrapper.find('.world-map-stub').text()).not.toContain('Parties out')
       expect(parties.text()).toContain('2')
       expect(ready.text()).toContain('2')
       await parties.trigger('click')

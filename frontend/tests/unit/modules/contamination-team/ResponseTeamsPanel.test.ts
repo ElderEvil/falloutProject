@@ -34,11 +34,9 @@ const findButton = (wrapper: ReturnType<typeof mountWithSetup>, label: string) =
   wrapper.findAll('button').find((b) => b.text().includes(label))!
 
 describe('ResponseTeamsPanel', () => {
-  it('explains earned membership and capacity without claiming readiness', () => {
+  it('keeps actionable capacity guidance visible', () => {
     const wrapper = mountPanel()
     expect(wrapper.text()).toContain('1 / 3 active places')
-    expect(wrapper.text()).toContain('Membership is earned')
-    expect(wrapper.text()).toContain('when available')
     expect(wrapper.text()).toContain('2 open places')
   })
 

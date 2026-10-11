@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Button } from '@/core/components/ui/button'
 import { Icon } from '@iconify/vue'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -93,6 +92,38 @@ const handleSetPlace = async (team: HazardTeam, dwellerId: string, active: boole
           icon="mdi:account-hard-hat"
           subtitle="Plan your standing hazard crews and inspect the dwellers who respond."
         >
+          <template #help>
+            <section>
+              <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                <Icon icon="mdi:shield-star-outline" class="size-4 shrink-0" />
+                Earn membership
+              </h2>
+              <p>
+                Dwellers qualify by participating in three matching incidents. Fire and radiation
+                teams have separate membership.
+              </p>
+            </section>
+            <section>
+              <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                <Icon icon="mdi:alarm-light-outline" class="size-4 shrink-0" />
+                Automatic response
+              </h2>
+              <p>
+                Active members automatically answer matching hazards when available. Holding an
+                active place does not guarantee a dweller is available to respond.
+              </p>
+            </section>
+            <section>
+              <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                <Icon icon="mdi:account-group-outline" class="size-4 shrink-0" />
+                Plan your crew
+              </h2>
+              <p>
+                Reserves wait for an active place. Use Bench and Activate to change the roster, and
+                open a member’s name to inspect their health and equipment.
+              </p>
+            </section>
+          </template>
           <template #actions>
             <template v-if="roster">
               <PageHeaderMetric
@@ -106,17 +137,6 @@ const handleSetPlace = async (team: HazardTeam, dwellerId: string, active: boole
                 label="Reserve"
               />
             </template>
-            <Button
-              variant="outline"
-              size="sm"
-              :disabled="isLoading || busyDwellerIds.size > 0"
-              @click="loadRoster"
-            >
-              <Icon icon="mdi:refresh" class="size-4" />Refresh
-            </Button>
-            <Button variant="outline" size="sm" @click="router.push(`/vault/${vaultId}`)"
-              >View vault incidents</Button
-            >
           </template>
         </PageHeader>
 

@@ -274,6 +274,42 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
           icon="mdi:compass"
           subtitle="Monitor active explorations and quest parties"
         >
+          <template #help>
+            <section>
+              <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                <Icon icon="mdi:bag-personal-outline" class="size-4 shrink-0" />
+                Prepare your expedition
+              </h2>
+              <p>
+                Choose your dwellers, equipment, destination, and medical supplies before departure.
+                Available crew and supplies determine what you can send; use the map to inspect
+                places and plan targeted trips.
+              </p>
+            </section>
+            <section>
+              <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                <Icon icon="mdi:map-marker-path" class="size-4 shrink-0" />
+                Travel and recall
+              </h2>
+              <p>
+                Explorers face encounters while away. Recall starts the journey home rather than
+                bringing them back immediately. Follow travel progress and encounter decisions here;
+                returning dwellers remain unavailable until they arrive.
+              </p>
+            </section>
+            <section>
+              <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                <Icon icon="mdi:clipboard-check-outline" class="size-4 shrink-0" />
+                Review the return
+              </h2>
+              <p>
+                Exploration caps, XP, and loot that fits in storage are settled on arrival. The
+                report explains the outcome; acknowledging it does not grant those rewards again. If
+                storage is full, choose what to take or sell, or resolve the remaining loot later.
+                Quest parties have a separate reward claim after returning.
+              </p>
+            </section>
+          </template>
           <template #actions>
             <PageHeaderMetric
               icon="mdi:account-arrow-right"

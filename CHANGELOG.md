@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.199.2 (2026-10-11)
+
+### Bug Fixes
+
+* **combat:** apply pet protection in defender snapshots ([#952](https://github.com/ElderEvil/falloutProject/issues/952)) 2fdb180
+
 ## 2.199.1 (2026-10-11)
 
 ### Bug Fixes

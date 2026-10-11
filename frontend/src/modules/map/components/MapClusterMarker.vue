@@ -7,6 +7,7 @@ interface Props {
   /** Number of individual markers collapsed into this badge. */
   count: number
   scale?: number
+  label?: string
   /** At least one member is an unseen discovery — keep the discovery pulse. */
   unseen?: boolean
 }
@@ -20,7 +21,7 @@ const emit = defineEmits<{
   (e: 'click'): void
 }>()
 
-const tooltipText = computed(() => `Zoom in — ${props.count} nearby discoveries`)
+const tooltipText = computed(() => props.label ?? `Zoom in — ${props.count} nearby discoveries`)
 
 function handleClick() {
   emit('click')

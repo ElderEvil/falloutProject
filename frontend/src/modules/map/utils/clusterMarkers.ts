@@ -8,7 +8,7 @@
  * fully deterministic — same input always yields the same clusters — so the
  * rendered badges are stable across re-renders and polling.
  *
- * The caller feeds spread-adjusted positions, so clusters match what is drawn.
+ * Coordinates remain authoritative; badges render at their members' centroid.
  */
 
 export interface ClusterPoint {
@@ -29,6 +29,8 @@ export interface MarkerCluster {
 export interface ClusterOptions {
   /** Grid cell size in map units at zoom 1. Default 16. */
   cellSize?: number
+  /** Group touching points by distance instead of grid cells (map units at zoom 1). */
+  distance?: number
   /** Current map zoom (>= 1). Effective cell size is cellSize / zoom. Default 1. */
   zoom?: number
 }
@@ -42,9 +44,9 @@ function compareIds(a: string, b: string): number {
 }
 
 /**
- * Bucket points into zoom-scaled grid cells.
+ * Group points by zoom-scaled grid cells, or touching distance when requested.
  *
- * Returns one cluster per occupied cell, in a stable order. A cell with a
+ * Returns clusters in a stable order. A group with a
  * single point comes back as a singleton cluster at the point's exact
  * position, so callers can render it through the normal marker path.
  */
@@ -56,7 +58,18 @@ export function clusterMarkers(
     (options.cellSize ?? DEFAULT_CLUSTER_CELL_SIZE) / Math.max(options.zoom ?? 1, 0.01)
 
   const buckets = new Map<string, ClusterPoint[]>()
-  for (const point of points) {
+  const distance =
+    options.distance === undefined ? null : options.distance / Math.max(options.zoom ?? 1, 0.01)
+  for (const point of [...points].sort((a, b) => compareIds(a.id, b.id))) {
+    if (distance !== null) {
+      const touching = [...buckets.entries()].filter(([, members]) =>
+        members.some((member) => Math.hypot(member.x - point.x, member.y - point.y) <= distance)
+      )
+      const key = touching[0]?.[0] ?? point.id
+      for (const [id] of touching) buckets.delete(id)
+      buckets.set(key, [point, ...touching.flatMap(([, members]) => members)])
+      continue
+    }
     const cellX = Math.floor(point.x / cellSize)
     const cellY = Math.floor(point.y / cellSize)
     const key = `${cellX}:${cellY}`

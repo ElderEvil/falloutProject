@@ -375,6 +375,8 @@ function attentionQuery(focus: Exclude<DwellerRosterFocus, 'all'>): LocationQuer
   }
 }
 
+const idleQuery = computed(() => ({ ...filtersToQuery(), focus: undefined, filter: 'idle' }))
+
 /** Concrete, clickable problems for the collapsed overview, each with its next action. */
 const summaryIssues = computed<SummaryIssue[]>(() => {
   const data = happinessDashboardData.value
@@ -388,7 +390,7 @@ const summaryIssues = computed<SummaryIssue[]>(() => {
       icon: 'mdi:coffee-outline',
       label: `${data.idleDwellerCount} idle`,
       ariaLabel: `Filter the roster to ${data.idleDwellerCount} idle dwellers`,
-      to: { query: { ...filtersToQuery(), filter: 'idle' } },
+      to: { query: idleQuery.value },
       tone: 'warning',
     })
   }
@@ -571,7 +573,7 @@ const handleQuickUnassign = async (dwellerId: string) => {
 
 // Happiness dashboard event handlers
 const handleAssignIdle = () => {
-  dwellerStore.setFilterStatus('idle')
+  void router.push({ query: idleQuery.value })
 }
 
 const { run: runActivateRadio, isLoading: isActivatingRadio } = useAsyncAction(

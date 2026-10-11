@@ -630,6 +630,38 @@ describe('DwellersView', () => {
       expect(_dwellerStore.filter.filterStatus).toBe('idle')
     })
 
+    it.each(['summary', 'dashboard'])(
+      'clears care attention when opening idle through %s',
+      async (entry) => {
+        mockEndpoints([dweller({ status: 'idle', health: 20, happiness: 10 })])
+        const wrapper = await mountView()
+        await flushPromises()
+        await wrapper
+          .find('a[aria-label="Filter the roster to 1 injured or irradiated dwellers"]')
+          .trigger('click')
+        await flushPromises()
+        expect(_dwellerStore.filter.filterFocus).toBe('needs_care')
+
+        if (entry === 'summary') {
+          await wrapper
+            .find('a[aria-label="Filter the roster to 1 idle dwellers"]')
+            .trigger('click')
+        } else {
+          const action = wrapper
+            .findAll('button')
+            .find((button) => button.text().includes('Assign Idle'))
+          expect(action).toBeTruthy()
+          await action!.trigger('click')
+        }
+        await flushPromises()
+        expect(_dwellerStore.filter.filterStatus).toBe('idle')
+        expect(_dwellerStore.filter.filterFocus).toBe('all')
+        expect(router.currentRoute.value.query.filter).toBe('idle')
+        expect(router.currentRoute.value.query.focus).toBeUndefined()
+        wrapper.unmount()
+      }
+    )
+
     it('filters injured and irradiated dwellers without using medicine', async () => {
       mockEndpoints([dweller({ health: 20 })])
       const wrapper = await mountView()

@@ -30,7 +30,12 @@ from app.schemas.exploration_event import (
 from app.services.exploration import data_loader
 from app.services.exploration.event_generator import describe_discovery, event_generator
 from app.services.notification_service import notification_service
-from app.services.radiation_service import apply_radiation_gain, radiation_removal_amount
+from app.services.radiation_service import (
+    apply_health_gain,
+    apply_radiation_gain,
+    radiation_removal_amount,
+    stimpack_heal_amount,
+)
 from app.services.stream_manager import sse_manager
 from app.utils.combat import expedition_combat_profile
 from app.utils.item_factory import build_catalog_item
@@ -171,10 +176,9 @@ async def auto_use_supplies(db_session: AsyncSession, exploration: Exploration) 
         db_session.add(exploration)
 
     if exploration.stimpaks > 0 and dweller_obj.health < max_health * 0.5:
-        healing = max(1, int(max_health * game_config.health.stimpack_heal_percent))
-        actual_healing = min(dweller_obj.effective_max_health, dweller_obj.health + healing) - dweller_obj.health
+        old_health = dweller_obj.health
+        actual_healing = apply_health_gain(dweller_obj, stimpack_heal_amount(max_health)) - old_health
         if actual_healing > 0:
-            dweller_obj.health += actual_healing
             exploration.stimpaks -= 1
             records.append(
                 exploration.add_event(
@@ -408,9 +412,9 @@ class EventService:
         """Apply health restoration to dweller; return the HP actually restored."""
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
         old_health = dweller_obj.health
-        dweller_obj.health = min(dweller_obj.effective_max_health, old_health + healing)
+        new_health = apply_health_gain(dweller_obj, healing)
         db_session.add(dweller_obj)
-        return dweller_obj.health - old_health
+        return new_health - old_health
 
     async def _handle_auto_equip(
         self,

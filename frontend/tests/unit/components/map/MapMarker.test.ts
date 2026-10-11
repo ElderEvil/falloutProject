@@ -608,13 +608,24 @@ describe('MapMarker', () => {
 describe('MapMarker zoom compensation', () => {
   it('uses place-group color only for known places, keeping risk as text', async () => {
     const wrapper = mount(MapMarker, {
-      props: { x: 20, y: 30, name: 'Camp', type: 'discovery', color: 'var(--color-group-military)', risk: 'high' },
+      props: {
+        x: 20,
+        y: 30,
+        name: 'Camp',
+        type: 'discovery',
+        color: 'var(--color-group-military)',
+        risk: 'high',
+      },
       global: { stubs: { Icon: true } },
     })
-    expect(wrapper.find('.marker-glyph').attributes('style')).toContain('var(--color-group-military)')
+    expect(wrapper.find('.marker-glyph').attributes('style')).toContain(
+      'var(--color-group-military)'
+    )
     expect(wrapper.attributes('aria-label')).toContain('High risk')
     await wrapper.setProps({ is_unlocked: false })
-    expect(wrapper.find('.marker-glyph').attributes('style')).toContain('var(--color-theme-primary)')
+    expect(wrapper.find('.marker-glyph').attributes('style')).toContain(
+      'var(--color-theme-primary)'
+    )
     expect(wrapper.attributes('aria-label')).not.toContain('High risk')
   })
 

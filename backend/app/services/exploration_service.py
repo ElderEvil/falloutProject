@@ -7,9 +7,8 @@ the modular exploration system in services/exploration/ modules.
 import logging
 import math
 import random
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import TypedDict
 from uuid import uuid4
 
 from pydantic import UUID4
@@ -49,18 +48,6 @@ from app.utils.place_groups import effective_place_group
 from app.utils.vault_slots import slot_coords
 
 logger = logging.getLogger(__name__)
-
-
-class _DepartureStatSnapshot(TypedDict):
-    """The 7-field SPECIAL snapshot every departure row carries at construction."""
-
-    dweller_strength: int
-    dweller_perception: int
-    dweller_endurance: int
-    dweller_charisma: int
-    dweller_intelligence: int
-    dweller_agility: int
-    dweller_luck: int
 
 
 def dispatch_travel_hours(distance: float) -> int:
@@ -192,12 +179,17 @@ class ExplorationService:
         :raises ValueError: If dweller is already exploring or lacks supplies
         """
         existing = await crud_exploration.get_by_dweller(db_session, dweller_id=dweller_id)
-        self._reject_if_in_progress(existing, ValueError)
+        if existing:
+            msg = "Dweller is already on an exploration"
+            raise ValueError(msg)
 
         # Validate that stimpaks and radaways are non-negative
-        self._reject_negative_supplies(
-            stimpaks, radaways, error=ValueError, message_for=lambda n, v: f"{n} cannot be negative. Provided: {v}"
-        )
+        if stimpaks < 0:
+            msg = f"Stimpaks cannot be negative. Provided: {stimpaks}"
+            raise ValueError(msg)
+        if radaways < 0:
+            msg = f"Radaways cannot be negative. Provided: {radaways}"
+            raise ValueError(msg)
 
         # Resolve origin/world before staging: snapshot generation commits, so
         # resolving later would split the departure transaction.
@@ -221,15 +213,24 @@ class ExplorationService:
 
         # Get total available (vault + dweller)
         dweller = await dweller_crud.get(db_session, dweller_id)
-        self._require_vault_membership(dweller, vault_id, ValueError)
+        if dweller.vault_id != vault_id:
+            raise ValueError("Dweller does not belong to this vault")
         if radaways > 0 and not can_use_radaway(dweller):
             raise ValueError("This dweller cannot carry RadAway")
-        self._require_available(dweller, ValueError)
+        reason = availability_error(dweller, require_healthy=True)
+        if reason is not None:
+            raise ValueError(reason)
         dweller_stimpaks = dweller.stimpack or 0
         dweller_radaways = dweller.radaway or 0
         total_stimpaks = vault_stimpaks + dweller_stimpaks
         total_radaways = vault_radaways + dweller_radaways
-        self._require_available_supplies(stimpaks, radaways, total_stimpaks, total_radaways, ValueError)
+
+        if stimpaks > total_stimpaks:
+            msg = f"Total available stimpaks: {total_stimpaks}"
+            raise ValueError(msg)
+        if radaways > total_radaways:
+            msg = f"Total available radaways: {total_radaways}"
+            raise ValueError(msg)
 
         # Departure and room removal must be committed together so a failed
         # dispatch never leaves the dweller unexpectedly unassigned.
@@ -263,7 +264,6 @@ class ExplorationService:
                 commit=False,
             )
 
-        # Total supplies for exploration
         start_time = datetime.utcnow()
         exploration = Exploration(
             id=exploration_id,
@@ -272,7 +272,13 @@ class ExplorationService:
             duration=duration,
             stimpaks=stimpaks,
             radaways=radaways,
-            **self._stage_stat_snapshot(dweller),
+            dweller_strength=dweller.strength,
+            dweller_perception=dweller.perception,
+            dweller_endurance=dweller.endurance,
+            dweller_charisma=dweller.charisma,
+            dweller_intelligence=dweller.intelligence,
+            dweller_agility=dweller.agility,
+            dweller_luck=dweller.luck,
             start_time=start_time,
             status=ExplorationStatus.ACTIVE,
         )
@@ -298,93 +304,13 @@ class ExplorationService:
         exploration.position_as_of = start_time if origin else None
 
     @staticmethod
-    def _reject_if_in_progress(
-        existing: Exploration | Sequence[Exploration] | None, error: Callable[[str], Exception]
-    ) -> None:
-        """Reject a dweller who already has an in-progress run (one shared message)."""
-        if existing:
-            raise error("Dweller is already on an exploration")
-
-    @staticmethod
-    def _require_vault_membership(dweller: Dweller, vault_id: UUID4, error: Callable[[str], Exception]) -> None:
-        """Reject a dweller the vault does not own."""
-        if dweller.vault_id != vault_id:
-            raise error("Dweller does not belong to this vault")
-
-    @staticmethod
-    def _require_available(dweller: Dweller, error: Callable[[str], Exception]) -> None:
-        """Reject a dweller that cannot go right now (departures require health)."""
-        reason = availability_error(dweller, require_healthy=True)
-        if reason is not None:
-            raise error(reason)
-
-    async def _load_available_members(
-        self,
-        db_session: AsyncSession,
-        *,
-        vault_id: UUID4,
-        dweller_ids: Sequence[UUID4],
-        error: Callable[[str], Exception],
-    ) -> list[Dweller]:
-        """Load a departure roster, rejecting any dweller that cannot go.
-
-        Shared by targeted dispatches; the solo roam path calls the two checks
-        directly so its RadAway-carry rule keeps its rejection ordering.
-        """
-        dwellers: list[Dweller] = []
-        for dweller_id in dweller_ids:
-            dweller = await dweller_crud.get(db_session, dweller_id)
-            self._require_vault_membership(dweller, vault_id, error)
-            self._require_available(dweller, error)
-            dwellers.append(dweller)
-        return dwellers
-
-    @staticmethod
-    def _reject_negative_supplies(
-        stimpaks: int, radaways: int, *, error: Callable[[str], Exception], message_for: Callable[[str, int], str]
-    ) -> None:
-        """Reject negative supply requests; ``message_for`` keeps each path's wording."""
-        if stimpaks < 0:
-            raise error(message_for("Stimpaks", stimpaks))
-        if radaways < 0:
-            raise error(message_for("Radaways", radaways))
-
-    @staticmethod
-    def _require_available_supplies(
-        stimpaks: int,
-        radaways: int,
-        available_stimpaks: int,
-        available_radaways: int,
-        error: Callable[[str], Exception],
-    ) -> None:
-        """Reject supplies beyond what the departure's sources hold (roam adds dweller inventory)."""
-        if stimpaks > available_stimpaks:
-            raise error(f"Total available stimpaks: {available_stimpaks}")
-        if radaways > available_radaways:
-            raise error(f"Total available radaways: {available_radaways}")
-
-    @staticmethod
     def _deduct_storage_supplies(
         db_session: AsyncSession, storage: Storage | None, stimpaks: int, radaways: int
     ) -> None:
-        """Deduct departure supplies from vault storage (dispatch: all; roam: the vault share)."""
-        if (stimpaks or radaways) and storage is not None:
+        if storage is not None and (stimpaks or radaways):
             storage.stimpack = (storage.stimpack or 0) - stimpaks
             storage.radaway = (storage.radaway or 0) - radaways
             db_session.add(storage)
-
-    @staticmethod
-    def _stage_stat_snapshot(dweller: Dweller) -> _DepartureStatSnapshot:
-        """The 7-field SPECIAL snapshot staged onto a departure row at construction."""
-        return {
-            "dweller_strength": dweller.strength,
-            "dweller_perception": dweller.perception,
-            "dweller_endurance": dweller.endurance,
-            "dweller_charisma": dweller.charisma,
-            "dweller_intelligence": dweller.intelligence,
-            "dweller_agility": dweller.agility,
-            "dweller_luck": dweller.luck,
-        }
 
     async def _persist_departure(
         self,
@@ -509,11 +435,18 @@ class ExplorationService:
             raise ValidationException(f"Party size must be 1-{max_party_size}")
 
         in_progress = await crud_exploration.get_in_progress_for_dwellers(db_session, dweller_ids)
-        self._reject_if_in_progress(in_progress, ValidationException)
+        if in_progress:
+            raise ValidationException("Dweller is already on an exploration")
 
-        dwellers = await self._load_available_members(
-            db_session, vault_id=vault_id, dweller_ids=dweller_ids, error=ValidationException
-        )
+        dwellers: list[Dweller] = []
+        for dweller_id in dweller_ids:
+            dweller = await dweller_crud.get(db_session, dweller_id)
+            if dweller.vault_id != vault_id:
+                raise ValidationException("Dweller does not belong to this vault")
+            reason = availability_error(dweller, require_healthy=True)
+            if reason is not None:
+                raise ValidationException(reason)
+            dwellers.append(dweller)
 
         pair = await crud_world_location.get_state_with_location(db_session, vault_id, location_id)
         if pair is None:
@@ -536,9 +469,8 @@ class ExplorationService:
         distance = math.dist(origin, (location.coord_x, location.coord_y))
         duration = dispatch_travel_hours(distance)
         tier = min(state.clear_count, game_config.exploration.dispatch.escalation_cap)
-        self._reject_negative_supplies(
-            stimpaks, radaways, error=ValidationException, message_for=lambda n, v: "Supplies cannot be negative"
-        )
+        if stimpaks < 0 or radaways < 0:
+            raise ValidationException("Supplies cannot be negative")
         storage = await crud_storage.get_by_vault(db_session, vault_id)
         self._require_supplies(storage, stimpaks, radaways)
         # Snapshot generation commits when it creates a row; resolve it before
@@ -563,7 +495,13 @@ class ExplorationService:
             duration=duration,
             stimpaks=stimpaks,
             radaways=radaways,
-            **self._stage_stat_snapshot(anchor),
+            dweller_strength=anchor.strength,
+            dweller_perception=anchor.perception,
+            dweller_endurance=anchor.endurance,
+            dweller_charisma=anchor.charisma,
+            dweller_intelligence=anchor.intelligence,
+            dweller_agility=anchor.agility,
+            dweller_luck=anchor.luck,
             target_location_id=location_id,
             clear_tier=tier,
             start_time=datetime.utcnow(),
@@ -593,9 +531,10 @@ class ExplorationService:
         """Reject a dispatch whose requested supplies exceed the storage row."""
         available_stimpaks = storage.stimpack if storage else 0
         available_radaways = storage.radaway if storage else 0
-        ExplorationService._require_available_supplies(
-            stimpaks, radaways, available_stimpaks, available_radaways, ValidationException
-        )
+        if stimpaks > available_stimpaks:
+            raise ValidationException(f"Total available stimpaks: {available_stimpaks}")
+        if radaways > available_radaways:
+            raise ValidationException(f"Total available radaways: {available_radaways}")
 
     @staticmethod
     def _speed() -> float:

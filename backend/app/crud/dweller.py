@@ -490,8 +490,10 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         return list((await db_session.execute(query)).scalars().all())
 
     async def get_healthy_adults_by_vault(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
-        """Adult dwellers with positive health in a vault, weapon/outfit eager-loaded."""
-        query = self._vault_query(vault_id, *self._healthy_adult_conditions()).options(*_WEAPON_OUTFIT_LOADS)
+        """Adult dwellers with positive health in a vault, weapon/outfit/pet eager-loaded."""
+        query = self._vault_query(vault_id, *self._healthy_adult_conditions()).options(
+            *_WEAPON_OUTFIT_LOADS, selectinload(Dweller.pet)
+        )
         return list((await db_session.execute(query)).scalars().all())
 
     async def get_by_ids_in_vault(

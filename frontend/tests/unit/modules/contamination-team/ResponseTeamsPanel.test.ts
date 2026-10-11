@@ -34,6 +34,25 @@ const findButton = (wrapper: ReturnType<typeof mountWithSetup>, label: string) =
   wrapper.findAll('button').find((b) => b.text().includes(label))!
 
 describe('ResponseTeamsPanel', () => {
+  it('explains earned membership and capacity without claiming readiness', () => {
+    const wrapper = mountPanel()
+    expect(wrapper.text()).toContain('1 / 3 active places')
+    expect(wrapper.text()).toContain('Membership is earned')
+    expect(wrapper.text()).toContain('when available')
+    expect(wrapper.text()).toContain('2 open places')
+  })
+
+  it('opens member details and offers a retry after load failure', async () => {
+    const wrapper = mountPanel()
+    await findButton(wrapper, 'John Doe').trigger('click')
+    expect(wrapper.emitted('view-dweller')).toEqual([['d1']])
+    const failed = mountWithSetup(ResponseTeamsPanel, {
+      props: { roster: null, loading: false, error: 'Signal lost' },
+    })
+    await findButton(failed, 'Retry').trigger('click')
+    expect(failed.emitted('refresh')).toHaveLength(1)
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -110,10 +129,7 @@ describe('ResponseTeamsPanel', () => {
       reserve: [{ dweller_id: 'd2', status: 'idle', name: 'Jane', level: 8 }],
     }
     const wrapper = mountPanel({
-      teams: [
-        fullTeam,
-        { team: 'radiation', active: [], reserve: [] },
-      ],
+      teams: [fullTeam, { team: 'radiation', active: [], reserve: [] }],
     })
 
     const activate = findButton(wrapper, 'Activate')

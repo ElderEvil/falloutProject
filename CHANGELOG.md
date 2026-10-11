@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.199.1 (2026-10-11)
+
+### Bug Fixes
+
+* recover objective evaluation after reward rollback ([#951](https://github.com/ElderEvil/falloutProject/issues/951)) f726310
+
 ## 2.199.0 (2026-10-11)
 
 ### Features

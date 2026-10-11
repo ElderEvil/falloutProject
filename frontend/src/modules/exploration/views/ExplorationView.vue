@@ -22,6 +22,7 @@ import ExplorationEventLog from '@/modules/exploration/components/ExplorationEve
 import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
 import { Button } from '@/core/components/ui/button'
 import { Card } from '@/core/components/ui/card'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/core/components/ui/tabs'
 import {
   Tooltip,
   TooltipContent,
@@ -45,6 +46,25 @@ const { playMusic } = useSound()
 const vaultId = computed(() => route.params.id as string)
 const selectedExplorerId = ref<string | null>(null)
 const selectedQuestPartyId = ref<string | null>(null)
+const activeTab = ref('explorers')
+let tabChosen = false
+const tabs = computed(() => [
+  {
+    key: 'explorers',
+    label: `Active explorers (${activeExplorerCount.value})`,
+    icon: 'mdi:account-search',
+  },
+  {
+    key: 'quests',
+    label: `Quest parties (${activeQuestsWithParty.value.length})`,
+    icon: 'mdi:sword-cross',
+  },
+])
+function selectActivityTab(value: string) {
+  if (value !== 'explorers' && value !== 'quests') return
+  tabChosen = true
+  activeTab.value = value
+}
 
 const { isLoading: explorationLoading, error: explorationError } = storeToRefs(explorationStore)
 
@@ -123,6 +143,13 @@ const loadData = async () => {
 onMounted(async () => {
   playMusic('exploration')
   await loadData()
+  if (
+    !tabChosen &&
+    activeExplorationsArray.value.length === 0 &&
+    activeQuestsWithParty.value.length > 0
+  ) {
+    activeTab.value = 'quests'
+  }
   if (vaultId.value && authStore.token) {
     explorationStore.startSseSubscription(vaultId.value, authStore.token)
     pendingOverflow.value = await explorationStore.fetchPendingOverflow(
@@ -344,26 +371,23 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
 
           <!-- Explorer Cards List -->
           <div v-else class="explorers-section">
-            <div
-              v-if="activeExplorationsArray.length === 0 && activeQuestsWithParty.length === 0"
-              class="empty-state"
-            >
-              <Icon icon="mdi:compass-off" class="empty-icon" />
-              <h3 class="empty-title">No Active Activities</h3>
-              <p class="empty-text">
-                Send dwellers to the wasteland or assign quest parties to see them here.
-              </p>
-            </div>
+            <Tabs :model-value="activeTab" @update:model-value="selectActivityTab(String($event))">
+              <TabsList>
+                <TabsTrigger v-for="tab in tabs" :key="tab.key" :value="tab.key">
+                  <Icon :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
+                  {{ tab.label }}
+                </TabsTrigger>
+              </TabsList>
 
-            <div v-else class="activity-groups">
-              <section v-if="activeExplorationsArray.length > 0" class="activity-group">
-                <div class="activity-heading">
-                  <div>
-                    <span class="activity-kicker">Wasteland</span>
-                    <h2>Active explorers</h2>
-                  </div>
+              <TabsContent value="explorers" class="py-2 text-base">
+                <div v-if="activeExplorationsArray.length === 0" class="empty-state">
+                  <Icon icon="mdi:compass-off" class="empty-icon" />
+                  <h3 class="empty-title">No Active Explorers</h3>
+                  <p class="empty-text">
+                    Send dwellers to the wasteland to see their expeditions here.
+                  </p>
                 </div>
-                <div class="explorers-grid">
+                <div v-else class="explorers-grid">
                   <ExplorerCard
                     v-for="exploration in activeExplorationsArray"
                     :key="exploration.id"
@@ -376,17 +400,15 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
                     @recall="handleRecallExploration"
                   />
                 </div>
-              </section>
+              </TabsContent>
 
-              <section v-if="activeQuestsWithParty.length > 0" class="activity-group">
-                <div class="activity-heading">
-                  <div>
-                    <span class="activity-kicker">Overseer dispatch</span>
-                    <h2>Quest parties</h2>
-                  </div>
-                  <span>{{ activeQuestsWithParty.length }} in progress</span>
+              <TabsContent value="quests" class="py-2 text-base">
+                <div v-if="activeQuestsWithParty.length === 0" class="empty-state">
+                  <Icon icon="mdi:sword-cross" class="empty-icon" />
+                  <h3 class="empty-title">No Quest Parties</h3>
+                  <p class="empty-text">Assign parties to quests to follow their progress here.</p>
                 </div>
-                <div class="explorers-grid">
+                <div v-else class="explorers-grid">
                   <QuestPartyCard
                     v-for="quest in activeQuestsWithParty"
                     :key="quest.id"
@@ -396,12 +418,12 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
                     @select="selectedQuestPartyId = quest.id"
                   />
                 </div>
-              </section>
-            </div>
+              </TabsContent>
+            </Tabs>
           </div>
 
           <!-- Event Timeline Sidebar -->
-          <div v-if="selectedExploration" class="timeline-section">
+          <div v-if="activeTab === 'explorers' && selectedExploration" class="timeline-section">
             <div class="timeline-header">
               <div class="timeline-title">
                 <Icon icon="mdi:timeline-text" class="mr-2" />
@@ -475,45 +497,6 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
 
 .explorers-section {
   min-height: 400px;
-}
-
-.activity-groups {
-  display: grid;
-  gap: 2rem;
-}
-
-.activity-group {
-  display: grid;
-  gap: 1rem;
-}
-
-.activity-heading {
-  align-items: end;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
-  display: flex;
-  justify-content: space-between;
-  padding-bottom: 0.75rem;
-}
-
-.activity-kicker {
-  color: var(--color-theme-accent);
-  display: block;
-  font-size: 0.7rem;
-  letter-spacing: 0.12em;
-  margin-bottom: 0.25rem;
-  text-transform: uppercase;
-}
-
-.activity-heading h2 {
-  color: var(--color-theme-primary);
-  font-size: 1.2rem;
-  font-weight: 700;
-}
-
-.activity-heading > span {
-  color: var(--color-theme-primary);
-  font-size: 0.75rem;
-  opacity: 0.7;
 }
 
 /* Error State */

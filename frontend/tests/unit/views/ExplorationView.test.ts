@@ -219,6 +219,8 @@ describe('ExplorationView', () => {
     })
     await flushPromises()
 
+    expect(wrapper.findAll('[role="tab"]')[1].attributes('aria-selected')).toBe('true')
+
     // The outbound party renders as before…
     expect(wrapper.find('[data-quest-id="quest-active"]').exists()).toBe(true)
     // …and the returning party stays on Exploration until it arrives.
@@ -285,5 +287,74 @@ describe('ExplorationView', () => {
     expect(
       wrapper.find('[data-exploration-id="exploration-party"]').attributes('data-party-count')
     ).toBe('2')
+  })
+
+  it('switches between the Active explorers and Quest parties tabs', async () => {
+    explorationStore.activeExplorations = {
+      'exploration-party': activeRun('exploration-party', 'dweller-1'),
+    }
+    explorationStore.explorationPartyMap = {
+      'exploration-party': [explorationPartyMember('p-1', 'dweller-1', 1)],
+    }
+    questStore.vaultQuests = [activeQuest]
+    questStore.questPartyMap = { 'quest-active': [{ ...partyMember, quest_id: 'quest-active' }] }
+
+    wrapper = mount(ExplorationView, {
+      global: {
+        stubs: {
+          SidePanel: true,
+          ExplorationEventLog: true,
+          ExplorationRewardsModal: true,
+          ExplorerCard: {
+            name: 'ExplorerCard',
+            template: '<div class="explorer-card-stub" :data-exploration-id="exploration.id" />',
+            props: ['exploration', 'dweller', 'partyMembers', 'selected'],
+            emits: ['select', 'complete', 'recall'],
+          },
+          QuestPartyCard: {
+            name: 'QuestPartyCard',
+            template: '<div class="quest-party-stub" :data-quest-id="quest.id" />',
+            props: ['quest', 'partyMembers', 'selected'],
+            emits: ['select'],
+          },
+        },
+      },
+    })
+    await flushPromises()
+
+    let tabs = wrapper.findAll('[role="tab"]')
+    expect(tabs.map((tab) => tab.text())).toEqual(['Active explorers (1)', 'Quest parties (1)'])
+    expect(tabs[0].attributes('aria-selected')).toBe('true')
+
+    // Active explorers is the default tab: its grid renders, quest content does not.
+    expect(wrapper.find('[data-exploration-id="exploration-party"]').exists()).toBe(true)
+    expect(wrapper.find('[data-quest-id="quest-active"]').exists()).toBe(false)
+
+    wrapper.findComponent({ name: 'ExplorerCard' }).vm.$emit('select')
+    await flushPromises()
+    expect(wrapper.find('.timeline-section').exists()).toBe(true)
+
+    // reka-ui activates tabs on mousedown (not click).
+    await tabs[1].trigger('mousedown')
+    await flushPromises()
+
+    tabs = wrapper.findAll('[role="tab"]')
+    expect(tabs[1].attributes('aria-selected')).toBe('true')
+    expect(wrapper.find('[data-quest-id="quest-active"]').exists()).toBe(true)
+    expect(wrapper.find('[data-exploration-id="exploration-party"]').exists()).toBe(false)
+    expect(wrapper.find('.timeline-section').exists()).toBe(false)
+
+    await tabs[0].trigger('mousedown')
+    await flushPromises()
+
+    tabs = wrapper.findAll('[role="tab"]')
+    expect(tabs[0].attributes('aria-selected')).toBe('true')
+    expect(wrapper.find('[data-exploration-id="exploration-party"]').exists()).toBe(true)
+    expect(wrapper.find('[data-quest-id="quest-active"]').exists()).toBe(false)
+    expect(wrapper.find('.timeline-section').exists()).toBe(true)
+    explorationStore.activeExplorations = {}
+    await flushPromises()
+    expect(wrapper.findAll('[role="tab"]')[0].attributes('aria-selected')).toBe('true')
+    expect(wrapper.findAll('[role="tab"]')[0].text()).toBe('Active explorers (0)')
   })
 })

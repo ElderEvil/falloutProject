@@ -42,8 +42,8 @@ interface Props {
   discoveryRoutes?: DiscoveryRouteRead[]
   expeditionSites?: ExpeditionSiteMarkerRead[]
   explorerTracks?: ExplorerTrack[]
-  fogDisabled?: boolean
   groupColors?: boolean
+  fogDisabled?: boolean
   siteTypeFilter?: string | null
   readyLocationIds?: string[] | null
   selectedMarkerId: string | null
@@ -54,8 +54,8 @@ const props = withDefaults(defineProps<Props>(), {
   discoveryRoutes: () => [],
   expeditionSites: () => [],
   explorerTracks: () => [],
-  fogDisabled: false,
   groupColors: false,
+  fogDisabled: false,
   siteTypeFilter: null,
   readyLocationIds: null,
 })
@@ -193,7 +193,45 @@ const exploringByLocation = computed(() => {
 })
 
 const movingTracks = computed(() => props.explorerTracks.filter((track) => track.lastKnown))
-const freeRoamTracks = computed(() => movingTracks.value.filter((track) => !track.targetLocationId))
+
+// Compact markers stay the same size on screen. Touching tracks share a chooser,
+// including at maximum zoom: equal departure coordinates cannot be zoomed apart.
+const explorerScale = computed(() => 0.65 / zoom.value)
+const explorerGroups = computed(() =>
+  clusterMarkers(
+    movingTracks.value.map((track) => ({
+      id: track.explorationId,
+      x: track.lastKnown!.coord_x,
+      y: track.lastKnown!.coord_y,
+    })),
+    { distance: 8, zoom: zoom.value }
+  ).filter((group) => group.members.length > 1)
+)
+const groupedExplorerIds = computed(
+  () => new Set(explorerGroups.value.flatMap((group) => group.members.map((member) => member.id)))
+)
+const individualTracks = computed(() =>
+  movingTracks.value.filter((track) => !groupedExplorerIds.value.has(track.explorationId))
+)
+const freeRoamTracks = computed(() =>
+  individualTracks.value.filter((track) => !track.targetLocationId)
+)
+const chosenExplorerIds = ref<string[]>([])
+const chosenExplorers = computed(() =>
+  movingTracks.value.filter((track) => chosenExplorerIds.value.includes(track.explorationId))
+)
+function explorerName(track: ExplorerTrack): string {
+  return track.targetLocationId
+    ? track.partyNames.join(', ') || 'Exploration party'
+    : track.dwellerName || 'Explorer'
+}
+function chooseExplorerGroup(group: MarkerCluster) {
+  if (!hasDragMoved.value) chosenExplorerIds.value = group.members.map((member) => member.id)
+}
+function selectExplorer(track: ExplorerTrack, event: Event) {
+  chosenExplorerIds.value = []
+  onExplorerClick(track, event)
+}
 
 // Heading chevrons for the free-roam markers: trail vector when the run has a
 // usable outbound trail, otherwise the bearing back home. Tracks with neither
@@ -508,11 +546,14 @@ function handleTouchEnd(event: TouchEvent) {
           :name="loc.name"
           :type="loc.type"
           :icon="locationMarkerIcon(loc.type, loc.group_key, groupIconByKey)"
-          :color="groupColors ? groupColor(loc.group_key) : null"
           :is_unlocked="loc.is_unlocked"
           :unseen="mapStore.isUnseenDiscovery(loc)"
           :selected="selectedMarkerId === `loc-${loc.id}`"
+          :color="groupColors ? groupColor(loc.group_key) : null"
           :cleared="loc.clear_state?.cleared ?? false"
+          :cooldown="
+            Boolean(loc.clear_state?.cleared && loc.clear_state.time_remaining_seconds > 0)
+          "
           :exploring="exploringByLocation.has(loc.id)"
           :status="exploringByLocation.get(loc.id)"
           :risk="locationGroup(loc)?.risk"
@@ -573,6 +614,7 @@ function handleTouchEnd(event: TouchEvent) {
           type="expedition_site"
           :icon="EXPEDITION_SITE_ICON"
           :cleared="site.cleared"
+          :cooldown="site.cleared && site.cooldown_remaining_seconds > 0"
           :status="siteStatus(site)"
           :selected="selectedMarkerId === `site-${site.id}`"
           @click="onSiteClick(site)"
@@ -580,16 +622,12 @@ function handleTouchEnd(event: TouchEvent) {
 
         <!-- Moving parties open exploration details; solo explorers retain their popover. -->
         <MapMarker
-          :scale="markerScale"
-          v-for="track in movingTracks"
+          :scale="explorerScale"
+          v-for="track in individualTracks"
           :key="`explorer-${track.explorationId}`"
           :x="track.lastKnown!.coord_x"
           :y="track.lastKnown!.coord_y"
-          :name="
-            track.targetLocationId
-              ? track.partyNames.join(', ') || 'Exploration party'
-              : track.dwellerName || 'Explorer'
-          "
+          :name="explorerName(track)"
           type="explorer"
           :icon="track.targetLocationId ? 'mdi:account-group' : 'mdi:account'"
           :art-src="track.targetLocationId ? null : (track.dwellerThumbnailUrl ?? null)"
@@ -607,13 +645,24 @@ function handleTouchEnd(event: TouchEvent) {
           @click="onExplorerClick(track, $event)"
         />
 
+        <MapClusterMarker
+          v-for="group in explorerGroups"
+          :key="`explorers-${group.id}`"
+          :x="group.x"
+          :y="group.y"
+          :scale="explorerScale"
+          :count="group.members.length"
+          :label="`Choose from ${group.members.length} nearby explorers or parties`"
+          @click="chooseExplorerGroup(group)"
+        />
+
         <!-- Travel-direction chevrons for free-roam explorers: a small accent
              wedge rotated around the marker center. aria-hidden + non-interactive. -->
         <g
           v-for="entry in freeRoamChevrons"
           :key="`explorer-heading-${entry.track.explorationId}`"
           class="explorer-heading"
-          :transform="`translate(${entry.track.lastKnown!.coord_x}, ${entry.track.lastKnown!.coord_y}) rotate(${entry.heading}) scale(${markerScale})`"
+          :transform="`translate(${entry.track.lastKnown!.coord_x}, ${entry.track.lastKnown!.coord_y}) rotate(${entry.heading}) scale(${explorerScale})`"
           aria-hidden="true"
         >
           <path class="explorer-heading-chevron" d="M -1.9 -4.7 L 0 -6.7 L 1.9 -4.7" />
@@ -641,12 +690,48 @@ function handleTouchEnd(event: TouchEvent) {
         <span v-if="isZoomed" class="zoom-level">{{ Math.round(zoom * 100) }}%</span>
       </div>
 
-      <div v-if="$slots.status" class="absolute right-2 top-2 z-10 flex flex-col gap-1 sm:flex-row">
-        <slot name="status" />
-      </div>
+      <section
+        v-if="chosenExplorers.length"
+        class="absolute bottom-2 right-2 z-20 w-[calc(100%-1rem)] max-w-72 rounded border border-theme-primary bg-surface p-2 text-sm shadow-lg"
+        aria-label="Nearby explorers and parties"
+        @keydown.esc="chosenExplorerIds = []"
+      >
+        <div class="mb-1 flex items-center justify-between gap-2">
+          <span class="font-semibold text-theme-primary"
+            >Nearby explorers · {{ chosenExplorers.length }}</span
+          >
+          <Button
+            variant="ghost"
+            size="xs"
+            aria-label="Close explorer list"
+            @click="chosenExplorerIds = []"
+            >×</Button
+          >
+        </div>
+        <div class="max-h-48 overflow-y-auto">
+          <Button
+            v-for="track in chosenExplorers"
+            :key="track.explorationId"
+            variant="ghost"
+            class="h-auto w-full justify-start gap-2 whitespace-normal py-2 text-left"
+            @click="selectExplorer(track, $event)"
+          >
+            <Icon
+              :icon="track.targetLocationId ? 'mdi:account-group' : 'mdi:account'"
+              class="size-4 shrink-0"
+            />
+            <span class="min-w-0 break-words"
+              >{{ explorerName(track)
+              }}<span class="block text-xs text-theme-primary/70">{{
+                track.status === 'returning' ? 'Heading home' : 'Exploring'
+              }}</span></span
+            >
+          </Button>
+        </div>
+      </section>
 
       <!-- Legend overlay -->
-      <MapLegend :site-type-filter="siteTypeFilter" />
+      <MapLegend />
     </div>
     <!-- Keep the index beside the map on wide screens and below it on narrow ones. -->
     <MarkerListPanel
@@ -758,7 +843,7 @@ function handleTouchEnd(event: TouchEvent) {
 }
 
 .discovery-route-line {
-  stroke: var(--color-theme-accent);
+  stroke: var(--color-theme-primary);
   stroke-width: 0.45;
   opacity: 0.8;
   stroke-linecap: round;
@@ -772,7 +857,7 @@ function handleTouchEnd(event: TouchEvent) {
 
 .explorer-heading-chevron {
   fill: none;
-  stroke: var(--color-theme-accent);
+  stroke: var(--color-theme-primary);
   stroke-width: 0.6;
   stroke-linecap: round;
   stroke-linejoin: round;

@@ -10,12 +10,13 @@ import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { isMature, type DwellerShort } from '@/modules/dwellers/models/dweller'
-import { useToast } from '@/core/composables/useToast'
 import { useGroupColors } from '@/core/composables/useGroupColors'
+import { useToast } from '@/core/composables/useToast'
 import { getErrorMessage } from '@/core/utils/errorHandler'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
+import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import { Skeleton } from '@/core/components/ui/skeleton'
 import { Button } from '@/core/components/ui/button'
 import {
@@ -52,10 +53,10 @@ const toast = useToast()
 const vaultId = computed(() => route.params.id as string)
 
 // Marker colour mode lives on the Preferences page (like the badge palette).
-const { groupColors } = useGroupColors()
 
 // Site-type filter (P3): narrow the map to one place_groups archetype.
 // Persisted like the color mode; `null` means "All sites".
+const { groupColors } = useGroupColors()
 const siteTypeFilter = useLocalStorage<string | null>('map:site-type-filter', null)
 
 // `exclusion_zone` is a one-off easter-egg site, not a browsable archetype, so it
@@ -488,7 +489,16 @@ const hasNoData = computed(
             title="World Map"
             icon="mdi:map"
             subtitle="Track discoveries, expeditions & the wider wasteland."
-          />
+          >
+            <template #actions>
+              <PageHeaderMetric icon="mdi:account-group" :value="partiesOut" label="Parties out" />
+              <PageHeaderMetric
+                icon="mdi:flag-checkered"
+                :value="readyLocationIds.length"
+                label="Ready to clear"
+              />
+            </template>
+          </PageHeader>
 
           <!-- Loading skeleton -->
           <div v-if="mapStore.isLoading" class="map-skeleton">
@@ -546,6 +556,15 @@ const hasNoData = computed(
                 </SelectContent>
               </Select>
               <Button
+                variant="outline"
+                size="sm"
+                :aria-pressed="readyOnly"
+                :disabled="readyLocationIds.length === 0 && !readyOnly"
+                @click="toggleReadyPlaces"
+              >
+                Ready places only
+              </Button>
+              <Button
                 v-if="authStore.isSuperuser"
                 variant="outline"
                 size="sm"
@@ -561,8 +580,8 @@ const hasNoData = computed(
               :discovery-routes="mapStore.discoveryRoutes"
               :expedition-sites="mapStore.expeditionSites"
               :explorer-tracks="explorerTracks"
-              :fog-disabled="fogDisabled"
               :group-colors="groupColors"
+              :fog-disabled="fogDisabled"
               :site-type-filter="activeSiteType"
               :ready-location-ids="readyOnly ? readyLocationIds : null"
               :selected-marker-id="selectedMarkerId"
@@ -571,31 +590,7 @@ const hasNoData = computed(
               @vault-info="handleVaultInfo"
               @dweller-click="onDwellerClick"
               @party-click="openExploration"
-            >
-              <template #status>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  class="bg-surface"
-                  :disabled="partiesOut === 0"
-                  @click="openExploration()"
-                >
-                  <Icon icon="mdi:account-group" class="size-4" />
-                  Parties out · {{ partiesOut }}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  class="bg-surface"
-                  :aria-pressed="readyOnly"
-                  :disabled="readyLocationIds.length === 0 && !readyOnly"
-                  @click="toggleReadyPlaces"
-                >
-                  <Icon icon="mdi:flag-checkered" class="size-4" />
-                  Ready to clear · {{ readyLocationIds.length }}
-                </Button>
-              </template>
-            </WorldMap>
+            />
           </div>
 
           <!-- Explorer popover: dweller summary anchored to the clicked marker -->

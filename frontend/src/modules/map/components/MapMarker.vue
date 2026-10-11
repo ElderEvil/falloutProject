@@ -3,7 +3,7 @@ import { computed, ref, useId, watch, type CSSProperties } from 'vue'
 import { Icon } from '@iconify/vue'
 import { getStaticImageUrl, normalizeImageUrl } from '@/core/utils/image'
 import { markerTypeMeta, type MarkerType } from '../models/markerTypeMeta'
-import { riskToDangerStyle } from '../utils/dangerStyle'
+import { riskLabel } from '../utils/dangerStyle'
 import { isHintLocation } from '../utils/visibility'
 
 interface Props {
@@ -18,6 +18,7 @@ interface Props {
   artSrc?: string | null
   color?: string | null
   label?: string
+  cooldown?: boolean
   cleared?: boolean
   exploring?: boolean
   status?: string
@@ -28,10 +29,11 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  color: null,
   selected: false,
   is_unlocked: true,
   unseen: false,
-  color: null,
+  cooldown: false,
   cleared: false,
   exploring: false,
   interactive: true,
@@ -86,27 +88,18 @@ const showPortrait = computed(
   () => Boolean(portraitUrl.value) && !isLocked.value && !portraitFailed.value
 )
 
-// Colour by state, or by place group when a `color` is passed in. Applied as an
-// inline CSS colour on the glyph <g> (SVG inherits currentColor), so there is no
-// <foreignObject> and no per-state colour CSS to keep in sync.
-const glyphStyle = computed<CSSProperties>(() => {
-  if (isLocked.value) return { color: 'var(--color-gray-400)', opacity: 0.8 }
-  if (isVault.value) return { color: 'var(--color-warning)', opacity: 0.7 }
-  if (props.type === 'explorer') return { color: 'var(--color-theme-accent)' }
-  return { color: props.color ?? 'var(--color-theme-primary)' }
-})
-
-// Locked places are mysteries: their catalog risk must not leak through the
-// marker colour, so the ramp only applies once a place is known.
-const dangerClass = computed(() =>
-  !isLocked.value && (props.risk != null || props.baseDifficulty != null)
-    ? riskToDangerStyle(props.risk, props.baseDifficulty).className
-    : null
-)
+const glyphStyle = computed<CSSProperties>(() => ({
+  color: !isLocked.value && props.color ? props.color : 'var(--color-theme-primary)',
+}))
 
 const tooltipText = computed(() => {
   const base = `${displayLabel.value} (${label.value})`
-  return props.status ? `${base} — ${props.status}` : base
+  const details = [
+    isLocked.value ? null : riskLabel(props.risk, props.baseDifficulty),
+    props.cooldown ? 'Cooldown' : props.cleared ? 'Cleared' : null,
+    props.status,
+  ].filter(Boolean)
+  return details.length ? `${base} — ${details.join(' · ')}` : base
 })
 </script>
 
@@ -117,7 +110,6 @@ const tooltipText = computed(() => {
     :class="{
       'cursor-pointer': interactive,
       'marker-non-interactive': !interactive,
-      [dangerClass ?? '']: dangerClass !== null,
       'marker-selected': selected,
       'marker-type-vault': isVault,
       'marker-locked': isLocked,
@@ -160,17 +152,24 @@ const tooltipText = computed(() => {
     <g
       v-else
       class="marker-glyph"
-      :class="{ 'marker-discovery': shouldPulse }"
       :style="glyphStyle"
+      :class="{ 'marker-discovery': shouldPulse, 'opacity-50': isLocked }"
       :transform="`translate(${-GLYPH_SIZE / 2}, ${-GLYPH_SIZE / 2})`"
     >
       <Icon :icon="displayIcon" :width="GLYPH_SIZE_CSS" :height="GLYPH_SIZE_CSS" />
     </g>
 
     <!-- Cleared badge: small shield-check pinned to the marker's top-right -->
-    <g v-if="cleared" class="marker-cleared-badge" aria-hidden="true">
+    <g
+      v-if="!isLocked && (cleared || cooldown)"
+      :class="cooldown ? 'marker-cooldown-badge' : 'marker-cleared-badge'"
+      aria-hidden="true"
+    >
       <circle cx="2.7" cy="-2.7" r="1.6" class="marker-cleared-badge-bg" />
-      <path d="M 2.05 -2.7 L 2.5 -2.25 L 3.35 -3.15" class="marker-cleared-badge-check" />
+      <path
+        :d="cooldown ? 'M 2.7 -3.65 V -2.7 L 3.35 -2.25' : 'M 2.05 -2.7 L 2.5 -2.25 L 3.35 -3.15'"
+        class="marker-cleared-badge-check"
+      />
     </g>
     <!-- Label: hidden by default, shown on hover/focus/selected via CSS -->
     <text class="marker-label" x="0" y="-3.4" text-anchor="middle" aria-hidden="true">{{
@@ -185,25 +184,6 @@ const tooltipText = computed(() => {
   --marker-glow: 1.2px;
 
   transition: transform 150ms ease;
-}
-
-/* Catalog risk → Fallout danger ramp: quiet green, amber warning, red danger. */
-.marker-risk-low {
-  --marker-accent: var(--color-success);
-}
-
-.marker-risk-medium {
-  --marker-accent: var(--color-warning);
-  --marker-glow: 1.8px;
-}
-
-.marker-risk-high {
-  --marker-accent: var(--color-danger);
-  --marker-glow: 2.4px;
-}
-
-.marker-risk-unknown {
-  --marker-accent: var(--color-theme-primary);
 }
 
 /* Non-interactive markers (free-roam explorer last-known positions) are
@@ -284,7 +264,7 @@ const tooltipText = computed(() => {
 /* Explorer tracking: pulsing warning ring around a dispatched target */
 .marker-exploring-ring {
   fill: none;
-  stroke: var(--color-warning);
+  stroke: var(--color-theme-primary);
   stroke-width: 0.35;
   opacity: 0.8;
   pointer-events: none;
@@ -311,11 +291,6 @@ const tooltipText = computed(() => {
 .map-marker:focus-visible .marker-label,
 .map-marker.marker-selected .marker-label {
   opacity: 1;
-}
-
-/* Vault marker labels use warning color */
-.marker-type-vault .marker-label {
-  fill: var(--color-warning);
 }
 
 @keyframes discovery-pulse {

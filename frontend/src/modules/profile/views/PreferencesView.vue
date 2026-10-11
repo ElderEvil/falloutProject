@@ -15,13 +15,24 @@ import { handleStoreError } from '@/core/utils/errorHandler'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/core/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/core/components/ui/card'
 import { Button } from '@/core/components/ui/button'
 import { Switch } from '@/core/components/ui/switch'
 import { Label } from '@/core/components/ui/label'
 import { ToggleGroup, ToggleGroupItem } from '@/core/components/ui/toggle-group'
 import { Slider } from '@/core/components/ui/slider'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 
 const { isCollapsed } = useSidePanel()
 const backNav = useBackNavigation('Preferences', () => '/profile')
@@ -47,19 +58,41 @@ const { groupColors, toggleGroupColors } = useGroupColors()
 const profileStore = useProfileStore()
 
 const notificationCategories = [
-  { key: 'exploration_updates', label: 'Exploration Updates', description: 'Routine events while a dweller explores' },
-  { key: 'arrivals_and_completions', label: 'Arrivals & Completions', description: 'Exploration and quest party returns' },
-  { key: 'advancement', label: 'Dweller Advancement', description: 'Level-ups and training progress' },
-  { key: 'social_activity', label: 'Social Activity', description: 'Relationships, pregnancies, and births' },
+  {
+    key: 'exploration_updates',
+    label: 'Exploration Updates',
+    description: 'Routine events while a dweller explores',
+  },
+  {
+    key: 'arrivals_and_completions',
+    label: 'Arrivals & Completions',
+    description: 'Exploration and quest party returns',
+  },
+  {
+    key: 'advancement',
+    label: 'Dweller Advancement',
+    description: 'Level-ups and training progress',
+  },
+  {
+    key: 'social_activity',
+    label: 'Social Activity',
+    description: 'Relationships, pregnancies, and births',
+  },
   { key: 'crafting', label: 'Crafting', description: 'Crafting completion updates' },
-  { key: 'vault_activity', label: 'Vault Activity', description: 'Radio arrivals and routine radio changes' },
+  {
+    key: 'vault_activity',
+    label: 'Vault Activity',
+    description: 'Radio arrivals and routine radio changes',
+  },
 ] as const
 
 const disabledNotificationCategories = computed(() => {
   const settings = profileStore.profile?.preferences?.notifications
   if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return []
   const disabled = (settings as Record<string, unknown>).disabled_categories
-  return Array.isArray(disabled) ? disabled.filter((category): category is string => typeof category === 'string') : []
+  return Array.isArray(disabled)
+    ? disabled.filter((category): category is string => typeof category === 'string')
+    : []
 })
 
 // Optimistic selection: each toggle builds on the previous click's payload
@@ -67,11 +100,14 @@ const disabledNotificationCategories = computed(() => {
 // each other while a save is still in flight.
 const pendingDisabledCategories = ref<Set<string> | null>(null)
 
-const effectiveDisabledCategories = computed<string[]>(
-  () => pendingDisabledCategories.value !== null ? [...pendingDisabledCategories.value] : disabledNotificationCategories.value,
+const effectiveDisabledCategories = computed<string[]>(() =>
+  pendingDisabledCategories.value !== null
+    ? [...pendingDisabledCategories.value]
+    : disabledNotificationCategories.value
 )
 
-const notificationCategoryEnabled = (category: string) => !effectiveDisabledCategories.value.includes(category)
+const notificationCategoryEnabled = (category: string) =>
+  !effectiveDisabledCategories.value.includes(category)
 
 const savingCategories = ref(new Set<string>())
 const isSavingCategory = (category: string) => savingCategories.value.has(category)
@@ -89,7 +125,11 @@ const toggleNotificationCategory = (category: string, next?: boolean) => {
     .then(() => {
       // Keep later clicks: only drop the pending state if nothing changed since this save.
       const pending = pendingDisabledCategories.value
-      if (pending !== null && pending.size === payload.length && payload.every((c) => pending.has(c)))
+      if (
+        pending !== null &&
+        pending.size === payload.length &&
+        payload.every((c) => pending.has(c))
+      )
         pendingDisabledCategories.value = null
     })
     .catch((error: unknown) => {
@@ -149,7 +189,9 @@ const handleGlowSelect = (value: unknown) => {
 </script>
 
 <template>
-  <div class="relative min-h-screen bg-terminal-background font-mono text-theme-primary [text-shadow:none]">
+  <div
+    class="relative min-h-screen bg-terminal-background font-mono text-theme-primary [text-shadow:none]"
+  >
     <div class="vault-layout">
       <SidePanel :vault-id="vaultStore.currentVaultId" />
 
@@ -198,7 +240,9 @@ const handleGlowSelect = (value: unknown) => {
                       :style="{
                         borderColor: theme.colors.primary,
                         boxShadow:
-                          currentTheme.name === theme.name ? `0 0 15px ${theme.colors.glow}` : 'none',
+                          currentTheme.name === theme.name
+                            ? `0 0 15px ${theme.colors.glow}`
+                            : 'none',
                       }"
                       :aria-label="`Select ${theme.displayName}`"
                       :aria-pressed="currentTheme.name === theme.name"
@@ -228,20 +272,27 @@ const handleGlowSelect = (value: unknown) => {
                   <Label class="setting-row cursor-pointer">
                     <div class="setting-info">
                       <div class="flex items-center gap-2">
-                        <Icon
-                          icon="mdi:flash"
-                          class="text-xl text-theme-primary"
-                        />
+                        <Icon icon="mdi:flash" class="text-xl text-theme-primary" />
                         <h4 class="setting-label">Screen Flickering</h4>
                       </div>
                       <p class="setting-description">
-                        Subtle animation that simulates old CRT monitors<span v-if="prefersReducedMotion"> — turned off because your system requests reduced motion</span>
+                        Subtle animation that simulates old CRT monitors<span
+                          v-if="prefersReducedMotion"
+                        >
+                          — turned off because your system requests reduced motion</span
+                        >
                       </p>
                     </div>
                     <Switch
                       :checked="flickering"
                       :disabled="prefersReducedMotion"
-                      :aria-label="prefersReducedMotion ? 'Screen flickering disabled by reduced-motion setting' : (flickering ? 'Disable flickering' : 'Enable flickering')"
+                      :aria-label="
+                        prefersReducedMotion
+                          ? 'Screen flickering disabled by reduced-motion setting'
+                          : flickering
+                            ? 'Disable flickering'
+                            : 'Enable flickering'
+                      "
                       @update:checked="() => toggleFlickering()"
                     />
                   </Label>
@@ -250,10 +301,7 @@ const handleGlowSelect = (value: unknown) => {
                   <Label class="setting-row cursor-pointer">
                     <div class="setting-info">
                       <div class="flex items-center gap-2">
-                        <Icon
-                          icon="mdi:view-sequential"
-                          class="text-xl text-theme-primary"
-                        />
+                        <Icon icon="mdi:view-sequential" class="text-xl text-theme-primary" />
                         <h4 class="setting-label">Scanlines</h4>
                       </div>
                       <p class="setting-description">
@@ -271,20 +319,16 @@ const handleGlowSelect = (value: unknown) => {
                   <div class="setting-row">
                     <div class="setting-info">
                       <div class="flex items-center gap-2">
-                        <Icon
-                          icon="mdi:lightbulb-on"
-                          class="text-xl text-theme-primary"
-                        />
+                        <Icon icon="mdi:lightbulb-on" class="text-xl text-theme-primary" />
                         <h4 class="setting-label">Text Glow Intensity</h4>
                       </div>
-                      <p class="setting-description">Controls the brightness of text glow effects</p>
+                      <p class="setting-description">
+                        Controls the brightness of text glow effects
+                      </p>
                       <!-- Live Demo -->
                       <div class="glow-demo mt-3">
                         <span class="demo-label">Preview: </span>
-                        <span
-                          :class="injectedGlowClass"
-                          class="demo-text text-theme-primary"
-                        >
+                        <span :class="injectedGlowClass" class="demo-text text-theme-primary">
                           VAULT-TEC TERMINAL
                         </span>
                       </div>
@@ -299,13 +343,13 @@ const handleGlowSelect = (value: unknown) => {
                             @update:model-value="handleGlowSelect"
                           >
                             <Tooltip v-for="option in glowIntensityOptions" :key="option.value">
-                            <TooltipTrigger as-child>
-                              <!-- @vue-ignore -->
-                              <ToggleGroupItem
-                                :value="option.value"
-                                :aria-label="`Set glow to ${option.label}`"
-                                class="glow-option"
-                              >
+                              <TooltipTrigger as-child>
+                                <!-- @vue-ignore -->
+                                <ToggleGroupItem
+                                  :value="option.value"
+                                  :aria-label="`Set glow to ${option.label}`"
+                                  class="glow-option"
+                                >
                                   {{ option.label }}
                                 </ToggleGroupItem>
                               </TooltipTrigger>
@@ -340,9 +384,14 @@ const handleGlowSelect = (value: unknown) => {
                   </p>
 
                   <div class="setting-row">
-                    <Label for="room-images" class="setting-info flex-col items-start cursor-pointer">
+                    <Label
+                      for="room-images"
+                      class="setting-info flex-col items-start cursor-pointer"
+                    >
                       <span class="setting-label">Room Images</span>
-                      <span class="setting-description">Show detailed vault artwork; turn off on slower devices.</span>
+                      <span class="setting-description"
+                        >Show detailed vault artwork; turn off on slower devices.</span
+                      >
                     </Label>
                     <Switch
                       id="room-images"
@@ -352,9 +401,14 @@ const handleGlowSelect = (value: unknown) => {
                   </div>
 
                   <div class="setting-row">
-                    <Label for="colourful-badges" class="setting-info flex-col items-start cursor-pointer">
+                    <Label
+                      for="colourful-badges"
+                      class="setting-info flex-col items-start cursor-pointer"
+                    >
                       <span class="setting-label">Colourful Badges</span>
-                      <span class="setting-description">Use category colours instead of one terminal tone.</span>
+                      <span class="setting-description"
+                        >Use category colours instead of one terminal tone.</span
+                      >
                     </Label>
                     <Switch
                       id="colourful-badges"
@@ -364,9 +418,14 @@ const handleGlowSelect = (value: unknown) => {
                   </div>
 
                   <div class="setting-row">
-                    <Label for="map-group-colors" class="setting-info flex-col items-start cursor-pointer">
+                    <Label
+                      for="map-group-colors"
+                      class="setting-info flex-col items-start cursor-pointer"
+                    >
                       <span class="setting-label">Colourful Map Markers</span>
-                      <span class="setting-description">Tint world-map markers by site type instead of by state.</span>
+                      <span class="setting-description"
+                        >Tint world-map place icons by site type.</span
+                      >
                     </Label>
                     <Switch
                       id="map-group-colors"
@@ -386,8 +445,8 @@ const handleGlowSelect = (value: unknown) => {
                   Notification Preferences
                 </CardTitle>
                 <CardDescription>
-                  Turn off routine alerts you do not want to receive. Deaths, injuries, critical vault
-                  alerts, exit requests, and combat failures always remain enabled.
+                  Turn off routine alerts you do not want to receive. Deaths, injuries, critical
+                  vault alerts, exit requests, and combat failures always remain enabled.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -406,15 +465,18 @@ const handleGlowSelect = (value: unknown) => {
                       aria-hidden="true"
                       class="inline-flex"
                     >
-                      <Icon
-                        icon="mdi:loading"
-                        class="animate-spin text-sm text-theme-primary/50"
-                      />
+                      <Icon icon="mdi:loading" class="animate-spin text-sm text-theme-primary/50" />
                     </span>
                     <Switch
                       :checked="notificationCategoryEnabled(category.key)"
-                      :aria-label="notificationCategoryEnabled(category.key) ? `Disable ${category.label}` : `Enable ${category.label}`"
-                      @update:checked="(next: boolean) => toggleNotificationCategory(category.key, next)"
+                      :aria-label="
+                        notificationCategoryEnabled(category.key)
+                          ? `Disable ${category.label}`
+                          : `Enable ${category.label}`
+                      "
+                      @update:checked="
+                        (next: boolean) => toggleNotificationCategory(category.key, next)
+                      "
                     />
                   </div>
                 </Label>

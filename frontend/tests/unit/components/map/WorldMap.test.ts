@@ -1487,7 +1487,7 @@ describe('WorldMap', () => {
       expect(markerNames(wrapper)).not.toContain('Army Base')
     })
 
-    it('forwards the filter to the marker list panel and the legend', () => {
+    it('forwards the filter to the index without coupling the state key', () => {
       const wrapper = mount(WorldMap, {
         props: {
           locations: [siteLocation('g1', 'Gas Stop', 'gas_station')],
@@ -1500,9 +1500,7 @@ describe('WorldMap', () => {
       })
 
       expect(wrapper.findComponent(MarkerListPanelStub).props('siteTypeFilter')).toBe('gas_station')
-      expect(wrapper.findComponent({ name: 'MapLegend' }).props('siteTypeFilter')).toBe(
-        'gas_station'
-      )
+      expect(wrapper.findComponent({ name: 'MapLegend' }).props('siteTypeFilter')).toBeUndefined()
     })
   })
 
@@ -1661,6 +1659,54 @@ describe('WorldMap', () => {
   })
 
   describe('Explorer tracking', () => {
+    it('groups overlapping departures and lets each explorer or party be selected', async () => {
+      const tracks = [
+        makeExplorerTrack({
+          explorationId: 'a',
+          dwellerName: 'Ada',
+          lastKnown: { coord_x: 79, coord_y: 80 },
+        }),
+        makeExplorerTrack({
+          explorationId: 'b',
+          dwellerName: 'Bob',
+          partyNames: ['Bob', 'Bea'],
+          targetLocationId: 'site',
+          lastKnown: { coord_x: 81, coord_y: 80 },
+        }),
+      ]
+      const wrapper = mount(WorldMap, {
+        props: { locations: [], vaultMarkers: [], explorerTracks: tracks, selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+      expect(
+        wrapper.findAllComponents(MapMarkerStub).filter((m) => m.props('type') === 'explorer')
+      ).toHaveLength(0)
+      const group = wrapper.find('[aria-label="Choose from 2 nearby explorers or parties"]')
+      expect(group.exists()).toBe(true)
+      await group.trigger('keydown', { key: 'Enter' })
+      const roster = wrapper.find('[aria-label="Nearby explorers and parties"]')
+      expect(roster.text()).toContain('Ada')
+      expect(roster.text()).toContain('Bob, Bea')
+      await roster
+        .findAll('button')
+        .find((b) => b.text().includes('Ada'))!
+        .trigger('click')
+      expect(wrapper.emitted('dweller-click')![0][0]).toMatchObject({ track: tracks[0] })
+      await group.trigger('click')
+      await wrapper
+        .find('[aria-label="Nearby explorers and parties"]')
+        .findAll('button')
+        .find((b) => b.text().includes('Bob, Bea'))!
+        .trigger('click')
+      expect(wrapper.emitted('party-click')![0]).toEqual(['b'])
+      await wrapper.setProps({ explorerTracks: [tracks[0]] })
+      const marker = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('type') === 'explorer')!
+      expect(marker.props('x')).toBe(79)
+      expect(marker.props('scale')).toBe(0.65)
+    })
+
     it('marks a dispatched target location as exploring with the dweller name', () => {
       const locations = createLocations(1)
       const tracks: ExplorerTrack[] = [

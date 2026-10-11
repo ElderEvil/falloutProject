@@ -44,3 +44,9 @@ export function riskToDangerStyle(
     : difficultyLevel(baseDifficulty)
   return { level, className: `marker-risk-${level}` }
 }
+
+/** Plain-language risk for inspection surfaces, independent of theme colours. */
+export function riskLabel(risk?: string | null, baseDifficulty?: number | null): string | null {
+  const level = riskToDangerStyle(risk, baseDifficulty).level
+  return DANGER_RAMP.find((entry) => entry.level === level)?.label ?? null
+}

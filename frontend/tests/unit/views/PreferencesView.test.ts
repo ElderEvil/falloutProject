@@ -108,7 +108,7 @@ describe('PreferencesView', () => {
       preferences: { notifications: { disabled_categories: string[] } }
     }
     expect(secondPayload.preferences.notifications.disabled_categories).toEqual(
-      expect.arrayContaining(['advancement', 'social_activity']),
+      expect.arrayContaining(['advancement', 'social_activity'])
     )
   })
 
@@ -137,7 +137,9 @@ describe('PreferencesView', () => {
     }
     const wrapper = mountView()
 
-    const row = wrapper.findAll('label.setting-row').find((label) => label.text().includes('Crafting'))
+    const row = wrapper
+      .findAll('label.setting-row')
+      .find((label) => label.text().includes('Crafting'))
     expect(row?.exists()).toBe(true)
     await row?.trigger('click')
     await flushPromises()
@@ -155,8 +157,12 @@ describe('PreferencesView', () => {
 
     await wrapper.find('[aria-label="Set glow to Strong"]').trigger('click')
 
-    expect(wrapper.find('[aria-label="Set glow to Strong"]').attributes('aria-pressed')).toBe('true')
-    expect(wrapper.find('[aria-label="Set glow to Normal"]').attributes('aria-pressed')).toBe('false')
+    expect(wrapper.find('[aria-label="Set glow to Strong"]').attributes('aria-pressed')).toBe(
+      'true'
+    )
+    expect(wrapper.find('[aria-label="Set glow to Normal"]').attributes('aria-pressed')).toBe(
+      'false'
+    )
   })
 
   it('treats the badge toggle as colourful-on', async () => {

@@ -2,6 +2,29 @@ import { describe, it, expect } from 'vitest'
 import { clusterMarkers, DEFAULT_CLUSTER_CELL_SIZE } from '@/modules/map/utils/clusterMarkers'
 
 describe('clusterMarkers', () => {
+  it('groups touching points across cell edges deterministically, merging bridged groups', () => {
+    const points = [
+      { id: 'a', x: 15, y: 16 },
+      { id: 'b', x: 25, y: 16 },
+      { id: 'z', x: 20, y: 16 },
+    ]
+    const groups = clusterMarkers(points, { distance: 5 })
+    expect(groups).toHaveLength(1)
+    expect(groups[0].members.map((member) => member.id)).toEqual(['a', 'b', 'z'])
+    expect(groups[0].x).toBe(20)
+    expect(clusterMarkers([...points].reverse(), { distance: 5 })).toEqual(groups)
+    expect(clusterMarkers(points, { distance: 5, zoom: 5 })).toHaveLength(3)
+    expect(
+      clusterMarkers(
+        [
+          { id: 'a', x: 80, y: 80 },
+          { id: 'b', x: 80, y: 80 },
+        ],
+        { distance: 5, zoom: 5 }
+      )
+    ).toHaveLength(1)
+  })
+
   it('returns no clusters for no points', () => {
     expect(clusterMarkers([])).toEqual([])
   })

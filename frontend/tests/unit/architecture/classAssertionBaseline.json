@@ -1,5 +1,5 @@
 {
-  "count": 39,
+  "count": 38,
   "files": [
     "components/combat/EquipmentCard.test.ts",
     "components/common/PageContentRail.test.ts",
@@ -21,7 +21,6 @@
     "components/dwellers/UnassignedDwellers.test.ts",
     "components/exploration/ExplorerNavbar.test.ts",
     "components/incidents/IncidentAlert.test.ts",
-    "components/map/MapLegend.test.ts",
     "components/map/MapMarker.test.ts",
     "components/map/MarkerListPanel.test.ts",
     "components/map/WorldMap.test.ts",

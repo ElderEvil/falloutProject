@@ -542,7 +542,7 @@ describe('MapMarker', () => {
   })
 
   describe('Danger ramp', () => {
-    it('ramps the marker to the catalog risk class over a chunky disc', () => {
+    it('labels catalog danger without adding a risk color', () => {
       const wrapper = mount(MapMarker, {
         props: {
           x: 10,
@@ -554,7 +554,8 @@ describe('MapMarker', () => {
         global: { stubs: { Icon: true } },
       })
 
-      expect(wrapper.find('g.map-marker.marker-risk-high').exists()).toBe(true)
+      expect(wrapper.find('g.map-marker.marker-risk-high').exists()).toBe(false)
+      expect(wrapper.attributes('aria-label')).toContain('High risk')
       expect(wrapper.find('circle.marker-backing').exists()).toBe(true)
     })
 
@@ -570,7 +571,8 @@ describe('MapMarker', () => {
         global: { stubs: { Icon: true } },
       })
 
-      expect(wrapper.find('g.map-marker.marker-risk-medium').exists()).toBe(true)
+      expect(wrapper.find('g.map-marker.marker-risk-medium').exists()).toBe(false)
+      expect(wrapper.attributes('aria-label')).toContain('Medium risk')
     })
 
     it('keeps the neutral ramp for a marker without catalog risk data', () => {
@@ -598,11 +600,45 @@ describe('MapMarker', () => {
 
       expect(wrapper.find('g.map-marker.marker-risk-high').exists()).toBe(false)
       expect(wrapper.find('.marker-locked').exists()).toBe(true)
+      expect(wrapper.attributes('aria-label')).not.toContain('High risk')
     })
   })
 })
 
 describe('MapMarker zoom compensation', () => {
+  it('uses place-group color only for known places, keeping risk as text', async () => {
+    const wrapper = mount(MapMarker, {
+      props: {
+        x: 20,
+        y: 30,
+        name: 'Camp',
+        type: 'discovery',
+        color: 'var(--color-group-military)',
+        risk: 'high',
+      },
+      global: { stubs: { Icon: true } },
+    })
+    expect(wrapper.find('.marker-glyph').attributes('style')).toContain(
+      'var(--color-group-military)'
+    )
+    expect(wrapper.attributes('aria-label')).toContain('High risk')
+    await wrapper.setProps({ is_unlocked: false })
+    expect(wrapper.find('.marker-glyph').attributes('style')).toContain(
+      'var(--color-theme-primary)'
+    )
+    expect(wrapper.attributes('aria-label')).not.toContain('High risk')
+  })
+
+  it('uses a clock badge and readable cooldown status', () => {
+    const wrapper = mount(MapMarker, {
+      props: { x: 20, y: 30, name: 'Depot', type: 'visited', cleared: true, cooldown: true },
+      global: { stubs: { Icon: true } },
+    })
+    expect(wrapper.find('.marker-cooldown-badge').exists()).toBe(true)
+    expect(wrapper.find('.marker-cleared-badge').exists()).toBe(false)
+    expect(wrapper.attributes('aria-label')).toContain('Cooldown')
+  })
+
   it('scales around its coordinate without shifting the location', () => {
     const wrapper = mount(MapMarker, {
       props: { x: 20, y: 30, name: 'Depot', type: 'visited', scale: 0.5 },

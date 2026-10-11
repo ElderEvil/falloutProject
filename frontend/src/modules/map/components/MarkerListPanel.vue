@@ -10,6 +10,8 @@ import type {
   VaultMarkerRead,
 } from '../models/map'
 import { MARKER_TYPES } from '../models/markerTypeMeta'
+import { riskLabel } from '../utils/dangerStyle'
+import { isKnownLocation } from '../utils/visibility'
 import { matchesSiteTypeFilter } from '../utils/siteFilter'
 
 interface Props {
@@ -43,7 +45,7 @@ interface MarkerGroupItem {
   name: string
   kind: 'location' | 'vault' | 'site'
   data: WastelandLocationWithDwellers | VaultMarkerRead | ExpeditionSiteMarkerRead
-  group?: { icon: string; label: string }
+  group?: { icon: string; label: string; risk: string | null }
 }
 
 interface MarkerGroup {
@@ -73,7 +75,13 @@ const groups = computed<MarkerGroup[]>(() => {
       name: loc.name,
       kind: 'location',
       data: loc,
-      group: meta ? { icon: meta.icon, label: meta.label } : undefined,
+      group: meta
+        ? {
+            icon: meta.icon,
+            label: meta.label,
+            risk: isKnownLocation(loc) ? riskLabel(meta.risk, meta.base_difficulty) : null,
+          }
+        : undefined,
     })
   }
 
@@ -233,7 +241,7 @@ function onListKeydown(event: KeyboardEvent) {
               <span class="marker-name">{{ item.name }}</span>
               <span v-if="item.group" class="marker-group-chip">
                 <Icon :icon="item.group.icon" class="marker-group-icon" />
-                {{ item.group.label }}
+                {{ item.group.label }}<span v-if="item.group.risk"> · {{ item.group.risk }}</span>
               </span>
             </button>
           </div>
@@ -441,7 +449,7 @@ function onListKeydown(event: KeyboardEvent) {
 
 /* Vault type styling */
 .marker-group-vault .group-icon {
-  color: var(--color-warning);
+  color: var(--color-theme-primary);
 }
 
 /* Scrollbar styling */

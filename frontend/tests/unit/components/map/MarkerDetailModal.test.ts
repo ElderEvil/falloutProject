@@ -14,7 +14,9 @@ import type {
 
 // Mock vue-router
 const mockPush = vi.hoisted(() => vi.fn())
-vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' }, query: {}, push: mockPush }))
+vi.mock('vue-router', () =>
+  createRouterMock({ params: { id: 'vault-1' }, query: {}, push: mockPush })
+)
 
 function createLocation(
   overrides: Partial<WastelandLocationWithDwellers> = {}
@@ -131,6 +133,7 @@ describe('MarkerDetailModal', () => {
       })
 
       expect(wrapper.text()).toContain('Gas Station')
+      expect(wrapper.text()).toContain('Low risk')
     })
 
     it('should render the description', () => {

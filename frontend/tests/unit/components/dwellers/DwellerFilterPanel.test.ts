@@ -437,3 +437,46 @@ describe('Active filter summary', () => {
     wrapper.unmount()
   })
 })
+
+describe('Collapsible roster filters', () => {
+  it('starts collapsed and preserves active selections across toggles', async () => {
+    const store = useDwellerStore().filter
+    store.setFilterFocus('needs_care')
+    store.setFilterAgeGroup('adult')
+    const wrapper = mount(DwellerFilterPanel, {
+      props: { collapsible: true, showAttentionFilter: true, showAgeFilter: true },
+    })
+    const details = wrapper.element as HTMLDetailsElement
+    expect(details.tagName).toBe('DETAILS')
+    expect(details.open).toBe(false)
+    expect(wrapper.find('summary').text()).toContain('Needs Care')
+    expect(wrapper.find('summary').text()).toContain('Adult')
+    details.open = true
+    await wrapper.trigger('toggle')
+    details.open = false
+    await wrapper.trigger('toggle')
+    expect(store.filterFocus).toBe('needs_care')
+    expect(store.filterAgeGroup).toBe('adult')
+    wrapper.unmount()
+  })
+
+  it('clears attention and facets from the collapsed summary while keeping sort and view', async () => {
+    const store = useDwellerStore().filter
+    store.setFilterFocus('low_happiness')
+    store.setFilterStatus('working')
+    store.setFilterAgeGroup('adult')
+    store.setSortBy('happiness')
+    store.setViewMode('table')
+    const wrapper = mount(DwellerFilterPanel, {
+      props: { collapsible: true, showAttentionFilter: true, showAgeFilter: true },
+    })
+    await wrapper.find('summary button').trigger('click')
+    expect(store.filterFocus).toBe('all')
+    expect(store.filterStatus).toBe('all')
+    expect(store.filterAgeGroup).toBe('all')
+    expect(store.sortBy).toBe('happiness')
+    expect(store.viewMode).toBe('table')
+    expect((wrapper.element as HTMLDetailsElement).open).toBe(false)
+    wrapper.unmount()
+  })
+})

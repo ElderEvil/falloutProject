@@ -757,3 +757,24 @@ async def test_appearance_options_endpoint(
     assert "None" in body["headgear_by_race"]["human"]
     assert body["poses"]
     assert body["backgrounds"]
+
+
+@pytest.mark.asyncio
+async def test_roster_attention_focus_is_validated_and_applied(
+    async_client, async_session, superuser_token_headers, vault, dweller_data
+):
+    low = await crud.dweller.create(
+        async_session, obj_in=DwellerCreate(**(dweller_data | {"vault_id": vault.id, "happiness": 49}))
+    )
+    await crud.dweller.create(
+        async_session, obj_in=DwellerCreate(**(dweller_data | {"vault_id": vault.id, "happiness": 50}))
+    )
+    response = await async_client.get(
+        f"/dwellers/vault/{vault.id}/", params={"focus": "low_happiness"}, headers=superuser_token_headers
+    )
+    assert response.status_code == 200
+    assert [row["id"] for row in response.json()] == [str(low.id)]
+    invalid = await async_client.get(
+        f"/dwellers/vault/{vault.id}/", params={"focus": "unknown"}, headers=superuser_token_headers
+    )
+    assert invalid.status_code == 422

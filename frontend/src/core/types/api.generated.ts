@@ -6073,10 +6073,6 @@ export interface components {
             bio_entries?: {
                 [key: string]: unknown;
             }[];
-            /** Visual Attributes */
-            visual_attributes?: {
-                [key: string]: unknown;
-            } | null;
             /** Image Url */
             image_url?: string | null;
             /** Thumbnail Url */
@@ -6151,6 +6147,10 @@ export interface components {
             weapon?: string | null;
             /** Outfit */
             outfit?: string | null;
+            /** Visual Attributes */
+            visual_attributes?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Vault Id
              * Format: uuid4
@@ -6223,10 +6223,6 @@ export interface components {
             bio_entries?: {
                 [key: string]: unknown;
             }[];
-            /** Visual Attributes */
-            visual_attributes?: {
-                [key: string]: unknown;
-            } | null;
             /** Image Url */
             image_url?: string | null;
             /** Thumbnail Url */
@@ -6301,6 +6297,10 @@ export interface components {
             weapon?: string | null;
             /** Outfit */
             outfit?: string | null;
+            /** Visual Attributes */
+            visual_attributes?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * DwellerDeadRead
@@ -6417,10 +6417,6 @@ export interface components {
             bio_entries?: {
                 [key: string]: unknown;
             }[];
-            /** Visual Attributes */
-            visual_attributes?: {
-                [key: string]: unknown;
-            } | null;
             /** Image Url */
             image_url?: string | null;
             /** Thumbnail Url */
@@ -6506,6 +6502,10 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Visual Attributes */
+            visual_attributes?: {
+                [key: string]: unknown;
+            } | null;
             pet?: components["schemas"]["PetRead"] | null;
             /**
              * Effective Max Health
@@ -6568,10 +6568,6 @@ export interface components {
             bio_entries?: {
                 [key: string]: unknown;
             }[];
-            /** Visual Attributes */
-            visual_attributes?: {
-                [key: string]: unknown;
-            } | null;
             /** Image Url */
             image_url?: string | null;
             /** Thumbnail Url */
@@ -6657,6 +6653,10 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Visual Attributes */
+            visual_attributes?: {
+                [key: string]: unknown;
+            } | null;
             pet?: components["schemas"]["PetRead"] | null;
             /**
              * Vault Id
@@ -6793,10 +6793,6 @@ export interface components {
             bio_entries?: {
                 [key: string]: unknown;
             }[];
-            /** Visual Attributes */
-            visual_attributes?: {
-                [key: string]: unknown;
-            } | null;
             /** Image Url */
             image_url?: string | null;
             /** Thumbnail Url */
@@ -6882,6 +6878,10 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Visual Attributes */
+            visual_attributes?: {
+                [key: string]: unknown;
+            } | null;
             pet?: components["schemas"]["PetRead"] | null;
             /**
              * Room Id
@@ -6938,6 +6938,12 @@ export interface components {
             /** Remaining Caps */
             remaining_caps: number;
         };
+        /**
+         * DwellerRosterFocus
+         * @description Wire-only roster attention filters; not a persisted database enum.
+         * @enum {string}
+         */
+        DwellerRosterFocus: "low_happiness" | "needs_care";
         /**
          * DwellerStatusEnum
          * @enum {string}
@@ -12245,6 +12251,7 @@ export interface operations {
                 skip?: number;
                 limit?: number;
                 status?: components["schemas"]["DwellerStatusEnum"] | null;
+                focus?: components["schemas"]["DwellerRosterFocus"] | null;
                 age_group?: components["schemas"]["AgeGroupEnum"] | null;
                 gender?: components["schemas"]["GenderEnum"] | null;
                 rarity?: components["schemas"]["RarityEnum"] | null;

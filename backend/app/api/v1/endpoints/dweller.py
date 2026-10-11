@@ -9,7 +9,15 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403, verify_dweller_access
-from app.core.enums import AgeGroupEnum, DwellerStatusEnum, FactionEnum, GenderEnum, RaceEnum, RarityEnum
+from app.core.enums import (
+    AgeGroupEnum,
+    DwellerRosterFocus,
+    DwellerStatusEnum,
+    FactionEnum,
+    GenderEnum,
+    RaceEnum,
+    RarityEnum,
+)
 from app.core.game_config import game_config
 from app.core.game_data import get_static_game_data
 from app.db.session import get_async_session
@@ -28,6 +36,7 @@ from app.schemas.dweller import (
     DwellerReadWithRoomID,
     DwellerRename,
     DwellerReviveResponse,
+    DwellerTemplate,
     DwellerUpdate,
     DwellerUpdateRequest,
     DwellerVisualAttributes,
@@ -191,6 +200,7 @@ async def read_dwellers_by_vault(
     skip: int = 0,
     limit: int = 100,
     status: DwellerStatusEnum | None = None,
+    focus: DwellerRosterFocus | None = None,
     age_group: AgeGroupEnum | None = None,
     gender: GenderEnum | None = None,
     rarity: RarityEnum | None = None,
@@ -212,6 +222,7 @@ async def read_dwellers_by_vault(
         skip=skip,
         limit=limit,
         status=status,
+        focus=focus,
         age_group=age_group,
         gender=gender,
         rarity=rarity,
@@ -384,7 +395,7 @@ async def generate_dweller_avatar(
 async def read_dwellers_data(
     data_store: Annotated[StaticGameData, Depends(get_static_game_data)],
     _: CurrentActiveUser,
-) -> Sequence[DwellerCreateWithoutVaultID]:
+) -> Sequence[DwellerTemplate]:
     """Get static dweller creation data.
 
     Returns:

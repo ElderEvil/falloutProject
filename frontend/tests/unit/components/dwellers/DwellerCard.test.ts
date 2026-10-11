@@ -478,6 +478,23 @@ describe('DwellerCard', () => {
       expect(useStimpakBtn.attributes('disabled')).toBeUndefined()
     })
 
+    it('offers healing up to the pet-adjusted health ceiling', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: {
+            ...mockDweller,
+            health: 100,
+            effective_max_health: 120,
+            stimpack: 0,
+            radaway: 0,
+          },
+          availableStimpaks: 3,
+        },
+      })
+      expect(wrapper.find('[aria-label="Use Stimpack"]').attributes('disabled')).toBeUndefined()
+      wrapper.unmount()
+    })
+
     it('draws no supplies for a healthy dweller with empty pockets', () => {
       const wrapper = mount(DwellerCard, {
         props: {

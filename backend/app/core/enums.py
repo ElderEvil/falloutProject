@@ -30,6 +30,13 @@ class DwellerStatusEnum(CaseInsensitiveEnum):
     DEAD = "dead"
 
 
+class DwellerRosterFocus(CaseInsensitiveEnum):
+    """Wire-only roster attention filters; not a persisted database enum."""
+
+    LOW_HAPPINESS = "low_happiness"
+    NEEDS_CARE = "needs_care"
+
+
 class DeathCauseEnum(CaseInsensitiveEnum):
     HEALTH = "health"
     RADIATION = "radiation"

@@ -14,6 +14,15 @@ describe('HappinessDashboard', () => {
     },
   }
 
+  it('offers low-happiness attention even without resource, incident, idle, or care warnings', () => {
+    const wrapper = mount(HappinessDashboard, {
+      props: { ...defaultProps, radioHappinessMode: true },
+    })
+    expect(
+      wrapper.findAll('button').some((button) => button.text().includes('View Low Happiness'))
+    ).toBe(true)
+  })
+
   it('should render happiness gauge with correct percentage', () => {
     const wrapper = mount(HappinessDashboard, {
       props: defaultProps,

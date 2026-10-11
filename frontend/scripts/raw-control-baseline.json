@@ -7,7 +7,6 @@
   "src/modules/dwellers/components/DwellerDisplayControls.vue": 8,
   "src/modules/dwellers/components/DwellerEquipment.vue": 3,
   "src/modules/dwellers/components/DwellerFilterGroup.vue": 1,
-  "src/modules/dwellers/components/DwellerFilterPanel.vue": 1,
   "src/modules/dwellers/components/DwellerOverflowMenu.vue": 3,
   "src/modules/dwellers/components/DwellersList.vue": 1,
   "src/modules/dwellers/components/FamilyTreePanel.vue": 5,

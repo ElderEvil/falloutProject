@@ -1,4 +1,5 @@
 export type {
+  DwellerRosterFocus,
   DwellerStatus,
   DwellerAgeGroup,
   DwellerWithStatus,
@@ -12,6 +13,7 @@ export {
   DWELLER_STATUSES,
   SORT_DIRECTIONS,
   compareDwellers,
+  isDwellerRosterFocus,
   isDwellerAgeGroup,
   isDwellerGender,
   isDwellerRarity,

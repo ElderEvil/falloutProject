@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
+import { Icon } from '@iconify/vue'
+import { Button } from '@/core/components/ui/button'
 import {
   useDwellerStore,
   DWELLER_STATUSES,
+  type DwellerRosterFocus,
   type DwellerStatus,
   type DwellerAgeGroup,
 } from '@/modules/dwellers/stores/dweller'
@@ -20,6 +23,8 @@ import { useIdentityOptions } from '../composables/useIdentityOptions'
 import DwellerFilterGroup from './DwellerFilterGroup.vue'
 
 interface Props {
+  collapsible?: boolean
+  showAttentionFilter?: boolean
   showStatusFilter?: boolean
   showAgeFilter?: boolean
   showGenderFilter?: boolean
@@ -29,6 +34,8 @@ interface Props {
 }
 
 const {
+  collapsible = false,
+  showAttentionFilter = false,
   showStatusFilter = true,
   showAgeFilter = false,
   showGenderFilter = false,
@@ -95,6 +102,12 @@ function dropStrandedFaction() {
 
 // Switching race can strand a faction the new race cannot hold.
 watch(() => dwellerStore.filterRace, dropStrandedFaction)
+
+const attentionOptions = [
+  { value: 'all', label: 'All Dwellers', icon: 'mdi:account-multiple' },
+  { value: 'low_happiness', label: 'Low Happiness', icon: 'mdi:emoticon-sad-outline' },
+  { value: 'needs_care', label: 'Needs Care', icon: 'mdi:heart-pulse' },
+]
 
 const statusOptions = [
   { value: 'all', label: 'All Statuses', icon: 'mdi:account-multiple' },
@@ -244,6 +257,9 @@ function labelFor(options: readonly { value: string; label: string }[], value: s
 /** Only facets whose controls are on screen: a hidden control must not be advertised. */
 const activeFilterLabels = computed(() => {
   const labels: string[] = []
+  if (showAttentionFilter && dwellerStore.filterFocus !== 'all') {
+    labels.push(labelFor(attentionOptions, dwellerStore.filterFocus))
+  }
   if (showStatusFilter && dwellerStore.filterStatus !== 'all') {
     labels.push(labelFor(statusOptions, dwellerStore.filterStatus))
   }
@@ -270,93 +286,111 @@ const activeFilterLabels = computed(() => {
 })
 
 const hasActiveFilters = computed(() => activeFilterLabels.value.length > 0)
-
-function clearFilters(): void {
-  dwellerStore.setFilterStatus('all')
-  dwellerStore.setFilterAgeGroup('all')
-  dwellerStore.setFilterGender('all')
-  dwellerStore.setFilterRarity('all')
-  dwellerStore.setFilterRace('all')
-  dwellerStore.setFilterFaction('all')
-}
 </script>
 
 <template>
-  <div class="filter-panel">
-    <div v-if="showActiveFilterSummary && hasActiveFilters" class="filter-summary">
+  <component :is="collapsible ? 'details' : 'div'" class="filter-panel">
+    <summary
+      v-if="collapsible"
+      class="flex cursor-pointer flex-wrap items-center gap-3 text-theme-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-theme-primary"
+    >
+      <Icon icon="mdi:filter-variant" class="h-5 w-5" :ariaHidden="true" />
+      <span class="text-sm font-bold uppercase tracking-wider">Filters</span>
+      <span class="min-w-0 flex-1 text-sm text-theme-primary/70">{{
+        hasActiveFilters ? activeFilterLabels.join(' · ') : 'All dwellers'
+      }}</span>
+      <Button
+        v-if="hasActiveFilters"
+        variant="ghost"
+        size="sm"
+        @click.stop.prevent="dwellerStore.resetFilters()"
+        >Clear all</Button
+      >
+      <Icon icon="mdi:chevron-down" class="filter-chevron h-5 w-5" :ariaHidden="true" />
+    </summary>
+    <div v-if="!collapsible && showActiveFilterSummary && hasActiveFilters" class="filter-summary">
       <span class="filter-summary-labels">{{ activeFilterLabels.join(' · ') }}</span>
-      <button type="button" class="filter-clear" @click="clearFilters">Clear all</button>
+      <Button variant="ghost" size="sm" class="filter-clear" @click="dwellerStore.resetFilters()"
+        >Clear all</Button
+      >
     </div>
 
-    <DwellerFilterGroup
-      v-if="showStatusFilter"
-      label="Filter by Status"
-      icon="mdi:filter"
-      :options="statusOptions"
-      :model-value="currentFilterStatus"
-      :counts="statusCounts"
-      @update:model-value="currentFilterStatus = $event as DwellerStatus | 'all'"
-    />
-
-    <div class="filter-section-row">
+    <div class="flex flex-col gap-3" :class="{ 'mt-3': collapsible }">
       <DwellerFilterGroup
-        v-if="showAgeFilter"
-        label="Filter by Age"
-        icon="mdi:account-group"
-        :options="ageGroupOptions"
-        :model-value="currentFilterAgeGroup"
-        @update:model-value="currentFilterAgeGroup = $event as DwellerAgeGroup"
+        v-if="showAttentionFilter"
+        label="Attention"
+        icon="mdi:heart-pulse"
+        :options="attentionOptions"
+        :model-value="dwellerStore.filterFocus"
+        @update:model-value="dwellerStore.setFilterFocus($event as DwellerRosterFocus)"
+      />
+      <DwellerFilterGroup
+        v-if="showStatusFilter"
+        label="Filter by Status"
+        icon="mdi:filter"
+        :options="statusOptions"
+        :model-value="currentFilterStatus"
+        :counts="statusCounts"
+        @update:model-value="currentFilterStatus = $event as DwellerStatus | 'all'"
       />
 
-      <DwellerFilterGroup
-        v-if="showGenderFilter"
-        label="Filter by Gender"
-        icon="mdi:gender-male-female"
-        :options="genderOptions"
-        :model-value="currentFilterGender"
-        :counts="genderCounts"
-        @update:model-value="currentFilterGender = $event"
-      />
+      <div class="filter-section-row">
+        <DwellerFilterGroup
+          v-if="showAgeFilter"
+          label="Filter by Age"
+          icon="mdi:account-group"
+          :options="ageGroupOptions"
+          :model-value="currentFilterAgeGroup"
+          @update:model-value="currentFilterAgeGroup = $event as DwellerAgeGroup"
+        />
 
-      <DwellerFilterGroup
-        v-if="showRarityFilter"
-        label="Filter by Rarity"
-        icon="mdi:star-four-points"
-        :options="rarityOptions"
-        :model-value="currentFilterRarity"
-        :counts="rarityCounts"
-        @update:model-value="currentFilterRarity = $event"
-      />
+        <DwellerFilterGroup
+          v-if="showGenderFilter"
+          label="Filter by Gender"
+          icon="mdi:gender-male-female"
+          :options="genderOptions"
+          :model-value="currentFilterGender"
+          :counts="genderCounts"
+          @update:model-value="currentFilterGender = $event"
+        />
 
-      <DwellerFilterGroup
-        v-if="showIdentityFilters"
-        label="Filter by Race"
-        icon="mdi:account-star"
-        :options="raceSelectOptions"
-        :counts="raceCounts"
-        :model-value="currentFilterRace"
-        @update:model-value="currentFilterRace = $event"
-      />
+        <DwellerFilterGroup
+          v-if="showRarityFilter"
+          label="Filter by Rarity"
+          icon="mdi:star-four-points"
+          :options="rarityOptions"
+          :model-value="currentFilterRarity"
+          :counts="rarityCounts"
+          @update:model-value="currentFilterRarity = $event"
+        />
 
-      <DwellerFilterGroup
-        v-if="showIdentityFilters && featureFlags.factionMechanics"
-        label="Filter by Faction"
-        icon="mdi:shield-account"
-        :options="factionSelectOptions"
-        :model-value="currentFilterFaction"
-        @update:model-value="currentFilterFaction = $event"
-      />
+        <DwellerFilterGroup
+          v-if="showIdentityFilters"
+          label="Filter by Race"
+          icon="mdi:account-star"
+          :options="raceSelectOptions"
+          :counts="raceCounts"
+          :model-value="currentFilterRace"
+          @update:model-value="currentFilterRace = $event"
+        />
 
-      <slot v-if="$slots['additional-filters']" name="additional-filters"></slot>
+        <DwellerFilterGroup
+          v-if="showIdentityFilters && featureFlags.factionMechanics"
+          label="Filter by Faction"
+          icon="mdi:shield-account"
+          :options="factionSelectOptions"
+          :model-value="currentFilterFaction"
+          @update:model-value="currentFilterFaction = $event"
+        />
+
+        <slot v-if="$slots['additional-filters']" name="additional-filters"></slot>
+      </div>
     </div>
-  </div>
+  </component>
 </template>
 
 <style scoped>
 .filter-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
   padding: 0.75rem;
   background: var(--color-surface-sunken);
   border-radius: 8px;
@@ -383,30 +417,8 @@ function clearFilters(): void {
   white-space: nowrap;
 }
 
-.filter-clear {
-  flex-shrink: 0;
-  padding: 0.25rem 0.5rem;
-  background: transparent;
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 4px;
-  color: var(--color-theme-primary);
-  font-family: inherit;
-  font-size: 0.75rem;
-  cursor: pointer;
-  transition:
-    background-color 0.2s,
-    border-color 0.2s,
-    color 0.2s;
-}
-
-.filter-clear:hover {
-  background: var(--color-surface-hover);
-  border-color: var(--color-theme-primary);
-}
-
-.filter-clear:focus-visible {
-  outline: 2px solid var(--color-theme-primary);
-  outline-offset: 2px;
+.filter-panel[open] .filter-chevron {
+  transform: rotate(180deg);
 }
 
 .filter-section-row {

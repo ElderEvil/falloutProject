@@ -162,6 +162,10 @@ const hasNegativeModifiers = computed(() => {
   return activeModifiers.value.some((m) => m.severity === 'negative')
 })
 
+const hasLowHappiness = computed(
+  () => dwellerDistribution.value.low > 0 || dwellerDistribution.value.critical > 0
+)
+
 const showTreatmentAction = computed(
   () => severelyIrradiatedDwellerCount >= TREATMENT_MIN_SEVERE_COUNT
 )
@@ -317,7 +321,10 @@ const distributionAriaLabel = computed(() =>
     </div>
 
     <!-- Quick Actions Footer -->
-    <div v-if="hasNegativeModifiers || showTreatmentAction" class="actions-footer">
+    <div
+      v-if="hasNegativeModifiers || showTreatmentAction || hasLowHappiness"
+      class="actions-footer"
+    >
       <h4 class="section-title">QUICK ACTIONS</h4>
       <div class="actions-grid">
         <Button
@@ -356,7 +363,7 @@ const distributionAriaLabel = computed(() =>
         </Button>
 
         <Button
-          v-if="dwellerDistribution.critical > 0 || dwellerDistribution.low > 0"
+          v-if="hasLowHappiness"
           variant="outline"
           size="sm"
           @click="emit('view-low-happiness')"

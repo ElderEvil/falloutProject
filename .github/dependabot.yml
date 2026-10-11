@@ -22,6 +22,17 @@ updates:
       prefix: "chore"
       prefix-development: "chore"
       include: "scope"
+    # Pre-3.0 compatibility boundary (#925, rationale in #915). Do not let the
+    # grouped update cross into SQLModel >=0.0.45 (datetime fields default to
+    # UTCDateTime) or SQLAlchemy 2.1 (needs SQLModel >=0.0.48 and reworks PG
+    # named types); both are deferred to the 3.0 UTC-datetime migration.
+    ignore:
+      - dependency-name: "sqlmodel"
+        versions:
+          - ">=0.0.45"
+      - dependency-name: "sqlalchemy"
+        versions:
+          - ">=2.1"
 
   # Frontend dependencies (pnpm)
   - package-ecosystem: "npm"

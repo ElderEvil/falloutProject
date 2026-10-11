@@ -21,8 +21,12 @@ dependencies = [
     "pydantic-extra-types>=2.11.0",
     "python-jose[cryptography]>=3.5.0",
     "redis>=8.1.0",
+    "sqlalchemy>=2.0,<2.1",
     "sqladmin[full]>=0.31.0",
-    "sqlmodel>=0.0.39,<1",
+    # Upper bound is the pre-3.0 compatibility boundary (#925/#915): SQLModel
+    # 0.0.45 defaults datetime fields to UTCDateTime (DateTime(timezone=True)),
+    # which breaks our documented naive-UTC (datetime.utcnow) convention.
+    "sqlmodel>=0.0.39,<0.0.45",
     "httpcore>=1.0.9",
     "httptools>=0.8.0,<1",
     "greenlet>=3.5.3",
@@ -68,6 +72,16 @@ fo-cli = "app.cli.main:cli"
 
 [tool.uv]
 default-groups = ["test", "lint"]
+# Pre-3.0 routine batch boundary (#925): keep this batch to minor/patch updates
+# and hold back major/prerelease jumps until they get their own review. Each
+# package below would otherwise cross a major (or move to a prerelease) transitively.
+constraint-dependencies = [
+    "logfire<5",
+    "logfire-api<5",
+    "multidict<7",
+    "soupsieve<3",
+    "websockets<17",
+]
 
 [build-system]
 requires = ["setuptools>=83.0.0"]

@@ -35,6 +35,12 @@ from app.utils.exceptions import ContentNoChangeException, ResourceConflictExcep
 from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
 from app.utils.static_data import game_data_store
 
+#: Eager-load weapon/outfit — the shared baseline; callers that need pets add selectinload(Dweller.pet).
+_WEAPON_OUTFIT_LOADS = (
+    selectinload(Dweller.weapon),
+    selectinload(Dweller.outfit),
+)
+
 
 def determine_status_for_room(room_category: RoomTypeEnum | None, room_name: str | None = None) -> DwellerStatusEnum:
     """
@@ -62,6 +68,10 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             return [~self.model.is_deleted, ~self.model.is_dead]
         return [self.model.vault_id == vault_id, ~self.model.is_deleted, ~self.model.is_dead]
 
+    def _vault_query(self, vault_id: UUID4, *conditions: Any) -> Any:
+        """Start a vault-scoped dweller SELECT; callers chain filters/options as needed."""
+        return select(self.model).where(self.model.vault_id == vault_id, *conditions)
+
     async def get(self, db_session: AsyncSession, id: UUID4, include_deleted: bool = False) -> Dweller:
         """Override to eager load weapon, outfit and pet relationships."""
         query = (
@@ -70,8 +80,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             .options(
                 selectinload(Dweller.vault),
                 selectinload(Dweller.room),
-                selectinload(Dweller.weapon),
-                selectinload(Dweller.outfit),
+                *_WEAPON_OUTFIT_LOADS,
                 selectinload(Dweller.pet),
             )
         )
@@ -95,11 +104,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         query = (
             select(self.model)
             .where(self.model.id == dweller_id)
-            .options(
-                selectinload(Dweller.weapon),
-                selectinload(Dweller.outfit),
-                selectinload(Dweller.pet),
-            )
+            .options(*_WEAPON_OUTFIT_LOADS, selectinload(Dweller.pet))
         )
         result = await db_session.execute(query)
         return result.scalar_one_or_none()
@@ -126,11 +131,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             .offset(skip)
             .limit(limit)
             .order_by(self.model.id)
-            .options(
-                selectinload(Dweller.weapon),
-                selectinload(Dweller.outfit),
-                selectinload(Dweller.pet),
-            )
+            .options(*_WEAPON_OUTFIT_LOADS, selectinload(Dweller.pet))
         )
         if not include_deleted:
             query = query.where(~self.model.is_deleted)
@@ -155,7 +156,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         include_deleted: bool = False,
     ) -> Sequence[Dweller]:
         """Get multiple dwellers by vault ID with optional filtering and sorting."""
-        query = select(self.model).where(self.model.vault_id == vault_id)
+        query = self._vault_query(vault_id)
 
         # Filter out soft-deleted dwellers by default
         if not include_deleted:
@@ -205,15 +206,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             else:
                 query = query.order_by(sort_column.desc())
 
-        query = (
-            query.offset(skip)
-            .limit(limit)
-            .options(
-                selectinload(Dweller.weapon),
-                selectinload(Dweller.outfit),
-                selectinload(Dweller.pet),
-            )
-        )
+        query = query.offset(skip).limit(limit).options(*_WEAPON_OUTFIT_LOADS, selectinload(Dweller.pet))
         response = await db_session.execute(query)
         return response.scalars().all()
 
@@ -364,7 +357,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
     async def get_living_in_vault(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
         """Every living (non-deleted, non-dead) dweller in a vault."""
-        query = select(self.model).where(*self._living_conditions(vault_id))
+        query = self._vault_query(vault_id, *self._living_conditions())
         return (await db_session.execute(query)).scalars().all()
 
     async def get_exit_requests_above_happiness(
@@ -397,12 +390,12 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         self, db_session: AsyncSession, vault_id: UUID4, age_group: AgeGroupEnum | None = None
     ) -> Sequence[Dweller]:
         """Idle adults without a room, optionally narrowed to one age group."""
-        query = (
-            select(self.model)
-            .where(*self._living_conditions(vault_id))
-            .where(self.model.status == DwellerStatusEnum.IDLE)
-            .where(self.model.room_id.is_(None))
-            .where(*adult_assignment_conditions())
+        query = self._vault_query(
+            vault_id,
+            *self._living_conditions(),
+            self.model.status == DwellerStatusEnum.IDLE,
+            self.model.room_id.is_(None),
+            *adult_assignment_conditions(),
         )
         if age_group:
             query = query.where(self.model.age_group == age_group)
@@ -422,11 +415,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
     async def get_all_in_vault(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
         """Every dweller row of a vault, no status/deleted filters (tick processing)."""
-        query = (
-            select(self.model)
-            .options(selectinload(self.model.outfit), selectinload(self.model.pet))
-            .where(self.model.vault_id == vault_id)
-        )
+        query = self._vault_query(vault_id).options(selectinload(self.model.outfit), selectinload(self.model.pet))
         result = await db_session.execute(query)
         return result.scalars().all()
 
@@ -472,25 +461,14 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         """Adult dwellers with positive health in a room, weapon/outfit/pet eager-loaded."""
         query = (
             select(self.model)
-            .options(
-                selectinload(self.model.weapon),
-                selectinload(self.model.outfit),
-                selectinload(self.model.pet),
-            )
+            .options(*_WEAPON_OUTFIT_LOADS, selectinload(Dweller.pet))
             .where(self.model.room_id == room_id, *self._healthy_adult_conditions())
         )
         return list((await db_session.execute(query)).scalars().all())
 
     async def get_healthy_adults_by_vault(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
         """Adult dwellers with positive health in a vault, weapon/outfit eager-loaded."""
-        query = (
-            select(self.model)
-            .options(
-                selectinload(self.model.weapon),
-                selectinload(self.model.outfit),
-            )
-            .where(self.model.vault_id == vault_id, *self._healthy_adult_conditions())
-        )
+        query = self._vault_query(vault_id, *self._healthy_adult_conditions()).options(*_WEAPON_OUTFIT_LOADS)
         return list((await db_session.execute(query)).scalars().all())
 
     async def get_by_ids_in_vault(
@@ -516,11 +494,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         """Adult, alive dwellers assigned to a room (arena fighters), weapon/outfit/pet eager-loaded."""
         query = (
             select(self.model)
-            .options(
-                selectinload(self.model.weapon),
-                selectinload(self.model.outfit),
-                selectinload(self.model.pet),
-            )
+            .options(*_WEAPON_OUTFIT_LOADS, selectinload(Dweller.pet))
             .where(*self._arena_fighter_conditions(room_id))
         )
         if ids is not None:
@@ -577,7 +551,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         include_deleted: bool = False,
     ) -> Sequence[Dweller]:
         """Get dwellers by status."""
-        query = select(self.model).where(self.model.vault_id == vault_id).where(self.model.status == status)
+        query = self._vault_query(vault_id, self.model.status == status)
 
         # Filter out soft-deleted dwellers by default
         if not include_deleted:
@@ -757,9 +731,8 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             .options(
                 selectinload(self.model.vault),
                 selectinload(self.model.room),
-                selectinload(self.model.weapon),
-                selectinload(self.model.outfit),
-                selectinload(self.model.pet),
+                *_WEAPON_OUTFIT_LOADS,
+                selectinload(Dweller.pet),
             )
             .where(self.model.id == dweller_id)
         )
@@ -816,11 +789,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             .where(self.model.vault_id == vault_id)
             .where(self.model.is_deleted)
             .order_by(self.model.deleted_at.desc())
-            .options(
-                selectinload(Dweller.weapon),
-                selectinload(Dweller.outfit),
-                selectinload(Dweller.pet),
-            )
+            .options(*_WEAPON_OUTFIT_LOADS, selectinload(Dweller.pet))
             .offset(skip)
             .limit(limit)
         )
@@ -855,11 +824,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             .where(self.model.is_deleted)
             .where(~self.model.is_dead)
             .order_by(self.model.deleted_at.desc())
-            .options(
-                selectinload(Dweller.weapon),
-                selectinload(Dweller.outfit),
-                selectinload(Dweller.pet),
-            )
+            .options(*_WEAPON_OUTFIT_LOADS, selectinload(Dweller.pet))
         )
         if vault_id is not None:
             query = query.where(self.model.vault_id == vault_id)

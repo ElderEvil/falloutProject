@@ -74,6 +74,12 @@ class SPECIALEnum(CaseInsensitiveEnum):
 #: Canonical SPECIAL attribute names in S.P.E.C.I.A.L. order.
 SPECIAL_STATS: tuple[str, ...] = tuple(stat.value for stat in SPECIALEnum)
 
+#: SPECIAL member -> canonical lowercase attribute name (single source of truth).
+STAT_BY_SPECIAL: dict[SPECIALEnum, str] = {stat: stat.value for stat in SPECIALEnum}
+
+#: Single-letter S.P.E.C.I.A.L. initial -> canonical lowercase attribute name.
+STAT_BY_LETTER: dict[str, str] = {stat.name[0]: stat.value for stat in SPECIALEnum}
+
 
 class GenderEnum(CaseInsensitiveEnum):
     MALE = "male"

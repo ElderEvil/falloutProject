@@ -1,5 +1,7 @@
 """Pure incident combat kernel: split_damage, formula parity, golden incidents, and roster snapshots."""
 
+from dataclasses import replace
+
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -226,3 +228,36 @@ async def test_snapshot_rejects_unknown_vault(async_session: AsyncSession):
 
     with pytest.raises(ResourceNotFoundException):
         await snapshot_vault_defenders(async_session, uuid4())
+
+
+@pytest.mark.asyncio
+async def test_snapshot_defender_pet_reduction_applied_once_per_round(
+    async_session: AsyncSession, vault, dweller
+) -> None:
+    """The snapshot precomputes the pet share once; a round applies it once, never twice.
+
+    Equipped through the real CRUD path, so the snapshot must eager-load the pet
+    itself (see ``test_pet_eager_loads``); the round engine then only applies the
+    precomputed ``DamageReductions`` — it must not fold the pet share in again.
+    """
+    pet = await crud.pet.create(async_session, {"name": "Pallas's Cat", "rarity": RarityEnum.LEGENDARY, "value": 500})
+    await crud.pet.equip(db_session=async_session, item_id=pet.id, dweller_id=dweller.id)
+
+    profile = (await snapshot_vault_defenders(async_session, vault.id))[0]
+    assert profile.reductions_physical.shares == (0.25,)
+
+    # Keep the snapshot's precomputed reductions; raise power only so the round
+    # resolves in one tick, making damage_taken exactly one application.
+    responders = [SimDefender(profile=replace(profile, power=1000.0), health=100_000)]
+    base_raider_power = 200.0
+    outcome = resolve_incident(IncidentType.RAIDER_ATTACK, 1, responders, dt=2, base_raider_power=base_raider_power)
+    assert outcome.resolved
+    assert outcome.ticks == 1
+
+    incoming = max(0, int(incident_math.damage_to_dwellers(1 * base_raider_power, 2)))
+    share = incident_math.split_damage(incoming, 1)[0]
+    applied_once = profile.reductions_physical.apply(share)
+    applied_twice = int(share * (1.0 - 0.25) ** 2)
+    assert applied_once != applied_twice, "shares must differ to make the single-application check meaningful"
+    assert outcome.damage_taken == applied_once
+    assert outcome.damage_taken != applied_twice

@@ -93,7 +93,7 @@ def synthetic_defenders(
 
 
 async def snapshot_vault_defenders(db_session: AsyncSession, vault_id: UUID4) -> list[DefenderProfile]:
-    """Load a vault's healthy adults as defender profiles (weapon/outfit eager-loaded)."""
+    """Load a vault's healthy adults as defender profiles (weapon/outfit/pet eager-loaded)."""
     from app.crud.dweller import dweller as crud_dweller
     from app.crud.vault import vault as vault_crud
 

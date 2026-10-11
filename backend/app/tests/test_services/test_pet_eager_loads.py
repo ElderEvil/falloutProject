@@ -22,6 +22,7 @@ from app.models.team import Team, TeamMember
 from app.models.vault import Vault
 from app.options.identity_modifiers import effective_stat
 from app.schemas.room import RoomCreate
+from app.services.combat.incident_sim_roster import snapshot_vault_defenders
 from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
 from app.tests.factory.rooms import create_fake_room
@@ -173,6 +174,24 @@ async def test_incident_defenders_apply_pet_radiation_resist(
     defenders = await crud.dweller.get_healthy_adults_in_room(async_session, room.id)
     radiation = damage_reductions(defenders[0], DamageChannel.RADIATION)
     assert radiation.shares == (0.25,)
+
+
+@pytest.mark.asyncio
+async def test_incident_snapshot_defenders_apply_pet_resists(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """snapshot_vault_defenders applies the pet's incident resists (vs a no-pet control)."""
+    control = await snapshot_vault_defenders(async_session, vault.id)
+    assert len(control) == 1
+    assert control[0].reductions_physical.shares == ()
+    assert control[0].reductions_fire.shares == ()
+
+    await _equip_pet(async_session, dweller, "Pallas's Cat")  # incident_response_pct 0.25
+
+    defenders = await snapshot_vault_defenders(async_session, vault.id)
+    assert len(defenders) == 1
+    assert defenders[0].reductions_physical.shares == (0.25,)
+    assert defenders[0].reductions_fire.shares == (0.25,)
 
 
 @pytest.mark.asyncio

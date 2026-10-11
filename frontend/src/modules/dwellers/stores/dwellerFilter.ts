@@ -226,7 +226,12 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   let allDwellersRequestSeq = 0
 
   // Filter and sort state (persisted in localStorage)
-  const filterFocus = useLocalStorage<DwellerRosterFocus>('dwellerFilterFocus', 'all')
+  const filterFocus = useLocalStorage<DwellerRosterFocus>('dwellerFilterFocus', 'all', {
+    serializer: {
+      read: (raw) => (isDwellerRosterFocus(raw) ? raw : 'all'),
+      write: (value) => value,
+    },
+  })
   const filterStatus = useLocalStorage<DwellerStatus | 'all'>('dwellerFilterStatus', 'all')
   const filterAgeGroup = useLocalStorage<DwellerAgeGroup>('dwellerFilterAgeGroup', 'all')
   const filterGender = useLocalStorage<string>('dwellerFilterGender', 'all')

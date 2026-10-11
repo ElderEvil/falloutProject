@@ -4,7 +4,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import DwellerFilterPanel from '@/modules/dwellers/components/DwellerFilterPanel.vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
-import { getIdentityOptions } from '@/modules/dwellers/services/dwellerService'
+import { getDwellersByVault, getIdentityOptions } from '@/modules/dwellers/services/dwellerService'
 
 vi.mock('@/modules/auth/stores/auth', () => ({
   useAuthStore: () => ({ token: 'test-token' }),
@@ -15,6 +15,7 @@ vi.mock('@/core/utils/errorHandler', () => ({
 }))
 
 vi.mock('@/modules/dwellers/services/dwellerService', () => ({
+  getDwellersByVault: vi.fn().mockResolvedValue([]),
   getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
   getIdentityOptions: vi.fn().mockResolvedValue({
     races: ['human', 'ghoul', 'super_mutant', 'synth'],
@@ -478,5 +479,24 @@ describe('Collapsible roster filters', () => {
     expect(store.viewMode).toBe('table')
     expect((wrapper.element as HTMLDetailsElement).open).toBe(false)
     wrapper.unmount()
+  })
+})
+
+describe('Persisted roster attention', () => {
+  it.each([
+    ['retired_focus', 'all', undefined],
+    ['needs_care', 'needs_care', 'needs_care'],
+    ['low_happiness', 'low_happiness', 'low_happiness'],
+    ['all', 'all', undefined],
+  ])('hydrates %s safely before the first roster request', async (stored, hydrated, sent) => {
+    localStorage.setItem('dwellerFilterFocus', stored!)
+    const store = useDwellerStore().filter
+    expect(store.filterFocus).toBe(hydrated)
+    await store.fetchWithCurrentFilters('vault-1', 'test-token')
+    expect(getDwellersByVault).toHaveBeenLastCalledWith(
+      'vault-1',
+      'test-token',
+      expect.objectContaining({ focus: sent })
+    )
   })
 })

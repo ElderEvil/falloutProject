@@ -15,22 +15,26 @@ describe('HappinessDashboard', () => {
   }
 
   it.each([false, true])(
-    'uses the disclosure frame when embedded, including loading=%s',
+    'only exposes embedded dashboard content when loaded, loading=%s',
     (loading) => {
       const wrapper = mount(HappinessDashboard, {
         props: { ...defaultProps, embedded: true, loading },
       })
-      expect(wrapper.find('.happiness-dashboard').classes()).toContain('border-0')
-      expect(wrapper.find('.happiness-dashboard').classes()).toContain('rounded-none')
-      expect(wrapper.find('.happiness-dashboard').classes()).not.toContain('border-2')
+      expect(wrapper.text().includes('DWELLER DISTRIBUTION')).toBe(!loading)
+      expect(wrapper.findAll('button').length > 0).toBe(!loading)
       wrapper.unmount()
     }
   )
 
-  it('keeps its own frame on the standalone happiness page', () => {
+  it('keeps attention actions usable without embedding', async () => {
     const wrapper = mount(HappinessDashboard, { props: defaultProps })
-    expect(wrapper.find('.happiness-dashboard').classes()).toContain('border-2')
-    expect(wrapper.find('.happiness-dashboard').classes()).toContain('rounded-lg')
+    expect(wrapper.text()).toContain('75%')
+    const action = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('View Low Happiness'))
+    expect(action).toBeTruthy()
+    await action!.trigger('click')
+    expect(wrapper.emitted('view-low-happiness')).toHaveLength(1)
     wrapper.unmount()
   })
 

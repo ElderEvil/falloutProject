@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.194.2 (2026-10-11)
+
+### Bug Fixes
+
+* **map:** simplify visual cues and improve explorer selection ([#938](https://github.com/ElderEvil/falloutProject/issues/938)) 2ff4a11
+
 ## 2.194.1 (2026-10-10)
 
 ### Bug Fixes

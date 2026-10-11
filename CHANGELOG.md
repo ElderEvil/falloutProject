@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.195.1 (2026-10-11)
+
+### Bug Fixes
+
+* dweller visual_attributes contract + enum-derived SPECIAL stat maps ([#945](https://github.com/ElderEvil/falloutProject/issues/945)) ca50660
+
 ## 2.195.0 (2026-10-11)
 
 ### Features

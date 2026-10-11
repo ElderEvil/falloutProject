@@ -1,5 +1,11 @@
 import { defineConfig, devices } from '@playwright/test'
 
+// The visual-baseline specs (`crt-baselines`, `ui-catalog`) mock every backend call
+// they make, so CI runs them against the Vite dev server alone: PW_SKIP_BACKEND=1
+// drops the FastAPI webServer and starts Vite directly. `pnpm exec vp dev` skips
+// `types:generate`, which needs a live backend — the generated client is committed.
+const skipBackend = process.env.PW_SKIP_BACKEND === '1'
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -16,13 +22,17 @@ export default defineConfig({
     },
   ],
   webServer: [
+    ...(skipBackend
+      ? []
+      : [
+          {
+            command: 'cd ../backend && uv run fastapi dev main.py',
+            url: 'http://localhost:8000/healthcheck',
+            reuseExistingServer: true,
+          },
+        ]),
     {
-      command: 'cd ../backend && uv run fastapi dev main.py',
-      url: 'http://localhost:8000/healthcheck',
-      reuseExistingServer: true,
-    },
-    {
-      command: 'pnpm run dev',
+      command: skipBackend ? 'pnpm exec vp dev' : 'pnpm run dev',
       port: 5173,
       reuseExistingServer: true,
     },

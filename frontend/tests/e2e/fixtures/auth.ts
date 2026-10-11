@@ -5,6 +5,10 @@ export interface TestUser {
   email: string
   is_active: boolean
   is_superuser: boolean
+  // Optional read-model fields so specs can render the profile header (username)
+  // and verified badge (email_verified) without a /users/me round trip.
+  username?: string
+  email_verified?: boolean
 }
 
 export const TEST_USER: TestUser = {

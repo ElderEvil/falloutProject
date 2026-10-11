@@ -54,7 +54,6 @@ class DwellerBaseWithoutStats(SQLModel):
     # Backstory and appearance
     bio: str | None = Field(default=None, max_length=BIO_MAX_CHARS)
     bio_entries: list[dict[str, Any]] = Field(default_factory=list, sa_column=sa.Column(JSONB, nullable=False))
-    visual_attributes: dict | None = Field(default=None, sa_column=sa.Column(JSONB))
     image_url: str | None = Field(default=None, max_length=255)
     thumbnail_url: str | None = Field(default=None, max_length=255)
 
@@ -155,6 +154,10 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
         back_populates="dwellers",
         sa_relationship_kwargs={"foreign_keys": "Dweller.room_id"},
     )
+
+    # Kept off the non-table base so read/write schemas can narrow this type
+    # (e.g. template load-time identity validation) without an inherited override.
+    visual_attributes: dict | None = Field(default=None, sa_column=sa.Column(JSONB))
 
     # Youth apprenticeship in a production room.
     apprentice_stat: SPECIALEnum | None = Field(default=None)

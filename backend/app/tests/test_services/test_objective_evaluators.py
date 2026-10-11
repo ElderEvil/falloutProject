@@ -1,15 +1,18 @@
 """Tests for ObjectiveEvaluators."""
 
 import asyncio
+import logging
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app import crud
 from app.core.event_bus import GameEvent, event_bus
+from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
 from app.models.objective import Objective
+from app.models.storage import Storage
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.schemas.common import ObjectiveCategoryEnum
 from app.schemas.user import UserCreate
@@ -845,3 +848,81 @@ def test_facade_reexports_canonical_evaluator_surface() -> None:
     )
     for name in names:
         assert getattr(facade, name) is getattr(canonical, name)
+
+
+@pytest.mark.asyncio
+async def test_full_storage_reward_rollback_preserves_other_objectives_and_retry(
+    async_session, vault, fresh_event_bus, caplog
+):
+    """Worker sessions must recover from a blocked reward without losing another completion."""
+    vault_id = vault.id
+    initial_caps = vault.bottle_caps
+    storage = Storage(vault_id=vault_id, max_space=0)
+    blocked = Objective(
+        challenge="A collect food for weapon",
+        reward="weapon:Laser Pistol",
+        objective_type="collect",
+        target_entity={"resource_type": "food"},
+        target_amount=1,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
+    )
+    healthy = Objective(
+        challenge="Z collect food for caps",
+        reward="10 caps",
+        objective_type="collect",
+        target_entity={"resource_type": "food"},
+        target_amount=1,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
+    )
+    blocked_link = VaultObjectiveProgressLink(vault_id=vault_id, objective_id=blocked.id, total=1)
+    healthy_link = VaultObjectiveProgressLink(vault_id=vault_id, objective_id=healthy.id, total=1)
+    async_session.add_all([storage, blocked, healthy, blocked_link, healthy_link])
+    await async_session.commit()
+    evaluator = CollectEvaluator(fresh_event_bus)
+    completions = []
+
+    async def record_completion(_event, _vault, data):
+        completions.append(data["objective_id"])
+
+    fresh_event_bus.subscribe(GameEvent.OBJECTIVE_COMPLETED, record_completion)
+    load_active = evaluator._get_active_objectives
+
+    async def sorted_active(session, target_vault):
+        return sorted(await load_active(session, target_vault), key=lambda pair: pair[0].challenge)
+
+    # Match Dramatiq's raw SQLAlchemy sessions, which have no SQLModel .exec().
+    maker = async_sessionmaker(
+        async_session.bind, class_=AsyncSession, expire_on_commit=False, join_transaction_mode="create_savepoint"
+    )
+    with (
+        patch("app.services.progression.objectives.evaluators.base.async_session_maker", maker),
+        patch.object(evaluator, "_get_active_objectives", side_effect=sorted_active),
+        caplog.at_level(logging.ERROR),
+    ):
+        await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault_id, {"resource_type": "food", "amount": 1})
+        await async_session.refresh(blocked_link)
+        await async_session.refresh(healthy_link)
+        await async_session.refresh(vault)
+        assert blocked_link.progress == 0
+        assert blocked_link.is_completed is False
+        assert healthy_link.is_completed is True
+        assert completions == [str(healthy.id)]
+        assert vault.bottle_caps == initial_caps + 10
+        assert await storage_crud.count_items(async_session, storage.id) == 0
+        errors = [record for record in caplog.records if record.levelno >= logging.ERROR]
+        assert len(errors) == 1
+        assert "Storage full" in str(errors[0].exc_info[1])
+        assert "A collect food for weapon" in errors[0].getMessage()
+        assert "MissingGreenlet" not in caplog.text
+
+        storage.max_space = 1
+        await async_session.commit()
+        # Freeing capacity permits exactly one delivery; the already-settled caps are not repeated.
+        for _ in range(2):
+            await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault_id, {"resource_type": "food", "amount": 1})
+        await async_session.refresh(blocked_link)
+        await async_session.refresh(vault)
+        assert blocked_link.is_completed is True
+        assert completions == [str(healthy.id), str(blocked.id)]
+        assert vault.bottle_caps == initial_caps + 10
+        assert await storage_crud.count_items(async_session, storage.id) == 1

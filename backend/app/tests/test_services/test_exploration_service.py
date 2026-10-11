@@ -516,3 +516,30 @@ async def test_send_dweller_cancels_active_training(
     await async_session.refresh(dweller)
     assert training.is_cancelled()
     assert dweller.status == DwellerStatusEnum.EXPLORING
+
+
+@pytest.mark.asyncio
+async def test_auto_supplies_does_not_lower_health_above_radiation_ceiling(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A Stimpak cannot damage an explorer whose current health exceeds the ceiling."""
+    from app.services.exploration.event_service import auto_use_supplies
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    dweller.max_health = 100
+    dweller.health = 20
+    dweller.radiation = 90
+    exploration.stimpaks = 1
+    exploration.radaways = 0
+    async_session.add(dweller)
+    async_session.add(exploration)
+    await async_session.commit()
+
+    records = await auto_use_supplies(async_session, exploration)
+    await async_session.commit()
+    await async_session.refresh(dweller)
+    await async_session.refresh(exploration)
+
+    assert dweller.health == 20
+    assert exploration.stimpaks == 1
+    assert records == []

@@ -1,4 +1,4 @@
-"""Radiation mechanics rules shared by incidents, exploration, and the game loop.
+"""Radiation and health-restoration rules shared by incidents, exploration, and the game loop.
 
 Pure helpers over a dweller model instance: no session, no commits. Callers
 persist changes themselves (attribute tracking or ``db_session.add``).
@@ -29,6 +29,17 @@ def radiation_removal_amount(radiation: int, max_health: int) -> int:
     """
     removal = int(max_health * game_config.health.radaway_removal_percent)
     return min(radiation, max(1, removal))
+
+
+def stimpack_heal_amount(max_health: int) -> int:
+    """HP restored by one Stimpak: a share of max health, always at least 1."""
+    return max(1, int(max_health * game_config.health.stimpack_heal_percent))
+
+
+def apply_health_gain(dweller: Dweller, amount: int) -> int:
+    """Heal a dweller, clamped at the radiation-reduced ceiling; returns the new health."""
+    dweller.health = min(dweller.effective_max_health, dweller.health + amount)
+    return dweller.health
 
 
 def apply_radiation_gain(

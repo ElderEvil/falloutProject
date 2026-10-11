@@ -12,7 +12,7 @@ from app.options.races import can_use_radaway
 from app.schemas.chat import MedicalAidStatus, MedicalRecommendation
 from app.schemas.dweller import DwellerReadFull, DwellerUpdate
 from app.schemas.vault import MedicalDistributionResponse
-from app.services.radiation_service import radiation_removal_amount
+from app.services.radiation_service import apply_health_gain, radiation_removal_amount, stimpack_heal_amount
 from app.utils.exceptions import (
     ContentNoChangeException,
     ResourceConflictException,
@@ -77,8 +77,7 @@ async def use_stimpack(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
     if dweller_obj.health >= dweller_obj.effective_max_health:
         raise ContentNoChangeException(detail="Dweller is already at full health.")
 
-    heal_amount = max(1, int(dweller_obj.max_health * game_config.health.stimpack_heal_percent))
-    new_health = min(dweller_obj.health + heal_amount, dweller_obj.effective_max_health)
+    new_health = apply_health_gain(dweller_obj, stimpack_heal_amount(dweller_obj.max_health))
 
     return await dweller_crud.update(
         db_session, dweller_id, DwellerUpdate(health=new_health, stimpack=dweller_obj.stimpack - 1)
@@ -142,8 +141,7 @@ async def distribute_recovery_supplies(db_session: AsyncSession, vault_id: UUID4
             radaway_stock -= radaway_doses
             radaways_used += radaway_doses
 
-            heal = max(1, int(dweller.max_health * game_config.health.stimpack_heal_percent)) * stimpak_doses
-            dweller.health = min(dweller.health + heal, dweller.effective_max_health)
+            dweller.health = apply_health_gain(dweller, stimpack_heal_amount(dweller.max_health) * stimpak_doses)
             stimpak_stock -= stimpak_doses
             stimpaks_used += stimpak_doses
 

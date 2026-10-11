@@ -908,6 +908,44 @@ async def test_dispatch_rejects_supplies_beyond_storage(
         await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id, stimpaks=5)
 
 
+@pytest.mark.parametrize(
+    ("stimpaks", "radaways"),
+    [(-1, 0), (0, -1)],
+)
+@pytest.mark.asyncio
+async def test_dispatch_rejects_negative_supplies(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    stimpaks: int,
+    radaways: int,
+) -> None:
+    """A dispatch cannot request negative supplies."""
+    location, _state = await _register_clearable(async_session, vault, dweller)
+
+    with pytest.raises(ValidationException, match="Supplies cannot be negative"):
+        await exploration_service.dispatch(
+            async_session, vault.id, [dweller.id], location.id, stimpaks=stimpaks, radaways=radaways
+        )
+
+
+@pytest.mark.asyncio
+async def test_dispatch_snapshots_anchor_stats(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
+    """A dispatch stages the anchor dweller's SPECIAL values onto the run."""
+    location, _state = await _register_clearable(async_session, vault, dweller)
+    await _boost_dweller(async_session, dweller, **STRONG_STATS)
+
+    exploration = await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
+
+    assert exploration.dweller_strength == 10
+    assert exploration.dweller_perception == 10
+    assert exploration.dweller_endurance == 10
+    assert exploration.dweller_charisma == 10
+    assert exploration.dweller_intelligence == 10
+    assert exploration.dweller_agility == 10
+    assert exploration.dweller_luck == 10
+
+
 @pytest.mark.asyncio
 async def test_depart_targeted_forwards_requested_supplies(async_session: AsyncSession) -> None:
     """A targeted /send depart forwards stimpaks and radaways to dispatch."""

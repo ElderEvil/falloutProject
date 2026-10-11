@@ -175,7 +175,7 @@ async def auto_use_supplies(db_session: AsyncSession, exploration: Exploration) 
         db_session.add(dweller_obj)
         db_session.add(exploration)
 
-    if exploration.stimpaks > 0 and dweller_obj.health < max_health * 0.5:
+    if exploration.stimpaks > 0 and dweller_obj.health < min(max_health * 0.5, dweller_obj.effective_max_health):
         old_health = dweller_obj.health
         actual_healing = apply_health_gain(dweller_obj, stimpack_heal_amount(max_health)) - old_health
         if actual_healing > 0:

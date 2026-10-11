@@ -72,10 +72,12 @@ const handleSetPlace = async (team: HazardTeam, dwellerId: string, active: boole
   const id = vaultId.value
   const token = authStore.token
   if (!id || !token || isLoading.value || busyDwellerIds.value.size > 0) return
+  const version = loadVersion
   busyDwellerIds.value.add(dwellerId)
   try {
     const updated = await runSetPlace(id, team, dwellerId, active, token)
-    if (updated && id === vaultId.value && token === authStore.token) roster.value = updated
+    if (updated && version === loadVersion && id === vaultId.value && token === authStore.token)
+      roster.value = updated
   } finally {
     busyDwellerIds.value.delete(dwellerId)
   }

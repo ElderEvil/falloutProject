@@ -83,6 +83,28 @@ describe('ResponseTeamsView', () => {
     )
   })
 
+  it('rejects an old placement response after switching away and back to the same vault', async () => {
+    let finish!: (value: ContaminationTeamRead) => void
+    vi.mocked(contaminationTeamApi.setPlace).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
+    )
+    const wrapper = mountWithSetup(ResponseTeamsView)
+    await flushPromises()
+    await wrapper.find('.bench').trigger('click')
+    routeState.params.id = 'vault-2'
+    await flushPromises()
+    const fresh = roster({ teams: [] })
+    vi.mocked(contaminationTeamApi.getRoster).mockResolvedValueOnce(fresh)
+    routeState.params.id = 'vault-1'
+    await flushPromises()
+    finish(roster())
+    await flushPromises()
+    expect(wrapper.findComponent({ name: 'ResponseTeamsPanel' }).props('roster')).toEqual(fresh)
+  })
+
   it('serializes roster mutations to prevent stale full-roster responses', async () => {
     let finish!: (value: ContaminationTeamRead) => void
     vi.mocked(contaminationTeamApi.setPlace).mockImplementationOnce(

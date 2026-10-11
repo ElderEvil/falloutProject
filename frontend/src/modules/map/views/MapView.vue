@@ -22,6 +22,7 @@ import { Button } from '@/core/components/ui/button'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -533,46 +534,8 @@ const hasNoData = computed(
             </Button>
           </div>
 
-          <!-- Filters have their own row so they cannot cover canvas controls. -->
+          <!-- Destination filters stay with the places index. -->
           <div v-else class="map-stage">
-            <div
-              class="mb-2 flex flex-wrap items-center gap-2"
-              role="group"
-              aria-label="Map filters"
-            >
-              <Select v-if="siteGroupOptions.length" v-model="siteTypeFilterSelect">
-                <SelectTrigger
-                  aria-label="Filter by site type"
-                  class="h-auto rounded-sm border-theme-primary/30 bg-surface-sunken/60 px-2 py-1 text-xs text-theme-primary data-[size=default]:h-auto"
-                >
-                  <SelectValue placeholder="All sites" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All sites</SelectItem>
-                  <SelectItem v-for="group in siteGroupOptions" :key="group.key" :value="group.key">
-                    <Icon :icon="group.icon" />
-                    <span>{{ group.label }}</span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                variant="outline"
-                size="sm"
-                :aria-pressed="readyOnly"
-                :disabled="readyLocationIds.length === 0 && !readyOnly"
-                @click="toggleReadyPlaces"
-              >
-                Ready places only
-              </Button>
-              <Button
-                v-if="authStore.isSuperuser"
-                variant="outline"
-                size="sm"
-                @click="fogDisabled = !fogDisabled"
-              >
-                {{ fogDisabled ? 'Restore fog' : 'Remove fog' }}
-              </Button>
-            </div>
             <WorldMap
               :locations="mapStore.locations"
               :vault-markers="mapStore.vaultMarkers"
@@ -590,7 +553,62 @@ const hasNoData = computed(
               @vault-info="handleVaultInfo"
               @dweller-click="onDwellerClick"
               @party-click="openExploration"
-            />
+            >
+              <template #filters>
+                <div
+                  class="flex flex-col gap-2 border-b border-theme-primary/20 p-3"
+                  role="group"
+                  aria-label="Map filters"
+                >
+                  <Select v-if="siteGroupOptions.length" v-model="siteTypeFilterSelect">
+                    <SelectTrigger
+                      aria-label="Filter by site type"
+                      class="w-full h-auto rounded-sm border-theme-primary/30 bg-surface-sunken/60 px-2 py-1 text-xs text-theme-primary data-[size=default]:h-auto"
+                    >
+                      <SelectValue placeholder="All sites" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="all">All sites</SelectItem>
+                        <SelectItem
+                          v-for="group in siteGroupOptions"
+                          :key="group.key"
+                          :value="group.key"
+                        >
+                          <Icon :icon="group.icon" />
+                          <span>{{ group.label }}</span>
+                        </SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    :variant="readyOnly ? 'default' : 'outline'"
+                    size="sm"
+                    :aria-pressed="readyOnly"
+                    :disabled="readyLocationIds.length === 0 && !readyOnly"
+                    @click="toggleReadyPlaces"
+                  >
+                    <Icon icon="mdi:flag-checkered" class="size-4" />
+                    Ready to clear
+                  </Button>
+                </div>
+              </template>
+              <template v-if="authStore.isSuperuser" #tools>
+                <Button
+                  :variant="fogDisabled ? 'default' : 'outline'"
+                  size="sm"
+                  :class="fogDisabled ? '' : 'bg-surface-raised'"
+                  :aria-pressed="fogDisabled"
+                  @click="fogDisabled = !fogDisabled"
+                >
+                  <Icon
+                    :icon="fogDisabled ? 'mdi:weather-fog' : 'mdi:eye-outline'"
+                    class="size-4"
+                  />
+                  {{ fogDisabled ? 'Restore fog' : 'Reveal fog' }}
+                </Button>
+              </template>
+            </WorldMap>
           </div>
 
           <!-- Explorer popover: dweller summary anchored to the clicked marker -->

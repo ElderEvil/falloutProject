@@ -1,96 +1,82 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import MapLegend from '@/modules/map/components/MapLegend.vue'
+import MapMarker from '@/modules/map/components/MapMarker.vue'
+import { MARKER_TYPES } from '@/modules/map/models/markerTypeMeta'
+import { groupColor } from '@/modules/map/models/groupColors'
+import type { PlaceGroup } from '@/modules/map/models/map'
+
+const group: PlaceGroup = {
+  key: 'gas_station',
+  label: 'Gas station',
+  icon: 'mdi:gas-station',
+  risk: 'low',
+  description: '',
+  clearable: true,
+}
+const mountLegend = (props = {}) =>
+  mount(MapLegend, { props, global: { stubs: { Icon: true, MapMarker: true } } })
 
 describe('MapLegend', () => {
-  beforeEach(() => {
-    localStorage.removeItem('map:legend-collapsed')
-  })
-  function mountLegend(expanded = true) {
-    if (expanded) localStorage.setItem('map:legend-collapsed', 'false')
-    return mount(MapLegend, { global: { stubs: { Icon: true } } })
-  }
-  it('uses four symbolic state cues without color catalogs', () => {
+  it('retains symbolic states independently of place colors', () => {
     const wrapper = mountLegend()
-    expect(wrapper.findAll('.legend-item').map((item) => item.text())).toEqual([
-      'Locked',
-      'Cleared',
-      'Cooldown',
-      'Exploring',
-    ])
-    expect(wrapper.find('details').exists()).toBe(false)
-    expect(wrapper.find('.legend-danger').exists()).toBe(false)
+    for (const state of ['Locked', 'Cleared', 'Cooldown', 'Exploring'])
+      expect(wrapper.text()).toContain(state)
   })
 
-  it('should render the MAP KEY title', () => {
+  it('uses the canonical marker labels', () => {
     const wrapper = mountLegend()
-
-    expect(wrapper.text()).toContain('MAP KEY')
+    for (const symbol of MARKER_TYPES) expect(wrapper.text()).toContain(symbol.label)
+    expect(wrapper.text()).toContain('Grouped markers')
   })
 
-  it('should have the correct role and aria-label', () => {
+  it('names the legend region for assistive technology', () => {
     const wrapper = mountLegend()
-
-    const legend = wrapper.find('[role="complementary"]')
-    expect(legend.exists()).toBe(true)
-    expect(legend.attributes('aria-label')).toBe('Map legend')
+    expect(wrapper.find('[role="region"]').attributes('aria-label')).toBe('Map legend')
   })
 
-  it('collapses and expands so it can uncover content beneath it', async () => {
+  it('shows the full reference without a nested expand control', () => {
     const wrapper = mountLegend()
-    expect(wrapper.find('.legend-item').exists()).toBe(true)
-
-    await wrapper.find('.legend-toggle').trigger('click')
-    expect(wrapper.find('.legend-item').exists()).toBe(false)
-    expect(wrapper.find('.legend-toggle').attributes('aria-expanded')).toBe('false')
-    expect(localStorage.getItem('map:legend-collapsed')).toBe('true')
-
-    await wrapper.find('.legend-toggle').trigger('click')
-    expect(wrapper.find('.legend-item').exists()).toBe(true)
-    expect(localStorage.getItem('map:legend-collapsed')).toBe('false')
+    expect(wrapper.text()).toContain('Marker symbols')
+    expect(wrapper.text()).toContain('Place status')
+    expect(wrapper.find('button').exists()).toBe(false)
   })
 
-  it('starts collapsed on first view so it never covers the map', () => {
-    const wrapper = mountLegend(false)
-
-    expect(wrapper.find('.legend-item').exists()).toBe(false)
-    expect(wrapper.find('.legend-toggle').attributes('aria-expanded')).toBe('false')
+  it('renders catalog icons using the actual map marker component', () => {
+    const wrapper = mountLegend({ placeGroups: [group] })
+    const marker = wrapper.findComponent(MapMarker)
+    expect(marker.props('icon')).toBe(group.icon)
+    expect(marker.props('interactive')).toBe(false)
+    expect(marker.props('color')).toBeNull()
   })
 
-  it('restores the stored collapsed state across visits', () => {
-    localStorage.setItem('map:legend-collapsed', 'true')
-    const wrapper = mount(MapLegend, {
-      global: { stubs: { Icon: true } },
+  it('uses the shared optional group colors and stays neutral for unknown groups', () => {
+    const wrapper = mountLegend({
+      placeGroups: [group, { ...group, key: 'unknown' }],
+      groupColors: true,
     })
-
-    expect(wrapper.find('.legend-item').exists()).toBe(false)
+    const markers = wrapper.findAllComponents(MapMarker)
+    expect(markers[0].props('color')).toBe(groupColor(group.key))
+    expect(markers[1].props('color')).toBeNull()
   })
 
-  it('stays collapsed when storage reads throw', () => {
+  it('works when storage reads are unavailable', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new DOMException('denied', 'SecurityError')
     })
     try {
-      const wrapper = mountLegend(false)
-
-      expect(wrapper.find('.legend-item').exists()).toBe(false)
+      expect(mountLegend().text()).toContain('Locked')
     } finally {
       vi.restoreAllMocks()
     }
   })
 
-  it('still toggles when storage writes throw', async () => {
+  it('works when storage writes are unavailable', () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new DOMException('denied', 'QuotaExceededError')
     })
     try {
-      const wrapper = mountLegend()
-
-      await wrapper.find('.legend-toggle').trigger('click')
-      expect(wrapper.find('.legend-item').exists()).toBe(false)
-
-      await wrapper.find('.legend-toggle').trigger('click')
-      expect(wrapper.find('.legend-item').exists()).toBe(true)
+      expect(mountLegend().text()).toContain('Cooldown')
     } finally {
       vi.restoreAllMocks()
     }

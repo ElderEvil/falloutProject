@@ -69,6 +69,7 @@ class ObjectiveEvaluator(abc.ABC):
         async with maker() as db_session:
             objectives = await self._get_active_objectives(db_session, vault_id)
             for objective, link in objectives:
+                objective_id, challenge = objective.id, objective.challenge
                 try:
                     if self._matches(objective, event_type, data):
                         logger.debug(f"[DEBUG] MATCH: Objective '{objective.challenge}' matches {event_type}")
@@ -77,10 +78,18 @@ class ObjectiveEvaluator(abc.ABC):
                     else:
                         logger.debug(f"[DEBUG] NO MATCH: Objective '{objective.challenge}' does not match {event_type}")
                 except Exception:
+                    await db_session.rollback()
                     logger.exception(
-                        f"{self.__class__.__name__} failed handling objective '{objective.challenge}' "
-                        f"(id={objective.id}) for vault {vault_id} on event {event_type}"
+                        "%s failed handling objective '%s' (id=%s) for vault %s on event %s",
+                        self.__class__.__name__,
+                        challenge,
+                        objective_id,
+                        vault_id,
+                        event_type,
                     )
+                    # Rollback expires every loaded row, including the remaining objectives.
+                    # Reuse the active query to reload them before the next synchronous attribute access.
+                    await self._get_active_objectives(db_session, vault_id)
 
     async def _get_active_objectives(
         self, db_session: AsyncSession, vault_id: UUID4
@@ -134,15 +143,10 @@ class ObjectiveEvaluator(abc.ABC):
 
         link.progress = objective.target_amount
 
-        try:
-            async with defer_reward_delivery(db_session):
-                await reward_service.process_objective_reward(db_session, vault_id, link)
-                link.is_completed = True
-                await db_session.commit()
-        except Exception:
-            await db_session.rollback()
-            logger.exception(f"Failed to grant reward for objective '{objective.challenge}' in vault {vault_id}")
-            return
+        async with defer_reward_delivery(db_session):
+            await reward_service.process_objective_reward(db_session, vault_id, link)
+            link.is_completed = True
+            await db_session.commit()
 
         await self._event_bus.emit(
             GameEvent.OBJECTIVE_COMPLETED,

@@ -6,6 +6,7 @@ from sqlmodel import SQLModel
 from sqlmodel.main import SQLModelConfig
 
 from app.core.enums import (
+    STAT_BY_LETTER,
     STATE_OF_BEING_TYPE,
     AgeGroupEnum,
     DeathCauseEnum,
@@ -31,15 +32,7 @@ from app.schemas.weapon import WeaponRead
 from app.utils.partial import optional
 from app.utils.places import normalize_place_name
 
-LETTER_TO_STAT = {
-    "S": "strength",
-    "P": "perception",
-    "E": "endurance",
-    "C": "charisma",
-    "A": "agility",
-    "I": "intelligence",
-    "L": "luck",
-}
+LETTER_TO_STAT = STAT_BY_LETTER
 
 STATS_RANGE_BY_RARITY = {
     RarityEnum.COMMON: (1, 3),

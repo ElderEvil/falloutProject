@@ -664,12 +664,12 @@ const handleTreatIrradiated = async () => {
             </div>
             <details
               v-else-if="happinessDashboardData"
-              class="happiness-overview"
+              class="happiness-overview overflow-hidden rounded-lg border-2 border-theme-primary/20 bg-surface-sunken"
               :open="happinessOverviewOpen"
               @toggle="happinessOverviewOpen = ($event.target as HTMLDetailsElement).open"
             >
               <summary
-                class="flex cursor-pointer flex-wrap items-center justify-between gap-4 rounded-lg border-2 border-theme-primary/20 bg-surface-sunken px-4 py-3 text-theme-primary"
+                class="flex cursor-pointer flex-wrap items-center justify-between gap-4 px-4 py-3 text-theme-primary"
               >
                 <span class="text-xs font-bold uppercase tracking-[0.12em] text-theme-primary/70">
                   Happiness Overview
@@ -695,6 +695,7 @@ const handleTreatIrradiated = async () => {
                 </span>
               </summary>
               <HappinessDashboard
+                embedded
                 :loading="isDashboardLoading"
                 :vaultHappiness="happinessDashboardData.vaultHappiness"
                 :dwellerCount="happinessDashboardData.dwellerCount"

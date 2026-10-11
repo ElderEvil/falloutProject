@@ -14,6 +14,26 @@ describe('HappinessDashboard', () => {
     },
   }
 
+  it.each([false, true])(
+    'uses the disclosure frame when embedded, including loading=%s',
+    (loading) => {
+      const wrapper = mount(HappinessDashboard, {
+        props: { ...defaultProps, embedded: true, loading },
+      })
+      expect(wrapper.find('.happiness-dashboard').classes()).toContain('border-0')
+      expect(wrapper.find('.happiness-dashboard').classes()).toContain('rounded-none')
+      expect(wrapper.find('.happiness-dashboard').classes()).not.toContain('border-2')
+      wrapper.unmount()
+    }
+  )
+
+  it('keeps its own frame on the standalone happiness page', () => {
+    const wrapper = mount(HappinessDashboard, { props: defaultProps })
+    expect(wrapper.find('.happiness-dashboard').classes()).toContain('border-2')
+    expect(wrapper.find('.happiness-dashboard').classes()).toContain('rounded-lg')
+    wrapper.unmount()
+  })
+
   it('offers low-happiness attention even without resource, incident, idle, or care warnings', () => {
     const wrapper = mount(HappinessDashboard, {
       props: { ...defaultProps, radioHappinessMode: true },

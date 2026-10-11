@@ -11,7 +11,6 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { isMature, type DwellerShort } from '@/modules/dwellers/models/dweller'
 import { useToast } from '@/core/composables/useToast'
-import { useGroupColors } from '@/core/composables/useGroupColors'
 import { getErrorMessage } from '@/core/utils/errorHandler'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
@@ -53,7 +52,6 @@ const toast = useToast()
 const vaultId = computed(() => route.params.id as string)
 
 // Marker colour mode lives on the Preferences page (like the badge palette).
-const { groupColors } = useGroupColors()
 
 // Site-type filter (P3): narrow the map to one place_groups archetype.
 // Persisted like the color mode; `null` means "All sites".
@@ -491,34 +489,12 @@ const hasNoData = computed(
             subtitle="Track discoveries, expeditions & the wider wasteland."
           >
             <template #actions>
-              <Button
-                variant="ghost"
-                class="h-auto p-0"
-                aria-label="View parties out"
-                :disabled="partiesOut === 0"
-                @click="openExploration()"
-              >
-                <PageHeaderMetric
-                  icon="mdi:account-group"
-                  :value="partiesOut"
-                  label="Parties out"
-                />
-              </Button>
-              <Button
-                variant="ghost"
-                class="h-auto p-0"
-                aria-label="Filter ready to clear places"
-                :aria-pressed="readyOnly"
-                :disabled="readyLocationIds.length === 0 && !readyOnly"
-                @click="toggleReadyPlaces"
-              >
-                <PageHeaderMetric
-                  icon="mdi:flag-checkered"
-                  :value="readyLocationIds.length"
-                  label="Ready to clear"
-                  :class="{ 'ring-1 ring-theme-primary': readyOnly }"
-                />
-              </Button>
+              <PageHeaderMetric icon="mdi:account-group" :value="partiesOut" label="Parties out" />
+              <PageHeaderMetric
+                icon="mdi:flag-checkered"
+                :value="readyLocationIds.length"
+                label="Ready to clear"
+              />
             </template>
           </PageHeader>
 
@@ -578,6 +554,15 @@ const hasNoData = computed(
                 </SelectContent>
               </Select>
               <Button
+                variant="outline"
+                size="sm"
+                :aria-pressed="readyOnly"
+                :disabled="readyLocationIds.length === 0 && !readyOnly"
+                @click="toggleReadyPlaces"
+              >
+                Ready places only
+              </Button>
+              <Button
                 v-if="authStore.isSuperuser"
                 variant="outline"
                 size="sm"
@@ -594,7 +579,6 @@ const hasNoData = computed(
               :expedition-sites="mapStore.expeditionSites"
               :explorer-tracks="explorerTracks"
               :fog-disabled="fogDisabled"
-              :group-colors="groupColors"
               :site-type-filter="activeSiteType"
               :ready-location-ids="readyOnly ? readyLocationIds : null"
               :selected-marker-id="selectedMarkerId"

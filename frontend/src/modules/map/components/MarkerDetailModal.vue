@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { riskLabel } from '../utils/dangerStyle'
 import { computed, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
@@ -272,231 +273,237 @@ function dwellerDisplayName(first: string, last: string | null) {
     footer-class="flex flex-row flex-shrink-0 justify-end gap-3 border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
     @update:open="isOpen = $event"
   >
-      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
-        <div v-if="isLocked" class="flex flex-col items-center py-6 text-center">
-          <Icon icon="mdi:lock-question" class="h-16 w-16 text-theme-primary/40" />
-          <h3 class="mt-4 text-lg font-bold text-theme-primary">Unknown Location</h3>
-          <p class="mt-2 max-w-sm text-sm leading-6 text-theme-primary/60">
-            Chat with a dweller who has been here to uncover this place.
-          </p>
-          <div v-if="linkedDwellers" class="mt-4 w-full max-w-sm space-y-1.5 text-left">
-            <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">KNOWN CONTACTS</p>
-            <button
-              v-for="d in linkedDwellers"
-              :key="d.dweller_id"
-              type="button"
-              class="dweller-contact flex w-full items-center justify-between gap-3 rounded border border-theme-primary/20 bg-surface px-3 py-2 text-left transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
-              @click="goToDwellerChat(d.dweller_id)"
-            >
-              <span class="text-sm text-theme-primary underline underline-offset-2">{{
-                dwellerDisplayName(d.first_name, d.last_name)
-              }}</span>
-              <Icon icon="mdi:message-text-outline" class="h-4 w-4 text-theme-primary/60" />
-            </button>
-          </div>
+    <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+      <div v-if="isLocked" class="flex flex-col items-center py-6 text-center">
+        <Icon icon="mdi:lock-question" class="h-16 w-16 text-theme-primary/40" />
+        <h3 class="mt-4 text-lg font-bold text-theme-primary">Unknown Location</h3>
+        <p class="mt-2 max-w-sm text-sm leading-6 text-theme-primary/60">
+          Chat with a dweller who has been here to uncover this place.
+        </p>
+        <div v-if="linkedDwellers" class="mt-4 w-full max-w-sm space-y-1.5 text-left">
+          <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">KNOWN CONTACTS</p>
+          <button
+            v-for="d in linkedDwellers"
+            :key="d.dweller_id"
+            type="button"
+            class="dweller-contact flex w-full items-center justify-between gap-3 rounded border border-theme-primary/20 bg-surface px-3 py-2 text-left transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
+            @click="goToDwellerChat(d.dweller_id)"
+          >
+            <span class="text-sm text-theme-primary underline underline-offset-2">{{
+              dwellerDisplayName(d.first_name, d.last_name)
+            }}</span>
+            <Icon icon="mdi:message-text-outline" class="h-4 w-4 text-theme-primary/60" />
+          </button>
         </div>
-        <div v-else-if="isSite" class="space-y-5">
-          <section class="rounded border border-theme-primary/20 bg-surface-sunken p-4">
-            <div class="flex items-start justify-between gap-4">
-              <div>
-                <p class="text-xs font-bold tracking-[0.14em] text-theme-primary/60">
-                  EXPEDITION SITE
-                </p>
-                <p class="mt-1 text-sm font-bold text-theme-primary">{{ siteStatus }}</p>
-              </div>
-              <Badge variant="outline">expedition_site</Badge>
+      </div>
+      <div v-else-if="isSite" class="space-y-5">
+        <section class="rounded border border-theme-primary/20 bg-surface-sunken p-4">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <p class="text-xs font-bold tracking-[0.14em] text-theme-primary/60">
+                EXPEDITION SITE
+              </p>
+              <p class="mt-1 text-sm font-bold text-theme-primary">{{ siteStatus }}</p>
             </div>
-            <div class="mt-4 grid grid-cols-2 gap-3">
-              <TerminalMetric
-                icon="mdi:map-marker"
-                label="MAP COORDINATES"
-                :value="coordinates"
-                compact
-              />
-              <TerminalMetric
-                icon="mdi:shield-star"
-                label="MIN DWELLER LEVEL"
-                :value="props.site?.min_dweller_level ?? 0"
-                compact
-              />
-              <TerminalMetric
-                icon="mdi:door"
-                label="ROOMS"
-                :value="props.site?.room_total ?? 0"
-                compact
-              />
-              <TerminalMetric icon="mdi:radar" label="STATUS" :value="siteStatus" compact />
+            <Badge variant="outline">expedition_site</Badge>
+          </div>
+          <div class="mt-4 grid grid-cols-2 gap-3">
+            <TerminalMetric
+              icon="mdi:map-marker"
+              label="MAP COORDINATES"
+              :value="coordinates"
+              compact
+            />
+            <TerminalMetric
+              icon="mdi:shield-star"
+              label="MIN DWELLER LEVEL"
+              :value="props.site?.min_dweller_level ?? 0"
+              compact
+            />
+            <TerminalMetric
+              icon="mdi:door"
+              label="ROOMS"
+              :value="props.site?.room_total ?? 0"
+              compact
+            />
+            <TerminalMetric icon="mdi:radar" label="STATUS" :value="siteStatus" compact />
+          </div>
+        </section>
+
+        <section class="border-l-2 border-theme-primary/50 bg-surface p-4">
+          <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">SITE NOTES</p>
+          <p class="mt-2 text-sm leading-6 text-theme-primary/85">{{ description }}</p>
+        </section>
+
+        <section v-if="siteCleared" class="border-t border-theme-primary/20 pt-4">
+          <div class="flex flex-col gap-2">
+            <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">CLEAR STATUS</p>
+            <Badge
+              variant="default"
+              class="w-fit border-theme-primary bg-theme-primary/10 text-theme-primary terminal-glow"
+            >
+              CLEARED
+            </Badge>
+            <p
+              v-if="siteCooldownCountdown"
+              class="flex items-center gap-1.5 text-xs text-theme-primary/70"
+            >
+              <Icon icon="mdi:clock-outline" class="h-3.5 w-3.5" />
+              Cooldown: {{ siteCooldownCountdown }}
+            </p>
+          </div>
+        </section>
+      </div>
+      <div v-else class="space-y-5">
+        <section class="rounded border border-theme-primary/20 bg-surface-sunken p-4">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <p class="text-xs font-bold tracking-[0.14em] text-theme-primary/60">
+                WASTELAND FIELD REPORT
+              </p>
+              <p class="mt-1 text-sm font-bold text-theme-primary">{{ recordStatus }}</p>
             </div>
-          </section>
+            <div class="flex flex-col items-end gap-1.5">
+              <Badge :variant="badgeVariant" :class="badgeClass">{{ placeType }}</Badge>
+              <span
+                v-if="placeGroup"
+                class="flex items-center gap-1 text-xs text-theme-primary/70"
+                :title="placeGroup.description"
+              >
+                <Icon :icon="placeGroup.icon" class="h-3.5 w-3.5" />
+                {{ placeGroup.label }}
+              </span>
+              <span
+                v-if="
+                  !isLocked && placeGroup && riskLabel(placeGroup.risk, placeGroup.base_difficulty)
+                "
+                class="text-xs text-theme-primary/70"
+              >
+                {{ riskLabel(placeGroup.risk, placeGroup.base_difficulty) }}
+              </span>
+            </div>
+          </div>
+          <div class="mt-4 grid grid-cols-2 gap-3">
+            <TerminalMetric
+              icon="mdi:map-marker"
+              label="MAP COORDINATES"
+              :value="coordinates"
+              compact
+            />
+            <TerminalMetric icon="mdi:radar" label="STATUS" :value="recordStatus" compact />
+            <TerminalMetric
+              icon="mdi:calendar-outline"
+              label="RECORDED"
+              :value="recordedAt"
+              compact
+            />
+            <TerminalMetric
+              :icon="isVaultMarker ? 'mdi:radio-tower' : 'mdi:account-group'"
+              :label="isVaultMarker ? 'MARKER TYPE' : 'KNOWN DWELLERS'"
+              :value="isVaultMarker ? 'VAULT SIGNAL' : (linkedDwellers?.length ?? 0)"
+              compact
+            />
+          </div>
+        </section>
 
-          <section class="border-l-2 border-theme-primary/50 bg-surface p-4">
-            <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">SITE NOTES</p>
-            <p class="mt-2 text-sm leading-6 text-theme-primary/85">{{ description }}</p>
-          </section>
+        <section class="border-l-2 border-theme-primary/50 bg-surface p-4">
+          <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">SITE NOTES</p>
+          <p class="mt-2 text-sm leading-6 text-theme-primary/85">{{ description }}</p>
+        </section>
 
-          <section v-if="siteCleared" class="border-t border-theme-primary/20 pt-4">
+        <section v-if="isClearable" class="border-t border-theme-primary/20 pt-4">
+          <div class="flex items-center justify-between gap-3">
             <div class="flex flex-col gap-2">
               <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">CLEAR STATUS</p>
-              <Badge
-                variant="default"
-                class="w-fit border-theme-primary bg-theme-primary/10 text-theme-primary terminal-glow"
-              >
-                CLEARED
-              </Badge>
-              <p
-                v-if="siteCooldownCountdown"
-                class="flex items-center gap-1.5 text-xs text-theme-primary/70"
-              >
-                <Icon icon="mdi:clock-outline" class="h-3.5 w-3.5" />
-                Cooldown: {{ siteCooldownCountdown }}
-              </p>
-            </div>
-          </section>
-        </div>
-        <div v-else class="space-y-5">
-          <section class="rounded border border-theme-primary/20 bg-surface-sunken p-4">
-            <div class="flex items-start justify-between gap-4">
-              <div>
-                <p class="text-xs font-bold tracking-[0.14em] text-theme-primary/60">
-                  WASTELAND FIELD REPORT
-                </p>
-                <p class="mt-1 text-sm font-bold text-theme-primary">{{ recordStatus }}</p>
-              </div>
-              <div class="flex flex-col items-end gap-1.5">
-                <Badge :variant="badgeVariant" :class="badgeClass">{{ placeType }}</Badge>
-                <span
-                  v-if="placeGroup"
-                  class="flex items-center gap-1 text-xs text-theme-primary/70"
-                  :title="placeGroup.description"
+              <div class="flex flex-wrap items-center gap-2">
+                <Badge
+                  v-if="isCleared"
+                  variant="default"
+                  class="border-theme-primary bg-theme-primary/10 text-theme-primary terminal-glow"
                 >
-                  <Icon :icon="placeGroup.icon" class="h-3.5 w-3.5" />
-                  {{ placeGroup.label }}
+                  CLEARED ×{{ clearState?.clear_count }}
+                </Badge>
+                <Badge v-else variant="outline" class="border-warning/60 text-warning">
+                  UNCLAIMED
+                </Badge>
+                <span
+                  class="flex items-center gap-1 text-xs text-theme-primary/70"
+                  :title="lootTableLabel || undefined"
+                >
+                  <Icon icon="mdi:shield-alert" class="h-3.5 w-3.5" />
+                  Tier {{ clearState?.tier }}
                 </span>
               </div>
             </div>
-            <div class="mt-4 grid grid-cols-2 gap-3">
-              <TerminalMetric
-                icon="mdi:map-marker"
-                label="MAP COORDINATES"
-                :value="coordinates"
-                compact
-              />
-              <TerminalMetric icon="mdi:radar" label="STATUS" :value="recordStatus" compact />
-              <TerminalMetric
-                icon="mdi:calendar-outline"
-                label="RECORDED"
-                :value="recordedAt"
-                compact
-              />
-              <TerminalMetric
-                :icon="isVaultMarker ? 'mdi:radio-tower' : 'mdi:account-group'"
-                :label="isVaultMarker ? 'MARKER TYPE' : 'KNOWN DWELLERS'"
-                :value="isVaultMarker ? 'VAULT SIGNAL' : (linkedDwellers?.length ?? 0)"
-                compact
-              />
-            </div>
-          </section>
+          </div>
+          <p
+            v-if="isCleared && reclearCountdown"
+            class="mt-2 flex items-center gap-1.5 text-xs text-theme-primary/70"
+          >
+            <Icon icon="mdi:clock-outline" class="h-3.5 w-3.5" />
+            Re-clear available: {{ reclearCountdown }}
+          </p>
+        </section>
 
-          <section class="border-l-2 border-theme-primary/50 bg-surface p-4">
-            <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">SITE NOTES</p>
-            <p class="mt-2 text-sm leading-6 text-theme-primary/85">{{ description }}</p>
-          </section>
+        <section v-if="actionable" class="space-y-4 border-t border-theme-primary/20 pt-4">
+          <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">SEND TEAM</p>
+          <PartySlots
+            :selected-dwellers="selectedDwellers"
+            :selected-count="selectedDwellerIds.length"
+            :max-party-size="maxPartySize"
+            @remove="toggleDweller"
+          />
+          <AvailableDwellers
+            :dwellers="dwellers"
+            :selected-ids="selectedDwellerIds"
+            :is-loading="suppliesLoading"
+            :show-eligible-badge="false"
+            :error="null"
+            @toggle="toggleDweller"
+          />
+          <SupplySliders
+            :selected-stimpaks="selectedStimpaks"
+            :selected-radaways="selectedRadaways"
+            :max-stimpaks="maxStimpaks"
+            :max-radaways="maxRadaways"
+            :stimpak-max="stimpakMax"
+            :radaway-max="radawayMax"
+            @update:stimpaks="setStimpaks"
+            @update:radaways="setRadaways"
+          />
+        </section>
 
-          <section v-if="isClearable" class="border-t border-theme-primary/20 pt-4">
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex flex-col gap-2">
-                <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">
-                  CLEAR STATUS
-                </p>
-                <div class="flex flex-wrap items-center gap-2">
-                  <Badge
-                    v-if="isCleared"
-                    variant="default"
-                    class="border-theme-primary bg-theme-primary/10 text-theme-primary terminal-glow"
-                  >
-                    CLEARED ×{{ clearState?.clear_count }}
-                  </Badge>
-                  <Badge v-else variant="outline" class="border-warning/60 text-warning">
-                    UNCLAIMED
-                  </Badge>
-                  <span
-                    class="flex items-center gap-1 text-xs text-theme-primary/70"
-                    :title="lootTableLabel || undefined"
-                  >
-                    <Icon icon="mdi:shield-alert" class="h-3.5 w-3.5" />
-                    Tier {{ clearState?.tier }}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <p
-              v-if="isCleared && reclearCountdown"
-              class="mt-2 flex items-center gap-1.5 text-xs text-theme-primary/70"
-            >
-              <Icon icon="mdi:clock-outline" class="h-3.5 w-3.5" />
-              Re-clear available: {{ reclearCountdown }}
-            </p>
-          </section>
-
-          <section v-if="actionable" class="space-y-4 border-t border-theme-primary/20 pt-4">
-            <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">SEND TEAM</p>
-            <PartySlots
-              :selected-dwellers="selectedDwellers"
-              :selected-count="selectedDwellerIds.length"
-              :max-party-size="maxPartySize"
-              @remove="toggleDweller"
-            />
-            <AvailableDwellers
-              :dwellers="dwellers"
-              :selected-ids="selectedDwellerIds"
-              :is-loading="suppliesLoading"
-              :show-eligible-badge="false"
-              :error="null"
-              @toggle="toggleDweller"
-            />
-            <SupplySliders
-              :selected-stimpaks="selectedStimpaks"
-              :selected-radaways="selectedRadaways"
-              :max-stimpaks="maxStimpaks"
-              :max-radaways="maxRadaways"
-              :stimpak-max="stimpakMax"
-              :radaway-max="radawayMax"
-              @update:stimpaks="setStimpaks"
-              @update:radaways="setRadaways"
-            />
-          </section>
-
-          <section v-if="linkedDwellers" class="border-t border-theme-primary/20 pt-4">
-            <h4 class="mb-2 text-sm font-bold uppercase text-theme-primary">Linked Dwellers</h4>
-            <ul class="space-y-1.5">
-              <li v-for="d in linkedDwellers" :key="d.dweller_id">
-                <button
-                  type="button"
-                  class="dweller-entry flex w-full items-center justify-between gap-3 rounded border border-theme-primary/20 bg-surface px-3 py-2 text-left transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
-                  @click="goToDweller(d.dweller_id)"
-                >
-                  <span class="text-sm text-theme-primary underline underline-offset-2">{{
-                    dwellerDisplayName(d.first_name, d.last_name)
-                  }}</span>
-                  <span class="text-xs text-theme-primary/60">{{ d.relation }}</span>
-                </button>
-              </li>
-            </ul>
-          </section>
-        </div>
+        <section v-if="linkedDwellers" class="border-t border-theme-primary/20 pt-4">
+          <h4 class="mb-2 text-sm font-bold uppercase text-theme-primary">Linked Dwellers</h4>
+          <ul class="space-y-1.5">
+            <li v-for="d in linkedDwellers" :key="d.dweller_id">
+              <button
+                type="button"
+                class="dweller-entry flex w-full items-center justify-between gap-3 rounded border border-theme-primary/20 bg-surface px-3 py-2 text-left transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
+                @click="goToDweller(d.dweller_id)"
+              >
+                <span class="text-sm text-theme-primary underline underline-offset-2">{{
+                  dwellerDisplayName(d.first_name, d.last_name)
+                }}</span>
+                <span class="text-xs text-theme-primary/60">{{ d.relation }}</span>
+              </button>
+            </li>
+          </ul>
+        </section>
       </div>
+    </div>
 
     <template #footer>
-        <Button variant="secondary" size="sm" @click="closeModal">Cancel</Button>
-        <Button
-          size="sm"
-          class="border-theme-primary/40 bg-theme-primary/10 text-theme-primary hover:bg-theme-primary/20"
-          :disabled="!canSubmit || suppliesLoading"
-          @click="confirmDispatch"
-        >
-          <Icon icon="mdi:send" class="h-4 w-4" />
-          Dispatch
-        </Button>
+      <Button variant="secondary" size="sm" @click="closeModal">Cancel</Button>
+      <Button
+        size="sm"
+        class="border-theme-primary/40 bg-theme-primary/10 text-theme-primary hover:bg-theme-primary/20"
+        :disabled="!canSubmit || suppliesLoading"
+        @click="confirmDispatch"
+      >
+        <Icon icon="mdi:send" class="h-4 w-4" />
+        Dispatch
+      </Button>
     </template>
   </TerminalModal>
 </template>

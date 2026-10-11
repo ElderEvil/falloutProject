@@ -1487,7 +1487,7 @@ describe('WorldMap', () => {
       expect(markerNames(wrapper)).not.toContain('Army Base')
     })
 
-    it('forwards the filter to the marker list panel and the legend', () => {
+    it('forwards the filter to the index without coupling the state key', () => {
       const wrapper = mount(WorldMap, {
         props: {
           locations: [siteLocation('g1', 'Gas Stop', 'gas_station')],
@@ -1500,9 +1500,7 @@ describe('WorldMap', () => {
       })
 
       expect(wrapper.findComponent(MarkerListPanelStub).props('siteTypeFilter')).toBe('gas_station')
-      expect(wrapper.findComponent({ name: 'MapLegend' }).props('siteTypeFilter')).toBe(
-        'gas_station'
-      )
+      expect(wrapper.findComponent({ name: 'MapLegend' }).props('siteTypeFilter')).toBeUndefined()
     })
   })
 

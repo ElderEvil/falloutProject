@@ -15,7 +15,6 @@ import type {
   VaultMarkerRead,
 } from '../models/map'
 import { EXPEDITION_SITE_ICON, locationMarkerIcon } from '../models/markerTypeMeta'
-import { groupColor } from '../models/groupColors'
 import MapClusterMarker from './MapClusterMarker.vue'
 import MapMarker from './MapMarker.vue'
 import MapLegend from './MapLegend.vue'
@@ -43,7 +42,6 @@ interface Props {
   expeditionSites?: ExpeditionSiteMarkerRead[]
   explorerTracks?: ExplorerTrack[]
   fogDisabled?: boolean
-  groupColors?: boolean
   siteTypeFilter?: string | null
   readyLocationIds?: string[] | null
   selectedMarkerId: string | null
@@ -55,7 +53,6 @@ const props = withDefaults(defineProps<Props>(), {
   expeditionSites: () => [],
   explorerTracks: () => [],
   fogDisabled: false,
-  groupColors: false,
   siteTypeFilter: null,
   readyLocationIds: null,
 })
@@ -546,11 +543,13 @@ function handleTouchEnd(event: TouchEvent) {
           :name="loc.name"
           :type="loc.type"
           :icon="locationMarkerIcon(loc.type, loc.group_key, groupIconByKey)"
-          :color="groupColors ? groupColor(loc.group_key) : null"
           :is_unlocked="loc.is_unlocked"
           :unseen="mapStore.isUnseenDiscovery(loc)"
           :selected="selectedMarkerId === `loc-${loc.id}`"
           :cleared="loc.clear_state?.cleared ?? false"
+          :cooldown="
+            Boolean(loc.clear_state?.cleared && loc.clear_state.time_remaining_seconds > 0)
+          "
           :exploring="exploringByLocation.has(loc.id)"
           :status="exploringByLocation.get(loc.id)"
           :risk="locationGroup(loc)?.risk"
@@ -611,6 +610,7 @@ function handleTouchEnd(event: TouchEvent) {
           type="expedition_site"
           :icon="EXPEDITION_SITE_ICON"
           :cleared="site.cleared"
+          :cooldown="site.cleared && site.cooldown_remaining_seconds > 0"
           :status="siteStatus(site)"
           :selected="selectedMarkerId === `site-${site.id}`"
           @click="onSiteClick(site)"
@@ -727,7 +727,7 @@ function handleTouchEnd(event: TouchEvent) {
       </section>
 
       <!-- Legend overlay -->
-      <MapLegend :site-type-filter="siteTypeFilter" />
+      <MapLegend />
     </div>
     <!-- Keep the index beside the map on wide screens and below it on narrow ones. -->
     <MarkerListPanel
@@ -839,7 +839,7 @@ function handleTouchEnd(event: TouchEvent) {
 }
 
 .discovery-route-line {
-  stroke: var(--color-theme-accent);
+  stroke: var(--color-theme-primary);
   stroke-width: 0.45;
   opacity: 0.8;
   stroke-linecap: round;
@@ -853,7 +853,7 @@ function handleTouchEnd(event: TouchEvent) {
 
 .explorer-heading-chevron {
   fill: none;
-  stroke: var(--color-theme-accent);
+  stroke: var(--color-theme-primary);
   stroke-width: 0.6;
   stroke-linecap: round;
   stroke-linejoin: round;

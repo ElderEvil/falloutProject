@@ -114,6 +114,7 @@ describe('MarkerListPanel', () => {
       })
 
       expect(wrapper.text()).toContain('Gas Station')
+      expect(wrapper.text()).toContain('Low risk')
     })
 
     it('should keep the index visible without a toggle when docked', () => {

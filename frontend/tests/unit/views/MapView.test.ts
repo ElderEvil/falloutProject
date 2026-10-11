@@ -791,15 +791,15 @@ describe('MapView', () => {
       ]
       const wrapper = mountView()
       await flushPromises()
-      const parties = wrapper.findAll('button').find((b) => b.text().includes('Parties out'))!
-      const ready = wrapper.findAll('button').find((b) => b.text().includes('Ready to clear'))!
+      const parties = wrapper.find('.page-header-stub')
+      expect(parties.findAll('button')).toHaveLength(0)
+      const ready = wrapper.findAll('button').find((b) => b.text().includes('Ready places only'))!
       expect(wrapper.find('.page-header-stub').text()).toContain('Parties out')
       expect(wrapper.find('.page-header-stub').text()).toContain('Ready to clear')
       expect(wrapper.find('.world-map-stub').text()).not.toContain('Parties out')
       expect(parties.text()).toContain('2')
-      expect(ready.text()).toContain('2')
-      await parties.trigger('click')
-      expect(mockPush).toHaveBeenCalledWith({ name: 'exploration', params: { id: 'vault-1' } })
+      expect(parties.text()).toContain('Ready to clear')
+      expect(parties.text()).toContain('2')
       await ready.trigger('click')
       expect(wrapper.findComponent({ name: 'WorldMap' }).props('readyLocationIds')).toEqual([
         'ready',
@@ -876,7 +876,7 @@ describe('MapView', () => {
       }
       const wrapper = mountView()
       await flushPromises()
-      const ready = wrapper.findAll('button').find((b) => b.text().includes('Ready to clear'))!
+      const ready = wrapper.findAll('button').find((b) => b.text().includes('Ready places only'))!
       await ready.trigger('click')
       expect(worldMapProps(wrapper).readyLocationIds).not.toBeNull()
       wrapper.findComponent({ name: 'Select' }).vm.$emit('update:modelValue', 'gas_station')

@@ -43,7 +43,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tsconfig/node22": "^22.0.6",
     "@types/jsdom": "28.0.3",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.6.4",
     "@vitejs/plugin-vue": "^6.0.9",
     "@vitest/coverage-v8": "4.1.11",
     "@vitest/ui": "4.1.11",
@@ -58,7 +58,7 @@
     "vite": "npm:@voidzero-dev/vite-plus-core@^0.2.2",
     "vite-plus": "0.3.0",
     "vitest": "4.1.11",
-    "vue-tsc": "^3.3.11"
+    "vue-tsc": "^3.3.12"
   },
   "engines": {
     "node": ">=22",

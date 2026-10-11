@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.198.0 (2026-10-11)
+
+### Features
+
+* make dweller attention actions filter the roster ([#950](https://github.com/ElderEvil/falloutProject/issues/950)) 0fefa3b
+
 ## 2.197.0 (2026-10-11)
 
 ### Features

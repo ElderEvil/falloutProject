@@ -512,6 +512,24 @@ needs a second element type to say something, it is a popover (below), not a too
 
 ---
 
+### Page help
+
+Use `PageHeader`'s `#help` slot for optional explanations of a page's purpose, mechanics,
+and player choices. It renders the shared `PageHelp` About button beside the title and opens
+an accessible, scrollable dialog on all screen sizes. Keep page-specific content in the page;
+do not build separate help toggles or store dismissal preferences.
+
+Keep capacity, costs, eligibility, current status, and blocked-action reasons visible outside
+help. Help explains the system; it does not replace information needed for a decision.
+
+```vue
+<PageHeader title="Response Teams">
+  <template #help>
+    <p>Active members automatically answer matching hazards when available.</p>
+  </template>
+</PageHeader>
+```
+
 ## Animations & Effects
 
 ### Transitions

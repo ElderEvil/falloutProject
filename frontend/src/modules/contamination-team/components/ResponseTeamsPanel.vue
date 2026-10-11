@@ -61,13 +61,6 @@ const isBusy = () => props.busyDwellerIds.length > 0
   />
 
   <div v-else class="space-y-4">
-    <p
-      class="rounded border border-theme-primary/20 bg-surface-sunken p-3 text-sm leading-relaxed text-theme-primary/70"
-    >
-      Membership is earned through incident participation. Active members automatically answer
-      matching hazards when available; reserves wait for an active place. Inspect a member to check
-      their health and equipment.
-    </p>
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Card
         v-for="team in roster.teams"

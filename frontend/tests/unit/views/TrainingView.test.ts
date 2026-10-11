@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import TrainingView from '@/modules/progression/views/TrainingView.vue'
@@ -30,7 +30,7 @@ describe('TrainingView', () => {
         plugins: [router],
         stubs: {
           Icon: true,
-          PageHeader: true,
+          Teleport: { template: '<div><slot /></div>' },
           SidePanel: { template: '<aside data-testid="side-panel" />' },
           TrainingQueuePanel: { template: '<section data-testid="training-queue" />' },
         },
@@ -44,12 +44,10 @@ describe('TrainingView', () => {
     expect(
       wrapper.find('[data-testid="training-queue"]').element.parentElement?.className
     ).toContain('w-full')
-    expect(wrapper.find('.training-reference').exists()).toBe(true)
-    expect(wrapper.text()).not.toContain('About Training')
-
-    await wrapper.find('.info-toggle').trigger('click')
-
-    expect(wrapper.text()).toContain('About Training')
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    await wrapper.find('button[aria-label="About Training Center"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('About Training Center')
     expect(wrapper.text()).toContain('Training Duration')
   })
 

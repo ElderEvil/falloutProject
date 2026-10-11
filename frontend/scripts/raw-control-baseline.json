@@ -30,7 +30,6 @@
   "src/modules/progression/components/training/TrainingQueuePanel.vue": 1,
   "src/modules/progression/components/training/TrainingRoomModal.vue": 1,
   "src/modules/progression/views/QuestsView.vue": 1,
-  "src/modules/progression/views/TrainingView.vue": 1,
   "src/modules/rooms/components/ArenaFighterSlot.vue": 2,
   "src/modules/rooms/components/DwellerList.vue": 1,
   "src/modules/rooms/components/IncidentBattleLog.vue": 1,

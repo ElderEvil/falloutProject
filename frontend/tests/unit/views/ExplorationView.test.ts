@@ -12,7 +12,9 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 
 vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-123' } }))
 
-vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" />', props: [] }))
+vi.mock('@iconify/vue', () =>
+  createIconifyMock({ template: '<span class="icon-mock" />', props: [] })
+)
 
 const mockToast = createToastMock()
 vi.mock('@/core/composables/useToast', () => ({
@@ -161,6 +163,28 @@ describe('ExplorationView', () => {
 
   afterEach(() => {
     wrapper?.unmount()
+  })
+
+  it('explains return settlement through optional page help', async () => {
+    wrapper = mount(ExplorationView, {
+      attachTo: document.body,
+      global: {
+        stubs: {
+          SidePanel: true,
+          QuestPartyCard: true,
+          ExplorationRewardsModal: true,
+          Teleport: { template: '<div><slot /></div>' },
+        },
+      },
+    })
+    await flushPromises()
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    await wrapper.find('button[aria-label="About Wasteland Exploration"]').trigger('click')
+    await flushPromises()
+    const help = wrapper.find('[role="dialog"]')
+    expect(help.text()).toContain('Recall starts the journey home')
+    expect(help.text()).toContain('settled on arrival')
+    expect(help.text()).toContain('Quest parties have a separate reward claim')
   })
 
   it('keeps quest parties visible while they travel home', async () => {

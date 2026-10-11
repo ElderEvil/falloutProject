@@ -117,6 +117,29 @@ jobs:
         working-directory: frontend
         run: pnpm run test -- --run
 
+      - name: Install Playwright Chromium
+        if: steps.filter.outputs.src == 'true'
+        working-directory: frontend
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run CRT visual baselines
+        if: steps.filter.outputs.src == 'true'
+        working-directory: frontend
+        env:
+          PW_SKIP_BACKEND: '1'
+        run: pnpm exec playwright test tests/e2e/crt-baselines.spec.ts
+
+      - name: Upload Playwright failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-crt-baselines
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
+
       - name: Build check
         working-directory: frontend
         run: pnpm run build

@@ -145,6 +145,10 @@ async function signIn(page: Page) {
 // Regression guard for #747: one canonical overlay, full opacity, canonical
 // gradient — a re-added per-view overlay or an `opacity-*` on this element fails here.
 async function expectCanonicalChrome(page: Page) {
+  // Iconify renders an empty <svg class="iconify"> until its icon body is fetched,
+  // so without this wait a fresh page can be captured icon-less (CI vs local drift).
+  await expect(page.locator('svg.iconify path').first()).toBeVisible({ timeout: 20000 })
+
   const overlay = page.locator('.scanlines')
   await expect(overlay).toHaveCount(1)
   await expect(overlay).toHaveAttribute('aria-hidden', 'true')

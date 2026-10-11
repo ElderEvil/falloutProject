@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.196.0 (2026-10-11)
+
+### Features
+
+* add shared About help to vault planning pages ([#947](https://github.com/ElderEvil/falloutProject/issues/947)) 6d0fc81
+
 ## 2.195.1 (2026-10-11)
 
 ### Bug Fixes

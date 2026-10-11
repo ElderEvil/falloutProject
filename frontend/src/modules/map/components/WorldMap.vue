@@ -669,6 +669,16 @@ function handleTouchEnd(event: TouchEvent) {
         </g>
       </svg>
 
+      <div
+        v-if="$slots.tools"
+        class="absolute right-2 top-2 z-20"
+        @mousedown.stop
+        @touchstart.stop
+        @click.stop
+      >
+        <slot name="tools" />
+      </div>
+
       <!-- Zoom controls overlay -->
       <div class="zoom-controls" role="group" aria-label="Map zoom controls">
         <Button variant="ghost" size="xs" aria-label="Zoom in" class="zoom-btn" @click="zoomIn()">
@@ -729,9 +739,6 @@ function handleTouchEnd(event: TouchEvent) {
           </Button>
         </div>
       </section>
-
-      <!-- Legend overlay -->
-      <MapLegend />
     </div>
     <!-- Keep the index beside the map on wide screens and below it on narrow ones. -->
     <MarkerListPanel
@@ -742,10 +749,15 @@ function handleTouchEnd(event: TouchEvent) {
       :expedition-sites="expeditionSites"
       :place-groups="mapStore.placeGroups"
       :site-type-filter="siteTypeFilter"
+      :active-filter-count="Number(siteTypeFilter !== null) + Number(readyLocationIds !== null)"
       :selected-marker-id="selectedMarkerId"
       @marker-select="onPanelMarkerSelect"
     >
       <template #toggle-label="{ count }">Places and sites · {{ count }}</template>
+      <template v-if="$slots.filters" #filters><slot name="filters" /></template>
+      <template #legend
+        ><MapLegend :place-groups="mapStore.placeGroups" :group-colors="groupColors"
+      /></template>
     </MarkerListPanel>
   </div>
 </template>

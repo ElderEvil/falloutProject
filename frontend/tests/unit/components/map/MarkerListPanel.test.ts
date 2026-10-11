@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import MarkerListPanel from '@/modules/map/components/MarkerListPanel.vue'
 import type {
   ExpeditionSiteMarkerRead,
@@ -56,6 +56,35 @@ function createSite(overrides: Partial<ExpeditionSiteMarkerRead> = {}): Expediti
 const IconStub = { name: 'Icon', props: ['icon'], template: '<span />' }
 
 describe('MarkerListPanel', () => {
+  it('preserves place selection, filters, and list scroll when switching to the legend', async () => {
+    const wrapper = mount(MarkerListPanel, {
+      props: {
+        locations: [{ ...createLocation('discovery', 'Depot', 'depot'), group_key: 'gas_station' }],
+        vaultMarkers: [],
+        docked: true,
+        siteTypeFilter: 'gas_station',
+        selectedMarkerId: 'loc-depot',
+        activeFilterCount: 1,
+      },
+      slots: { filters: '<p>Gas station filter</p>', legend: '<p>Full map legend</p>' },
+      global: { stubs: { Icon: IconStub } },
+    })
+    const list = wrapper.find('.panel-body').element
+    list.scrollTop = 120
+    await wrapper.findAll('[role="tab"]')[1].trigger('mousedown')
+    await flushPromises()
+    expect(wrapper.find('.panel-body').exists()).toBe(true)
+    expect(wrapper.find('.panel-body').isVisible()).toBe(false)
+    expect(wrapper.text()).toContain('Full map legend')
+    await wrapper.findAll('[role="tab"]')[0].trigger('mousedown')
+    await flushPromises()
+    expect(wrapper.find('.panel-body').element).toBe(list)
+    expect(list.scrollTop).toBe(120)
+    expect(wrapper.find('.marker-row.selected').text()).toContain('Depot')
+    expect(wrapper.text()).toContain('Gas station filter')
+    wrapper.unmount()
+  })
+
   describe('Rendering', () => {
     it('should render the toggle button', () => {
       const wrapper = mount(MarkerListPanel, {

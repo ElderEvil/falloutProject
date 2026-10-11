@@ -121,7 +121,8 @@ describe('MapView', () => {
           USkeleton: true,
           WorldMap: {
             name: 'WorldMap',
-            template: '<div class="world-map-stub"><slot name="status" /></div>',
+            template:
+              '<div class="world-map-stub"><slot name="filters" /><slot name="tools" /></div>',
             props: [
               'locations',
               'vaultMarkers',
@@ -793,7 +794,7 @@ describe('MapView', () => {
       await flushPromises()
       const parties = wrapper.find('.page-header-stub')
       expect(parties.findAll('button')).toHaveLength(0)
-      const ready = wrapper.findAll('button').find((b) => b.text().includes('Ready places only'))!
+      const ready = wrapper.findAll('button').find((b) => b.text() === 'Ready to clear')!
       expect(wrapper.find('.page-header-stub').text()).toContain('Parties out')
       expect(wrapper.find('.page-header-stub').text()).toContain('Ready to clear')
       expect(wrapper.find('.world-map-stub').text()).not.toContain('Parties out')
@@ -876,7 +877,7 @@ describe('MapView', () => {
       }
       const wrapper = mountView()
       await flushPromises()
-      const ready = wrapper.findAll('button').find((b) => b.text().includes('Ready places only'))!
+      const ready = wrapper.findAll('button').find((b) => b.text() === 'Ready to clear')!
       await ready.trigger('click')
       expect(worldMapProps(wrapper).readyLocationIds).not.toBeNull()
       wrapper.findComponent({ name: 'Select' }).vm.$emit('update:modelValue', 'gas_station')

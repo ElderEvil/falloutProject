@@ -199,15 +199,15 @@ const cellTitle = computed(() => {
 
 @keyframes room-merged-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.9);
+    box-shadow: 0 0 0 0 rgba(var(--color-theme-primary-rgb), 0.9);
     transform: scale(1);
   }
   30% {
-    box-shadow: 0 0 22px 6px rgba(0, 255, 0, 0.55);
+    box-shadow: 0 0 22px 6px rgba(var(--color-theme-primary-rgb), 0.55);
     transform: scale(1.03);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(0, 255, 0, 0);
+    box-shadow: 0 0 0 0 rgba(var(--color-theme-primary-rgb), 0);
     transform: scale(1);
   }
 }

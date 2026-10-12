@@ -16,6 +16,7 @@ interface Props {
   selected: boolean
   isDraggingOver: boolean
   highlighted: boolean
+  merged: boolean
   incident?: Incident | null
   overseerAttentionCount?: number
 }
@@ -95,6 +96,7 @@ const cellTitle = computed(() => {
       'has-incident': !!incident,
       'has-tier': !!room.tier,
       highlighted,
+      'room-merged': merged,
       'power-outage': isRoomAffectedByOutage(),
     }"
     :aria-label="cellTitle"
@@ -189,6 +191,25 @@ const cellTitle = computed(() => {
 <style scoped>
 .built-room {
   z-index: 2;
+}
+
+.built-room.room-merged {
+  animation: room-merged-pulse 1.4s ease-out;
+}
+
+@keyframes room-merged-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.9);
+    transform: scale(1);
+  }
+  30% {
+    box-shadow: 0 0 22px 6px rgba(0, 255, 0, 0.55);
+    transform: scale(1.03);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 0, 0);
+    transform: scale(1);
+  }
 }
 
 .room-content {

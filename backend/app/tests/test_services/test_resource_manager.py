@@ -321,22 +321,6 @@ def _outfitted_workers(stat: str, count: int) -> list[Dweller]:
     return [Dweller(**{stat: 5, "outfit": outfit}) for _ in range(count)]
 
 
-def _fused_generator(prepared) -> RoomCreate:
-    """The boosted seed's adjacent generators fused into one size-6 tier-1 room (output 58)."""
-    generators = [room for room in prepared.production if str(room.name).lower().startswith("power")]
-    base = generators[0]
-    size = sum((room.size or room.size_min) for room in generators)
-    return base.model_copy(
-        update={"size": size, "output": room_crud.evaluate_output_formula(base.output_formula, base.tier, size)}
-    )
-
-
-def _fused_production(prepared) -> list[RoomCreate]:
-    """The prepared boosted production set with the generator pair replaced by its fused survivor."""
-    others = [room for room in prepared.production if not str(room.name).lower().startswith("power")]
-    return [_fused_generator(prepared), *others]
-
-
 @pytest.mark.asyncio
 async def test_seeded_standard_vault_live_power_survives_when_staffed_and_deficits_on_one_worker() -> None:
     """All-room draw (14/min), not the simulator's three rooms, is the live starter tripwire (§10)."""
@@ -352,26 +336,27 @@ async def test_seeded_standard_vault_live_power_survives_when_staffed_and_defici
 
 
 @pytest.mark.asyncio
-async def test_seeded_boosted_vault_fused_generator_keeps_live_power_positive_with_margin() -> None:
-    """The fused size-6 generator's outfitted double crew nets a large margin; a deep shed still flips negative."""
+async def test_seeded_boosted_vault_size_six_generator_keeps_live_power_positive_with_margin() -> None:
+    """The seeded size-6 generator's outfitted double crew nets a large margin; a deep shed still flips negative."""
     from uuid import uuid4
 
     from app.core.game_data import get_static_game_data
     from app.services.vault import seeding
 
     prepared = seeding.prepare_initial_rooms((await get_static_game_data()).rooms, uuid4(), is_boosted=True)
-    fused = _fused_production(prepared)
+    production = [room for room in prepared.production if str(room.name).lower().startswith("power")]
 
-    assert _fused_generator(prepared).size == 6
-    assert _fused_generator(prepared).output == 58  # (2*6*(1+4))-2 at tier 1, size 6
+    assert len(production) == 1  # seeded directly at final size, no fusion round-trip
+    assert production[0].size == 6
+    assert production[0].output == 58  # (2*6*(1+4))-2 at tier 1, size 6
 
     full = [[*_outfitted_workers("strength", 5), _apprentice(5)]]
-    assert _seeded_net(prepared, 33, full, "power", "power", production=fused) > 100
+    assert _seeded_net(prepared, 33, full, "power", "power", production=production) > 100
     # A two-worker shed stays safe; one worker left is the depth at which the big boosted draw wins.
     two_left = [[*_outfitted_workers("strength", 2), _apprentice(5)]]
-    assert _seeded_net(prepared, 33, two_left, "power", "power", production=fused) > 0
+    assert _seeded_net(prepared, 33, two_left, "power", "power", production=production) > 0
     one_left = [[*_outfitted_workers("strength", 1), _apprentice(5)]]
-    assert _seeded_net(prepared, 33, one_left, "power", "power", production=fused) < 0
+    assert _seeded_net(prepared, 33, one_left, "power", "power", production=production) < 0
 
 
 @pytest.mark.asyncio

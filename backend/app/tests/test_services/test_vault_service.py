@@ -38,6 +38,7 @@ from app.services.vault import economy, seeding
 from app.services.vault_seed import CreatedRooms, PreparedRooms
 from app.services.vault_service import VaultService
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
+from app.utils.room_assets import get_room_image_url
 
 # Valid UUIDv4 constants for use in mocked objects
 VAULT_ID = UUID4("12345678-1234-4abc-9def-1234567890ab")
@@ -1053,17 +1054,18 @@ class TestInitiateVault:
             assert len(merged_living) == (1 if is_boosted else 0)
 
             generators = [room for room in rooms if room.name.lower().startswith("power")]
-            assert len(generators) == (2 if is_boosted else 1)
+            assert len(generators) == 1
             if is_boosted:
-                assert {(room.coordinate_x, room.coordinate_y) for room in generators} == {(3, 1), (0, 1)}
+                assert (generators[0].coordinate_x, generators[0].coordinate_y) == (0, 1)
+                assert generators[0].size == 6
 
             elevators = sorted(
                 (room.coordinate_x, room.coordinate_y) for room in rooms if room.name.lower() == "elevator"
             )
             assert elevators == [(SHAFT_X, 0), (SHAFT_X, 1), (SHAFT_X, 2), (SHAFT_X, 3)]
 
-    async def test_boosted_seed_fuses_and_staffs_one_size_six_generator(self, async_session, vault) -> None:
-        """The adjacent boosted generators fuse at seed time into one size-6 survivor that takes the double crew."""
+    async def test_boosted_seed_builds_one_size_six_generator_directly(self, async_session, vault) -> None:
+        """The boosted generator is seeded at its final size-6 footprint and takes the double crew."""
         game_data = await get_static_game_data()
         prepared = seeding.prepare_initial_rooms(game_data.rooms, vault.id, is_boosted=True)
         await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
@@ -1073,9 +1075,10 @@ class TestInitiateVault:
         vault_obj, created = await seeding.create_initial_rooms(async_session, vault, prepared)
 
         power_rooms = [room for room in created.production if room.name.lower().startswith("power")]
-        assert len(power_rooms) == 1  # the (3,1)+(0,1) pair fused into one live row
+        assert len(power_rooms) == 1  # seeded directly at (0, 1), no fusion round-trip
         assert power_rooms[0].size == 6
         assert power_rooms[0].output == 58  # (2*6*(1+4))-2 at tier 1, size 6
+        assert power_rooms[0].image_url == get_room_image_url("Power Generator", tier=1, size=6)
         assert vault_obj.power_max == base_power_max + fused_capacity
 
         persisted = [
@@ -1099,11 +1102,11 @@ class TestInitiateVault:
 
         dwellers = await crud.dweller.get_multi_by_vault(async_session, vault.id)
         generator_crew = [dweller for dweller in dwellers if dweller.room_id == persisted[0].id]
-        assert len([d for d in generator_crew if d.apprentice_stat is None]) == 5  # 2 + 3 combined crew
+        assert len([d for d in generator_crew if d.apprentice_stat is None]) == 5  # double crew minus apprentice slot
         assert len(generator_crew) == 6  # five adults plus the seeded family teen
         assert all(dweller.status == DwellerStatusEnum.WORKING for dweller in generator_crew)
         assert [d for d in generator_crew if d.apprentice_stat == SPECIALEnum.STRENGTH]  # the seeded family teen
-        assert len(dwellers) == 33  # non-legendary headcount unchanged by the fusion (33 + 3 legendary = 36)
+        assert len(dwellers) == 33  # non-legendary headcount (33 + 3 legendary = 36)
 
     async def test_boosted_production_workers_wear_matching_common_three_outfits(self, async_session, vault) -> None:
         """Every boosted production worker is equipped the Common +3 outfit for their room stat, built via the factory."""

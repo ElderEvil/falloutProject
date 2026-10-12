@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.201.0 (2026-10-12)
+
+### Features
+
+* **rooms:** rank assignment and incident pickers, restore merge pulse ([#963](https://github.com/ElderEvil/falloutProject/issues/963)) 5b97c86
+
 ## 2.200.0 (2026-10-12)
 
 ### Features

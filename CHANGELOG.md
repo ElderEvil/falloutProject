@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.199.3 (2026-10-12)
+
+### Code Refactoring
+
+* **map:** split map_service into domain package behind facade ([#960](https://github.com/ElderEvil/falloutProject/issues/960)) 585a952
+* **rewards:** split reward_service into domain package behind facade ([#961](https://github.com/ElderEvil/falloutProject/issues/961)) 78f7685
+
 ## 2.199.2 (2026-10-11)
 
 ### Bug Fixes

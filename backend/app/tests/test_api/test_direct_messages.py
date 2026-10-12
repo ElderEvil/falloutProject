@@ -132,6 +132,37 @@ class TestRequestGating:
         assert retry.json()["is_request"] is True
         assert uuid.UUID(retry.json()["id"]) is not None
 
+    async def test_accept_then_revoke_allows_a_fresh_request(self, async_client: AsyncClient, two_users) -> None:
+        """Accepting must retire the request; after a revoke a new request is allowed again."""
+        (user_a, data_a), (user_b, data_b) = two_users
+        headers_a = await _auth_headers(async_client, data_a)
+        headers_b = await _auth_headers(async_client, data_b)
+
+        await async_client.post(f"/messages/{user_b.id}", json={"body": "hi"}, headers=headers_a)
+        accepted = await async_client.post(f"/messages/{user_a.id}/accept", headers=headers_b)
+        assert accepted.status_code == 200
+
+        revoked = await async_client.delete(f"/connections/{accepted.json()['id']}", headers=headers_a)
+        assert revoked.status_code == 204
+
+        fresh = await async_client.post(f"/messages/{user_b.id}", json={"body": "still there?"}, headers=headers_a)
+        assert fresh.status_code == 201
+        assert fresh.json()["is_request"] is True
+
+    async def test_block_then_unblock_allows_a_fresh_request(self, async_client: AsyncClient, two_users) -> None:
+        """A block discards the pending request, so an unblocked sender can request again."""
+        (user_a, data_a), (user_b, data_b) = two_users
+        headers_a = await _auth_headers(async_client, data_a)
+        headers_b = await _auth_headers(async_client, data_b)
+
+        await async_client.post(f"/messages/{user_b.id}", json={"body": "hi"}, headers=headers_a)
+        assert (await async_client.post(f"/blocks/{user_a.id}", headers=headers_b)).status_code == 201
+        assert (await async_client.delete(f"/blocks/{user_a.id}", headers=headers_b)).status_code == 204
+
+        fresh = await async_client.post(f"/messages/{user_b.id}", json={"body": "unblocked?"}, headers=headers_a)
+        assert fresh.status_code == 201
+        assert fresh.json()["is_request"] is True
+
 
 class TestMessaging:
     async def test_self_message_rejected(self, async_client: AsyncClient, two_users) -> None:
@@ -193,6 +224,22 @@ class TestMessaging:
             assert payload["type"] == "direct_message"
             assert payload["message"]["body"] == "over the wire"
             assert payload["message"]["sender_user_id"] == str(user_a.id)
+
+    async def test_delivery_failure_does_not_fail_the_send(
+        self, async_client: AsyncClient, two_users, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A committed message must survive a socket failure: delivery is best-effort."""
+        from app.services.direct_message_service import direct_message_service
+
+        (_user_a, data_a), (user_b, _data_b) = two_users
+        headers_a = await _auth_headers(async_client, data_a)
+
+        async def boom(*_args, **_kwargs):
+            raise RuntimeError("socket gone")
+
+        monkeypatch.setattr(direct_message_service.manager, "send_personal_message", boom)
+        send = await async_client.post(f"/messages/{user_b.id}", json={"body": "hi"}, headers=headers_a)
+        assert send.status_code == 201
 
 
 class TestBlockingMessages:

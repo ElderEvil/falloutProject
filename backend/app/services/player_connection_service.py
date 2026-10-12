@@ -101,6 +101,11 @@ class PlayerConnectionService:
         connection = await crud.connection.set_status(
             db_session, connection, ConnectionStatus.ACCEPTED, responded_at=datetime.utcnow()
         )
+        # A connected pair holds no pending requests; retire any in either direction
+        # so a later revoke or block-then-unblock does not leave a phantom request.
+        await crud.direct_message.clear_requests(
+            db_session, user_a=connection.requester_id, user_b=connection.addressee_id
+        )
         await db_session.commit()
         logger.info("Connection accepted: %s", connection.id)
         username = await self._usernames(db_session, [connection.requester_id])
@@ -155,6 +160,10 @@ class PlayerConnectionService:
         # blocked both ways immediately, and the ability to connect must be
         # re-earned after an unblock (the old connection is not restored).
         await crud.connection.delete_between(db_session, user.id, target.id)
+        # Discard open requests in both directions, so a blocked pair is not left
+        # with a phantom pending request that resurfaces after an unblock.
+        await crud.direct_message.delete_requests_from(db_session, sender=user.id, recipient=target.id)
+        await crud.direct_message.delete_requests_from(db_session, sender=target.id, recipient=user.id)
         await db_session.commit()
         logger.info("User %s blocked %s", user.id, target.id)
         return self._to_block_read(block, target.username)

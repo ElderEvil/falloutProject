@@ -22,6 +22,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.core.enums import ConnectionStatus
 from app.core.game_config import game_config
+from app.models.connection import Connection
 from app.models.direct_message import DirectMessage
 from app.models.user import User
 from app.schemas.connection import ConnectionRead
@@ -54,6 +55,18 @@ class DirectMessageService:
         if not user:
             raise ResourceNotFoundException(User, identifier=user_id)
         return user
+
+    @staticmethod
+    def _to_connection_read(connection: Connection, username: str) -> ConnectionRead:
+        return ConnectionRead(
+            id=connection.id,
+            requester_id=connection.requester_id,
+            addressee_id=connection.addressee_id,
+            status=connection.status,
+            counterpart_username=username,
+            created_at=connection.created_at,
+            responded_at=connection.responded_at,
+        )
 
     @staticmethod
     def _to_read(message: DirectMessage) -> DirectMessageRead:
@@ -104,9 +117,14 @@ class DirectMessageService:
         read = self._to_read(message)
         payload = {"type": "direct_message", "message": read.model_dump(mode="json")}
         # Multi-instance delivery: Redis pub/sub fan-out to the recipient and an
-        # echo to the sender, so both clients see the message immediately.
-        await self.manager.send_personal_message(payload, recipient.id)
-        await self.manager.send_personal_message(payload, sender.id)
+        # echo to the sender, so both clients see the message immediately. Delivery
+        # is best-effort — the message is already committed, so a socket failure
+        # must not turn a successful send into an HTTP 500.
+        for target in (recipient.id, sender.id):
+            try:
+                await self.manager.send_personal_message(payload, target)
+            except Exception:
+                logger.exception("Direct message %s delivery to %s failed", message.id, target)
         logger.info("Direct message %s from %s to %s", message.id, sender.id, recipient.id)
         return read
 
@@ -117,42 +135,30 @@ class DirectMessageService:
         if requester.id == user.id:
             raise ValidationException("You cannot accept a request from yourself.")
         await self._reject_if_blocked(db_session, requester.id, user.id)
+
+        existing = await crud.connection.get_by_pair(db_session, requester.id, user.id)
+        if existing is not None and existing.status is ConnectionStatus.ACCEPTED:
+            # Idempotent no-op: accepting an already-accepted pair returns the row.
+            return self._to_connection_read(existing, requester.username)
         if not await crud.direct_message.has_open_request(db_session, sender=requester.id, recipient=user.id):
             raise ValidationException("No pending request from this user.")
 
-        existing = await crud.connection.get_by_pair(db_session, requester.id, user.id)
         if existing is not None:
-            # Idempotent no-op when already connected; an equivalent PENDING row
-            # (normal invite) is promoted so either accept path converges.
-            if existing.status is not ConnectionStatus.ACCEPTED:
-                existing = await crud.connection.set_status(
-                    db_session, existing, ConnectionStatus.ACCEPTED, responded_at=datetime.utcnow()
-                )
-            await db_session.commit()
-            return ConnectionRead(
-                id=existing.id,
-                requester_id=existing.requester_id,
-                addressee_id=existing.addressee_id,
-                status=existing.status,
-                counterpart_username=requester.username,
-                created_at=existing.created_at,
-                responded_at=existing.responded_at,
+            # An equivalent PENDING row (normal invite) is promoted so either
+            # accept path converges.
+            connection = await crud.connection.set_status(
+                db_session, existing, ConnectionStatus.ACCEPTED, responded_at=datetime.utcnow()
             )
-
-        connection = await crud.connection.create_connection(
-            db_session, requester_id=requester.id, addressee_id=user.id, status=ConnectionStatus.ACCEPTED
-        )
+        else:
+            connection = await crud.connection.create_connection(
+                db_session, requester_id=requester.id, addressee_id=user.id, status=ConnectionStatus.ACCEPTED
+            )
+        # A connected pair holds no pending requests; retire any in either direction
+        # so a later revoke or block-then-unblock does not leave a phantom request.
+        await crud.direct_message.clear_requests(db_session, user_a=requester.id, user_b=user.id)
         await db_session.commit()
         logger.info("Message request accepted: %s -> %s", requester.id, user.id)
-        return ConnectionRead(
-            id=connection.id,
-            requester_id=connection.requester_id,
-            addressee_id=connection.addressee_id,
-            status=connection.status,
-            counterpart_username=requester.username,
-            created_at=connection.created_at,
-            responded_at=connection.responded_at,
-        )
+        return self._to_connection_read(connection, requester.username)
 
     async def decline_request(self, db_session: AsyncSession, *, user: User, requester_id: UUID4) -> None:
         """Discard open requests from a user; safe to retry (no-op when none remain)."""

@@ -52,6 +52,31 @@ New enum `WorldEventStatus` (`SCHEDULED` / `ACTIVE` / `COMPLETED` / `FAILED`). N
 
 No other existing column or table changes; `world_location` and vault state are untouched.
 
+## Candidate kinds
+
+Two axes: a **goal** (co-op contribution toward a target) and a **condition** (a passive world modifier).
+A kind may use either or both. One kind per rotation slot; each is a `game_config` entry, so adding one
+is data, not code.
+
+| Kind | Axis | Effect | Reuses |
+|---|---|---|---|
+| **Migration** | goal | Server kills a target number of creatures; personal + server thresholds | incident events, reward settlement |
+| **Construction drive** | goal | Contribute builds/upgrades toward a shared target | `ROOM_BUILT` |
+| **Scrap drive** | goal | Contribute scrapped items | `ITEM_SCRAPPED` |
+| **Radstorm** (weather) | condition | Elevated external radiation; biased spawn weights toward radscorpions/feral ghouls | `get_spawn_weights`, radiation channel |
+| **Raider activity** (weather) | condition | Higher raider weight and difficulty for the window | `get_spawn_weights`, `get_difficulty_range` |
+| **Week of the `<creature>`** (HOMM) | condition | One creature type's spawn weight (and loot) boosted for the week | same hooks |
+| **Raining cats and dogs** | condition | A pet windfall — dwellers randomly find pets for the window | `item_factory.build_pet`, pet modifiers |
+
+Notes:
+
+- Weather/condition kinds are the cheapest to ship first: they reuse `get_spawn_weights()` /
+  `get_difficulty_range()` with an active-condition multiplier and need no contribution or reward path.
+- **Raining cats and dogs** grants pets through the existing factory (`build_pet`) so catalogue-backed
+  rules hold; it is a *windfall*, not a spend, so it needs a per-vault cap to avoid pet flooding and a
+  surfacing toast (pets are a progression-visible event).
+- Goal kinds carry the personal/server reward path; condition kinds may carry none.
+
 ## Contract — lifecycle
 
 A single new periodic actor, following the objectives pattern exactly:

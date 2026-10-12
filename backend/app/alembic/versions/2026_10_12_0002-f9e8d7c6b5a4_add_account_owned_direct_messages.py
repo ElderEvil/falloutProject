@@ -33,6 +33,8 @@ def upgrade() -> None:
         sa.Column("read_at", sa.DateTime(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=True),
         sa.Column("updated_at", sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(["sender_user_id"], ["user.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["recipient_user_id"], ["user.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_directmessage_id"), "directmessage", ["id"], unique=False)

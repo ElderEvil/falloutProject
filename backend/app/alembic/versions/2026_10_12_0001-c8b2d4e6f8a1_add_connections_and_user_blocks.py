@@ -41,6 +41,8 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(), nullable=True),
         sa.Column("updated_at", sa.DateTime(), nullable=True),
         sa.Column("responded_at", sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(["requester_id"], ["user.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["addressee_id"], ["user.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("user_a", "user_b", name="uq_connection_user_pair"),
     )
@@ -58,6 +60,8 @@ def upgrade() -> None:
         sa.Column("blocked_id", sa.Uuid(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=True),
         sa.Column("updated_at", sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(["blocker_id"], ["user.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["blocked_id"], ["user.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("blocker_id", "blocked_id", name="uq_userblock_blocker_blocked"),
     )

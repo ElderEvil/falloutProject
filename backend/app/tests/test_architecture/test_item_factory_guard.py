@@ -28,7 +28,7 @@ EXCLUDED_DIRS = frozenset({"tests", "alembic", "__pycache__"})
 # Shrink these numbers with each migration batch; never raise them.
 ITEM_CONSTRUCTION_BASELINE: dict[tuple[str, str], int] = {
     ("crud/item_base.py", "Junk"): 2,  # scrap byproducts, not catalog-backed
-    ("services/reward_service.py", "Item"): 1,  # generic reward item
+    ("services/rewards/items.py", "Item"): 1,  # generic reward item
 }
 
 

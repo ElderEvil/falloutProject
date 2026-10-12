@@ -21,6 +21,7 @@ from app.schemas.dweller import DwellerCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.reward_service import reward_service
+from app.services.rewards import items, lunchbox, settlement
 from app.tests.factory.dwellers import create_fake_adult_dweller
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
@@ -276,7 +277,7 @@ async def test_grant_item_legendary_dweller_exhausted_pool_keeps_canonical_name(
         obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
     )
 
-    with patch.object(reward_service, "_pick_legendary_template_id", new=AsyncMock(return_value=None)):
+    with patch("app.services.rewards.items._pick_legendary_template_id", new=AsyncMock(return_value=None)):
         result = await reward_service.grant_item(
             async_session,
             vault.id,
@@ -513,8 +514,8 @@ async def test_grant_lunchbox_amount_mints_several(async_session: AsyncSession) 
 
 
 def test_parse_objective_reward_lunchbox() -> None:
-    assert reward_service._parse_objective_reward("1 lunchbox") == (RewardType.LUNCHBOX, {"amount": 1})
-    assert reward_service._parse_objective_reward("2 lunchboxes") == (RewardType.LUNCHBOX, {"amount": 2})
+    assert settlement._parse_objective_reward("1 lunchbox") == (RewardType.LUNCHBOX, {"amount": 1})
+    assert settlement._parse_objective_reward("2 lunchboxes") == (RewardType.LUNCHBOX, {"amount": 2})
 
 
 @pytest.mark.asyncio
@@ -529,7 +530,7 @@ async def test_lunchbox_roll_is_catalog_backed(async_session: AsyncSession) -> N
     await async_session.commit()
     await async_session.refresh(storage)
 
-    granted_items, _ = await reward_service._roll_lunchbox_contents(async_session, vault.id, storage.id)
+    granted_items, _ = await lunchbox._roll_lunchbox_contents(async_session, vault.id, storage.id)
 
     catalog = {
         str(entry["name"]).lower(): RarityEnum(entry["rarity"]).value
@@ -665,7 +666,7 @@ async def test_process_quest_rewards_multiple(async_session: AsyncSession) -> No
 )
 def test_parse_objective_reward(reward_str: str, expected_type: RewardType, expected_data: dict[str, object]) -> None:
     """_parse_objective_reward splits a reward string into its type and payload."""
-    reward_type, reward_data = reward_service._parse_objective_reward(reward_str)
+    reward_type, reward_data = settlement._parse_objective_reward(reward_str)
 
     assert reward_type == expected_type
     assert reward_data == expected_data
@@ -703,7 +704,7 @@ async def test_process_single_reward_experience(async_session: AsyncSession) -> 
     )
     dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
 
-    result = await reward_service._process_single_reward(
+    result = await settlement._process_single_reward(
         async_session,
         vault.id,
         RewardType.EXPERIENCE,
@@ -717,7 +718,7 @@ async def test_process_single_reward_experience(async_session: AsyncSession) -> 
 async def test_process_single_reward_unknown_type_raises(async_session: AsyncSession) -> None:
     """Test _process_single_reward raises on unknown type."""
     with pytest.raises(ValueError, match="Unknown reward type"):
-        await reward_service._process_single_reward(async_session, "fake-vault-id", "unknown_type", {})
+        await settlement._process_single_reward(async_session, "fake-vault-id", "unknown_type", {})
 
 
 @pytest.mark.parametrize(
@@ -805,7 +806,7 @@ async def test_lunchbox_template_picks_are_distinct(async_session: AsyncSession)
     second_mint = await reward_service.grant_lunchbox(async_session, vault.id)
 
     roster = {f"{t.first_name} {t.last_name or ''}".strip() for t in game_data_store.get_dwellers_by_rarity("rare")}
-    with patch("app.services.reward_service.random.choices", return_value=[RarityEnum.RARE]):
+    with patch("app.services.rewards.lunchbox.random.choices", return_value=[RarityEnum.RARE]):
         first = await reward_service.open_lunchbox(async_session, vault.id, UUID(first_mint["item_id"]))
         second = await reward_service.open_lunchbox(async_session, vault.id, UUID(second_mint["item_id"]))
 
@@ -835,7 +836,7 @@ async def test_dweller_reward_at_capacity_is_refused(async_session: AsyncSession
     vault = await _vault_at_capacity(async_session)
 
     with pytest.raises(ResourceConflictException, match="population capacity"):
-        await reward_service._process_single_reward(
+        await settlement._process_single_reward(
             async_session, vault.id, RewardType.DWELLER, {"first_name": "Newcomer", "rarity": "common"}
         )
 
@@ -881,7 +882,7 @@ def test_reward_junk_uses_data_supplied_type_value_prose_and_art() -> None:
     from app.models.junk import Junk
 
     storage_id = uuid4()
-    junk = reward_service._build_junk(
+    junk = items._build_junk(
         "Desk Fan",
         "rare",
         {"junk_type": JunkTypeEnum.CIRCUITRY, "value": 42, "description": "A dusty fan", "image_url": "/custom.png"},
@@ -906,7 +907,7 @@ def test_reward_junk_falls_back_to_valuables_and_name_keyed_art() -> None:
     from app.core.enums import JunkTypeEnum
     from app.utils.junk_assets import get_junk_image_url
 
-    junk = reward_service._build_junk("Desk Fan", "common", {}, uuid4())
+    junk = items._build_junk("Desk Fan", "common", {}, uuid4())
 
     assert junk.junk_type is JunkTypeEnum.VALUABLES
     assert junk.description == "Desk Fan"

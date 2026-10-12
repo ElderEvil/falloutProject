@@ -3,7 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const apiGet = vi.fn()
 const handleStoreError = vi.fn()
 
-vi.mock('@/core/utils/api', () => ({ apiGet: (...args: unknown[]) => apiGet(...args) }))
+vi.mock('@/core/utils/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/core/utils/api')>()
+  return { ...actual, apiGet: (...args: unknown[]) => apiGet(...args) }
+})
 vi.mock('@/core/utils/errorHandler', () => ({ handleStoreError }))
 
 async function importComposable() {
@@ -49,5 +52,29 @@ describe('useGameBalance', () => {
     await vi.waitFor(() => expect(handleStoreError).toHaveBeenCalledTimes(1))
     expect(baseProductionRate.value).toBeNull()
     expect(apiGet).toHaveBeenCalledTimes(3)
+  })
+
+  it('reports a client error immediately without retrying', async () => {
+    const { ApiError } = await import('@/core/utils/api')
+    apiGet.mockRejectedValue(new ApiError({ message: 'Forbidden', status: 403 }))
+    const { useGameBalance } = await importComposable()
+
+    const { baseProductionRate } = useGameBalance()
+    await vi.waitFor(() => expect(handleStoreError).toHaveBeenCalledTimes(1))
+    expect(baseProductionRate.value).toBeNull()
+    expect(apiGet).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries a server error and recovers', async () => {
+    const { ApiError } = await import('@/core/utils/api')
+    apiGet
+      .mockRejectedValueOnce(new ApiError({ message: 'Server error', status: 500 }))
+      .mockResolvedValueOnce({ resource: { base_production_rate: 0.02 } })
+    const { useGameBalance } = await importComposable()
+
+    const { baseProductionRate } = useGameBalance()
+    await vi.waitFor(() => expect(baseProductionRate.value).toBe(0.02))
+    expect(apiGet).toHaveBeenCalledTimes(2)
+    expect(handleStoreError).not.toHaveBeenCalled()
   })
 })

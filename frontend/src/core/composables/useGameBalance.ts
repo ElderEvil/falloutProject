@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { apiGet } from '@/core/utils/api'
+import { ApiError, apiGet } from '@/core/utils/api'
 import { handleStoreError } from '@/core/utils/errorHandler'
 
 interface GameBalanceResponse {
@@ -24,9 +24,19 @@ async function fetchGameBalance(): Promise<void> {
       baseProductionRateSetting.value = rate
       return
     } catch (error: unknown) {
-      if (attempt === BALANCE_LOAD_ATTEMPTS) handleStoreError(error, 'Failed to load game balance settings')
+      if (attempt === BALANCE_LOAD_ATTEMPTS || !isRetryableBalanceError(error)) {
+        handleStoreError(error, 'Failed to load game balance settings')
+        return
+      }
     }
   }
+}
+
+function isRetryableBalanceError(error: unknown): boolean {
+  // Client errors repeat identically — only network failures (no status) and
+  // server errors are worth another attempt.
+  if (error instanceof ApiError) return error.status === null || error.status >= 500
+  return true
 }
 
 function loadGameBalance(): void {

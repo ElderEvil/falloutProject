@@ -295,19 +295,21 @@ async def test_live_round_engine_matches_offline_kernel_fire_pacing(
     assert rounds == offline.ticks
 
 
-def test_no_defenders_fails_only_at_duration():
+def test_no_defenders_fails_on_first_round_without_spread():
+    """With spread disabled production fails the first no-defender round — the
+    kernel must not burn sub-ticks to the duration (idle-time inflation)."""
     outcome = resolve_incident(IncidentType.RAIDER_ATTACK, 1, [], dt=2, duration=60)
     assert outcome.failed
     assert not outcome.resolved
-    assert outcome.ticks == 30
+    assert outcome.ticks == 1
     assert outcome.damage_taken == 0
     assert outcome.deaths == 0
 
 
-def test_no_defenders_consumes_full_duration():
-    outcome = resolve_incident(IncidentType.FIRE, 1, [], dt=2, duration=30)
+def test_no_defenders_consumes_full_duration_only_while_spread_may_occur():
+    outcome = resolve_incident(IncidentType.FIRE, 1, [], dt=2, duration=30, max_spread_count=1)
     assert outcome.failed
-    assert outcome.ticks == 15
+    assert outcome.ticks == 30
 
 
 def test_outcome_depends_on_responder_power_not_population():

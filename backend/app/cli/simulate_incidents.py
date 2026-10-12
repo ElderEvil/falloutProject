@@ -380,7 +380,8 @@ class IncidentSimulator:
         for defender in vault.roster:
             if defender.health <= 0:
                 continue
-            defender.health = min(defender.profile.max_health, defender.health + self.cfg.heal_per_tick)
+            ceiling = max(1, defender.profile.max_health - defender.radiation)
+            defender.health = min(ceiling, defender.health + self.cfg.heal_per_tick)
 
     def _apply_incident_pressure(self, vault: VaultState) -> None:
         active_count = len([i for i in vault.incidents if not i.resolved])

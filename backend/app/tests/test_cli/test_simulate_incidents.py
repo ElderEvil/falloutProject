@@ -24,6 +24,16 @@ def _profile(label: str, power: float) -> DefenderProfile:
     )
 
 
+def test_regen_respects_radiation_ceiling():
+    """Healing clamps to max(1, max_health - radiation), like the combat kernel."""
+    cfg = IncidentConfig(heal_per_tick=5)
+    sim = IncidentSimulator(cfg)
+    defender = SimDefender(profile=_profile("rad", 10.0), health=30, radiation=70)
+    vault = sim_cli.VaultState(population=1, adults=1, roster=[defender])
+    sim._regen_defenders(vault)
+    assert defender.health == 30
+
+
 def test_simulator_is_deterministic_with_seed():
     cfg = IncidentConfig(spawn_chance_per_hour=0.8)
     sim = IncidentSimulator(cfg)

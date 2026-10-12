@@ -93,11 +93,13 @@ def resolve_incident(
     and — for irradiating incidents — adds ``min(taken-1, taken//2)`` RAD after
     outfit/team reduction, clamping health to ``max(1, max_health - radiation)``.
     FIRE wins at ``progress >= 1``; every other type wins at
-    ``int(progress) >= difficulty * 2``. With no living responders the sub-ticks
-    are consumed without damage until the duration elapses, then the incident
-    fails. ``max_spread_count`` is accepted for signature parity with the
+    ``int(progress) >= difficulty * 2``. With no living responders and spread
+    disabled the incident fails on that round, like production's
+    no-defender outcome — it does not burn sub-ticks to the duration.
+    ``max_spread_count`` is accepted for signature parity with the
     production engine; when > 0 it extends the effective duration (one extra
-    ``duration`` per spread), otherwise the default path fails at ``duration``.
+    ``duration`` per spread) as an unopposed-spread window, otherwise the
+    default path fails at ``duration`` only while spread could still occur.
     """
     threat = incident_math.raider_power(difficulty) if base_raider_power is None else difficulty * base_raider_power
     if threat <= 0:
@@ -119,8 +121,13 @@ def resolve_incident(
         raise ValueError("incident_dt must be positive")
     while True:
         living = [defender for defender in responders if defender.health > 0]
-        if not living and elapsed >= effective_duration:
-            break
+        if not living:
+            if max_spread_count == 0:
+                elapsed += dt
+                ticks += 1
+                break
+            if elapsed >= effective_duration:
+                break
         active_count = sum(
             1 for defender in living if hazard_team is not None and hazard_team in defender.profile.teams
         )

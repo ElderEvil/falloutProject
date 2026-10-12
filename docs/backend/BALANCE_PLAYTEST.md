@@ -108,8 +108,9 @@ places change nothing for it.
 
 Reading: FIRE containment is trivially won (100%) even at its top difficulty; it deals almost no
 damage. RADSCORPION is the lethal one — at difficulty 4 it already loses 21% of fights and kills in
-34% of runs, and by difficulty 6 it is a coin flip. RAIDER sits between; its `p95 = 30 ticks` is the
-no-defender timeout (30 sub-ticks at `incident_tick_seconds=2`), i.e. the fights that end in a loss.
+34% of runs, and by difficulty 6 it is a coin flip. RAIDER sits between; its longest tails are
+last-defender-standing fights (a lone responder absorbing the full split for 20+ sub-ticks), which
+resolve as losses when the room empties.
 
 ## 4. Resource baselines
 
@@ -135,17 +136,22 @@ Each item was checked against production and is **not** a value-tuning change.
    a repo-wide search finds its only use in `simulate_incidents` (`_regen_defenders`). The simulator
    heals every living defender 5 HP per 60 s tick, **including while an incident is active**, which
    production never does (only Stimpaks/medical actions heal). Baselines therefore overstate
-   survival; set `--heal-per-tick 0` to approximate production. Documented, not changed, because the
-   config field's "safe and fed" semantics have no implementation to mirror.
+   survival; set `--heal-per-tick 0` to approximate production. The unconditional/mid-combat aspect
+   is documented, not changed, because the config field's "safe and fed" semantics have no
+   implementation to mirror — but since the 2026-10-12 correction the heal respects the radiation
+   ceiling (`max(1, max_health - radiation)`), like the combat kernel, instead of healing through it.
 2. **Responder selection.** Production fights with the healthy adults in the incident's room plus
    the auto-dispatched hazard team (`incident_round.process_incident` + `dispatch_to_incident`). The
    simulator samples `1..defenders_per_incident` random defenders from the whole roster; room
    topology and the dispatcher are not modeled.
 3. **Spread / duration.** At the shipped `max_spread_count = 0` the kernel matches production: an
-   unopposed incident fails at `duration = spread_duration = 60 s` (30 sub-ticks), and a defended
-   fight continues until it is won or all defenders die (`process_incident` has no duration timeout
-   while defenders live). When `max_spread_count > 0` the simulator extends the effective duration
-   instead of spawning in an adjacent room — the documented extended-escalation approximation.
+   unopposed incident fails on the first no-defender round (`no_defender_outcome` resolves the loss
+   immediately once spreading is disabled), and a defended fight continues until it is won or all
+   defenders die (`process_incident` has no duration timeout while defenders live). When
+   `max_spread_count > 0` the simulator extends the effective duration instead of spawning in an
+   adjacent room — the documented extended-escalation approximation. (Corrected 2026-10-12: the
+   kernel previously burned sub-ticks to the full duration after a wipe, inflating failed-fight
+   tails; the §3 tables were regenerated with the fail-fast kernel.)
 4. **Team place earning / auto-dispatch / auto-equip are not simulated.** A defender is configured
    with the active team places and outfit it is assumed to already hold; the 3-incident qualification
    (`QUALIFYING_INCIDENTS`), bench promotion, and post-round outfit swap are production-only.
@@ -548,6 +554,11 @@ uv run fo-cli simulate-incidents --matchup DEATHCLAW_ATTACK:10 --runs 200 --seed
 Each row shows **BEFORE → AFTER**: resolved runs, duration distribution (ticks p5/mean/p95), damage
 distribution (p5/mean/p95) and deaths summed over all runs with `(runs that had ≥1 death)`.
 
+Correction (2026-10-12): the tick columns were regenerated with the fail-fast kernel (see §5) —
+previously failed fights burned idle sub-ticks to the 30-tick duration after a wipe, so every loss
+tail sat at exactly 30. Resolution, damage, and deaths are unaffected (nothing accrues after death);
+the new tails are real last-defender-standing durations.
+
 ### FIRE (CONTAIN) and routine infestations
 
 | Matchup | Resolved | Ticks p5/mean/p95 | Damage p5/mean/p95 | Deaths (runs) | Resolved | Ticks p5/mean/p95 | Damage p5/mean/p95 | Deaths (runs) |
@@ -558,34 +569,34 @@ distribution (p5/mean/p95) and deaths summed over all runs with `(runs that had 
 | FIRE:4 plain | 200/200 | 1/2.4/5 | 4/9.6/20 | 0 (0) | 200/200 | 3/7.8/18 | 6/15.7/36 | 0 (0) |
 | RADROACH:1 | 200/200 | 1/1.5/3 | 2/3.1/6 | 0 (0) | 200/200 | 1/1.5/3 | 1/1.5/3 | 0 (0) |
 | RADROACH:2 | 200/200 | 2/4.1/9 | 8/16.5/36 | 0 (0) | 200/200 | 2/4.1/9 | 4/8.3/18 | 0 (0) |
-| RADROACH:3 | 162/200 | 4/10.6/30 | 24/43.1/72 | 38 (38) | 200/200 | 4/8.7/20 | 12/26.1/60 | 0 (0) |
+| RADROACH:3 | 162/200 | 4/7.4/13 | 24/43.1/72 | 38 (38) | 200/200 | 4/8.7/20 | 12/26.1/60 | 0 (0) |
 | MOLE_RAT:2 | 200/200 | 2/4.1/9 | 8/16.5/36 | 0 (0) | 200/200 | 2/4.1/9 | 4/8.3/18 | 0 (0) |
-| MOLE_RAT:3 | 162/200 | 4/10.6/30 | 24/43.1/72 | 38 (38) | 200/200 | 4/8.7/20 | 12/26.1/60 | 0 (0) |
-| MOLE_RAT:5 | 130/200 | 9/19.1/30 | 70/121.8/180 | 140 (108) | 130/200 | 9/19.1/30 | 45/79.5/145 | 102 (70) |
+| MOLE_RAT:3 | 162/200 | 4/7.4/13 | 24/43.1/72 | 38 (38) | 200/200 | 4/8.7/20 | 12/26.1/60 | 0 (0) |
+| MOLE_RAT:5 | 130/200 | 8/12.5/18 | 70/121.8/180 | 140 (108) | 130/200 | 9/16.3/30 | 45/79.5/145 | 102 (70) |
 
 ### RADSCORPION (irradiating)
 
 | Matchup | Resolved | Ticks p5/mean/p95 | Damage p5/mean/p95 | Deaths (runs) | Resolved | Ticks p5/mean/p95 | Damage p5/mean/p95 | Deaths (runs) |
 |---|---|---|---|---|---|---|---|---|
-| RADSCORPION:3 prepared | 168/200 | 3/9.9/30 | 12/38.3/72 | 32 (32) | 200/200 | 3/8.3/20 | 6/22.2/60 | 0 (0) |
-| RADSCORPION:4 prepared | 162/200 | 5/13.4/30 | 30/71.3/144 | 76 (57) | 162/200 | 5/13.4/30 | 15/40.9/72 | 38 (38) |
-| RADSCORPION:6 prepared | 95/200 | 11/22.6/30 | 72/151.5/240 | 210 (108) | 130/200 | 11/21.6/30 | 48/95.9/156 | 102 (70) |
-| RADSCORPION:4 plain | 162/200 | 6/14.2/30 | 48/81.8/144 | 102 (70) | 162/200 | 6/14.2/30 | 24/47.7/72 | 38 (38) |
-| RADSCORPION:6 plain | 92/200 | 13/23.7/30 | 72/167.5/240 | 216 (108) | 130/200 | 13/22.9/30 | 72/111.2/156 | 102 (70) |
+| RADSCORPION:3 prepared | 168/200 | 3/7.2/13 | 12/38.3/72 | 32 (32) | 200/200 | 3/8.3/20 | 6/22.2/60 | 0 (0) |
+| RADSCORPION:4 prepared | 162/200 | 5/9.7/18 | 30/71.3/144 | 76 (57) | 162/200 | 5/11.5/19 | 15/40.9/72 | 38 (38) |
+| RADSCORPION:6 prepared | 95/200 | 7/14.0/21 | 72/151.5/240 | 210 (108) | 130/200 | 11/18.1/31 | 48/95.9/156 | 102 (70) |
+| RADSCORPION:4 plain | 162/200 | 6/10.4/18 | 48/81.8/144 | 102 (70) | 162/200 | 6/12.1/19 | 24/47.7/72 | 38 (38) |
+| RADSCORPION:6 plain | 92/200 | 7/14.5/20 | 72/167.5/240 | 216 (108) | 130/200 | 13/18.9/26 | 72/111.2/156 | 102 (70) |
 
 ### Intrusions (no team trains them)
 
 | Matchup | Resolved | Ticks p5/mean/p95 | Damage p5/mean/p95 | Deaths (runs) | Resolved | Ticks p5/mean/p95 | Damage p5/mean/p95 | Deaths (runs) |
 |---|---|---|---|---|---|---|---|---|
-| RAIDER:4 | 162/200 | 6/14.2/30 | 48/81.8/144 | 102 (70) | 162/200 | 6/14.2/30 | 24/47.7/72 | 38 (38) |
-| RAIDER:5 | 130/200 | 9/19.1/30 | 70/121.8/180 | 140 (108) | 130/200 | 9/19.1/30 | 45/79.5/145 | 102 (70) |
-| RAIDER:7 | 65/200 | 18/26.8/30 | 70/207.6/308 | 324 (135) | 92/200 | 18/26.6/31 | 70/149.7/217 | 216 (108) |
-| FERAL_GHOUL:5 | 130/200 | 9/19.1/30 | 70/121.8/180 | 140 (108) | 130/200 | 9/19.1/30 | 45/79.5/145 | 102 (70) |
-| FERAL_GHOUL:6 | 92/200 | 13/23.7/30 | 72/167.5/240 | 216 (108) | 130/200 | 13/22.9/30 | 72/111.2/156 | 102 (70) |
-| FERAL_GHOUL:8 | 28/200 | 23/29.0/30 | 80/236.3/368 | 509 (172) | 92/200 | 23/29.3/35 | 72/182.8/280 | 324 (135) |
-| DEATHCLAW:8 | 28/200 | 23/29.0/30 | 80/236.3/368 | 509 (172) | 92/200 | 23/29.3/35 | 72/182.8/280 | 324 (135) |
-| DEATHCLAW:9 | 0/200 | 30/30.0/30 | 72/243.7/432 | 677 (200) | 65/200 | 30/30.9/35 | 70/223.4/350 | 509 (172) |
-| DEATHCLAW:10 | 0/200 | 30/30.0/30 | 80/245.4/440 | 677 (200) | 0/200 | 30/31.8/39 | 77/245.1/429 | 677 (200) |
+| RAIDER:4 | 162/200 | 6/10.4/18 | 48/81.8/144 | 102 (70) | 162/200 | 6/12.1/19 | 24/47.7/72 | 38 (38) |
+| RAIDER:5 | 130/200 | 8/12.5/18 | 70/121.8/180 | 140 (108) | 130/200 | 9/16.3/30 | 45/79.5/145 | 102 (70) |
+| RAIDER:7 | 65/200 | 6/15.5/22 | 70/207.6/308 | 324 (135) | 92/200 | 11/21.9/32 | 70/149.7/217 | 216 (108) |
+| FERAL_GHOUL:5 | 130/200 | 8/12.5/18 | 70/121.8/180 | 140 (108) | 130/200 | 9/16.3/30 | 45/79.5/145 | 102 (70) |
+| FERAL_GHOUL:6 | 92/200 | 7/14.5/20 | 72/167.5/240 | 216 (108) | 130/200 | 13/18.9/26 | 72/111.2/156 | 102 (70) |
+| FERAL_GHOUL:8 | 28/200 | 6/15.6/23 | 80/236.3/368 | 509 (172) | 92/200 | 10/23.4/35 | 72/182.8/280 | 324 (135) |
+| DEATHCLAW:8 | 28/200 | 6/15.6/23 | 80/236.3/368 | 509 (172) | 92/200 | 10/23.4/35 | 72/182.8/280 | 324 (135) |
+| DEATHCLAW:9 | 0/200 | 5/14.5/25 | 72/243.7/432 | 677 (200) | 65/200 | 8/23.0/35 | 70/223.4/350 | 509 (172) |
+| DEATHCLAW:10 | 0/200 | 5/13.3/23 | 80/245.4/440 | 677 (200) | 0/200 | 8/23.3/40 | 77/245.1/429 | 677 (200) |
 
 Reading:
 
@@ -606,10 +617,10 @@ Reading:
 | # | Goal | Evidence | Met |
 |---|---|---|---|
 | 1 | Routine incidents reliably handled by prepared crews | FIRE 2/3/4 200/200; RADROACH 1–3 and MOLE_RAT 2–3 200/200; RADSCORPION:3 prepared 200/200 — all with 0 deaths | yes |
-| 2 | Gear + matching active teams visibly improve outcomes | FIRE:4 prepared 12.4 vs. plain 15.7 damage and 7.4 vs. 7.8 ticks; RADSCORPION:4 prepared 40.9 vs. 47.7 damage, 13.4 vs. 14.2 ticks; RADSCORPION:6 95.9 vs. 111.2 — already modelled, not retuned | yes |
+| 2 | Gear + matching active teams visibly improve outcomes | FIRE:4 prepared 12.4 vs. plain 15.7 damage and 7.4 vs. 7.8 ticks; RADSCORPION:4 prepared 40.9 vs. 47.7 damage, 11.5 vs. 12.1 ticks; RADSCORPION:6 95.9 vs. 111.2 — already modelled, not retuned | yes |
 | 3 | Hard encounters remain costly | RAIDER:7 46% / 216 deaths; DEATHCLAW:8 46% / 324; DEATHCLAW:9 32% / 509; DEATHCLAW:10 0% / 677 | yes |
 | 4 | Ordinary prepared defenders not routinely killed | 0 deaths across every difficulty-3-and-below matchup; RADSCORPION:4 deaths 76 → 38, RAIDER:4 102 → 38 (the residual 19% is the lone-responder tail — see §5) | yes (with a lone-responder tail) |
-| 5 | Fights last long enough to notice / respond | FIRE duration 1.4–2.4 → 4.0–7.8 mean ticks; every DEFEAT fight keeps its multi-round duration (unchanged 8–30 ticks) | yes |
+| 5 | Fights last long enough to notice / respond | FIRE duration 1.4–2.4 → 4.0–7.8 mean ticks; every DEFEAT fight keeps its multi-round duration (5–40 ticks across the ladder) | yes |
 
 ## 5. Regression tests (failing-test-first)
 
@@ -623,6 +634,11 @@ Written before the value change and shown failing against the Slice-1 divisors
   contained a difficulty-4 fire in 1 tick; now it needs ≥ 4.
 - `test_top_difficulty_intruder_still_overwhelms_a_lone_defender` — guard that the top of the ladder
   is still a loss (unchanged intent, pins "hard stays costly").
+- `test_no_defenders_fails_on_first_round_without_spread` — unopposed incidents fail on the first
+  no-defender round (production parity), not after burning the duration; the spread-enabled variant
+  keeps the extended window.
+- `test_regen_respects_radiation_ceiling` — simulator healing clamps to the radiation ceiling instead
+  of restoring through it.
 - `test_incident_math_reads_configured_pacing_divisors` — both pacing divisors are the single tuning
   surface; the pure helpers read `game_config` (so production and the simulator cannot drift).
 - `test_containment_damage_is_half_of_combat_damage` — pins the formula reuse that removed the

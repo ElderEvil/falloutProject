@@ -665,6 +665,41 @@ describe('RoomDetailModal', () => {
       expect(assignSpy).toHaveBeenCalledWith('dweller-1', 'room-1', 'test-token')
     })
 
+    it('offers dwellers sorted by the room stat, best first', async () => {
+      const { filter: dwellerStore } = useDwellerStore()
+      dwellerStore.dwellers = [
+        {
+          ...mockDwellers[0],
+          id: 'low-str',
+          first_name: 'Lowbie',
+          age_group: 'adult',
+          apprentice_stat: null,
+          room_id: null,
+          status: 'idle',
+          strength: 2,
+        },
+        {
+          ...mockDwellers[1],
+          id: 'high-str',
+          first_name: 'Strong',
+          age_group: 'adult',
+          apprentice_stat: null,
+          room_id: null,
+          status: 'idle',
+          strength: 10,
+        },
+      ] as never
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRoom, modelValue: true },
+      })
+      await wrapper.get('.scene-empty-worker').trigger('click')
+
+      const cards = wrapper.findAll('.dweller-picker .dweller-card')
+      expect(cards).toHaveLength(2)
+      expect(cards[0].text()).toContain('Strong')
+    })
+
     it('keeps individual SPECIAL values out of the scene', () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers

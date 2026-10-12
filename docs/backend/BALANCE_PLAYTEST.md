@@ -519,11 +519,14 @@ divisor keys are read from **OS environment**, so for the BEFORE rows they must 
 in `backend/.env` (Slice 2 §2):
 
 ```bash
-# BEFORE (pre-Slice-3a pacing)
+# BEFORE (pre-Slice-3a pacing) — run the whole list below with these set, then
+# unset them and run the same list again for AFTER (the shipped defaults).
 export COMBAT_INCIDENT_THREAT_DAMAGE_DIVISOR=10
 export COMBAT_INCIDENT_CONTAINMENT_PROGRESS_DIVISOR=5
-# AFTER (the shipped defaults) — unset them to run the new values
+# ... run list ...
+# AFTER — unset and re-run the same list:
 unset COMBAT_INCIDENT_THREAT_DAMAGE_DIVISOR COMBAT_INCIDENT_CONTAINMENT_PROGRESS_DIVISOR
+# ... run list again ...
 
 uv run fo-cli simulate-incidents --matchup FIRE:2 --hazard-team fire --team-size 3 --outfit-count 3 --runs 200 --seed 20261012
 uv run fo-cli simulate-incidents --matchup FIRE:3 --hazard-team fire --team-size 3 --outfit-count 3 --runs 200 --seed 20261012
@@ -657,10 +660,10 @@ they compare the kernel against the same helpers.
 
 - **The residual difficulty-4 deaths are lone responders.** The matchup sampler draws 1..6 responders
   to mirror "whoever is in the affected room"; a lone defender cannot beat a difficulty-4 incident
-  inside the 30-sub-tick deadline at any divisor below ~34 (below that it dies to accumulated damage,
-  above it the higher difficulties become trivial). That is the intended "bring a crew" boundary — a
-  prepared *crew* finishes difficulty 4 (the fixed 3-defender check resolves with 0 deaths). The 19%
-  death-run figure at difficulty 4 is essentially the 1-responder fraction.
+  because suppression progress accumulates slower than incoming damage kills it — defended fights
+  have no duration timeout, they end in victory or a wipe. That is the intended "bring a crew"
+  boundary — a fixed 3-defender check resolves with 0 deaths. The 19% death-run figure at
+  difficulty 4 is essentially the 1-responder fraction.
 - **The top end softened.** Reducing damage lets 5–6 defender responses survive what used to kill them,
   so DEATHCLAW:8 rose 14% → 46% and DEATHCLAW:9 0% → 32% resolve. DEATHCLAW remains the deadliest
   family (324–677 deaths; difficulty 10 still 0%), so this is within "still costly", but it is a real

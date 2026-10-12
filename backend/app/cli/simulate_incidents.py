@@ -716,7 +716,8 @@ def run_matchup(
     )
     outcomes: list[IncidentOutcome] = []
     for _ in range(runs):
-        count = rng.randint(1, min(config.defenders_per_incident, len(profiles)))
+        cap = min(config.defenders_per_incident, len(profiles))
+        count = rng.randint(1, cap) if cap > 0 else 0
         responders = [
             SimDefender(profile=profile, health=profile.max_health) for profile in rng.sample(profiles, count)
         ]
@@ -863,6 +864,9 @@ def simulate(
     )
 
     if matchup:
+        if vault_id is not None:
+            typer.echo("--matchup runs a synthetic roster; it cannot be combined with --vault-id.", err=True)
+            raise typer.Exit(code=2)
         incident_type, level = _parse_matchup(matchup)
         print_matchup_report(run_matchup(baseline, incident_type, level, runs, seed=seed))
         return

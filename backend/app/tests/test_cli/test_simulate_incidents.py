@@ -118,6 +118,33 @@ def test_matchup_cli_rejects_unknown_type():
     assert result.exit_code != 0
 
 
+def test_matchup_zero_responders_reports_unopposed_instead_of_crashing():
+    """defenders_per_incident=0 resolves every run as an unopposed (failed, bloodless) incident."""
+    run = sim_cli.run_matchup(IncidentConfig(defenders_per_incident=0), IncidentType.RAIDER_ATTACK, 2, 10, seed=3)
+    assert len(run["outcomes"]) == 10
+    assert all(outcome.failed and not outcome.resolved for outcome in run["outcomes"])
+    assert sum(outcome.damage_taken for outcome in run["outcomes"]) == 0
+    assert sum(outcome.deaths for outcome in run["outcomes"]) == 0
+
+
+def test_matchup_cli_rejects_vault_id_combination():
+    """--matchup runs a synthetic roster, so combining it with --vault-id is a loud error."""
+    result = CliRunner().invoke(
+        cli,
+        [
+            "simulate-incidents",
+            "--matchup",
+            "FIRE:2",
+            "--runs",
+            "1",
+            "--vault-id",
+            "00000000-0000-0000-0000-000000000000",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "--vault-id" in result.output
+
+
 def test_matchup_cli_accepts_team_size_and_outfit_count():
     result = CliRunner().invoke(
         cli,

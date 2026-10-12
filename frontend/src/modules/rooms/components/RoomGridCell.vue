@@ -439,6 +439,9 @@ const cellTitle = computed(() => {
   .room.has-incident {
     animation: none;
   }
+  .built-room.room-merged {
+    animation: none;
+  }
 }
 
 .incident-badge {

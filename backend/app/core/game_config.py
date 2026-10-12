@@ -227,6 +227,21 @@ class CombatConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="COMBAT_")
 
     base_raider_power: int = Field(default=10, description="Power per difficulty level", ge=1)
+    # Incident combat pacing (balance pass — see docs/backend/BALANCE_PLAYTEST.md §3a).
+    # Dwellers take ``threat_power / divisor`` damage per second, so a higher divisor
+    # softens routine incidents without changing the win race (progress vs. difficulty).
+    incident_threat_damage_divisor: int = Field(
+        default=18,
+        description="Seconds of dweller-damage from one unit of threat power (higher = softer incidents)",
+        ge=1,
+    )
+    # A fire/containment hazard fills at ``power / threat * seconds / divisor``; a higher
+    # divisor makes containment take more rounds, so the fight is long enough to react to.
+    incident_containment_progress_divisor: int = Field(
+        default=20,
+        description="Seconds of equal-power response per unit of containment progress (higher = longer fires)",
+        ge=1,
+    )
     # Per weapon-type SPECIAL weights for combat_power (keys: weapon type value or "unarmed").
     # Primary stats ~0.3, secondary ~0.15, unused 0; unarmed is a balanced spread with a strength lean.
     weapon_stat_weights: dict[str, dict[str, float]] = Field(

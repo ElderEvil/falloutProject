@@ -458,3 +458,202 @@ Hazmat suit).
   force is a future-slice recommendation (no change in this pass).
 - Anything the simulator does not model (room topology, auto-dispatch, bench promotion, outfit auto-
   equip) is intentionally exercised by the manual loop instead — see Slice 1 §5 items 2 and 4.
+
+---
+
+# Balance Playtest — Slice 3a (combat tuning)
+
+> Branch `feat/balance-pass`, appended after Slice 2. Slices 1–2 stay authoritative for the simulator
+> fixes and baselines; this is the first slice that **changes shipped combat values**. Scope is
+> incident combat only: no spawn-cadence change, no resource change (that is Slice 3b), no frontend,
+> no schema/API, no new endpoint parameter. Every number below is a seeded distribution (200 runs per
+> comparison) from `fo-cli simulate-incidents --matchup …`. The "prepared" rows are the response-team
+> condition from Slice 2 (matching active team + matching catalog outfit).
+
+## 1. What changed (two knobs, one formula reuse)
+
+The Slice 1 baselines exposed two opposite failures: FIRE (a CONTAIN hazard) was won in 1–2 sub-ticks
+(2–4 s) at every difficulty, so gear and team places had almost nothing to act on; and an ordinary
+DEFEAT incident's per-tick damage was high enough that a lone or two-person response died before it
+could finish a routine encounter.
+
+Both levers live in `CombatConfig` and the simulator keeps calling the same pure helpers
+(`incident_math`, `damage_reductions`) — no simulator-only formula:
+
+| Knob (`CombatConfig`) | Slice-1 value | Slice-3a value | Effect |
+|---|---|---|---|
+| `incident_threat_damage_divisor` | 10 | **18** | Dwellers take `threat_power / divisor` damage per second. Raising it softens *every* incident's damage without touching the win race (progress vs. difficulty), so preparation survives longer. |
+| `incident_containment_progress_divisor` | 5 | **20** | Containment fills at `power / threat * seconds / divisor`. Raising it makes a fire take more rounds, so the fight is long enough to see and react to. |
+
+`incident_math.containment_damage` now returns `damage_to_dwellers(...) / 2` instead of a separate
+`threat / 20`, so the single threat-damage knob governs both the combat and containment channels and
+the old hard-coded constants are gone. **Unchanged on purpose:** `base_raider_power` (10), the DEFEAT
+win race (`power/5` → `damage//5` per second) and its `difficulty * 2` kill threshold, the 30-sub-tick
+escalation deadline, `TEAM_RESPONSE_BONUS` / `TEAM_HAZARD_RESIST` (0.20 / 0.20), the difficulty
+ranges, the spawn weights, and the shared damage-reduction resolver.
+
+## 2. Rationale (evidence → value)
+
+- **`incident_threat_damage_divisor = 18`.** At 18 a lone level-5 / SPECIAL-4 / unarmed defender
+  (70 HP) finishes a difficulty-3 hazard with 60 damage taken and no death; at the Slice-1 value of 10
+  it took 72 damage and died at the deadline. 16 still killed the lone defender (73 damage); 18 is the
+  first round value with margin. Above 18 the routine tail stops improving while the high-difficulty
+  ladder softens faster (RAIDER:7 resolves 46% at 18 vs. 65% at 24), so 18 is the knee.
+- **`incident_containment_progress_divisor = 20`.** This puts FIRE at ~4 (difficulty 2) to ~7.4
+  (difficulty 4) mean sub-ticks for a trained crew — long enough for rounds to land — while FIRE stays
+  the one incident that never kills. 15 already gave FIRE:4 ~5.6 ticks; 20 keeps the easiest fire at a
+  full 4 ticks. Neither value targets a fixed % change in damage or duration; both are set from the
+  outcome distributions in §3.
+
+## 3. Before / after distributions
+
+Commands (from `backend/`, `seed=20261012`, 200 runs each; roster 18 synthetic defenders — level 5,
+SPECIAL 4, unarmed average damage 10 — responding 1..6 to mirror "whoever is in the room"). The
+divisor keys are read from **OS environment**, so for the BEFORE rows they must be `export`ed, not put
+in `backend/.env` (Slice 2 §2):
+
+```bash
+# BEFORE (pre-Slice-3a pacing)
+export COMBAT_INCIDENT_THREAT_DAMAGE_DIVISOR=10
+export COMBAT_INCIDENT_CONTAINMENT_PROGRESS_DIVISOR=5
+# AFTER (the shipped defaults) — unset them to run the new values
+unset COMBAT_INCIDENT_THREAT_DAMAGE_DIVISOR COMBAT_INCIDENT_CONTAINMENT_PROGRESS_DIVISOR
+
+uv run fo-cli simulate-incidents --matchup FIRE:2 --hazard-team fire --team-size 3 --outfit-count 3 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup FIRE:3 --hazard-team fire --team-size 3 --outfit-count 3 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup FIRE:4 --hazard-team fire --team-size 3 --outfit-count 3 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup FIRE:4                                    --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup RADROACH_INFESTATION:1 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup RADROACH_INFESTATION:2 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup RADROACH_INFESTATION:3 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup MOLE_RAT_ATTACK:2 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup MOLE_RAT_ATTACK:3 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup MOLE_RAT_ATTACK:5 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup RADSCORPION_ATTACK:3 --hazard-team radiation --team-size 3 --outfit-count 3 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup RADSCORPION_ATTACK:4 --hazard-team radiation --team-size 3 --outfit-count 3 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup RADSCORPION_ATTACK:6 --hazard-team radiation --team-size 3 --outfit-count 3 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup RADSCORPION_ATTACK:4 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup RADSCORPION_ATTACK:6 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup RAIDER_ATTACK:4 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup RAIDER_ATTACK:5 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup RAIDER_ATTACK:7 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup FERAL_GHOUL_ATTACK:5 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup FERAL_GHOUL_ATTACK:6 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup FERAL_GHOUL_ATTACK:8 --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup DEATHCLAW_ATTACK:8  --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup DEATHCLAW_ATTACK:9  --runs 200 --seed 20261012
+uv run fo-cli simulate-incidents --matchup DEATHCLAW_ATTACK:10 --runs 200 --seed 20261012
+```
+
+Each row shows **BEFORE → AFTER**: resolved runs, duration distribution (ticks p5/mean/p95), damage
+distribution (p5/mean/p95) and deaths summed over all runs with `(runs that had ≥1 death)`.
+
+### FIRE (CONTAIN) and routine infestations
+
+| Matchup | Resolved | Ticks p5/mean/p95 | Damage p5/mean/p95 | Deaths (runs) | Resolved | Ticks p5/mean/p95 | Damage p5/mean/p95 | Deaths (runs) |
+|---|---|---|---|---|---|---|---|---|
+| FIRE:2 prepared | 200/200 | 1/1.4/3 | 1/2.5/6 | 0 (0) | 200/200 | 2/4.0/9 | 0/3.3/9 | 0 (0) |
+| FIRE:3 prepared | 200/200 | 1/1.8/4 | 2/4.6/12 | 0 (0) | 200/200 | 2/5.6/13 | 0/4.8/13 | 0 (0) |
+| FIRE:4 prepared | 200/200 | 1/2.2/5 | 3/7.8/20 | 0 (0) | 200/200 | 3/7.4/18 | 3/12.4/36 | 0 (0) |
+| FIRE:4 plain | 200/200 | 1/2.4/5 | 4/9.6/20 | 0 (0) | 200/200 | 3/7.8/18 | 6/15.7/36 | 0 (0) |
+| RADROACH:1 | 200/200 | 1/1.5/3 | 2/3.1/6 | 0 (0) | 200/200 | 1/1.5/3 | 1/1.5/3 | 0 (0) |
+| RADROACH:2 | 200/200 | 2/4.1/9 | 8/16.5/36 | 0 (0) | 200/200 | 2/4.1/9 | 4/8.3/18 | 0 (0) |
+| RADROACH:3 | 162/200 | 4/10.6/30 | 24/43.1/72 | 38 (38) | 200/200 | 4/8.7/20 | 12/26.1/60 | 0 (0) |
+| MOLE_RAT:2 | 200/200 | 2/4.1/9 | 8/16.5/36 | 0 (0) | 200/200 | 2/4.1/9 | 4/8.3/18 | 0 (0) |
+| MOLE_RAT:3 | 162/200 | 4/10.6/30 | 24/43.1/72 | 38 (38) | 200/200 | 4/8.7/20 | 12/26.1/60 | 0 (0) |
+| MOLE_RAT:5 | 130/200 | 9/19.1/30 | 70/121.8/180 | 140 (108) | 130/200 | 9/19.1/30 | 45/79.5/145 | 102 (70) |
+
+### RADSCORPION (irradiating)
+
+| Matchup | Resolved | Ticks p5/mean/p95 | Damage p5/mean/p95 | Deaths (runs) | Resolved | Ticks p5/mean/p95 | Damage p5/mean/p95 | Deaths (runs) |
+|---|---|---|---|---|---|---|---|---|
+| RADSCORPION:3 prepared | 168/200 | 3/9.9/30 | 12/38.3/72 | 32 (32) | 200/200 | 3/8.3/20 | 6/22.2/60 | 0 (0) |
+| RADSCORPION:4 prepared | 162/200 | 5/13.4/30 | 30/71.3/144 | 76 (57) | 162/200 | 5/13.4/30 | 15/40.9/72 | 38 (38) |
+| RADSCORPION:6 prepared | 95/200 | 11/22.6/30 | 72/151.5/240 | 210 (108) | 130/200 | 11/21.6/30 | 48/95.9/156 | 102 (70) |
+| RADSCORPION:4 plain | 162/200 | 6/14.2/30 | 48/81.8/144 | 102 (70) | 162/200 | 6/14.2/30 | 24/47.7/72 | 38 (38) |
+| RADSCORPION:6 plain | 92/200 | 13/23.7/30 | 72/167.5/240 | 216 (108) | 130/200 | 13/22.9/30 | 72/111.2/156 | 102 (70) |
+
+### Intrusions (no team trains them)
+
+| Matchup | Resolved | Ticks p5/mean/p95 | Damage p5/mean/p95 | Deaths (runs) | Resolved | Ticks p5/mean/p95 | Damage p5/mean/p95 | Deaths (runs) |
+|---|---|---|---|---|---|---|---|---|
+| RAIDER:4 | 162/200 | 6/14.2/30 | 48/81.8/144 | 102 (70) | 162/200 | 6/14.2/30 | 24/47.7/72 | 38 (38) |
+| RAIDER:5 | 130/200 | 9/19.1/30 | 70/121.8/180 | 140 (108) | 130/200 | 9/19.1/30 | 45/79.5/145 | 102 (70) |
+| RAIDER:7 | 65/200 | 18/26.8/30 | 70/207.6/308 | 324 (135) | 92/200 | 18/26.6/31 | 70/149.7/217 | 216 (108) |
+| FERAL_GHOUL:5 | 130/200 | 9/19.1/30 | 70/121.8/180 | 140 (108) | 130/200 | 9/19.1/30 | 45/79.5/145 | 102 (70) |
+| FERAL_GHOUL:6 | 92/200 | 13/23.7/30 | 72/167.5/240 | 216 (108) | 130/200 | 13/22.9/30 | 72/111.2/156 | 102 (70) |
+| FERAL_GHOUL:8 | 28/200 | 23/29.0/30 | 80/236.3/368 | 509 (172) | 92/200 | 23/29.3/35 | 72/182.8/280 | 324 (135) |
+| DEATHCLAW:8 | 28/200 | 23/29.0/30 | 80/236.3/368 | 509 (172) | 92/200 | 23/29.3/35 | 72/182.8/280 | 324 (135) |
+| DEATHCLAW:9 | 0/200 | 30/30.0/30 | 72/243.7/432 | 677 (200) | 65/200 | 30/30.9/35 | 70/223.4/350 | 509 (172) |
+| DEATHCLAW:10 | 0/200 | 30/30.0/30 | 80/245.4/440 | 677 (200) | 0/200 | 30/31.8/39 | 77/245.1/429 | 677 (200) |
+
+Reading:
+
+- **FIRE is no longer a 2-tick formality.** Duration goes 1.4–2.4 → 4.0–7.8 mean ticks (roughly 8–16 s
+  of wall clock at `incident_tick_seconds=2`) at every difficulty, and damage becomes a visible
+  gradient (FIRE:4 prepared 7.8 → 12.4 mean) instead of a rounding error. Prepared vs. plain still
+  separates (FIRE:4, 12.4 vs. 15.7 damage; the matching team place + suit are worth ~21%).
+- **Routine is safe.** Every difficulty-3-or-lower matchup now resolves 100% with **zero** deaths
+  (RADROACH:3 and MOLE_RAT:3 flip 162/200 with 38 deaths → 200/200 with 0; RADSCORPION:3 prepared
+  168/200 with 32 deaths → 200/200 with 0). The routine death tail is gone.
+- **Hard stays hard.** RAIDER:7 still resolves 46% with 216 deaths; FERAL_GHOUL:8 / DEATHCLAW:8 46%
+  with 324 deaths; DEATHCLAW:9 32% with 509; DEATHCLAW:10 0% with 677. The reduced damage trims the
+  death toll, but the 30-sub-tick deadline keeps the top of the ladder a loss for anything but a
+  full-size squad.
+
+## 4. Provisional goals — verdict
+
+| # | Goal | Evidence | Met |
+|---|---|---|---|
+| 1 | Routine incidents reliably handled by prepared crews | FIRE 2/3/4 200/200; RADROACH 1–3 and MOLE_RAT 2–3 200/200; RADSCORPION:3 prepared 200/200 — all with 0 deaths | yes |
+| 2 | Gear + matching active teams visibly improve outcomes | FIRE:4 prepared 12.4 vs. plain 15.7 damage and 7.4 vs. 7.8 ticks; RADSCORPION:4 prepared 40.9 vs. 47.7 damage, 13.4 vs. 14.2 ticks; RADSCORPION:6 95.9 vs. 111.2 — already modelled, not retuned | yes |
+| 3 | Hard encounters remain costly | RAIDER:7 46% / 216 deaths; DEATHCLAW:8 46% / 324; DEATHCLAW:9 32% / 509; DEATHCLAW:10 0% / 677 | yes |
+| 4 | Ordinary prepared defenders not routinely killed | 0 deaths across every difficulty-3-and-below matchup; RADSCORPION:4 deaths 76 → 38, RAIDER:4 102 → 38 (the residual 19% is the lone-responder tail — see §5) | yes (with a lone-responder tail) |
+| 5 | Fights last long enough to notice / respond | FIRE duration 1.4–2.4 → 4.0–7.8 mean ticks; every DEFEAT fight keeps its multi-round duration (unchanged 8–30 ticks) | yes |
+
+## 5. Regression tests (failing-test-first)
+
+Written before the value change and shown failing against the Slice-1 divisors
+(`COMBAT_…_DIVISOR=10` / `=5`), then green on the shipped defaults
+(`uv run pytest app/tests/test_services/test_incident_sim.py`):
+
+- `test_lone_routine_defender_survives_a_difficulty_three_hazard` — under 10/5 the lone defender
+  resolved as a loss with 1 death; now resolves with 0.
+- `test_fire_containment_takes_several_rounds_for_a_prepared_crew` — under 10/5 the trained crew
+  contained a difficulty-4 fire in 1 tick; now it needs ≥ 4.
+- `test_top_difficulty_intruder_still_overwhelms_a_lone_defender` — guard that the top of the ladder
+  is still a loss (unchanged intent, pins "hard stays costly").
+- `test_incident_math_reads_configured_pacing_divisors` — both pacing divisors are the single tuning
+  surface; the pure helpers read `game_config` (so production and the simulator cannot drift).
+- `test_containment_damage_is_half_of_combat_damage` — pins the formula reuse that removed the
+  hard-coded containment divisor.
+- `test_live_round_engine_matches_offline_kernel_fire_pacing` — a live `process_incident` loop and the
+  offline `resolve_incident` kernel land on the same round count for a difficulty-2 fire from one
+  vault snapshot (live/offline consistency on the retuned path).
+
+Existing golden/parity tests were re-pinned to the new divisors (`test_golden_fire_ticks_to_win`,
+`test_team_response_bonus_shortens_containment`, `test_team_hazard_resist_reduces_damage`,
+`test_radscorpion_accumulates_radiation`, `test_radiation_accumulates_per_tick_until_victory`,
+`test_radiation_ceiling_clamps_health`). The kernel-vs-`incident_math` parity tests needed no change —
+they compare the kernel against the same helpers.
+
+## 6. Caveats, out of scope, and future
+
+- **The residual difficulty-4 deaths are lone responders.** The matchup sampler draws 1..6 responders
+  to mirror "whoever is in the affected room"; a lone defender cannot beat a difficulty-4 incident
+  inside the 30-sub-tick deadline at any divisor below ~34 (below that it dies to accumulated damage,
+  above it the higher difficulties become trivial). That is the intended "bring a crew" boundary — a
+  prepared *crew* finishes difficulty 4 (the fixed 3-defender check resolves with 0 deaths). The 19%
+  death-run figure at difficulty 4 is essentially the 1-responder fraction.
+- **The top end softened.** Reducing damage lets 5–6 defender responses survive what used to kill them,
+  so DEATHCLAW:8 rose 14% → 46% and DEATHCLAW:9 0% → 32% resolve. DEATHCLAW remains the deadliest
+  family (324–677 deaths; difficulty 10 still 0%), so this is within "still costly", but it is a real
+  shift and is recorded rather than mitigated.
+- **Passive regen is still simulator-only** (Slice 1 §5.1). The multi-hour `run()` path heals every
+  60 s; the `--matchup` path used here does **not**, so these tables are already regen-free and need
+  no `--heal-per-tick 0` adjustment.
+- **Spawn pacing is unchanged** (`spawn_chance_per_hour=0.05`, `spawn_cooldown_seconds=120`). The
+  Slice 2 recommendation for a debug-only incident cadence still stands; it is not a balance value and
+  is not changed here.
+- **Out of scope by design:** resource production (Slice 3b), room caps, presets #839, Survival #838,
+  AI dispatch, spread mechanics, SSE, and the manual-only surfaces in Slice 2 §6.

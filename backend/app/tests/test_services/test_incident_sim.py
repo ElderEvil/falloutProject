@@ -62,17 +62,17 @@ def test_team_response_bonus_shortens_containment():
     )
     assert plain.resolved
     assert team.resolved
-    # int(24 * 1.4) = 33 power -> 0.66 containment/tick -> win on tick 2, not tick 3.
-    assert plain.ticks == 3
-    assert team.ticks == 2
+    # 24 power -> 0.12 containment/tick (9 ticks); int(24 * 1.4) = 33 power -> 0.165/tick (7 ticks).
+    assert plain.ticks == 9
+    assert team.ticks == 7
 
 
 def test_team_hazard_resist_reduces_damage():
     """Active members take 20% less on the incident's channel; non-members take full."""
-    plain = resolve_incident(IncidentType.FIRE, 2, [_profiled(1000), _profiled(1000)], dt=2)
+    plain = resolve_incident(IncidentType.FIRE, 4, [_profiled(1000), _profiled(1000)], dt=2)
     team = resolve_incident(
         IncidentType.FIRE,
-        2,
+        4,
         [_profiled(1000, teams=frozenset({HazardTeam.FIRE})), _profiled(1000)],
         dt=2,
     )
@@ -102,9 +102,9 @@ def test_radscorpion_accumulates_radiation():
     outcome = resolve_incident(IncidentType.RADSCORPION_ATTACK, 3, [_profiled(1000, health=1000)], dt=2)
     assert outcome.resolved
     assert outcome.ticks == 1
-    assert outcome.damage_taken == 6
-    # RAD = min(taken - 1, taken // 2) = min(5, 3) = 3.
-    assert outcome.radiation_gained == 3
+    assert outcome.damage_taken == 3
+    # RAD = min(taken - 1, taken // 2) = min(2, 1) = 1.
+    assert outcome.radiation_gained == 1
 
 
 def test_fire_never_adds_radiation():
@@ -126,7 +126,7 @@ def test_radiation_resist_blocks_radiation_gain():
 
 def test_radiation_accumulates_per_tick_until_victory():
     """RAD is added at min(taken-1, taken//2) per sub-tick, including the winning round."""
-    outcome = resolve_incident(IncidentType.RADSCORPION_ATTACK, 1, [_profiled(25, health=1000)], dt=2)
+    outcome = resolve_incident(IncidentType.RADSCORPION_ATTACK, 2, [_profiled(100, health=1000)], dt=2)
     assert outcome.resolved
     assert outcome.ticks == 2
     assert outcome.damage_taken == 4
@@ -138,10 +138,10 @@ def test_radiation_ceiling_clamps_health():
     responder = _profiled(1000, health=100, radiation=80)
     outcome = resolve_incident(IncidentType.RADSCORPION_ATTACK, 3, [responder], dt=2)
     assert outcome.resolved
-    # taken 6 -> 94, rad 80+3=83 -> ceiling max(1, 100-83) = 17.
-    assert outcome.damage_taken == 6
-    assert responder.radiation == 83
-    assert responder.health == 17
+    # taken 3 -> 97, rad 80+1=81 -> ceiling max(1, 100-81) = 19.
+    assert outcome.damage_taken == 3
+    assert responder.radiation == 81
+    assert responder.health == 19
 
 
 def test_split_damage_distributes_base_and_remainder():
@@ -195,12 +195,104 @@ def test_golden_non_fire_ticks_to_win():
 
 
 def test_golden_fire_ticks_to_win():
-    # difficulty 2 → threat 20; power 25 → 0.5 containment per 2s tick → win at progress >= 1.
+    # difficulty 2 → threat 20; power 25 → 0.125 containment per 2s tick → win at progress >= 1 (tick 8).
     outcome = resolve_incident(IncidentType.FIRE, 2, [_defender(25.0, health=1000)], dt=2)
     assert outcome.resolved
     assert not outcome.failed
-    assert outcome.ticks == 2
+    assert outcome.ticks == 8
     assert outcome.progress == pytest.approx(1.0)
+
+
+def test_incident_math_reads_configured_pacing_divisors(monkeypatch):
+    """The pacing divisors are config-driven, so the balance knobs are the single tuning surface."""
+    from app.core.game_config import game_config
+
+    monkeypatch.setattr(game_config.combat, "incident_threat_damage_divisor", 5)
+    monkeypatch.setattr(game_config.combat, "incident_containment_progress_divisor", 10)
+    assert incident_math.damage_to_dwellers(50, 2) == pytest.approx(20.0)
+    assert incident_math.containment_damage(50, 2) == pytest.approx(10.0)
+    assert incident_math.containment_progress(50, 50, 2) == pytest.approx(0.2)
+
+
+def test_containment_damage_is_half_of_combat_damage():
+    """A contained hazard harms half as fast as an armed attack on the same threat."""
+    assert incident_math.containment_damage(40, 2) == pytest.approx(incident_math.damage_to_dwellers(40, 2) / 2)
+
+
+def _fixed_crew(count: int, *, team: HazardTeam | None = None, outfit_count: int | None = None) -> list[SimDefender]:
+    return [
+        SimDefender(profile=profile, health=profile.max_health)
+        for profile in synthetic_defenders(
+            count,
+            avg_special=4.0,
+            avg_weapon_damage=10.0,
+            avg_level=5,
+            hazard_team=team,
+            team_size=count if team is not None else 0,
+            outfit_count=outfit_count,
+        )
+    ]
+
+
+def test_lone_routine_defender_survives_a_difficulty_three_hazard():
+    """Slice 3a softened threat damage: a lone level-5 defender now finishes — and lives through —
+    a difficulty-3 hazard, instead of dying at the escalation deadline."""
+    solo = _fixed_crew(1)[0]
+    outcome = resolve_incident(IncidentType.RADSCORPION_ATTACK, 3, [solo], dt=2)
+    assert outcome.resolved
+    assert outcome.deaths == 0
+    assert outcome.damage_taken < solo.profile.max_health
+
+
+def test_fire_containment_takes_several_rounds_for_a_prepared_crew():
+    """Slice 3a lengthened containment: even a trained fire crew needs several rounds to contain a
+    difficulty-4 fire, where it used to be over in one or two ticks."""
+    crew = _fixed_crew(3, team=HazardTeam.FIRE, outfit_count=3)
+    outcome = resolve_incident(IncidentType.FIRE, 4, crew, dt=2)
+    assert outcome.resolved
+    assert outcome.deaths == 0
+    assert outcome.ticks >= 4
+
+
+def test_top_difficulty_intruder_still_overwhelms_a_lone_defender():
+    """Hard encounters stay costly: a lone defender cannot stop a difficulty-10 deathclaw."""
+    solo = _fixed_crew(1)[0]
+    outcome = resolve_incident(IncidentType.DEATHCLAW_ATTACK, 10, [solo], dt=2)
+    assert outcome.failed
+    assert not outcome.resolved
+    assert outcome.deaths == 1
+
+
+@pytest.mark.asyncio
+async def test_live_round_engine_matches_offline_kernel_fire_pacing(
+    async_session: AsyncSession, room_with_dwellers: dict
+) -> None:
+    """Both paths call ``incident_math``, so the retuned containment pacing must land on the same
+    round count live (``process_incident``) as offline (``resolve_incident``)."""
+    from app.services.combat.incident_service import incident_service
+    from app.tests.test_services._hazard_team_helpers import raise_incident
+
+    room = room_with_dwellers["room"]
+    incident = await raise_incident(async_session, room, IncidentType.FIRE)
+    profiles = await snapshot_vault_defenders(async_session, room.vault_id)
+    offline = resolve_incident(
+        IncidentType.FIRE,
+        incident.difficulty,
+        [SimDefender(profile=profile, health=profile.max_health) for profile in profiles],
+        dt=2,
+    )
+
+    rounds = 0
+    while rounds < 60:
+        await incident_service.process_incident(async_session, incident, 2)
+        rounds += 1
+        await async_session.refresh(incident)
+        if incident.status.value in ("resolved", "failed"):
+            break
+
+    assert offline.resolved
+    assert incident.status.value == "resolved"
+    assert rounds == offline.ticks
 
 
 def test_no_defenders_fails_only_at_duration():

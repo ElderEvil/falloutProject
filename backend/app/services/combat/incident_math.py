@@ -104,9 +104,7 @@ def raider_power(difficulty: int) -> float:
 
 def damage_to_dwellers(raider_power: float, seconds: int) -> float:
     """Calculate damage dealt to dwellers per tick."""
-    # Damage reduced by number of dwellers (distributed)
-    damage_per_second = raider_power / 10  # Raiders deal 10% of their power per second
-    return damage_per_second * seconds
+    return raider_power / game_config.combat.incident_threat_damage_divisor * seconds
 
 
 def damage_to_raiders(dweller_power: float, seconds: int) -> float:
@@ -117,9 +115,9 @@ def damage_to_raiders(dweller_power: float, seconds: int) -> float:
 
 def containment_damage(hazard_power: float, seconds: int) -> float:
     """A contained hazard harms occupants more slowly than an armed attack."""
-    return hazard_power / 20 * seconds
+    return damage_to_dwellers(hazard_power, seconds) / 2
 
 
 def containment_progress(dweller_power: float, hazard_power: float, seconds: int) -> float:
     """Return fractional containment progress, where one fully contains a hazard."""
-    return dweller_power / max(1, hazard_power) * seconds / 5
+    return dweller_power / max(1, hazard_power) * seconds / game_config.combat.incident_containment_progress_divisor

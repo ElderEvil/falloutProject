@@ -563,6 +563,27 @@ body {
     animation: stat-badge-fade 2.5s ease-out forwards;
 }
 
+/* Room merge reads as a visible pop: a scale bump plus a strong primary glow,
+   which the subtler stat-highlight-pulse could not convey on a grid cell. */
+@utility room-merge-pulse {
+    animation: room-merge-pulse 1.2s ease-out;
+}
+
+@keyframes room-merge-pulse {
+    0% {
+        box-shadow: 0 0 0 0 var(--color-theme-primary);
+        transform: scale(1);
+    }
+    35% {
+        box-shadow: 0 0 24px 6px var(--color-theme-primary);
+        transform: scale(1.04);
+    }
+    100% {
+        box-shadow: 0 0 0 0 transparent;
+        transform: scale(1);
+    }
+}
+
 @keyframes stat-highlight-pulse {
     from {
         box-shadow: 0 0 12px var(--color-theme-glow);
@@ -593,6 +614,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
     .stat-highlight-pulse { animation: none; box-shadow: var(--glow-2); }
     .stat-badge-fade { animation: none; opacity: 1; }
+    .room-merge-pulse { animation: none; box-shadow: var(--glow-2); }
     .flicker,
     .flicker-random,
     .flicker-slow { animation: none; }

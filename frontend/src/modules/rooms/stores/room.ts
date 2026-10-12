@@ -173,7 +173,7 @@ export const useRoomStore = defineStore('room', () => {
     if (mergedHighlightTimeout !== null) clearTimeout(mergedHighlightTimeout)
     mergedHighlightTimeout = setTimeout(() => {
       if (mergedRoomId.value === roomId) mergedRoomId.value = null
-    }, 2500)
+    }, 1200)
   }
 
   function selectRoom(room: RoomTemplate): void {

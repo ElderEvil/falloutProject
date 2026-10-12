@@ -96,7 +96,7 @@ const cellTitle = computed(() => {
       'has-incident': !!incident,
       'has-tier': !!room.tier,
       highlighted,
-      'stat-highlight-pulse': merged,
+      'room-merge-pulse': merged,
       'power-outage': isRoomAffectedByOutage(),
     }"
     :aria-label="cellTitle"

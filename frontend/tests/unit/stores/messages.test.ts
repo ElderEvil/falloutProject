@@ -19,6 +19,11 @@ vi.mock('@/modules/messages/services/messagesService', () => ({
     revokeConnection: vi.fn(),
     blockUser: vi.fn(),
     unblockUser: vi.fn(),
+    sendMessage: vi.fn(),
+    getThread: vi.fn(),
+    listConversations: vi.fn(),
+    acceptMessageRequest: vi.fn(),
+    declineMessageRequest: vi.fn(),
   },
 }))
 
@@ -155,5 +160,156 @@ describe('Messages store — contacts', () => {
     expect(messagesService.inviteByUsername).not.toHaveBeenCalled()
     expect(messagesService.blockUser).not.toHaveBeenCalled()
     expect(store.connections).toEqual([])
+  })
+})
+describe('Messages store — conversations and threads', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    localStorage.setItem('token', 'test-token')
+    useFeatureFlagsStore().playerConnections = true
+    vi.mocked(messagesService.getThread).mockResolvedValue([])
+    vi.mocked(messagesService.listConversations).mockResolvedValue([])
+  })
+
+  it('loads conversations into the list', async () => {
+    vi.mocked(messagesService.listConversations).mockResolvedValue([
+      {
+        counterpart_user_id: 'user-b',
+        counterpart_username: 'brother_charles',
+        last_message: {
+          id: 'm-1',
+          sender_user_id: 'user-b',
+          recipient_user_id: 'user-me',
+          body: 'Any stimpaks?',
+          is_request: false,
+          created_at: '2026-10-01T12:00:00Z',
+        },
+        unread_count: 2,
+        has_pending_request: false,
+      },
+    ])
+    const store = useMessagesStore()
+
+    await store.loadConversations()
+
+    expect(messagesService.listConversations).toHaveBeenCalledWith('test-token')
+    expect(store.conversations).toHaveLength(1)
+    expect(store.conversations[0].counterpart_username).toBe('brother_charles')
+  })
+
+  it('openThread loads the thread, marks it active, and polls every 5s', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.mocked(messagesService.getThread).mockResolvedValue([
+        {
+          id: 'm-1',
+          sender_user_id: 'user-b',
+          recipient_user_id: 'user-me',
+          body: 'hello',
+          is_request: false,
+          created_at: '2026-10-01T12:00:00Z',
+        },
+      ])
+      const store = useMessagesStore()
+
+      await store.openThread('user-b')
+
+      expect(messagesService.getThread).toHaveBeenCalledWith('user-b', 'test-token')
+      expect(store.activeThreadUserId).toBe('user-b')
+      expect(store.thread).toHaveLength(1)
+
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(messagesService.getThread).toHaveBeenCalledTimes(2)
+      expect(messagesService.listConversations).toHaveBeenCalled()
+
+      store.closeThread()
+      await vi.advanceTimersByTimeAsync(15000)
+      expect(messagesService.getThread).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('closeThread clears the active thread', async () => {
+    const store = useMessagesStore()
+
+    await store.openThread('user-b')
+    expect(store.activeThreadUserId).toBe('user-b')
+
+    store.closeThread()
+
+    expect(store.activeThreadUserId).toBeNull()
+    expect(store.thread).toEqual([])
+  })
+
+  it('sendMessage posts to the active thread counterpart and appends the reply', async () => {
+    vi.mocked(messagesService.sendMessage).mockResolvedValue({
+      id: 'm-2',
+      sender_user_id: 'user-me',
+      recipient_user_id: 'user-b',
+      body: 'Got a box full',
+      is_request: false,
+      created_at: '2026-10-01T12:01:00Z',
+    })
+    const store = useMessagesStore()
+
+    await store.openThread('user-b')
+    const sent = await store.sendMessage('Got a box full')
+
+    expect(messagesService.sendMessage).toHaveBeenCalledWith('user-b', 'Got a box full', 'test-token')
+    expect(sent?.body).toBe('Got a box full')
+    expect(store.thread).toHaveLength(1)
+    expect(store.thread[0].body).toBe('Got a box full')
+  })
+
+  it('sendMessage no-ops without an open thread', async () => {
+    const store = useMessagesStore()
+
+    const sent = await store.sendMessage('hello')
+
+    expect(sent).toBeNull()
+    expect(messagesService.sendMessage).not.toHaveBeenCalled()
+  })
+
+  it('accepts a message request and refreshes conversations and contacts', async () => {
+    vi.mocked(messagesService.acceptMessageRequest).mockResolvedValue(connection({ status: 'accepted' }))
+    const store = useMessagesStore()
+
+    await store.acceptMessageRequest('user-b')
+
+    expect(messagesService.acceptMessageRequest).toHaveBeenCalledWith('user-b', 'test-token')
+    expect(messagesService.listConversations).toHaveBeenCalled()
+    expect(messagesService.listConnections).toHaveBeenCalled()
+  })
+
+  it('declines a message request and refreshes conversations', async () => {
+    vi.mocked(messagesService.declineMessageRequest).mockResolvedValue(undefined)
+    const store = useMessagesStore()
+
+    await store.declineMessageRequest('user-b')
+
+    expect(messagesService.declineMessageRequest).toHaveBeenCalledWith('user-b', 'test-token')
+    expect(messagesService.listConversations).toHaveBeenCalled()
+  })
+
+  it('no-ops thread actions while the player_connections flag is off', async () => {
+    useFeatureFlagsStore().playerConnections = false
+    const store = useMessagesStore()
+
+    const results = await Promise.all([
+      store.loadConversations(),
+      store.openThread('user-b'),
+      store.sendMessage('hi'),
+      store.acceptMessageRequest('user-b'),
+      store.declineMessageRequest('user-b'),
+    ])
+
+    expect(results.every((result) => result === null)).toBe(true)
+    expect(messagesService.listConversations).not.toHaveBeenCalled()
+    expect(messagesService.getThread).not.toHaveBeenCalled()
+    expect(messagesService.sendMessage).not.toHaveBeenCalled()
+    expect(store.conversations).toEqual([])
+    expect(store.thread).toEqual([])
   })
 })

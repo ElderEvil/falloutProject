@@ -4,7 +4,15 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { messagesService } from '../services/messagesService'
-import type { ConnectionRead, UserBlockRead } from '../models/messages'
+import type {
+  ConnectionRead,
+  DirectMessageRead,
+  DirectMessageSummary,
+  UserBlockRead,
+} from '../models/messages'
+
+/** Poll cadence for the open thread; there is no per-user WS channel yet. */
+export const THREAD_POLL_INTERVAL_MS = 5000
 
 /**
  * Player-to-player messaging (connections, blocks, direct messages). Every
@@ -17,10 +25,18 @@ export const useMessagesStore = defineStore('messages', () => {
 
   const connections = ref<ConnectionRead[]>([])
   const blocks = ref<UserBlockRead[]>([])
+  const conversations = ref<DirectMessageSummary[]>([])
+  const thread = ref<DirectMessageRead[]>([])
+  const activeThreadUserId = ref<string | null>(null)
   const isLoading = ref(false)
+  const isLoadingConversations = ref(false)
+  const isLoadingThread = ref(false)
   const isInviting = ref(false)
+  const isSending = ref(false)
   const busyUserId = ref<string | null>(null)
   const loadError = ref<string | null>(null)
+
+  let pollTimer: ReturnType<typeof setInterval> | null = null
 
   const enabled = computed(() => featureFlags.playerConnections)
   const me = computed(() => authStore.user?.id ?? null)
@@ -31,6 +47,13 @@ export const useMessagesStore = defineStore('messages', () => {
     connections.value.filter((c) => c.status === 'pending' && c.requester_id === me.value)
   )
   const acceptedConnections = computed(() => connections.value.filter((c) => c.status === 'accepted'))
+  const activeConversation = computed(
+    () =>
+      conversations.value.find((c) => c.counterpart_user_id === activeThreadUserId.value) ?? null
+  )
+  const messageRequests = computed(() =>
+    conversations.value.filter((c) => c.has_pending_request)
+  )
 
   function ready(): boolean {
     return enabled.value && Boolean(authStore.token)
@@ -45,6 +68,33 @@ export const useMessagesStore = defineStore('messages', () => {
   function quietError(error: unknown, context: string): null {
     loadError.value = handleStoreError(error, context, false)
     return null
+  }
+
+  function stopPolling(): void {
+    if (pollTimer) {
+      clearInterval(pollTimer)
+      pollTimer = null
+    }
+  }
+
+  async function refreshOpenThread(): Promise<void> {
+    const userId = activeThreadUserId.value
+    if (!ready() || !authStore.token || !userId) return
+    try {
+      const [rows, summaryRows] = await Promise.all([
+        messagesService.getThread(userId, authStore.token),
+        messagesService.listConversations(authStore.token),
+      ])
+      thread.value = rows
+      conversations.value = summaryRows
+    } catch (error) {
+      handleStoreError(error, 'Live messages refresh failed', false)
+    }
+  }
+
+  function startPolling(): void {
+    stopPolling()
+    pollTimer = setInterval(() => void refreshOpenThread(), THREAD_POLL_INTERVAL_MS)
   }
 
   async function fetchContacts() {
@@ -132,14 +182,88 @@ export const useMessagesStore = defineStore('messages', () => {
     }
   }
 
-  async function unblockUser(userId: string) {
+async function unblockUser(userId: string) {
     if (!ready() || !authStore.token) return null
     busyUserId.value = userId
     try {
       await messagesService.unblockUser(userId, authStore.token)
       await fetchContacts()
     } catch (error) {
-      handleStoreError(error, 'Failed to unblock user')
+      return quietError(error, 'Failed to unblock user')
+    } finally {
+      busyUserId.value = null
+    }
+  }
+
+  async function loadConversations() {
+    if (!ready() || !authStore.token) return null
+    isLoadingConversations.value = true
+    try {
+      conversations.value = await messagesService.listConversations(authStore.token)
+    } catch (error) {
+      return quietError(error, 'Failed to load conversations')
+    } finally {
+      isLoadingConversations.value = false
+    }
+  }
+
+  async function openThread(userId: string) {
+    if (!ready() || !authStore.token) return null
+    activeThreadUserId.value = userId
+    isLoadingThread.value = true
+    try {
+      thread.value = await messagesService.getThread(userId, authStore.token)
+      startPolling()
+    } catch (error) {
+      return quietError(error, 'Failed to load messages')
+    } finally {
+      isLoadingThread.value = false
+    }
+  }
+
+  function closeThread(): void {
+    stopPolling()
+    activeThreadUserId.value = null
+    thread.value = []
+  }
+
+  async function sendMessage(body: string) {
+    const userId = activeThreadUserId.value
+    if (!ready() || !authStore.token || !userId) return null
+    isSending.value = true
+    try {
+      const message = await messagesService.sendMessage(userId, body, authStore.token)
+      thread.value.push(message)
+      return message
+    } catch (error) {
+      handleStoreError(error, 'Failed to send message')
+      return null
+    } finally {
+      isSending.value = false
+    }
+  }
+
+  async function acceptMessageRequest(userId: string) {
+    if (!ready() || !authStore.token) return null
+    busyUserId.value = userId
+    try {
+      await messagesService.acceptMessageRequest(userId, authStore.token)
+      await Promise.all([loadConversations(), fetchContacts()])
+    } catch (error) {
+      return quietError(error, 'Failed to accept message request')
+    } finally {
+      busyUserId.value = null
+    }
+  }
+
+  async function declineMessageRequest(userId: string) {
+    if (!ready() || !authStore.token) return null
+    busyUserId.value = userId
+    try {
+      await messagesService.declineMessageRequest(userId, authStore.token)
+      await loadConversations()
+    } catch (error) {
+      return quietError(error, 'Failed to decline message request')
     } finally {
       busyUserId.value = null
     }
@@ -148,8 +272,14 @@ export const useMessagesStore = defineStore('messages', () => {
   return {
     connections,
     blocks,
+    conversations,
+    thread,
+    activeThreadUserId,
     isLoading,
+    isLoadingConversations,
+    isLoadingThread,
     isInviting,
+    isSending,
     busyUserId,
     loadError,
     enabled,
@@ -158,6 +288,8 @@ export const useMessagesStore = defineStore('messages', () => {
     incomingRequests,
     outgoingRequests,
     acceptedConnections,
+    activeConversation,
+    messageRequests,
     fetchContacts,
     inviteByUsername,
     acceptConnection,
@@ -165,5 +297,11 @@ export const useMessagesStore = defineStore('messages', () => {
     revokeConnection,
     blockUser,
     unblockUser,
+    loadConversations,
+    openThread,
+    closeThread,
+    sendMessage,
+    acceptMessageRequest,
+    declineMessageRequest,
   }
 })

@@ -19,6 +19,14 @@ store action no-op until the flag is enabled.
 - `services/messagesService.ts` — connections/blocks/messages API calls
 - `models/messages.ts` — hand-written wire types (no types:generate)
 
+## Conversations, requests, and the composer
+
+The Conversations tab lists every thread (with unread counts and last-message
+previews) and a separate Message Requests section for first messages from
+non-connections; accepting one promotes the sender to a connection via
+`POST /messages/{user_id}/accept`. Opening a row fetches the thread and shows
+the composer; Enter sends, Shift+Enter inserts a newline.
+
 ## Live updates are polling
 
 There is no personal WebSocket endpoint for direct messages on the backend (the

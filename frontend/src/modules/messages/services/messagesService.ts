@@ -1,5 +1,5 @@
 import axios from '@/core/plugins/axios'
-import type { ConnectionRead, UserBlockRead } from '../models/messages'
+import type { ConnectionRead, DirectMessageRead, DirectMessageSummary, UserBlockRead } from '../models/messages'
 
 async function inviteByUsername(username: string, token: string): Promise<ConnectionRead> {
   const response = await axios.post<ConnectionRead>(
@@ -58,6 +58,49 @@ async function listBlocks(token: string): Promise<UserBlockRead[]> {
   return response.data
 }
 
+async function sendMessage(userId: string, body: string, token: string): Promise<DirectMessageRead> {
+  const response = await axios.post<DirectMessageRead>(
+    `/api/v1/messages/${userId}`,
+    { body },
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
+  return response.data
+}
+
+async function getThread(
+  userId: string,
+  token: string,
+  limit = 50,
+  offset = 0
+): Promise<DirectMessageRead[]> {
+  const response = await axios.get<DirectMessageRead[]>(`/api/v1/messages/${userId}`, {
+    params: { limit, offset },
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return response.data
+}
+
+async function listConversations(token: string, limit = 50): Promise<DirectMessageSummary[]> {
+  const response = await axios.get<DirectMessageSummary[]>('/api/v1/messages', {
+    params: { limit },
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return response.data
+}
+
+async function acceptMessageRequest(userId: string, token: string): Promise<ConnectionRead> {
+  const response = await axios.post<ConnectionRead>(`/api/v1/messages/${userId}/accept`, null, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return response.data
+}
+
+async function declineMessageRequest(userId: string, token: string): Promise<void> {
+  await axios.post(`/api/v1/messages/${userId}/decline`, null, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+}
+
 export const messagesService = {
   inviteByUsername,
   acceptConnection,
@@ -67,4 +110,9 @@ export const messagesService = {
   blockUser,
   unblockUser,
   listBlocks,
+  sendMessage,
+  getThread,
+  listConversations,
+  acceptMessageRequest,
+  declineMessageRequest,
 }

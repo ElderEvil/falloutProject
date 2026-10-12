@@ -150,11 +150,10 @@ export const useRoomStore = defineStore('room', () => {
 
       // The backend returns the merge survivor, which may be a different room:
       // resync instead of patching one entry so absorbed rooms disappear.
-      const previousSizes = new Map(rooms.value.map((room) => [room.id, room.size ?? 0]))
+      const previousSize = rooms.value.find((room) => room.id === roomId)?.size ?? 0
       await fetchRooms(vaultId, token)
       const survivor = response.data
-      const grew = (survivor.size ?? 0) > (previousSizes.get(survivor.id) ?? 0)
-      if (survivor.id !== roomId || grew) {
+      if (survivor.id !== roomId || (survivor.size ?? 0) > previousSize) {
         flashMergedRoom(survivor.id)
       }
     } catch (error) {
@@ -174,7 +173,7 @@ export const useRoomStore = defineStore('room', () => {
     if (mergedHighlightTimeout !== null) clearTimeout(mergedHighlightTimeout)
     mergedHighlightTimeout = setTimeout(() => {
       if (mergedRoomId.value === roomId) mergedRoomId.value = null
-    }, 1500)
+    }, 2500)
   }
 
   function selectRoom(room: RoomTemplate): void {

@@ -96,7 +96,7 @@ const cellTitle = computed(() => {
       'has-incident': !!incident,
       'has-tier': !!room.tier,
       highlighted,
-      'room-merged': merged,
+      'stat-highlight-pulse': merged,
       'power-outage': isRoomAffectedByOutage(),
     }"
     :aria-label="cellTitle"
@@ -191,25 +191,6 @@ const cellTitle = computed(() => {
 <style scoped>
 .built-room {
   z-index: 2;
-}
-
-.built-room.room-merged {
-  animation: room-merged-pulse 1.4s ease-out;
-}
-
-@keyframes room-merged-pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(var(--color-theme-primary-rgb), 0.9);
-    transform: scale(1);
-  }
-  30% {
-    box-shadow: 0 0 22px 6px rgba(var(--color-theme-primary-rgb), 0.55);
-    transform: scale(1.03);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(var(--color-theme-primary-rgb), 0);
-    transform: scale(1);
-  }
 }
 
 .room-content {
@@ -437,9 +418,6 @@ const cellTitle = computed(() => {
 
 @media (prefers-reduced-motion: reduce) {
   .room.has-incident {
-    animation: none;
-  }
-  .built-room.room-merged {
     animation: none;
   }
 }

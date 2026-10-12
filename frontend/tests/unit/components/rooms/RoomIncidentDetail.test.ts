@@ -1,25 +1,25 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { createToastMock } from '../../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import RoomIncidentDetail from '@/modules/rooms/components/RoomIncidentDetail.vue'
+import DwellerListRow from '@/modules/dwellers/components/DwellerListRow.vue'
 import type { Incident, IncidentTeamMember } from '@/modules/combat/models/incident'
 
 const assignResponders = vi.fn()
 const fetchIncidentTeam = vi.fn()
-const getIncidentTeam = vi.fn(() => [])
-const warning = vi.fn()
-const mockToast = createToastMock({ warning })
+const getIncidentTeam = vi.fn<(incidentId: string) => IncidentTeamMember[]>(() => [])
+const activeIncidents: Incident[] = []
 
 vi.mock('@/modules/combat/stores/incident', () => ({
-  useIncidentStore: () => ({ assignResponders, fetchIncidentTeam, getIncidentTeam }),
+  useIncidentStore: () => ({
+    assignResponders,
+    fetchIncidentTeam,
+    getIncidentTeam,
+    activeIncidents,
+  }),
 }))
 
 vi.mock('@/modules/auth/stores/auth', () => ({
   useAuthStore: () => ({ token: 'test-token' }),
-}))
-
-vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => mockToast,
 }))
 
 const incident = (overrides: Partial<Incident> = {}): Incident =>
@@ -81,7 +81,7 @@ describe('RoomIncidentDetail', () => {
     fetchIncidentTeam.mockResolvedValue(undefined)
     getIncidentTeam.mockReset()
     getIncidentTeam.mockReturnValue([])
-    warning.mockReset()
+    activeIncidents.length = 0
   })
 
   const teamMember = (dwellerId: string): IncidentTeamMember => ({
@@ -125,6 +125,85 @@ describe('RoomIncidentDetail', () => {
       'vault-1',
       'incident-1',
       ['d2', 'd3', 'd1'],
+      'test-token'
+    )
+  })
+
+  it('ranks the entire list by unrounded power and then display name without changing the source list', async () => {
+    const dwellers = [
+      dweller({ id: 'd1', first_name: 'Alice', combat_power: 10.1 }),
+      dweller({ id: 'd2', first_name: 'Zed', combat_power: 10.4 }),
+      dweller({ id: 'd3', first_name: 'Bob', combat_power: 10.1 }),
+      dweller({ id: 'd4', first_name: 'Aaron', last_name: null, combat_power: 10.1 }),
+    ]
+    const wrapper = await mountDetail({ dwellers })
+
+    expect(wrapper.findAllComponents(DwellerListRow).map((row) => row.get('h3').text())).toEqual([
+      'Zed Smith',
+      'Aaron',
+      'Alice Smith',
+      'Bob Smith',
+    ])
+    expect(dwellers.map((candidate) => candidate.id)).toEqual(['d1', 'd2', 'd3', 'd4'])
+    await wrapper.find('button').trigger('click')
+    expect(assignResponders).toHaveBeenCalledWith(
+      'vault-1',
+      'incident-1',
+      ['d2', 'd4', 'd1'],
+      'test-token'
+    )
+  })
+
+  it('backfills the best three after excluding an already rostered dweller with stale room data', async () => {
+    getIncidentTeam.mockReturnValue([teamMember('d1')])
+    const wrapper = await mountDetail({
+      dwellers: [
+        dweller({ id: 'd1', first_name: 'Assigned', combat_power: 100 }),
+        dweller({ id: 'd2', first_name: 'Bob', combat_power: 90 }),
+        dweller({ id: 'd3', first_name: 'Cara', combat_power: 50 }),
+        dweller({ id: 'd4', first_name: 'Dan', combat_power: 10 }),
+      ],
+    })
+
+    expect(wrapper.findAllComponents(DwellerListRow)).toHaveLength(3)
+    await wrapper.find('button').trigger('click')
+    expect(assignResponders).toHaveBeenCalledWith(
+      'vault-1',
+      'incident-1',
+      ['d2', 'd3', 'd4'],
+      'test-token'
+    )
+  })
+
+  it('excludes responders committed to another live incident but allows completed members', async () => {
+    activeIncidents.push(incident({ id: 'incident-2', vault_id: 'vault-1' }))
+    getIncidentTeam.mockImplementation((id: string) =>
+      id === 'incident-2'
+        ? [
+            teamMember('d1'),
+            { ...teamMember('d2'), status: 'dispatched' },
+            { ...teamMember('d3'), status: 'completed' },
+          ]
+        : []
+    )
+    const wrapper = await mountDetail({
+      dwellers: [
+        dweller({ id: 'd1', first_name: 'Assigned', combat_power: 100 }),
+        dweller({ id: 'd2', first_name: 'Dispatched', combat_power: 90 }),
+        dweller({ id: 'd3', first_name: 'Finished', combat_power: 50 }),
+        dweller({ id: 'd4', first_name: 'Free', combat_power: 10 }),
+      ],
+    })
+
+    expect(wrapper.findAllComponents(DwellerListRow).map((row) => row.get('h3').text())).toEqual([
+      'Finished Smith',
+      'Free Smith',
+    ])
+    await wrapper.find('button').trigger('click')
+    expect(assignResponders).toHaveBeenCalledWith(
+      'vault-1',
+      'incident-1',
+      ['d3', 'd4'],
       'test-token'
     )
   })
@@ -190,9 +269,9 @@ describe('RoomIncidentDetail', () => {
     await wrapper.vm.$nextTick()
 
     // Both controls must be inert until the first request settles.
-    expect(wrapper.findAll('button').every((button) => button.attributes('disabled') !== undefined)).toBe(
-      true
-    )
+    expect(
+      wrapper.findAll('button').every((button) => button.attributes('disabled') !== undefined)
+    ).toBe(true)
     expect(assignResponders).toHaveBeenCalledTimes(1)
 
     release?.()
@@ -260,7 +339,12 @@ describe('RoomIncidentDetail', () => {
 
     await wrapper.find('button').trigger('click')
 
-    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d2', 'd3'], 'test-token')
+    expect(assignResponders).toHaveBeenCalledWith(
+      'vault-1',
+      'incident-1',
+      ['d2', 'd3'],
+      'test-token'
+    )
   })
 
   it('does not re-send a dweller already on the team', async () => {
@@ -269,13 +353,12 @@ describe('RoomIncidentDetail', () => {
       dwellers: [dweller({ id: 'd2', first_name: 'Bob', room_id: 'room-2' })],
     })
 
-    const buttons = wrapper.findAll('button')
-    await buttons[buttons.length - 1].trigger('click')
-
+    expect(wrapper.findAllComponents(DwellerListRow)).toHaveLength(0)
+    expect(wrapper.text()).not.toContain('Send best')
     expect(assignResponders).not.toHaveBeenCalled()
   })
 
-  it('warns and sends only what fits when the roster would exceed 6', async () => {
+  it('offers only the best responders that fit in the remaining roster slots', async () => {
     getIncidentTeam.mockReturnValue(['d1', 'd2', 'd3', 'd4', 'd5'].map((id) => teamMember(id)))
     const wrapper = await mountDetail({
       dwellers: [
@@ -285,14 +368,16 @@ describe('RoomIncidentDetail', () => {
       ],
     })
 
+    expect(wrapper.text()).toContain('Send best 1')
     await wrapper.find('button').trigger('click')
 
-    expect(warning).toHaveBeenCalled()
     expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d6'], 'test-token')
   })
 
   it('does not send when the roster is already full', async () => {
-    getIncidentTeam.mockReturnValue(['d1', 'd2', 'd3', 'd4', 'd5', 'd6'].map((id) => teamMember(id)))
+    getIncidentTeam.mockReturnValue(
+      ['d1', 'd2', 'd3', 'd4', 'd5', 'd6'].map((id) => teamMember(id))
+    )
     const wrapper = await mountDetail({
       dwellers: [dweller({ id: 'd7', first_name: 'Gus', room_id: 'room-2' })],
     })
@@ -300,7 +385,8 @@ describe('RoomIncidentDetail', () => {
     const buttons = wrapper.findAll('button')
     await buttons[buttons.length - 1].trigger('click')
 
-    expect(warning).toHaveBeenCalled()
+    expect(wrapper.text()).not.toContain('Send best')
+    expect(buttons.every((button) => button.attributes('disabled') !== undefined)).toBe(true)
     expect(assignResponders).not.toHaveBeenCalled()
   })
 
@@ -324,9 +410,9 @@ describe('RoomIncidentDetail', () => {
     )
 
     // Pending team load: every send control is inert and a stray click submits nothing.
-    expect(wrapper.findAll('button').every((button) => button.attributes('disabled') !== undefined)).toBe(
-      true
-    )
+    expect(
+      wrapper.findAll('button').every((button) => button.attributes('disabled') !== undefined)
+    ).toBe(true)
     await wrapper.findAll('button')[0].trigger('click')
     expect(assignResponders).not.toHaveBeenCalled()
 
@@ -334,9 +420,9 @@ describe('RoomIncidentDetail', () => {
     await flushPromises()
 
     // Load resolved: the controls are usable again.
-    expect(wrapper.findAll('button').some((button) => button.attributes('disabled') === undefined)).toBe(
-      true
-    )
+    expect(
+      wrapper.findAll('button').some((button) => button.attributes('disabled') === undefined)
+    ).toBe(true)
   })
 
   it('shows the level of on-scene team members', async () => {

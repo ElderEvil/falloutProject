@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { reactive } from 'vue'
 import RoomIncidentDetail from '@/modules/rooms/components/RoomIncidentDetail.vue'
 import DwellerListRow from '@/modules/dwellers/components/DwellerListRow.vue'
 import type { Incident, IncidentTeamMember } from '@/modules/combat/models/incident'
@@ -8,6 +9,8 @@ const assignResponders = vi.fn()
 const fetchIncidentTeam = vi.fn()
 const getIncidentTeam = vi.fn<(incidentId: string) => IncidentTeamMember[]>(() => [])
 const activeIncidents: Incident[] = []
+const unloadedTeams = reactive(new Set<string>())
+const hasLoadedIncidentTeam = (id: string) => !unloadedTeams.has(id)
 
 vi.mock('@/modules/combat/stores/incident', () => ({
   useIncidentStore: () => ({
@@ -15,6 +18,7 @@ vi.mock('@/modules/combat/stores/incident', () => ({
     fetchIncidentTeam,
     getIncidentTeam,
     activeIncidents,
+    hasLoadedIncidentTeam,
   }),
 }))
 
@@ -82,6 +86,7 @@ describe('RoomIncidentDetail', () => {
     getIncidentTeam.mockReset()
     getIncidentTeam.mockReturnValue([])
     activeIncidents.length = 0
+    unloadedTeams.clear()
   })
 
   const teamMember = (dwellerId: string): IncidentTeamMember => ({
@@ -409,11 +414,9 @@ describe('RoomIncidentDetail', () => {
       false
     )
 
-    // Pending team load: every send control is inert and a stray click submits nothing.
-    expect(
-      wrapper.findAll('button').every((button) => button.attributes('disabled') !== undefined)
-    ).toBe(true)
-    await wrapper.findAll('button')[0].trigger('click')
+    // Pending team load: availability is unknown, so there are no send controls.
+    expect(wrapper.findAll('button')).toHaveLength(0)
+    expect(wrapper.text()).toContain('Waiting for incident teams')
     expect(assignResponders).not.toHaveBeenCalled()
 
     resolveTeam?.()
@@ -423,6 +426,42 @@ describe('RoomIncidentDetail', () => {
     expect(
       wrapper.findAll('button').some((button) => button.attributes('disabled') === undefined)
     ).toBe(true)
+  })
+
+  it.each(['incident-1', 'incident-2'])(
+    'waits for an unknown team (%s) and recovers after a successful poll',
+    async (unknownTeamId) => {
+      activeIncidents.push(incident({ id: 'incident-2', vault_id: 'vault-1' }))
+      unloadedTeams.add(unknownTeamId)
+      // The store resolves a failed fetch without inserting a team cache entry.
+      const wrapper = await mountDetail({
+        dwellers: [dweller()],
+      })
+
+      expect(wrapper.findAllComponents(DwellerListRow)).toHaveLength(0)
+      expect(wrapper.findAll('button')).toHaveLength(0)
+      expect(wrapper.text()).toContain('Waiting for incident teams')
+      expect(wrapper.text()).not.toContain('All available adults')
+      expect(assignResponders).not.toHaveBeenCalled()
+
+      // A confirmed empty team is usable; the reactive store cache enables sending.
+      unloadedTeams.delete(unknownTeamId)
+      await flushPromises()
+
+      expect(wrapper.findAllComponents(DwellerListRow)).toHaveLength(1)
+      expect(wrapper.text()).not.toContain('Waiting for incident teams')
+      await wrapper.get('button').trigger('click')
+      expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d1'], 'test-token')
+    }
+  )
+
+  it('does not wait for an unknown team in another vault', async () => {
+    activeIncidents.push(incident({ id: 'incident-2', vault_id: 'vault-2' }))
+    unloadedTeams.add('incident-2')
+    const wrapper = await mountDetail({ dwellers: [dweller()] })
+
+    await wrapper.get('button').trigger('click')
+    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d1'], 'test-token')
   })
 
   it('shows the level of on-scene team members', async () => {

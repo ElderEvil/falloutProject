@@ -45,25 +45,32 @@ const currentTeamIds = computed(() =>
 const remainingRosterSlots = computed(() =>
   Math.max(MAX_TEAM_SIZE - currentTeamIds.value.length, 0)
 )
+const otherActiveIncidents = computed(() =>
+  incidentStore.activeIncidents.filter(
+    (incident) => incident.id !== props.incident.id && incident.vault_id === props.vaultId
+  )
+)
+const responderTeamsLoaded = computed(
+  () =>
+    teamLoaded.value &&
+    otherActiveIncidents.value.every((incident) => incidentStore.hasLoadedIncidentTeam(incident.id))
+)
 const unavailableResponderIds = computed(
   () =>
     new Set([
       ...currentTeamIds.value,
-      ...incidentStore.activeIncidents
-        .filter(
-          (incident) => incident.id !== props.incident.id && incident.vault_id === props.vaultId
-        )
-        .flatMap((incident) =>
-          incidentStore
-            .getIncidentTeam(incident.id)
-            .filter((member) => ['assigned', 'dispatched'].includes(member.status))
-            .map((member) => member.dweller_id)
-        ),
+      ...otherActiveIncidents.value.flatMap((incident) =>
+        incidentStore
+          .getIncidentTeam(incident.id)
+          .filter((member) => ['assigned', 'dispatched'].includes(member.status))
+          .map((member) => member.dweller_id)
+      ),
     ])
 )
 
-const availableResponders = computed(() =>
-  props.dwellers
+const availableResponders = computed(() => {
+  if (!responderTeamsLoaded.value) return []
+  return props.dwellers
     .filter(
       (dweller) =>
         isMature(dweller) &&
@@ -78,7 +85,7 @@ const availableResponders = computed(() =>
         getDwellerDisplayName(a).localeCompare(getDwellerDisplayName(b)) ||
         a.id.localeCompare(b.id)
     )
-)
+})
 
 const bestResponders = computed(() =>
   availableResponders.value.slice(0, Math.min(3, remainingRosterSlots.value))
@@ -107,18 +114,21 @@ const awaitingFirstRound = computed(
     !props.incident.events.some((event) => event.kind === 'round' || event.kind === 'containment')
 )
 
-const teamLoaded = ref(false)
+const teamFetchSettled = ref(false)
+const teamLoaded = computed(
+  () => teamFetchSettled.value && incidentStore.hasLoadedIncidentTeam(props.incident.id)
+)
 
 const loadTeam = async (): Promise<void> => {
-  teamLoaded.value = false
+  teamFetchSettled.value = false
   if (!authStore.token) {
-    teamLoaded.value = true
+    teamFetchSettled.value = true
     return
   }
   const incidentId = props.incident.id
   await incidentStore.fetchIncidentTeam(props.vaultId, incidentId, authStore.token)
   if (props.incident.id === incidentId) {
-    teamLoaded.value = true
+    teamFetchSettled.value = true
   }
 }
 
@@ -136,7 +146,7 @@ const send = async (dwellerIds: string[]) => {
 }
 
 const sendBestDefenders = async () => {
-  if (isAssigning.value || !teamLoaded.value || !bestResponders.value.length) return
+  if (isAssigning.value || !responderTeamsLoaded.value || !bestResponders.value.length) return
   isSendingBest.value = true
   try {
     await send(bestResponders.value.map((dweller) => dweller.id))
@@ -146,7 +156,7 @@ const sendBestDefenders = async () => {
 }
 
 const assignResponder = async (dwellerId: string) => {
-  if (isAssigning.value || !teamLoaded.value || !remainingRosterSlots.value) return
+  if (isAssigning.value || !responderTeamsLoaded.value || !remainingRosterSlots.value) return
   assigningDwellerId.value = dwellerId
   try {
     await send([dwellerId])
@@ -223,7 +233,7 @@ const assignResponder = async (dwellerId: string) => {
         <Button
           variant="default"
           size="sm"
-          :disabled="isAssigning || !teamLoaded"
+          :disabled="isAssigning || !responderTeamsLoaded"
           @click="sendBestDefenders"
         >
           <Icon v-if="isSendingBest" icon="mdi:loading" class="mr-1 animate-spin" />
@@ -258,7 +268,7 @@ const assignResponder = async (dwellerId: string) => {
             <Button
               variant="secondary"
               size="sm"
-              :disabled="isAssigning || !teamLoaded || !remainingRosterSlots"
+              :disabled="isAssigning || !responderTeamsLoaded || !remainingRosterSlots"
               @click="assignResponder(dweller.id)"
             >
               <Icon
@@ -271,6 +281,9 @@ const assignResponder = async (dwellerId: string) => {
           </template>
         </DwellerListRow>
       </ul>
+      <p v-else-if="!responderTeamsLoaded" role="status" class="text-xs text-terminal-green-dim">
+        Waiting for incident teams to load before choosing responders.
+      </p>
       <p v-else class="text-xs text-terminal-green-dim">
         All available adults are already defending or away.
       </p>

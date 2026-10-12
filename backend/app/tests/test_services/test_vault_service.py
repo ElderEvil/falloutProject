@@ -220,6 +220,7 @@ class TestCreateInitialDwellers:
                 side_effect=fake_create_random,
             ),
             patch("app.services.vault.seeding.dweller_crud.update", new_callable=AsyncMock),
+            patch("app.services.vault.seeding.equip_boosted_worker_outfit", new_callable=AsyncMock),
             patch(
                 "app.services.vault.seeding.relationship_crud.create_with_defaults",
                 new_callable=AsyncMock,
@@ -1054,32 +1055,35 @@ class TestInitiateVault:
             generators = [room for room in rooms if room.name.lower().startswith("power")]
             assert len(generators) == (2 if is_boosted else 1)
             if is_boosted:
-                assert {(room.coordinate_x, room.coordinate_y) for room in generators} == {(3, 1), (0, 2)}
+                assert {(room.coordinate_x, room.coordinate_y) for room in generators} == {(3, 1), (0, 1)}
 
             elevators = sorted(
                 (room.coordinate_x, room.coordinate_y) for room in rooms if room.name.lower() == "elevator"
             )
             assert elevators == [(SHAFT_X, 0), (SHAFT_X, 1), (SHAFT_X, 2), (SHAFT_X, 3)]
 
-    async def test_boosted_seed_builds_and_staffs_a_second_power_generator(self, async_session, vault) -> None:
-        """The boosted seed's second generator survives seed-time merging, doubles power_max, and takes STR crew."""
+    async def test_boosted_seed_fuses_and_staffs_one_size_six_generator(self, async_session, vault) -> None:
+        """The adjacent boosted generators fuse at seed time into one size-6 survivor that takes the double crew."""
         game_data = await get_static_game_data()
         prepared = seeding.prepare_initial_rooms(game_data.rooms, vault.id, is_boosted=True)
         await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
 
-        generator_capacity = 25 * 3 * (1 + 1)  # capacity_formula 25*S*(L+1) at size 3, tier 1
+        fused_capacity = 25 * 6 * (1 + 1)  # capacity_formula 25*S*(L+1) at size 6, tier 1
         base_power_max = vault.power_max
         vault_obj, created = await seeding.create_initial_rooms(async_session, vault, prepared)
 
-        assert len([room for room in created.production if room.name.lower().startswith("power")]) == 2
-        assert vault_obj.power_max == base_power_max + 2 * generator_capacity
+        power_rooms = [room for room in created.production if room.name.lower().startswith("power")]
+        assert len(power_rooms) == 1  # the (3,1)+(0,1) pair fused into one live row
+        assert power_rooms[0].size == 6
+        assert power_rooms[0].output == 58  # (2*6*(1+4))-2 at tier 1, size 6
+        assert vault_obj.power_max == base_power_max + fused_capacity
 
         persisted = [
             room
             for room in await crud.room.get_all_by_vault(async_session, vault.id)
             if room.name.lower().startswith("power")
         ]
-        assert len(persisted) == 2  # not fused into a single room by seed-time merging
+        assert len(persisted) == 1
 
         await seeding.create_initial_dwellers(
             async_session,
@@ -1093,15 +1097,46 @@ class TestInitiateVault:
         )
         await async_session.commit()
 
-        generator_ids = {room.id for room in persisted}
-        generator_crew = [
-            dweller
-            for dweller in await crud.dweller.get_multi_by_vault(async_session, vault.id)
-            if dweller.room_id in generator_ids
-        ]
-        assert len(generator_crew) == 6  # 2 + apprentice in the first generator, 3 in the second
+        dwellers = await crud.dweller.get_multi_by_vault(async_session, vault.id)
+        generator_crew = [dweller for dweller in dwellers if dweller.room_id == persisted[0].id]
+        assert len([d for d in generator_crew if d.apprentice_stat is None]) == 5  # 2 + 3 combined crew
+        assert len(generator_crew) == 6  # five adults plus the seeded family teen
         assert all(dweller.status == DwellerStatusEnum.WORKING for dweller in generator_crew)
         assert [d for d in generator_crew if d.apprentice_stat == SPECIALEnum.STRENGTH]  # the seeded family teen
+        assert len(dwellers) == 33  # non-legendary headcount unchanged by the fusion (33 + 3 legendary = 36)
+
+    async def test_boosted_production_workers_wear_matching_common_three_outfits(self, async_session, vault) -> None:
+        """Every boosted production worker is equipped the Common +3 outfit for their room stat, built via the factory."""
+        game_data = await get_static_game_data()
+        prepared = seeding.prepare_initial_rooms(game_data.rooms, vault.id, is_boosted=True)
+        await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
+        _, created = await seeding.create_initial_rooms(async_session, vault, prepared)
+        await seeding.create_initial_dwellers(
+            async_session,
+            vault.id,
+            created.production,
+            created.training,
+            created.misc,
+            created.capacity,
+            is_boosted=True,
+            created_crafting_rooms=created.crafting,
+        )
+        await async_session.commit()
+
+        ability_by_room = {room.id: room.ability for room in created.production if room.ability is not None}
+        dwellers = await crud.dweller.get_multi_by_vault(async_session, vault.id)
+        outfitted = [
+            d
+            for d in dwellers
+            if d.room_id in ability_by_room and d.apprentice_stat is None and d.status == DwellerStatusEnum.WORKING
+        ]
+        assert len(outfitted) == 16  # 5 generator + 2 diner + 3 water + 3 medbay + 3 science
+        for dweller in outfitted:
+            ability = ability_by_room[dweller.room_id]
+            outfit = await crud.outfit.get_equipped(async_session, dweller.id)
+            assert outfit is not None
+            assert outfit.rarity == RarityEnum.COMMON
+            assert getattr(outfit, ability.value.lower()) == 3
 
     async def test_initiate_vault_boosted(self) -> None:
         """Boosted vault includes training sessions."""
@@ -1277,7 +1312,7 @@ def _seeded_room(vault_id, name: str, category: RoomTypeEnum, ability, x: int, y
         t3_upgrade_cost=1500,
         capacity=8 if category == RoomTypeEnum.CAPACITY else None,
         output=None,
-        size_min=1,
+        size_min=3,
         size_max=3,
         size=3,
         tier=1,

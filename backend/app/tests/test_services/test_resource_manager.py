@@ -3,14 +3,18 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.cli.simulate_resources import ResourceEconomyConfig, simulate
+from app.core.enums import RarityEnum
 from app.core.game_config import game_config
+from app.crud import room as room_crud
 from app.crud.resource import VaultResourceData
 from app.models import Dweller, Storage
 from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
+from app.schemas.room import RoomCreate
 from app.schemas.vault import ResourceLevelWarning, ResourceProduction, ResourceTickEvents
 from app.services.resource_manager import ResourceManager
+from app.utils.item_factory import build_outfit
 from app.utils.resource_warnings import get_resource_warnings
 
 
@@ -275,32 +279,62 @@ def test_offline_single_step_window_diverges_from_per_tick_rounding() -> None:
     assert single_step_power < per_tick_power
 
 
-def _power_net(prepared, dweller_count: int, crews: list[list[Dweller]]) -> float:
-    """Net live power/min for the real seeded room set at the given per-generator workers."""
+def _seeded_net(
+    prepared,
+    dweller_count: int,
+    crews: list[list[Dweller]],
+    resource: str,
+    room_prefix: str,
+    production: list[RoomCreate] | None = None,
+) -> float:
+    """Net live per-minute change for one resource over the real seeded room set."""
     manager = ResourceManager()
+    production_rooms = production if production is not None else prepared.production
     rooms = [
         *prepared.infrastructure,
         *prepared.capacity,
-        *prepared.production,
+        *production_rooms,
         *prepared.misc,
         *prepared.training,
         *prepared.arena,
         *prepared.crafting,
     ]
-    generators = [room for room in prepared.production if str(room.name).lower().startswith("power")]
-    consumption = manager._calculate_consumption(rooms, dweller_count, seconds_passed=60)["power"]
-    production = manager._calculate_production(
-        list(zip(generators, crews, strict=True)), seconds_passed=60, current_power=50
-    )["power"]
-    return production - consumption
+    matched = [room for room in production_rooms if str(room.name).lower().startswith(room_prefix)]
+    consumption = manager._calculate_consumption(rooms, dweller_count, seconds_passed=60)[resource]
+    produced = manager._calculate_production(
+        list(zip(matched, crews, strict=True)), seconds_passed=60, current_power=50
+    )[resource]
+    return produced - consumption
 
 
 def _adults(strength: int, count: int) -> list[Dweller]:
     return [Dweller(strength=strength) for _ in range(count)]
 
 
-def _apprentice(strength: int) -> Dweller:
-    return Dweller(strength=strength, apprentice_stat=SPECIALEnum.STRENGTH)
+def _apprentice(value: int, stat: SPECIALEnum = SPECIALEnum.STRENGTH) -> Dweller:
+    return Dweller(**{stat.value.lower(): value}, apprentice_stat=stat)
+
+
+def _outfitted_workers(stat: str, count: int) -> list[Dweller]:
+    """Boosted stat-5 workers wearing the Common +3 outfit the seed equips them with (effective 8)."""
+    outfit = build_outfit({"name": f"seed {stat} outfit", stat: 3}, RarityEnum.COMMON)
+    return [Dweller(**{stat: 5, "outfit": outfit}) for _ in range(count)]
+
+
+def _fused_generator(prepared) -> RoomCreate:
+    """The boosted seed's adjacent generators fused into one size-6 tier-1 room (output 58)."""
+    generators = [room for room in prepared.production if str(room.name).lower().startswith("power")]
+    base = generators[0]
+    size = sum((room.size or room.size_min) for room in generators)
+    return base.model_copy(
+        update={"size": size, "output": room_crud.evaluate_output_formula(base.output_formula, base.tier, size)}
+    )
+
+
+def _fused_production(prepared) -> list[RoomCreate]:
+    """The prepared boosted production set with the generator pair replaced by its fused survivor."""
+    others = [room for room in prepared.production if not str(room.name).lower().startswith("power")]
+    return [_fused_generator(prepared), *others]
 
 
 @pytest.mark.asyncio
@@ -313,23 +347,41 @@ async def test_seeded_standard_vault_live_power_survives_when_staffed_and_defici
 
     prepared = seeding.prepare_initial_rooms((await get_static_game_data()).rooms, uuid4(), is_boosted=False)
 
-    assert _power_net(prepared, dweller_count=10, crews=[_adults(5, 2)]) > 0
-    assert _power_net(prepared, dweller_count=10, crews=[_adults(5, 1)]) < 0
+    assert _seeded_net(prepared, 10, [_adults(5, 2)], "power", "power") > 0
+    assert _seeded_net(prepared, 10, [_adults(5, 1)], "power", "power") < 0
 
 
 @pytest.mark.asyncio
-async def test_seeded_boosted_vault_second_generator_keeps_live_power_positive_until_a_worker_leaves() -> None:
-    """The boosted draw is ~51.5/min; the second generator's crew and the seeded first-room apprentice hold it positive."""
+async def test_seeded_boosted_vault_fused_generator_keeps_live_power_positive_with_margin() -> None:
+    """The fused size-6 generator's outfitted double crew nets a large margin; a deep shed still flips negative."""
     from uuid import uuid4
 
     from app.core.game_data import get_static_game_data
     from app.services.vault import seeding
 
     prepared = seeding.prepare_initial_rooms((await get_static_game_data()).rooms, uuid4(), is_boosted=True)
+    fused = _fused_production(prepared)
 
-    # Seed shape: generator one holds two adults + its family apprentice, generator two a full crew.
-    full = [[*_adults(5, 2), _apprentice(5)], _adults(5, 3)]
-    assert _power_net(prepared, dweller_count=33, crews=full) > 0
-    # Losing one generator worker flips the large boosted draw into deficit.
-    shed_one = [[*_adults(5, 1), _apprentice(5)], _adults(5, 3)]
-    assert _power_net(prepared, dweller_count=33, crews=shed_one) < 0
+    assert _fused_generator(prepared).size == 6
+    assert _fused_generator(prepared).output == 58  # (2*6*(1+4))-2 at tier 1, size 6
+
+    full = [[*_outfitted_workers("strength", 5), _apprentice(5)]]
+    assert _seeded_net(prepared, 33, full, "power", "power", production=fused) > 100
+    # A two-worker shed stays safe; one worker left is the depth at which the big boosted draw wins.
+    two_left = [[*_outfitted_workers("strength", 2), _apprentice(5)]]
+    assert _seeded_net(prepared, 33, two_left, "power", "power", production=fused) > 0
+    one_left = [[*_outfitted_workers("strength", 1), _apprentice(5)]]
+    assert _seeded_net(prepared, 33, one_left, "power", "power", production=fused) < 0
+
+
+@pytest.mark.asyncio
+async def test_seeded_boosted_diner_outfitted_crew_keeps_live_food_positive() -> None:
+    """The diner's two outfitted AGI workers plus the seeded teen out-produce the boosted food draw."""
+    from uuid import uuid4
+
+    from app.core.game_data import get_static_game_data
+    from app.services.vault import seeding
+
+    prepared = seeding.prepare_initial_rooms((await get_static_game_data()).rooms, uuid4(), is_boosted=True)
+    diner_crew = [*_outfitted_workers("agility", 2), _apprentice(5, SPECIALEnum.AGILITY)]
+    assert _seeded_net(prepared, 33, [diner_crew], "food", "diner") > 0

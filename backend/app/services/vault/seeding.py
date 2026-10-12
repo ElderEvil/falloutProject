@@ -47,6 +47,7 @@ from app.services.vault_seed import (
     BOOSTED_SEED_OUTFITS,
     BOOSTED_SEED_PETS,
     BOOSTED_TRAINING_STATS,
+    BOOSTED_WORKER_OUTFITS,
     SEED_OUTFITS,
     SEED_WEAPONS,
     SEEDED_CHILD_AGE_HOURS,
@@ -121,10 +122,11 @@ def prepare_initial_rooms(
     production = mk(
         [("power generator", 3, 1), ("diner", 3, 2), ("water treatment", 3, 3)]
         + ([("science lab", 19, 2), ("medbay", 16, 2)] if is_boosted else [])
-        # The boosted room set draws ~50 power/min, so the correction seeds a
-        # second generator left of the elevator shaft on level 2 (non-adjacent
-        # to the primary, so seed-time merging never fuses the pair into one).
-        + ([("power generator", 0, 2)] if is_boosted else [])
+        # The boosted room set draws ~51.5 power/min, so the correction adds a
+        # second generator at unit (0, 1), contiguous with the level-1 generator.
+        # Seed-time merging fuses the pair into one size-6 tier-1 generator
+        # (output 58), which reads as a single generator row on the floor.
+        + ([("power generator", 0, 1)] if is_boosted else [])
     )
     misc = mk([("radio studio", 7, 3)] + ([("overseer's office", 22, 2)] if is_boosted else []))
     arena = mk([("arena", 10, 3)] if is_boosted else [])
@@ -200,8 +202,21 @@ async def create_initial_rooms(
 
     await merge_adjacent_seed_rooms(db_session, vault.id)
 
+    # Seed-time merging deletes absorbed rooms (the boosted storage row and the
+    # generator pair) and grows their survivors, so the pre-merge rows are stale.
+    # Re-read the live rows of the production batch, top-to-bottom then
+    # left-to-right: dweller staffing and the reserved apprentice slots key off
+    # this list, and a dweller assigned to an absorbed row would break its
+    # foreign key. Match on the batch's IDs, not on category — the radio studio
+    # template is category Production but seeds into the misc block.
+    production_ids = {room.id for room in created_production}
+    production = sorted(
+        (room for room in await room_crud.get_all_by_vault(db_session, vault.id) if room.id in production_ids),
+        key=lambda room: (room.coordinate_y or 0, room.coordinate_x or 0),
+    )
+
     return vault, CreatedRooms(
-        production=created_production,
+        production=production,
         training=created_training,
         misc=created_misc,
         capacity=created_capacity,
@@ -211,7 +226,7 @@ async def create_initial_rooms(
 
 
 async def merge_adjacent_seed_rooms(db_session: AsyncSession, vault_id: UUID4) -> None:
-    """Fuse adjacent same-name seed rooms (the boosted storage row) through the standard merge flow."""
+    """Fuse adjacent same-name seed rooms (the boosted storage row and generator pair) via the merge flow."""
     from app.services.room_service import room_service
 
     await room_service.backfill_merge_rooms_for_vault(db_session, vault_id, dry_run=False)
@@ -246,6 +261,21 @@ async def seed_working_dweller(
     return dweller_obj
 
 
+async def equip_boosted_worker_outfit(db_session: AsyncSession, worker: Dweller, stat: SPECIALEnum) -> None:
+    """Craft and equip the Common +3 outfit matching a boosted production worker's room stat."""
+    from app.services.exploration.data_loader import load_outfits
+
+    name = BOOSTED_WORKER_OUTFITS.get(stat)
+    if name is None:
+        return
+    entry = next((e for e in load_outfits() if str(e["name"]).strip().lower() == name.lower()), None)
+    if entry is None:
+        logger.warning("Boosted worker outfit %r missing from catalog, skipping", name)
+        return
+    item = await outfit_crud.create(db_session, build_outfit(entry, entry["rarity"]))
+    await outfit_crud.equip(db_session=db_session, item_id=item.id, dweller_id=worker.id, commit=False)
+
+
 async def create_initial_dwellers(
     db_session: AsyncSession,
     vault_id: UUID4,
@@ -261,40 +291,33 @@ async def create_initial_dwellers(
 
     try:
         # Boosted vaults staff production heavier so the population clears 32.
+        # Crew is ``production_crew`` per base segment, keyed to each room's own
+        # SPECIAL. The boosted generator pair fuses into one size-6 room (two
+        # segments), so it holds a double crew; the reserved apprentice slots
+        # below stay on the first two production rooms, so the fused generator
+        # trades one adult slot for its family teen and the headcount is
+        # unchanged between layouts.
         production_crew = 3 if is_boosted else 2
         assignments = [
-            (room, stat, production_crew)
-            for room, stat in zip(
-                created_production_rooms[:3],
-                (SPECIALEnum.STRENGTH, SPECIALEnum.AGILITY, SPECIALEnum.PERCEPTION),
-                strict=True,
-            )
+            (room, room.ability, production_crew * room.segment_count)
+            for room in created_production_rooms
+            if room.ability is not None
         ]
-        if is_boosted and len(created_production_rooms) >= 5:
-            assignments.extend(
-                (room, SPECIALEnum.INTELLIGENCE, production_crew) for room in created_production_rooms[3:5]
-            )
-        if is_boosted:
-            # Slice 3b correction: the boosted seed's second generator is staffed
-            # at the full crew rate; the reserved apprentice slots stay on the
-            # first two production rooms (subtraction below).
-            secondary_generators = [
-                room for room in created_production_rooms if str(room.name).lower().startswith("power")
-            ][1:]
-            assignments.extend((room, SPECIALEnum.STRENGTH, production_crew) for room in secondary_generators)
         apprentice_rooms = [r for r in created_production_rooms[:2] if r.ability is not None]
         apprentice_ids = {r.id for r in apprentice_rooms}
         if is_boosted:
-            # Rooms hosting a family teen keep one slot free, so production
-            # rooms never hold more than three dwellers.
+            # A room hosting a family teen keeps one adult slot free, so a
+            # production room never holds more than its segment count.
             assignments = [
                 (room, stat, count - (1 if room.id in apprentice_ids else 0)) for room, stat, count in assignments
             ]
-        workers = [
-            await seed_working_dweller(db_session, vault_id, room, boosted_stat, is_boosted)
-            for room, boosted_stat, count in assignments
-            for _ in range(count)
-        ]
+        workers: list[Dweller] = []
+        for room, boosted_stat, count in assignments:
+            for _ in range(count):
+                worker = await seed_working_dweller(db_session, vault_id, room, boosted_stat, is_boosted)
+                if is_boosted:
+                    await equip_boosted_worker_outfit(db_session, worker, boosted_stat)
+                workers.append(worker)
 
         # Crafting crew (boosted only): two dwellers per workshop, keyed to the
         # stats most craftable weapons and outfits use so orders finish faster.

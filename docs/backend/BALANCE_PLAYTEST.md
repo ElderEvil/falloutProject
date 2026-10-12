@@ -897,7 +897,7 @@ app/tests/test_services/test_race_mechanics.py app/tests/test_scripts/test_simul
 
 ---
 
-## 10. Correction (2026-10-12): shipped default moves to 0.0012, boosted seeds gain a second generator
+## 10. Correction (2026-10-12): shipped default moves to 0.0012, boosted seeds gain a fused second generator
 
 > **Supersession notice:** the §3 tables, the §6 verification contract, and the §9 recommendation
 > were measured against a simulator that counts only the three production rooms' consumption. Live
@@ -920,15 +920,23 @@ against ~5/min production. Food/water scale with dweller count the same way: the
 - `ResourceConfig.base_production_rate` default `0.0003 → 0.0012` (4×). Like 0.0003 this leaves the
   spec's `0.00025–0.00035` band deliberately; the band was calibrated to the same three-room model
   that failed, so it is not the constraint the live economy needs.
-- Boosted seeds build a **second power generator** (level 2, left of the elevator shaft, at unit
-  `(0, 2)`, non-adjacent to the level-1 generator so seed-time room merging never fuses the pair)
-  and staff it with three STR-boosted workers (`production_crew`). The first (apprentice-slot)
-  production rooms keep the reserved family-teen slot, so generator one holds two adults plus its
-  seeded teen. Standard seeds are unchanged.
-- The boosted legendary roster drops **4 → 3** (`BOOSTED_LEGENDARY_DWELLER_COUNT`) so the seeded
+- Boosted seeds build a **second power generator** at unit `(0, 1)`, contiguous with the level-1
+  generator. Seed-time merging (the same `merge_adjacent_rooms` path as upgrade-time fusion) fuses
+  the pair into one **size-6 tier-1 generator** (output `58`, capacity `300`) that reads as a single
+  generator row. The survivor takes the combined **five-adult STR crew** (`production_crew` per
+  segment); the reserved apprentice slot still sits on the first production room, so the total
+  non-legendary headcount is unchanged (33, plus 3 legendaries = **36**). Standard seeds are
+  unchanged. *(Supersedes the earlier `(0, 2)` placement, which read as a stray generator beside the
+  Diner.)*
+- Every boosted production worker (power/diner/water/medbay/science crews) is equipped the **Common
+  +3 outfit** matching their room stat — Military fatigues (STR), Handyman jumpsuit (AGI), Lab coat
+  (INT), Armored vault suit (PER) — built through `item_factory.build_outfit` and equipped via the
+  outfit CRUD. Base boosted stat 5 + outfit 3 = **effective 8** flows through the ordinary
+  `effective_stat` production path; there is no parallel formula.
+- The boosted legendary roster stays at **3** (`BOOSTED_LEGENDARY_DWELLER_COUNT`) so the seeded
   population (33 non-legendary + 3 legendary = **36**) fits the boost's living-space capacity of 36;
-  the second generator's crew consumed the previous spare slots. Legendaries produce no resources, so
-  this re-pin leaves every number above untouched.
+  the fused generator's enlarged crew reuses the same slots, so the headcount is unchanged between
+  layouts. Legendaries produce no resources, so this leaves every number above untouched.
 - **Nothing else changed:** no consumption, capacity, output-formula, tier-multiplier, combat, spawn,
   frontend, schema/API, or migration (a config default plus seed-time rooms/crew need none).
 - **Existing already-seeded vaults are out of scope** — this is seed-time only and does not backfill
@@ -936,26 +944,32 @@ against ~5/min production. Food/water scale with dweller count the same way: the
 
 ### New key numbers (0.0012, per minute, live all-room draw)
 
-`room output 28 × (2 workers × SP5 = 10pt) × 0.0012 × 60 = 20.16/min` per fully staffed starter room.
+`room output 28 × (2 workers × SP5 = 10pt) × 0.0012 × 60 = 20.16/min` per fully staffed starter room,
+and the fused size-6 generator `58 × (5 × SP8 = 40pt) × 0.0012 × 60 = 167.0/min` (adult crew only).
 
 | Vault | Power staffing | Production/min | All-room draw/min | Net/min |
 |---|---|---|---|---|
 | Standard (1 generator) | 2 × SP5 | ~20.2 | 14.0 | **+6.2** (safe) |
 | Standard (1 generator) | 1 × SP5 | ~10.1 | 14.0 | **−3.9** (shed-worker deficit) |
-| Boosted (2 generators, seeded teen in gen 1) | 2×SP5 + junior, 3×SP5 | ~55.4 | ~51.5 | **+3.9** (safe) |
-| Boosted, one generator worker leaves | 1×SP5 + junior, 3×SP5 | ~45.4 | ~51.5 | **−6.1** (deficit) |
-| Boosted diner (with seeded teen) | 2×SP5 + junior | ~25.2 food | ~11.9 | **positive** |
+| Boosted (fused size-6 generator, outfitted 5×SP8 + seeded teen) | 5 × SP8 + junior | ~177.5 | ~51.5 | **+126.0** (safe) |
+| Boosted, two generator workers left | 2 × SP8 + junior | ~77.3 | ~51.5 | **+25.8** (safe) |
+| Boosted, one generator worker left | 1 × SP8 + junior | ~43.9 | ~51.5 | **−7.7** (deep-shed deficit) |
+| Boosted diner (outfitted 2×SP8 + seeded teen) | 2 × SP8 + junior | ~37.3 food | ~11.9 | **+25.4** (positive) |
+
+> **Superseded rows:** the earlier boosted entries (generator pair ~`55.4`, one worker shed ~`45.4`,
+> diner ~`25.2`) measured the pre-fusion `(0, 2)` layout with un-outfitted SP5 crews; the fused,
+> outfitted rows above replace them. The standard rows and the `−51.5`/`−11.9` draws are unchanged.
 
 Regressions: `test_seeded_standard_vault_live_power_survives_when_staffed_and_deficits_on_one_worker`
-and `test_seeded_boosted_vault_second_generator_keeps_live_power_positive_until_a_worker_leaves`
-compute these nets from the real seeded room sets, so a future change to either the rate or the seed
-that breaks the success criterion fails the suite. The three-room simulator contract
+and `test_seeded_boosted_vault_fused_generator_keeps_live_power_positive_with_margin` (with
+`test_seeded_boosted_diner_outfitted_crew_keeps_live_food_positive` for the diner) compute these nets
+from the real seeded room sets, so a future change to either the rate or the seed that breaks the
+success criterion fails the suite. The three-room simulator contract
 (`test_starter_vault_meets_resource_economy_baseline_contract`) is re-pinned to the shipped rate's
 simulator integers but is no longer the tripwire source.
 
-Boosted margin note: counting only the adult crew (no seeded teen) the generator pair nets
-`50.4 − 51.5 ≈ −1.1/min`, so the family teen the seed places in the first production room is what
-carries the boosted vault positive. That placement is guaranteed by seeding order (the first seeded
-household always apprentices to the first production room), so a **fresh** boosted vault is positive;
-if the teen were ever removed, the fix belongs to the consumption/capacity side (as §9 already
-concluded), not to a rate change.
+Boosted margin note: the fused generator's outfitted crew leaves a large positive margin, so the seed
+now shows worker loss **at depth** — a fresh vault stays safe while shedding one or two generator
+workers, and only the deep one-adult crew flips the big boosted draw negative. This model excludes
+race/faction identity modifiers that real random-race dwellers carry, so live totals can differ
+slightly in either direction; the margin is wide enough that the success criterion holds regardless.

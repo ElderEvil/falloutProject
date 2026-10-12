@@ -49,7 +49,9 @@ class VaultService:
         - A merged living room plus the base room (capacity for more than 32 dwellers)
         - Both crafting workshops staffed with two dwellers each
         - Three storage rooms and a stock of steel/leather/circuitry/cloth junk
-          so timed crafting is testable, with 34 dwellers seeded.
+          so timed crafting is testable, with 36 dwellers seeded (33 non-legendary
+          plus a 3-dweller legendary roster; the fused size-6 generator's
+          enlarged crew reuses the same slots, so the headcount is unchanged).
         """
         # Create vault and storage
         vault_db_obj = await vault_crud.create_with_user_id(db_session=db_session, obj_in=obj_in, user_id=user_id)

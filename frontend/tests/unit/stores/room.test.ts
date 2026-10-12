@@ -341,6 +341,14 @@ describe('Room Store', () => {
   })
 
   describe('upgradeRoom', () => {
+    function mockUpgradeFlow(upgradedRoom: unknown, roomsList: unknown[]) {
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: upgradedRoom })
+      vi.mocked(axios.get).mockImplementation((url: string) => {
+        if (url.includes('/api/v1/rooms/vault/')) return Promise.resolve({ data: roomsList })
+        return Promise.resolve({ data: { id: 'vault-1', bottle_caps: 500 } })
+      })
+    }
+
     it('should upgrade a room and refresh vault', async () => {
       const originalRoom = {
         id: 'room-1',
@@ -358,8 +366,7 @@ describe('Room Store', () => {
         output: 24,
       }
 
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: upgradedRoom })
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: { id: 'vault-1', bottle_caps: 500 } })
+      mockUpgradeFlow(upgradedRoom, [upgradedRoom])
 
       const store = useRoomStore()
       const vaultStore = useVaultStore()
@@ -378,6 +385,7 @@ describe('Room Store', () => {
       expect(store.rooms[0].tier).toBe(2)
       expect(store.rooms[0].capacity).toBe(12)
       expect(store.rooms[0].output).toBe(24)
+      expect(store.mergedRoomId).toBeNull()
       expect(audioManager.play).toHaveBeenCalledWith('upgrade', 'sfx')
     })
 
@@ -425,8 +433,7 @@ describe('Room Store', () => {
       const room2 = { id: 'room-2', name: 'Diner', tier: 1 }
       const upgradedRoom1 = { ...room1, tier: 2 }
 
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: upgradedRoom1 })
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: { id: 'vault-1' } })
+      mockUpgradeFlow(upgradedRoom1, [upgradedRoom1, room2])
 
       const store = useRoomStore()
       const vaultStore = useVaultStore()
@@ -437,6 +444,24 @@ describe('Room Store', () => {
 
       expect(store.rooms[0].tier).toBe(2)
       expect(store.rooms[1].tier).toBe(1) // Other room unchanged
+    })
+
+    it('should resync rooms and flash the survivor when the upgrade merges', async () => {
+      const absorbed = { id: 'room-1', name: 'Power Gen', tier: 1, size: 3 }
+      const survivor = { id: 'room-9', name: 'Power Gen', tier: 2, size: 6 }
+
+      mockUpgradeFlow(survivor, [survivor])
+
+      const store = useRoomStore()
+      const vaultStore = useVaultStore()
+      store.rooms = [{ id: 'room-9', size: 3 } as any, absorbed as any]
+      vaultStore.loadedVaults['vault-1'] = { id: 'vault-1' } as any
+
+      await store.upgradeRoom('room-1', 'test-token', 'vault-1')
+
+      expect(store.rooms).toHaveLength(1)
+      expect(store.rooms[0].id).toBe('room-9')
+      expect(store.mergedRoomId).toBe('room-9')
     })
   })
 

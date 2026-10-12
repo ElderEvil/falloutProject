@@ -170,6 +170,9 @@ async def test_sell_weapon_success(
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault_data = create_fake_vault()
     vault_data["user_id"] = str(user.id)
+    # Deterministic caps: the factory rolls up to 1M and deposit_caps caps at
+    # 999_999, which would overflow the exact-sum assertion below on a high roll.
+    vault_data["bottle_caps"] = 500
     vault_in = VaultCreateWithUserID(**vault_data)
     vault = await crud.vault.create(async_session, vault_in)
     storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)

@@ -11,7 +11,7 @@ from app.crud.room import CRUDRoom
 from app.models.room import Room
 from app.schemas.common import RoomActionEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate, RoomUpdate
-from app.services.room_service import RoomService
+from app.services.room_service import MergeResult, RoomService
 from app.utils.exceptions import (
     InsufficientResourcesException,
     ResourceNotFoundException,
@@ -664,6 +664,12 @@ class TestUpgrade:
             ),
             patch("app.services.room_service.event_bus") as mock_event_bus,
             patch("app.services.room_service.get_room_image_url", return_value="/static/room_images/test.png"),
+            patch.object(
+                RoomService,
+                "merge_adjacent_rooms",
+                new_callable=AsyncMock,
+                return_value=MergeResult(room=None, absorbed_ids=[], merged=False),
+            ),
         ):
             vault_mock = MagicMock()
             vault_mock.id = room.vault_id
@@ -706,6 +712,12 @@ class TestUpgrade:
                 "app.services.room_service.get_room_image_url",
                 return_value="/static/room_images/FOS Test 2-3.png",
             ) as mock_image,
+            patch.object(
+                RoomService,
+                "merge_adjacent_rooms",
+                new_callable=AsyncMock,
+                return_value=MergeResult(room=None, absorbed_ids=[], merged=False),
+            ),
         ):
             vault_mock = MagicMock()
             vault_mock.id = room.vault_id
@@ -748,6 +760,12 @@ class TestUpgrade:
                 "app.services.room_service.get_room_image_url",
                 return_value="/static/room_images/FOS Test 2-3.png",
             ),
+            patch.object(
+                RoomService,
+                "merge_adjacent_rooms",
+                new_callable=AsyncMock,
+                return_value=MergeResult(room=None, absorbed_ids=[], merged=False),
+            ),
         ):
             vault_mock = MagicMock()
             vault_mock.id = room.vault_id
@@ -777,6 +795,12 @@ class TestUpgrade:
             ),
             patch("app.services.room_service.event_bus") as mock_event_bus,
             patch("app.services.room_service.get_room_image_url", return_value="/static/room_images/test.png"),
+            patch.object(
+                RoomService,
+                "merge_adjacent_rooms",
+                new_callable=AsyncMock,
+                return_value=MergeResult(room=None, absorbed_ids=[], merged=False),
+            ),
         ):
             vault_mock = MagicMock()
             vault_mock.id = room.vault_id

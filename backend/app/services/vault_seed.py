@@ -143,7 +143,22 @@ BOOSTED_SEED_OUTFITS: tuple[tuple[str, int], ...] = (
     ("Firefighter suit", 3),
     ("Hazmat suit", 3),
 )
-BOOSTED_LEGENDARY_DWELLER_COUNT = 4
+# Common +3 outfits (items/outfits/) keyed to the room stat each production
+# worker boosts. Every boosted production worker wears the matching one so a
+# fresh vault's live output reflects the outfitted numbers in
+# docs/backend/BALANCE_PLAYTEST.md §10: the +3 turns a boosted stat-5 worker
+# into an effective 8. All four stats have a Common +3 (STR/AGI/INT in
+# common.json, PER as the Armored vault suit in tiered.json).
+BOOSTED_WORKER_OUTFITS: dict[SPECIALEnum, str] = {
+    SPECIALEnum.STRENGTH: "Military fatigues",
+    SPECIALEnum.AGILITY: "Handyman jumpsuit",
+    SPECIALEnum.INTELLIGENCE: "Lab coat",
+    SPECIALEnum.PERCEPTION: "Armored vault suit",
+}
+BOOSTED_LEGENDARY_DWELLER_COUNT = 3
+# Seeded at 3 so the boosted population (33 non-legendary + 3 legendary = 36)
+# fits the boost's living-space capacity of 36; the fused size-6 generator's
+# enlarged crew reuses the same slots, so the headcount is unchanged.
 # Pets a boosted vault starts with (in storage, unassigned) so equip and the
 # bonus display are testable immediately. Names must exist in the pet art/effect
 # catalog, or the seed silently produces art-less, effect-less pets.

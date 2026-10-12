@@ -582,3 +582,75 @@ async def test_backfill_merge_moves_dwellers_into_survivor(async_session: AsyncS
     await async_session.refresh(right_dweller)
     assert left_dweller.room_id == survivor.id
     assert right_dweller.room_id == survivor.id
+
+
+# ---------------------------------------------------------------------------
+# _upgrade merge scenarios
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_upgrade_merges_adjacent_same_tier_room(async_session: AsyncSession, rich_vault: Vault):
+    """Upgrading a room to its neighbour's tier fuses them into one survivor."""
+    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
+    survivor = await _create_existing_room(
+        async_session,
+        rich_vault.id,
+        name="Power Generator",
+        coordinate_x=0,
+        coordinate_y=1,
+        size=3,
+        tier=2,
+    )
+    upgraded = await _create_existing_room(
+        async_session,
+        rich_vault.id,
+        name="Power Generator",
+        coordinate_x=3,
+        coordinate_y=1,
+        size=3,
+        tier=1,
+    )
+    dweller = await _create_dweller_in_room(async_session, rich_vault.id, upgraded)
+
+    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
+        result = await room_service._upgrade(async_session, upgraded.id)
+
+    assert result.id == survivor.id
+    assert result.tier == 2
+    assert result.size == 6
+    with pytest.raises(ResourceNotFoundException):
+        await crud.room.get(async_session, upgraded.id)
+    await async_session.refresh(dweller)
+    assert dweller.room_id == survivor.id
+
+
+@pytest.mark.asyncio
+async def test_upgrade_no_merge_different_tier(async_session: AsyncSession, rich_vault: Vault):
+    """Upgrading past the neighbour's tier still leaves two separate rooms."""
+    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
+    await _create_existing_room(
+        async_session,
+        rich_vault.id,
+        name="Power Generator",
+        coordinate_x=0,
+        coordinate_y=1,
+        size=3,
+        tier=3,
+    )
+    upgraded = await _create_existing_room(
+        async_session,
+        rich_vault.id,
+        name="Power Generator",
+        coordinate_x=3,
+        coordinate_y=1,
+        size=3,
+        tier=1,
+    )
+
+    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
+        result = await room_service._upgrade(async_session, upgraded.id)
+
+    assert result.id == upgraded.id
+    assert result.tier == 2
+    assert result.size == 3

@@ -45,9 +45,10 @@ from app.cli.simulate_common import (
 from app.cli.simulate_common import (
     stats as _stats,
 )
+from app.core.enums import HazardTeam
 from app.core.game_config import game_config
 from app.models.incident import IncidentType
-from app.services.combat.incident_sim import DefenderProfile, SimDefender, resolve_incident
+from app.services.combat.incident_sim import DefenderProfile, IncidentOutcome, SimDefender, resolve_incident
 from app.services.combat.incident_sim_roster import synthetic_defenders
 
 DEFAULT_SIMULATION_DAYS = 3
@@ -120,6 +121,11 @@ class IncidentConfig:
     defenders_per_incident: int = DEFAULT_DEFENDERS_PER_INCIDENT
     response_rate: float = DEFAULT_RESPONSE_RATE
     heal_per_tick: int = DEFAULT_HEAL_PER_TICK
+    hazard_team: HazardTeam | None = None
+    team_size: int = 3
+    #: Defenders wearing the matching team outfit; ``None`` follows ``team_size``
+    #: so places and gear travel together unless a condition deliberately splits them.
+    outfit_count: int | None = None
 
     power_max: float = 100.0
     food_max: float = 100.0
@@ -197,19 +203,24 @@ class SimulationResult:
     max_concurrent_incidents: int
 
 
+def synthetic_roster(config: IncidentConfig) -> list[DefenderProfile]:
+    """Build the team-aware synthetic roster shared by the multi-hour and matchup paths."""
+    return synthetic_defenders(
+        config.starting_adults,
+        avg_special=config.avg_special,
+        avg_weapon_damage=config.avg_weapon_damage,
+        avg_level=config.avg_level,
+        hazard_team=config.hazard_team,
+        team_size=config.team_size,
+        outfit_count=config.outfit_count,
+    )
+
+
 class IncidentSimulator:
     def __init__(self, config: IncidentConfig) -> None:
         self.cfg = config
         if config.tick_interval % config.incident_dt != 0:
             raise ValueError("tick_interval must be a multiple of incident_dt")
-
-    def _build_synthetic_roster(self) -> list[DefenderProfile]:
-        return synthetic_defenders(
-            self.cfg.starting_adults,
-            avg_special=self.cfg.avg_special,
-            avg_weapon_damage=self.cfg.avg_weapon_damage,
-            avg_level=self.cfg.avg_level,
-        )
 
     def run(
         self,
@@ -224,7 +235,7 @@ class IncidentSimulator:
 
         roster = [
             SimDefender(profile=profile, health=profile.max_health)
-            for profile in (base_roster if base_roster is not None else self._build_synthetic_roster())
+            for profile in (base_roster if base_roster is not None else synthetic_roster(self.cfg))
         ]
         population = len(roster) if base_roster is not None else max(self.cfg.starting_dwellers, len(roster))
         vault = VaultState(population=population, adults=len(roster), children=population - len(roster), roster=roster)
@@ -371,7 +382,8 @@ class IncidentSimulator:
         for defender in vault.roster:
             if defender.health <= 0:
                 continue
-            defender.health = min(defender.profile.max_health, defender.health + self.cfg.heal_per_tick)
+            ceiling = max(1, defender.profile.max_health - defender.radiation)
+            defender.health = min(ceiling, defender.health + self.cfg.heal_per_tick)
 
     def _apply_incident_pressure(self, vault: VaultState) -> None:
         active_count = len([i for i in vault.incidents if not i.resolved])
@@ -669,6 +681,97 @@ def _render_sweep_row(value: str, r: BatchResult) -> str:
     return line
 
 
+def _parse_matchup(value: str) -> tuple[IncidentType, int]:
+    """Parse a ``TYPE:DIFFICULTY`` matchup, matching by incident name or value."""
+    name, _, difficulty = value.partition(":")
+    key = name.strip().lower()
+    incident_type = next((t for t in IncidentType if t.value.lower() == key or t.name.lower() == key), None)
+    if incident_type is None:
+        raise typer.BadParameter(f"Unknown incident type {name!r}; choose from {[t.name for t in IncidentType]}")
+    try:
+        level = int(difficulty)
+    except ValueError as exc:
+        raise typer.BadParameter("--matchup difficulty must be an integer") from exc
+    if not 1 <= level <= 10:
+        raise typer.BadParameter("--matchup difficulty must be between 1 and 10")
+    return incident_type, level
+
+
+def run_matchup(
+    config: IncidentConfig, incident_type: IncidentType, difficulty: int, runs: int, seed: int | None = None
+) -> list[IncidentOutcome]:
+    """Resolve ``runs`` single incidents of one type/difficulty against a fresh roster each run.
+
+    Production responder count is whoever is in the affected room, so each run
+    samples ``1..defenders_per_incident`` responders from the configured
+    (team-aware) roster; the seed reproduces the exact sample sequence.
+    """
+    rng = random.Random(seed)
+    profiles = synthetic_roster(config)
+    outcomes: list[IncidentOutcome] = []
+    for _ in range(runs):
+        cap = min(config.defenders_per_incident, len(profiles))
+        count = rng.randint(1, cap) if cap > 0 else 0
+        responders = [
+            SimDefender(profile=profile, health=profile.max_health) for profile in rng.sample(profiles, count)
+        ]
+        outcomes.append(
+            resolve_incident(
+                incident_type,
+                difficulty,
+                responders,
+                dt=config.incident_dt,
+                duration=config.spread_duration,
+                max_spread_count=config.max_spread_count,
+                base_raider_power=config.base_raider_power,
+            )
+        )
+    return outcomes
+
+
+def _percentile(values: list[int] | list[float], percent: float) -> float:
+    ordered = sorted(values)
+    if not ordered:
+        return 0.0
+    index = min(len(ordered) - 1, max(0, round(percent / 100 * (len(ordered) - 1))))
+    return float(ordered[index])
+
+
+def print_matchup_report(
+    outcomes: list[IncidentOutcome],
+    config: IncidentConfig,
+    incident_type: IncidentType,
+    difficulty: int,
+) -> None:
+    runs = len(outcomes)
+    ticks = [outcome.ticks for outcome in outcomes]
+    damage = [outcome.damage_taken for outcome in outcomes]
+    radiation = [outcome.radiation_gained for outcome in outcomes]
+    resolved = sum(1 for outcome in outcomes if outcome.resolved)
+    deaths = sum(outcome.deaths for outcome in outcomes)
+    team_label = config.hazard_team.value if config.hazard_team else "none"
+    outfit_label = config.outfit_count if config.outfit_count is not None else config.team_size
+
+    print()
+    print(banner(f"Matchup: {incident_type.name} difficulty {difficulty} — {runs} runs"))
+    print(
+        f"  roster={config.starting_adults} responders<={config.defenders_per_incident} "
+        f"hazard_team={team_label} team_size={config.team_size} outfit={outfit_label}"
+    )
+    print(f"  resolved       : {resolved}/{runs} ({resolved / runs:.0%})")
+    print(
+        f"  ticks          : min={min(ticks)} p5={_percentile(ticks, 5):.0f} "
+        f"mean={statistics.mean(ticks):.1f} p95={_percentile(ticks, 95):.0f} max={max(ticks)}"
+    )
+    print(
+        f"  damage taken   : min={min(damage)} p5={_percentile(damage, 5):.0f} "
+        f"mean={statistics.mean(damage):.1f} p95={_percentile(damage, 95):.0f} max={max(damage)}"
+    )
+    print(f"  radiation gain : min={min(radiation)} mean={statistics.mean(radiation):.1f} max={max(radiation)}")
+    print(f"  deaths         : total={deaths} (runs with deaths={sum(1 for outcome in outcomes if outcome.deaths)})")
+    print()
+
+
 def _load_roster(vault_id: uuid.UUID) -> list[DefenderProfile]:
     """Load a vault's healthy adults as the simulator's base roster."""
     from app.db.session import async_session_maker
@@ -687,7 +790,7 @@ app = typer.Typer(help="Simulate incident balance for the Fallout Shelter game."
 @app.command()
 def simulate(
     days: Annotated[int, typer.Option(help="Simulation length in days")] = DEFAULT_SIMULATION_DAYS,
-    runs: Annotated[int, typer.Option(help="Monte Carlo runs (higher = smoother)")] = DEFAULT_RUNS,
+    runs: Annotated[int, typer.Option(help="Monte Carlo runs (higher = smoother)", min=1)] = DEFAULT_RUNS,
     sweep: Annotated[str | None, typer.Option(help="Parameter to sweep")] = None,
     tick_interval: Annotated[int, typer.Option()] = DEFAULT_TICK_INTERVAL,
     incident_dt: Annotated[int, typer.Option()] = DEFAULT_INCIDENT_DT,
@@ -713,6 +816,17 @@ def simulate(
     ] = False,
     detailed: Annotated[bool, typer.Option(help="Show hourly cumulative curves")] = False,
     seed: Annotated[int | None, typer.Option(help="Fix random seed for reproducibility")] = None,
+    matchup: Annotated[
+        str | None, typer.Option(help="Focused single-type baseline as TYPE:DIFFICULTY, e.g. FIRE:2")
+    ] = None,
+    hazard_team: Annotated[
+        HazardTeam | None, typer.Option(help="Roster hazard team for team-aware profiles: fire or radiation")
+    ] = None,
+    team_size: Annotated[int, typer.Option(help="Defenders holding an active hazard-team place", min=0)] = 3,
+    outfit_count: Annotated[
+        int | None,
+        typer.Option(help="Defenders wearing the matching team outfit; defaults to team-size", min=0),
+    ] = None,
 ) -> None:
     hours = days * 24
 
@@ -734,7 +848,20 @@ def simulate(
         heal_per_tick=heal_per_tick,
         resource_drain_per_tick=resource_drain,
         happiness_penalty_active=happiness_penalty,
+        hazard_team=hazard_team,
+        team_size=team_size,
+        outfit_count=outfit_count,
     )
+
+    if matchup:
+        if vault_id is not None:
+            typer.echo("--matchup runs a synthetic roster; it cannot be combined with --vault-id.", err=True)
+            raise typer.Exit(code=2)
+        incident_type, level = _parse_matchup(matchup)
+        print_matchup_report(
+            run_matchup(baseline, incident_type, level, runs, seed=seed), baseline, incident_type, level
+        )
+        return
 
     base_roster: list[DefenderProfile] | None = None
     roster_loader: Callable[[], list[DefenderProfile]] | None = None

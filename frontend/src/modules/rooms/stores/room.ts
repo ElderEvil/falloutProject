@@ -18,8 +18,11 @@ export const useRoomStore = defineStore('room', () => {
   const availableRooms = ref<RoomTemplate[]>([])
   const selectedRoom = ref<RoomTemplate | null>(null)
   const isPlacingRoom = ref(false)
+  // Survivor room id briefly highlighted after an upgrade absorbs a neighbour.
+  const mergedRoomId = ref<string | null>(null)
   let fetchRoomsRequestSequence = 0
   let fetchBuildableRoomsRequestSequence = 0
+  let mergedHighlightTimeout: ReturnType<typeof setTimeout> | null = null
 
   // Background vault refresh — non-throwing, while still surfacing failures consistently.
   async function refreshVaultSafely(vaultId: string, token: string, context: string) {
@@ -145,10 +148,13 @@ export const useRoomStore = defineStore('room', () => {
         }
       )
 
-      // Update the room in the local array
-      const index = rooms.value.findIndex((room) => room.id === roomId)
-      if (index !== -1) {
-        rooms.value[index] = response.data
+      // The backend returns the merge survivor, which may be a different room:
+      // resync instead of patching one entry so absorbed rooms disappear.
+      const previousSize = rooms.value.find((room) => room.id === roomId)?.size ?? 0
+      await fetchRooms(vaultId, token)
+      const survivor = response.data
+      if (survivor.id !== roomId || (survivor.size ?? 0) > previousSize) {
+        flashMergedRoom(survivor.id)
       }
     } catch (error) {
       handleStoreError(error, 'Failed to upgrade room')
@@ -160,6 +166,14 @@ export const useRoomStore = defineStore('room', () => {
     audioManager.play('upgrade', 'sfx')
     // Refresh vault to update caps (non-throwing)
     await refreshVaultSafely(vaultId, token, 'Failed to refresh vault after upgrading room')
+  }
+
+  function flashMergedRoom(roomId: string): void {
+    mergedRoomId.value = roomId
+    if (mergedHighlightTimeout !== null) clearTimeout(mergedHighlightTimeout)
+    mergedHighlightTimeout = setTimeout(() => {
+      if (mergedRoomId.value === roomId) mergedRoomId.value = null
+    }, 2500)
   }
 
   function selectRoom(room: RoomTemplate): void {
@@ -203,6 +217,7 @@ export const useRoomStore = defineStore('room', () => {
     availableRooms,
     selectedRoom,
     isPlacingRoom,
+    mergedRoomId,
     floorUnits,
     shaftX,
     unitsPerRoom,

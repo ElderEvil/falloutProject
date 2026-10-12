@@ -57,4 +57,5 @@ async def get_features() -> FeaturesResponse:
     return FeaturesResponse(
         race_mechanics=game_config.features.race_mechanics,
         faction_mechanics=game_config.features.faction_mechanics,
+        player_connections=game_config.features.player_connections,
     )

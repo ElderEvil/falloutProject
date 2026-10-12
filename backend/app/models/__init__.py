@@ -1,6 +1,7 @@
 from .ai_settings import AISettings
 from .arena_match_event import ArenaMatchEvent
 from .chat_message import ChatMessage, ChatMessageCreate, ChatMessageRead
+from .connection import Connection
 from .crafting_order import CraftingOrder, CraftingOrderStatus
 from .dweller import Dweller
 from .exploration import ExpeditionRun, ExpeditionRunStatus, Exploration
@@ -25,6 +26,7 @@ from .storage import Storage
 from .team import Team, TeamMember
 from .training import Training
 from .user import User
+from .user_block import UserBlock
 from .user_profile import UserProfile
 from .vault import Vault
 from .vault_recipe_unlock import VaultRecipeUnlock

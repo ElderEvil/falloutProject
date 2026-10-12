@@ -289,4 +289,11 @@ class DamageChannel(StrEnum):
     RADIATION = "radiation"
 
 
+class ConnectionStatus(CaseInsensitiveEnum):
+    """Consent state of a player-to-player connection."""
+
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+
+
 STATE_OF_BEING_TYPE = GhoulFeralnessEnum | SuperMutantMutationEnum | SynthTypeEnum

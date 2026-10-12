@@ -28,6 +28,28 @@ describe('Feature flags store', () => {
     expect(store.factionMechanics).toBe(true)
   })
 
+  it('defaults player connections off when the backend omits the flag', async () => {
+    vi.mocked(getFeatureFlags).mockResolvedValue({ race_mechanics: true, faction_mechanics: true })
+    const store = useFeatureFlagsStore()
+
+    await store.fetchFlags()
+
+    expect(store.playerConnections).toBe(false)
+  })
+
+  it('turns player connections on when the backend ships the flag', async () => {
+    vi.mocked(getFeatureFlags).mockResolvedValue({
+      race_mechanics: true,
+      faction_mechanics: true,
+      player_connections: true,
+    })
+    const store = useFeatureFlagsStore()
+
+    await store.fetchFlags()
+
+    expect(store.playerConnections).toBe(true)
+  })
+
   it('retries a failed fetch instead of caching the failure', async () => {
     vi.mocked(getFeatureFlags).mockRejectedValueOnce(new Error('offline'))
     const store = useFeatureFlagsStore()

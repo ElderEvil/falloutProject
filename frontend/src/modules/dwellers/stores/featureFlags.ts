@@ -10,6 +10,7 @@ import { handleStoreError } from '@/core/utils/errorHandler'
 export const useFeatureFlagsStore = defineStore('featureFlags', () => {
   const raceMechanics = ref(true)
   const factionMechanics = ref(false)
+  const playerConnections = ref(false)
   const loaded = ref(false)
 
   // Concurrent callers share one request: the panel and the roster mount together, and a
@@ -24,6 +25,7 @@ export const useFeatureFlagsStore = defineStore('featureFlags', () => {
         const flags = await getFeatureFlags()
         raceMechanics.value = flags.race_mechanics
         factionMechanics.value = flags.faction_mechanics
+        playerConnections.value = flags.player_connections ?? false
         loaded.value = true
       } catch (error) {
         handleStoreError(error, 'Failed to load feature flags', false)
@@ -34,5 +36,5 @@ export const useFeatureFlagsStore = defineStore('featureFlags', () => {
     return inFlight
   }
 
-  return { raceMechanics, factionMechanics, loaded, fetchFlags }
+  return { raceMechanics, factionMechanics, playerConnections, loaded, fetchFlags }
 })

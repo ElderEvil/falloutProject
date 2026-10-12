@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.200.0 (2026-10-12)
+
+### Features
+
+* incident, combat and resource balance pass ([#962](https://github.com/ElderEvil/falloutProject/issues/962)) 91a42f9
+
 ## 2.199.4 (2026-10-12)
 
 ### Code Refactoring

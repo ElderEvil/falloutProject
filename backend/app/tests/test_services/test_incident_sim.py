@@ -6,11 +6,12 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import HazardTeam
 from app.models.incident import IncidentType
 from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
 from app.services.combat import incident_math
-from app.services.combat.incident_sim import DefenderProfile, SimDefender, resolve_incident
+from app.services.combat.incident_sim import DefenderProfile, IncidentOutcome, SimDefender, resolve_incident
 from app.services.combat.incident_sim_roster import snapshot_vault_defenders, synthetic_defenders
 from app.utils.combat import combat_power
 from app.utils.damage_reductions import DamageReductions
@@ -25,6 +26,122 @@ def _defender(power: float, health: int = 100) -> SimDefender:
         reductions_fire=DamageReductions(),
     )
     return SimDefender(profile=profile, health=health)
+
+
+def _profiled(
+    power: float,
+    *,
+    health: int = 100,
+    radiation: int = 0,
+    teams: frozenset[HazardTeam] = frozenset(),
+    reductions_physical: DamageReductions | None = None,
+    reductions_fire: DamageReductions | None = None,
+    reductions_radiation: DamageReductions | None = None,
+) -> SimDefender:
+    """A defender with explicit team membership and per-channel reductions."""
+    profile = DefenderProfile(
+        label="d",
+        power=power,
+        max_health=health,
+        reductions_physical=reductions_physical or DamageReductions(),
+        reductions_fire=reductions_fire or DamageReductions(),
+        reductions_radiation=reductions_radiation or DamageReductions(),
+        teams=teams,
+    )
+    return SimDefender(profile=profile, health=health, radiation=radiation)
+
+
+def test_team_response_bonus_shortens_containment():
+    """Active members of the matching hazard team add +20% response power each."""
+    plain = resolve_incident(IncidentType.FIRE, 2, [_profiled(12), _profiled(12)], dt=2)
+    team = resolve_incident(
+        IncidentType.FIRE,
+        2,
+        [_profiled(12, teams=frozenset({HazardTeam.FIRE})), _profiled(12, teams=frozenset({HazardTeam.FIRE}))],
+        dt=2,
+    )
+    assert plain.resolved
+    assert team.resolved
+    # int(24 * 1.4) = 33 power -> 0.66 containment/tick -> win on tick 2, not tick 3.
+    assert plain.ticks == 3
+    assert team.ticks == 2
+
+
+def test_team_hazard_resist_reduces_damage():
+    """Active members take 20% less on the incident's channel; non-members take full."""
+    plain = resolve_incident(IncidentType.FIRE, 2, [_profiled(1000), _profiled(1000)], dt=2)
+    team = resolve_incident(
+        IncidentType.FIRE,
+        2,
+        [_profiled(1000, teams=frozenset({HazardTeam.FIRE})), _profiled(1000)],
+        dt=2,
+    )
+    assert plain.resolved
+    assert team.resolved
+    assert plain.ticks == 1
+    assert team.ticks == 1
+    # 2 damage split 1/1: the active member resists 1 -> int(1 * 0.8) = 0.
+    assert plain.damage_taken == 2
+    assert team.damage_taken == 1
+
+
+def test_team_membership_ignored_for_incidents_without_a_team():
+    """Raider (and other) incidents train no team, so team places change nothing."""
+
+    def _run(teams: list[frozenset[HazardTeam]]) -> IncidentOutcome:
+        responders = [_profiled(12, teams=team) for team in teams]
+        return resolve_incident(IncidentType.RAIDER_ATTACK, 2, responders, dt=2)
+
+    plain = _run([frozenset(), frozenset()])
+    tagged = _run([frozenset({HazardTeam.FIRE}), frozenset({HazardTeam.RADIATION})])
+    assert (plain.ticks, plain.damage_taken) == (tagged.ticks, tagged.damage_taken)
+
+
+def test_radscorpion_accumulates_radiation():
+    """An irradiating incident adds RAD after physical reduction (production apply_damage)."""
+    outcome = resolve_incident(IncidentType.RADSCORPION_ATTACK, 3, [_profiled(1000, health=1000)], dt=2)
+    assert outcome.resolved
+    assert outcome.ticks == 1
+    assert outcome.damage_taken == 6
+    # RAD = min(taken - 1, taken // 2) = min(5, 3) = 3.
+    assert outcome.radiation_gained == 3
+
+
+def test_fire_never_adds_radiation():
+    outcome = resolve_incident(IncidentType.FIRE, 2, [_profiled(1000, health=1000)], dt=2)
+    assert outcome.radiation_gained == 0
+
+
+def test_radiation_resist_blocks_radiation_gain():
+    """A hazmat-equivalent (RAD share 1.0) + active team member gains no RAD."""
+    hazmat = DamageReductions(shares=(1.0,))
+    outcome = resolve_incident(
+        IncidentType.RADSCORPION_ATTACK,
+        3,
+        [_profiled(1000, health=1000, teams=frozenset({HazardTeam.RADIATION}), reductions_radiation=hazmat)],
+        dt=2,
+    )
+    assert outcome.radiation_gained == 0
+
+
+def test_radiation_accumulates_per_tick_until_victory():
+    """RAD is added at min(taken-1, taken//2) per sub-tick, including the winning round."""
+    outcome = resolve_incident(IncidentType.RADSCORPION_ATTACK, 1, [_profiled(25, health=1000)], dt=2)
+    assert outcome.resolved
+    assert outcome.ticks == 2
+    assert outcome.damage_taken == 4
+    assert outcome.radiation_gained == 2
+
+
+def test_radiation_ceiling_clamps_health():
+    """A carried RAD pool lowers the health ceiling: health clamps to max(1, max_health - radiation)."""
+    responder = _profiled(1000, health=100, radiation=80)
+    outcome = resolve_incident(IncidentType.RADSCORPION_ATTACK, 3, [responder], dt=2)
+    assert outcome.resolved
+    # taken 6 -> 94, rad 80+3=83 -> ceiling max(1, 100-83) = 17.
+    assert outcome.damage_taken == 6
+    assert responder.radiation == 83
+    assert responder.health == 17
 
 
 def test_split_damage_distributes_base_and_remainder():
@@ -121,6 +238,30 @@ def test_synthetic_defenders_are_formula_locked():
         assert profile.max_health == 50 + (5 - 1) * 5
         assert profile.reductions_physical.apply(10) == 10
         assert profile.reductions_fire.apply(10) == 10
+
+
+def test_synthetic_fire_team_wears_catalog_firefighter_suit():
+    profiles = synthetic_defenders(
+        4, avg_special=4.0, avg_weapon_damage=10.0, avg_level=5, hazard_team=HazardTeam.FIRE, team_size=2
+    )
+    assert [profile.teams for profile in profiles] == [
+        frozenset({HazardTeam.FIRE}),
+        frozenset({HazardTeam.FIRE}),
+        frozenset(),
+        frozenset(),
+    ]
+    assert profiles[0].reductions_fire.combined_share == pytest.approx(0.5)
+    assert profiles[0].reductions_radiation.apply(4) == 4
+
+
+def test_synthetic_radiation_team_wears_catalog_hazmat_suit():
+    profiles = synthetic_defenders(
+        2, avg_special=4.0, avg_weapon_damage=10.0, avg_level=5, hazard_team=HazardTeam.RADIATION, team_size=1
+    )
+    assert profiles[0].teams == frozenset({HazardTeam.RADIATION})
+    assert profiles[1].teams == frozenset()
+    # Hazmat suit blocks catalog radiation entirely (share 1.0, capped at MAX_RESIST_PCT).
+    assert profiles[0].reductions_radiation.apply(4) == 0
 
 
 @pytest.mark.asyncio

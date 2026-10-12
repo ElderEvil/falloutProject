@@ -39,6 +39,8 @@ class ResourceEconomyConfig:
     starting_water: float = 50
     resource_max: float = 100
     base_production_rate: float | None = None
+    room_tier: int = 1
+    room_size: int | None = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -50,19 +52,22 @@ class ResourceEconomyResult:
     forecasts_minutes: dict[str, float | None]
 
 
-def _make_room(name: str) -> Room:
+def _make_room(name: str, tier: int, size: int | None) -> Room:
     room_data = next((room for room in game_data_store.rooms if room.name == name), None)
     if room_data is None or room_data.output_formula is None or room_data.ability is None:
         raise ValueError(f"Production room data missing for {name}")
 
-    size = room_data.size_min
+    room_size = size if size is not None else room_data.size_min
+    # Production evaluates the output formula with the tier and multiplies the
+    # result by the tier multiplier (see room_service.upgrade_room), so tier
+    # drives both output and throughput.
     return Room(
         name=room_data.name,
         category=RoomTypeEnum.PRODUCTION,
         ability=room_data.ability,
-        output=CRUDRoom.evaluate_output_formula(room_data.output_formula, level=1, size=size),
-        size=size,
-        tier=1,
+        output=CRUDRoom.evaluate_output_formula(room_data.output_formula, level=tier, size=room_size),
+        size=room_size,
+        tier=tier,
     )
 
 
@@ -82,9 +87,9 @@ def _build_scenario(config: ResourceEconomyConfig) -> tuple[Vault, Sequence[Room
         food_max=config.resource_max,
         water_max=config.resource_max,
     )
-    power_room = _make_room("Power Generator")
-    food_room = _make_room("Diner")
-    water_room = _make_room("Water Treatment")
+    power_room = _make_room("Power Generator", config.room_tier, config.room_size)
+    food_room = _make_room("Diner", config.room_tier, config.room_size)
+    water_room = _make_room("Water Treatment", config.room_tier, config.room_size)
     rooms = (power_room, food_room, water_room)
     rooms_with_dwellers = [
         (power_room, _make_workers("strength", config.workers_per_room, config.worker_special)),
@@ -122,6 +127,10 @@ def simulate(config: ResourceEconomyConfig) -> ResourceEconomyResult:
         raise ValueError("duration_minutes and tick_interval must be positive")
     if config.population < 0 or config.workers_per_room < 0:
         raise ValueError("population and workers_per_room must be non-negative")
+    if config.room_tier < 1:
+        raise ValueError("room_tier must be at least 1")
+    if config.room_size is not None and config.room_size < 1:
+        raise ValueError("room_size must be at least 1")
 
     manager = ResourceManager()
     vault, rooms, rooms_with_dwellers = _build_scenario(config)
@@ -179,6 +188,12 @@ def run(
     base_production_rate: Annotated[
         float | None, typer.Option(help="Temporary candidate production rate per SPECIAL point per second")
     ] = None,
+    room_tier: Annotated[
+        int, typer.Option(help="Production room tier (drives output formula and tier multiplier)")
+    ] = 1,
+    room_size: Annotated[
+        int | None, typer.Option(help="Production room size (defaults to the room's size_min)")
+    ] = None,
 ) -> None:
     """Print net rates, projected final resources, and first-tick forecasts."""
     result = simulate(
@@ -191,6 +206,8 @@ def run(
             starting_food=starting_food,
             starting_water=starting_water,
             base_production_rate=base_production_rate,
+            room_tier=room_tier,
+            room_size=room_size,
         )
     )
     typer.echo("Resource economy simulation (live ResourceManager formulas)")

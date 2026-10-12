@@ -57,7 +57,7 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -903,7 +903,7 @@ def main() -> int:
 
     requests = 0
     results: list[dict[str, Any]] = []
-    started_at = datetime.now(timezone.utc)
+    started_at = datetime.now(UTC)
 
     for mode in modes:
         keys = MODE_PERSONAS[mode]

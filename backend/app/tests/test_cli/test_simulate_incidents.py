@@ -129,6 +129,8 @@ def test_matchup_zero_responders_reports_unopposed_instead_of_crashing():
 
 def test_matchup_cli_rejects_vault_id_combination():
     """--matchup runs a synthetic roster, so combining it with --vault-id is a loud error."""
+    from click import unstyle
+
     result = CliRunner().invoke(
         cli,
         [
@@ -142,14 +144,16 @@ def test_matchup_cli_rejects_vault_id_combination():
         ],
     )
     assert result.exit_code == 2
-    assert "--vault-id" in result.output
+    assert "--vault-id" in unstyle(result.output)
 
 
 def test_simulate_cli_rejects_zero_runs():
     """--runs 0 would divide by zero in the report; fail fast with a clear error."""
+    from click import unstyle
+
     result = CliRunner().invoke(cli, ["simulate-incidents", "--runs", "0"])
     assert result.exit_code == 2
-    assert "--runs" in result.output
+    assert "--runs" in unstyle(result.output)
 
 
 def test_matchup_cli_accepts_team_size_and_outfit_count():

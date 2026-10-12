@@ -203,6 +203,19 @@ class SimulationResult:
     max_concurrent_incidents: int
 
 
+def synthetic_roster(config: IncidentConfig) -> list[DefenderProfile]:
+    """Build the team-aware synthetic roster shared by the multi-hour and matchup paths."""
+    return synthetic_defenders(
+        config.starting_adults,
+        avg_special=config.avg_special,
+        avg_weapon_damage=config.avg_weapon_damage,
+        avg_level=config.avg_level,
+        hazard_team=config.hazard_team,
+        team_size=config.team_size,
+        outfit_count=config.outfit_count,
+    )
+
+
 class IncidentSimulator:
     def __init__(self, config: IncidentConfig) -> None:
         self.cfg = config
@@ -210,15 +223,7 @@ class IncidentSimulator:
             raise ValueError("tick_interval must be a multiple of incident_dt")
 
     def _build_synthetic_roster(self) -> list[DefenderProfile]:
-        return synthetic_defenders(
-            self.cfg.starting_adults,
-            avg_special=self.cfg.avg_special,
-            avg_weapon_damage=self.cfg.avg_weapon_damage,
-            avg_level=self.cfg.avg_level,
-            hazard_team=self.cfg.hazard_team,
-            team_size=self.cfg.team_size,
-            outfit_count=self.cfg.outfit_count,
-        )
+        return synthetic_roster(self.cfg)
 
     def run(
         self,
@@ -705,15 +710,7 @@ def run_matchup(
     (team-aware) roster; the seed reproduces the exact sample sequence.
     """
     rng = random.Random(seed)
-    profiles = synthetic_defenders(
-        config.starting_adults,
-        avg_special=config.avg_special,
-        avg_weapon_damage=config.avg_weapon_damage,
-        avg_level=config.avg_level,
-        hazard_team=config.hazard_team,
-        team_size=config.team_size,
-        outfit_count=config.outfit_count,
-    )
+    profiles = synthetic_roster(config)
     outcomes: list[IncidentOutcome] = []
     for _ in range(runs):
         cap = min(config.defenders_per_incident, len(profiles))
@@ -838,6 +835,9 @@ def simulate(
         int | None, typer.Option(help="Defenders wearing the matching team outfit; defaults to team-size")
     ] = None,
 ) -> None:
+    if runs < 1:
+        typer.echo("--runs must be at least 1.", err=True)
+        raise typer.Exit(code=2)
     hours = days * 24
 
     baseline = IncidentConfig(

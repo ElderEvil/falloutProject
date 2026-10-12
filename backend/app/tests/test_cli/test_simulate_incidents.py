@@ -145,6 +145,13 @@ def test_matchup_cli_rejects_vault_id_combination():
     assert "--vault-id" in result.output
 
 
+def test_simulate_cli_rejects_zero_runs():
+    """--runs 0 would divide by zero in the report; fail fast with a clear error."""
+    result = CliRunner().invoke(cli, ["simulate-incidents", "--runs", "0"])
+    assert result.exit_code == 2
+    assert "--runs" in result.output
+
+
 def test_matchup_cli_accepts_team_size_and_outfit_count():
     result = CliRunner().invoke(
         cli,

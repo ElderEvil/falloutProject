@@ -8,24 +8,32 @@ interface GameBalanceResponse {
   }
 }
 
+const BALANCE_LOAD_ATTEMPTS = 3
+
 // Live backend value; null until /balance answers. No hardcoded fallback so the
 // room UI can never drift from ResourceConfig again (see useRoomProduction).
 const baseProductionRateSetting = ref<number | null>(null)
 let loadPromise: Promise<void> | null = null
 
+async function fetchGameBalance(): Promise<void> {
+  for (let attempt = 1; attempt <= BALANCE_LOAD_ATTEMPTS; attempt += 1) {
+    try {
+      const settings = await apiGet<GameBalanceResponse>('/api/v1/game/balance')
+      const rate = settings?.resource?.base_production_rate
+      if (typeof rate !== 'number') throw new Error('Game balance response has no base production rate')
+      baseProductionRateSetting.value = rate
+      return
+    } catch (error: unknown) {
+      if (attempt === BALANCE_LOAD_ATTEMPTS) handleStoreError(error, 'Failed to load game balance settings')
+    }
+  }
+}
+
 function loadGameBalance(): void {
   if (baseProductionRateSetting.value !== null || loadPromise !== null) return
-  loadPromise = apiGet<GameBalanceResponse>('/api/v1/game/balance')
-    .then((settings) => {
-      const rate = settings?.resource?.base_production_rate
-      if (typeof rate === 'number') baseProductionRateSetting.value = rate
-    })
-    .catch((error: unknown) => {
-      handleStoreError(error, 'Failed to load game balance settings', false)
-    })
-    .finally(() => {
-      loadPromise = null
-    })
+  loadPromise = fetchGameBalance().finally(() => {
+    loadPromise = null
+  })
 }
 
 export function useGameBalance() {

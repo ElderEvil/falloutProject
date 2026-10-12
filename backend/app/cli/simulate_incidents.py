@@ -123,6 +123,9 @@ class IncidentConfig:
     heal_per_tick: int = DEFAULT_HEAL_PER_TICK
     hazard_team: HazardTeam | None = None
     team_size: int = 3
+    #: Defenders wearing the matching team outfit; ``None`` follows ``team_size``
+    #: so places and gear travel together unless a condition deliberately splits them.
+    outfit_count: int | None = None
 
     power_max: float = 100.0
     food_max: float = 100.0
@@ -214,6 +217,7 @@ class IncidentSimulator:
             avg_level=self.cfg.avg_level,
             hazard_team=self.cfg.hazard_team,
             team_size=self.cfg.team_size,
+            outfit_count=self.cfg.outfit_count,
         )
 
     def run(
@@ -707,6 +711,7 @@ def run_matchup(
         avg_level=config.avg_level,
         hazard_team=config.hazard_team,
         team_size=config.team_size,
+        outfit_count=config.outfit_count,
     )
     outcomes: list[IncidentOutcome] = []
     for _ in range(runs):
@@ -754,12 +759,13 @@ def print_matchup_report(result: dict[str, Any]) -> None:
     resolved = sum(1 for outcome in outcomes if outcome.resolved)
     deaths = sum(outcome.deaths for outcome in outcomes)
     team_label = config.hazard_team.value if config.hazard_team else "none"
+    outfit_label = config.outfit_count if config.outfit_count is not None else config.team_size
 
     print()
     print(banner(f"Matchup: {incident_type.name} difficulty {difficulty} — {runs} runs"))
     print(
         f"  roster={config.starting_adults} responders<={config.defenders_per_incident} "
-        f"hazard_team={team_label} team_size={config.team_size}"
+        f"hazard_team={team_label} team_size={config.team_size} outfit={outfit_label}"
     )
     print(f"  resolved       : {resolved}/{runs} ({resolved / runs:.0%})")
     print(
@@ -825,6 +831,10 @@ def simulate(
     hazard_team: Annotated[
         str | None, typer.Option(help="Roster hazard team for team-aware profiles: fire or radiation")
     ] = None,
+    team_size: Annotated[int, typer.Option(help="Defenders holding an active hazard-team place")] = 3,
+    outfit_count: Annotated[
+        int | None, typer.Option(help="Defenders wearing the matching team outfit; defaults to team-size")
+    ] = None,
 ) -> None:
     hours = days * 24
 
@@ -847,6 +857,8 @@ def simulate(
         resource_drain_per_tick=resource_drain,
         happiness_penalty_active=happiness_penalty,
         hazard_team=HazardTeam(hazard_team) if hazard_team else None,
+        team_size=team_size,
+        outfit_count=outfit_count,
     )
 
     if matchup:

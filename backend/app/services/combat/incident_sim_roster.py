@@ -123,13 +123,16 @@ def synthetic_defenders(
     avg_level: int,
     hazard_team: HazardTeam | None = None,
     team_size: int = 0,
-    team_outfit: bool = True,
+    outfit_count: int | None = None,
 ) -> list[DefenderProfile]:
     """Build ``count`` synthetic defender profiles without constructing item models.
 
     The first ``team_size`` defenders hold an active place on ``hazard_team`` and
-    (when ``team_outfit``) wear the team's catalog outfit, mirroring production's
-    ``equip_hazard_outfits``. Power and reductions are computed by the same pure
+    the first ``outfit_count`` (defaulting to ``team_size``) wear the team's
+    catalog outfit, mirroring production's ``equip_hazard_outfits``. Splitting the
+    two lets the balance playtest isolate the team place from the matching gear:
+    gear without a place (``team_size=0``, ``outfit_count>0``) and a place without
+    gear (``outfit_count=0``). Power and reductions are computed by the same pure
     helpers the production engine uses (``combat_power``, ``damage_reductions``),
     so the synthetic path is formula-locked to the real game. Health follows the
     dweller max-health formula: ``50 + (level - 1) * hp_gain_per_level``.
@@ -137,8 +140,9 @@ def synthetic_defenders(
     from app.core.game_config import game_config
 
     max_health = 50 + (avg_level - 1) * game_config.leveling.hp_gain_per_level
+    wearing = team_size if outfit_count is None else outfit_count
     team_outfit_data = (
-        _catalog_outfit(TEAM_OUTFIT_NAMES[hazard_team]) if hazard_team is not None and team_outfit else None
+        _catalog_outfit(TEAM_OUTFIT_NAMES[hazard_team]) if hazard_team is not None and wearing > 0 else None
     )
     profiles: list[DefenderProfile] = []
     for index in range(count):
@@ -147,7 +151,7 @@ def synthetic_defenders(
             avg_special=avg_special,
             avg_weapon_damage=avg_weapon_damage,
             avg_level=avg_level,
-            outfit=team_outfit_data if on_team else None,
+            outfit=team_outfit_data if index < wearing else None,
         )
         profiles.append(
             DefenderProfile(

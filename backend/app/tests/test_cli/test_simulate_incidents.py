@@ -106,3 +106,93 @@ def test_matchup_cli_prints_report():
 def test_matchup_cli_rejects_unknown_type():
     result = CliRunner().invoke(cli, ["simulate-incidents", "--matchup", "NOT_A_TYPE:2", "--runs", "1"])
     assert result.exit_code != 0
+
+
+def test_matchup_cli_accepts_team_size_and_outfit_count():
+    result = CliRunner().invoke(
+        cli,
+        [
+            "simulate-incidents",
+            "--matchup",
+            "FIRE:4",
+            "--runs",
+            "5",
+            "--seed",
+            "1",
+            "--hazard-team",
+            "fire",
+            "--team-size",
+            "0",
+            "--outfit-count",
+            "3",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+
+def _total_damage(run: dict) -> int:
+    return sum(outcome.damage_taken for outcome in run["outcomes"])
+
+
+def _total_ticks(run: dict) -> int:
+    return sum(outcome.ticks for outcome in run["outcomes"])
+
+
+def test_four_defender_conditions_isolate_team_place_from_matching_gear():
+    """The seeded four-condition comparison the playtest protocol is built on.
+
+    Same seed and roster size across runs, so the responder sample is identical
+    and the only variable is the condition: plain, matching gear without a place,
+    a place without gear, and the trained team (place + gear).
+    """
+    seed = 20261012
+
+    def run(incident_type: IncidentType, **config_overrides) -> dict:
+        return sim_cli.run_matchup(IncidentConfig(**config_overrides), incident_type, 4, 200, seed=seed)
+
+    plain = run(IncidentType.FIRE)
+    gear_only = run(IncidentType.FIRE, hazard_team=HazardTeam.FIRE, team_size=0, outfit_count=3)
+    team_only = run(IncidentType.FIRE, hazard_team=HazardTeam.FIRE, team_size=3, outfit_count=0)
+    team_gear = run(IncidentType.FIRE, hazard_team=HazardTeam.FIRE, team_size=3, outfit_count=3)
+
+    assert all(outcome.resolved for run_ in (plain, gear_only, team_only, team_gear) for outcome in run_["outcomes"])
+    assert _total_damage(gear_only) < _total_damage(plain)
+    assert _total_damage(team_only) < _total_damage(plain)
+    assert _total_damage(team_gear) < _total_damage(plain)
+    assert _total_damage(team_gear) <= _total_damage(gear_only)
+    assert _total_damage(team_gear) <= _total_damage(team_only)
+    assert _total_ticks(team_gear) <= _total_ticks(plain)
+
+
+def test_benched_team_and_mismatched_team_earn_no_matching_bonus():
+    """A team with nobody active and a team facing the wrong hazard both get no bonus."""
+    seed = 20261012
+
+    plain_fire = sim_cli.run_matchup(IncidentConfig(), IncidentType.FIRE, 4, 200, seed=seed)
+    bench_fire = sim_cli.run_matchup(
+        IncidentConfig(hazard_team=HazardTeam.FIRE, team_size=0, outfit_count=0), IncidentType.FIRE, 4, 200, seed=seed
+    )
+    assert (_total_damage(bench_fire), _total_ticks(bench_fire)) == (
+        _total_damage(plain_fire),
+        _total_ticks(plain_fire),
+    )
+
+    # A fire team in fire suits gains nothing against a radiation hazard: identical to
+    # the same gear worn with no place, so the team tag itself is proven inert here.
+    rad_gear = sim_cli.run_matchup(
+        IncidentConfig(hazard_team=HazardTeam.FIRE, team_size=0, outfit_count=3),
+        IncidentType.RADSCORPION_ATTACK,
+        4,
+        200,
+        seed=seed,
+    )
+    rad_mismatched = sim_cli.run_matchup(
+        IncidentConfig(hazard_team=HazardTeam.FIRE, team_size=3, outfit_count=3),
+        IncidentType.RADSCORPION_ATTACK,
+        4,
+        200,
+        seed=seed,
+    )
+    assert [(o.damage_taken, o.radiation_gained, o.ticks) for o in rad_mismatched["outcomes"]] == [
+        (o.damage_taken, o.radiation_gained, o.ticks) for o in rad_gear["outcomes"]
+    ]

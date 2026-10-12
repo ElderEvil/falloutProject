@@ -264,6 +264,45 @@ def test_synthetic_radiation_team_wears_catalog_hazmat_suit():
     assert profiles[0].reductions_radiation.apply(4) == 0
 
 
+def test_synthetic_outfit_count_decouples_gear_from_team_places():
+    """The matching outfit can be worn without a place, and a place held without the outfit.
+
+    The four-condition balance playtest needs to isolate the team place from the
+    matching gear, so ``outfit_count`` sets who wears the catalog suit
+    independently of ``team_size`` (who holds the active place).
+    """
+    gear_only = synthetic_defenders(
+        3,
+        avg_special=4.0,
+        avg_weapon_damage=10.0,
+        avg_level=5,
+        hazard_team=HazardTeam.FIRE,
+        team_size=0,
+        outfit_count=3,
+    )
+    assert [profile.teams for profile in gear_only] == [frozenset()] * 3
+    assert all(profile.reductions_fire.combined_share == pytest.approx(0.5) for profile in gear_only)
+
+    team_only = synthetic_defenders(
+        3,
+        avg_special=4.0,
+        avg_weapon_damage=10.0,
+        avg_level=5,
+        hazard_team=HazardTeam.FIRE,
+        team_size=3,
+        outfit_count=0,
+    )
+    assert [profile.teams for profile in team_only] == [frozenset({HazardTeam.FIRE})] * 3
+    assert all(profile.reductions_fire.combined_share == pytest.approx(0.0) for profile in team_only)
+
+    # Omitting outfit_count keeps the Slice 1 default: places and gear go together.
+    both = synthetic_defenders(
+        3, avg_special=4.0, avg_weapon_damage=10.0, avg_level=5, hazard_team=HazardTeam.FIRE, team_size=3
+    )
+    assert [profile.teams for profile in both] == [frozenset({HazardTeam.FIRE})] * 3
+    assert all(profile.reductions_fire.combined_share == pytest.approx(0.5) for profile in both)
+
+
 @pytest.mark.asyncio
 async def test_snapshot_vault_defenders_only_healthy_adults(async_session: AsyncSession, vault):
     adult = await crud.dweller.create(

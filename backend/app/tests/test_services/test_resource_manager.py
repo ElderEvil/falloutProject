@@ -285,21 +285,19 @@ def _seeded_net(
     crews: list[list[Dweller]],
     resource: str,
     room_prefix: str,
-    production: list[RoomCreate] | None = None,
 ) -> float:
     """Net live per-minute change for one resource over the real seeded room set."""
     manager = ResourceManager()
-    production_rooms = production if production is not None else prepared.production
     rooms = [
         *prepared.infrastructure,
         *prepared.capacity,
-        *production_rooms,
+        *prepared.production,
         *prepared.misc,
         *prepared.training,
         *prepared.arena,
         *prepared.crafting,
     ]
-    matched = [room for room in production_rooms if str(room.name).lower().startswith(room_prefix)]
+    matched = [room for room in prepared.production if str(room.name).lower().startswith(room_prefix)]
     consumption = manager._calculate_consumption(rooms, dweller_count, seconds_passed=60)[resource]
     produced = manager._calculate_production(
         list(zip(matched, crews, strict=True)), seconds_passed=60, current_power=50
@@ -344,19 +342,19 @@ async def test_seeded_boosted_vault_size_six_generator_keeps_live_power_positive
     from app.services.vault import seeding
 
     prepared = seeding.prepare_initial_rooms((await get_static_game_data()).rooms, uuid4(), is_boosted=True)
-    production = [room for room in prepared.production if str(room.name).lower().startswith("power")]
+    generators = [room for room in prepared.production if str(room.name).lower().startswith("power")]
 
-    assert len(production) == 1  # seeded directly at final size, no fusion round-trip
-    assert production[0].size == 6
-    assert production[0].output == 58  # (2*6*(1+4))-2 at tier 1, size 6
+    assert len(generators) == 1  # seeded directly at final size, no fusion round-trip
+    assert generators[0].size == 6
+    assert generators[0].output == 58  # (2*6*(1+4))-2 at tier 1, size 6
 
     full = [[*_outfitted_workers("strength", 5), _apprentice(5)]]
-    assert _seeded_net(prepared, 33, full, "power", "power", production=production) > 100
+    assert _seeded_net(prepared, 33, full, "power", "power") > 100
     # A two-worker shed stays safe; one worker left is the depth at which the big boosted draw wins.
     two_left = [[*_outfitted_workers("strength", 2), _apprentice(5)]]
-    assert _seeded_net(prepared, 33, two_left, "power", "power", production=production) > 0
+    assert _seeded_net(prepared, 33, two_left, "power", "power") > 0
     one_left = [[*_outfitted_workers("strength", 1), _apprentice(5)]]
-    assert _seeded_net(prepared, 33, one_left, "power", "power", production=production) < 0
+    assert _seeded_net(prepared, 33, one_left, "power", "power") < 0
 
 
 @pytest.mark.asyncio

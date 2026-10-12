@@ -89,6 +89,8 @@ def build_room(
     if data.get("output_formula"):
         data["output"] = room_crud.evaluate_output_formula(data["output_formula"], tier, size)
     data.update(vault_id=vault_id, size=size, tier=tier, coordinate_x=x, coordinate_y=y)
+    if size != data["size_min"]:
+        data["image_url"] = get_room_image_url(data["name"], tier=tier, size=size)
     return RoomCreate(**data)
 
 
@@ -129,9 +131,6 @@ def prepare_initial_rooms(
         production += mk([("science lab", 19, 2), ("medbay", 16, 2)])
     else:
         production = mk([("power generator", 3, 1), ("diner", 3, 2), ("water treatment", 3, 3)])
-    for room in production:
-        if room.name.lower().startswith("power") and (room.size or 0) > 3:
-            room.image_url = get_room_image_url(room.name, tier=room.tier or 1, size=room.size or 3)
     misc = mk([("radio studio", 7, 3)] + ([("overseer's office", 22, 2)] if is_boosted else []))
     arena = mk([("arena", 10, 3)] if is_boosted else [])
     crafting = mk(list(BOOSTED_CRAFTING_ROOM_SPECS)) if is_boosted else []
@@ -217,7 +216,7 @@ async def create_initial_rooms(
 
 
 async def merge_adjacent_seed_rooms(db_session: AsyncSession, vault_id: UUID4) -> None:
-    """Fuse adjacent same-name seed rooms (the boosted storage row and generator pair) via the merge flow."""
+    """Fuse adjacent same-name seed rooms (the boosted storage row) via the merge flow."""
     from app.services.room_service import room_service
 
     await room_service.backfill_merge_rooms_for_vault(db_session, vault_id, dry_run=False)

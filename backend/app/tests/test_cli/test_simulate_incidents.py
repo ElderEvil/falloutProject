@@ -92,8 +92,8 @@ def test_population_sweep_changes_actual_starting_population():
 def test_matchup_is_deterministic_with_seed():
     first = sim_cli.run_matchup(IncidentConfig(), IncidentType.FIRE, 2, 50, seed=11)
     second = sim_cli.run_matchup(IncidentConfig(), IncidentType.FIRE, 2, 50, seed=11)
-    assert [(o.resolved, o.ticks, o.damage_taken) for o in first["outcomes"]] == [
-        (o.resolved, o.ticks, o.damage_taken) for o in second["outcomes"]
+    assert [(o.resolved, o.ticks, o.damage_taken) for o in first] == [
+        (o.resolved, o.ticks, o.damage_taken) for o in second
     ]
 
 
@@ -102,7 +102,7 @@ def test_matchup_fire_team_responds_stronger_than_unassigned_roster():
     team = sim_cli.run_matchup(
         IncidentConfig(hazard_team=HazardTeam.FIRE, team_size=3), IncidentType.FIRE, 4, 200, seed=3
     )
-    assert sum(o.damage_taken for o in team["outcomes"]) < sum(o.damage_taken for o in plain["outcomes"])
+    assert sum(o.damage_taken for o in team) < sum(o.damage_taken for o in plain)
 
 
 def test_matchup_cli_prints_report():
@@ -121,10 +121,10 @@ def test_matchup_cli_rejects_unknown_type():
 def test_matchup_zero_responders_reports_unopposed_instead_of_crashing():
     """defenders_per_incident=0 resolves every run as an unopposed (failed, bloodless) incident."""
     run = sim_cli.run_matchup(IncidentConfig(defenders_per_incident=0), IncidentType.RAIDER_ATTACK, 2, 10, seed=3)
-    assert len(run["outcomes"]) == 10
-    assert all(outcome.failed and not outcome.resolved for outcome in run["outcomes"])
-    assert sum(outcome.damage_taken for outcome in run["outcomes"]) == 0
-    assert sum(outcome.deaths for outcome in run["outcomes"]) == 0
+    assert len(run) == 10
+    assert all(outcome.failed and not outcome.resolved for outcome in run)
+    assert sum(outcome.damage_taken for outcome in run) == 0
+    assert sum(outcome.deaths for outcome in run) == 0
 
 
 def test_matchup_cli_rejects_vault_id_combination():
@@ -174,12 +174,12 @@ def test_matchup_cli_accepts_team_size_and_outfit_count():
     assert result.exit_code == 0, result.output
 
 
-def _total_damage(run: dict) -> int:
-    return sum(outcome.damage_taken for outcome in run["outcomes"])
+def _total_damage(run: list[IncidentOutcome]) -> int:
+    return sum(outcome.damage_taken for outcome in run)
 
 
-def _total_ticks(run: dict) -> int:
-    return sum(outcome.ticks for outcome in run["outcomes"])
+def _total_ticks(run: list[IncidentOutcome]) -> int:
+    return sum(outcome.ticks for outcome in run)
 
 
 def test_four_defender_conditions_isolate_team_place_from_matching_gear():
@@ -199,7 +199,7 @@ def test_four_defender_conditions_isolate_team_place_from_matching_gear():
     team_only = run(IncidentType.FIRE, hazard_team=HazardTeam.FIRE, team_size=3, outfit_count=0)
     team_gear = run(IncidentType.FIRE, hazard_team=HazardTeam.FIRE, team_size=3, outfit_count=3)
 
-    assert all(outcome.resolved for run_ in (plain, gear_only, team_only, team_gear) for outcome in run_["outcomes"])
+    assert all(outcome.resolved for run_ in (plain, gear_only, team_only, team_gear) for outcome in run_)
     assert _total_damage(gear_only) < _total_damage(plain)
     assert _total_damage(team_only) < _total_damage(plain)
     assert _total_damage(team_gear) < _total_damage(plain)
@@ -237,6 +237,6 @@ def test_benched_team_and_mismatched_team_earn_no_matching_bonus():
         200,
         seed=seed,
     )
-    assert [(o.damage_taken, o.radiation_gained, o.ticks) for o in rad_mismatched["outcomes"]] == [
-        (o.damage_taken, o.radiation_gained, o.ticks) for o in rad_gear["outcomes"]
+    assert [(o.damage_taken, o.radiation_gained, o.ticks) for o in rad_mismatched] == [
+        (o.damage_taken, o.radiation_gained, o.ticks) for o in rad_gear
     ]

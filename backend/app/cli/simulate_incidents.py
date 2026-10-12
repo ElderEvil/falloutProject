@@ -699,7 +699,7 @@ def _parse_matchup(value: str) -> tuple[IncidentType, int]:
 
 def run_matchup(
     config: IncidentConfig, incident_type: IncidentType, difficulty: int, runs: int, seed: int | None = None
-) -> dict[str, Any]:
+) -> list[IncidentOutcome]:
     """Resolve ``runs`` single incidents of one type/difficulty against a fresh roster each run.
 
     Production responder count is whoever is in the affected room, so each run
@@ -726,13 +726,7 @@ def run_matchup(
                 base_raider_power=config.base_raider_power,
             )
         )
-    return {
-        "config": config,
-        "incident_type": incident_type,
-        "difficulty": difficulty,
-        "runs": runs,
-        "outcomes": outcomes,
-    }
+    return outcomes
 
 
 def _percentile(values: list[int] | list[float], percent: float) -> float:
@@ -743,12 +737,13 @@ def _percentile(values: list[int] | list[float], percent: float) -> float:
     return float(ordered[index])
 
 
-def print_matchup_report(result: dict[str, Any]) -> None:
-    outcomes: list[IncidentOutcome] = result["outcomes"]
-    config: IncidentConfig = result["config"]
-    incident_type: IncidentType = result["incident_type"]
-    difficulty: int = result["difficulty"]
-    runs: int = result["runs"]
+def print_matchup_report(
+    outcomes: list[IncidentOutcome],
+    config: IncidentConfig,
+    incident_type: IncidentType,
+    difficulty: int,
+) -> None:
+    runs = len(outcomes)
     ticks = [outcome.ticks for outcome in outcomes]
     damage = [outcome.damage_taken for outcome in outcomes]
     radiation = [outcome.radiation_gained for outcome in outcomes]
@@ -795,7 +790,7 @@ app = typer.Typer(help="Simulate incident balance for the Fallout Shelter game."
 @app.command()
 def simulate(
     days: Annotated[int, typer.Option(help="Simulation length in days")] = DEFAULT_SIMULATION_DAYS,
-    runs: Annotated[int, typer.Option(help="Monte Carlo runs (higher = smoother)")] = DEFAULT_RUNS,
+    runs: Annotated[int, typer.Option(help="Monte Carlo runs (higher = smoother)", min=1)] = DEFAULT_RUNS,
     sweep: Annotated[str | None, typer.Option(help="Parameter to sweep")] = None,
     tick_interval: Annotated[int, typer.Option()] = DEFAULT_TICK_INTERVAL,
     incident_dt: Annotated[int, typer.Option()] = DEFAULT_INCIDENT_DT,
@@ -825,16 +820,14 @@ def simulate(
         str | None, typer.Option(help="Focused single-type baseline as TYPE:DIFFICULTY, e.g. FIRE:2")
     ] = None,
     hazard_team: Annotated[
-        str | None, typer.Option(help="Roster hazard team for team-aware profiles: fire or radiation")
+        HazardTeam | None, typer.Option(help="Roster hazard team for team-aware profiles: fire or radiation")
     ] = None,
-    team_size: Annotated[int, typer.Option(help="Defenders holding an active hazard-team place")] = 3,
+    team_size: Annotated[int, typer.Option(help="Defenders holding an active hazard-team place", min=0)] = 3,
     outfit_count: Annotated[
-        int | None, typer.Option(help="Defenders wearing the matching team outfit; defaults to team-size")
+        int | None,
+        typer.Option(help="Defenders wearing the matching team outfit; defaults to team-size", min=0),
     ] = None,
 ) -> None:
-    if runs < 1:
-        typer.echo("--runs must be at least 1.", err=True)
-        raise typer.Exit(code=2)
     hours = days * 24
 
     baseline = IncidentConfig(
@@ -855,7 +848,7 @@ def simulate(
         heal_per_tick=heal_per_tick,
         resource_drain_per_tick=resource_drain,
         happiness_penalty_active=happiness_penalty,
-        hazard_team=HazardTeam(hazard_team) if hazard_team else None,
+        hazard_team=hazard_team,
         team_size=team_size,
         outfit_count=outfit_count,
     )
@@ -865,7 +858,9 @@ def simulate(
             typer.echo("--matchup runs a synthetic roster; it cannot be combined with --vault-id.", err=True)
             raise typer.Exit(code=2)
         incident_type, level = _parse_matchup(matchup)
-        print_matchup_report(run_matchup(baseline, incident_type, level, runs, seed=seed))
+        print_matchup_report(
+            run_matchup(baseline, incident_type, level, runs, seed=seed), baseline, incident_type, level
+        )
         return
 
     base_roster: list[DefenderProfile] | None = None

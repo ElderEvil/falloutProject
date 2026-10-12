@@ -1,6 +1,7 @@
 """Tests for vault service - initialization, resources, medical transfers."""
 
 from operator import itemgetter
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -1026,6 +1027,35 @@ class TestUpdateVaultResources:
 
 @pytest.mark.asyncio
 class TestInitiateVault:
+    @pytest.fixture
+    async def boosted_seed(self, async_session, vault) -> SimpleNamespace:
+        """A fully seeded boosted vault: rooms, storage, dwellers, and committed state."""
+        game_data = await get_static_game_data()
+        prepared = seeding.prepare_initial_rooms(game_data.rooms, vault.id, is_boosted=True)
+        await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
+        base_power_max = vault.power_max
+        vault_obj, created = await seeding.create_initial_rooms(async_session, vault, prepared)
+        await seeding.create_initial_dwellers(
+            async_session,
+            vault.id,
+            created.production,
+            created.training,
+            created.misc,
+            created.capacity,
+            is_boosted=True,
+            created_crafting_rooms=created.crafting,
+        )
+        await async_session.commit()
+        dwellers = await crud.dweller.get_multi_by_vault(async_session, vault.id)
+        return SimpleNamespace(
+            vault=vault,
+            vault_obj=vault_obj,
+            created=created,
+            dwellers=dwellers,
+            base_power_max=base_power_max,
+            session=async_session,
+        )
+
     """Integration-style tests for the full initiate_vault orchestration."""
 
     async def test_prepared_initial_rooms_fit_the_unit_grid(self) -> None:
@@ -1064,70 +1094,40 @@ class TestInitiateVault:
             )
             assert elevators == [(SHAFT_X, 0), (SHAFT_X, 1), (SHAFT_X, 2), (SHAFT_X, 3)]
 
-    async def test_boosted_seed_builds_one_size_six_generator_directly(self, async_session, vault) -> None:
+    async def test_boosted_seed_builds_one_size_six_generator_directly(self, boosted_seed: SimpleNamespace) -> None:
         """The boosted generator is seeded at its final size-6 footprint and takes the double crew."""
-        game_data = await get_static_game_data()
-        prepared = seeding.prepare_initial_rooms(game_data.rooms, vault.id, is_boosted=True)
-        await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
+        seed = boosted_seed
 
         fused_capacity = 25 * 6 * (1 + 1)  # capacity_formula 25*S*(L+1) at size 6, tier 1
-        base_power_max = vault.power_max
-        vault_obj, created = await seeding.create_initial_rooms(async_session, vault, prepared)
-
-        power_rooms = [room for room in created.production if room.name.lower().startswith("power")]
+        power_rooms = [room for room in seed.created.production if room.name.lower().startswith("power")]
         assert len(power_rooms) == 1  # seeded directly at (0, 1), no fusion round-trip
         assert power_rooms[0].size == 6
         assert power_rooms[0].output == 58  # (2*6*(1+4))-2 at tier 1, size 6
         assert power_rooms[0].image_url == get_room_image_url("Power Generator", tier=1, size=6)
-        assert vault_obj.power_max == base_power_max + fused_capacity
+        assert seed.vault_obj.power_max == seed.base_power_max + fused_capacity
 
         persisted = [
             room
-            for room in await crud.room.get_all_by_vault(async_session, vault.id)
+            for room in await crud.room.get_all_by_vault(seed.session, seed.vault.id)
             if room.name.lower().startswith("power")
         ]
         assert len(persisted) == 1
 
-        await seeding.create_initial_dwellers(
-            async_session,
-            vault.id,
-            created.production,
-            created.training,
-            created.misc,
-            created.capacity,
-            is_boosted=True,
-            created_crafting_rooms=created.crafting,
-        )
-        await async_session.commit()
-
-        dwellers = await crud.dweller.get_multi_by_vault(async_session, vault.id)
-        generator_crew = [dweller for dweller in dwellers if dweller.room_id == persisted[0].id]
+        generator_crew = [dweller for dweller in seed.dwellers if dweller.room_id == power_rooms[0].id]
         assert len([d for d in generator_crew if d.apprentice_stat is None]) == 5  # double crew minus apprentice slot
         assert len(generator_crew) == 6  # five adults plus the seeded family teen
         assert all(dweller.status == DwellerStatusEnum.WORKING for dweller in generator_crew)
         assert [d for d in generator_crew if d.apprentice_stat == SPECIALEnum.STRENGTH]  # the seeded family teen
-        assert len(dwellers) == 33  # non-legendary headcount (33 + 3 legendary = 36)
+        assert len(seed.dwellers) == 33  # non-legendary headcount (33 + 3 legendary = 36)
 
-    async def test_boosted_production_workers_wear_matching_common_three_outfits(self, async_session, vault) -> None:
+    async def test_boosted_production_workers_wear_matching_common_three_outfits(
+        self, boosted_seed: SimpleNamespace
+    ) -> None:
         """Every boosted production worker is equipped the Common +3 outfit for their room stat, built via the factory."""
-        game_data = await get_static_game_data()
-        prepared = seeding.prepare_initial_rooms(game_data.rooms, vault.id, is_boosted=True)
-        await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
-        _, created = await seeding.create_initial_rooms(async_session, vault, prepared)
-        await seeding.create_initial_dwellers(
-            async_session,
-            vault.id,
-            created.production,
-            created.training,
-            created.misc,
-            created.capacity,
-            is_boosted=True,
-            created_crafting_rooms=created.crafting,
-        )
-        await async_session.commit()
+        seed = boosted_seed
+        created, dwellers = seed.created, seed.dwellers
 
         ability_by_room = {room.id: room.ability for room in created.production if room.ability is not None}
-        dwellers = await crud.dweller.get_multi_by_vault(async_session, vault.id)
         outfitted = [
             d
             for d in dwellers
@@ -1136,7 +1136,7 @@ class TestInitiateVault:
         assert len(outfitted) == 16  # 5 generator + 2 diner + 3 water + 3 medbay + 3 science
         for dweller in outfitted:
             ability = ability_by_room[dweller.room_id]
-            outfit = await crud.outfit.get_equipped(async_session, dweller.id)
+            outfit = await crud.outfit.get_equipped(seed.session, dweller.id)
             assert outfit is not None
             assert outfit.rarity == RarityEnum.COMMON
             assert getattr(outfit, ability.value.lower()) == 3

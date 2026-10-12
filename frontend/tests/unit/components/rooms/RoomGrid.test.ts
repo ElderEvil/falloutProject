@@ -692,6 +692,23 @@ describe('RoomGrid', () => {
       expect(wrapper.find('.small-cell-icon-svg').exists()).toBe(true)
     })
 
+    it('applies the merge pulse to the upgraded survivor', () => {
+      const wrapper = mount(RoomGridCell, {
+        props: {
+          room: mockRoom,
+          showRoomImages: false,
+          isPowerOutage: false,
+          selected: false,
+          isDraggingOver: false,
+          highlighted: false,
+          merged: true,
+        },
+        global: { stubs: { TooltipLabel: tooltipLabelStub } },
+      })
+
+      expect(wrapper.find('.room-merge-pulse').exists()).toBe(true)
+    })
+
     it('renders a compact info overlay for regular 3-unit rooms', () => {
       const wrapper = mount(RoomGridCell, {
         props: {

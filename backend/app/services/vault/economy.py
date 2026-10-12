@@ -19,6 +19,7 @@ from app.options.races import can_use_radaway
 from app.schemas.vault import MedicalTransferResponse, VaultUpdate
 from app.services.resource_manager import ResourceManager
 from app.utils.exceptions import (
+    AccessDeniedException,
     InsufficientResourcesException,
     ResourceConflictException,
     ResourceNotFoundException,
@@ -67,8 +68,6 @@ async def stage_medical_supply_transfer(
     dweller = await dweller_crud.get(db_session, dweller_id)
 
     if dweller.vault_id != vault.id:
-        from app.utils.exceptions import AccessDeniedException
-
         raise AccessDeniedException(detail="Dweller does not belong to this vault")
 
     if radaways > 0 and not can_use_radaway(dweller):
@@ -118,8 +117,8 @@ async def transfer_medical_supplies(
 
     Dwellers can carry max 15 stimpaks and 15 radaways each.
     """
-    response = await stage_medical_supply_transfer(db_session, vault, dweller_id, stimpaks, radaways)
     try:
+        response = await stage_medical_supply_transfer(db_session, vault, dweller_id, stimpaks, radaways)
         await db_session.commit()
     except Exception:
         await db_session.rollback()

@@ -918,6 +918,51 @@ class TestTransferMedicalSupplies:
 
         db_session.rollback.assert_awaited_once()
 
+    async def test_transfer_rollback_when_staging_fails(self) -> None:
+        """If the staging dweller update (flush/refresh) fails, rollback() is still called.
+
+        The staging call rides on the caller's transaction; a failure while
+        staging must roll back the session exactly like a commit failure, so a
+        reused session is never left dirty or in a failed transaction.
+        """
+        vault_id = VAULT_ID
+        vault = Vault(id=vault_id, number=1)
+        storage = _make_storage(vault_id=str(vault_id), stimpack=20, radaway=20)
+        dweller_id = DWELLER_ID
+        dweller = Dweller(
+            id=dweller_id,
+            first_name="Staging",
+            last_name="Failure",
+            gender=GenderEnum.MALE,
+            rarity=RarityEnum.COMMON,
+            vault_id=vault_id,
+            level=1,
+            stimpack=5,
+            radaway=3,
+        )
+
+        db_session = AsyncMock()
+        mock_storage = MagicMock()
+        mock_storage.scalar_one_or_none.return_value = storage
+        db_session.execute = AsyncMock(return_value=mock_storage)
+        db_session.add = MagicMock()
+        db_session.commit = AsyncMock()
+        db_session.rollback = AsyncMock()
+
+        with (
+            patch("app.services.vault.economy.dweller_crud.get", new_callable=AsyncMock, return_value=dweller),
+            patch(
+                "app.services.vault.economy.dweller_crud.update",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("Dweller update failed"),
+            ),
+        ):
+            service = VaultService()
+            with pytest.raises(RuntimeError, match="Dweller update failed"):
+                await service.transfer_medical_supplies(db_session, vault, dweller_id, stimpaks=1, radaways=0)
+
+        db_session.rollback.assert_awaited_once()
+
 
 # ---------------------------------------------------------------------------
 # Test update_vault_resources

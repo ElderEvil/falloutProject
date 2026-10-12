@@ -709,6 +709,9 @@ to 1, then 0, to show the staffing decision at each rate.
 
 ## 3. Candidate measurements (0.100 / 0.075 / 0.050 / 0.025, then the chosen 0.0003)
 
+> **Superseded 2026-10-12 by §10** — the 0.0003 default this table supports failed live play because it
+> models consumption from the three production rooms only. Kept for the record; §10 is the authority.
+
 Commands (from `backend/`; `--base-production-rate` overrides the shipped default for every row, so
 the same command reproduces the table again after this slice):
 
@@ -875,3 +878,68 @@ app/tests/test_services/test_race_mechanics.py app/tests/test_scripts/test_simul
 - **Out of scope by design:** combat (Slice 3a owns `incident_threat_damage_divisor = 18` /
   `containment_progress_divisor = 20` — untouched here), spawn cadence, room caps, tier multipliers,
   medical production, frontend.
+
+---
+
+## 10. Correction (2026-10-12): shipped default moves to 0.0012, boosted seeds gain a second generator
+
+> **Supersession notice:** the §3 tables, the §6 verification contract, and the §9 recommendation
+> were measured against a simulator that counts only the three production rooms' consumption. Live
+> play (vault `31c2dbd3`) proved that model wrong and 0.0003 dark. Those sections stay for the
+> record; this section is the current source of truth.
+
+### Why 0.0003 failed live
+
+The simulator and the baseline contract modeled consumption from three tier-1 size-3 production
+rooms only: `4.5` power/min. A real seeded standard vault's room set is much larger — six-unit vault
+door, four elevators, living room, storage room, radio studio — for a **14 power/min all-room draw**,
+and a boosted vault's full set draws **~51.5/min** (103 room-units at `0.5/min` each). At 0.0003 a
+fully staffed standard starter produced `5.04` power/min against that real draw, ≈ **−9/min**, so the
+vault went dark inside a few ticks; live vault `31c2dbd3` measured ~45/min all-room consumption
+against ~5/min production. Food/water scale with dweller count the same way: the simulator's
+`3.24`/min became `3.6`/min (standard, 10 dwellers) to `11.9`/min (boosted start) at live populations.
+
+### The change
+
+- `ResourceConfig.base_production_rate` default `0.0003 → 0.0012` (4×). Like 0.0003 this leaves the
+  spec's `0.00025–0.00035` band deliberately; the band was calibrated to the same three-room model
+  that failed, so it is not the constraint the live economy needs.
+- Boosted seeds build a **second power generator** (level 2, left of the elevator shaft, at unit
+  `(0, 2)`, non-adjacent to the level-1 generator so seed-time room merging never fuses the pair)
+  and staff it with three STR-boosted workers (`production_crew`). The first (apprentice-slot)
+  production rooms keep the reserved family-teen slot, so generator one holds two adults plus its
+  seeded teen. Standard seeds are unchanged.
+- The boosted legendary roster drops **4 → 3** (`BOOSTED_LEGENDARY_DWELLER_COUNT`) so the seeded
+  population (33 non-legendary + 3 legendary = **36**) fits the boost's living-space capacity of 36;
+  the second generator's crew consumed the previous spare slots. Legendaries produce no resources, so
+  this re-pin leaves every number above untouched.
+- **Nothing else changed:** no consumption, capacity, output-formula, tier-multiplier, combat, spawn,
+  frontend, schema/API, or migration (a config default plus seed-time rooms/crew need none).
+- **Existing already-seeded vaults are out of scope** — this is seed-time only and does not backfill
+  live vaults.
+
+### New key numbers (0.0012, per minute, live all-room draw)
+
+`room output 28 × (2 workers × SP5 = 10pt) × 0.0012 × 60 = 20.16/min` per fully staffed starter room.
+
+| Vault | Power staffing | Production/min | All-room draw/min | Net/min |
+|---|---|---|---|---|
+| Standard (1 generator) | 2 × SP5 | ~20.2 | 14.0 | **+6.2** (safe) |
+| Standard (1 generator) | 1 × SP5 | ~10.1 | 14.0 | **−3.9** (shed-worker deficit) |
+| Boosted (2 generators, seeded teen in gen 1) | 2×SP5 + junior, 3×SP5 | ~55.4 | ~51.5 | **+3.9** (safe) |
+| Boosted, one generator worker leaves | 1×SP5 + junior, 3×SP5 | ~45.4 | ~51.5 | **−6.1** (deficit) |
+| Boosted diner (with seeded teen) | 2×SP5 + junior | ~25.2 food | ~11.9 | **positive** |
+
+Regressions: `test_seeded_standard_vault_live_power_survives_when_staffed_and_deficits_on_one_worker`
+and `test_seeded_boosted_vault_second_generator_keeps_live_power_positive_until_a_worker_leaves`
+compute these nets from the real seeded room sets, so a future change to either the rate or the seed
+that breaks the success criterion fails the suite. The three-room simulator contract
+(`test_starter_vault_meets_resource_economy_baseline_contract`) is re-pinned to the shipped rate's
+simulator integers but is no longer the tripwire source.
+
+Boosted margin note: counting only the adult crew (no seeded teen) the generator pair nets
+`50.4 − 51.5 ≈ −1.1/min`, so the family teen the seed places in the first production room is what
+carries the boosted vault positive. That placement is guaranteed by seeding order (the first seeded
+household always apprentices to the first production room), so a **fresh** boosted vault is positive;
+if the teen were ever removed, the fix belongs to the consumption/capacity side (as §9 already
+concluded), not to a rate change.

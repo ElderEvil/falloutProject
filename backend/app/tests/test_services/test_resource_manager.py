@@ -152,27 +152,29 @@ class TestResourceManager:
         assert with_junior == pytest.approx(adult_only * (1 + game_config.resource.junior_worker_output_multiplier))
 
 
-# Slice 3b contract source: docs/features/RESOURCE_ECONOMY_BALANCE.md.
+# Slice 3b contract source: docs/features/RESOURCE_ECONOMY_BALANCE.md. The
+# shipped default moved to 0.0012 with the live-tuned correction
+# (docs/backend/BALANCE_PLAYTEST.md Slice 3b §10).
 STARTER_ROOM_OUTPUT = 28  # catalog output (2*S*(L+4))-2 at tier 1, size 3
 
 
 def test_base_production_rate_default_matches_resource_economy_baseline() -> None:
-    """The shipped default is the value that reproduces the documented baseline contract."""
-    assert game_config.resource.base_production_rate == pytest.approx(0.0003)
+    """The shipped default reproduces the documented per-tick starts across staffing states."""
+    assert game_config.resource.base_production_rate == pytest.approx(0.0012)
 
 
 @pytest.mark.parametrize(
     ("workers_per_room", "expected_net_per_tick"),
     [
-        (2, {"power": 1, "food": 2, "water": 2}),
-        (1, {"power": -2, "food": -1, "water": -1}),
+        (2, {"power": 16, "food": 17, "water": 17}),
+        (1, {"power": 6, "food": 7, "water": 7}),
         (0, {"power": -4, "food": -3, "water": -3}),
     ],
 )
 def test_starter_vault_meets_resource_economy_baseline_contract(
     workers_per_room: int, expected_net_per_tick: dict[str, int]
 ) -> None:
-    """Starter vault (3 tier-1 size-3 rooms, 9 dwellers, SPECIAL-5 workers) must match the documented per-tick contract."""
+    """The simulator's three-production-room model at the shipped rate (live all-room draw lives in §10)."""
     result = simulate(
         ResourceEconomyConfig(
             population=9,
@@ -260,6 +262,9 @@ def test_offline_single_step_window_diverges_from_per_tick_rounding() -> None:
         starting_power=50,
         starting_food=50,
         starting_water=50,
+        # The shipped rate saturates a 100-cap starter on both paths, hiding the
+        # divergence; a high cap isolates the rounding kernel itself.
+        resource_max=1_000_000,
     )
     vault, rooms, rooms_with_dwellers = _build_scenario(cfg)
     manager = ResourceManager()
@@ -267,6 +272,64 @@ def test_offline_single_step_window_diverges_from_per_tick_rounding() -> None:
     production = manager._calculate_production(rooms_with_dwellers, 3600, vault.power)
     single_step_power = round(manager._apply_resource_changes(vault, consumption, production)["power"])
     per_tick_power = simulate(cfg).final_resources["power"]
-    # A +0.54/tick power surplus is +1 per persisted tick, so the stepped path out-accumulates
-    # the single raw-rate window. Documented divergence (BALANCE_PLAYTEST.md Slice 3b).
     assert single_step_power < per_tick_power
+
+
+def _power_net(prepared, dweller_count: int, crews: list[list[Dweller]]) -> float:
+    """Net live power/min for the real seeded room set at the given per-generator workers."""
+    manager = ResourceManager()
+    rooms = [
+        *prepared.infrastructure,
+        *prepared.capacity,
+        *prepared.production,
+        *prepared.misc,
+        *prepared.training,
+        *prepared.arena,
+        *prepared.crafting,
+    ]
+    generators = [room for room in prepared.production if str(room.name).lower().startswith("power")]
+    consumption = manager._calculate_consumption(rooms, dweller_count, seconds_passed=60)["power"]
+    production = manager._calculate_production(
+        list(zip(generators, crews, strict=True)), seconds_passed=60, current_power=50
+    )["power"]
+    return production - consumption
+
+
+def _adults(strength: int, count: int) -> list[Dweller]:
+    return [Dweller(strength=strength) for _ in range(count)]
+
+
+def _apprentice(strength: int) -> Dweller:
+    return Dweller(strength=strength, apprentice_stat=SPECIALEnum.STRENGTH)
+
+
+@pytest.mark.asyncio
+async def test_seeded_standard_vault_live_power_survives_when_staffed_and_deficits_on_one_worker() -> None:
+    """All-room draw (14/min), not the simulator's three rooms, is the live starter tripwire (§10)."""
+    from uuid import uuid4
+
+    from app.core.game_data import get_static_game_data
+    from app.services.vault import seeding
+
+    prepared = seeding.prepare_initial_rooms((await get_static_game_data()).rooms, uuid4(), is_boosted=False)
+
+    assert _power_net(prepared, dweller_count=10, crews=[_adults(5, 2)]) > 0
+    assert _power_net(prepared, dweller_count=10, crews=[_adults(5, 1)]) < 0
+
+
+@pytest.mark.asyncio
+async def test_seeded_boosted_vault_second_generator_keeps_live_power_positive_until_a_worker_leaves() -> None:
+    """The boosted draw is ~51.5/min; the second generator's crew and the seeded first-room apprentice hold it positive."""
+    from uuid import uuid4
+
+    from app.core.game_data import get_static_game_data
+    from app.services.vault import seeding
+
+    prepared = seeding.prepare_initial_rooms((await get_static_game_data()).rooms, uuid4(), is_boosted=True)
+
+    # Seed shape: generator one holds two adults + its family apprentice, generator two a full crew.
+    full = [[*_adults(5, 2), _apprentice(5)], _adults(5, 3)]
+    assert _power_net(prepared, dweller_count=33, crews=full) > 0
+    # Losing one generator worker flips the large boosted draw into deficit.
+    shed_one = [[*_adults(5, 1), _apprentice(5)], _adults(5, 3)]
+    assert _power_net(prepared, dweller_count=33, crews=shed_one) < 0

@@ -441,11 +441,13 @@ class ResourceConfig(BaseSettings):
 
     # Production
     base_production_rate: float = Field(
-        default=0.0003,
+        default=0.0012,
         description=(
             "Per SPECIAL point per second, calibrated for the 60-second game tick. "
-            "Tuned to the resource-economy baseline contract (docs/features/RESOURCE_ECONOMY_BALANCE.md): "
-            "a starter vault is safe fully staffed, and removing production workers costs resources."
+            "Tuned for the live all-room economy (docs/backend/BALANCE_PLAYTEST.md Slice 3b correction): "
+            "a totally staffed starter room yields ~20/min against the seeded full-room draw of ~14/min, "
+            "so shedding a production worker is an immediate, recoverable deficit; boosted seeds add a "
+            "second power generator to stay net-positive against their larger room set."
         ),
         ge=0.0,
     )

@@ -121,6 +121,10 @@ def prepare_initial_rooms(
     production = mk(
         [("power generator", 3, 1), ("diner", 3, 2), ("water treatment", 3, 3)]
         + ([("science lab", 19, 2), ("medbay", 16, 2)] if is_boosted else [])
+        # The boosted room set draws ~50 power/min, so the correction seeds a
+        # second generator left of the elevator shaft on level 2 (non-adjacent
+        # to the primary, so seed-time merging never fuses the pair into one).
+        + ([("power generator", 0, 2)] if is_boosted else [])
     )
     misc = mk([("radio studio", 7, 3)] + ([("overseer's office", 22, 2)] if is_boosted else []))
     arena = mk([("arena", 10, 3)] if is_boosted else [])
@@ -270,6 +274,14 @@ async def create_initial_dwellers(
             assignments.extend(
                 (room, SPECIALEnum.INTELLIGENCE, production_crew) for room in created_production_rooms[3:5]
             )
+        if is_boosted:
+            # Slice 3b correction: the boosted seed's second generator is staffed
+            # at the full crew rate; the reserved apprentice slots stay on the
+            # first two production rooms (subtraction below).
+            secondary_generators = [
+                room for room in created_production_rooms if str(room.name).lower().startswith("power")
+            ][1:]
+            assignments.extend((room, SPECIALEnum.STRENGTH, production_crew) for room in secondary_generators)
         apprentice_rooms = [r for r in created_production_rooms[:2] if r.ability is not None]
         apprentice_ids = {r.id for r in apprentice_rooms}
         if is_boosted:

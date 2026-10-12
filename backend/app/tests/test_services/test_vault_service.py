@@ -180,6 +180,7 @@ class TestCreateInitialDwellers:
             _make_room(name="Water Treatment", ability=SPECIALEnum.PERCEPTION),
             _make_room(name="Medbay", ability=SPECIALEnum.INTELLIGENCE),
             _make_room(name="Science Lab", ability=SPECIALEnum.INTELLIGENCE),
+            _make_room(name="Power Gen 2", ability=SPECIALEnum.STRENGTH),
         ]
         cap_rooms = [_make_room(name="Living Room", category=RoomTypeEnum.CAPACITY, ability=SPECIALEnum.CHARISMA)]
         misc_rooms = [_make_room(name="Radio Studio", category=RoomTypeEnum.MISC, ability=SPECIALEnum.CHARISMA)]
@@ -242,8 +243,9 @@ class TestCreateInitialDwellers:
                 is_boosted=True,
             )
 
-        # 13 production (2 in apprentice rooms, 3 elsewhere) + 7 training + 1 radio + 2 living + 3 family children = 26
-        assert call_count == 26
+        # 16 production (2 in each apprentice room, 3 elsewhere incl. the second
+        # generator) + 7 training + 1 radio + 2 living + 3 family children = 29
+        assert call_count == 29
 
     async def test_dweller_creation_failure_logs_and_raises(self) -> None:
         """Exception during dweller creation logs and re-raises."""
@@ -557,8 +559,8 @@ class TestCreateBoostedLegendaryDwellers:
             await seeding.create_boosted_legendary_dwellers(AsyncMock(), VAULT_ID)
 
         mock_sample.assert_called_once()
-        assert mock_sample.call_args.kwargs["k"] == 4
-        assert len(mock_sample.call_args.args[0]) >= 4
+        assert mock_sample.call_args.kwargs["k"] == 3
+        assert len(mock_sample.call_args.args[0]) >= 3
         expected_outfits = {template.outfit: dwellers[i].id for i, template in enumerate(templates)}
         expected_weapons = {template.weapon: dwellers[i].id for i, template in enumerate(templates)}
         outfits = {item.name: item for item in mock_outfits.call_args.args[1]}
@@ -645,7 +647,7 @@ class TestCreateBoostedLegendaryDwellers:
             await seeding.create_boosted_legendary_dwellers(AsyncMock(), VAULT_ID)
 
         assert all(template.template_id != "betty" for template in sample.call_args.args[0])
-        assert len(mock_outfits.call_args.args[1]) == 4
+        assert len(mock_outfits.call_args.args[1]) == 3
         assert all(item.name != "Vault 33 suit" for item in mock_outfits.call_args.args[1])
 
 
@@ -1049,10 +1051,57 @@ class TestInitiateVault:
             merged_living = [room for room in prepared.capacity if room.name == "Living room" and room.size == 9]
             assert len(merged_living) == (1 if is_boosted else 0)
 
+            generators = [room for room in rooms if room.name.lower().startswith("power")]
+            assert len(generators) == (2 if is_boosted else 1)
+            if is_boosted:
+                assert {(room.coordinate_x, room.coordinate_y) for room in generators} == {(3, 1), (0, 2)}
+
             elevators = sorted(
                 (room.coordinate_x, room.coordinate_y) for room in rooms if room.name.lower() == "elevator"
             )
             assert elevators == [(SHAFT_X, 0), (SHAFT_X, 1), (SHAFT_X, 2), (SHAFT_X, 3)]
+
+    async def test_boosted_seed_builds_and_staffs_a_second_power_generator(self, async_session, vault) -> None:
+        """The boosted seed's second generator survives seed-time merging, doubles power_max, and takes STR crew."""
+        game_data = await get_static_game_data()
+        prepared = seeding.prepare_initial_rooms(game_data.rooms, vault.id, is_boosted=True)
+        await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
+
+        generator_capacity = 25 * 3 * (1 + 1)  # capacity_formula 25*S*(L+1) at size 3, tier 1
+        base_power_max = vault.power_max
+        vault_obj, created = await seeding.create_initial_rooms(async_session, vault, prepared)
+
+        assert len([room for room in created.production if room.name.lower().startswith("power")]) == 2
+        assert vault_obj.power_max == base_power_max + 2 * generator_capacity
+
+        persisted = [
+            room
+            for room in await crud.room.get_all_by_vault(async_session, vault.id)
+            if room.name.lower().startswith("power")
+        ]
+        assert len(persisted) == 2  # not fused into a single room by seed-time merging
+
+        await seeding.create_initial_dwellers(
+            async_session,
+            vault.id,
+            created.production,
+            created.training,
+            created.misc,
+            created.capacity,
+            is_boosted=True,
+            created_crafting_rooms=created.crafting,
+        )
+        await async_session.commit()
+
+        generator_ids = {room.id for room in persisted}
+        generator_crew = [
+            dweller
+            for dweller in await crud.dweller.get_multi_by_vault(async_session, vault.id)
+            if dweller.room_id in generator_ids
+        ]
+        assert len(generator_crew) == 6  # 2 + apprentice in the first generator, 3 in the second
+        assert all(dweller.status == DwellerStatusEnum.WORKING for dweller in generator_crew)
+        assert [d for d in generator_crew if d.apprentice_stat == SPECIALEnum.STRENGTH]  # the seeded family teen
 
     async def test_initiate_vault_boosted(self) -> None:
         """Boosted vault includes training sessions."""

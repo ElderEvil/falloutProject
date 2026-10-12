@@ -143,7 +143,10 @@ BOOSTED_SEED_OUTFITS: tuple[tuple[str, int], ...] = (
     ("Firefighter suit", 3),
     ("Hazmat suit", 3),
 )
-BOOSTED_LEGENDARY_DWELLER_COUNT = 4
+BOOSTED_LEGENDARY_DWELLER_COUNT = 3
+# Seeded at 3 so the boosted population (33 non-legendary + 3 legendary = 36) fits
+# the boost's living-space capacity of 36; the second power generator's crew
+# (Slice 3b correction) used the spare slot.
 # Pets a boosted vault starts with (in storage, unassigned) so equip and the
 # bonus display are testable immediately. Names must exist in the pet art/effect
 # catalog, or the seed silently produces art-less, effect-less pets.

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.199.4 (2026-10-12)
+
+### Code Refactoring
+
+* **vault:** split vault_service into domain package behind facade ([#959](https://github.com/ElderEvil/falloutProject/issues/959)) b73070c
+
 ## 2.199.3 (2026-10-12)
 
 ### Code Refactoring

@@ -4,6 +4,7 @@ import { producesResources } from '../models/roomParts'
 import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller'
 import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
 import { getRoomImageUrl } from '@/core/utils/image'
+import { useGameBalance } from '@/core/composables/useGameBalance'
 
 export function useRoomProduction(
   room: Ref<Room | null>,
@@ -20,8 +21,15 @@ export function useRoomProduction(
 
   const roomImageUrl = computed(() => getRoomImageUrl(room.value?.image_url))
 
+  // Live backend value from /balance; null until loaded, so no production
+  // numbers render rather than stale ones.
+  const { baseProductionRate } = useGameBalance()
+
   const productionInfo = computed(() => {
     if (!room.value || !producesResources(room.value)) {
+      return null
+    }
+    if (baseProductionRate.value === null) {
       return null
     }
 
@@ -34,10 +42,9 @@ export function useRoomProduction(
       return sum + (typeof value === 'number' ? value : 0)
     }, 0)
 
-    const BASE_PRODUCTION_RATE = 0.1
     const TIER_MULTIPLIER: Record<number, number> = { 1: 1.0, 2: 1.5, 3: 2.0 }
     const tierMult = TIER_MULTIPLIER[r.tier] || 1.0
-    const productionPerSecond = (r.output || 0) * abilitySum * BASE_PRODUCTION_RATE * tierMult
+    const productionPerSecond = (r.output || 0) * abilitySum * baseProductionRate.value * tierMult
     const productionPerMinute = productionPerSecond * 60
 
     const resourceType = getAbilityConfig(r.ability)?.resourceName ?? 'Resources'

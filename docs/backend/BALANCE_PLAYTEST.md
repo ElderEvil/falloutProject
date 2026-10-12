@@ -657,3 +657,221 @@ they compare the kernel against the same helpers.
   is not changed here.
 - **Out of scope by design:** resource production (Slice 3b), room caps, presets #839, Survival #838,
   AI dispatch, spread mechanics, SSE, and the manual-only surfaces in Slice 2 §6.
+
+---
+
+# Balance Playtest — Slice 3b (resource production tuning)
+
+> Branch `feat/balance-pass`, appended after Slice 3a. Slices 1–3a stay authoritative. This is the
+> first slice that **changes shipped resource production**. Scope is exactly one knob —
+> `ResourceConfig.base_production_rate` (env `RESOURCE_BASE_PRODUCTION_RATE`): no consumption change,
+> no medical change, no tier/capacity/formula change, no frontend, no schema/API. The goal
+> (docs/features/RESOURCE_ECONOMY_BALANCE.md): power/food/water must be a **visible staffing decision**
+> on the 60-second tick — a fully staffed starter is safe, and moving or losing a production worker
+> has an immediate, recoverable cost.
+
+## 1. What changed and why the four candidates are insufficient
+
+The four 25/50/75%-cut candidates (0.075 / 0.050 / 0.025) plus the unchanged 0.100 were measured
+against the actual seeded vault (rooms/catalog values, §2). **None of them changes the qualitative
+economy**: at every candidate a single SPECIAL-1 worker out-produces the vault's consumption by an
+order of magnitude, so staffing stays a non-decision and storage caps in seconds. The only value in
+the repo's own baseline contract (`docs/features/RESOURCE_ECONOMY_BALANCE.md`, "First Adjustment")
+that puts production and consumption on the same scale is **0.0003**. That offending-outside-the-band
+value is the applied change:
+
+| Knob (`ResourceConfig`) | Slice-1/3a value | Slice-3b value | Effect |
+|---|---|---|---|
+| `base_production_rate` | 0.1 | **0.0003** | Per-SPECIAL-per-second yield drops ~333× so that a room's output meets, not buries, its consumption. |
+
+History (for the record): 0.0003 was the rate shipped by PR #431's resource-economy work, then bumped
+through 0.01 to 0.1 the same day (v2.39.x "livelier resource economy"). This slice reverses that
+decision deliberately: the measured outcome at 0.1–0.025 is that staffing never matters (§3), which is
+the exact problem the balance pass exists to fix.
+
+## 2. Measurement scenarios (actual room/catalog values)
+
+All numbers use the live `ResourceManager` formulas via `fo-cli simulate-resources` (per-tick
+production/consumption with clamping and the power-outage gate). Scenarios:
+
+- **starter** — the seeded standard vault: three tier-1 size-3 production rooms (Power Generator /
+  Diner / Water Treatment; catalog output `(2*S*(L+4))-2 = 28`, tier multiplier `1.0`), nine
+  dwellers, **two matching SPECIAL-5 workers per room** (the seeded `special_boost` →
+  `boosted_stat_value = 5`).
+- **growing** — ~20 dwellers with ordinary staffing: two workers per room at the relevant
+  SPECIAL **3** (top of the common roll band 1–3), same tier-1 size-3 rooms.
+- **developed** — upgraded tier-3 size-9 rooms (`output = 124`, tier multiplier 2.0), **three
+  workers per room at SPECIAL 8** (trained/legendary tier 6–10), 30 dwellers.
+
+Consumption uses the simulator's three production rooms (matching the baseline contract); the seeded
+standard vault's full room set draws more power (see §7). Reduced staffing rows drop a room's workers
+to 1, then 0, to show the staffing decision at each rate.
+
+## 3. Candidate measurements (0.100 / 0.075 / 0.050 / 0.025, then the chosen 0.0003)
+
+Commands (from `backend/`; `--base-production-rate` overrides the shipped default for every row, so
+the same command reproduces the table again after this slice):
+
+```bash
+for R in 0.100 0.075 0.050 0.025; do
+  uv run fo-cli simulate-resources --population 9  --workers-per-room 2 --worker-special 5 --room-tier 1 --room-size 3 --base-production-rate $R
+  uv run fo-cli simulate-resources --population 20 --workers-per-room 2 --worker-special 3 --room-tier 1 --room-size 3 --base-production-rate $R
+  uv run fo-cli simulate-resources --population 30 --workers-per-room 3 --worker-special 8 --room-tier 3 --room-size 9 --base-production-rate $R
+done
+uv run fo-cli simulate-resources --population 9  --workers-per-room 2 --worker-special 5 --room-tier 1 --room-size 3               # chosen default
+uv run fo-cli simulate-resources --population 20 --workers-per-room 2 --worker-special 3 --room-tier 1 --room-size 3
+uv run fo-cli simulate-resources --population 30 --workers-per-room 3 --worker-special 8 --room-tier 3 --room-size 9
+```
+
+### Starter (9 dwellers, 2×SPECIAL-5, tier-1 size-3; storage caps 100, start 50)
+
+| Rate | Uncap. prod/min (P/F/W) | Consumption/min (P/F/W) | Net income/min (P/F/W) | Time to cap 50→100 |
+|---|---|---|---|---|
+| 0.100 | 1680 / 1680 / 1680 | 4.5 / 3.24 / 3.24 | +1675.5 / +1676.8 / +1676.8 | <0.1 min |
+| 0.075 | 1260 / 1260 / 1260 | 4.5 / 3.24 / 3.24 | +1255.5 / +1256.8 / +1256.8 | <0.1 min |
+| 0.050 | 840 / 840 / 840 | 4.5 / 3.24 / 3.24 | +835.5 / +836.8 / +836.8 | <0.1 min |
+| 0.025 | 420 / 420 / 420 | 4.5 / 3.24 / 3.24 | +415.5 / +416.8 / +416.8 | 0.1 min |
+| **0.0003** | 5.0 / 5.0 / 5.0 | 4.5 / 3.24 / 3.24 | **+0.5 / +1.8 / +1.8** | **92.6 / 27.8 / 27.8 min** |
+
+### Growing (20 dwellers, 2×SPECIAL-3, tier-1 size-3)
+
+| Rate | Uncap. prod/min (P/F/W) | Consumption/min (P/F/W) | Net income/min (P/F/W) | Time to cap 50→100 |
+|---|---|---|---|---|
+| 0.100 | 1008 / 1008 / 1008 | 4.5 / 7.2 / 7.2 | +1003.5 / +1000.8 / +1000.8 | <0.1 min |
+| 0.075 | 756 / 756 / 756 | 4.5 / 7.2 / 7.2 | +751.5 / +748.8 / +748.8 | <0.1 min |
+| 0.050 | 504 / 504 / 504 | 4.5 / 7.2 / 7.2 | +499.5 / +496.8 / +496.8 | 0.1 min |
+| 0.025 | 252 / 252 / 252 | 4.5 / 7.2 / 7.2 | +247.5 / +244.8 / +244.8 | 0.2 min |
+| **0.0003** | 3.0 / 3.0 / 3.0 | 4.5 / 7.2 / 7.2 | **−1.5 / −4.2 / −4.2** | **depletes — needs more/stronger staffing** |
+
+### Developed (30 dwellers, 3×SPECIAL-8, tier-3 size-9)
+
+| Rate | Uncap. prod/min (P/F/W) | Consumption/min (P/F/W) | Net income/min (P/F/W) | Time to cap 50→100 |
+|---|---|---|---|---|
+| 0.100 | 35712 / 35712 / 35712 | 40.5 / 10.8 / 10.8 | +35671.5 / +35701.2 / +35701.2 | <0.1 min |
+| 0.075 | 26784 / 26784 / 26784 | 40.5 / 10.8 / 10.8 | +26743.5 / +26773.2 / +26773.2 | <0.1 min |
+| 0.050 | 17856 / 17856 / 17856 | 40.5 / 10.8 / 10.8 | +17815.5 / +17845.2 / +17845.2 | <0.1 min |
+| 0.025 | 8928 / 8928 / 8928 | 40.5 / 10.8 / 10.8 | +8887.5 / +8917.2 / +8917.2 | ~0.01 min |
+| **0.0003** | 107.1 / 107.1 / 107.1 | 40.5 / 10.8 / 10.8 | **+66.6 / +96.3 / +96.3** | <1 min |
+
+Reading: at the four candidate rates every scenario is net-positive by 1–4 orders of magnitude and
+caps storage in well under a tick; the numbers only scale with the rate. Upgrades and stronger workers
+"matter" only multiplicatively — they are never *needed*. At 0.0003 the starter is borderline-positive
+(exactly the contract), the ordinary next-step vault (growing, same tier) is **net-negative** so the
+player must staff smarter or upgrade, and a developed vault is decisively positive again.
+
+## 4. Reduced staffing — does assigning workers matter?
+
+| Scenario | Rate | 1 worker/room net/min (P/F/W) | Verdict |
+|---|---|---|---|
+| starter | 0.025 | +205.5 / +206.8 / +206.8 | a single weak worker still buries consumption — no cost to shedding workers |
+| starter | **0.0003** | **−2.0 / −0.7 / −0.7** | removing a worker is an immediate, recoverable cost |
+| growing | **0.0003** | −3.0 / −5.7 / −5.7 | under-staffed growth runs down |
+| developed | **0.0003** | −4.8 / +24.9 / +24.9 | a *power* room under-staffed at tier 3 costs power (correct direction) |
+
+Unstaffed (0 workers) is rate-independent — production is zero so every rate depletes identically:
+
+| Scenario | Depletion net/min (P/F/W) | Time from 50 (P/F/W) |
+|---|---|---|
+| starter | −4.5 / −3.24 / −3.24 | 11.1 / 15.4 / 15.4 min |
+| growing | −4.5 / −7.2 / −7.2 | 11.1 / 6.9 / 6.9 min |
+| developed | −40.5 / −10.8 / −10.8 | 1.2 / 4.6 / 4.6 min |
+
+## 5. Offline catch-up comparison (single 3600 s window vs 60×60 s per-tick)
+
+Production is always evaluated once per `process_vault_tick` with a `seconds_passed` window that, after
+a return, is capped at `max_offline_catchup = 3600`. The simulator's `simulate` path steps 60 ticks of
+60 s instead. The two differ in exactly two ways, both documented (same formulas):
+
+1. **Integer rounding across the window** — visible only at the slow rate. At 0.0003 the starter's
+   power surplus is `+0.54`/tick, which rounds to `+1` *per persisted tick*, so the stepped path
+   accumulates to the cap while a single 3600 s window writes the raw `+32.4`. Measured: start 50/50/50
+   → single-step `82/100/100` vs per-tick `100/100/100` (power divergence −18). At 0.1–0.025 both cap
+   at 100 and the raw surplus dwarfs the window, so the divergence is invisible.
+2. **The power-outage gate is evaluated once, at the window's start power** (`_calculate_production`),
+   not per tick. With `power = 0` at the start, a single 3600 s window blocks Diner/Water for the whole
+   hour and food/water floor at 0, while stepped ticks produce power on tick 1 and unblock them from
+   tick 2. Measured at 0.0003: start 0/50/50 → single-step `32/0/0` vs per-tick `60/100/100`
+   (divergence −28 power, −100 food, −100 water). Identical shape at 0.1 and 0.025 — rate-independent.
+
+The live game always single-steps, so both divergences are real player-visible behavior: **offline
+catch-up under-persists power** at the tuned rate and **can gate food/water to zero on a power-out
+return** until a live tick recovers them. Neither is new, and neither is changed by this slice.
+
+## 6. Choice + rationale
+
+**Apply `0.0003`** — outside the 25/50/75% band by design, and the *justified neighbor* this slice
+may select: it is the exact "First Adjustment" of `docs/features/RESOURCE_ECONOMY_BALANCE.md`, whose
+baseline contract this slice's success criteria restate, and it is the only value measured here where
+production and consumption share an order of magnitude. Verification against the contract (per tick,
+after persistence rounding), reproduced by `test_starter_vault_meets_resource_economy_baseline_contract`:
+
+| Staffing | Contract | Measured @ 0.0003 |
+|---|---|---|
+| Two SPECIAL-5 workers/room | power +1, food/water +2 | +1 (+0.54), +2 (+1.80), +2 (+1.80) |
+| One worker/room | power −2, food/water −1 | −2 (−1.98), −1 (−0.72), −1 (−0.72) |
+| No workers | power ≈ −4, food/water ≈ −3 | −4 (−4.50), −3 (−3.24), −3 (−3.24) |
+
+Rationale chain: the four candidate rates keep a single SPECIAL-1 worker ≥12× (0.025) to ≥46× (0.100)
+above a dweller's consumption, so they cannot produce a staffing decision; 0.0003 makes the *first*
+worker in a small room the margin between surplus and deficit (specialty rooms at 0.0003 are still
+strongly positive, keeping upgrades and training valuable, §3/§4). If live play finds 0.0003 too slow
+for the mid-game, the fix belongs to the consumption/capacity side (see §7), not a return to 0.1.
+
+## 7. Goal verdicts
+
+| # | Goal (docs/features/RESOURCE_ECONOMY_BALANCE.md) | Evidence @ 0.0003 | Met |
+|---|---|---|---|
+| 1 | Healthy starter staffing is safe when fully staffed | starter 2×SPECIAL-5 is +1/+2/+2 per tick and reaches mid-storage slower (27.8–92.6 min) instead of instantly | yes |
+| 2 | Removing/losing production workers has an immediate, recoverable cost | 1 worker → −2/−1/−1 per tick; 0 workers → depletion in 11–15 min | yes |
+| 3 | Continued growth needs staffing or upgrades to hold | growing vault (SPECIAL-3, tier-1) is net-negative (−1.5/−4.2/−4.2 per min) | yes |
+| 4 | Stronger staffing / upgrades still matter | developed tier-3 (3×SPECIAL-8) is +66.6/+96.3/+96.3 per min; ~21× the starter's net | yes |
+| — | The four candidates (0.025–0.100) meet all of the above | no — every staffing level ≥1 worker is trivially positive at any of them | no |
+
+The underlying imbalance the four candidates expose: production scales as `output × ΣSPECIAL × rate ×
+seconds` with output 28–124 and SPECIAL 5–10, while consumption is a flat `0.36/min` per dweller (and
+`0.5/60` per room-tier-size of power). A per-worker yield of `output × SPECIAL × rate × 60` at 0.1 is
+467–2067× a dweller's draw, so no cut in that band changes the decision structure — only a rate that
+drops the sustainable band *into* the staffing range can. Applying 0.0003 (the spec's documented
+value) is the in-scope lever for that; anything further (e.g. consenting consumption with output) is a
+different system and out of scope here.
+
+## 8. Regression tests (failing-test-first)
+
+Written before the value change and shown failing against `base_production_rate = 0.1`, then green on
+the shipped default (`uv run pytest app/tests/test_services/test_resource_manager.py
+app/tests/test_services/test_race_mechanics.py app/tests/test_scripts/test_simulate_resource_economy.py`):
+
+- `test_base_production_rate_default_matches_resource_economy_baseline` — pins the default to 0.0003
+  (failed at 0.1).
+- `test_starter_vault_meets_resource_economy_baseline_contract` — the two-worker and one-worker rows
+  of the §6 contract land on the documented per-tick integers (failed at 0.1: +1675/+836 instead of
+  +1/−2).
+- `test_offline_single_step_window_diverges_from_per_tick_rounding` — pins the §5 rounding divergence
+  so a future offline-pacing change is deliberate.
+- `test_live_tick_matches_offline_kernel_production_at_default_rate` — the live
+  `process_vault_resources` DB path and the offline kernel apply the same configured rate (live/offline
+  consistency on the tuned path).
+- `test_race_mechanics` production assertions were re-pinned from a hard-coded `0.1` to
+  `game_config.resource.base_production_rate` (the flag-off reverts-to-raw behavior is unchanged).
+
+## 9. Caveats, out of scope, and future pacing
+
+- **Consumption and medical production are unchanged**, per the spec guardrail (one system per pass);
+  the only schema/API-visible change is the shipped default of one env-scoped config field, so no
+  migration, endpoint or frontend work is needed.
+- **The simulator's power consumption counts only the three production rooms.** The seeded standard
+  vault's full room set draws ~14 power/min (door, elevators, living/storage/radio) vs the 4.5/min the
+  contract and this table model — live power pressure is *stronger* than shown, so power is the
+  resource most likely to need the §5.1 offline attention.
+- **Offline single-step under-persists at slow rates** (§5): the live path always evaluates one
+  window, so the rounding and gate divergences are player-real. Fixing offline stepping is a
+  dedicated pacing change, recorded here, not bundled.
+- **Child/junior workers** (Slice 1 §5.6) and full-vault room power draw are still not modeled by the
+  simulator; the contract deliberately targets the three-room starter.
+- **Recommendation (not implemented):** stay within the spec's `0.00025–0.00035` tuning band after one
+  live starter playtest (§2 of the spec's plan); if 0.0003 proves too slow for mid-game vaults, rework
+  the consumption/capacity side (raise per-dweller draw and/or shrink the output base) rather than
+  returning toward 0.1, which the measurements show erases the staffing decision entirely.
+- **Out of scope by design:** combat (Slice 3a owns `incident_threat_damage_divisor = 18` /
+  `containment_progress_divisor = 20` — untouched here), spawn cadence, room caps, tier multipliers,
+  medical production, frontend.

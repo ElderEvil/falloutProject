@@ -2,6 +2,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.cli.simulate_resources import ResourceEconomyConfig, simulate
+from app.core.game_config import game_config
 from app.crud.resource import VaultResourceData
 from app.models import Dweller, Storage
 from app.models.room import Room
@@ -128,7 +130,6 @@ class TestResourceManager:
     async def test_junior_worker_assists_production_at_the_reduced_rate(self):
         """A youth posted to a production room adds production at the junior reduced rate."""
         from app.core.enums import AgeGroupEnum
-        from app.core.game_config import game_config
 
         manager = ResourceManager()
         room = Room(
@@ -149,3 +150,123 @@ class TestResourceManager:
 
         assert adult_only > 0
         assert with_junior == pytest.approx(adult_only * (1 + game_config.resource.junior_worker_output_multiplier))
+
+
+# Slice 3b contract source: docs/features/RESOURCE_ECONOMY_BALANCE.md.
+STARTER_ROOM_OUTPUT = 28  # catalog output (2*S*(L+4))-2 at tier 1, size 3
+
+
+def test_base_production_rate_default_matches_resource_economy_baseline() -> None:
+    """The shipped default is the value that reproduces the documented baseline contract."""
+    assert game_config.resource.base_production_rate == pytest.approx(0.0003)
+
+
+@pytest.mark.parametrize(
+    ("workers_per_room", "expected_net_per_tick"),
+    [
+        (2, {"power": 1, "food": 2, "water": 2}),
+        (1, {"power": -2, "food": -1, "water": -1}),
+        (0, {"power": -4, "food": -3, "water": -3}),
+    ],
+)
+def test_starter_vault_meets_resource_economy_baseline_contract(
+    workers_per_room: int, expected_net_per_tick: dict[str, int]
+) -> None:
+    """Starter vault (3 tier-1 size-3 rooms, 9 dwellers, SPECIAL-5 workers) must match the documented per-tick contract."""
+    result = simulate(
+        ResourceEconomyConfig(
+            population=9,
+            workers_per_room=workers_per_room,
+            worker_special=5,
+            room_tier=1,
+            room_size=3,
+        )
+    )
+    persisted_per_tick = {
+        resource: round(result.initial_rates_per_minute[resource]) for resource in expected_net_per_tick
+    }
+    assert persisted_per_tick == expected_net_per_tick
+
+
+@pytest.mark.asyncio
+async def test_live_tick_matches_offline_kernel_production_at_default_rate(vault: Vault) -> None:
+    """The live DB tick and the offline kernel must apply the same configured production rate."""
+    vault.power = 100
+    manager = ResourceManager()
+    rooms = [
+        Room(
+            name="Power Generator",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=SPECIALEnum.STRENGTH,
+            output=float(STARTER_ROOM_OUTPUT),
+            tier=1,
+            size=3,
+        ),
+        Room(
+            name="Diner",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=SPECIALEnum.AGILITY,
+            output=float(STARTER_ROOM_OUTPUT),
+            tier=1,
+            size=3,
+        ),
+        Room(
+            name="Water Treatment",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=SPECIALEnum.PERCEPTION,
+            output=float(STARTER_ROOM_OUTPUT),
+            tier=1,
+            size=3,
+        ),
+    ]
+    rooms_with_dwellers = [
+        (rooms[0], [Dweller(strength=5), Dweller(strength=5)]),
+        (rooms[1], [Dweller(agility=5), Dweller(agility=5)]),
+        (rooms[2], [Dweller(perception=5), Dweller(perception=5)]),
+    ]
+    offline = manager._calculate_production(rooms_with_dwellers, seconds_passed=60, current_power=vault.power)
+    resource_data = VaultResourceData(
+        vault=vault,
+        storage=None,
+        rooms=rooms,
+        dweller_count=9,
+        rooms_with_dwellers=rooms_with_dwellers,
+    )
+
+    with (
+        patch(
+            "app.services.resource_manager.resource_crud.get_vault_resource_data",
+            new_callable=AsyncMock,
+            return_value=resource_data,
+        ),
+        patch("app.services.resource_manager.event_bus.emit", new_callable=AsyncMock),
+    ):
+        _, events = await manager.process_vault_resources(MagicMock(), vault.id, 60)
+
+    for resource in ("power", "food", "water"):
+        assert getattr(events.production, resource) == pytest.approx(offline[resource])
+
+
+def test_offline_single_step_window_diverges_from_per_tick_rounding() -> None:
+    """Offline catch-up runs one 3600 s window; per-tick stepping accumulates per-tick integer rounding."""
+    from app.cli.simulate_resources import _build_scenario
+
+    cfg = ResourceEconomyConfig(
+        population=9,
+        workers_per_room=2,
+        worker_special=5,
+        room_tier=1,
+        room_size=3,
+        starting_power=50,
+        starting_food=50,
+        starting_water=50,
+    )
+    vault, rooms, rooms_with_dwellers = _build_scenario(cfg)
+    manager = ResourceManager()
+    consumption = manager._calculate_consumption(rooms, cfg.population, 3600)
+    production = manager._calculate_production(rooms_with_dwellers, 3600, vault.power)
+    single_step_power = round(manager._apply_resource_changes(vault, consumption, production)["power"])
+    per_tick_power = simulate(cfg).final_resources["power"]
+    # A +0.54/tick power surplus is +1 per persisted tick, so the stepped path out-accumulates
+    # the single raw-rate window. Documented divergence (BALANCE_PLAYTEST.md Slice 3b).
+    assert single_step_power < per_tick_power

@@ -441,8 +441,12 @@ class ResourceConfig(BaseSettings):
 
     # Production
     base_production_rate: float = Field(
-        default=0.1,
-        description="Per SPECIAL point per second, calibrated for the 60-second game tick",
+        default=0.0003,
+        description=(
+            "Per SPECIAL point per second, calibrated for the 60-second game tick. "
+            "Tuned to the resource-economy baseline contract (docs/features/RESOURCE_ECONOMY_BALANCE.md): "
+            "a starter vault is safe fully staffed, and removing production workers costs resources."
+        ),
         ge=0.0,
     )
     medical_production_rate: float = Field(

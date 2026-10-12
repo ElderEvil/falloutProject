@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     chat,
     connections,
     crafting,
+    direct_messages,
     dweller,
     email,
     exploration,
@@ -43,6 +44,7 @@ api_router.include_router(auth.router)
 api_router.include_router(ai_settings.router)
 api_router.include_router(chat.router)
 api_router.include_router(connections.router)
+api_router.include_router(direct_messages.router)
 api_router.include_router(hazard_team.router)
 api_router.include_router(crafting.router)
 api_router.include_router(email.router)

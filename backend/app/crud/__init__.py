@@ -5,6 +5,7 @@ from . import storage
 from .ai_settings import ai_settings
 from .connection import connection
 from .crafting_order import crafting_order
+from .direct_message import direct_message
 from .dweller import dweller
 from .expedition_run import expedition_run
 from .exploration import exploration

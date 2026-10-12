@@ -222,9 +222,6 @@ class IncidentSimulator:
         if config.tick_interval % config.incident_dt != 0:
             raise ValueError("tick_interval must be a multiple of incident_dt")
 
-    def _build_synthetic_roster(self) -> list[DefenderProfile]:
-        return synthetic_roster(self.cfg)
-
     def run(
         self,
         simulation_hours: int,
@@ -238,7 +235,7 @@ class IncidentSimulator:
 
         roster = [
             SimDefender(profile=profile, health=profile.max_health)
-            for profile in (base_roster if base_roster is not None else self._build_synthetic_roster())
+            for profile in (base_roster if base_roster is not None else synthetic_roster(self.cfg))
         ]
         population = len(roster) if base_roster is not None else max(self.cfg.starting_dwellers, len(roster))
         vault = VaultState(population=population, adults=len(roster), children=population - len(roster), roster=roster)

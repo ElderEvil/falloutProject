@@ -116,6 +116,7 @@ def resolve_incident(
     radiation_gained = 0
     elapsed = 0
     ticks = 0
+    won = False
 
     if dt <= 0:
         raise ValueError("incident_dt must be positive")
@@ -175,19 +176,11 @@ def resolve_incident(
         ticks += 1
 
         if won:
-            return IncidentOutcome(
-                resolved=True,
-                failed=False,
-                ticks=ticks,
-                progress=progress,
-                damage_taken=damage_taken,
-                deaths=deaths,
-                radiation_gained=radiation_gained,
-            )
+            break
 
     return IncidentOutcome(
-        resolved=False,
-        failed=True,
+        resolved=won,
+        failed=not won,
         ticks=ticks,
         progress=progress,
         damage_taken=damage_taken,

@@ -6,9 +6,8 @@ engine uses (``combat_power``, ``damage_reductions``), including the active
 hazard-team places the dweller already holds. ``synthetic_defenders`` builds
 profiles from small local stubs — never real ``Weapon``/``Outfit``/``Junk``
 models (the item-factory architecture guard bans bare constructor calls) — so the
-synthetic path is formula-locked to the real game without touching the catalog.
-Synthetic outfits are read from the item catalog (resists + SPECIAL) but are
-stubs, not ORM rows.
+synthetic path is formula-locked to the real game without database writes.
+Outfits use the validated catalog schemas (resists + SPECIAL), not ORM rows.
 """
 
 from dataclasses import dataclass
@@ -18,7 +17,7 @@ from typing import TYPE_CHECKING, cast
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import DamageChannel, HazardTeam, OutfitTypeEnum
+from app.core.enums import DamageChannel, HazardTeam
 from app.services.combat.incident_sim import DefenderProfile
 from app.services.hazard_team_service import TEAM_OUTFIT_NAMES
 from app.utils.combat import combat_power
@@ -26,6 +25,7 @@ from app.utils.damage_reductions import damage_reductions
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
+    from app.schemas.outfit import OutfitCreate
 
 #: Synthetic defenders fight unarmed: the same stat weights the old whole-vault
 #: power model used, so ``combat_power`` on a stub reproduces it exactly.
@@ -45,44 +45,14 @@ class _SyntheticWeapon:
     weapon_type: _SyntheticWeaponType = _SyntheticWeaponType.UNARMED
 
 
-@dataclass(frozen=True)
-class _SyntheticOutfit:
-    """Catalog-shaped outfit stub exposing what ``combat_power``/``damage_reductions`` read."""
-
-    name: str
-    outfit_type: OutfitTypeEnum
-    fire_resist: float = 0.0
-    radiation_resist: float | None = None
-    strength: int = 0
-    perception: int = 0
-    endurance: int = 0
-    charisma: int = 0
-    intelligence: int = 0
-    agility: int = 0
-    luck: int = 0
-
-
-def _catalog_outfit(name: str) -> _SyntheticOutfit:
-    """Build an outfit stub from the real item catalog, so resists never drift from the game."""
+def _catalog_outfit(name: str) -> "OutfitCreate":
+    """Read the validated catalog outfit used by the production combat helpers."""
     from app.utils.static_data import game_data_store
 
     data = next((outfit for outfit in game_data_store.outfits if str(outfit.name).lower() == name.lower()), None)
     if data is None:
         raise ValueError(f"Outfit catalog has no {name!r} row")
-    declared_radiation = data.radiation_resist
-    return _SyntheticOutfit(
-        name=str(data.name),
-        outfit_type=OutfitTypeEnum(str(data.outfit_type).lower()),
-        fire_resist=float(data.fire_resist or 0.0),
-        radiation_resist=float(declared_radiation) if declared_radiation is not None else None,
-        strength=int(data.strength or 0),
-        perception=int(data.perception or 0),
-        endurance=int(data.endurance or 0),
-        charisma=int(data.charisma or 0),
-        intelligence=int(data.intelligence or 0),
-        agility=int(data.agility or 0),
-        luck=int(data.luck or 0),
-    )
+    return data
 
 
 class _SyntheticDweller:
@@ -90,7 +60,7 @@ class _SyntheticDweller:
 
     No real ``Weapon``/``Outfit``/``Junk`` models are constructed; the stub only
     carries the attributes those pure helpers read: SPECIAL stats, level, weapon,
-    an optional catalog-shaped outfit stub, and the ``visual_attributes`` that
+    an optional catalog outfit schema, and the ``visual_attributes`` that
     identity resolution treats as absent (human baseline, no faction perks).
     """
 
@@ -100,7 +70,7 @@ class _SyntheticDweller:
         avg_special: float,
         avg_weapon_damage: float,
         avg_level: int,
-        outfit: _SyntheticOutfit | None = None,
+        outfit: "OutfitCreate | None" = None,
     ) -> None:
         self.strength = avg_special
         self.perception = avg_special

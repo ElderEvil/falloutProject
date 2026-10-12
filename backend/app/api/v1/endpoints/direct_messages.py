@@ -8,9 +8,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response
 from pydantic import UUID4
+from redis.asyncio import Redis
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.deps import CurrentActiveUser
+from app.api.deps import CurrentActiveUser, get_redis_client
 from app.db.session import get_async_session
 from app.schemas.connection import ConnectionRead
 from app.schemas.direct_message import DirectMessageRead, DirectMessageSend, DirectMessageSummary
@@ -19,6 +20,7 @@ from app.services.direct_message_service import direct_message_service
 router = APIRouter(prefix="/messages", tags=["Direct Messages"])
 
 DbSession = Annotated[AsyncSession, Depends(get_async_session)]
+RedisClient = Annotated[Redis, Depends(get_redis_client)]
 
 
 @router.post("/{user_id}", response_model=DirectMessageRead, status_code=201)
@@ -27,9 +29,12 @@ async def send_direct_message(
     payload: DirectMessageSend,
     user: CurrentActiveUser,
     db_session: DbSession,
+    redis_client: RedisClient,
 ) -> DirectMessageRead:
     """Send a direct message to a connection, or a request to a non-connection."""
-    return await direct_message_service.send_message(db_session, sender=user, recipient_id=user_id, body=payload.body)
+    return await direct_message_service.send_message(
+        db_session, sender=user, recipient_id=user_id, body=payload.body, redis_client=redis_client
+    )
 
 
 @router.post("/{user_id}/accept", response_model=ConnectionRead)

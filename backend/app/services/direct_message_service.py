@@ -12,11 +12,13 @@ sender. Queries live in ``app/crud``.
 """
 
 from collections import defaultdict, deque
+from contextlib import suppress
 from datetime import datetime
 from logging import getLogger
 from time import monotonic
 
 from pydantic import UUID4
+from redis.asyncio import Redis
 from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -81,7 +83,7 @@ class DirectMessageService:
             created_at=message.created_at,
         )
 
-    def _check_rate(self, user_id: UUID4) -> None:
+    def _check_rate_local(self, user_id: UUID4) -> None:
         now = monotonic()
         history = self._send_history[user_id]
         while history and now - history[0] > self.rate_window_seconds:
@@ -90,8 +92,41 @@ class DirectMessageService:
             raise ValidationException("Message rate limit exceeded. Try again shortly.")
         history.append(now)
 
+    @staticmethod
+    async def _increment_window(redis_client: Redis, key: str, window: int) -> int:
+        count = await redis_client.incrby(key, 1)
+        if count == 1:
+            await redis_client.expire(key, window)
+        return count
+
+    async def _check_rate(self, user_id: UUID4, redis_client: Redis | None = None) -> None:
+        """Enforce the per-user send cap across workers via Redis.
+
+        Falls back to a process-local window when Redis is unreachable, so a
+        cache outage degrades the limit rather than failing the send.
+        """
+        if redis_client is not None:
+            key = f"direct-message-rate:{user_id}"
+            try:
+                count = await self._increment_window(redis_client, key, int(self.rate_window_seconds))
+            except Exception:
+                logger.warning("Direct-message rate limit Redis unavailable; using local fallback", exc_info=True)
+                with suppress(Exception):
+                    await redis_client.delete(key)
+            else:
+                if count > self.max_sends_per_window:
+                    raise ValidationException("Message rate limit exceeded. Try again shortly.")
+                return
+        self._check_rate_local(user_id)
+
     async def send_message(
-        self, db_session: AsyncSession, *, sender: User, recipient_id: UUID4, body: str
+        self,
+        db_session: AsyncSession,
+        *,
+        sender: User,
+        recipient_id: UUID4,
+        body: str,
+        redis_client: Redis | None = None,
     ) -> DirectMessageRead:
         """Store a message (or a request when not yet connected) and push it over WebSockets."""
         self.ensure_enabled()
@@ -101,7 +136,7 @@ class DirectMessageService:
             raise ValidationException("You cannot send a message to yourself.")
         await self._lock_pair(db_session, sender_id, recipient_pk)
         await self._reject_if_blocked(db_session, sender_id, recipient_pk)
-        self._check_rate(sender_id)
+        await self._check_rate(sender_id, redis_client)
 
         connection = await crud.connection.get_by_pair(db_session, sender_id, recipient_pk)
         accepted = connection is not None and connection.status is ConnectionStatus.ACCEPTED
@@ -200,13 +235,15 @@ class DirectMessageService:
     async def get_thread(
         self, db_session: AsyncSession, *, user: User, other_id: UUID4, limit: int = 50, offset: int = 0
     ) -> list[DirectMessageRead]:
-        """Chronological thread with another user; marks the recipient's reads."""
+        """Chronological thread with another user; marks only the returned page read."""
         self.ensure_enabled()
         other = await self._resolve_user(db_session, other_id)
         messages = await crud.direct_message.get_thread(
             db_session, user_a=user.id, user_b=other.id, limit=limit, offset=offset
         )
-        await crud.direct_message.mark_thread_read(db_session, recipient=user.id, sender=other.id)
+        await crud.direct_message.mark_thread_read(
+            db_session, recipient=user.id, message_ids=[message.id for message in messages]
+        )
         await db_session.commit()
         return [self._to_read(message) for message in messages]
 
@@ -215,40 +252,33 @@ class DirectMessageService:
     ) -> list[DirectMessageSummary]:
         """Conversation list: last message, unread count, pending-request flag per counterpart."""
         self.ensure_enabled()
-        messages = await crud.direct_message.list_for_user(db_session, user.id)
-        if not messages:
+        rows = await crud.direct_message.list_conversations_for_user(db_session, user.id, limit=limit)
+        if not rows:
             return []
-
-        conversations: dict[UUID4, dict] = {}
-        for message in messages:
-            counterpart = message.recipient_user_id if message.sender_user_id == user.id else message.sender_user_id
-            box = conversations.setdefault(counterpart, {"last": None, "unread": 0, "incoming_request": False})
-            box["last"] = message
-            if message.recipient_user_id == user.id:
-                if message.read_at is None:
-                    box["unread"] += 1
-                if message.is_request:
-                    box["incoming_request"] = True
 
         accepted_connections = {
             row.addressee_id if row.requester_id == user.id else row.requester_id
             for row in await crud.connection.get_for_user(db_session, user.id)
             if row.status is ConnectionStatus.ACCEPTED
         }
-        usernames = await self._usernames(db_session, list(conversations))
+        counterparts = [
+            row.last_message.recipient_user_id
+            if row.last_message.sender_user_id == user.id
+            else row.last_message.sender_user_id
+            for row in rows
+        ]
+        usernames = await self._usernames(db_session, counterparts)
 
-        summaries = [
+        return [
             DirectMessageSummary(
                 counterpart_user_id=counterpart,
                 counterpart_username=usernames.get(counterpart, ""),
-                last_message=self._to_read(box["last"]),
-                unread_count=box["unread"],
-                has_pending_request=box["incoming_request"] and counterpart not in accepted_connections,
+                last_message=self._to_read(row.last_message),
+                unread_count=row.unread_count,
+                has_pending_request=row.has_pending_request and counterpart not in accepted_connections,
             )
-            for counterpart, box in conversations.items()
+            for row, counterpart in zip(rows, counterparts, strict=False)
         ]
-        summaries.sort(key=lambda s: s.last_message.created_at or "", reverse=True)
-        return summaries[:limit]
 
     async def _reject_if_blocked(self, db_session: AsyncSession, user_a: UUID4, user_b: UUID4) -> None:
         if await crud.user_block.get_between(db_session, user_a, user_b) is not None:

@@ -318,6 +318,65 @@ class TestConversationList:
         assert summary["last_message"]["body"] == "accepted"
 
 
+class TestReadPaging:
+    async def test_reading_one_page_leaves_later_messages_unread(self, async_client: AsyncClient, two_users) -> None:
+        """Reading page one must not mark messages outside that page read."""
+        (user_a, data_a), (user_b, data_b) = two_users
+        headers_a = await _auth_headers(async_client, data_a)
+        headers_b = await _auth_headers(async_client, data_b)
+
+        invite = await async_client.post("/connections", json={"username": user_b.username}, headers=headers_a)
+        await async_client.post(f"/connections/{invite.json()['id']}/accept", headers=headers_b)
+        for index in range(3):
+            sent = await async_client.post(f"/messages/{user_b.id}", json={"body": f"m{index}"}, headers=headers_a)
+            assert sent.status_code == 201
+
+        page = await async_client.get(f"/messages/{user_a.id}?limit=1&offset=0", headers=headers_b)
+        assert page.status_code == 200
+        assert len(page.json()) == 1
+
+        conversations = await async_client.get("/messages", headers=headers_b)
+        summary = next(c for c in conversations.json() if c["counterpart_user_id"] == str(user_a.id))
+        assert summary["unread_count"] == 2
+
+
+class TestBoundedConversations:
+    async def test_list_is_bounded_and_never_loads_full_history(
+        self, async_client: AsyncClient, async_session: AsyncSession, two_users, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Listing aggregates in the DB and honours the limit without loading history."""
+        from app import crud
+
+        (user_a, data_a), (user_b, data_b) = two_users
+        headers_a = await _auth_headers(async_client, data_a)
+        headers_b = await _auth_headers(async_client, data_b)
+
+        invite = await async_client.post("/connections", json={"username": user_b.username}, headers=headers_a)
+        await async_client.post(f"/connections/{invite.json()['id']}/accept", headers=headers_b)
+
+        outsider_in = UserCreate(username="golf_player", email="golf@example.com", password=fake.password(length=12))
+        await crud.user.create(db_session=async_session, obj_in=outsider_in)
+        headers_c = await _auth_headers(async_client, {"email": outsider_in.email, "password": outsider_in.password})
+        await async_client.post(f"/messages/{user_a.id}", json={"body": "from c"}, headers=headers_c)
+
+        for index in range(3):
+            await async_client.post(f"/messages/{user_a.id}", json={"body": f"from b {index}"}, headers=headers_b)
+
+        async def _forbidden(*_args, **_kwargs):
+            raise AssertionError("conversation listing must not load the full history")
+
+        monkeypatch.setattr(crud.direct_message, "list_for_user", _forbidden, raising=False)
+
+        limited = await async_client.get("/messages?limit=1", headers=headers_a)
+        assert limited.status_code == 200
+        assert len(limited.json()) == 1
+        assert limited.json()[0]["unread_count"] == 3
+
+        full = await async_client.get("/messages", headers=headers_a)
+        assert len(full.json()) == 2
+        assert sum(c["unread_count"] for c in full.json()) == 4
+
+
 class TestRateLimit:
     async def test_send_cap_enforced_per_user(self, async_client: AsyncClient, two_users, monkeypatch) -> None:
         from app.services.direct_message_service import direct_message_service
@@ -339,6 +398,32 @@ class TestRateLimit:
         ).status_code == 201
         third = await async_client.post(f"/messages/{user_b.id}", json={"body": "3"}, headers=headers_a)
         assert third.status_code == 400
+
+    async def test_send_survives_unreachable_redis(
+        self, async_client: AsyncClient, two_users, _shared_fake_redis
+    ) -> None:
+        """A Redis outage degrades the shared limit; it must never fail a send."""
+        from app.api.deps import get_redis_client
+        from main import app
+
+        class _BrokenRedis:
+            async def incr(self, *_args, **_kwargs):
+                raise RuntimeError("redis unreachable")
+
+            async def expire(self, *_args, **_kwargs):
+                raise RuntimeError("redis unreachable")
+
+            async def delete(self, *_args, **_kwargs):
+                raise RuntimeError("redis unreachable")
+
+        try:
+            (_user_a, data_a), (user_b, _data_b) = two_users
+            headers = await _auth_headers(async_client, data_a)
+            app.dependency_overrides[get_redis_client] = lambda: _BrokenRedis()
+            response = await async_client.post(f"/messages/{user_b.id}", json={"body": "hi"}, headers=headers)
+            assert response.status_code == 201
+        finally:
+            app.dependency_overrides[get_redis_client] = lambda: _shared_fake_redis
 
 
 class TestSendSerialization:

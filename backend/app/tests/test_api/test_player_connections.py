@@ -1,17 +1,22 @@
 """Tests for player connections and blocking (A1 + A2 identity slice)."""
 
-from uuid import UUID
+from datetime import datetime
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
 from faker import Faker
 from httpx import AsyncClient
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
+from sqlmodel import and_, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import ConnectionStatus
 from app.models.connection import Connection
 from app.models.user import User
+from app.models.user_block import UserBlock
 from app.schemas.user import UserCreate
 from app.tests.utils.user import user_authentication_headers
 
@@ -281,3 +286,121 @@ class TestUniquePairConstraint:
         )
         await async_session.commit()
         assert await crud.connection.get_by_pair(async_session, c_id, a_id) is not None
+
+
+class TestReciprocalBlock:
+    async def test_reciprocal_block_is_single_row_and_never_500(
+        self, async_client: AsyncClient, async_session: AsyncSession, two_users
+    ) -> None:
+        """A blocks B then B blocks A: both succeed, exactly one row, later checks clean."""
+        (user_a, data_a), (user_b, data_b) = two_users
+        headers_a = await _auth_headers(async_client, data_a)
+        headers_b = await _auth_headers(async_client, data_b)
+
+        first = await async_client.post(f"/blocks/{user_b.id}", headers=headers_a)
+        assert first.status_code == 201
+
+        reciprocal = await async_client.post(f"/blocks/{user_a.id}", headers=headers_b)
+        assert reciprocal.status_code == 201
+        assert reciprocal.json()["blocked_id"] == str(user_a.id)
+
+        between = or_(
+            and_(UserBlock.blocker_id == user_a.id, UserBlock.blocked_id == user_b.id),
+            and_(UserBlock.blocker_id == user_b.id, UserBlock.blocked_id == user_a.id),
+        )
+        count = (await async_session.execute(select(func.count()).select_from(UserBlock).where(between))).scalar_one()
+        assert count == 1
+
+        # A blocked action is a clean 400, not a 500 from MultipleResultsFound.
+        send = await async_client.post(f"/messages/{user_b.id}", json={"body": "hi"}, headers=headers_a)
+        assert send.status_code == 400
+
+
+class TestRaceIdempotency:
+    async def test_invite_create_race_returns_the_existing_row(
+        self, async_client: AsyncClient, two_users, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """When the pre-check misses a row a concurrent worker committed, the unique
+        constraint must surface as the existing connection, not a 500."""
+        from app.crud.connection import _ordered_pair
+
+        (user_a, data_a), (user_b, _data_b) = two_users
+        headers_a = await _auth_headers(async_client, data_a)
+        first, second = _ordered_pair(user_a.id, user_b.id)
+        winner = Connection(
+            id=uuid4(),
+            requester_id=user_a.id,
+            addressee_id=user_b.id,
+            user_a=first,
+            user_b=second,
+            status=ConnectionStatus.PENDING,
+            created_at=datetime.utcnow(),
+        )
+
+        calls = {"n": 0}
+
+        async def flaky_get_by_pair(*_args, **_kwargs):
+            calls["n"] += 1
+            return None if calls["n"] == 1 else winner
+
+        async def create_conflicts(*_args, **_kwargs):
+            raise IntegrityError("insert", {}, Exception("uq_connection_user_pair"))
+
+        monkeypatch.setattr(crud.connection, "get_by_pair", flaky_get_by_pair)
+        monkeypatch.setattr(crud.connection, "create_connection", create_conflicts)
+
+        response = await async_client.post("/connections", json={"username": user_b.username}, headers=headers_a)
+
+        assert response.status_code == 201
+        assert response.json()["id"] == str(winner.id)
+
+    async def test_block_create_race_returns_the_existing_row(
+        self, async_client: AsyncClient, two_users, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A lost block-create race must return the winning row, not a 500."""
+        (user_a, data_a), (user_b, _data_b) = two_users
+        headers_a = await _auth_headers(async_client, data_a)
+        user_b_id = user_b.id
+        winner = UserBlock(id=uuid4(), blocker_id=user_a.id, blocked_id=user_b_id, created_at=datetime.utcnow())
+
+        calls = {"n": 0}
+
+        async def flaky_get_between(*_args, **_kwargs):
+            calls["n"] += 1
+            return None if calls["n"] == 1 else winner
+
+        async def create_conflicts(*_args, **_kwargs):
+            raise IntegrityError("insert", {}, Exception("uq_userblock_blocker_blocked"))
+
+        monkeypatch.setattr(crud.user_block, "get_between", flaky_get_between)
+        monkeypatch.setattr(crud.user_block, "create_block", create_conflicts)
+
+        response = await async_client.post(f"/blocks/{user_b_id}", headers=headers_a)
+
+        assert response.status_code == 201
+        assert response.json()["id"] == str(winner.id)
+        assert response.json()["blocked_id"] == str(user_b_id)
+
+
+class TestPairSerialization:
+    async def test_invite_takes_the_unordered_pair_lock(
+        self, async_client: AsyncClient, two_users, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Invite will serialize cross-worker on the stable sorted-pair lock key."""
+        from app.services import player_connection_service as pcs
+
+        (user_a, data_a), (user_b, _data_b) = two_users
+        headers = await _auth_headers(async_client, data_a)
+
+        keys: list[str] = []
+
+        async def record(_session, key: str) -> None:
+            keys.append(key)
+
+        monkeypatch.setattr(pcs, "advisory_xact_lock", record)
+
+        response = await async_client.post("/connections", json={"username": user_b.username}, headers=headers)
+
+        assert response.status_code == 201
+        low, high = sorted((str(user_a.id), str(user_b.id)))
+        assert keys == [f"player-pair:{low}:{high}"]

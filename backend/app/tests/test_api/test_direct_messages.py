@@ -4,6 +4,7 @@ import pytest
 import pytest_asyncio
 from faker import Faker
 from httpx import AsyncClient
+from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -338,3 +339,67 @@ class TestRateLimit:
         ).status_code == 201
         third = await async_client.post(f"/messages/{user_b.id}", json={"body": "3"}, headers=headers_a)
         assert third.status_code == 400
+
+
+class TestSendSerialization:
+    async def test_send_takes_the_unordered_pair_lock(
+        self, async_client: AsyncClient, two_users, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A send serializes cross-worker on the stable sorted-pair lock key."""
+        from app.services import direct_message_service as dms
+
+        (user_a, data_a), (user_b, _data_b) = two_users
+        headers = await _auth_headers(async_client, data_a)
+
+        keys: list[str] = []
+
+        async def record(_session, key: str) -> None:
+            keys.append(key)
+
+        monkeypatch.setattr(dms, "advisory_xact_lock", record)
+
+        response = await async_client.post(f"/messages/{user_b.id}", json={"body": "hi"}, headers=headers)
+
+        assert response.status_code == 201
+        low, high = sorted((str(user_a.id), str(user_b.id)))
+        assert keys == [f"player-pair:{low}:{high}"]
+
+    async def test_lost_message_create_race_returns_existing(
+        self, async_client: AsyncClient, two_users, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A create that loses a race must return the stored row, not a 500."""
+        from datetime import datetime
+        from uuid import uuid4
+
+        from app import crud
+        from app.models.direct_message import DirectMessage
+
+        (user_a, data_a), (user_b, _data_b) = two_users
+        headers = await _auth_headers(async_client, data_a)
+
+        winner = DirectMessage(
+            id=uuid4(),
+            sender_user_id=user_a.id,
+            recipient_user_id=user_b.id,
+            body="winner",
+            is_request=True,
+            created_at=datetime.utcnow(),
+        )
+
+        async def _no_open_request(*_args, **_kwargs) -> bool:
+            return False
+
+        async def _create_conflicts(*_args, **_kwargs):
+            raise IntegrityError("insert", {}, Exception("duplicate request"))
+
+        async def _get_winner(*_args, **_kwargs):
+            return winner
+
+        monkeypatch.setattr(crud.direct_message, "has_open_request", _no_open_request)
+        monkeypatch.setattr(crud.direct_message, "create_message", _create_conflicts)
+        monkeypatch.setattr(crud.direct_message, "get_last_between", _get_winner)
+
+        response = await async_client.post(f"/messages/{user_b.id}", json={"body": "loser"}, headers=headers)
+
+        assert response.status_code == 201
+        assert response.json()["id"] == str(winner.id)

@@ -76,6 +76,22 @@ class CRUDDirectMessage(CRUDBase[DirectMessage, None, None]):
         result = await db_session.execute(query)
         return result.scalar_one_or_none() is not None
 
+    async def get_last_between(
+        self, db_session: AsyncSession, *, sender: UUID4, recipient: UUID4
+    ) -> DirectMessage | None:
+        """Newest message in one direction; lets a lost create race return its row."""
+        query = (
+            select(DirectMessage)
+            .where(
+                DirectMessage.sender_user_id == sender,
+                DirectMessage.recipient_user_id == recipient,
+            )
+            .order_by(col(DirectMessage.created_at).desc())
+            .limit(1)
+        )
+        result = await db_session.execute(query)
+        return result.scalars().first()
+
     async def list_for_user(self, db_session: AsyncSession, user_id: UUID4) -> Sequence[DirectMessage]:
         """Every message the user sent or received, oldest first."""
         query = (

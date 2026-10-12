@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
+    from uuid import UUID
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -81,6 +82,17 @@ async def hold_advisory_lock(source: AsyncSession, lock_key: str) -> AsyncGenera
                 logger.exception("Failed to release advisory lock %s", lock_key)
         if opened is not None:
             await opened.close()
+
+
+def player_pair_lock_key(user_a: UUID | str, user_b: UUID | str) -> str:
+    """Stable advisory-lock key for the unordered pair of players.
+
+    Sorting the two ids makes both directions of a pair map to the same lock, so
+    an invite from A to B serializes against a block from B to A. Callers pass
+    the result to :func:`advisory_xact_lock` around one commit.
+    """
+    low, high = sorted((str(user_a), str(user_b)))
+    return f"player-pair:{low}:{high}"
 
 
 async def try_advisory_xact_lock(db_session: AsyncSession, lock_key: str) -> bool:

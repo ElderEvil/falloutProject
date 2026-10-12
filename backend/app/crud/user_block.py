@@ -29,13 +29,23 @@ class CRUDUserBlock(CRUDBase[UserBlock, None, None]):
         return result.scalar_one_or_none()
 
     async def get_between(self, db_session: AsyncSession, user_a: UUID4, user_b: UUID4) -> UserBlock | None:
-        """Return any block row between a pair (either direction), or None."""
-        query = select(UserBlock).where(
-            (col(UserBlock.blocker_id) == user_a) & (col(UserBlock.blocked_id) == user_b)
-            | (col(UserBlock.blocker_id) == user_b) & (col(UserBlock.blocked_id) == user_a)
+        """Return any block row between a pair (either direction), or None.
+
+        Tolerant of duplicates: before blocks were serialized a pair could hold a
+        block in each direction, and ``scalar_one_or_none`` would then raise
+        ``MultipleResultsFound`` (a 500 on an otherwise blocked action).
+        """
+        query = (
+            select(UserBlock)
+            .where(
+                (col(UserBlock.blocker_id) == user_a) & (col(UserBlock.blocked_id) == user_b)
+                | (col(UserBlock.blocker_id) == user_b) & (col(UserBlock.blocked_id) == user_a)
+            )
+            .order_by(col(UserBlock.created_at).asc())
+            .limit(1)
         )
         result = await db_session.execute(query)
-        return result.scalar_one_or_none()
+        return result.scalars().first()
 
     async def list_for_blocker(self, db_session: AsyncSession, blocker_id: UUID4) -> Sequence[UserBlock]:
         """All blocks issued by a user."""

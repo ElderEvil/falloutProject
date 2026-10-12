@@ -17,9 +17,11 @@ from logging import getLogger
 from time import monotonic
 
 from pydantic import UUID4
+from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.db_locks import advisory_xact_lock, player_pair_lock_key
 from app.core.enums import ConnectionStatus
 from app.core.game_config import game_config
 from app.models.connection import Connection
@@ -94,53 +96,67 @@ class DirectMessageService:
         """Store a message (or a request when not yet connected) and push it over WebSockets."""
         self.ensure_enabled()
         recipient = await self._resolve_user(db_session, recipient_id)
-        if recipient.id == sender.id:
+        sender_id, recipient_pk = sender.id, recipient.id
+        if recipient_pk == sender_id:
             raise ValidationException("You cannot send a message to yourself.")
-        await self._reject_if_blocked(db_session, sender.id, recipient.id)
-        self._check_rate(sender.id)
+        await self._lock_pair(db_session, sender_id, recipient_pk)
+        await self._reject_if_blocked(db_session, sender_id, recipient_pk)
+        self._check_rate(sender_id)
 
-        connection = await crud.connection.get_by_pair(db_session, sender.id, recipient.id)
+        connection = await crud.connection.get_by_pair(db_session, sender_id, recipient_pk)
         accepted = connection is not None and connection.status is ConnectionStatus.ACCEPTED
         if not accepted and await crud.direct_message.has_open_request(
-            db_session, sender=sender.id, recipient=recipient.id
+            db_session, sender=sender_id, recipient=recipient_pk
         ):
             raise ValidationException("A request is already pending with this user.")
 
-        message = await crud.direct_message.create_message(
-            db_session,
-            sender_user_id=sender.id,
-            recipient_user_id=recipient.id,
-            body=body,
-            is_request=not accepted,
-        )
-        await db_session.commit()
+        try:
+            message = await crud.direct_message.create_message(
+                db_session,
+                sender_user_id=sender_id,
+                recipient_user_id=recipient_pk,
+                body=body,
+                is_request=not accepted,
+            )
+            await db_session.commit()
+        except IntegrityError:
+            # Defense-in-depth: a concurrent worker stored the same open request
+            # first; return that row instead of surfacing a 500. Ids are captured
+            # above because rollback expires the ORM objects.
+            await db_session.rollback()
+            existing = await crud.direct_message.get_last_between(db_session, sender=sender_id, recipient=recipient_pk)
+            if existing is None:
+                raise
+            return self._to_read(existing)
         read = self._to_read(message)
         payload = {"type": "direct_message", "message": read.model_dump(mode="json")}
         # Multi-instance delivery: Redis pub/sub fan-out to the recipient and an
         # echo to the sender, so both clients see the message immediately. Delivery
         # is best-effort — the message is already committed, so a socket failure
         # must not turn a successful send into an HTTP 500.
-        for target in (recipient.id, sender.id):
+        for target in (recipient_pk, sender_id):
             try:
                 await self.manager.send_personal_message(payload, target)
             except Exception:
                 logger.exception("Direct message %s delivery to %s failed", message.id, target)
-        logger.info("Direct message %s from %s to %s", message.id, sender.id, recipient.id)
+        logger.info("Direct message %s from %s to %s", message.id, sender_id, recipient_pk)
         return read
 
     async def accept_request(self, db_session: AsyncSession, *, user: User, requester_id: UUID4) -> ConnectionRead:
         """Accept an open message request: the requester becomes a connection."""
         self.ensure_enabled()
         requester = await self._resolve_user(db_session, requester_id)
-        if requester.id == user.id:
+        requester_pk, requester_username, user_pk = requester.id, requester.username, user.id
+        if requester_pk == user_pk:
             raise ValidationException("You cannot accept a request from yourself.")
-        await self._reject_if_blocked(db_session, requester.id, user.id)
+        await self._lock_pair(db_session, requester_pk, user_pk)
+        await self._reject_if_blocked(db_session, requester_pk, user_pk)
 
-        existing = await crud.connection.get_by_pair(db_session, requester.id, user.id)
+        existing = await crud.connection.get_by_pair(db_session, requester_pk, user_pk)
         if existing is not None and existing.status is ConnectionStatus.ACCEPTED:
             # Idempotent no-op: accepting an already-accepted pair returns the row.
-            return self._to_connection_read(existing, requester.username)
-        if not await crud.direct_message.has_open_request(db_session, sender=requester.id, recipient=user.id):
+            return self._to_connection_read(existing, requester_username)
+        if not await crud.direct_message.has_open_request(db_session, sender=requester_pk, recipient=user_pk):
             raise ValidationException("No pending request from this user.")
 
         if existing is not None:
@@ -150,25 +166,36 @@ class DirectMessageService:
                 db_session, existing, ConnectionStatus.ACCEPTED, responded_at=datetime.utcnow()
             )
         else:
-            connection = await crud.connection.create_connection(
-                db_session, requester_id=requester.id, addressee_id=user.id, status=ConnectionStatus.ACCEPTED
-            )
+            try:
+                connection = await crud.connection.create_connection(
+                    db_session, requester_id=requester_pk, addressee_id=user_pk, status=ConnectionStatus.ACCEPTED
+                )
+            except IntegrityError:
+                # Defense-in-depth: a concurrent worker created the pair first.
+                # Rollback expires the requester row, so use the captured handle.
+                await db_session.rollback()
+                existing = await crud.connection.get_by_pair(db_session, requester_pk, user_pk)
+                if existing is None:
+                    raise
+                return self._to_connection_read(existing, requester_username)
         # A connected pair holds no pending requests; retire any in either direction
         # so a later revoke or block-then-unblock does not leave a phantom request.
-        await crud.direct_message.clear_requests(db_session, user_a=requester.id, user_b=user.id)
+        await crud.direct_message.clear_requests(db_session, user_a=requester_pk, user_b=user_pk)
         await db_session.commit()
-        logger.info("Message request accepted: %s -> %s", requester.id, user.id)
-        return self._to_connection_read(connection, requester.username)
+        logger.info("Message request accepted: %s -> %s", requester_pk, user_pk)
+        return self._to_connection_read(connection, requester_username)
 
     async def decline_request(self, db_session: AsyncSession, *, user: User, requester_id: UUID4) -> None:
         """Discard open requests from a user; safe to retry (no-op when none remain)."""
         self.ensure_enabled()
         requester = await self._resolve_user(db_session, requester_id)
-        await self._reject_if_blocked(db_session, requester.id, user.id)
-        removed = await crud.direct_message.delete_requests_from(db_session, sender=requester.id, recipient=user.id)
+        requester_pk, user_pk = requester.id, user.id
+        await self._lock_pair(db_session, requester_pk, user_pk)
+        await self._reject_if_blocked(db_session, requester_pk, user_pk)
+        removed = await crud.direct_message.delete_requests_from(db_session, sender=requester_pk, recipient=user_pk)
         await db_session.commit()
         if removed:
-            logger.info("Message request declined: %s -> %s", requester.id, user.id)
+            logger.info("Message request declined: %s -> %s", requester_pk, user_pk)
 
     async def get_thread(
         self, db_session: AsyncSession, *, user: User, other_id: UUID4, limit: int = 50, offset: int = 0
@@ -226,6 +253,10 @@ class DirectMessageService:
     async def _reject_if_blocked(self, db_session: AsyncSession, user_a: UUID4, user_b: UUID4) -> None:
         if await crud.user_block.get_between(db_session, user_a, user_b) is not None:
             raise ValidationException("This conversation is blocked.")
+
+    async def _lock_pair(self, db_session: AsyncSession, user_a: UUID4, user_b: UUID4) -> None:
+        """Serialize a pair-mutating operation across workers; no-op outside PostgreSQL."""
+        await advisory_xact_lock(db_session, player_pair_lock_key(user_a, user_b))
 
     async def _usernames(self, db_session: AsyncSession, user_ids: list[UUID4]) -> dict[UUID4, str]:
         users = await crud.user.get_by_ids(user_ids, db_session)

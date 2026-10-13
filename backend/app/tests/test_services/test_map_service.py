@@ -598,7 +598,7 @@ async def test_sweep_reclears_skips_missing_vault_owner(
     state.reclear_available_at = datetime.utcnow() - timedelta(hours=1)
     await async_session.commit()
 
-    with patch("app.services.map_service.vault_crud.get_or_none", new=AsyncMock(return_value=None)):
+    with patch("app.services.map.discovery.vault_crud.get_or_none", new=AsyncMock(return_value=None)):
         assert await map_service.sweep_reclears(async_session) == 1
 
     await async_session.refresh(state)

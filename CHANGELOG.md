@@ -2,6 +2,83 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.201.0 (2026-10-12)
+
+### Features
+
+* **rooms:** rank assignment and incident pickers, restore merge pulse ([#963](https://github.com/ElderEvil/falloutProject/issues/963)) 5b97c86
+
+## 2.200.0 (2026-10-12)
+
+### Features
+
+* incident, combat and resource balance pass ([#962](https://github.com/ElderEvil/falloutProject/issues/962)) 91a42f9
+
+## 2.199.4 (2026-10-12)
+
+### Code Refactoring
+
+* **vault:** split vault_service into domain package behind facade ([#959](https://github.com/ElderEvil/falloutProject/issues/959)) b73070c
+
+## 2.199.3 (2026-10-12)
+
+### Code Refactoring
+
+* **map:** split map_service into domain package behind facade ([#960](https://github.com/ElderEvil/falloutProject/issues/960)) 585a952
+* **rewards:** split reward_service into domain package behind facade ([#961](https://github.com/ElderEvil/falloutProject/issues/961)) 78f7685
+
+## 2.199.2 (2026-10-11)
+
+### Bug Fixes
+
+* **combat:** apply pet protection in defender snapshots ([#952](https://github.com/ElderEvil/falloutProject/issues/952)) 2fdb180
+
+## 2.199.1 (2026-10-11)
+
+### Bug Fixes
+
+* recover objective evaluation after reward rollback ([#951](https://github.com/ElderEvil/falloutProject/issues/951)) f726310
+
+## 2.199.0 (2026-10-11)
+
+### Features
+
+* consolidate map filters and legend in places panel ([#949](https://github.com/ElderEvil/falloutProject/issues/949)) 6f78dbd
+
+## 2.198.0 (2026-10-11)
+
+### Features
+
+* make dweller attention actions filter the roster ([#950](https://github.com/ElderEvil/falloutProject/issues/950)) 0fefa3b
+
+## 2.197.0 (2026-10-11)
+
+### Features
+
+* organize exploration activities into tabs ([#948](https://github.com/ElderEvil/falloutProject/issues/948)) f1022e8
+
+## 2.196.0 (2026-10-11)
+
+### Features
+
+* add shared About help to vault planning pages ([#947](https://github.com/ElderEvil/falloutProject/issues/947)) 6d0fc81
+
+## 2.195.1 (2026-10-11)
+
+### Bug Fixes
+
+* dweller visual_attributes contract + enum-derived SPECIAL stat maps ([#945](https://github.com/ElderEvil/falloutProject/issues/945)) ca50660
+
+## 2.195.0 (2026-10-11)
+
+### Features
+
+* improve response team roster clarity and navigation ([#941](https://github.com/ElderEvil/falloutProject/issues/941)) 1877a10
+
+### Documentation
+
+* preserve game-flow continuity research ([#939](https://github.com/ElderEvil/falloutProject/issues/939)) 13cf79f
+
 ## 2.194.2 (2026-10-11)
 
 ### Bug Fixes

@@ -3,6 +3,8 @@ import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
 import {
+  hasLowHappiness,
+  needsCare,
   GENDER_CONFIG_MAP,
   RACE_CONFIG_MAP,
   RARITY_CONFIG_MAP,
@@ -43,6 +45,15 @@ export const DWELLER_STATUSES = [
 ] as const
 export type DwellerStatus = (typeof DWELLER_STATUSES)[number]
 
+export const DWELLER_ROSTER_FOCUSES = ['all', 'low_happiness', 'needs_care'] as const
+export type DwellerRosterFocus = (typeof DWELLER_ROSTER_FOCUSES)[number]
+
+export function matchesRosterFocus(dweller: DwellerShort, focus: DwellerRosterFocus): boolean {
+  if (focus === 'low_happiness') return hasLowHappiness(dweller)
+  if (focus === 'needs_care') return needsCare(dweller)
+  return true
+}
+
 export const DWELLER_AGE_GROUPS = ['child', 'teen', 'adult', 'elder', 'all'] as const
 export type DwellerAgeGroup = (typeof DWELLER_AGE_GROUPS)[number]
 
@@ -82,6 +93,7 @@ export const DWELLER_SORT_KEYS = [
   'name',
   'level',
   'happiness',
+  'health',
   'strength',
   'perception',
   'endurance',
@@ -100,6 +112,7 @@ function isOneOf<T extends string>(values: readonly T[]): (value: unknown) => va
     typeof value === 'string' && (values as readonly string[]).includes(value)
 }
 
+export const isDwellerRosterFocus = isOneOf(DWELLER_ROSTER_FOCUSES)
 export const isDwellerStatus = isOneOf(DWELLER_STATUSES)
 export const isDwellerAgeGroup = isOneOf(DWELLER_AGE_GROUPS)
 export const isDwellerGender = isOneOf(Object.keys(GENDER_CONFIG_MAP))
@@ -142,6 +155,7 @@ type FacetFilters = {
   faction: string
 }
 type DwellerFetchOptions = {
+  focus?: DwellerRosterFocus
   status?: DwellerStatus | 'all'
   ageGroup?: DwellerAgeGroup
   gender?: string
@@ -177,6 +191,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
 
   function toQueryParams(options: DwellerFetchOptions = {}): DwellerQueryParams {
     return {
+      focus: options.focus !== 'all' ? options.focus : undefined,
       status: options.status !== 'all' ? options.status : undefined,
       ageGroup: options.ageGroup !== 'all' ? options.ageGroup : undefined,
       gender: options.gender !== 'all' ? options.gender : undefined,
@@ -211,6 +226,12 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   let allDwellersRequestSeq = 0
 
   // Filter and sort state (persisted in localStorage)
+  const filterFocus = useLocalStorage<DwellerRosterFocus>('dwellerFilterFocus', 'all', {
+    serializer: {
+      read: (raw) => (isDwellerRosterFocus(raw) ? raw : 'all'),
+      write: (value) => value,
+    },
+  })
   const filterStatus = useLocalStorage<DwellerStatus | 'all'>('dwellerFilterStatus', 'all')
   const filterAgeGroup = useLocalStorage<DwellerAgeGroup>('dwellerFilterAgeGroup', 'all')
   const filterGender = useLocalStorage<string>('dwellerFilterGender', 'all')
@@ -239,6 +260,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     filterStatus,
     (status) => {
       if (status !== 'dead') return
+      filterFocus.value = 'all'
       filterAgeGroup.value = 'all'
       filterGender.value = 'all'
       filterRarity.value = 'all'
@@ -285,7 +307,9 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
    * Get filtered and sorted dwellers based on current filter/sort settings
    */
   const filteredAndSortedDwellers = computed((): DwellerWithStatus[] => {
-    let result = dwellersWithStatus.value
+    let result = dwellersWithStatus.value.filter((dweller) =>
+      matchesRosterFocus(dweller, filterFocus.value)
+    )
 
     // Apply status filter
     if (filterStatus.value !== 'all') {
@@ -324,6 +348,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     let all = 0
 
     for (const dweller of allDwellers.value) {
+      if (!matchesRosterFocus(dweller, filterFocus.value)) continue
       if (filters.status !== 'all' && dweller.status !== filters.status) continue
       if (!matchesAgeGroup(dweller, filters.ageGroup)) continue
       if (filters.gender !== 'all' && dweller.gender !== filters.gender) continue
@@ -394,6 +419,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   ): Promise<void> {
     await fetchDwellersByVault(vaultId, token, {
       ...options,
+      focus: filterFocus.value,
       status: filterStatus.value,
       ageGroup: filterAgeGroup.value,
       gender: filterGender.value,
@@ -458,6 +484,20 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     }
   }
 
+  function resetFilters(): void {
+    filterStatus.value = 'all'
+    filterFocus.value = 'all'
+    filterAgeGroup.value = 'all'
+    filterGender.value = 'all'
+    filterRarity.value = 'all'
+    filterRace.value = 'all'
+    filterFaction.value = 'all'
+  }
+
+  function setFilterFocus(focus: DwellerRosterFocus): void {
+    filterFocus.value = focus
+  }
+
   function setFilterStatus(status: DwellerStatus | 'all'): void {
     filterStatus.value = status
   }
@@ -517,6 +557,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     dwellersWithStatus,
     detailedDwellers,
     isLoading,
+    filterFocus,
     filterStatus,
     filterAgeGroup,
     filterGender,
@@ -538,6 +579,8 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     fetchWithCurrentFilters,
     fetchAllDwellers,
     fetchDwellerDetails,
+    resetFilters,
+    setFilterFocus,
     setFilterStatus,
     setFilterAgeGroup,
     setFilterGender,

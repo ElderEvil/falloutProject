@@ -83,6 +83,77 @@ async def test_send_dweller_deducts_vault_supplies_only_once(
 
 
 @pytest.mark.asyncio
+async def test_send_dweller_rejects_dweller_already_exploring(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A dweller already on a run cannot start a second free roam."""
+    await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+
+    with pytest.raises(ValueError, match="already on an exploration"):
+        await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+
+
+@pytest.mark.asyncio
+async def test_send_dweller_rejects_dead_dweller(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
+    """A dead dweller fails the shared require-healthy availability check."""
+    dweller.is_dead = True
+    async_session.add(dweller)
+    await async_session.commit()
+
+    with pytest.raises(ValueError, match="dweller is dead"):
+        await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+
+
+@pytest.mark.parametrize(
+    ("stimpaks", "radaways", "message"),
+    [
+        (-1, 0, "Stimpaks cannot be negative. Provided: -1"),
+        (0, -1, "Radaways cannot be negative. Provided: -1"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_send_dweller_rejects_negative_supplies(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    stimpaks: int,
+    radaways: int,
+    message: str,
+) -> None:
+    """A roam pay cannot request negative supplies."""
+    with pytest.raises(ValueError, match=message):
+        await exploration_service.send_dweller(
+            async_session, vault.id, dweller.id, duration=4, stimpaks=stimpaks, radaways=radaways
+        )
+
+
+@pytest.mark.asyncio
+async def test_send_dweller_snapshots_dweller_stats(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A roam departure stages the dweller's SPECIAL values onto the run."""
+    dweller.strength = 9
+    dweller.perception = 8
+    dweller.endurance = 7
+    dweller.charisma = 6
+    dweller.intelligence = 5
+    dweller.agility = 4
+    dweller.luck = 3
+    async_session.add(dweller)
+    await async_session.commit()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+
+    assert exploration.dweller_strength == 9
+    assert exploration.dweller_perception == 8
+    assert exploration.dweller_endurance == 7
+    assert exploration.dweller_charisma == 6
+    assert exploration.dweller_intelligence == 5
+    assert exploration.dweller_agility == 4
+    assert exploration.dweller_luck == 3
+
+
+@pytest.mark.asyncio
 async def test_nonhuman_explorer_cannot_pack_radaway(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
@@ -516,3 +587,30 @@ async def test_send_dweller_cancels_active_training(
     await async_session.refresh(dweller)
     assert training.is_cancelled()
     assert dweller.status == DwellerStatusEnum.EXPLORING
+
+
+@pytest.mark.asyncio
+async def test_auto_supplies_does_not_lower_health_above_radiation_ceiling(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A Stimpak cannot damage an explorer whose current health exceeds the ceiling."""
+    from app.services.exploration.event_service import auto_use_supplies
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    dweller.max_health = 100
+    dweller.health = 20
+    dweller.radiation = 90
+    exploration.stimpaks = 1
+    exploration.radaways = 0
+    async_session.add(dweller)
+    async_session.add(exploration)
+    await async_session.commit()
+
+    records = await auto_use_supplies(async_session, exploration)
+    await async_session.commit()
+    await async_session.refresh(dweller)
+    await async_session.refresh(exploration)
+
+    assert dweller.health == 20
+    assert exploration.stimpaks == 1
+    assert records == []

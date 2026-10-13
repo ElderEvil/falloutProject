@@ -182,6 +182,11 @@ class RoomService:
             absorbed = [room for room in group if room.id != survivor_room.id]
             source_for_preview = survivor_room
 
+        if candidate_id is not None and not survivor_is_candidate and isinstance(candidate, Room):
+            # A stored candidate on the right joins the left survivor: its own
+            # row must be absorbed too, or it lingers overlapping the survivor.
+            absorbed = [*absorbed, candidate]
+
         absorbed_ids = [room.id for room in absorbed]
         total_size = size + sum((room.size if room.size is not None else room.size_min) for room in group)
         counted_capacity = sum((room.capacity or 0) for room in group)
@@ -657,6 +662,21 @@ class RoomService:
         )
 
         await db_session.refresh(room)
+
+        # An upgrade can make this room identical to an adjacent one (same
+        # name and tier), so fuse them exactly like a build does — otherwise
+        # same-tier neighbours built at different times never merge.
+        merge_result = await self.merge_adjacent_rooms(db_session, candidate=room)
+        if merge_result.merged and merge_result.room is not None:
+            if crud.room.requires_recalculation(merge_result.room):
+                await vault_service.recalculate_vault_attributes(
+                    db_session=db_session,
+                    vault_obj=vault,
+                    room_obj=merge_result.room,
+                    action=RoomActionEnum.BUILD,
+                    previous_capacity=merge_result.previous_capacity,
+                )
+            return merge_result.room
         return room
 
     async def get_buildable_rooms(

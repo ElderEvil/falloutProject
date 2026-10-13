@@ -18,6 +18,7 @@ from app.models.world_location import WorldLocation
 from app.schemas.exploration_event import DiscoveryEventSchema
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration_service import exploration_service
+from app.services.map import discovery
 from app.services.map_service import map_service
 from app.services.world_snapshot_service import world_snapshot_service
 from app.utils import world_terrain
@@ -67,7 +68,7 @@ async def test_spatial_route_follows_the_movement_trail(
     exploration, origin, _snapshot = await _depart(async_session, vault, dweller, heading=90)
     await exploration_service.advance(async_session, exploration.id, now=exploration.start_time + timedelta(hours=1))
 
-    routes = await map_service._get_discovery_routes(async_session, vault.id)
+    routes = await discovery.get_discovery_routes(async_session, vault.id)
 
     route = next(r for r in routes if r.exploration_id == exploration.id)
     assert len(route.points) == 2
@@ -83,20 +84,20 @@ async def test_route_is_active_only_while_the_run_is_in_progress(
     exploration, _origin, _snapshot = await _depart(async_session, vault, dweller, heading=90)
     await exploration_service.advance(async_session, exploration.id, now=exploration.start_time + timedelta(hours=1))
 
-    routes = await map_service._get_discovery_routes(async_session, vault.id)
+    routes = await discovery.get_discovery_routes(async_session, vault.id)
     route = next(r for r in routes if r.exploration_id == exploration.id)
     assert route.is_active is True
 
     exploration.start_return()
     async_session.add(exploration)
     await async_session.commit()
-    routes = await map_service._get_discovery_routes(async_session, vault.id)
+    routes = await discovery.get_discovery_routes(async_session, vault.id)
     assert next(r for r in routes if r.exploration_id == exploration.id).is_active is True
 
     exploration.status = ExplorationStatus.COMPLETED
     async_session.add(exploration)
     await async_session.commit()
-    routes = await map_service._get_discovery_routes(async_session, vault.id)
+    routes = await discovery.get_discovery_routes(async_session, vault.id)
     assert next(r for r in routes if r.exploration_id == exploration.id).is_active is False
 
 
@@ -128,7 +129,7 @@ async def test_legacy_route_still_uses_discovery_events(
     async_session.add(exploration)
     await async_session.commit()
 
-    routes = await map_service._get_discovery_routes(async_session, vault.id)
+    routes = await discovery.get_discovery_routes(async_session, vault.id)
 
     route = next(r for r in routes if r.exploration_id == exploration.id)
     assert route.points[0].location_id == location.id

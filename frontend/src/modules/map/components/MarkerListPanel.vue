@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useId } from 'vue'
 import { Button } from '@/core/components/ui/button'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/core/components/ui/tabs'
 import { Icon } from '@iconify/vue'
 import type {
   ExpeditionSiteMarkerRead,
@@ -21,6 +22,7 @@ interface Props {
   placeGroups?: PlaceGroup[]
   siteTypeFilter?: string | null
   selectedMarkerId?: string | null
+  activeFilterCount?: number
   docked?: boolean
 }
 
@@ -29,6 +31,7 @@ const props = withDefaults(defineProps<Props>(), {
   placeGroups: () => [],
   siteTypeFilter: null,
   selectedMarkerId: null,
+  activeFilterCount: 0,
   docked: false,
 })
 
@@ -39,6 +42,7 @@ const emit = defineEmits<{
 // Panel open/close state
 const isOpen = defineModel<boolean>('open', { default: false })
 const panelId = useId()
+const activePanel = ref('places')
 
 interface MarkerGroupItem {
   id: string
@@ -191,6 +195,7 @@ function onListKeydown(event: KeyboardEvent) {
     >
       <Icon :icon="isOpen ? 'mdi:chevron-down' : 'mdi:format-list-bulleted'" class="toggle-icon" />
       <slot name="toggle-label" :count="totalCount" />
+      <span v-if="activeFilterCount" class="text-xs">· {{ activeFilterCount }} filter</span>
     </Button>
 
     <!-- Panel -->
@@ -202,53 +207,80 @@ function onListKeydown(event: KeyboardEvent) {
       aria-label="Marker list"
     >
       <div class="panel-header">
-        <span class="panel-title">MARKERS</span>
-        <span class="panel-count">{{ totalCount }}</span>
+        <span class="panel-title">{{
+          activePanel === 'legend' ? 'MAP LEGEND' : 'PLACES AND SITES'
+        }}</span>
+        <span v-if="activePanel === 'places'" class="panel-count">{{ totalCount }}</span>
       </div>
 
-      <div class="panel-body" @keydown="onListKeydown">
-        <div
-          v-for="group in groups"
-          :key="group.type"
-          class="marker-group"
-          :class="{ 'marker-group-vault': group.type === 'vault' }"
-        >
-          <button
-            type="button"
-            class="group-header"
-            :aria-expanded="!collapsedGroups.has(group.type)"
-            :aria-label="`${group.label}, ${group.items.length} markers`"
-            @click="toggleGroup(group.type)"
+      <Tabs
+        :model-value="activePanel"
+        @update:model-value="activePanel = String($event)"
+        class="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden"
+      >
+        <TabsList v-if="$slots.legend" class="mx-2 mt-2 grid grid-cols-2">
+          <TabsTrigger value="places"><Icon icon="mdi:filter-outline" />Places</TabsTrigger>
+          <TabsTrigger value="legend"><Icon icon="mdi:map-legend" />Legend</TabsTrigger>
+        </TabsList>
+        <div v-show="activePanel === 'places'" class="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <TabsContent
+            value="places"
+            force-mount
+            class="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <Icon
-              :icon="collapsedGroups.has(group.type) ? 'mdi:chevron-right' : 'mdi:chevron-down'"
-              class="group-chevron"
-            />
-            <Icon :icon="group.icon" class="group-icon" />
-            <span class="group-label">{{ group.label }}</span>
-            <span class="group-count">{{ group.items.length }}</span>
-          </button>
+            <slot name="filters" />
+            <div class="panel-body" @keydown="onListKeydown">
+              <div
+                v-for="group in groups"
+                :key="group.type"
+                class="marker-group"
+                :class="{ 'marker-group-vault': group.type === 'vault' }"
+              >
+                <button
+                  type="button"
+                  class="group-header"
+                  :aria-expanded="!collapsedGroups.has(group.type)"
+                  :aria-label="`${group.label}, ${group.items.length} markers`"
+                  @click="toggleGroup(group.type)"
+                >
+                  <Icon
+                    :icon="
+                      collapsedGroups.has(group.type) ? 'mdi:chevron-right' : 'mdi:chevron-down'
+                    "
+                    class="group-chevron"
+                  />
+                  <Icon :icon="group.icon" class="group-icon" />
+                  <span class="group-label">{{ group.label }}</span>
+                  <span class="group-count">{{ group.items.length }}</span>
+                </button>
 
-          <div v-show="!collapsedGroups.has(group.type)">
-            <button
-              v-for="item in group.items"
-              :key="item.id"
-              :ref="rowRefFn(item.id)"
-              class="marker-row"
-              :class="{ selected: selectedMarkerId === item.id }"
-              @click="handleItemClick(item)"
-            >
-              <span class="marker-name">{{ item.name }}</span>
-              <span v-if="item.group" class="marker-group-chip">
-                <Icon :icon="item.group.icon" class="marker-group-icon" />
-                {{ item.group.label }}<span v-if="item.group.risk"> · {{ item.group.risk }}</span>
-              </span>
-            </button>
-          </div>
+                <div v-show="!collapsedGroups.has(group.type)">
+                  <button
+                    v-for="item in group.items"
+                    :key="item.id"
+                    :ref="rowRefFn(item.id)"
+                    class="marker-row"
+                    :class="{ selected: selectedMarkerId === item.id }"
+                    @click="handleItemClick(item)"
+                  >
+                    <span class="marker-name">{{ item.name }}</span>
+                    <span v-if="item.group" class="marker-group-chip">
+                      <Icon :icon="item.group.icon" class="marker-group-icon" />
+                      {{ item.group.label
+                      }}<span v-if="item.group.risk"> · {{ item.group.risk }}</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="groups.length === 0" class="empty-state">No markers yet</div>
+            </div>
+          </TabsContent>
         </div>
-
-        <div v-if="groups.length === 0" class="empty-state">No markers yet</div>
-      </div>
+        <TabsContent v-if="$slots.legend" value="legend" class="min-h-0 flex-1 overflow-y-auto">
+          <slot name="legend" />
+        </TabsContent>
+      </Tabs>
     </aside>
   </div>
 </template>

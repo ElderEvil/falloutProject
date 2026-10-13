@@ -1,5 +1,10 @@
 """World-map service: register bio places, discoveries, and build map responses.
 
+Thin facade over the ``app.services.map`` domain package: ``MapService`` keeps
+the public surface — and the ``map_service`` singleton — stable for its diverse
+callers, delegating each entry point to the role-named collaborators
+(``bio_registration``, ``discovery``, and ``reads``).
+
 All ``register_*`` methods are best-effort — failures are logged at
 ``logger.exception`` level and NEVER raised to the caller.  This is
 load-bearing because bio generation must not fail on map bookkeeping.
@@ -7,116 +12,32 @@ load-bearing because bio generation must not fail on map bookkeeping.
 
 from __future__ import annotations
 
-import logging
-from dataclasses import dataclass
-from datetime import datetime
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
 
-from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum, RarityEnum
-from app.core.game_config import game_config
-from app.crud.exploration import exploration as exploration_crud
-from app.crud.vault import vault as vault_crud
-from app.crud.vault_slot import vault_slot as vault_slot_crud
-from app.crud.world_location import world_location as wl_crud
-from app.crud.world_snapshot import world_snapshot as world_snapshot_crud
-from app.models.notification import NotificationPriority, NotificationType
-from app.models.world_location import VaultLocationState, WorldLocation
-from app.schemas.wasteland_location import (
-    DiscoveryRoutePoint,
-    DiscoveryRouteRead,
-    DwellerRef,
-    ExpeditionSiteMarkerRead,
-    LocationClearStateRead,
-    PlaceGroupRead,
-    PlayerVaultMarkerRead,
-    VaultMapResponse,
-    VaultMarkerRead,
-    WastelandLocationWithDwellers,
-)
-from app.services.exploration.data_loader import load_expedition_sites
-from app.services.exploration.expedition import (
-    SiteBlockState,
-    journey_offer_context,
-    site_block_state,
-    site_is_offered,
-)
-from app.services.notification_service import notification_service
-from app.services.world_generation_service import WORLD_ID
-from app.utils import world_terrain
-from app.utils.place_groups import effective_place_group, load_place_groups
-from app.utils.places import GENERIC_ORIGIN_SKIP, WORLD_SCALE, normalize_place_name
-from app.utils.vault_slots import slot_coords
+from app.services.map import bio_registration, discovery, reads
 
 if TYPE_CHECKING:
     from sqlmodel.ext.asyncio.session import AsyncSession
 
     from app.models.dweller import Dweller
     from app.models.vault import Vault
-
-logger = logging.getLogger(__name__)
-
-
-class _MapDwellerLike(Protocol):
-    """Structural protocol for dweller objects used by map registration methods."""
-
-    id: UUID4
-    vault_id: UUID4
-    rarity: RarityEnum
-
-
-@dataclass(frozen=True)
-class _MapDwellerSnapshot:
-    """Map registration values preserved across a session rollback."""
-
-    id: UUID4
-    vault_id: UUID4
-    rarity: RarityEnum
+    from app.models.world_location import WorldLocation
+    from app.schemas.wasteland_location import VaultMapResponse, WastelandLocationWithDwellers
+    from app.services.map.bio_registration import _MapDwellerLike, _MapDwellerSnapshot
 
 
 class MapService:
     """Service layer for world-map bookkeeping."""
 
-    # ------------------------------------------------------------------
-    # best-effort helpers
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _should_skip(name: str) -> bool:
-        """Return True when *name* is generic / empty and should be dropped."""
-        if not name:
-            return True
-        return normalize_place_name(name) in GENERIC_ORIGIN_SKIP
-
-    # ------------------------------------------------------------------
-    # home marker
-    # ------------------------------------------------------------------
-
     async def ensure_home_marker(self, db_session: AsyncSession, vault: Vault) -> WorldLocation:
         """Home-vault marker at the vault's slot placement + per-vault HOME_VAULT state."""
-        slot = await vault_slot_crud.get_by_vault(db_session, vault.id)
-        coord_x, coord_y = slot_coords(slot.slot_index) if slot is not None else (50.0, 50.0)
-        home = await wl_crud.get_or_create_home_marker(db_session, vault, coord_x=coord_x, coord_y=coord_y)
-        await wl_crud.ensure_home_state(
-            db_session,
-            vault.id,
-            home.id,
-            description=f"Your vault — Vault {vault.number:03}",
-        )
-        return home
+        return await bio_registration.ensure_home_marker(db_session, vault)
 
     async def link_home_origin(self, db_session: AsyncSession, dweller: Dweller, vault: Vault) -> None:
         """Ensure the home marker exists and link *dweller* to it as ORIGIN — best-effort."""
-        try:
-            home = await self.ensure_home_marker(db_session, vault)
-            await wl_crud.link_dweller(db_session, dweller.id, home.id, DwellerLocationRelationEnum.ORIGIN)
-        except Exception:
-            logger.exception("link_home_origin failed: dweller=%s vault=%s", dweller.id, vault.id)
-
-    # ------------------------------------------------------------------
-    # bio place registration
-    # ------------------------------------------------------------------
+        await bio_registration.link_home_origin(db_session, dweller, vault)
 
     async def register_bio_places(
         self,
@@ -130,130 +51,12 @@ class MapService:
     ) -> bool:
         """Upsert bio origin + rarity-scaled visited location rows — best-effort.
 
-        *effective origin* = *explicit_origin* when truthy, else *origin_place*.
-        If the effective origin normalises to a generic skip token we suppress it.
-        Every visited name (max 64 chars, skip-list applied) is upserted, capped
-        at ``game_config.bio.max_visited`` for the dweller's rarity. The cap is
-        uniform: curated templates obey it too (they author the best N places,
-        not every mention).
-
-        A failed attempt rolls back its savepoint before retrying. With commit=False,
-        the caller owns persistence and must notify failure after its own commit.
-
         Returns ``True`` when the registration succeeded (or nothing needed to be
         done), and ``False`` when it failed after the internal retry.
         """
-        map_dweller = _MapDwellerSnapshot(
-            id=dweller.id,
-            vault_id=dweller.vault_id,
-            rarity=dweller.rarity,
+        return await bio_registration.register_bio_places(
+            db_session, dweller, origin_place, visited_places, explicit_origin, commit=commit
         )
-        for attempt in range(2):
-            try:
-                async with db_session.begin_nested():
-                    await self._register_bio_places_once(
-                        db_session,
-                        map_dweller,
-                        origin_place,
-                        visited_places,
-                        explicit_origin,
-                    )
-            except Exception:
-                if attempt == 0:
-                    logger.warning(
-                        "register_bio_places retrying after failure: dweller=%s vault=%s origin=%r",
-                        map_dweller.id,
-                        map_dweller.vault_id,
-                        origin_place,
-                        exc_info=True,
-                    )
-                    continue
-
-                logger.exception(
-                    "register_bio_places failed after retry: dweller=%s vault=%s origin=%r",
-                    map_dweller.id,
-                    map_dweller.vault_id,
-                    origin_place,
-                )
-            else:
-                if commit:
-                    try:
-                        await db_session.commit()
-                    except Exception:
-                        await db_session.rollback()
-                        logger.exception(
-                            "register_bio_places could not commit: dweller=%s vault=%s origin=%r",
-                            map_dweller.id,
-                            map_dweller.vault_id,
-                            origin_place,
-                        )
-                        await self.notify_bio_registration_failure(db_session, map_dweller)
-                        return False
-                return True
-
-        if commit:
-            await self.notify_bio_registration_failure(db_session, map_dweller)
-        return False
-
-    async def _register_bio_places_once(
-        self,
-        db_session: AsyncSession,
-        dweller: _MapDwellerSnapshot,
-        origin_place: str,
-        visited_places: list[str],
-        explicit_origin: str | None,
-    ) -> None:
-        """Register bio places once; callers handle best-effort recovery."""
-        effective_origin = explicit_origin or origin_place
-
-        # --- origin ---
-        if not self._should_skip(effective_origin):
-            origin_location = await wl_crud.get_or_create_location(
-                db_session,
-                effective_origin[:64],
-                commit=False,
-            )
-            await wl_crud.get_or_create_state(
-                db_session,
-                dweller.vault_id,
-                origin_location.id,
-                LocationTypeEnum.ORIGIN,
-                commit=False,
-            )
-            await wl_crud.link_dweller(
-                db_session, dweller.id, origin_location.id, DwellerLocationRelationEnum.ORIGIN, commit=False
-            )
-
-        # --- visited (rarity-scaled cap, de-dupe against origin, apply skip-list) ---
-        origin_normalized = normalize_place_name(effective_origin)
-        visited = 0
-        max_visited = game_config.bio.max_visited(dweller.rarity.value)
-        for raw_name in visited_places:
-            if visited >= max_visited:
-                break
-            if not raw_name or self._should_skip(raw_name):
-                continue
-            name = raw_name[:64]
-            n_name = normalize_place_name(name)
-            # do not create a visited entry that collides with the origin row
-            if n_name == origin_normalized:
-                continue
-            loc = await wl_crud.get_or_create_location(
-                db_session,
-                name,
-                commit=False,
-            )
-            await wl_crud.get_or_create_state(
-                db_session,
-                dweller.vault_id,
-                loc.id,
-                LocationTypeEnum.VISITED,
-                commit=False,
-            )
-            await wl_crud.link_dweller(
-                db_session, dweller.id, loc.id, DwellerLocationRelationEnum.VISITED, commit=False
-            )
-            visited += 1
 
     async def notify_bio_registration_failure(
         self,
@@ -261,58 +64,7 @@ class MapService:
         dweller: _MapDwellerLike | _MapDwellerSnapshot,
     ) -> None:
         """Persist an actionable notification when map registration exhausts its retry."""
-        try:
-            vault = await vault_crud.get_or_none(db_session, dweller.vault_id, include_deleted=True)
-            if vault is None:
-                logger.error("Cannot notify map registration failure: vault=%s not found", dweller.vault_id)
-                return
-
-            await notification_service.create_and_send(
-                db_session,
-                user_id=vault.user_id,
-                vault_id=vault.id,
-                from_dweller_id=dweller.id,
-                notification_type=NotificationType.MAP_REGISTRATION_FAILED,
-                priority=NotificationPriority.HIGH,
-                title="Map registration needs attention",
-                message="A dweller's known locations could not be added to the map. Please try again later.",
-            )
-        except Exception:
-            logger.exception(
-                "Could not persist map registration failure notification: dweller=%s vault=%s",
-                dweller.id,
-                dweller.vault_id,
-            )
-
-    # ------------------------------------------------------------------
-    # discovery registration
-    # ------------------------------------------------------------------
-
-    async def _link_discovery(
-        self,
-        db_session: AsyncSession,
-        vault_id: UUID4,
-        exploration_id: UUID4,
-        dweller_id: UUID4,
-        location: WorldLocation,
-    ) -> None:
-        """Create the vault state + dweller link for a resolved discovery place."""
-        await wl_crud.get_or_create_state(
-            db_session,
-            vault_id,
-            location.id,
-            LocationTypeEnum.DISCOVERY,
-            exploration_id=exploration_id,
-            commit=False,
-        )
-        await wl_crud.link_dweller(
-            db_session,
-            dweller_id,
-            location.id,
-            DwellerLocationRelationEnum.VISITED,
-            is_unlocked=True,
-            commit=False,
-        )
+        await bio_registration.notify_bio_registration_failure(db_session, dweller)
 
     async def register_discovery(
         self,
@@ -323,50 +75,7 @@ class MapService:
         location_name: str,
     ) -> WorldLocation | None:
         """Upsert a DISCOVERY state and unlock the place for the exploring dweller (best-effort)."""
-        try:
-            location = await wl_crud.get_or_create_location(
-                db_session,
-                location_name[:64],
-                commit=False,
-            )
-            await self._link_discovery(db_session, vault_id, exploration_id, dweller_id, location)
-        except Exception:
-            # A failed flush leaves SQLAlchemy's transaction unusable. This
-            # registration is best-effort and runs before the event mutation,
-            # so reset it and let the discovery event continue without a link.
-            await db_session.rollback()
-            logger.exception(
-                "register_discovery failed: vault=%s exploration=%s name=%r",
-                vault_id,
-                exploration_id,
-                location_name,
-            )
-            return None
-        else:
-            return location
-
-    async def _create_journey_place(
-        self,
-        db_session: AsyncSession,
-        exploration_id: UUID4,
-        location_name: str,
-        coord_x: float,
-        coord_y: float,
-    ) -> WorldLocation:
-        """A new spatial row keyed to journey and position, not to the name.
-
-        Identity is a pure function of the inputs, so concurrent discoveries
-        cannot race on allocation: same position merges (one place), different
-        positions never compete for one row.
-        """
-        key = f"{exploration_id}:{coord_x:.1f},{coord_y:.1f}"
-        return await wl_crud.get_or_create_location(
-            db_session,
-            location_name[:64],
-            coords=(coord_x, coord_y),
-            normalized_name=key,
-            commit=False,
-        )
+        return await discovery.register_discovery(db_session, vault_id, exploration_id, dweller_id, location_name)
 
     async def register_spatial_discovery(
         self,
@@ -378,160 +87,14 @@ class MapService:
         position: tuple[float, float],
         world_version: int | None,
     ) -> WorldLocation | None:
-        """Register a discovery found while moving: nearby place, else journey-scoped.
-
-        An existing PLACE row within the fog's site radius is claimed where it
-        stands (its coordinates never move); otherwise a new place is created
-        at the explorer's position snapped to the nearest land tile, keyed to
-        the journey so distant same-name rows can never hijack it.
-        Best-effort like ``register_discovery``.
-        """
-        try:
-            coord_x, coord_y = position
-            snapshot = (
-                await world_snapshot_crud.get_version(db_session, world_id=WORLD_ID, generator_version=world_version)
-                if world_version is not None
-                else None
-            )
-            if snapshot is not None:
-                radius = world_terrain.reveal_radius_registry(snapshot, world_terrain.SITE_REVEAL_TILES)
-                nearby = await wl_crud.get_nearest_within(db_session, coord_x, coord_y, radius)
-                if nearby is not None:
-                    location = nearby
-                else:
-                    coord_x, coord_y = world_terrain.nearest_land(snapshot, coord_x, coord_y)
-                    location = await self._create_journey_place(
-                        db_session, exploration_id, location_name, coord_x, coord_y
-                    )
-            else:
-                location = await self._create_journey_place(db_session, exploration_id, location_name, coord_x, coord_y)
-            await self._link_discovery(db_session, vault_id, exploration_id, dweller_id, location)
-        except Exception:
-            await db_session.rollback()
-            logger.exception(
-                "register_spatial_discovery failed: vault=%s exploration=%s name=%r",
-                vault_id,
-                exploration_id,
-                location_name,
-            )
-            return None
-        else:
-            return location
-
-    async def _get_discovery_routes(self, db_session: AsyncSession, vault_id: UUID4) -> list[DiscoveryRouteRead]:
-        """Project a journey into ordered map coordinates.
-
-        Spatial runs use their persisted movement trail: the durable path
-        segments the fog corridor follows. Legacy runs use discovery events —
-        a ``WastelandLocation`` is de-duplicated by place name, so it cannot
-        faithfully represent repeated visits, and event records are the journey
-        authority there. Older events without coordinate fields are omitted.
-        """
-        explorations = await exploration_crud.get_by_vault(db_session, vault_id=vault_id)
-        routes: list[DiscoveryRouteRead] = []
-        for exploration in explorations:
-            points = (
-                self._movement_route_points(exploration)
-                if exploration.heading_degrees is not None
-                else self._discovery_route_points(exploration)
-            )
-            if len(points) >= 2:
-                points.sort(key=lambda point: point.timestamp)
-                routes.append(
-                    DiscoveryRouteRead(
-                        exploration_id=exploration.id,
-                        points=points,
-                        is_active=exploration.is_in_progress(),
-                    )
-                )
-        return routes
-
-    @staticmethod
-    def _movement_route_points(exploration) -> list[DiscoveryRoutePoint]:
-        """A spatial run's traveled path, scaled into wire coordinates."""
-        points: list[DiscoveryRoutePoint] = []
-        for step in exploration.trail or []:
-            coord_x = step.get("x")
-            coord_y = step.get("y")
-            timestamp = step.get("t")
-            if coord_x is None or coord_y is None or not isinstance(timestamp, str):
-                continue
-            points.append(
-                DiscoveryRoutePoint(
-                    coord_x=round(float(coord_x) * WORLD_SCALE, 1),
-                    coord_y=round(float(coord_y) * WORLD_SCALE, 1),
-                    timestamp=timestamp,
-                )
-            )
-        return points
-
-    @staticmethod
-    def _discovery_route_points(exploration) -> list[DiscoveryRoutePoint]:
-        """A legacy run's discovery events, scaled into wire coordinates."""
-        points: list[DiscoveryRoutePoint] = []
-        for event in exploration.events:
-            if event.get("type") != "discovery":
-                continue
-            location_id = event.get("location_id")
-            coord_x = event.get("coord_x")
-            coord_y = event.get("coord_y")
-            timestamp = event.get("timestamp")
-            if location_id is None or coord_x is None or coord_y is None or not isinstance(timestamp, str):
-                continue
-            points.append(
-                DiscoveryRoutePoint(
-                    location_id=location_id,
-                    coord_x=round(float(coord_x) * WORLD_SCALE, 1),
-                    coord_y=round(float(coord_y) * WORLD_SCALE, 1),
-                    timestamp=timestamp,
-                )
-            )
-        return points
-
-    # ------------------------------------------------------------------
-    # map assembly
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _description_for(state: VaultLocationState, location: WorldLocation) -> str | None:
-        """Canonical lore, then per-vault description, then the archetype's shared lore."""
-        if location.description:
-            return location.description
-        if state.description:
-            return state.description
-        group = effective_place_group(location.group_key, location.kind)
-        return group.get("description") if group else None
-
-    @staticmethod
-    def _clear_state_for(state: VaultLocationState, location: WorldLocation) -> LocationClearStateRead | None:
-        """Derive the read-only clear state for a map point, or None when not clearable.
-
-        Availability is computed from ``now`` and never persisted; non-clearable
-        groups and ungrouped points carry no clear state on the wire.
-        """
-        group = effective_place_group(location.group_key, location.kind)
-        if group is None or not group.get("clearable"):
-            return None
-        now = datetime.utcnow()
-        return LocationClearStateRead(
-            clearable=True,
-            cleared=state.is_cleared(now),
-            clear_count=state.clear_count,
-            tier=min(state.clear_count, game_config.exploration.dispatch.escalation_cap),
-            time_remaining_seconds=state.time_remaining_seconds(now),
-            loot_table=group.get("loot_table"),
+        """Register a discovery found while moving: nearby place, else journey-scoped."""
+        return await discovery.register_spatial_discovery(
+            db_session, vault_id, exploration_id, dweller_id, location_name, position, world_version
         )
 
-    @staticmethod
-    def _group_key_for(location: WorldLocation) -> str | None:
-        """Effective archetype key for the wire.
-
-        An ungrouped PLACE resolves to the default ``wasteland_site`` archetype
-        (when emergent sites are enabled), so the client renders a real site icon
-        instead of falling back to a bare marker-type glyph.
-        """
-        group = effective_place_group(location.group_key, location.kind)
-        return group["key"] if group else None
+    async def sweep_reclears(self, db_session: AsyncSession) -> int:
+        """Null elapsed reclear windows and notify owners the point is ready again."""
+        return await discovery.sweep_reclears(db_session)
 
     async def get_location_detail(
         self,
@@ -540,75 +103,7 @@ class MapService:
         location_id: UUID4,
     ) -> WastelandLocationWithDwellers:
         """Return a single location with its linked dweller references."""
-        from app.utils.exceptions import ResourceNotFoundException
-
-        pair = await wl_crud.get_state_with_location(db_session, vault.id, location_id)
-        if pair is None:
-            raise ResourceNotFoundException(WorldLocation, identifier=location_id)
-        location, state = pair
-
-        refs_map = await wl_crud.get_dweller_refs(db_session, vault.id, [location.id])
-        refs = refs_map.get(location.id, [])
-
-        dweller_refs = [
-            DwellerRef(
-                dweller_id=r["dweller_id"],
-                first_name=r["first_name"],
-                last_name=r["last_name"],
-                relation=r["relation"],
-                is_unlocked=r.get("is_unlocked", False),
-            )
-            for r in refs
-        ]
-
-        return WastelandLocationWithDwellers(
-            id=state.location_id,
-            name=location.name,
-            normalized_name=location.normalized_name,
-            type=state.type,
-            coord_x=round(location.coord_x * WORLD_SCALE, 1),
-            coord_y=round(location.coord_y * WORLD_SCALE, 1),
-            description=self._description_for(state, location),
-            group_key=self._group_key_for(location),
-            vault_id=vault.id,
-            exploration_id=state.exploration_id,
-            created_at=state.created_at,
-            dwellers=dweller_refs,
-            is_unlocked=any(r.is_unlocked for r in dweller_refs),
-            clear_state=self._clear_state_for(state, location),
-        )
-
-    async def sweep_reclears(self, db_session: AsyncSession) -> int:
-        """Null elapsed reclear windows and notify owners the point is ready again.
-
-        The null is the idempotency guard: a second sweep finds nothing. A vault
-        whose owner row is missing is skipped without aborting the sweep.
-        """
-        pairs = await wl_crud.get_elapsed_reclears(db_session, datetime.utcnow())
-        for location, state in pairs:
-            state.reclear_available_at = None
-            db_session.add(state)
-            vault = await vault_crud.get_or_none(db_session, state.vault_id)
-            if vault is None:
-                logger.error("Cannot notify reclear ready: vault=%s not found", state.vault_id)
-                continue
-            await notification_service.create_and_send(
-                db_session,
-                user_id=vault.user_id,
-                vault_id=vault.id,
-                notification_type=NotificationType.LOCATION_READY,
-                priority=NotificationPriority.NORMAL,
-                title=f"{location.name} ready",
-                message=f"{location.name} is ready to be cleared again.",
-                meta_data={
-                    "location_id": str(state.location_id),
-                    "location_name": location.name,
-                },
-                commit=False,
-            )
-        await db_session.commit()
-        await notification_service.deliver_deferred_notifications(db_session)
-        return len(pairs)
+        return await reads.get_location_detail(db_session, vault, location_id)
 
     async def get_vault_map(
         self, db_session: AsyncSession, vault: Vault, *, unlocked_only: bool = False
@@ -618,138 +113,7 @@ class MapService:
         When *unlocked_only* is True, non-VAULT locations without any unlocked
         DwellerLocation link are excluded.  HOME_VAULT is always retained.
         """
-        await self.ensure_home_marker(db_session, vault)
-
-        # --- persisted locations ---
-        pairs = await wl_crud.get_states_by_vault(db_session, vault.id)
-        location_ids = [state.location_id for _, state in pairs]
-        dweller_refs_map = await wl_crud.get_dweller_refs(db_session, vault.id, location_ids)
-
-        locations: list[WastelandLocationWithDwellers] = []
-        for location, state in pairs:
-            refs = dweller_refs_map.get(state.location_id, [])
-            dweller_refs = [
-                DwellerRef(
-                    dweller_id=r["dweller_id"],
-                    first_name=r["first_name"],
-                    last_name=r["last_name"],
-                    relation=r["relation"],
-                    is_unlocked=r.get("is_unlocked", False),
-                )
-                for r in refs
-            ]
-            location_unlocked = any(r.is_unlocked for r in dweller_refs)
-
-            # When filtering, keep HOME_VAULT and unlocked locations; drop locked ones
-            if unlocked_only and state.type != LocationTypeEnum.HOME_VAULT and not location_unlocked:
-                continue
-
-            locations.append(
-                WastelandLocationWithDwellers(
-                    id=state.location_id,
-                    name=location.name,
-                    normalized_name=location.normalized_name,
-                    type=state.type,
-                    coord_x=round(location.coord_x * WORLD_SCALE, 1),
-                    coord_y=round(location.coord_y * WORLD_SCALE, 1),
-                    description=self._description_for(state, location),
-                    group_key=self._group_key_for(location),
-                    vault_id=vault.id,
-                    exploration_id=state.exploration_id,
-                    created_at=state.created_at,
-                    dwellers=dweller_refs,
-                    is_unlocked=location_unlocked,
-                    clear_state=self._clear_state_for(state, location),
-                )
-            )
-
-        # --- seeded NPC vault signals (persisted registry rows) ---
-        seeded_vaults = await wl_crud.get_seeded_vaults(db_session)
-        vault_markers = [
-            VaultMarkerRead(
-                name=row.name,
-                coord_x=round(row.coord_x * WORLD_SCALE, 1),
-                coord_y=round(row.coord_y * WORLD_SCALE, 1),
-                type="vault",
-                description=row.description or "An unclassified vault signal. No contact established.",
-            )
-            for row in seeded_vaults
-        ]
-
-        discovery_routes = await self._get_discovery_routes(db_session, vault.id)
-
-        # --- real player vaults on the shared atlas (discoverable by all users) ---
-        slot_rows = await vault_slot_crud.list_markers(db_session)
-        player_vaults = [
-            PlayerVaultMarkerRead(
-                vault_id=slot_vault_id,
-                number=number,
-                coord_x=round(slot_coords(slot_index)[0] * WORLD_SCALE, 1),
-                coord_y=round(slot_coords(slot_index)[1] * WORLD_SCALE, 1),
-                is_mine=slot_user_id == vault.user_id,
-            )
-            for slot_index, slot_vault_id, number, slot_user_id in slot_rows
-        ]
-
-        expedition_sites = await self._expedition_site_markers(db_session, vault)
-
-        return VaultMapResponse(
-            locations=locations,
-            vault_markers=vault_markers,
-            player_vaults=player_vaults,
-            discovery_routes=discovery_routes,
-            place_groups=[PlaceGroupRead(**group) for group in load_place_groups()],
-            expedition_sites=expedition_sites,
-        )
-
-    @staticmethod
-    def _site_marker(site, block: SiteBlockState, exploration_id=None) -> ExpeditionSiteMarkerRead:
-        """Project one catalog site plus its journey/anti-farm block state onto the wire."""
-        return ExpeditionSiteMarkerRead(
-            id=site.id,
-            name=site.name,
-            flavor=site.flavor,
-            coord_x=round(site.coord_x * WORLD_SCALE, 1),
-            coord_y=round(site.coord_y * WORLD_SCALE, 1),
-            min_dweller_level=site.min_dweller_level,
-            room_total=len(site.rooms),
-            cleared=block.cleared,
-            cooldown_remaining_seconds=block.cooldown_remaining_seconds,
-            block_reason=block.reason,
-            exploration_id=exploration_id,
-        )
-
-    async def _expedition_site_markers(self, db_session: AsyncSession, vault: Vault) -> list[ExpeditionSiteMarkerRead]:
-        """Journey-offered sites across in-progress spatial runs, else the legacy catalog.
-
-        Every in-progress spatial journey contributes the sites near its traveled
-        trail (consumed ones drop out), carrying its exploration id so the client can
-        route entry to the right journey. Legacy journeys keep the catalog with
-        anti-farm cooldowns. With no in-progress journey there are no temporary
-        markers at all — they expire with the journey rather than reverting to a
-        permanent catalog.
-        """
-        explorations = await exploration_crud.get_by_vault(db_session, vault_id=vault.id, active_only=True)
-        spatial = [exploration for exploration in explorations if exploration.heading_degrees is not None]
-        if spatial:
-            markers: list[ExpeditionSiteMarkerRead] = []
-            offered_ids: set[str] = set()
-            for exploration in spatial:
-                context = await journey_offer_context(db_session, exploration)
-                if context is None:
-                    continue
-                for site in load_expedition_sites():
-                    if site.id in offered_ids or not site_is_offered(site, context):
-                        continue
-                    markers.append(self._site_marker(site, SiteBlockState(), exploration.id))
-                    offered_ids.add(site.id)
-            return markers
-        if not explorations:
-            return []
-        return [
-            self._site_marker(site, await site_block_state(db_session, vault.id, site.id))
-            for site in load_expedition_sites()
-        ]
+        return await reads.get_vault_map(db_session, vault, unlocked_only=unlocked_only)
 
 
 # ------------------------------------------------------------------

@@ -52,7 +52,8 @@ const MarkerListPanelStub = {
     'docked',
   ],
   emits: ['marker-select'],
-  template: '<div class="marker-list-panel-stub" />',
+  template:
+    '<div class="marker-list-panel-stub"><slot name="filters" /><slot name="legend" /></div>',
 }
 
 const ButtonStub = {

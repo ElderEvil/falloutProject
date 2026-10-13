@@ -79,7 +79,9 @@ const isDead = computed(() => props.dweller.is_dead === true)
 // the item, or they need it. A healthy dweller with empty pockets sees nothing.
 const isInjured = computed(
   () =>
-    props.dweller.health < getEffectiveMaxHealth(props.dweller.radiation, props.dweller.max_health)
+    props.dweller.health <
+    (props.dweller.effective_max_health ??
+      getEffectiveMaxHealth(props.dweller.radiation, props.dweller.max_health))
 )
 const isRadiated = computed(() => (props.dweller.radiation || 0) > 0)
 

@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
-import { ADULT_AGE_GROUPS, isAvailableUnassignedDweller } from '@/modules/dwellers/models/dweller'
+import {
+  ADULT_AGE_GROUPS,
+  getAbilityConfig,
+  isAvailableUnassignedDweller,
+  type SpecialKey,
+} from '@/modules/dwellers/models/dweller'
 import RoomDwellerCard from './RoomDwellerCard.vue'
 
 interface Props {
@@ -19,6 +24,21 @@ type AssignmentMode = 'worker' | 'apprentice'
 
 const assignmentMode = defineModel<AssignmentMode | null>('assignmentMode', { default: null })
 
+// The room's own SPECIAL drives the ranking, so the best fit is offered first.
+const abilityKey = computed<SpecialKey | null>(() => {
+  if (!getAbilityConfig(props.ability)) return null
+  return props.ability!.toLowerCase() as SpecialKey
+})
+
+const byAbilityThenName = (a: (typeof dwellerStore.dwellers)[number], b: (typeof dwellerStore.dwellers)[number]) => {
+  const key = abilityKey.value
+  if (key) {
+    const diff = (b[key] ?? 0) - (a[key] ?? 0)
+    if (diff !== 0) return diff
+  }
+  return `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)
+}
+
 const availableDwellers = computed(() =>
   dwellerStore.dwellers
     .filter(
@@ -28,7 +48,7 @@ const availableDwellers = computed(() =>
           ? !ADULT_AGE_GROUPS.has(dweller.age_group)
           : ADULT_AGE_GROUPS.has(dweller.age_group))
     )
-    .sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`))
+    .sort(byAbilityThenName)
 )
 
 const pickDweller = (dwellerId: string) => {

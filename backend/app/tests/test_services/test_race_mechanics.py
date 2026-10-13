@@ -414,7 +414,7 @@ class TestCombatAndProductionApplication:
         mutant_output = manager._calculate_room_production(room, [mutant], 60)
 
         assert mutant_output > human_output
-        assert human_output == pytest.approx(10 * 5 * 0.1 * 1.0 * 1.05 * 60)
+        assert human_output == pytest.approx(10 * 5 * game_config.resource.base_production_rate * 1.0 * 1.05 * 60)
 
     def test_production_perk_is_per_worker_not_per_room(self) -> None:
         """A single faction bonus must not inflate neutral coworkers in the same room."""
@@ -427,8 +427,9 @@ class TestCombatAndProductionApplication:
         mixed = manager._calculate_room_production(room, [vault_dweller, neutral], 60)
 
         # 5 stats x 1.05 for the Vault Dweller plus 5 stats x 1.0 for the neutral worker.
-        assert mixed == pytest.approx(10 * (5 * 1.05 + 5 * 1.0) * 0.1 * 1.0 * 60)
-        assert mixed < 10 * (5 + 5) * 0.1 * 1.0 * 1.05 * 60
+        rate = game_config.resource.base_production_rate
+        assert mixed == pytest.approx(10 * (5 * 1.05 + 5 * 1.0) * rate * 1.0 * 60)
+        assert mixed < 10 * (5 + 5) * rate * 1.0 * 1.05 * 60
 
     def test_synth_immunity_blocks_the_dose(self) -> None:
         synth = _dweller("synth")
@@ -531,7 +532,9 @@ class TestFeatureFlag:
             return dweller
 
         mutant = fighter("super_mutant", "super_mutant_tribe")
-        assert manager._calculate_room_production(room, [mutant], 60) == pytest.approx(10 * 5 * 0.1 * 1.0 * 60)
+        assert manager._calculate_room_production(room, [mutant], 60) == pytest.approx(
+            10 * 5 * game_config.resource.base_production_rate * 1.0 * 60
+        )
         assert combat_power(mutant) == combat_power(fighter("human"))
 
     def test_faction_off_alone_leaves_race_mechanics_working(self, monkeypatch) -> None:

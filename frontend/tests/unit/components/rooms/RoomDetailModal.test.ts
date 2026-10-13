@@ -47,10 +47,24 @@ vi.mock('@/core/composables/useToast', () => ({
   }),
 }))
 
-// Mock axios
+// Mock axios (balance endpoint serves the live production rate, like the backend)
 vi.mock('@/core/plugins/axios', () => ({
   default: {
-    get: vi.fn().mockResolvedValue({ data: {} }),
+    get: vi.fn((url: string) => {
+      if (url.includes('game/balance')) {
+        return Promise.resolve({
+          data: {
+            resource: {
+              base_production_rate: 0.0003,
+              tier_1_multiplier: 1.0,
+              tier_2_multiplier: 1.5,
+              tier_3_multiplier: 2.0,
+            },
+          },
+        })
+      }
+      return Promise.resolve({ data: {} })
+    }),
     post: vi.fn().mockResolvedValue({ data: {} }),
     put: vi.fn().mockResolvedValue({ data: {} }),
   },
@@ -392,7 +406,7 @@ describe('RoomDetailModal', () => {
   })
 
   describe('Production Statistics', () => {
-    it('should show production stats for production rooms', () => {
+    it('should show production stats for production rooms', async () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
@@ -402,13 +416,14 @@ describe('RoomDetailModal', () => {
           modelValue: true,
         },
       })
+      await flushPromises()
 
       expect(wrapper.text()).toContain('Production Statistics')
       expect(wrapper.text()).toContain('Resource Type')
       expect(wrapper.text()).toContain('Power')
     })
 
-    it('should calculate production rate correctly', () => {
+    it('should calculate production rate correctly', async () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
@@ -418,14 +433,16 @@ describe('RoomDetailModal', () => {
           modelValue: true,
         },
       })
+      await flushPromises()
 
       // Apprentices learn in a dedicated slot and do not contribute to production yet.
-      // output = 10, adult Strength = 9, BASE = 0.1, tier1 = 1.0 → 9/sec, 540/min
+      // Rate comes live from /balance: output = 10, adult Strength = 9,
+      // rate = 0.0003, tier1 = 1.0 → 0.027/sec, 1.62/min
       expect(wrapper.text()).toContain('Production Rate')
-      expect(wrapper.text()).toContain('540.00')
+      expect(wrapper.text()).toContain('1.62')
     })
 
-    it('should calculate efficiency correctly', () => {
+    it('should calculate efficiency correctly', async () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
@@ -435,13 +452,14 @@ describe('RoomDetailModal', () => {
           modelValue: true,
         },
       })
+      await flushPromises()
 
       // Efficiency counts only normal workers; the apprentice has a dedicated slot.
       expect(wrapper.text()).toContain('Efficiency')
       expect(wrapper.text()).toContain('50%')
     })
 
-    it('should show 100% efficiency when fully staffed', () => {
+    it('should show 100% efficiency when fully staffed', async () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers.map((dweller) => ({ ...dweller, apprentice_stat: null }))
 
@@ -451,6 +469,7 @@ describe('RoomDetailModal', () => {
           modelValue: true,
         },
       })
+      await flushPromises()
 
       expect(wrapper.text()).toContain('100%')
     })
@@ -472,7 +491,7 @@ describe('RoomDetailModal', () => {
       expect(wrapper.text()).not.toContain('Production Statistics')
     })
 
-    it('should show correct resource type for AGILITY (Food)', () => {
+    it('should show correct resource type for AGILITY (Food)', async () => {
       const foodRoom = {
         ...mockRoom,
         ability: 'AGILITY',
@@ -487,11 +506,12 @@ describe('RoomDetailModal', () => {
           modelValue: true,
         },
       })
+      await flushPromises()
 
       expect(wrapper.text()).toContain('Food')
     })
 
-    it('should show correct resource type for PERCEPTION (Water)', () => {
+    it('should show correct resource type for PERCEPTION (Water)', async () => {
       const waterRoom = {
         ...mockRoom,
         ability: 'PERCEPTION',
@@ -506,6 +526,7 @@ describe('RoomDetailModal', () => {
           modelValue: true,
         },
       })
+      await flushPromises()
 
       expect(wrapper.text()).toContain('Water')
     })
@@ -642,6 +663,41 @@ describe('RoomDetailModal', () => {
       await wrapper.get('.dweller-picker .dweller-card__details').trigger('click')
 
       expect(assignSpy).toHaveBeenCalledWith('dweller-1', 'room-1', 'test-token')
+    })
+
+    it('offers dwellers sorted by the room stat, best first', async () => {
+      const { filter: dwellerStore } = useDwellerStore()
+      dwellerStore.dwellers = [
+        {
+          ...mockDwellers[0],
+          id: 'low-str',
+          first_name: 'Lowbie',
+          age_group: 'adult',
+          apprentice_stat: null,
+          room_id: null,
+          status: 'idle',
+          strength: 2,
+        },
+        {
+          ...mockDwellers[1],
+          id: 'high-str',
+          first_name: 'Strong',
+          age_group: 'adult',
+          apprentice_stat: null,
+          room_id: null,
+          status: 'idle',
+          strength: 10,
+        },
+      ] as never
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRoom, modelValue: true },
+      })
+      await wrapper.get('.scene-empty-worker').trigger('click')
+
+      const cards = wrapper.findAll('.dweller-picker .dweller-card')
+      expect(cards).toHaveLength(2)
+      expect(cards[0].text()).toContain('Strong')
     })
 
     it('keeps individual SPECIAL values out of the scene', () => {
@@ -854,7 +910,7 @@ describe('RoomDetailModal', () => {
   })
 
   describe('Production Rate with Different Tiers', () => {
-    it('should multiply production by 1.5 for tier 2', () => {
+    it('should multiply production by 1.5 for tier 2', async () => {
       const tier2Room = {
         ...mockRoom,
         tier: 2,
@@ -869,12 +925,13 @@ describe('RoomDetailModal', () => {
           modelValue: true,
         },
       })
+      await flushPromises()
 
-      // Production: 10 * 17 * 0.1 * 1.5 = 25.5 per second, 1530 per minute
-      expect(wrapper.text()).toContain('1530.00')
+      // Rate comes live from /balance: 10 * 17 * 0.0003 * 1.5 = 0.0765/sec, 4.59/min
+      expect(wrapper.text()).toContain('4.59')
     })
 
-    it('should multiply production by 2.0 for tier 3', () => {
+    it('should multiply production by 2.0 for tier 3', async () => {
       const tier3Room = {
         ...mockRoom,
         tier: 3,
@@ -889,9 +946,10 @@ describe('RoomDetailModal', () => {
           modelValue: true,
         },
       })
+      await flushPromises()
 
-      // Production: 10 * 17 * 0.1 * 2.0 = 34 per second, 2040 per minute
-      expect(wrapper.text()).toContain('2040.00')
+      // Rate comes live from /balance: 10 * 17 * 0.0003 * 2.0 = 0.102/sec, 6.12/min
+      expect(wrapper.text()).toContain('6.12')
     })
   })
 

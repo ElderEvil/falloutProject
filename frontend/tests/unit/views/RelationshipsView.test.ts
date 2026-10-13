@@ -91,6 +91,30 @@ describe('RelationshipsView', () => {
   })
 
   describe('Rendering', () => {
+    it('explains family stages through optional page help without switching tabs', async () => {
+      const wrapper = mount(RelationshipsView, {
+        attachTo: document.body,
+        global: { plugins: [router], stubs: { Teleport: { template: '<div><slot /></div>' } } },
+      })
+      await flushPromises()
+      expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+      await vi.waitFor(() =>
+        expect(wrapper.find('button[aria-label="About Relationships & Family"]').exists()).toBe(
+          true
+        )
+      )
+      await wrapper.find('button[aria-label="About Relationships & Family"]').trigger('click')
+      await flushPromises()
+      const help = wrapper.find('[role="dialog"]')
+      expect(help.text()).toContain('sharing Living Quarters')
+      expect(help.text()).toContain('conception is not guaranteed')
+      expect(help.text()).toContain('youth stages before adulthood')
+      await help.find('button').trigger('click')
+      await flushPromises()
+      expect(wrapper.find('[role="tab"][aria-selected="true"]').text()).toContain('Forming')
+      wrapper.unmount()
+    })
+
     it('should render relationships view with header', async () => {
       const wrapper = mount(RelationshipsView, {
         global: {

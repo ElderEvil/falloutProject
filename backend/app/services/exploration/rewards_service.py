@@ -32,7 +32,7 @@ from app.services.loot_overflow_service import loot_overflow_service
 from app.services.resource_manager import compute_medical_capacity
 from app.services.vault_service import vault_service
 from app.utils.exceptions import ValidationException
-from app.utils.item_factory import build_junk, build_outfit, build_weapon
+from app.utils.item_factory import build_catalog_item, build_junk
 
 logger = logging.getLogger(__name__)
 
@@ -89,15 +89,13 @@ class RewardsService:
         try:
             match loot_item.get("item_type", "junk"):
                 case "weapon":
-                    weapon_data = next((w for w in weapons_data if w["name"] == item_name), None)
-                    if weapon_data is None:
-                        return None
-                    return build_weapon(weapon_data, rarity, storage_id)
+                    return build_catalog_item(
+                        "weapon", item_name, rarity, storage_id, weapons_data=weapons_data, outfits_data=[]
+                    )
                 case "outfit":
-                    outfit_data = next((o for o in outfits_data if o["name"] == item_name), None)
-                    if outfit_data is None:
-                        return None
-                    return build_outfit(outfit_data, rarity, storage_id)
+                    return build_catalog_item(
+                        "outfit", item_name, rarity, storage_id, weapons_data=[], outfits_data=outfits_data
+                    )
                 case _:
                     return build_junk(
                         item_name,

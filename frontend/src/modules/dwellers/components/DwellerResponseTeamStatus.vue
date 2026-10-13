@@ -4,7 +4,8 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import DwellerStateChip from './DwellerStateChip.vue'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { contaminationTeamApi } from '@/modules/contamination-team'
-import type { ContaminationTeamRead, HazardTeam } from '@/modules/contamination-team'
+import { HAZARD_TEAM_CONFIG } from '@/modules/contamination-team/models/contaminationTeam'
+import type { ContaminationTeamRead } from '@/modules/contamination-team'
 
 const props = defineProps<{ dwellerId: string; vaultId: string }>()
 
@@ -22,24 +23,6 @@ onMounted(async () => {
   roster.value = await run(props.vaultId, authStore.token)
 })
 
-const TEAM_CONFIG: Record<
-  HazardTeam,
-  { label: string; icon: string; activeTitle: string; reserveTitle: string }
-> = {
-  fire: {
-    label: 'Fire Team',
-    icon: 'mdi:fire',
-    activeTitle: "Active on the vault's Fire response team",
-    reserveTitle: 'Reserve (bench) on the Fire response team',
-  },
-  radiation: {
-    label: 'Radiation Team',
-    icon: 'mdi:radioactive',
-    activeTitle: "Active on the vault's Radiation response team",
-    reserveTitle: 'Reserve (bench) on the Radiation response team',
-  },
-}
-
 interface TeamChip {
   label: string
   icon: string
@@ -52,14 +35,18 @@ const chips = computed<TeamChip[]>(() => {
   for (const team of ['fire', 'radiation'] as const) {
     const teamRoster = roster.value.teams.find((t) => t.team === team)
     if (!teamRoster) continue
-    const config = TEAM_CONFIG[team]
+    const config = HAZARD_TEAM_CONFIG[team]
     if (teamRoster.active.some((m) => m.dweller_id === props.dwellerId)) {
-      result.push({ label: config.label, icon: config.icon, title: config.activeTitle })
+      result.push({
+        label: `${config.label} Team`,
+        icon: config.icon,
+        title: `Active on the vault's ${config.label} response team`,
+      })
     } else if (teamRoster.reserve.some((m) => m.dweller_id === props.dwellerId)) {
       result.push({
-        label: `${config.label} · Reserve`,
+        label: `${config.label} Team · Reserve`,
         icon: config.icon,
-        title: config.reserveTitle,
+        title: `Reserve (bench) on the ${config.label} response team`,
       })
     }
   }

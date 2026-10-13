@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   ADULT_AGE_GROUPS,
+  hasLowHappiness,
+  needsCare,
+  type DwellerShort,
   canUseRadaway,
   getDwellerDisplayName,
   getHappinessColor,
@@ -109,5 +112,30 @@ describe('getHappinessColor', () => {
     expect(getHappinessColor(getHappinessLevel(60))).toBe('var(--color-terminal-green-dark)')
     expect(getHappinessColor(getHappinessLevel(30))).toBe('var(--color-warning)')
     expect(getHappinessColor(getHappinessLevel(10))).toBe('var(--color-danger)')
+  })
+})
+
+describe('Roster attention predicates', () => {
+  const dweller = {
+    status: 'idle',
+    health: 100,
+    max_health: 100,
+    radiation: 0,
+    happiness: 50,
+    effective_max_health: 100,
+  } as DwellerShort
+
+  it('uses the API health ceiling including pet bonuses and excludes deceased dwellers', () => {
+    expect(needsCare(dweller)).toBe(false)
+    expect(needsCare({ ...dweller, effective_max_health: 120 })).toBe(true)
+    expect(needsCare({ ...dweller, radiation: 20, effective_max_health: 80 })).toBe(true)
+    expect(needsCare({ ...dweller, status: 'dead', health: 0, radiation: 20 })).toBe(false)
+  })
+
+  it('matches the low and critical bands, with fifty as the exclusive boundary', () => {
+    expect(hasLowHappiness(dweller)).toBe(false)
+    expect(hasLowHappiness({ ...dweller, happiness: 49 })).toBe(true)
+    expect(hasLowHappiness({ ...dweller, happiness: 10 })).toBe(true)
+    expect(hasLowHappiness({ ...dweller, status: 'dead', happiness: 10 })).toBe(false)
   })
 })

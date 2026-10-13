@@ -119,6 +119,42 @@ const navigateToDweller = (dwellerId: string) => {
           icon="mdi:heart-multiple"
           subtitle="Track relationships, pregnancies, and the next generation of your vault."
         >
+          <template #help>
+            <section>
+              <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                <Icon icon="mdi:heart-multiple-outline" class="size-4 shrink-0" />
+                Build bonds
+              </h2>
+              <p>
+                Dwellers sharing Living Quarters gradually build affinity. Charisma affects bond
+                growth. Use Forming to inspect each bond and its current progress; affinity and
+                eligibility determine when romance and commitment are possible.
+              </p>
+            </section>
+            <section>
+              <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                <Icon icon="mdi:baby-carriage" class="size-4 shrink-0" />
+                Partners and pregnancies
+              </h2>
+              <p>
+                Committed partners sharing Living Quarters may conceive when eligible; conception is
+                not guaranteed. Partners and Pregnancies show the current stage. Pair eligibility,
+                vault capacity, and active pregnancies affect family planning.
+              </p>
+            </section>
+            <section>
+              <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                <Icon icon="mdi:human-child" class="size-4 shrink-0" />
+                Follow the next generation
+              </h2>
+              <p>
+                Children progress through youth stages before adulthood. Use Children to follow
+                their growth, and open a dweller to inspect their family and available roles.
+                Training also lists active apprenticeships; eligible youth can learn alongside
+                adults in production rooms.
+              </p>
+            </section>
+          </template>
           <template #actions>
             <PageHeaderMetric
               class="total-relationships-count"

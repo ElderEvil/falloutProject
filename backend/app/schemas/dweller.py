@@ -6,6 +6,7 @@ from sqlmodel import SQLModel
 from sqlmodel.main import SQLModelConfig
 
 from app.core.enums import (
+    STAT_BY_LETTER,
     STATE_OF_BEING_TYPE,
     AgeGroupEnum,
     DeathCauseEnum,
@@ -31,15 +32,7 @@ from app.schemas.weapon import WeaponRead
 from app.utils.partial import optional
 from app.utils.places import normalize_place_name
 
-LETTER_TO_STAT = {
-    "S": "strength",
-    "P": "perception",
-    "E": "endurance",
-    "C": "charisma",
-    "A": "agility",
-    "I": "intelligence",
-    "L": "luck",
-}
+LETTER_TO_STAT = STAT_BY_LETTER
 
 STATS_RANGE_BY_RARITY = {
     RarityEnum.COMMON: (1, 3),
@@ -51,6 +44,7 @@ STATS_RANGE_BY_RARITY = {
 class DwellerCreateWithoutVaultID(DwellerBase):
     weapon: str | None = Field(default=None, max_length=32)
     outfit: str | None = Field(default=None, max_length=32)
+    visual_attributes: dict | None = Field(default=None)
 
     model_config = SQLModelConfig(use_enum_values=True)
 
@@ -141,7 +135,7 @@ class DwellerVisualAttributes(BaseModel):
     model_config = SQLModelConfig(use_enum_values=True)
 
 
-class DwellerTemplate(DwellerCreateWithoutVaultID):
+class DwellerTemplate(DwellerBase):
     """Loader schema for curated dweller JSON templates.
 
     Extends the persistable dweller fields with creation-only map metadata.
@@ -154,6 +148,8 @@ class DwellerTemplate(DwellerCreateWithoutVaultID):
     template_id: str = Field(min_length=2, max_length=64, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
     origin_place: str = Field(min_length=1, max_length=64)
     visited_places: list[Annotated[str, Field(max_length=64)]] = Field(default_factory=list, max_length=4)
+    weapon: str | None = Field(default=None, max_length=32)
+    outfit: str | None = Field(default=None, max_length=32)
     visual_attributes: DwellerVisualAttributes | None = Field(default=None)
 
     @model_validator(mode="after")
@@ -320,6 +316,7 @@ class DwellerRead(DwellerBase):
     id: UUID4
     created_at: datetime
     updated_at: datetime
+    visual_attributes: dict | None = Field(default=None)
     pet: PetRead | None = Field(default=None, validation_alias="pet_loaded")
 
     @computed_field

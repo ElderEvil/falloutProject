@@ -16,6 +16,7 @@ interface Props {
   selected: boolean
   isDraggingOver: boolean
   highlighted: boolean
+  merged: boolean
   incident?: Incident | null
   overseerAttentionCount?: number
 }
@@ -95,6 +96,7 @@ const cellTitle = computed(() => {
       'has-incident': !!incident,
       'has-tier': !!room.tier,
       highlighted,
+      'room-merge-pulse': merged,
       'power-outage': isRoomAffectedByOutage(),
     }"
     :aria-label="cellTitle"

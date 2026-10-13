@@ -251,10 +251,7 @@ class ExplorationService:
         radaways_from_dweller = radaways - radaways_from_vault
 
         # Deduct from vault storage
-        if (stimpaks_from_vault > 0 or radaways_from_vault > 0) and storage:
-            storage.stimpack = (storage.stimpack or 0) - stimpaks_from_vault
-            storage.radaway = (storage.radaway or 0) - radaways_from_vault
-            db_session.add(storage)
+        self._deduct_storage_supplies(db_session, storage, stimpaks_from_vault, radaways_from_vault)
 
         # Deduct from dweller inventory
         if stimpaks_from_dweller > 0 or radaways_from_dweller > 0:
@@ -267,18 +264,14 @@ class ExplorationService:
                 commit=False,
             )
 
-        # Total supplies for exploration
-        total_stimpaks = stimpaks_from_vault + stimpaks_from_dweller
-        total_radaways = radaways_from_vault + radaways_from_dweller
-
         start_time = datetime.utcnow()
         exploration = Exploration(
             id=exploration_id,
             vault_id=vault_id,
             dweller_id=dweller_id,
             duration=duration,
-            stimpaks=total_stimpaks,
-            radaways=total_radaways,
+            stimpaks=stimpaks,
+            radaways=radaways,
             dweller_strength=dweller.strength,
             dweller_perception=dweller.perception,
             dweller_endurance=dweller.endurance,
@@ -309,6 +302,15 @@ class ExplorationService:
         exploration.pos_y = origin[1] if origin else None
         exploration.trail = [{"x": origin[0], "y": origin[1], "t": start_time.isoformat()}] if origin else []
         exploration.position_as_of = start_time if origin else None
+
+    @staticmethod
+    def _deduct_storage_supplies(
+        db_session: AsyncSession, storage: Storage | None, stimpaks: int, radaways: int
+    ) -> None:
+        if storage is not None and (stimpaks or radaways):
+            storage.stimpack = (storage.stimpack or 0) - stimpaks
+            storage.radaway = (storage.radaway or 0) - radaways
+            db_session.add(storage)
 
     async def _persist_departure(
         self,
@@ -484,10 +486,7 @@ class ExplorationService:
         if storage is not None:
             await db_session.refresh(storage)
         self._require_supplies(storage, stimpaks, radaways)
-        if (stimpaks or radaways) and storage is not None:
-            storage.stimpack = (storage.stimpack or 0) - stimpaks
-            storage.radaway = (storage.radaway or 0) - radaways
-            db_session.add(storage)
+        self._deduct_storage_supplies(db_session, storage, stimpaks, radaways)
         anchor = dwellers[0]
 
         exploration = Exploration(

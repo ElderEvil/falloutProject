@@ -12,7 +12,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.enums import RarityEnum
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
-from app.crud import vault as crud_vault
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.outfit import Outfit
@@ -30,7 +29,12 @@ from app.schemas.exploration_event import (
 from app.services.exploration import data_loader
 from app.services.exploration.event_generator import describe_discovery, event_generator
 from app.services.notification_service import notification_service
-from app.services.radiation_service import apply_radiation_gain, radiation_removal_amount
+from app.services.radiation_service import (
+    apply_health_gain,
+    apply_radiation_gain,
+    radiation_removal_amount,
+    stimpack_heal_amount,
+)
 from app.services.stream_manager import sse_manager
 from app.utils.combat import expedition_combat_profile
 from app.utils.item_factory import build_catalog_item
@@ -170,11 +174,10 @@ async def auto_use_supplies(db_session: AsyncSession, exploration: Exploration) 
         db_session.add(dweller_obj)
         db_session.add(exploration)
 
-    if exploration.stimpaks > 0 and dweller_obj.health < max_health * 0.5:
-        healing = max(1, int(max_health * game_config.health.stimpack_heal_percent))
-        actual_healing = min(dweller_obj.effective_max_health, dweller_obj.health + healing) - dweller_obj.health
+    if exploration.stimpaks > 0 and dweller_obj.health < min(max_health * 0.5, dweller_obj.effective_max_health):
+        old_health = dweller_obj.health
+        actual_healing = apply_health_gain(dweller_obj, stimpack_heal_amount(max_health)) - old_health
         if actual_healing > 0:
-            dweller_obj.health += actual_healing
             exploration.stimpaks -= 1
             records.append(
                 exploration.add_event(
@@ -408,9 +411,9 @@ class EventService:
         """Apply health restoration to dweller; return the HP actually restored."""
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
         old_health = dweller_obj.health
-        dweller_obj.health = min(dweller_obj.effective_max_health, old_health + healing)
+        new_health = apply_health_gain(dweller_obj, healing)
         db_session.add(dweller_obj)
-        return dweller_obj.health - old_health
+        return new_health - old_health
 
     async def _handle_auto_equip(
         self,
@@ -487,17 +490,15 @@ class EventService:
         equipped = db_session.info.pop(_PENDING_EQUIP_NOTIFICATIONS, [])
         if not equipped:
             return
-        try:
-            vault = await crud_vault.get(db_session, exploration.vault_id)
+
+        async def send(user_id: UUID4) -> None:
             dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
-            if not vault or not vault.user_id or dweller_obj is None:
-                return
             dweller_name = f"{dweller_obj.first_name} {dweller_obj.last_name or ''}".strip()
             for item_type, item_name in equipped:
                 await notification_service.notify_exploration_update(
                     db_session,
-                    user_id=vault.user_id,
-                    vault_id=vault.id,
+                    user_id=user_id,
+                    vault_id=exploration.vault_id,
                     dweller_id=exploration.dweller_id,
                     dweller_name=dweller_name,
                     event_description=f"equipped a better {item_type} found in the wasteland: {item_name}",
@@ -507,8 +508,13 @@ class EventService:
                         "item_type": item_type,
                     },
                 )
-        except Exception:
-            logger.exception("Failed to send equip notifications: exploration=%s", exploration.id)
+
+        await notification_service.notify_owner(
+            db_session,
+            exploration.vault_id,
+            sender=send,
+            context=f"exploration equips vault={exploration.vault_id} exploration={exploration.id}",
+        )
 
     def _item_score(self, item: Weapon | Outfit | None) -> tuple:
         """Comparable strength score so weapon and outfit candidates rank uniformly."""

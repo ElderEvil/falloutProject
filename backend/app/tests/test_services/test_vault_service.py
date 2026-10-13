@@ -1,6 +1,7 @@
 """Tests for vault service - initialization, resources, medical transfers."""
 
 from operator import itemgetter
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -34,9 +35,11 @@ from app.schemas.vault import (
     VaultNumber,
     VaultUpdate,
 )
+from app.services.vault import economy, seeding
 from app.services.vault_seed import CreatedRooms, PreparedRooms
 from app.services.vault_service import VaultService
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
+from app.utils.room_assets import get_room_image_url
 
 # Valid UUIDv4 constants for use in mocked objects
 VAULT_ID = UUID4("12345678-1234-4abc-9def-1234567890ab")
@@ -179,6 +182,7 @@ class TestCreateInitialDwellers:
             _make_room(name="Water Treatment", ability=SPECIALEnum.PERCEPTION),
             _make_room(name="Medbay", ability=SPECIALEnum.INTELLIGENCE),
             _make_room(name="Science Lab", ability=SPECIALEnum.INTELLIGENCE),
+            _make_room(name="Power Gen 2", ability=SPECIALEnum.STRENGTH),
         ]
         cap_rooms = [_make_room(name="Living Room", category=RoomTypeEnum.CAPACITY, ability=SPECIALEnum.CHARISMA)]
         misc_rooms = [_make_room(name="Radio Studio", category=RoomTypeEnum.MISC, ability=SPECIALEnum.CHARISMA)]
@@ -217,9 +221,10 @@ class TestCreateInitialDwellers:
                 new_callable=AsyncMock,
                 side_effect=fake_create_random,
             ),
-            patch("app.services.vault_service.dweller_crud.update", new_callable=AsyncMock),
+            patch("app.services.vault.seeding.dweller_crud.update", new_callable=AsyncMock),
+            patch("app.services.vault.seeding.equip_boosted_worker_outfit", new_callable=AsyncMock),
             patch(
-                "app.services.vault_service.relationship_crud.create_with_defaults",
+                "app.services.vault.seeding.relationship_crud.create_with_defaults",
                 new_callable=AsyncMock,
             ),
             patch(
@@ -231,8 +236,7 @@ class TestCreateInitialDwellers:
             db_session.commit = AsyncMock()
             db_session.add_all = MagicMock()
 
-            service = VaultService()
-            await service._create_initial_dwellers(
+            await seeding.create_initial_dwellers(
                 db_session,
                 vault_id,
                 prod_rooms,
@@ -242,8 +246,9 @@ class TestCreateInitialDwellers:
                 is_boosted=True,
             )
 
-        # 13 production (2 in apprentice rooms, 3 elsewhere) + 7 training + 1 radio + 2 living + 3 family children = 26
-        assert call_count == 26
+        # 16 production (2 in each apprentice room, 3 elsewhere incl. the second
+        # generator) + 7 training + 1 radio + 2 living + 3 family children = 29
+        assert call_count == 29
 
     async def test_dweller_creation_failure_logs_and_raises(self) -> None:
         """Exception during dweller creation logs and re-raises."""
@@ -264,9 +269,8 @@ class TestCreateInitialDwellers:
         ):
             db_session = AsyncMock()
 
-            service = VaultService()
             with pytest.raises(RuntimeError, match="DB error"):
-                await service._create_initial_dwellers(
+                await seeding.create_initial_dwellers(
                     db_session,
                     vault_id,
                     prod_rooms,
@@ -319,14 +323,13 @@ class TestStartTrainingSessions:
 
         with (
             patch(
-                "app.services.vault_service.dweller_crud.get_multi_by_vault",
+                "app.services.vault.seeding.dweller_crud.get_multi_by_vault",
                 new_callable=AsyncMock,
                 return_value=[dweller],
             ),
-            patch("app.services.vault_service.training_service.start_training", new_callable=AsyncMock),
+            patch("app.services.vault.seeding.training_service.start_training", new_callable=AsyncMock),
         ):
-            service = VaultService()
-            await service._start_training_sessions(db_session, vault_id, [train_room], is_boosted=True)
+            await seeding.start_training_sessions(db_session, vault_id, [train_room], is_boosted=True)
 
         # If we got this far without exception, the call went through
 
@@ -362,18 +365,17 @@ class TestStartTrainingSessions:
 
         with (
             patch(
-                "app.services.vault_service.dweller_crud.get_multi_by_vault",
+                "app.services.vault.seeding.dweller_crud.get_multi_by_vault",
                 new_callable=AsyncMock,
                 return_value=[dweller],
             ),
             patch(
-                "app.services.vault_service.training_service.start_training",
+                "app.services.vault.seeding.training_service.start_training",
                 new_callable=AsyncMock,
                 side_effect=ResourceNotFoundException(Dweller, "test-id"),
             ),
         ):
-            service = VaultService()
-            await service._start_training_sessions(db_session, vault_id, [train_room], is_boosted=True)
+            await seeding.start_training_sessions(db_session, vault_id, [train_room], is_boosted=True)
 
         # Should not raise; the warning is logged
 
@@ -388,14 +390,15 @@ class TestStartTrainingSessions:
         db_session.refresh = lambda _obj: None
         db_session.execute = AsyncMock()
 
-        with patch(
-            "app.services.vault_service.dweller_crud.get_multi_by_vault",
-            new_callable=AsyncMock,
-            side_effect=RuntimeError("DB down"),
+        with (
+            patch(
+                "app.services.vault.seeding.dweller_crud.get_multi_by_vault",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("DB down"),
+            ),
+            pytest.raises(RuntimeError, match="DB down"),
         ):
-            service = VaultService()
-            with pytest.raises(RuntimeError, match="DB down"):
-                await service._start_training_sessions(db_session, vault_id, [train_room], is_boosted=True)
+            await seeding.start_training_sessions(db_session, vault_id, [train_room], is_boosted=True)
 
 
 # ---------------------------------------------------------------------------
@@ -416,8 +419,7 @@ class TestCreateInitialItems:
         mock_exec.scalar_one_or_none.return_value = None
         db_session.execute = AsyncMock(return_value=mock_exec)
 
-        service = VaultService()
-        await service._create_initial_items(db_session, vault_id)
+        await seeding.create_initial_items(db_session, vault_id)
 
         db_session.add.assert_not_called()
 
@@ -427,7 +429,7 @@ class TestCreateInitialItems:
         from app.models.outfit import Outfit
 
         storage = await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
-        await VaultService()._create_initial_items(async_session, vault.id, is_boosted=True)
+        await seeding.create_initial_items(async_session, vault.id, is_boosted=True)
 
         outfits = await get_items_by_vault(async_session, Outfit, vault.id)
         firefighter = [o for o in outfits if o.name == "Firefighter suit"]
@@ -444,7 +446,7 @@ class TestCreateInitialItems:
         from app.models.outfit import Outfit
 
         await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
-        await VaultService()._create_initial_items(async_session, vault.id, is_boosted=False)
+        await seeding.create_initial_items(async_session, vault.id, is_boosted=False)
 
         outfits = await get_items_by_vault(async_session, Outfit, vault.id)
         assert not any(o.name in {"Firefighter suit", "Hazmat suit"} for o in outfits)
@@ -456,12 +458,30 @@ class TestCreateInitialItems:
         from app.services.vault_seed import BOOSTED_SEED_PETS
 
         storage = await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
-        await VaultService()._create_initial_items(async_session, vault.id, is_boosted=True)
+        await seeding.create_initial_items(async_session, vault.id, is_boosted=True)
 
         pets = await get_items_by_vault(async_session, Pet, vault.id)
         assert {p.name for p in pets} == {name for name, _ in BOOSTED_SEED_PETS}
         assert all(p.storage_id == storage.id and p.dweller_id is None for p in pets)
         assert all(p.image_url for p in pets)
+
+    async def test_boosted_vault_seeds_crafting_junk_from_catalog(self, async_session, vault) -> None:
+        """Boosted-vault junk rows carry their catalog type/value/prose, assigned to storage."""
+        from sqlmodel import select
+
+        from app.models.junk import Junk
+        from app.services.vault_seed import BOOSTED_SEED_JUNK
+
+        storage = await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
+        await seeding.create_initial_items(async_session, vault.id, is_boosted=True)
+
+        junk_items = list(
+            (await async_session.execute(select(Junk).where(Junk.storage_id == storage.id))).scalars().all()
+        )
+        assert len(junk_items) == sum(count for _, _, count in BOOSTED_SEED_JUNK)
+        assert {j.junk_type for j in junk_items} == {junk_type for junk_type, _, _ in BOOSTED_SEED_JUNK}
+        assert all(j.storage_id == storage.id for j in junk_items)
+        assert all(j.description and j.value for j in junk_items)
 
     async def test_standard_vault_has_no_seeded_pets(self, async_session, vault) -> None:
         """Standard vaults do not receive seeded pets."""
@@ -469,7 +489,7 @@ class TestCreateInitialItems:
         from app.models.pet import Pet
 
         await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
-        await VaultService()._create_initial_items(async_session, vault.id, is_boosted=False)
+        await seeding.create_initial_items(async_session, vault.id, is_boosted=False)
 
         pets = await get_items_by_vault(async_session, Pet, vault.id)
         assert pets == []
@@ -480,7 +500,7 @@ class TestCreateInitialItems:
         from app.models.outfit import Outfit
 
         await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
-        await VaultService()._create_initial_items(async_session, vault.id, is_boosted=False)
+        await seeding.create_initial_items(async_session, vault.id, is_boosted=False)
 
         outfits = await get_items_by_vault(async_session, Outfit, vault.id)
         by_name = {o.name: o for o in outfits}
@@ -530,20 +550,20 @@ class TestCreateBoostedLegendaryDwellers:
         ]
 
         with (
-            patch("app.services.vault_service.random.sample", return_value=templates) as mock_sample,
+            patch("app.services.vault.seeding.random.sample", return_value=templates) as mock_sample,
             patch(
                 "app.services.dweller_service.dweller_service.create_dweller_from_template",
                 new_callable=AsyncMock,
                 side_effect=dwellers,
             ),
-            patch("app.services.vault_service.weapon_crud.create_many", new_callable=AsyncMock) as mock_weapons,
-            patch("app.services.vault_service.outfit_crud.create_many", new_callable=AsyncMock) as mock_outfits,
+            patch("app.services.vault.seeding.weapon_crud.create_many", new_callable=AsyncMock) as mock_weapons,
+            patch("app.services.vault.seeding.outfit_crud.create_many", new_callable=AsyncMock) as mock_outfits,
         ):
-            await VaultService()._create_boosted_legendary_dwellers(AsyncMock(), VAULT_ID)
+            await seeding.create_boosted_legendary_dwellers(AsyncMock(), VAULT_ID)
 
         mock_sample.assert_called_once()
-        assert mock_sample.call_args.kwargs["k"] == 4
-        assert len(mock_sample.call_args.args[0]) >= 4
+        assert mock_sample.call_args.kwargs["k"] == 3
+        assert len(mock_sample.call_args.args[0]) >= 3
         expected_outfits = {template.outfit: dwellers[i].id for i, template in enumerate(templates)}
         expected_weapons = {template.weapon: dwellers[i].id for i, template in enumerate(templates)}
         outfits = {item.name: item for item in mock_outfits.call_args.args[1]}
@@ -559,8 +579,8 @@ class TestCreateBoostedLegendaryDwellers:
 
         weapon_names = {entry["name"] for entry in load_weapons()}
         outfit_names = {entry["name"] for entry in load_outfits()}
-        with patch("app.services.vault_service.random.sample", return_value=[]) as sample:
-            await VaultService()._create_boosted_legendary_dwellers(AsyncMock(), VAULT_ID)
+        with patch("app.services.vault.seeding.random.sample", return_value=[]) as sample:
+            await seeding.create_boosted_legendary_dwellers(AsyncMock(), VAULT_ID)
 
         candidates = sample.call_args.args[0]
         assert all(template.weapon in weapon_names and template.outfit in outfit_names for template in candidates)
@@ -581,14 +601,14 @@ class TestCreateBoostedLegendaryDwellers:
             )
 
         with (
-            patch("app.services.vault_service.random.sample", return_value=templates),
+            patch("app.services.vault.seeding.random.sample", return_value=templates),
             patch(
                 "app.services.dweller_service.dweller_service.create_dweller_from_template",
                 new_callable=AsyncMock,
                 side_effect=dwellers,
             ),
         ):
-            await VaultService()._create_boosted_legendary_dwellers(async_session, vault.id)
+            await seeding.create_boosted_legendary_dwellers(async_session, vault.id)
 
         outfits = await get_items_by_vault(async_session, Outfit, vault.id)
         weapons = await get_items_by_vault(async_session, Weapon, vault.id)
@@ -617,20 +637,20 @@ class TestCreateBoostedLegendaryDwellers:
         with (
             patch("app.services.exploration.data_loader.load_outfits", return_value=catalog),
             patch(
-                "app.services.vault_service.random.sample", side_effect=lambda population, k: population[:k]
+                "app.services.vault.seeding.random.sample", side_effect=lambda population, k: population[:k]
             ) as sample,
             patch(
                 "app.services.dweller_service.dweller_service.create_dweller_from_template",
                 new_callable=AsyncMock,
                 side_effect=dwellers,
             ),
-            patch("app.services.vault_service.weapon_crud.create_many", new_callable=AsyncMock),
-            patch("app.services.vault_service.outfit_crud.create_many", new_callable=AsyncMock) as mock_outfits,
+            patch("app.services.vault.seeding.weapon_crud.create_many", new_callable=AsyncMock),
+            patch("app.services.vault.seeding.outfit_crud.create_many", new_callable=AsyncMock) as mock_outfits,
         ):
-            await VaultService()._create_boosted_legendary_dwellers(AsyncMock(), VAULT_ID)
+            await seeding.create_boosted_legendary_dwellers(AsyncMock(), VAULT_ID)
 
         assert all(template.template_id != "betty" for template in sample.call_args.args[0])
-        assert len(mock_outfits.call_args.args[1]) == 4
+        assert len(mock_outfits.call_args.args[1]) == 3
         assert all(item.name != "Vault 33 suit" for item in mock_outfits.call_args.args[1])
 
 
@@ -724,7 +744,7 @@ class TestTransferMedicalSupplies:
         db_session.commit = AsyncMock()
         db_session.rollback = AsyncMock()
 
-        with patch("app.services.vault_service.dweller_crud.get", new_callable=AsyncMock, return_value=dweller):
+        with patch("app.services.vault.economy.dweller_crud.get", new_callable=AsyncMock, return_value=dweller):
             service = VaultService()
             with pytest.raises(AccessDeniedException):
                 await service.transfer_medical_supplies(db_session, vault, dweller_id, stimpaks=1, radaways=0)
@@ -753,7 +773,7 @@ class TestTransferMedicalSupplies:
         db_session.commit = AsyncMock()
         db_session.rollback = AsyncMock()
 
-        with patch("app.services.vault_service.dweller_crud.get", new_callable=AsyncMock, return_value=dweller):
+        with patch("app.services.vault.economy.dweller_crud.get", new_callable=AsyncMock, return_value=dweller):
             service = VaultService()
             with pytest.raises(ResourceConflictException, match="can only carry 15 stimpaks"):
                 await service.transfer_medical_supplies(db_session, vault, dweller_id, stimpaks=2, radaways=0)
@@ -782,7 +802,7 @@ class TestTransferMedicalSupplies:
         db_session.commit = AsyncMock()
         db_session.rollback = AsyncMock()
 
-        with patch("app.services.vault_service.dweller_crud.get", new_callable=AsyncMock, return_value=dweller):
+        with patch("app.services.vault.economy.dweller_crud.get", new_callable=AsyncMock, return_value=dweller):
             service = VaultService()
             with pytest.raises(ResourceConflictException, match="can only carry 15 radaways"):
                 await service.transfer_medical_supplies(db_session, vault, dweller_id, stimpaks=0, radaways=3)
@@ -814,8 +834,8 @@ class TestTransferMedicalSupplies:
         db_session.rollback = AsyncMock()
 
         with (
-            patch("app.services.vault_service.dweller_crud.get", new_callable=AsyncMock, return_value=dweller),
-            patch("app.services.vault_service.dweller_crud.update", new_callable=AsyncMock),
+            patch("app.services.vault.economy.dweller_crud.get", new_callable=AsyncMock, return_value=dweller),
+            patch("app.services.vault.economy.dweller_crud.update", new_callable=AsyncMock),
         ):
             service = VaultService()
             result = await service.transfer_medical_supplies(db_session, vault, dweller_id, stimpaks=3, radaways=2)
@@ -859,8 +879,8 @@ class TestTransferMedicalSupplies:
         db_session.rollback = AsyncMock()
 
         with (
-            patch("app.services.vault_service.dweller_crud.get", new_callable=AsyncMock, return_value=dweller),
-            patch("app.services.vault_service.dweller_crud.update", new_callable=AsyncMock),
+            patch("app.services.vault.economy.dweller_crud.get", new_callable=AsyncMock, return_value=dweller),
+            patch("app.services.vault.economy.dweller_crud.update", new_callable=AsyncMock),
         ):
             service = VaultService()
             # With 0 in vault, any positive request raises
@@ -894,11 +914,56 @@ class TestTransferMedicalSupplies:
         db_session.rollback = AsyncMock()
 
         with (
-            patch("app.services.vault_service.dweller_crud.get", new_callable=AsyncMock, return_value=dweller),
-            patch("app.services.vault_service.dweller_crud.update", new_callable=AsyncMock),
+            patch("app.services.vault.economy.dweller_crud.get", new_callable=AsyncMock, return_value=dweller),
+            patch("app.services.vault.economy.dweller_crud.update", new_callable=AsyncMock),
         ):
             service = VaultService()
             with pytest.raises(RuntimeError, match="Commit failed"):
+                await service.transfer_medical_supplies(db_session, vault, dweller_id, stimpaks=1, radaways=0)
+
+        db_session.rollback.assert_awaited_once()
+
+    async def test_transfer_rollback_when_staging_fails(self) -> None:
+        """If the staging dweller update (flush/refresh) fails, rollback() is still called.
+
+        The staging call rides on the caller's transaction; a failure while
+        staging must roll back the session exactly like a commit failure, so a
+        reused session is never left dirty or in a failed transaction.
+        """
+        vault_id = VAULT_ID
+        vault = Vault(id=vault_id, number=1)
+        storage = _make_storage(vault_id=str(vault_id), stimpack=20, radaway=20)
+        dweller_id = DWELLER_ID
+        dweller = Dweller(
+            id=dweller_id,
+            first_name="Staging",
+            last_name="Failure",
+            gender=GenderEnum.MALE,
+            rarity=RarityEnum.COMMON,
+            vault_id=vault_id,
+            level=1,
+            stimpack=5,
+            radaway=3,
+        )
+
+        db_session = AsyncMock()
+        mock_storage = MagicMock()
+        mock_storage.scalar_one_or_none.return_value = storage
+        db_session.execute = AsyncMock(return_value=mock_storage)
+        db_session.add = MagicMock()
+        db_session.commit = AsyncMock()
+        db_session.rollback = AsyncMock()
+
+        with (
+            patch("app.services.vault.economy.dweller_crud.get", new_callable=AsyncMock, return_value=dweller),
+            patch(
+                "app.services.vault.economy.dweller_crud.update",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("Dweller update failed"),
+            ),
+        ):
+            service = VaultService()
+            with pytest.raises(RuntimeError, match="Dweller update failed"):
                 await service.transfer_medical_supplies(db_session, vault, dweller_id, stimpaks=1, radaways=0)
 
         db_session.rollback.assert_awaited_once()
@@ -924,29 +989,31 @@ class TestUpdateVaultResources:
             consumption=PrimaryResourceAmounts(food=1, water=1),
         )
 
-        service = VaultService()
-        service.resource_manager = MagicMock()
-        service.resource_manager.process_vault_resources = AsyncMock(return_value=(new_resources, events))
-        service.resource_manager.emit_production_events = AsyncMock()
+        fake_resource_manager = MagicMock()
+        fake_resource_manager.process_vault_resources = AsyncMock(return_value=(new_resources, events))
+        fake_resource_manager.emit_production_events = AsyncMock()
 
         db_session = AsyncMock()
         db_session.commit = AsyncMock()
         db_session.refresh = AsyncMock()
 
-        with patch("app.services.vault_service.vault_crud.update", new_callable=AsyncMock) as mock_vault_update:
+        with (
+            patch("app.services.vault.economy.resource_manager", fake_resource_manager),
+            patch("app.services.vault.economy.vault_crud.update", new_callable=AsyncMock) as mock_vault_update,
+        ):
             returned_vault = Vault(id=vault_id, number=1, power=80, food=60, water=50)
             mock_vault_update.return_value = returned_vault
 
-            result = await service.update_vault_resources(db_session, vault_id)
+            result = await economy.update_vault_resources(db_session, vault_id)
 
         # Verify ResourceManager was called
-        service.resource_manager.process_vault_resources.assert_awaited_once_with(
+        fake_resource_manager.process_vault_resources.assert_awaited_once_with(
             db_session=db_session,
             vault_id=vault_id,
             seconds_passed=60,
         )
 
-        service.resource_manager.emit_production_events.assert_awaited_once_with(vault_id, events)
+        fake_resource_manager.emit_production_events.assert_awaited_once_with(vault_id, events)
 
         # Verify vault was updated
         mock_vault_update.assert_awaited_once()
@@ -960,6 +1027,35 @@ class TestUpdateVaultResources:
 
 @pytest.mark.asyncio
 class TestInitiateVault:
+    @pytest.fixture
+    async def boosted_seed(self, async_session, vault) -> SimpleNamespace:
+        """A fully seeded boosted vault: rooms, storage, dwellers, and committed state."""
+        game_data = await get_static_game_data()
+        prepared = seeding.prepare_initial_rooms(game_data.rooms, vault.id, is_boosted=True)
+        await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
+        base_power_max = vault.power_max
+        vault_obj, created = await seeding.create_initial_rooms(async_session, vault, prepared)
+        await seeding.create_initial_dwellers(
+            async_session,
+            vault.id,
+            created.production,
+            created.training,
+            created.misc,
+            created.capacity,
+            is_boosted=True,
+            created_crafting_rooms=created.crafting,
+        )
+        await async_session.commit()
+        dwellers = await crud.dweller.get_multi_by_vault(async_session, vault.id)
+        return SimpleNamespace(
+            vault=vault,
+            vault_obj=vault_obj,
+            created=created,
+            dwellers=dwellers,
+            base_power_max=base_power_max,
+            session=async_session,
+        )
+
     """Integration-style tests for the full initiate_vault orchestration."""
 
     async def test_prepared_initial_rooms_fit_the_unit_grid(self) -> None:
@@ -968,7 +1064,7 @@ class TestInitiateVault:
         vault_id = uuid4()
 
         for is_boosted in (False, True):
-            prepared = VaultService()._prepare_initial_rooms(game_data.rooms, vault_id, is_boosted)
+            prepared = seeding.prepare_initial_rooms(game_data.rooms, vault_id, is_boosted)
             rooms = [
                 *prepared.infrastructure,
                 *prepared.capacity,
@@ -987,10 +1083,63 @@ class TestInitiateVault:
             merged_living = [room for room in prepared.capacity if room.name == "Living room" and room.size == 9]
             assert len(merged_living) == (1 if is_boosted else 0)
 
+            generators = [room for room in rooms if room.name.lower().startswith("power")]
+            assert len(generators) == 1
+            if is_boosted:
+                assert (generators[0].coordinate_x, generators[0].coordinate_y) == (0, 1)
+                assert generators[0].size == 6
+
             elevators = sorted(
                 (room.coordinate_x, room.coordinate_y) for room in rooms if room.name.lower() == "elevator"
             )
             assert elevators == [(SHAFT_X, 0), (SHAFT_X, 1), (SHAFT_X, 2), (SHAFT_X, 3)]
+
+    async def test_boosted_seed_builds_one_size_six_generator_directly(self, boosted_seed: SimpleNamespace) -> None:
+        """The boosted generator is seeded at its final size-6 footprint and takes the double crew."""
+        seed = boosted_seed
+
+        fused_capacity = 25 * 6 * (1 + 1)  # capacity_formula 25*S*(L+1) at size 6, tier 1
+        power_rooms = [room for room in seed.created.production if room.name.lower().startswith("power")]
+        assert len(power_rooms) == 1  # seeded directly at (0, 1), no fusion round-trip
+        assert power_rooms[0].size == 6
+        assert power_rooms[0].output == 58  # (2*6*(1+4))-2 at tier 1, size 6
+        assert power_rooms[0].image_url == get_room_image_url("Power Generator", tier=1, size=6)
+        assert seed.vault_obj.power_max == seed.base_power_max + fused_capacity
+
+        persisted = [
+            room
+            for room in await crud.room.get_all_by_vault(seed.session, seed.vault.id)
+            if room.name.lower().startswith("power")
+        ]
+        assert len(persisted) == 1
+
+        generator_crew = [dweller for dweller in seed.dwellers if dweller.room_id == power_rooms[0].id]
+        assert len([d for d in generator_crew if d.apprentice_stat is None]) == 5  # double crew minus apprentice slot
+        assert len(generator_crew) == 6  # five adults plus the seeded family teen
+        assert all(dweller.status == DwellerStatusEnum.WORKING for dweller in generator_crew)
+        assert [d for d in generator_crew if d.apprentice_stat == SPECIALEnum.STRENGTH]  # the seeded family teen
+        assert len(seed.dwellers) == 33  # non-legendary headcount (33 + 3 legendary = 36)
+
+    async def test_boosted_production_workers_wear_matching_common_three_outfits(
+        self, boosted_seed: SimpleNamespace
+    ) -> None:
+        """Every boosted production worker is equipped the Common +3 outfit for their room stat, built via the factory."""
+        seed = boosted_seed
+        created, dwellers = seed.created, seed.dwellers
+
+        ability_by_room = {room.id: room.ability for room in created.production if room.ability is not None}
+        outfitted = [
+            d
+            for d in dwellers
+            if d.room_id in ability_by_room and d.apprentice_stat is None and d.status == DwellerStatusEnum.WORKING
+        ]
+        assert len(outfitted) == 16  # 5 generator + 2 diner + 3 water + 3 medbay + 3 science
+        for dweller in outfitted:
+            ability = ability_by_room[dweller.room_id]
+            outfit = await crud.outfit.get_equipped(seed.session, dweller.id)
+            assert outfit is not None
+            assert outfit.rarity == RarityEnum.COMMON
+            assert getattr(outfit, ability.value.lower()) == 3
 
     async def test_initiate_vault_boosted(self) -> None:
         """Boosted vault includes training sessions."""
@@ -1032,8 +1181,6 @@ class TestInitiateVault:
         mock_game_data = MagicMock()
         mock_game_data.rooms = room_templates
 
-        service = VaultService()
-
         prod_rooms = [
             _make_room(f"p{i}", name, ability=ability)
             for i, (name, ability) in enumerate(
@@ -1051,25 +1198,6 @@ class TestInitiateVault:
         ]
         misc_rooms = [_make_room(name="Radio Studio", category=RoomTypeEnum.MISC, ability=SPECIALEnum.CHARISMA)]
         cap_rooms = [_make_room(name="Living Room", category=RoomTypeEnum.CAPACITY, ability=SPECIALEnum.CHARISMA)]
-
-        service._prepare_initial_rooms = MagicMock(
-            return_value=PreparedRooms(infrastructure=[], capacity=[], production=[], misc=[], training=[], arena=[])
-        )
-        service._create_initial_rooms = AsyncMock(
-            return_value=(
-                vault,
-                CreatedRooms(
-                    production=prod_rooms,
-                    training=train_rooms,
-                    misc=misc_rooms,
-                    capacity=cap_rooms,
-                    arena=[],
-                ),
-            )
-        )
-        service._create_initial_dwellers = AsyncMock()
-        service._start_training_sessions = AsyncMock()
-        service._create_initial_items = AsyncMock()
 
         db_session = AsyncMock()
         db_session.commit = AsyncMock()
@@ -1095,7 +1223,7 @@ class TestInitiateVault:
                 new_callable=AsyncMock,
                 return_value=mock_game_data,
             ),
-            patch("app.services.vault_service.room_crud.evaluate_capacity_formula", return_value=4),
+            patch("app.services.vault.seeding.room_crud.evaluate_capacity_formula", return_value=4),
             patch(
                 "app.services.vault_service.compute_medical_capacity",
                 return_value={"stimpack": 5, "radaway": 5},
@@ -1105,8 +1233,37 @@ class TestInitiateVault:
                 new_callable=AsyncMock,
                 return_value=2,
             ) as mock_assign_initial,
+            patch(
+                "app.services.vault.seeding.prepare_initial_rooms",
+                return_value=PreparedRooms(
+                    infrastructure=[], capacity=[], production=[], misc=[], training=[], arena=[]
+                ),
+            ),
+            patch(
+                "app.services.vault.seeding.create_initial_rooms",
+                new=AsyncMock(
+                    return_value=(
+                        vault,
+                        CreatedRooms(
+                            production=prod_rooms,
+                            training=train_rooms,
+                            misc=misc_rooms,
+                            capacity=cap_rooms,
+                            arena=[],
+                        ),
+                    )
+                ),
+            ),
+            patch("app.services.vault.seeding.create_initial_dwellers", new_callable=AsyncMock),
+            patch("app.services.vault.seeding.start_training_sessions", new_callable=AsyncMock) as mock_start_training,
+            patch("app.services.vault.seeding.create_initial_items", new_callable=AsyncMock),
+            patch(
+                "app.services.vault.seeding.get_static_game_data",
+                new_callable=AsyncMock,
+                return_value=mock_game_data,
+            ),
         ):
-            result = await service.initiate_vault(
+            result = await VaultService().initiate_vault(
                 db_session,
                 VaultNumber(number=99, boosted=True),
                 user_id,
@@ -1114,7 +1271,7 @@ class TestInitiateVault:
             )
 
         assert result == vault
-        service._start_training_sessions.assert_awaited_once()
+        mock_start_training.assert_awaited_once()
         mock_assign_initial.assert_awaited_once_with(db_session, vault.id, is_boosted=True)
 
 
@@ -1158,7 +1315,7 @@ def _seeded_room(vault_id, name: str, category: RoomTypeEnum, ability, x: int, y
         t3_upgrade_cost=1500,
         capacity=8 if category == RoomTypeEnum.CAPACITY else None,
         output=None,
-        size_min=1,
+        size_min=3,
         size_max=3,
         size=3,
         tier=1,
@@ -1204,7 +1361,7 @@ class TestSeededFamilies:
         async_session.add_all([mother, father])
         await async_session.commit()
 
-        await VaultService()._seed_seeded_families(async_session, vault.id, [], [mother, father], [], is_boosted=False)
+        await seeding.seed_seeded_families(async_session, vault.id, [], [mother, father], [], is_boosted=False)
 
         children = await crud.dweller.get_children_of(async_session, vault_id=vault.id, parent_ids=[mother.id])
         assert len(children) == 1
@@ -1233,7 +1390,7 @@ class TestSeededFamilies:
                 async_session, _seeded_room(vault.id, "Living Room", RoomTypeEnum.CAPACITY, SPECIALEnum.CHARISMA, 12, 1)
             )
         ]
-        await VaultService()._create_initial_dwellers(
+        await seeding.create_initial_dwellers(
             async_session, vault.id, prod_rooms, [], [], living_rooms, is_boosted=False
         )
 
@@ -1305,7 +1462,7 @@ class TestSeededFamilies:
                 async_session, _seeded_room(vault.id, "Living Room", RoomTypeEnum.CAPACITY, SPECIALEnum.CHARISMA, 21, 1)
             )
         ]
-        await VaultService()._create_initial_dwellers(
+        await seeding.create_initial_dwellers(
             async_session, vault.id, prod_rooms, [], misc_rooms, living_rooms, is_boosted=True
         )
 
@@ -1347,7 +1504,7 @@ class TestSeededFamilies:
                 async_session, _seeded_room(vault.id, "Living Room", RoomTypeEnum.CAPACITY, SPECIALEnum.CHARISMA, 12, 1)
             )
         ]
-        await VaultService()._create_initial_dwellers(
+        await seeding.create_initial_dwellers(
             async_session, vault.id, prod_rooms, [], [], living_rooms, is_boosted=False
         )
 
@@ -1370,7 +1527,7 @@ class TestSeededFamilies:
             async_session, vault.id, DwellerCreateCommonOverride(gender=GenderEnum.FEMALE)
         )
         assert first.happiness == 50
-        await VaultService()._pair_seeded_couple(async_session, first, second)
+        await seeding.pair_seeded_couple(async_session, first, second)
 
         bonus = game_config.relationship.partner_happiness_bonus + game_config.relationship.married_happiness_bonus
         for dweller_id in (first.id, second.id):

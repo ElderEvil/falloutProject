@@ -31,6 +31,8 @@ import { Button } from '@/core/components/ui/button'
 import HappinessDashboard from '@/modules/vault/components/HappinessDashboard.vue'
 import {
   useDwellerStore,
+  isDwellerRosterFocus,
+  type DwellerRosterFocus,
   isDwellerAgeGroup,
   isDwellerGender,
   isDwellerRarity,
@@ -38,7 +40,7 @@ import {
   isDwellerStatus,
   isSortDirection,
 } from '../stores/dweller'
-import { getEffectiveMaxHealth, isSeverelyIrradiated } from '../models/dweller'
+import { needsCare, isSeverelyIrradiated } from '../models/dweller'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
 import DwellerFilterPanel from '../components/DwellerFilterPanel.vue'
 import DwellerDisplayControls from '../components/DwellerDisplayControls.vue'
@@ -72,6 +74,7 @@ const isFlickeringEnabled = inject('isFlickering', ref(false))
 const toast = useToast()
 const router = useRouter()
 const route = useRoute()
+const happinessOverviewOpen = ref(false)
 const generatingAI = ref<Record<string, boolean>>({})
 
 // Room detail modal state
@@ -84,6 +87,10 @@ const revivingDwellers = ref<Record<string, boolean>>({})
 const isDeadFilter = computed(() => dwellerStore.filterStatus === 'dead')
 
 /** The dead panel renders a different list, so the count follows whichever is on screen. */
+const livingDwellers = computed(() =>
+  dwellerStore.allDwellers.filter((dweller) => dweller.status !== 'dead')
+)
+
 const shownCount = computed(() =>
   isDeadFilter.value ? dwellerDeathStore.deadDwellers.length : dwellerStore.dwellers.length
 )
@@ -93,7 +100,7 @@ const shownCount = computed(() =>
 // still fills the gaps a bare link leaves; after that the URL is authoritative and an
 // absent key means the default again.
 function applyFiltersFromQuery(query: LocationQuery, resetMissing: boolean): void {
-  const { filter, ageGroup, gender, rarity, race, faction, sortBy, order } = query
+  const { focus, filter, ageGroup, gender, rarity, race, faction, sortBy, order } = query
 
   if (isDwellerStatus(filter)) dwellerStore.setFilterStatus(filter)
   else if (resetMissing) dwellerStore.setFilterStatus('all')
@@ -101,6 +108,9 @@ function applyFiltersFromQuery(query: LocationQuery, resetMissing: boolean): voi
   // A dead roster is served without facet data, so the store drops these facets on entry;
   // a stale link must not put one back.
   const facetsAvailable = dwellerStore.filterStatus !== 'dead'
+
+  if (facetsAvailable && isDwellerRosterFocus(focus)) dwellerStore.setFilterFocus(focus)
+  else if (resetMissing) dwellerStore.setFilterFocus('all')
 
   if (facetsAvailable && isDwellerAgeGroup(ageGroup)) dwellerStore.setFilterAgeGroup(ageGroup)
   else if (resetMissing) dwellerStore.setFilterAgeGroup('all')
@@ -134,7 +144,15 @@ watch(
 )
 
 /** Roster facets serialized by `filtersToQuery`; sorting is separate — it cannot empty a result set. */
-const FILTER_QUERY_KEYS = ['filter', 'ageGroup', 'gender', 'rarity', 'race', 'faction'] as const
+const FILTER_QUERY_KEYS = [
+  'focus',
+  'filter',
+  'ageGroup',
+  'gender',
+  'rarity',
+  'race',
+  'faction',
+] as const
 const SORT_QUERY_KEYS = ['sortBy', 'order'] as const
 const ALL_QUERY_KEYS = [...FILTER_QUERY_KEYS, ...SORT_QUERY_KEYS]
 
@@ -152,6 +170,7 @@ function filtersToQuery(): LocationQueryRaw {
     else query[key] = value
   }
 
+  set('focus', dwellerStore.filterFocus === 'all' ? undefined : dwellerStore.filterFocus)
   set('filter', dwellerStore.filterStatus === 'all' ? undefined : dwellerStore.filterStatus)
   set('ageGroup', dwellerStore.filterAgeGroup === 'all' ? undefined : dwellerStore.filterAgeGroup)
   set('gender', dwellerStore.filterGender === 'all' ? undefined : dwellerStore.filterGender)
@@ -176,12 +195,7 @@ const hasActiveFilters = computed(() => {
 
 /** Reset every roster facet to the default `filtersToQuery` encodes; the URL watcher drops their keys. */
 function clearFilters(): void {
-  dwellerStore.setFilterStatus('all')
-  dwellerStore.setFilterAgeGroup('all')
-  dwellerStore.setFilterGender('all')
-  dwellerStore.setFilterRarity('all')
-  dwellerStore.setFilterRace('all')
-  dwellerStore.setFilterFaction('all')
+  dwellerStore.resetFilters()
 }
 
 /** Replace (never push) so the URL tracks state without flooding browser history. */
@@ -196,6 +210,7 @@ function syncFiltersToUrl(): void {
 
 watch(
   () => [
+    dwellerStore.filterFocus,
     dwellerStore.filterStatus,
     dwellerStore.filterAgeGroup,
     dwellerStore.filterGender,
@@ -231,7 +246,7 @@ const isDashboardLoading = computed(
  * the dashboard) even when no dweller happiness bucket actually changed.
  */
 const distribution = computed(() => {
-  const next = happinessService.calculateDistribution(dwellerStore.allDwellers)
+  const next = happinessService.calculateDistribution(livingDwellers.value)
   const prev = distributionCache.value
   if (prev && JSON.stringify(prev) === JSON.stringify(next)) return prev
   return next
@@ -248,7 +263,7 @@ watch(
 const happinessDashboardData = computed(() => {
   if (!currentVault.value) return null
 
-  const population = dwellerStore.allDwellers
+  const population = livingDwellers.value
   const activeIncidents = incidentStore.activeIncidents
 
   // Count idle dwellers
@@ -274,9 +289,7 @@ const happinessDashboardData = computed(() => {
       isSeverelyIrradiated(d.radiation, d.max_health)
     ).length,
     // Union of the hurt (health below the radiation-reduced ceiling) and the irradiated.
-    careDwellerCount: population.filter(
-      (d) => d.health < getEffectiveMaxHealth(d.radiation, d.max_health) || d.radiation > 0
-    ).length,
+    careDwellerCount: population.filter(needsCare).length,
   }
 })
 
@@ -350,6 +363,20 @@ interface SummaryIssue {
   tone: 'critical' | 'warning'
 }
 
+/** Attention links clear unrelated facets so every matching living dweller is reachable. */
+function attentionQuery(focus: Exclude<DwellerRosterFocus, 'all'>): LocationQueryRaw {
+  const query: LocationQueryRaw = { ...route.query }
+  for (const key of ALL_QUERY_KEYS) delete query[key]
+  return {
+    ...query,
+    focus,
+    sortBy: focus === 'low_happiness' ? 'happiness' : 'health',
+    order: 'asc',
+  }
+}
+
+const idleQuery = computed(() => ({ ...filtersToQuery(), focus: undefined, filter: 'idle' }))
+
 /** Concrete, clickable problems for the collapsed overview, each with its next action. */
 const summaryIssues = computed<SummaryIssue[]>(() => {
   const data = happinessDashboardData.value
@@ -363,7 +390,7 @@ const summaryIssues = computed<SummaryIssue[]>(() => {
       icon: 'mdi:coffee-outline',
       label: `${data.idleDwellerCount} idle`,
       ariaLabel: `Filter the roster to ${data.idleDwellerCount} idle dwellers`,
-      to: { query: { ...filtersToQuery(), filter: 'idle' } },
+      to: { query: idleQuery.value },
       tone: 'warning',
     })
   }
@@ -373,8 +400,8 @@ const summaryIssues = computed<SummaryIssue[]>(() => {
       id: 'care',
       icon: 'mdi:heart-pulse',
       label: `${data.careDwellerCount} need care`,
-      ariaLabel: `Open the happiness overview to treat ${data.careDwellerCount} injured or irradiated dwellers`,
-      to: `/vault/${vaultId.value}/happiness`,
+      ariaLabel: `Filter the roster to ${data.careDwellerCount} injured or irradiated dwellers`,
+      to: { query: attentionQuery('needs_care') },
       tone: 'critical',
     })
   }
@@ -452,6 +479,7 @@ onMounted(async () => {
 // Watch for filter/sort changes and refetch
 watch(
   () => [
+    dwellerStore.filterFocus,
     dwellerStore.filterStatus,
     dwellerStore.filterAgeGroup,
     dwellerStore.filterGender,
@@ -545,7 +573,7 @@ const handleQuickUnassign = async (dwellerId: string) => {
 
 // Happiness dashboard event handlers
 const handleAssignIdle = () => {
-  dwellerStore.setFilterStatus('idle')
+  void router.push({ query: idleQuery.value })
 }
 
 const { run: runActivateRadio, isLoading: isActivatingRadio } = useAsyncAction(
@@ -562,8 +590,8 @@ const handleActivateRadio = async () => {
 }
 
 const handleViewLowHappiness = () => {
-  dwellerStore.setSortBy('happiness')
-  dwellerStore.setSortDirection('asc')
+  happinessOverviewOpen.value = false
+  void router.push({ query: attentionQuery('low_happiness') })
 }
 
 const treatingDwellers = ref(false)
@@ -634,9 +662,14 @@ const handleTreatIrradiated = async () => {
                 Retry
               </Button>
             </div>
-            <details v-else-if="happinessDashboardData" class="happiness-overview">
+            <details
+              v-else-if="happinessDashboardData"
+              class="happiness-overview overflow-hidden rounded-lg border-2 border-theme-primary/20 bg-surface-sunken"
+              :open="happinessOverviewOpen"
+              @toggle="happinessOverviewOpen = ($event.target as HTMLDetailsElement).open"
+            >
               <summary
-                class="flex cursor-pointer flex-wrap items-center justify-between gap-4 rounded-lg border-2 border-theme-primary/20 bg-surface-sunken px-4 py-3 text-theme-primary"
+                class="flex cursor-pointer flex-wrap items-center justify-between gap-4 px-4 py-3 text-theme-primary"
               >
                 <span class="text-xs font-bold uppercase tracking-[0.12em] text-theme-primary/70">
                   Happiness Overview
@@ -662,6 +695,7 @@ const handleTreatIrradiated = async () => {
                 </span>
               </summary>
               <HappinessDashboard
+                embedded
                 :loading="isDashboardLoading"
                 :vaultHappiness="happinessDashboardData.vaultHappiness"
                 :dwellerCount="happinessDashboardData.dwellerCount"
@@ -685,6 +719,8 @@ const handleTreatIrradiated = async () => {
           <!-- Filters narrow the roster; Sort and View live on the list toolbar below. -->
           <div class="w-full mb-4">
             <DwellerFilterPanel
+              collapsible
+              :show-attention-filter="!isDeadFilter"
               :show-age-filter="!isDeadFilter"
               :show-gender-filter="!isDeadFilter"
               :show-rarity-filter="!isDeadFilter"

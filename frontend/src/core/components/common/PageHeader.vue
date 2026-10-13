@@ -21,6 +21,7 @@
  * </PageHeader>
  */
 import { useVisualEffects } from '@/core/composables/useVisualEffects'
+import { defineAsyncComponent } from 'vue'
 import { Icon } from '@iconify/vue'
 
 interface Props {
@@ -48,11 +49,15 @@ withDefaults(defineProps<Props>(), {
 })
 
 defineSlots<{
+  /** Optional player-facing explanation, opened beside the title */
+  help?: () => unknown
   /** Back navigation link/button rendered above the header row */
   back?: () => unknown
   /** Right-aligned actions (buttons, badges, stats) */
   actions?: () => unknown
 }>()
+
+const PageHelp = defineAsyncComponent(() => import('./PageHelp.vue'))
 
 const { glowClass } = useVisualEffects()
 </script>
@@ -81,16 +86,19 @@ const { glowClass } = useVisualEffects()
           :class="centered ? 'w-12 h-12 mb-2' : 'mt-1 w-10 h-10 md:w-12 md:h-12'"
         />
         <div :class="centered ? 'text-center' : ''">
-          <h1
-            class="text-3xl md:text-4xl font-bold font-mono tracking-wider leading-tight text-theme-primary"
-            :class="glow ? glowClass : ''"
-          >
-            <template v-if="showVaultNumber && vaultNumber">
-              <span class="text-theme-accent">Vault {{ vaultNumber }}</span>
-              {{ ' ' }}
-            </template>
-            {{ title }}
-          </h1>
+          <div class="flex flex-wrap items-center gap-2" :class="centered ? 'justify-center' : ''">
+            <h1
+              class="text-3xl md:text-4xl font-bold font-mono tracking-wider leading-tight text-theme-primary"
+              :class="glow ? glowClass : ''"
+            >
+              <template v-if="showVaultNumber && vaultNumber">
+                <span class="text-theme-accent">Vault {{ vaultNumber }}</span>
+                {{ ' ' }}
+              </template>
+              {{ title }}
+            </h1>
+            <PageHelp v-if="$slots.help" :title="title"><slot name="help" /></PageHelp>
+          </div>
           <p
             v-if="subtitle"
             class="mt-1 max-w-2xl text-sm leading-relaxed text-pretty text-theme-primary/60"

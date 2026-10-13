@@ -18,7 +18,7 @@ from app.services.hazard_team_service import (
     TEAM_SIZE,
     hazard_team_service,
 )
-from app.tests.test_services._hazard_team_helpers import fight, raise_incident
+from app.tests.test_services._hazard_team_helpers import fight, outfit_data, raise_incident
 
 
 @pytest.mark.asyncio
@@ -237,6 +237,38 @@ async def test_join_emits_hazard_team_joined_notification(async_session: AsyncSe
     assert notification.meta_data["status"] == ACTIVE_STATUS
     assert notification.meta_data["promoted"] is False
     assert notification.meta_data["vault_id"] == str(room.vault_id)
+
+
+@pytest.mark.asyncio
+async def test_qualification_loop_through_real_rounds_places_equips_and_notifies(
+    async_session: AsyncSession, room_with_dwellers: dict
+):
+    """Three distinct FIRE incidents fought through the round engine earn the active place,
+    the spares get equipped, and the bell notification fires — the playtest loop verbatim."""
+    room = room_with_dwellers["room"]
+    dwellers = room_with_dwellers["dwellers"]
+    storage = await crud.vault.create_storage(db_session=async_session, vault_id=room.vault_id)
+    for _ in dwellers:
+        await crud.outfit.create(async_session, outfit_data("Firefighter suit", storage_id=storage.id))
+
+    for _ in range(QUALIFYING_INCIDENTS):
+        incident = await raise_incident(async_session, room, IncidentType.FIRE)
+        await incident_service.process_incident(async_session, incident, 2)
+
+    for dweller in dwellers:
+        place = await crud.team_crud.get_hazard_member(async_session, room.vault_id, HazardTeam.FIRE, dweller.id)
+        assert place is not None
+        assert place.status == ACTIVE_STATUS
+        equipped = await crud.outfit.get_equipped(async_session, dweller.id)
+        assert equipped is not None
+        assert equipped.name == "Firefighter suit"
+
+    notifications = await _hazard_notifications(async_session)
+    assert len(notifications) == len(dwellers)
+    assert {notification.meta_data["dweller_id"] for notification in notifications} == {
+        str(dweller.id) for dweller in dwellers
+    }
+    assert all(notification.meta_data["status"] == ACTIVE_STATUS for notification in notifications)
 
 
 @pytest.mark.asyncio

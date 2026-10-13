@@ -6,21 +6,13 @@
 from sqlmodel import col
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import ADULT_AGE_GROUPS, RoomTypeEnum, SPECIALEnum
+from app.core.enums import ADULT_AGE_GROUPS, STAT_BY_SPECIAL, RoomTypeEnum, SPECIALEnum
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.schemas.dweller import DwellerReadFull
 from app.utils.exceptions import ValidationException
 
-ABILITY_TO_STAT_MAP = {
-    SPECIALEnum.STRENGTH: "strength",
-    SPECIALEnum.PERCEPTION: "perception",
-    SPECIALEnum.ENDURANCE: "endurance",
-    SPECIALEnum.CHARISMA: "charisma",
-    SPECIALEnum.INTELLIGENCE: "intelligence",
-    SPECIALEnum.AGILITY: "agility",
-    SPECIALEnum.LUCK: "luck",
-}
+ABILITY_TO_STAT_MAP = STAT_BY_SPECIAL
 
 
 def get_highest_special(dweller: Dweller | DwellerReadFull) -> SPECIALEnum:

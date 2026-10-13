@@ -1,33 +1,23 @@
-"""Reward service for granting rewards when quests and objectives are completed."""
+"""Reward service for granting rewards when quests and objectives are completed.
 
-import logging
-import random
+Thin facade over the ``app.services.rewards`` domain package. ``RewardService``
+keeps the public surface — and the ``reward_service`` singleton — stable for its
+diverse callers (quest progression, objective evaluators, combat incident round,
+and the storage/objective endpoints), delegating each entry point to the
+role-named collaborators: ``items`` (item/dweller grants), ``resources``
+(caps/resource/experience/medication grants), ``lunchbox`` (mint/roll/open),
+and ``settlement`` (quest/objective settlement and reward dispatch).
+"""
+
 from typing import Any
-from uuid import UUID
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import GenderEnum, RarityEnum
-from app.core.event_bus import GameEvent, event_bus
-from app.crud.objective import objective_crud
-from app.crud.storage import storage as storage_crud
-from app.models.dweller import Dweller
-from app.models.item import Item
 from app.models.objective import Objective
 from app.models.quest import Quest
-from app.models.quest_reward import QuestReward, RewardType
-from app.models.storage import Storage
 from app.models.vault_objective import VaultObjectiveProgressLink
-from app.options.races import can_use_radaway
-from app.services.user_service import user_service
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
-from app.utils.item_factory import build_outfit, build_weapon
-from app.utils.reward_delivery import defer_reward_delivery, persist_reward_change, reward_delivery_is_deferred
-
-logger = logging.getLogger(__name__)
-
-_LUNCHBOX_ITEM_COUNT = 3
+from app.services.rewards import items, lunchbox, resources, settlement
 
 
 class RewardService:
@@ -36,682 +26,67 @@ class RewardService:
     async def grant_caps(
         self, db_session: AsyncSession, vault_id: UUID4, amount: int, *, emit_event: bool = True
     ) -> dict[str, Any]:
-        from app.crud.vault import vault as vault_crud
-        from app.services.vault_service import vault_service
-
-        vault_obj = await vault_crud.get(db_session, id=vault_id)
-        if reward_delivery_is_deferred(db_session):
-            credited = min(vault_obj.bottle_caps + amount, 999_999) - vault_obj.bottle_caps
-            vault_obj.bottle_caps += credited
-            await persist_reward_change(db_session, vault_obj)
-            await user_service.record_vault_statistic(db_session, vault_id, "total_caps_earned", credited, commit=False)
-        else:
-            await vault_service.deposit_caps(
-                db_session=db_session, vault_obj=vault_obj, amount=amount, emit_event=emit_event
-            )
-
-        logger.info(f"Granted {amount} caps to vault {vault_id}")
-        return {"reward_type": RewardType.CAPS, "amount": amount}
-
-    @staticmethod
-    def _parse_quantity(data: dict[str, Any]) -> int:
-        raw = data.get("quantity", data.get("amount", 1))
-        try:
-            qty = int(raw)
-        except (TypeError, ValueError):
-            qty = 1
-        return max(1, qty)
-
-    async def _ensure_storage(self, db_session: AsyncSession, vault_id: UUID4, quantity: int):
-        from app.crud.storage import get_available_space
-
-        storage_obj = await storage_crud.get_by_vault(db_session, vault_id)
-        if not storage_obj:
-            raise ResourceNotFoundException(Storage, vault_id, identifier_type="vault_id")
-        available = await get_available_space(db_session, storage_obj.id)
-        if available < quantity:
-            raise ResourceConflictException(
-                f"Storage full for vault {vault_id}: need {quantity}, available {available}"
-            )
-        return storage_obj
-
-    @staticmethod
-    async def _pick_legendary_template_id(db_session: AsyncSession, vault_id: UUID4) -> str | None:
-        """Pick an unused legendary template id; None when the vault exhausted them."""
-        from app.crud.dweller import dweller as dweller_crud
-        from app.utils.static_data import game_data_store
-
-        active_names = await dweller_crud.lock_vault_for_template(db_session, vault_id)
-        template = game_data_store.pick_template(RarityEnum.LEGENDARY.value, exclude_names=active_names or None)
-        return template.template_id if template is not None else None
-
-    @staticmethod
-    def _fallback_legendary_identity() -> dict[str, Any]:
-        """Canonical name/rarity for the exhausted-pool fallback.
-
-        Omits template_id on purpose: grant_dweller then rolls procedural stats
-        while keeping a canonical legendary name and rarity.
-        """
-        from app.utils.static_data import game_data_store
-
-        template = game_data_store.pick_template(RarityEnum.LEGENDARY.value)
-        if template is None:
-            return {}
-        return {
-            "first_name": template.first_name,
-            "last_name": template.last_name,
-            "rarity": template.rarity,
-        }
-
-    async def _grant_as_dweller(
-        self, db_session: AsyncSession, vault_id: UUID4, item_name: str, rarity: str, quantity: int
-    ) -> dict[str, Any]:
-        first_name, _, last_name = item_name.strip().partition(" ")
-        dweller_template = {
-            "rarity": rarity,
-            "level": 1,
-            "first_name": first_name or "Legendary",
-            "last_name": last_name or None,
-        }
-        legendary = item_name.strip().lower() == "legendary dweller"
-        dweller_ids: list[str] = []
-        last_name: str | None = None
-        for _ in range(quantity):
-            if legendary and (template_id := await self._pick_legendary_template_id(db_session, vault_id)):
-                result = await self.grant_dweller(db_session, vault_id, {"template_id": template_id})
-            else:
-                payload = dweller_template
-                if legendary:
-                    payload = {**dweller_template, **self._fallback_legendary_identity()}
-                result = await self.grant_dweller(db_session, vault_id, payload)
-            dweller_ids.append(result["dweller_id"])
-            last_name = result["name"]
-        logger.info(f"Granted {quantity} dweller(s) '{item_name}' ({rarity}) to vault {vault_id}")
-        return {
-            "reward_type": RewardType.ITEM,
-            "item_type": "dweller",
-            "name": last_name or item_name,
-            "amount": quantity,
-            "dweller_ids": dweller_ids,
-            "dweller_id": dweller_ids[0] if dweller_ids else None,
-        }
-
-    def _build_weapon(self, name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
-        """Prefer the catalog weapon so stats and metadata are canonical."""
-        from app.services.exploration import data_loader
-        from app.utils.item_factory import build_catalog_item
-
-        catalog_weapon = build_catalog_item(
-            "weapon", name, rarity, storage_id, weapons_data=data_loader.load_weapons(), outfits_data=[]
-        )
-        if catalog_weapon is not None:
-            return catalog_weapon
-        logger.warning(f"Reward weapon '{name}' is not in the catalog; building a default row")
-        return build_weapon(data | {"name": name}, rarity, storage_id)
-
-    def _build_outfit(self, name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
-        """Prefer the catalog outfit so SPECIAL bonuses and metadata are kept."""
-        from app.services.exploration import data_loader
-        from app.utils.item_factory import build_catalog_item
-
-        catalog_outfit = build_catalog_item(
-            "outfit", name, rarity, storage_id, weapons_data=[], outfits_data=data_loader.load_outfits()
-        )
-        if catalog_outfit is not None:
-            return catalog_outfit
-        logger.warning(f"Reward outfit '{name}' is not in the catalog; building a default row")
-        return build_outfit(data | {"name": name}, rarity, storage_id)
-
-    def _build_junk(self, name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
-        from app.core.enums import JunkTypeEnum
-        from app.models.junk import Junk
-        from app.utils.junk_assets import get_junk_image_url
-
-        return Junk(
-            name=name,
-            rarity=rarity,
-            junk_type=data.get("junk_type", JunkTypeEnum.VALUABLES),
-            description=data.get("description", name),
-            value=data.get("value"),
-            image_url=data.get("image_url") or get_junk_image_url(name),
-            storage_id=storage_id,
-        )
-
-    def _build_pet(self, name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
-        """Build a Pet; bonuses resolve by name at read time, so only identity/art are persisted."""
-        from app.utils.item_factory import build_pet
-
-        return build_pet(data | {"name": name}, rarity, storage_id)
-
-    @staticmethod
-    def _medication_kind(name: str) -> str | None:
-        """Map a medication item name to its stock kind; None for non-medication."""
-        normalized = name.lower()
-        if "radaway" in normalized or "rad-away" in normalized or "rad away" in normalized:
-            return "radaway"
-        if "stimpak" in normalized:
-            return "stimpak"
-        return None
+        return await resources.grant_caps(db_session, vault_id, amount, emit_event=emit_event)
 
     async def grant_item(
         self, db_session: AsyncSession, vault_id: UUID4, item_data: dict[str, Any], *, emit_event: bool = True
     ) -> dict[str, Any]:
-        from app.schemas.quest import infer_item_type
-
-        quantity = self._parse_quantity(item_data)
-        item_name = item_data.get("item_name", item_data.get("name", "Unknown Item"))
-        item_rarity = item_data.get("rarity", "common")
-        item_type = infer_item_type(str(item_name), item_data)
-
-        if item_type == "dweller":
-            return await self._grant_as_dweller(db_session, vault_id, str(item_name), str(item_rarity), quantity)
-
-        # Medication rides the dweller-stock path so it stays usable for treatment;
-        # generic Item rows would be inert (treatment spends carried stock).
-        if self._medication_kind(str(item_name)) == "stimpak":
-            return await self.grant_stimpak(db_session, vault_id, quantity, emit_event=emit_event)
-        if self._medication_kind(str(item_name)) == "radaway":
-            return await self.grant_radaway(db_session, vault_id, quantity, emit_event=emit_event)
-
-        if item_type not in {"weapon", "outfit", "junk", "consumable", "lunchbox", "pet"}:
-            raise ValueError(f"Unsupported item_type: {item_type}")
-        storage_obj = await self._ensure_storage(db_session, vault_id, quantity)
-        created_ids: list[str] = []
-        for _ in range(quantity):
-            match item_type:
-                case "weapon":
-                    item = self._build_weapon(str(item_name), str(item_rarity), item_data, storage_obj.id)
-                case "outfit":
-                    item = self._build_outfit(str(item_name), str(item_rarity), item_data, storage_obj.id)
-                case "junk":
-                    item = self._build_junk(str(item_name), str(item_rarity), item_data, storage_obj.id)
-                case "pet":
-                    item = self._build_pet(str(item_name), str(item_rarity), item_data, storage_obj.id)
-                case _:
-                    item = Item(
-                        name=str(item_name),
-                        item_type=item_type,
-                        rarity=str(item_rarity),
-                        value=item_data.get("value"),
-                        image_url=item_data.get("image_url"),
-                        storage_id=storage_obj.id,
-                    )
-            db_session.add(item)
-            await db_session.flush()
-            await db_session.refresh(item)
-            created_ids.append(str(item.id))
-
-        await persist_reward_change(db_session)
-
-        if emit_event and not reward_delivery_is_deferred(db_session):
-            await event_bus.emit(GameEvent.ITEM_COLLECTED, vault_id, {"item_type": item_type, "amount": quantity})
-        logger.info(f"Granted {quantity}x {item_type} '{item_name}' ({item_rarity}) to vault {vault_id}")
-        return {
-            "reward_type": RewardType.ITEM,
-            "item_type": item_type,
-            "name": item_name,
-            "amount": quantity,
-            "item_id": created_ids[0] if len(created_ids) == 1 else None,
-            "item_ids": created_ids,
-        }
+        return await items.grant_item(db_session, vault_id, item_data, emit_event=emit_event)
 
     async def grant_dweller(
         self, db_session: AsyncSession, vault_id: UUID4, dweller_template: dict[str, Any]
     ) -> dict[str, Any]:
-        from app.core.enums import RarityEnum
-        from app.crud.vault import vault as vault_crud
-        from app.schemas.dweller import STATS_RANGE_BY_RARITY
-        from app.utils.static_data import game_data_store
-
-        vault, population = await vault_crud.lock_population_for_update(db_session, vault_id)
-        if vault_crud.population_limit_reached(vault.population_max, population):
-            raise ResourceConflictException(f"Vault population capacity reached ({population}/{vault.population_max})")
-
-        if template_id := dweller_template.get("template_id"):
-            template = game_data_store.get_dweller(template_id)
-            if template is None:
-                msg = f"Unknown dweller reward template: {template_id}"
-                raise ValueError(msg)
-            from app.services.dweller_service import dweller_service
-
-            try:
-                new_dweller = await dweller_service.create_dweller_from_template(
-                    db_session,
-                    vault_id,
-                    template_id,
-                    overrides=dweller_template,
-                )
-            except ResourceConflictException:
-                fallback = await dweller_service.create_random_dweller(
-                    db_session, vault_id=vault_id, rarity=RarityEnum.COMMON, register_bio_places=True
-                )
-                logger.info(
-                    f"Template {template_id} already active in vault {vault_id}, granted fallback common {fallback.id}"
-                )
-                return {
-                    "reward_type": RewardType.DWELLER,
-                    "dweller_id": str(fallback.id),
-                    "name": f"{fallback.first_name} {fallback.last_name or ''}".strip(),
-                }
-            logger.info(f"Granted dweller '{new_dweller.first_name}' ({new_dweller.rarity}) to vault {vault_id}")
-            return {
-                "reward_type": RewardType.DWELLER,
-                "dweller_id": str(new_dweller.id),
-                "name": f"{new_dweller.first_name} {new_dweller.last_name or ''}".strip(),
-            }
-
-        first_name = dweller_template.get("first_name", dweller_template.get("name", "Unknown"))
-        last_name = dweller_template.get("last_name")
-        rarity = dweller_template.get("rarity", "common")
-        level = dweller_template.get("level", 1)
-        gender = dweller_template.get("gender", "male")
-
-        rarity_enum = RarityEnum(rarity)
-
-        stat_range = STATS_RANGE_BY_RARITY.get(rarity_enum, (1, 3))
-        default_stat = random.randint(stat_range[0], stat_range[1])
-
-        new_dweller = Dweller(
-            first_name=first_name,
-            last_name=last_name,
-            gender=gender,
-            rarity=rarity_enum,
-            level=level,
-            experience=dweller_template.get("experience", 0),
-            max_health=dweller_template.get("max_health", 50),
-            health=dweller_template.get("health", 50),
-            happiness=dweller_template.get("happiness", 50),
-            strength=dweller_template.get("strength", default_stat),
-            perception=dweller_template.get("perception", default_stat),
-            endurance=dweller_template.get("endurance", default_stat),
-            charisma=dweller_template.get("charisma", default_stat),
-            intelligence=dweller_template.get("intelligence", default_stat),
-            agility=dweller_template.get("agility", default_stat),
-            luck=dweller_template.get("luck", default_stat),
-            bio=dweller_template.get("bio"),
-            visual_attributes=dweller_template.get("visual_attributes"),
-            vault_id=vault_id,
-        )
-        await persist_reward_change(db_session, new_dweller, refresh=True)
-        await user_service.record_vault_statistic(
-            db_session, vault_id, "total_dwellers_created", commit=not reward_delivery_is_deferred(db_session)
-        )
-
-        logger.info(f"Granted dweller '{first_name}' ({rarity}) to vault {vault_id}")
-        return {
-            "reward_type": RewardType.DWELLER,
-            "dweller_id": str(new_dweller.id),
-            "name": f"{first_name} {last_name or ''}".strip(),
-        }
+        return await items.grant_dweller(db_session, vault_id, dweller_template)
 
     async def grant_resource(
         self, db_session: AsyncSession, vault_id: UUID4, resource_type: str, amount: int
     ) -> dict[str, Any]:
-        from app.crud.vault import vault as vault_crud
-
-        vault_obj = await vault_crud.get(db_session, id=vault_id)
-        deferred = reward_delivery_is_deferred(db_session)
-
-        match resource_type.lower():
-            case "food":
-                new_value = min(vault_obj.food + amount, vault_obj.food_max)
-                field = "food"
-            case "water":
-                new_value = min(vault_obj.water + amount, vault_obj.water_max)
-                field = "water"
-            case "power":
-                new_value = min(vault_obj.power + amount, vault_obj.power_max)
-                field = "power"
-            case _:
-                msg = f"Invalid resource_type: {resource_type}. Must be 'food', 'water', or 'power'"
-                raise ValueError(msg)
-
-        if deferred:
-            setattr(vault_obj, field, new_value)
-            await persist_reward_change(db_session, vault_obj)
-        else:
-            await vault_crud.update(db_session, id=vault_id, obj_in={field: new_value})
-
-        logger.info(f"Granted {amount} {resource_type} to vault {vault_id}")
-        return {"reward_type": RewardType.RESOURCE, "resource_type": resource_type, "amount": amount}
+        return await resources.grant_resource(db_session, vault_id, resource_type, amount)
 
     async def grant_experience(self, db_session: AsyncSession, dweller_ids: list[UUID4], amount: int) -> dict[str, Any]:
-        from app.crud.dweller import dweller as dweller_crud
-        from app.services.dweller_service import dweller_service
-
-        leveled_up: list[str] = []
-        granted_to: list[str] = []
-
-        for raw_id in dweller_ids:
-            dweller_id = UUID(raw_id) if isinstance(raw_id, str) else raw_id
-            dweller_obj = await dweller_crud.get(db_session, id=dweller_id)
-            old_level = dweller_obj.level
-            await dweller_service.add_experience(db_session, dweller_obj, amount)
-            granted_to.append(str(dweller_id))
-
-            await db_session.refresh(dweller_obj)
-            if dweller_obj.level > old_level:
-                leveled_up.append(str(dweller_id))
-
-        logger.info(f"Granted {amount} XP to {len(granted_to)} dweller(s), {len(leveled_up)} leveled up")
-        return {
-            "reward_type": RewardType.EXPERIENCE,
-            "amount": amount,
-            "dweller_ids": granted_to,
-            "leveled_up": leveled_up,
-        }
+        return await resources.grant_experience(db_session, dweller_ids, amount)
 
     async def grant_stimpak(
         self, db_session: AsyncSession, vault_id: UUID4, amount: int, *, emit_event: bool = True
     ) -> dict[str, Any]:
         """Grant stimpaks to random dweller in vault."""
-        return await self._grant_medication(
-            db_session, vault_id, amount, RewardType.STIMPAK, "stimpack", emit_event=emit_event
-        )
+        return await resources.grant_stimpak(db_session, vault_id, amount, emit_event=emit_event)
 
     async def grant_radaway(
         self, db_session: AsyncSession, vault_id: UUID4, amount: int, *, emit_event: bool = False
     ) -> dict[str, Any]:
         """Grant radaways to random dweller in vault."""
-        return await self._grant_medication(
-            db_session, vault_id, amount, RewardType.RADAWAY, "radaway", emit_event=emit_event
-        )
-
-    async def _grant_medication(
-        self,
-        db_session: AsyncSession,
-        vault_id: UUID4,
-        amount: int,
-        reward_type: RewardType,
-        stock_field: str,
-        *,
-        emit_event: bool = False,
-    ) -> dict[str, Any]:
-        from app.crud.dweller import dweller as dweller_crud
-
-        dwellers = await dweller_crud.get_multi_by_vault(db_session, vault_id=vault_id, skip=0, limit=100)
-        if not dwellers:
-            logger.warning(f"No dwellers found in vault {vault_id} to grant {reward_type}s")
-            return {"reward_type": reward_type, "amount": 0, "message": "No dwellers found"}
-
-        if stock_field == "radaway":
-            dwellers = [dweller for dweller in dwellers if can_use_radaway(dweller)]
-
-        if dwellers:
-            recipient = random.choice(dwellers)
-            setattr(recipient, stock_field, (getattr(recipient, stock_field) or 0) + amount)
-            result = {"reward_type": reward_type, "amount": amount, "dweller_id": str(recipient.id)}
-        else:
-            recipient = await storage_crud.get_by_vault(db_session, vault_id) or Storage(vault_id=vault_id)
-            recipient.radaway = (recipient.radaway or 0) + amount
-            result = {"reward_type": reward_type, "amount": amount, "vault_id": str(vault_id)}
-
-        await persist_reward_change(db_session, recipient)
-        if emit_event and not reward_delivery_is_deferred(db_session):
-            await event_bus.emit(GameEvent.ITEM_COLLECTED, vault_id, {"item_type": reward_type, "amount": amount})
-
-        logger.info("Granted %s %ss in vault %s", amount, reward_type, vault_id)
-        return result
-
-    @staticmethod
-    def _lunchbox_common_dweller_data(level: int, rarity: RarityEnum) -> dict[str, Any]:
-        """Build the procedural fallback used for common lunchbox dwellers."""
-        from app.utils.dwellers import get_gender_based_name
-
-        gender = random.choice([GenderEnum.MALE, GenderEnum.FEMALE])
-        return {
-            "first_name": get_gender_based_name(gender),
-            "last_name": random.choice(["Smith", "Johnson", "Williams", "Brown", "Jones", "Miller"]),
-            "rarity": rarity,
-            "level": level,
-            "gender": gender,
-        }
+        return await resources.grant_radaway(db_session, vault_id, amount, emit_event=emit_event)
 
     async def grant_lunchbox(self, db_session: AsyncSession, vault_id: UUID4, amount: int = 1) -> dict[str, Any]:
         """Mint unopened lunchbox Items; contents roll when the player opens each one."""
-        return await self.grant_item(
-            db_session,
-            vault_id,
-            {"item_type": "lunchbox", "name": "Lunchbox", "rarity": "common", "amount": amount},
-        )
+        return await lunchbox.grant_lunchbox(db_session, vault_id, amount)
 
     async def open_lunchbox(self, db_session: AsyncSession, vault_id: UUID4, item_id: UUID4) -> dict[str, Any]:
-        """Consume one unopened lunchbox and roll its contents.
-
-        Space for the rolled items is verified before the lunchbox row is
-        consumed, so a full storage fails cleanly without losing the box.
-        The box itself frees one slot, so only the two net additional slots
-        are required. The whole opening settles in one deferred transaction.
-
-        Raises:
-            ResourceNotFoundException: Unknown, foreign-vault, or non-lunchbox row.
-            ResourceConflictException: Storage cannot fit the rolled contents.
-        """
-        from app.crud.storage import get_unopened_lunchbox
-
-        item = await get_unopened_lunchbox(db_session, item_id, vault_id)
-        if item is None:
-            raise ResourceNotFoundException(Item, item_id)
-        storage_obj = await self._ensure_storage(db_session, vault_id, _LUNCHBOX_ITEM_COUNT - 1)
-        async with defer_reward_delivery(db_session):
-            await db_session.delete(item)
-            granted_items, granted_dweller = await self._roll_lunchbox_contents(db_session, vault_id, storage_obj.id)
-            await persist_reward_change(db_session)
-            await db_session.commit()
-
-        logger.info(f"Opened lunchbox {item_id} in vault {vault_id}: {len(granted_items)} items, 1 dweller")
-        return {
-            "reward_type": RewardType.LUNCHBOX,
-            "items": granted_items,
-            "dweller": granted_dweller,
-        }
-
-    async def _roll_lunchbox_contents(
-        self, db_session: AsyncSession, vault_id: UUID4, storage_id: UUID4
-    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-        """Roll 3 random items and 1 dweller into storage for a lunchbox opening."""
-        from app.crud.dweller import dweller as dweller_crud
-        from app.services.exploration import data_loader
-
-        catalogs = {"weapon": data_loader.load_weapons(), "outfit": data_loader.load_outfits()}
-
-        granted_items = []
-        for _ in range(_LUNCHBOX_ITEM_COUNT):
-            kind = random.choice(("weapon", "outfit"))
-            rarity = random.choices(
-                [RarityEnum.COMMON, RarityEnum.RARE, RarityEnum.LEGENDARY],
-                weights=[0.7, 0.2, 0.1],
-            )[0]
-            pool = [entry for entry in catalogs[kind] if RarityEnum(str(entry.get("rarity", ""))).value == rarity.value]
-            if not pool:
-                logger.warning(f"No {rarity.value} {kind} in the catalog; skipping a lunchbox roll")
-                continue
-            entry = random.choice(pool)
-            item = (
-                build_weapon(entry, rarity, storage_id) if kind == "weapon" else build_outfit(entry, rarity, storage_id)
-            )
-            db_session.add(item)
-            granted_items.append({"name": item.name, "type": kind, "rarity": rarity.value})
-
-        lunchbox_rarity = random.choices(
-            [RarityEnum.COMMON, RarityEnum.RARE, RarityEnum.LEGENDARY], weights=[0.7, 0.2, 0.1]
-        )[0]
-        if lunchbox_rarity in (RarityEnum.RARE, RarityEnum.LEGENDARY):
-            from app.utils.static_data import game_data_store
-
-            active_names = await dweller_crud.lock_vault_for_template(db_session, vault_id)
-            template = game_data_store.pick_template(lunchbox_rarity.value, exclude_names=active_names or None)
-            if template is not None:
-                granted_dweller = await self.grant_dweller(
-                    db_session, vault_id, {"template_id": template.template_id, "level": random.randint(1, 5)}
-                )
-            else:
-                dweller_data = self._lunchbox_common_dweller_data(random.randint(1, 5), RarityEnum.COMMON)
-                granted_dweller = await self.grant_dweller(db_session, vault_id, dweller_data)
-        else:
-            dweller_data = self._lunchbox_common_dweller_data(random.randint(1, 5), lunchbox_rarity)
-            granted_dweller = await self.grant_dweller(db_session, vault_id, dweller_data)
-        return granted_items, granted_dweller
+        """Consume one unopened lunchbox and roll its contents."""
+        return await lunchbox.open_lunchbox(db_session, vault_id, item_id)
 
     async def process_quest_rewards(
         self, db_session: AsyncSession, vault_id: UUID4, quest: Quest
     ) -> list[dict[str, Any]]:
-        granted_rewards: list[dict[str, Any]] = []
-
-        rewards: list[QuestReward] = quest.quest_rewards
-        if not rewards:
-            logger.info(f"Quest '{quest.title}' has no rewards to process")
-            return granted_rewards
-
-        for reward in rewards:
-            if reward.reward_chance < 1.0 and random.random() > reward.reward_chance:
-                logger.debug(f"Reward roll failed for quest '{quest.title}' (chance={reward.reward_chance:.3f})")
-                continue
-
-            reward_data = reward.reward_data | (reward.item_data or {})
-            result = await self._process_single_reward(db_session, vault_id, reward.reward_type, reward_data)
-            granted_rewards.append(result)
-
-        logger.info(f"Processed {len(granted_rewards)}/{len(rewards)} rewards for quest '{quest.title}'")
-        return granted_rewards
+        return await settlement.process_quest_rewards(db_session, vault_id, quest)
 
     async def process_objective_reward(
         self, db_session: AsyncSession, vault_id: UUID4, objective: VaultObjectiveProgressLink
     ) -> dict[str, Any]:
-        objective_obj = await objective_crud.get(db_session, id=objective.objective_id)
-        reward_str = objective_obj.reward
-
-        reward_type, reward_data = self._parse_objective_reward(reward_str)
-        result = await self._process_single_reward(db_session, vault_id, reward_type, reward_data, emit_event=False)
-        logger.info(f"Processed objective reward '{reward_str}' for vault {vault_id}")
-        return result
+        return await settlement.process_objective_reward(db_session, vault_id, objective)
 
     async def settle_objective_completion(
         self, db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4
     ) -> Objective:
         """Mark an objective complete for a vault and deliver its reward in one transaction."""
-        objective = await objective_crud.get(db_session, objective_id)
-        link = await objective_crud.get_link_for_update(db_session, objective_id, vault_id)
-        if not link:
-            link = VaultObjectiveProgressLink(vault_id=vault_id, objective_id=objective_id, progress=0, total=1)
-            db_session.add(link)
-        elif link.is_completed:
-            raise ResourceConflictException("Already completed")
-
-        link.progress = link.total
-        await self._settle_objective_link(db_session, vault_id, link)
-        return objective
+        return await settlement.settle_objective_completion(db_session, objective_id, vault_id)
 
     async def settle_objective_progress(
         self, db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4, progress: int
     ) -> VaultObjectiveProgressLink:
         """Update objective progress, settling its reward once the target is reached."""
-        link = await objective_crud.get_link_for_update(db_session, objective_id, vault_id)
-        if not link:
-            objective = await objective_crud.get(db_session, objective_id)
-            link = VaultObjectiveProgressLink(
-                vault_id=vault_id,
-                objective_id=objective_id,
-                progress=progress,
-                total=objective.target_amount if objective else 1,
-            )
-            db_session.add(link)
-        elif link.is_completed:
-            return link
-
-        link.progress = progress
-        if link.progress < link.total:
-            await db_session.commit()
-        else:
-            await self._settle_objective_link(db_session, vault_id, link)
-        await db_session.refresh(link)
-        return link
-
-    async def _settle_objective_link(
-        self, db_session: AsyncSession, vault_id: UUID4, link: VaultObjectiveProgressLink
-    ) -> None:
-        """Complete the link and deliver its reward inside a single deferred transaction."""
-        link.is_completed = True
-        async with defer_reward_delivery(db_session):
-            await self.process_objective_reward(db_session, vault_id, link)
-            await db_session.commit()
-
-    async def _process_single_reward(
-        self,
-        db_session: AsyncSession,
-        vault_id: UUID4,
-        reward_type: RewardType | str,
-        reward_data: dict[str, Any],
-        *,
-        emit_event: bool = True,
-    ) -> dict[str, Any]:
-        reward_type_str = reward_type.value if isinstance(reward_type, RewardType) else reward_type
-
-        match reward_type_str:
-            case RewardType.CAPS:
-                return await self.grant_caps(db_session, vault_id, reward_data.get("amount", 0), emit_event=emit_event)
-            case RewardType.ITEM:
-                return await self.grant_item(db_session, vault_id, reward_data, emit_event=emit_event)
-            case RewardType.DWELLER:
-                return await self.grant_dweller(db_session, vault_id, reward_data)
-            case RewardType.RESOURCE:
-                return await self.grant_resource(
-                    db_session, vault_id, reward_data.get("resource_type", "food"), reward_data.get("amount", 0)
-                )
-            case RewardType.EXPERIENCE:
-                return await self.grant_experience(
-                    db_session, reward_data.get("dweller_ids", []), reward_data.get("amount", 0)
-                )
-            case RewardType.STIMPAK:
-                return await self.grant_stimpak(
-                    db_session, vault_id, reward_data.get("amount", 1), emit_event=emit_event
-                )
-            case RewardType.RADAWAY:
-                return await self.grant_radaway(
-                    db_session, vault_id, reward_data.get("amount", 1), emit_event=emit_event
-                )
-            case RewardType.LUNCHBOX:
-                return await self.grant_lunchbox(db_session, vault_id, reward_data.get("amount", 1))
-            case _:
-                msg = f"Unknown reward type: {reward_type_str}"
-                raise ValueError(msg)
-
-    @staticmethod
-    def _parse_objective_reward(reward_str: str) -> tuple[RewardType, dict[str, Any]]:
-        """Parse objective reward string into (RewardType, data).
-
-        Formats: "100 caps", "50 food", "200 xp", "weapon:Laser Pistol", "outfit:Vault Suit", "dweller:Wanderer"
-        """
-        reward_str = reward_str.strip()
-
-        parts = reward_str.split(maxsplit=1)
-        if len(parts) == 2 and parts[0].isdigit():
-            amount = int(parts[0])
-            reward_name = parts[1].lower().strip()
-
-            if reward_name == "caps":
-                return RewardType.CAPS, {"amount": amount}
-            if reward_name in ("food", "water", "power"):
-                return RewardType.RESOURCE, {"resource_type": reward_name, "amount": amount}
-            if reward_name in ("xp", "experience"):
-                return RewardType.EXPERIENCE, {"amount": amount, "dweller_ids": []}
-            if reward_name in ("lunchbox", "lunchboxes"):
-                return RewardType.LUNCHBOX, {"amount": amount}
-
-        if ":" in reward_str:
-            prefix, value = reward_str.split(":", 1)
-            prefix = prefix.lower().strip()
-            value = value.strip()
-
-            if prefix == "weapon":
-                return RewardType.ITEM, {"item_type": "weapon", "name": value, "rarity": "common"}
-            if prefix == "outfit":
-                return RewardType.ITEM, {"item_type": "outfit", "name": value, "rarity": "common"}
-            if prefix == "dweller":
-                return RewardType.DWELLER, {"first_name": value, "rarity": "common"}
-
-        msg = f"Cannot parse objective reward string: '{reward_str}'"
-        raise ValueError(msg)
+        return await settlement.settle_objective_progress(db_session, objective_id, vault_id, progress)
 
 
 reward_service = RewardService()

@@ -1,11 +1,17 @@
-"""Unit tests for the radiation helpers: outfit resist scope and the saturation cap."""
+"""Unit tests for the radiation and health-restoration helpers: outfit resist scope, saturation cap, and stimpack healing."""
 
 from unittest.mock import MagicMock
 
 import pytest
 
 from app.core.enums import OutfitTypeEnum
-from app.services.radiation_service import apply_radiation_gain, dehydration_rads
+from app.core.game_config import game_config
+from app.services.radiation_service import (
+    apply_health_gain,
+    apply_radiation_gain,
+    dehydration_rads,
+    stimpack_heal_amount,
+)
 
 
 def _human(**overrides: object) -> MagicMock:
@@ -85,3 +91,40 @@ def test_radiation_saturates_at_max_health_and_lowers_the_ceiling() -> None:
 )
 def test_dehydration_rads_scales_with_health_and_ticks(max_health: int, ticks: int, expected: int) -> None:
     assert dehydration_rads(max_health, ticks) == expected
+
+
+def test_stimpack_heal_amount_is_share_of_max_health() -> None:
+    assert stimpack_heal_amount(100) == max(1, int(100 * game_config.health.stimpack_heal_percent))
+
+
+@pytest.mark.parametrize("max_health", [1, 2])
+def test_stimpack_heal_amount_never_below_one(max_health: int) -> None:
+    assert stimpack_heal_amount(max_health) == 1
+
+
+def test_apply_health_gain_returns_and_sets_new_health() -> None:
+    dweller = _human(health=10)
+
+    assert apply_health_gain(dweller, 40) == 50
+    assert dweller.health == 50
+
+
+def test_apply_health_gain_clamps_at_effective_max_health() -> None:
+    dweller = _human(health=80)
+
+    assert apply_health_gain(dweller, 50) == 100
+    assert dweller.health == 100
+
+
+def test_apply_health_gain_respects_radiation_reduced_ceiling() -> None:
+    dweller = _human(health=30, radiation=40)
+
+    assert apply_health_gain(dweller, 40) == 60
+    assert dweller.health == 60
+
+
+def test_apply_health_gain_with_zero_amount_is_no_change() -> None:
+    dweller = _human(health=80)
+
+    assert apply_health_gain(dweller, 0) == 80
+    assert dweller.health == 80

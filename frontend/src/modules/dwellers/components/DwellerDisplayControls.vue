@@ -4,7 +4,13 @@ import { onClickOutside } from '@vueuse/core'
 import { Icon } from '@iconify/vue'
 import { audioManager } from '@/core/audio/audioManager'
 import { useDwellerStore, type DwellerSortBy } from '@/modules/dwellers/stores/dweller'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/core/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/core/components/ui/select'
 import { DWELLER_TABLE_COLUMNS, DWELLER_TABLE_PRESETS } from '../models/dwellerTable'
 
 interface Props {
@@ -19,6 +25,7 @@ const { filter: dwellerStore } = useDwellerStore()
 const sortOptions = [
   { value: 'name', label: 'Name', icon: 'mdi:alphabetical' },
   { value: 'level', label: 'Level', icon: 'mdi:star' },
+  { value: 'health', label: 'Health', icon: 'mdi:heart-pulse' },
   { value: 'happiness', label: 'Happiness', icon: 'mdi:emoticon-happy' },
   { value: 'strength', label: 'Strength', icon: 'mdi:arm-flex' },
   { value: 'perception', label: 'Perception', icon: 'mdi:eye' },

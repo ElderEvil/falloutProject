@@ -2,8 +2,8 @@
 
 Player-to-player messaging: connection requests, blocking, and direct message
 threads between accounts. The whole module hides behind the `player_connections`
-feature flag (backend ships it **off**), so the nav entry, the route, and every
-store action no-op until the flag is enabled.
+feature flag (enabled by default), so the nav entry, the route, and every
+store action no-op until the flag is on.
 
 ## Routes
 

@@ -1124,10 +1124,10 @@ class FeatureConfig(BaseSettings):
         ),
     )
     player_connections: bool = Field(
-        default=False,
+        default=True,
         description=(
             "Player-to-player connections, blocking, and direct messages (multiplayer slice A1/A2/B1). "
-            "Ships dark until the social surface exists to make it playable."
+            "Enabled by default."
         ),
     )
 

@@ -76,7 +76,7 @@ const barColorClass = computed(() => {
     case 'low':
       return 'bg-warning'
     case 'medium':
-      return 'bg-yellow-500'
+      return 'bg-caps'
     default:
       return 'bg-theme-primary'
   }
@@ -85,11 +85,11 @@ const barColorClass = computed(() => {
 const iconColor = computed(() => {
   switch (status.value) {
     case 'critical':
-      return 'text-red-600 animate-pulse'
+      return 'text-danger animate-pulse'
     case 'low':
-      return 'text-orange-500'
+      return 'text-warning'
     case 'medium':
-      return 'text-yellow-500'
+      return 'text-caps'
     default:
       return 'text-theme-primary'
   }
@@ -176,7 +176,7 @@ const ariaLabel = computed(
 
             <div class="relative">
               <div
-                class="relative h-6 rounded-full border-2 border-stone-600 bg-stone-800 overflow-hidden"
+                class="relative h-6 rounded-full border-2 border-border bg-surface-raised overflow-hidden"
                 :class="props.navbar ? 'w-20 xl:w-24 2xl:w-28' : 'w-40'"
               >
                 <!-- Filled part of the bar with smooth transition -->
@@ -195,7 +195,7 @@ const ariaLabel = computed(
                   aria-hidden="true"
                 >
                   <span
-                    class="resource-value text-gray-900 drop-shadow-[0_2px_4px_rgba(255,255,255,0.9)]"
+                    class="resource-value text-black drop-shadow-[0_2px_4px_rgba(255,255,255,0.9)]"
                   >
                     {{ props.current }}/{{ props.max }}
                   </span>
@@ -210,18 +210,20 @@ const ariaLabel = computed(
                 <Icon
                   v-if="isDrainingCritical || trend === 'down'"
                   icon="mdi:arrow-down"
-                  class="h-4 w-4 text-red-500 animate-bounce"
+                  class="h-4 w-4 text-danger animate-bounce"
                 />
                 <Icon
                   v-else-if="trend === 'up'"
                   icon="mdi:arrow-up"
-                  class="h-4 w-4 text-green-500 animate-bounce"
+                  class="h-4 w-4 text-success animate-bounce"
                 />
               </div>
             </div>
 
             <!-- Label (optional) -->
-            <span v-if="label" class="text-xs text-gray-400" aria-hidden="true">{{ label }}</span>
+            <span v-if="label" class="text-xs text-muted-foreground" aria-hidden="true">{{
+              label
+            }}</span>
           </div>
         </TooltipTrigger>
         <TooltipContent side="bottom" class="whitespace-pre-line">{{ tooltipText }}</TooltipContent>

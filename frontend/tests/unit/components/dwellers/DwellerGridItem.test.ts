@@ -80,7 +80,7 @@ describe('DwellerGridItem', () => {
       expect(jobStat.exists()).toBe(false)
     })
 
-    it('should apply green color class for high stats (7-10)', () => {
+    it('should apply success token for high stats (7-10)', () => {
       const wrapper = mount(DwellerGridItem, {
         props: {
           dweller: mockDweller,
@@ -90,10 +90,10 @@ describe('DwellerGridItem', () => {
       })
 
       const statValue = wrapper.find('.job-stat-value')
-      expect(statValue.classes()).toContain('text-green-400')
+      expect(statValue.classes()).toContain('text-success')
     })
 
-    it('should apply yellow color class for medium stats (4-6)', () => {
+    it('should apply warning token for medium stats (4-6)', () => {
       const wrapper = mount(DwellerGridItem, {
         props: {
           dweller: mockDweller,
@@ -103,10 +103,10 @@ describe('DwellerGridItem', () => {
       })
 
       const statValue = wrapper.find('.job-stat-value')
-      expect(statValue.classes()).toContain('text-yellow-400')
+      expect(statValue.classes()).toContain('text-warning')
     })
 
-    it('should apply red color class for low stats (1-3)', () => {
+    it('should apply danger token for low stats (1-3)', () => {
       const wrapper = mount(DwellerGridItem, {
         props: {
           dweller: mockDweller,
@@ -116,10 +116,10 @@ describe('DwellerGridItem', () => {
       })
 
       const statValue = wrapper.find('.job-stat-value')
-      expect(statValue.classes()).toContain('text-red-400')
+      expect(statValue.classes()).toContain('text-danger')
     })
 
-    it('should apply orange color class for combat power (arena) stats', () => {
+    it('should apply warning token for combat power (arena) stats', () => {
       const wrapper = mount(DwellerGridItem, {
         props: {
           dweller: mockDweller,
@@ -129,7 +129,7 @@ describe('DwellerGridItem', () => {
       })
 
       const statValue = wrapper.find('.job-stat-value')
-      expect(statValue.classes()).toContain('text-orange-400')
+      expect(statValue.classes()).toContain('text-warning')
     })
 
     it('should render the provided label and value', () => {

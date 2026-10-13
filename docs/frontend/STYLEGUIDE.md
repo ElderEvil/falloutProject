@@ -810,3 +810,19 @@ Mobile-first approach using breakpoints:
 ---
 
 **Questions or suggestions?** Open an issue or submit a pull request!
+
+### Activity and SPECIAL identity tokens (#856)
+
+Dweller activity uses fixed `status-*` identity hues in every vault theme: exploring blue,
+questing/training orange, working green, socializing pink, fighting/dead red, idle yellow,
+and unknown warm neutral. Status badges retain their distinct icons and readable labels;
+the shared training/questing and fighting/dead colors never define the state by themselves.
+These identity colors are independent of semantic success (theme primary), warning, danger,
+and info. SPECIAL selectors use `special-*` aliases with attribute names, letters and icons.
+
+Use semantic classes for state (`text-danger`, `bg-warning/20`), surfaces and muted text.
+The existing color guard scans template classes and returned strings as well as CSS literals,
+including variant/opacity palette utilities and direct chromatic palette-variable producers.
+Do not concatenate raw palette fragments to bypass it. Neutral black/white scrims remain allowed;
+legacy warm gray CSS variables remain grandfathered design aliases, while feature utilities
+use semantic roles. The baseline tracks the remaining literals and must only shrink.

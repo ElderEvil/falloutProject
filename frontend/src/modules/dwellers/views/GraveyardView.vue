@@ -38,7 +38,6 @@ onMounted(async () => {
   }
 })
 
-
 const viewDwellerDetails = (dwellerId: string) => {
   router.push(`/vault/${vaultId.value}/dwellers/${dwellerId}`)
 }
@@ -98,7 +97,7 @@ const viewDwellerDetails = (dwellerId: string) => {
 
           <!-- Summary Footer -->
           <div v-if="dwellerStore.graveyardDwellers.length > 0" class="w-full mt-8 text-center">
-            <p class="text-xs text-gray-500 font-mono">
+            <p class="text-xs text-muted-foreground font-mono">
               {{ dwellerStore.graveyardDwellers.length }} soul{{
                 dwellerStore.graveyardDwellers.length !== 1 ? 's' : ''
               }}

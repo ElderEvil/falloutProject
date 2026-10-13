@@ -89,15 +89,12 @@ onMounted(() => {
       >
         <!-- Crash Screen -->
         <div v-if="stage === 'crash'" class="text-center space-y-4 font-mono px-8">
-          <Icon
-            icon="mdi:alert-octagon"
-            class="h-24 w-24 text-red-500 mx-auto mb-8 animate-pulse"
-          />
+          <Icon icon="mdi:alert-octagon" class="h-24 w-24 text-danger mx-auto mb-8 animate-pulse" />
           <div
             v-for="(msg, idx) in crashMessages"
             :key="idx"
             class="text-terminal-green text-lg terminal-glow"
-            :class="{ 'text-red-400': idx === 0 || idx === 3, 'text-2xl font-bold': idx === 0 }"
+            :class="{ 'text-danger': idx === 0 || idx === 3, 'text-2xl font-bold': idx === 0 }"
           >
             {{ msg }}
           </div>

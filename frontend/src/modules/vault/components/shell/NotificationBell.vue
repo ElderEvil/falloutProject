@@ -280,12 +280,12 @@ const getNotificationIcon = (type: string): string => {
 
 const getPriorityColor = (priority: string): string => {
   const colorMap: Record<string, string> = {
-    urgent: 'text-red-500',
+    urgent: 'text-danger',
     high: 'text-theme-accent',
     normal: 'text-theme-primary',
-    info: 'text-gray-400',
+    info: 'text-muted-foreground',
   }
-  return colorMap[priority] || 'text-gray-400'
+  return colorMap[priority] || 'text-muted-foreground'
 }
 
 onMounted(() => {
@@ -321,13 +321,13 @@ onBeforeUnmount(() => {
             <Icon
               icon="mdi:bell"
               class="h-5 w-5"
-              :class="hasUnread ? 'text-theme-primary' : 'text-gray-400'"
+              :class="hasUnread ? 'text-theme-primary' : 'text-muted-foreground'"
             />
 
             <!-- Unread Badge -->
             <span
               v-if="hasUnread"
-              class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white shadow-lg"
+              class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-danger/20 text-xs font-bold text-white shadow-lg"
             >
               {{ unreadCount > 99 ? '99+' : unreadCount }}
             </span>
@@ -355,7 +355,7 @@ onBeforeUnmount(() => {
           <button
             v-if="notifications.length > 0"
             @click="markAllAsRead"
-            class="text-xs text-gray-400 hover:text-gray-200 transition-colors"
+            class="text-xs text-muted-foreground hover:text-white transition-colors"
           >
             Mark all read
           </button>
@@ -363,12 +363,12 @@ onBeforeUnmount(() => {
 
         <!-- Notification List -->
         <div class="max-h-96 overflow-y-auto">
-          <div v-if="isLoading" class="p-8 text-center text-gray-400">
+          <div v-if="isLoading" class="p-8 text-center text-muted-foreground">
             <Icon icon="mdi:loading" class="h-6 w-6 animate-spin inline-block" />
             <p class="mt-2 text-sm">Loading...</p>
           </div>
 
-          <div v-else-if="notifications.length === 0" class="p-8 text-center text-gray-400">
+          <div v-else-if="notifications.length === 0" class="p-8 text-center text-muted-foreground">
             <Icon icon="mdi:bell-off" class="h-12 w-12 mx-auto mb-2 opacity-50" />
             <p class="text-sm">No notifications yet</p>
           </div>
@@ -404,17 +404,19 @@ onBeforeUnmount(() => {
                   <div class="flex items-start justify-between">
                     <p
                       class="text-sm font-semibold"
-                      :class="notification.is_read ? 'text-gray-400' : 'text-white'"
+                      :class="notification.is_read ? 'text-muted-foreground' : 'text-white'"
                     >
                       {{ notification.title }}
                     </p>
-                    <span class="text-xs text-gray-500 ml-2 whitespace-nowrap">
+                    <span class="text-xs text-muted-foreground ml-2 whitespace-nowrap">
                       {{ formatRelativeTime(notification.created_at) }}
                     </span>
                   </div>
                   <p
                     class="mt-1 text-xs"
-                    :class="notification.is_read ? 'text-gray-500' : 'text-gray-300'"
+                    :class="
+                      notification.is_read ? 'text-muted-foreground' : 'text-muted-foreground'
+                    "
                   >
                     {{ notification.message }}
                   </p>
@@ -426,7 +428,7 @@ onBeforeUnmount(() => {
                 <Icon
                   v-if="isActionable(notification)"
                   icon="mdi:chevron-right"
-                  class="h-5 w-5 mt-0.5 flex-shrink-0 text-gray-500"
+                  class="h-5 w-5 mt-0.5 flex-shrink-0 text-muted-foreground"
                   :ariaHidden="true"
                 />
               </div>

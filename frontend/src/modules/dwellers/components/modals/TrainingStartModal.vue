@@ -48,25 +48,49 @@ watch(
 )
 
 const stats = [
-  { key: 'strength', label: 'Strength', short: 'S', icon: 'mdi:arm-flex', color: 'text-red-400' },
-  { key: 'perception', label: 'Perception', short: 'P', icon: 'mdi:eye', color: 'text-blue-400' },
-  { key: 'endurance', label: 'Endurance', short: 'E', icon: 'mdi:heart', color: 'text-orange-400' },
+  {
+    key: 'strength',
+    label: 'Strength',
+    short: 'S',
+    icon: 'mdi:arm-flex',
+    color: 'text-special-strength',
+  },
+  {
+    key: 'perception',
+    label: 'Perception',
+    short: 'P',
+    icon: 'mdi:eye',
+    color: 'text-special-perception',
+  },
+  {
+    key: 'endurance',
+    label: 'Endurance',
+    short: 'E',
+    icon: 'mdi:heart',
+    color: 'text-special-endurance',
+  },
   {
     key: 'charisma',
     label: 'Charisma',
     short: 'C',
     icon: 'mdi:account-heart',
-    color: 'text-pink-400',
+    color: 'text-special-charisma',
   },
   {
     key: 'intelligence',
     label: 'Intelligence',
     short: 'I',
     icon: 'mdi:brain',
-    color: 'text-purple-400',
+    color: 'text-special-intelligence',
   },
-  { key: 'agility', label: 'Agility', short: 'A', icon: 'mdi:run-fast', color: 'text-green-400' },
-  { key: 'luck', label: 'Luck', short: 'L', icon: 'mdi:clover', color: 'text-yellow-400' },
+  {
+    key: 'agility',
+    label: 'Agility',
+    short: 'A',
+    icon: 'mdi:run-fast',
+    color: 'text-special-agility',
+  },
+  { key: 'luck', label: 'Luck', short: 'L', icon: 'mdi:clover', color: 'text-special-luck' },
 ]
 
 const availableStats = computed(() => {
@@ -125,71 +149,69 @@ const close = () => {
 </script>
 
 <template>
-  <TerminalModal
-    :open="modelValue"
-    title="Start Training"
-    size="md"
-    max-height="65"
-    @close="close"
-  >
+  <TerminalModal :open="modelValue" title="Start Training" size="md" max-height="65" @close="close">
     <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
       <div class="training-start-modal">
-          <p class="description">
-            Select a SPECIAL stat to improve for
-            <span class="dweller-name">{{ getDwellerDisplayName(dweller) }}</span
-            >.
-          </p>
+        <p class="description">
+          Select a SPECIAL stat to improve for
+          <span class="dweller-name">{{ getDwellerDisplayName(dweller) }}</span
+          >.
+        </p>
 
-          <Alert v-if="errorMessage" variant="default" class="error-alert border-danger bg-danger/10 text-danger">
-            <Icon icon="mdi:alert-circle" class="h-5 w-5" />
-            {{ errorMessage }}
-          </Alert>
+        <Alert
+          v-if="errorMessage"
+          variant="default"
+          class="error-alert border-danger bg-danger/10 text-danger"
+        >
+          <Icon icon="mdi:alert-circle" class="h-5 w-5" />
+          {{ errorMessage }}
+        </Alert>
 
-          <div class="stats-grid">
-            <button
-              v-for="stat in availableStats"
-              :key="stat.key"
-              class="stat-button"
-              :class="{ selected: selectedStat === stat.key }"
-              @click="selectedStat = stat.key"
-            >
-              <div class="stat-icon-wrapper" :class="stat.color">
-                <Icon :icon="stat.icon" class="stat-icon" />
-                <span class="stat-short">{{ stat.short }}</span>
-              </div>
-              <div class="stat-info">
-                <span class="stat-label">{{ stat.label }}</span>
-                <span class="stat-value">{{ (dweller as any)[stat.short] }}/10</span>
-              </div>
-            </button>
-          </div>
-
-          <div v-if="selectedStat" class="room-info-section">
-            <template v-if="selectedRoom">
-              <div class="room-found">
-                <Icon icon="mdi:office-building" class="room-icon" />
-                <div class="room-details">
-                  <span class="room-label">Training Room Found:</span>
-                  <span class="room-name">{{ selectedRoom.name }}</span>
-                </div>
-              </div>
-            </template>
-            <template v-else>
-              <Alert variant="default" class="no-room-alert border-danger bg-danger/10 text-danger">
-                <Icon icon="mdi:alert-circle" class="h-5 w-5" />
-                No training room available for {{ selectedStat }}. Build one first!
-              </Alert>
-            </template>
-          </div>
-
-          <div class="modal-actions">
-            <Button variant="secondary" @click="close">Cancel</Button>
-            <Button variant="default" :disabled="!canStart || loading" @click="handleStart">
-              <Icon v-if="loading" icon="mdi:loading" class="mr-1 animate-spin" />
-              Start Training
-            </Button>
-          </div>
+        <div class="stats-grid">
+          <button
+            v-for="stat in availableStats"
+            :key="stat.key"
+            class="stat-button"
+            :class="{ selected: selectedStat === stat.key }"
+            @click="selectedStat = stat.key"
+          >
+            <div class="stat-icon-wrapper" :class="stat.color">
+              <Icon :icon="stat.icon" class="stat-icon" />
+              <span class="stat-short">{{ stat.short }}</span>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">{{ stat.label }}</span>
+              <span class="stat-value">{{ (dweller as any)[stat.short] }}/10</span>
+            </div>
+          </button>
         </div>
+
+        <div v-if="selectedStat" class="room-info-section">
+          <template v-if="selectedRoom">
+            <div class="room-found">
+              <Icon icon="mdi:office-building" class="room-icon" />
+              <div class="room-details">
+                <span class="room-label">Training Room Found:</span>
+                <span class="room-name">{{ selectedRoom.name }}</span>
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <Alert variant="default" class="no-room-alert border-danger bg-danger/10 text-danger">
+              <Icon icon="mdi:alert-circle" class="h-5 w-5" />
+              No training room available for {{ selectedStat }}. Build one first!
+            </Alert>
+          </template>
+        </div>
+
+        <div class="modal-actions">
+          <Button variant="secondary" @click="close">Cancel</Button>
+          <Button variant="default" :disabled="!canStart || loading" @click="handleStart">
+            <Icon v-if="loading" icon="mdi:loading" class="mr-1 animate-spin" />
+            Start Training
+          </Button>
+        </div>
+      </div>
     </div>
   </TerminalModal>
 </template>

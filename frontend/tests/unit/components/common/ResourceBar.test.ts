@@ -155,7 +155,7 @@ describe('ResourceBar', () => {
       })
 
       const barContainer = wrapper.find(
-        '.h-6.w-40.rounded-full.border-2.border-stone-600.bg-stone-800'
+        '.h-6.w-40.rounded-full.border-2.border-border.bg-surface-raised'
       )
       expect(barContainer.exists()).toBe(true)
     })
@@ -212,7 +212,7 @@ describe('ResourceBar', () => {
       })
 
       const progressBar = wrapper.find('.transition-all')
-      expect(progressBar.classes()).toContain('bg-yellow-500')
+      expect(progressBar.classes()).toContain('bg-caps')
     })
 
     it('should show green color for healthy status (>50%)', () => {
@@ -332,7 +332,7 @@ describe('ResourceBar', () => {
         },
       })
 
-      const label = wrapper.find('.text-xs.text-gray-400')
+      const label = wrapper.find('.text-xs.text-muted-foreground')
       expect(label.exists()).toBe(false)
     })
   })

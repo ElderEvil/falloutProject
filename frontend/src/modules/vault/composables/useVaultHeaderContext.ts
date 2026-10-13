@@ -32,9 +32,9 @@ export interface VaultHeaderContext {
 // (getHappinessColor returns theme CSS vars); the >=75/50/25 banding is canonical.
 const HAPPINESS_TEXT_CLASS: Record<HappinessLevel, string> = {
   high: 'text-terminal-green',
-  medium: 'text-green-400',
-  low: 'text-yellow-400',
-  critical: 'text-red-500',
+  medium: 'text-success',
+  low: 'text-warning',
+  critical: 'text-danger',
 }
 const HAPPINESS_MORALE_TEXT: Record<HappinessLevel, string> = {
   high: '😊 Excellent morale!',
@@ -94,8 +94,8 @@ export function useVaultHeaderContext(): VaultHeaderContext {
     return (current / max) * 100
   })
   const populationColor = computed(() => {
-    if (populationUtilization.value >= 90) return 'text-red-500'
-    if (populationUtilization.value >= 75) return 'text-yellow-400'
+    if (populationUtilization.value >= 90) return 'text-danger'
+    if (populationUtilization.value >= 75) return 'text-warning'
     return 'text-terminal-green'
   })
 

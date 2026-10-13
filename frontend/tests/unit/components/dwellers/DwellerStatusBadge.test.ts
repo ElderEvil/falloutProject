@@ -130,7 +130,7 @@ describe('DwellerStatusBadge', () => {
       const badge = wrapper.find('.status-badge')
       const style = badge.attributes('style')
       expect(style).toContain('--glow-color')
-      expect(style).toContain('rgb(34 197 94 / 0.3)')
+      expect(style).toContain('rgb(from var(--color-status-working) r g b / 0.3)')
     })
 
     it('should NOT use dynamic hover class prefix', () => {
@@ -150,10 +150,10 @@ describe('DwellerStatusBadge', () => {
 
     it('should apply different glow colors for different statuses', () => {
       const testCases = [
-        { status: 'exploring', expected: 'rgb(59 130 246 / 0.3)' },
-        { status: 'working', expected: 'rgb(34 197 94 / 0.3)' },
-        { status: 'dead', expected: 'rgb(239 68 68 / 0.3)' },
-        { status: 'idle', expected: 'rgb(234 179 8 / 0.3)' },
+        { status: 'exploring', expected: 'rgb(from var(--color-status-exploring) r g b / 0.3)' },
+        { status: 'working', expected: 'rgb(from var(--color-status-working) r g b / 0.3)' },
+        { status: 'dead', expected: 'rgb(from var(--color-status-dead) r g b / 0.3)' },
+        { status: 'idle', expected: 'rgb(from var(--color-status-idle) r g b / 0.3)' },
       ]
 
       testCases.forEach(({ status, expected }) => {

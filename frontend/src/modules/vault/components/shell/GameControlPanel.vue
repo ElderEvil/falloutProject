@@ -107,9 +107,9 @@ onMounted(() => {
               :disabled="isLoading"
               class="flex shrink-0 items-center gap-2 rounded px-3 py-1 transition-all duration-200"
               :class="{
-                'bg-yellow-700 hover:bg-yellow-800': !isPaused && !isLoading,
-                'bg-green-600 hover:bg-green-700': isPaused && !isLoading,
-                'bg-gray-600 cursor-not-allowed': isLoading,
+                'bg-warning/20 hover:bg-warning/30': !isPaused && !isLoading,
+                'bg-success/20 hover:bg-success/30': isPaused && !isLoading,
+                'bg-surface-raised cursor-not-allowed': isLoading,
               }"
             >
               <Icon v-if="!isPaused" icon="mdi:pause" class="h-4 w-4 text-white" />
@@ -126,22 +126,22 @@ onMounted(() => {
       <!-- Paused Indicator -->
       <div
         v-if="isPaused"
-        class="flex shrink-0 items-center gap-2 rounded border border-yellow-600/50 bg-yellow-600/20 px-3 py-1"
+        class="flex shrink-0 items-center gap-2 rounded border border-warning/50 bg-warning/20 px-3 py-1"
       >
-        <div class="h-2 w-2 rounded-full bg-yellow-500 animate-pulse"></div>
-        <span class="text-xs font-semibold text-yellow-500">PAUSED</span>
+        <div class="h-2 w-2 rounded-full bg-warning animate-pulse"></div>
+        <span class="text-xs font-semibold text-warning">PAUSED</span>
       </div>
 
       <div
         v-if="isSuperuser"
         class="admin-incident-controls flex shrink-0 flex-nowrap items-center gap-1"
       >
-        <span class="mr-1 hidden text-xs font-semibold text-red-400 lg:inline">TEST INCIDENTS</span>
+        <span class="mr-1 hidden text-xs font-semibold text-danger lg:inline">TEST INCIDENTS</span>
         <TooltipProvider :delay-duration="200">
           <Tooltip v-for="incident in testIncidents" :key="incident.type">
             <TooltipTrigger as-child>
               <button
-                class="admin-incident-button flex shrink-0 items-center gap-1 rounded border border-red-500/50 px-2 py-1 text-xs font-semibold text-red-100 transition-colors hover:bg-red-700/60 disabled:cursor-not-allowed disabled:opacity-50"
+                class="admin-incident-button flex shrink-0 items-center gap-1 rounded border border-danger/50 px-2 py-1 text-xs font-semibold text-white transition-colors hover:bg-danger/20 disabled:cursor-not-allowed disabled:opacity-50"
                 :disabled="isLoading || isSpawningIncident"
                 @click="spawnIncident(incident.type)"
               >

@@ -135,13 +135,13 @@ const getRoomStat = (
 
         <div class="flex items-center gap-4">
           <div class="flex items-center gap-1.5">
-            <Icon icon="mdi:heart" class="h-4 w-4 text-red-400" />
+            <Icon icon="mdi:heart" class="h-4 w-4 text-danger" />
             <span class="text-sm font-semibold">{{
               getHealthDisplay(dweller.health, dweller.max_health, dweller.radiation)
             }}</span>
           </div>
           <div class="flex items-center gap-1">
-            <Icon icon="mdi:emoticon-happy" class="h-4 w-4 text-yellow-400" />
+            <Icon icon="mdi:emoticon-happy" class="h-4 w-4 text-warning" />
             <span class="text-sm font-semibold">{{ dweller.happiness }}%</span>
           </div>
         </div>
@@ -151,7 +151,7 @@ const getRoomStat = (
           <div class="flex items-center gap-1.5">
             <Icon
               :icon="getRoomStat(dweller)!.icon"
-              :class="getRoomStat(dweller)!.isPower ? 'text-orange-400' : 'text-theme-primary/60'"
+              :class="getRoomStat(dweller)!.isPower ? 'text-warning' : 'text-theme-primary/60'"
               class="h-4 w-4"
             />
             <span class="text-sm font-semibold">
@@ -173,12 +173,12 @@ const getRoomStat = (
         >
           {{ roomFor(dweller.room_id)?.name }}
           <button
-            class="ml-auto rounded p-0.5 transition-colors hover:bg-red-500/20"
+            class="ml-auto rounded p-0.5 transition-colors hover:bg-danger/20"
             aria-label="Unassign from room"
             title="Unassign from room"
             @click.stop="emit('quick-unassign', dweller.id)"
           >
-            <Icon icon="mdi:close" class="h-4 w-4 text-red-400" />
+            <Icon icon="mdi:close" class="h-4 w-4 text-danger" />
           </button>
         </div>
         <Icon icon="mdi:chevron-right" class="h-5 w-5 flex-shrink-0 text-terminal-green/50" />

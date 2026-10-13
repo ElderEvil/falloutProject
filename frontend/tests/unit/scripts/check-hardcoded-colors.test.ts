@@ -2,15 +2,33 @@ import { describe, expect, it } from 'vitest'
 import { findHardcodedColors } from '../../../scripts/check-hardcoded-colors.mjs'
 
 describe('check-hardcoded-colors', () => {
+  it('flags palette utilities in templates and returned strings, including variants and opacity', () => {
+    expect(findHardcodedColors(`<span class="hover:text-red-400 bg-blue-900/30" />`)).toEqual([
+      'text-red-400',
+      'bg-blue-900/30',
+    ])
+    expect(findHardcodedColors("return happy ? 'text-green-400' : 'text-gray-400'")).toEqual([
+      'text-green-400',
+      'text-gray-400',
+    ])
+    expect(
+      findHardcodedColors("const glow = 'ring-purple-500/50'; const color = 'var(--color-red-400)'")
+    ).toEqual(['ring-purple-500/50', 'var(--color-red-400)'])
+  })
+
+  it('allows semantic utilities and neutral black/white utilities', () => {
+    expect(
+      findHardcodedColors('text-danger bg-status-working/30 border-surface text-white bg-black/50')
+    ).toEqual([])
+  })
+
   it('flags hardcoded hex and functional colors', () => {
     expect(findHardcodedColors('.a { color: #ff00aa; }')).toEqual(['#ff00aa'])
     expect(findHardcodedColors('.a { color: rgb(34 197 94); }')).toEqual(['rgb(34 197 94)'])
     expect(findHardcodedColors('.a { background: rgba(12, 34, 56, 0.5); }')).toEqual([
       'rgba(12, 34, 56, 0.5)',
     ])
-    expect(findHardcodedColors('.a { color: hsl(210, 50%, 40%); }')).toEqual([
-      'hsl(210, 50%, 40%)',
-    ])
+    expect(findHardcodedColors('.a { color: hsl(210, 50%, 40%); }')).toEqual(['hsl(210, 50%, 40%)'])
   })
 
   it('flags modern CSS color functions', () => {

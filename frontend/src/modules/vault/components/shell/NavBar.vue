@@ -350,7 +350,7 @@ onUnmounted(() => {
           >
             <Icon icon="mdi:newspaper" class="h-5 w-5" />
             <span
-              class="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full animate-pulse"
+              class="absolute -top-1 -right-1 h-2 w-2 bg-danger rounded-full animate-pulse"
             ></span>
           </button>
 
@@ -475,7 +475,7 @@ onUnmounted(() => {
                   <Icon icon="mdi:newspaper" class="inline h-4 w-4 mr-2" />
                   Changelog
                 </router-link>
-                <hr class="border-gray-700 my-1" />
+                <hr class="border-border my-1" />
                 <button
                   @click="logout"
                   class="block w-full px-4 py-2 text-left text-theme-primary hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 rounded-b transition-colors"

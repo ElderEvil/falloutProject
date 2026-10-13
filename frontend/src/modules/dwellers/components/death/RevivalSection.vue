@@ -47,10 +47,8 @@ const handleRevive = () => {
   <Card
     class="revival-section gap-0 rounded-lg border-2 border-theme-primary/40 bg-terminal-background p-6 shadow-glow-md ring-0 crt-screen"
   >
-    <div class="mb-4 border-b border-gray-700 pb-4">
-      <h3 class="text-xl font-bold terminal-glow text-theme-primary">
-        EMERGENCY MEDICAL PROTOCOL
-      </h3>
+    <div class="mb-4 border-b border-border pb-4">
+      <h3 class="text-xl font-bold terminal-glow text-theme-primary">EMERGENCY MEDICAL PROTOCOL</h3>
     </div>
     <div v-if="revivalCost" class="flex flex-col gap-4">
       <!-- Cost Analysis -->
@@ -65,12 +63,12 @@ const handleRevive = () => {
 
         <div
           class="bg-black/40 border border-theme-primary/30 p-3 rounded"
-          :class="{ 'border-red-500/50': !canAfford }"
+          :class="{ 'border-danger/50': !canAfford }"
         >
           <div class="text-xs text-theme-primary/60 uppercase mb-1">Vault Funds</div>
           <div
             class="flex items-center gap-2 text-xl font-bold"
-            :class="canAfford ? 'text-theme-primary' : 'text-red-500'"
+            :class="canAfford ? 'text-theme-primary' : 'text-danger'"
           >
             <Icon icon="mdi:finance" class="w-5 h-5" />
             <span>{{ revivalCost.vault_caps }}</span>
@@ -81,7 +79,7 @@ const handleRevive = () => {
       <!-- Status Message -->
       <div
         v-if="!canAfford"
-        class="flex items-center gap-2 text-red-500 text-sm font-bold bg-red-900/10 p-2 rounded border border-red-500/30"
+        class="flex items-center gap-2 text-danger text-sm font-bold bg-danger/10 p-2 rounded border border-danger/30"
       >
         <Icon icon="mdi:alert-circle" class="w-5 h-5 shrink-0" />
         <span>INSUFFICIENT FUNDS FOR PROCEDURE</span>
@@ -90,7 +88,7 @@ const handleRevive = () => {
       <!-- Time Remaining -->
       <div class="space-y-1">
         <div class="flex justify-between text-xs uppercase">
-          <span :class="isUrgent ? 'text-red-400 animate-pulse' : 'text-theme-primary/80'">
+          <span :class="isUrgent ? 'text-danger animate-pulse' : 'text-theme-primary/80'">
             Time Until Decomposition
           </span>
           <span class="font-mono">{{ revivalCost.days_until_permanent }} days</span>
@@ -99,7 +97,7 @@ const handleRevive = () => {
         <div class="h-2 bg-black/40 border border-theme-primary/30 rounded overflow-hidden">
           <div
             class="h-full transition-all duration-500 shadow-[0_0_8px_currentColor]"
-            :class="isUrgent ? 'bg-red-500 text-red-500' : 'bg-theme-primary text-theme-primary'"
+            :class="isUrgent ? 'bg-danger text-danger' : 'bg-theme-primary text-theme-primary'"
             :style="{ width: `${timeProgress}%` }"
           ></div>
         </div>

@@ -33,8 +33,8 @@ const monthLabel = computed(() => stats?.month ?? '')
 const quotaPercentage = computed(() => stats?.quota_percentage ?? 0)
 const quotaColor = computed(() => {
   const pct = quotaPercentage.value
-  if (pct >= 100) return 'text-red-500'
-  if (pct >= 80) return 'text-amber-500'
+  if (pct >= 100) return 'text-danger'
+  if (pct >= 80) return 'text-warning'
   return 'text-theme-primary'
 })
 
@@ -114,22 +114,28 @@ const showWarningBanner = computed(() => {
       </div>
 
       <div v-else-if="stats" class="space-y-6">
-        <Alert v-if="showWarningBanner" variant="default" class="border-warning bg-warning/10 text-warning">
+        <Alert
+          v-if="showWarningBanner"
+          variant="default"
+          class="border-warning bg-warning/10 text-warning"
+        >
           <div class="flex items-center justify-between gap-4 flex-wrap">
             <span>
               You've used <strong>{{ Math.round(quotaPercentage) }}%</strong> of your monthly token
               quota
             </span>
-            <Button variant="ghost" size="icon-xs" aria-label="Dismiss alert" @click="dismissBanner">
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Dismiss alert"
+              @click="dismissBanner"
+            >
               <Icon icon="mdi:close" class="h-4 w-4" />
             </Button>
           </div>
         </Alert>
 
-        <div
-          v-if="isEmpty"
-          class="text-center py-8 text-theme-primary/70 font-mono text-sm"
-        >
+        <div v-if="isEmpty" class="text-center py-8 text-theme-primary/70 font-mono text-sm">
           <Icon icon="mdi:robot-outline" class="h-10 w-10 mx-auto mb-3 opacity-50" />
           <p>No AI activity recorded yet.</p>
         </div>
@@ -202,9 +208,16 @@ const showWarningBanner = computed(() => {
             </div>
           </div>
 
-          <section v-if="operationBreakdown.length" class="border-t border-theme-primary/20 pt-4 space-y-3" aria-labelledby="operation-usage-heading">
+          <section
+            v-if="operationBreakdown.length"
+            class="border-t border-theme-primary/20 pt-4 space-y-3"
+            aria-labelledby="operation-usage-heading"
+          >
             <div>
-              <h3 id="operation-usage-heading" class="text-xs text-theme-primary/70 uppercase tracking-wider">
+              <h3
+                id="operation-usage-heading"
+                class="text-xs text-theme-primary/70 uppercase tracking-wider"
+              >
                 This Month by Operation
               </h3>
               <p class="mt-1 text-xs leading-5 text-theme-primary/55">
@@ -212,11 +225,16 @@ const showWarningBanner = computed(() => {
               </p>
             </div>
 
-            <div v-for="operation in operationBreakdown" :key="operation.operation" class="space-y-1.5">
+            <div
+              v-for="operation in operationBreakdown"
+              :key="operation.operation"
+              class="space-y-1.5"
+            >
               <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
                 <span class="font-medium text-theme-primary">{{ operation.label }}</span>
                 <span class="text-theme-primary/70">
-                  {{ formatNumber(operation.total_tokens) }} · {{ requestLabel(operation.count) }} · {{ Math.round(operation.percentage) }}%
+                  {{ formatNumber(operation.total_tokens) }} · {{ requestLabel(operation.count) }} ·
+                  {{ Math.round(operation.percentage) }}%
                 </span>
               </div>
               <!-- @vue-ignore -->
@@ -227,10 +245,19 @@ const showWarningBanner = computed(() => {
               />
             </div>
 
-            <div v-if="stats.chat_heavy" class="flex items-start gap-2 rounded border border-warning/30 bg-warning/10 p-2.5 text-xs leading-5 text-warning" role="status">
+            <div
+              v-if="stats.chat_heavy"
+              class="flex items-start gap-2 rounded border border-warning/30 bg-warning/10 p-2.5 text-xs leading-5 text-warning"
+              role="status"
+            >
               <Icon icon="mdi:message-alert-outline" class="mt-0.5 h-4 w-4 shrink-0" />
-              <span v-if="stats.quota_exceeded">Most AI use this month is dwelling chat. Your quota is currently exhausted.</span>
-              <span v-else>Most AI use this month is dwelling chat. Your quota is still available for any AI feature.</span>
+              <span v-if="stats.quota_exceeded"
+                >Most AI use this month is dwelling chat. Your quota is currently exhausted.</span
+              >
+              <span v-else
+                >Most AI use this month is dwelling chat. Your quota is still available for any AI
+                feature.</span
+              >
             </div>
           </section>
 
@@ -273,14 +300,14 @@ const showWarningBanner = computed(() => {
 
             <div
               v-if="stats.quota_exceeded"
-              class="flex items-center gap-2 p-2 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-sm"
+              class="flex items-center gap-2 p-2 bg-danger/10 border border-danger/30 rounded text-danger text-sm"
             >
               <Icon icon="mdi:alert-circle" class="h-4 w-4" />
               <span>Quota exceeded. Some AI features may be limited.</span>
             </div>
             <div
               v-else-if="stats.quota_warning"
-              class="flex items-center gap-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded text-amber-400 text-sm"
+              class="flex items-center gap-2 p-2 bg-warning/10 border border-warning/30 rounded text-warning text-sm"
             >
               <Icon icon="mdi:alert" class="h-4 w-4" />
               <span>Approaching quota limit.</span>

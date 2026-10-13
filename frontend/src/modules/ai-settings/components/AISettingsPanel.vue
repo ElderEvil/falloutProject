@@ -284,7 +284,7 @@ onMounted(() => {
         <CardTitle class="text-xl font-bold text-theme-primary">AI settings unavailable</CardTitle>
       </CardHeader>
       <CardContent>
-        <div class="mb-4 text-red-500">Failed to load AI settings</div>
+        <div class="mb-4 text-danger">Failed to load AI settings</div>
         <Button variant="default" @click="runLoad">
           <Icon icon="mdi:refresh" class="mr-2" />
           Retry

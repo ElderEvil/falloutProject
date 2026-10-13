@@ -88,7 +88,9 @@ export function useChatMessages(options: UseChatMessagesOptions) {
       }
       const streamingMsg = messages.value[streamingIndex]
       if (streamingMsg) {
-        streamingMsg.content = msg.replace ? (msg.text ?? '') : streamingMsg.content + (msg.text ?? '')
+        streamingMsg.content = msg.replace
+          ? (msg.text ?? '')
+          : streamingMsg.content + (msg.text ?? '')
       }
     })
 
@@ -275,9 +277,9 @@ export function useChatMessages(options: UseChatMessagesOptions) {
 
   // Get happiness impact color based on delta
   const getHappinessColor = (delta: number): string => {
-    if (delta > 0) return 'text-green-400'
-    if (delta < 0) return 'text-red-400'
-    return 'text-gray-400'
+    if (delta > 0) return 'text-success'
+    if (delta < 0) return 'text-danger'
+    return 'text-muted-foreground'
   }
 
   // Get happiness icon based on delta

@@ -2,7 +2,12 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Progress } from '@/core/components/ui/progress'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import { getItemIcon } from '@/core/models/items'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller, DetailedDweller } from '@/modules/dwellers/models/dweller'
@@ -87,18 +92,14 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
       </TooltipProvider>
     </div>
     <div class="explorer-list">
-      <div
-        v-for="exploration in sortedExplorations"
-        :key="exploration.id"
-        class="explorer-card"
-      >
+      <div v-for="exploration in sortedExplorations" :key="exploration.id" class="explorer-card">
         <div class="explorer-info">
           <div class="flex items-center justify-between gap-2">
             <div class="flex min-w-0 items-center gap-1.5">
               <Icon icon="mdi:account" class="h-4 w-4 shrink-0 text-wasteland" />
-              <span class="truncate text-xs font-bold text-wasteland"
-                >{{ getDwellerDisplayName(getDwellerById(exploration.dweller_id)) }}</span
-              >
+              <span class="truncate text-xs font-bold text-wasteland">{{
+                getDwellerDisplayName(getDwellerById(exploration.dweller_id))
+              }}</span>
               <ExplorationStatusBadges
                 :exploration="exploration"
                 :dweller="getDwellerForBadges(exploration.dweller_id)"
@@ -106,7 +107,8 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
               />
             </div>
             <span class="flex shrink-0 items-center gap-1">
-              <span class="whitespace-nowrap rounded-full border border-[rgba(205,133,63,0.35)] bg-[rgba(205,133,63,0.1)] px-1.5 py-0.5 font-mono text-[0.65rem] font-bold text-wasteland"
+              <span
+                class="whitespace-nowrap rounded-full border border-[rgba(205,133,63,0.35)] bg-[rgba(205,133,63,0.1)] px-1.5 py-0.5 font-mono text-[0.65rem] font-bold text-wasteland"
                 >{{ Math.round(getProgressPercentage(exploration)) }}%</span
               >
             </span>
@@ -137,9 +139,15 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
             <TooltipProvider :delay-duration="200">
               <Tooltip>
                 <TooltipTrigger as-child>
-                  <div class="stat-item"><Icon icon="mdi:skull" class="h-3.5 w-3.5" /><span>{{ exploration.enemies_encountered || 0 }}</span></div>
+                  <div class="stat-item">
+                    <Icon icon="mdi:skull" class="h-3.5 w-3.5" /><span>{{
+                      exploration.enemies_encountered || 0
+                    }}</span>
+                  </div>
                 </TooltipTrigger>
-                <TooltipContent>{{ `${exploration.enemies_encountered || 0} enemies encountered` }}</TooltipContent>
+                <TooltipContent>{{
+                  `${exploration.enemies_encountered || 0} enemies encountered`
+                }}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
@@ -154,7 +162,7 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
             <TooltipProvider v-if="getDwellerWeapon(exploration.dweller_id)" :delay-duration="200">
               <Tooltip>
                 <TooltipTrigger as-child>
-                  <span class="stat-item min-w-0 text-amber-400">
+                  <span class="stat-item min-w-0 text-caps">
                     <Icon
                       :icon="getItemIcon('weapon', getDwellerWeapon(exploration.dweller_id) ?? {})"
                       class="h-3 w-3 shrink-0"
@@ -164,13 +172,15 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
                     }}</span>
                   </span>
                 </TooltipTrigger>
-                <TooltipContent>{{ getDwellerWeapon(exploration.dweller_id)?.name }}</TooltipContent>
+                <TooltipContent>{{
+                  getDwellerWeapon(exploration.dweller_id)?.name
+                }}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
             <TooltipProvider v-if="getDwellerOutfit(exploration.dweller_id)" :delay-duration="200">
               <Tooltip>
                 <TooltipTrigger as-child>
-                  <span class="stat-item min-w-0 text-blue-400">
+                  <span class="stat-item min-w-0 text-water">
                     <Icon
                       :icon="getItemIcon('outfit', getDwellerOutfit(exploration.dweller_id) ?? {})"
                       class="h-3 w-3 shrink-0"
@@ -180,13 +190,15 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
                     }}</span>
                   </span>
                 </TooltipTrigger>
-                <TooltipContent>{{ getDwellerOutfit(exploration.dweller_id)?.name }}</TooltipContent>
+                <TooltipContent>{{
+                  getDwellerOutfit(exploration.dweller_id)?.name
+                }}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
             <TooltipProvider v-if="getDwellerPet(exploration.dweller_id)" :delay-duration="200">
               <Tooltip>
                 <TooltipTrigger as-child>
-                  <span class="stat-item min-w-0 text-emerald-400">
+                  <span class="stat-item min-w-0 text-success">
                     <Icon
                       :icon="getItemIcon('pet', getDwellerPet(exploration.dweller_id) ?? {})"
                       class="h-3 w-3 shrink-0"
@@ -214,7 +226,7 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
     </div>
   </div>
   <div v-else class="exploring-dwellers">
-    <p class="text-xs text-gray-500">
+    <p class="text-xs text-muted-foreground">
       <Icon icon="mdi:information" class="inline h-4 w-4" />
       No active explorers. Drag dwellers here to send them to the wasteland!
     </p>

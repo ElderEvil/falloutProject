@@ -22,6 +22,8 @@ const VAR_FALLBACK = new RegExp(
   String.raw`var\(\s*--[\w-]+\s*,\s*(?:${HEX}|${COLOR_FN})\s*\)`,
   'g'
 )
+const PALETTE_RE = /\b(?:text|bg|border|ring|shadow|fill|stroke|from|via|to|outline|divide|decoration|accent|caret)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|[1-9]00|950)(?:\/\d+)?\b/g
+const PALETTE_VAR_RE = /var\(--color-(?:red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|[1-9]00|950)\)/g
 const HEX_RE = new RegExp(HEX, 'g')
 const COLOR_FN_RE = new RegExp(COLOR_FN, 'g')
 // Neutral black/white with an optional alpha channel:
@@ -83,6 +85,8 @@ export function findHardcodedColors(source) {
     if (isNeutralColorFn(match[0])) continue
     found.push(match[0])
   }
+  found.push(...Array.from(stripped.matchAll(PALETTE_RE), (match) => match[0]))
+  found.push(...Array.from(stripped.matchAll(PALETTE_VAR_RE), (match) => match[0]))
   return found
 }
 

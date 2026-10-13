@@ -1,0 +1,90 @@
+category,challenge,type,target,target_entity,reward,caps,same_resource_reward_ratio
+achievement,Assign 20 Dwellers Total,assign,20,{},2500 caps,2500,
+achievement,Assign 50 Dwellers Total,assign,50,{},5000 caps,5000,
+achievement,Build 25 Rooms Total,build,25,"{""room_type"": ""*""}",2500 caps,2500,
+achievement,Build 50 Rooms Total,build,50,"{""room_type"": ""*""}",5000 caps,5000,
+achievement,Build a Living Quarter,build,1,"{""room_type"": ""living_room""}",600 caps,600,
+achievement,Collect 10000 Caps Total,collect,10000,"{""resource_type"": ""caps""}",5000 caps,5000,0.5
+achievement,Collect 5 Stimpaks,collect,5,"{""item_type"": ""stimpak""}",250 caps,250,
+achievement,Collect 500 Food,collect,500,"{""resource_type"": ""food""}",1000 caps,1000,
+achievement,Collect 500 Power,collect,500,"{""resource_type"": ""power""}",1000 caps,1000,
+achievement,Collect 500 Water,collect,500,"{""resource_type"": ""water""}",1000 caps,1000,
+achievement,Collect 7 Pieces of Junk,collect,7,"{""item_type"": ""junk""}",600 caps,600,
+achievement,Complete 10 Expeditions Total,expedition,10,{},1500 caps,1500,
+achievement,Complete 25 Expeditions Total,expedition,25,{},3000 caps,3000,
+achievement,Complete 5 Main Quests,expedition,5,"{""quest_type"": ""main""}",5000 caps,5000,
+achievement,Complete 50 Expeditions Total,expedition,50,{},6000 caps,6000,
+achievement,Correctly Assign 10 Total,assign_correct,10,{},1 lunchbox,0,
+achievement,Correctly Assign 20 Total,assign_correct,20,{},3000 caps,3000,
+achievement,Correctly Assign 50 Total,assign_correct,50,{},7500 caps,7500,
+achievement,Level Up a Dweller,level_up,1,"{""min_level"": 2}",500 caps,500,
+achievement,Reach 10 Dwellers,reach,10,"{""reach_type"": ""dweller_count""}",1000 caps,1000,
+achievement,Reach 100 Dwellers,reach,100,"{""reach_type"": ""dweller_count""}",10000 caps,10000,
+achievement,Reach 25 Dwellers,reach,25,"{""reach_type"": ""dweller_count""}",2500 caps,2500,
+achievement,Reach 50 Dwellers,reach,50,"{""reach_type"": ""dweller_count""}",5000 caps,5000,
+achievement,Reach 75 Dwellers,reach,75,"{""reach_type"": ""dweller_count""}",7500 caps,7500,
+achievement,Reverse-engineer a Legendary,scrap,1,"{""rarity"": ""legendary""}",2000 caps,2000,
+achievement,Scrap 10 Rare Items,scrap,10,"{""rarity"": ""rare""}",1500 caps,1500,
+achievement,Train Dweller to 10 Agility,train,1,"{""stat"": ""agility"", ""target_value"": 10}",2000 caps,2000,
+achievement,Train Dweller to 10 Charisma,train,1,"{""stat"": ""charisma"", ""target_value"": 10}",2000 caps,2000,
+achievement,Train Dweller to 10 Endurance,train,1,"{""stat"": ""endurance"", ""target_value"": 10}",2000 caps,2000,
+achievement,Train Dweller to 10 Intelligence,train,1,"{""stat"": ""intelligence"", ""target_value"": 10}",2000 caps,2000,
+achievement,Train Dweller to 10 Luck,train,1,"{""stat"": ""luck"", ""target_value"": 10}",2000 caps,2000,
+achievement,Train Dweller to 10 Perception,train,1,"{""stat"": ""perception"", ""target_value"": 10}",2000 caps,2000,
+achievement,Train Dweller to 10 Strength,train,1,"{""stat"": ""strength"", ""target_value"": 10}",2000 caps,2000,
+achievement,Train a Dweller,train,1,{},800 caps,800,
+daily,Assign 2 Dwellers,assign,2,{},200 caps,200,
+daily,Assign 3 Dwellers,assign,3,{},300 caps,300,
+daily,Assign 4 Dwellers,assign,4,{},400 caps,400,
+daily,Build 2 Rooms,build,2,"{""room_type"": ""*""}",500 caps,500,
+daily,Build 3 Rooms,build,3,"{""room_type"": ""*""}",750 caps,750,
+daily,Collect 150 Food,collect,150,"{""resource_type"": ""food""}",100 food,0,0.667
+daily,Collect 150 Power,collect,150,"{""resource_type"": ""power""}",100 power,0,0.667
+daily,Collect 150 Water,collect,150,"{""resource_type"": ""water""}",100 water,0,0.667
+daily,Collect 200 Caps,collect,200,"{""resource_type"": ""caps""}",150 caps,150,0.75
+daily,Collect 250 Food,collect,250,"{""resource_type"": ""food""}",150 food,0,0.6
+daily,Collect 250 Power,collect,250,"{""resource_type"": ""power""}",150 power,0,0.6
+daily,Collect 250 Water,collect,250,"{""resource_type"": ""water""}",150 water,0,0.6
+daily,Collect 3 Outfits,collect,3,"{""item_type"": ""outfit""}",outfit:Mechanic jumpsuit,0,
+daily,Collect 3 Weapons,collect,3,"{""item_type"": ""weapon""}",weapon:Pipe Pistol,0,
+daily,Collect 300 Caps,collect,300,"{""resource_type"": ""caps""}",200 caps,200,0.667
+daily,Collect 500 Caps,collect,500,"{""resource_type"": ""caps""}",300 caps,300,0.6
+daily,Correctly Assign 2 Dwellers,assign_correct,2,{},300 caps,300,
+daily,Correctly Assign 3 Dwellers,assign_correct,3,{},450 caps,450,
+daily,Scrap a Rare Outfit,scrap,1,"{""item_type"": ""outfit"", ""rarity"": ""rare""}",150 caps,150,
+daily,Scrap a Rare Weapon,scrap,1,"{""item_type"": ""weapon"", ""rarity"": ""rare""}",150 caps,150,
+daily,Train 1 Dweller,train,1,{},250 caps,250,
+daily,Train 2 Dwellers,train,2,{},450 caps,450,
+starter,Assign a dweller correctly,assign_correct,1,{},50 caps,50,
+starter,Assign dwellers to Power,assign,3,"{""room_type"": ""power_generator""}",25 caps,25,
+starter,Build Overseer's Office,build,1,"{""room_type"": ""overseers_office""}",200 caps,200,
+starter,Build a Living Quarters,build,1,"{""room_type"": ""living_room""}",50 caps,50,
+starter,Reach 18 Dwellers,reach,18,"{""reach_type"": ""dweller_count""}",150 caps,150,
+starter,Reverse-engineer a schematic,scrap,1,"{""item_type"": ""weapon"", ""rarity"": ""rare""}",300 caps,300,
+starter,Scavenge caps in the wasteland,collect,300,"{""resource_type"": ""caps""}",100 caps,100,0.333
+weekly,Assign 10 Dwellers,assign,10,{},1000 caps,1000,
+weekly,Assign 5 Dwellers,assign,5,{},500 caps,500,
+weekly,Assign 8 Dwellers,assign,8,{},800 caps,800,
+weekly,Build 10 Rooms,build,10,"{""room_type"": ""*""}",1800 caps,1800,
+weekly,Build 5 Rooms,build,5,"{""room_type"": ""*""}",800 caps,800,
+weekly,Build 7 Rooms,build,7,"{""room_type"": ""*""}",1200 caps,1200,
+weekly,Collect 1000 Food,collect,1000,"{""resource_type"": ""food""}",500 food,0,0.5
+weekly,Collect 1000 Power,collect,1000,"{""resource_type"": ""power""}",500 power,0,0.5
+weekly,Collect 1000 Water,collect,1000,"{""resource_type"": ""water""}",500 water,0,0.5
+weekly,Collect 2000 Caps,collect,2000,"{""resource_type"": ""caps""}",1000 caps,1000,0.5
+weekly,Collect 2000 Food,collect,2000,"{""resource_type"": ""food""}",1000 food,0,0.5
+weekly,Collect 2000 Power,collect,2000,"{""resource_type"": ""power""}",1000 power,0,0.5
+weekly,Collect 2000 Water,collect,2000,"{""resource_type"": ""water""}",1000 water,0,0.5
+weekly,Collect 3000 Caps,collect,3000,"{""resource_type"": ""caps""}",1500 caps,1500,0.5
+weekly,Collect 5000 Caps,collect,5000,"{""resource_type"": ""caps""}",2500 caps,2500,0.5
+weekly,Complete 1 Main Quest,expedition,1,"{""quest_type"": ""main""}",2000 caps,2000,
+weekly,Complete 2 Expeditions,expedition,2,{},800 caps,800,
+weekly,Complete 3 Expeditions,expedition,3,{},1200 caps,1200,
+weekly,Correctly Assign 5 Dwellers,assign_correct,5,{},750 caps,750,
+weekly,Correctly Assign 8 Dwellers,assign_correct,8,{},1200 caps,1200,
+weekly,Level up 2 Dwellers to Lv.10,level_up,2,"{""min_level"": 10}",1500 caps,1500,
+weekly,Level up 2 Dwellers to Lv.5,level_up,2,"{""min_level"": 5}",1000 caps,1000,
+weekly,Level up 3 Dwellers to Lv.5,level_up,3,"{""min_level"": 5}",1500 caps,1500,
+weekly,Reach 30 Dwellers,reach,30,"{""reach_type"": ""dweller_count""}",3000 caps,3000,
+weekly,Train 3 Dwellers,train,3,{},600 caps,600,
+weekly,Train 5 Dwellers,train,5,{},1000 caps,1000,

@@ -8534,6 +8534,8 @@ export interface components {
              * Format: uuid4
              */
             id?: string;
+            /** Template Key */
+            template_key?: string | null;
         };
         /**
          * ObjectiveCategoryEnum
@@ -8576,6 +8578,8 @@ export interface components {
              * @description Player-facing guidance for how/why to complete the objective
              */
             description?: string | null;
+            /** Template Key */
+            template_key?: string | null;
         };
         /** ObjectiveRead */
         ObjectiveRead: {
@@ -10739,6 +10743,10 @@ export interface components {
              * @default false
              */
             is_completed: boolean;
+            /** Credited Dweller Ids */
+            credited_dweller_ids?: string[];
+            /** Reward Snapshot */
+            reward_snapshot?: string | null;
         };
         /** VaultRead */
         VaultRead: {

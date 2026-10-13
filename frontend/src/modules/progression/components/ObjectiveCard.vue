@@ -26,6 +26,7 @@ const progressPercent = computed(() => {
 
 // Determine objective icon based on challenge text
 const objectiveIcon = computed(() => {
+  if (props.objective.target_entity?.production_only) return 'mdi:factory'
   const challenge = props.objective.challenge.toLowerCase()
   if (challenge.includes('cap') || challenge.includes('collect')) return 'mdi:cash'
   if (challenge.includes('dweller')) return 'mdi:account-group'
@@ -73,6 +74,13 @@ const canClaim = computed(() => {
     </div>
 
     <p v-if="objective.description" class="objective-description">{{ objective.description }}</p>
+
+    <p v-if="objective.target_entity?.production_only" class="objective-description">
+      Production counts even when storage is full.
+    </p>
+    <p v-else-if="objective.target_entity?.distinct_dwellers" class="objective-description">
+      Each dweller counts once for this objective.
+    </p>
 
     <!-- Progress Section -->
     <div class="progress-section">

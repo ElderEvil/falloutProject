@@ -55,7 +55,7 @@ async def process_objective_reward(
     db_session: AsyncSession, vault_id: UUID4, objective: VaultObjectiveProgressLink
 ) -> dict[str, Any]:
     objective_obj = await objective_crud.get(db_session, id=objective.objective_id)
-    reward_str = objective_obj.reward
+    reward_str = objective.reward_snapshot or objective_obj.reward
 
     reward_type, reward_data = _parse_objective_reward(reward_str)
     result = await _process_single_reward(db_session, vault_id, reward_type, reward_data, emit_event=False)
@@ -124,6 +124,9 @@ async def settle_objective_progress(
         return link
 
     link.progress = progress
+    if link.progress >= link.total and link.reward_snapshot is None:
+        objective = await objective_crud.get(db_session, objective_id)
+        link.reward_snapshot = objective.reward
     await db_session.commit()
     await db_session.refresh(link)
     return link

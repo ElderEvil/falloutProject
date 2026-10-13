@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 def _transform_objective_create_to_model(objective_data: ObjectiveCreate) -> Objective:
     """Transform ObjectiveCreate schema to Objective model."""
     return Objective(
+        template_key=objective_data.template_key,
         challenge=objective_data.challenge,
         reward=objective_data.reward,
         category=objective_data.category,
@@ -62,7 +63,7 @@ async def seed_objectives_from_json(db_session: AsyncSession, objectives_dir: Pa
         model_class=Objective,
         schema_class=ObjectiveCreate,
         directory=objectives_dir,
-        unique_field="challenge",
+        unique_field="template_key",
         transform_fn=_transform_objective_create_to_model,
         validate_fn=_validate_objective,
     )

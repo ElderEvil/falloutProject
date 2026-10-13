@@ -1,274 +1,308 @@
 [
   {
     "challenge": "Reach 10 Dwellers",
-    "reward": "1000 caps",
+    "reward": "500 caps",
     "category": "achievement",
     "objective_type": "reach",
     "target_entity": {"reach_type": "dweller_count"},
-    "target_amount": 10
+    "target_amount": 10,
+    "template_key": "achievement:reach 10 dwellers"
   },
   {
     "challenge": "Reach 25 Dwellers",
-    "reward": "2500 caps",
+    "reward": "1250 caps",
     "category": "achievement",
     "objective_type": "reach",
     "target_entity": {"reach_type": "dweller_count"},
-    "target_amount": 25
+    "target_amount": 25,
+    "template_key": "achievement:reach 25 dwellers"
   },
   {
     "challenge": "Reach 50 Dwellers",
-    "reward": "5000 caps",
+    "reward": "2500 caps",
     "category": "achievement",
     "objective_type": "reach",
     "target_entity": {"reach_type": "dweller_count"},
-    "target_amount": 50
+    "target_amount": 50,
+    "template_key": "achievement:reach 50 dwellers"
   },
   {
     "challenge": "Reach 75 Dwellers",
-    "reward": "7500 caps",
+    "reward": "3750 caps",
     "category": "achievement",
     "objective_type": "reach",
     "target_entity": {"reach_type": "dweller_count"},
-    "target_amount": 75
+    "target_amount": 75,
+    "template_key": "achievement:reach 75 dwellers"
   },
   {
     "challenge": "Reach 100 Dwellers",
-    "reward": "10000 caps",
+    "reward": "5000 caps",
     "category": "achievement",
     "objective_type": "reach",
     "target_entity": {"reach_type": "dweller_count"},
-    "target_amount": 100
+    "target_amount": 100,
+    "template_key": "achievement:reach 100 dwellers"
   },
   {
     "challenge": "Build 25 Rooms Total",
-    "reward": "2500 caps",
+    "reward": "1000 caps",
     "category": "achievement",
     "objective_type": "build",
     "target_entity": {"room_type": "*"},
-    "target_amount": 25
+    "target_amount": 25,
+    "template_key": "achievement:build 25 rooms total"
   },
   {
     "challenge": "Build 50 Rooms Total",
-    "reward": "5000 caps",
+    "reward": "2000 caps",
     "category": "achievement",
     "objective_type": "build",
     "target_entity": {"room_type": "*"},
-    "target_amount": 50
+    "target_amount": 50,
+    "template_key": "achievement:build 50 rooms total"
   },
   {
     "challenge": "Build a Living Quarter",
-    "reward": "600 caps",
+    "reward": "40 caps",
     "category": "achievement",
     "objective_type": "build",
     "target_entity": {"room_type": "living_room"},
-    "target_amount": 1
+    "target_amount": 1,
+    "template_key": "achievement:build a living quarter"
   },
   {
     "challenge": "Collect 10000 Caps Total",
-    "reward": "5000 caps",
+    "reward": "1000 caps",
     "category": "achievement",
     "objective_type": "collect",
     "target_entity": {"resource_type": "caps"},
-    "target_amount": 10000
+    "target_amount": 10000,
+    "template_key": "achievement:collect 10000 caps total"
   },
   {
-    "challenge": "Collect 500 Power",
-    "reward": "1000 caps",
+    "challenge": "Produce 500 Power",
+    "reward": "50 caps",
     "category": "achievement",
     "objective_type": "collect",
-    "target_entity": {"resource_type": "power"},
-    "target_amount": 500
+    "target_entity": {"resource_type": "power", "production_only": true},
+    "target_amount": 500,
+    "template_key": "achievement:collect 500 power"
   },
   {
-    "challenge": "Collect 500 Food",
-    "reward": "1000 caps",
+    "challenge": "Produce 500 Food",
+    "reward": "50 caps",
     "category": "achievement",
     "objective_type": "collect",
-    "target_entity": {"resource_type": "food"},
-    "target_amount": 500
+    "target_entity": {"resource_type": "food", "production_only": true},
+    "target_amount": 500,
+    "template_key": "achievement:collect 500 food"
   },
   {
-    "challenge": "Collect 500 Water",
-    "reward": "1000 caps",
+    "challenge": "Produce 500 Water",
+    "reward": "50 caps",
     "category": "achievement",
     "objective_type": "collect",
-    "target_entity": {"resource_type": "water"},
-    "target_amount": 500
+    "target_entity": {"resource_type": "water", "production_only": true},
+    "target_amount": 500,
+    "template_key": "achievement:collect 500 water"
   },
   {
     "challenge": "Collect 5 Stimpaks",
-    "reward": "250 caps",
+    "reward": "125 caps",
     "category": "achievement",
     "objective_type": "collect",
     "target_entity": {"item_type": "stimpak"},
-    "target_amount": 5
+    "target_amount": 5,
+    "template_key": "achievement:collect 5 stimpaks"
   },
   {
     "challenge": "Collect 7 Pieces of Junk",
-    "reward": "600 caps",
+    "reward": "300 caps",
     "category": "achievement",
     "objective_type": "collect",
     "target_entity": {"item_type": "junk"},
-    "target_amount": 7
+    "target_amount": 7,
+    "template_key": "achievement:collect 7 pieces of junk"
   },
   {
     "challenge": "Assign 20 Dwellers Total",
-    "reward": "2500 caps",
+    "reward": "1250 caps",
     "category": "achievement",
     "objective_type": "assign",
-    "target_entity": {},
-    "target_amount": 20
+    "target_entity": {"distinct_dwellers": true},
+    "target_amount": 20,
+    "template_key": "achievement:assign 20 dwellers total"
   },
   {
     "challenge": "Assign 50 Dwellers Total",
-    "reward": "5000 caps",
+    "reward": "2500 caps",
     "category": "achievement",
     "objective_type": "assign",
-    "target_entity": {},
-    "target_amount": 50
+    "target_entity": {"distinct_dwellers": true},
+    "target_amount": 50,
+    "template_key": "achievement:assign 50 dwellers total"
   },
   {
     "challenge": "Correctly Assign 10 Total",
     "reward": "1 lunchbox",
     "category": "achievement",
     "objective_type": "assign_correct",
-    "target_entity": {},
-    "target_amount": 10
+    "target_entity": {"distinct_dwellers": true},
+    "target_amount": 10,
+    "template_key": "achievement:correctly assign 10 total"
   },
   {
     "challenge": "Correctly Assign 20 Total",
-    "reward": "3000 caps",
+    "reward": "1500 caps",
     "category": "achievement",
     "objective_type": "assign_correct",
-    "target_entity": {},
-    "target_amount": 20
+    "target_entity": {"distinct_dwellers": true},
+    "target_amount": 20,
+    "template_key": "achievement:correctly assign 20 total"
   },
   {
     "challenge": "Correctly Assign 50 Total",
-    "reward": "7500 caps",
+    "reward": "3750 caps",
     "category": "achievement",
     "objective_type": "assign_correct",
-    "target_entity": {},
-    "target_amount": 50
+    "target_entity": {"distinct_dwellers": true},
+    "target_amount": 50,
+    "template_key": "achievement:correctly assign 50 total"
   },
   {
     "challenge": "Train a Dweller",
-    "reward": "800 caps",
+    "reward": "400 caps",
     "category": "achievement",
     "objective_type": "train",
-    "target_entity": {},
-    "target_amount": 1
+    "target_entity": {"distinct_dwellers": true},
+    "target_amount": 1,
+    "template_key": "achievement:train a dweller"
   },
   {
     "challenge": "Train Dweller to 10 Strength",
-    "reward": "2000 caps",
+    "reward": "1000 caps",
     "category": "achievement",
     "objective_type": "train",
-    "target_entity": {"stat": "strength", "target_value": 10},
-    "target_amount": 1
+    "target_entity": {"stat": "strength", "target_value": 10, "distinct_dwellers": true},
+    "target_amount": 1,
+    "template_key": "achievement:train dweller to 10 strength"
   },
   {
     "challenge": "Train Dweller to 10 Perception",
-    "reward": "2000 caps",
+    "reward": "1000 caps",
     "category": "achievement",
     "objective_type": "train",
-    "target_entity": {"stat": "perception", "target_value": 10},
-    "target_amount": 1
+    "target_entity": {"stat": "perception", "target_value": 10, "distinct_dwellers": true},
+    "target_amount": 1,
+    "template_key": "achievement:train dweller to 10 perception"
   },
   {
     "challenge": "Train Dweller to 10 Endurance",
-    "reward": "2000 caps",
+    "reward": "1000 caps",
     "category": "achievement",
     "objective_type": "train",
-    "target_entity": {"stat": "endurance", "target_value": 10},
-    "target_amount": 1
+    "target_entity": {"stat": "endurance", "target_value": 10, "distinct_dwellers": true},
+    "target_amount": 1,
+    "template_key": "achievement:train dweller to 10 endurance"
   },
   {
     "challenge": "Train Dweller to 10 Charisma",
-    "reward": "2000 caps",
+    "reward": "1000 caps",
     "category": "achievement",
     "objective_type": "train",
-    "target_entity": {"stat": "charisma", "target_value": 10},
-    "target_amount": 1
+    "target_entity": {"stat": "charisma", "target_value": 10, "distinct_dwellers": true},
+    "target_amount": 1,
+    "template_key": "achievement:train dweller to 10 charisma"
   },
   {
     "challenge": "Train Dweller to 10 Intelligence",
-    "reward": "2000 caps",
+    "reward": "1000 caps",
     "category": "achievement",
     "objective_type": "train",
-    "target_entity": {"stat": "intelligence", "target_value": 10},
-    "target_amount": 1
+    "target_entity": {"stat": "intelligence", "target_value": 10, "distinct_dwellers": true},
+    "target_amount": 1,
+    "template_key": "achievement:train dweller to 10 intelligence"
   },
   {
     "challenge": "Train Dweller to 10 Agility",
-    "reward": "2000 caps",
+    "reward": "1000 caps",
     "category": "achievement",
     "objective_type": "train",
-    "target_entity": {"stat": "agility", "target_value": 10},
-    "target_amount": 1
+    "target_entity": {"stat": "agility", "target_value": 10, "distinct_dwellers": true},
+    "target_amount": 1,
+    "template_key": "achievement:train dweller to 10 agility"
   },
   {
     "challenge": "Train Dweller to 10 Luck",
-    "reward": "2000 caps",
+    "reward": "1000 caps",
     "category": "achievement",
     "objective_type": "train",
-    "target_entity": {"stat": "luck", "target_value": 10},
-    "target_amount": 1
+    "target_entity": {"stat": "luck", "target_value": 10, "distinct_dwellers": true},
+    "target_amount": 1,
+    "template_key": "achievement:train dweller to 10 luck"
   },
   {
-    "challenge": "Complete 10 Expeditions Total",
+    "challenge": "Complete 10 Quests Total",
+    "reward": "750 caps",
+    "category": "achievement",
+    "objective_type": "expedition",
+    "target_entity": {},
+    "target_amount": 10,
+    "template_key": "achievement:complete 10 expeditions total"
+  },
+  {
+    "challenge": "Complete 25 Quests Total",
     "reward": "1500 caps",
     "category": "achievement",
     "objective_type": "expedition",
     "target_entity": {},
-    "target_amount": 10
+    "target_amount": 25,
+    "template_key": "achievement:complete 25 expeditions total"
   },
   {
-    "challenge": "Complete 25 Expeditions Total",
+    "challenge": "Complete 50 Quests Total",
     "reward": "3000 caps",
     "category": "achievement",
     "objective_type": "expedition",
     "target_entity": {},
-    "target_amount": 25
-  },
-  {
-    "challenge": "Complete 50 Expeditions Total",
-    "reward": "6000 caps",
-    "category": "achievement",
-    "objective_type": "expedition",
-    "target_entity": {},
-    "target_amount": 50
+    "target_amount": 50,
+    "template_key": "achievement:complete 50 expeditions total"
   },
   {
     "challenge": "Complete 5 Main Quests",
-    "reward": "5000 caps",
+    "reward": "2500 caps",
     "category": "achievement",
     "objective_type": "expedition",
     "target_entity": {"quest_type": "main"},
-    "target_amount": 5
+    "target_amount": 5,
+    "template_key": "achievement:complete 5 main quests"
   },
   {
     "challenge": "Level Up a Dweller",
-    "reward": "500 caps",
+    "reward": "250 caps",
     "category": "achievement",
     "objective_type": "level_up",
-    "target_entity": {"min_level": 2},
-    "target_amount": 1
+    "target_entity": {"min_level": 2, "distinct_dwellers": true},
+    "target_amount": 1,
+    "template_key": "achievement:level up a dweller"
   },
   {
     "challenge": "Reverse-engineer a Legendary",
-    "reward": "2000 caps",
+    "reward": "1000 caps",
     "category": "achievement",
     "objective_type": "scrap",
     "target_entity": {"rarity": "legendary"},
-    "target_amount": 1
+    "target_amount": 1,
+    "template_key": "achievement:reverse-engineer a legendary"
   },
   {
     "challenge": "Scrap 10 Rare Items",
-    "reward": "1500 caps",
+    "reward": "750 caps",
     "category": "achievement",
     "objective_type": "scrap",
     "target_entity": {"rarity": "rare"},
-    "target_amount": 10
+    "target_amount": 10,
+    "template_key": "achievement:scrap 10 rare items"
   }
 ]

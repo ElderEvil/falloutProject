@@ -17,7 +17,9 @@ async def test_guided_arc_migration_is_idempotent_and_preserves_claimed_rewards(
     migration = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(migration)
     seed = json.loads((Path(__file__).parents[2] / "data/objectives/starter.json").read_text())
-    assert seed[-4:] == migration._STEPS
+    assert [
+        {key: value for key, value in step.items() if key != "template_key"} for step in seed[-4:]
+    ] == migration._STEPS
     assert [step["sequence"] for step in seed] == list(range(13))
     old = Objective(challenge="Office already built", reward="200 caps", category="starter", sequence=7)
     old_link = VaultObjectiveProgressLink(

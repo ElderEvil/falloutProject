@@ -159,3 +159,29 @@ capacity and reserve clamps discard unusable excess/debt. After the existing
 the current amount if already below that floor. This never grants resources.
 Active vaults retain full drain; returning resumes it. There is no Survival
 mode selector yet. Production and medical storage limits remain in force.
+
+### Wave 2 objective economy
+
+Primary-resource objectives say **Produce** and count gross production, including
+output at full storage. Fractional output persists until it produces a whole
+objective unit; resource gifts and refunds do not advance these tasks. Medical
+objectives count supplies actually retained in storage. Weapon/outfit/junk
+objectives accept item events only. **Build** requires a new room, and quest
+completion objectives say **Quests** rather than Expeditions. Training to a
+stat threshold requires the resulting stat value, not merely a training event.
+
+Non-starter assignment, correct-assignment, training and level-up templates
+count distinct dwellers. Previously recorded progress remains intact; identities
+are recorded for future events. A refreshed task starts a new counting window.
+Templates have stable category-qualified keys, so labels may change without
+duplicating templates or colliding with another category. Catalog migrations
+preserve objective IDs, custom templates, historical links and ready claims.
+
+Rewards freeze when earned. Pending earned rewards retain their previous payout
+after the balance migration, and the UI displays that saved payout. Objective
+rewards continue to suppress collection events to avoid reward feedback loops.
+Starter grants remain unchanged. The uniform-selection caps-only expectation
+for a fully completed batch is now 199.09 daily and 589.62 weekly (previously
+1,034.09 and 2,959.62). The achievement caps pool is 43,765 (previously 95,250).
+These are catalog expectations, not measured income: item/lunchbox value and
+actual completion rates are excluded. Prices are unchanged pending income data.

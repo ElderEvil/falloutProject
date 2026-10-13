@@ -288,9 +288,7 @@ async function ensureDispatchData() {
     await vaultStore.ensureVaultLoaded(requestedVaultId, token)
     // A route change mid-load means this data no longer belongs to the view.
     if (vaultId.value !== requestedVaultId || authStore.token !== token) return
-    if (dwellerStore.dwellers.length === 0) {
-      await dwellerStore.fetchDwellersByVault(requestedVaultId, token)
-    }
+    await dwellerStore.fetchDwellersByVault(requestedVaultId, token)
   } catch {
     // Unloadable vault: the section still renders, supplies just stay at zero.
   } finally {
@@ -348,7 +346,12 @@ const departingDwellerIds = computed(
             exploration.vault_id === vaultId.value &&
             (exploration.status === 'active' || exploration.status === 'returning')
         )
-        .map((exploration) => exploration.dweller_id)
+        .flatMap((exploration) => [
+          exploration.dweller_id,
+          ...(explorationStore.explorationPartyMap[exploration.id] ?? []).map(
+            (member) => member.dweller_id
+          ),
+        ])
     )
 )
 

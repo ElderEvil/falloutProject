@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.201.1 (2026-10-13)
+
+### Bug Fixes
+
+* exclude all exploring team members from map dispatch picker ([#979](https://github.com/ElderEvil/falloutProject/issues/979)) 805cdfb
+
+### Documentation
+
+* internal unrest design contract ([#966](https://github.com/ElderEvil/falloutProject/issues/966)) 80d63e2
+* multiplayer design contracts (world events, backlog, connections) ([#965](https://github.com/ElderEvil/falloutProject/issues/965)) 6e3a625
+
+### Continuous Integration
+
+* smoke-build the backend production image on PRs ([#977](https://github.com/ElderEvil/falloutProject/issues/977)) 7d1aae6
+* smoke-build the frontend production image on PRs ([#976](https://github.com/ElderEvil/falloutProject/issues/976)) f0c8a8d
+
 ## 2.201.0 (2026-10-12)
 
 ### Features

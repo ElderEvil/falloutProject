@@ -631,6 +631,52 @@ describe('MapView', () => {
       expect(wrapper.findComponent({ name: 'PartySelectionModal' }).exists()).toBe(false)
     })
 
+    it.each(['active', 'returning'] as const)(
+      'excludes every %s exploration team member even when their cached status is idle',
+      async (status) => {
+        const clearable = mountWithClearable()
+        const explorationStore = useExplorationStore()
+        explorationStore.explorations = [
+          exploration({ id: 'team-run', dweller_id: 'leader', status }),
+        ]
+        explorationStore.explorationPartyMap = {
+          'team-run': [{ dweller_id: 'dweller-1' }] as never,
+        }
+        const wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.findComponent({ name: 'MarkerDetailModal' }).props('dwellers')).toEqual([])
+      }
+    )
+
+    it('allows members of completed teams and teams in another vault', async () => {
+      mountWithClearable()
+      const explorationStore = useExplorationStore()
+      explorationStore.explorations = [
+        exploration({ id: 'done', dweller_id: 'leader', status: 'completed' }),
+        exploration({ id: 'other', dweller_id: 'leader', vault_id: 'other-vault' }),
+      ]
+      explorationStore.explorationPartyMap = {
+        done: [{ dweller_id: 'dweller-1' }] as never,
+        other: [{ dweller_id: 'dweller-1' }] as never,
+      }
+      const wrapper = mountView()
+      await flushPromises()
+      expect(wrapper.findComponent({ name: 'MarkerDetailModal' }).props('dwellers')).toHaveLength(1)
+    })
+
+    it('refreshes the dweller roster even when cached candidates already exist', async () => {
+      const clearable = mountWithClearable()
+      const { filter } = useDwellerStore()
+      const wrapper = mountView()
+      await flushPromises()
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('marker-click', {
+        kind: 'location',
+        data: clearable,
+      })
+      await flushPromises()
+      expect(filter.fetchDwellersByVault).toHaveBeenCalledWith('vault-1', 'test-token')
+    })
+
     it('preloads the vault before rendering supplies in the details modal', async () => {
       const clearable = mountWithClearable()
       const vaultStore = useVaultStore()

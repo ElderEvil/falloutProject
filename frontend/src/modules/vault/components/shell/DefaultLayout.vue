@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { computed, inject, ref } from 'vue'
+import { computed, defineAsyncComponent, inject, ref } from 'vue'
 import NavBar from './NavBar.vue'
-import ObjectiveGuide from '@/modules/progression/components/ObjectiveGuide.vue'
 import ExitRequestModal from '@/modules/dwellers/components/modals/ExitRequestModal.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+
+const ObjectiveGuide = defineAsyncComponent(
+  () => import('@/modules/progression/components/ObjectiveGuide.vue')
+)
 
 defineProps<{
   isFlickering: boolean

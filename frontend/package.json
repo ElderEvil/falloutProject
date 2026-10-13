@@ -58,7 +58,7 @@
     "vite": "npm:@voidzero-dev/vite-plus-core@^0.2.2",
     "vite-plus": "0.3.0",
     "vitest": "4.1.11",
-    "vue-tsc": "^3.3.12"
+    "vue-tsc": "^3.3.11"
   },
   "engines": {
     "node": ">=22",

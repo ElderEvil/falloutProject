@@ -83,6 +83,7 @@ Catalog-backed `Weapon`/`Outfit`/`Junk` rows must be built through `backend/app/
 
 - **Markers:** default tests are unmarked — fast, SQLite/fakeredis-backed; together they are the "full" suite. Tag only exceptions: `@pytest.mark.smoke` on the curated critical-path subset (`uv run pytest -m smoke`), `slow` for >1s tests, `integration` for tests needing real PostgreSQL/Redis. No `fast`/`full` markers.
 - **Structure:** bare test functions by default. `Test*` classes only to group one behavior/unit or to share class-scoped fixtures — never inheritance, `__init__`, or class-level state. Keep each file in one dominant style; don't mass-convert existing tests.
+- **Mock boundaries, not our layers:** stub only true system boundaries (LLM/AI providers, storage/S3, the clock, external HTTP). Exercise our own CRUD and services through the real `async_session` (SQLite) plus the `app/tests/factory/` builders; catalog-backed `Weapon`/`Outfit`/`Junk` rows are built through `app/utils/item_factory.py`, never the model constructors. A test that stubs `session.execute`/`crud.*.get` and then asserts the value it supplied cannot catch a broken query — assert on the result (or the raised exception) instead.
 
 ## Frontend (Vue 3 / TypeScript)
 

@@ -864,6 +864,9 @@ class VaultStartConfig(BaseSettings):
     initial_radaways: int = Field(default=5, ge=0, description="Initial radaways (capped by medical capacity)")
     standard_rare_chance: float = Field(default=0.04, ge=0.0, le=1.0, description="RARE roll chance, standard seeding")
     boosted_rare_chance: float = Field(default=0.12, ge=0.0, le=1.0, description="RARE roll chance, boosted seeding")
+    boosted_initial_caps: int = Field(
+        default=15_000, ge=0, lt=1_000_000, description="Boosted starting caps, enough for Arena tier 3 and a reserve"
+    )
 
 
 class DispatchConfig(BaseSettings):

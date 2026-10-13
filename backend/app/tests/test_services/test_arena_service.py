@@ -9,6 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import ArenaMode
+from app.models.arena_match_event import ArenaMatchEvent
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.vault import Vault
@@ -17,12 +18,30 @@ from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.combat.arena_service import ArenaParticipant, ArenaService, participant_from_dweller
 from app.services.dweller_service import dweller_service
+from app.services.exploration.data_loader import load_enemies
 from app.utils.combat import combat_power
 from app.utils.exceptions import ValidationException
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
+
+def test_arena_catalog_replaces_raiders_with_training_robots():
+    creatures = {creature["key"]: creature for creature in ArenaService.list_creatures()}
+    assert "raider-gang" not in creatures
+    assert creatures["training-eyebot"]["name"] == "Training Eyebot"
+    assert creatures["training-mr-handy"]["name"] == "Training Mr. Handy"
+    assert creatures["training-eyebot"]["power"] < creatures["training-mr-handy"]["power"]
+    assert "Raider gang" in {enemy["name"] for enemy in load_enemies()}
+
+
+def test_training_robots_are_valid_hunt_opponents():
+    opponents = ArenaService._hunt_opponents(["training-eyebot", "training-mr-handy"])
+    assert [opponent["name"] for opponent in opponents] == ["Training Eyebot", "Training Mr. Handy"]
+    assert all(opponent["hp"] == opponent["max_hp"] > 0 for opponent in opponents)
+    with pytest.raises(ValidationException, match="Unknown hunt opponent"):
+        ArenaService._hunt_opponents(["raider-gang"])
 
 
 @pytest_asyncio.fixture(name="arena_room")
@@ -38,11 +57,97 @@ async def arena_room_fixture(async_session: AsyncSession, vault: Vault) -> Room:
         t3_upgrade_cost=9000,
         size_min=6,
         size_max=6,
+        tier=3,
         coordinate_x=0,
         coordinate_y=1,
         vault_id=vault.id,
     )
     return await crud_create_room(async_session, room_in)
+
+
+@pytest.mark.parametrize(("tier", "mode"), [(1, ArenaMode.BRAWL), (1, ArenaMode.HUNT), (2, ArenaMode.HUNT)])
+async def test_locked_arena_mode_rejects_selection_and_start(async_session, arena_room, tier, mode):
+    arena_room.tier = tier
+    await async_session.commit()
+    service = ArenaService()
+    with pytest.raises(ValidationException, match="requires Arena tier"):
+        await service.set_fighters(async_session, arena_room.id, None, None, mode=mode)
+    arena_room.arena_mode = mode
+    await async_session.commit()
+    with pytest.raises(ValidationException, match="requires Arena tier"):
+        await service.start_fight(async_session, arena_room.id)
+
+
+@pytest.mark.parametrize(
+    ("tier", "expected"),
+    [(1, [ArenaMode.DUEL]), (2, [ArenaMode.DUEL, ArenaMode.BRAWL]), (3, list(ArenaMode))],
+)
+async def test_arena_state_reports_tier_unlocks(async_session, arena_room, vault, fighter_a, tier, expected):
+    fighter_a.room_id = arena_room.id
+    await async_session.commit()
+    service = ArenaService()
+    await service.set_fighters(
+        async_session, arena_room.id, fighter_a.id, None, mode=ArenaMode.HUNT, opponent_keys=["deathclaw"]
+    )
+    # A complete legacy Hunt selection must not enable starting below tier 3.
+    arena_room.tier = tier
+    await async_session.commit()
+    state = await service.get_arena_state(async_session, vault.id)
+    assert state.rooms[0].available_modes == expected
+    assert state.rooms[0].can_start is (tier == 3)
+    assert state.rooms[0].fight_ready is (tier == 3)
+
+
+async def test_arena_uses_dweller_display_name_and_portraits(async_session, arena_room, vault, fighter_a, fighter_b):
+    fighter_a.last_name = None
+    fighter_a.image_url = "/static/dweller_images/champ.png"
+    fighter_a.thumbnail_url = "/static/dweller_images/champ-thumb.png"
+    for fighter in (fighter_a, fighter_b):
+        fighter.room_id = arena_room.id
+    await async_session.commit()
+    service = ArenaService()
+    await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
+    state = (await service.get_arena_state(async_session, vault.id)).rooms[0]
+    for entry in [state.team_a[0], state.fighters[0], next(d for d in state.roster if d.id == str(fighter_a.id))]:
+        assert entry.name == fighter_a.first_name
+        assert entry.image_url == fighter_a.image_url
+        assert entry.thumbnail_url == fighter_a.thumbnail_url
+
+
+@pytest.mark.parametrize(
+    ("mode", "winner_label", "side_b_wins"),
+    [
+        (ArenaMode.HUNT, "Arena", False),
+        (ArenaMode.HUNT, "Dwellers", False),
+        (ArenaMode.HUNT, "Creatures", True),
+        (ArenaMode.BRAWL, "Team A", False),
+        (ArenaMode.BRAWL, "Team B", True),
+    ],
+)
+async def test_team_result_names_every_winner(
+    async_session, arena_room, vault, fighter_a, fighter_b, fighter_c, fighter_d, mode, winner_label, side_b_wins
+):
+    for fighter in (fighter_a, fighter_b, fighter_c, fighter_d):
+        fighter.room_id = arena_room.id
+    await async_session.commit()
+    service = ArenaService()
+    await service.set_fighters(
+        async_session,
+        arena_room.id,
+        fighter_a.id,
+        fighter_b.id if mode == ArenaMode.BRAWL else None,
+        mode=mode,
+        fighter_c_id=fighter_c.id,
+        fighter_d_id=fighter_d.id if mode == ArenaMode.BRAWL else None,
+        opponent_keys=["radroach-swarm", "mole-rat-pack"] if mode == ArenaMode.HUNT else None,
+    )
+    async_session.add(
+        ArenaMatchEvent(room_id=arena_room.id, kind="finish", message=f"{winner_label} defeated opponents!")
+    )
+    await async_session.commit()
+    state = (await service.get_arena_state(async_session, vault.id)).rooms[0]
+    winning_team = state.team_b if side_b_wins else state.team_a
+    assert state.winner_name == " & ".join(fighter.name for fighter in winning_team)
 
 
 async def crud_create_room(db_session: AsyncSession, room_in: RoomCreate) -> Room:
@@ -769,6 +874,9 @@ class TestArenaService:
         await async_session.refresh(fighter_d)
         assert fighter_b.health == 1
         assert fighter_d.health == 1
+        state = (await service.get_arena_state(async_session, arena_room.vault_id)).rooms[0]
+        assert state.winner_name == f"{fighter_a.display_name} & {fighter_c.display_name}"
+        assert next(event.message for event in state.events if event.kind == "finish") == "Team A defeated Team B!"
 
     @pytest.mark.asyncio
     async def test_get_arena_state_hunt_teams(self, async_session, arena_room, fighter_a, fighter_c, vault):
@@ -903,7 +1011,12 @@ class TestArenaService:
         assert 0 < second_hp < first_hp
 
     @pytest.mark.asyncio
-    async def test_process_arena_ticks_hunt_two_creatures_defeated(self, async_session, arena_room, fighter_a):
+    @pytest.mark.parametrize(
+        "opponent_keys", [["radroach-swarm", "mole-rat-pack"], ["training-eyebot", "training-mr-handy"]]
+    )
+    async def test_process_arena_ticks_hunt_two_creatures_defeated(
+        self, async_session, arena_room, fighter_a, opponent_keys
+    ):
         from datetime import datetime, timedelta
 
         fighter_a.room_id = arena_room.id
@@ -915,7 +1028,7 @@ class TestArenaService:
             fighter_a.id,
             None,
             mode=ArenaMode.HUNT,
-            opponent_keys=["radroach-swarm", "mole-rat-pack"],
+            opponent_keys=opponent_keys,
         )
         fighter_a.health = 100000
         arena_room.arena_fight_started_at = datetime.utcnow() - timedelta(seconds=10)
@@ -927,3 +1040,5 @@ class TestArenaService:
         assert result["arena"]["rounds"][0]["winner"] == "Arena Champ"
         await async_session.refresh(arena_room)
         assert [opponent["hp"] for opponent in arena_room.arena_opponents] == [0, 0]
+        state = (await service.get_arena_state(async_session, arena_room.vault_id)).rooms[0]
+        assert next(event.message for event in state.events if event.kind == "finish") == "Dwellers defeated Creatures!"

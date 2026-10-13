@@ -1141,8 +1141,9 @@ class TestInitiateVault:
             assert outfit.rarity == RarityEnum.COMMON
             assert getattr(outfit, ability.value.lower()) == 3
 
-    async def test_initiate_vault_boosted(self) -> None:
-        """Boosted vault includes training sessions."""
+    @pytest.mark.parametrize("is_boosted", [True, False], ids=["boosted", "standard"])
+    async def test_initiate_vault_start_resources(self, is_boosted: bool) -> None:
+        """Boosted starts fund Arena upgrades; standard starts keep their existing caps."""
         vault_id = VAULT_ID
         user_id = UUID4("11111111-1111-1111-1111-111111111111")
 
@@ -1217,7 +1218,9 @@ class TestInitiateVault:
                 new_callable=AsyncMock,
                 return_value=storage_obj,
             ),
-            patch("app.services.vault_service.vault_crud.update", new_callable=AsyncMock, return_value=vault),
+            patch(
+                "app.services.vault_service.vault_crud.update", new_callable=AsyncMock, return_value=vault
+            ) as mock_update,
             patch(
                 "app.services.vault_service.get_static_game_data",
                 new_callable=AsyncMock,
@@ -1265,14 +1268,24 @@ class TestInitiateVault:
         ):
             result = await VaultService().initiate_vault(
                 db_session,
-                VaultNumber(number=99, boosted=True),
+                VaultNumber(number=99, boosted=is_boosted),
                 user_id,
-                is_boosted=True,
+                is_boosted=is_boosted,
             )
 
         assert result == vault
         mock_start_training.assert_awaited_once()
-        mock_assign_initial.assert_awaited_once_with(db_session, vault.id, is_boosted=True)
+        mock_assign_initial.assert_awaited_once_with(db_session, vault.id, is_boosted=is_boosted)
+
+        initial_caps = mock_update.call_args.kwargs["obj_in"].bottle_caps
+        if initial_caps is None:
+            initial_caps = vault.bottle_caps
+        arena_template = next(room for room in (await get_static_game_data()).rooms if room.name.lower() == "arena")
+        upgrade_budget = arena_template.t2_upgrade_cost + arena_template.t3_upgrade_cost
+        if is_boosted:
+            assert initial_caps >= upgrade_budget + 1_000
+        else:
+            assert initial_caps == vault.bottle_caps
 
 
 class TestVaultStartConfig:

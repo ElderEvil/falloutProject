@@ -4,10 +4,12 @@
  *
  * Renders every catalog weapon, outfit and dweller template with its resolved
  * image on one page so missing art (null URLs) and generic fallbacks stand out.
- * Data comes from the authenticated read_data endpoints; log in first.
+ * Catalog data comes from authenticated endpoints; static previews need no login.
  */
 import { computed, onMounted, ref } from 'vue'
 import { apiGet } from '@/core/utils/api'
+import { useLocalStorage } from '@vueuse/core'
+import { CREATURE_ASSETS } from '@/core/utils/creatureAssets'
 
 import { getStaticImageUrl } from '@/core/utils/image'
 import { Badge } from '@/core/components/ui/badge'
@@ -27,17 +29,21 @@ const dwellers = ref<DwellerTemplate[]>([])
 const junks = ref<Junk[]>([])
 const failedUrls = ref<Set<string>>(new Set())
 const search = ref('')
-const activeTab = ref('weapons')
+const activeTab = ref('creatures')
 const loadError = ref('')
+const token = useLocalStorage<string | null>('token', null)
 
-interface PetEntry {
+interface StaticAsset {
   name: string
   kind: string
   image: string
+  sourceImage?: string
 }
 
+const creatures: StaticAsset[] = CREATURE_ASSETS.map((asset) => ({ ...asset, kind: 'creature' }))
+
 // Starter plus full FOS breed roster (generated from the wiki pet tables).
-const pets: PetEntry[] = [
+const pets: StaticAsset[] = [
   { name: 'CX404', kind: 'dog', image: '/static/pet_images/FOS CX404.png' },
   { name: 'Rollerbrain', kind: 'robot', image: '/static/pet_images/FOS Rollerbrain.png' },
   { name: 'Abyssinian', kind: 'cat', image: '/static/pet_images/FOS Abyssinian.png' },
@@ -154,6 +160,11 @@ const filteredJunks = computed(() =>
 const filteredPets = computed(() =>
   search.value ? pets.filter((p) => matches(`${p.name} ${p.kind}`)) : pets
 )
+const filteredCreatures = computed(() => creatures.filter((c) => matches(c.name)))
+const staticSections = computed(() => [
+  { tab: 'creatures', entries: filteredCreatures.value },
+  { tab: 'pets', entries: filteredPets.value },
+])
 const missingCount = computed(
   () =>
     weapons.value.filter((w) => !w.image_url).length +
@@ -166,6 +177,7 @@ function setActiveTab(value: unknown) {
 }
 
 onMounted(async () => {
+  if (!token.value) return
   try {
     const [w, o, d, j] = await Promise.all([
       apiGet<Weapon[]>('/api/v1/weapons/read_data/'),
@@ -188,13 +200,18 @@ onMounted(async () => {
     <h1 class="terminal-glow text-2xl font-bold">Asset gallery <span class="flicker">▮</span></h1>
     <p class="mt-1 text-sm opacity-70">
       {{ weapons.length }} weapons · {{ outfits.length }} outfits · {{ dwellers.length }} dweller
-      templates · {{ junks.length }} junk · {{ missingCount }} missing images
+      templates · {{ junks.length }} junk · {{ creatures.length }} creatures ·
+      {{ missingCount }} missing images
     </p>
     <Input v-model="search" placeholder="Filter by name…" class="mt-4 max-w-sm" />
+    <p v-if="!token" class="mt-3 text-sm opacity-70">
+      Creature and pet previews are available here. Log in to load the other catalogs.
+    </p>
     <p v-if="loadError" class="mt-4 text-sm text-red-400">{{ loadError }}</p>
 
     <Tabs :model-value="activeTab" @update:model-value="setActiveTab" class="mt-4">
-      <TabsList>
+      <TabsList class="h-auto max-w-full flex-wrap justify-start">
+        <TabsTrigger value="creatures">Creatures ({{ filteredCreatures.length }})</TabsTrigger>
         <TabsTrigger value="weapons">Weapons ({{ filteredWeapons.length }})</TabsTrigger>
         <TabsTrigger value="outfits">Outfits ({{ filteredOutfits.length }})</TabsTrigger>
         <TabsTrigger value="dwellers">Dwellers ({{ filteredDwellers.length }})</TabsTrigger>
@@ -278,15 +295,19 @@ onMounted(async () => {
         </div>
       </TabsContent>
 
-      <TabsContent value="pets">
-        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-          <Card v-for="p in filteredPets" :key="p.name" class="overflow-hidden">
+      <TabsContent v-for="section in staticSections" :key="section.tab" :value="section.tab">
+        <div
+          class="grid grid-cols-2 gap-3"
+          :class="section.tab === 'creatures' ? 'lg:grid-cols-3' : 'sm:grid-cols-4 lg:grid-cols-6'"
+        >
+          <Card v-for="p in section.entries" :key="p.name" class="overflow-hidden">
             <CardContent class="flex flex-col items-center gap-1 p-3">
               <img
                 v-if="imgOf(p.image)"
                 :src="imgOf(p.image)!"
                 :alt="p.name"
-                class="h-24 object-contain"
+                class="w-full object-contain"
+                :class="section.tab === 'creatures' ? 'h-48' : 'h-24'"
                 loading="lazy"
                 @error="markBroken(imgOf(p.image))"
               />
@@ -295,6 +316,15 @@ onMounted(async () => {
               </div>
               <span class="text-center text-xs font-semibold">{{ p.name }}</span>
               <Badge>{{ p.kind }}</Badge>
+              <a
+                v-if="p.sourceImage"
+                :href="getStaticImageUrl(p.sourceImage)!"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-xs text-theme-primary underline underline-offset-4"
+              >
+                Original sheet
+              </a>
             </CardContent>
           </Card>
         </div>

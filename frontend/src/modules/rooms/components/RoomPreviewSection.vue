@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getRoomImageUrl } from '@/core/utils/image'
-import { ARENA_DETAIL_SCENE } from '../models/roomScenes'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 
 interface Props {
@@ -45,7 +44,6 @@ const imageFailed = () => {
   if (sceneImageUrl.value) failedImageUrls.value.push(sceneImageUrl.value)
 }
 const sceneSizeClass = computed(() => {
-  if (sceneImageUrl.value === ARENA_DETAIL_SCENE) return 'room-scene--detail'
   if (props.roomUnits <= 1) return 'room-scene--compact'
   if (props.roomUnits >= 6) return 'room-scene--wide'
   return null
@@ -230,15 +228,6 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   border: 1px solid var(--color-theme-glow);
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.8);
-}
-
-.room-scene--detail .room-image-container {
-  min-height: 0;
-  aspect-ratio: 3 / 2;
-}
-
-.room-scene--detail .room-image {
-  max-height: none;
 }
 
 .room-scene--compact .room-image-container {

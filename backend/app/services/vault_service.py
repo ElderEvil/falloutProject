@@ -80,6 +80,7 @@ class VaultService:
             db_session=db_session,
             id=vault_db_obj.id,
             obj_in=VaultUpdate(
+                bottle_caps=vault_start.boosted_initial_caps if is_boosted else vault_db_obj.bottle_caps,
                 power=initial_power,
                 food=initial_food,
                 water=initial_water,

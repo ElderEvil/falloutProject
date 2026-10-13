@@ -107,7 +107,9 @@ describe('HomeView', () => {
       const wrapper = mount(HomeView, { global: { plugins: [router] } })
       await flushPromises()
 
-      expect(wrapper.text()).toContain('23 rooms and 25 dwellers')
+      expect(wrapper.text()).toContain('Creates an expanded vault')
+      expect(wrapper.text()).toContain('an arena')
+      expect(wrapper.text()).toContain('caps for upgrades')
       expect(wrapper.text()).toContain('all seven training rooms')
       expect(wrapper.text().match(/Vaults are experimental/g)).toHaveLength(1)
     })
@@ -160,7 +162,10 @@ describe('HomeView', () => {
       expect(wrapper.find('input[type="number"]').exists()).toBe(false)
       expect(wrapper.text()).toContain('Create another vault')
 
-      await wrapper.findAll('button').find((button) => button.text().includes('Create another vault'))!.trigger('click')
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('Create another vault'))!
+        .trigger('click')
       expect(wrapper.find('input[type="number"]').exists()).toBe(true)
     })
 
@@ -182,7 +187,9 @@ describe('HomeView', () => {
       const wrapper = mount(HomeView, { global: { plugins: [router] } })
       await flushPromises()
 
-      const selectButton = wrapper.findAll('button').find((button) => button.text() === 'Select Vault')
+      const selectButton = wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'Select Vault')
       expect(selectButton).toBeDefined()
       await selectButton!.trigger('click')
       expect(wrapper.text()).toContain('Load Vault')
@@ -210,7 +217,9 @@ describe('HomeView', () => {
       expect(wrapper.text()).toContain('You have 4 vaults')
       expect(wrapper.text()).toContain('Delete excess vaults to return to the 3-vault limit')
       expect(wrapper.find('[data-slot="alert-title"]').text()).toBe('Vault limit exceeded')
-      expect(wrapper.find('[data-slot="alert-description"]').text()).toContain('You can keep using your existing vaults')
+      expect(wrapper.find('[data-slot="alert-description"]').text()).toContain(
+        'You can keep using your existing vaults'
+      )
       expect(wrapper.find('input[type="number"]').exists()).toBe(false)
     })
   })
@@ -395,26 +404,31 @@ describe('HomeView', () => {
     })
 
     it('keeps commissioning open with the entered number when creation fails', async () => {
-      vaultStore.vaults = [{
-        id: 'vault-1',
-        number: 101,
-        bottle_caps: 1000,
-        happiness: 75,
-        power: 50,
-        power_max: 100,
-        food: 60,
-        food_max: 100,
-        water: 70,
-        water_max: 100,
-        room_count: 5,
-        dweller_count: 10,
-        updated_at: new Date().toISOString(),
-      }]
+      vaultStore.vaults = [
+        {
+          id: 'vault-1',
+          number: 101,
+          bottle_caps: 1000,
+          happiness: 75,
+          power: 50,
+          power_max: 100,
+          food: 60,
+          food_max: 100,
+          water: 70,
+          water_max: 100,
+          room_count: 5,
+          dweller_count: 10,
+          updated_at: new Date().toISOString(),
+        },
+      ]
       vi.mocked(axios.post).mockRejectedValueOnce(new Error('Vault number is unavailable'))
 
       const wrapper = mount(HomeView, { global: { plugins: [router] } })
       await flushPromises()
-      await wrapper.findAll('button').find((button) => button.text().includes('Create another vault'))!.trigger('click')
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('Create another vault'))!
+        .trigger('click')
 
       const input = wrapper.find('input[type="number"]')
       await input.setValue('123')
@@ -613,8 +627,18 @@ describe('HomeView', () => {
     it('makes loading the primary action and keeps deletion compact', async () => {
       vaultStore.vaults = [
         {
-          id: 'vault-1', number: 101, bottle_caps: 0, happiness: 100, power: 0, power_max: 100,
-          food: 0, food_max: 100, water: 0, water_max: 100, room_count: 0, dweller_count: 0,
+          id: 'vault-1',
+          number: 101,
+          bottle_caps: 0,
+          happiness: 100,
+          power: 0,
+          power_max: 100,
+          food: 0,
+          food_max: 100,
+          water: 0,
+          water_max: 100,
+          room_count: 0,
+          dweller_count: 0,
           updated_at: new Date().toISOString(),
         },
       ]

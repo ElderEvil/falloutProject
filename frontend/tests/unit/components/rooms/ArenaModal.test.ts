@@ -28,14 +28,70 @@ vi.mock('@/modules/dwellers/stores/dweller', () => ({
 }))
 
 const storeMock = vi.hoisted(() => {
-  const alpha = { id: 'a-1', name: 'Alpha Dweller', level: 10, health: 80, max_health: 100, power: 42, is_creature: false }
-  const bravo = { id: 'b-1', name: 'Bravo Dweller', level: 8, health: 90, max_health: 100, power: 35, is_creature: false }
-  const charlie = { id: 'c-1', name: 'Charlie Dweller', level: 7, health: 80, max_health: 100, power: 30, is_creature: false }
-  const delta = { id: 'd-1', name: 'Delta Dweller', level: 9, health: 70, max_health: 100, power: 33, is_creature: false }
-  const echo = { id: 'e-1', name: 'Echo Dweller', level: 6, health: 60, max_health: 100, power: 20, is_creature: false }
+  const alpha = {
+    id: 'a-1',
+    name: 'Alpha Dweller',
+    level: 10,
+    health: 80,
+    max_health: 100,
+    power: 42,
+    is_creature: false,
+  }
+  const bravo = {
+    id: 'b-1',
+    name: 'Bravo Dweller',
+    level: 8,
+    health: 90,
+    max_health: 100,
+    power: 35,
+    is_creature: false,
+  }
+  const charlie = {
+    id: 'c-1',
+    name: 'Charlie Dweller',
+    level: 7,
+    health: 80,
+    max_health: 100,
+    power: 30,
+    is_creature: false,
+  }
+  const delta = {
+    id: 'd-1',
+    name: 'Delta Dweller',
+    level: 9,
+    health: 70,
+    max_health: 100,
+    power: 33,
+    is_creature: false,
+  }
+  const echo = {
+    id: 'e-1',
+    name: 'Echo Dweller',
+    level: 6,
+    health: 60,
+    max_health: 100,
+    power: 20,
+    is_creature: false,
+  }
 
-  const radroach = { id: 'radroach-swarm#0', name: 'Radroach swarm', level: 0, health: 35, max_health: 35, power: 35, is_creature: true }
-  const deathclaw = { id: 'deathclaw#0', name: 'Deathclaw', level: 0, health: 120, max_health: 120, power: 120, is_creature: true }
+  const radroach = {
+    id: 'radroach-swarm#0',
+    name: 'Radroach swarm',
+    level: 0,
+    health: 35,
+    max_health: 35,
+    power: 35,
+    is_creature: true,
+  }
+  const deathclaw = {
+    id: 'deathclaw#0',
+    name: 'Deathclaw',
+    level: 0,
+    health: 120,
+    max_health: 120,
+    power: 120,
+    is_creature: true,
+  }
 
   const asRoster = (fighter: typeof alpha) => ({
     id: fighter.id,
@@ -48,7 +104,8 @@ const storeMock = vi.hoisted(() => {
   const readyRoom: ArenaRoomState = {
     room_id: 'room-1',
     room_name: 'Arena',
-    tier: 1,
+    tier: 3,
+    available_modes: ['duel', 'brawl', 'hunt'],
     mode: 'duel',
     fighter_a_id: 'a-1',
     fighter_b_id: 'b-1',
@@ -119,12 +176,30 @@ const openPicker = async (wrapper: VueWrapper, slotIndex: number) => {
 }
 
 const pickOption = async (slot: ReturnType<typeof slots>[number], name: string) => {
-  const option = slot.findAll('.picker-option').find((candidate) => candidate.text().includes(name))!
+  const option = slot
+    .findAll('.picker-option')
+    .find((candidate) => candidate.text().includes(name))!
   await option.trigger('click')
   await flushPromises()
 }
 
 describe('ArenaModal', () => {
+  it.each([
+    [1, ['duel'], true, true],
+    [2, ['duel', 'brawl'], false, true],
+    [3, ['duel', 'brawl', 'hunt'], false, false],
+  ] as const)(
+    'shows the server mode unlocks at tier %i',
+    async (tier, availableModes, brawlLocked, huntLocked) => {
+      storeMock.currentRoom = { ...storeMock.readyRoom, tier, available_modes: [...availableModes] }
+      const wrapper = mountModal()
+      await flushPromises()
+      expect(modeButton(wrapper, 'DUEL').attributes('disabled')).toBeUndefined()
+      expect(modeButton(wrapper, 'BRAWL').attributes('disabled') !== undefined).toBe(brawlLocked)
+      expect(modeButton(wrapper, 'HUNT').attributes('disabled') !== undefined).toBe(huntLocked)
+    }
+  )
+
   beforeEach(() => {
     setActivePinia(createPinia())
     storeMock.currentRoom = storeMock.readyRoom
@@ -183,7 +258,30 @@ describe('ArenaModal', () => {
     await flushPromises()
 
     expect(slots(wrapper)).toHaveLength(4)
-    expect(wrapper.findAll('.team-label').map((label) => label.text())).toEqual(['TEAM A', 'TEAM B'])
+    expect(wrapper.findAll('.team-label').map((label) => label.text())).toEqual([
+      'TEAM A',
+      'TEAM B',
+    ])
+    expect(storeMock.setFighters).not.toHaveBeenCalled()
+  })
+
+  it('keeps roster portraits on the bench and in pending brawl selections', async () => {
+    storeMock.currentRoom = {
+      ...storeMock.readyRoom,
+      roster: storeMock.readyRoom.roster.map((entry) => ({
+        ...entry,
+        thumbnail_url: `/static/portraits/${entry.id}.png`,
+      })),
+    }
+    const wrapper = mountModal()
+    await flushPromises()
+    expect(wrapper.get('.roster-chip img').attributes('src')).toContain('/static/portraits/c-1.png')
+    await modeButton(wrapper, 'BRAWL').trigger('click')
+    const picker = await openPicker(wrapper, 1)
+    await pickOption(picker, 'Charlie Dweller')
+    expect(slots(wrapper)[1].get('.fighter-portrait img').attributes('src')).toContain(
+      '/static/portraits/c-1.png'
+    )
     expect(storeMock.setFighters).not.toHaveBeenCalled()
   })
 
@@ -215,7 +313,10 @@ describe('ArenaModal', () => {
   })
 
   it('auto-fills the last empty brawl slot when one candidate remains', async () => {
-    storeMock.currentRoom = { ...storeMock.readyRoom, roster: storeMock.readyRoom.roster.slice(0, 4) }
+    storeMock.currentRoom = {
+      ...storeMock.readyRoom,
+      roster: storeMock.readyRoom.roster.slice(0, 4),
+    }
     const wrapper = mountModal()
     await flushPromises()
     await modeButton(wrapper, 'BRAWL').trigger('click')
@@ -257,7 +358,10 @@ describe('ArenaModal', () => {
     await flushPromises()
 
     expect(storeMock.fetchCreatures).toHaveBeenCalledWith('vault-1', 'test-token')
-    expect(wrapper.findAll('.team-label').map((label) => label.text())).toEqual(['TEAM A', 'CREATURES'])
+    expect(wrapper.findAll('.team-label').map((label) => label.text())).toEqual([
+      'TEAM A',
+      'CREATURES',
+    ])
     expect(slots(wrapper)).toHaveLength(2)
     expect(wrapper.findAll('.creature-slot')).toHaveLength(1)
     expect(wrapper.text()).toContain('+ ADD CREATURE')
@@ -295,17 +399,23 @@ describe('ArenaModal', () => {
     )
   })
 
-  it('renders hunted creatures on team B with a creature icon instead of a portrait', async () => {
+  it('renders hunted creatures on team B with matching artwork and live stats', async () => {
     storeMock.currentRoom = storeMock.huntRoom
     const wrapper = mountModal()
     await flushPromises()
 
-    expect(wrapper.findAll('.team-label').map((label) => label.text())).toEqual(['TEAM A', 'CREATURES'])
+    expect(wrapper.findAll('.team-label').map((label) => label.text())).toEqual([
+      'TEAM A',
+      'CREATURES',
+    ])
     const creature = wrapper.get('.creature-slot')
     expect(creature.text()).toContain('Radroach swarm')
     expect(creature.text()).toContain('POW 35')
     expect(creature.text()).toContain('35/35')
-    expect(creature.find('.creature-icon').exists()).toBe(true)
+    expect(creature.get('img').attributes('src')).toContain(
+      '/static/creature_images/assembled/radroach.webp'
+    )
+    expect(creature.get('img').attributes('alt')).toBe('Radroach swarm')
     expect(creature.find('.fighter-portrait').exists()).toBe(false)
     expect(wrapper.text()).toContain('READY')
     expect(wrapper.text()).toContain('START FIGHT')
@@ -339,7 +449,11 @@ describe('ArenaModal', () => {
   })
 
   it('shows the winner banner when a match is done', async () => {
-    storeMock.currentRoom = { ...storeMock.readyRoom, match_done: true, winner_name: 'Alpha Dweller' }
+    storeMock.currentRoom = {
+      ...storeMock.readyRoom,
+      match_done: true,
+      winner_name: 'Alpha Dweller',
+    }
     const wrapper = mountModal()
     await flushPromises()
 
@@ -347,11 +461,30 @@ describe('ArenaModal', () => {
     expect(wrapper.text()).toContain('Alpha Dweller wins')
   })
 
+  it.each(['hunt', 'brawl'])('credits the complete winning side in %s mode', async (mode) => {
+    storeMock.currentRoom = {
+      ...storeMock.readyRoom,
+      mode,
+      match_done: true,
+      winner_name: 'Alpha Dweller & Charlie Dweller',
+    }
+    const wrapper = mountModal()
+    await flushPromises()
+    expect(wrapper.get('.result-banner').text()).toBe(
+      'MATCH COMPLETE — Victory for Alpha Dweller & Charlie Dweller!'
+    )
+  })
+
   it('renders the battle journal oldest-first with round numbers and grouping', async () => {
     storeMock.currentRoom = {
       ...storeMock.readyRoom,
       events: [
-        { id: 'e4', round_seq: 4, kind: 'finish', message: 'Alpha Dweller defeated Bravo Dweller!' },
+        {
+          id: 'e4',
+          round_seq: 4,
+          kind: 'finish',
+          message: 'Alpha Dweller defeated Bravo Dweller!',
+        },
         { id: 'e3', round_seq: 3, kind: 'hit', message: 'Alpha Dweller hits Bravo Dweller for 5' },
         { id: 'e2', round_seq: 2, kind: 'hit', message: 'Alpha Dweller hits Bravo Dweller for 5' },
         { id: 'e1', round_seq: 1, kind: 'hit', message: 'Bravo Dweller hits Alpha Dweller for 3' },

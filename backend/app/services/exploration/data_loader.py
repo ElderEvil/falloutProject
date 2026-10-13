@@ -2,6 +2,7 @@
 
 import json
 from functools import lru_cache
+from operator import itemgetter
 from pathlib import Path
 
 from app.schemas.expedition import ExpeditionSiteList, SiteDefinition
@@ -28,18 +29,20 @@ def load_enemies() -> list[dict]:
 
 
 def _creature_key(name: str) -> str:
-    return name.strip().lower().replace(" ", "-")
+    return name.strip().lower().replace(".", "").replace(" ", "-")
 
 
 @lru_cache(maxsize=1)
 def list_arena_creatures() -> list[dict]:
-    """Arena-selectable creatures, derived from the enemy catalog (no parallel catalogue).
+    """Arena opponents reuse the enemy catalog, with training robots replacing raiders.
 
     Power reuses incident threat scaling; an incident threat of difficulty N is
     defeated by dealing ``raider_power(N)`` total damage, so that is its effective HP.
     """
+    enemies = [enemy for enemy in load_enemies() if _creature_key(enemy["name"]) != "raider-gang"]
+    enemies.extend([{"name": "Training Eyebot", "difficulty": 2}, {"name": "Training Mr. Handy", "difficulty": 3}])
     creatures: list[dict] = []
-    for enemy in load_enemies():
+    for enemy in sorted(enemies, key=itemgetter("difficulty")):
         power = incident_math.raider_power(enemy["difficulty"])
         creatures.append(
             {

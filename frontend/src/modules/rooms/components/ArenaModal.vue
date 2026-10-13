@@ -4,7 +4,12 @@ import { Icon } from '@iconify/vue'
 import { Alert, AlertTitle } from '@/core/components/ui/alert'
 import { Button } from '@/core/components/ui/button'
 import { Progress } from '@/core/components/ui/progress'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useToast } from '@/core/composables/useToast'
@@ -13,6 +18,7 @@ import ArenaFighterSlot from './ArenaFighterSlot.vue'
 import ArenaCreatureSlot from './ArenaCreatureSlot.vue'
 import BattleLog from './BattleLog.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
+import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { useArenaStore } from '../stores/arena'
 import { useDwellerMedicalStore } from '@/modules/dwellers/stores/dwellerMedical'
 import type { ArenaCreature, ArenaFighter, ArenaMode, ArenaRosterEntry } from '../api/arena'
@@ -162,15 +168,20 @@ const isDone = computed(() => roomState.value?.match_done ?? false)
 const canStart = computed(() => (roomState.value?.can_start ?? false) && !draftDirty.value)
 const isFighting = computed(() => (roomState.value?.fight_started ?? false) && !isDone.value)
 const canChangeFighters = computed(() => !isFighting.value)
+const availableModes = computed(() => roomState.value?.available_modes ?? [])
 const countdown = computed(() => roomState.value?.countdown_remaining ?? 0)
 
 const slotsFor = (side: ArenaTeamSide) => arenaSlotsFor(mode.value, side)
 const activeSlots = computed<ArenaSlotKey[]>(() => [...slotsFor('A'), ...slotsFor('B')])
 const needsLabel = computed(() =>
-  mode.value === 'hunt' ? 'NEEDS DWELLERS + CREATURES' : `NEEDS ${arenaTeamSize(mode.value) * 2} FIGHTERS`
+  mode.value === 'hunt'
+    ? 'NEEDS DWELLERS + CREATURES'
+    : `NEEDS ${arenaTeamSize(mode.value) * 2} FIGHTERS`
 )
 
-const creaturesByKey = computed(() => new Map(arenaStore.creatures.map((creature) => [creature.key, creature])))
+const creaturesByKey = computed(
+  () => new Map(arenaStore.creatures.map((creature) => [creature.key, creature]))
+)
 
 // Team B in hunt: local picks first so a pending draft stays visible, overlaid
 // with the server's live HP once a creature is confirmed.
@@ -234,11 +245,15 @@ const slotFighter = (slot: ArenaSlotKey): ArenaSlotFighter | null => {
     max_health: entry.max_health,
     power: null,
     is_creature: false,
+    image_url: entry.image_url,
+    thumbnail_url: entry.thumbnail_url,
   }
 }
 
 // Every dweller appears exactly once: on the stage (slots) or on the bench.
-const selectedIds = computed(() => new Set(Object.values(draft.value).filter((id): id is string => !!id)))
+const selectedIds = computed(
+  () => new Set(Object.values(draft.value).filter((id): id is string => !!id))
+)
 const bench = computed(() => roster.value.filter((entry) => !selectedIds.value.has(entry.id)))
 
 const pickerOptions = (slot: ArenaSlotKey) => {
@@ -289,7 +304,8 @@ const commitDraft = async () => {
 }
 
 const switchMode = (next: ArenaMode) => {
-  if (next === mode.value || !canChangeFighters.value) return
+  if (next === mode.value || !canChangeFighters.value || !availableModes.value.includes(next))
+    return
   mode.value = next
   openPicker.value = null
   creaturePickerOpen.value = false
@@ -314,7 +330,8 @@ const selectFighter = (slot: ArenaSlotKey, entry: ArenaRosterEntry) => {
   const emptySlots = activeSlots.value.filter((key) => !draft.value[key])
   const taken = new Set(Object.values(draft.value).filter((id): id is string => !!id))
   const remaining = roster.value.filter((candidate) => !taken.has(candidate.id))
-  if (emptySlots.length === 1 && remaining.length === 1) draft.value[emptySlots[0]] = remaining[0].id
+  if (emptySlots.length === 1 && remaining.length === 1)
+    draft.value[emptySlots[0]] = remaining[0].id
 
   draftDirty.value = true
   void commitDraft()
@@ -358,7 +375,9 @@ const unassign = async (entry: ArenaRosterEntry) => {
 // Post-battle conveniences: patch up the losers, clear the room for the next
 // match. Fighters under 50% HP are the ones a stimpack actually helps.
 const injuredFighters = computed(() =>
-  teamFighters.value.filter((fighter) => fighter.max_health > 0 && fighter.health / fighter.max_health < 0.5)
+  teamFighters.value.filter(
+    (fighter) => fighter.max_health > 0 && fighter.health / fighter.max_health < 0.5
+  )
 )
 
 const isHealing = ref(false)
@@ -427,7 +446,8 @@ const HP_FILL_COLOR: Record<string, string> = {
   'hp-critical': 'var(--color-danger)',
 }
 
-const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?? HP_FILL_COLOR['hp-healthy']!
+const hpFillColor = (entry: ArenaRosterEntry) =>
+  HP_FILL_COLOR[hpClass(entry)] ?? HP_FILL_COLOR['hp-healthy']!
 </script>
 
 <template>
@@ -436,7 +456,9 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
       <Icon icon="mdi:sword-cross" class="arena-header-icon" />
       <div>
         <h2 class="arena-title">ARENA</h2>
-        <p class="arena-subtitle">{{ roomState?.room_name ?? 'Arena' }} &middot; Tier {{ roomState?.tier ?? 1 }}</p>
+        <p class="arena-subtitle">
+          {{ roomState?.room_name ?? 'Arena' }} &middot; Tier {{ roomState?.tier ?? 1 }}
+        </p>
       </div>
       <span class="arena-badge" :class="{ ready: canStart, done: isDone }">
         {{ isDone ? 'DONE' : canStart ? 'READY' : needsLabel }}
@@ -465,7 +487,12 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
               :key="option.value"
               :variant="mode === option.value ? 'default' : 'secondary'"
               size="sm"
-              :disabled="!canChangeFighters"
+              :disabled="!canChangeFighters || !availableModes.includes(option.value)"
+              :title="
+                availableModes.includes(option.value)
+                  ? undefined
+                  : 'Upgrade the Arena to unlock this mode'
+              "
               :aria-pressed="mode === option.value"
               @click="switchMode(option.value)"
             >
@@ -473,6 +500,12 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
             </Button>
           </div>
         </div>
+        <p
+          v-if="roomState && availableModes.length < MODE_OPTIONS.length"
+          class="mb-3 text-xs text-gray-400"
+        >
+          Tier 2 unlocks Brawl. Tier 3 unlocks Hunt.
+        </p>
         <div class="teams-row">
           <div class="team">
             <span v-if="mode !== 'duel'" class="team-label">TEAM A</span>
@@ -502,7 +535,9 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
           </div>
 
           <div class="team">
-            <span v-if="mode !== 'duel'" class="team-label">{{ mode === 'hunt' ? 'CREATURES' : 'TEAM B' }}</span>
+            <span v-if="mode !== 'duel'" class="team-label">{{
+              mode === 'hunt' ? 'CREATURES' : 'TEAM B'
+            }}</span>
             <template v-if="mode === 'hunt'">
               <ArenaCreatureSlot
                 v-for="(slot, index) in creatureSlots"
@@ -541,17 +576,28 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
           Bench
         </h3>
         <div class="roster-chips">
-          <div v-for="entry in bench" :key="entry.id" class="roster-chip" :title="`HP ${entry.health}/${entry.max_health}`">
+          <div
+            v-for="entry in bench"
+            :key="entry.id"
+            class="roster-chip"
+            :title="`HP ${entry.health}/${entry.max_health}`"
+          >
             <div class="roster-chip-main">
+              <DwellerPortrait
+                :image-url="entry.image_url"
+                :thumbnail-url="entry.thumbnail_url"
+                :alt="entry.name"
+                prefer-thumbnail
+                image-class="h-8 w-8 shrink-0 rounded-full object-cover"
+                fallback-class="h-8 w-8 text-theme-primary"
+              />
               <span class="roster-name">{{ entry.name }}</span>
-              <span class="roster-hp" :class="hpClass(entry)">{{ entry.health }}/{{ entry.max_health }}</span>
+              <span class="roster-hp" :class="hpClass(entry)"
+                >{{ entry.health }}/{{ entry.max_health }}</span
+              >
             </div>
             <div class="roster-hp-bar">
-              <Progress
-                :model-value="hpPercent(entry)"
-                class="h-1"
-                :fill="hpFillColor(entry)"
-              />
+              <Progress :model-value="hpPercent(entry)" class="h-1" :fill="hpFillColor(entry)" />
             </div>
             <TooltipProvider v-if="!isFighting" :delay-duration="200">
               <Tooltip>
@@ -576,17 +622,13 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
       <!-- Match result -->
       <div v-if="winnerName" class="result-banner finished">
         <Icon icon="mdi:trophy" class="result-icon" />
-        <span>MATCH COMPLETE &mdash; {{ winnerName }} wins!</span>
+        <span v-if="roomState?.mode === 'duel'">MATCH COMPLETE &mdash; {{ winnerName }} wins!</span>
+        <span v-else>MATCH COMPLETE &mdash; Victory for {{ winnerName }}!</span>
       </div>
 
       <!-- Post-battle actions -->
       <div v-if="isDone && injuredFighters.length" class="post-battle-actions">
-        <Button
-          variant="secondary"
-          size="sm"
-          :disabled="isHealing"
-          @click="healInjured"
-        >
+        <Button variant="secondary" size="sm" :disabled="isHealing" @click="healInjured">
           <Icon v-if="isHealing" icon="mdi:loading" class="action-icon animate-spin" />
           <Icon v-else icon="mdi:medication" class="action-icon" />
           HEAL INJURED ({{ injuredFighters.length }})
@@ -609,7 +651,9 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
             <Icon icon="mdi:clipboard-text-clock-outline" class="section-title-icon" />
             Battle Journal
           </h3>
-          <Button v-if="roomState?.events.length" variant="ghost" size="xs" @click="clearJournal">CLEAR</Button>
+          <Button v-if="roomState?.events.length" variant="ghost" size="xs" @click="clearJournal"
+            >CLEAR</Button
+          >
         </div>
         <BattleLog :entries="journalEntries" empty-text="No rounds fought yet." />
       </div>
@@ -617,13 +661,11 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
       <div class="arena-note">
         <Icon icon="mdi:information-outline" class="note-icon" />
         <span>
-          Assign adult dwellers to the Arena room, pick the fighters for each
-          side, then press START FIGHT. The winners gain happiness and XP, the
-          losers lose happiness and are left standing at 1 HP. Change the
-          fighters to start a new match.
+          Assign adult dwellers to the Arena room, pick the fighters for each side, then press START
+          FIGHT. The winners gain happiness and XP, the losers lose happiness and are left standing
+          at 1 HP. Change the fighters to start a new match.
         </span>
       </div>
-
     </div>
   </div>
 </template>
@@ -823,7 +865,9 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
 
 .countdown-pop-enter-active,
 .countdown-pop-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
 }
 
 .countdown-pop-enter-from {
@@ -921,5 +965,4 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
   flex-shrink: 0;
   color: var(--color-theme-primary);
 }
-
 </style>

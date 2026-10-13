@@ -17,6 +17,7 @@ const mockRoom: ArenaRoomState = {
   room_name: 'Arena',
   tier: 1,
   mode: 'duel',
+  available_modes: ['duel'],
   fighter_a_id: null,
   fighter_b_id: null,
   fighters: [],
@@ -180,10 +181,21 @@ describe('Arena Store', () => {
     [
       'setFighters',
       (store: ReturnType<typeof useArenaStore>) =>
-        store.setFighters('vault-1', 'room-1', { mode: 'duel', fighterAId: 'a-1', fighterBId: 'b-1' }, 'token'),
+        store.setFighters(
+          'vault-1',
+          'room-1',
+          { mode: 'duel', fighterAId: 'a-1', fighterBId: 'b-1' },
+          'token'
+        ),
     ],
-    ['startFight', (store: ReturnType<typeof useArenaStore>) => store.startFight('vault-1', 'room-1', 'token')],
-    ['clearEvents', (store: ReturnType<typeof useArenaStore>) => store.clearEvents('vault-1', 'room-1', 'token')],
+    [
+      'startFight',
+      (store: ReturnType<typeof useArenaStore>) => store.startFight('vault-1', 'room-1', 'token'),
+    ],
+    [
+      'clearEvents',
+      (store: ReturnType<typeof useArenaStore>) => store.clearEvents('vault-1', 'room-1', 'token'),
+    ],
   ] as const)('returns false when the state refresh fails after %s', async (_name, action) => {
     vi.mocked(arenaApi.fetchState).mockResolvedValue(mockState)
     const store = useArenaStore()

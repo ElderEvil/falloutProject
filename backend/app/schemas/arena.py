@@ -35,6 +35,8 @@ class ArenaFighter(BaseModel):
     max_health: int
     power: float
     is_creature: bool = False
+    image_url: str | None = None
+    thumbnail_url: str | None = None
 
 
 class ArenaRosterEntry(BaseModel):
@@ -45,6 +47,8 @@ class ArenaRosterEntry(BaseModel):
     level: int
     health: int
     max_health: int
+    image_url: str | None = None
+    thumbnail_url: str | None = None
 
 
 class ArenaMatchEventOut(BaseModel):
@@ -63,6 +67,7 @@ class ArenaRoomState(BaseModel):
     room_name: str
     tier: int
     mode: str
+    available_modes: list[ArenaMode]
     fighter_a_id: str | None
     fighter_b_id: str | None
     fighters: list[ArenaFighter]

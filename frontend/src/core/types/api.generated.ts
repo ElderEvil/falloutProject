@@ -5145,6 +5145,10 @@ export interface components {
              * @default false
              */
             is_creature: boolean;
+            /** Image Url */
+            image_url?: string | null;
+            /** Thumbnail Url */
+            thumbnail_url?: string | null;
         };
         /**
          * ArenaFightersRequest
@@ -5208,6 +5212,8 @@ export interface components {
             tier: number;
             /** Mode */
             mode: string;
+            /** Available Modes */
+            available_modes: components["schemas"]["ArenaMode"][];
             /** Fighter A Id */
             fighter_a_id: string | null;
             /** Fighter B Id */
@@ -5250,6 +5256,10 @@ export interface components {
             health: number;
             /** Max Health */
             max_health: number;
+            /** Image Url */
+            image_url?: string | null;
+            /** Thumbnail Url */
+            thumbnail_url?: string | null;
         };
         /**
          * ArenaState

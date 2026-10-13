@@ -3,9 +3,15 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import { Progress } from '@/core/components/ui/progress'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import type { ArenaRosterEntry } from '../api/arena'
 import type { ArenaSlotFighter, ArenaSlotKey } from '../models/arena'
+import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 
 interface Props {
   side: ArenaSlotKey
@@ -24,7 +30,9 @@ const emit = defineEmits<{
   select: [side: ArenaSlotKey, entry: ArenaRosterEntry]
 }>()
 
-const powerLabel = computed(() => (props.fighter?.power != null ? Math.round(props.fighter.power) : null))
+const powerLabel = computed(() =>
+  props.fighter?.power != null ? Math.round(props.fighter.power) : null
+)
 
 const healthPercent = (f: ArenaSlotFighter | null) =>
   f ? Math.round((f.health / Math.max(1, f.max_health)) * 100) : 0
@@ -38,12 +46,12 @@ const healthPercent = (f: ArenaSlotFighter | null) =>
           <TooltipTrigger as-child>
             <Button
               class="slot-clear"
-              size="icon-sm"
-              variant="ghost"
+              size="icon-lg"
+              variant="destructive"
               aria-label="Clear fighter"
               @click="emit('clear', side)"
             >
-              <Icon icon="mdi:close" class="h-4 w-4 text-danger" />
+              <Icon icon="mdi:close" class="size-5 text-danger" />
             </Button>
           </TooltipTrigger>
           <TooltipContent>Clear fighter</TooltipContent>
@@ -52,7 +60,16 @@ const healthPercent = (f: ArenaSlotFighter | null) =>
       <div class="damage-layer">
         <span v-for="d in damageNumbers" :key="d.id" class="damage-number">-{{ d.amount }}</span>
       </div>
-      <div class="fighter-portrait">{{ fighter.name[0] }}</div>
+      <div class="fighter-portrait">
+        <DwellerPortrait
+          :image-url="fighter.image_url"
+          :thumbnail-url="fighter.thumbnail_url"
+          :alt="fighter.name"
+          prefer-thumbnail
+          image-class="h-full w-full rounded-full object-cover"
+          fallback-class="h-8 w-8 text-theme-primary"
+        />
+      </div>
       <div class="fighter-name">{{ fighter.name }}</div>
       <div class="fighter-meta">
         Lv {{ fighter.level }}
@@ -62,17 +79,37 @@ const healthPercent = (f: ArenaSlotFighter | null) =>
         <Progress :model-value="healthPercent(fighter)" class="h-2.5" />
       </div>
       <div class="hp-text">{{ fighter.health }}/{{ fighter.max_health }}</div>
-      <Button v-if="canChange" variant="ghost" size="xs" @click="emit('togglePicker', side)">SWAP</Button>
+      <Button v-if="canChange" variant="ghost" size="xs" @click="emit('togglePicker', side)"
+        >SWAP</Button
+      >
     </div>
     <button v-else class="fighter-slot-empty" type="button" @click="emit('togglePicker', side)">
       <span>+ PICK FIGHTER</span>
     </button>
     <div v-if="pickerOpen && canChange" class="picker">
-      <button v-for="entry in options" :key="entry.id" class="picker-option" type="button" @click="emit('select', side, entry)">
-        <span class="picker-name">{{ entry.name }}</span>
-        <span class="picker-meta">Lv {{ entry.level }} &middot; {{ entry.health }} HP</span>
+      <button
+        v-for="entry in options"
+        :key="entry.id"
+        class="picker-option"
+        type="button"
+        @click="emit('select', side, entry)"
+      >
+        <DwellerPortrait
+          :image-url="entry.image_url"
+          :thumbnail-url="entry.thumbnail_url"
+          :alt="entry.name"
+          prefer-thumbnail
+          image-class="h-8 w-8 shrink-0 rounded-full object-cover"
+          fallback-class="h-8 w-8 text-theme-primary"
+        />
+        <span class="flex min-w-0 flex-col">
+          <span class="picker-name">{{ entry.name }}</span>
+          <span class="picker-meta">Lv {{ entry.level }} &middot; {{ entry.health }} HP</span>
+        </span>
       </button>
-      <div v-if="!options.length" class="picker-empty">No available adults &mdash; assign dwellers to the Arena first.</div>
+      <div v-if="!options.length" class="picker-empty">
+        No available adults &mdash; assign dwellers to the Arena first.
+      </div>
     </div>
   </div>
 </template>
@@ -129,8 +166,9 @@ const healthPercent = (f: ArenaSlotFighter | null) =>
 
 .picker-option {
   display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
   width: 100%;
   border: 0;
   background: transparent;
@@ -165,7 +203,7 @@ const healthPercent = (f: ArenaSlotFighter | null) =>
   flex-direction: column;
   align-items: center;
   gap: 0.35rem;
-  padding: 1rem;
+  padding: 3.25rem 1rem 1rem;
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-surface-hover);
   border-radius: 8px;

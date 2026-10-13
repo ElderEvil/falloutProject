@@ -43,6 +43,8 @@ logger = logging.getLogger(__name__)
 
 HAPPINESS_WIN = 10
 HAPPINESS_LOSE = 10
+MODE_UNLOCK_TIERS = {ArenaMode.DUEL: 1, ArenaMode.BRAWL: 2, ArenaMode.HUNT: 3}
+TEAM_LABELS = {ArenaMode.BRAWL: ("Team A", "Team B"), ArenaMode.HUNT: ("Dwellers", "Creatures")}
 
 
 @dataclass
@@ -60,7 +62,7 @@ class ArenaParticipant:
 def participant_from_dweller(dweller: Dweller) -> ArenaParticipant:
     return ArenaParticipant(
         key=str(dweller.id),
-        name=f"{dweller.first_name} {dweller.last_name}",
+        name=dweller.display_name,
         short_name=dweller.first_name,
         power=combat_power(dweller),
         health=dweller.health,
@@ -79,6 +81,12 @@ class ArenaService:
         # (room_id, dweller_id) -> fractional damage carried between ticks so a
         # 8.7 vs 8.0 power difference shows up instead of truncating both to 8.
         self._damage_carry: dict[tuple[str, str], float] = {}
+
+    @staticmethod
+    def _validate_mode_tier(room: Room, mode: ArenaMode) -> None:
+        required_tier = MODE_UNLOCK_TIERS[mode]
+        if room.tier < required_tier:
+            raise ValidationException(detail=f"{mode.value.capitalize()} requires Arena tier {required_tier}")
 
     async def _get_arena_room(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> Room:
         rooms = await room_crud.get_arena_rooms(db_session, room_id=room_id, vault_id=vault_id)
@@ -148,7 +156,7 @@ class ArenaService:
         healed.
         """
         room = await self._get_arena_room(db_session, room_id, vault_id)
-
+        self._validate_mode_tier(room, mode)
         opponents: list[dict] | None = None
         if mode == ArenaMode.HUNT:
             if fighter_b_id is not None or fighter_d_id is not None:
@@ -267,11 +275,23 @@ class ArenaService:
         return list_arena_creatures()
 
     @staticmethod
-    def _winner_from_events(events: list[ArenaMatchEventOut]) -> str | None:
-        """Return the match winner from the newest finish event, if any."""
+    def _winner_from_events(
+        events: list[ArenaMatchEventOut],
+        mode: ArenaMode,
+        team_a: list[ArenaParticipant],
+        team_b: list[ArenaParticipant],
+    ) -> str | None:
+        """Credit the full winning side, including unambiguous legacy representative results."""
         for event in reversed(events):
             if event.kind == "finish":
-                return event.message.split(" defeated ")[0]
+                winner = event.message.split(" defeated ")[0]
+                if mode not in TEAM_LABELS:
+                    return winner
+                teams = list(zip(TEAM_LABELS[mode], (team_a, team_b), strict=True))
+                matched = [team for label, team in teams if label == winner]
+                if not matched:
+                    matched = [team for _, team in teams if any(winner in (p.name, p.short_name) for p in team)]
+                return " & ".join(p.name for p in matched[0]) if len(matched) == 1 else winner
         return None
 
     @staticmethod
@@ -284,6 +304,8 @@ class ArenaService:
             max_health=participant.max_health,
             power=participant.power,
             is_creature=participant.is_creature,
+            image_url=participant.dweller.image_url if participant.dweller else None,
+            thumbnail_url=participant.dweller.thumbnail_url if participant.dweller else None,
         )
 
     @staticmethod
@@ -310,6 +332,8 @@ class ArenaService:
         state = []
         for room in rooms:
             mode = room.arena_mode or ArenaMode.DUEL
+            available_modes = [choice for choice, tier in MODE_UNLOCK_TIERS.items() if room.tier >= tier]
+            mode_unlocked = mode in available_modes
             size = self._required_team_size(mode)
             team_a, team_b = await self.get_teams(db_session, room)
             roster = await self.get_roster(db_session, room)
@@ -330,7 +354,7 @@ class ArenaService:
                 )
                 for e in reversed(await arena_match_event_crud.get_recent_by_room(db_session, room.id))
             ]
-            winner_name = self._winner_from_events(events)
+            winner_name = self._winner_from_events(events, mode, team_a, team_b)
 
             state.append(
                 ArenaRoomState(
@@ -338,6 +362,7 @@ class ArenaService:
                     room_name=room.name,
                     tier=room.tier,
                     mode=mode.value,
+                    available_modes=available_modes,
                     fighter_a_id=str(room.arena_fighter_a_id) if room.arena_fighter_a_id else None,
                     fighter_b_id=str(room.arena_fighter_b_id) if room.arena_fighter_b_id else None,
                     fighters=[self._participant_out(team[0]) for team in (team_a, team_b) if team],
@@ -346,18 +371,22 @@ class ArenaService:
                     roster=[
                         ArenaRosterEntry(
                             id=str(d.id),
-                            name=f"{d.first_name} {d.last_name}",
+                            name=d.display_name,
                             level=d.level,
                             health=d.health,
                             max_health=d.effective_max_health,
+                            image_url=d.image_url,
+                            thumbnail_url=d.thumbnail_url,
                         )
                         for d in roster
                     ],
-                    fight_ready=len(roster) >= 1 if mode == ArenaMode.HUNT else len(roster) >= size * 2,
+                    fight_ready=mode_unlocked
+                    and (len(roster) >= 1 if mode == ArenaMode.HUNT else len(roster) >= size * 2),
                     match_done=match_done,
                     fight_started=started,
                     countdown_remaining=countdown_remaining,
-                    can_start=self._can_start(mode, team_a, team_b, started=started, match_done=match_done),
+                    can_start=mode_unlocked
+                    and self._can_start(mode, team_a, team_b, started=started, match_done=match_done),
                     winner_name=winner_name,
                     events=events,
                 )
@@ -413,6 +442,7 @@ class ArenaService:
         The first combat tick lands after the countdown grace period.
         """
         room = await self._get_arena_room(db_session, room_id, vault_id)
+        self._validate_mode_tier(room, room.arena_mode or ArenaMode.DUEL)
         if room.arena_last_fight_at is not None:
             raise ValidationException(detail="Match is over - pick fighters again to start a new one")
         if room.arena_fight_started_at is not None:
@@ -614,6 +644,9 @@ class ArenaService:
 
         winner = self._representative(winner_team)
         loser = self._representative(loser_team)
+        labels = TEAM_LABELS.get(room.arena_mode or ArenaMode.DUEL)
+        winner_label = labels[0 if winner_team is team_a else 1] if labels else winner.short_name
+        loser_label = labels[0 if loser_team is team_a else 1] if labels else loser.short_name
         room.arena_last_fight_at = datetime.utcnow()
         db_session.add(room)
 
@@ -635,7 +668,7 @@ class ArenaService:
                 room_id=room.id,
                 round_seq=seq,
                 kind="finish",
-                message=f"{winner.short_name} defeated {loser.short_name}!",
+                message=f"{winner_label} defeated {loser_label}!",
             )
         )
         db_session.add(
@@ -643,8 +676,10 @@ class ArenaService:
                 room_id=room.id,
                 round_seq=seq,
                 kind="reward",
-                message=(
-                    f"{winner.short_name} happiness +{HAPPINESS_WIN}, {loser.short_name} happiness -{HAPPINESS_LOSE}"
+                message=", ".join(
+                    f"{' & '.join(p.short_name for p in team if p.dweller)} happiness {change:+d}"
+                    for team, change in [(winner_team, HAPPINESS_WIN), (loser_team, -HAPPINESS_LOSE)]
+                    if any(p.dweller for p in team)
                 ),
             )
         )

@@ -223,7 +223,7 @@ describe('DwellerCard', () => {
       const labels = actionLabels(wrapper)
       expect(labels).toContain('Recall')
       expect(wrapper.find('.actions-container').element.children).toHaveLength(2)
-      expect(labels).not.toContain('Assign')
+      expect(labels).not.toContain('Choose room')
       expect(labels).not.toContain('Wasteland')
       expect(labels).not.toContain('Train')
     })
@@ -271,7 +271,7 @@ describe('DwellerCard', () => {
       const labels = actionLabels(wrapper)
       expect(labels).toContain('Chat')
       expect(wrapper.find('.actions-container').element.children).toHaveLength(1)
-      expect(labels).not.toContain('Assign')
+      expect(labels).not.toContain('Choose room')
       expect(labels).not.toContain('Wasteland')
       expect(labels).not.toContain('Train')
     })
@@ -285,7 +285,7 @@ describe('DwellerCard', () => {
       })
 
       const labels = actionLabels(wrapper)
-      expect(labels).not.toContain('Assign')
+      expect(labels).not.toContain('Choose room')
       expect(labels).not.toContain('Wasteland')
       expect(labels).not.toContain('Train')
     })
@@ -388,7 +388,9 @@ describe('DwellerCard', () => {
         },
       })
 
-      const assignButton = wrapper.findAll('button').find((btn) => btn.text().includes('Assign'))
+      const assignButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text().includes('Choose room'))
 
       expect(assignButton).toBeDefined()
       await assignButton!.trigger('click')
@@ -652,7 +654,7 @@ describe('DwellerCard', () => {
         },
       })
 
-      expect(actionLabels(wrapper)).toContain('Assign')
+      expect(actionLabels(wrapper)).toContain('Choose room')
       expect(actionLabels(wrapper)).not.toContain('Unassign')
     })
 
@@ -665,7 +667,7 @@ describe('DwellerCard', () => {
       })
 
       expect(actionLabels(wrapper)).toContain('Unassign')
-      expect(actionLabels(wrapper)).not.toContain('Assign')
+      expect(actionLabels(wrapper)).not.toContain('Choose room')
     })
 
     it('labels the assign action as an apprenticeship for youth', () => {
@@ -677,8 +679,8 @@ describe('DwellerCard', () => {
         },
       })
 
-      expect(actionLabels(wrapper)).toContain('Apprentice')
-      expect(actionLabels(wrapper)).not.toContain('Assign')
+      expect(actionLabels(wrapper)).toContain('Choose apprentice room')
+      expect(actionLabels(wrapper)).not.toContain('Choose room')
     })
   })
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, provide } from 'vue'
+import { computed, defineAsyncComponent, provide, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import BackButton from '@/core/components/common/BackButton.vue'
@@ -34,6 +34,8 @@ const ExplorationDurationModal = defineAsyncComponent({
   timeout: 10000,
 })
 
+const RoomAssignmentModal = defineAsyncComponent(() => import('./modals/RoomAssignmentModal.vue'))
+const assignmentOpen = ref(false)
 const route = useRoute()
 
 // The full-page detail route carries the dweller id as :dwellerId.
@@ -71,7 +73,15 @@ const wastelandModalOpen = ctx.wastelandModalOpen
       <BackButton label="Back to Dwellers" @click="ctx.actions.onBack()" />
     </div>
 
-    <DwellerDetailPane v-else />
+    <DwellerDetailPane v-else @choose-room="assignmentOpen = true" />
+
+    <RoomAssignmentModal
+      v-if="dweller && assignmentOpen"
+      v-model:open="assignmentOpen"
+      :dweller="dweller"
+      :vault-id="vaultId"
+      @assigned="ctx.actions.refresh()"
+    />
 
     <DwellerAppearanceEditor
       v-if="dweller"
@@ -106,18 +116,13 @@ const wastelandModalOpen = ctx.wastelandModalOpen
       @select-heading="ctx.actions.setWastelandHeading"
     />
 
-    <TerminalModal
-      v-model:open="renameDialogOpen"
-      title="Rename Dweller"
-      size="sm"
-      max-height="60"
-    >
-        <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
-          <Label for="rename-dweller" class="mb-1 block text-sm font-medium text-theme-primary/70">
-            First name
-          </Label>
-          <Input id="rename-dweller" v-model="renameDialogName" placeholder="Dweller name" />
-        </div>
+    <TerminalModal v-model:open="renameDialogOpen" title="Rename Dweller" size="sm" max-height="60">
+      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+        <Label for="rename-dweller" class="mb-1 block text-sm font-medium text-theme-primary/70">
+          First name
+        </Label>
+        <Input id="rename-dweller" v-model="renameDialogName" placeholder="Dweller name" />
+      </div>
       <template #footer>
         <Button variant="secondary" @click="renameDialogOpen = false">Cancel</Button>
         <Button
@@ -136,18 +141,16 @@ const wastelandModalOpen = ctx.wastelandModalOpen
       size="sm"
       max-height="60"
     >
-        <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
-          <p class="soft-delete-text">
-            Soft-delete <strong>{{ getDwellerDisplayName(dweller) }}</strong
-            >? They will leave the vault and become tradable at the Trading Post. You can restore
-            them later while they remain listed.
-          </p>
-        </div>
+      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+        <p class="soft-delete-text">
+          Soft-delete <strong>{{ getDwellerDisplayName(dweller) }}</strong
+          >? They will leave the vault and become tradable at the Trading Post. You can restore them
+          later while they remain listed.
+        </p>
+      </div>
       <template #footer>
         <Button variant="secondary" @click="softDeleteDialogOpen = false">Cancel</Button>
-        <Button variant="destructive" @click="ctx.actions.confirmSoftDelete()"
-          >Soft-delete</Button
-        >
+        <Button variant="destructive" @click="ctx.actions.confirmSoftDelete()">Soft-delete</Button>
       </template>
     </TerminalModal>
   </div>

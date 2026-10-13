@@ -2,7 +2,12 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { isMature } from '../../models/dweller'
@@ -64,13 +69,13 @@ const exploreTooltip = computed(() =>
               :icon="isMatureDweller ? 'mdi:office-building' : 'mdi:school-outline'"
               class="h-5 w-5 mr-2"
             />
-            {{ isMatureDweller ? 'Assign' : 'Apprentice' }}
+            {{ isMatureDweller ? 'Choose room' : 'Choose apprentice room' }}
           </Button>
         </TooltipTrigger>
         <TooltipContent side="top">{{
           isMatureDweller
-            ? 'Assign to the best matching room'
-            : 'Assign as an apprentice in a production room'
+            ? 'Compare production rooms before assigning'
+            : 'Compare production rooms before assigning an apprentice'
         }}</TooltipContent>
       </Tooltip>
 

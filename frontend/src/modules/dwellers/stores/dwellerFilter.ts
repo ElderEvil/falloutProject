@@ -436,7 +436,11 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
    * Fetch ALL dwellers for a vault without any filters (for dashboard aggregates).
    * Populates the allDwellers ref without touching the filtered dwellers list.
    */
-  async function fetchAllDwellers(vaultId: string, token: string): Promise<void> {
+  async function fetchAllDwellers(
+    vaultId: string,
+    token: string,
+    throwOnError = false
+  ): Promise<void> {
     allDwellers.value = []
     allDwellersVaultId = vaultId
     const requestSeq = ++allDwellersRequestSeq
@@ -459,6 +463,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       }
     } catch (error) {
       handleStoreError(error, `Failed to fetch all dwellers for vault ${vaultId}`)
+      if (throwOnError) throw error
     }
   }
 

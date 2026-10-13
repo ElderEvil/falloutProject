@@ -669,7 +669,9 @@
     "name": "The Quiet Zone",
     "kind": "place",
     "description": "A chain of rusted fences around an abandoned industrial complex. Scavengers insist the air bends after radstorms and that shiny things appear where nobody left them. Engineers insist the scavengers drink too much.",
-    "roles": ["visited"],
+    "roles": [
+      "visited"
+    ],
     "group": "exclusion_zone"
   },
   {
@@ -798,5 +800,32 @@
       "visited"
     ],
     "group": "landmark"
+  },
+  {
+    "name": "The Outlook Station",
+    "kind": "place",
+    "description": "Two monitors show the same blue sky with incompatible timestamps. A sealed cleaning kit holds an exterior lens cloth, clearance suit patch, and optics checklist. The Lens Wipe roster calls the work voluntary; the Exterior Clearance Detail form calls it mandatory. One technician blames a training reel. Another claims the cameras are live.",
+    "roles": [
+      "visited"
+    ],
+    "group": "observation_facility"
+  },
+  {
+    "name": "The Mile-Deep Shelter",
+    "kind": "place",
+    "description": "Administrators lived above, residents in the middle, and machinery workers below. Fragments of The Continuity Compact contradict one another: revision six promises a right to leave; revision seven says that right was always a printing error. A clearance suit patch bears a return stamp that nobody can explain.",
+    "roles": [
+      "visited"
+    ],
+    "group": "vertical_refuge"
+  },
+  {
+    "name": "The Heartworks",
+    "kind": "place",
+    "description": "The generator chamber beneath the Mile-Deep Shelter lists workers absent from every resident roll. A Department-Issue Heat Tape spool, also labeled Thermal Seal Tape, lies beside a replacement notice: efficiency approved, specifications sealed. One Compact fragment says the plant must never stop; another says it stopped years ago. A cleaning kit remains sealed beside an unsigned shift log.",
+    "roles": [
+      "visited"
+    ],
+    "group": "power"
   }
 ]

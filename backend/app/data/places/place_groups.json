@@ -114,7 +114,7 @@
     "label": "Entertainment",
     "icon": "mdi:ferris-wheel",
     "risk": "low",
-    "description": "Theatres, parks, and drive-ins — the old world's amusements, now quieter.",
+    "description": "Theatres, parks, and drive-ins \u2014 the old world's amusements, now quieter.",
     "clearable": true,
     "reclear_hours": 168,
     "loot_table": "low",
@@ -147,7 +147,7 @@
     "label": "Ruins",
     "icon": "mdi:wall",
     "risk": "medium",
-    "description": "A settlement that did not make it — bones of a town, loot for whoever braves them.",
+    "description": "A settlement that did not make it \u2014 bones of a town, loot for whoever braves them.",
     "clearable": true,
     "reclear_hours": 168,
     "loot_table": "medium",
@@ -185,5 +185,27 @@
     "reclear_hours": 168,
     "loot_table": "low",
     "base_difficulty": 2
+  },
+  {
+    "key": "observation_facility",
+    "label": "Observation Facility",
+    "icon": "mdi:monitor-eye",
+    "risk": "medium",
+    "description": "A sealed observation post whose exterior camera records disagree. The Department of Exterior Continuity calls every discrepancy scheduled maintenance.",
+    "clearable": true,
+    "reclear_hours": 168,
+    "loot_table": "medium",
+    "base_difficulty": 3
+  },
+  {
+    "key": "vertical_refuge",
+    "label": "Vertical Refuge",
+    "icon": "mdi:office-building",
+    "risk": "medium",
+    "description": "A deep shelter arranged by rank: administrators above, residents between, and machinery workers beneath the resident rolls.",
+    "clearable": true,
+    "reclear_hours": 168,
+    "loot_table": "medium",
+    "base_difficulty": 3
   }
 ]

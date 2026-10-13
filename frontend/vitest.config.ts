@@ -29,6 +29,12 @@ export default mergeConfig(
           'src/main.ts',
           'src/modules/trading/**',
         ],
+        thresholds: {
+          statements: 76,
+          branches: 69,
+          functions: 70,
+          lines: 77,
+        },
       },
     },
   })

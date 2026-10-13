@@ -2,6 +2,12 @@
 
 Date: 2026-10-13
 
+> **Status: pre-implementation snapshot.** The findings, counts, and recommendations
+> below are the review as written, before any change (see its own "Validation and
+> limitations"). PR #980 subsequently implemented part of this plan — see
+> "Implementation outcome (PR #980)" for the measured results and which
+> recommendations were implemented or deferred.
+
 ## Summary
 
 The suite provides useful protection, but has accidental complexity in shared fixtures and repeated test scaffolding. Optimize setup first, consolidate proven duplicate scenarios second, and avoid broad test deletion.
@@ -35,7 +41,7 @@ Scores concern each test's additional protection, not the importance of its feat
 
 ### HTTP tests unnecessarily create a superuser
 
-In `backend/app/tests/conftest.py:148`, `async_client` depends on `superuser`. Even anonymous-request tests therefore create a database user through CRUD and hash its password.
+In `backend/app/tests/conftest.py:148`, `async_client` depends on `superuser`, so any test that uses the client resolves it — including tests that only make anonymous requests. In a fresh per-test session the superuser does not exist, so the fixture creates it through CRUD and bcrypt-hashes its password once for that test.
 
 The targeted timing run showed:
 
@@ -207,3 +213,19 @@ Existing coverage data:
 That historical report cannot substantiate a current overlap ranking. No full-suite benchmark, coverage-shadow analysis, or deletion experiment was run. The review made no code or test changes, and existing user changes were left untouched.
 
 **Best next step: optimize the shared fixtures before pruning tests.** This offers a broader potential speedup while preserving behavioral coverage.
+
+## Implementation outcome (PR #980)
+
+Implemented:
+
+- **Fixture cost (the headline fix).** passlib bcrypt measured ~181 ms per hash and ~179 ms per verify. Lowering the test-session work factor (`bcrypt__rounds=4`, production untouched) cut the full backend suite from **246 s to 83 s** with no coverage change. An isolated hyperfine benchmark measured the mechanism at **15.8× faster** (951.0 ms ± 5.8 ms → 60.1 ms ± 1.5 ms).
+- **Section 4 (weak tests): completed.** All five strengthened so each now fails on the bug it claims to catch.
+- **Section 3 quota consolidation: completed.** The vestigial `app/tests/services/` package was folded into `test_services/` as real-session tests and the duplicate directory deleted.
+- **Section 2 (two candidates): completed.** The two 1/5 cases (`test_authenticated_reads_still_work`, `test_storage_model_defaults_medical_fields`) were removed.
+
+Result: **2,762 collected tests** (was 2,766); 2,760 passed, 2 skipped; line coverage 89.59% → 89.57%.
+
+Deferred, with measurements:
+
+- **Section 1 (fixture decoupling, incl. scoping the autouse fakeredis fixture).** After the bcrypt fix, total setup across the slowest-50 fell from 23.6 s to 2.5 s, so the remaining fixture work no longer dominates; decoupling would touch ~25 test files to save DB inserts measured in milliseconds.
+- **Remaining Section 2 candidates (2/5) and Section 3 parameterization.** These are framed above as "not justification for a large pruning batch". The `ai_usage` pair was found **not** to be a duplicate (the root file tests schemas, the `test_services` file tests the service).

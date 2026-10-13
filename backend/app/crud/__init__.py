@@ -3,7 +3,9 @@ from app.models.weapon import Weapon
 
 from . import storage
 from .ai_settings import ai_settings
+from .connection import connection
 from .crafting_order import crafting_order
+from .direct_message import direct_message
 from .dweller import dweller
 from .expedition_run import expedition_run
 from .exploration import exploration
@@ -20,6 +22,7 @@ from .quest import quest_crud
 from .room import room
 from .team import team_crud
 from .user import user
+from .user_block import user_block
 from .vault import vault
 from .vault_recipe_unlock import vault_recipe_unlock
 from .world_location import world_location

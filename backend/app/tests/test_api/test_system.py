@@ -58,11 +58,15 @@ class TestFeaturesEndpoint:
     """Test the feature-switch endpoint."""
 
     async def test_get_features_reports_current_switches(self, async_client: AsyncClient) -> None:
-        """Clients learn both switches; faction ships dark by default."""
+        """Clients learn both switches; faction and connections ship dark by default."""
         response = await async_client.get("/system/features")
 
         assert response.status_code == 200
-        assert response.json() == {"race_mechanics": True, "faction_mechanics": False}
+        assert response.json() == {
+            "race_mechanics": True,
+            "faction_mechanics": False,
+            "player_connections": False,
+        }
 
     async def test_get_features_follows_switch_changes(
         self, async_client: AsyncClient, monkeypatch: pytest.MonkeyPatch

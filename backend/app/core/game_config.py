@@ -1123,6 +1123,13 @@ class FeatureConfig(BaseSettings):
             "'Wasteland Site' archetype so it can be dispatched. Off keeps such places narrative-only."
         ),
     )
+    player_connections: bool = Field(
+        default=False,
+        description=(
+            "Player-to-player connections, blocking, and direct messages (multiplayer slice A1/A2/B1). "
+            "Ships dark until the social surface exists to make it playable."
+        ),
+    )
 
 
 class ExitConfig(BaseSettings):

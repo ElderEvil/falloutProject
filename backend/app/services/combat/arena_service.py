@@ -19,6 +19,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core import db_locks
+from app.core.enums import ArenaMode
 from app.core.game_config import game_config
 from app.crud import dweller as crud_dweller
 from app.crud import room as room_crud
@@ -160,6 +161,7 @@ class ArenaService:
                     room_id=str(room.id),
                     room_name=room.name,
                     tier=room.tier,
+                    mode=(room.arena_mode or ArenaMode.DUEL).value,
                     fighter_a_id=str(room.arena_fighter_a_id) if room.arena_fighter_a_id else None,
                     fighter_b_id=str(room.arena_fighter_b_id) if room.arena_fighter_b_id else None,
                     fighters=[

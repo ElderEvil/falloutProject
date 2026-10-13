@@ -46,6 +46,7 @@ class ArenaRoomState(BaseModel):
     room_id: str
     room_name: str
     tier: int
+    mode: str
     fighter_a_id: str | None
     fighter_b_id: str | None
     fighters: list[ArenaFighter]

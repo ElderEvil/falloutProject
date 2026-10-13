@@ -7,7 +7,16 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import SPECIAL_STATS, AgeGroupEnum, DeathCauseEnum, DwellerStatusEnum, GenderEnum, RarityEnum
+from app.core.enums import (
+    SPECIAL_STATS,
+    AgeGroupEnum,
+    AvailabilityEnum,
+    DeathCauseEnum,
+    DwellerStatusEnum,
+    GenderEnum,
+    LifecycleEnum,
+    RarityEnum,
+)
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.vault import Vault
@@ -164,19 +173,24 @@ async def test_refuse_exit_happiness_is_clamped_at_ten(async_session: AsyncSessi
 
 
 @pytest.mark.asyncio
-async def test_grant_exit_is_permanent_death_by_exile(async_session: AsyncSession, vault: Vault) -> None:
-    """The one-way ticket: dead by EXILE and past the revive window in the same write."""
+async def test_grant_exit_records_a_living_departure(async_session: AsyncSession, vault: Vault) -> None:
+    """A grant is a living departure: no death fields, no vault membership, request resolved."""
     dwellers = await _with_room_for_one_exit(async_session, vault)
     await exit_request_service.request_exit(async_session, dwellers[0].id)
 
     granted = await exit_request_service.grant_exit(async_session, vault, dwellers[0].id)
 
-    assert granted.is_dead is True
-    assert granted.death_cause is DeathCauseEnum.EXILE
-    assert granted.is_permanently_dead is True
-    assert granted.status is DwellerStatusEnum.DEAD
+    assert granted.lifecycle is LifecycleEnum.WASTELAND
+    assert granted.availability is AvailabilityEnum.DEPARTURE
+    assert granted.vault_id is None
+    assert granted.previous_vault_id == vault.id
+    assert granted.departed_at is not None
+    assert granted.departure_eligible_at is not None
+    assert granted.is_dead is False
+    assert granted.is_permanently_dead is False
+    assert granted.death_cause is None
+    assert granted.room_id is None
     assert granted.exit_requested_at is None
-    assert "did not return" in (granted.epitaph or "")
     assert granted.id not in [d.id for d in await exit_request_service.list_pending(async_session, vault.id)]
 
 

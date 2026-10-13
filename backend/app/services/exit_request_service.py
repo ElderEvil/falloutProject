@@ -1,8 +1,9 @@
 """Rules for a dweller who asks to leave the vault.
 
 The ask is a standing request held on the dweller; it is withdrawn once their mood recovers.
-The grant is final: the dweller is marked dead by ``EXILE`` and permanently dead in the same
-write, so the caps-revival window is skipped and they never come back.
+Granting it is a living departure, not a death: the person leaves the vault (canonical
+``wasteland``/``departure`` with no active membership) and may later be recruited through the
+shared pool, so nothing is written to the death fields and no revival window applies.
 """
 
 import logging
@@ -12,13 +13,12 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db_locks import try_advisory_xact_lock
-from app.core.enums import DeathCauseEnum, DwellerStatusEnum
+from app.core.enums import AvailabilityEnum, DwellerStatusEnum, LifecycleEnum
 from app.core.game_config import game_config
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.vault import Vault
-from app.services.family.death_service import death_service
 from app.services.notification_service import notification_service
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 
@@ -109,7 +109,7 @@ class ExitRequestService:
         return dweller
 
     async def grant_exit(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID4) -> Dweller:
-        """Let the dweller go: permanent death by exile, with no revive window."""
+        """Let the dweller go: a living departure, not a death."""
         if not await self._lock_exit_requests(db_session, vault.id):
             raise VaultOperationException(detail="Another exit request is already being handled")
         dweller = await self._get_pending(db_session, vault, dweller_id)
@@ -120,19 +120,27 @@ class ExitRequestService:
         if reason:
             raise VaultOperationException(detail=reason)
 
+        now = datetime.now(UTC).replace(tzinfo=None)
         dweller.exit_requested_at = None
-        vault.last_exit_request_at = datetime.now(UTC).replace(tzinfo=None)
+        dweller.despair_since = None
+        dweller.room_id = None
+        dweller.apprentice_stat = None
+        dweller.apprentice_started_at = None
+        dweller.status = DwellerStatusEnum.IDLE
+        dweller.lifecycle = LifecycleEnum.WASTELAND
+        dweller.availability = AvailabilityEnum.DEPARTURE
+        dweller.departed_at = now
+        dweller.departure_eligible_at = now + timedelta(days=game_config.radio.recycle_min_age_days)
+        dweller.previous_vault_id = vault.id
+        dweller.vault_id = None
+        vault.last_exit_request_at = now
         db_session.add(vault)
         db_session.add(dweller)
-        await db_session.flush()
+        await db_session.commit()
+        await db_session.refresh(dweller)
 
-        return await death_service.mark_as_dead(
-            db_session,
-            dweller,
-            DeathCauseEnum.EXILE,
-            commit=True,
-            permanent=True,
-        )
+        logger.info("Dweller %s left vault %s as a living departure", dweller_id, vault.id)
+        return dweller
 
     async def sync_despair_requests(self, db_session: AsyncSession, vault_id: UUID4) -> list[Dweller]:
         """Raise requests for dwellers in despair, and withdraw requests from dwellers who recovered."""

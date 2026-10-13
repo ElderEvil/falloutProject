@@ -22,7 +22,9 @@ async def _add_prompt(session: AsyncSession, **overrides) -> Prompt:
 
 @pytest.mark.asyncio
 async def test_defaults_are_version_one_and_active(async_session: AsyncSession) -> None:
-    prompt = await _add_prompt(async_session)
+    prompt = Prompt(prompt_name="backstory", description="test prompt", prompt_template="template {name}")
+    async_session.add(prompt)
+    await async_session.commit()
 
     assert prompt.version == 1
     assert prompt.is_active is True

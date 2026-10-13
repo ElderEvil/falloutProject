@@ -27,6 +27,7 @@ from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride
 from app.schemas.room import RoomCreate
 from app.services.dweller_recycling_service import dweller_recycling_service
 from app.services.radio_service import RadioService
+from app.tests.factory.dwellers import create_fake_dweller
 from app.utils.exceptions import ResourceConflictException
 
 # ---------------------------------------------------------------------------
@@ -406,6 +407,17 @@ async def test_recruit_dweller_recycled_resets_stats(
     deleted_dweller: Dweller,
 ):
     """Recycled dweller has its gameplay stats reset to level 1 defaults."""
+    partner = await crud.dweller.create(
+        db_session=async_session,
+        obj_in=DwellerCreate(**create_fake_dweller(), vault_id=vault.id),
+    )
+    deleted_dweller.level = 12
+    deleted_dweller.experience = 500
+    deleted_dweller.radiation = 75
+    deleted_dweller.partner_id = partner.id
+    async_session.add(deleted_dweller)
+    await async_session.commit()
+
     with patch("random.random", return_value=0.0):
         dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
 

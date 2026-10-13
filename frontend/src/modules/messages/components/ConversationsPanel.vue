@@ -67,16 +67,17 @@ function openThread(userId: string) {
               :key="conversation.counterpart_user_id"
               class="flex flex-col gap-2 rounded-lg border border-theme-accent/40 bg-surface-raised/60 px-3 py-2"
             >
-              <button
+              <Button
                 type="button"
-                class="flex flex-col items-start gap-1 text-left"
+                variant="ghost"
+                class="h-auto w-full flex-col items-start justify-start gap-1 p-0 text-left hover:bg-transparent"
                 @click="openThread(conversation.counterpart_user_id)"
               >
                 <span class="font-mono text-sm text-theme-accent">
                   {{ conversation.counterpart_username }}
                 </span>
                 <span class="text-xs text-theme-primary/70">wants to message you</span>
-              </button>
+              </Button>
               <span class="flex gap-2">
                 <Button
                   variant="outline"
@@ -108,17 +109,21 @@ function openThread(userId: string) {
           </CardHeader>
           <CardContent class="max-h-96 overflow-y-auto p-4 lg:max-h-[calc(100vh-19rem)]">
             <ul v-if="plainConversations.length > 0" class="flex flex-col gap-2">
-              <li v-for="conversation in plainConversations" :key="conversation.counterpart_user_id">
-                <button
+              <li
+                v-for="conversation in plainConversations"
+                :key="conversation.counterpart_user_id"
+                :aria-current="
+                  store.activeThreadUserId === conversation.counterpart_user_id ? 'true' : undefined
+                "
+              >
+                <Button
                   type="button"
-                  class="flex w-full flex-col gap-1 rounded-lg border px-3 py-2 text-left transition-colors"
+                  variant="ghost"
+                  class="flex h-auto w-full flex-col items-stretch justify-start gap-1 rounded-lg border px-3 py-2 text-left transition-colors hover:bg-transparent"
                   :class="
                     store.activeThreadUserId === conversation.counterpart_user_id
                       ? 'border-theme-primary/70 bg-theme-primary/15'
                       : 'border-theme-primary/25 bg-surface-raised/60 hover:border-theme-primary/50'
-                  "
-                  :aria-current="
-                    store.activeThreadUserId === conversation.counterpart_user_id ? 'true' : undefined
                   "
                   @click="openThread(conversation.counterpart_user_id)"
                 >
@@ -140,7 +145,7 @@ function openThread(userId: string) {
                       {{ formatDateTime(conversation.last_message.created_at ?? '') }}
                     </time>
                   </span>
-                </button>
+                </Button>
               </li>
             </ul>
             <p v-else class="text-sm text-theme-primary/60">

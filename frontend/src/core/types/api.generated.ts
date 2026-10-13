@@ -5106,16 +5106,27 @@ export interface components {
             max_health: number;
             /** Power */
             power: number;
+            /**
+             * Is Creature
+             * @default false
+             */
+            is_creature: boolean;
         };
         /**
          * ArenaFightersRequest
          * @description Fighter slot selection payload.
          */
         ArenaFightersRequest: {
+            /** @default duel */
+            mode: components["schemas"]["ArenaMode"];
             /** Fighter A Id */
             fighter_a_id?: string | null;
             /** Fighter B Id */
             fighter_b_id?: string | null;
+            /** Fighter C Id */
+            fighter_c_id?: string | null;
+            /** Fighter D Id */
+            fighter_d_id?: string | null;
         };
         /**
          * ArenaFightersResponse
@@ -5144,6 +5155,11 @@ export interface components {
             message: string;
         };
         /**
+         * ArenaMode
+         * @enum {string}
+         */
+        ArenaMode: "duel" | "brawl" | "hunt";
+        /**
          * ArenaRoomState
          * @description Full arena room state: fighters, roster, match flags, and journal.
          */
@@ -5154,12 +5170,18 @@ export interface components {
             room_name: string;
             /** Tier */
             tier: number;
+            /** Mode */
+            mode: string;
             /** Fighter A Id */
             fighter_a_id: string | null;
             /** Fighter B Id */
             fighter_b_id: string | null;
             /** Fighters */
             fighters: components["schemas"]["ArenaFighter"][];
+            /** Team A */
+            team_a: components["schemas"]["ArenaFighter"][];
+            /** Team B */
+            team_b: components["schemas"]["ArenaFighter"][];
             /** Roster */
             roster: components["schemas"]["ArenaRosterEntry"][];
             /** Fight Ready */
@@ -9785,6 +9807,15 @@ export interface components {
             arena_fighter_a_id?: string | null;
             /** Arena Fighter B Id */
             arena_fighter_b_id?: string | null;
+            /** Fighter C Id */
+            fighter_c_id?: string | null;
+            /** Fighter D Id */
+            fighter_d_id?: string | null;
+            arena_mode?: components["schemas"]["ArenaMode"] | null;
+            /** Arena Opponents */
+            arena_opponents?: {
+                [key: string]: unknown;
+            }[] | null;
             /** Capacity Formula */
             capacity_formula?: string | null;
             /** Output Formula */
@@ -9846,6 +9877,15 @@ export interface components {
             arena_fighter_a_id?: string | null;
             /** Arena Fighter B Id */
             arena_fighter_b_id?: string | null;
+            /** Fighter C Id */
+            fighter_c_id?: string | null;
+            /** Fighter D Id */
+            fighter_d_id?: string | null;
+            arena_mode?: components["schemas"]["ArenaMode"] | null;
+            /** Arena Opponents */
+            arena_opponents?: {
+                [key: string]: unknown;
+            }[] | null;
             /**
              * Id
              * Format: uuid4

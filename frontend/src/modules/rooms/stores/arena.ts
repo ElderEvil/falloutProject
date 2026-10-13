@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { arenaApi } from '../api/arena'
-import type { ArenaRoomState } from '../api/arena'
+import type { ArenaFighterSelection, ArenaRoomState } from '../api/arena'
 import { handleStoreError } from '@/core/utils/errorHandler'
 
 export const useArenaStore = defineStore('arena', () => {
@@ -21,12 +21,11 @@ export const useArenaStore = defineStore('arena', () => {
   async function setFighters(
     vaultId: string,
     roomId: string,
-    fighterAId: string | null,
-    fighterBId: string | null,
+    selection: ArenaFighterSelection,
     token: string
   ): Promise<boolean> {
     try {
-      await arenaApi.setFighters(vaultId, roomId, fighterAId, fighterBId, token)
+      await arenaApi.setFighters(vaultId, roomId, selection, token)
       return await fetchState(vaultId, token, true)
     } catch (error) {
       handleStoreError(error, 'Failed to update fighters')

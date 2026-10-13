@@ -14,7 +14,14 @@ import BattleLog from './BattleLog.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { useArenaStore } from '../stores/arena'
 import { useDwellerMedicalStore } from '@/modules/dwellers/stores/dwellerMedical'
-import type { ArenaFighter, ArenaRosterEntry } from '../api/arena'
+import type { ArenaFighter, ArenaMode, ArenaRosterEntry } from '../api/arena'
+import {
+  arenaSlotsFor,
+  arenaTeamSize,
+  type ArenaSlotFighter,
+  type ArenaSlotKey,
+  type ArenaTeamSide,
+} from '../models/arena'
 import { battleLogKindLabel, type BattleLogEntry } from '../models/battleLog'
 
 interface Props {
@@ -24,6 +31,15 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const MODE_OPTIONS: Array<{ value: ArenaMode; label: string }> = [
+  { value: 'duel', label: 'DUEL' },
+  { value: 'brawl', label: 'BRAWL' },
+]
+
+type DraftSlots = Record<ArenaSlotKey, string | null>
+
+const EMPTY_DRAFT: DraftSlots = { a: null, b: null, c: null, d: null }
+
 const authStore = useAuthStore()
 const toast = useToast()
 const { management: dwellerManagementStore } = useDwellerStore()
@@ -32,9 +48,12 @@ const arenaStore = useArenaStore()
 
 const isLoading = ref(true)
 const loadFailed = ref(false)
-const damageNumbers = ref<Array<{ id: number; side: 'A' | 'B'; amount: number }>>([])
+const damageNumbers = ref<Array<{ id: number; fighterId: string; amount: number }>>([])
 const previousHp = ref<Record<string, number>>({})
-const openPicker = ref<'A' | 'B' | null>(null)
+const openPicker = ref<ArenaSlotKey | null>(null)
+const mode = ref<ArenaMode>('duel')
+const draft = ref<DraftSlots>({ ...EMPTY_DRAFT })
+const draftDirty = ref(false)
 const isStarting = ref(false)
 let damageSeq = 0
 let loadSequence = 0
@@ -49,13 +68,20 @@ const roomState = computed(() => arenaStore.getRoom(props.roomId))
 
 const winnerName = computed(() => roomState.value?.winner_name ?? null)
 
-const damageFor = (side: 'A' | 'B') => damageNumbers.value.filter((d) => d.side === side)
+const teamFighters = computed<ArenaFighter[]>(() => [
+  ...(roomState.value?.team_a ?? []),
+  ...(roomState.value?.team_b ?? []),
+])
 
-const recordDamage = (side: 'A' | 'B', fighter: ArenaFighter | null) => {
-  if (!fighter) return
+const damageFor = (slot: ArenaSlotKey) => {
+  const fighterId = draft.value[slot]
+  return fighterId ? damageNumbers.value.filter((entry) => entry.fighterId === fighterId) : []
+}
+
+const recordDamage = (fighter: ArenaFighter) => {
   const prev = previousHp.value[fighter.id]
   if (prev !== undefined && fighter.health < prev) {
-    const entry = { id: ++damageSeq, side, amount: prev - fighter.health }
+    const entry = { id: ++damageSeq, fighterId: fighter.id, amount: prev - fighter.health }
     damageNumbers.value.push(entry)
     const timer = setTimeout(() => {
       pendingDamageTimers.delete(timer)
@@ -67,12 +93,29 @@ const recordDamage = (side: 'A' | 'B', fighter: ArenaFighter | null) => {
 }
 
 const applyState = () => {
-  const fighters = roomState.value?.fighters ?? []
-  recordDamage('A', fighters[0] ?? null)
-  recordDamage('B', fighters[1] ?? null)
-  const liveIds = new Set(fighters.map((f) => f.id))
+  for (const fighter of teamFighters.value) recordDamage(fighter)
+  const liveIds = new Set(teamFighters.value.map((f) => f.id))
   for (const id of Object.keys(previousHp.value)) {
     if (!liveIds.has(id)) delete previousHp.value[id]
+  }
+}
+
+// The server only reveals teams for a fully selected match; without this the
+// half-built draft of a brawl would be wiped by the 1 s state poll.
+const syncFromState = () => {
+  const state = roomState.value
+  if (!state || draftDirty.value) return
+  if (state.mode === 'brawl') {
+    mode.value = 'brawl'
+    draft.value = {
+      a: state.team_a[0]?.id ?? state.fighter_a_id,
+      c: state.team_a[1]?.id ?? null,
+      b: state.team_b[0]?.id ?? state.fighter_b_id,
+      d: state.team_b[1]?.id ?? null,
+    }
+  } else {
+    mode.value = 'duel'
+    draft.value = { ...EMPTY_DRAFT, a: state.fighter_a_id, b: state.fighter_b_id }
   }
 }
 
@@ -83,6 +126,7 @@ const load = async (silent = false) => {
   if (sequence !== loadSequence) return
   loadFailed.value = !loaded
   applyState()
+  syncFromState()
   isLoading.value = false
 }
 
@@ -92,73 +136,117 @@ onMounted(() => {
 
 usePolling(() => load(true), { interval: 1_000, immediate: false })
 
-const fighterA = computed(() => roomState.value?.fighters[0] ?? null)
-const fighterB = computed(() => roomState.value?.fighters[1] ?? null)
 const roster = computed(() => roomState.value?.roster ?? [])
-// The bench is the assigned dwellers NOT currently in a slot — every dweller
-// appears exactly once: fighters on the stage (slots), the rest here.
-const bench = computed(() => roster.value.filter((entry) => !isSelected(entry.id)))
 const isDone = computed(() => roomState.value?.match_done ?? false)
-const canStart = computed(() => roomState.value?.can_start ?? false)
+const canStart = computed(() => (roomState.value?.can_start ?? false) && !draftDirty.value)
 const isFighting = computed(() => (roomState.value?.fight_started ?? false) && !isDone.value)
 const canChangeFighters = computed(() => !isFighting.value)
 const countdown = computed(() => roomState.value?.countdown_remaining ?? 0)
 
-const isSelected = (id: string) =>
-  roomState.value?.fighter_a_id === id || roomState.value?.fighter_b_id === id
+const slotsFor = (side: ArenaTeamSide) => arenaSlotsFor(mode.value, side)
+const activeSlots = computed<ArenaSlotKey[]>(() => [...slotsFor('A'), ...slotsFor('B')])
+const requiredFighterCount = computed(() => arenaTeamSize(mode.value) * 2)
+const needsLabel = computed(() => `NEEDS ${requiredFighterCount.value} FIGHTERS`)
 
-const rosterIds = computed(() => new Set(roster.value.map((entry) => entry.id)))
+const serverFightersById = computed(() => {
+  const byId = new Map<string, ArenaFighter>()
+  for (const fighter of teamFighters.value) byId.set(fighter.id, fighter)
+  return byId
+})
 
-const validSlotId = (slot: 'A' | 'B') => {
-  const id = slot === 'A' ? roomState.value?.fighter_a_id : roomState.value?.fighter_b_id
-  return id && rosterIds.value.has(id) ? id : null
+// A slot shows the server's fighter once confirmed; a pick the server has not
+// accepted yet falls back to its roster entry (no combat power exposed there).
+const slotFighter = (slot: ArenaSlotKey): ArenaSlotFighter | null => {
+  const id = draft.value[slot]
+  if (!id) return null
+  const serverFighter = serverFightersById.value.get(id)
+  if (serverFighter) return serverFighter
+  const entry = roster.value.find((candidate) => candidate.id === id)
+  if (!entry) return null
+  return {
+    id: entry.id,
+    name: entry.name,
+    level: entry.level,
+    health: entry.health,
+    max_health: entry.max_health,
+    power: null,
+    is_creature: false,
+  }
 }
 
-const pickerOptions = (slot: 'A' | 'B') => {
-  const otherId = slot === 'A' ? roomState.value?.fighter_b_id : roomState.value?.fighter_a_id
-  return roster.value.filter((entry) => entry.id !== otherId)
+// Every dweller appears exactly once: on the stage (slots) or on the bench.
+const selectedIds = computed(() => new Set(Object.values(draft.value).filter((id): id is string => !!id)))
+const bench = computed(() => roster.value.filter((entry) => !selectedIds.value.has(entry.id)))
+
+const pickerOptions = (slot: ArenaSlotKey) => {
+  const takenElsewhere = new Set(
+    activeSlots.value
+      .filter((key) => key !== slot)
+      .map((key) => draft.value[key])
+      .filter((id): id is string => !!id)
+  )
+  return roster.value.filter((entry) => !takenElsewhere.has(entry.id))
 }
 
-const togglePicker = (slot: 'A' | 'B') => {
+const togglePicker = (slot: ArenaSlotKey) => {
   if (isFighting.value) return
   openPicker.value = openPicker.value === slot ? null : slot
 }
 
-const persistFighters = async (fighterAId: string | null, fighterBId: string | null) => {
+// Brawl needs all four slots before the server accepts the selection; duel
+// accepts any pair (including empty), so it persists on every change as before.
+const commitDraft = async () => {
   if (!authStore.token) return
-  const ok = await arenaStore.setFighters(props.vaultId, props.roomId, fighterAId, fighterBId, authStore.token)
-  if (ok) {
-    openPicker.value = null
-    previousHp.value = {}
-  }
+  if (mode.value === 'brawl' && activeSlots.value.some((slot) => !draft.value[slot])) return
+  const ok = await arenaStore.setFighters(
+    props.vaultId,
+    props.roomId,
+    {
+      mode: mode.value,
+      fighterAId: draft.value.a,
+      fighterBId: draft.value.b,
+      fighterCId: draft.value.c,
+      fighterDId: draft.value.d,
+    },
+    authStore.token
+  )
+  if (!ok) return
+  draftDirty.value = false
+  openPicker.value = null
+  previousHp.value = {}
 }
 
-const selectFighter = (slot: 'A' | 'B', entry: ArenaRosterEntry) => {
-  const other = slot === 'A' ? validSlotId('B') : validSlotId('A')
-  let a = slot === 'A' ? entry.id : other
-  let b = slot === 'B' ? entry.id : other
-
-  // Smart pairing: when the opposite slot is empty and exactly one candidate
-  // remains, fill it — picking the first of two fighters almost always means
-  // the second belongs in the other corner.
-  const opposite = slot === 'A' ? b : a
-  if (!opposite) {
-    const taken = new Set([a, b].filter((id): id is string => !!id))
-    const remaining = roster.value.filter((e) => !taken.has(e.id))
-    if (remaining.length === 1) {
-      if (slot === 'A') b = remaining[0].id
-      else a = remaining[0].id
-    }
+const switchMode = (next: ArenaMode) => {
+  if (next === mode.value || !canChangeFighters.value) return
+  mode.value = next
+  openPicker.value = null
+  if (next === 'duel') {
+    draft.value.c = null
+    draft.value.d = null
   }
-
-  void persistFighters(a, b)
+  draftDirty.value = true
+  void commitDraft()
 }
 
-const clearFighter = (slot: 'A' | 'B') => {
-  const other = slot === 'A' ? validSlotId('B') : validSlotId('A')
-  const a = slot === 'A' ? null : other
-  const b = slot === 'B' ? null : other
-  void persistFighters(a, b)
+const selectFighter = (slot: ArenaSlotKey, entry: ArenaRosterEntry) => {
+  draft.value[slot] = entry.id
+
+  // Smart pairing: when exactly one slot is empty and exactly one candidate
+  // remains, fill it — picking all but one almost always means the last
+  // dweller belongs in the last corner.
+  const emptySlots = activeSlots.value.filter((key) => !draft.value[key])
+  const taken = new Set(Object.values(draft.value).filter((id): id is string => !!id))
+  const remaining = roster.value.filter((candidate) => !taken.has(candidate.id))
+  if (emptySlots.length === 1 && remaining.length === 1) draft.value[emptySlots[0]] = remaining[0].id
+
+  draftDirty.value = true
+  void commitDraft()
+}
+
+const clearFighter = (slot: ArenaSlotKey) => {
+  draft.value[slot] = null
+  draftDirty.value = true
+  void commitDraft()
 }
 
 const unassign = async (entry: ArenaRosterEntry) => {
@@ -170,12 +258,10 @@ const unassign = async (entry: ArenaRosterEntry) => {
   }
 }
 
-// Post-battle conveniences: patch up the loser, clear the room for the next
+// Post-battle conveniences: patch up the losers, clear the room for the next
 // match. Fighters under 50% HP are the ones a stimpack actually helps.
 const injuredFighters = computed(() =>
-  (roomState.value?.fighters ?? []).filter(
-    (fighter: ArenaFighter) => fighter.max_health > 0 && fighter.health / fighter.max_health < 0.5
-  )
+  teamFighters.value.filter((fighter) => fighter.max_health > 0 && fighter.health / fighter.max_health < 0.5)
 )
 
 const isHealing = ref(false)
@@ -256,7 +342,7 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
         <p class="arena-subtitle">{{ roomState?.room_name ?? 'Arena' }} &middot; Tier {{ roomState?.tier ?? 1 }}</p>
       </div>
       <span class="arena-badge" :class="{ ready: canStart, done: isDone }">
-        {{ isDone ? 'DONE' : canStart ? 'READY' : 'NEEDS 2 FIGHTERS' }}
+        {{ isDone ? 'DONE' : canStart ? 'READY' : needsLabel }}
       </span>
     </div>
 
@@ -271,22 +357,42 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
     <div v-else class="arena-content">
       <!-- Fighters -->
       <div class="section">
-        <h3 class="section-title">
-          <Icon icon="mdi:sword-cross" class="section-title-icon" />
-          Fighters
-        </h3>
-        <div class="fighters-row">
-          <ArenaFighterSlot
-            side="A"
-            :fighter="fighterA"
-            :can-change="canChangeFighters"
-            :damage-numbers="damageFor('A')"
-            :options="pickerOptions('A')"
-            :picker-open="openPicker === 'A'"
-            @toggle-picker="togglePicker"
-            @clear="clearFighter"
-            @select="selectFighter"
-          />
+        <div class="section-header">
+          <h3 class="section-title">
+            <Icon icon="mdi:sword-cross" class="section-title-icon" />
+            Fighters
+          </h3>
+          <div class="mode-select" role="group" aria-label="Match mode">
+            <Button
+              v-for="option in MODE_OPTIONS"
+              :key="option.value"
+              :variant="mode === option.value ? 'default' : 'secondary'"
+              size="sm"
+              :disabled="!canChangeFighters"
+              :aria-pressed="mode === option.value"
+              @click="switchMode(option.value)"
+            >
+              {{ option.label }}
+            </Button>
+          </div>
+        </div>
+        <div class="teams-row">
+          <div class="team">
+            <span v-if="mode === 'brawl'" class="team-label">TEAM A</span>
+            <ArenaFighterSlot
+              v-for="slot in slotsFor('A')"
+              :key="slot"
+              :side="slot"
+              :fighter="slotFighter(slot)"
+              :can-change="canChangeFighters"
+              :damage-numbers="damageFor(slot)"
+              :options="pickerOptions(slot)"
+              :picker-open="openPicker === slot"
+              @toggle-picker="togglePicker"
+              @clear="clearFighter"
+              @select="selectFighter"
+            />
+          </div>
 
           <div class="versus">
             <Transition name="countdown-pop" mode="out-in">
@@ -298,17 +404,22 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
             <span v-if="countdown === 0" class="versus-text">VS</span>
           </div>
 
-          <ArenaFighterSlot
-            side="B"
-            :fighter="fighterB"
-            :can-change="canChangeFighters"
-            :damage-numbers="damageFor('B')"
-            :options="pickerOptions('B')"
-            :picker-open="openPicker === 'B'"
-            @toggle-picker="togglePicker"
-            @clear="clearFighter"
-            @select="selectFighter"
-          />
+          <div class="team">
+            <span v-if="mode === 'brawl'" class="team-label">TEAM B</span>
+            <ArenaFighterSlot
+              v-for="slot in slotsFor('B')"
+              :key="slot"
+              :side="slot"
+              :fighter="slotFighter(slot)"
+              :can-change="canChangeFighters"
+              :damage-numbers="damageFor(slot)"
+              :options="pickerOptions(slot)"
+              :picker-open="openPicker === slot"
+              @toggle-picker="togglePicker"
+              @clear="clearFighter"
+              @select="selectFighter"
+            />
+          </div>
         </div>
       </div>
 
@@ -395,10 +506,10 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
       <div class="arena-note">
         <Icon icon="mdi:information-outline" class="note-icon" />
         <span>
-          Assign adult dwellers to the Arena room, pick two fighters, then press
-          START FIGHT. The winner gains happiness and XP, the loser loses
-          happiness and is left standing at 1 HP. Change the fighters to start a
-          new match.
+          Assign adult dwellers to the Arena room, pick the fighters for each
+          side, then press START FIGHT. The winners gain happiness and XP, the
+          losers lose happiness and are left standing at 1 HP. Change the
+          fighters to start a new match.
         </span>
       </div>
 
@@ -551,11 +662,37 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
   margin: -0.25rem;
 }
 
-.fighters-row {
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.mode-select {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.teams-row {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   gap: 1rem;
   align-items: center;
+}
+
+.team {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.team-label {
+  text-align: center;
+  font-size: 0.65rem;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  color: var(--color-gray-500);
 }
 
 .versus {

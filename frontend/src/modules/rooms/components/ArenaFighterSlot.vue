@@ -4,11 +4,12 @@ import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import { Progress } from '@/core/components/ui/progress'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
-import type { ArenaFighter, ArenaRosterEntry } from '../api/arena'
+import type { ArenaRosterEntry } from '../api/arena'
+import type { ArenaSlotFighter, ArenaSlotKey } from '../models/arena'
 
 interface Props {
-  side: 'A' | 'B'
-  fighter: ArenaFighter | null
+  side: ArenaSlotKey
+  fighter: ArenaSlotFighter | null
   canChange: boolean
   damageNumbers: Array<{ id: number; amount: number }>
   options: ArenaRosterEntry[]
@@ -18,14 +19,14 @@ interface Props {
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  clear: [side: 'A' | 'B']
-  togglePicker: [side: 'A' | 'B']
-  select: [side: 'A' | 'B', entry: ArenaRosterEntry]
+  clear: [side: ArenaSlotKey]
+  togglePicker: [side: ArenaSlotKey]
+  select: [side: ArenaSlotKey, entry: ArenaRosterEntry]
 }>()
 
-const powerLabel = computed(() => (props.fighter ? Math.round(props.fighter.power) : 0))
+const powerLabel = computed(() => (props.fighter?.power != null ? Math.round(props.fighter.power) : null))
 
-const healthPercent = (f: ArenaFighter | null) =>
+const healthPercent = (f: ArenaSlotFighter | null) =>
   f ? Math.round((f.health / Math.max(1, f.max_health)) * 100) : 0
 </script>
 
@@ -53,7 +54,10 @@ const healthPercent = (f: ArenaFighter | null) =>
       </div>
       <div class="fighter-portrait">{{ fighter.name[0] }}</div>
       <div class="fighter-name">{{ fighter.name }}</div>
-      <div class="fighter-meta">Lv {{ fighter.level }} &middot; POW {{ powerLabel }}</div>
+      <div class="fighter-meta">
+        Lv {{ fighter.level }}
+        <template v-if="powerLabel !== null"> &middot; POW {{ powerLabel }}</template>
+      </div>
       <div class="hp-track">
         <Progress :model-value="healthPercent(fighter)" class="h-2.5" />
       </div>

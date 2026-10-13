@@ -1,62 +1,48 @@
 """Tests for app.crud.item_base — CRUDItem class and module-level helpers.
 
-Uses AsyncMock to avoid hitting a real database.
+The CRUD/equip/unequip/scrap tests drive the real async_session fixture (SQLite);
+only convert_to_junk's probability branches keep their random-boundary mocks.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
+from uuid import uuid4
 
 import pytest
+from faker import Faker
+from sqlalchemy.orm import selectinload
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app import crud
 from app.crud.item_base import CRUDItem, get_item_vault_id, get_items_by_vault
-from app.models.junk import Junk
+from app.models.dweller import Dweller
 from app.models.outfit import Outfit
-from app.models.pet import Pet
+from app.models.storage import Storage
+from app.models.vault import Vault
 from app.models.weapon import Weapon
 from app.schemas.common import ItemTypeEnum, JunkTypeEnum, RarityEnum
+from app.schemas.user import UserCreate
+from app.schemas.vault import VaultCreateWithUserID
+from app.tests.factory.items import create_fake_weapon
+from app.tests.factory.vaults import random_vault_number
 from app.utils.exceptions import (
     ContentNoChangeException,
     InvalidItemAssignmentException,
     ResourceConflictException,
     ResourceNotFoundException,
 )
+from app.utils.item_factory import build_pet, build_weapon
+
+fake = Faker()
+
 
 # ---------------------------------------------------------------------------
-# Mock helpers — avoid AsyncMock child-mock coroutine trap
+# Helpers — persist factory-built rows through the real session
 # ---------------------------------------------------------------------------
-
-# When you chain attrs on an AsyncMock (e.g. mock.execute.return_value.scalars),
-# each child inherits AsyncMock, so "scalars()" returns a coroutine.
-# We build the chain explicitly with plain MagicMock leaves.
-
-
-def _setup_execute_scalars_all(session_mock: MagicMock, items: list) -> None:
-    """Configure session.execute → scalars().all() → *items*.
-
-    Important: MagicMock call (scalars()) returns mock.return_value, so we
-    must set return_value to carry the .all chain.
-    """
-    result = MagicMock()
-    result.scalars = MagicMock(return_value=MagicMock())
-    result.scalars.return_value.all = MagicMock(return_value=items)
-    session_mock.execute = AsyncMock(return_value=result)
-
-
-def _setup_execute_first(session_mock: MagicMock, row) -> None:
-    """Configure session.execute → .first() → *row*."""
-    result_mock = MagicMock()
-    result_mock.first = MagicMock(return_value=row)
-    session_mock.execute = AsyncMock(return_value=result_mock)
-
-
-def _setup_execute_scalar_one_or_none(session_mock: MagicMock, value) -> None:
-    """Configure session.execute → .scalar_one_or_none() → *value*."""
-    result_mock = MagicMock()
-    result_mock.scalar_one_or_none = MagicMock(return_value=value)
-    session_mock.execute = AsyncMock(return_value=result_mock)
 
 
 def _make_mock_item(model_class, *, item_id="00000000-0000-0000-0000-000000000001", **overrides) -> MagicMock:
-    """Build a mock Weapon or Outfit with explicit attributes."""
+    """Build a mock Weapon or Outfit with explicit attributes (convert_to_junk tests)."""
     m = MagicMock(spec=model_class)
     m.id = item_id
     m.name = "Test Item"
@@ -69,31 +55,35 @@ def _make_mock_item(model_class, *, item_id="00000000-0000-0000-0000-00000000000
     return m
 
 
-def _setup_equip_mocks(
-    session_mock: MagicMock,
-    *,
-    dweller: MagicMock | None,
-    item: MagicMock | None,
-    current_item: MagicMock | None,
-) -> None:
-    """Configure session.execute (dweller, then current item) and session.get (target item)."""
-    dweller_result = MagicMock()
-    dweller_result.scalar_one_or_none = MagicMock(return_value=dweller)
-    current_result = MagicMock()
-    current_result.scalar_one_or_none = MagicMock(return_value=current_item)
-    session_mock.execute = AsyncMock(side_effect=[dweller_result, current_result])
-    session_mock.get = AsyncMock(return_value=item)
+async def _create_weapon(async_session: AsyncSession, *, storage_id=None, dweller_id=None, rarity=RarityEnum.COMMON):
+    """Persist a factory-built weapon into storage, onto a dweller, or unattached."""
+    weapon = build_weapon(create_fake_weapon(), rarity, storage_id=storage_id)
+    weapon.dweller_id = dweller_id
+    return await crud.weapon.create(db_session=async_session, obj_in=weapon)
 
 
-def _new_session() -> MagicMock:
-    """Create a base session mock with commit/refresh/delete/rollback as AsyncMock."""
-    s = MagicMock()
-    s.commit = AsyncMock()
-    s.refresh = AsyncMock()
-    s.delete = AsyncMock()
-    s.rollback = AsyncMock()
-    s.get = AsyncMock()
-    return s
+async def _create_storage(async_session: AsyncSession, vault_id, *, max_space: int | None = None) -> Storage:
+    """Create a vault's storage row, optionally with a non-default capacity."""
+    storage = await crud.vault.create_storage(db_session=async_session, vault_id=vault_id)
+    if max_space is not None:
+        storage.max_space = max_space
+        async_session.add(storage)
+        await async_session.commit()
+        await async_session.refresh(storage)
+    return storage
+
+
+async def _create_other_vault_storage(async_session: AsyncSession) -> Storage:
+    """A second vault's own storage, to prove vault-scoped queries exclude it."""
+    user = await crud.user.create(
+        db_session=async_session,
+        obj_in=UserCreate(username=fake.user_name(), email=fake.email(), password="password123"),
+    )
+    other_vault = await crud.vault.create(
+        db_session=async_session,
+        obj_in=VaultCreateWithUserID(number=random_vault_number(), user_id=user.id),
+    )
+    return await crud.vault.create_storage(db_session=async_session, vault_id=other_vault.id)
 
 
 # ---------------------------------------------------------------------------
@@ -102,14 +92,16 @@ def _new_session() -> MagicMock:
 
 
 @pytest.mark.asyncio
-async def test_get_items_by_vault_returns_items() -> None:
-    session = _new_session()
-    mock_item = _make_mock_item(Weapon)
-    _setup_execute_scalars_all(session, [mock_item])
+async def test_get_items_by_vault_returns_items(async_session: AsyncSession, vault: Vault, dweller) -> None:
+    storage = await _create_storage(async_session, vault.id)
+    stored = [await _create_weapon(async_session, storage_id=storage.id) for _ in range(2)]
+    equipped = await _create_weapon(async_session, dweller_id=dweller.id)
+    # A weapon in another vault's storage must not leak into this vault's results.
+    await _create_weapon(async_session, storage_id=(await _create_other_vault_storage(async_session)).id)
 
-    result = await get_items_by_vault(session, Weapon, "00000000-0000-0000-0000-000000000099", skip=0, limit=10)
-    assert result == [mock_item]
-    session.execute.assert_called_once()
+    result = await get_items_by_vault(async_session, Weapon, vault.id, skip=0, limit=10)
+
+    assert {weapon.id for weapon in result} == {stored[0].id, stored[1].id, equipped.id}
 
 
 # ---------------------------------------------------------------------------
@@ -118,18 +110,9 @@ async def test_get_items_by_vault_returns_items() -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_raises_both_storage_and_dweller_schema() -> None:
-    session = _new_session()
-    crud = CRUDItem(Outfit)
-    mock_schema = MagicMock()
-    mock_schema.model_dump.return_value = {"storage_id": "s1", "dweller_id": "d1"}
+async def test_create_raises_both_storage_and_dweller_schema(async_session: AsyncSession) -> None:
     with pytest.raises(InvalidItemAssignmentException):
-        await crud.create(session, mock_schema)
-
-
-# ---------------------------------------------------------------------------
-# CRUDItem.update
-# ---------------------------------------------------------------------------
+        await CRUDItem(Outfit).create(async_session, {"storage_id": uuid4(), "dweller_id": uuid4()})
 
 
 # ---------------------------------------------------------------------------
@@ -138,47 +121,25 @@ async def test_create_raises_both_storage_and_dweller_schema() -> None:
 
 
 @pytest.mark.asyncio
-async def test_equip_dweller_not_found() -> None:
-    session = _new_session()
-    crud = CRUDItem(Outfit)
-
-    _setup_equip_mocks(session, dweller=None, item=None, current_item=None)
-
+async def test_equip_dweller_not_found(async_session: AsyncSession) -> None:
     with pytest.raises(ResourceNotFoundException) as exc:
-        await crud.equip(db_session=session, item_id="o-x", dweller_id="d-999")
+        await CRUDItem(Outfit).equip(db_session=async_session, item_id=uuid4(), dweller_id=uuid4())
     assert "Dweller" in exc.value.detail
 
 
 @pytest.mark.asyncio
-async def test_equip_item_not_found_at_all() -> None:
-    session = _new_session()
-    crud = CRUDItem(Outfit)
-
-    mock_storage = MagicMock(id="st-1")
-    mock_vault = MagicMock(storage=mock_storage)
-    mock_dweller = MagicMock(id="d1", vault=mock_vault, outfit=None)
-
-    _setup_equip_mocks(session, dweller=mock_dweller, item=None, current_item=None)
-
+async def test_equip_item_not_found_at_all(async_session: AsyncSession, dweller) -> None:
     with pytest.raises(ResourceNotFoundException) as exc:
-        await crud.equip(db_session=session, item_id="o-missing", dweller_id="d1")
+        await CRUDItem(Outfit).equip(db_session=async_session, item_id=uuid4(), dweller_id=dweller.id)
     assert "Outfit" in exc.value.detail
 
 
 @pytest.mark.asyncio
-async def test_equip_same_item_already_equipped() -> None:
-    session = _new_session()
-    crud = CRUDItem(Weapon)
-    item = _make_mock_item(Weapon, item_id="w-same")
-
-    mock_storage = MagicMock(id="st-1")
-    mock_vault = MagicMock(storage=mock_storage)
-    mock_dweller = MagicMock(id="d1", vault=mock_vault, weapon=item)
-
-    _setup_equip_mocks(session, dweller=mock_dweller, item=item, current_item=item)
+async def test_equip_same_item_already_equipped(async_session: AsyncSession, equipped_dweller) -> None:
+    dweller, _, weapon = equipped_dweller
 
     with pytest.raises(ContentNoChangeException):
-        await crud.equip(db_session=session, item_id="w-same", dweller_id="d1")
+        await CRUDItem(Weapon).equip(db_session=async_session, item_id=weapon.id, dweller_id=dweller.id)
 
 
 # ---------------------------------------------------------------------------
@@ -187,41 +148,34 @@ async def test_equip_same_item_already_equipped() -> None:
 
 
 @pytest.mark.asyncio
-async def test_fetch_unequip_data_weapon() -> None:
-    session = _new_session()
-    crud = CRUDItem(Weapon)
-    mock_dweller = MagicMock()
-    row = (mock_dweller, "storage-x", True, False)
-    _setup_execute_first(session, row)
+async def test_fetch_unequip_data_weapon(async_session: AsyncSession, vault: Vault, equipped_dweller) -> None:
+    dweller, _, weapon = equipped_dweller
+    storage = await _create_storage(async_session, vault.id)
 
-    dweller, storage_id, item_type = await crud._fetch_unequip_data(session, "w-1")
-    assert dweller is mock_dweller
-    assert storage_id == "storage-x"
+    result_dweller, storage_id, item_type = await CRUDItem._fetch_unequip_data(async_session, weapon.id)
+
+    assert result_dweller.id == dweller.id
+    assert storage_id == storage.id
     assert item_type == ItemTypeEnum.WEAPON
 
 
 @pytest.mark.asyncio
-async def test_fetch_unequip_data_pet() -> None:
-    session = _new_session()
-    crud = CRUDItem(Pet)
-    mock_dweller = MagicMock()
-    row = (mock_dweller, "storage-x", False, True)
-    _setup_execute_first(session, row)
+async def test_fetch_unequip_data_pet(async_session: AsyncSession, vault: Vault, dweller) -> None:
+    storage = await _create_storage(async_session, vault.id)
+    pet = build_pet({"name": "Dogmeat", "value": 5}, RarityEnum.RARE)
+    pet.dweller_id = dweller.id
+    pet = await crud.pet.create(db_session=async_session, obj_in=pet)
 
-    dweller, storage_id, item_type = await crud._fetch_unequip_data(session, "p-1")
-    assert dweller is mock_dweller
-    assert storage_id == "storage-x"
+    result_dweller, storage_id, item_type = await CRUDItem._fetch_unequip_data(async_session, pet.id)
+
+    assert result_dweller.id == dweller.id
+    assert storage_id == storage.id
     assert item_type == ItemTypeEnum.PET
 
 
 @pytest.mark.asyncio
-async def test_fetch_unequip_data_not_found() -> None:
-    session = _new_session()
-    crud = CRUDItem(Weapon)
-    _setup_execute_first(session, None)
-
-    result = await crud._fetch_unequip_data(session, "missing")
-    assert result == (None, None, None)
+async def test_fetch_unequip_data_not_found(async_session: AsyncSession) -> None:
+    assert await CRUDItem._fetch_unequip_data(async_session, uuid4()) == (None, None, None)
 
 
 # ---------------------------------------------------------------------------
@@ -235,11 +189,17 @@ async def test_fetch_unequip_data_not_found() -> None:
 
 
 @pytest.mark.asyncio
-async def test_update_item_executes_update() -> None:
-    session = _new_session()
-    session.execute = AsyncMock()
-    await CRUDItem._update_item(session, Weapon, "w-id", "st-99")
-    session.execute.assert_called_once()
+async def test_update_item_executes_update(async_session: AsyncSession, vault: Vault) -> None:
+    source = await _create_storage(async_session, vault.id)
+    target = await _create_storage(async_session, vault.id)
+    weapon = await _create_weapon(async_session, storage_id=source.id)
+
+    await CRUDItem._update_item(async_session, Weapon, weapon.id, target.id)
+    await async_session.commit()
+
+    reloaded = await crud.weapon.get(async_session, weapon.id)
+    assert reloaded.dweller_id is None
+    assert reloaded.storage_id == target.id
 
 
 # ---------------------------------------------------------------------------
@@ -248,14 +208,17 @@ async def test_update_item_executes_update() -> None:
 
 
 @pytest.mark.asyncio
-async def test_update_dweller_clears_weapon() -> None:
-    session = _new_session()
-    session.add = MagicMock()
-    mock_dweller = MagicMock()
+async def test_update_dweller_clears_weapon(async_session: AsyncSession, equipped_dweller) -> None:
+    dweller, _, _ = equipped_dweller
+    result = await async_session.execute(
+        select(Dweller).where(Dweller.id == dweller.id).options(selectinload(Dweller.weapon))
+    )
+    loaded_dweller = result.scalar_one()
+    assert loaded_dweller.weapon is not None
 
-    await CRUDItem._update_dweller(session, mock_dweller, ItemTypeEnum.WEAPON)
-    assert mock_dweller.weapon is None
-    session.add.assert_called_once_with(mock_dweller)
+    await CRUDItem._update_dweller(async_session, loaded_dweller, ItemTypeEnum.WEAPON)
+
+    assert loaded_dweller.weapon is None
 
 
 # ---------------------------------------------------------------------------
@@ -264,37 +227,21 @@ async def test_update_dweller_clears_weapon() -> None:
 
 
 @pytest.mark.asyncio
-async def test_unequip_success() -> None:
-    session = _new_session()
-    crud = CRUDItem(Weapon)
-    mock_dweller = MagicMock()
+async def test_unequip_success(async_session: AsyncSession, vault: Vault, equipped_dweller) -> None:
+    dweller, _, weapon = equipped_dweller
+    storage = await _create_storage(async_session, vault.id)
 
-    with (
-        patch.object(
-            crud,
-            "_fetch_unequip_data",
-            new=AsyncMock(return_value=(mock_dweller, "st-1", ItemTypeEnum.WEAPON)),
-        ),
-        patch.object(crud, "_update_item", new=AsyncMock()) as mock_item,
-        patch.object(crud, "_update_dweller", new=AsyncMock()) as mock_dweller_patch,
-    ):
-        await crud.unequip(db_session=session, item_id="w-1")
+    await CRUDItem(Weapon).unequip(db_session=async_session, item_id=weapon.id)
 
-    mock_item.assert_called_once_with(session, Weapon, "w-1", "st-1")
-    mock_dweller_patch.assert_called_once_with(session, mock_dweller, ItemTypeEnum.WEAPON)
-    session.commit.assert_called_once()
+    reloaded = await crud.weapon.get(async_session, weapon.id)
+    assert reloaded.dweller_id is None
+    assert reloaded.storage_id == storage.id
 
 
 @pytest.mark.asyncio
-async def test_unequip_not_found() -> None:
-    session = _new_session()
-    crud = CRUDItem(Weapon)
-
-    with (
-        patch.object(crud, "_fetch_unequip_data", new=AsyncMock(return_value=(None, None, None))),
-        pytest.raises(ResourceNotFoundException) as exc,
-    ):
-        await crud.unequip(db_session=session, item_id="orphan")
+async def test_unequip_not_found(async_session: AsyncSession) -> None:
+    with pytest.raises(ResourceNotFoundException) as exc:
+        await CRUDItem(Weapon).unequip(db_session=async_session, item_id=uuid4())
     assert "Dweller" in exc.value.detail
 
 
@@ -332,60 +279,43 @@ class TestConvertToJunk:
 
 
 @pytest.mark.asyncio
-async def test_scrap_success() -> None:
-    session = _new_session()
-    crud = CRUDItem(Weapon)
-    item = _make_mock_item(Weapon, item_id="w-scrap", storage_id="st-1")
-    session.get = AsyncMock(return_value=item)
+async def test_scrap_success(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _create_storage(async_session, vault.id, max_space=10)
+    weapon = await _create_weapon(async_session, storage_id=storage.id, rarity=RarityEnum.COMMON)
 
-    with (
-        patch.object(crud, "convert_to_junk", return_value=[MagicMock(spec=Junk)]) as mock_cvt,
-        patch(
-            "app.crud.storage.storage.get_info",
-            new_callable=AsyncMock,
-            return_value={"used_space": 1, "max_space": 10, "available_space": 9, "utilization_pct": 10.0},
-        ),
-    ):
-        results = await crud.scrap(db_session=session, item_id="w-scrap")
+    results = await CRUDItem(Weapon).scrap(db_session=async_session, item_id=weapon.id)
 
-    session.get.assert_called_once_with(Weapon, "w-scrap")
-    mock_cvt.assert_called_once_with(item)
-    session.delete.assert_called_once_with(item)
-    session.commit.assert_called_once()
     assert len(results) == 1
+    assert all(junk.storage_id == storage.id for junk in results)
+    assert await crud.weapon.get_or_none(async_session, weapon.id) is None
+    assert [junk.id for junk in await crud.junk.get_in_storage(async_session, storage.id)] == [results[0].id]
 
 
 @pytest.mark.asyncio
-async def test_scrap_rejects_when_junk_would_exceed_capacity() -> None:
+async def test_scrap_rejects_when_junk_would_exceed_capacity(async_session: AsyncSession, vault: Vault) -> None:
     """A scrap whose junk would overflow storage is rejected before anything changes."""
-    session = _new_session()
-    crud = CRUDItem(Weapon)
-    item = _make_mock_item(Weapon, item_id="w-full", storage_id="st-1")
-    session.get = AsyncMock(return_value=item)
+    storage = await _create_storage(async_session, vault.id, max_space=1)
+    weapon = await _create_weapon(async_session, storage_id=storage.id, rarity=RarityEnum.LEGENDARY)
 
+    # Pin the RNG so a LEGENDARY scrap always yields two junk rows.
     with (
-        patch.object(crud, "convert_to_junk", return_value=[MagicMock(spec=Junk), MagicMock(spec=Junk)]),
         patch(
-            "app.crud.storage.storage.get_info",
-            new_callable=AsyncMock,
-            return_value={"used_space": 1, "max_space": 1, "available_space": 0, "utilization_pct": 100.0},
+            "app.crud.item_base.random.choice",
+            side_effect=[JunkTypeEnum.CIRCUITRY, JunkTypeEnum.LEATHER, JunkTypeEnum.ADHESIVE],
         ),
+        patch("app.crud.item_base.random.random", return_value=0.0),
         pytest.raises(ResourceConflictException, match="Storage is full"),
     ):
-        await crud.scrap(db_session=session, item_id="w-full")
+        await CRUDItem(Weapon).scrap(db_session=async_session, item_id=weapon.id)
 
-    session.delete.assert_not_called()
-    session.commit.assert_not_called()
+    assert await crud.weapon.get_or_none(async_session, weapon.id) is not None
+    assert await crud.junk.get_in_storage(async_session, storage.id) == []
 
 
 @pytest.mark.asyncio
-async def test_scrap_not_found() -> None:
-    session = _new_session()
-    crud = CRUDItem(Outfit)
-    session.get = AsyncMock(return_value=None)
-
+async def test_scrap_not_found(async_session: AsyncSession) -> None:
     with pytest.raises(ResourceNotFoundException) as exc:
-        await crud.scrap(db_session=session, item_id="missing")
+        await CRUDItem(Outfit).scrap(db_session=async_session, item_id=uuid4())
     assert "Outfit" in exc.value.detail
 
 
@@ -395,32 +325,25 @@ async def test_scrap_not_found() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_item_vault_id_from_storage() -> None:
-    session = _new_session()
-    item = _make_mock_item(Weapon, storage_id="st-1", dweller_id=None)
-    _setup_execute_scalar_one_or_none(session, "v-1")
+async def test_get_item_vault_id_from_storage(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _create_storage(async_session, vault.id)
+    weapon = await _create_weapon(async_session, storage_id=storage.id)
 
-    assert await get_item_vault_id(session, item) == "v-1"
-    session.execute.assert_called_once()
+    assert await get_item_vault_id(async_session, weapon) == vault.id
 
 
 @pytest.mark.asyncio
-async def test_get_item_vault_id_from_dweller() -> None:
-    session = _new_session()
-    item = _make_mock_item(Outfit, storage_id=None, dweller_id="d-1")
-    _setup_execute_scalar_one_or_none(session, "v-2")
+async def test_get_item_vault_id_from_dweller(async_session: AsyncSession, vault: Vault, dweller) -> None:
+    weapon = await _create_weapon(async_session, dweller_id=dweller.id)
 
-    assert await get_item_vault_id(session, item) == "v-2"
-    session.execute.assert_called_once()
+    assert await get_item_vault_id(async_session, weapon) == vault.id
 
 
 @pytest.mark.asyncio
-async def test_get_item_vault_id_unattached() -> None:
-    session = _new_session()
-    item = _make_mock_item(Weapon, storage_id=None, dweller_id=None)
+async def test_get_item_vault_id_unattached(async_session: AsyncSession) -> None:
+    weapon = await _create_weapon(async_session)
 
-    assert await get_item_vault_id(session, item) is None
-    session.execute.assert_not_called()
+    assert await get_item_vault_id(async_session, weapon) is None
 
 
 # ---------------------------------------------------------------------------

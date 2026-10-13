@@ -115,3 +115,11 @@ if (!window.matchMedia) {
     }),
   })
 }
+
+// jsdom 30 returns select items from document.activeElement, so reka-ui's
+// SelectScrollButton watcher now calls Element.scrollIntoView while the Select
+// is open. jsdom does not implement it, so the thrown TypeError breaks the
+// interaction (empty DOMWrapper / stale form state in Select-driven tests).
+if (!HTMLElement.prototype.scrollIntoView) {
+  HTMLElement.prototype.scrollIntoView = () => {}
+}

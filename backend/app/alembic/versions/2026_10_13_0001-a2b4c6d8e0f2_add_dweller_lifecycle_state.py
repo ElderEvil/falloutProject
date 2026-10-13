@@ -122,13 +122,13 @@ CURATED_DWELLER_NAMES: tuple[str, ...] = (
 EXILE_TO_DEPARTURE_SQL = sa.text(
     "UPDATE dweller SET lifecycle = 'WASTELAND', availability = 'DEPARTURE', "
     "previous_vault_id = vault_id, vault_id = NULL, departed_at = death_timestamp "
-    "WHERE lifecycle IS NULL AND death_cause = 'EXILE'::deathcauseenum AND room_id IS NULL "
+    "WHERE lifecycle IS NULL AND death_cause::text = 'EXILE' AND room_id IS NULL "
     "AND is_permanently_dead = TRUE AND is_deleted = FALSE"
 )
 PERMANENT_DEATH_SQL = sa.text(
     "UPDATE dweller SET lifecycle = 'DEAD_PERMANENT', availability = 'ARCHIVE' "
     "WHERE lifecycle IS NULL AND is_dead = TRUE AND is_permanently_dead = TRUE "
-    "AND death_cause IS DISTINCT FROM 'EXILE'::deathcauseenum"
+    "AND death_cause::text IS DISTINCT FROM 'EXILE'"
 )
 REVIVABLE_DEATH_SQL = sa.text(
     "UPDATE dweller SET lifecycle = 'DEAD_REVIVABLE', availability = 'VAULT' "

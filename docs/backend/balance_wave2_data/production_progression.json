@@ -1,0 +1,1634 @@
+{
+  "captured_utc": "2026-10-13T14:32:56.698494+00:00",
+  "vaults": [
+    {
+      "label": "V1",
+      "dwellers": [],
+      "statuses": [],
+      "quests": [],
+      "crafts": [],
+      "explorations": [],
+      "medical": []
+    },
+    {
+      "label": "V2",
+      "dwellers": [
+        {
+          "rows": 9,
+          "deleted_rows": 0,
+          "mean_happiness": "18.89",
+          "mean_level": "9.67",
+          "radiation_fraction": "0.000",
+          "unassigned": 4,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 9
+        }
+      ],
+      "statuses": [
+        {
+          "status": "WORKING",
+          "n": 4
+        },
+        {
+          "status": "RESTING",
+          "n": 1
+        },
+        {
+          "status": "DEAD",
+          "n": 4
+        }
+      ],
+      "quests": [],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 0,
+          "radaway": 0
+        }
+      ]
+    },
+    {
+      "label": "V3",
+      "dwellers": [
+        {
+          "rows": 43,
+          "deleted_rows": 0,
+          "mean_happiness": "40.47",
+          "mean_level": "12.40",
+          "radiation_fraction": "0.985",
+          "unassigned": 31,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 43
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 30
+        },
+        {
+          "status": "WORKING",
+          "n": 10
+        },
+        {
+          "status": "RESTING",
+          "n": 2
+        },
+        {
+          "status": "DEAD",
+          "n": 1
+        }
+      ],
+      "quests": [],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V4",
+      "dwellers": [
+        {
+          "rows": 20,
+          "deleted_rows": 0,
+          "mean_happiness": "29.90",
+          "mean_level": "4.85",
+          "radiation_fraction": "0.000",
+          "unassigned": 20,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 20
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 7
+        },
+        {
+          "status": "DEAD",
+          "n": 13
+        }
+      ],
+      "quests": [],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V5",
+      "dwellers": [
+        {
+          "rows": 11,
+          "deleted_rows": 0,
+          "mean_happiness": "17.27",
+          "mean_level": "32.18",
+          "radiation_fraction": "0.000",
+          "unassigned": 8,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 11
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 2
+        },
+        {
+          "status": "WORKING",
+          "n": 1
+        },
+        {
+          "status": "RESTING",
+          "n": 2
+        },
+        {
+          "status": "DEAD",
+          "n": 6
+        }
+      ],
+      "quests": [],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 0,
+          "radaway": 0
+        }
+      ]
+    },
+    {
+      "label": "V6",
+      "dwellers": [
+        {
+          "rows": 20,
+          "deleted_rows": 0,
+          "mean_happiness": "26.30",
+          "mean_level": "3.05",
+          "radiation_fraction": "0.000",
+          "unassigned": 20,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 20
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 7
+        },
+        {
+          "status": "DEAD",
+          "n": 13
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 0,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V7",
+      "dwellers": [
+        {
+          "rows": 20,
+          "deleted_rows": 0,
+          "mean_happiness": "30.70",
+          "mean_level": "2.95",
+          "radiation_fraction": "0.000",
+          "unassigned": 20,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 20
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 7
+        },
+        {
+          "status": "DEAD",
+          "n": 13
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 0,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [
+        {
+          "retained_runs": 1,
+          "retained_caps_found": 422
+        }
+      ],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V8",
+      "dwellers": [
+        {
+          "rows": 22,
+          "deleted_rows": 0,
+          "mean_happiness": "54.00",
+          "mean_level": "14.59",
+          "radiation_fraction": "0.000",
+          "unassigned": 15,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 22
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 9
+        },
+        {
+          "status": "WORKING",
+          "n": 6
+        },
+        {
+          "status": "RESTING",
+          "n": 1
+        },
+        {
+          "status": "DEAD",
+          "n": 6
+        }
+      ],
+      "quests": [],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V9",
+      "dwellers": [
+        {
+          "rows": 22,
+          "deleted_rows": 0,
+          "mean_happiness": "15.45",
+          "mean_level": "25.00",
+          "radiation_fraction": "0.000",
+          "unassigned": 14,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 22
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 9
+        },
+        {
+          "status": "WORKING",
+          "n": 7
+        },
+        {
+          "status": "RESTING",
+          "n": 1
+        },
+        {
+          "status": "DEAD",
+          "n": 5
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 0,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V10",
+      "dwellers": [
+        {
+          "rows": 20,
+          "deleted_rows": 0,
+          "mean_happiness": "10.00",
+          "mean_level": "1.70",
+          "radiation_fraction": "0.000",
+          "unassigned": 20,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 20
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 7
+        },
+        {
+          "status": "DEAD",
+          "n": 13
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 0,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V11",
+      "dwellers": [
+        {
+          "rows": 9,
+          "deleted_rows": 0,
+          "mean_happiness": "10.00",
+          "mean_level": "1.78",
+          "radiation_fraction": "0.000",
+          "unassigned": 9,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 9
+        }
+      ],
+      "statuses": [
+        {
+          "status": "DEAD",
+          "n": 9
+        }
+      ],
+      "quests": [],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 0,
+          "radaway": 0
+        }
+      ]
+    },
+    {
+      "label": "V12",
+      "dwellers": [
+        {
+          "rows": 39,
+          "deleted_rows": 0,
+          "mean_happiness": "38.15",
+          "mean_level": "14.97",
+          "radiation_fraction": "0.878",
+          "unassigned": 27,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 39
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 26
+        },
+        {
+          "status": "WORKING",
+          "n": 10
+        },
+        {
+          "status": "RESTING",
+          "n": 2
+        },
+        {
+          "status": "DEAD",
+          "n": 1
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 0,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [
+        {
+          "retained_runs": 1,
+          "retained_caps_found": 245
+        }
+      ],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V13",
+      "dwellers": [
+        {
+          "rows": 23,
+          "deleted_rows": 0,
+          "mean_happiness": "15.22",
+          "mean_level": "1.52",
+          "radiation_fraction": "0.000",
+          "unassigned": 23,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 23
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 11
+        },
+        {
+          "status": "DEAD",
+          "n": 12
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 0,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [
+        {
+          "retained_runs": 1,
+          "retained_caps_found": 220
+        }
+      ],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V14",
+      "dwellers": [
+        {
+          "rows": 43,
+          "deleted_rows": 0,
+          "mean_happiness": "37.74",
+          "mean_level": "15.86",
+          "radiation_fraction": "0.783",
+          "unassigned": 30,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 43
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 28
+        },
+        {
+          "status": "WORKING",
+          "n": 13
+        },
+        {
+          "status": "DEAD",
+          "n": 2
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 0,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [
+        {
+          "retained_runs": 1,
+          "retained_caps_found": 152
+        }
+      ],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 60
+        }
+      ]
+    },
+    {
+      "label": "V15",
+      "dwellers": [
+        {
+          "rows": 28,
+          "deleted_rows": 0,
+          "mean_happiness": "59.64",
+          "mean_level": "13.25",
+          "radiation_fraction": "0.053",
+          "unassigned": 21,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 28
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 19
+        },
+        {
+          "status": "WORKING",
+          "n": 7
+        },
+        {
+          "status": "DEAD",
+          "n": 2
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 0,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 0,
+          "radaway": 0
+        }
+      ]
+    },
+    {
+      "label": "V16",
+      "dwellers": [
+        {
+          "rows": 23,
+          "deleted_rows": 0,
+          "mean_happiness": "36.91",
+          "mean_level": "9.39",
+          "radiation_fraction": "0.000",
+          "unassigned": 23,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 23
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 10
+        },
+        {
+          "status": "DEAD",
+          "n": 13
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 1,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V17",
+      "dwellers": [
+        {
+          "rows": 49,
+          "deleted_rows": 0,
+          "mean_happiness": "68.45",
+          "mean_level": "12.98",
+          "radiation_fraction": "0.049",
+          "unassigned": 36,
+          "dweller_stimpaks": 1,
+          "dweller_radaway": 1,
+          "non_deleted_rows": 49
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 32
+        },
+        {
+          "status": "WORKING",
+          "n": 13
+        },
+        {
+          "status": "RESTING",
+          "n": 2
+        },
+        {
+          "status": "DEAD",
+          "n": 2
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 4,
+          "ready": 0,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [
+        {
+          "retained_runs": 20,
+          "retained_caps_found": 1586
+        }
+      ],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V18",
+      "dwellers": [
+        {
+          "rows": 47,
+          "deleted_rows": 0,
+          "mean_happiness": "30.43",
+          "mean_level": "4.23",
+          "radiation_fraction": "3.512",
+          "unassigned": 47,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 47
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 24
+        },
+        {
+          "status": "DEAD",
+          "n": 23
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 4,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [
+        {
+          "retained_runs": 1,
+          "retained_caps_found": 97
+        }
+      ],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V19",
+      "dwellers": [
+        {
+          "rows": 19,
+          "deleted_rows": 0,
+          "mean_happiness": "31.05",
+          "mean_level": "15.37",
+          "radiation_fraction": "1.765",
+          "unassigned": 19,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 19
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 10
+        },
+        {
+          "status": "DEAD",
+          "n": 9
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 0,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [
+        {
+          "retained_runs": 1,
+          "retained_caps_found": 95
+        }
+      ],
+      "medical": [
+        {
+          "stimpack": 0,
+          "radaway": 0
+        }
+      ]
+    },
+    {
+      "label": "V20",
+      "dwellers": [
+        {
+          "rows": 27,
+          "deleted_rows": 0,
+          "mean_happiness": "36.67",
+          "mean_level": "1.00",
+          "radiation_fraction": "0.574",
+          "unassigned": 27,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 27
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 18
+        },
+        {
+          "status": "DEAD",
+          "n": 9
+        }
+      ],
+      "quests": [],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 0,
+          "radaway": 0
+        }
+      ]
+    },
+    {
+      "label": "V21",
+      "dwellers": [
+        {
+          "rows": 9,
+          "deleted_rows": 0,
+          "mean_happiness": "50.00",
+          "mean_level": "1.00",
+          "radiation_fraction": "0.440",
+          "unassigned": 9,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 9
+        }
+      ],
+      "statuses": [
+        {
+          "status": "DEAD",
+          "n": 9
+        }
+      ],
+      "quests": [],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 0,
+          "radaway": 0
+        }
+      ]
+    },
+    {
+      "label": "V22",
+      "dwellers": [
+        {
+          "rows": 9,
+          "deleted_rows": 0,
+          "mean_happiness": "50.00",
+          "mean_level": "1.00",
+          "radiation_fraction": "0.434",
+          "unassigned": 9,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 9
+        }
+      ],
+      "statuses": [
+        {
+          "status": "DEAD",
+          "n": 9
+        }
+      ],
+      "quests": [],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 0,
+          "radaway": 0
+        }
+      ]
+    },
+    {
+      "label": "V23",
+      "dwellers": [
+        {
+          "rows": 9,
+          "deleted_rows": 0,
+          "mean_happiness": "50.00",
+          "mean_level": "1.00",
+          "radiation_fraction": "0.349",
+          "unassigned": 9,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 9
+        }
+      ],
+      "statuses": [
+        {
+          "status": "DEAD",
+          "n": 9
+        }
+      ],
+      "quests": [],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 0,
+          "radaway": 0
+        }
+      ]
+    },
+    {
+      "label": "V24",
+      "dwellers": [
+        {
+          "rows": 9,
+          "deleted_rows": 0,
+          "mean_happiness": "50.00",
+          "mean_level": "1.00",
+          "radiation_fraction": "0.246",
+          "unassigned": 9,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 9
+        }
+      ],
+      "statuses": [
+        {
+          "status": "DEAD",
+          "n": 9
+        }
+      ],
+      "quests": [],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 0,
+          "radaway": 0
+        }
+      ]
+    },
+    {
+      "label": "V25",
+      "dwellers": [
+        {
+          "rows": 9,
+          "deleted_rows": 0,
+          "mean_happiness": "50.00",
+          "mean_level": "1.00",
+          "radiation_fraction": "0.104",
+          "unassigned": 9,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 9
+        }
+      ],
+      "statuses": [
+        {
+          "status": "DEAD",
+          "n": 9
+        }
+      ],
+      "quests": [],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 0,
+          "radaway": 0
+        }
+      ]
+    },
+    {
+      "label": "V26",
+      "dwellers": [
+        {
+          "rows": 60,
+          "deleted_rows": 0,
+          "mean_happiness": "71.67",
+          "mean_level": "15.88",
+          "radiation_fraction": "0.004",
+          "unassigned": 34,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 60
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 36
+        },
+        {
+          "status": "WORKING",
+          "n": 23
+        },
+        {
+          "status": "RESTING",
+          "n": 1
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 1,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [
+        {
+          "orders": 1,
+          "recorded_caps_spent": 0
+        }
+      ],
+      "explorations": [
+        {
+          "retained_runs": 1,
+          "retained_caps_found": 575
+        }
+      ],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V27",
+      "dwellers": [
+        {
+          "rows": 23,
+          "deleted_rows": 0,
+          "mean_happiness": "53.96",
+          "mean_level": "1.00",
+          "radiation_fraction": "0.652",
+          "unassigned": 23,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 23
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 23
+        }
+      ],
+      "quests": [],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 0,
+          "radaway": 0
+        }
+      ]
+    },
+    {
+      "label": "V28",
+      "dwellers": [
+        {
+          "rows": 36,
+          "deleted_rows": 0,
+          "mean_happiness": "42.78",
+          "mean_level": "9.25",
+          "radiation_fraction": "0.778",
+          "unassigned": 28,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 36
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 28
+        },
+        {
+          "status": "WORKING",
+          "n": 6
+        },
+        {
+          "status": "RESTING",
+          "n": 2
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 0,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [
+        {
+          "retained_runs": 1,
+          "retained_caps_found": 202
+        }
+      ],
+      "medical": [
+        {
+          "stimpack": 0,
+          "radaway": 0
+        }
+      ]
+    },
+    {
+      "label": "V29",
+      "dwellers": [
+        {
+          "rows": 55,
+          "deleted_rows": 0,
+          "mean_happiness": "93.96",
+          "mean_level": "17.38",
+          "radiation_fraction": "0.075",
+          "unassigned": 20,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 55
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 20
+        },
+        {
+          "status": "WORKING",
+          "n": 32
+        },
+        {
+          "status": "TRAINING",
+          "n": 1
+        },
+        {
+          "status": "RESTING",
+          "n": 2
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 5,
+          "ready": 0,
+          "recorded_caps": "575"
+        }
+      ],
+      "crafts": [],
+      "explorations": [
+        {
+          "retained_runs": 2,
+          "retained_caps_found": 350
+        }
+      ],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V30",
+      "dwellers": [
+        {
+          "rows": 33,
+          "deleted_rows": 0,
+          "mean_happiness": "57.09",
+          "mean_level": "1.00",
+          "radiation_fraction": "0.000",
+          "unassigned": 4,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 33
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 4
+        },
+        {
+          "status": "WORKING",
+          "n": 20
+        },
+        {
+          "status": "TRAINING",
+          "n": 7
+        },
+        {
+          "status": "RESTING",
+          "n": 2
+        }
+      ],
+      "quests": [],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V31",
+      "dwellers": [
+        {
+          "rows": 10,
+          "deleted_rows": 0,
+          "mean_happiness": "100.00",
+          "mean_level": "40.20",
+          "radiation_fraction": "0.000",
+          "unassigned": 0,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 10
+        }
+      ],
+      "statuses": [
+        {
+          "status": "WORKING",
+          "n": 8
+        },
+        {
+          "status": "RESTING",
+          "n": 2
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 0,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 0,
+          "radaway": 0
+        }
+      ]
+    },
+    {
+      "label": "V32",
+      "dwellers": [
+        {
+          "rows": 36,
+          "deleted_rows": 0,
+          "mean_happiness": "41.92",
+          "mean_level": "18.67",
+          "radiation_fraction": "0.639",
+          "unassigned": 18,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 36
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 18
+        },
+        {
+          "status": "WORKING",
+          "n": 16
+        },
+        {
+          "status": "RESTING",
+          "n": 2
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 0,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [
+        {
+          "retained_runs": 6,
+          "retained_caps_found": 3811
+        }
+      ],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V33",
+      "dwellers": [
+        {
+          "rows": 36,
+          "deleted_rows": 0,
+          "mean_happiness": "31.44",
+          "mean_level": "22.78",
+          "radiation_fraction": "0.750",
+          "unassigned": 12,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 36
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 12
+        },
+        {
+          "status": "WORKING",
+          "n": 20
+        },
+        {
+          "status": "RESTING",
+          "n": 2
+        },
+        {
+          "status": "FIGHTING",
+          "n": 2
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 1,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V34",
+      "dwellers": [
+        {
+          "rows": 50,
+          "deleted_rows": 0,
+          "mean_happiness": "84.14",
+          "mean_level": "18.36",
+          "radiation_fraction": "0.000",
+          "unassigned": 25,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 50
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 26
+        },
+        {
+          "status": "WORKING",
+          "n": 22
+        },
+        {
+          "status": "RESTING",
+          "n": 2
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 2,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [
+        {
+          "retained_runs": 1,
+          "retained_caps_found": 0
+        }
+      ],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V35",
+      "dwellers": [
+        {
+          "rows": 36,
+          "deleted_rows": 0,
+          "mean_happiness": "26.67",
+          "mean_level": "19.72",
+          "radiation_fraction": "0.722",
+          "unassigned": 15,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 36
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 15
+        },
+        {
+          "status": "WORKING",
+          "n": 20
+        },
+        {
+          "status": "RESTING",
+          "n": 1
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 0,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [
+        {
+          "retained_runs": 1,
+          "retained_caps_found": 110
+        }
+      ],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V36",
+      "dwellers": [
+        {
+          "rows": 10,
+          "deleted_rows": 0,
+          "mean_happiness": "100.00",
+          "mean_level": "19.20",
+          "radiation_fraction": "0.000",
+          "unassigned": 0,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 10
+        }
+      ],
+      "statuses": [
+        {
+          "status": "WORKING",
+          "n": 8
+        },
+        {
+          "status": "RESTING",
+          "n": 2
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 0,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [],
+      "medical": [
+        {
+          "stimpack": 0,
+          "radaway": 0
+        }
+      ]
+    },
+    {
+      "label": "V37",
+      "dwellers": [
+        {
+          "rows": 36,
+          "deleted_rows": 0,
+          "mean_happiness": "86.11",
+          "mean_level": "12.08",
+          "radiation_fraction": "0.000",
+          "unassigned": 13,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 36
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 13
+        },
+        {
+          "status": "WORKING",
+          "n": 21
+        },
+        {
+          "status": "RESTING",
+          "n": 2
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 1,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [
+        {
+          "retained_runs": 5,
+          "retained_caps_found": 771
+        }
+      ],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    },
+    {
+      "label": "V38",
+      "dwellers": [
+        {
+          "rows": 36,
+          "deleted_rows": 0,
+          "mean_happiness": "95.94",
+          "mean_level": "6.83",
+          "radiation_fraction": "0.003",
+          "unassigned": 13,
+          "dweller_stimpaks": 0,
+          "dweller_radaway": 0,
+          "non_deleted_rows": 36
+        }
+      ],
+      "statuses": [
+        {
+          "status": "IDLE",
+          "n": 16
+        },
+        {
+          "status": "WORKING",
+          "n": 19
+        },
+        {
+          "status": "RESTING",
+          "n": 1
+        }
+      ],
+      "quests": [
+        {
+          "linked": 22,
+          "completed": 0,
+          "ready": 2,
+          "recorded_caps": "0"
+        }
+      ],
+      "crafts": [],
+      "explorations": [
+        {
+          "retained_runs": 2,
+          "retained_caps_found": 0
+        }
+      ],
+      "medical": [
+        {
+          "stimpack": 30,
+          "radaway": 30
+        }
+      ]
+    }
+  ]
+}

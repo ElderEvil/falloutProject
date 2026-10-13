@@ -61,14 +61,21 @@ const healthPercent = (creature: ArenaCreatureView | null) =>
       </div>
       <div class="hp-text">{{ creature.health }}/{{ creature.max_health }}</div>
     </div>
-    <button v-else class="creature-slot-empty" type="button" @click="emit('togglePicker')">
+    <Button v-else variant="ghost" class="creature-slot-empty" type="button" @click="emit('togglePicker')">
       <span>+ ADD CREATURE</span>
-    </button>
+    </Button>
     <div v-if="pickerOpen && canChange" class="picker">
-      <button v-for="option in options" :key="option.key" class="picker-option" type="button" @click="emit('select', option)">
+      <Button
+        v-for="option in options"
+        :key="option.key"
+        variant="ghost"
+        class="picker-option"
+        type="button"
+        @click="emit('select', option)"
+      >
         <span class="picker-name">{{ option.name }}</span>
         <span class="picker-meta">POW {{ Math.round(option.power) }} &middot; {{ option.max_hp }} HP</span>
-      </button>
+      </Button>
       <div v-if="!options.length" class="picker-empty">No creatures available.</div>
     </div>
   </div>
@@ -107,6 +114,7 @@ const healthPercent = (creature: ArenaCreatureView | null) =>
 .creature-slot-empty:hover {
   border-color: var(--color-danger);
   color: var(--color-danger);
+  background: transparent;
 }
 
 .picker {
@@ -129,9 +137,14 @@ const healthPercent = (creature: ArenaCreatureView | null) =>
   flex-direction: column;
   gap: 0.1rem;
   width: 100%;
+  height: auto;
+  align-items: stretch;
   border: 0;
+  border-radius: 0;
   background: transparent;
   text-align: left;
+  font-weight: normal;
+  white-space: normal;
   padding: 0.45rem 0.6rem;
   cursor: pointer;
 }
@@ -183,7 +196,7 @@ const healthPercent = (creature: ArenaCreatureView | null) =>
   color: var(--color-danger);
   font-weight: bold;
   font-size: 0.95rem;
-  text-shadow: 0 0 8px rgba(255, 0, 0, 0.5);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--color-danger) 50%, transparent);
   animation: damage-float 0.9s ease-out forwards;
   z-index: 2;
 }

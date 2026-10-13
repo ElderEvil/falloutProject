@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
+import { Button } from '@/core/components/ui/button'
 import type { BattleLogEntry } from '../models/battleLog'
 
 const props = defineProps<{
@@ -92,13 +93,20 @@ watch(
       <p v-else class="text-xs text-terminal-green-dim">{{ emptyText }}</p>
     </div>
 
-    <button
+    <Button
       v-if="hasNewEntries"
+      variant="link"
+      class="battle-log-newest h-auto self-start px-0 text-xs underline"
       type="button"
-      class="self-start text-xs text-terminal-green underline"
       @click="scrollToNewest"
     >
       New rounds below
-    </button>
+    </Button>
   </div>
 </template>
+
+<style scoped>
+.battle-log-newest {
+  color: var(--color-terminal-green);
+}
+</style>

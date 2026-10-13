@@ -143,3 +143,19 @@ callers; `app/utils/` never imports `app.services.*`.
 Incident types map to channels via `effects_for_incident_type` in `app/models/incident.py`:
 FIRE deals fire damage, RADSCORPION_ATTACK deals physical damage and also irradiates, everything
 else deals physical damage without radiation.
+
+### Wave 2 resource reserves
+
+Primary production remains 0.0012 per SPECIAL point per output unit per second.
+Power draw is 0.40 per weighted room size/tier per minute; food and water draw
+are 0.30 per adult in the vault per minute. Dead/deleted dwellers and dwellers
+on exploration or quests do not draw vault food/water; children and teens use
+the existing 70% youth multiplier.
+
+Catch-up uses steps of at most 60 seconds so restored power enables other
+production on the following step. Fractional stock persists on GameState;
+capacity and reserve clamps discard unusable excess/debt. After the existing
+10-minute activity timeout, net-negative changes stop at 25% capacity, or at
+the current amount if already below that floor. This never grants resources.
+Active vaults retain full drain; returning resumes it. There is no Survival
+mode selector yet. Production and medical storage limits remain in force.

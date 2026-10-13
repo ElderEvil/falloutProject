@@ -135,4 +135,43 @@ describe('ArenaModal', () => {
     expect(wrapper.text()).toContain('MATCH COMPLETE')
     expect(wrapper.text()).toContain('Alpha Dweller wins')
   })
+
+  it('renders the battle journal oldest-first with round numbers and grouping', async () => {
+    storeMock.currentRoom = {
+      ...storeMock.readyRoom,
+      events: [
+        { id: 'e4', round_seq: 4, kind: 'finish', message: 'Alpha Dweller defeated Bravo Dweller!' },
+        { id: 'e3', round_seq: 3, kind: 'hit', message: 'Alpha Dweller hits Bravo Dweller for 5' },
+        { id: 'e2', round_seq: 2, kind: 'hit', message: 'Alpha Dweller hits Bravo Dweller for 5' },
+        { id: 'e1', round_seq: 1, kind: 'hit', message: 'Bravo Dweller hits Alpha Dweller for 3' },
+      ],
+    }
+    const wrapper = mount(ArenaModal, {
+      props: { vaultId: 'vault-1', roomId: 'room-1' },
+      global: { plugins: [createPinia()] },
+    })
+    await flushPromises()
+
+    const items = wrapper.findAll('[aria-label="Battle log"] li')
+    expect(items).toHaveLength(3)
+    expect(items[0].text()).toContain('Bravo Dweller hits Alpha Dweller for 3')
+    expect(items[0].text()).toContain('R1')
+    expect(items[1].text()).toContain('Alpha Dweller hits Bravo Dweller for 5')
+    expect(items[1].text()).toContain('R2')
+    expect(items[1].text()).toContain('×2')
+    expect(items[2].text()).toContain('FINISH')
+    expect(items[2].text()).toContain('R4')
+  })
+
+  it('shows a polite empty state when no rounds have been fought', async () => {
+    const wrapper = mount(ArenaModal, {
+      props: { vaultId: 'vault-1', roomId: 'room-1' },
+      global: { plugins: [createPinia()] },
+    })
+    await flushPromises()
+
+    const journal = wrapper.get('[aria-label="Battle log"]')
+    expect(journal.attributes('aria-live')).toBe('polite')
+    expect(journal.text()).toContain('No rounds fought yet.')
+  })
 })

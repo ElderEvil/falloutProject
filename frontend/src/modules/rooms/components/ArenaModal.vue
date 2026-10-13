@@ -10,10 +10,12 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import ArenaFighterSlot from './ArenaFighterSlot.vue'
+import BattleLog from './BattleLog.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { useArenaStore } from '../stores/arena'
 import { useDwellerMedicalStore } from '@/modules/dwellers/stores/dwellerMedical'
 import type { ArenaFighter, ArenaRosterEntry } from '../api/arena'
+import { battleLogKindLabel, type BattleLogEntry } from '../models/battleLog'
 
 interface Props {
   vaultId: string
@@ -207,18 +209,24 @@ const startFight = async () => {
   }
 }
 
-const journalIcon = (kind: string) => {
-  switch (kind) {
-    case 'hit':
-      return 'mdi:sword'
-    case 'finish':
-      return 'mdi:skull-crossbones'
-    case 'reward':
-      return 'mdi:emoticon-happy-outline'
-    default:
-      return 'mdi:dots-horizontal'
-  }
+const JOURNAL_KIND_LABELS: Record<string, string> = {
+  hit: 'HIT',
+  finish: 'FINISH',
+  reward: 'REWARD',
 }
+
+// Round sequence is the journal's reading order — normalize it here so the
+// list cannot flip if the wire order changes.
+const journalEntries = computed<BattleLogEntry[]>(() =>
+  [...(roomState.value?.events ?? [])]
+    .sort((a, b) => a.round_seq - b.round_seq)
+    .map((event) => ({
+      id: event.id,
+      kind: battleLogKindLabel(event.kind, JOURNAL_KIND_LABELS),
+      message: event.message,
+      meta: `R${event.round_seq}`,
+    }))
+)
 
 const hpPercent = (entry: ArenaRosterEntry) =>
   entry.max_health > 0 ? Math.round((entry.health / entry.max_health) * 100) : 0
@@ -373,20 +381,15 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
       </div>
 
       <!-- Battle journal -->
-      <div v-if="roomState?.events.length" class="section">
+      <div class="section">
         <div class="journal-header">
           <h3 class="section-title">
             <Icon icon="mdi:clipboard-text-clock-outline" class="section-title-icon" />
             Battle Journal
           </h3>
-          <Button variant="ghost" size="xs" @click="clearJournal">CLEAR</Button>
+          <Button v-if="roomState?.events.length" variant="ghost" size="xs" @click="clearJournal">CLEAR</Button>
         </div>
-        <div class="journal-list">
-          <div v-for="event in roomState.events" :key="event.id" class="journal-entry" :class="event.kind">
-            <Icon :icon="journalIcon(event.kind)" class="journal-entry-icon" />
-            <span>{{ event.message }}</span>
-          </div>
-        </div>
+        <BattleLog :entries="journalEntries" empty-text="No rounds fought yet." />
       </div>
 
       <div class="arena-note">
@@ -597,62 +600,11 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
   margin-right: 0.4rem;
 }
 
-.journal-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  max-height: 180px;
-  overflow-y: auto;
-  padding: 0.6rem;
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-surface-hover);
-  border-radius: 4px;
-}
-
 .journal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.4rem;
-}
-
-.journal-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.journal-entry {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 0.8rem;
-  color: var(--color-gray-300);
-  line-height: 1.35;
-}
-
-.journal-entry-icon {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  color: var(--color-gray-500);
-}
-
-.journal-entry.finish .journal-entry-icon {
-  color: var(--color-danger);
-}
-
-.journal-entry.finish {
-  color: var(--color-theme-primary);
-  font-weight: 600;
-}
-
-.journal-entry.reward .journal-entry-icon {
-  color: var(--color-caps);
-}
-
-.journal-entry.reward {
-  color: var(--color-caps);
 }
 
 .versus-icon {

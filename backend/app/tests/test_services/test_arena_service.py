@@ -8,6 +8,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import ArenaMode
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.vault import Vault
@@ -106,6 +107,50 @@ async def fighter_b_fixture(async_session: AsyncSession, vault: Vault) -> Dwelle
     )
 
 
+@pytest_asyncio.fixture(name="fighter_c")
+async def fighter_c_fixture(async_session: AsyncSession, vault: Vault) -> Dweller:
+    """Team A's second brawler."""
+    return await crud.dweller.create(
+        db_session=async_session,
+        obj_in=DwellerCreate(
+            first_name="Arena",
+            last_name="Second",
+            vault_id=vault.id,
+            gender=GenderEnum.MALE,
+            rarity=RarityEnum.COMMON,
+            age_group=AgeGroupEnum.ADULT,
+            level=3,
+            max_health=80,
+            health=80,
+            strength=3,
+            endurance=3,
+            agility=3,
+        ),
+    )
+
+
+@pytest_asyncio.fixture(name="fighter_d")
+async def fighter_d_fixture(async_session: AsyncSession, vault: Vault) -> Dweller:
+    """Team B's second brawler."""
+    return await crud.dweller.create(
+        db_session=async_session,
+        obj_in=DwellerCreate(
+            first_name="Arena",
+            last_name="Fourth",
+            vault_id=vault.id,
+            gender=GenderEnum.FEMALE,
+            rarity=RarityEnum.COMMON,
+            age_group=AgeGroupEnum.ADULT,
+            level=2,
+            max_health=60,
+            health=60,
+            strength=2,
+            endurance=2,
+            agility=2,
+        ),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Service tests
 # ---------------------------------------------------------------------------
@@ -120,7 +165,13 @@ class TestArenaService:
         await async_session.refresh(fighter_a, ["weapon"])
         await async_session.refresh(fighter_b, ["weapon"])
         service = ArenaService()
-        result = await service._run_round(async_session, arena_room, [fighter_a, fighter_b], 1)
+        result = await service._resolve_round(
+            async_session,
+            arena_room,
+            [participant_from_dweller(fighter_a)],
+            [participant_from_dweller(fighter_b)],
+            1,
+        )
         assert result["status"] == "ongoing"
         # Weak fighter takes far more damage
         assert fighter_a.health > fighter_b.health
@@ -137,7 +188,13 @@ class TestArenaService:
         await async_session.refresh(fighter_a, ["weapon"])
         await async_session.refresh(fighter_b, ["weapon"])
         service = ArenaService()
-        result = await service._run_round(async_session, arena_room, [fighter_a, fighter_b], 1000)
+        result = await service._resolve_round(
+            async_session,
+            arena_room,
+            [participant_from_dweller(fighter_a)],
+            [participant_from_dweller(fighter_b)],
+            1000,
+        )
         assert result["status"] == "finished"
         assert result["winner"] == "Arena Champ"
         assert result["loser"] == "Arena Jobber"
@@ -293,7 +350,13 @@ class TestArenaService:
         await async_session.refresh(fighter_a, ["weapon"])
         await async_session.refresh(fighter_b, ["weapon"])
         service = ArenaService()
-        await service._run_round(async_session, arena_room, [fighter_a, fighter_b], 3600)
+        await service._resolve_round(
+            async_session,
+            arena_room,
+            [participant_from_dweller(fighter_a)],
+            [participant_from_dweller(fighter_b)],
+            3600,
+        )
         await async_session.commit()
 
         before = list(
@@ -451,3 +514,176 @@ class TestArenaService:
         assert result["loser"] == "Enemy"
         assert enemy.health == 1
         assert arena_room.arena_last_fight_at is not None
+
+    @pytest.mark.asyncio
+    async def test_set_fighters_brawl_requires_four(self, async_session, arena_room, fighter_a, fighter_b, fighter_c):
+        for fighter in (fighter_a, fighter_b, fighter_c):
+            fighter.room_id = arena_room.id
+        await async_session.commit()
+        service = ArenaService()
+        with pytest.raises(ValidationException):
+            await service.set_fighters(
+                async_session,
+                arena_room.id,
+                fighter_a.id,
+                fighter_b.id,
+                mode=ArenaMode.BRAWL,
+                fighter_c_id=fighter_c.id,
+            )
+
+    @pytest.mark.asyncio
+    async def test_set_fighters_duel_rejects_extra_slots(
+        self, async_session, arena_room, fighter_a, fighter_b, fighter_c
+    ):
+        for fighter in (fighter_a, fighter_b, fighter_c):
+            fighter.room_id = arena_room.id
+        await async_session.commit()
+        service = ArenaService()
+        with pytest.raises(ValidationException):
+            await service.set_fighters(
+                async_session,
+                arena_room.id,
+                fighter_a.id,
+                fighter_b.id,
+                mode=ArenaMode.DUEL,
+                fighter_c_id=fighter_c.id,
+            )
+
+    @pytest.mark.asyncio
+    async def test_set_fighters_rejects_hunt_mode(self, async_session, arena_room):
+        service = ArenaService()
+        with pytest.raises(ValidationException):
+            await service.set_fighters(async_session, arena_room.id, None, None, mode=ArenaMode.HUNT)
+
+    @pytest.mark.asyncio
+    async def test_set_fighters_rejects_duplicate_fighter(self, async_session, arena_room, fighter_a):
+        fighter_a.room_id = arena_room.id
+        await async_session.commit()
+        service = ArenaService()
+        with pytest.raises(ValidationException):
+            await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_a.id)
+
+    @pytest.mark.asyncio
+    async def test_set_fighters_rejects_non_adult(self, async_session, arena_room, fighter_a, vault):
+        child = await crud.dweller.create(
+            async_session,
+            obj_in=DwellerCreate(
+                first_name="Arena",
+                last_name="Kid",
+                vault_id=vault.id,
+                gender=GenderEnum.MALE,
+                rarity=RarityEnum.COMMON,
+                age_group=AgeGroupEnum.CHILD,
+                level=1,
+                max_health=50,
+                health=50,
+            ),
+        )
+        fighter_a.room_id = arena_room.id
+        child.room_id = arena_room.id
+        await async_session.commit()
+        service = ArenaService()
+        with pytest.raises(ValidationException):
+            await service.set_fighters(async_session, arena_room.id, fighter_a.id, child.id)
+
+    @pytest.mark.asyncio
+    async def test_get_arena_state_duel_teams(self, async_session, arena_room, fighter_a, fighter_b, vault):
+        fighter_a.room_id = arena_room.id
+        fighter_b.room_id = arena_room.id
+        await async_session.commit()
+        service = ArenaService()
+        await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
+
+        room_state = (await service.get_arena_state(async_session, vault.id)).rooms[0]
+
+        assert room_state.mode == "duel"
+        assert [f.id for f in room_state.team_a] == [str(fighter_a.id)]
+        assert [f.id for f in room_state.team_b] == [str(fighter_b.id)]
+        assert [f.id for f in room_state.fighters] == [str(fighter_a.id), str(fighter_b.id)]
+        assert room_state.can_start is True
+        assert room_state.fight_ready is True
+
+    @pytest.mark.asyncio
+    async def test_get_arena_state_brawl_teams(
+        self, async_session, arena_room, fighter_a, fighter_b, fighter_c, fighter_d, vault
+    ):
+        for fighter in (fighter_a, fighter_b, fighter_c, fighter_d):
+            fighter.room_id = arena_room.id
+        await async_session.commit()
+        service = ArenaService()
+        room = await service.set_fighters(
+            async_session,
+            arena_room.id,
+            fighter_a.id,
+            fighter_b.id,
+            mode=ArenaMode.BRAWL,
+            fighter_c_id=fighter_c.id,
+            fighter_d_id=fighter_d.id,
+        )
+        assert room.arena_mode == ArenaMode.BRAWL
+        assert room.fighter_c_id == fighter_c.id
+        assert room.fighter_d_id == fighter_d.id
+
+        room_state = (await service.get_arena_state(async_session, vault.id)).rooms[0]
+
+        assert room_state.mode == "brawl"
+        assert [f.id for f in room_state.team_a] == [str(fighter_a.id), str(fighter_c.id)]
+        assert [f.id for f in room_state.team_b] == [str(fighter_b.id), str(fighter_d.id)]
+        assert [f.id for f in room_state.fighters] == [str(fighter_a.id), str(fighter_b.id)]
+        assert room_state.can_start is True
+        assert room_state.fight_ready is True
+
+    @pytest.mark.asyncio
+    async def test_get_arena_state_brawl_incomplete_not_ready(
+        self, async_session, arena_room, fighter_a, fighter_b, vault
+    ):
+        fighter_a.room_id = arena_room.id
+        fighter_b.room_id = arena_room.id
+        arena_room.arena_mode = ArenaMode.BRAWL
+        arena_room.arena_fighter_a_id = fighter_a.id
+        arena_room.arena_fighter_b_id = fighter_b.id
+        await async_session.commit()
+        service = ArenaService()
+
+        room_state = (await service.get_arena_state(async_session, vault.id)).rooms[0]
+
+        assert room_state.mode == "brawl"
+        assert room_state.team_a == []
+        assert room_state.team_b == []
+        assert room_state.can_start is False
+
+    @pytest.mark.asyncio
+    async def test_process_arena_ticks_brawl_resolves_winner(
+        self, async_session, arena_room, fighter_a, fighter_b, fighter_c, fighter_d
+    ):
+        from datetime import datetime, timedelta
+
+        for fighter in (fighter_a, fighter_b, fighter_c, fighter_d):
+            fighter.room_id = arena_room.id
+        await async_session.commit()
+        service = ArenaService()
+        await service.set_fighters(
+            async_session,
+            arena_room.id,
+            fighter_a.id,
+            fighter_b.id,
+            mode=ArenaMode.BRAWL,
+            fighter_c_id=fighter_c.id,
+            fighter_d_id=fighter_d.id,
+        )
+        fighter_a.health = 1000
+        fighter_c.health = 1000
+        fighter_b.health = 1
+        fighter_d.health = 1
+        arena_room.arena_fight_started_at = datetime.utcnow() - timedelta(seconds=10)
+        await async_session.commit()
+
+        result = await service.process_arena_ticks(async_session, 5)
+
+        assert result["arena"]["rooms"] == 1
+        assert result["arena"]["rounds"][0]["status"] == "finished"
+        assert result["arena"]["rounds"][0]["winner"] == "Arena Champ"
+        await async_session.refresh(fighter_b)
+        await async_session.refresh(fighter_d)
+        assert fighter_b.health == 1
+        assert fighter_d.health == 1

@@ -2,12 +2,17 @@
 
 from pydantic import UUID4, BaseModel
 
+from app.core.enums import ArenaMode
+
 
 class ArenaFightersRequest(BaseModel):
     """Fighter slot selection payload."""
 
+    mode: ArenaMode = ArenaMode.DUEL
     fighter_a_id: UUID4 | None = None
     fighter_b_id: UUID4 | None = None
+    fighter_c_id: UUID4 | None = None
+    fighter_d_id: UUID4 | None = None
 
 
 class ArenaFighter(BaseModel):
@@ -19,6 +24,7 @@ class ArenaFighter(BaseModel):
     health: int
     max_health: int
     power: float
+    is_creature: bool = False
 
 
 class ArenaRosterEntry(BaseModel):
@@ -50,6 +56,8 @@ class ArenaRoomState(BaseModel):
     fighter_a_id: str | None
     fighter_b_id: str | None
     fighters: list[ArenaFighter]
+    team_a: list[ArenaFighter]
+    team_b: list[ArenaFighter]
     roster: list[ArenaRosterEntry]
     fight_ready: bool
     match_done: bool

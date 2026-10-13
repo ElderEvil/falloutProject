@@ -40,7 +40,6 @@ from app.utils.exceptions import ValidationException
 
 logger = logging.getLogger(__name__)
 
-MIN_FIGHTERS = 2
 HAPPINESS_WIN = 10
 HAPPINESS_LOSE = 10
 
@@ -86,6 +85,17 @@ class ArenaService:
             raise ValidationException(detail="Arena room not found")
         return rooms[0]
 
+    @staticmethod
+    def _team_slot_ids(room: Room) -> tuple[list[UUID4 | None], list[UUID4 | None]]:
+        """Slot ids for (team A, team B); a/b are each side's lead across modes."""
+        if (room.arena_mode or ArenaMode.DUEL) == ArenaMode.BRAWL:
+            return [room.arena_fighter_a_id, room.fighter_c_id], [room.arena_fighter_b_id, room.fighter_d_id]
+        return [room.arena_fighter_a_id], [room.arena_fighter_b_id]
+
+    @staticmethod
+    def _required_team_size(mode: ArenaMode) -> int:
+        return 2 if mode == ArenaMode.BRAWL else 1
+
     async def set_fighters(
         self,
         db_session: AsyncSession,
@@ -93,25 +103,43 @@ class ArenaService:
         fighter_a_id: UUID4 | None,
         fighter_b_id: UUID4 | None,
         vault_id: UUID4 | None = None,
+        *,
+        mode: ArenaMode = ArenaMode.DUEL,
+        fighter_c_id: UUID4 | None = None,
+        fighter_d_id: UUID4 | None = None,
     ) -> Room:
-        """Pick which assigned dwellers fight (dweller-vs-dweller mode).
+        """Pick the dwellers that fight, per mode.
 
-        Each provided fighter must be an adult assigned to the room. Changing
-        the selection resets any previous match: flags cleared, journal wiped,
-        fighters healed.
+        Duel uses the a/b slots only; brawl fills all four (a/c vs b/d); hunt is
+        not available yet. Every provided fighter must be an adult assigned to
+        the room. Changing the selection resets any previous match: flags
+        cleared, journal wiped, fighters healed.
         """
         room = await self._get_arena_room(db_session, room_id, vault_id)
 
-        selected_ids = [fid for fid in (fighter_a_id, fighter_b_id) if fid is not None]
+        if mode == ArenaMode.HUNT:
+            raise ValidationException(detail="Hunt mode is not available yet")
+        if mode == ArenaMode.DUEL and (fighter_c_id is not None or fighter_d_id is not None):
+            raise ValidationException(detail="Duel mode takes exactly two fighters")
+        if mode == ArenaMode.BRAWL and None in (fighter_a_id, fighter_b_id, fighter_c_id, fighter_d_id):
+            raise ValidationException(detail="Brawl mode needs four fighters")
+
+        selected_ids = [fid for fid in (fighter_a_id, fighter_b_id, fighter_c_id, fighter_d_id) if fid is not None]
+        if len(set(selected_ids)) != len(selected_ids):
+            raise ValidationException(detail="Fighters must be distinct dwellers")
+
         if selected_ids:
             fighters = list(await crud_dweller.get_arena_fighters(db_session, room.id, ids=selected_ids))
             if len(fighters) != len(selected_ids):
-                raise ValidationException(detail="Both fighters must be adult dwellers assigned to the Arena")
+                raise ValidationException(detail="Every fighter must be an adult dweller assigned to the Arena")
         else:
             fighters = []
 
         room.arena_fighter_a_id = fighter_a_id
         room.arena_fighter_b_id = fighter_b_id
+        room.fighter_c_id = fighter_c_id
+        room.fighter_d_id = fighter_d_id
+        room.arena_mode = mode
         room.arena_last_fight_at = None
         room.arena_fight_started_at = None
         room_key = str(room.id)
@@ -128,18 +156,31 @@ class ArenaService:
         await db_session.commit()
         return room
 
-    async def get_fighters(self, db_session: AsyncSession, room: Room) -> list[Dweller]:
-        """Return the selected fighters in A/B order, or [] if not fully set."""
-        ids = [fid for fid in (room.arena_fighter_a_id, room.arena_fighter_b_id) if fid is not None]
-        if len(ids) < MIN_FIGHTERS:
-            return []
+    async def get_teams(self, db_session: AsyncSession, room: Room) -> tuple[list[Dweller], list[Dweller]]:
+        """Return (team A, team B) in slot order, or ([], []) if the match isn't fully selected."""
+        mode = room.arena_mode or ArenaMode.DUEL
+        a_slots, b_slots = self._team_slot_ids(room)
+        slots = [*a_slots, *b_slots]
+        if sum(1 for slot in slots if slot is not None) < self._required_team_size(mode) * 2:
+            return [], []
 
-        fighters = await crud_dweller.get_arena_fighters(db_session, room.id, ids=ids)
+        fighters = await crud_dweller.get_arena_fighters(db_session, room.id, ids=[s for s in slots if s is not None])
         by_id = {str(f.id): f for f in fighters}
-        ordered = [by_id.get(str(room.arena_fighter_a_id)), by_id.get(str(room.arena_fighter_b_id))]
-        if None in ordered:
-            return []
-        return [fighter for fighter in ordered if fighter is not None]
+
+        def resolve(team_slots: list[UUID4 | None]) -> list[Dweller]:
+            members: list[Dweller] = []
+            for slot in team_slots:
+                member = by_id.get(str(slot))
+                if slot is None or member is None:
+                    return []
+                members.append(member)
+            return members
+
+        team_a = resolve(a_slots)
+        team_b = resolve(b_slots)
+        if not team_a or not team_b:
+            return [], []
+        return team_a, team_b
 
     async def get_roster(self, db_session: AsyncSession, room: Room) -> list[Dweller]:
         """Return the adult dwellers assigned to the room, oldest first."""
@@ -153,6 +194,17 @@ class ArenaService:
                 return event.message.split(" defeated ")[0]
         return None
 
+    @staticmethod
+    def _fighter_out(dweller: Dweller) -> ArenaFighter:
+        return ArenaFighter(
+            id=str(dweller.id),
+            name=f"{dweller.first_name} {dweller.last_name}",
+            level=dweller.level,
+            health=dweller.health,
+            max_health=dweller.effective_max_health,
+            power=combat_power(dweller),
+        )
+
     async def get_arena_state(self, db_session: AsyncSession, vault_id: UUID4) -> ArenaState:
         """Build the full arena state for a vault: fighters, roster, flags, journal."""
         rooms = await room_crud.get_arena_rooms(db_session, vault_id=vault_id)
@@ -160,7 +212,9 @@ class ArenaService:
         countdown = game_config.game_loop.arena_countdown_seconds
         state = []
         for room in rooms:
-            fighters = await self.get_fighters(db_session, room)
+            mode = room.arena_mode or ArenaMode.DUEL
+            size = self._required_team_size(mode)
+            team_a, team_b = await self.get_teams(db_session, room)
             roster = await self.get_roster(db_session, room)
 
             match_done = room.arena_last_fight_at is not None
@@ -186,20 +240,12 @@ class ArenaService:
                     room_id=str(room.id),
                     room_name=room.name,
                     tier=room.tier,
-                    mode=(room.arena_mode or ArenaMode.DUEL).value,
+                    mode=mode.value,
                     fighter_a_id=str(room.arena_fighter_a_id) if room.arena_fighter_a_id else None,
                     fighter_b_id=str(room.arena_fighter_b_id) if room.arena_fighter_b_id else None,
-                    fighters=[
-                        ArenaFighter(
-                            id=str(f.id),
-                            name=f"{f.first_name} {f.last_name}",
-                            level=f.level,
-                            health=f.health,
-                            max_health=f.effective_max_health,
-                            power=combat_power(f),
-                        )
-                        for f in fighters
-                    ],
+                    fighters=[self._fighter_out(team[0]) for team in (team_a, team_b) if team],
+                    team_a=[self._fighter_out(f) for f in team_a],
+                    team_b=[self._fighter_out(f) for f in team_b],
                     roster=[
                         ArenaRosterEntry(
                             id=str(d.id),
@@ -210,11 +256,11 @@ class ArenaService:
                         )
                         for d in roster
                     ],
-                    fight_ready=len(roster) >= 2,
+                    fight_ready=len(roster) >= size * 2,
                     match_done=match_done,
                     fight_started=started,
                     countdown_remaining=countdown_remaining,
-                    can_start=len(fighters) == 2 and not started and not match_done,
+                    can_start=len(team_a) >= size and len(team_b) >= size and not started and not match_done,
                     winner_name=winner_name,
                     events=events,
                 )
@@ -246,6 +292,12 @@ class ArenaService:
             if room.arena_fighter_b_id == dweller_id:
                 room.arena_fighter_b_id = None
                 room_changed = True
+            if room.fighter_c_id == dweller_id:
+                room.fighter_c_id = None
+                room_changed = True
+            if room.fighter_d_id == dweller_id:
+                room.fighter_d_id = None
+                room_changed = True
             if room_changed:
                 changed = True
                 room.arena_last_fight_at = None
@@ -259,7 +311,7 @@ class ArenaService:
             await db_session.commit()
 
     async def start_fight(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> Room:
-        """Arm a match for an arena room: both fighter slots set, not done.
+        """Arm a match for an arena room: a full team on each side, not done.
 
         The first combat tick lands after the countdown grace period.
         """
@@ -269,9 +321,11 @@ class ArenaService:
         if room.arena_fight_started_at is not None:
             raise ValidationException(detail="Match already started")
 
-        fighters = await self.get_fighters(db_session, room)
-        if len(fighters) < MIN_FIGHTERS:
-            raise ValidationException(detail="Arena needs two adult fighters selected")
+        size = self._required_team_size(room.arena_mode or ArenaMode.DUEL)
+        team_a, team_b = await self.get_teams(db_session, room)
+        if len(team_a) < size or len(team_b) < size:
+            word = "two" if size == 1 else "four"
+            raise ValidationException(detail=f"Arena needs {word} adult fighters selected")
 
         room.arena_fight_started_at = datetime.utcnow()
         db_session.add(room)
@@ -329,11 +383,18 @@ class ArenaService:
                 continue
             if now - room.arena_fight_started_at < timedelta(seconds=game_config.game_loop.arena_countdown_seconds):
                 continue
-            fighters = await self.get_fighters(db_session, room)
-            if len(fighters) < MIN_FIGHTERS:
+            size = self._required_team_size(room.arena_mode or ArenaMode.DUEL)
+            team_a, team_b = await self.get_teams(db_session, room)
+            if len(team_a) < size or len(team_b) < size:
                 continue
 
-            round_result = await self._run_round(db_session, room, fighters, seconds_passed)
+            round_result = await self._resolve_round(
+                db_session,
+                room,
+                [participant_from_dweller(f) for f in team_a],
+                [participant_from_dweller(f) for f in team_b],
+                seconds_passed,
+            )
             rounds.append({"room_id": str(room.id), **round_result})
 
         await db_session.commit()
@@ -341,17 +402,6 @@ class ArenaService:
 
     async def _get_arena_rooms(self, db_session: AsyncSession, vault_id: UUID4) -> list[Room]:
         return await room_crud.get_arena_rooms(db_session, vault_id=vault_id)
-
-    async def _run_round(
-        self,
-        db_session: AsyncSession,
-        room: Room,
-        fighters: list[Dweller],
-        seconds_passed: int,
-    ) -> dict:
-        team_a = [participant_from_dweller(fighters[0])]
-        team_b = [participant_from_dweller(fighters[1])]
-        return await self._resolve_round(db_session, room, team_a, team_b, seconds_passed)
 
     @staticmethod
     def _team_damage(team: list[ArenaParticipant], seconds_passed: int) -> float:

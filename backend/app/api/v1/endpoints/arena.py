@@ -41,7 +41,16 @@ async def set_arena_fighters(
 ) -> ArenaFightersResponse:
     """Pick which assigned dwellers fight. Changing the selection resets the match."""
     await get_user_vault_or_403(vault_id, user, db_session)
-    room = await arena_service.set_fighters(db_session, room_id, payload.fighter_a_id, payload.fighter_b_id, vault_id)
+    room = await arena_service.set_fighters(
+        db_session,
+        room_id,
+        payload.fighter_a_id,
+        payload.fighter_b_id,
+        vault_id,
+        mode=payload.mode,
+        fighter_c_id=payload.fighter_c_id,
+        fighter_d_id=payload.fighter_d_id,
+    )
     return ArenaFightersResponse(
         room_id=str(room.id),
         fighter_a_id=str(room.arena_fighter_a_id) if room.arena_fighter_a_id else None,

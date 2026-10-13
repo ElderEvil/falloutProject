@@ -9,6 +9,7 @@ import { capitalize } from '@/core/utils/format'
 
 interface Props {
   objective: Objective
+  claiming?: boolean
 }
 
 const props = defineProps<Props>()
@@ -98,7 +99,12 @@ const canClaim = computed(() => {
     </div>
 
     <!-- Claim Button (if completed but not claimed) -->
-    <button v-if="canClaim" class="claim-btn" @click="emit('claim', objective.id)">
+    <button
+      v-if="canClaim"
+      class="claim-btn"
+      :disabled="claiming"
+      @click="emit('claim', objective.id)"
+    >
       <Icon icon="mdi:gift-open" class="btn-icon" />
       Claim Reward
     </button>

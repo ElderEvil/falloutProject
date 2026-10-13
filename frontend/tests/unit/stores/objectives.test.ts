@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import axios from '@/core/plugins/axios'
+import type { Objective } from '@/modules/progression/models/objective'
 
 vi.mock('@/core/plugins/axios')
 
@@ -91,7 +92,6 @@ describe('Objectives Store', () => {
 
         await expect(objectivesStore.fetchObjectives('vault-123')).rejects.toThrow('Network error')
       })
-
     })
   })
 
@@ -139,7 +139,6 @@ describe('Objectives Store', () => {
           objectivesStore.addObjective('vault-123', { challenge: 'Test' })
         ).rejects.toThrow('Add failed')
       })
-
     })
   })
 
@@ -184,7 +183,6 @@ describe('Objectives Store', () => {
           'Not found'
         )
       })
-
     })
   })
 
@@ -267,5 +265,64 @@ describe('Objectives Store', () => {
 
       expect(objectivesStore.objectives[0].is_completed).toBe(true)
     })
+  })
+})
+
+describe('Objective claim continuity', () => {
+  it('preserves template guidance when the claim response contains only progress state', async () => {
+    setActivePinia(createPinia())
+    const store = useObjectivesStore()
+    store.objectivesVaultId = 'v1'
+    store.objectives = [
+      {
+        id: 'step',
+        challenge: 'Train a stat',
+        reward: '200 caps',
+        category: 'starter',
+        sequence: 9,
+        progress: 1,
+        total: 1,
+        is_completed: false,
+      } as never,
+    ]
+    vi.mocked(axios.post).mockResolvedValueOnce({
+      data: { objective_id: 'step', progress: 1, total: 1, is_completed: true },
+    })
+    const result = await store.completeObjective('v1', 'step')
+    expect(axios.post).toHaveBeenCalledWith('/api/v1/objectives/v1/step/claim')
+    expect(result).toMatchObject({
+      id: 'step',
+      challenge: 'Train a stat',
+      sequence: 9,
+      is_completed: true,
+    })
+  })
+
+  it('a late claim result cannot mark the same template claimed in a different vault', async () => {
+    setActivePinia(createPinia())
+    const store = useObjectivesStore()
+    const template = {
+      id: 'step',
+      challenge: 'Train a stat',
+      reward: '200 caps',
+      progress: 1,
+      total: 1,
+      is_completed: false,
+    } as Objective
+    store.objectivesVaultId = 'v1'
+    store.objectives = [template]
+    let resolve!: (value: unknown) => void
+    vi.mocked(axios.post).mockImplementationOnce(
+      () =>
+        new Promise((done) => {
+          resolve = done
+        }) as never
+    )
+    const claiming = store.completeObjective('v1', 'step')
+    store.objectivesVaultId = 'v2'
+    store.objectives = [{ ...template }]
+    resolve({ data: { progress: 1, total: 1, is_completed: true } })
+    await claiming
+    expect(store.objectives[0].is_completed).toBe(false)
   })
 })

@@ -10,16 +10,20 @@ This lives in ``app/utils`` rather than ``app/services`` so CRUD may share it, m
 ``app.utils.dweller_availability``.
 """
 
+from datetime import datetime
+
 from sqlmodel import and_, col, or_
 
-from app.core.enums import AvailabilityEnum, LifecycleEnum
+from app.core.enums import AvailabilityEnum, ContentProvenanceEnum, LifecycleEnum
 from app.models.dweller import Dweller
 
-_DEAD_LIFECYCLES: frozenset[LifecycleEnum] = frozenset(
-    {LifecycleEnum.DEAD_REVIVABLE, LifecycleEnum.DEAD_PERMANENT}
-)
+_DEAD_LIFECYCLES: frozenset[LifecycleEnum] = frozenset({LifecycleEnum.DEAD_REVIVABLE, LifecycleEnum.DEAD_PERMANENT})
 _ARCHIVED_AVAILABILITIES: frozenset[AvailabilityEnum] = frozenset({AvailabilityEnum.ARCHIVE})
 _PUBLIC_ONLY: tuple[AvailabilityEnum, ...] = (AvailabilityEnum.DEPARTURE, AvailabilityEnum.ARCHIVE)
+_REUSABLE_PROVENANCES: tuple[ContentProvenanceEnum, ...] = (
+    ContentProvenanceEnum.CURATED,
+    ContentProvenanceEnum.GENERATED,
+)
 
 
 def is_dead(dweller: Dweller) -> bool:
@@ -72,5 +76,22 @@ def excluded_from_public_offers_conditions() -> tuple:
         or_(
             col(Dweller.availability).is_(None),
             ~col(Dweller.availability).in_(_PUBLIC_ONLY),
+        ),
+    )
+
+
+def pool_eligible_conditions(now: datetime) -> tuple:
+    """WHERE conditions for the shared recruitment pool.
+
+    A person is claimable once they are a living departure, past the eligibility delay,
+    and their content is safe to reuse: system/curated, or player-authored with explicit
+    sharing consent. Unknown provenance stays private and is never listed.
+    """
+    return (
+        col(Dweller.availability) == AvailabilityEnum.DEPARTURE,
+        col(Dweller.departure_eligible_at) <= now,
+        or_(
+            col(Dweller.content_provenance).in_(_REUSABLE_PROVENANCES),
+            col(Dweller.sharing_consent).is_(True),
         ),
     )

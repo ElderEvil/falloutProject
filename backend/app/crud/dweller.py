@@ -36,6 +36,7 @@ from app.services.room_assignment_policy import adult_assignment_conditions
 from app.utils.dweller_lifecycle import (
     excluded_from_public_offers_conditions,
     graveyard_conditions,
+    not_memorial_conditions,
     pool_eligible_conditions,
 )
 from app.utils.dwellers import create_dweller_from_template, create_random_common_dweller
@@ -905,7 +906,13 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         limit: int = 10,
     ) -> Sequence[Dweller]:
         """Soft-deleted dwellers eligible for recycling, newest deletions first."""
-        query = select(self.model).where(self.model.is_deleted).order_by(self.model.deleted_at.desc()).limit(limit)
+        query = (
+            select(self.model)
+            .where(self.model.is_deleted)
+            .where(*not_memorial_conditions())
+            .order_by(self.model.deleted_at.desc())
+            .limit(limit)
+        )
         if deleted_before is not None:
             query = query.where(self.model.deleted_at <= deleted_before)
         if gender is not None:
@@ -932,6 +939,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             select(self.model)
             .where(self.model.is_deleted)
             .where(self.model.deleted_at <= cutoff)
+            .where(*not_memorial_conditions())
             .order_by(self.model.deleted_at.asc())
             .limit(limit)
         )

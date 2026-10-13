@@ -131,3 +131,22 @@ async def test_public_market_listing_excludes_departures(async_session: AsyncSes
     ids = {row.id for row in await crud.dweller.get_tradable(async_session, vault_id=vault.id)}
     assert listing.id in ids
     assert departed.id not in ids
+
+
+async def test_memorial_is_excluded_from_recycling_and_purge(async_session: AsyncSession, vault: Vault) -> None:
+    """A permanent death is an immutable memorial: never recycled or hard-deleted."""
+    memorial = await _dweller(
+        async_session,
+        vault,
+        lifecycle=LifecycleEnum.DEAD_PERMANENT,
+        availability=AvailabilityEnum.ARCHIVE,
+        is_permanently_dead=True,
+        is_deleted=True,
+        deleted_at=datetime.utcnow(),
+    )
+
+    recyclable = await crud.dweller.get_recyclable(async_session, limit=10)
+    purgeable = await crud.dweller.get_soft_deleted_before(async_session, datetime.utcnow(), limit=10)
+
+    assert memorial.id not in {row.id for row in recyclable}
+    assert memorial.id not in {row.id for row in purgeable}

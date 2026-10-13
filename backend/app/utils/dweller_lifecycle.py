@@ -95,3 +95,29 @@ def pool_eligible_conditions(now: datetime) -> tuple:
             col(Dweller.sharing_consent).is_(True),
         ),
     )
+
+
+def memorial_conditions() -> tuple:
+    """WHERE conditions identifying an immutable memorial (a permanent death)."""
+    return (
+        or_(
+            col(Dweller.lifecycle) == LifecycleEnum.DEAD_PERMANENT,
+            and_(col(Dweller.lifecycle).is_(None), col(Dweller.is_permanently_dead)),
+        ),
+    )
+
+
+def not_memorial_conditions() -> tuple:
+    """WHERE conditions excluding memorials from recycle/purge paths.
+
+    A permanent death is a memorial: its row is not resurrected into a living person or
+    hard-deleted, even when it also carries a legacy soft-delete flag. Written as an explicit
+    predicate rather than the negation of ``memorial_conditions`` so an unclassified row
+    (``lifecycle IS NULL``, not permanently dead) is included rather than dropped by NULL.
+    """
+    return (
+        or_(
+            and_(col(Dweller.lifecycle).is_not(None), col(Dweller.lifecycle) != LifecycleEnum.DEAD_PERMANENT),
+            and_(col(Dweller.lifecycle).is_(None), col(Dweller.is_permanently_dead).is_(False)),
+        ),
+    )

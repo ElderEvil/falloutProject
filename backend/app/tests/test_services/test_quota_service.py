@@ -1,12 +1,19 @@
 """Tests for QuotaService."""
 
+from unittest.mock import AsyncMock
+from uuid import uuid4
+
 import pytest
+from redis.exceptions import RedisError
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.config import settings
 from app.models.llm_interaction import LLMInteraction
 from app.schemas.user import UserCreate
-from app.services.quota_service import quota_service
+from app.services.quota_service import DEFAULT_QUOTA_LIMIT, quota_service
+from app.utils.exceptions import ResourceNotFoundException
 
 
 @pytest.mark.asyncio
@@ -131,3 +138,51 @@ async def test_quota_raw_session_owns_usage_transaction(db_connection, async_ses
         assert any("FOR UPDATE" in statement for statement in statements)
         await db.rollback()
         assert (await quota_service.check_quota(user_id, db)).used == 0
+
+
+@pytest.mark.asyncio
+async def test_check_quota_disabled_allows_a_regular_user(
+    async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """QUOTA_DISABLED short-circuits the check for a regular (non-admin) user too."""
+    monkeypatch.setattr(settings, "QUOTA_DISABLED", True)
+    user = await crud.user.create(
+        async_session,
+        obj_in=UserCreate(username="quota_disabled", email="quota_disabled@example.com", password="quotapass123"),
+    )
+
+    result = await quota_service.check_quota(user.id, async_session)
+
+    assert result.allowed is True
+    assert result.remaining == DEFAULT_QUOTA_LIMIT
+    assert result.limit == DEFAULT_QUOTA_LIMIT
+    assert result.percentage == 0.0
+    assert result.warning is False
+    assert result.used == 0
+
+
+@pytest.mark.asyncio
+async def test_check_quota_unknown_user_raises_not_found(async_session: AsyncSession) -> None:
+    """An unknown user id is a not-found error, not an empty quota."""
+    missing_id = uuid4()
+
+    with pytest.raises(ResourceNotFoundException) as exc_info:
+        await quota_service.check_quota(missing_id, async_session)
+
+    assert str(missing_id) in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_record_usage_survives_cache_failure(async_session: AsyncSession) -> None:
+    """A Redis failure while invalidating the usage cache must not abort the usage write."""
+    user = await crud.user.create(
+        async_session,
+        obj_in=UserCreate(username="cache_fail", email="cache_fail@example.com", password="cachefail123"),
+    )
+    broken_redis = AsyncMock()
+    broken_redis.delete.side_effect = RedisError("connection lost")
+
+    await quota_service.record_usage(user.id, 100, async_session, broken_redis)
+
+    persisted = await async_session.execute(select(LLMInteraction).where(LLMInteraction.user_id == user.id))
+    assert persisted.scalars().all() != []

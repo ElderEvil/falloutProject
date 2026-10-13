@@ -16,7 +16,7 @@ import {
   useDwellerFilterStore,
   ALL_DWELLERS_FETCH_LIMIT,
 } from '@/modules/dwellers/stores/dwellerFilter'
-import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { DEFAULT_TABLE_COLUMNS } from '@/modules/dwellers/models/dwellerTable'
 

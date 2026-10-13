@@ -5,7 +5,7 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
-import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 
 vi.mock('@iconify/vue', () => createIconifyMock())
 

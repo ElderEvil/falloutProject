@@ -4,7 +4,7 @@ import { Icon } from '@iconify/vue'
 import { useMediaQuery } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
 import { useSidePanel } from '@/core/composables/useSidePanel'
-import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 import {
   Tooltip,
   TooltipContent,

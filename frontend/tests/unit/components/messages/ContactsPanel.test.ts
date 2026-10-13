@@ -5,7 +5,7 @@ import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { mountWithSetup } from '../../helpers/mountWithSetup'
 import ContactsPanel from '@/modules/messages/components/ContactsPanel.vue'
-import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 import { messagesService } from '@/modules/messages/services/messagesService'
 import type { ConnectionRead } from '@/modules/messages/models/messages'
 

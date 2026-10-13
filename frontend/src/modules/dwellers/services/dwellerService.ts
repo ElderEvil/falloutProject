@@ -4,12 +4,6 @@ import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
 
 export type IdentityOptions = components['schemas']['DwellerIdentityOptions']
 export type AppearanceOptions = components['schemas']['DwellerAppearanceOptions']
-export type FeatureFlags = components['schemas']['FeaturesResponse']
-
-/** Flag additions the generated schema lacks until types:generate; absent on older backends. */
-export interface AppFeatureFlags extends FeatureFlags {
-  player_connections?: boolean
-}
 
 export interface DwellerQueryParams {
   focus?: components['schemas']['DwellerRosterFocus']
@@ -87,10 +81,5 @@ export async function getAppearanceOptions(token: string): Promise<AppearanceOpt
   const response = await axios.get<AppearanceOptions>('/api/v1/dwellers/appearance-options', {
     headers: { Authorization: `Bearer ${token}` },
   })
-  return response.data
-}
-
-export async function getFeatureFlags(): Promise<AppFeatureFlags> {
-  const response = await axios.get<FeatureFlags>('/api/v1/system/features')
   return response.data
 }

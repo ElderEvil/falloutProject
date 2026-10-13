@@ -18,7 +18,7 @@ import {
   GENDER_CONFIG_MAP,
   RARITY_CONFIG_MAP,
 } from '../models/dweller'
-import { useFeatureFlagsStore } from '../stores/featureFlags'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 import { useIdentityOptions } from '../composables/useIdentityOptions'
 import DwellerFilterGroup from './DwellerFilterGroup.vue'
 

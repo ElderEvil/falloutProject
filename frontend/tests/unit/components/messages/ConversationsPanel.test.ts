@@ -4,7 +4,7 @@ import { flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { mountWithSetup } from '../../helpers/mountWithSetup'
 import ConversationsPanel from '@/modules/messages/components/ConversationsPanel.vue'
-import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 import { messagesService } from '@/modules/messages/services/messagesService'
 import type { DirectMessageRead, DirectMessageSummary } from '@/modules/messages/models/messages'
 

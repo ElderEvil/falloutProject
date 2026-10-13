@@ -1,5 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router'
-import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 
 export const messagesRoutes: RouteRecordRaw[] = [
   {

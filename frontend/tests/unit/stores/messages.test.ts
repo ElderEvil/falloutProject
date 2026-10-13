@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useMessagesStore } from '@/modules/messages/stores/messages'
-import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 import { messagesService } from '@/modules/messages/services/messagesService'
 import type { ConnectionRead } from '@/modules/messages/models/messages'
 

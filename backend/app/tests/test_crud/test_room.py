@@ -201,11 +201,11 @@ class TestGetRoomBuildPrice:
             await room_crud.get_room_build_price(db_session=async_session, room_in=room_in)
 
     @pytest.mark.asyncio
-    async def test_price_scales_with_existing_same_category_rooms(
-        self, room_crud, async_session: AsyncSession, vault: Vault
-    ):
+    async def test_price_counts_only_same_category_rooms(self, room_crud, async_session: AsyncSession, vault: Vault):
         await _create_room(async_session, vault.id, category=RoomTypeEnum.PRODUCTION, coordinate_x=1)
         await _create_room(async_session, vault.id, category=RoomTypeEnum.PRODUCTION, coordinate_x=3)
+        # A room of another category must not count toward the PRODUCTION build price.
+        await _create_room(async_session, vault.id, category=RoomTypeEnum.CAPACITY, coordinate_x=5)
         room_in = _make_room_create(
             vault_id=vault.id, category=RoomTypeEnum.PRODUCTION, base_cost=100, incremental_cost=25
         )

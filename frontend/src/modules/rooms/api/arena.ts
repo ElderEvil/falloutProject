@@ -6,8 +6,9 @@ type ArenaRoomState = components['schemas']['ArenaRoomState']
 type ArenaRosterEntry = components['schemas']['ArenaRosterEntry']
 type ArenaFighter = components['schemas']['ArenaFighter']
 type ArenaMode = components['schemas']['ArenaMode']
+type ArenaCreature = components['schemas']['ArenaCreature']
 
-export type { ArenaFighter, ArenaRosterEntry, ArenaRoomState, ArenaState, ArenaMode }
+export type { ArenaCreature, ArenaFighter, ArenaRosterEntry, ArenaRoomState, ArenaState, ArenaMode }
 
 export interface ArenaFighterSelection {
   mode: ArenaMode
@@ -15,11 +16,19 @@ export interface ArenaFighterSelection {
   fighterBId: string | null
   fighterCId?: string | null
   fighterDId?: string | null
+  opponentKeys?: string[]
 }
 
 export const arenaApi = {
   async fetchState(vaultId: string, token: string): Promise<ArenaState> {
     const response = await axios.get<ArenaState>(`/api/v1/arena/vault/${vaultId}/state`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    return response.data
+  },
+
+  async fetchCreatures(vaultId: string, token: string): Promise<ArenaCreature[]> {
+    const response = await axios.get<ArenaCreature[]>(`/api/v1/arena/vault/${vaultId}/creatures`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     return response.data
@@ -39,6 +48,7 @@ export const arenaApi = {
         fighter_b_id: selection.fighterBId,
         fighter_c_id: selection.fighterCId ?? null,
         fighter_d_id: selection.fighterDId ?? null,
+        opponent_keys: selection.opponentKeys ?? [],
       },
       { headers: { Authorization: `Bearer ${token}` } }
     )

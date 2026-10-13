@@ -34,6 +34,9 @@ const storeMock = vi.hoisted(() => {
   const delta = { id: 'd-1', name: 'Delta Dweller', level: 9, health: 70, max_health: 100, power: 33, is_creature: false }
   const echo = { id: 'e-1', name: 'Echo Dweller', level: 6, health: 60, max_health: 100, power: 20, is_creature: false }
 
+  const radroach = { id: 'radroach-swarm#0', name: 'Radroach swarm', level: 0, health: 35, max_health: 35, power: 35, is_creature: true }
+  const deathclaw = { id: 'deathclaw#0', name: 'Deathclaw', level: 0, health: 120, max_health: 120, power: 120, is_creature: true }
+
   const asRoster = (fighter: typeof alpha) => ({
     id: fighter.id,
     name: fighter.name,
@@ -61,11 +64,26 @@ const storeMock = vi.hoisted(() => {
     winner_name: null,
     events: [],
   }
+
+  const huntRoom: ArenaRoomState = {
+    ...readyRoom,
+    mode: 'hunt',
+    fighter_b_id: null,
+    fighters: [alpha, radroach],
+    team_b: [radroach],
+  }
+
   return {
     currentRoom: readyRoom as ArenaRoomState | null,
     fetchState: vi.fn(),
     setFighters: vi.fn(),
+    fetchCreatures: vi.fn(),
+    creatures: [
+      { key: 'radroach-swarm', name: 'Radroach swarm', power: 35, max_hp: 35 },
+      { key: 'deathclaw', name: 'Deathclaw', power: 120, max_hp: 120 },
+    ],
     readyRoom,
+    huntRoom,
   }
 })
 
@@ -74,6 +92,8 @@ vi.mock('@/modules/rooms/stores/arena', () => ({
     getRoom: () => storeMock.currentRoom,
     fetchState: storeMock.fetchState,
     setFighters: storeMock.setFighters,
+    fetchCreatures: storeMock.fetchCreatures,
+    creatures: storeMock.creatures,
     startFight: vi.fn().mockResolvedValue(true),
     clearEvents: vi.fn().mockResolvedValue(true),
     reset: vi.fn(),
@@ -110,6 +130,7 @@ describe('ArenaModal', () => {
     storeMock.currentRoom = storeMock.readyRoom
     storeMock.fetchState.mockReset().mockResolvedValue(true)
     storeMock.setFighters.mockReset().mockResolvedValue(true)
+    storeMock.fetchCreatures.mockReset().mockResolvedValue(true)
   })
 
   it('renders fighter slots with names and power', async () => {
@@ -130,14 +151,15 @@ describe('ArenaModal', () => {
     expect(wrapper.text()).toContain('READY')
   })
 
-  it('offers duel and brawl modes with the active one pressed', async () => {
+  it('offers duel, brawl, and hunt modes with the active one pressed', async () => {
     const wrapper = mountModal()
     await flushPromises()
 
     const buttons = wrapper.findAll('.mode-select button')
-    expect(buttons.map((button) => button.text())).toEqual(['DUEL', 'BRAWL'])
+    expect(buttons.map((button) => button.text())).toEqual(['DUEL', 'BRAWL', 'HUNT'])
     expect(buttons[0].attributes('aria-pressed')).toBe('true')
     expect(buttons[1].attributes('aria-pressed')).toBe('false')
+    expect(buttons[2].attributes('aria-pressed')).toBe('false')
   })
 
   it('labels readiness with the mode-sized fighter count', async () => {
@@ -226,6 +248,75 @@ describe('ArenaModal', () => {
       'test-token'
     )
     expect(slots(wrapper)).toHaveLength(2)
+  })
+
+  it('switches to hunt with dweller slots on team A and a creature picker on team B', async () => {
+    const wrapper = mountModal()
+    await flushPromises()
+    await modeButton(wrapper, 'HUNT').trigger('click')
+    await flushPromises()
+
+    expect(storeMock.fetchCreatures).toHaveBeenCalledWith('vault-1', 'test-token')
+    expect(wrapper.findAll('.team-label').map((label) => label.text())).toEqual(['TEAM A', 'CREATURES'])
+    expect(slots(wrapper)).toHaveLength(2)
+    expect(wrapper.findAll('.creature-slot')).toHaveLength(1)
+    expect(wrapper.text()).toContain('+ ADD CREATURE')
+    expect(storeMock.setFighters).not.toHaveBeenCalled()
+  })
+
+  it('persists the hunt payload with dweller slots and opponent keys', async () => {
+    const wrapper = mountModal()
+    await flushPromises()
+    await modeButton(wrapper, 'HUNT').trigger('click')
+    await flushPromises()
+
+    const secondDweller = await openPicker(wrapper, 1)
+    await pickOption(secondDweller, 'Charlie Dweller')
+    expect(storeMock.setFighters).not.toHaveBeenCalled()
+
+    const creature = wrapper.get('.creature-slot')
+    await creature.get('.creature-slot-empty').trigger('click')
+    await flushPromises()
+    await pickOption(creature, 'Radroach swarm')
+
+    expect(storeMock.setFighters).toHaveBeenCalledTimes(1)
+    expect(storeMock.setFighters).toHaveBeenCalledWith(
+      'vault-1',
+      'room-1',
+      {
+        mode: 'hunt',
+        fighterAId: 'a-1',
+        fighterBId: null,
+        fighterCId: 'c-1',
+        fighterDId: null,
+        opponentKeys: ['radroach-swarm'],
+      },
+      'test-token'
+    )
+  })
+
+  it('renders hunted creatures on team B with a creature icon instead of a portrait', async () => {
+    storeMock.currentRoom = storeMock.huntRoom
+    const wrapper = mountModal()
+    await flushPromises()
+
+    expect(wrapper.findAll('.team-label').map((label) => label.text())).toEqual(['TEAM A', 'CREATURES'])
+    const creature = wrapper.get('.creature-slot')
+    expect(creature.text()).toContain('Radroach swarm')
+    expect(creature.text()).toContain('POW 35')
+    expect(creature.text()).toContain('35/35')
+    expect(creature.find('.creature-icon').exists()).toBe(true)
+    expect(creature.find('.fighter-portrait').exists()).toBe(false)
+    expect(wrapper.text()).toContain('READY')
+    expect(wrapper.text()).toContain('START FIGHT')
+  })
+
+  it('labels hunt readiness with dwellers plus creatures', async () => {
+    storeMock.currentRoom = { ...storeMock.huntRoom, can_start: false }
+    const wrapper = mountModal()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('NEEDS DWELLERS + CREATURES')
   })
 
   it('keeps room-management actions out of the battle panel', async () => {

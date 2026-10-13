@@ -15,7 +15,23 @@ export interface ArenaSlotFighter extends Omit<ArenaFighter, 'power'> {
   power: number | null
 }
 
+// A creature on team B in hunt mode: catalog stats, overlaid with the server's
+// live values (and participant id) once the selection is committed.
+export interface ArenaCreatureView {
+  key: string
+  name: string
+  power: number
+  health: number
+  max_health: number
+  id: string | null
+}
+
+// Creature participant ids are `<catalog-key>#<index>` (see ArenaService).
+export const creatureKeyOf = (fighterId: string): string => fighterId.split('#')[0]
+
 export const arenaTeamSize = (mode: ArenaMode): number => (mode === 'brawl' ? 2 : 1)
 
-export const arenaSlotsFor = (mode: ArenaMode, side: ArenaTeamSide): readonly ArenaSlotKey[] =>
-  mode === 'brawl' ? ARENA_TEAM_SLOTS[side] : ARENA_TEAM_SLOTS[side].slice(0, 1)
+export const arenaSlotsFor = (mode: ArenaMode, side: ArenaTeamSide): readonly ArenaSlotKey[] => {
+  if (mode === 'hunt') return side === 'A' ? ARENA_TEAM_SLOTS.A : []
+  return mode === 'brawl' ? ARENA_TEAM_SLOTS[side] : ARENA_TEAM_SLOTS[side].slice(0, 1)
+}

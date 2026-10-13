@@ -22,7 +22,14 @@ describe('arenaApi.setFighters', () => {
 
     expect(axios.post).toHaveBeenCalledWith(
       '/api/v1/arena/vault/vault-1/rooms/room-1/fighters',
-      { mode: 'brawl', fighter_a_id: 'a-1', fighter_b_id: 'b-1', fighter_c_id: 'c-1', fighter_d_id: 'd-1' },
+      {
+        mode: 'brawl',
+        fighter_a_id: 'a-1',
+        fighter_b_id: 'b-1',
+        fighter_c_id: 'c-1',
+        fighter_d_id: 'd-1',
+        opponent_keys: [],
+      },
       { headers: { Authorization: 'Bearer token' } }
     )
   })
@@ -37,8 +44,62 @@ describe('arenaApi.setFighters', () => {
 
     expect(axios.post).toHaveBeenCalledWith(
       '/api/v1/arena/vault/vault-1/rooms/room-1/fighters',
-      { mode: 'duel', fighter_a_id: 'a-1', fighter_b_id: null, fighter_c_id: null, fighter_d_id: null },
+      {
+        mode: 'duel',
+        fighter_a_id: 'a-1',
+        fighter_b_id: null,
+        fighter_c_id: null,
+        fighter_d_id: null,
+        opponent_keys: [],
+      },
       { headers: { Authorization: 'Bearer token' } }
     )
+  })
+
+  it('posts the hunt mode with dwellers and opponent keys', async () => {
+    await arenaApi.setFighters(
+      'vault-1',
+      'room-1',
+      {
+        mode: 'hunt',
+        fighterAId: 'a-1',
+        fighterBId: null,
+        fighterCId: 'c-1',
+        fighterDId: null,
+        opponentKeys: ['radroach-swarm', 'deathclaw'],
+      },
+      'token'
+    )
+
+    expect(axios.post).toHaveBeenCalledWith(
+      '/api/v1/arena/vault/vault-1/rooms/room-1/fighters',
+      {
+        mode: 'hunt',
+        fighter_a_id: 'a-1',
+        fighter_b_id: null,
+        fighter_c_id: 'c-1',
+        fighter_d_id: null,
+        opponent_keys: ['radroach-swarm', 'deathclaw'],
+      },
+      { headers: { Authorization: 'Bearer token' } }
+    )
+  })
+})
+
+describe('arenaApi.fetchCreatures', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('gets the hunt creature catalogue for a vault', async () => {
+    const catalogue = [{ key: 'radroach-swarm', name: 'Radroach swarm', power: 35, max_hp: 35 }]
+    ;(axios.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: catalogue })
+
+    const result = await arenaApi.fetchCreatures('vault-1', 'token')
+
+    expect(result).toEqual(catalogue)
+    expect(axios.get).toHaveBeenCalledWith('/api/v1/arena/vault/vault-1/creatures', {
+      headers: { Authorization: 'Bearer token' },
+    })
   })
 })

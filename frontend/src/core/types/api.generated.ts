@@ -3218,6 +3218,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/arena/vault/{vault_id}/creatures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Arena Creatures
+         * @description List the creatures selectable as hunt opponents.
+         */
+        get: operations["list_arena_creatures_api_v1_arena_vault__vault_id__creatures_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/arena/vault/{vault_id}/rooms/{room_id}/fighters": {
         parameters: {
             query?: never;
@@ -5070,6 +5090,20 @@ export interface components {
          */
         AgeGroupEnum: "child" | "teen" | "adult" | "elder";
         /**
+         * ArenaCreature
+         * @description A selectable hunt opponent from the creature catalog.
+         */
+        ArenaCreature: {
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Power */
+            power: number;
+            /** Max Hp */
+            max_hp: number;
+        };
+        /**
          * ArenaEventsCleared
          * @description Journal clear result.
          */
@@ -5127,6 +5161,8 @@ export interface components {
             fighter_c_id?: string | null;
             /** Fighter D Id */
             fighter_d_id?: string | null;
+            /** Opponent Keys */
+            opponent_keys?: string[];
         };
         /**
          * ArenaFightersResponse
@@ -15859,6 +15895,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ArenaState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_arena_creatures_api_v1_arena_vault__vault_id__creatures_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArenaCreature"][];
                 };
             };
             /** @description Validation Error */

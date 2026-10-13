@@ -1,11 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { arenaApi } from '../api/arena'
-import type { ArenaFighterSelection, ArenaRoomState } from '../api/arena'
+import type { ArenaCreature, ArenaFighterSelection, ArenaRoomState } from '../api/arena'
 import { handleStoreError } from '@/core/utils/errorHandler'
 
 export const useArenaStore = defineStore('arena', () => {
   const rooms = ref<Map<string, ArenaRoomState>>(new Map())
+  const creatures = ref<ArenaCreature[]>([])
 
   async function fetchState(vaultId: string, token: string, silent = false): Promise<boolean> {
     try {
@@ -14,6 +15,16 @@ export const useArenaStore = defineStore('arena', () => {
       return true
     } catch (error) {
       if (!silent) handleStoreError(error, 'Failed to load arena state')
+      return false
+    }
+  }
+
+  async function fetchCreatures(vaultId: string, token: string): Promise<boolean> {
+    try {
+      creatures.value = await arenaApi.fetchCreatures(vaultId, token)
+      return true
+    } catch (error) {
+      handleStoreError(error, 'Failed to load hunt creatures')
       return false
     }
   }
@@ -59,11 +70,14 @@ export const useArenaStore = defineStore('arena', () => {
 
   function reset(): void {
     rooms.value = new Map()
+    creatures.value = []
   }
 
   return {
     rooms,
+    creatures,
     fetchState,
+    fetchCreatures,
     setFighters,
     startFight,
     clearEvents,

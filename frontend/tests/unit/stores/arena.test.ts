@@ -91,6 +91,59 @@ describe('Arena Store', () => {
     )
   })
 
+  it('setFighters forwards a hunt selection with dwellers and opponent keys', async () => {
+    const store = useArenaStore()
+
+    await store.setFighters(
+      'vault-1',
+      'room-1',
+      {
+        mode: 'hunt',
+        fighterAId: 'a-1',
+        fighterBId: null,
+        fighterCId: 'c-1',
+        fighterDId: null,
+        opponentKeys: ['radroach-swarm', 'deathclaw'],
+      },
+      'token'
+    )
+
+    expect(arenaApi.setFighters).toHaveBeenCalledWith(
+      'vault-1',
+      'room-1',
+      {
+        mode: 'hunt',
+        fighterAId: 'a-1',
+        fighterBId: null,
+        fighterCId: 'c-1',
+        fighterDId: null,
+        opponentKeys: ['radroach-swarm', 'deathclaw'],
+      },
+      'token'
+    )
+  })
+
+  it('fetchCreatures loads the hunt catalogue', async () => {
+    const catalogue = [{ key: 'radroach-swarm', name: 'Radroach swarm', power: 35, max_hp: 35 }]
+    vi.mocked(arenaApi.fetchCreatures).mockResolvedValue(catalogue)
+    const store = useArenaStore()
+
+    const ok = await store.fetchCreatures('vault-1', 'token')
+
+    expect(ok).toBe(true)
+    expect(store.creatures).toEqual(catalogue)
+    expect(arenaApi.fetchCreatures).toHaveBeenCalledWith('vault-1', 'token')
+  })
+
+  it('fetchCreatures returns false and surfaces the error on failure', async () => {
+    vi.mocked(arenaApi.fetchCreatures).mockRejectedValue(new Error('boom'))
+    const store = useArenaStore()
+
+    const ok = await store.fetchCreatures('vault-1', 'token')
+
+    expect(ok).toBe(false)
+  })
+
   it('setFighters returns false and surfaces the error on failure', async () => {
     vi.mocked(arenaApi.setFighters).mockRejectedValue(new Error('boom'))
     const store = useArenaStore()

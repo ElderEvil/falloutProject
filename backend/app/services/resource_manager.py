@@ -88,6 +88,9 @@ class ResourceManager:
                     setattr(events.production, resource_type, stored_amount - previous_amount)
                 resource_crud.save_storage(db_session, storage)
 
+        if events.objective_production is not None:
+            events.objective_production.stimpack = events.production.stimpack
+            events.objective_production.radaway = events.production.radaway
         return resource_update, events
 
     async def _calculate_net_resource_change(
@@ -144,7 +147,14 @@ class ResourceManager:
             elapsed += step
         new_resources = stocks
         if state is not None:
-            state.resource_remainders = {key: value - round(value) for key, value in stocks.items()}
+            remainders.update({key: value - round(value) for key, value in stocks.items()})
+        objective_production = dict(production)
+        for key in stocks:
+            counted = production[key] + remainders.get(f"produced_{key}", 0.0)
+            objective_production[key] = math.floor(counted + 1e-9)
+            remainders[f"produced_{key}"] = max(0.0, counted - objective_production[key])
+        if state is not None:
+            state.resource_remainders = remainders
         warnings = get_resource_warnings(vault, new_resources)
 
         self._log_resource_changes(vault, new_resources)
@@ -158,6 +168,7 @@ class ResourceManager:
             ResourceTickEvents(
                 warnings=warnings,
                 production=ResourceProduction(**production),
+                objective_production=ResourceProduction(**objective_production),
                 consumption=PrimaryResourceAmounts(**consumption),
             ),
         )
@@ -200,7 +211,7 @@ class ResourceManager:
             production = self._calculate_room_production(room, dwellers, seconds_passed)
             self._apply_room_production(room.name, room.ability, production, production_totals)
 
-        return {k: round(v, 2) for k, v in production_totals.items()}
+        return production_totals
 
     def _calculate_room_production(self, room: Room, dwellers: list[Dweller], seconds_passed: int) -> float:
         """Calculate production from the room's workers.
@@ -284,13 +295,13 @@ class ResourceManager:
     @staticmethod
     async def emit_production_events(vault_id: UUID4, events: ResourceTickEvents) -> None:
         """Emit objective events after the resource transaction has committed."""
-        for resource_type, amount in events.production.model_dump().items():
+        for resource_type, amount in (events.objective_production or events.production).model_dump().items():
             int_amount = int(amount)
             if int_amount > 0:
                 await event_bus.emit(
                     GameEvent.RESOURCE_COLLECTED,
                     vault_id,
-                    {"resource_type": resource_type, "amount": int_amount},
+                    {"resource_type": resource_type, "amount": int_amount, "source": "production"},
                 )
 
     async def check_resource_availability(self, vault: Vault) -> dict[str, bool]:

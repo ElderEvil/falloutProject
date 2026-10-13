@@ -49,6 +49,7 @@ class ResourceTickEvents(SQLModel):
     warnings: list[ResourceLevelWarning] = Field(default_factory=list)
     production: ResourceProduction = Field(default_factory=ResourceProduction)
     consumption: PrimaryResourceAmounts = Field(default_factory=PrimaryResourceAmounts)
+    objective_production: ResourceProduction | None = Field(default=None, exclude=True)
 
 
 class VaultRead(VaultBase):

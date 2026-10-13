@@ -47,7 +47,13 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
     ) -> Sequence[ObjectiveRead]:
         """Return a vault's objectives with their persisted progress state."""
         query = (
-            select(self.model, self.link_model.progress, self.link_model.total, self.link_model.is_completed)
+            select(
+                self.model,
+                self.link_model.progress,
+                self.link_model.total,
+                self.link_model.is_completed,
+                self.link_model.reward_snapshot,
+            )
             .join(self.link_model)
             .where(self.link_model.vault_id == vault_id)
             .offset(skip)
@@ -60,7 +66,7 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
             ObjectiveRead(
                 id=obj.id,
                 challenge=obj.challenge,
-                reward=obj.reward,
+                reward=reward_snapshot or obj.reward,
                 category=obj.category,
                 objective_type=obj.objective_type,
                 target_entity=obj.target_entity,
@@ -71,7 +77,7 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
                 total=total,
                 is_completed=is_completed,
             )
-            for obj, progress, total, is_completed in results
+            for obj, progress, total, is_completed, reward_snapshot in results
         ]
 
     async def get_by_category(self, db_session: AsyncSession, category: str) -> list[Objective]:

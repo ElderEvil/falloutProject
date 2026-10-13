@@ -316,6 +316,7 @@ class TrainingService:
             {
                 "dweller_id": str(dweller.id),
                 "stat_trained": training.stat_being_trained.value,
+                "new_value": new_value,
             },
         )
 

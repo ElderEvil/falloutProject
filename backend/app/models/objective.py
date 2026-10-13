@@ -52,6 +52,8 @@ class ObjectiveBase(SQLModel):
 
 
 class Objective(BaseUUIDModel, ObjectiveBase, table=True):
+    template_key: str | None = Field(default=None, max_length=160, unique=True, index=True)
+
     vaults: list["Vault"] = Relationship(
         back_populates="objectives",
         link_model=VaultObjectiveProgressLink,

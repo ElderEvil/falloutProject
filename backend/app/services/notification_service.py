@@ -554,8 +554,12 @@ class NotificationService:
             vault_id=vault_id,
             notification_type=NotificationType.OBJECTIVE_COMPLETED,
             priority=NotificationPriority.NORMAL,
-            title="Objective Complete!",
-            message=f"'{objective_challenge}' completed! Reward: {reward}",
+            title="Objective Reward Ready" if (meta_data or {}).get("ready_to_claim") else "Objective Complete!",
+            message=(
+                f"'{objective_challenge}' complete — claim {reward} in Objectives"
+                if (meta_data or {}).get("ready_to_claim")
+                else f"'{objective_challenge}' completed! Reward: {reward}"
+            ),
             meta_data=meta_data,
         )
 

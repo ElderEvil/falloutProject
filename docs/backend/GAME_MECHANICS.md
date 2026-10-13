@@ -10,6 +10,25 @@ must surface via modal/pop-up or toast **in addition to** the notification bell 
 notification-only. A new progression flow without visible surfacing is incomplete; keep existing surfacing
 intact when touching these flows.
 
+## Objectives: guidance, earned progress and explicit claims
+
+- Objective progress advances automatically from game events; **rewards do not**. Reaching the target creates
+  a ready-to-claim outcome. `is_completed` means the reward was claimed, including historical automatically paid
+  rows; `progress >= total` with `is_completed == false` means earned and unclaimed. Never repay historical rows.
+- Owners claim through `POST /objectives/{vault_id}/{objective_id}/claim`. Claims require an assigned, earned
+  objective and serialize reward settlement with the completion flag; incomplete, foreign and repeat claims fail.
+  The administrative `/complete` operation stays separate from ordinary player claims.
+- The authored `starter` category is the ordered **vault guide**, including post-Office chapters. The lowest
+  unclaimed sequence is current and advances only after a claim. The guide is visible across vault screens;
+  everyday objectives become visible alongside it after the Office chapter.
+- Already-achieved state (rooms, staffing, population, levels, completed training and quests) may satisfy the
+  current guided milestone. Derive this on reads without writing; validate again during the claim. Event counters
+  such as resource earnings and scrapping keep their recorded progress. Later steps cannot be claimed early.
+- Earned daily/weekly rewards survive reset until claimed; resets may replace unfinished objectives and remove
+  already-claimed links. Objective rewards never count toward another resource-collection objective.
+- Ready rewards keep their routine bell/toast event; successful claims show a modal or toast. Notification opt-outs
+  affect notification delivery, not reward settlement or the player-opened guide.
+
 ## Notification preferences
 
 Players may explicitly opt out of routine notification categories. The preference is persisted at

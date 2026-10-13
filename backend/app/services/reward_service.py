@@ -76,6 +76,12 @@ class RewardService:
     ) -> dict[str, Any]:
         return await settlement.process_objective_reward(db_session, vault_id, objective)
 
+    async def claim_objective_reward(
+        self, db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4
+    ) -> VaultObjectiveProgressLink:
+        """Claim an assigned, earned reward atomically and reject repeat claims."""
+        return await settlement.claim_objective_reward(db_session, objective_id, vault_id)
+
     async def settle_objective_completion(
         self, db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4
     ) -> Objective:
@@ -85,7 +91,7 @@ class RewardService:
     async def settle_objective_progress(
         self, db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4, progress: int
     ) -> VaultObjectiveProgressLink:
-        """Update objective progress, settling its reward once the target is reached."""
+        """Update earned progress without paying the reward; owners claim separately."""
         return await settlement.settle_objective_progress(db_session, objective_id, vault_id, progress)
 
 

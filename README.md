@@ -33,7 +33,7 @@ See [docs/ROADMAP.md](./docs/ROADMAP.md) for recent updates and upcoming feature
 
 **Required:**
 - [Python 3.13](https://www.python.org/downloads/)
-- [Node.js 22 LTS](https://nodejs.org/)
+- [Node.js 26](https://nodejs.org/) (22 LTS or newer supported)
 - [Docker Compose](https://docs.docker.com/compose/install/) (v2 - use `docker compose`, not `docker-compose`)
 
 **Installation:**

@@ -39,7 +39,7 @@ and cutting-edge JavaScript tooling.
 
 ## 📋 Prerequisites
 
-- **Node.js 22+** (required)
+- **Node.js 26** (required; 22+ supported)
 - **pnpm 10.28+** (required)
 
 ## 🔧 Vite+ Toolchain

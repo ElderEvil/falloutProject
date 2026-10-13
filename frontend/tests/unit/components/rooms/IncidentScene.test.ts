@@ -58,7 +58,9 @@ describe('IncidentScene', () => {
   })
 
   it('renders the remaining threat count for a defeat objective', () => {
-    const wrapper = mountScene({ incident: incident({ progress: { current: 30, target: 100, label: 'Threat' } }) })
+    const wrapper = mountScene({
+      incident: incident({ progress: { current: 30, target: 100, label: 'Threat' } }),
+    })
 
     expect(wrapper.text()).toContain('THREAT')
     expect(wrapper.text()).toContain('70 remaining')
@@ -92,7 +94,17 @@ describe('IncidentScene', () => {
     const backdrop = wrapper.find('.scene-backdrop')
 
     expect(backdrop.exists()).toBe(true)
-    expect(backdrop.attributes('style')).toContain('https://cdn.test/room.png')
+    expect(backdrop.attributes('src')).toBe('https://cdn.test/room.png')
+  })
+
+  it('falls back to grid art on detail-scene failure and hides a failed fallback', async () => {
+    const wrapper = mountScene({ roomImageUrl: '/arena.webp', fallbackImageUrl: '/grid.png' })
+    await wrapper.find('img').trigger('error')
+    expect(wrapper.find('img').attributes('src')).toBe('/grid.png')
+    await wrapper.find('img').trigger('error')
+    expect(wrapper.find('img').exists()).toBe(false)
+    await wrapper.setProps({ roomImageUrl: '/another.webp' })
+    expect(wrapper.find('img').attributes('src')).toBe('/another.webp')
   })
 
   it('omits the backdrop when no image is available', () => {
@@ -114,7 +126,11 @@ describe('IncidentScene', () => {
 
   it('falls back to the hazard icon for a non-fire containment incident', () => {
     const wrapper = mountScene({
-      incident: incident({ type: 'radroach_infestation', family: 'infestation', objective: 'contain' }),
+      incident: incident({
+        type: 'radroach_infestation',
+        family: 'infestation',
+        objective: 'contain',
+      }),
     })
 
     expect(wrapper.find('.hazard-flame').exists()).toBe(false)

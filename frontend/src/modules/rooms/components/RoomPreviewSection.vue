@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import { getRoomImageUrl } from '@/core/utils/image'
+import { ARENA_DETAIL_SCENE } from '../models/roomScenes'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 
 interface Props {
@@ -15,7 +17,11 @@ interface Props {
   assignEnabled?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), { showApprenticeSlot: false, roomUnits: 3, assignEnabled: true })
+const props = withDefaults(defineProps<Props>(), {
+  showApprenticeSlot: false,
+  roomUnits: 3,
+  assignEnabled: true,
+})
 const emit = defineEmits<{
   activate: [dwellerId: string]
   unassign: [dwellerId: string]
@@ -23,25 +29,52 @@ const emit = defineEmits<{
   assignApprentice: []
 }>()
 
-const sceneImageUrl = computed(() => props.roomImageUrl ?? props.imageUrl)
+const failedImageUrls = ref<string[]>([])
+watch(
+  () => [props.roomImageUrl, props.imageUrl],
+  () => {
+    failedImageUrls.value = []
+  }
+)
+const sceneImageUrl = computed(() =>
+  [props.roomImageUrl, getRoomImageUrl(props.imageUrl)].find(
+    (url) => url && !failedImageUrls.value.includes(url)
+  )
+)
+const imageFailed = () => {
+  if (sceneImageUrl.value) failedImageUrls.value.push(sceneImageUrl.value)
+}
 const sceneSizeClass = computed(() => {
+  if (sceneImageUrl.value === ARENA_DETAIL_SCENE) return 'room-scene--detail'
   if (props.roomUnits <= 1) return 'room-scene--compact'
   if (props.roomUnits >= 6) return 'room-scene--wide'
   return null
 })
-const workerDwellers = computed(() => props.assignedDwellers.filter((dweller) => !dweller.apprentice_stat))
+const workerDwellers = computed(() =>
+  props.assignedDwellers.filter((dweller) => !dweller.apprentice_stat)
+)
 const apprentice = computed(() => props.assignedDwellers.find((dweller) => dweller.apprentice_stat))
 </script>
 
 <template>
-  <section class="section room-preview-section room-scene" :class="sceneSizeClass" :aria-label="`${roomName} room preview`">
+  <section
+    class="section room-preview-section room-scene"
+    :class="sceneSizeClass"
+    :aria-label="`${roomName} room preview`"
+  >
     <h3 class="section-title">
       <Icon icon="mdi:image-outline" class="h-5 w-5" />
       Room Preview
     </h3>
     <div class="preview-container">
       <div class="room-image-container">
-        <img v-if="sceneImageUrl" :src="sceneImageUrl" :alt="roomName || 'Room'" class="room-image" />
+        <img
+          v-if="sceneImageUrl"
+          :src="sceneImageUrl"
+          :alt="roomName || 'Room'"
+          class="room-image"
+          @error="imageFailed"
+        />
         <div class="room-image-placeholder" :class="{ 'has-image': sceneImageUrl }">
           <template v-if="!sceneImageUrl">
             <Icon icon="mdi:home-variant-outline" class="h-16 w-16 opacity-30" />
@@ -92,15 +125,15 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
               >
                 <Icon icon="mdi:account-outline" class="h-6 w-6 opacity-30" />
               </button>
-              <div
-                v-else
-                class="placeholder-dweller empty scene-empty-slot"
-                aria-hidden="true"
-              >
+              <div v-else class="placeholder-dweller empty scene-empty-slot" aria-hidden="true">
                 <Icon icon="mdi:account-outline" class="h-6 w-6 opacity-30" />
               </div>
             </div>
-            <div v-if="showApprenticeSlot" class="dweller-sprite-slot apprentice-slot" :class="{ 'slot-filled': apprentice }">
+            <div
+              v-if="showApprenticeSlot"
+              class="dweller-sprite-slot apprentice-slot"
+              :class="{ 'slot-filled': apprentice }"
+            >
               <template v-if="apprentice">
                 <div class="scene-occupant">
                   <button
@@ -116,7 +149,11 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
                       fallback-class="scene-dweller-icon"
                       prefer-thumbnail
                     />
-                    <span class="apprentice-marker" :aria-label="`Apprentice training ${apprentice.apprentice_stat}`" role="img">
+                    <span
+                      class="apprentice-marker"
+                      :aria-label="`Apprentice training ${apprentice.apprentice_stat}`"
+                      role="img"
+                    >
                       <Icon icon="mdi:school-outline" />
                       {{ apprentice.apprentice_stat?.charAt(0).toUpperCase() ?? '+' }}
                     </span>
@@ -193,6 +230,15 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   border: 1px solid var(--color-theme-glow);
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.8);
+}
+
+.room-scene--detail .room-image-container {
+  min-height: 0;
+  aspect-ratio: 3 / 2;
+}
+
+.room-scene--detail .room-image {
+  max-height: none;
 }
 
 .room-scene--compact .room-image-container {

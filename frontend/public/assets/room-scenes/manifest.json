@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "assets": [
+    {
+      "id": "arena-industrial-v1",
+      "role": "room_detail_scene",
+      "catalog_key": "Arena",
+      "tiers": [1, 2, 3],
+      "size_behavior": "Same scene across supported room sizes; preserve full frame",
+      "path": "/assets/room-scenes/arena-industrial-v1.webp",
+      "encoding": "webp",
+      "width": 1536,
+      "height": 1024,
+      "alpha": false,
+      "camera": "Frontal industrial interior with slightly elevated floor view",
+      "safe_crop": [0, 0, 1, 1],
+      "floor_baseline": 0.8,
+      "actor_anchors": [
+        [0.35, 0.8],
+        [0.65, 0.8]
+      ],
+      "ui_placement": "Arena detail preview and room incident background resolution",
+      "responsive_behavior": "Contain complete frame; no cover crop in detail preview",
+      "source": "OpenAI image_gen built-in tool, 2026-10-13",
+      "workflow": "New illustration generated from the maintainer-selected industrial pit brief; cwebp quality 82 encoding",
+      "model": "Not exposed by built-in tool",
+      "seed": null,
+      "cost": "Not exposed by built-in tool",
+      "review_status": "Agent inspected source and encoding; screenshots recorded in issue delivery notes",
+      "references": [],
+      "prompt": "Empty harsh industrial fighting pit inside an underground vault, wide 1536x1024 hand-painted game background, restrained muted steel/ochre/charcoal/rust, practical lamps, frontal camera, clear floor at y=0.8 with anchors x=0.35 and x=0.65; no people, fighters, weapons, fire, smoke, effects, text or logos. Central safe space and no obstructing foreground props."
+    }
+  ]
+}

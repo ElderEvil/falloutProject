@@ -36,7 +36,11 @@ const metrics = computed<BriefingMetric[]>(() => [
   { icon: 'mdi:dumbbell', label: 'TRAINING', value: props.trainingCount },
   { icon: 'mdi:sword-cross', label: 'QUESTS', value: props.questingCount },
   { icon: 'mdi:account-alert', label: 'UNASSIGNED', value: props.unassignedCount },
-  { icon: 'mdi:home-city-outline', label: 'CAPACITY', value: `${Math.round(props.populationUtilization)}%` },
+  {
+    icon: 'mdi:home-city-outline',
+    label: 'CAPACITY',
+    value: `${Math.round(props.populationUtilization)}%`,
+  },
   { icon: 'mdi:emoticon-outline', label: 'MORALE', value: `${Math.round(props.happiness)}%` },
 ])
 
@@ -62,9 +66,9 @@ const attentionItems = computed<BriefingItem[]>(() => {
       id: `resource-${warning.type}`,
       icon: 'mdi:water-alert',
       label: 'RESOURCE ALERT',
-      detail: warning.message,
+      detail: `${warning.message} Restore power first, then staff food and water rooms with matching SPECIAL.`,
       tone: 'warning',
-      action: null,
+      action: 'dwellers',
     })
   }
 
@@ -115,7 +119,8 @@ const statusLabel = computed(() => {
 
 const statusClass = computed(() => {
   if (props.activeIncidentCount > 0) return 'border-red-500/60 bg-red-950/40 text-red-300'
-  if (attentionItems.value.length > 0) return 'border-yellow-500/60 bg-yellow-950/40 text-yellow-300'
+  if (attentionItems.value.length > 0)
+    return 'border-yellow-500/60 bg-yellow-950/40 text-yellow-300'
   return 'border-terminal-green/50 bg-terminal-green/10 text-terminal-green'
 })
 
@@ -130,13 +135,22 @@ const attentionIconClass = (tone: BriefingItem['tone']) =>
 
 <template>
   <section class="overseer-briefing border-y border-theme-primary/20 py-4">
+    <p class="mb-3 text-xs text-gray-400">
+      After 10 minutes away, reserves limit further drain. Returning resumes consumption. Empty
+      stock must be produced; use the room staffing controls and treat injured workers.
+    </p>
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <p class="text-xs font-bold tracking-[0.2em] text-theme-accent">VAULT {{ vaultNumber }} / COMMAND TERMINAL</p>
+        <p class="text-xs font-bold tracking-[0.2em] text-theme-accent">
+          VAULT {{ vaultNumber }} / COMMAND TERMINAL
+        </p>
         <h3 class="mt-1 text-base font-bold text-theme-primary">VAULT STATUS</h3>
         <p class="text-xs text-gray-400">{{ activeOperationCount }} active operations</p>
       </div>
-      <span class="inline-flex items-center gap-2 rounded border px-2 py-1 text-[0.65rem] font-bold tracking-wider" :class="statusClass">
+      <span
+        class="inline-flex items-center gap-2 rounded border px-2 py-1 text-[0.65rem] font-bold tracking-wider"
+        :class="statusClass"
+      >
         <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-current" aria-hidden="true"></span>
         {{ statusLabel }}
       </span>

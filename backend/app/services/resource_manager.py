@@ -1,7 +1,9 @@
 """Enhanced resource management system for vault resources."""
 
 import logging
+import math
 from collections.abc import Sequence
+from datetime import timedelta
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -11,6 +13,7 @@ from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud.resource import resource as resource_crud
 from app.models import Dweller, Room, Vault
+from app.models.game_state import GameState
 from app.options.identity_modifiers import effective_stat, identity_modifiers_for
 from app.schemas.vault import (
     PrimaryResourceAmounts,
@@ -61,6 +64,7 @@ class ResourceManager:
             resource_data.dweller_count,
             resource_data.rooms_with_dwellers,
             seconds_passed,
+            state=resource_data.game_state,
         )
 
         # Write medical production to Storage (separate from VaultUpdate)
@@ -90,18 +94,57 @@ class ResourceManager:
         self,
         vault: Vault,
         rooms: Sequence[Room],
-        dweller_count: int,
+        dweller_count: float,
         rooms_with_dwellers: list[tuple[Room, list[Dweller]]],
         seconds_passed: int,
+        *,
+        state: GameState | None = None,
+    ) -> tuple[VaultUpdate, ResourceTickEvents]:
+        return self.calculate_resource_window(
+            vault, rooms, dweller_count, rooms_with_dwellers, seconds_passed, state=state
+        )
+
+    def calculate_resource_window(
+        self,
+        vault: Vault,
+        rooms: Sequence[Room],
+        dweller_count: float,
+        rooms_with_dwellers: list[tuple[Room, list[Dweller]]],
+        seconds_passed: int,
+        *,
+        state: GameState | None = None,
     ) -> tuple[VaultUpdate, ResourceTickEvents]:
         """Calculate net resource change considering production, consumption, and efficiency.
 
         Returns:
             tuple: Updated resource levels and typed tick events.
         """
-        consumption = self._calculate_consumption(rooms, dweller_count, seconds_passed)
-        production = self._calculate_production(rooms_with_dwellers, seconds_passed, vault.power)
-        new_resources = self._apply_resource_changes(vault, consumption, production)
+        # Minute-sized steps use recovered power immediately on the following step.
+        # Keep fractions outside the integer wire values, across worker restarts too.
+        remainders = dict(state.resource_remainders) if state else {}
+        stocks = {key: float(getattr(vault, key)) + remainders.get(key, 0.0) for key in ("power", "food", "water")}
+        consumption = dict.fromkeys(stocks, 0.0)
+        production = dict.fromkeys((*stocks, "stimpack", "radaway"), 0.0)
+        elapsed = 0
+        while elapsed < seconds_passed:
+            step = min(60, seconds_passed - elapsed)
+            used = self._calculate_consumption(rooms, dweller_count, step)
+            made = self._calculate_production(rooms_with_dwellers, step, stocks["power"])
+            offline = (
+                state is not None
+                and (state.last_tick_time + timedelta(seconds=elapsed) - state.last_activity_time).total_seconds() > 600
+            )
+            for key, stock in stocks.items():
+                maximum = getattr(vault, f"{key}_max")
+                floor = min(stock, math.ceil(maximum * game_config.resource.offline_reserve_fraction)) if offline else 0
+                stocks[key] = max(floor, min(maximum, stock + made[key] - used[key]))
+                consumption[key] += used[key]
+            for key in production:
+                production[key] += made[key]
+            elapsed += step
+        new_resources = stocks
+        if state is not None:
+            state.resource_remainders = {key: value - round(value) for key, value in stocks.items()}
         warnings = get_resource_warnings(vault, new_resources)
 
         self._log_resource_changes(vault, new_resources)
@@ -120,7 +163,7 @@ class ResourceManager:
         )
 
     def _calculate_consumption(
-        self, rooms: Sequence[Room], dweller_count: int, seconds_passed: int
+        self, rooms: Sequence[Room], dweller_count: float, seconds_passed: int
     ) -> dict[str, float]:
         """Calculate resource consumption for power, food, and water."""
         power_consumption = sum(
@@ -138,7 +181,7 @@ class ResourceManager:
         }
 
     def _calculate_production(
-        self, rooms_with_dwellers: list[tuple[Room, list[Dweller]]], seconds_passed: int, current_power: int
+        self, rooms_with_dwellers: list[tuple[Room, list[Dweller]]], seconds_passed: int, current_power: float
     ) -> dict[str, float]:
         """Calculate resource production from all production rooms."""
         production_totals = {"power": 0.0, "food": 0.0, "water": 0.0, "stimpack": 0.0, "radaway": 0.0}

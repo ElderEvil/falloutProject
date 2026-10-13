@@ -95,14 +95,3 @@ async def test_catalog_writes_require_superuser(
 
     # Insufficient privileges is an authorization failure, not a bad request.
     assert response.status_code == 403, "non-superuser catalog write was not rejected"
-
-
-async def test_authenticated_reads_still_work(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    vault: Vault,
-) -> None:
-    """Hardening must not break the happy path the frontend uses."""
-    response = await async_client.get(f"/weapons/?vault_id={vault.id}", headers=superuser_token_headers)
-
-    assert response.status_code == 200

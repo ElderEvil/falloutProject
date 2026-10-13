@@ -35,8 +35,17 @@ def _portrait_instructions(race: str | None) -> str:
 
 @pytest.mark.parametrize("state", ["gen_3", None, "unknown"])
 def test_passing_synths_are_presented_to_the_portrait_agent_as_human(state: str | None) -> None:
-    """passes_as_human is what routes a passing synth onto the human portrait branch."""
+    """The routing condition selects the human branch, which offers no synthetic descriptors.
+
+    dweller_ai feeds `passes_as_human` into the portrait race, so the branch asserted below is
+    the one a passing synth actually reaches.
+    """
     assert passes_as_human("synth", state) is True
+    human_branch = _portrait_instructions("human")
+
+    assert "metallic_silver" not in human_branch
+    assert "exposed_component" not in human_branch
+    assert "synthetic_fair" not in human_branch
 
 
 def test_human_portrait_branch_offers_no_synthetic_options() -> None:

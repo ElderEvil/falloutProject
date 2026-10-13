@@ -105,25 +105,22 @@ async def test_seed_objectives_nonexistent_directory(async_session: AsyncSession
 
 @pytest.mark.asyncio
 async def test_seed_objectives_validates_schema(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Test that invalid objectives are rejected."""
+    """A file is validated as a whole: one invalid entry rejects every entry in it."""
     objectives_dir = tmp_path / "objectives"
     objectives_dir.mkdir()
 
-    # Create objectives with missing required fields
-    invalid_data = [
-        {"challenge": "Missing reward field", "category": "achievement"},  # Missing 'reward'
-        {"challenge": "Valid objective", "reward": "50 caps", "category": "achievement"},  # Valid
+    mixed_data = [
+        {"challenge": "Missing reward field", "category": "achievement"},
+        {"challenge": "Valid objective", "reward": "50 caps", "category": "achievement"},
     ]
+    with (objectives_dir / "mixed.json").open("w", encoding="utf-8") as f:
+        json.dump(mixed_data, f)
 
-    objectives_file = objectives_dir / "mixed.json"
-    with objectives_file.open("w", encoding="utf-8") as f:
-        json.dump(invalid_data, f)
-
-    # Seeding should skip invalid objectives
     seeded_count = await seed_objectives_from_json(async_session, objectives_dir=objectives_dir)
 
-    # Should handle error and continue (may seed 0 or 1 depending on validation)
-    assert seeded_count >= 0
+    assert seeded_count == 0, "an invalid entry must not let sibling entries through"
+    result = await async_session.execute(select(Objective))
+    assert result.scalars().all() == []
 
 
 @pytest.mark.asyncio

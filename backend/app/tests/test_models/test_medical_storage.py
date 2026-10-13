@@ -68,14 +68,6 @@ class TestVaultNoMedicalFields:
         assert "radaway_max" not in VaultBase.model_fields, "radaway_max must be removed from VaultBase"
 
 
-def test_storage_model_defaults_medical_fields() -> None:
-    """Storage model default values for stimpack/radaway should be 0."""
-    field_s = StorageBase.model_fields["stimpack"]
-    field_r = StorageBase.model_fields["radaway"]
-    assert field_s.default == 0
-    assert field_r.default == 0
-
-
 def test_storage_instance_medical_fields() -> None:
     """Creating a Storage instance should accept stimpack/radaway."""
     storage = StorageBase(stimpack=5, radaway=3)

@@ -1,6 +1,6 @@
 """Arena request/response schemas."""
 
-from pydantic import UUID4, BaseModel
+from pydantic import UUID4, BaseModel, Field
 
 from app.core.enums import ArenaMode
 
@@ -13,6 +13,16 @@ class ArenaFightersRequest(BaseModel):
     fighter_b_id: UUID4 | None = None
     fighter_c_id: UUID4 | None = None
     fighter_d_id: UUID4 | None = None
+    opponent_keys: list[str] = Field(default_factory=list)
+
+
+class ArenaCreature(BaseModel):
+    """A selectable hunt opponent from the creature catalog."""
+
+    key: str
+    name: str
+    power: float
+    max_hp: int
 
 
 class ArenaFighter(BaseModel):

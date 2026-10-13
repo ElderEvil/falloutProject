@@ -14,7 +14,7 @@ from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
-from app.services.combat.arena_service import ArenaService
+from app.services.combat.arena_service import ArenaParticipant, ArenaService, participant_from_dweller
 from app.services.dweller_service import dweller_service
 from app.utils.combat import combat_power
 from app.utils.exceptions import ValidationException
@@ -381,3 +381,73 @@ class TestArenaService:
         service = ArenaService()
         room = await service.set_fighters(async_session, arena_room.id, replacement.id, fighter_b.id)
         assert room.arena_fighter_a_id == replacement.id
+
+    @pytest.mark.asyncio
+    async def test_resolve_round_1v1_matches_legacy_math(self, async_session, arena_room, fighter_a, fighter_b):
+        fighter_a.room_id = arena_room.id
+        fighter_b.room_id = arena_room.id
+        await async_session.refresh(fighter_a, ["weapon"])
+        await async_session.refresh(fighter_b, ["weapon"])
+        power_a = combat_power(fighter_a)
+        power_b = combat_power(fighter_b)
+        expected_a_damage = int(power_b / 5 * 1)
+        expected_b_damage = int(power_a / 5 * 1)
+
+        service = ArenaService()
+        result = await service._resolve_round(
+            async_session,
+            arena_room,
+            [participant_from_dweller(fighter_a)],
+            [participant_from_dweller(fighter_b)],
+            1,
+        )
+
+        assert result["status"] == "ongoing"
+        assert result["fighter_a_hp"] == fighter_a.health
+        assert result["fighter_b_hp"] == fighter_b.health
+        assert fighter_a.health == max(0, 100 - expected_a_damage)
+        assert fighter_b.health == max(0, 50 - expected_b_damage)
+        assert service._damage_carry[(str(arena_room.id), str(fighter_a.id))] == power_b / 5 * 1 - expected_a_damage
+        assert service._damage_carry[(str(arena_room.id), str(fighter_b.id))] == power_a / 5 * 1 - expected_b_damage
+
+    @pytest.mark.asyncio
+    async def test_resolve_round_focus_fire_spills_and_carries_per_member(self, async_session, arena_room):
+        service = ArenaService()
+        attacker = ArenaParticipant(
+            key="hero", name="Hero One", short_name="Hero", power=43.5, health=100, max_health=100
+        )
+        weak = ArenaParticipant(key="weak", name="Weak", short_name="Weak", power=1.0, health=5, max_health=50)
+        strong = ArenaParticipant(
+            key="strong", name="Strong", short_name="Strong", power=1.0, health=200, max_health=200
+        )
+        expected_carry = 43.5 / 5 * 1 - int(43.5 / 5 * 1)
+
+        result = await service._resolve_round(async_session, arena_room, [attacker], [weak, strong], 1)
+
+        assert result["status"] == "ongoing"
+        assert weak.health == 0
+        assert strong.health == 197
+        assert service._damage_carry[(str(arena_room.id), "weak")] == expected_carry
+
+        await service._resolve_round(async_session, arena_room, [attacker], [weak, strong], 1)
+
+        assert weak.health == 0
+        assert strong.health == 189
+        assert service._damage_carry[(str(arena_room.id), "strong")] == expected_carry
+
+    @pytest.mark.asyncio
+    async def test_resolve_round_team_defeat_reports_winner_and_loser(self, async_session, arena_room):
+        service = ArenaService()
+        hero = ArenaParticipant(key="hero", name="Hero One", short_name="Hero", power=100.0, health=100, max_health=100)
+        ally = ArenaParticipant(key="ally", name="Ally Two", short_name="Ally", power=50.0, health=100, max_health=100)
+        enemy = ArenaParticipant(key="enemy", name="Enemy", short_name="Enemy", power=1.0, health=10, max_health=10)
+
+        result = await service._resolve_round(async_session, arena_room, [hero, ally], [enemy], 10)
+
+        assert result["status"] == "finished"
+        assert result["winner_id"] == "hero"
+        assert result["winner"] == "Hero One"
+        assert result["loser_id"] == "enemy"
+        assert result["loser"] == "Enemy"
+        assert enemy.health == 1
+        assert arena_room.arena_last_fight_at is not None

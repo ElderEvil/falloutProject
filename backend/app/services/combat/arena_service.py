@@ -13,6 +13,7 @@ This is an experimental feature on branch `experiment/arena`.
 
 import logging
 import random
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from pydantic import UUID4
@@ -42,6 +43,30 @@ logger = logging.getLogger(__name__)
 MIN_FIGHTERS = 2
 HAPPINESS_WIN = 10
 HAPPINESS_LOSE = 10
+
+
+@dataclass
+class ArenaParticipant:
+    key: str
+    name: str
+    short_name: str
+    power: float
+    health: int
+    max_health: int
+    is_creature: bool = False
+    dweller: Dweller | None = None
+
+
+def participant_from_dweller(dweller: Dweller) -> ArenaParticipant:
+    return ArenaParticipant(
+        key=str(dweller.id),
+        name=f"{dweller.first_name} {dweller.last_name}",
+        short_name=dweller.first_name,
+        power=combat_power(dweller),
+        health=dweller.health,
+        max_health=dweller.effective_max_health,
+        dweller=dweller,
+    )
 
 
 class ArenaService:
@@ -324,90 +349,146 @@ class ArenaService:
         fighters: list[Dweller],
         seconds_passed: int,
     ) -> dict:
-        first, second = fighters[0], fighters[1]
-        power_a = combat_power(first)
-        power_b = combat_power(second)
+        team_a = [participant_from_dweller(fighters[0])]
+        team_b = [participant_from_dweller(fighters[1])]
+        return await self._resolve_round(db_session, room, team_a, team_b, seconds_passed)
 
-        # Damage dealt by each fighter's own power (20% per second, matching incident
-        # math). Fractional damage carries between ticks so near-equal powers
-        # stay visibly different instead of both truncating to the same int.
-        damage_from_a = power_a / 5 * seconds_passed
-        damage_from_b = power_b / 5 * seconds_passed
+    @staticmethod
+    def _team_damage(team: list[ArenaParticipant], seconds_passed: int) -> float:
+        return sum(member.power for member in team) / 5 * seconds_passed
 
-        first_key = (str(room.id), str(first.id))
-        second_key = (str(room.id), str(second.id))
+    def _apply_team_damage(
+        self,
+        room_key: str,
+        defenders: list[ArenaParticipant],
+        damage: float,
+    ) -> list[tuple[ArenaParticipant, int]]:
+        hits: list[tuple[ArenaParticipant, int]] = []
+        pool = damage
+        for defender in sorted((member for member in defenders if member.health > 0), key=lambda member: member.health):
+            carry_key = (room_key, defender.key)
+            carried = self._damage_carry.get(carry_key, 0.0) + pool
+            total = int(carried)
+            self._damage_carry[carry_key] = carried - total
+            before = defender.health
+            defender.health = max(0, defender.health - total)
+            hits.append((defender, total))
+            spill = total - min(total, before)
+            if spill <= 0:
+                break
+            pool = float(spill)
+        return hits
 
-        carried_b = self._damage_carry.get(first_key, 0.0) + damage_from_b
-        first_damage = int(carried_b)
-        self._damage_carry[first_key] = carried_b - first_damage
+    @staticmethod
+    def _team_defeated(team: list[ArenaParticipant]) -> bool:
+        return all(member.health <= 0 for member in team)
 
-        carried_a = self._damage_carry.get(second_key, 0.0) + damage_from_a
-        second_damage = int(carried_a)
-        self._damage_carry[second_key] = carried_a - second_damage
+    @staticmethod
+    def _team_hp(team: list[ArenaParticipant]) -> int:
+        return sum(member.health for member in team)
 
-        first.health = max(0, first.health - first_damage)
-        second.health = max(0, second.health - second_damage)
-        db_session.add(first)
-        db_session.add(second)
+    @staticmethod
+    def _representative(team: list[ArenaParticipant]) -> ArenaParticipant:
+        standing = [member for member in team if member.health > 0] or team
+        return max(standing, key=lambda member: member.power)
 
-        seq = self._round_seq.get(str(room.id), 1)
-        if first_damage > 0:
-            db_session.add(
-                ArenaMatchEvent(
-                    room_id=room.id,
-                    round_seq=seq,
-                    kind="hit",
-                    message=f"{second.first_name} hits {first.first_name} for {first_damage}",
+    def _emit_hit_events(
+        self,
+        db_session: AsyncSession,
+        room: Room,
+        seq: int,
+        attackers: list[ArenaParticipant],
+        hits: list[tuple[ArenaParticipant, int]],
+    ) -> None:
+        attacker = self._representative(attackers)
+        for target, damage in hits:
+            if damage > 0:
+                db_session.add(
+                    ArenaMatchEvent(
+                        room_id=room.id,
+                        round_seq=seq,
+                        kind="hit",
+                        message=f"{attacker.short_name} hits {target.short_name} for {damage}",
+                    )
                 )
-            )
-        if second_damage > 0:
-            db_session.add(
-                ArenaMatchEvent(
-                    room_id=room.id,
-                    round_seq=seq,
-                    kind="hit",
-                    message=f"{first.first_name} hits {second.first_name} for {second_damage}",
-                )
-            )
-        self._round_seq[str(room.id)] = seq + 1
 
-        if first.health <= 0 and second.health <= 0:
-            winner = random.choice([first, second])
-            loser = second if winner is first else first
-        elif first.health <= 0:
-            winner, loser = second, first
-        elif second.health <= 0:
-            winner, loser = first, second
-        else:
+    async def _resolve_round(
+        self,
+        db_session: AsyncSession,
+        room: Room,
+        team_a: list[ArenaParticipant],
+        team_b: list[ArenaParticipant],
+        seconds_passed: int,
+    ) -> dict:
+        # Damage dealt by each team's aggregate power (20% per second, matching incident
+        # math). Fractional damage carries per participant between ticks so near-equal
+        # powers stay visibly different instead of both truncating to the same int.
+        room_key = str(room.id)
+        damage_from_a = self._team_damage(team_a, seconds_passed)
+        damage_from_b = self._team_damage(team_b, seconds_passed)
+
+        hits_on_b = self._apply_team_damage(room_key, team_b, damage_from_a)
+        hits_on_a = self._apply_team_damage(room_key, team_a, damage_from_b)
+
+        for participant in (*team_a, *team_b):
+            if participant.dweller is not None:
+                participant.dweller.health = participant.health
+                db_session.add(participant.dweller)
+
+        seq = self._round_seq.get(room_key, 1)
+        self._emit_hit_events(db_session, room, seq, team_b, hits_on_a)
+        self._emit_hit_events(db_session, room, seq, team_a, hits_on_b)
+        self._round_seq[room_key] = seq + 1
+
+        a_defeated = self._team_defeated(team_a)
+        b_defeated = self._team_defeated(team_b)
+        if not a_defeated and not b_defeated:
             return {
                 "status": "ongoing",
-                "fighter_a_hp": first.health,
-                "fighter_b_hp": second.health,
+                "fighter_a_hp": self._team_hp(team_a),
+                "fighter_b_hp": self._team_hp(team_b),
             }
 
-        # Both fighters stay standing (no death in the arena); the loser is left at
-        # 1 HP and the room is marked done so this match never re-runs until the
-        # fighter selection changes (set_fighters clears the flag and heals).
-        first.health = max(1, first.health)
-        second.health = max(1, second.health)
+        if a_defeated and b_defeated:
+            winner_team, loser_team = random.choice([(team_a, team_b), (team_b, team_a)])
+        elif a_defeated:
+            winner_team, loser_team = team_b, team_a
+        else:
+            winner_team, loser_team = team_a, team_b
+
+        # Dwellers stay standing (no death in the arena): every dweller is left at 1 HP.
+        # Creatures may sit at 0. The room is marked done so this match never re-runs
+        # until the fighter selection changes (set_fighters clears the flag and heals).
+        for participant in (*team_a, *team_b):
+            if not participant.is_creature:
+                participant.health = max(1, participant.health)
+                if participant.dweller is not None:
+                    participant.dweller.health = participant.health
+
+        winner = self._representative(winner_team)
+        loser = self._representative(loser_team)
         room.arena_last_fight_at = datetime.utcnow()
         db_session.add(room)
-        db_session.add(first)
-        db_session.add(second)
 
-        # Happiness swing instead of caps: the winner feels great, the loser is sour.
-        winner.happiness = min(100, winner.happiness + HAPPINESS_WIN)
-        loser.happiness = max(10, loser.happiness - HAPPINESS_LOSE)
-        db_session.add(winner)
-        db_session.add(loser)
-        await self._award_combat_xp(db_session, winner)
+        # Happiness swing instead of caps: the winning team feels great, the losing one is sour.
+        for participant in winner_team:
+            if participant.dweller is not None:
+                participant.dweller.happiness = min(100, participant.dweller.happiness + HAPPINESS_WIN)
+                db_session.add(participant.dweller)
+        for participant in loser_team:
+            if participant.dweller is not None:
+                participant.dweller.happiness = max(10, participant.dweller.happiness - HAPPINESS_LOSE)
+                db_session.add(participant.dweller)
+        for participant in winner_team:
+            if participant.dweller is not None:
+                await self._award_combat_xp(db_session, participant.dweller)
 
         db_session.add(
             ArenaMatchEvent(
                 room_id=room.id,
                 round_seq=seq,
                 kind="finish",
-                message=f"{winner.first_name} defeated {loser.first_name}!",
+                message=f"{winner.short_name} defeated {loser.short_name}!",
             )
         )
         db_session.add(
@@ -416,7 +497,7 @@ class ArenaService:
                 round_seq=seq,
                 kind="reward",
                 message=(
-                    f"{winner.first_name} happiness +{HAPPINESS_WIN}, {loser.first_name} happiness -{HAPPINESS_LOSE}"
+                    f"{winner.short_name} happiness +{HAPPINESS_WIN}, {loser.short_name} happiness -{HAPPINESS_LOSE}"
                 ),
             )
         )
@@ -424,18 +505,18 @@ class ArenaService:
         logger.info(
             "Arena %s: %s defeated %s (happiness %+d/%+d)",
             room.id,
-            winner.first_name,
-            loser.first_name,
+            winner.short_name,
+            loser.short_name,
             HAPPINESS_WIN,
             -HAPPINESS_LOSE,
         )
 
         return {
             "status": "finished",
-            "winner_id": str(winner.id),
-            "winner": f"{winner.first_name} {winner.last_name}",
-            "loser_id": str(loser.id),
-            "loser": f"{loser.first_name} {loser.last_name}",
+            "winner_id": winner.key,
+            "winner": winner.name,
+            "loser_id": loser.key,
+            "loser": loser.name,
         }
 
     async def _award_combat_xp(self, db_session: AsyncSession, dweller: Dweller) -> None:

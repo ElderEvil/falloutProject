@@ -58,7 +58,9 @@ class Vault(BaseUUIDModel, VaultBase, TimeStampMixin, SoftDeleteMixin, table=Tru
     arena_morale_awarded_at: datetime | None = Field(default=None)
     user: "User" = Relationship(back_populates="vaults")
 
-    dwellers: list["Dweller"] = Relationship(back_populates="vault", cascade_delete=True)
+    dwellers: list["Dweller"] = Relationship(
+        back_populates="vault", cascade_delete=True, sa_relationship_kwargs={"foreign_keys": "Dweller.vault_id"}
+    )
     rooms: list["Room"] = Relationship(back_populates="vault", cascade_delete=True)
     storage: "Storage" = Relationship(back_populates="vault", cascade_delete=True)
 

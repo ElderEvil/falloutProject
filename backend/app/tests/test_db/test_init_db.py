@@ -24,6 +24,6 @@ class TestInitDB:
         )
 
         outfits = await async_session.execute(
-            select(Outfit).join(Dweller).join(Vault).where(Vault.user_id == test_user.id)
+            select(Outfit).join(Dweller).join(Vault, Dweller.vault_id == Vault.id).where(Vault.user_id == test_user.id)
         )
         assert len(outfits.scalars().all()) == 6

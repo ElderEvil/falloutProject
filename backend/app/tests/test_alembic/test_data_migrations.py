@@ -41,6 +41,8 @@ QUEST_RETURN_PARENT = "d5e6f7a8b9c0"
 QUEST_COMPLETION_REVISION = "8dca68ba234c"
 PET_PARENT = "907b110e6ae4"
 PET_REVISION = "c19031dc6b22"
+LIFECYCLE_PARENT = "862c04111ec1"
+LIFECYCLE_REVISION = "a2b4c6d8e0f2"
 
 #: Every dweller column that has no server default at this revision, plus the flags the
 #: assertions read. Plain literal (no interpolation) so the statement stays parameterised.
@@ -156,6 +158,51 @@ def _seed_dweller(harness: MigrationHarness, *, vault_id: str, first_name: str, 
         vault_id=vault_id,
         first_name=first_name,
         status="DEAD" if is_dead else "IDLE",
+    )
+    return dweller_id
+
+
+_INSERT_LIFECYCLE_DWELLER = (
+    "INSERT INTO dweller ("
+    "id, vault_id, first_name, last_name, age_group, gender, rarity, level, experience, "
+    "max_health, health, radiation, happiness, stimpack, radaway, status, is_deleted, is_dead, "
+    "is_permanently_dead, death_cause, death_timestamp, "
+    "strength, perception, endurance, charisma, intelligence, agility, luck"
+    ") VALUES ("
+    ":id, :vault_id, :first_name, :last_name, 'ADULT', 'MALE', 'COMMON', 1, 0, "
+    "100, 100, 0, 50, 0, 0, :status, :is_deleted, :is_dead, "
+    ":is_permanently_dead, CAST(:death_cause AS deathcauseenum), :death_timestamp, "
+    "1, 1, 1, 1, 1, 1, 1"
+    ")"
+)
+
+
+def _seed_lifecycle_dweller(
+    harness: MigrationHarness,
+    *,
+    vault_id: str,
+    first_name: str,
+    is_dead: bool,
+    is_permanently_dead: bool,
+    death_cause: str | None = None,
+    death_timestamp: datetime | None = None,
+    is_deleted: bool = False,
+    last_name: str | None = None,
+) -> str:
+    """Seed one pre-lifecycle dweller with explicit death/soft-delete state."""
+    dweller_id = str(uuid.uuid4())
+    harness.execute(
+        _INSERT_LIFECYCLE_DWELLER,
+        id=dweller_id,
+        vault_id=vault_id,
+        first_name=first_name,
+        last_name=last_name,
+        status="DEAD" if is_dead else "IDLE",
+        is_deleted=is_deleted,
+        is_dead=is_dead,
+        is_permanently_dead=is_permanently_dead,
+        death_cause=death_cause,
+        death_timestamp=death_timestamp,
     )
     return dweller_id
 
@@ -544,3 +591,106 @@ class TestPetMigration:
             (legacy_ids[0], "Legacy Pet 0", storage_id),
             (legacy_ids[1], "Legacy Pet 1", storage_id),
         ]
+
+
+class TestDwellerLifecycleMigration:
+    """The lifecycle backfill classifies legacy rows and repairs the EXILE tombstone."""
+
+    def test_reclassifies_exile_and_keeps_genuine_deaths(self, harness: MigrationHarness) -> None:
+        harness.upgrade(LIFECYCLE_PARENT)
+        vault_id = _seed_vault(harness, number=906)
+
+        exiled = _seed_lifecycle_dweller(
+            harness,
+            vault_id=vault_id,
+            first_name="Exiled",
+            is_dead=True,
+            is_permanently_dead=True,
+            death_cause="EXILE",
+            death_timestamp=datetime(2026, 1, 1),
+        )
+        genuine = _seed_lifecycle_dweller(
+            harness,
+            vault_id=vault_id,
+            first_name="Fallen",
+            is_dead=True,
+            is_permanently_dead=True,
+            death_cause="COMBAT",
+            death_timestamp=datetime(2026, 1, 2),
+        )
+        revivable = _seed_lifecycle_dweller(
+            harness,
+            vault_id=vault_id,
+            first_name="Hurt",
+            is_dead=True,
+            is_permanently_dead=False,
+            death_cause="HEALTH",
+            death_timestamp=datetime(2026, 1, 3),
+        )
+        listing = _seed_lifecycle_dweller(
+            harness, vault_id=vault_id, first_name="ForSale", is_dead=False, is_permanently_dead=False, is_deleted=True
+        )
+        active = _seed_lifecycle_dweller(
+            harness, vault_id=vault_id, first_name="Home", is_dead=False, is_permanently_dead=False
+        )
+        # EXILE but soft-deleted: not the old tombstone shape, so it stays quarantined.
+        quarantined = _seed_lifecycle_dweller(
+            harness,
+            vault_id=vault_id,
+            first_name="Odd",
+            is_dead=True,
+            is_permanently_dead=True,
+            death_cause="EXILE",
+            is_deleted=True,
+        )
+
+        harness.upgrade(LIFECYCLE_REVISION)
+
+        def lifecycle(dweller_id: str) -> tuple:
+            return harness.fetch(
+                "SELECT lifecycle::text, availability::text FROM dweller WHERE id = :id", id=dweller_id
+            )[0]
+
+        assert lifecycle(exiled) == ("WASTELAND", "DEPARTURE")
+        assert lifecycle(genuine) == ("DEAD_PERMANENT", "ARCHIVE")
+        assert lifecycle(revivable) == ("DEAD_REVIVABLE", "VAULT")
+        assert lifecycle(listing) == ("ALIVE", "MARKET")
+        assert lifecycle(active) == ("ALIVE", "VAULT")
+        assert lifecycle(quarantined) == (None, None)
+
+        provenance = harness.fetch(
+            "SELECT previous_vault_id::text, vault_id, departed_at IS NOT NULL, content_provenance, sharing_consent "
+            "FROM dweller WHERE id = :id",
+            id=exiled,
+        )[0]
+        assert provenance == (vault_id, None, True, None, None)
+        assert harness.scalar("SELECT vault_id::text FROM dweller WHERE id = :id", id=genuine) == vault_id
+
+        harness.downgrade(LIFECYCLE_PARENT)
+        # downgrade() is a documented no-op: canonical state is never reverted.
+        assert lifecycle(exiled) == ("WASTELAND", "DEPARTURE")
+
+    def test_content_provenance_is_name_keyed_and_leaves_unknown_private(self, harness: MigrationHarness) -> None:
+        harness.upgrade(LIFECYCLE_PARENT)
+        vault_id = _seed_vault(harness, number=907)
+        curated = _seed_lifecycle_dweller(
+            harness,
+            vault_id=vault_id,
+            first_name="Sarah",
+            last_name="Lyons",
+            is_dead=False,
+            is_permanently_dead=False,
+        )
+        unknown = _seed_lifecycle_dweller(
+            harness,
+            vault_id=vault_id,
+            first_name="Random",
+            last_name="Person",
+            is_dead=False,
+            is_permanently_dead=False,
+        )
+
+        harness.upgrade(LIFECYCLE_REVISION)
+
+        assert harness.scalar("SELECT content_provenance FROM dweller WHERE id = :id", id=curated) == "curated"
+        assert harness.scalar("SELECT content_provenance FROM dweller WHERE id = :id", id=unknown) is None

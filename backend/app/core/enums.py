@@ -46,6 +46,47 @@ class DeathCauseEnum(CaseInsensitiveEnum):
     EXILE = "exile"
 
 
+class LifecycleEnum(CaseInsensitiveEnum):
+    """Canonical dweller lifecycle — exactly one of these, independent of availability.
+
+    ``WASTELAND`` is a living unaffiliated person, not a simulated journey; a departure
+    is not a death and must never surface in the graveyard. ``is_dead`` /
+    ``is_permanently_dead`` are compatibility projections over this state.
+    """
+
+    ALIVE = "alive"
+    DEAD_REVIVABLE = "dead_revivable"
+    DEAD_PERMANENT = "dead_permanent"
+    WASTELAND = "wasteland"
+
+
+class AvailabilityEnum(CaseInsensitiveEnum):
+    """Canonical availability — where a person currently exists, not a death.
+
+    Exactly one of these, enforced by the application (and later constraints). Death
+    metadata exists only for ``DEAD_PERMANENT``; neither soft deletion nor a paid sale
+    is a death. ``ARCHIVE`` is retired content; ``DEPARTURE`` is a private living departure.
+    """
+
+    VAULT = "vault"
+    DEPARTURE = "departure"
+    POOL = "pool"
+    MARKET = "market"
+    ARCHIVE = "archive"
+
+
+class ContentProvenanceEnum(CaseInsensitiveEnum):
+    """Who authored a person's identity content, for safe cross-vault reuse.
+
+    Stored as VARCHAR (not a PostgreSQL enum): only system-authored or curated content
+    may be reused. ``None`` means unknown provenance and defaults to private departure.
+    """
+
+    CURATED = "curated"
+    GENERATED = "generated"
+    PLAYER_EDITED = "player_edited"
+
+
 class RarityEnum(CaseInsensitiveEnum):
     COMMON = "common"
     RARE = "rare"

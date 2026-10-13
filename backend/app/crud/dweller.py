@@ -33,6 +33,7 @@ from app.schemas.dweller import (
     DwellerUpdate,
 )
 from app.services.room_assignment_policy import adult_assignment_conditions
+from app.utils.dweller_lifecycle import excluded_from_public_offers_conditions, graveyard_conditions
 from app.utils.dwellers import create_dweller_from_template, create_random_common_dweller
 from app.utils.exceptions import ContentNoChangeException, ResourceConflictException, ResourceNotFoundException
 from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
@@ -828,6 +829,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             .where(self.model.id == dweller_id)
             .where(self.model.is_deleted)
             .where(~self.model.is_dead)
+            .where(*excluded_from_public_offers_conditions())
         )
         return (await db_session.execute(query)).scalars().one_or_none()
 
@@ -848,6 +850,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             select(self.model)
             .where(self.model.is_deleted)
             .where(~self.model.is_dead)
+            .where(*excluded_from_public_offers_conditions())
             .order_by(self.model.deleted_at.desc())
             .options(*_WEAPON_OUTFIT_LOADS, selectinload(Dweller.pet))
         )
@@ -938,7 +941,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         query = (
             select(self.model)
             .where(self.model.vault_id == vault_id)
-            .where(self.model.is_permanently_dead.is_(True))
+            .where(*graveyard_conditions())
             .order_by(self.model.death_timestamp.desc())
             .offset(skip)
             .limit(limit)

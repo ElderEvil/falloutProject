@@ -23,7 +23,7 @@ import {
 } from '@/modules/dwellers/services/dwellerService'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
-import { useFeatureFlagsStore } from './featureFlags'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
 /**

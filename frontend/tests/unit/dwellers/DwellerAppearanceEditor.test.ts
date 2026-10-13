@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createApiClientMock } from '../helpers/mocks'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 import DwellerAppearanceEditor from '@/modules/dwellers/components/DwellerAppearanceEditor.vue'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 
@@ -14,8 +15,13 @@ vi.mock('@/core/utils/errorHandler', () => ({
   handleStoreError: vi.fn(),
 }))
 
+vi.mock('@/core/utils/api', () =>
+  createApiClientMock({
+    apiGet: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
+  })
+)
+
 vi.mock('@/modules/dwellers/services/dwellerService', () => ({
-  getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
   getIdentityOptions: vi.fn().mockResolvedValue({
     races: ['human', 'ghoul', 'super_mutant', 'synth'],
     factions_by_race: {

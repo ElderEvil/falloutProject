@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
-import { createIconifyMock, createRouterMock } from '../../helpers/mocks'
+import { createApiClientMock, createIconifyMock, createRouterMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
@@ -12,11 +12,16 @@ import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
 vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' } }))
 
 vi.mock('@/modules/dwellers/services/dwellerService', () => ({
-  getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
   getIdentityOptions: vi
     .fn()
     .mockResolvedValue({ races: [], factions_by_race: {}, states_by_race: {} }),
 }))
+
+vi.mock('@/core/utils/api', () =>
+  createApiClientMock({
+    apiGet: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
+  })
+)
 
 vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" />' }))
 

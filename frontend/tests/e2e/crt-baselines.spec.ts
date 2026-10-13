@@ -129,6 +129,9 @@ async function mockApi(page: Page) {
     if (path === '/api/v1/vaults/my') return route.fulfill({ json: [VAULT] })
     if (path === '/api/v1/notifications/unread-count') return route.fulfill({ json: { count: 0 } })
     if (path === '/api/v1/notifications/') return route.fulfill({ json: [] })
+    if (path === '/api/v1/system/features') {
+      return route.fulfill({ json: { race_mechanics: true, faction_mechanics: false, player_connections: false } })
+    }
     if (path.startsWith('/api/v1/stream/')) {
       return route.fulfill({ contentType: 'text/event-stream', body: ': connected\n\n' })
     }

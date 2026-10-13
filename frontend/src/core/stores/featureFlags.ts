@@ -1,7 +1,14 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import { getFeatureFlags } from '@/modules/dwellers/services/dwellerService'
+import { apiGet } from '@/core/utils/api'
 import { handleStoreError } from '@/core/utils/errorHandler'
+
+/** Backend switches cross-cutting enough to gate core and every module. */
+interface FeatureFlags {
+  race_mechanics: boolean
+  faction_mechanics: boolean
+  player_connections?: boolean
+}
 
 /**
  * Backend feature switches. Defaults match the shipped backend defaults so the
@@ -10,6 +17,7 @@ import { handleStoreError } from '@/core/utils/errorHandler'
 export const useFeatureFlagsStore = defineStore('featureFlags', () => {
   const raceMechanics = ref(true)
   const factionMechanics = ref(false)
+  const playerConnections = ref(false)
   const loaded = ref(false)
 
   // Concurrent callers share one request: the panel and the roster mount together, and a
@@ -21,9 +29,10 @@ export const useFeatureFlagsStore = defineStore('featureFlags', () => {
     if (loaded.value) return Promise.resolve()
     inFlight ??= (async () => {
       try {
-        const flags = await getFeatureFlags()
+        const flags = await apiGet<FeatureFlags>('/api/v1/system/features')
         raceMechanics.value = flags.race_mechanics
         factionMechanics.value = flags.faction_mechanics
+        playerConnections.value = flags.player_connections ?? false
         loaded.value = true
       } catch (error) {
         handleStoreError(error, 'Failed to load feature flags', false)
@@ -34,5 +43,5 @@ export const useFeatureFlagsStore = defineStore('featureFlags', () => {
     return inFlight
   }
 
-  return { raceMechanics, factionMechanics, loaded, fetchFlags }
+  return { raceMechanics, factionMechanics, playerConnections, loaded, fetchFlags }
 })

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
-import { useFeatureFlagsStore } from '../stores/featureFlags'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 import DwellerBadge from './DwellerBadge.vue'
 import { formatIdentityLabel, RACE_CONFIG_MAP, type VisualAttributes } from '../models/dweller'
 

@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { useMediaQuery } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 import {
   Tooltip,
   TooltipContent,
@@ -14,6 +15,7 @@ import {
 const route = useRoute()
 const router = useRouter()
 const { isCollapsed, toggle } = useSidePanel()
+const featureFlags = useFeatureFlagsStore()
 
 const props = defineProps<{ vaultId?: string | null }>()
 
@@ -115,6 +117,15 @@ const navItems = computed((): NavItem[] => {
       wip: true,
     },
   ]
+
+  if (featureFlags.playerConnections) {
+    navItems.push({
+      id: 'messages',
+      label: 'Messages',
+      icon: 'mdi:message-text-outline',
+      path: `/vault/${vaultId.value}/messages`,
+    })
+  }
   return navItems
 })
 
@@ -244,6 +255,10 @@ const handleKeyPress = (e: KeyboardEvent) => {
 }
 
 onMounted(() => {
+  // The flag store defaults player_connections to off; ask the backend before
+  // the nav decides whether the Messages entry exists. Concurrent callers share
+  // one request, so this is free when the roster already fetched.
+  void featureFlags.fetchFlags()
   window.addEventListener('keydown', handleKeyPress)
 })
 

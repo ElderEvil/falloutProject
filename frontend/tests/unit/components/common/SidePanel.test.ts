@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createIconifyMock } from '../../helpers/mocks'
 import { flushPromises, mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
+import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 
 vi.mock('@iconify/vue', () => createIconifyMock())
 
@@ -87,10 +89,11 @@ describe('SidePanel', () => {
     vi.unstubAllGlobals()
   })
 
-  const mountPanel = (props: { vaultId?: string } = {}) => {
+  const mountPanel = (props: { vaultId?: string } = {}, pinia = createPinia()) => {
+    setActivePinia(pinia)
     const wrapper = mount(SidePanel, {
       props,
-      global: { plugins: [router] },
+      global: { plugins: [router, pinia] },
       // Focus assertions need the tree attached to the document.
       attachTo: document.body,
     })
@@ -230,6 +233,25 @@ describe('SidePanel', () => {
       } finally {
         input.remove()
       }
+    })
+  })
+
+  describe('feature-flagged messages entry', () => {
+    it('stays hidden while player_connections is off (the shipped default)', () => {
+      const wrapper = mountPanel()
+
+      const links = wrapper.findAll('a.nav-item')
+      expect(links).toHaveLength(11)
+      expect(links.some((link) => link.find('.nav-label').text() === 'Messages')).toBe(false)
+    })
+
+    it('appears once the player_connections flag is enabled', () => {
+      const pinia = createPinia()
+      useFeatureFlagsStore(pinia).playerConnections = true
+      const wrapper = mountPanel({}, pinia)
+
+      const messagesLink = linkByLabel(wrapper.findAll('a.nav-item'), 'Messages')
+      expect(messagesLink.attributes('href')).toBe('/vault/vault-1/messages')
     })
   })
 

@@ -41,7 +41,7 @@ import {
   isSortDirection,
 } from '../stores/dweller'
 import { needsCare, isSeverelyIrradiated } from '../models/dweller'
-import { useFeatureFlagsStore } from '../stores/featureFlags'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 import DwellerFilterPanel from '../components/DwellerFilterPanel.vue'
 import DwellerDisplayControls from '../components/DwellerDisplayControls.vue'
 import DwellerBulkActions from '../components/DwellerBulkActions.vue'

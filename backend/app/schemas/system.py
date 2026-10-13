@@ -37,6 +37,7 @@ class FeaturesResponse(BaseModel):
 
     race_mechanics: bool
     faction_mechanics: bool
+    player_connections: bool
 
 
 class ChangeEntry(BaseModel):

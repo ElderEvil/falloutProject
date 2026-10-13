@@ -428,6 +428,218 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Connections
+         * @description Accepted and pending connections, as requester and addressee.
+         */
+        get: operations["list_connections_api_v1_connections_get"];
+        put?: never;
+        /**
+         * Invite By Username
+         * @description Invite a player by their exact public username.
+         */
+        post: operations["invite_by_username_api_v1_connections_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connections/{connection_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Connection
+         * @description Accept a pending invite (addressee only).
+         */
+        post: operations["accept_connection_api_v1_connections__connection_id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connections/{connection_id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline Connection
+         * @description Decline a pending invite; safe to retry.
+         */
+        post: operations["decline_connection_api_v1_connections__connection_id__decline_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connections/{connection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke Connection
+         * @description Revoke a pending invite or sever an accepted connection.
+         */
+        delete: operations["revoke_connection_api_v1_connections__connection_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/blocks/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Block User
+         * @description Block a user; bilateral and immediate from the first message on.
+         */
+        post: operations["block_user_api_v1_blocks__user_id__post"];
+        /**
+         * Unblock User
+         * @description Remove a block; safe to retry.
+         */
+        delete: operations["unblock_user_api_v1_blocks__user_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Blocks
+         * @description The blocker's own block list.
+         */
+        get: operations["list_blocks_api_v1_blocks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/messages/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Direct Message Thread
+         * @description The chronological thread between the current user and another player.
+         */
+        get: operations["get_direct_message_thread_api_v1_messages__user_id__get"];
+        put?: never;
+        /**
+         * Send Direct Message
+         * @description Send a direct message to a connection, or a request to a non-connection.
+         */
+        post: operations["send_direct_message_api_v1_messages__user_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/messages/{user_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Message Request
+         * @description Accept an open message request, promoting the sender to a connection.
+         */
+        post: operations["accept_message_request_api_v1_messages__user_id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/messages/{user_id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline Message Request
+         * @description Discard an open message request; safe to retry.
+         */
+        post: operations["decline_message_request_api_v1_messages__user_id__decline_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Direct Message Conversations
+         * @description Conversation list with last message, unread count, and pending-request flag.
+         */
+        get: operations["list_direct_message_conversations_api_v1_messages_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/contamination-team/vault/{vault_id}/roster": {
         parameters: {
             query?: never;
@@ -5618,6 +5830,48 @@ export interface components {
             /** Proximity Score */
             proximity_score: number;
         };
+        /**
+         * ConnectionCreate
+         * @description Invite payload: the exact public `username` of the addressee.
+         */
+        ConnectionCreate: {
+            /** Username */
+            username: string;
+        };
+        /**
+         * ConnectionRead
+         * @description Wire shape for a connection row plus the counterpart's public handle.
+         */
+        ConnectionRead: {
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /**
+             * Requester Id
+             * Format: uuid4
+             */
+            requester_id: string;
+            /**
+             * Addressee Id
+             * Format: uuid4
+             */
+            addressee_id: string;
+            status: components["schemas"]["ConnectionStatus"];
+            /** Counterpart Username */
+            counterpart_username: string;
+            /** Created At */
+            created_at: string | null;
+            /** Responded At */
+            responded_at: string | null;
+        };
+        /**
+         * ConnectionStatus
+         * @description Consent state of a player-to-player connection.
+         * @enum {string}
+         */
+        ConnectionStatus: "pending" | "accepted";
         /** ContaminationTeamRead */
         ContaminationTeamRead: {
             /**
@@ -5904,6 +6158,59 @@ export interface components {
             child_id: string;
             /** Message */
             message: string;
+        };
+        /**
+         * DirectMessageRead
+         * @description Wire shape of a stored message. ``read_at`` is intentionally NOT exposed.
+         */
+        DirectMessageRead: {
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /**
+             * Sender User Id
+             * Format: uuid4
+             */
+            sender_user_id: string;
+            /**
+             * Recipient User Id
+             * Format: uuid4
+             */
+            recipient_user_id: string;
+            /** Body */
+            body: string;
+            /** Is Request */
+            is_request: boolean;
+            /** Created At */
+            created_at: string | null;
+        };
+        /**
+         * DirectMessageSend
+         * @description Body of a direct message; the first message to a non-connection is a request.
+         */
+        DirectMessageSend: {
+            /** Body */
+            body: string;
+        };
+        /**
+         * DirectMessageSummary
+         * @description One conversation in the list: counterpart + last message + unread count.
+         */
+        DirectMessageSummary: {
+            /**
+             * Counterpart User Id
+             * Format: uuid4
+             */
+            counterpart_user_id: string;
+            /** Counterpart Username */
+            counterpart_username: string;
+            last_message: components["schemas"]["DirectMessageRead"];
+            /** Unread Count */
+            unread_count: number;
+            /** Has Pending Request */
+            has_pending_request: boolean;
         };
         /**
          * DiscoveryRoutePoint
@@ -7550,6 +7857,8 @@ export interface components {
             race_mechanics: boolean;
             /** Faction Mechanics */
             faction_mechanics: boolean;
+            /** Player Connections */
+            player_connections: boolean;
         };
         /**
          * GameBalanceResponse
@@ -10323,6 +10632,26 @@ export interface components {
              */
             name: string;
         };
+        /**
+         * UserBlockRead
+         * @description Wire shape for a block row plus the blocked user's public handle.
+         */
+        UserBlockRead: {
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /**
+             * Blocked Id
+             * Format: uuid4
+             */
+            blocked_id: string;
+            /** Blocked Username */
+            blocked_username: string;
+            /** Created At */
+            created_at: string | null;
+        };
         /** UserCreate */
         UserCreate: {
             /** Username */
@@ -11733,6 +12062,388 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_connections_api_v1_connections_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionRead"][];
+                };
+            };
+        };
+    };
+    invite_by_username_api_v1_connections_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_connection_api_v1_connections__connection_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decline_connection_api_v1_connections__connection_id__decline_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_connection_api_v1_connections__connection_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    block_user_api_v1_blocks__user_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserBlockRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unblock_user_api_v1_blocks__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_blocks_api_v1_blocks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserBlockRead"][];
+                };
+            };
+        };
+    };
+    get_direct_message_thread_api_v1_messages__user_id__get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectMessageRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_direct_message_api_v1_messages__user_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DirectMessageSend"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectMessageRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_message_request_api_v1_messages__user_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decline_message_request_api_v1_messages__user_id__decline_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_direct_message_conversations_api_v1_messages_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectMessageSummary"][];
+                };
             };
             /** @description Validation Error */
             422: {

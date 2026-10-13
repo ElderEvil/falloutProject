@@ -280,11 +280,28 @@ describe('ProfileView', () => {
   })
 
   describe('Error State', () => {
+    // mockRejectedValueOnce is order-sensitive: the SidePanel's feature-flags
+    // fetch may consume it. Scope the failure to the profile URL instead.
+    const rejectProfileOnce = (detail: string) => {
+      let rejected = false
+      vi.mocked(axios.get).mockImplementation((url: string) => {
+        if (url === '/api/v1/users/me/profile') {
+          if (!rejected) {
+            rejected = true
+            return Promise.reject({ response: { data: { detail } } })
+          }
+          return Promise.resolve({ data: mockProfile })
+        }
+        if (url === '/api/v1/users/me/profile/statistics') {
+          return Promise.resolve({ data: mockDeathStatistics })
+        }
+        return Promise.resolve({ data: {} })
+      })
+    }
+
     it('should display error message on fetch failure', async () => {
       const errorMessage = 'Failed to fetch profile'
-      vi.mocked(axios.get).mockRejectedValueOnce({
-        response: { data: { detail: errorMessage } },
-      })
+      rejectProfileOnce(errorMessage)
 
       const wrapper = mount(ProfileView, {
         global: {
@@ -298,9 +315,7 @@ describe('ProfileView', () => {
     })
 
     it('should show retry button on error', async () => {
-      vi.mocked(axios.get).mockRejectedValueOnce({
-        response: { data: { detail: 'Network error' } },
-      })
+      rejectProfileOnce('Network error')
 
       const wrapper = mount(ProfileView, {
         global: {
@@ -313,17 +328,7 @@ describe('ProfileView', () => {
     })
 
     it('should retry fetching profile when retry button is clicked', async () => {
-      vi.mocked(axios.get)
-        .mockRejectedValueOnce({ response: { data: { detail: 'Network error' } } })
-        .mockImplementation((url: string) => {
-          if (url === '/api/v1/users/me/profile') {
-            return Promise.resolve({ data: mockProfile })
-          }
-          if (url === '/api/v1/users/me/profile/statistics') {
-            return Promise.resolve({ data: mockDeathStatistics })
-          }
-          return Promise.reject(new Error('Unknown URL'))
-        })
+      rejectProfileOnce('Network error')
 
       const wrapper = mount(ProfileView, {
         global: {

@@ -1,15 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createIconifyMock } from '../../helpers/mocks'
+import { createApiClientMock, createIconifyMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 import DwellerBadge from '@/modules/dwellers/components/DwellerBadge.vue'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
 
 vi.mock('@/modules/dwellers/services/dwellerService', () => ({
-  getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
   getIdentityOptions: vi.fn().mockResolvedValue({ races: [], factions_by_race: {}, states_by_race: {} }),
 }))
+
+vi.mock('@/core/utils/api', () =>
+  createApiClientMock({
+    apiGet: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
+  })
+)
 
 vi.mock('@iconify/vue', () =>
   createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon" />' })

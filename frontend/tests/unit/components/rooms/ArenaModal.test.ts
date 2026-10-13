@@ -379,4 +379,23 @@ describe('ArenaModal', () => {
     expect(journal.attributes('aria-live')).toBe('polite')
     expect(journal.text()).toContain('No rounds fought yet.')
   })
+
+  it('resyncs the draft when the server rejects a selection', async () => {
+    storeMock.setFighters.mockResolvedValueOnce(false)
+    const wrapper = mountModal()
+    await flushPromises()
+    expect(wrapper.text()).toContain('START FIGHT')
+
+    const slot = slots(wrapper)[0]
+    const swap = slot.findAll('button').find((button) => button.text() === 'SWAP')!
+    await swap.trigger('click')
+    await flushPromises()
+    await pickOption(slot, 'Charlie Dweller')
+
+    expect(storeMock.setFighters).toHaveBeenCalledTimes(1)
+    expect(slots(wrapper)[0].text()).toContain('Alpha Dweller')
+    expect(wrapper.text()).toContain('START FIGHT')
+    expect(wrapper.text()).toContain('READY')
+    expect(wrapper.text()).not.toContain('NEEDS 2 FIGHTERS')
+  })
 })

@@ -277,7 +277,11 @@ const commitDraft = async () => {
     },
     authStore.token
   )
-  if (!ok) return
+  if (!ok) {
+    draftDirty.value = false
+    syncFromState()
+    return
+  }
   draftDirty.value = false
   openPicker.value = null
   creaturePickerOpen.value = false

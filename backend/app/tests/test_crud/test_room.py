@@ -1,14 +1,21 @@
-"""Tests for CRUDRoom persistence helpers and RoomService orchestration (mocked sessions)."""
+"""Tests for CRUDRoom persistence helpers and RoomService orchestration.
+
+The CRUD query tests run against a real SQLite session; the RoomService
+orchestration tests stub the cross-service calls they depend on.
+"""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app import crud
 from app.core.game_config import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN
 from app.crud.base import CRUDBase
 from app.crud.room import CRUDRoom
 from app.models.room import Room
+from app.models.vault import Vault
 from app.schemas.common import RoomActionEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate, RoomUpdate
 from app.services.room_service import MergeResult, RoomService
@@ -106,6 +113,12 @@ def _make_room_create(**overrides) -> RoomCreate:
     return RoomCreate(**defaults)
 
 
+async def _create_room(session: AsyncSession, vault_id, **overrides) -> Room:
+    """Persist a real Room row so the CRUD queries under test run actual SQL."""
+    room_in = _make_room_create(vault_id=vault_id, **overrides)
+    return await crud.room.create(db_session=session, obj_in=room_in)
+
+
 # =============================================================================
 # evaluate_capacity_formula
 # =============================================================================
@@ -140,14 +153,15 @@ class TestEvaluateOutputFormula:
 
 class TestGetMultyByVault:
     @pytest.mark.asyncio
-    async def test_returns_rooms(self, room_crud, mock_session):
-        vault_id = uuid4()
-        expected_rooms = [_make_room(vault_id=vault_id), _make_room(vault_id=vault_id)]
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_all=expected_rooms)
+    async def test_returns_rooms(self, room_crud, async_session: AsyncSession, vault: Vault):
+        created = {
+            (await _create_room(async_session, vault.id, name="Diner", coordinate_x=1)).id,
+            (await _create_room(async_session, vault.id, name="Kitchen", coordinate_x=3)).id,
+        }
 
-        result = await room_crud.get_multy_by_vault(db_session=mock_session, vault_id=vault_id, skip=0, limit=10)
-        assert result == expected_rooms
-        mock_session.execute.assert_called_once()
+        result = await room_crud.get_multy_by_vault(db_session=async_session, vault_id=vault.id, skip=0, limit=10)
+
+        assert {room.id for room in result} == created
 
 
 # =============================================================================
@@ -157,11 +171,13 @@ class TestGetMultyByVault:
 
 class TestGetExistingRoomNames:
     @pytest.mark.asyncio
-    async def test_returns_lowercase_names(self, room_crud, mock_session):
-        vault_id = uuid4()
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_all=["Living Room", "DINER", "Elevator"])
+    async def test_returns_lowercase_names(self, room_crud, async_session: AsyncSession, vault: Vault):
+        await _create_room(async_session, vault.id, name="Living Room", coordinate_x=1)
+        await _create_room(async_session, vault.id, name="DINER", coordinate_x=3)
+        await _create_room(async_session, vault.id, name="Elevator", coordinate_x=5)
 
-        result = await room_crud.get_existing_room_names(db_session=mock_session, vault_id=vault_id)
+        result = await room_crud.get_existing_room_names(db_session=async_session, vault_id=vault.id)
+
         assert result == {"living room", "diner", "elevator"}
 
 
@@ -177,13 +193,26 @@ class TestGetExistingRoomNames:
 
 class TestGetRoomBuildPrice:
     @pytest.mark.asyncio
-    async def test_zero_incremental_cost_raises_value_error(self, room_crud, mock_session):
+    async def test_zero_incremental_cost_raises_value_error(self, room_crud, async_session: AsyncSession, vault: Vault):
         """incremental_cost=0 is falsy, so `not room_in.incremental_cost` is True -> raises."""
-        room_in = _make_room_create(base_cost=100, incremental_cost=0)
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_all=[])
+        room_in = _make_room_create(vault_id=vault.id, base_cost=100, incremental_cost=0)
 
         with pytest.raises(ValueError, match="Incremental cost must be set"):
-            await room_crud.get_room_build_price(db_session=mock_session, room_in=room_in)
+            await room_crud.get_room_build_price(db_session=async_session, room_in=room_in)
+
+    @pytest.mark.asyncio
+    async def test_price_counts_only_same_category_rooms(self, room_crud, async_session: AsyncSession, vault: Vault):
+        await _create_room(async_session, vault.id, category=RoomTypeEnum.PRODUCTION, coordinate_x=1)
+        await _create_room(async_session, vault.id, category=RoomTypeEnum.PRODUCTION, coordinate_x=3)
+        # A room of another category must not count toward the PRODUCTION build price.
+        await _create_room(async_session, vault.id, category=RoomTypeEnum.CAPACITY, coordinate_x=5)
+        room_in = _make_room_create(
+            vault_id=vault.id, category=RoomTypeEnum.PRODUCTION, base_cost=100, incremental_cost=25
+        )
+
+        price = await room_crud.get_room_build_price(db_session=async_session, room_in=room_in)
+
+        assert price == 100 + 2 * 25
 
 
 # =============================================================================
@@ -193,12 +222,12 @@ class TestGetRoomBuildPrice:
 
 class TestCheckIsUniqueRoom:
     @pytest.mark.asyncio
-    async def test_unique_room_exists_raises_exception(self, room_crud, mock_session):
-        room_in = _make_room_create(incremental_cost=0, name="Vault Door")  # is_unique=True
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_first=_make_room(name="Vault Door"))
+    async def test_unique_room_exists_raises_exception(self, room_crud, async_session: AsyncSession, vault: Vault):
+        await _create_room(async_session, vault.id, name="Vault Door", incremental_cost=0, coordinate_x=1)
+        room_in = _make_room_create(vault_id=vault.id, name="Vault Door", incremental_cost=0)  # is_unique=True
 
         with pytest.raises(UniqueRoomViolationException):
-            await room_crud.check_is_unique_room(db_session=mock_session, obj_in=room_in)
+            await room_crud.check_is_unique_room(db_session=async_session, obj_in=room_in)
 
 
 # =============================================================================
@@ -208,14 +237,14 @@ class TestCheckIsUniqueRoom:
 
 class TestGetAdjacentMergeableRooms:
     @pytest.mark.asyncio
-    async def test_finds_right_neighbor(self, room_crud, mock_session):
-        vault_id = uuid4()
-        right_room = _make_room(vault_id=vault_id, name="Diner", coordinate_x=5, coordinate_y=2, size=3)
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_all=[right_room])
+    async def test_finds_right_neighbor(self, room_crud, async_session: AsyncSession, vault: Vault):
+        neighbor = await _create_room(
+            async_session, vault.id, name="Diner", tier=1, size=3, coordinate_x=5, coordinate_y=2
+        )
 
         result = await room_crud.get_adjacent_mergeable_rooms(
-            db_session=mock_session,
-            vault_id=vault_id,
+            db_session=async_session,
+            vault_id=vault.id,
             name="Diner",
             tier=1,
             coordinate_x=2,
@@ -223,17 +252,17 @@ class TestGetAdjacentMergeableRooms:
             size=3,
         )
 
-        assert result == [right_room]
+        assert [room.id for room in result] == [neighbor.id]
 
     @pytest.mark.asyncio
-    async def test_finds_left_neighbor(self, room_crud, mock_session):
-        vault_id = uuid4()
-        left_room = _make_room(vault_id=vault_id, name="Diner", coordinate_x=0, coordinate_y=2, size=3)
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_all=[left_room])
+    async def test_finds_left_neighbor(self, room_crud, async_session: AsyncSession, vault: Vault):
+        neighbor = await _create_room(
+            async_session, vault.id, name="Diner", tier=1, size=3, coordinate_x=0, coordinate_y=2
+        )
 
         result = await room_crud.get_adjacent_mergeable_rooms(
-            db_session=mock_session,
-            vault_id=vault_id,
+            db_session=async_session,
+            vault_id=vault.id,
             name="Diner",
             tier=1,
             coordinate_x=3,
@@ -241,16 +270,16 @@ class TestGetAdjacentMergeableRooms:
             size=3,
         )
 
-        assert result == [left_room]
+        assert [room.id for room in result] == [neighbor.id]
 
     @pytest.mark.asyncio
-    async def test_different_name_not_returned(self, room_crud, mock_session):
-        vault_id = uuid4()
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_all=[])
+    async def test_different_name_not_returned(self, room_crud, async_session: AsyncSession, vault: Vault):
+        # Footprint touches the candidate, but the name differs, so the filter must exclude it.
+        await _create_room(async_session, vault.id, name="Kitchen", tier=1, size=3, coordinate_x=5, coordinate_y=2)
 
         result = await room_crud.get_adjacent_mergeable_rooms(
-            db_session=mock_session,
-            vault_id=vault_id,
+            db_session=async_session,
+            vault_id=vault.id,
             name="Diner",
             tier=1,
             coordinate_x=2,
@@ -259,27 +288,23 @@ class TestGetAdjacentMergeableRooms:
         )
 
         assert result == []
-        query = mock_session.execute.call_args.args[0]
-        assert query.compile().params["name_1"] == "Diner"
 
     @pytest.mark.asyncio
-    async def test_different_row_not_returned(self, room_crud, mock_session):
-        vault_id = uuid4()
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_all=[])
+    async def test_different_row_not_returned(self, room_crud, async_session: AsyncSession, vault: Vault):
+        # Adjacent along the row axis, but on a different row than the candidate.
+        await _create_room(async_session, vault.id, name="Diner", tier=1, size=3, coordinate_x=5, coordinate_y=3)
 
         result = await room_crud.get_adjacent_mergeable_rooms(
-            db_session=mock_session,
-            vault_id=vault_id,
+            db_session=async_session,
+            vault_id=vault.id,
             name="Diner",
             tier=1,
             coordinate_x=2,
-            coordinate_y=3,
+            coordinate_y=2,
             size=3,
         )
 
         assert result == []
-        query = mock_session.execute.call_args.args[0]
-        assert query.compile().params["coordinate_y_1"] == 3
 
 
 # =============================================================================
@@ -476,16 +501,9 @@ class TestBuildElevatorGating:
 
 class TestDestroy:
     @pytest.mark.asyncio
-    async def test_room_not_found(self, mock_session):
-        with (
-            patch(
-                "app.crud.room.room.get",
-                new_callable=AsyncMock,
-                side_effect=ResourceNotFoundException(Room, identifier=uuid4()),
-            ),
-            pytest.raises(ResourceNotFoundException),
-        ):
-            await RoomService().destroy_room(db_session=mock_session, room_id=uuid4())
+    async def test_room_not_found(self, async_session: AsyncSession):
+        with pytest.raises(ResourceNotFoundException):
+            await RoomService().destroy_room(db_session=async_session, room_id=uuid4())
 
     @pytest.mark.asyncio
     async def test_destroy_refund_includes_upgrade_costs(self, mock_session):
@@ -598,15 +616,14 @@ class TestDestroy:
             assert mock_deposit.call_args.kwargs["amount"] == 1125
 
     @pytest.mark.asyncio
-    async def test_destroy_different_case_vault_door(self, mock_session):
+    async def test_destroy_different_case_vault_door(self, async_session: AsyncSession, vault: Vault):
         """Verify that 'VAULT DOOR' (any case) is blocked."""
-        vault_door = _make_room(name="VAULT DOOR")
+        vault_door = await _create_room(
+            async_session, vault.id, name="VAULT DOOR", incremental_cost=0, coordinate_x=0, coordinate_y=0
+        )
 
-        with (
-            patch("app.crud.room.room.get", new_callable=AsyncMock, return_value=vault_door),
-            pytest.raises(VaultOperationException, match="Cannot destroy the vault door"),
-        ):
-            await RoomService().destroy_room(db_session=mock_session, room_id=vault_door.id)
+        with pytest.raises(VaultOperationException, match="Cannot destroy the vault door"):
+            await RoomService().destroy_room(db_session=async_session, room_id=vault_door.id)
 
 
 # =============================================================================
@@ -616,14 +633,13 @@ class TestDestroy:
 
 class TestUpgrade:
     @pytest.mark.asyncio
-    async def test_already_at_max_tier(self, mock_session):
-        room = _make_room(tier=3, t2_upgrade_cost=500, t3_upgrade_cost=1500)
+    async def test_already_at_max_tier(self, async_session: AsyncSession, vault: Vault):
+        room = await _create_room(
+            async_session, vault.id, name="Diner", tier=3, t2_upgrade_cost=500, t3_upgrade_cost=1500, coordinate_x=1
+        )
 
-        with (
-            patch("app.crud.room.room.get", new_callable=AsyncMock, return_value=room),
-            pytest.raises(VaultOperationException, match="already at maximum tier"),
-        ):
-            await RoomService().upgrade_room(db_session=mock_session, room_id=room.id)
+        with pytest.raises(VaultOperationException, match="already at maximum tier"):
+            await RoomService().upgrade_room(db_session=async_session, room_id=room.id)
 
     @pytest.mark.asyncio
     async def test_no_upgrade_cost_tier2(self, mock_session):

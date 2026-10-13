@@ -1,8 +1,28 @@
 # Player Connections & Chat — Smallest Playable Slice (A1 + A2 + B1)
 
-> Status: **proposed plan.** First multiplayer slice chosen from `MULTIPLAYER_BACKLOG.md`. Feature-
-> flagged off by default. This is the smallest version that is actually playable and safe — not the
-> full social system.
+> Status: **plan + as-built notes.** First multiplayer slice chosen from `MULTIPLAYER_BACKLOG.md`.
+> Feature-flagged `player_connections`, **enabled by default** (backend PR #967 still ships it off;
+> the test branch #973 flips it on). This is the smallest version that is actually playable and safe —
+> not the full social system.
+
+## As built (2026-10-13)
+
+Shipped on `feat/player-connections` (backend, #967) and the UI on `feat/messages-ui` (#969); combined
+for testing on `feat/messages-full` (#973). Beyond the plan below, the implementation added:
+
+- **Pair serialization** — every pair-mutating operation takes a transaction-scoped advisory lock on
+  the sorted user pair (`db_locks.advisory_xact_lock`), so concurrent invite/accept/send/block cannot
+  race the unique constraints; races that slip through are caught (`IntegrityError` → re-fetch).
+- **Bounded conversation listing** — a DB-side aggregation (≤50 conversations) instead of loading the
+  user's whole history; thread reads mark **only the returned page** read.
+- **Shared send limit** — a Redis fixed-window counter with an in-process fallback.
+- **Reciprocal blocking** is one row and idempotent in either direction.
+
+**Live delivery is polling, not push.** There is **no personal WebSocket endpoint** in the backend
+(the only WS route is dweller chat), so `ConnectionManager.send_personal_message` reaches no client;
+the UI polls the open thread (~5s). A real push channel (a personal WS endpoint, or routing DM events
+through the existing SSE stream) is a backend follow-up. See "Delivery" below.
+
 
 ## Goal
 
@@ -23,7 +43,7 @@ indicators, vault visiting, trade/barter, notifications bells, moderation review
 | **Ownership** | Conversations are **account-owned**, not vault-owned | `ChatMessage.vault_id` is a required FK and dweller-chat carries LLM/audio fields — overloading it would blur semantics and force a nullable migration anyway. |
 | **Message model** | **New `DirectMessage` table** | Clean account↔account domain, no `vault_id`, no LLM columns. Dweller chat is untouched. |
 | **Consent** | First message to a non-connection is a **message request** | Matches B1's review requirement ("recipient acceptance … included in that slice"). |
-| **Delivery** | Persist + push over the Redis-backed `ConnectionManager` (WebSockets) | SSE is in-memory, drops on a full queue, and has no replay (`stream_manager.py`). |
+| **Delivery** | Persist; the UI **polls** the open thread (~5s) | There is **no personal WebSocket endpoint** (the only WS route is dweller chat), so `send_personal_message` reaches no client. SSE is in-memory, drops on a full queue, and has no replay (`stream_manager.py`). Live push (a personal WS endpoint or SSE routing) is a follow-up. |
 | **Notifications** | **No bell**; a UI badge/count only | DMs are not progression events (the red line in `GAME_MECHANICS.md` is progression-only). |
 | **Identity store** | Reuse `UserProfile` (`bio`, `avatar_url`, `preferences` JSONB) | A visibility toggle lives in `preferences` — no migration for identity. |
 
@@ -46,7 +66,7 @@ hand-written PG enum migration and a `PG_ENUM_LABELS_SNAPSHOT` update in the sam
    pending row is a no-op, not a duplicate).
 2. **Accept / decline / revoke**: `POST /connections/{id}/accept`, `.../decline`, `DELETE /connections/{id}`.
    Accept is idempotent.
-3. **DM to a connection**: stored and pushed normally.
+3. **DM to a connection**: stored; the client picks it up on the next poll (no live push yet).
 4. **DM to a non-connection**: stored with `is_request=true`; the recipient sees it in the request
    folder of their conversations list. Accepting promotes the sender to a connection; declining or
    blocking discards it. **One open request per sender/recipient pair** until answered.
@@ -83,11 +103,11 @@ queries live in `crud/`; routers only parse → call → let `DomainError` map t
 
 ## Smallest playable slice — build order
 
-| Step | Deliverable | Ships dark |
+| Step | Deliverable | Status |
 |---|---|---|
-| 1 | `Connection` + block + A2 identity (handle, visibility toggle in `preferences`) | flag off |
-| 2 | `DirectMessage` + requests + blocking enforcement + Redis-WS push | flag off |
-| 3 | Then, separately: a frontend connections/DM surface | flag off |
+| 1 | `Connection` + block + A2 identity (handle, visibility toggle in `preferences`) | **done** (#967) |
+| 2 | `DirectMessage` + requests + blocking enforcement (delivery: client polling; see note above) | **done** (#967) |
+| 3 | A frontend connections/DM surface | **built, being rethought** (#969, draft) |
 
 Foundations are built **only as these steps require them** — no general framework ahead of the first
 feature.

@@ -135,6 +135,10 @@ the recycling path.
 10. **Enum/migration cost.** Every new notification type is a hand-written PG enum migration + snapshot.
 11. **LLM cost.** B5 (pen-pals) costs tokens per interaction.
 12. **Cosmetic surface.** G3 has nowhere to hang a badge yet.
+13. **There is no live DM push channel.** Discovered building B1: the only WebSocket route is dweller
+    chat, so `ConnectionManager.send_personal_message` reaches no client — the messages UI **polls**
+    instead. Any "realtime" social feature (B1–B4, live co-op progress) needs a personal push channel
+    (a WS endpoint, or routing events through the existing SSE stream) before it can feel live.
 
 ## What to choose first
 

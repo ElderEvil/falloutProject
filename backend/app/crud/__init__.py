@@ -3,6 +3,7 @@ from app.models.weapon import Weapon
 
 from . import storage
 from .ai_settings import ai_settings
+from .arena_state import arena_state_crud
 from .crafting_order import crafting_order
 from .dweller import dweller
 from .expedition_run import expedition_run

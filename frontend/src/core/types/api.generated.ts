@@ -9839,29 +9839,6 @@ export interface components {
              * @default 1
              */
             speedup_multiplier: number;
-            /**
-             * Arena Last Fight At
-             * @description When the last arena match finished; fights stay stopped until a dweller is reassigned
-             */
-            arena_last_fight_at?: string | null;
-            /**
-             * Arena Fight Started At
-             * @description When the armed arena match was started by the player (fight button); NULL means waiting
-             */
-            arena_fight_started_at?: string | null;
-            /** Arena Fighter A Id */
-            arena_fighter_a_id?: string | null;
-            /** Arena Fighter B Id */
-            arena_fighter_b_id?: string | null;
-            /** Fighter C Id */
-            fighter_c_id?: string | null;
-            /** Fighter D Id */
-            fighter_d_id?: string | null;
-            arena_mode?: components["schemas"]["ArenaMode"] | null;
-            /** Arena Opponents */
-            arena_opponents?: {
-                [key: string]: unknown;
-            }[] | null;
             /** Capacity Formula */
             capacity_formula?: string | null;
             /** Output Formula */
@@ -9909,29 +9886,6 @@ export interface components {
              * @default 1
              */
             speedup_multiplier: number;
-            /**
-             * Arena Last Fight At
-             * @description When the last arena match finished; fights stay stopped until a dweller is reassigned
-             */
-            arena_last_fight_at?: string | null;
-            /**
-             * Arena Fight Started At
-             * @description When the armed arena match was started by the player (fight button); NULL means waiting
-             */
-            arena_fight_started_at?: string | null;
-            /** Arena Fighter A Id */
-            arena_fighter_a_id?: string | null;
-            /** Arena Fighter B Id */
-            arena_fighter_b_id?: string | null;
-            /** Fighter C Id */
-            fighter_c_id?: string | null;
-            /** Fighter D Id */
-            fighter_d_id?: string | null;
-            arena_mode?: components["schemas"]["ArenaMode"] | null;
-            /** Arena Opponents */
-            arena_opponents?: {
-                [key: string]: unknown;
-            }[] | null;
             /**
              * Id
              * Format: uuid4

@@ -25,7 +25,9 @@ from app.core.game_config import game_config
 from app.crud import dweller as crud_dweller
 from app.crud import room as room_crud
 from app.crud.arena_match_event import arena_match_event_crud
+from app.crud.arena_state import arena_state_crud
 from app.models.arena_match_event import ArenaMatchEvent
+from app.models.arena_state import ArenaState
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.schemas.arena import (
@@ -33,7 +35,9 @@ from app.schemas.arena import (
     ArenaMatchEventOut,
     ArenaRoomState,
     ArenaRosterEntry,
-    ArenaState,
+)
+from app.schemas.arena import (
+    ArenaState as ArenaStateOut,
 )
 from app.services.exploration.data_loader import list_arena_creatures
 from app.utils.combat import combat_power
@@ -81,15 +85,18 @@ class ArenaService:
         # (room_id, dweller_id) -> fractional damage carried between ticks so a
         # 8.7 vs 8.0 power difference shows up instead of truncating both to 8.
         self._damage_carry: dict[tuple[str, str], float] = {}
-        # (room_id, dweller_key) knocked out this match: kept down until the match
-        # resets. Stored here rather than as 0 HP so an arena KO stays separate from
-        # the dweller's lethal health (the vault health tick would kill a 0-HP dweller).
-        self._knockouts: set[tuple[str, str]] = set()
 
     def _clear_room_state(self, room_key: str) -> None:
         self._round_seq.pop(room_key, None)
         self._damage_carry = {key: carry for key, carry in self._damage_carry.items() if key[0] != room_key}
-        self._knockouts = {key for key in self._knockouts if key[0] != room_key}
+
+    async def _state(self, db_session: AsyncSession, room: Room) -> ArenaState:
+        """Persisted arena state for a room, or a transient default when unconfigured.
+
+        A transient result is never part of the session, so read paths must not
+        write to it; write paths call ``arena_state_crud.get_or_create`` instead.
+        """
+        return await arena_state_crud.get(db_session, room.id) or ArenaState(room_id=room.id)
 
     @staticmethod
     def _validate_mode_tier(room: Room, mode: ArenaMode) -> None:
@@ -104,18 +111,18 @@ class ArenaService:
         return rooms[0]
 
     @staticmethod
-    def _team_slot_ids(room: Room) -> tuple[list[UUID4 | None], list[UUID4 | None]]:
+    def _team_slot_ids(state: ArenaState) -> tuple[list[UUID4 | None], list[UUID4 | None]]:
         """Slot ids for (team A, team B); a/b are each side's lead across modes.
 
         Hunt keeps dwellers on team A (a, optional c) and has no dweller slots on
-        team B - the creatures come from ``room.arena_opponents`` instead.
+        team B - the creatures come from ``state.opponents`` instead.
         """
-        mode = room.arena_mode or ArenaMode.DUEL
+        mode = state.mode or ArenaMode.DUEL
         if mode == ArenaMode.BRAWL:
-            return [room.arena_fighter_a_id, room.fighter_c_id], [room.arena_fighter_b_id, room.fighter_d_id]
+            return [state.fighter_a_id, state.fighter_c_id], [state.fighter_b_id, state.fighter_d_id]
         if mode == ArenaMode.HUNT:
-            return [room.arena_fighter_a_id, room.fighter_c_id], []
-        return [room.arena_fighter_a_id], [room.arena_fighter_b_id]
+            return [state.fighter_a_id, state.fighter_c_id], []
+        return [state.fighter_a_id], [state.fighter_b_id]
 
     @staticmethod
     def _required_team_size(mode: ArenaMode) -> int:
@@ -155,7 +162,7 @@ class ArenaService:
         fighter_c_id: UUID4 | None = None,
         fighter_d_id: UUID4 | None = None,
         opponent_keys: list[str] | None = None,
-    ) -> Room:
+    ) -> ArenaState:
         """Pick the fighters that fight, per mode.
 
         Duel uses the a/b slots; brawl fills all four (a/c vs b/d); hunt pits one or
@@ -189,14 +196,17 @@ class ArenaService:
         else:
             fighters = []
 
-        room.arena_fighter_a_id = fighter_a_id
-        room.arena_fighter_b_id = fighter_b_id
-        room.fighter_c_id = fighter_c_id
-        room.fighter_d_id = fighter_d_id
-        room.arena_mode = mode
-        room.arena_opponents = opponents
-        room.arena_last_fight_at = None
-        room.arena_fight_started_at = None
+        state = await arena_state_crud.get_or_create(db_session, room.id)
+        state.fighter_a_id = fighter_a_id
+        state.fighter_b_id = fighter_b_id
+        state.fighter_c_id = fighter_c_id
+        state.fighter_d_id = fighter_d_id
+        state.mode = mode
+        state.opponents = opponents
+        state.last_fight_at = None
+        state.fight_started_at = None
+        state.knocked_out_ids = None
+        db_session.add(state)
         self._clear_room_state(str(room.id))
 
         await arena_match_event_crud.delete_for_room(db_session, room.id)
@@ -205,9 +215,8 @@ class ArenaService:
             fighter.health = fighter.effective_max_health
             db_session.add(fighter)
 
-        db_session.add(room)
         await db_session.commit()
-        return room
+        return state
 
     @staticmethod
     def _dweller_participants(slots: list[UUID4 | None], by_id: dict[str, Dweller]) -> list[ArenaParticipant]:
@@ -222,7 +231,7 @@ class ArenaService:
         return participants
 
     @staticmethod
-    def _creature_participants(room: Room) -> list[ArenaParticipant]:
+    def _creature_participants(state: ArenaState) -> list[ArenaParticipant]:
         return [
             ArenaParticipant(
                 key=f"{opponent['key']}#{index}",
@@ -233,16 +242,16 @@ class ArenaService:
                 max_health=int(opponent["max_hp"]),
                 is_creature=True,
             )
-            for index, opponent in enumerate(room.arena_opponents or [])
+            for index, opponent in enumerate(state.opponents or [])
         ]
 
     @staticmethod
-    def _persist_creature_hp(room: Room, creatures: list[ArenaParticipant]) -> None:
-        """Write resolved creature HP back into ``room.arena_opponents`` so it survives ticks."""
-        opponents = room.arena_opponents or []
+    def _persist_creature_hp(state: ArenaState, creatures: list[ArenaParticipant]) -> None:
+        """Write resolved creature HP back into ``state.opponents`` so it survives ticks."""
+        opponents = state.opponents or []
         if len(opponents) != len(creatures):
             return
-        room.arena_opponents = [
+        state.opponents = [
             {**opponent, "hp": creature.health} for opponent, creature in zip(opponents, creatures, strict=True)
         ]
 
@@ -254,20 +263,27 @@ class ArenaService:
         Hunt fields the dwellers on team A and builds team B from the persisted
         creature opponents; duel/brawl field dwellers on both sides.
         """
-        mode = room.arena_mode or ArenaMode.DUEL
-        a_slots, b_slots = self._team_slot_ids(room)
+        state = await self._state(db_session, room)
+        return await self._teams_from_state(db_session, room, state)
+
+    async def _teams_from_state(
+        self, db_session: AsyncSession, room: Room, state: ArenaState
+    ) -> tuple[list[ArenaParticipant], list[ArenaParticipant]]:
+        mode = state.mode or ArenaMode.DUEL
+        a_slots, b_slots = self._team_slot_ids(state)
         slot_ids = [slot for slot in (*a_slots, *b_slots) if slot is not None]
         fighters = await crud_dweller.get_arena_fighters(db_session, room.id, ids=slot_ids) if slot_ids else []
         by_id = {str(f.id): f for f in fighters}
 
         team_a = self._dweller_participants(a_slots, by_id)
         team_b = (
-            self._creature_participants(room) if mode == ArenaMode.HUNT else self._dweller_participants(b_slots, by_id)
+            self._creature_participants(state) if mode == ArenaMode.HUNT else self._dweller_participants(b_slots, by_id)
         )
         # Knocked-out dwellers stay on the team (so the selection is not rejected)
         # but fight at 0 HP.
+        knocked_out = set(state.knocked_out_ids or [])
         for participant in (*team_a, *team_b):
-            if not participant.is_creature and (str(room.id), participant.key) in self._knockouts:
+            if not participant.is_creature and participant.key in knocked_out:
                 participant.health = 0
 
         if mode == ArenaMode.HUNT:
@@ -337,25 +353,26 @@ class ArenaService:
             return False
         return bool(team_a) and bool(team_b)
 
-    async def get_arena_state(self, db_session: AsyncSession, vault_id: UUID4) -> ArenaState:
+    async def get_arena_state(self, db_session: AsyncSession, vault_id: UUID4) -> ArenaStateOut:
         """Build the full arena state for a vault: fighters, roster, flags, journal."""
         rooms = await room_crud.get_arena_rooms(db_session, vault_id=vault_id)
 
         countdown = game_config.game_loop.arena_countdown_seconds
-        state = []
+        room_states = []
         for room in rooms:
-            mode = room.arena_mode or ArenaMode.DUEL
+            state = await self._state(db_session, room)
+            mode = state.mode or ArenaMode.DUEL
             available_modes = [choice for choice, tier in MODE_UNLOCK_TIERS.items() if room.tier >= tier]
             mode_unlocked = mode in available_modes
             size = self._required_team_size(mode)
-            team_a, team_b = await self.get_teams(db_session, room)
+            team_a, team_b = await self._teams_from_state(db_session, room, state)
             roster = await self.get_roster(db_session, room)
 
-            match_done = room.arena_last_fight_at is not None
-            started = room.arena_fight_started_at is not None
+            match_done = state.last_fight_at is not None
+            started = state.fight_started_at is not None
             countdown_remaining = 0
             if started and not match_done:
-                elapsed = (datetime.utcnow() - room.arena_fight_started_at).total_seconds()
+                elapsed = (datetime.utcnow() - state.fight_started_at).total_seconds()
                 countdown_remaining = max(0, int(countdown - elapsed))
 
             events = [
@@ -369,15 +386,15 @@ class ArenaService:
             ]
             winner_name = self._winner_from_events(events, mode, team_a, team_b)
 
-            state.append(
+            room_states.append(
                 ArenaRoomState(
                     room_id=str(room.id),
                     room_name=room.name,
                     tier=room.tier,
                     mode=mode.value,
                     available_modes=available_modes,
-                    fighter_a_id=str(room.arena_fighter_a_id) if room.arena_fighter_a_id else None,
-                    fighter_b_id=str(room.arena_fighter_b_id) if room.arena_fighter_b_id else None,
+                    fighter_a_id=str(state.fighter_a_id) if state.fighter_a_id else None,
+                    fighter_b_id=str(state.fighter_b_id) if state.fighter_b_id else None,
                     fighters=[self._participant_out(team[0]) for team in (team_a, team_b) if team],
                     team_a=[self._participant_out(p) for p in team_a],
                     team_b=[self._participant_out(p) for p in team_b],
@@ -404,7 +421,7 @@ class ArenaService:
                 )
             )
 
-        return ArenaState(rooms=state)
+        return ArenaStateOut(rooms=room_states)
 
     async def clear_journal(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> int:
         """Delete all journal events for an arena room. Returns how many were removed."""
@@ -422,27 +439,28 @@ class ArenaService:
         caller wants slot cleanup in the same transaction as a room move.
         """
         changed = False
-        for room in await room_crud.get_arena_rooms_with_fighter(db_session, dweller_id):
-            room_changed = False
-            if room.arena_fighter_a_id == dweller_id:
-                room.arena_fighter_a_id = None
-                room_changed = True
-            if room.arena_fighter_b_id == dweller_id:
-                room.arena_fighter_b_id = None
-                room_changed = True
-            if room.fighter_c_id == dweller_id:
-                room.fighter_c_id = None
-                room_changed = True
-            if room.fighter_d_id == dweller_id:
-                room.fighter_d_id = None
-                room_changed = True
-            if room_changed:
+        for state in await arena_state_crud.get_by_fighter(db_session, dweller_id):
+            state_changed = False
+            if state.fighter_a_id == dweller_id:
+                state.fighter_a_id = None
+                state_changed = True
+            if state.fighter_b_id == dweller_id:
+                state.fighter_b_id = None
+                state_changed = True
+            if state.fighter_c_id == dweller_id:
+                state.fighter_c_id = None
+                state_changed = True
+            if state.fighter_d_id == dweller_id:
+                state.fighter_d_id = None
+                state_changed = True
+            if state_changed:
                 changed = True
-                room.arena_last_fight_at = None
-                room.arena_fight_started_at = None
-                self._clear_room_state(str(room.id))
-                await arena_match_event_crud.delete_for_room(db_session, room.id)
-            db_session.add(room)
+                state.last_fight_at = None
+                state.fight_started_at = None
+                state.knocked_out_ids = None
+                self._clear_room_state(str(state.room_id))
+                await arena_match_event_crud.delete_for_room(db_session, state.room_id)
+            db_session.add(state)
         if changed and commit:
             await db_session.commit()
 
@@ -452,23 +470,24 @@ class ArenaService:
         The first combat tick lands after the countdown grace period.
         """
         room = await self._get_arena_room(db_session, room_id, vault_id)
-        self._validate_mode_tier(room, room.arena_mode or ArenaMode.DUEL)
-        if room.arena_last_fight_at is not None:
+        state = await self._state(db_session, room)
+        mode = state.mode or ArenaMode.DUEL
+        self._validate_mode_tier(room, mode)
+        if state.last_fight_at is not None:
             raise ValidationException(detail="Match is over - pick fighters again to start a new one")
-        if room.arena_fight_started_at is not None:
+        if state.fight_started_at is not None:
             raise ValidationException(detail="Match already started")
 
-        mode = room.arena_mode or ArenaMode.DUEL
         size = self._required_team_size(mode)
-        team_a, team_b = await self.get_teams(db_session, room)
+        team_a, team_b = await self._teams_from_state(db_session, room, state)
         if not team_a or not team_b:
             if mode == ArenaMode.HUNT:
                 raise ValidationException(detail="Hunt needs one or two dwellers and at least one creature")
             word = "two" if size == 1 else "four"
             raise ValidationException(detail=f"Arena needs {word} adult fighters selected")
 
-        room.arena_fight_started_at = datetime.utcnow()
-        db_session.add(room)
+        state.fight_started_at = datetime.utcnow()
+        db_session.add(state)
         await db_session.commit()
         return room
 
@@ -517,21 +536,22 @@ class ArenaService:
         rounds = []
         now = datetime.utcnow()
         for room in rooms:
-            if room.arena_last_fight_at is not None:
+            state = await self._state(db_session, room)
+            if state.last_fight_at is not None:
                 continue
-            if room.arena_fight_started_at is None:
+            if state.fight_started_at is None:
                 continue
-            if now - room.arena_fight_started_at < timedelta(seconds=game_config.game_loop.arena_countdown_seconds):
+            if now - state.fight_started_at < timedelta(seconds=game_config.game_loop.arena_countdown_seconds):
                 continue
-            mode = room.arena_mode or ArenaMode.DUEL
-            team_a, team_b = await self.get_teams(db_session, room)
+            mode = state.mode or ArenaMode.DUEL
+            team_a, team_b = await self._teams_from_state(db_session, room, state)
             if not team_a or not team_b:
                 continue
 
-            round_result = await self._resolve_round(db_session, room, team_a, team_b, seconds_passed)
+            round_result = await self._resolve_round(db_session, room, team_a, team_b, seconds_passed, state=state)
             if mode == ArenaMode.HUNT:
-                self._persist_creature_hp(room, team_b)
-                db_session.add(room)
+                self._persist_creature_hp(state, team_b)
+            db_session.add(state)
             rounds.append({"room_id": str(room.id), **round_result})
 
         await db_session.commit()
@@ -607,24 +627,28 @@ class ArenaService:
         team_a: list[ArenaParticipant],
         team_b: list[ArenaParticipant],
         seconds_passed: int,
+        *,
+        state: ArenaState | None = None,
     ) -> dict:
         # Damage dealt by each team's aggregate power (20% per second, matching incident
         # math). Fractional damage carries per participant between ticks so near-equal
         # powers stay visibly different instead of both truncating to the same int.
         room_key = str(room.id)
+        state = state or await arena_state_crud.get_or_create(db_session, room.id)
         damage_from_a = self._team_damage(team_a, seconds_passed)
         damage_from_b = self._team_damage(team_b, seconds_passed)
 
         hits_on_b = self._apply_team_damage(room_key, team_b, damage_from_a)
         hits_on_a = self._apply_team_damage(room_key, team_a, damage_from_b)
 
+        knocked_out = set(state.knocked_out_ids or [])
         for participant in (*team_a, *team_b):
             if participant.dweller is None:
                 continue
             if participant.health <= 0:
-                # Non-lethal arena KO: floor the dweller at 1 HP and keep the KO in
-                # memory so the fighter stays down without the health tick killing them.
-                self._knockouts.add((room_key, participant.key))
+                # Non-lethal arena KO: floor the dweller at 1 HP and record the KO so
+                # the fighter stays down without the health tick killing them.
+                knocked_out.add(participant.key)
                 participant.dweller.health = 1
             else:
                 participant.dweller.health = participant.health
@@ -638,6 +662,8 @@ class ArenaService:
         a_defeated = self._team_defeated(team_a)
         b_defeated = self._team_defeated(team_b)
         if not a_defeated and not b_defeated:
+            state.knocked_out_ids = sorted(knocked_out) or None
+            db_session.add(state)
             return {
                 "status": "ongoing",
                 "fighter_a_hp": self._team_hp(team_a),
@@ -652,8 +678,8 @@ class ArenaService:
             winner_team, loser_team = team_a, team_b
 
         # Dwellers stay standing (no death in the arena): every dweller is left at 1 HP.
-        # Creatures may sit at 0. The room is marked done so this match never re-runs
-        # until the fighter selection changes (set_fighters clears the flag and heals).
+        # Creatures may sit at 0. The match is marked done so it never re-runs until the
+        # fighter selection changes (set_fighters clears the flags, KOs and heals).
         for participant in (*team_a, *team_b):
             if not participant.is_creature:
                 participant.health = max(1, participant.health)
@@ -663,11 +689,12 @@ class ArenaService:
 
         winner = self._representative(winner_team)
         loser = self._representative(loser_team)
-        labels = TEAM_LABELS.get(room.arena_mode or ArenaMode.DUEL)
+        labels = TEAM_LABELS.get(state.mode or ArenaMode.DUEL)
         winner_label = labels[0 if winner_team is team_a else 1] if labels else winner.short_name
         loser_label = labels[0 if loser_team is team_a else 1] if labels else loser.short_name
-        room.arena_last_fight_at = datetime.utcnow()
-        db_session.add(room)
+        state.last_fight_at = datetime.utcnow()
+        state.knocked_out_ids = None
+        db_session.add(state)
 
         # Happiness swing instead of caps: the winning team feels great, the losing one is sour.
         for participant in winner_team:

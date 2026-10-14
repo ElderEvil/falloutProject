@@ -9,6 +9,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core import db_locks
 from app.core.enums import RoomActionEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
@@ -16,12 +17,14 @@ from app.core.grid_config import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN
 from app.crud.training import training as training_crud
 from app.models.room import Room
 from app.schemas.room import RoomBuild, RoomCreate, RoomUpdate
+from app.services.room_assignment_policy import vault_placement_lock_key
 from app.services.user_service import user_service
 from app.services.vault_service import vault_service
 from app.utils import room_rules
 from app.utils.exceptions import (
     InsufficientResourcesException,
     NoSpaceAvailableException,
+    ResourceConflictException,
     UniqueRoomViolationException,
     VaultOperationException,
 )
@@ -408,6 +411,15 @@ class RoomService:
             return room
 
     async def _build(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> tuple[Room, bool]:
+        """Build a room under the vault's placement lock, expanding when the same room exists."""
+        async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(obj_in.vault_id)) as acquired:
+            if not acquired:
+                raise ResourceConflictException(
+                    detail=f"Vault {obj_in.vault_id} is already being built in — try again"
+                )
+            return await self._build_locked(db_session=db_session, obj_in=obj_in)
+
+    async def _build_locked(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> tuple[Room, bool]:
         """Build a room from a full create payload, expanding when the same room exists."""
         vault = await crud.vault.get(db_session, id=obj_in.vault_id)
 
@@ -548,6 +560,10 @@ class RoomService:
 
         await room_rules.validate_elevator_destroy(db_session, room)
 
+        # A demolished room must leave no dangling dispatch origin behind: clear the
+        # provenance pointing here before the row goes, so the incident return pass
+        # reads "no posting to restore" instead of a room that no longer exists.
+        await crud.room.clear_origin_room_references(db_session, room_id)
         db_obj = await crud.room.delete(db_session, id=room_id)
 
         refundable_total = db_obj.base_cost + (db_obj.incremental_cost or 0)
@@ -678,6 +694,96 @@ class RoomService:
                 )
             return merge_result.room
         return room
+
+    async def expand_room(
+        self,
+        db_session: AsyncSession,
+        room_id: UUID4,
+    ) -> Room:
+        """Grow a unique room's footprint in place by one base segment.
+
+        Unlike a build, this never creates or absorbs a room: it extends the
+        existing row, so the id, dwellers and training stay attached. Uniqueness
+        otherwise blocks the build-and-merge route (a second copy is rejected),
+        which is why the station needs this explicit growth path. The price is one
+        build price per added segment, mirroring the merge path in ``_build``.
+
+        Args:
+            db_session: Database session
+            room_id: Room ID to expand
+
+        Returns:
+            The expanded room
+
+        Raises:
+            ResourceNotFoundException: If room not found
+            InsufficientResourcesException: If vault lacks caps
+            ResourceConflictException: If another expansion of the room is in flight
+            VaultOperationException: If the room is not unique or cannot grow
+        """
+        # Payment and growth span several commits (``withdraw_caps`` and
+        # ``crud.room.update`` each commit on their own), so a transaction-scoped
+        # lock would release after the charge and leave a second expansion free to
+        # charge again for the same growth. The vault-scoped placement lock is shared
+        # with construction, so a concurrent build cannot take the cells this
+        # expansion is growing into; the room is re-read inside the lock so a
+        # contender can never grow a stale footprint.
+        room = await crud.room.get(db_session, room_id)
+        async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(room.vault_id)) as acquired:
+            if not acquired:
+                raise ResourceConflictException(detail=f"Room {room_id} is already being expanded — try again")
+            room = await crud.room.get(db_session, room_id)
+            return await self._expand_locked(db_session, room)
+
+    async def _expand_locked(self, db_session: AsyncSession, room: Room) -> Room:
+        """Grow a locked unique room in place; the caller holds the expansion lock."""
+        vault = await crud.vault.get(db_session, id=room.vault_id)
+
+        if not room.is_unique:
+            raise VaultOperationException(
+                detail=f"Room {room.name} is not a unique room and cannot be expanded in place."
+            )
+
+        current_size = room.size if room.size is not None else room.size_min
+        target_size = current_size + room.size_min
+        if target_size > room.size_max:
+            raise VaultOperationException(detail=f"Room {room.name} is already at maximum size {room.size_max}.")
+
+        await room_rules.validate_expansion_placement(db_session, room, target_size)
+
+        price = await crud.room.get_room_build_price(db_session=db_session, room_in=room)
+        await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=price, commit=False)
+
+        template = game_data_store.get_room(room.name)
+        new_capacity = room.capacity
+        new_output = room.output
+        if template and template.capacity_formula:
+            new_capacity = crud.room.evaluate_capacity_formula(template.capacity_formula, room.tier, target_size)
+        if template and template.output_formula:
+            new_output = crud.room.evaluate_output_formula(template.output_formula, room.tier, target_size)
+
+        old_capacity = room.capacity
+        expanded = await crud.room.update(
+            db_session=db_session,
+            id=room.id,
+            obj_in=RoomUpdate(
+                size=target_size,
+                capacity=new_capacity,
+                output=new_output,
+                image_url=get_room_image_url(room.name, tier=room.tier, size=target_size),
+            ),
+        )
+
+        if crud.room.requires_recalculation(expanded):
+            await vault_service.recalculate_vault_attributes(
+                db_session=db_session,
+                vault_obj=vault,
+                room_obj=expanded,
+                action=RoomActionEnum.BUILD,
+                previous_capacity=old_capacity,
+            )
+
+        return expanded
 
     async def get_buildable_rooms(
         self,

@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.203.0 (2026-10-14)
+
+### Features
+
+* guide objective progression with explicit reward claims 340171a
+* rebalance objective rewards and fix progress counting 9bb6171
+* soften resource drain and preserve offline reserves 022127a
+
+### Bug Fixes
+
+* lazy-load objective guide within initial bundle budget d6b6e34
+* **migrations:** scope guided-arc template lookup to the starter category 4b1bf46
+* **objectives:** revert Produce rename, raise daily resource payouts, drop research dump 04e8afb
+
+### Documentation
+
+* retain wave 2 balance research with implementation b6cc823
+
+### Code Refactoring
+
+* **progression:** share objective claim flow and credit existing staffing dc0977a
+
 ## 2.202.1 (2026-10-14)
 
 ### Code Refactoring

@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.204.0 (2026-10-14)
+
+### Features
+
+* **objectives:** restore the legacy starter cohort and version the revised track 440b81d
+* **onboarding:** add the teaching ledger and authored orientation definitions 21071b9
+* **onboarding:** replace the objective banner with a spotlight guide dcc3cf1
+* **onboarding:** ship the ledger-driven spotlight 45614fe
+* **onboarding:** slim the starter arc to a three-step spine 2dbae72
+* **onboarding:** wire starter-spine contracts and spotlight state 3b38fc5
+* **progression:** gate objective tabs by Office identity and restore a current-step action 30c3dbd
+
+### Bug Fixes
+
+* **dwellers:** serialize read_data templates through the response model 4059624
+* **objectives:** create the assignable index, keep both filters, neutral housing copy a03e9cd
+* **onboarding:** address review findings on the starter arc ddf33cd
+* **onboarding:** keep the guide persistent, resilient and correctly scoped 1d633aa
+* **onboarding:** price housing from the real build cost and mirror departure policy 35af7ef
+* **onboarding:** retire instead of erase, and hand off after orientation 8d184b0
+* **onboarding:** scope housing rooms to the active vault and mark the created vault from the response 753dbe9
+* **vault:** do not boost a new vault for superusers unless requested e931427
+
+### Performance Improvements
+
+* **vault:** lazy-load the exit-request modal off the critical path 8cf3c5c
+
+### Documentation
+
+* **onboarding:** mark the feature implemented pending release and record validation fdd9bc7
+* **onboarding:** settle ordering, acknowledgement and stale-finding ambiguities 66ee6ee
+
+### Code Refactoring
+
+* **onboarding:** trim the snapshot, migration inference and docs 21872bc
+
 ## 2.203.0 (2026-10-14)
 
 ### Features

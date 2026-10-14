@@ -22,6 +22,7 @@ const stores = vi.hoisted(() => ({
   },
   room: {
     rooms: [] as unknown[],
+    roomsLoadedVaultId: null as string | null,
     availableRooms: [] as unknown[],
     fetchBuildableRooms: () => Promise.resolve(),
     fetchRooms: () => Promise.resolve(),
@@ -130,6 +131,7 @@ const seedHousing = (caps: number) => {
     { name: 'Living room', category: 'Capacity', base_cost: 100, incremental_cost: 25 },
   ]
   stores.room.rooms = [{ category: 'Capacity' }, { category: 'Capacity' }]
+  stores.room.roomsLoadedVaultId = 'v1'
 }
 
 beforeEach(() => {
@@ -143,6 +145,7 @@ beforeEach(() => {
   stores.dweller.filter.allDwellers = []
   stores.dweller.filter.allDwellersLoadedVaultId = null
   stores.room.rooms = []
+  stores.room.roomsLoadedVaultId = null
   stores.room.availableRooms = []
   vi.spyOn(useObjectivesStore(), 'fetchObjectives').mockResolvedValue()
   useOnboardingState().resetAll()

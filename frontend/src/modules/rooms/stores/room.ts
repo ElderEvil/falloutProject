@@ -14,6 +14,7 @@ type GridConfig = components['schemas']['GridConfig']
 export const useRoomStore = defineStore('room', () => {
   // State
   const rooms = ref<Room[]>([])
+  const roomsLoadedVaultId = ref<string | null>(null)
   const gridConfig = ref<GridConfig | null>(null)
   const availableRooms = ref<RoomTemplate[]>([])
   const selectedRoom = ref<RoomTemplate | null>(null)
@@ -45,6 +46,7 @@ export const useRoomStore = defineStore('room', () => {
       })
       if (requestSequence === fetchRoomsRequestSequence) {
         rooms.value = response.data
+        roomsLoadedVaultId.value = vaultId
       }
     } catch (error) {
       handleStoreError(error, 'Failed to fetch rooms')
@@ -213,6 +215,7 @@ export const useRoomStore = defineStore('room', () => {
   return {
     // State
     rooms,
+    roomsLoadedVaultId,
     gridConfig,
     availableRooms,
     selectedRoom,

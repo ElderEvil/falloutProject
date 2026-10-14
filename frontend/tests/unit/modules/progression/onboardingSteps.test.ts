@@ -10,6 +10,7 @@ const EMPTY_SNAPSHOT: TeachingSnapshot = {
   vault: null,
   buildableRooms: [],
   builtRooms: [],
+  roomsLoaded: false,
   dwellers: [],
   dwellersLoaded: false,
   objectives: [],
@@ -94,6 +95,7 @@ describe('onboardingSteps', () => {
       vault: { bottle_caps: 125 },
       buildableRooms: [LIVING_ROOM],
       builtRooms: SEEDED_CAPACITY_ROOMS,
+      roomsLoaded: true,
       objectives: [objectiveWithKey(HOUSING)],
     })
     expect(byId.get('orientation.housing')?.eligibility(snapshot)).toEqual({
@@ -106,19 +108,32 @@ describe('onboardingSteps', () => {
       vault: { bottle_caps: 200 },
       buildableRooms: [LIVING_ROOM],
       builtRooms: SEEDED_CAPACITY_ROOMS,
+      roomsLoaded: true,
       objectives: [objectiveWithKey(HOUSING)],
     })
     expect(byId.get('orientation.housing')?.eligibility(snapshot)).toBe('eligible')
   })
 
-  it('keeps housing unknown until the built rooms are loaded', () => {
+  it('keeps housing unknown until the vault rooms are loaded', () => {
     const snapshot = snapshotWith({
       vault: { bottle_caps: 9999 },
       buildableRooms: [LIVING_ROOM],
       builtRooms: [],
+      roomsLoaded: false,
       objectives: [objectiveWithKey(HOUSING)],
     })
     expect(byId.get('orientation.housing')?.eligibility(snapshot)).toBe('unknown')
+  })
+
+  it('treats an empty loaded vault as a valid zero-room state', () => {
+    const snapshot = snapshotWith({
+      vault: { bottle_caps: 9999 },
+      buildableRooms: [LIVING_ROOM],
+      builtRooms: [],
+      roomsLoaded: true,
+      objectives: [objectiveWithKey(HOUSING)],
+    })
+    expect(byId.get('orientation.housing')?.eligibility(snapshot)).toBe('eligible')
   })
 
   it('keeps departure unknown until the roster is loaded', () => {

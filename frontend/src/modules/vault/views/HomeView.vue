@@ -62,19 +62,15 @@ const createVault = async () => {
 
   creatingVault.value = true
   try {
-    const existingIds = new Set(vaultStore.vaults.map((vault) => vault.id))
     const boosted = boostedStart.value
-    const created = await vaultStore.createVault(
+    const createdId = await vaultStore.createVault(
       parseInt(newVaultNumber.value, 10),
       boosted,
       authStore.token as string
     )
-    if (!created) return
+    if (!createdId) return
 
-    if (!boosted) {
-      const fresh = vaultStore.vaults.find((vault) => !existingIds.has(vault.id))
-      if (fresh) markCreatedVault(fresh.id)
-    }
+    if (!boosted) markCreatedVault(createdId)
     newVaultNumber.value = ''
     boostedStart.value = false
     showCreation.value = false

@@ -48,6 +48,7 @@ export interface TeachingSnapshot {
   vault: SnapshotVault | null
   buildableRooms: readonly SnapshotRoom[]
   builtRooms: readonly SnapshotBuiltRoom[]
+  roomsLoaded: boolean
   dwellers: readonly SnapshotDweller[]
   dwellersLoaded: boolean
   objectives: readonly Objective[]
@@ -103,7 +104,7 @@ const livingQuartersPrice = (snapshot: TeachingSnapshot): number | undefined => 
     (candidate) => candidate.name.trim().toLowerCase() === 'living room'
   )
   if (!template || typeof template.incremental_cost !== 'number') return undefined
-  if (snapshot.builtRooms.length === 0) return undefined
+  if (!snapshot.roomsLoaded) return undefined
   const category = template.category.trim().toLowerCase()
   const existing = snapshot.builtRooms.filter(
     (room) => room.category.trim().toLowerCase() === category

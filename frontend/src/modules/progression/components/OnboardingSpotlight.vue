@@ -105,6 +105,7 @@ const snapshot = computed<TeachingSnapshot>(() => ({
   vault: vaultId.value ? (vaultStore.loadedVaults[vaultId.value] ?? null) : null,
   buildableRooms: roomStore.availableRooms,
   builtRooms: roomStore.rooms,
+  roomsLoaded: !!vaultId.value && roomStore.roomsLoadedVaultId === vaultId.value,
   dwellers: dwellerStore.filter.allDwellers,
   dwellersLoaded:
     !!vaultId.value && dwellerStore.filter.allDwellersLoadedVaultId === vaultId.value,
@@ -135,7 +136,9 @@ watch(
       if (roomStore.availableRooms.length === 0) {
         void roomStore.fetchBuildableRooms(token, vaultId.value)
       }
-      if (roomStore.rooms.length === 0) void roomStore.fetchRooms(vaultId.value, token)
+      if (roomStore.roomsLoadedVaultId !== vaultId.value) {
+        void roomStore.fetchRooms(vaultId.value, token)
+      }
     }
     if (
       lesson.id === 'orientation.departure' &&

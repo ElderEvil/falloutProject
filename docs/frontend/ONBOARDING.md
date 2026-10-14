@@ -1,10 +1,10 @@
 # Spotlight onboarding
 
-> Status: **shipped** in PR #1000, pending the validation below. This document records the
-> behaviour that ships, its ownership boundaries and the checks still outstanding. Deferred
+> Status: **implemented** in PR #1000, not yet released. This document records the behaviour
+> that is implemented, its ownership boundaries and the checks still outstanding. Deferred
 > work is summarised at the end and tracked in [`../ROADMAP.md`](../ROADMAP.md).
 
-## What ships
+## Implemented behaviour
 
 A first-session guide that shows one useful action at a time, then hands off to the Briefing.
 
@@ -72,15 +72,21 @@ Skip step. Selection changes, navigation and background polling never count as a
 - Already-built rooms, skipped steps and migrated progress have deliberate completion rules;
   replaying and reloading never replay a reward.
 
-## Remaining validation
+## Validation record
 
-Not yet verified end-to-end — record before sign-off:
+Run for the simplification pass:
 
+- Backend: `ruff` clean, single Alembic head, **127 passed** (alembic, objective
+  CRUD/claim/guidance/evaluators, seed integrity, `test_db`).
+- Frontend: `typecheck` + `lint` clean, **114 passed** (`OnboardingSpotlight`,
+  `useOnboardingState` + persistence, `onboardingSteps`, `ObjectivesView`, `dwellerFilter`).
+
+Still owed before release sign-off:
+
+- Full backend and frontend suite runs.
 - Full-seed resource stability across a 20-minute active session and a return from inactivity.
-- Real-service walkthrough of the cohort migration against production-like legacy rows.
 - Keyboard, touch and small-screen walkthrough of the spotlight and the Starter surface.
-- A complete backend suite run; the simplification pass only covered the objective, guidance,
-  alembic and seed suites.
+- Real-service walkthrough of the cohort migration against production-like legacy rows.
 
 ## Deferred
 

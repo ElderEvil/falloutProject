@@ -253,9 +253,7 @@ async def test_explore_evaluator_credits_at_departure(
 ) -> None:
     """An 'explore' objective advances on departure, not on the hour-scale return."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(
-        async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
 
     objective = Objective(
         challenge="Send a dweller exploring",

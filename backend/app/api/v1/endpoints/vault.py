@@ -129,7 +129,7 @@ async def start_vault(
     Returns:
         The newly initiated vault.
     """
-    is_boosted = vault_data.boosted or user.is_superuser
+    is_boosted = vault_data.boosted
     return await vault_service.initiate_vault(
         db_session=db_session, obj_in=vault_data, user_id=user.id, is_boosted=is_boosted
     )

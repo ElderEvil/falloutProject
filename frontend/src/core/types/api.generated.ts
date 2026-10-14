@@ -3817,6 +3817,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rooms/expand/{room_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Expand Room
+         * @description Grow a unique room's footprint in place by one segment.
+         *
+         *     Returns:
+         *         The expanded room.
+         */
+        post: operations["expand_room_api_v1_rooms_expand__room_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/storage/vault/{vault_id}/space": {
         parameters: {
             query?: never;
@@ -7816,6 +7839,29 @@ export interface components {
             name: string;
             /** Level */
             level: number;
+            /**
+             * Service Count
+             * @description Distinct incidents of this team's hazard the dweller has fought
+             * @default 0
+             */
+            service_count: number;
+            /**
+             * Outfit Name
+             * @description Name of the currently equipped outfit, or null when the dweller is bare
+             */
+            outfit_name?: string | null;
+            /**
+             * Has Matching Gear
+             * @description Wearing this team's named matching suit; false does NOT mean zero protection
+             * @default false
+             */
+            has_matching_gear: boolean;
+            /**
+             * Hazard Resist
+             * @description Share (0.0-1.0) of this team's hazard the current outfit removes
+             * @default 0
+             */
+            hazard_resist: number;
         };
         /**
          * HazardTeamPlaceUpdate
@@ -9942,7 +9988,7 @@ export interface components {
          * RoomTypeEnum
          * @enum {string}
          */
-        RoomTypeEnum: "capacity" | "crafting" | "misc." | "production" | "quests" | "theme" | "training" | "arena";
+        RoomTypeEnum: "capacity" | "crafting" | "misc." | "production" | "quests" | "theme" | "training" | "arena" | "response";
         /**
          * SPECIALEnum
          * @enum {string}
@@ -16729,6 +16775,37 @@ export interface operations {
         };
     };
     upgrade_room_api_v1_rooms_upgrade__room_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    expand_room_api_v1_rooms_expand__room_id__post: {
         parameters: {
             query?: never;
             header?: never;

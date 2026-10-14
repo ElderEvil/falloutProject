@@ -99,14 +99,11 @@ def test_corrective_migration_restores_legacy_and_versions_revised(monkeypatch):
         upgraded = sa.MetaData()
         upgraded.reflect(connection)
         objectives, links = upgraded.tables["objective"], upgraded.tables["vaultobjectiveprogresslink"]
-        by_key = {
-            row["template_key"]: row
-            for row in connection.execute(sa.select(objectives)).mappings().all()
-        }
+        by_key = {row["template_key"]: row for row in connection.execute(sa.select(objectives)).mappings().all()}
 
-        restored = connection.execute(
-            sa.select(objectives).where(objectives.c.id == identifiers[STAFFING])
-        ).mappings().one()
+        restored = (
+            connection.execute(sa.select(objectives).where(objectives.c.id == identifiers[STAFFING])).mappings().one()
+        )
         assert restored["challenge"] == "Assign a dweller correctly"
         assert restored["sequence"] == 3
         assert not restored["assignable"]
@@ -116,39 +113,47 @@ def test_corrective_migration_restores_legacy_and_versions_revised(monkeypatch):
         assert versioned["sequence"] == 0
         assert versioned["assignable"]
 
-        withdrawn = connection.execute(
-            sa.select(objectives).where(objectives.c.id == identifiers[POWER_STEP])
-        ).mappings().one()
+        withdrawn = (
+            connection.execute(sa.select(objectives).where(objectives.c.id == identifiers[POWER_STEP])).mappings().one()
+        )
         assert withdrawn["objective_type"] == "collect"
         assert withdrawn["sequence"] == 1
         assert not withdrawn["assignable"]
 
-        partial = connection.execute(
-            sa.select(links).where(links.c.objective_id == identifiers[POWER_STEP])
-        ).mappings().one()
+        partial = (
+            connection.execute(sa.select(links).where(links.c.objective_id == identifiers[POWER_STEP])).mappings().one()
+        )
         assert partial["progress"] == 5
         assert partial["total"] == 150
         assert not partial["is_completed"]
 
-        earned = connection.execute(
-            sa.select(links).where(links.c.objective_id == identifiers[STAFFING])
-        ).mappings().one()
+        earned = (
+            connection.execute(sa.select(links).where(links.c.objective_id == identifiers[STAFFING])).mappings().one()
+        )
         assert earned["is_completed"]
         assert earned["reward_snapshot"] == "50 caps"
 
-        assignable = connection.execute(
-            sa.select(objectives.c.template_key).where(
-                objectives.c.assignable.is_(True), objectives.c.category == "starter"
+        assignable = (
+            connection.execute(
+                sa.select(objectives.c.template_key).where(
+                    objectives.c.assignable.is_(True), objectives.c.category == "starter"
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(assignable) == 11
 
         corrective.upgrade()
-        rerun = connection.execute(
-            sa.select(objectives.c.template_key).where(
-                objectives.c.assignable.is_(True), objectives.c.category == "starter"
+        rerun = (
+            connection.execute(
+                sa.select(objectives.c.template_key).where(
+                    objectives.c.assignable.is_(True), objectives.c.category == "starter"
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert sorted(rerun) == sorted(assignable)
 
     engine.dispose()

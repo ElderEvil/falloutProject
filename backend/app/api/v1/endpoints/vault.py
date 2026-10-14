@@ -1,5 +1,6 @@
 """Vault endpoints."""
 
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -48,7 +49,7 @@ async def read_vault_list(
     limit: int = 100,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
-) -> list[VaultReadWithUser]:
+) -> Sequence[Vault]:
     """Retrieve a paginated list of all vaults (admin only).
 
     Returns:
@@ -93,7 +94,7 @@ async def update_vault(
     vault_data: VaultUpdate,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: Annotated[Vault, Depends(get_user_vault_or_403)],
-) -> VaultReadWithUser:
+) -> Vault:
     """Update a vault.
 
     Returns:
@@ -114,7 +115,7 @@ async def delete_vault(
 
     Use hard_delete=True to permanently remove the vault.
     """
-    return await crud.vault.delete(db_session, vault_id, soft=not hard_delete)
+    await crud.vault.delete(db_session, vault_id, soft=not hard_delete)
 
 
 @router.post("/initiate", response_model=Vault, status_code=201)

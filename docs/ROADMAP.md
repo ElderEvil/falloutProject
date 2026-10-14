@@ -278,7 +278,7 @@ is the ingestion path. Invariants live in `docs/backend/GAME_MECHANICS.md`; the 
   bypass room capacity and assignment rules; route it through the shared assignment policy or drop the field in favour
   of the dedicated move endpoints.
 
-### Contamination Team — fire & radiation responders (SHIPPED — mechanic + surfacing + hazard gear, Target: TBD)
+### Contamination Team — fire & radiation responders (SHIPPED — mechanic + surfacing + hazard gear + Response Station, Target: TBD)
 
 A dedicated hazard-response outfit for the vault: a **fire team** that answers fire-hazard incidents —
 kinda firefighters — and a **radiation incident response team** for rad leaks and irradiated zones.
@@ -313,17 +313,24 @@ chase vibes. Design doc: `docs/backend/CONTAMINATION_TEAM.md`.
   dweller earning an ACTIVE place on the matching team is auto-equipped with an available spare (fire
   team → Firefighter suit, radiation team → Hazmat suit). Bench members are not equipped; there is no
   auto-unequip on leaving.
+- **Response Station** — one unique room per vault (population 15, 600 caps, footprint 3→9 via
+  `POST /rooms/expand/{room_id}`, occupancy 2/4/6) gates team formation and is the only management
+  surface: the standalone Response Teams page is retired to a compatibility redirect and the sidebar
+  entry is gone. Station postings survive a response, and the station is excluded from incident origin
+  and spread. Expansion and assignment serialize on a shared lock so it cannot be double-charged or
+  overfilled.
 
 **Next, in rough order:**
 
 1. **The ask** — the dweller raises their own bench promotion through chat when a place opens ("subtle but
    present", reusing the `ActionSuggestion` accept/dismiss card). Semantics still open: announcement,
    consent gate, or teammate suggestion.
-2. **Dispatch** — deferred by design to the Jev classifier; until then the team is a designation.
+2. **Dispatch travel** — dispatch itself shipped (active members auto-answer matching hazards and return,
+   restoring a station posting); real-time *travel* still belongs with the Jev classifier.
 3. **Firefighter art** — the firefighter suit currently reuses the engineer-armor asset as a placeholder;
    real turnout gear (helmet, reflective stripes) is uncommissioned.
 4. **Real-time movement (long term)** — response gains latency, so *where* the team stands starts to
-   matter; the team gets a home (Fire Station / Hazmat Bay) as a muster point rather than a roster.
+   matter; the Response Station becomes the muster point rather than just the roster's home.
 
 ### Incident pacing & spread + SSE round events (deferred from the incidents UI redesign)
 

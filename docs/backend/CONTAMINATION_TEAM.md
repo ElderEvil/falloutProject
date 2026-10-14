@@ -1,10 +1,13 @@
 # Contamination Team — Fire & Radiation Responders
 
 > Status: **shipped** — team forming, the participation ledger, outfit hazard resistance, the two fixes
-> this depended on, the membership mechanic, join surfacing, and hazard-gear seeding/auto-equip are in.
+> this depended on, the membership mechanic, join surfacing, hazard-gear seeding/auto-equip, automatic
+> dispatch, and the **Response Station** room are in.
 > Membership now has a gameplay effect (active members add response power and resist their hazard), joins
 > and step-ups surface as toast + bell, and boosted vaults seed spare hazard suits that auto-equip on
-> earning an active place. Next steps tracked in `docs/ROADMAP.md`.
+> earning an active place. The Response Station gates formation and is the only management surface — the
+> standalone Response Teams page is retired to a compatibility redirect. Next steps tracked in
+> `docs/ROADMAP.md`.
 > Roadmap stub: `docs/ROADMAP.md` ("Contamination Team"). Inspiration: UA "DUDES OF HAZMAT – Toxic Waste
 > Chase" (music video) — hazmat-suit energy, sirens, toxic chase vibes.
 
@@ -76,6 +79,28 @@ weights the settings screen displays are not the weights the game uses.
 The fix ships in the same pull request as the rest of the feature, not as a separate change: the
 whole thing lands as one PR.
 
+## The Response Station — the room
+
+One unique **Response Station** per vault (category `response`, Endurance, population gate 15, 600 caps,
+base footprint 3) is the teams' home and the only management surface.
+
+- **It gates formation.** A dweller cannot join or be promoted into a fire/radiation team until the
+  station exists. The automatic join from participation silently defers without a station, so an incident
+  round is never aborted; a promotion attempt returns 400. Assignment never grants membership, and
+  existing teams and participation records are untouched.
+- **It grows in place.** Uniqueness blocks the build-and-merge route, so the station expands one
+  `size_min` segment per call (`POST /rooms/expand/{room_id}`), 3 → 6 → 9, at one build price per
+  segment. Occupancy follows the footprint: 2 / 4 / 6. Expansion and station assignment serialize on a
+  shared advisory lock, so it can never be double-charged or overfilled.
+- **Station postings survive a response.** A responder posted in the station returns to it after the
+  incident instead of being reassigned to production; `TeamMember.origin_room_id` records the
+  pre-dispatch posting, and responders posted elsewhere keep the existing return behaviour.
+- **It is not a combat destination.** The station is excluded from incident-origin and spread candidates,
+  so the management room never becomes a fight with no incident UI.
+- **The room is the surface.** The standalone `/vault/:id/response-teams` page is retired to a
+  compatibility redirect that opens the station in the vault grid (or explains the population/caps
+  requirement); the sidebar entry is gone.
+
 ## Slices
 
 Slices 1, 2, 4, 5, 6 and 7 **shipped**; slice 3 is the first follow-up.
@@ -136,8 +161,9 @@ Slices 1, 2, 4, 5, 6 and 7 **shipped**; slice 3 is the first follow-up.
    matching active member takes 20% less incident damage; radiation-team members also take less
    radiation gain). Hazard gear is seeded into boosted vaults and auto-equipped on earning an active
    place. Still open: how rad-suit protection stacks with existing radiation resistance.
-4. **Dispatch** — deferred by design: the Jev classifier is not yet wired to route threats, so the team
-   is not dispatched to incidents.
+4. **Dispatch** — **shipped**: `hazard_team_service` auto-dispatches active team members to matching
+   hazard incidents and returns them afterwards (restoring a station posting). Real-time *travel* stays
+   future work — see below; dispatch is designation plus teleport today.
 
 ## Future — real-time movement and positioning
 
@@ -150,8 +176,8 @@ stacking, access, and adjacency.
 When movement becomes real-time, three things change for this feature:
 
 - **Response gains latency.** A team stationed far away arrives after the fire has spread, so *where
-  the team is* becomes as important as *who is on it*. That finally gives the team a home — the
-  Fire Station / Hazmat Bay idea — a real job: not the roster, but the **muster point**.
+  the team is* becomes as important as *who is on it*. The team already has a home — the Response
+  Station — whose real job under real-time movement becomes the **muster point**.
 - **Coordination becomes possible.** A team that assembles and moves together is the natural unit for
   cooperation; the roster built here is exactly the "who" such a system would move.
 - **Dispatch must be travel, not teleport.** A second reason dispatch belongs with Jev rather than

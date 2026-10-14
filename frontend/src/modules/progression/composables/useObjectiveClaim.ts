@@ -49,5 +49,9 @@ export function useObjectiveClaim(vaultId: Ref<string | null>) {
     }
   }
 
-  return { claiming, error, claim }
+  const clearError = (): void => {
+    error.value = null
+  }
+
+  return { claiming, error, claim, clearError }
 }

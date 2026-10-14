@@ -423,4 +423,62 @@ describe('OnboardingSpotlight', () => {
     expect(document.querySelector('.onboarding-cutout')).toBeNull()
     wrapper.unmount()
   })
+
+  it('surfaces a failed objective read and retries', async () => {
+    const store = useObjectivesStore()
+    const fetchObjectives = vi.mocked(store.fetchObjectives)
+    fetchObjectives.mockRejectedValue(new Error('offline'))
+
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    await clickButton('Start')
+    expect(findButton('Retry')).toBeDefined()
+
+    fetchObjectives.mockResolvedValue(undefined)
+    await clickButton('Retry')
+    expect(findButton('Retry')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('clears a claim error when the lesson changes', async () => {
+    const store = useObjectivesStore()
+    store.objectives = [objective('first', { progress: 2 })]
+    vi.spyOn(store, 'completeObjective').mockRejectedValue(new Error('rejected'))
+    acknowledgeLessons('orientation.resources', 'orientation.generator')
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    await clickButton('Start')
+    await clickButton('Claim 25 caps')
+    expect(document.querySelector('.onboarding-error')).not.toBeNull()
+
+    await clickButton('Skip step')
+    expect(document.querySelector('.onboarding-error')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('ignores a hidden anchor and offers navigation', async () => {
+    const hidden = document.createElement('div')
+    hidden.setAttribute('data-onboarding', 'nav-dwellers')
+    hidden.getBoundingClientRect = () =>
+      ({
+        width: 0,
+        height: 0,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }) as DOMRect
+    document.body.appendChild(hidden)
+    acknowledgeLessons('orientation.resources', 'orientation.generator')
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    await clickButton('Start')
+    expect(document.body.textContent).toContain('Understand SPECIAL staffing')
+    expect(document.querySelector('.onboarding-cutout')).toBeNull()
+    expect(findButton('Open Dwellers')).toBeDefined()
+    wrapper.unmount()
+  })
 })

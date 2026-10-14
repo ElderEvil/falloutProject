@@ -122,7 +122,10 @@ const blockedReason = computed(() => {
   return typeof eligibility === 'object' ? eligibility.blocked : undefined
 })
 
-const { claiming, error: claimError, claim } = useObjectiveClaim(vaultId)
+const { claiming, error: claimError, claim, clearError: clearClaimError } =
+  useObjectiveClaim(vaultId)
+
+watch([() => currentLesson.value?.id, vaultId], () => clearClaimError())
 
 watch(
   [currentLesson, () => vaultId.value, () => auth.token],
@@ -146,22 +149,39 @@ watch(
   { immediate: true }
 )
 
+const loadFailed = ref(false)
 const refresh = () => {
-  if (vaultId.value && !vaultState.value.skipped) return store.fetchObjectives(vaultId.value)
-  return undefined
+  if (!vaultId.value || vaultState.value.skipped) return
+  store
+    .fetchObjectives(vaultId.value)
+    .then(() => {
+      loadFailed.value = false
+    })
+    .catch(() => {
+      loadFailed.value = true
+    })
 }
-watch([vaultId, () => route.fullPath], () => void refresh(), { immediate: true })
+watch([vaultId, () => route.fullPath], () => refresh(), { immediate: true })
 usePolling(refresh, { interval: 30_000, immediate: false })
 
 const targetEl = ref<HTMLElement | null>(null)
 const modalOpen = ref(false)
+
+function isUsableAnchor(element: HTMLElement): boolean {
+  const rect = element.getBoundingClientRect()
+  if (rect.width <= 0 || rect.height <= 0) return false
+  const viewportWidth = window.innerWidth || 0
+  const viewportHeight = window.innerHeight || 0
+  return rect.bottom > 0 && rect.top < viewportHeight && rect.right > 0 && rect.left < viewportWidth
+}
 
 function resolveTarget() {
   const anchors = currentLesson.value?.anchors ?? []
   targetEl.value =
     anchors
       .map((key) => document.querySelector<HTMLElement>(`[data-onboarding="${key}"]`))
-      .find((element) => element !== null) ?? null
+      .find((element): element is HTMLElement => element !== null && isUsableAnchor(element)) ??
+    null
   modalOpen.value = document.querySelector('[role="dialog"]') !== null
 }
 watch([() => currentLesson.value?.id, showWelcome], () => resolveTarget(), { flush: 'post' })
@@ -295,7 +315,11 @@ function onClaim() {
             <Button size="sm" variant="ghost" :disabled="claiming" @click="skipTourAction">
               Skip tour
             </Button>
+            <Button v-if="loadFailed" size="sm" variant="outline" :disabled="claiming" @click="refresh">
+              Retry
+            </Button>
           </div>
+          <p v-if="loadFailed" class="onboarding-note">Could not refresh the guide. Retry.</p>
           <p v-if="blockedReason" class="onboarding-note">{{ blockedReason }}</p>
           <p v-if="blockedByEarlier" class="onboarding-note">
             Claim your earlier reward in Starter first.

@@ -59,13 +59,19 @@ const { isMonochrome, toggleBadgeStyle } = useBadgeStyle()
 const { groupColors, toggleGroupColors } = useGroupColors()
 const profileStore = useProfileStore()
 const toast = useToast()
-const { reset: resetOnboarding, resetAll: resetAllOnboarding } = useOnboardingState()
+const { resumeGuide, replayOrientation } = useOnboardingState()
 const currentVaultId = computed(() => vaultStore.currentVaultId)
 
-const showOnboardingAgain = () => {
-  if (currentVaultId.value) resetOnboarding(currentVaultId.value)
-  else resetAllOnboarding()
-  toast.success('The guide will reappear for steps you have not completed yet')
+const resumeGuideForVault = () => {
+  if (!currentVaultId.value) return
+  resumeGuide(currentVaultId.value)
+  toast.success('Guide resumed for this vault')
+}
+
+const replayGuideForVault = () => {
+  if (!currentVaultId.value) return
+  replayOrientation(currentVaultId.value)
+  toast.success('The guide will replay its open steps for this vault')
 }
 
 const notificationCategories = [
@@ -558,16 +564,35 @@ const handleGlowSelect = (value: unknown) => {
               <CardContent>
                 <div class="setting-row">
                   <div class="setting-info">
-                    <h4 class="setting-label">Show onboarding again</h4>
+                    <h4 class="setting-label">Resume the guide</h4>
                     <p class="setting-description">
-                      {{
-                        currentVaultId
-                          ? 'Clears the skip so the guide reappears for this vault.'
-                          : 'Clears the skip for every vault.'
-                      }}
+                      Brings back a guide you skipped, keeping every step you already finished.
                     </p>
                   </div>
-                  <Button variant="outline" size="sm" @click="showOnboardingAgain">Replay</Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    :disabled="!currentVaultId"
+                    @click="resumeGuideForVault"
+                  >
+                    Resume
+                  </Button>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-info">
+                    <h4 class="setting-label">Replay orientation</h4>
+                    <p class="setting-description">
+                      Replays the orientation explanations. Steps you already claimed stay claimed.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    :disabled="!currentVaultId"
+                    @click="replayGuideForVault"
+                  >
+                    Replay
+                  </Button>
                 </div>
               </CardContent>
             </Card>

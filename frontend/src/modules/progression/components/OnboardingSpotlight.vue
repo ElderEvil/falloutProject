@@ -1,64 +1,142 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useElementBounding, usePreferredReducedMotion } from '@vueuse/core'
 import { Button } from '@/core/components/ui/button'
 import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import { useObjectivesStore } from '@/modules/progression/stores/objectives'
+import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useRoomStore } from '@/modules/rooms/stores/room'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useExplorationStore } from '@/modules/exploration/stores/exploration'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useObjectiveClaim } from '../composables/useObjectiveClaim'
-import { useOnboardingState, type OnboardingState } from '@/core/composables/useOnboardingState'
-import { currentObjective } from '../models/objective'
-
-/** Orientation chapters own the tour; later chapters guide from the Objectives tab. */
-const ORIENTATION_TEMPLATE_KEYS = new Set([
-  'starter:assign a dweller correctly',
-  'starter:build a living quarters',
-  'starter:send a dweller exploring',
-])
-
-/** Orientation step → candidate `data-onboarding` anchors, first present wins (see docs/frontend/ONBOARDING.md). */
-const STEP_ANCHORS: Record<string, string[]> = {
-  'starter:assign a dweller correctly': ['nav-dwellers'],
-  'starter:build a living quarters': ['build-living-room', 'build'],
-  'starter:send a dweller exploring': ['wasteland'],
-}
+import { useOnboardingState } from '@/core/composables/useOnboardingState'
+import {
+  ORIENTATION_STEPS,
+  type OnboardingLesson,
+  type TeachingEligibility,
+  type TeachingSnapshot,
+} from '../models'
+import { currentObjective as lowestUnfinishedStarter } from '../models/objective'
+import type { Objective } from '../models/objective'
 
 const store = useObjectivesStore()
+const vaultStore = useVaultStore()
+const roomStore = useRoomStore()
+const dwellerStore = useDwellerStore()
+const explorationStore = useExplorationStore()
+const auth = useAuthStore()
 const toast = useToast()
 const reducedMotion = usePreferredReducedMotion()
-
 const route = useRoute()
+const router = useRouter()
+
 const vaultId = computed(() =>
   route.path.startsWith('/vault/') && typeof route.params.id === 'string' ? route.params.id : null
 )
 
-const { vaultState: readVaultState, patch } = useOnboardingState()
-const vaultState = computed<OnboardingState>(() => readVaultState(vaultId.value))
-const patchState = (next: Partial<OnboardingState>) => patch(vaultId.value, next)
+const {
+  vaultState: readVaultState,
+  patch,
+  teaching,
+  acknowledgeLesson,
+  skipLesson,
+  skipTour,
+} = useOnboardingState()
 
-const step = computed(() => {
-  const current = currentObjective(store.objectives)
-  return current?.category === 'starter' ? current : undefined
+const vaultState = computed(() => readVaultState(vaultId.value))
+const teachingState = computed(() => teaching(vaultId.value))
+const ledger = computed(() => teachingState.value.lessons)
+const replayMode = computed(() => teachingState.value.replayOrientation)
+
+const objectiveByKey = computed(() => {
+  const byKey = new Map<string, Objective>()
+  for (const objective of store.objectives) {
+    if (objective.template_key) byKey.set(objective.template_key, objective)
+  }
+  return byKey
 })
-const anchorKeys = computed(() =>
-  step.value?.template_key ? (STEP_ANCHORS[step.value.template_key] ?? []) : []
-)
 
-const { claiming, claim } = useObjectiveClaim(vaultId)
+const objectiveFor = (lesson: OnboardingLesson): Objective | undefined =>
+  lesson.templateKey ? objectiveByKey.value.get(lesson.templateKey) : undefined
 
+const isHandled = (lesson: OnboardingLesson): boolean => {
+  if (ledger.value[lesson.id]) return true
+  // Explicit replay reaches claimed steps; otherwise a claimed objective retires the lesson.
+  return !replayMode.value && objectiveFor(lesson)?.is_completed === true
+}
+
+const pendingLessons = computed(() => ORIENTATION_STEPS.filter((lesson) => !isHandled(lesson)))
+const currentLesson = computed(() => pendingLessons.value[0])
+const lessonObjective = computed(() => {
+  const lesson = currentLesson.value
+  return lesson ? objectiveFor(lesson) : undefined
+})
+
+const optedIn = computed(() => !!vaultState.value.created || replayMode.value)
+const welcomePending = computed(() => !!vaultState.value.created && !vaultState.value.welcomed)
 const active = computed(
-  () =>
-    !!vaultId.value &&
-    !!step.value &&
-    !vaultState.value.skipped &&
-    ORIENTATION_TEMPLATE_KEYS.has(step.value.template_key ?? '')
+  () => !!vaultId.value && !vaultState.value.skipped && optedIn.value && !!currentLesson.value
 )
-const atStart = computed(() => step.value?.sequence === 0)
-const showWelcome = computed(
-  () => active.value && atStart.value && !!vaultState.value.created && !vaultState.value.welcomed
+const showWelcome = computed(() => active.value && welcomePending.value)
+const showLesson = computed(() => active.value && !showWelcome.value && !!currentLesson.value)
+
+const lowestStarterId = computed(() => {
+  const current = lowestUnfinishedStarter(store.objectives)
+  return current?.category === 'starter' ? current.id : undefined
+})
+const isServerCurrent = computed(
+  () => !!lessonObjective.value && lessonObjective.value.id === lowestStarterId.value
 )
-const showStep = computed(() => active.value && !showWelcome.value)
+const earned = computed(() => {
+  const objective = lessonObjective.value
+  return !!objective && objective.progress >= objective.total
+})
+const ready = computed(() => !replayMode.value && earned.value && isServerCurrent.value)
+const blockedByEarlier = computed(() => !replayMode.value && earned.value && !isServerCurrent.value)
+const showContinue = computed(() => {
+  const lesson = currentLesson.value
+  return !!lesson && (replayMode.value || lesson.kind !== 'objective-explanation')
+})
+
+const snapshot = computed<TeachingSnapshot>(() => ({
+  vault: vaultId.value ? (vaultStore.loadedVaults[vaultId.value] ?? null) : null,
+  buildableRooms: roomStore.availableRooms,
+  dwellers: dwellerStore.filter.dwellers,
+  objectives: store.objectives,
+  activeRuns: Object.values(explorationStore.activeExplorations),
+  lessons: ledger.value,
+}))
+const lessonEligibility = computed<TeachingEligibility>(() => {
+  const lesson = currentLesson.value
+  return lesson ? lesson.eligibility(snapshot.value) : 'unknown'
+})
+const actionable = computed(() => lessonEligibility.value === 'eligible')
+const blockedReason = computed(() => {
+  const eligibility = lessonEligibility.value
+  return typeof eligibility === 'object' ? eligibility.blocked : undefined
+})
+
+const { claiming, error: claimError, claim } = useObjectiveClaim(vaultId)
+
+watch(
+  [currentLesson, () => vaultId.value, () => auth.token],
+  () => {
+    const lesson = currentLesson.value
+    const token = auth.token
+    if (
+      lesson?.id === 'orientation.housing' &&
+      roomStore.availableRooms.length === 0 &&
+      vaultId.value &&
+      token
+    ) {
+      void roomStore.fetchBuildableRooms(token, vaultId.value)
+    }
+  },
+  { immediate: true }
+)
 
 const refresh = () => {
   if (vaultId.value && !vaultState.value.skipped) return store.fetchObjectives(vaultId.value)
@@ -70,16 +148,15 @@ usePolling(refresh, { interval: 30_000, immediate: false })
 const targetEl = ref<HTMLElement | null>(null)
 const modalOpen = ref(false)
 
-// The shell renders targets asynchronously (nav bar, room cells) and the dim must not
-// fight an open modal, so re-resolve on every DOM change rather than once.
 function resolveTarget() {
+  const anchors = currentLesson.value?.anchors ?? []
   targetEl.value =
-    anchorKeys.value
+    anchors
       .map((key) => document.querySelector<HTMLElement>(`[data-onboarding="${key}"]`))
       .find((element) => element !== null) ?? null
   modalOpen.value = document.querySelector('[role="dialog"]') !== null
 }
-watch([() => step.value?.template_key, () => step.value?.id], () => resolveTarget(), { flush: 'post' })
+watch([() => currentLesson.value?.id, showWelcome], () => resolveTarget(), { flush: 'post' })
 
 let observer: MutationObserver | null = null
 onMounted(() => {
@@ -94,9 +171,10 @@ onMounted(() => {
 onBeforeUnmount(() => observer?.disconnect())
 
 const { top, left, width, height } = useElementBounding(targetEl)
-// A zero-size (hidden) target would leave a tiny hole in the dim, so it gets no cut-out.
 const rectReady = computed(() => width.value > 0 && height.value > 0)
-const showCutout = computed(() => showStep.value && targetEl.value !== null && rectReady.value)
+const showCutout = computed(
+  () => showLesson.value && actionable.value && targetEl.value !== null && rectReady.value
+)
 const cutoutStyle = computed(() => ({
   top: `${top.value - 4}px`,
   left: `${left.value - 4}px`,
@@ -104,15 +182,39 @@ const cutoutStyle = computed(() => ({
   height: `${height.value + 8}px`,
 }))
 
-const ready = computed(() => !!step.value && step.value.progress >= step.value.total)
+const navPath = computed(() => {
+  const lesson = currentLesson.value
+  if (!lesson || lesson.route === undefined || !vaultId.value) return undefined
+  return lesson.route ? `/vault/${vaultId.value}/${lesson.route}` : `/vault/${vaultId.value}`
+})
+const navLabel = computed(() => currentLesson.value?.routeLabel ?? 'Open')
+const showNavigate = computed(() => !!navPath.value && targetEl.value === null)
+const navigateToLesson = () => {
+  if (navPath.value) void router.push(navPath.value)
+}
+const openStarter = () => {
+  if (vaultId.value) void router.push(`/vault/${vaultId.value}/objectives`)
+}
 
-const start = () => patchState({ welcomed: true })
-const skip = () => patchState({ skipped: true })
+const start = () => patch(vaultId.value, { welcomed: true })
+const skipTourAction = () => skipTour(vaultId.value)
+const skipStepAction = () => {
+  const lesson = currentLesson.value
+  if (lesson) skipLesson(vaultId.value, lesson.id)
+}
+const continueLesson = () => {
+  const lesson = currentLesson.value
+  if (lesson) acknowledgeLesson(vaultId.value, lesson.id)
+}
 
 function onClaim() {
-  const current = step.value
-  if (!current) return
-  void claim(current.id, (claimed) => toast.success(`${claimed.reward} claimed`))
+  const objective = lessonObjective.value
+  const lesson = currentLesson.value
+  if (!objective || !lesson) return
+  void claim(objective.id, (claimed) => {
+    acknowledgeLesson(vaultId.value, lesson.id)
+    toast.success(`${claimed.reward} claimed`)
+  })
 }
 </script>
 
@@ -144,20 +246,53 @@ function onClaim() {
           </p>
           <div class="onboarding-actions">
             <Button size="sm" @click="start">Start</Button>
-            <Button size="sm" variant="ghost" @click="skip">Skip tour</Button>
+            <Button size="sm" variant="ghost" @click="skipTourAction">Skip tour</Button>
           </div>
         </template>
-        <template v-else-if="showStep && step">
+        <template v-else-if="currentLesson">
           <p class="onboarding-eyebrow">NEXT STEP</p>
-          <h2 class="onboarding-title">{{ step.challenge }}</h2>
-          <p v-if="step.description" class="onboarding-body">{{ step.description }}</p>
-          <p class="onboarding-progress">{{ step.progress }} / {{ step.total }}</p>
+          <h2 class="onboarding-title">{{ currentLesson.title }}</h2>
+          <p class="onboarding-body">{{ currentLesson.body }}</p>
+          <p v-if="lessonObjective" class="onboarding-progress">
+            {{ lessonObjective.progress }} / {{ lessonObjective.total }}
+          </p>
           <div class="onboarding-actions">
             <Button v-if="ready" size="sm" :disabled="claiming" @click="onClaim">
-              {{ claiming ? 'Claiming…' : `Claim ${step.reward}` }}
+              {{ claiming ? 'Claiming…' : `Claim ${lessonObjective?.reward}` }}
             </Button>
-            <Button size="sm" variant="ghost" @click="skip">Skip tour</Button>
+            <Button v-else-if="showContinue" size="sm" :disabled="claiming" @click="continueLesson">
+              Continue
+            </Button>
+            <Button
+              v-if="showNavigate"
+              size="sm"
+              variant="outline"
+              :disabled="claiming"
+              @click="navigateToLesson"
+            >
+              {{ navLabel }}
+            </Button>
+            <Button
+              v-if="blockedByEarlier"
+              size="sm"
+              variant="outline"
+              :disabled="claiming"
+              @click="openStarter"
+            >
+              Open Starter
+            </Button>
+            <Button size="sm" variant="ghost" :disabled="claiming" @click="skipStepAction">
+              Skip step
+            </Button>
+            <Button size="sm" variant="ghost" :disabled="claiming" @click="skipTourAction">
+              Skip tour
+            </Button>
           </div>
+          <p v-if="blockedReason" class="onboarding-note">{{ blockedReason }}</p>
+          <p v-if="blockedByEarlier" class="onboarding-note">
+            Claim your earlier reward in Starter first.
+          </p>
+          <p v-if="claimError" class="onboarding-error" role="alert">{{ claimError }}</p>
         </template>
       </section>
     </template>
@@ -253,8 +388,21 @@ function onClaim() {
   font-weight: 700;
 }
 
+.onboarding-note {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--color-theme-accent);
+}
+
+.onboarding-error {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--color-danger);
+}
+
 .onboarding-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.35rem;
 }

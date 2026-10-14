@@ -143,4 +143,22 @@ describe('useOnboardingState', () => {
     acknowledgeLesson('v1', 'orientation.resources')
     expect(teaching('v1').lessons).toEqual({ 'orientation.resources': 'acknowledged' })
   })
+
+  it('shares one session ledger across consumers when storage is unavailable', () => {
+    const descriptor = Object.getOwnPropertyDescriptor(window, 'localStorage')
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('storage unavailable')
+      },
+    })
+    try {
+      const first = useOnboardingState()
+      const second = useOnboardingState()
+      first.acknowledgeLesson('v1', 'orientation.resources')
+      expect(second.teaching('v1').lessons['orientation.resources']).toBe('acknowledged')
+    } finally {
+      if (descriptor) Object.defineProperty(window, 'localStorage', descriptor)
+    }
+  })
 })

@@ -11,6 +11,7 @@ export type ObjectiveType =
   | 'assign_correct'
   | 'build'
   | 'collect'
+  | 'explore'
   | 'expedition'
   | 'level_up'
   | 'reach'
@@ -74,6 +75,8 @@ export function objectiveActionPath(objective: Objective, vaultId: string): stri
       return `${vault}/training`
     case 'expedition':
       return `${vault}/quests`
+    case 'explore':
+      return `${vault}/exploration`
     case 'scrap':
       return `${vault}/storage`
     case 'collect':

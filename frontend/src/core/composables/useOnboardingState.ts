@@ -1,3 +1,4 @@
+import { ref, type Ref } from 'vue'
 import { useStorage } from '@vueuse/core'
 
 /** Whole-tour flags the existing guide reads. */
@@ -29,6 +30,19 @@ type Records = Record<string, VaultOnboardingRecord>
 
 const STORAGE_KEY = 'onboarding:v1'
 
+let sessionFallback: Ref<Records> | undefined
+
+function usableStorage(): Storage | null {
+  try {
+    const probe = '__onboarding_probe__'
+    window.localStorage.setItem(probe, '1')
+    window.localStorage.removeItem(probe)
+    return window.localStorage
+  } catch {
+    return null
+  }
+}
+
 function emptyTeaching(): TeachingState {
   return { version: 1, lessons: {}, replayOrientation: false }
 }
@@ -57,7 +71,10 @@ function normalizeTeaching(value: unknown): TeachingState {
  * Corrupt or unavailable local data degrades to an empty ledger without breaking render.
  */
 export function useOnboardingState() {
-  const state = useStorage<Records>(STORAGE_KEY, {})
+  const storage = usableStorage()
+  const state = storage
+    ? useStorage<Records>(STORAGE_KEY, {}, storage)
+    : (sessionFallback ??= ref<Records>({}))
 
   const records = (): Records => {
     const value: unknown = state.value

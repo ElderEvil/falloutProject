@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.202.0 (2026-10-14)
+
+### Features
+
+* **arena:** 2v2 mode and four-slot selection in the UI a09faaa
+* **arena:** add arena mode and team columns d774e3e
+* **arena:** hunt mode and creature picker in the UI 3f598d3
+* **arena:** hunt mode vs creatures f3248aa
+* **arena:** improve battle journal UX 5426312
+* **arena:** polish tiered fights and creature artwork c094a50
+* **arena:** support 2v2 brawl selection and rounds 3fd350f
+* **assets:** add empty industrial Arena detail scene and fallbacks 78b6a40
+* **assets:** replace arena scenes with wide Fallout tier artwork 9598a23
+
+### Bug Fixes
+
+* **arena:** keep knocked-out fighters alive and count only standing attackers 4ad766b
+* **arena:** resync the fighter draft when the server rejects a selection aecf68c
+* **arena:** use a design token for the creature combatant colour 0fb052c
+* **rooms:** fall back to grid sprite when a room cell scene fails to load 872fd34
+
+### Code Refactoring
+
+* **arena:** resolve rounds between teams b3203cf
+
 ## 2.201.1 (2026-10-13)
 
 ### Bug Fixes

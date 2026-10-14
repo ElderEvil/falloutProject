@@ -13,6 +13,7 @@ from app.crud.training import training as training_crud
 from app.models.objective import ObjectiveBase
 from app.models.training import TrainingStatus
 from app.schemas.objective import ObjectiveRead
+from app.services.room_assignment_policy import get_highest_special
 from app.utils.objective_constants import normalize_room_type
 
 
@@ -28,18 +29,25 @@ async def current_state_progress(db_session: AsyncSession, vault_id: UUID4, obje
         return len(await quest_crud.get_completed_quest_ids(db_session, vault_id))
     if objective.objective_type == "train" and not target.get("stat"):
         return len(await training_crud.get_by_vault(db_session, vault_id, status=TrainingStatus.COMPLETED))
-    if objective.objective_type in {"build", "assign"}:
+    if objective.objective_type in {"build", "assign", "assign_correct"}:
         room_type = normalize_room_type(target.get("room_type"))
         rooms = await room_crud.get_all_by_vault(db_session, vault_id)
         matching = {
-            room.id
+            room.id: room
             for room in rooms
             if not room_type or room_type in {"*", "any"} or normalize_room_type(room.name) == room_type
         }
         if objective.objective_type == "build":
             return len(matching)
+        dwellers = await dweller_crud.get_living_in_vault(db_session, vault_id)
+        if objective.objective_type == "assign":
+            return sum(dweller.room_id in matching for dweller in dwellers)
         return sum(
-            dweller.room_id in matching for dweller in await dweller_crud.get_living_in_vault(db_session, vault_id)
+            1
+            for dweller in dwellers
+            if (room := matching.get(dweller.room_id)) is not None
+            and room.ability is not None
+            and get_highest_special(dweller) == room.ability
         )
     return 0
 

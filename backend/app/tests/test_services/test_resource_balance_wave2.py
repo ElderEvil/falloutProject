@@ -16,16 +16,14 @@ async def test_offline_reserve_never_grants_stock(initial, expected):
     vault = Vault(power=initial, food=initial, water=initial, power_max=100, food_max=100, water_max=100)
     state = GameState(vault_id=uuid4(), last_activity_time=datetime.utcnow() - timedelta(hours=2))
     room = Room(size=30, tier=1)
-    update, _ = await ResourceManager()._calculate_net_resource_change(vault, [room], 100, [], 3600, state=state)
+    update, _ = ResourceManager().calculate_resource_window(vault, [room], 100, [], 3600, state=state)
     assert (update.power, update.food, update.water) == (expected, expected, expected)
 
 
 async def test_active_vault_can_run_out():
     vault = Vault(power=50, food=50, water=50, power_max=100, food_max=100, water_max=100)
     state = GameState(vault_id=uuid4())
-    update, _ = await ResourceManager()._calculate_net_resource_change(
-        vault, [Room(size=100, tier=1)], 100, [], 60, state=state
-    )
+    update, _ = ResourceManager().calculate_resource_window(vault, [Room(size=100, tier=1)], 100, [], 60, state=state)
     assert update.power < 25
     assert update.food == 20
 
@@ -42,10 +40,10 @@ async def test_catchup_restores_nonpower_production_after_generator_recovers():
     ]
     crews = [(room, [Dweller(strength=5, agility=5, perception=5)]) for room in rooms]
     manager = ResourceManager()
-    one_update, _ = await manager._calculate_net_resource_change(vault, rooms, 3, crews, 3600)
+    one_update, _ = manager.calculate_resource_window(vault, rooms, 3, crews, 3600)
     state = GameState(vault_id=uuid4())
     for _ in range(60):
-        update, _ = await manager._calculate_net_resource_change(vault, rooms, 3, crews, 60, state=state)
+        update, _ = manager.calculate_resource_window(vault, rooms, 3, crews, 60, state=state)
         for key in ("power", "food", "water"):
             setattr(vault, key, getattr(update, key))
     assert (one_update.power, one_update.food, one_update.water) == (vault.power, vault.food, vault.water)
@@ -57,7 +55,7 @@ async def test_fractional_changes_survive_repeated_ticks():
     state = GameState(vault_id=uuid4())
     manager = ResourceManager()
     for _ in range(10):
-        update, _ = await manager._calculate_net_resource_change(vault, [], 1, [], 60, state=state)
+        update, _ = manager.calculate_resource_window(vault, [], 1, [], 60, state=state)
         vault.food, vault.water = update.food, update.water
     assert vault.food == 47
     assert vault.water == 47
@@ -75,7 +73,7 @@ async def test_fractional_carry_survives_database_reload(async_session, vault):
     async_session.expire_all()
     loaded = await async_session.get(GameState, state_id)
     vault = await async_session.get(Vault, vault_id)
-    update, _ = await ResourceManager()._calculate_net_resource_change(vault, [], 1, [], 60, state=loaded)
+    update, _ = ResourceManager().calculate_resource_window(vault, [], 1, [], 60, state=loaded)
     assert loaded.resource_remainders["food"] == pytest.approx(-0.1)
 
 

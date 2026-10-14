@@ -7,15 +7,12 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import { usePolling } from '@/core/composables/usePolling'
 import { useToast } from '@/core/composables/useToast'
 import { getErrorMessage } from '@/core/utils/errorHandler'
-import { useAuthStore } from '@/modules/auth/stores/auth'
-import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useObjectivesStore } from '../stores/objectives'
+import { useObjectiveClaim } from '../composables/useObjectiveClaim'
 import { currentObjective, objectiveActionPath } from '../models/objective'
 
 const route = useRoute()
 const store = useObjectivesStore()
-const auth = useAuthStore()
-const vaultStore = useVaultStore()
 const toast = useToast()
 const { isCollapsed } = useSidePanel()
 const vaultId = computed(() =>
@@ -30,8 +27,8 @@ const ready = computed(() => objective.value && objective.value.progress >= obje
 const readyCount = computed(
   () => store.objectives.filter((item) => !item.is_completed && item.progress >= item.total).length
 )
-const claiming = ref(false)
-const error = ref('')
+const loadError = ref('')
+const { claiming, error: claimError, claim } = useObjectiveClaim(vaultId)
 
 async function refresh() {
   if (vaultId.value) await store.fetchObjectives(vaultId.value)
@@ -39,38 +36,19 @@ async function refresh() {
 watch(
   vaultId,
   () => {
-    error.value = ''
+    loadError.value = ''
     void refresh().catch((err) => {
-      error.value = getErrorMessage(err)
+      loadError.value = getErrorMessage(err)
     })
   },
   { immediate: true }
 )
 usePolling(refresh, { interval: 30_000, immediate: false })
 
-async function claim() {
-  const id = vaultId.value
+function claimCurrent() {
   const step = objective.value
-  if (!id || !step || claiming.value) return
-  claiming.value = true
-  error.value = ''
-  try {
-    await store.completeObjective(id, step.id)
-    if (vaultId.value !== id) return
-    void refresh().catch((err) => {
-      error.value = getErrorMessage(err)
-    })
-    toast.success(`${step.reward} claimed`)
-  } catch (err) {
-    if (vaultId.value === id) error.value = getErrorMessage(err)
-    return
-  } finally {
-    claiming.value = false
-  }
-  if (auth.token)
-    void vaultStore
-      .refreshVault(id, auth.token)
-      .catch(() => toast.warning('Reward status may need a refresh'))
+  if (!step) return
+  void claim(step.id, (claimed) => toast.success(`${claimed.reward} claimed`))
 }
 </script>
 
@@ -100,10 +78,10 @@ async function claim() {
       <p class="text-xs">
         {{ objective.progress }} / {{ objective.total }} · Reward: {{ objective.reward }}
       </p>
-      <p v-if="error" role="alert" class="text-danger">{{ error }}</p>
+      <p v-if="claimError" role="alert" class="text-danger">{{ claimError }}</p>
     </div>
     <div class="flex shrink-0 flex-wrap gap-2">
-      <Button v-if="ready" size="sm" :disabled="claiming" @click="claim">{{
+      <Button v-if="ready" size="sm" :disabled="claiming" @click="claimCurrent">{{
         claiming ? 'Claiming…' : `Claim ${objective.reward}`
       }}</Button>
       <Button v-else as-child size="sm"
@@ -118,7 +96,7 @@ async function claim() {
       >
     </div>
   </section>
-  <p v-else-if="vaultId && error" role="alert" class="m-4 text-danger">
-    Unable to load objectives: {{ error }}
+  <p v-else-if="vaultId && loadError" role="alert" class="m-4 text-danger">
+    Unable to load objectives: {{ loadError }}
   </p>
 </template>

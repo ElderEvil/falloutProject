@@ -58,7 +58,7 @@ class ResourceManager:
         """
         resource_data = await resource_crud.get_vault_resource_data(db_session, vault_id)
 
-        resource_update, events = await self._calculate_net_resource_change(
+        resource_update, events = self.calculate_resource_window(
             resource_data.vault,
             resource_data.rooms,
             resource_data.dweller_count,
@@ -92,20 +92,6 @@ class ResourceManager:
             events.objective_production.stimpack = events.production.stimpack
             events.objective_production.radaway = events.production.radaway
         return resource_update, events
-
-    async def _calculate_net_resource_change(
-        self,
-        vault: Vault,
-        rooms: Sequence[Room],
-        dweller_count: float,
-        rooms_with_dwellers: list[tuple[Room, list[Dweller]]],
-        seconds_passed: int,
-        *,
-        state: GameState | None = None,
-    ) -> tuple[VaultUpdate, ResourceTickEvents]:
-        return self.calculate_resource_window(
-            vault, rooms, dweller_count, rooms_with_dwellers, seconds_passed, state=state
-        )
 
     def calculate_resource_window(
         self,
@@ -272,17 +258,6 @@ class ResourceManager:
                 per_share = production / len(base_resources)
                 for resource in base_resources:
                     totals[resource] += per_share
-
-    @staticmethod
-    def _apply_resource_changes(
-        vault: Vault, consumption: dict[str, float], production: dict[str, float]
-    ) -> dict[str, float]:
-        """Calculate new resource levels after applying consumption and production."""
-        return {
-            "power": max(0, min(vault.power - consumption["power"] + production["power"], vault.power_max)),
-            "food": max(0, min(vault.food - consumption["food"] + production["food"], vault.food_max)),
-            "water": max(0, min(vault.water - consumption["water"] + production["water"], vault.water_max)),
-        }
 
     def _log_resource_changes(self, vault: Vault, new_resources: dict[str, float]) -> None:
         """Log resource changes for debugging."""

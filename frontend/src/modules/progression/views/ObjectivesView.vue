@@ -2,15 +2,14 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useObjectivesStore } from '@/modules/progression/stores/objectives'
-import { useVaultStore } from '@/modules/vault/stores/vault'
 import {
   currentObjective,
   objectiveActionPath,
   type Objective,
 } from '@/modules/progression/models/objective'
 import { Button } from '@/core/components/ui/button'
-import { getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
-import { useAuthStore } from '@/modules/auth/stores/auth'
+import { getErrorMessage } from '@/core/utils/errorHandler'
+import { useObjectiveClaim } from '@/modules/progression/composables/useObjectiveClaim'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
@@ -22,7 +21,6 @@ import ObjectiveCompleteModal from '../components/ObjectiveCompleteModal.vue'
 
 const route = useRoute()
 const objectivesStore = useObjectivesStore()
-const vaultStore = useVaultStore()
 const { isCollapsed } = useSidePanel()
 const activeTab = ref('daily')
 const objectiveTabs = [
@@ -34,21 +32,20 @@ const objectiveTabs = [
 
 const vaultId = computed(() => route.params.id as string)
 
-const auth = useAuthStore()
-const isClaiming = ref(false)
 // Claim + celebration modal (mirrors the quest claim flow)
+const { claiming: isClaiming, error: claimError, claim } = useObjectiveClaim(vaultId)
 const claimedObjective = ref<Objective | null>(null)
 const showClaimModal = ref(false)
-const claimError = ref<string | null>(null)
+const loadError = ref<string | null>(null)
 
 watch(
   vaultId,
   (id) => {
     showClaimModal.value = false
     claimedObjective.value = null
-    claimError.value = null
+    loadError.value = null
     void objectivesStore.fetchObjectives(id).catch((err) => {
-      claimError.value = getErrorMessage(err)
+      loadError.value = getErrorMessage(err)
     })
   },
   { immediate: true }
@@ -72,29 +69,11 @@ const currentStarterStep = computed(() => {
   const objective = currentObjective(objectivesStore.objectives)
   return objective?.category === 'starter' ? objective : null
 })
-async function handleClaimObjective(objectiveId: string): Promise<void> {
-  claimError.value = null
-  const id = vaultId.value
-  if (!id || isClaiming.value) return
-  isClaiming.value = true
-  try {
-    const claimed = await objectivesStore.completeObjective(id, objectiveId)
-    if (vaultId.value !== id) return
+function handleClaimObjective(objectiveId: string): void {
+  void claim(objectiveId, (claimed) => {
     claimedObjective.value = claimed
-    showClaimModal.value = claimedObjective.value !== null
-    void objectivesStore
-      .fetchObjectives(vaultId.value)
-      .catch((error) => handleStoreError(error, 'Failed to refresh objective guidance'))
-  } catch (err) {
-    if (vaultId.value === id) claimError.value = getErrorMessage(err)
-    return
-  } finally {
-    isClaiming.value = false
-  }
-  if (auth.token)
-    void vaultStore
-      .refreshVault(id, auth.token)
-      .catch((error) => handleStoreError(error, 'Failed to refresh claimed rewards'))
+    showClaimModal.value = claimed !== null
+  })
 }
 
 function closeClaimModal(): void {
@@ -118,7 +97,9 @@ function closeClaimModal(): void {
               icon="mdi:target"
               subtitle="Complete Vault-Tec directives to earn rewards."
             />
-            <p v-if="claimError" class="claim-error" role="alert">{{ claimError }}</p>
+            <p v-if="loadError || claimError" class="claim-error" role="alert">
+              {{ loadError || claimError }}
+            </p>
 
             <!-- Current guide step, retained until its reward is claimed -->
             <div v-if="currentStarterStep" class="next-step-hero">

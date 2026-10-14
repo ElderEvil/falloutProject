@@ -998,6 +998,10 @@ export interface paths {
          * Read Dwellers Data
          * @description Get static dweller creation data.
          *
+         *     Templates are typed for load-time identity validation, so their
+         *     ``visual_attributes`` is a model while this wire shape wants a dict; dumping
+         *     each template lets the response model validate the serialized payload.
+         *
          *     Returns:
          *         list[DwellerCreateWithoutVaultID]: List of dweller templates.
          */
@@ -8604,6 +8608,12 @@ export interface components {
             id?: string;
             /** Template Key */
             template_key?: string | null;
+            /**
+             * Assignable
+             * @description Whether this template is assigned to new vaults; legacy templates stay false while their links remain evaluable
+             * @default true
+             */
+            assignable: boolean;
         };
         /**
          * ObjectiveCategoryEnum

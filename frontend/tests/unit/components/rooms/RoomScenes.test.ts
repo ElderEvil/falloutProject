@@ -9,33 +9,38 @@ import type { Room } from '@/modules/rooms/models/room'
 
 const arena = { name: 'Arena', category: 'arena', tier: 1 }
 
+const arenaRoom = (tier: number) =>
+  ({
+    ...arena,
+    tier,
+    id: 'arena-1',
+    size: 6,
+    size_min: 6,
+    image_url: '/static/room_images/arena.webp',
+  }) as Room
+
+const mountGridCell = (room: Room) =>
+  mount(RoomGridCell, {
+    props: {
+      room,
+      showRoomImages: true,
+      isPowerOutage: false,
+      selected: false,
+      isDraggingOver: false,
+      highlighted: false,
+      merged: false,
+    },
+    global: {
+      stubs: { RoomDwellers: true, TooltipLabel: { template: '<div><slot /></div>' } },
+    },
+  })
+
 describe('room detail scene roles', () => {
   it.each([1, 2, 3])(
     'uses the same new Arena artwork in the grid and preview at tier %i',
     (tier) => {
-      const room = {
-        ...arena,
-        tier,
-        id: 'arena-1',
-        size: 6,
-        size_min: 6,
-        image_url: '/static/room_images/arena.webp',
-      } as Room
-      const wrapper = mount(RoomGridCell, {
-        props: {
-          room,
-          showRoomImages: true,
-          isPowerOutage: false,
-          selected: false,
-          isDraggingOver: false,
-          highlighted: false,
-          merged: false,
-        },
-        global: {
-          stubs: { RoomDwellers: true, TooltipLabel: { template: '<div><slot /></div>' } },
-        },
-      })
-      expect(wrapper.get('img').attributes('src')).toBe(getRoomDetailScene(room))
+      const room = arenaRoom(tier)
+      expect(mountGridCell(room).get('img').attributes('src')).toBe(getRoomDetailScene(room))
     }
   )
 
@@ -87,5 +92,16 @@ describe('room detail scene roles', () => {
     expect(wrapper.text()).toContain('No Image Available')
     await wrapper.setProps({ roomImageUrl: '/new-scene.webp' })
     expect(wrapper.find('img').attributes('src')).toBe('/new-scene.webp')
+  })
+
+  it('falls back through the grid sprite and then hides the image in a room grid cell', async () => {
+    const wrapper = mountGridCell(arenaRoom(1))
+    expect(wrapper.get('img').attributes('src')).toBe(ARENA_DETAIL_SCENES[1])
+    await wrapper.get('img').trigger('error')
+    expect(wrapper.get('img').attributes('src')).toBe(
+      getRoomImageUrl('/static/room_images/arena.webp')
+    )
+    await wrapper.get('img').trigger('error')
+    expect(wrapper.find('img').exists()).toBe(false)
   })
 })

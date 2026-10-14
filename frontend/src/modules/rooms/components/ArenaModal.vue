@@ -274,7 +274,11 @@ const togglePicker = (slot: ArenaSlotKey) => {
 
 // Brawl needs all four slots before the server accepts the selection; hunt needs
 // a lead dweller and at least one creature; duel accepts any pair (including
-// empty), so it persists on every change as before.
+// empty), so it persists on every change as before. Clearing the last slot of a
+// brawl/hunt draft therefore stays a pending local edit: the backend rejects an
+// incomplete selection, so the server keeps the previous one while `draftDirty`
+// holds `canStart` false and blocks the poll from overwriting the edit until it
+// is valid again.
 const commitDraft = async () => {
   if (!authStore.token) return
   if (mode.value === 'brawl' && activeSlots.value.some((slot) => !draft.value[slot])) return

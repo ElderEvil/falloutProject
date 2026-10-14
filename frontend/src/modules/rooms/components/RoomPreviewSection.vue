@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getRoomImageUrl } from '@/core/utils/image'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
+import { useFallbackImage } from '../composables/useFallbackImage'
 
 interface Props {
   roomName: string
@@ -28,21 +29,10 @@ const emit = defineEmits<{
   assignApprentice: []
 }>()
 
-const failedImageUrls = ref<string[]>([])
-watch(
-  () => [props.roomImageUrl, props.imageUrl],
-  () => {
-    failedImageUrls.value = []
-  }
-)
-const sceneImageUrl = computed(() =>
-  [props.roomImageUrl, getRoomImageUrl(props.imageUrl)].find(
-    (url) => url && !failedImageUrls.value.includes(url)
-  )
-)
-const imageFailed = () => {
-  if (sceneImageUrl.value) failedImageUrls.value.push(sceneImageUrl.value)
-}
+const { url: sceneImageUrl, onError: imageFailed } = useFallbackImage(() => [
+  props.roomImageUrl,
+  getRoomImageUrl(props.imageUrl),
+])
 const sceneSizeClass = computed(() => {
   if (props.roomUnits <= 1) return 'room-scene--compact'
   if (props.roomUnits >= 6) return 'room-scene--wide'

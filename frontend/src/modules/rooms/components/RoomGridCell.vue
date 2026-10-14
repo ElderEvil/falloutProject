@@ -8,6 +8,7 @@ import type { Room } from '../models/room'
 import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
 import { getRoomImageUrl } from '@/core/utils/image'
 import { getRoomDetailScene } from '../models/roomScenes'
+import { useFallbackImage } from '../composables/useFallbackImage'
 import { getRoomSegmentCount } from '../utils/room'
 import TooltipLabel from './TooltipLabel.vue'
 interface Props {
@@ -23,9 +24,13 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const roomImageUrl = computed(
-  () => getRoomDetailScene(props.room) ?? getRoomImageUrl(props.room.image_url)
-)
+
+// Curated scene first; if it fails to load, the configured grid sprite; if both
+// fail, hide the image.
+const { url: roomImageUrl, onError: imageFailed } = useFallbackImage(() => [
+  getRoomDetailScene(props.room),
+  getRoomImageUrl(props.room.image_url),
+])
 
 const emit = defineEmits<{
   click: [room: Room, event: MouseEvent | KeyboardEvent]
@@ -122,6 +127,7 @@ const cellTitle = computed(() => {
         :alt="room.name"
         class="room-background-image"
         draggable="false"
+        @error="imageFailed"
       />
       <!-- 1-unit cells (elevator etc.): icon only, no text -->
       <div v-if="isSmallCell" class="small-cell-icon">

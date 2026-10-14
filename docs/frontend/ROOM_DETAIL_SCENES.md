@@ -13,20 +13,23 @@ seed or cost; those fields are marked unknown instead of invented. The delivered
 is 1536×1024, opaque, encoded with cwebp quality 82 (approximately 356 KiB).
 
 KISS/YAGNI: a frontend catalog mapping is sufficient. No persisted field, migration or
-new backend API is needed. Arena tiers 1–3 share one scene across room sizes; an unknown
-tier/catalog key falls back to the existing backend grid sprite. There are no generated
-variants implying nonexistent tier gameplay.
+new backend API is needed. Arena tiers 1–3 each map to their own curated scene; an unknown
+tier/catalog key falls back to the existing backend grid sprite. The three scenes track a
+real progression (duel pit → reinforced brawl floor → creature-containment arena) matching
+the modes each tier unlocks.
 
 `useRoomProduction` resolves detail versus grid roles once for the room modal. Ordinary
 previews and Arena receive the resolved URL; incident views receive it and the grid
 fallback separately. Image load failures try the grid sprite once, then show the existing
 empty placeholder (preview) or no backdrop (incident). Changed URLs reset failed-image
-state. Grid cells continue using their existing grid sprites.
+state. Grid cells resolve the curated scene, fall back to their configured grid sprite
+when it fails to load, and hide the image when both fail.
 
-The full-frame detail preview uses 3:2 framing and contain behavior, preserving both
-anchors at (0.35, 0.8) and (0.65, 0.8). Incident status overlays remain independent and
-contain the backdrop at low opacity for legibility. Arena's room-part precedence remains
-unchanged: the combat panel is its primary detail even during an incident.
+The standard detail preview uses contain behavior, preserving both anchors at (0.35, 0.8)
+and (0.65, 0.8); size-6 previews use a 3:1 cover frame shared with the Overseer's Office.
+Incident status overlays remain independent and contain the backdrop at low opacity for
+legibility. Arena's room-part precedence remains unchanged: the combat panel is its primary
+detail even during an incident.
 
 ## Browser evidence
 

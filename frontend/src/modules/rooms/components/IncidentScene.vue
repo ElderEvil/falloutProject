@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Progress } from '@/core/components/ui/progress'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getCombatPower } from '@/modules/dwellers/models/dweller'
 import type { Incident, IncidentTeamMember } from '@/modules/combat/models/incident'
 import { getIncidentIcon } from '@/modules/combat/models/incident'
+import { useFallbackImage } from '../composables/useFallbackImage'
 
 const props = defineProps<{
   incident: Incident
@@ -15,21 +16,10 @@ const props = defineProps<{
   team?: IncidentTeamMember[]
 }>()
 
-const failedImageUrls = ref<string[]>([])
-watch(
-  () => [props.roomImageUrl, props.fallbackImageUrl],
-  () => {
-    failedImageUrls.value = []
-  }
-)
-const sceneImageUrl = computed(() =>
-  [props.roomImageUrl, props.fallbackImageUrl].find(
-    (url) => url && !failedImageUrls.value.includes(url)
-  )
-)
-const imageFailed = () => {
-  if (sceneImageUrl.value) failedImageUrls.value.push(sceneImageUrl.value)
-}
+const { url: sceneImageUrl, onError: imageFailed } = useFallbackImage(() => [
+  props.roomImageUrl,
+  props.fallbackImageUrl,
+])
 
 // The roster from GET /incidents/{id}/team is authoritative: auto-dispatched
 // hazard-team responders keep a stale room_id in the dweller store (it only

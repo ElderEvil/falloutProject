@@ -93,10 +93,13 @@ def upgrade() -> None:
     )
     for step in _STEPS:
         objective_id = connection.execute(
-            sa.select(objective.c.id).where(
-                sa.func.lower(sa.func.trim(objective.c.challenge)) == step["challenge"].lower()
+            sa.select(objective.c.id)
+            .where(
+                objective.c.category == "starter",
+                sa.func.lower(sa.func.trim(objective.c.challenge)) == step["challenge"].lower(),
             )
-        ).scalar_one_or_none()
+            .order_by(objective.c.id)
+        ).scalars().first()
         if objective_id is None:
             objective_id = uuid4()
             connection.execute(objective.insert().values(id=objective_id, **step))

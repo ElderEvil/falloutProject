@@ -1421,3 +1421,67 @@ describe('RoomDetailModal', () => {
     })
   })
 })
+
+describe('Response Station surface', () => {
+  const responseRoom = {
+    id: 'station-1',
+    name: 'Response Station',
+    category: 'response',
+    ability: 'endurance',
+    tier: 1,
+    capacity: null,
+    output: null,
+    size: 3,
+    size_min: 3,
+    size_max: 9,
+    coordinate_x: 0,
+    coordinate_y: 0,
+    t2_upgrade_cost: null,
+    t3_upgrade_cost: null,
+    base_cost: 600,
+    incremental_cost: null,
+    population_required: 15,
+    image_url: null,
+    vault_id: 'vault-123',
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+  }
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    useAuthStore().token = 'test-token'
+  })
+
+  it('renders the station management surface with standing actions', async () => {
+    const wrapper = mount(RoomDetailModal, {
+      props: { room: responseRoom as never, modelValue: true, vaultId: 'vault-123' },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('.response-station').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Station Management')
+    expect(wrapper.text()).toContain('stationed')
+    expect(wrapper.text()).toContain('Expand Station')
+    expect(wrapper.text()).toContain('Destroy Room')
+    expect(wrapper.find('.header-metadata').text()).toContain('Capacity: 2')
+  })
+
+  it('omits the station surface for other room categories', () => {
+    const wrapper = mount(RoomDetailModal, {
+      props: {
+        room: {
+          ...responseRoom,
+          id: 'room-1',
+          name: 'Power Generator',
+          category: 'production',
+          ability: 'strength',
+          capacity: 4,
+        } as never,
+        modelValue: true,
+      },
+    })
+
+    expect(wrapper.find('.response-station').exists()).toBe(false)
+  })
+})

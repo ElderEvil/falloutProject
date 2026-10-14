@@ -67,6 +67,15 @@ describe('RoomMenuItem', () => {
     expect(other.find('[data-onboarding]').exists()).toBe(false)
   })
 
+  it('shows the station category icon when a response room has no artwork', () => {
+    const wrapper = mount(RoomMenuItem, {
+      props: { room: { ...room, name: 'Response Station', category: 'response', image_url: null } },
+    })
+
+    expect(wrapper.find('.room-icon img').exists()).toBe(false)
+    expect(wrapper.find('.room-icon [data-icon="mdi:shield-account"]').exists()).toBe(true)
+  })
+
   it('renders all four room detail rows', () => {
     const wrapper = mount(RoomMenuItem, {
       props: { room: { ...room, population_required: 10 } },

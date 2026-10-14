@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
 import { getRoomSegmentCount, getTrainingRoomCapacity } from '../utils/room'
-import { isTrainingRoom } from '../models/roomParts'
+import { isResponseStation, isTrainingRoom } from '../models/roomParts'
 
 interface Props {
   room: Room
@@ -14,9 +14,12 @@ const props = defineProps<Props>()
 const roomSegments = computed(() => getRoomSegmentCount(props.room))
 const roomSizeText = computed(() => roomSegments.value > 1 ? `${roomSegments.value}× merged` : `${roomSegments.value}×`)
 const abilityLabel = computed(() => isTrainingRoom(props.room) ? 'Trains' : 'Requires')
-// Training rooms store no resource capacity — show trainee spots instead.
+// Training rooms store no resource capacity — show trainee spots instead, and
+// the Response Station stores none either; its posts scale with the footprint.
 const displayCapacity = computed(() =>
-  isTrainingRoom(props.room) ? getTrainingRoomCapacity(props.room) : (props.room.capacity || 0)
+  isTrainingRoom(props.room) || isResponseStation(props.room)
+    ? getTrainingRoomCapacity(props.room)
+    : (props.room.capacity || 0)
 )
 </script>
 

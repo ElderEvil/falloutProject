@@ -92,6 +92,7 @@ const isBusy = () => props.busyDwellerIds.length > 0
                 v-for="member in section.members"
                 :key="member.dweller_id"
                 :member="member"
+                :team="team.team"
                 :active="section.isActive"
                 :disabled="
                   isBusy() || (!section.isActive && team.active.length >= HAZARD_TEAM_SIZE)

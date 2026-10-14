@@ -1,12 +1,9 @@
-from datetime import datetime
 from typing import TYPE_CHECKING
 
-import sqlalchemy as sa
 from pydantic import UUID4
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.core.enums import ArenaMode, RoomTypeEnum, SPECIALEnum
+from app.core.enums import RoomTypeEnum, SPECIALEnum
 from app.core.grid_config import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN
 from app.models.base import BaseUUIDModel, TimeStampMixin
 
@@ -34,20 +31,6 @@ class RoomBase(SQLModel):
     coordinate_y: int | None = Field(default=None, ge=GRID_Y_MIN, le=GRID_Y_MAX)
     image_url: str | None = Field(default=None)
     speedup_multiplier: float = Field(default=1.0, ge=1.0, le=10.0)
-    arena_last_fight_at: datetime | None = Field(
-        default=None,
-        description="When the last arena match finished; fights stay stopped until a dweller is reassigned",
-    )
-    arena_fight_started_at: datetime | None = Field(
-        default=None,
-        description="When the armed arena match was started by the player (fight button); NULL means waiting",
-    )
-    arena_fighter_a_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
-    arena_fighter_b_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
-    fighter_c_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
-    fighter_d_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
-    arena_mode: ArenaMode | None = Field(default=None)
-    arena_opponents: list[dict] | None = Field(default=None, sa_column=sa.Column(JSONB))
 
     @property
     def is_unique(self) -> bool:

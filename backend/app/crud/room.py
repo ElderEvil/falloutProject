@@ -179,18 +179,6 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         return list((await db_session.execute(query)).scalars().all())
 
     @staticmethod
-    async def get_arena_rooms_with_fighter(db_session: AsyncSession, dweller_id: UUID4) -> list[Room]:
-        """Arena rooms where the dweller occupies any fighter slot."""
-        query = select(Room).where(
-            Room.category == RoomTypeEnum.ARENA,
-            (Room.arena_fighter_a_id == dweller_id)
-            | (Room.arena_fighter_b_id == dweller_id)
-            | (Room.fighter_c_id == dweller_id)
-            | (Room.fighter_d_id == dweller_id),
-        )
-        return list((await db_session.execute(query)).scalars().all())
-
-    @staticmethod
     def _evaluate_formula_logged(formula: str, level: int, size: int, *, label: str) -> int:
         try:
             result = _evaluate_room_formula(formula, level, size)

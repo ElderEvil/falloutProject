@@ -414,9 +414,7 @@ class RoomService:
         """Build a room under the vault's placement lock, expanding when the same room exists."""
         async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(obj_in.vault_id)) as acquired:
             if not acquired:
-                raise ResourceConflictException(
-                    detail=f"Vault {obj_in.vault_id} is already being built in — try again"
-                )
+                raise ResourceConflictException(detail=f"Vault {obj_in.vault_id} is already being built in — try again")
             return await self._build_locked(db_session=db_session, obj_in=obj_in)
 
     async def _build_locked(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> tuple[Room, bool]:

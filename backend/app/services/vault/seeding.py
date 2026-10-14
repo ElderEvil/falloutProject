@@ -128,9 +128,7 @@ def prepare_initial_rooms(
         # The boosted grid has no free slot, so the merged living room seeds one
         # tier up; its tier-scaled capacity covers the seeded Response Station crew.
         merged_name, merged_x, merged_y, merged_size = BOOSTED_MERGED_LIVING_ROOM
-        capacity.append(
-            build_room(rooms_by_name, merged_name, vault_id, merged_x, merged_y, size=merged_size, tier=2)
-        )
+        capacity.append(build_room(rooms_by_name, merged_name, vault_id, merged_x, merged_y, size=merged_size, tier=2))
     if is_boosted:
         # The boosted room set draws ~51.5 power/min, so boosted seeds the
         # generator at its final size-6 footprint at (0, 1) — same footprint,
@@ -142,8 +140,7 @@ def prepare_initial_rooms(
     else:
         production = mk([("power generator", 3, 1), ("diner", 3, 2), ("water treatment", 3, 3)])
     misc = mk(
-        [("radio studio", 7, 3)]
-        + ([("overseer's office", 22, 2), ("response station", 25, 0)] if is_boosted else [])
+        [("radio studio", 7, 3)] + ([("overseer's office", 22, 2), ("response station", 25, 0)] if is_boosted else [])
     )
     arena = mk([("arena", 10, 3)] if is_boosted else [])
     crafting = mk(list(BOOSTED_CRAFTING_ROOM_SPECS)) if is_boosted else []

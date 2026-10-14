@@ -252,9 +252,7 @@ class TestCreateInitialDwellers:
         # generator) + 7 training + 1 radio + 2 living + 3 family children = 29
         assert call_count == 29
 
-    async def test_boosted_vault_stations_a_fire_and_a_radiation_responder(
-        self, async_session, vault
-    ) -> None:
+    async def test_boosted_vault_stations_a_fire_and_a_radiation_responder(self, async_session, vault) -> None:
         """Boosted seeding stations one fire and one radiation responder in the Response Station."""
         station = await crud.room.create(
             async_session,

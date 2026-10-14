@@ -64,7 +64,9 @@ def _response_station_create(vault_id: UUID, *, coordinate_x: int = 1, size: int
 
 
 async def _create_station(session: AsyncSession, vault_id: UUID, *, coordinate_x: int = 1, size: int = 3) -> Room:
-    return await crud.room.create(session, obj_in=_response_station_create(vault_id, coordinate_x=coordinate_x, size=size))
+    return await crud.room.create(
+        session, obj_in=_response_station_create(vault_id, coordinate_x=coordinate_x, size=size)
+    )
 
 
 async def _create_non_unique_room(session: AsyncSession, vault_id: UUID, *, coordinate_x: int = 1) -> Room:
@@ -142,9 +144,7 @@ async def _occupants(session: AsyncSession, room: Room) -> int:
 
 
 @pytest.mark.asyncio
-async def test_station_size_three_holds_two_then_rejects_third(
-    async_session: AsyncSession, rich_vault: Vault
-) -> None:
+async def test_station_size_three_holds_two_then_rejects_third(async_session: AsyncSession, rich_vault: Vault) -> None:
     """A size-3 station allows 2 occupant slots; the 3rd assignment is rejected."""
     created = await _create_station(async_session, rich_vault.id)
     station = await crud.room.get(async_session, created.id)

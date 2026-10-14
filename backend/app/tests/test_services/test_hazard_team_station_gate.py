@@ -76,9 +76,7 @@ async def test_promotion_succeeds_once_a_response_station_exists(async_session: 
     await make_member(async_session, room.vault_id, dweller.id, HazardTeam.FIRE, RESERVE_STATUS)
     await ensure_station(async_session, room.vault_id)
 
-    roster = await hazard_team_service.set_place(
-        async_session, room.vault_id, HazardTeam.FIRE, dweller.id, active=True
-    )
+    roster = await hazard_team_service.set_place(async_session, room.vault_id, HazardTeam.FIRE, dweller.id, active=True)
 
     fire = next(entry for entry in roster.teams if entry.team == HazardTeam.FIRE)
     assert dweller.id in {place.dweller_id for place in fire.active}

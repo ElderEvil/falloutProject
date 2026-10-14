@@ -191,14 +191,17 @@ def test_spine_migration_rebalances_starter_rows_without_touching_claims(monkeyp
         assert reworded["challenge"] == "Match a dweller to their room"
         assert reworded["template_key"] == "starter:assign a dweller correctly"
         assert reworded["sequence"] == 0
-        assert connection.execute(sa.select(objectives).where(objectives.c.id == retired_id)).first() is None
-        assert connection.execute(sa.select(links).where(links.c.objective_id == retired_id)).first() is None
-        assert len(connection.execute(sa.select(objectives)).all()) == 93
+        retired = connection.execute(sa.select(objectives).where(objectives.c.id == retired_id)).mappings().one()
+        assert retired["objective_type"] is None
+        assert retired["sequence"] is None
+        retired_link = connection.execute(sa.select(links).where(links.c.objective_id == retired_id)).mappings().one()
+        assert retired_link["progress"] == 5
+        assert len(connection.execute(sa.select(objectives)).all()) == 94
         earned = connection.execute(sa.select(links).where(links.c.objective_id == identifier)).mappings().one()
         assert earned["reward_snapshot"] == "50 caps"
         assert _frozen_catalog(migration) == _json_catalog()
         migration.upgrade()
-        assert len(connection.execute(sa.select(objectives)).all()) == 93
+        assert len(connection.execute(sa.select(objectives)).all()) == 94
         migration.downgrade()
-        assert len(connection.execute(sa.select(objectives)).all()) == 93
+        assert len(connection.execute(sa.select(objectives)).all()) == 94
     engine.dispose()

@@ -24,6 +24,13 @@ const STEP_ANCHORS: Record<number, string> = {
   10: 'population',
 }
 
+/** Orientation-only tour: later starter chapters guide from the Objectives tab, not a persistent dim. */
+const ORIENTATION_KEYS = new Set([
+  'starter:assign a dweller correctly',
+  'starter:build a living quarters',
+  'starter:send a dweller exploring',
+])
+
 interface OnboardingState {
   skipped?: boolean
   welcomed?: boolean
@@ -58,7 +65,13 @@ const anchorKey = computed(() =>
 
 const { claiming, claim } = useObjectiveClaim(vaultId)
 
-const active = computed(() => !!vaultId.value && !!step.value && !vaultState.value.skipped)
+const active = computed(
+  () =>
+    !!vaultId.value &&
+    !!step.value &&
+    !vaultState.value.skipped &&
+    ORIENTATION_KEYS.has(step.value.template_key ?? '')
+)
 const atStart = computed(() => step.value?.sequence === 0)
 const showWelcome = computed(() => active.value && atStart.value && !vaultState.value.welcomed)
 const showStep = computed(() => active.value && !showWelcome.value)

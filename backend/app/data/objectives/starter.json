@@ -15,8 +15,8 @@
     "reward": "dweller:Wanderer",
     "category": "starter",
     "objective_type": "build",
-    "target_entity": {"room_type": "living_room"},
-    "target_amount": 2,
+    "target_entity": {"room_type": "living_room", "additional": true},
+    "target_amount": 1,
     "sequence": 1,
     "description": "More living space raises the population cap. Build another quarter and a new dweller joins the vault.",
     "template_key": "starter:build a living quarters"

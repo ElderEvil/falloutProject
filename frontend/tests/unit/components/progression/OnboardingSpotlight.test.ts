@@ -20,17 +20,25 @@ vi.mock('@vueuse/core', async (importOriginal) => ({
 const route = reactive({ path: '/vault/v1', params: { id: 'v1' } })
 vi.mock('vue-router', () => ({ useRoute: () => route }))
 
-const objective = (id: string, sequence: number, progress = 0): Objective => ({
+const arc = {
+  assign: { key: 'starter:assign a dweller correctly', sequence: 0, challenge: 'Match a dweller to their room' },
+  build: { key: 'starter:build a living quarters', sequence: 1, challenge: 'Build a Living Quarters' },
+  explore: { key: 'starter:send a dweller exploring', sequence: 2, challenge: 'Send a dweller exploring' },
+  reach18: { key: 'starter:reach 18 dwellers', sequence: 4, challenge: 'Reach 18 Dwellers' },
+} as const
+
+const objective = (id: string, step: keyof typeof arc, progress = 0): Objective => ({
   id,
   vault_id: 'v1',
-  challenge: `Step ${sequence}`,
+  challenge: arc[step].challenge,
   description: 'Do the thing.',
   progress,
   total: 2,
   reward: '25 caps',
   is_completed: false,
   category: 'starter',
-  sequence,
+  sequence: arc[step].sequence,
+  template_key: arc[step].key,
   objective_type: 'collect',
   target_entity: { resource_type: 'caps' },
   created_at: '',
@@ -58,25 +66,35 @@ beforeEach(() => {
 
 describe('OnboardingSpotlight', () => {
   it('shows the welcome card first for a new vault', async () => {
-    useObjectivesStore().objectives = [objective('first', 0)]
+    useObjectivesStore().objectives = [objective('first', 'assign')]
     const wrapper = mountSpotlight()
     await flushPromises()
     expect(document.body.textContent).toContain('Welcome, Overseer')
     wrapper.unmount()
   })
 
-  it('starts the tour on the lowest unclaimed starter step', async () => {
-    useObjectivesStore().objectives = [objective('second', 1), objective('first', 0)]
+  it('starts the tour on the first unclaimed orientation step', async () => {
+    useObjectivesStore().objectives = [objective('second', 'build'), objective('first', 'assign')]
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
-    expect(document.body.textContent).toContain('Step 0')
-    expect(document.body.textContent).not.toContain('Step 1')
+    expect(document.body.textContent).toContain(arc.assign.challenge)
+    expect(document.body.textContent).not.toContain(arc.build.challenge)
+    wrapper.unmount()
+  })
+
+  it('hands off instead of dimming a population wait after the orientation', async () => {
+    useObjectivesStore().objectives = [objective('wait', 'reach18')]
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    expect(document.body.querySelector('.onboarding-card')).toBeNull()
+    expect(document.body.querySelector('.onboarding-cutout')).toBeNull()
+    expect(document.body.textContent).not.toContain(arc.reach18.challenge)
     wrapper.unmount()
   })
 
   it('skips, hides the tour, and persists the skip per vault', async () => {
-    useObjectivesStore().objectives = [objective('first', 0)]
+    useObjectivesStore().objectives = [objective('first', 'assign')]
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Skip tour')
@@ -86,19 +104,19 @@ describe('OnboardingSpotlight', () => {
   })
 
   it('shows the card without a cut-out when the step anchor is absent', async () => {
-    useObjectivesStore().objectives = [objective('first', 0)]
+    useObjectivesStore().objectives = [objective('first', 'assign')]
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
-    expect(document.body.textContent).toContain('Step 0')
+    expect(document.body.textContent).toContain(arc.assign.challenge)
     expect(document.querySelector('.onboarding-cutout')).toBeNull()
     wrapper.unmount()
   })
 
   it('claims the current step once from the card', async () => {
     const store = useObjectivesStore()
-    store.objectives = [objective('first', 0, 2)]
-    const claim = vi.spyOn(store, 'completeObjective').mockResolvedValue(objective('first', 0, 2))
+    store.objectives = [objective('first', 'assign', 2)]
+    const claim = vi.spyOn(store, 'completeObjective').mockResolvedValue(objective('first', 'assign', 2))
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')

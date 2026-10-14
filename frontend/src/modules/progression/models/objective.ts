@@ -27,6 +27,7 @@ export interface Objective {
   is_completed: boolean
   category: ObjectiveCategory
   objective_type?: ObjectiveType
+  template_key?: string | null
   target_entity?: Record<string, unknown>
   sequence?: number | null
   description?: string | null

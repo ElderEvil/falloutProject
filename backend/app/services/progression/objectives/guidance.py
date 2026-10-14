@@ -42,7 +42,7 @@ async def current_state_progress(db_session: AsyncSession, vault_id: UUID4, obje
             if not room_type or room_type in {"*", "any"} or normalize_room_type(room.name) == room_type
         }
         if objective.objective_type == "build":
-            return len(matching)
+            return 0 if target.get("additional") else len(matching)
         dwellers = await dweller_crud.get_living_in_vault(db_session, vault_id)
         if objective.objective_type == "assign":
             return sum(dweller.room_id in matching for dweller in dwellers)

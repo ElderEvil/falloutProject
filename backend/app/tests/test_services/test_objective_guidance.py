@@ -9,11 +9,11 @@ from app.services.exploration_service import exploration_service
 from app.services.progression.objectives.guidance import current_state_progress
 
 
-async def _room(async_session, vault, ability):
+async def _room(async_session, vault, ability, name="Power Generator"):
     return await crud.room.create(
         db_session=async_session,
         obj_in=RoomCreate(
-            name="Power Generator",
+            name=name,
             category=RoomTypeEnum.PRODUCTION,
             ability=ability,
             base_cost=100,
@@ -71,6 +71,19 @@ async def test_assign_correct_ignores_unstaffed_rooms(async_session, vault):
         category="starter",
         objective_type="assign_correct",
         target_entity={},
+        target_amount=1,
+    )
+    assert await current_state_progress(async_session, vault.id, objective) == 0
+
+
+async def test_build_additional_housing_is_not_credited_by_the_seeded_room(async_session, vault):
+    await _room(async_session, vault, SPECIALEnum.CHARISMA, name="Living room")
+    objective = Objective(
+        challenge="Build a Living Quarters",
+        reward="dweller:Wanderer",
+        category="starter",
+        objective_type="build",
+        target_entity={"room_type": "living_room", "additional": True},
         target_amount=1,
     )
     assert await current_state_progress(async_session, vault.id, objective) == 0

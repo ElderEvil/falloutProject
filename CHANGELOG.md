@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.202.1 (2026-10-14)
+
+### Code Refactoring
+
+* **arena:** extract arena state into its own table f744a6d
+* **arena:** persist arena state via get_or_create on write paths 3700f4d
+
 ## 2.202.0 (2026-10-14)
 
 ### Features

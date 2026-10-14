@@ -66,6 +66,8 @@ describe('room detail scene roles', () => {
     const manifest = JSON.parse(readFileSync('public/assets/room-scenes/manifest.json', 'utf8'))
     const asset = manifest.assets.find((entry: { path: string }) => entry.path === path)
     expect(asset.tiers).toEqual([tier])
+    expect(asset.width / asset.height).toBe(3)
+    expect(asset.safe_crop).toEqual([0, 0, 1, 1])
     expect(bytes.readUInt16LE(26) & 0x3fff).toBe(asset.width)
     expect(bytes.readUInt16LE(28) & 0x3fff).toBe(asset.height)
     expect(asset.actor_anchors).toEqual([

@@ -3,16 +3,11 @@ import { reactive } from 'vue'
 import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { mountWithSetup } from '../../helpers/mountWithSetup'
 import ResponseTeamsView from '@/modules/contamination-team/views/ResponseTeamsView.vue'
-import { contaminationTeamApi } from '@/modules/contamination-team/api/roster'
-import type { ContaminationTeamRead } from '@/modules/contamination-team/models/contaminationTeam'
+import { useRoomStore } from '@/modules/rooms/stores/room'
 
 const routeState = reactive({ params: { id: 'vault-1' }, path: '/vault/vault-1/response-teams' })
-const mockPush = vi.fn()
+const mockReplace = vi.fn()
 enableAutoUnmount(afterEach)
-
-vi.mock('@/modules/contamination-team/api/roster', () => ({
-  contaminationTeamApi: { getRoster: vi.fn(), setPlace: vi.fn() },
-}))
 
 vi.mock('@/modules/auth/stores/auth', () => ({
   useAuthStore: () => ({ token: 'test-token' }),
@@ -27,163 +22,80 @@ vi.mock('vue-router', async () => {
   return {
     ...actual,
     useRoute: () => routeState,
-    useRouter: () => ({ push: mockPush }),
+    useRouter: () => ({ replace: mockReplace }),
   }
 })
 
-vi.mock('@/modules/contamination-team/components/ResponseTeamsPanel.vue', () => ({
-  default: {
-    name: 'ResponseTeamsPanel',
-    props: ['roster', 'loading', 'error', 'busyDwellerIds'],
-    emits: ['set-place'],
-    template: `
-      <div class="panel-stub">
-        <button class="activate" @click="$emit('set-place', 'fire', 'd1', true)">Activate</button>
-        <button class="bench" @click="$emit('set-place', 'fire', 'd1', false)">Bench</button>
-      </div>
-    `,
-  },
-}))
+vi.mock('@/modules/rooms/stores/room', () => ({ useRoomStore: vi.fn() }))
 
-const roster = (overrides: Partial<ContaminationTeamRead> = {}): ContaminationTeamRead => ({
-  vault_id: 'vault-1',
-  teams: [
-    {
-      team: 'fire',
-      active: [{ dweller_id: 'd1', status: 'fighting', name: 'John Doe', level: 12 }],
-      reserve: [{ dweller_id: 'd2', status: 'idle', name: 'Jane', level: 8 }],
-    },
-    { team: 'radiation', active: [], reserve: [] },
-  ],
-  ...overrides,
-})
+type RoomStub = { id: string; category: string }
 
-const metricValues = (wrapper: ReturnType<typeof mountWithSetup>) =>
-  wrapper.findAll('.page-header-metric-value').map((node) => node.text())
+let returnedRooms: RoomStub[] = []
+const storeState = {
+  rooms: [] as RoomStub[],
+  roomsLoadedVaultId: null as string | null,
+  fetchRooms: vi.fn(),
+}
 
-describe('ResponseTeamsView', () => {
-  it('refreshes the roster on vault change and rejects a late previous-vault response', async () => {
-    let finish!: (value: ContaminationTeamRead) => void
-    vi.mocked(contaminationTeamApi.getRoster)
-      .mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            finish = resolve
-          })
-      )
-      .mockResolvedValueOnce(roster({ vault_id: 'vault-2', teams: [] }))
-    const wrapper = mountWithSetup(ResponseTeamsView)
-    routeState.params.id = 'vault-2'
-    await flushPromises()
-    expect(contaminationTeamApi.getRoster).toHaveBeenLastCalledWith('vault-2', 'test-token')
-    finish(roster())
-    await flushPromises()
-    expect(wrapper.findComponent({ name: 'ResponseTeamsPanel' }).props('roster').vault_id).toBe(
-      'vault-2'
-    )
-  })
-
-  it('rejects an old placement response after switching away and back to the same vault', async () => {
-    let finish!: (value: ContaminationTeamRead) => void
-    vi.mocked(contaminationTeamApi.setPlace).mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finish = resolve
-        })
-    )
-    const wrapper = mountWithSetup(ResponseTeamsView)
-    await flushPromises()
-    await wrapper.find('.bench').trigger('click')
-    routeState.params.id = 'vault-2'
-    await flushPromises()
-    const fresh = roster({ teams: [] })
-    vi.mocked(contaminationTeamApi.getRoster).mockResolvedValueOnce(fresh)
-    routeState.params.id = 'vault-1'
-    await flushPromises()
-    finish(roster())
-    await flushPromises()
-    expect(wrapper.findComponent({ name: 'ResponseTeamsPanel' }).props('roster')).toEqual(fresh)
-  })
-
-  it('serializes roster mutations to prevent stale full-roster responses', async () => {
-    let finish!: (value: ContaminationTeamRead) => void
-    vi.mocked(contaminationTeamApi.setPlace).mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finish = resolve
-        })
-    )
-    const wrapper = mountWithSetup(ResponseTeamsView)
-    await flushPromises()
-    await wrapper.find('.activate').trigger('click')
-    await wrapper.find('.bench').trigger('click')
-    expect(contaminationTeamApi.setPlace).toHaveBeenCalledTimes(1)
-    finish(roster())
-    await flushPromises()
-    expect(wrapper.findComponent({ name: 'ResponseTeamsPanel' }).props('busyDwellerIds')).toEqual(
-      []
-    )
-  })
-
+describe('ResponseTeamsView (compatibility redirect)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     routeState.params.id = 'vault-1'
-    vi.mocked(contaminationTeamApi.getRoster).mockResolvedValue(roster())
+    returnedRooms = []
+    storeState.rooms = []
+    storeState.roomsLoadedVaultId = null
+    storeState.fetchRooms.mockImplementation(async (id: string) => {
+      storeState.rooms = [...returnedRooms]
+      storeState.roomsLoadedVaultId = id
+    })
+    vi.mocked(useRoomStore).mockReturnValue(storeState as never)
   })
 
-  it('fetches the roster and renders Active/Reserve totals in the header', async () => {
+  it('opens the vault station room when the vault has one', async () => {
+    returnedRooms = [{ id: 'station-1', category: 'response' }]
+
+    mountWithSetup(ResponseTeamsView)
+    await flushPromises()
+
+    expect(storeState.fetchRooms).toHaveBeenCalledWith('vault-1', 'test-token')
+    expect(mockReplace).toHaveBeenCalledWith({
+      path: '/vault/vault-1',
+      query: { roomId: 'station-1' },
+    })
+    expect(mockToast.info).not.toHaveBeenCalled()
+  })
+
+  it('redirects into the vault and explains the requirement when no station exists', async () => {
+    returnedRooms = [{ id: 'r1', category: 'production' }]
+
+    mountWithSetup(ResponseTeamsView)
+    await flushPromises()
+
+    expect(mockToast.info).toHaveBeenCalledTimes(1)
+    expect(mockReplace).toHaveBeenCalledWith({ path: '/vault/vault-1', query: {} })
+  })
+
+  it('renders no second management surface', async () => {
+    returnedRooms = [{ id: 'station-1', category: 'response' }]
+
     const wrapper = mountWithSetup(ResponseTeamsView)
     await flushPromises()
 
-    expect(contaminationTeamApi.getRoster).toHaveBeenCalledWith('vault-1', 'test-token')
-    expect(metricValues(wrapper)).toEqual(['1', '1'])
-    expect(wrapper.text()).toContain('Active')
-    expect(wrapper.text()).toContain('Reserve')
-    expect(wrapper.text()).not.toContain('Membership is earned')
-    expect(wrapper.findAll('button').some((button) => button.text().includes('Refresh'))).toBe(
-      false
-    )
-    expect(wrapper.text()).not.toContain('View vault incidents')
-    await vi.waitFor(() =>
-      expect(wrapper.find('button[aria-label="About Response Teams"]').exists()).toBe(true)
-    )
+    expect(wrapper.text()).not.toContain('Response Teams')
+    expect(wrapper.find('a.nav-item').exists()).toBe(false)
   })
 
-  it('hides the metrics while the roster is loading', () => {
-    const wrapper = mountWithSetup(ResponseTeamsView)
+  it('reports a failed room load instead of claiming the vault has no station', async () => {
+    storeState.fetchRooms.mockImplementation(async () => {
+      storeState.rooms = []
+      storeState.roomsLoadedVaultId = null
+    })
 
-    expect(wrapper.findAll('.page-header-metric-value')).toHaveLength(0)
-  })
-
-  it('handles set-place by calling setPlace and re-rendering from the response', async () => {
-    vi.mocked(contaminationTeamApi.setPlace).mockResolvedValue(
-      roster({
-        teams: [
-          {
-            team: 'fire',
-            active: [
-              { dweller_id: 'd1', status: 'fighting', name: 'John Doe', level: 12 },
-              { dweller_id: 'd2', status: 'fighting', name: 'Jane', level: 8 },
-            ],
-            reserve: [],
-          },
-          { team: 'radiation', active: [], reserve: [] },
-        ],
-      })
-    )
-    const wrapper = mountWithSetup(ResponseTeamsView)
+    mountWithSetup(ResponseTeamsView)
     await flushPromises()
 
-    await wrapper.find('.activate').trigger('click')
-    await flushPromises()
-
-    expect(contaminationTeamApi.setPlace).toHaveBeenCalledWith(
-      'vault-1',
-      'fire',
-      'd1',
-      true,
-      'test-token'
-    )
-    expect(metricValues(wrapper)).toEqual(['2', '0'])
+    expect(mockToast.error).toHaveBeenCalledTimes(1)
+    expect(mockToast.info).not.toHaveBeenCalled()
+    expect(mockReplace).toHaveBeenCalledWith({ path: '/vault/vault-1' })
   })
 })

@@ -42,7 +42,7 @@ describe('Response teams route', () => {
   })
 
   describe('SidePanel nav item', () => {
-    it('contains a nav item with id response-teams', () => {
+    it('no longer advertises a Response Teams nav entry', () => {
       const wrapper = shallowMount(SidePanel, {
         global: {
           stubs: {
@@ -53,12 +53,7 @@ describe('Response teams route', () => {
       })
       const navItems = wrapper.vm.navItems
       expect(navItems).toBeDefined()
-      const item = navItems.find((entry: { id: string }) => entry.id === 'response-teams')
-      expect(item).toBeDefined()
-      expect(item!.label).toBe('Response Teams')
-      expect(item!.icon).toBe('mdi:account-hard-hat')
-      expect(item!.path).toBe('/vault/vault-1/response-teams')
-      expect(item!.hotkey).toBeUndefined()
+      expect(navItems.some((entry: { id: string }) => entry.id === 'response-teams')).toBe(false)
     })
   })
 })

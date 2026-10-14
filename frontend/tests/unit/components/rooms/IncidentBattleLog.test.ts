@@ -56,7 +56,9 @@ describe('IncidentBattleLog', () => {
   })
 
   it('reports containment gain as a percentage', () => {
-    const wrapper = mountLog([event({ id: 'e1', message: 'Foam spreads.', data: { amount: 0.25 } })])
+    const wrapper = mountLog([
+      event({ id: 'e1', message: 'Foam spreads.', data: { amount: 0.25 } }),
+    ])
     expect(wrapper.text()).toContain('+25% contained')
   })
 
@@ -102,6 +104,20 @@ describe('IncidentBattleLog', () => {
 
     expect(log.scrollTop).toBe(200)
     expect(wrapper.text()).not.toContain('New rounds below')
+  })
+
+  it('follows an appended identical round when the reader is at the bottom', async () => {
+    const wrapper = mountLog([event({ id: 'e1' })])
+    await nextTick()
+    const log = wrapper.find('[aria-label="Battle log"]').element
+    setScrollMetrics(log, { scrollHeight: 200, clientHeight: 100, scrollTop: 100 })
+
+    await wrapper.setProps({ events: [event({ id: 'e1' }), event({ id: 'e2' })] as never })
+    await nextTick()
+    await nextTick()
+
+    expect(wrapper.findAll('li')).toHaveLength(1)
+    expect(log.scrollTop).toBe(200)
   })
 
   it('opens a pre-populated log at the newest round', async () => {
@@ -169,7 +185,12 @@ describe('IncidentBattleLog', () => {
 
   it('lists unavailable responders by first name', () => {
     const wrapper = mountLog([
-      event({ id: 'e1', kind: 'round', message: 'Trade fire.', data: { skipped: ['Alice', 'Bob'] } }),
+      event({
+        id: 'e1',
+        kind: 'round',
+        message: 'Trade fire.',
+        data: { skipped: ['Alice', 'Bob'] },
+      }),
     ])
 
     expect(wrapper.text()).toContain('Unavailable: Alice, Bob')

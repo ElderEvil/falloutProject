@@ -77,6 +77,11 @@ pnpm install
 pnpm run dev
 ```
 
+After changing backend combat or task code, rebuild the infrastructure worker too:
+`podman compose -f docker-compose.infra.yml up -d --build --force-recreate dramatiq_worker`
+(or Zed's `Fallout: Rebuild dramatiq worker` task). Its code is baked into the image;
+restarting the local API alone leaves the worker running the previous implementation.
+
 **Verify everything works:**
 ```bash
 # Backend health check

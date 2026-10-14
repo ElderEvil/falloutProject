@@ -21,6 +21,7 @@ interface Props {
   vaultId: string
   dwellers: DwellerShort[]
   roomImageUrl?: string | null
+  fallbackImageUrl?: string | null
 }
 
 const props = defineProps<Props>()
@@ -183,6 +184,7 @@ const assignResponder = async (dwellerId: string) => {
       :incident="incident"
       :dwellers="dwellers"
       :room-image-url="roomImageUrl ?? null"
+      :fallback-image-url="fallbackImageUrl ?? null"
       :team="teamLoaded ? incidentStore.getIncidentTeam(incident.id) : undefined"
     />
 

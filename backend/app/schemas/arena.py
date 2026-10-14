@@ -1,13 +1,28 @@
 """Arena request/response schemas."""
 
-from pydantic import UUID4, BaseModel
+from pydantic import UUID4, BaseModel, Field
+
+from app.core.enums import ArenaMode
 
 
 class ArenaFightersRequest(BaseModel):
     """Fighter slot selection payload."""
 
+    mode: ArenaMode = ArenaMode.DUEL
     fighter_a_id: UUID4 | None = None
     fighter_b_id: UUID4 | None = None
+    fighter_c_id: UUID4 | None = None
+    fighter_d_id: UUID4 | None = None
+    opponent_keys: list[str] = Field(default_factory=list)
+
+
+class ArenaCreature(BaseModel):
+    """A selectable hunt opponent from the creature catalog."""
+
+    key: str
+    name: str
+    power: float
+    max_hp: int
 
 
 class ArenaFighter(BaseModel):
@@ -19,6 +34,9 @@ class ArenaFighter(BaseModel):
     health: int
     max_health: int
     power: float
+    is_creature: bool = False
+    image_url: str | None = None
+    thumbnail_url: str | None = None
 
 
 class ArenaRosterEntry(BaseModel):
@@ -29,6 +47,8 @@ class ArenaRosterEntry(BaseModel):
     level: int
     health: int
     max_health: int
+    image_url: str | None = None
+    thumbnail_url: str | None = None
 
 
 class ArenaMatchEventOut(BaseModel):
@@ -46,9 +66,13 @@ class ArenaRoomState(BaseModel):
     room_id: str
     room_name: str
     tier: int
+    mode: str
+    available_modes: list[ArenaMode]
     fighter_a_id: str | None
     fighter_b_id: str | None
     fighters: list[ArenaFighter]
+    team_a: list[ArenaFighter]
+    team_b: list[ArenaFighter]
     roster: list[ArenaRosterEntry]
     fight_ready: bool
     match_done: bool

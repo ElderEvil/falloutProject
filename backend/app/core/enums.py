@@ -212,6 +212,12 @@ class RoomTypeEnum(CaseInsensitiveEnum):
     ARENA = "arena"
 
 
+class ArenaMode(CaseInsensitiveEnum):
+    DUEL = "duel"
+    BRAWL = "brawl"
+    HUNT = "hunt"
+
+
 class WeaponTypeEnum(CaseInsensitiveEnum):
     MELEE = "melee"
     GUN = "gun"

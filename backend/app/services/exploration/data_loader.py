@@ -2,10 +2,12 @@
 
 import json
 from functools import lru_cache
+from operator import itemgetter
 from pathlib import Path
 
 from app.schemas.expedition import ExpeditionSiteList, SiteDefinition
 from app.schemas.exploration_event import EnemySchema
+from app.services.combat import incident_math
 
 # Data directory paths
 DATA_DIR = Path(__file__).parent.parent.parent / "data"
@@ -24,6 +26,33 @@ def load_enemies() -> list[dict]:
         enemies_data = json.load(f)
         # Validate with Pydantic
         return [EnemySchema(**enemy).model_dump() for enemy in enemies_data]
+
+
+def _creature_key(name: str) -> str:
+    return name.strip().lower().replace(".", "").replace(" ", "-")
+
+
+@lru_cache(maxsize=1)
+def list_arena_creatures() -> list[dict]:
+    """Arena opponents reuse the enemy catalog, with training robots replacing raiders.
+
+    Power reuses incident threat scaling; an incident threat of difficulty N is
+    defeated by dealing ``raider_power(N)`` total damage, so that is its effective HP.
+    """
+    enemies = [enemy for enemy in load_enemies() if _creature_key(enemy["name"]) != "raider-gang"]
+    enemies.extend([{"name": "Training Eyebot", "difficulty": 2}, {"name": "Training Mr. Handy", "difficulty": 3}])
+    creatures: list[dict] = []
+    for enemy in sorted(enemies, key=itemgetter("difficulty")):
+        power = incident_math.raider_power(enemy["difficulty"])
+        creatures.append(
+            {
+                "key": _creature_key(enemy["name"]),
+                "name": enemy["name"],
+                "power": power,
+                "max_hp": int(power),
+            }
+        )
+    return creatures
 
 
 @lru_cache(maxsize=1)

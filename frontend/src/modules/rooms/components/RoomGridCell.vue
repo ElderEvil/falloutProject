@@ -7,6 +7,8 @@ import type { Incident } from '@/modules/combat/models/incident'
 import type { Room } from '../models/room'
 import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
 import { getRoomImageUrl } from '@/core/utils/image'
+import { getRoomDetailScene } from '../models/roomScenes'
+import { useFallbackImage } from '../composables/useFallbackImage'
 import { getRoomSegmentCount } from '../utils/room'
 import TooltipLabel from './TooltipLabel.vue'
 interface Props {
@@ -22,6 +24,13 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+
+// Curated scene first; if it fails to load, the configured grid sprite; if both
+// fail, hide the image.
+const { url: roomImageUrl, onError: imageFailed } = useFallbackImage(() => [
+  getRoomDetailScene(props.room),
+  getRoomImageUrl(props.room.image_url),
+])
 
 const emit = defineEmits<{
   click: [room: Room, event: MouseEvent | KeyboardEvent]
@@ -113,11 +122,12 @@ const cellTitle = computed(() => {
     <div class="room-content">
       <!-- Room Image (toggleable) -->
       <img
-        v-if="showRoomImages && getRoomImageUrl(room.image_url ?? undefined)"
-        :src="getRoomImageUrl(room.image_url ?? undefined) ?? undefined"
+        v-if="showRoomImages && roomImageUrl"
+        :src="roomImageUrl"
         :alt="room.name"
         class="room-background-image"
         draggable="false"
+        @error="imageFailed"
       />
       <!-- 1-unit cells (elevator etc.): icon only, no text -->
       <div v-if="isSmallCell" class="small-cell-icon">
@@ -146,10 +156,7 @@ const cellTitle = computed(() => {
           v-if="canUpgrade(room)"
           :label="`Upgrade to Tier ${room.tier + 1} (${getUpgradeCost(room)} caps)`"
         >
-          <button
-            @click="emit('upgrade', room.id, $event)"
-            class="upgrade-button"
-          >
+          <button @click="emit('upgrade', room.id, $event)" class="upgrade-button">
             <Icon icon="mdi:arrow-up-circle" class="h-5 w-5" />
             <span class="upgrade-cost">{{ getUpgradeCost(room) }}</span>
           </button>

@@ -6,6 +6,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.dweller import dweller as dweller_crud
+from app.crud.exploration import exploration as exploration_crud
 from app.crud.objective import objective_crud
 from app.crud.quest import quest_crud
 from app.crud.room import room as room_crud
@@ -29,6 +30,9 @@ async def current_state_progress(db_session: AsyncSession, vault_id: UUID4, obje
         return len(await quest_crud.get_completed_quest_ids(db_session, vault_id))
     if objective.objective_type == "train" and not target.get("stat"):
         return len(await training_crud.get_by_vault(db_session, vault_id, status=TrainingStatus.COMPLETED))
+    if objective.objective_type == "explore":
+        # A departure target, not quest completion: credit any run already under way or finished.
+        return len(await exploration_crud.get_by_vault(db_session, vault_id=vault_id))
     if objective.objective_type in {"build", "assign", "assign_correct"}:
         room_type = normalize_room_type(target.get("room_type"))
         rooms = await room_crud.get_all_by_vault(db_session, vault_id)

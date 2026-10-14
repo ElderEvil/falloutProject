@@ -5,6 +5,7 @@ from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum, S
 from app.models.objective import Objective
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
+from app.services.exploration_service import exploration_service
 from app.services.progression.objectives.guidance import current_state_progress
 
 
@@ -73,3 +74,39 @@ async def test_assign_correct_ignores_unstaffed_rooms(async_session, vault):
         target_amount=1,
     )
     assert await current_state_progress(async_session, vault.id, objective) == 0
+
+
+async def test_explore_credits_an_existing_run_but_not_quest_completion(async_session, vault):
+    dweller = await crud.dweller.create(
+        db_session=async_session,
+        obj_in=DwellerCreate(
+            first_name="Explorer",
+            vault_id=vault.id,
+            gender=GenderEnum.MALE,
+            rarity=RarityEnum.COMMON,
+            age_group=AgeGroupEnum.ADULT,
+            level=1,
+            max_health=100,
+            health=100,
+        ),
+    )
+    await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+
+    explore = Objective(
+        challenge="Send a dweller exploring",
+        reward="50 caps",
+        category="starter",
+        objective_type="explore",
+        target_entity={},
+        target_amount=1,
+    )
+    expedition = Objective(
+        challenge="Complete 3 Quests",
+        reward="300 caps",
+        category="weekly",
+        objective_type="expedition",
+        target_entity={},
+        target_amount=3,
+    )
+    assert await current_state_progress(async_session, vault.id, explore) == 1
+    assert await current_state_progress(async_session, vault.id, expedition) == 0

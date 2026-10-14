@@ -191,9 +191,9 @@ class CRUDTeam(CRUDBase[Team, None, None]):
     async def _hazard_members(
         self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam, *, status: str | None = None
     ) -> list[TeamMember]:
-        """Living hazard-team members, most senior first."""
+        """Living hazard-team members, most senior first, dweller and current outfit eager-loaded."""
         query = self._hazard_members_query(vault_id, team, status=status).order_by(TeamMember.created_at)
-        query = query.options(selectinload(TeamMember.dweller))
+        query = query.options(selectinload(TeamMember.dweller).selectinload(Dweller.outfit))
         return list((await db_session.execute(query)).scalars().all())
 
     async def get_hazard_team(self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam) -> list[TeamMember]:

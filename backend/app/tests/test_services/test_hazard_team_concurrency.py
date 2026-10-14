@@ -28,6 +28,7 @@ from app.schemas.vault import VaultCreateWithUserID
 from app.services.hazard_team_service import QUALIFYING_INCIDENTS, hazard_team_service, roster_lock_key
 from app.tests.factory.rooms import create_fake_room
 from app.tests.factory.vaults import random_vault_number
+from app.tests.test_services._hazard_team_helpers import ensure_station
 
 pytestmark = pytest.mark.integration
 
@@ -79,6 +80,7 @@ async def roster(live_pg_engine: AsyncEngine, dweller_data: dict) -> AsyncIterat
             ),
         )
         room = await crud.room.create(session, RoomCreate(**create_fake_room(), vault_id=vault.id))
+        await ensure_station(session, vault.id)
         dweller = await crud.dweller.create(
             session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id, room_id=room.id)
         )

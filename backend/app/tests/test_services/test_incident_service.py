@@ -23,6 +23,7 @@ from app.schemas.common import AgeGroupEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.incident import IncidentRoundResult
 from app.schemas.quest import QuestCreate
+from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.combat import incident_math
@@ -46,13 +47,38 @@ async def room_fixture(async_session: AsyncSession, vault: Vault) -> Room:
 
 
 def create_test_room() -> dict:
-    """Create a test room that is NOT an elevator or arena (ensures incident can spawn)."""
+    """Create a test room that is NOT an elevator, arena, or response station (ensures incident can spawn)."""
     room_data = create_fake_room()
     # get_occupied_rooms (the spawner's candidate set) excludes elevators by name
-    # and arenas by category, so a wave-continuation spawn needs both rooms eligible.
-    while room_data["name"] == "Elevator" or room_data["category"] == RoomTypeEnum.ARENA:
+    # and arenas/response stations by category, so a wave-continuation spawn needs
+    # both rooms eligible.
+    while room_data["name"] == "Elevator" or room_data["category"] in (
+        RoomTypeEnum.ARENA,
+        RoomTypeEnum.RESPONSE,
+    ):
         room_data = create_fake_room()
     return room_data
+
+
+def response_station_room(vault_id, *, coordinate_x: int, coordinate_y: int, size: int = 3) -> RoomCreate:
+    """Build a Response Station (category ``response``) for incident-candidate tests."""
+    return RoomCreate(
+        name="Response Station",
+        category=RoomTypeEnum.RESPONSE,
+        ability="Endurance",
+        population_required=None,
+        base_cost=600,
+        incremental_cost=None,
+        t2_upgrade_cost=None,
+        t3_upgrade_cost=None,
+        size_min=3,
+        size_max=9,
+        size=size,
+        tier=1,
+        vault_id=vault_id,
+        coordinate_x=coordinate_x,
+        coordinate_y=coordinate_y,
+    )
 
 
 @pytest.mark.asyncio
@@ -183,6 +209,68 @@ async def test_incident_does_not_spread_into_an_arena(async_session: AsyncSessio
     )
 
     assert arena.id not in {room.id for room in adjacent}
+
+
+@pytest.mark.asyncio
+async def test_incident_never_spawns_in_a_response_station(async_session: AsyncSession, vault: Vault):
+    """A Response Station is a management surface; an incident there has no UI to open."""
+    station = await crud.room.create(
+        db_session=async_session,
+        obj_in=response_station_room(vault.id, coordinate_x=1, coordinate_y=1),
+    )
+    dweller_in = DwellerCreate(
+        first_name="Responder",
+        last_name="Dweller",
+        gender="male",
+        rarity="common",
+        vault_id=vault.id,
+        room_id=station.id,
+        strength=5,
+        perception=5,
+        endurance=5,
+        charisma=5,
+        intelligence=5,
+        agility=5,
+        luck=5,
+    )
+    dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    dweller.room_id = station.id
+    async_session.add(dweller)
+    await async_session.commit()
+
+    incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.RADROACH_INFESTATION)
+
+    assert incident is None
+
+
+@pytest.mark.asyncio
+async def test_incident_does_not_spread_into_a_response_station(async_session: AsyncSession, vault: Vault):
+    """A spread must not carry an incident into the station either."""
+    source = await crud.room.create(
+        db_session=async_session,
+        obj_in=RoomCreate(**create_test_room(), vault_id=vault.id, coordinate_x=6, coordinate_y=1),
+    )
+    station = await crud.room.create(
+        db_session=async_session,
+        obj_in=response_station_room(vault.id, coordinate_x=6, coordinate_y=2),
+    )
+
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=vault.id,
+        room_id=source.id,
+        incident_type=IncidentType.RADROACH_INFESTATION,
+        difficulty=2,
+    )
+
+    adjacent = await crud.room.get_adjacent_rooms(
+        async_session, vault.id, exclude_room_id=source.id, coord_x=6, coord_y=1
+    )
+    assert station.id not in {room.id for room in adjacent}
+
+    await incident_service._spread_incident(async_session, incident)
+    rooms_with_incidents = await crud.incident_crud.get_rooms_with_active_incidents(async_session, vault.id)
+    assert station.id not in rooms_with_incidents
 
 
 @pytest.mark.asyncio

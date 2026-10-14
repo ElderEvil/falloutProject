@@ -43,5 +43,29 @@ class CRUDIncidentParticipant(CRUDBase[IncidentParticipant, None, None]):
         )
         return (await db_session.execute(query)).scalar_one_or_none() or 0
 
+    async def count_incidents_by_dweller(
+        self, db_session: AsyncSession, dweller_ids: list[UUID4], incident_types: frozenset[IncidentType]
+    ) -> dict[UUID4, int]:
+        """Distinct incidents of these types each dweller has fought, in one grouped query.
+
+        Members with no matching incident are absent from the map; callers default
+        to 0. ``dweller_ids`` empty short-circuits so a bare roster never queries.
+        """
+        if not dweller_ids:
+            return {}
+        query = (
+            select(
+                IncidentParticipant.dweller_id,
+                func.count(func.distinct(IncidentParticipant.incident_id)),
+            )
+            .select_from(IncidentParticipant)
+            .join(Incident, Incident.id == IncidentParticipant.incident_id)
+            .where(IncidentParticipant.dweller_id.in_(dweller_ids))
+            .where(Incident.type.in_(list(incident_types)))
+            .group_by(IncidentParticipant.dweller_id)
+        )
+        rows = (await db_session.execute(query)).all()
+        return {row[0]: row[1] for row in rows}
+
 
 incident_participant_crud = CRUDIncidentParticipant(IncidentParticipant)

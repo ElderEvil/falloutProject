@@ -8,7 +8,7 @@ from app.core.enums import HazardTeam
 from app.models.team import ACTIVE_STATUS, RESERVE_STATUS
 from app.schemas.dweller import DwellerCreate
 from app.services.hazard_team_service import TEAM_SIZE, hazard_team_service
-from app.tests.test_services._hazard_team_helpers import make_member
+from app.tests.test_services._hazard_team_helpers import ensure_station, make_member
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 
 
@@ -35,6 +35,7 @@ async def test_activate_reserve_member_takes_lowest_free_slot(
     """A benched member activated by hand fills the lowest free slot and the roster reflects it."""
     room = room_with_dwellers["room"]
     dwellers = await _dwellers_for_team(async_session, room_with_dwellers, dweller_data, TEAM_SIZE + 1)
+    await ensure_station(async_session, room.vault_id)
     for dweller in dwellers[:2]:
         await make_member(async_session, room.vault_id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
     await make_member(async_session, room.vault_id, dwellers[2].id, HazardTeam.FIRE, RESERVE_STATUS)
@@ -65,6 +66,7 @@ async def test_activate_when_team_full_raises_conflict(
     """Activating a fourth member while three hold active places is refused."""
     room = room_with_dwellers["room"]
     dwellers = await _dwellers_for_team(async_session, room_with_dwellers, dweller_data, TEAM_SIZE + 1)
+    await ensure_station(async_session, room.vault_id)
     for dweller in dwellers[:TEAM_SIZE]:
         await make_member(async_session, room.vault_id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
     await make_member(async_session, room.vault_id, dwellers[TEAM_SIZE].id, HazardTeam.FIRE, RESERVE_STATUS)

@@ -486,6 +486,7 @@ class ArenaService:
             word = "two" if size == 1 else "four"
             raise ValidationException(detail=f"Arena needs {word} adult fighters selected")
 
+        state = await arena_state_crud.get_or_create(db_session, room.id)
         state.fight_started_at = datetime.utcnow()
         db_session.add(state)
         await db_session.commit()
@@ -543,6 +544,7 @@ class ArenaService:
                 continue
             if now - state.fight_started_at < timedelta(seconds=game_config.game_loop.arena_countdown_seconds):
                 continue
+            state = await arena_state_crud.get_or_create(db_session, room.id)
             mode = state.mode or ArenaMode.DUEL
             team_a, team_b = await self._teams_from_state(db_session, room, state)
             if not team_a or not team_b:

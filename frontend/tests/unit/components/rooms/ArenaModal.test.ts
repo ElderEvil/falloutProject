@@ -429,6 +429,20 @@ describe('ArenaModal', () => {
     expect(wrapper.text()).toContain('NEEDS DWELLERS + CREATURES')
   })
 
+  it('excludes defeated creatures from the heal-injured action', async () => {
+    storeMock.currentRoom = {
+      ...storeMock.huntRoom,
+      match_done: true,
+      winner_name: 'Alpha Dweller',
+      team_a: storeMock.huntRoom.team_a.map((fighter) => ({ ...fighter, health: 20 })),
+      team_b: storeMock.huntRoom.team_b.map((fighter) => ({ ...fighter, health: 0 })),
+    }
+    const wrapper = mountModal()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('HEAL INJURED (1)')
+  })
+
   it('keeps room-management actions out of the battle panel', async () => {
     const wrapper = mountModal()
     await flushPromises()

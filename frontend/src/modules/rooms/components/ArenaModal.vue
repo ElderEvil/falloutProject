@@ -380,7 +380,8 @@ const unassign = async (entry: ArenaRosterEntry) => {
 // match. Fighters under 50% HP are the ones a stimpack actually helps.
 const injuredFighters = computed(() =>
   teamFighters.value.filter(
-    (fighter) => fighter.max_health > 0 && fighter.health / fighter.max_health < 0.5
+    (fighter) =>
+      !fighter.is_creature && fighter.max_health > 0 && fighter.health / fighter.max_health < 0.5
   )
 )
 

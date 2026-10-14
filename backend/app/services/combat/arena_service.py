@@ -81,6 +81,15 @@ class ArenaService:
         # (room_id, dweller_id) -> fractional damage carried between ticks so a
         # 8.7 vs 8.0 power difference shows up instead of truncating both to 8.
         self._damage_carry: dict[tuple[str, str], float] = {}
+        # (room_id, dweller_key) knocked out this match: kept down until the match
+        # resets. Stored here rather than as 0 HP so an arena KO stays separate from
+        # the dweller's lethal health (the vault health tick would kill a 0-HP dweller).
+        self._knockouts: set[tuple[str, str]] = set()
+
+    def _clear_room_state(self, room_key: str) -> None:
+        self._round_seq.pop(room_key, None)
+        self._damage_carry = {key: carry for key, carry in self._damage_carry.items() if key[0] != room_key}
+        self._knockouts = {key for key in self._knockouts if key[0] != room_key}
 
     @staticmethod
     def _validate_mode_tier(room: Room, mode: ArenaMode) -> None:
@@ -188,9 +197,7 @@ class ArenaService:
         room.arena_opponents = opponents
         room.arena_last_fight_at = None
         room.arena_fight_started_at = None
-        room_key = str(room.id)
-        self._round_seq.pop(room_key, None)
-        self._damage_carry = {key: carry for key, carry in self._damage_carry.items() if key[0] != room_key}
+        self._clear_room_state(str(room.id))
 
         await arena_match_event_crud.delete_for_room(db_session, room.id)
 
@@ -257,6 +264,11 @@ class ArenaService:
         team_b = (
             self._creature_participants(room) if mode == ArenaMode.HUNT else self._dweller_participants(b_slots, by_id)
         )
+        # Knocked-out dwellers stay on the team (so the selection is not rejected)
+        # but fight at 0 HP.
+        for participant in (*team_a, *team_b):
+            if not participant.is_creature and (str(room.id), participant.key) in self._knockouts:
+                participant.health = 0
 
         if mode == ArenaMode.HUNT:
             if not 1 <= len(team_a) <= 2 or not 1 <= len(team_b) <= 2:
@@ -310,19 +322,20 @@ class ArenaService:
 
     @staticmethod
     def _can_start(
-        mode: ArenaMode,
         team_a: list[ArenaParticipant],
         team_b: list[ArenaParticipant],
         *,
         started: bool,
         match_done: bool,
     ) -> bool:
+        """True when an idle room has a complete selection on both sides.
+
+        ``get_teams`` already returns ``([], [])`` unless each side has its full
+        complement for the mode, so a non-empty team on each side is the whole check.
+        """
         if started or match_done:
             return False
-        if mode == ArenaMode.HUNT:
-            return 1 <= len(team_a) <= 2 and 1 <= len(team_b) <= 2
-        size = 2 if mode == ArenaMode.BRAWL else 1
-        return len(team_a) >= size and len(team_b) >= size
+        return bool(team_a) and bool(team_b)
 
     async def get_arena_state(self, db_session: AsyncSession, vault_id: UUID4) -> ArenaState:
         """Build the full arena state for a vault: fighters, roster, flags, journal."""
@@ -385,8 +398,7 @@ class ArenaService:
                     match_done=match_done,
                     fight_started=started,
                     countdown_remaining=countdown_remaining,
-                    can_start=mode_unlocked
-                    and self._can_start(mode, team_a, team_b, started=started, match_done=match_done),
+                    can_start=mode_unlocked and self._can_start(team_a, team_b, started=started, match_done=match_done),
                     winner_name=winner_name,
                     events=events,
                 )
@@ -428,9 +440,7 @@ class ArenaService:
                 changed = True
                 room.arena_last_fight_at = None
                 room.arena_fight_started_at = None
-                room_key = str(room.id)
-                self._round_seq.pop(room_key, None)
-                self._damage_carry = {key: carry for key, carry in self._damage_carry.items() if key[0] != room_key}
+                self._clear_room_state(str(room.id))
                 await arena_match_event_crud.delete_for_room(db_session, room.id)
             db_session.add(room)
         if changed and commit:
@@ -532,7 +542,8 @@ class ArenaService:
 
     @staticmethod
     def _team_damage(team: list[ArenaParticipant], seconds_passed: int) -> float:
-        return sum(member.power for member in team) / 5 * seconds_passed
+        """Damage per tick from standing attackers only; knocked-out members deal none."""
+        return sum(member.power for member in team if member.health > 0) / 5 * seconds_passed
 
     def _apply_team_damage(
         self,
@@ -608,9 +619,16 @@ class ArenaService:
         hits_on_a = self._apply_team_damage(room_key, team_a, damage_from_b)
 
         for participant in (*team_a, *team_b):
-            if participant.dweller is not None:
+            if participant.dweller is None:
+                continue
+            if participant.health <= 0:
+                # Non-lethal arena KO: floor the dweller at 1 HP and keep the KO in
+                # memory so the fighter stays down without the health tick killing them.
+                self._knockouts.add((room_key, participant.key))
+                participant.dweller.health = 1
+            else:
                 participant.dweller.health = participant.health
-                db_session.add(participant.dweller)
+            db_session.add(participant.dweller)
 
         seq = self._round_seq.get(room_key, 1)
         self._emit_hit_events(db_session, room, seq, team_b, hits_on_a)
@@ -641,6 +659,7 @@ class ArenaService:
                 participant.health = max(1, participant.health)
                 if participant.dweller is not None:
                     participant.dweller.health = participant.health
+        self._clear_room_state(room_key)
 
         winner = self._representative(winner_team)
         loser = self._representative(loser_team)

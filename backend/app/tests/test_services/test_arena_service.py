@@ -44,6 +44,14 @@ def test_training_robots_are_valid_hunt_opponents():
         ArenaService._hunt_opponents(["raider-gang"])
 
 
+def test_team_damage_ignores_knocked_out_attackers():
+    team = [
+        ArenaParticipant(key="down", name="Down", short_name="Down", power=100.0, health=0, max_health=100),
+        ArenaParticipant(key="up", name="Up", short_name="Up", power=20.0, health=10, max_health=100),
+    ]
+    assert ArenaService._team_damage(team, 1) == pytest.approx(4.0)
+
+
 @pytest_asyncio.fixture(name="arena_room")
 async def arena_room_fixture(async_session: AsyncSession, vault: Vault) -> Room:
     """Create an arena room for testing."""
@@ -602,6 +610,80 @@ class TestArenaService:
         assert weak.health == 0
         assert strong.health == 189
         assert service._damage_carry[(str(arena_room.id), "strong")] == expected_carry
+
+    @pytest.mark.asyncio
+    async def test_resolve_round_defeated_creature_stops_dealing_damage(self, async_session, arena_room):
+        service = ArenaService()
+        hero = ArenaParticipant(key="hero", name="Hero", short_name="Hero", power=100.0, health=1000, max_health=1000)
+        weak = ArenaParticipant(
+            key="weak", name="Weak", short_name="Weak", power=50.0, health=5, max_health=5, is_creature=True
+        )
+        strong = ArenaParticipant(
+            key="strong",
+            name="Strong",
+            short_name="Strong",
+            power=100.0,
+            health=1000,
+            max_health=1000,
+            is_creature=True,
+        )
+
+        await service._resolve_round(async_session, arena_room, [hero], [weak, strong], 1)
+        assert weak.health == 0
+        after_first = hero.health
+
+        await service._resolve_round(async_session, arena_room, [hero], [weak, strong], 1)
+
+        # Only the surviving creature attacks: 100 / 5 = 20, not (100 + 50) / 5 = 30.
+        assert hero.health == after_first - 20
+
+    @pytest.mark.asyncio
+    async def test_brawl_knockout_keeps_fighter_alive_and_match_running(
+        self, async_session, arena_room, fighter_a, fighter_b, fighter_c, fighter_d
+    ):
+        from datetime import datetime, timedelta
+
+        for fighter in (fighter_a, fighter_b, fighter_c, fighter_d):
+            fighter.room_id = arena_room.id
+        await async_session.commit()
+        service = ArenaService()
+        await service.set_fighters(
+            async_session,
+            arena_room.id,
+            fighter_a.id,
+            fighter_b.id,
+            mode=ArenaMode.BRAWL,
+            fighter_c_id=fighter_c.id,
+            fighter_d_id=fighter_d.id,
+        )
+        fighter_a.health = 1000
+        fighter_c.health = 1000
+        fighter_b.health = 1
+        fighter_d.health = 1000
+        arena_room.arena_fight_started_at = datetime.utcnow() - timedelta(seconds=10)
+        await async_session.commit()
+
+        await service.process_arena_ticks(async_session, 1)
+        await async_session.refresh(arena_room)
+        await async_session.refresh(fighter_b)
+        await async_session.refresh(fighter_d)
+
+        # One knockout must not end the match early...
+        assert arena_room.arena_last_fight_at is None
+        # ...nor leave the dweller lethally at 0 HP (the vault health tick kills those).
+        assert fighter_b.health >= 1
+        assert fighter_d.health > 0
+
+        team_a, team_b = await service.get_teams(async_session, arena_room)
+        assert len(team_a) == 2
+        assert len(team_b) == 2
+        knocked_out = next(p for p in team_b if p.key == str(fighter_b.id))
+        assert knocked_out.health == 0
+
+        # The next tick still resolves a round: a lone KO must not freeze the match.
+        result = await service.process_arena_ticks(async_session, 1)
+        assert result["arena"]["rounds"]
+        assert result["arena"]["rounds"][0]["status"] == "ongoing"
 
     @pytest.mark.asyncio
     async def test_resolve_round_team_defeat_reports_winner_and_loser(self, async_session, arena_room):

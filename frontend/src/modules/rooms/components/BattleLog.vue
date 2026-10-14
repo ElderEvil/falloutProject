@@ -43,7 +43,7 @@ const scrollToNewest = () => {
 }
 
 watch(
-  () => groupedEntries.value.length,
+  () => props.entries.length,
   async () => {
     await nextTick()
     const el = scrollEl.value
@@ -71,7 +71,9 @@ watch(
           class="flex items-baseline justify-between gap-2 text-xs text-terminal-green"
         >
           <span class="flex min-w-0 items-baseline gap-1.5">
-            <span class="shrink-0 rounded border border-theme-primary/30 px-1 text-[10px] font-bold tracking-wide text-terminal-green-dim">
+            <span
+              class="shrink-0 rounded border border-theme-primary/30 px-1 text-[10px] font-bold tracking-wide text-terminal-green-dim"
+            >
               {{ entry.kind }}
             </span>
             <span class="min-w-0">{{ entry.message }}</span>

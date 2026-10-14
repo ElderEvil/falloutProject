@@ -9,7 +9,7 @@ from app.services.exploration_service import exploration_service
 from app.services.progression.objectives.guidance import current_state_progress
 
 
-async def _room(async_session, vault, ability, name="Power Generator"):
+async def _room(async_session, vault, ability, name="Power Generator", capacity=None, size=None):
     return await crud.room.create(
         db_session=async_session,
         obj_in=RoomCreate(
@@ -21,6 +21,8 @@ async def _room(async_session, vault, ability, name="Power Generator"):
             t3_upgrade_cost=None,
             size_min=3,
             size_max=3,
+            capacity=capacity,
+            size=size,
             vault_id=vault.id,
         ),
     )
@@ -76,17 +78,28 @@ async def test_assign_correct_ignores_unstaffed_rooms(async_session, vault):
     assert await current_state_progress(async_session, vault.id, objective) == 0
 
 
-async def test_build_additional_housing_is_not_credited_by_the_seeded_room(async_session, vault):
-    await _room(async_session, vault, SPECIALEnum.CHARISMA, name="Living room")
+async def test_build_additional_housing_credits_construction_not_upgrades(async_session, vault):
+    seeded = await _room(async_session, vault, SPECIALEnum.CHARISMA, name="Living room", capacity=8, size=3)
     objective = Objective(
         challenge="Build a Living Quarters",
         reward="dweller:Wanderer",
         category="starter",
         objective_type="build",
-        target_entity={"room_type": "living_room", "additional": True},
+        target_entity={"room_type": "living_room", "additional": True, "baseline_size": 3},
         target_amount=1,
     )
     assert await current_state_progress(async_session, vault.id, objective) == 0
+
+    seeded.capacity = 10
+    seeded.tier = 2
+    async_session.add(seeded)
+    await async_session.commit()
+
+    assert await current_state_progress(async_session, vault.id, objective) == 0
+
+    await _room(async_session, vault, SPECIALEnum.CHARISMA, name="Living room", capacity=8, size=3)
+
+    assert await current_state_progress(async_session, vault.id, objective) == 1
 
 
 async def test_explore_credits_an_existing_run_but_not_quest_completion(async_session, vault):

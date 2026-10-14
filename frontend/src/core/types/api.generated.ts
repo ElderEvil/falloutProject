@@ -8685,6 +8685,8 @@ export interface components {
              * @description Player-facing guidance for how/why to complete the objective
              */
             description?: string | null;
+            /** Template Key */
+            template_key?: string | null;
             /**
              * Id
              * Format: uuid4

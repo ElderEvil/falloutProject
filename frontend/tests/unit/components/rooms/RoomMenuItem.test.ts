@@ -59,6 +59,14 @@ describe('RoomMenuItem', () => {
     expect(details.indexOf(rows[1].element)).toBeLessThan(details.indexOf(progress.element))
   })
 
+  it('anchors the Living room option for the onboarding tour', () => {
+    const living = mount(RoomMenuItem, { props: { room: { ...room, name: 'Living room' } } })
+    expect(living.find('[data-onboarding="build-living-room"]').exists()).toBe(true)
+
+    const other = mount(RoomMenuItem, { props: { room } })
+    expect(other.find('[data-onboarding]').exists()).toBe(false)
+  })
+
   it('renders all four room detail rows', () => {
     const wrapper = mount(RoomMenuItem, {
       props: { room: { ...room, population_required: 10 } },

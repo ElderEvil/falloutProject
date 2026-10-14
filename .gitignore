@@ -295,3 +295,4 @@ scripts/scenario_output/
 
 # Claude Code skill symlinks (created by `skills add`; OpenCode/Zed read .agents/skills/)
 .claude/
+output/imagegen/arena-flare/

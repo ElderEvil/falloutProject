@@ -132,6 +132,7 @@ def test_spine_migration_rebalances_starter_rows_without_touching_claims(monkeyp
         metadata.create_all(connection)
         identifier = uuid4()
         retired_id = uuid4()
+        custom_id = uuid4()
         connection.execute(
             objective.insert().values(
                 id=identifier,
@@ -158,6 +159,20 @@ def test_spine_migration_rebalances_starter_rows_without_touching_claims(monkeyp
                 sequence=4,
                 description="Retired orientation step.",
                 template_key="starter:collect 150 power",
+            )
+        )
+        connection.execute(
+            objective.insert().values(
+                id=custom_id,
+                challenge="My custom starter",
+                reward="10 caps",
+                category="starter",
+                objective_type="collect",
+                target_entity={"resource_type": "caps"},
+                target_amount=5,
+                sequence=None,
+                description="A template this release did not withdraw.",
+                template_key="starter:my custom starter",
             )
         )
         connection.execute(
@@ -196,12 +211,14 @@ def test_spine_migration_rebalances_starter_rows_without_touching_claims(monkeyp
         assert retired["sequence"] is None
         retired_link = connection.execute(sa.select(links).where(links.c.objective_id == retired_id)).mappings().one()
         assert retired_link["progress"] == 5
-        assert len(connection.execute(sa.select(objectives)).all()) == 94
+        custom = connection.execute(sa.select(objectives).where(objectives.c.id == custom_id)).mappings().one()
+        assert custom["objective_type"] == "collect"
+        assert len(connection.execute(sa.select(objectives)).all()) == 95
         earned = connection.execute(sa.select(links).where(links.c.objective_id == identifier)).mappings().one()
         assert earned["reward_snapshot"] == "50 caps"
         assert _frozen_catalog(migration) == _json_catalog()
         migration.upgrade()
-        assert len(connection.execute(sa.select(objectives)).all()) == 94
+        assert len(connection.execute(sa.select(objectives)).all()) == 95
         migration.downgrade()
-        assert len(connection.execute(sa.select(objectives)).all()) == 94
+        assert len(connection.execute(sa.select(objectives)).all()) == 95
     engine.dispose()

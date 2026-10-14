@@ -53,7 +53,10 @@ export interface ObjectiveProgressUpdate {
 
 /** The guided arc stays on the current step until its reward is claimed. */
 export function currentObjective(objectives: Objective[]): Objective | undefined {
-  const active = objectives.filter((objective) => !objective.is_completed)
+  const active = objectives.filter(
+    (objective) =>
+      !objective.is_completed && !(objective.category === 'starter' && !objective.objective_type)
+  )
   return (
     active
       .filter((objective) => objective.category === 'starter')

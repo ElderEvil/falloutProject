@@ -1,7 +1,7 @@
 """CRUD operations for explorations."""
 
 from pydantic import UUID4
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
@@ -33,6 +33,13 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
             query = query.where(Exploration.status.in_(IN_PROGRESS_STATUSES))
         result = await db_session.execute(query)
         return list(result.scalars().all())
+
+    async def count_by_vault(self, db_session: AsyncSession, *, vault_id: UUID4) -> int:
+        """Count every exploration for a vault, past runs included."""
+        result = await db_session.execute(
+            select(func.count()).select_from(Exploration).where(Exploration.vault_id == vault_id)
+        )
+        return int(result.scalar_one())
 
     async def get_for_update(self, db_session: AsyncSession, exploration_id: UUID4) -> Exploration | None:
         """One exploration locked FOR UPDATE (reward claiming serialization).

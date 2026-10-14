@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { reactive, ref } from 'vue'
 import OnboardingSpotlight from '@/modules/progression/components/OnboardingSpotlight.vue'
+import { useOnboardingState } from '@/core/composables/useOnboardingState'
 import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import type { Objective } from '@/modules/progression/models/objective'
 
@@ -62,6 +63,8 @@ beforeEach(() => {
   route.path = '/vault/v1'
   route.params.id = 'v1'
   vi.spyOn(useObjectivesStore(), 'fetchObjectives').mockResolvedValue()
+  // A vault created through the standard creation flow; the marker opts it into the welcome.
+  useOnboardingState().patch('v1', { created: true })
 })
 
 describe('OnboardingSpotlight', () => {
@@ -70,6 +73,16 @@ describe('OnboardingSpotlight', () => {
     const wrapper = mountSpotlight()
     await flushPromises()
     expect(document.body.textContent).toContain('Welcome, Overseer')
+    wrapper.unmount()
+  })
+
+  it('does not auto-welcome a vault that was not created through the flow', async () => {
+    useOnboardingState().reset('v1')
+    useObjectivesStore().objectives = [objective('first', 'assign')]
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    expect(document.body.textContent).not.toContain('Welcome, Overseer')
+    expect(document.body.textContent).toContain(arc.assign.challenge)
     wrapper.unmount()
   })
 
@@ -90,6 +103,17 @@ describe('OnboardingSpotlight', () => {
     expect(document.body.querySelector('.onboarding-card')).toBeNull()
     expect(document.body.querySelector('.onboarding-cutout')).toBeNull()
     expect(document.body.textContent).not.toContain(arc.reach18.challenge)
+    wrapper.unmount()
+  })
+
+  it('shows the guide again once the skip is re-armed', async () => {
+    const { patch, reset } = useOnboardingState()
+    patch('v1', { skipped: true })
+    reset('v1')
+    useObjectivesStore().objectives = [objective('first', 'assign')]
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    expect(document.body.textContent).toContain(arc.assign.challenge)
     wrapper.unmount()
   })
 

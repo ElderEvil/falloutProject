@@ -30,6 +30,7 @@ const starterObjective = (sequence: number, completed = false): Objective => ({
   progress: completed ? 1 : 0,
   total: 1,
   is_completed: completed,
+  objective_type: 'collect',
 })
 
 let wrapper: VueWrapper
@@ -114,6 +115,20 @@ describe('ObjectivesView objective gating', () => {
     expect(wrapper.text()).toContain('Match a dweller to their room')
     expect(wrapper.text()).toContain("build the Overseer's Office")
     expect(wrapper.text()).not.toContain('Collect 100 caps')
+  })
+
+  it('ignores a retired starter when picking the current step', async () => {
+    objectivesStore.objectives = [
+      starterObjective(5, true),
+      { ...dailyObjective, id: 'retired', category: 'starter', sequence: null, objective_type: undefined },
+      { ...dailyObjective, id: 'daily-1' },
+    ]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('[role="tab"]').length).toBe(5)
+    expect(wrapper.text()).toContain('Collect 100 caps')
   })
 
   it('opens the regular tabs once the Office step is behind', async () => {

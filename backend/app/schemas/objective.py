@@ -15,6 +15,7 @@ class ObjectiveCreate(ObjectiveBase):
 
 
 class ObjectiveRead(ObjectiveBase):
+    template_key: str | None = Field(default=None, max_length=160)
     id: UUID4
     progress: int
     total: int

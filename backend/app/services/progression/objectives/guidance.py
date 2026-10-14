@@ -32,7 +32,7 @@ async def current_state_progress(db_session: AsyncSession, vault_id: UUID4, obje
         return len(await training_crud.get_by_vault(db_session, vault_id, status=TrainingStatus.COMPLETED))
     if objective.objective_type == "explore":
         # A departure target, not quest completion: credit any run already under way or finished.
-        return len(await exploration_crud.get_by_vault(db_session, vault_id=vault_id))
+        return await exploration_crud.count_by_vault(db_session, vault_id=vault_id)
     if objective.objective_type in {"build", "assign", "assign_correct"}:
         room_type = normalize_room_type(target.get("room_type"))
         rooms = await room_crud.get_all_by_vault(db_session, vault_id)
@@ -42,7 +42,12 @@ async def current_state_progress(db_session: AsyncSession, vault_id: UUID4, obje
             if not room_type or room_type in {"*", "any"} or normalize_room_type(room.name) == room_type
         }
         if objective.objective_type == "build":
-            return 0 if target.get("additional") else len(matching)
+            if target.get("additional"):
+                # Construction only: floor area beyond the seeded quarter. A tier upgrade
+                # raises capacity without changing size, so it must not complete this.
+                baseline_size = target.get("baseline_size", 0)
+                return 1 if sum(room.size or 0 for room in matching.values()) > baseline_size else 0
+            return len(matching)
         dwellers = await dweller_crud.get_living_in_vault(db_session, vault_id)
         if objective.objective_type == "assign":
             return sum(dweller.room_id in matching for dweller in dwellers)

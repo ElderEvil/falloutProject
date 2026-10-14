@@ -86,7 +86,7 @@ A genuine reassignment objective is acceptable only after the feasibility gate b
 | 3 | Inspect a worker’s strongest SPECIAL and its room match | Server `assign_correct`, `nav-dwellers`, with a client teaching acknowledgement | Claim +50 caps after reviewing; existing-state credit allowed | Choose a real matching worker. Do not require a Living-room adult to move unless a valid, safe destination is proven. |
 | 4 | Build additional Living Quarters; explain current population versus housing limit | Server `build`, `build` | Successful additional construction; claim `dweller:Wanderer` | Actual price, legal footprint and enough post-build capacity for an arrival. Existing seeded housing alone must not qualify. |
 | 5 | Review a healthy adult, choose duration and dispatch | Server departure objective, `nav-exploration` | Successful departure; claim +50 caps | Prefer new arrival with no production job. Default short duration; explain supplies and recall before confirming. |
-| End | “Your explorer is out. Keep supplies steady and grow toward your next room.” | Client handoff | Orientation complete after departure reward is claimed | Show Briefing and background progress. No population wait or return required. |
+| End | “Keep supplies steady and grow toward your next room.” Mention the explorer only if a run exists | Client handoff | Default path ends after departure claim; locally skipped lessons can end teaching earlier | Show Briefing and background progress. Pending rewards remain in Starter. No population wait or return required. |
 
 Step 3's copy must match its contract: call it “Understand SPECIAL staffing” if it permits
 existing-state credit. Do not label a ready review step “Assign a dweller” while silently requiring
@@ -207,6 +207,381 @@ through the Briefing after orientation ends and do not disappear merely because 
 Do not invent APIs for information already in vault, room, exploration or Radio stores. Load missing
 required data explicitly; missing data must not be mistaken for zero population/no active operation.
 Avoid new polling loops per chip. Keep notification preferences and critical-alert behavior intact.
+
+## Per-step “Skip step”
+
+### Contract and controls
+
+Every teaching card offers **Skip step**, alongside Continue or its relevant action. Keep
+**Skip tour** as a separate, quieter control; on the welcome card it remains the whole-tour exit.
+On a ready objective card, Claim stays the primary action and Skip step remains available.
+Disable conflicting controls while a claim is in flight, so a successful response cannot advance
+the wrong teaching card. Skipping requires no confirmation or network request.
+
+Skip step dismisses this explanation for this vault and advances the **teaching** cursor. It does
+not claim, complete, delete, waive, reset, or forfeit a server objective. No reward is granted, and
+no API permission/order rule changes. A tap lesson is locally skipped; an objective-backed lesson
+is locally skipped while its objective remains in Starter. Use the helper text “Skips this lesson.
+Your objective and reward stay in Starter.” Provide a brief Undo action that restores this lesson
+only if it is still relevant; do not reset other lessons or server state.
+
+The lesson selector must therefore stop using the current server objective as its only cursor.
+Select the first relevant unacknowledged/unskipped teaching entry whose action can be taken now.
+Server order still decides which rewards may be earned/claimed. When all orientation lessons are
+acknowledged or skipped, close the tour and hand off to the Briefing even if server rewards remain.
+The permanent Starter surface must still identify the current claimable server step.
+
+### Dependencies when a lesson is skipped
+
+| Player choice | What the guide does next | What stays pending |
+|---|---|---|
+| Skip the power-bar or generator explanation | Move to the next eligible teaching entry | Nothing on the server; no reward involved |
+| Skip SPECIAL review | Offer the housing lesson if affordable and placeable | Staffing reward remains current in Starter; early housing construction must reconcile later |
+| Skip housing explanation | Offer departure only if a suitable adult can be sent safely | Housing objective and arrival reward remain; never pretend Wanderer exists |
+| Skip a ready reward card | Hide this teaching card; show a quiet “Reward waiting in Starter” affordance | Earned payout stays intact; later ordered rewards may require this claim first |
+| Skip departure explanation | End short orientation; contextual help remains available | Departure objective stays available; no run is dispatched |
+| Skip every orientation entry | Briefing and normal play continue immediately | All server contracts, claims and critical alerts remain unchanged |
+
+Departure eligibility uses the real policy, not “idle only.” A healthy resting adult may be a
+safe candidate; never silently remove the only essential production worker to manufacture one.
+If no safe candidate exists after skipping housing, hide the departure spotlight and show a
+non-dimming explanation/link to housing or the pending arrival claim. That is a recovery action,
+not a reappearance of the skipped explanation. Do not call it a completed departure lesson.
+
+When a later lesson's reward is blocked by an earlier unclaimed objective, explain “Claim your
+earlier reward in Starter first” and link there. Do not enable a claim that the backend will reject,
+auto-claim multiple steps, or reopen the skipped spotlight. Building and dispatching out of order
+must reconcile through the backend rules already specified above; this is a dependency of shipping
+Skip step, not an exception to current-only event counters.
+
+### State and recovery
+
+Extend `useOnboardingState` with stable per-lesson statuses (`acknowledged` / `skipped`), scoped
+by vault and teaching version. Absence means unseen; do not store a separate redundant next index.
+Keep whole-tour suppression separate. Existing `skipped: true` remains a whole-tour choice after
+migration. A single Skip step must never set it. Use IDs such as `orientation.resources` rather
+than sequence numbers, challenge text or DOM selectors.
+
+Store status only on deliberate acknowledgement/skip, not on rendering, polling, route entry,
+claim failure, or an API response merely proving an objective is earned. Reload/route changes and
+multiple mounted consumers must converge on the same ledger. Missing storage falls back to session
+state; it cannot affect rewards. Relevance is recomputed from live data, never saved as truth.
+
+Help offers **Resume guide**, **Replay orientation**, and **Reset first-time hints** with explicit
+scope to the selected vault. Resume continues unseen entries without clearing skips. Replay clears
+orientation teaching statuses and explicitly enables teaching replay; it works after all server
+steps are claimed and never pays them again. Reset hints clears only the contextual ledger.
+Avoid promising replay if the implementation only clears the whole-tour skip flag. Replay does
+not need to mark an old vault newly created to show an introductory explanation.
+
+## Curated first-time mechanic triggers
+
+### Purpose and initial set
+
+First-time hints explain a mechanic when the player encounters it in a meaningful context. They
+are small inline cards or anchored popovers with Continue / Skip step, normally **without dim**.
+They do not create objectives, grant rewards, force navigation, dispatch anything, or gate actions.
+Feature unlock announcements and earned-reward notifications keep their existing independent flow.
+
+Start with this finite authored set; do not attach automatic tours to every tab, click or event.
+The trigger is a semantic UI action plus eligible live state. A trigger adapter may run on panel
+entry, but ordinary DOM insertion or background fetching must not enqueue lessons.
+
+| Mechanic ID | First meaningful trigger | Explain | Eligibility / suppression |
+|---|---|---|---|
+| `resources` | Player opens the resource explanation or generator details | Stock versus capacity, net trend, production is automatic | Share completion with orientation resource lessons; critical recovery takes priority |
+| `special-staffing` | Player opens a worker's SPECIAL/assignment controls | Strongest stat, room match, slot and age constraints | Show actual candidate/room data; no transfer required; share orientation acknowledgement |
+| `housing-build` | Player selects Living room in the build menu | Capacity versus population, quoted cost, legal placement and merging | Once per vault; explain before committing; share orientation housing lesson |
+| `exploration-departure` | Player opens a valid send-duration/party preview | Duration, supplies, staffing impact, return/recall lifecycle | Eligible adult and loaded preview; never require supplies absent from storage; share orientation lesson |
+| `radio-recruitment` | Player opens Radio controls while recruitment is relevant | Recruitment versus happiness, space requirement, average arrival estimate | Actual Radio exists; describe current mode; no guaranteed countdown or silent switch |
+| `medical-treatment` | Player opens treatment controls for an injured/irradiated dweller | Stimpaks heal; RadAway removes radiation; actual applicability | Relevant condition and controls loaded; don't obstruct urgent treatment or invent available stock |
+| `loot-equipment` | Player opens returned loot or an equipment slot with an available item | Keep/equip/sell choices and stat effects | Wait until reward modal closes for optional help; do not claim or equip automatically |
+| `quest-party` | Player selects an available mission in the Office | Requirements, party roles/equipment and quest travel versus free roam | Office/mission exists; explain missing requirements directly; no quest-completion wait |
+| `training-start` | Player selects a training room or opens a training preview | Permanent stat gain, worker availability, background timer | Unlocked room and real preview; no spotlight on completion wait |
+| `crafting-recipe` | Player opens a known recipe with its material requirements | Materials, recipe/stat requirements and crafting timer | Relevant workshop exists; missing materials are explained without implying crafting is ready |
+
+Defer separate scrapping, breeding, arena and advanced progression lessons until the initial set
+is validated. The scrapping lesson, when added, belongs **before** destructive confirmation and
+must explain schematic eligibility without implying a guaranteed result. This planning scope
+does not change those mechanics or their existing confirmation dialogs.
+
+### Trigger lifecycle and arbitration
+
+Use one small authored definition list for mechanic ID, eligible context, copy and preferred anchor.
+Wire explicit calls from existing successful action/preview flows rather than a global event bus
+or watchers over all stores. Reuse the guide shell and state helper where appropriate; do not build
+a generic rules engine, new notification category, analytics platform, or parallel polling system.
+Keep business operations in their existing module services/stores; adapters report teaching context.
+
+The resolver uses this order: urgent incident/treatment → player confirmation/reward dialog →
+active orientation lesson → optional first-time hint → background chips. A hint never opens a
+second modal, steals focus, hides a claim, or closes another dialog. If its natural home is an
+inline region in the currently opened panel, show it there without a separate overlay.
+
+Only one optional hint is visible at a time. Keep at most one deferred eligible context in memory;
+recompute it after the current card closes. Prefer the screen the player is using, discard stale
+contexts on navigation, and leave other mechanic IDs unseen so they can trigger naturally later.
+Do not enqueue every lesson after an unlock or play old hints in a burst on login. Until a hint is
+acknowledged or skipped it may recur at a later meaningful encounter, but not repeatedly in the
+same open panel/session after a temporary close.
+
+Natural actions may satisfy a teaching lesson even when it was not displayed: a confirmed dispatch
+proves the departure action was understood sufficiently for orientation. Record that acknowledgement
+from a successful response or persisted historical state, never from clicking Send or a failed
+request. Explanations remain available from Help. A failure can show existing validation copy,
+but it must not mark the mechanic seen or change its reward progress.
+
+### Dedupe and player choice
+
+Orientation and contextual hints share mechanic IDs through an explicit mapping. Acknowledging
+or skipping the SPECIAL lesson suppresses the same mechanic's first-time popover; it does not
+suppress unrelated housing or exploration help. Resource bar and generator explanations count
+as separate orientation entries but jointly satisfy the resource mechanic explanation once both
+are acknowledged/skipped. The central status ledger prevents duplicate presentations in one vault.
+
+Whole-tour Skip suppresses orientation only, preserving the current meaning of that button.
+Offer a separate **First-time mechanic hints** setting for optional contextual help; clearly state
+that it remains enabled when the player skips orientation. Turning it off closes/dequeues optional
+hints without clearing their ledger or changing critical alerts. Skipping an individual hint
+records only that mechanic as skipped. This setting is distinct from notification preferences.
+
+Automatic triggers initially target new standard vaults with the creation marker. Existing/boosted
+vaults can opt in through Help; don't spring ten “first-time” cards on established players after
+deployment. In opt-in mode use persisted operations where available to mark already-used mechanics
+acknowledged, and otherwise call the hint an explanation—not proof that this is their first use.
+Local storage cannot guarantee lifetime first-use behavior across devices; cross-device persistence
+is outside the initial scope. Do not fabricate historical usage from a newly mounted component.
+
+Changing a lesson's wording does not reset its status. Version the teaching contract only when
+behavior materially changes, and preserve old whole-tour/hint opt-outs. Help can replay a single
+mechanic without resetting other hints, claims, or the current server guide.
+
+### Build order and sanity checks for these additions
+
+1. Define the teaching IDs, orientation-to-mechanic mapping and state migration in the existing
+   state helper. Verify reset scopes and per-vault isolation before wiring UI.
+2. Implement teaching selection independent of current server objective, then Skip step/Undo and
+   pending-reward affordance. Integrate only after early build/departure reconciliation is sound.
+3. Wire the four orientation-overlapping triggers first: resources, SPECIAL, housing and departure.
+   Check dedupe by entering through the tour, existing controls, and Help in different orders.
+4. Add Radio, medicine, loot, quests, training and crafting as a second reviewed batch, using
+   existing panels/previews. Finish hints setting and single-mechanic replay.
+5. Verify keyboard/touch activation, small screens, absent anchors, dialog priority, stale contexts,
+   claim failures, refresh, two tabs, two vaults, storage failure and whole-tour/hints opt-outs.
+
+Specific acceptance scenarios: skip a ready staffing reward then build; skip housing with and
+without a safe explorer; dispatch before earlier claims; skip every lesson; replay after all rewards
+are claimed; open the same preview repeatedly; trigger two mechanics while a reward modal is open;
+disable hints mid-card; reload between Skip and Undo; and open Help in an existing/boosted vault.
+Each must preserve server order and earned rewards, avoid repeated dim/popovers, and leave a clear
+route back to relevant help. Tests/playtests are planned validation, not evidence already collected.
+
+## Implementation detail: Skip step and mechanic hints
+
+This section is the delivery checklist for the two additions above. All contracts here are
+proposed implementation requirements, not a claim that the current worktree implements them.
+Choose names to fit existing code, but preserve the state boundaries and observable outcomes.
+
+### 1. Authored definitions and ownership
+
+Extend the existing progression module; use its `models/` for the ordered authored definitions
+(`onboardingSteps.ts`) and `composables/` for teaching selection. Keep the already shared
+`core/composables/useOnboardingState.ts` as the persistence owner. Avoid introducing another
+Pinia store or event bus solely for hints. Reuse installed UI components and existing routes.
+
+Each authored teaching definition needs: stable lesson ID, kind (`tap`, `inspection`,
+`objective-explanation`), mechanic ID, short title/body, optional objective template key,
+preferred anchors, relevant action route, and a named eligibility check. Explicitly map the
+two resource explanations to one mechanic; do not infer this from similar titles or selectors.
+The finite definition list is the only source of teaching order. The backend catalog remains
+the only source of reward order, completion targets and payouts.
+
+Keep eligibility functions pure: give them a loaded snapshot of vault, rooms, dwellers,
+objectives, active runs and teaching state. Return `eligible`, `blocked` with a reason, or
+`unknown` if required data is missing. No fetch, DOM query, mutation, clock scheduling or
+reward claim belongs inside lesson selection. Resolve anchors in the view after selection.
+
+### 2. Persisted state and commands
+
+Preserve existing `created`, `welcomed` and whole-tour `skipped` flags. Add a versioned teaching
+record per vault containing only stable IDs and player choices:
+
+```ts
+type LessonStatus = 'acknowledged' | 'skipped'
+
+interface TeachingState {
+  version: 1
+  lessons: Partial<Record<LessonId, LessonStatus>>
+  mechanics: Partial<Record<MechanicId, LessonStatus>>
+  hintsEnabled: boolean
+  contextualOptIn: boolean
+  replayOrientation: boolean
+}
+```
+
+The existing vault record owns this teaching record; missing IDs are unseen. The illustration
+does not require duplicating equivalent status: derive orientation-covered mechanic state from
+the explicit mapping, and persist mechanic status only for direct contextual choices. Explicit
+single-mechanic replay can override mapped suppression for that one invocation without deleting
+the original lesson history. Keep active card, pending context, request generation and Undo in
+memory; never persist DOM references, server progress, blockers or timer deadlines.
+
+Provide narrowly scoped commands in the state helper:
+
+| Command | Mutation | Must preserve |
+|---|---|---|
+| Acknowledge lesson | Set that lesson to acknowledged | Other lessons, whole-tour choice, claims |
+| Skip lesson | Set that lesson to skipped | Server state, unrelated mechanics, hints setting |
+| Skip mechanic | Set direct mechanic status to skipped | Other lessons and mechanics |
+| Skip tour | Set existing whole-tour suppression; close orientation | Hint opt-in and individual history |
+| Resume guide | Clear whole-tour suppression only | Individual acknowledgements/skips, claims |
+| Replay orientation | Clear orientation lesson statuses, explicitly enable replay and clear tour suppression | Direct contextual statuses, creation marker, hints setting, claims |
+| Replay one mechanic | Open that explanation on demand without resetting unrelated state | Whole-tour choice, saved acknowledgements, claims |
+| Reset first-time hints | Clear direct contextual statuses and enable an explicit fresh hint pass | Orientation lesson statuses, claims; mapped orientation lessons still dedupe |
+| Disable hints | Set hintsEnabled false; close optional card and deferred context | All saved statuses, orientation, critical alerts |
+
+Default hints to enabled for newly created standard vaults; require explicit contextual opt-in
+for existing/boosted vaults. Store this choice per vault in the initial release, and label that
+scope in Preferences. Missing legacy teaching records migrate lazily with empty ledgers;
+`skipped: true` still hides the tour. Preserve the vault record when resetting a subsection.
+Malformed/unsupported local data must not crash vault rendering: treat only that teaching
+subrecord as unavailable, retain recoverable opt-outs, and keep a working session fallback.
+
+### 3. Selection, progression and reward controls
+
+For each render, filter locally acknowledged/skipped entries, derive mechanic dedupe, then
+choose the first relevant eligible lesson. If all remaining entries are temporarily blocked,
+show a concise undimmed blocker or the Briefing; do not mark them skipped/completed. If all
+entries are acknowledged/skipped, close orientation. Explicit replay allows explanation of
+completed server steps; already-claimed steps never show a second reward action.
+
+Snapshot the vault ID and lesson ID when handling Continue, Skip or Claim. Ignore delayed
+responses/actions if their context no longer matches the active vault/card. A repeated click
+is idempotent. Selection changes, navigation and background polling never count as acknowledgement.
+For inspection, require the relevant detail panel or a deliberate Continue; opening Dwellers
+alone is insufficient. For natural actions, acknowledge only after successful build/dispatch
+settlement; best-effort refresh failure does not turn a successful action into a failure.
+
+Separate `earned`, `currentServerStep`, `claimed`, and `teachingDismissed`. A lesson may be earned
+but not currently claimable because an earlier server step remains. Display Claim only when
+earned, unclaimed and permitted by server order; otherwise show an explanation/link to Starter.
+The backend revalidates every claim. Never use local skipped state to infer server eligibility.
+Retired earned rewards remain independently claimable under the retirement policy.
+
+After a successful claim refresh objectives, vault values and affected roster/items using
+existing actions. Do not postpone the success feedback until every refresh finishes. Keep a
+visible retry path for failed reads; do not resend a successful claim/build/dispatch. Claim
+failure stays visible in the same card and leaves teaching/reward state unchanged.
+
+### 4. Controls, Undo and accessibility
+
+Use the existing Button primitive. Skip step is a secondary text/ghost control; Skip tour is
+visually separate. Give the card a stable accessible name and concise live announcement when
+its lesson changes. Do not focus it automatically after polling or background events. If a
+focused button disappears after an explicit action, move focus to the replacement card's
+heading/action or its persistent guide launcher. Keyboard and touch must work without dragging.
+
+After Skip step, show “Step skipped · Undo” in an inline guide status area for eight seconds.
+The current toast helper has no action support; do not extend it just for Undo. Keyboard focus
+or pointer hover pauses expiry, and Help remains the non-timed recovery route. Undo is scoped
+to the captured vault/lesson and restores its prior local status only if still unchanged.
+Navigating to another vault, skipping another lesson, claiming that lesson, or acknowledging it
+elsewhere invalidates the old Undo. After reload there is no stale Undo timer to recover.
+
+With an open confirmation/urgent dialog, hide spotlight emphasis and defer optional popovers;
+inline explanations inside the owning panel may remain. A missing or zero-size anchor never
+creates a cutout. Give navigation/Continue instead. Don't automatically scroll to a target,
+and don't let a fixed guide cover the current confirmation action at narrow widths.
+
+### 5. Integration points for first-time hints
+
+| Existing surface | Adapter placement | Completion signal / data refresh |
+|---|---|---|
+| Resource bar and generator details | After user opens the explanation/detail | Explicit Continue; live stock/capacity/rates already loaded |
+| Dweller SPECIAL/equipment details | After relevant detail content resolves | Explicit acknowledgement or successful matching assignment/equip |
+| `RoomMenuItem` / build selection | Parent handles selected Living room, not every list render | Successful `room` store build response; quoted cost/placement from real builder |
+| `useSendToWasteland` | Valid preview opened; use inline explanation in duration modal | Confirmed dispatch response; same behavior for detail page, map and wasteland entry |
+| `RadioControls` | User opens its controls with current stats loaded | Acknowledgement; mode changes only through existing explicit action |
+| Medical controls / `dwellerMedical` | User enters treatment preview for a relevant condition | Acknowledgement or successful treatment; never defer urgent treatment for teaching |
+| `useExplorationFinish` / `DwellerEquipment` | After reward presentation finishes or available equipment preview opens | Acknowledgement or successful equip; actual awarded inventory |
+| Office mission/party preview | User selects mission and requirements load | Acknowledgement or confirmed departure; no quest-completion trigger |
+| `TrainingRoomModal` | Room/candidate preview is ready | Acknowledgement or successful training start; no completion timer required |
+| `CraftingPanel` | Recipe selection and material requirements resolve | Acknowledgement or successful start; failed craft leaves lesson unseen |
+
+Use one shared presentation resolver rather than duplicating suppression logic in each surface.
+Adapters pass a typed mechanic ID, vault ID, owning route/entity and existing loaded context.
+Keep callbacks local to the existing module boundary; do not make API services depend on DOM
+anchors. Shared entry paths such as wasteland sending must call the same adapter once.
+
+Deferred hints retain only identity/context while that route/entity remains relevant. On release
+of the foreground card, recheck opt-outs, ledger, data readiness and entity existence before
+showing them. Only one hint may render; stale/unselected hints remain unseen for their next
+natural trigger. “Shown” is an in-memory suppression state for the current encounter, not a
+persistent acknowledgement. Temporary dialog dismissal does not complete a mechanic.
+
+## Acceptance checklist for Skip step and mechanic hints
+
+Use these IDs in implementation notes and review evidence. An acceptance ID passes only when
+the observable outcome is verified; implementation-shaped mocks alone do not establish it.
+The checks below are planned, not executed as part of this documentation task.
+
+| ID | Given / when | Required observable result |
+|---|---|---|
+| SK-01 | Active tap lesson; choose Skip step | Next eligible teaching entry appears; only this lesson is saved as skipped; no network mutation or payout |
+| SK-02 | Earned staffing reward; skip its card | Reward remains unclaimed with its original payout in Starter; housing explanation may appear; no auto-claim |
+| SK-03 | Build housing after skipping staffing, then claim staffing | Additional construction is recognized without a second build; housing reward becomes eligible in server order |
+| SK-04 | Skip housing with no safe adult available | No departure dim or impossible Send instruction; undimmed housing/arrival remedy available |
+| SK-05 | Skip housing with a safe resting adult available | Departure teaching may appear; no invented arrival, automatic unassignment or dispatch |
+| SK-06 | Dispatch before earlier reward claims | Persisted run reconciles when departure becomes current; eventual reward paid once; quest counters unaffected |
+| SK-07 | Skip every orientation lesson | Tour closes; Starter claims, Briefing and critical alerts remain accessible |
+| SK-08 | Click Skip twice or press Enter repeatedly | One local transition; unrelated lesson statuses and rewards unchanged |
+| SK-09 | Claim is in flight; attempt Skip/route switch | Conflicting controls disabled; stale response cannot advance or mutate another vault's teaching state |
+| SK-10 | Undo before expiry in the original unchanged context | Only skipped lesson restored; no payout replay or unrelated state reset |
+| SK-11 | Reload/switch vault/complete lesson before old Undo | No stale Undo can undo newer decisions or affect another vault |
+| SK-12 | Resume guide after whole-tour skip | Resume remaining unseen entries; individual skipped lessons stay skipped |
+| SK-13 | Replay after every orientation reward was claimed | Explanation cards work; no new objectives, claim buttons or payouts; creation marker preserved |
+| SK-14 | Claim fails due to full housing or stale order | Error visible; reward and teaching status unchanged; appropriate recovery/link offered |
+| ST-01 | Legacy storage has only skipped/welcomed/created | Lazy migration preserves those values and whole-tour suppression; no forced welcome |
+| ST-02 | Storage unavailable/corrupt; acknowledge a card | Vault remains usable with session state; server claims unaffected; no unhandled rendering failure |
+| ST-03 | Two vaults and multiple mounted consumers | Choices isolated by vault; all consumers agree on current ledger; switching does not display the previous vault's hint |
+| TR-01 | Open relevant preview with its data still loading | No guessed copy/actionability; hint becomes eligible only after required data resolves |
+| TR-02 | Open the same eligible panel repeatedly | At most one hint per open encounter; acknowledgement/skip prevents future automatic repetition |
+| TR-03 | Skip/acknowledge orientation SPECIAL, then open assignment controls | No duplicate SPECIAL popover; other mechanic hints remain eligible |
+| TR-04 | Only one resource orientation entry acknowledged | Other resource entry remains available; joint resource mapping resolves only after both are handled |
+| TR-05 | Two hints trigger during a reward/confirmation dialog | No second modal, focus theft or dim; at most one valid context reconsidered after dialog closes |
+| TR-06 | Navigate away or entity disappears while a hint is deferred | Deferred hint discarded; mechanic remains unseen; no detached target or wrong-vault copy |
+| TR-07 | Cancel/fail dispatch, training or crafting | No success-derived acknowledgement or server progress; normal validation remains visible |
+| TR-08 | Action succeeds but its follow-up read fails | Success remains reported once; retry reads without repeating action/reward |
+| TR-09 | Disable first-time hints while a hint is open | Optional hint/deferred context closes; saved ledger, orientation and critical alerts unchanged |
+| TR-10 | Skip tour with first-time hints still enabled | No orientation; relevant opted-in contextual hint may appear; copy/settings clearly distinguish these choices |
+| TR-11 | Existing/boosted vault not opted in | No automatic new hint burst; Help can explicitly explain/replay a mechanic |
+| TR-12 | Reset hints or replay one mechanic | Scope matches command table; unrelated lessons, whole-tour choice and rewards preserved |
+| UI-01 | Keyboard/touch user, no drag interaction | Continue, Skip, Undo, Help and departure path usable; visible focus; no hover-only control |
+| UI-02 | Narrow screen, reduced motion, absent/hidden anchor | No blocked confirmation or tiny cutout; fallback action usable; motion preference honored |
+
+### Delivery batches and evidence
+
+**Batch A — state and definitions:** deliver stable IDs, mappings, lazy migration and narrow reset
+commands. Review against ST-01–03, SK-11–13 and TR-12. No backend reward/schema change is needed
+solely for local lesson dismissal. Document any existing reward-reconciliation dependency separately.
+
+**Batch B — Skip step:** deliver the independent teaching selector, secondary controls, inline Undo,
+pending-claim affordance and visible claim errors. Review SK-01–14 and UI-01–02. Don't mark this batch
+complete while skipped prerequisite actions still require rebuilding/redispatching to recover.
+
+**Batch C — four shared mechanics:** resources, SPECIAL, housing and departure; wire the existing
+entry paths, dedupe and arbitration. Review TR-01–08 plus resource mapping. Record which actual
+entry surfaces were walked, not just that the authored registry has four rows.
+
+**Batch D — later mechanics and preferences:** add the other six authored hints, opt-in/settings,
+single-mechanic Help and reset controls. Review TR-09–12 and each mechanic's eligibility row.
+Verify no first-time explanation replaces existing success/critical-notification surfacing.
+
+For each batch record touched integration points, acceptance IDs verified, methods used, failing
+or unverified IDs and remaining dependency blockers. Appropriate later validation includes pure
+selector/state checks, component interactions, real-service reward/reconciliation regressions and
+manual keyboard/touch walkthroughs. Timing/resource playtests still follow the full-vault plan.
+Don't call the additions complete from static inspection, catalog equality or screenshot-only evidence.
 
 ## Backend contracts and reward safety
 

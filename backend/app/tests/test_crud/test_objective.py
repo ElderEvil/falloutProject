@@ -183,6 +183,35 @@ async def test_assign_initial_objectives(async_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
+async def test_vault_read_exposes_template_key(async_session: AsyncSession) -> None:
+    """The vault read carries template_key, the identity onboarding keys on."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    await crud.objective_crud.create(
+        async_session,
+        obj_in=ObjectiveCreate(
+            challenge="Match a dweller to their room",
+            reward="50 caps",
+            category=ObjectiveCategoryEnum.STARTER,
+            objective_type="assign_correct",
+            target_entity={},
+            target_amount=1,
+            sequence=0,
+            description="Match a dweller's best SPECIAL to the room.",
+            template_key="starter:assign a dweller correctly",
+        ),
+    )
+
+    await crud.objective_crud.assign_initial(async_session, vault.id, is_boosted=False)
+    read = await crud.objective_crud.get_multi_for_vault(async_session, vault.id)
+
+    assert {objective.template_key for objective in read} == {"starter:assign a dweller correctly"}
+
+
+@pytest.mark.asyncio
 async def test_assign_initial_seeds_starter_arc_for_standard_vault(async_session: AsyncSession) -> None:
     """A standard vault gets the full starter arc, ordered by sequence."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))

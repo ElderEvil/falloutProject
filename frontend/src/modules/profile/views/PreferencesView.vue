@@ -12,6 +12,8 @@ import { useProfileStore } from '../stores/profile'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useBackNavigation } from '@/core/composables/useBackNavigation'
 import { handleStoreError } from '@/core/utils/errorHandler'
+import { useToast } from '@/core/composables/useToast'
+import { useOnboardingState } from '@/core/composables/useOnboardingState'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
@@ -56,6 +58,15 @@ const { showRoomImages, toggleRoomImages } = useRoomRendering()
 const { isMonochrome, toggleBadgeStyle } = useBadgeStyle()
 const { groupColors, toggleGroupColors } = useGroupColors()
 const profileStore = useProfileStore()
+const toast = useToast()
+const { reset: resetOnboarding, resetAll: resetAllOnboarding } = useOnboardingState()
+const currentVaultId = computed(() => vaultStore.currentVaultId)
+
+const showOnboardingAgain = () => {
+  if (currentVaultId.value) resetOnboarding(currentVaultId.value)
+  else resetAllOnboarding()
+  toast.success('The guide will reappear for steps you have not completed yet')
+}
 
 const notificationCategories = [
   {
@@ -529,6 +540,35 @@ const handleGlowSelect = (value: unknown) => {
                     </div>
                   </div>
                 </template>
+              </CardContent>
+            </Card>
+
+            <!-- Vault guide -->
+            <Card>
+              <CardHeader>
+                <CardTitle class="flex items-center gap-2 text-xl font-bold text-theme-primary">
+                  <Icon icon="mdi:map-marker-path" class="text-xl" />
+                  Vault Guide
+                </CardTitle>
+                <CardDescription>
+                  The guide walks a vault through its first steps. Steps you already claimed stay
+                  claimed, so replay covers the ones still open.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div class="setting-row">
+                  <div class="setting-info">
+                    <h4 class="setting-label">Show onboarding again</h4>
+                    <p class="setting-description">
+                      {{
+                        currentVaultId
+                          ? 'Clears the skip so the guide reappears for this vault.'
+                          : 'Clears the skip for every vault.'
+                      }}
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm" @click="showOnboardingAgain">Replay</Button>
+                </div>
               </CardContent>
             </Card>
           </div>

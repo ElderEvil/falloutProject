@@ -73,6 +73,7 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
                 target_amount=obj.target_amount,
                 sequence=obj.sequence,
                 description=obj.description,
+                template_key=obj.template_key,
                 progress=progress,
                 total=total,
                 is_completed=is_completed,
@@ -130,6 +131,7 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
                 self.link_model.vault_id == vault_id,
                 col(self.link_model.is_completed).is_(False),
                 col(self.model.category) == ObjectiveCategoryEnum.STARTER,
+                col(self.model.objective_type).is_not(None),
             )
             .order_by(col(self.model.sequence).asc().nulls_last(), col(self.model.id))
             .limit(1)

@@ -1,66 +1,48 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useElementBounding, usePreferredReducedMotion, useStorage } from '@vueuse/core'
+import { useElementBounding, usePreferredReducedMotion } from '@vueuse/core'
 import { Button } from '@/core/components/ui/button'
 import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import { useObjectiveClaim } from '../composables/useObjectiveClaim'
+import { useOnboardingState, type OnboardingState } from '@/core/composables/useOnboardingState'
 import { currentObjective } from '../models/objective'
 
-/** Starter step sequence → the `data-onboarding` anchor it points at (see docs/frontend/ONBOARDING.md). */
-const STEP_ANCHORS: Record<number, string> = {
-  0: 'nav-dwellers',
-  1: 'build',
-  2: 'nav-exploration',
-  3: 'population',
-  4: 'population',
-  5: 'build',
-  6: 'nav-storage',
-  7: 'nav-training',
-  8: 'nav-quests',
-  9: 'nav-dwellers',
-  10: 'population',
-}
-
-/** Orientation-only tour: later starter chapters guide from the Objectives tab, not a persistent dim. */
-const ORIENTATION_KEYS = new Set([
+/** Orientation chapters own the tour; later chapters guide from the Objectives tab. */
+const ORIENTATION_TEMPLATE_KEYS = new Set([
   'starter:assign a dweller correctly',
   'starter:build a living quarters',
   'starter:send a dweller exploring',
 ])
 
-interface OnboardingState {
-  skipped?: boolean
-  welcomed?: boolean
+/** Orientation step → candidate `data-onboarding` anchors, first present wins (see docs/frontend/ONBOARDING.md). */
+const STEP_ANCHORS: Record<string, string[]> = {
+  'starter:assign a dweller correctly': ['nav-dwellers'],
+  'starter:build a living quarters': ['build-living-room', 'build'],
+  'starter:send a dweller exploring': ['wasteland'],
 }
 
-const route = useRoute()
 const store = useObjectivesStore()
 const toast = useToast()
 const reducedMotion = usePreferredReducedMotion()
 
+const route = useRoute()
 const vaultId = computed(() =>
   route.path.startsWith('/vault/') && typeof route.params.id === 'string' ? route.params.id : null
 )
 
-// Per-vault local state; the objective progress itself stays server-side.
-const state = useStorage<Record<string, OnboardingState>>('onboarding:v1', {})
-const vaultState = computed<OnboardingState>(() =>
-  vaultId.value ? (state.value[vaultId.value] ?? {}) : {}
-)
-const patchState = (next: Partial<OnboardingState>) => {
-  const id = vaultId.value
-  if (id) state.value = { ...state.value, [id]: { ...state.value[id], ...next } }
-}
+const { vaultState: readVaultState, patch } = useOnboardingState()
+const vaultState = computed<OnboardingState>(() => readVaultState(vaultId.value))
+const patchState = (next: Partial<OnboardingState>) => patch(vaultId.value, next)
 
 const step = computed(() => {
   const current = currentObjective(store.objectives)
   return current?.category === 'starter' ? current : undefined
 })
-const anchorKey = computed(() =>
-  step.value?.sequence != null ? STEP_ANCHORS[step.value.sequence] : undefined
+const anchorKeys = computed(() =>
+  step.value?.template_key ? (STEP_ANCHORS[step.value.template_key] ?? []) : []
 )
 
 const { claiming, claim } = useObjectiveClaim(vaultId)
@@ -70,10 +52,12 @@ const active = computed(
     !!vaultId.value &&
     !!step.value &&
     !vaultState.value.skipped &&
-    ORIENTATION_KEYS.has(step.value.template_key ?? '')
+    ORIENTATION_TEMPLATE_KEYS.has(step.value.template_key ?? '')
 )
 const atStart = computed(() => step.value?.sequence === 0)
-const showWelcome = computed(() => active.value && atStart.value && !vaultState.value.welcomed)
+const showWelcome = computed(
+  () => active.value && atStart.value && !!vaultState.value.created && !vaultState.value.welcomed
+)
 const showStep = computed(() => active.value && !showWelcome.value)
 
 const refresh = () => {
@@ -89,12 +73,13 @@ const modalOpen = ref(false)
 // The shell renders targets asynchronously (nav bar, room cells) and the dim must not
 // fight an open modal, so re-resolve on every DOM change rather than once.
 function resolveTarget() {
-  targetEl.value = anchorKey.value
-    ? (document.querySelector<HTMLElement>(`[data-onboarding="${anchorKey.value}"]`) ?? null)
-    : null
+  targetEl.value =
+    anchorKeys.value
+      .map((key) => document.querySelector<HTMLElement>(`[data-onboarding="${key}"]`))
+      .find((element) => element !== null) ?? null
   modalOpen.value = document.querySelector('[role="dialog"]') !== null
 }
-watch([anchorKey, () => step.value?.id], () => resolveTarget(), { flush: 'post' })
+watch([() => step.value?.template_key, () => step.value?.id], () => resolveTarget(), { flush: 'post' })
 
 let observer: MutationObserver | null = null
 onMounted(() => {

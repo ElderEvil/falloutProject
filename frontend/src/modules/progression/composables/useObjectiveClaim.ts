@@ -1,6 +1,7 @@
 import { ref, type Ref } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
 import { useObjectivesStore } from '../stores/objectives'
 import type { Objective } from '../models/objective'
@@ -11,6 +12,7 @@ import type { Objective } from '../models/objective'
 export function useObjectiveClaim(vaultId: Ref<string | null>) {
   const objectivesStore = useObjectivesStore()
   const vaultStore = useVaultStore()
+  const dwellerStore = useDwellerStore()
   const auth = useAuthStore()
   const claiming = ref(false)
   const error = ref<string | null>(null)
@@ -36,10 +38,15 @@ export function useObjectiveClaim(vaultId: Ref<string | null>) {
     } finally {
       claiming.value = false
     }
-    if (auth.token)
+    if (auth.token) {
       void vaultStore
         .refreshVault(id, auth.token)
         .catch((err) => handleStoreError(err, 'Failed to refresh claimed rewards'))
+      // A claim can grant a dweller; the local roster feeds the wasteland picker.
+      void dwellerStore.filter
+        .fetchDwellersByVault(id, auth.token)
+        .catch((err) => handleStoreError(err, 'Failed to refresh the dweller roster'))
+    }
   }
 
   return { claiming, error, claim }

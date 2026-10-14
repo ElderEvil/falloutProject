@@ -27,8 +27,8 @@
     "template_key": "daily:collect 500 caps"
   },
   {
-    "challenge": "Produce 150 Food",
-    "reward": "15 caps",
+    "challenge": "Collect 150 Food",
+    "reward": "25 caps",
     "category": "daily",
     "objective_type": "collect",
     "target_entity": {"resource_type": "food", "production_only": true},
@@ -36,8 +36,8 @@
     "template_key": "daily:collect 150 food"
   },
   {
-    "challenge": "Produce 250 Food",
-    "reward": "25 caps",
+    "challenge": "Collect 250 Food",
+    "reward": "40 caps",
     "category": "daily",
     "objective_type": "collect",
     "target_entity": {"resource_type": "food", "production_only": true},
@@ -45,8 +45,8 @@
     "template_key": "daily:collect 250 food"
   },
   {
-    "challenge": "Produce 150 Water",
-    "reward": "15 caps",
+    "challenge": "Collect 150 Water",
+    "reward": "25 caps",
     "category": "daily",
     "objective_type": "collect",
     "target_entity": {"resource_type": "water", "production_only": true},
@@ -54,8 +54,8 @@
     "template_key": "daily:collect 150 water"
   },
   {
-    "challenge": "Produce 250 Water",
-    "reward": "25 caps",
+    "challenge": "Collect 250 Water",
+    "reward": "40 caps",
     "category": "daily",
     "objective_type": "collect",
     "target_entity": {"resource_type": "water", "production_only": true},
@@ -63,8 +63,8 @@
     "template_key": "daily:collect 250 water"
   },
   {
-    "challenge": "Produce 150 Power",
-    "reward": "15 caps",
+    "challenge": "Collect 150 Power",
+    "reward": "25 caps",
     "category": "daily",
     "objective_type": "collect",
     "target_entity": {"resource_type": "power", "production_only": true},
@@ -72,8 +72,8 @@
     "template_key": "daily:collect 150 power"
   },
   {
-    "challenge": "Produce 250 Power",
-    "reward": "25 caps",
+    "challenge": "Collect 250 Power",
+    "reward": "40 caps",
     "category": "daily",
     "objective_type": "collect",
     "target_entity": {"resource_type": "power", "production_only": true},

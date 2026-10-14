@@ -125,7 +125,7 @@ def test_produce_objectives_reject_resource_gifts():
     from app.services.progression.objectives.evaluators import CollectEvaluator
 
     objective = Objective(
-        challenge="Produce 150 Power",
+        challenge="Collect 150 Power",
         reward="15 caps",
         category="daily",
         target_entity={"resource_type": "power", "production_only": True},
@@ -146,7 +146,7 @@ async def test_gross_production_at_capacity_advances_an_objective(async_session,
 
     vault.power = vault.power_max = 100
     objective = Objective(
-        challenge="Produce 150 Power",
+        challenge="Collect 150 Power",
         reward="15 caps",
         category="daily",
         objective_type="collect",

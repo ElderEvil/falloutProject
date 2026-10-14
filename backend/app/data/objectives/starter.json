@@ -11,7 +11,7 @@
     "template_key": "starter:assign dwellers to power"
   },
   {
-    "challenge": "Produce 150 Power",
+    "challenge": "Collect 150 Power",
     "reward": "50 power",
     "category": "starter",
     "objective_type": "collect",

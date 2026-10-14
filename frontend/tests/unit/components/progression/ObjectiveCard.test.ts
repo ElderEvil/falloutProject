@@ -53,7 +53,7 @@ describe('ObjectiveCard', () => {
     const objective = {
       id: '3',
       vault_id: 'v1',
-      challenge: 'Produce power',
+      challenge: 'Collect power',
       progress: 10,
       total: 150,
       reward: '15 caps',

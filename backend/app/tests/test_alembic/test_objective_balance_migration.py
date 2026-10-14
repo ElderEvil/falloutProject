@@ -65,8 +65,8 @@ def test_migration_preserves_earned_claims_and_catalog_identity(monkeypatch):
         upgraded.reflect(connection)
         objectives, links = upgraded.tables["objective"], upgraded.tables["vaultobjectiveprogresslink"]
         daily = connection.execute(sa.select(objectives).where(objectives.c.id == identifier)).mappings().one()
-        assert daily["challenge"] == "Produce 150 Power"
-        assert daily["reward"] == "15 caps"
+        assert daily["challenge"] == "Collect 150 Power"
+        assert daily["reward"] == "25 caps"
         assert daily["template_key"] == "daily:collect 150 power"
         assert len(connection.execute(sa.select(objectives)).all()) == 95
         snapshots = connection.execute(sa.select(links)).mappings().all()

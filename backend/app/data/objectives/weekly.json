@@ -27,7 +27,7 @@
     "template_key": "weekly:collect 5000 caps"
   },
   {
-    "challenge": "Produce 1000 Food",
+    "challenge": "Collect 1000 Food",
     "reward": "100 caps",
     "category": "weekly",
     "objective_type": "collect",
@@ -36,7 +36,7 @@
     "template_key": "weekly:collect 1000 food"
   },
   {
-    "challenge": "Produce 2000 Food",
+    "challenge": "Collect 2000 Food",
     "reward": "200 caps",
     "category": "weekly",
     "objective_type": "collect",
@@ -45,7 +45,7 @@
     "template_key": "weekly:collect 2000 food"
   },
   {
-    "challenge": "Produce 1000 Water",
+    "challenge": "Collect 1000 Water",
     "reward": "100 caps",
     "category": "weekly",
     "objective_type": "collect",
@@ -54,7 +54,7 @@
     "template_key": "weekly:collect 1000 water"
   },
   {
-    "challenge": "Produce 2000 Water",
+    "challenge": "Collect 2000 Water",
     "reward": "200 caps",
     "category": "weekly",
     "objective_type": "collect",
@@ -63,7 +63,7 @@
     "template_key": "weekly:collect 2000 water"
   },
   {
-    "challenge": "Produce 1000 Power",
+    "challenge": "Collect 1000 Power",
     "reward": "100 caps",
     "category": "weekly",
     "objective_type": "collect",
@@ -72,7 +72,7 @@
     "template_key": "weekly:collect 1000 power"
   },
   {
-    "challenge": "Produce 2000 Power",
+    "challenge": "Collect 2000 Power",
     "reward": "200 caps",
     "category": "weekly",
     "objective_type": "collect",

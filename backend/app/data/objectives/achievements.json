@@ -81,7 +81,7 @@
     "template_key": "achievement:collect 10000 caps total"
   },
   {
-    "challenge": "Produce 500 Power",
+    "challenge": "Collect 500 Power",
     "reward": "50 caps",
     "category": "achievement",
     "objective_type": "collect",
@@ -90,7 +90,7 @@
     "template_key": "achievement:collect 500 power"
   },
   {
-    "challenge": "Produce 500 Food",
+    "challenge": "Collect 500 Food",
     "reward": "50 caps",
     "category": "achievement",
     "objective_type": "collect",
@@ -99,7 +99,7 @@
     "template_key": "achievement:collect 500 food"
   },
   {
-    "challenge": "Produce 500 Water",
+    "challenge": "Collect 500 Water",
     "reward": "50 caps",
     "category": "achievement",
     "objective_type": "collect",

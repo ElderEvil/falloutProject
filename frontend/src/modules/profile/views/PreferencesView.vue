@@ -12,6 +12,8 @@ import { useProfileStore } from '../stores/profile'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useBackNavigation } from '@/core/composables/useBackNavigation'
 import { handleStoreError } from '@/core/utils/errorHandler'
+import { useToast } from '@/core/composables/useToast'
+import { useOnboardingState } from '@/core/composables/useOnboardingState'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
@@ -56,6 +58,21 @@ const { showRoomImages, toggleRoomImages } = useRoomRendering()
 const { isMonochrome, toggleBadgeStyle } = useBadgeStyle()
 const { groupColors, toggleGroupColors } = useGroupColors()
 const profileStore = useProfileStore()
+const toast = useToast()
+const { resumeGuide, replayOrientation } = useOnboardingState()
+const currentVaultId = computed(() => vaultStore.currentVaultId)
+
+const resumeGuideForVault = () => {
+  if (!currentVaultId.value) return
+  resumeGuide(currentVaultId.value)
+  toast.success('Guide resumed for this vault')
+}
+
+const replayGuideForVault = () => {
+  if (!currentVaultId.value) return
+  replayOrientation(currentVaultId.value)
+  toast.success('The guide will replay its open steps for this vault')
+}
 
 const notificationCategories = [
   {
@@ -529,6 +546,54 @@ const handleGlowSelect = (value: unknown) => {
                     </div>
                   </div>
                 </template>
+              </CardContent>
+            </Card>
+
+            <!-- Vault guide -->
+            <Card>
+              <CardHeader>
+                <CardTitle class="flex items-center gap-2 text-xl font-bold text-theme-primary">
+                  <Icon icon="mdi:map-marker-path" class="text-xl" />
+                  Vault Guide
+                </CardTitle>
+                <CardDescription>
+                  The guide walks a vault through its first steps. Steps you already claimed stay
+                  claimed, so replay covers the ones still open.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div class="setting-row">
+                  <div class="setting-info">
+                    <h4 class="setting-label">Resume the guide</h4>
+                    <p class="setting-description">
+                      Brings back a guide you skipped, keeping every step you already finished.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    :disabled="!currentVaultId"
+                    @click="resumeGuideForVault"
+                  >
+                    Resume
+                  </Button>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-info">
+                    <h4 class="setting-label">Replay orientation</h4>
+                    <p class="setting-description">
+                      Replays the orientation explanations. Steps you already claimed stay claimed.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    :disabled="!currentVaultId"
+                    @click="replayGuideForVault"
+                  >
+                    Replay
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>

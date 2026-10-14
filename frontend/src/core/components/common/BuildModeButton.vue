@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import { computed } from 'vue'
 
 const props = defineProps<{
@@ -19,7 +24,9 @@ const iconName = computed(() => (props.buildModeActive ? 'mdi:close' : 'mdi:hamm
   <TooltipProvider :delay-duration="200">
     <Tooltip>
       <TooltipTrigger as-child>
+        <!-- @vue-ignore -->
         <Button
+          :data-onboarding="buildModeActive ? undefined : 'build'"
           :variant="buildModeActive ? 'destructive' : 'secondary'"
           size="lg"
           class="h-14 gap-3 border-2 px-6 text-base font-bold uppercase tracking-wide"

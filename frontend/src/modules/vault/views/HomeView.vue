@@ -13,10 +13,13 @@ import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import VaultNumberField from '../components/VaultNumberField.vue'
 import { formatDateTime } from '@/core/utils/format'
+import { useOnboardingState } from '@/core/composables/useOnboardingState'
 
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
 const router = useRouter()
+const { patch: patchOnboarding } = useOnboardingState()
+const markCreatedVault = (id: string) => patchOnboarding(id, { created: true })
 
 // Inject visual effects
 const isFlickering = inject('isFlickering', ref(true))
@@ -59,13 +62,15 @@ const createVault = async () => {
 
   creatingVault.value = true
   try {
-    const created = await vaultStore.createVault(
+    const boosted = boostedStart.value
+    const createdId = await vaultStore.createVault(
       parseInt(newVaultNumber.value, 10),
-      boostedStart.value,
+      boosted,
       authStore.token as string
     )
-    if (!created) return
+    if (!createdId) return
 
+    if (!boosted) markCreatedVault(createdId)
     newVaultNumber.value = ''
     boostedStart.value = false
     showCreation.value = false

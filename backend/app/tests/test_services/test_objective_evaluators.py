@@ -22,6 +22,7 @@ from app.services.progression.objectives.evaluators import (
     BuildEvaluator,
     CollectEvaluator,
     ExpeditionEvaluator,
+    ExploreEvaluator,
     LevelUpEvaluator,
     ReachEvaluator,
     ScrapEvaluator,
@@ -240,6 +241,42 @@ async def test_assign_evaluator_dweller_assigned(
     )
 
     # Refresh and check progress
+    await async_session.refresh(link)
+    assert link.progress == 1
+
+
+@pytest.mark.asyncio
+async def test_explore_evaluator_credits_at_departure(
+    async_session: AsyncSession,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """An 'explore' objective advances on departure, not on the hour-scale return."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+
+    objective = Objective(
+        challenge="Send a dweller exploring",
+        reward="50 caps",
+        objective_type="explore",
+        target_entity={},
+        target_amount=1,
+        category=ObjectiveCategoryEnum.STARTER,
+    )
+    async_session.add(objective)
+    await async_session.commit()
+    await async_session.refresh(objective)
+
+    link = VaultObjectiveProgressLink(
+        vault_id=vault.id, objective_id=objective.id, progress=0, total=1, is_completed=False
+    )
+    async_session.add(link)
+    await async_session.commit()
+
+    ExploreEvaluator(fresh_event_bus)
+
+    await fresh_event_bus.emit(GameEvent.DWELLER_DEPARTED, vault.id, {"dweller_ids": ["d-1"]})
+
     await async_session.refresh(link)
     assert link.progress == 1
 
@@ -852,6 +889,7 @@ def test_facade_reexports_canonical_evaluator_surface() -> None:
         "BuildEvaluator",
         "CollectEvaluator",
         "ExpeditionEvaluator",
+        "ExploreEvaluator",
         "LevelUpEvaluator",
         "ObjectiveEvaluator",
         "ObjectiveEvaluatorManager",

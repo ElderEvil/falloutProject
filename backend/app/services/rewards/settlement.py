@@ -75,7 +75,7 @@ async def claim_objective_reward(
         raise ResourceConflictException("Objective reward already claimed")
     objective = await objective_crud.get(db_session, objective_id)
     progress = link.progress
-    if objective.category == ObjectiveCategoryEnum.STARTER:
+    if objective.category == ObjectiveCategoryEnum.STARTER and objective.objective_type is not None:
         if await objective_crud.get_current_starter_id(db_session, vault_id) != objective_id:
             raise ValidationException("Claim the current guided objective before moving to the next step")
         progress = max(progress, await current_state_progress(db_session, vault_id, objective))

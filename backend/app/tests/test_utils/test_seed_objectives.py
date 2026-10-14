@@ -251,8 +251,18 @@ def test_starter_seed_file_integrity() -> None:
     with starter_file.open("r", encoding="utf-8") as f:
         steps = json.load(f)
 
-    assert len(steps) == 13
-    supported_types = {"assign", "build", "collect", "reach", "assign_correct", "scrap", "train", "expedition"}
+    assert len(steps) == 11
+    supported_types = {
+        "assign",
+        "build",
+        "collect",
+        "reach",
+        "assign_correct",
+        "scrap",
+        "train",
+        "expedition",
+        "explore",
+    }
     sequences = []
     for step in steps:
         assert step["category"] == "starter"
@@ -272,7 +282,7 @@ def test_starter_seed_file_integrity() -> None:
         elif step["objective_type"] == "reach":
             assert target.get("reach_type") in VALID_REACH_TYPES
 
-    assert sequences == list(range(13)), "sequences must be unique and contiguous 0..12"
+    assert sequences == list(range(11)), "sequences must be unique and contiguous 0..10"
 
 
 def test_objective_item_rewards_are_catalog_backed() -> None:

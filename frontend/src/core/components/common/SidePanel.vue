@@ -270,9 +270,11 @@ watch(
         <TooltipProvider :delay-duration="200">
           <Tooltip v-for="item in navItems" :key="item.id">
             <TooltipTrigger as-child>
+              <!-- @vue-ignore -->
               <RouterLink
                 :to="item.path"
                 class="nav-item"
+                :data-onboarding="`nav-${item.id}`"
                 :class="{ active: isActive(item.path) }"
                 :aria-label="`${item.label}${showLabels && item.hotkey ? ' ' + item.hotkey : ''}`"
                 :aria-current="isActive(item.path) ? 'page' : undefined"

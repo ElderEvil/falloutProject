@@ -186,6 +186,20 @@ class AssignCorrectEvaluator(ObjectiveEvaluator):
         return data.get("is_correct", False)
 
 
+class ExploreEvaluator(ObjectiveEvaluator):
+    """Evaluates 'explore' objectives (e.g. 'Send a dweller exploring').
+
+    Credits at departure, not return: the player's action is sending the dweller, and
+    the run itself takes hours. Listens to DWELLER_DEPARTED events.
+    """
+
+    objective_type = "explore"
+    subscribed_events = (GameEvent.DWELLER_DEPARTED,)
+
+    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:
+        return bool(data.get("dweller_ids"))
+
+
 class ReachEvaluator(ObjectiveEvaluator):
     """Evaluates 'reach' objectives (e.g. 'Reach 10 Dwellers', 'Reach Level 5').
 

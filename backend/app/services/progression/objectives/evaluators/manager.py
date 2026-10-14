@@ -11,6 +11,7 @@ from app.services.progression.objectives.evaluators.concrete import (
     BuildEvaluator,
     CollectEvaluator,
     ExpeditionEvaluator,
+    ExploreEvaluator,
     LevelUpEvaluator,
     ReachEvaluator,
     ScrapEvaluator,
@@ -53,6 +54,7 @@ class ObjectiveEvaluatorManager:
                 AssignCorrectEvaluator,
                 ReachEvaluator,
                 ExpeditionEvaluator,
+                ExploreEvaluator,
                 LevelUpEvaluator,
             ]
 

@@ -36,7 +36,6 @@ from app.schemas.dweller import (
     DwellerReadWithRoomID,
     DwellerRename,
     DwellerReviveResponse,
-    DwellerTemplate,
     DwellerUpdate,
     DwellerUpdateRequest,
     DwellerVisualAttributes,
@@ -395,13 +394,17 @@ async def generate_dweller_avatar(
 async def read_dwellers_data(
     data_store: Annotated[StaticGameData, Depends(get_static_game_data)],
     _: CurrentActiveUser,
-) -> Sequence[DwellerTemplate]:
+) -> list[DwellerCreateWithoutVaultID]:
     """Get static dweller creation data.
+
+    Templates are typed for load-time identity validation, so their
+    ``visual_attributes`` is a model while this wire shape wants a dict; dumping
+    each template lets the response model validate the serialized payload.
 
     Returns:
         list[DwellerCreateWithoutVaultID]: List of dweller templates.
     """
-    return data_store.dwellers
+    return [DwellerCreateWithoutVaultID.model_validate(template.model_dump()) for template in data_store.dwellers]
 
 
 @router.post("/{dweller_id}/use_stimpack", response_model=DwellerRead)

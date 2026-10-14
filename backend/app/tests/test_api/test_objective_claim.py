@@ -105,6 +105,45 @@ async def test_current_guided_state_is_claimable_without_repeating_past_actions(
         app.dependency_overrides.pop(get_current_active_user, None)
 
 
+async def test_retired_starter_reward_stays_claimable(
+    async_client: AsyncClient, async_session: AsyncSession, user: User, vault: Vault
+) -> None:
+    """A withdrawn step keeps its earned reward claimable; ordering covers active guide steps only."""
+    active = Objective(
+        challenge="Active step",
+        reward="50 caps",
+        category="starter",
+        sequence=0,
+        objective_type="reach",
+        target_entity={"reach_type": "dweller_count"},
+        target_amount=99,
+    )
+    retired = Objective(
+        challenge="Withdrawn step",
+        reward="75 caps",
+        category="starter",
+        sequence=None,
+        objective_type=None,
+        target_entity={},
+        target_amount=1,
+    )
+    async_session.add_all(
+        [
+            active,
+            retired,
+            VaultObjectiveProgressLink(vault_id=vault.id, objective_id=active.id, total=1),
+            VaultObjectiveProgressLink(vault_id=vault.id, objective_id=retired.id, progress=1, total=1),
+        ]
+    )
+    await async_session.commit()
+    app.dependency_overrides[get_current_active_user] = lambda: user
+    try:
+        response = await async_client.post(f"/objectives/{vault.id}/{retired.id}/claim")
+        assert response.status_code == 200, response.text
+    finally:
+        app.dependency_overrides.pop(get_current_active_user, None)
+
+
 async def test_failed_claim_rolls_back_reward_and_keeps_objective_claimable(
     async_client: AsyncClient, async_session: AsyncSession, user: User, vault: Vault
 ) -> None:

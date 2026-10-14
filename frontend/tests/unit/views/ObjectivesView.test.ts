@@ -9,7 +9,7 @@ import type { Objective } from '@/modules/progression/models/objective'
 
 vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-123' } }))
 
-const claimableObjective: Objective = {
+const dailyObjective: Objective = {
   id: 'obj-1',
   vault_id: 'vault-123',
   challenge: 'Collect 100 caps',
@@ -20,6 +20,31 @@ const claimableObjective: Objective = {
   category: 'daily',
   created_at: '',
 }
+
+const starterObjective = (sequence: number, completed = false): Objective => ({
+  ...dailyObjective,
+  id: `starter-${sequence}`,
+  category: 'starter',
+  sequence,
+  challenge: `Starter step ${sequence}`,
+  progress: completed ? 1 : 0,
+  total: 1,
+  is_completed: completed,
+  objective_type: 'collect',
+})
+
+const officeObjective = (completed = false): Objective => ({
+  ...dailyObjective,
+  id: 'office',
+  category: 'starter',
+  sequence: 5,
+  challenge: "Build Overseer's Office",
+  progress: completed ? 1 : 0,
+  total: 1,
+  is_completed: completed,
+  objective_type: 'build',
+  target_entity: { room_type: 'overseers_office' },
+})
 
 let wrapper: VueWrapper
 let objectivesStore: ReturnType<typeof useObjectivesStore>
@@ -39,6 +64,7 @@ function mountView() {
 }
 
 beforeEach(() => {
+  localStorage.clear()
   setActivePinia(createPinia())
   objectivesStore = useObjectivesStore()
   vi.clearAllMocks()
@@ -47,8 +73,8 @@ beforeEach(() => {
 
 describe('ObjectivesView claim flow', () => {
   it('claiming an objective calls completeObjective and opens the completion modal', async () => {
-    objectivesStore.objectives = [{ ...claimableObjective }]
-    const completed = { ...claimableObjective, is_completed: true }
+    objectivesStore.objectives = [{ ...dailyObjective }]
+    const completed = { ...dailyObjective, is_completed: true }
     const completeSpy = vi.spyOn(objectivesStore, 'completeObjective').mockResolvedValue(completed)
 
     wrapper = mountView()
@@ -70,7 +96,7 @@ describe('ObjectivesView claim flow', () => {
   })
 
   it('a failed claim surfaces an error toast and opens no modal', async () => {
-    objectivesStore.objectives = [{ ...claimableObjective }]
+    objectivesStore.objectives = [{ ...dailyObjective }]
     vi.spyOn(objectivesStore, 'completeObjective').mockRejectedValue(new Error('Claim failed'))
 
     wrapper = mountView()
@@ -86,92 +112,104 @@ describe('ObjectivesView claim flow', () => {
   })
 })
 
-describe('ObjectivesView starter arc', () => {
-  it('renders the lowest-sequence incomplete starter step as the Next-step hero and hides the tabs', async () => {
+describe('ObjectivesView objective gating', () => {
+  it('keeps the Starter tab claimable and hides the regular tabs before the Office', async () => {
     objectivesStore.objectives = [
-      {
-        ...claimableObjective,
-        id: 'starter-1',
-        category: 'starter',
-        sequence: 1,
-        challenge: 'Assign dwellers to Power',
-        description: 'Open the Power Generator and assign dwellers.',
-        progress: 0,
-        total: 3,
-      },
-      {
-        ...claimableObjective,
-        id: 'starter-2',
-        category: 'starter',
-        sequence: 2,
-        challenge: 'Collect 150 Power',
-        description: 'Power keeps every room running.',
-        progress: 0,
-        total: 150,
-      },
-      { ...claimableObjective, id: 'daily-1', challenge: 'Collect 100 caps' },
+      { ...starterObjective(1), challenge: 'Match a dweller to their room' },
+      { ...dailyObjective },
     ]
 
     wrapper = mountView()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.next-step-hero').exists()).toBe(true)
-    expect(wrapper.text()).toContain('NEXT STEP')
-    expect(wrapper.text()).toContain('Assign dwellers to Power')
-    expect(wrapper.text()).toContain('Open the Power Generator and assign dwellers.')
-    expect(wrapper.text()).not.toContain('Collect 150 Power')
-    expect(wrapper.findAll('[role="tab"]').length).toBe(0)
+    const tabs = wrapper.findAll('[role="tab"]')
+    expect(tabs.length).toBe(1)
+    expect(tabs[0].text()).toContain('Starter')
+    expect(wrapper.text()).toContain('Match a dweller to their room')
+    expect(wrapper.text()).toContain("build the Overseer's Office")
+    expect(wrapper.text()).not.toContain('Collect 100 caps')
   })
 
-  it('renders the tabbed grid when no starter step is incomplete', async () => {
+  it('ignores a retired starter when picking the current step', async () => {
     objectivesStore.objectives = [
-      {
-        ...claimableObjective,
-        id: 'starter-1',
-        category: 'starter',
-        sequence: 1,
-        challenge: 'Assign dwellers to Power',
-        progress: 3,
-        total: 3,
-        is_completed: true,
-      },
-      { ...claimableObjective, id: 'daily-1', challenge: 'Collect 100 caps' },
+      starterObjective(5, true),
+      { ...dailyObjective, id: 'retired', category: 'starter', sequence: null, objective_type: undefined },
+      { ...dailyObjective, id: 'daily-1' },
     ]
 
     wrapper = mountView()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.next-step-hero').exists()).toBe(false)
-    expect(wrapper.findAll('[role="tab"]').length).toBe(4)
+    expect(wrapper.findAll('[role="tab"]').length).toBe(5)
     expect(wrapper.text()).toContain('Collect 100 caps')
   })
 
-  it('lets the player claim a finished current step from the hero', async () => {
-    objectivesStore.objectives = [
-      {
-        ...claimableObjective,
-        id: 'starter-1',
-        category: 'starter',
-        sequence: 1,
-        challenge: 'Assign dwellers to Power',
-        progress: 3,
-        total: 3,
-      },
-    ]
-    const completed = { ...objectivesStore.objectives[0], is_completed: true }
-    const completeSpy = vi.spyOn(objectivesStore, 'completeObjective').mockResolvedValue(completed)
+  it('keeps the tabs locked until the Office is completed', async () => {
+    objectivesStore.objectives = [officeObjective(false), { ...dailyObjective }]
 
     wrapper = mountView()
     await wrapper.vm.$nextTick()
 
-    const claimButton = wrapper.find('.next-step-hero .claim-btn')
-    expect(claimButton.exists()).toBe(true)
-    await claimButton.trigger('click')
+    expect(wrapper.findAll('[role="tab"]').length).toBe(1)
+    expect(wrapper.text()).not.toContain('Collect 100 caps')
+  })
+
+  it('opens the regular tabs once the Office is completed', async () => {
+    objectivesStore.objectives = [
+      officeObjective(true),
+      starterObjective(6),
+      { ...dailyObjective },
+    ]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('[role="tab"]').length).toBe(5)
+    expect(wrapper.text()).toContain('Collect 100 caps')
+  })
+
+  it('shows a compact current-step action', async () => {
+    objectivesStore.objectives = [
+      { ...starterObjective(1), challenge: 'Match a dweller to their room' },
+    ]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).toContain('Match a dweller to their room')
+    const action = wrapper.find('.current-step-action')
+    expect(action.exists()).toBe(true)
+    expect(action.text()).toContain('Open')
+  })
+
+  it('keeps the Starter tab after the spotlight is skipped', async () => {
+    localStorage.setItem('onboarding:v1', JSON.stringify({ 'vault-123': { skipped: true } }))
+    objectivesStore.objectives = [{ ...starterObjective(1), challenge: 'Match a dweller to their room' }]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    const tabs = wrapper.findAll('[role="tab"]')
+    expect(tabs.length).toBe(1)
+    expect(tabs[0].text()).toContain('Starter')
+    expect(wrapper.text()).toContain('Match a dweller to their room')
+  })
+
+  it('claims a starter objective from the Starter tab', async () => {
+    const objective = { ...starterObjective(1), progress: 1 }
+    objectivesStore.objectives = [objective]
+    const completeSpy = vi.spyOn(objectivesStore, 'completeObjective').mockResolvedValue({
+      ...objective,
+      is_completed: true,
+    })
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('.claim-btn').trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.vm.$nextTick()
 
     expect(completeSpy).toHaveBeenCalledWith('vault-123', 'starter-1')
-    const modal = wrapper.findComponent(ObjectiveCompleteModal)
-    expect(modal.props('show')).toBe(true)
   })
 })

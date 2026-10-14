@@ -122,14 +122,14 @@ export const useVaultStore = defineStore('vault', () => {
   }
 
   async function createVault(number: number, boosted: boolean, token: string) {
-    if (!(await fetchVaults(token))) return false
+    if (!(await fetchVaults(token))) return null
     if (vaults.value.length >= MAX_USER_VAULTS) {
       toast.warning(`Creating another vault is prohibited. Limit: ${MAX_USER_VAULTS} vaults.`)
-      return false
+      return null
     }
 
     try {
-      await axios.post(
+      const response = await axios.post<{ id: string }>(
         '/api/v1/vaults/initiate',
         { number, boosted },
         {
@@ -140,10 +140,10 @@ export const useVaultStore = defineStore('vault', () => {
       )
       // Best-effort refresh: a failed GET must not fail a successful creation (a retry would duplicate the vault).
       await fetchVaults(token)
-      return true
+      return response.data.id
     } catch (error) {
       handleStoreError(error, 'Failed to create vault')
-      return false
+      return null
     }
   }
 

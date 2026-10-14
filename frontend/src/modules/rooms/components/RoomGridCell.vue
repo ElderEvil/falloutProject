@@ -21,6 +21,7 @@ interface Props {
   merged: boolean
   incident?: Incident | null
   overseerAttentionCount?: number
+  onboardingAnchor?: string
 }
 
 const props = defineProps<Props>()
@@ -96,6 +97,7 @@ const cellTitle = computed(() => {
 </script>
 
 <template>
+  <!-- @vue-ignore -->
   <div
     :style="gridStyle"
     class="room built-room"
@@ -109,6 +111,7 @@ const cellTitle = computed(() => {
       'power-outage': isRoomAffectedByOutage(),
     }"
     :aria-label="cellTitle"
+    :data-onboarding="onboardingAnchor"
     draggable="false"
     role="button"
     tabindex="0"

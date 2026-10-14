@@ -4,8 +4,8 @@ import NavBar from './NavBar.vue'
 import ExitRequestModal from '@/modules/dwellers/components/modals/ExitRequestModal.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
-const ObjectiveGuide = defineAsyncComponent(
-  () => import('@/modules/progression/components/ObjectiveGuide.vue')
+const OnboardingSpotlight = defineAsyncComponent(
+  () => import('@/modules/progression/components/OnboardingSpotlight.vue')
 )
 
 defineProps<{
@@ -33,7 +33,7 @@ const scanlinesEnabled = inject('scanlines', ref(true))
       :style="flickerOpacity !== undefined ? { opacity: flickerOpacity } : {}"
       role="main"
     >
-      <ObjectiveGuide v-if="isAuthenticated" />
+      <OnboardingSpotlight v-if="isAuthenticated" />
       <slot></slot>
     </main>
     <ExitRequestModal v-if="isAuthenticated" />

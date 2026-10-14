@@ -12,7 +12,7 @@ const mountLayout = (scanlines?: boolean) =>
     props: { isFlickering: false },
     global: {
       provide: scanlines === undefined ? {} : { scanlines: ref(scanlines) },
-      stubs: { NavBar: true, ExitRequestModal: true, ObjectiveGuide: true },
+      stubs: { NavBar: true, ExitRequestModal: true },
     },
   })
 

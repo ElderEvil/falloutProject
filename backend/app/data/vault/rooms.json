@@ -108,6 +108,19 @@
     "output_formula": "S"
   },
   {
+    "name": "Response Station",
+    "category": "response",
+    "ability": "Endurance",
+    "population_required": 15,
+    "base_cost": 600,
+    "incremental_cost": null,
+    "t2_upgrade_cost": null,
+    "t3_upgrade_cost": null,
+    "capacity_formula": null,
+    "size_min": 3,
+    "size_max": 9
+  },
+  {
     "name": "Science Lab",
     "category": "Production",
     "ability": "Intelligence",

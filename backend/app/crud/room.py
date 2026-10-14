@@ -3,6 +3,7 @@ import logging
 import operator
 
 from pydantic import UUID4
+from sqlalchemy import update
 from sqlmodel import and_, func, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -140,6 +141,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
                 & (Dweller.room_id.is_not(None))
                 & (Room.name != "Elevator")  # Exclude elevators
                 & (Room.category != RoomTypeEnum.ARENA)  # An arena hosts matches, not incidents
+                & (Room.category != RoomTypeEnum.RESPONSE)  # A management surface, not a combat destination
             )
             .distinct()
         )
@@ -157,6 +159,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             & (Room.coordinate_y.is_not(None))
             & (Room.name != "Elevator")  # Exclude elevators from spread
             & (Room.category != RoomTypeEnum.ARENA)  # An arena hosts matches, not incidents
+            & (Room.category != RoomTypeEnum.RESPONSE)  # A management surface, not a combat destination
             & (
                 # Adjacent horizontally (same floor, next to each other)
                 ((Room.coordinate_y == coord_y) & (Room.coordinate_x.between(coord_x - 2, coord_x + 2)))
@@ -239,11 +242,13 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         return list((await db_session.execute(query)).scalars().all())
 
     @staticmethod
-    async def get_room_build_price(*, db_session: AsyncSession, room_in: RoomCreate) -> int:
+    async def get_room_build_price(*, db_session: AsyncSession, room_in: RoomCreate | Room) -> int:
         """
         Calculate the price of building a room in a vault.
         It considers the base cost of the room type and applies an incremental cost
         based on the number of similar rooms already built in the vault.
+        A unique room (zero/null incremental cost) charges only its base price.
+        Also prices a single added segment for in-place expansion (``Room`` input).
         """
         response = await db_session.execute(
             select(Room).where(Room.vault_id == room_in.vault_id, Room.category == room_in.category)
@@ -251,8 +256,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         rooms = response.scalars().all()
 
         if not room_in.incremental_cost:
-            msg = "Incremental cost must be set for the room category."
-            raise ValueError(msg)
+            return room_in.base_cost
         return room_in.base_cost + (len(rooms) * room_in.incremental_cost)
 
     @staticmethod
@@ -276,6 +280,22 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         """Check if the room category needs to be recalculated."""
         return room_obj.category == RoomTypeEnum.CAPACITY or (
             room_obj.category == RoomTypeEnum.PRODUCTION and room_obj.name != "Radio studio"
+        )
+
+    @staticmethod
+    async def clear_origin_room_references(db_session: AsyncSession, room_id: UUID4) -> None:
+        """Null the dispatch provenance that points at a room about to be demolished.
+
+        Mirrors the ``team_member.origin_room_id`` FK's ``ON DELETE SET NULL`` in the
+        application layer, so the documented "a deleted room means no posting to
+        restore" invariant holds even where the database does not enforce the
+        constraint (e.g. the SQLite test schema). Without it a dangling origin stays
+        on the incident roster and the return pass raises resolving it.
+        """
+        from app.models.team import TeamMember
+
+        await db_session.execute(
+            update(TeamMember).where(TeamMember.origin_room_id == room_id).values(origin_room_id=None)
         )
 
 

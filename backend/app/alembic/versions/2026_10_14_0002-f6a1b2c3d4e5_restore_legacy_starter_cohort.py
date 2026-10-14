@@ -77,11 +77,14 @@ def upgrade() -> None:
     connection = op.get_bind()
     table = _objective_table()
 
-    if "assignable" not in {column["name"] for column in sa.inspect(connection).get_columns("objective")}:
+    inspector = sa.inspect(connection)
+    if "assignable" not in {column["name"] for column in inspector.get_columns("objective")}:
         op.add_column(
             "objective",
             sa.Column("assignable", sa.Boolean(), nullable=False, server_default=sa.true()),
         )
+    if "ix_objective_assignable" not in {index["name"] for index in inspector.get_indexes("objective")}:
+        op.create_index("ix_objective_assignable", "objective", ["assignable"])
 
     for entry in _LEGACY:
         existing = _row(connection, table, entry["template_key"])

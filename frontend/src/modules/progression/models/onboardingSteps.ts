@@ -171,7 +171,7 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
     id: 'orientation.housing',
     kind: 'objective-explanation',
     title: 'Build more Living Quarters',
-    body: 'Housing sets how many dwellers the vault can hold. Build another quarter to make room, and a new dweller will join.',
+    body: 'Housing sets how many dwellers the vault can hold. Build another quarter to make room for more arrivals.',
     templateKeys: OBJECTIVE_KEYS.housing,
     anchors: ['build-living-room', 'build'],
     route: '',

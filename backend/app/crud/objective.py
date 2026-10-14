@@ -208,6 +208,7 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
                             select(self.model)
                             .where(
                                 col(self.model.category) == ObjectiveCategoryEnum.STARTER,
+                                col(self.model.objective_type).is_not(None),
                                 col(self.model.assignable).is_(True),
                             )
                             .order_by(col(self.model.sequence))

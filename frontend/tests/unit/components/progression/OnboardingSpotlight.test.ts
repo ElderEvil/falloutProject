@@ -26,16 +26,12 @@ const stores = vi.hoisted(() => ({
     fetchBuildableRooms: () => Promise.resolve(),
     fetchRooms: () => Promise.resolve(),
   },
-  exploration: { activeExplorations: {} as Record<string, unknown> },
 }))
 
 vi.mock('@/modules/auth/stores/auth', () => ({ useAuthStore: () => ({ token: 't' }) }))
 vi.mock('@/modules/vault/stores/vault', () => ({ useVaultStore: () => stores.vault }))
 vi.mock('@/modules/dwellers/stores/dweller', () => ({ useDwellerStore: () => stores.dweller }))
 vi.mock('@/modules/rooms/stores/room', () => ({ useRoomStore: () => stores.room }))
-vi.mock('@/modules/exploration/stores/exploration', () => ({
-  useExplorationStore: () => stores.exploration,
-}))
 vi.mock('@vueuse/core', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@vueuse/core')>()),
   usePreferredReducedMotion: () => ref('no-preference'),
@@ -148,7 +144,6 @@ beforeEach(() => {
   stores.dweller.filter.allDwellersLoadedVaultId = null
   stores.room.rooms = []
   stores.room.availableRooms = []
-  stores.exploration.activeExplorations = {}
   vi.spyOn(useObjectivesStore(), 'fetchObjectives').mockResolvedValue()
   useOnboardingState().resetAll()
   // A vault created through the standard creation flow; the marker opts it into the welcome.

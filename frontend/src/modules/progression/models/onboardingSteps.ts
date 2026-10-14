@@ -51,8 +51,6 @@ export interface TeachingSnapshot {
   dwellers: readonly SnapshotDweller[]
   dwellersLoaded: boolean
   objectives: readonly Objective[]
-  activeRuns: readonly unknown[]
-  lessons: Readonly<Partial<Record<LessonId, 'acknowledged' | 'skipped'>>>
 }
 
 export interface OnboardingLesson {

@@ -13,8 +13,6 @@ const EMPTY_SNAPSHOT: TeachingSnapshot = {
   dwellers: [],
   dwellersLoaded: false,
   objectives: [],
-  activeRuns: [],
-  lessons: {},
 }
 
 const objectiveWithKey = (templateKey: string): Objective =>

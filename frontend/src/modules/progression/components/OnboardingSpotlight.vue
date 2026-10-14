@@ -9,7 +9,6 @@ import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
-import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useObjectiveClaim } from '../composables/useObjectiveClaim'
 import { useOnboardingState } from '@/core/composables/useOnboardingState'
@@ -26,7 +25,6 @@ const store = useObjectivesStore()
 const vaultStore = useVaultStore()
 const roomStore = useRoomStore()
 const dwellerStore = useDwellerStore()
-const explorationStore = useExplorationStore()
 const auth = useAuthStore()
 const toast = useToast()
 const reducedMotion = usePreferredReducedMotion()
@@ -111,8 +109,6 @@ const snapshot = computed<TeachingSnapshot>(() => ({
   dwellersLoaded:
     !!vaultId.value && dwellerStore.filter.allDwellersLoadedVaultId === vaultId.value,
   objectives: store.objectives,
-  activeRuns: Object.values(explorationStore.activeExplorations),
-  lessons: ledger.value,
 }))
 const lessonEligibility = computed<TeachingEligibility>(() => {
   const lesson = currentLesson.value

@@ -61,7 +61,7 @@ Code inspection changes the interpretation of that snapshot:
 | Manual `move_to_room` and automatic assignment have different checks | Do not exploit manual overstaffing to make a lesson work. Any capacity-policy discrepancy needs a separate failing test and domain decision. |
 | `current_state_progress` credits existing matching workers and rooms | An assignment lesson may already be ready; the seeded Living room may satisfy a target of one. A claimed arrival can then fail because population is already 10/8. |
 | Objective settlement parses one reward string | `50 caps` plus `dweller:Wanderer` is not supported as a bundle. Prefer an arrival-only reward for the capacity lesson. |
-| `template_key` exists on stored templates, but is absent from `ObjectiveRead` and its CRUD projection | Frontend lookup by key needs an API/model update and regenerated types. Do not identify objectives by translated challenge text. |
+| `template_key` exists on stored templates and is now exposed on `ObjectiveRead` and its CRUD projection (implemented after this note was written) | Frontend lookup by key is available; do not identify objectives by translated challenge text. |
 | Radio recruitment rolls a probability and can switch a full vault to happiness mode | Never promise a fixed six-hour arrival or assume recruitment remains enabled after expanding capacity. |
 | The resource simulator builds only three production rooms with uniform staffing | It is a useful formula check, not proof that the full seed plus tutorial actions is stable. |
 
@@ -145,7 +145,8 @@ failed or fatal run does not revoke an already-earned departure objective or gra
 
 Use one frontend step definition list keyed by stable step IDs and server `template_key` values.
 The backend owns server-objective order and claims; the frontend owns explanatory taps, anchors,
-and presentation. Derive ordering from server `sequence`; avoid a second hard-coded numeric map.
+presentation, and teaching order. Teaching order is the authored frontend definition list; the
+backend `sequence` governs reward/claim order only. Avoid a second hard-coded numeric map.
 
 Each step resolves to one of these presentation states:
 
@@ -263,9 +264,12 @@ migration. A single Skip step must never set it. Use IDs such as `orientation.re
 than sequence numbers, challenge text or DOM selectors.
 
 Store status only on deliberate acknowledgement/skip, not on rendering, polling, route entry,
-claim failure, or an API response merely proving an objective is earned. Reload/route changes and
-multiple mounted consumers must converge on the same ledger. Missing storage falls back to session
-state; it cannot affect rewards. Relevance is recomputed from live data, never saved as truth.
+claim failure, or an API response merely proving an objective is earned. A successful response to
+a deliberate user action (confirmed build/dispatch) may acknowledge the corresponding action
+lesson, and a tap/inspection lesson is acknowledged only by explicit Continue/review — but a
+passive read/poll response never acknowledges anything. Reload/route changes and multiple mounted
+consumers must converge on the same ledger. Missing storage falls back to session state; it cannot
+affect rewards. Relevance is recomputed from live data, never saved as truth.
 
 Help offers **Resume guide**, **Replay orientation**, and **Reset first-time hints** with explicit
 scope to the selected vault. Resume continues unseen entries without clearing skips. Replay clears

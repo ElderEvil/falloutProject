@@ -104,7 +104,10 @@ const showContinue = computed(() => {
 const snapshot = computed<TeachingSnapshot>(() => ({
   vault: vaultId.value ? (vaultStore.loadedVaults[vaultId.value] ?? null) : null,
   buildableRooms: roomStore.availableRooms,
-  dwellers: dwellerStore.filter.dwellers,
+  builtRooms: roomStore.rooms,
+  dwellers: dwellerStore.filter.allDwellers,
+  dwellersLoaded:
+    !!vaultId.value && dwellerStore.filter.allDwellersLoadedVaultId === vaultId.value,
   objectives: store.objectives,
   activeRuns: Object.values(explorationStore.activeExplorations),
   lessons: ledger.value,
@@ -126,13 +129,18 @@ watch(
   () => {
     const lesson = currentLesson.value
     const token = auth.token
+    if (!lesson || !vaultId.value || !token) return
+    if (lesson.id === 'orientation.housing') {
+      if (roomStore.availableRooms.length === 0) {
+        void roomStore.fetchBuildableRooms(token, vaultId.value)
+      }
+      if (roomStore.rooms.length === 0) void roomStore.fetchRooms(vaultId.value, token)
+    }
     if (
-      lesson?.id === 'orientation.housing' &&
-      roomStore.availableRooms.length === 0 &&
-      vaultId.value &&
-      token
+      lesson.id === 'orientation.departure' &&
+      dwellerStore.filter.allDwellersLoadedVaultId !== vaultId.value
     ) {
-      void roomStore.fetchBuildableRooms(token, vaultId.value)
+      void dwellerStore.filter.fetchAllDwellers(vaultId.value, token)
     }
   },
   { immediate: true }

@@ -30,8 +30,6 @@ type Records = Record<string, VaultOnboardingRecord>
 
 const STORAGE_KEY = 'onboarding:v1'
 
-let sessionFallback: Ref<Records> | undefined
-
 function usableStorage(): Storage | null {
   try {
     const probe = '__onboarding_probe__'
@@ -41,6 +39,18 @@ function usableStorage(): Storage | null {
   } catch {
     return null
   }
+}
+
+let sharedState: Ref<Records | undefined> | undefined
+
+// One state for every consumer for the whole session. It is created on first use and
+// never replaced, so a storage failure after start-up keeps the running session instead
+// of handing late consumers a divergent, empty copy.
+function onboardingState(): Ref<Records | undefined> {
+  if (sharedState) return sharedState
+  const storage = usableStorage()
+  sharedState = storage ? useStorage<Records>(STORAGE_KEY, {}, storage) : ref<Records>({})
+  return sharedState
 }
 
 function emptyTeaching(): TeachingState {
@@ -71,10 +81,7 @@ function normalizeTeaching(value: unknown): TeachingState {
  * Corrupt or unavailable local data degrades to an empty ledger without breaking render.
  */
 export function useOnboardingState() {
-  const storage = usableStorage()
-  const state = storage
-    ? useStorage<Records>(STORAGE_KEY, {}, storage)
-    : (sessionFallback ??= ref<Records>({}))
+  const state = onboardingState()
 
   const records = (): Records => {
     const value: unknown = state.value

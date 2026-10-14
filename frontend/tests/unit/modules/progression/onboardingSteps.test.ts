@@ -9,7 +9,9 @@ import type { Objective } from '@/modules/progression/models/objective'
 const EMPTY_SNAPSHOT: TeachingSnapshot = {
   vault: null,
   buildableRooms: [],
+  builtRooms: [],
   dwellers: [],
+  dwellersLoaded: false,
   objectives: [],
   activeRuns: [],
   lessons: {},
@@ -30,6 +32,14 @@ const byId = new Map<OnboardingLesson['id'], OnboardingLesson>(
 const STAFFING = 'starter:assign a dweller correctly'
 const HOUSING = 'starter:build a living quarters'
 const DEPARTURE = 'starter:send a dweller exploring'
+
+const LIVING_ROOM = {
+  name: 'Living room',
+  category: 'Capacity',
+  base_cost: 100,
+  incremental_cost: 25,
+}
+const SEEDED_CAPACITY_ROOMS = [{ category: 'Capacity' }, { category: 'Capacity' }]
 
 describe('onboardingSteps', () => {
   it('authors the five orientation lessons in order with stable ids', () => {
@@ -81,10 +91,11 @@ describe('onboardingSteps', () => {
     expect(byId.get('orientation.staffing')?.eligibility(loaded)).toBe('eligible')
   })
 
-  it('blocks housing when the vault cannot afford a Living Quarters', () => {
+  it('prices housing from catalog cost plus a per-existing-room increment', () => {
     const snapshot = snapshotWith({
-      vault: { bottle_caps: 100 },
-      buildableRooms: [{ name: 'Living room', base_cost: 150 }],
+      vault: { bottle_caps: 125 },
+      buildableRooms: [LIVING_ROOM],
+      builtRooms: SEEDED_CAPACITY_ROOMS,
       objectives: [objectiveWithKey(HOUSING)],
     })
     expect(byId.get('orientation.housing')?.eligibility(snapshot)).toEqual({
@@ -92,37 +103,70 @@ describe('onboardingSteps', () => {
     })
   })
 
-  it('marks housing eligible when the Living Quarters is affordable', () => {
+  it('marks housing eligible once the raised price is affordable', () => {
     const snapshot = snapshotWith({
       vault: { bottle_caps: 200 },
-      buildableRooms: [{ name: 'Living room', base_cost: 150 }],
+      buildableRooms: [LIVING_ROOM],
+      builtRooms: SEEDED_CAPACITY_ROOMS,
       objectives: [objectiveWithKey(HOUSING)],
     })
     expect(byId.get('orientation.housing')?.eligibility(snapshot)).toBe('eligible')
   })
 
-  it('blocks departure when no mature dweller is free', () => {
+  it('keeps housing unknown until the built rooms are loaded', () => {
+    const snapshot = snapshotWith({
+      vault: { bottle_caps: 9999 },
+      buildableRooms: [LIVING_ROOM],
+      builtRooms: [],
+      objectives: [objectiveWithKey(HOUSING)],
+    })
+    expect(byId.get('orientation.housing')?.eligibility(snapshot)).toBe('unknown')
+  })
+
+  it('keeps departure unknown until the roster is loaded', () => {
+    const snapshot = snapshotWith({
+      objectives: [objectiveWithKey(DEPARTURE)],
+      dwellersLoaded: false,
+      dwellers: [{ id: 'a', age_group: 'adult', status: 'resting', health: 50 }],
+    })
+    expect(byId.get('orientation.departure')?.eligibility(snapshot)).toBe('unknown')
+  })
+
+  it('offers the matching remedy for each departure blocker', () => {
     const objectives = [objectiveWithKey(DEPARTURE)]
-    const young = snapshotWith({
+    const noAdult = snapshotWith({
       objectives,
-      dwellers: [{ id: 'c', age_group: 'child', status: 'idle' }],
+      dwellersLoaded: true,
+      dwellers: [{ id: 'c', age_group: 'child', status: 'idle', health: 50 }],
     })
-    expect(byId.get('orientation.departure')?.eligibility(young)).toEqual({
-      blocked: 'No dweller is free to explore',
+    expect(byId.get('orientation.departure')?.eligibility(noAdult)).toEqual({
+      blocked: 'Grow the vault to send an adult out',
     })
+
     const away = snapshotWith({
       objectives,
-      dwellers: [{ id: 'a', age_group: 'adult', status: 'exploring' }],
+      dwellersLoaded: true,
+      dwellers: [{ id: 'a', age_group: 'adult', status: 'exploring', health: 50 }],
     })
     expect(byId.get('orientation.departure')?.eligibility(away)).toEqual({
-      blocked: 'No dweller is free to explore',
+      blocked: 'Your dwellers are away; they will return soon',
+    })
+
+    const wounded = snapshotWith({
+      objectives,
+      dwellersLoaded: true,
+      dwellers: [{ id: 'a', age_group: 'adult', status: 'resting', health: 0 }],
+    })
+    expect(byId.get('orientation.departure')?.eligibility(wounded)).toEqual({
+      blocked: 'Treat a wounded dweller before sending them out',
     })
   })
 
-  it('marks departure eligible when a mature dweller is available', () => {
+  it('marks departure eligible for a healthy mature dweller', () => {
     const snapshot = snapshotWith({
       objectives: [objectiveWithKey(DEPARTURE)],
-      dwellers: [{ id: 'a', age_group: 'adult', status: 'resting' }],
+      dwellersLoaded: true,
+      dwellers: [{ id: 'a', age_group: 'adult', status: 'resting', health: 50 }],
     })
     expect(byId.get('orientation.departure')?.eligibility(snapshot)).toBe('eligible')
   })

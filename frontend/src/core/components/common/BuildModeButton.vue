@@ -26,7 +26,7 @@ const iconName = computed(() => (props.buildModeActive ? 'mdi:close' : 'mdi:hamm
       <TooltipTrigger as-child>
         <!-- @vue-ignore -->
         <Button
-          data-onboarding="build"
+          :data-onboarding="buildModeActive ? undefined : 'build'"
           :variant="buildModeActive ? 'destructive' : 'secondary'"
           size="lg"
           class="h-14 gap-3 border-2 px-6 text-base font-bold uppercase tracking-wide"

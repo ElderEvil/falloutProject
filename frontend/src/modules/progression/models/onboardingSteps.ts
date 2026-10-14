@@ -23,23 +23,33 @@ export interface SnapshotVault {
 
 export interface SnapshotRoom {
   name: string
+  category: string
   base_cost: number
+  incremental_cost?: number | null
+}
+
+export interface SnapshotBuiltRoom {
+  category: string
 }
 
 export interface SnapshotDweller {
   id: string
   age_group: string
   status: string
+  health: number
 }
 
 /**
  * A loaded snapshot the pure eligibility checks read. Eligibility never fetches,
  * queries the DOM, mutates, schedules or claims; it only inspects this snapshot.
+ * Absent data must read as `unknown`, never as an empty-but-valid state.
  */
 export interface TeachingSnapshot {
   vault: SnapshotVault | null
   buildableRooms: readonly SnapshotRoom[]
+  builtRooms: readonly SnapshotBuiltRoom[]
   dwellers: readonly SnapshotDweller[]
+  dwellersLoaded: boolean
   objectives: readonly Objective[]
   activeRuns: readonly unknown[]
   lessons: Readonly<Partial<Record<LessonId, 'acknowledged' | 'skipped'>>>
@@ -69,6 +79,7 @@ const OBJECTIVE_KEYS = {
 } as const
 
 const MATURE_AGE_GROUPS = new Set(['adult', 'elder'])
+const AWAY_STATUSES = new Set(['exploring', 'questing'])
 const UNAVAILABLE_DEPARTURE_STATUSES = new Set(['exploring', 'questing', 'dead'])
 
 const alwaysEligible = (): TeachingEligibility => 'eligible'
@@ -81,26 +92,49 @@ const objectiveEligibility =
   (snapshot: TeachingSnapshot): TeachingEligibility =>
     hasObjective(snapshot, templateKey) ? 'eligible' : 'unknown'
 
-const housingEligibility = (snapshot: TeachingSnapshot): TeachingEligibility => {
-  if (!hasObjective(snapshot, OBJECTIVE_KEYS.housing)) return 'unknown'
-  const room = snapshot.buildableRooms.find(
+const isMature = (dweller: SnapshotDweller): boolean => MATURE_AGE_GROUPS.has(dweller.age_group)
+
+const canDepart = (dweller: SnapshotDweller): boolean =>
+  isMature(dweller) && !UNAVAILABLE_DEPARTURE_STATUSES.has(dweller.status) && dweller.health > 0
+
+// Mirrors backend get_room_build_price: catalog cost plus an increment per existing room
+// in the same category, so an already-built vault raises the next Living Quarters above base.
+const livingQuartersPrice = (snapshot: TeachingSnapshot): number | undefined => {
+  const template = snapshot.buildableRooms.find(
     (candidate) => candidate.name.trim().toLowerCase() === 'living room'
   )
-  if (!room) return 'unknown'
+  if (!template || typeof template.incremental_cost !== 'number') return undefined
+  if (snapshot.builtRooms.length === 0) return undefined
+  const category = template.category.trim().toLowerCase()
+  const existing = snapshot.builtRooms.filter(
+    (room) => room.category.trim().toLowerCase() === category
+  ).length
+  return template.base_cost + existing * template.incremental_cost
+}
+
+const housingEligibility = (snapshot: TeachingSnapshot): TeachingEligibility => {
+  if (!hasObjective(snapshot, OBJECTIVE_KEYS.housing)) return 'unknown'
+  const price = livingQuartersPrice(snapshot)
+  if (price === undefined) return 'unknown'
   const caps = snapshot.vault?.bottle_caps ?? 0
-  return caps >= room.base_cost
+  return caps >= price
     ? 'eligible'
-    : { blocked: `Not enough caps for Living Quarters (need ${room.base_cost})` }
+    : { blocked: `Not enough caps for Living Quarters (need ${price})` }
 }
 
 const departureEligibility = (snapshot: TeachingSnapshot): TeachingEligibility => {
   if (!hasObjective(snapshot, OBJECTIVE_KEYS.departure)) return 'unknown'
-  const available = snapshot.dwellers.some(
-    (dweller) =>
-      MATURE_AGE_GROUPS.has(dweller.age_group) &&
-      !UNAVAILABLE_DEPARTURE_STATUSES.has(dweller.status)
-  )
-  return available ? 'eligible' : { blocked: 'No dweller is free to explore' }
+  if (!snapshot.dwellersLoaded) return 'unknown'
+  const mature = snapshot.dwellers.filter(isMature)
+  if (mature.length === 0) return { blocked: 'Grow the vault to send an adult out' }
+  if (mature.some(canDepart)) return 'eligible'
+  if (mature.every((dweller) => AWAY_STATUSES.has(dweller.status))) {
+    return { blocked: 'Your dwellers are away; they will return soon' }
+  }
+  if (mature.some((dweller) => dweller.health <= 0)) {
+    return { blocked: 'Treat a wounded dweller before sending them out' }
+  }
+  return { blocked: 'No dweller is free to explore' }
 }
 
 /** The authored orientation arc; the only source of teaching order. */

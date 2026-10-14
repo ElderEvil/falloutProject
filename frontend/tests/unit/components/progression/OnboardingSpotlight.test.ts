@@ -13,9 +13,19 @@ vi.mock('@/core/composables/useToast', () => ({ useToast: () => toast }))
 const stores = vi.hoisted(() => ({
   vault: { loadedVaults: {} as Record<string, unknown>, refreshVault: () => Promise.resolve() },
   dweller: {
-    filter: { dwellers: [] as unknown[], fetchDwellersByVault: () => Promise.resolve() },
+    filter: {
+      allDwellers: [] as unknown[],
+      allDwellersLoadedVaultId: null as string | null,
+      fetchDwellersByVault: () => Promise.resolve(),
+      fetchAllDwellers: () => Promise.resolve(),
+    },
   },
-  room: { availableRooms: [] as unknown[], fetchBuildableRooms: () => Promise.resolve() },
+  room: {
+    rooms: [] as unknown[],
+    availableRooms: [] as unknown[],
+    fetchBuildableRooms: () => Promise.resolve(),
+    fetchRooms: () => Promise.resolve(),
+  },
   exploration: { activeExplorations: {} as Record<string, unknown> },
 }))
 
@@ -117,6 +127,15 @@ const boundedAnchor = (key: string) => {
   return anchor
 }
 
+const seedHousing = (caps: number) => {
+  useObjectivesStore().objectives = [objective('housing', { templateKey: HOUSING_KEY })]
+  stores.vault.loadedVaults = { v1: { bottle_caps: caps } }
+  stores.room.availableRooms = [
+    { name: 'Living room', category: 'Capacity', base_cost: 100, incremental_cost: 25 },
+  ]
+  stores.room.rooms = [{ category: 'Capacity' }, { category: 'Capacity' }]
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
@@ -125,10 +144,13 @@ beforeEach(() => {
   route.path = '/vault/v1'
   route.params.id = 'v1'
   stores.vault.loadedVaults = {}
-  stores.dweller.filter.dwellers = []
+  stores.dweller.filter.allDwellers = []
+  stores.dweller.filter.allDwellersLoadedVaultId = null
+  stores.room.rooms = []
   stores.room.availableRooms = []
   stores.exploration.activeExplorations = {}
   vi.spyOn(useObjectivesStore(), 'fetchObjectives').mockResolvedValue()
+  useOnboardingState().resetAll()
   // A vault created through the standard creation flow; the marker opts it into the welcome.
   useOnboardingState().patch('v1', { created: true })
 })
@@ -278,26 +300,22 @@ describe('OnboardingSpotlight', () => {
     wrapper.unmount()
   })
 
-  it('does not dim housing when the vault cannot afford it, and shows the blocker', async () => {
-    const store = useObjectivesStore()
-    store.objectives = [objective('housing', { templateKey: HOUSING_KEY })]
-    stores.vault.loadedVaults = { v1: { bottle_caps: 100 } }
-    stores.room.availableRooms = [{ name: 'Living room', base_cost: 150 }]
+  it('does not dim housing when the raised price is unaffordable, and shows it', async () => {
+    seedHousing(125)
     acknowledgeLessons('orientation.resources', 'orientation.generator', 'orientation.staffing')
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
     expect(document.body.textContent).toContain('Build more Living Quarters')
-    expect(document.body.querySelector('.onboarding-note')?.textContent).toContain('Not enough caps')
+    expect(document.body.querySelector('.onboarding-note')?.textContent).toContain(
+      'Not enough caps for Living Quarters (need 150)'
+    )
     expect(document.querySelector('.onboarding-cutout')).toBeNull()
     wrapper.unmount()
   })
 
   it('offers a route back to construction for housing', async () => {
-    const store = useObjectivesStore()
-    store.objectives = [objective('housing', { templateKey: HOUSING_KEY })]
-    stores.vault.loadedVaults = { v1: { bottle_caps: 500 } }
-    stores.room.availableRooms = [{ name: 'Living room', base_cost: 150 }]
+    seedHousing(500)
     acknowledgeLessons('orientation.resources', 'orientation.generator', 'orientation.staffing')
     const wrapper = mountSpotlight()
     await flushPromises()
@@ -307,30 +325,60 @@ describe('OnboardingSpotlight', () => {
     wrapper.unmount()
   })
 
-  it('blocks departure when no dweller is free, and shows the blocker', async () => {
+  it('blocks departure with the remedy matching the blocker', async () => {
     const store = useObjectivesStore()
     store.objectives = [objective('depart', { templateKey: DEPARTURE_KEY })]
-    stores.dweller.filter.dwellers = [{ id: 'c', age_group: 'child', status: 'idle' }]
+    stores.dweller.filter.allDwellersLoadedVaultId = 'v1'
     acknowledgeLessons(
       'orientation.resources',
       'orientation.generator',
       'orientation.staffing',
       'orientation.housing'
     )
-    const wrapper = mountSpotlight()
+
+    stores.dweller.filter.allDwellers = [
+      { id: 'c', age_group: 'child', status: 'idle', health: 50 },
+    ]
+    let wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
-    expect(document.body.textContent).toContain('Send a dweller exploring')
     expect(document.body.querySelector('.onboarding-note')?.textContent).toContain(
-      'No dweller is free'
+      'Grow the vault to send an adult out'
+    )
+    wrapper.unmount()
+
+    document.body.innerHTML = ''
+    stores.dweller.filter.allDwellers = [
+      { id: 'a', age_group: 'adult', status: 'exploring', health: 50 },
+    ]
+    wrapper = mountSpotlight()
+    await flushPromises()
+    await clickButton('Start')
+    expect(document.body.querySelector('.onboarding-note')?.textContent).toContain(
+      'Your dwellers are away'
+    )
+    wrapper.unmount()
+
+    document.body.innerHTML = ''
+    stores.dweller.filter.allDwellers = [
+      { id: 'a', age_group: 'adult', status: 'resting', health: 0 },
+    ]
+    wrapper = mountSpotlight()
+    await flushPromises()
+    await clickButton('Start')
+    expect(document.body.querySelector('.onboarding-note')?.textContent).toContain(
+      'Treat a wounded dweller'
     )
     wrapper.unmount()
   })
 
-  it('dims departure once a mature dweller is available', async () => {
+  it('dims departure once a healthy mature dweller is available', async () => {
     const store = useObjectivesStore()
     store.objectives = [objective('depart', { templateKey: DEPARTURE_KEY })]
-    stores.dweller.filter.dwellers = [{ id: 'a', age_group: 'adult', status: 'resting' }]
+    stores.dweller.filter.allDwellersLoadedVaultId = 'v1'
+    stores.dweller.filter.allDwellers = [
+      { id: 'a', age_group: 'adult', status: 'resting', health: 50 },
+    ]
     boundedAnchor('wasteland')
     acknowledgeLessons(
       'orientation.resources',

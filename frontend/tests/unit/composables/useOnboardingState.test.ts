@@ -3,9 +3,30 @@ import { useOnboardingState } from '@/core/composables/useOnboardingState'
 
 const EMPTY_TEACHING = { version: 1, lessons: {}, replayOrientation: false }
 
+const setRawLedger = (raw: unknown) => {
+  const { state } = useOnboardingState()
+  ;(state as { value: unknown }).value = raw
+}
+
+const withStorageUnavailable = (run: () => void) => {
+  const descriptor = Object.getOwnPropertyDescriptor(window, 'localStorage')
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    get() {
+      throw new Error('storage unavailable')
+    },
+  })
+  try {
+    run()
+  } finally {
+    if (descriptor) Object.defineProperty(window, 'localStorage', descriptor)
+  }
+}
+
 describe('useOnboardingState', () => {
   beforeEach(() => {
     localStorage.clear()
+    useOnboardingState().resetAll()
   })
 
   it('tracks welcomed and skipped per vault', () => {
@@ -37,6 +58,23 @@ describe('useOnboardingState', () => {
     resetAll()
     expect(vaultState('v1')).toEqual({})
     expect(vaultState('v2')).toEqual({})
+  })
+
+  it('shares one ledger across consumers', () => {
+    const first = useOnboardingState()
+    const second = useOnboardingState()
+    first.acknowledgeLesson('v1', 'orientation.resources')
+    expect(second.teaching('v1').lessons['orientation.resources']).toBe('acknowledged')
+  })
+
+  it('keeps one shared session when storage fails after initialization', () => {
+    const first = useOnboardingState()
+    first.patch('v1', { created: true })
+    withStorageUnavailable(() => {
+      const second = useOnboardingState()
+      second.patch('v1', { welcomed: true })
+      expect(second.vaultState('v1')).toMatchObject({ created: true, welcomed: true })
+    })
   })
 
   it('reads an empty teaching ledger for an unseen vault', () => {
@@ -73,7 +111,8 @@ describe('useOnboardingState', () => {
   })
 
   it('replayOrientation clears lessons and suppression but keeps the creation marker', () => {
-    const { acknowledgeLesson, replayOrientation, teaching, patch, vaultState } = useOnboardingState()
+    const { acknowledgeLesson, replayOrientation, teaching, patch, vaultState } =
+      useOnboardingState()
     patch('v1', { created: true, welcomed: true })
     acknowledgeLesson('v1', 'orientation.resources')
     replayOrientation('v1')
@@ -88,77 +127,50 @@ describe('useOnboardingState', () => {
     expect(teaching('v2').lessons).toEqual({})
   })
 
-  it('migrates a legacy record lazily without losing its flags', () => {
-    localStorage.setItem(
-      'onboarding:v1',
-      JSON.stringify({ v1: { created: true, welcomed: true, skipped: true } })
-    )
+  it('treats a legacy record without a teaching ledger as unseen', () => {
+    setRawLedger({ v1: { created: true, welcomed: true, skipped: true } })
     const { teaching, vaultState } = useOnboardingState()
     expect(vaultState('v1')).toEqual({ created: true, welcomed: true, skipped: true })
     expect(teaching('v1')).toEqual(EMPTY_TEACHING)
   })
 
-  it('rejects an unsupported teaching version instead of coercing it', () => {
-    localStorage.setItem(
-      'onboarding:v1',
-      JSON.stringify({
-        v1: {
-          teaching: {
-            version: 2,
-            lessons: { 'orientation.resources': 'acknowledged' },
-            replayOrientation: false,
-          },
-        },
-      })
-    )
-    const { teaching } = useOnboardingState()
+  it('treats a missing ledger as empty and recovers on the next write', () => {
+    const { acknowledgeLesson, teaching } = useOnboardingState()
+    setRawLedger(undefined)
     expect(teaching('v1')).toEqual(EMPTY_TEACHING)
-  })
-
-  it('retains only acknowledged/skipped lesson statuses from persisted data', () => {
-    localStorage.setItem(
-      'onboarding:v1',
-      JSON.stringify({
-        v1: {
-          teaching: {
-            version: 1,
-            lessons: {
-              'orientation.resources': 'acknowledged',
-              'orientation.housing': 'completed',
-              rogue: 7,
-            },
-            replayOrientation: false,
-          },
-        },
-      })
-    )
-    const { teaching } = useOnboardingState()
-    expect(teaching('v1').lessons).toEqual({ 'orientation.resources': 'acknowledged' })
-  })
-
-  it('survives corrupt storage and keeps working from memory', () => {
-    localStorage.setItem('onboarding:v1', 'not-json')
-    const { acknowledgeLesson, teaching, vaultState } = useOnboardingState()
-    expect(vaultState('v1')).toEqual({})
     acknowledgeLesson('v1', 'orientation.resources')
     expect(teaching('v1').lessons).toEqual({ 'orientation.resources': 'acknowledged' })
   })
 
-  it('shares one session ledger across consumers when storage is unavailable', () => {
-    const descriptor = Object.getOwnPropertyDescriptor(window, 'localStorage')
-    Object.defineProperty(window, 'localStorage', {
-      configurable: true,
-      get() {
-        throw new Error('storage unavailable')
+  it('rejects an unsupported teaching version instead of coercing it', () => {
+    setRawLedger({
+      v1: {
+        teaching: {
+          version: 2,
+          lessons: { 'orientation.resources': 'acknowledged' },
+          replayOrientation: false,
+        },
       },
     })
-    try {
-      const first = useOnboardingState()
-      const second = useOnboardingState()
-      first.acknowledgeLesson('v1', 'orientation.resources')
-      expect(second.teaching('v1').lessons['orientation.resources']).toBe('acknowledged')
-    } finally {
-      if (descriptor) Object.defineProperty(window, 'localStorage', descriptor)
-    }
+    expect(useOnboardingState().teaching('v1')).toEqual(EMPTY_TEACHING)
+  })
+
+  it('retains only acknowledged/skipped lesson statuses', () => {
+    setRawLedger({
+      v1: {
+        teaching: {
+          version: 1,
+          lessons: {
+            'orientation.resources': 'acknowledged',
+            'orientation.housing': 'completed',
+            rogue: 7,
+          },
+          replayOrientation: false,
+        },
+      },
+    })
+    expect(useOnboardingState().teaching('v1').lessons).toEqual({
+      'orientation.resources': 'acknowledged',
+    })
   })
 })

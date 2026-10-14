@@ -404,10 +404,7 @@ async def read_dwellers_data(
     Returns:
         list[DwellerCreateWithoutVaultID]: List of dweller templates.
     """
-    return [
-        DwellerCreateWithoutVaultID.model_validate(template.model_dump())
-        for template in data_store.dwellers
-    ]
+    return [DwellerCreateWithoutVaultID.model_validate(template.model_dump()) for template in data_store.dwellers]
 
 
 @router.post("/{dweller_id}/use_stimpack", response_model=DwellerRead)

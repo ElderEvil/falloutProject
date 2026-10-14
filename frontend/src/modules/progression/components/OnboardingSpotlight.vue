@@ -60,7 +60,9 @@ const objectiveByKey = computed(() => {
 })
 
 const objectiveFor = (lesson: OnboardingLesson): Objective | undefined =>
-  lesson.templateKey ? objectiveByKey.value.get(lesson.templateKey) : undefined
+  lesson.templateKeys
+    ?.map((key) => objectiveByKey.value.get(key))
+    .find((objective) => objective !== undefined)
 
 const isHandled = (lesson: OnboardingLesson): boolean => {
   if (ledger.value[lesson.id]) return true

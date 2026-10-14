@@ -53,11 +53,11 @@ describe('onboardingSteps', () => {
   })
 
   it('links only the objective-backed lessons to server template keys', () => {
-    expect(byId.get('orientation.resources')?.templateKey).toBeUndefined()
-    expect(byId.get('orientation.generator')?.templateKey).toBeUndefined()
-    expect(byId.get('orientation.staffing')?.templateKey).toBe(STAFFING)
-    expect(byId.get('orientation.housing')?.templateKey).toBe(HOUSING)
-    expect(byId.get('orientation.departure')?.templateKey).toBe(DEPARTURE)
+    expect(byId.get('orientation.resources')?.templateKeys).toBeUndefined()
+    expect(byId.get('orientation.generator')?.templateKeys).toBeUndefined()
+    expect(byId.get('orientation.staffing')?.templateKeys).toEqual([`${STAFFING}#v2`, STAFFING])
+    expect(byId.get('orientation.housing')?.templateKeys).toEqual([`${HOUSING}#v2`, HOUSING])
+    expect(byId.get('orientation.departure')?.templateKeys).toEqual([DEPARTURE])
   })
 
   it('anchors each lesson to a real data-onboarding target', () => {

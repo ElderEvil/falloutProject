@@ -60,8 +60,7 @@ export interface OnboardingLesson {
   kind: LessonKind
   title: string
   body: string
-  /** Server objective `template_key` this lesson explains, when objective-backed. */
-  templateKey?: string
+  templateKeys?: readonly string[]
   /** `data-onboarding` anchors on the relevant screen; first present wins. */
   anchors?: string[]
   /** Vault-relative path the action lives on; `''` is the vault home (construction). */
@@ -73,9 +72,9 @@ export interface OnboardingLesson {
 }
 
 const OBJECTIVE_KEYS = {
-  staffing: 'starter:assign a dweller correctly',
-  housing: 'starter:build a living quarters',
-  departure: 'starter:send a dweller exploring',
+  staffing: ['starter:assign a dweller correctly#v2', 'starter:assign a dweller correctly'],
+  housing: ['starter:build a living quarters#v2', 'starter:build a living quarters'],
+  departure: ['starter:send a dweller exploring'],
 } as const
 
 const MATURE_AGE_GROUPS = new Set(['adult', 'elder'])
@@ -84,13 +83,15 @@ const UNAVAILABLE_DEPARTURE_STATUSES = new Set(['exploring', 'questing', 'dead']
 
 const alwaysEligible = (): TeachingEligibility => 'eligible'
 
-const hasObjective = (snapshot: TeachingSnapshot, templateKey: string): boolean =>
-  snapshot.objectives.some((objective) => objective.template_key === templateKey)
+const hasObjective = (snapshot: TeachingSnapshot, templateKeys: readonly string[]): boolean =>
+  snapshot.objectives.some(
+    (objective) => objective.template_key != null && templateKeys.includes(objective.template_key)
+  )
 
 const objectiveEligibility =
-  (templateKey: string) =>
+  (templateKeys: readonly string[]) =>
   (snapshot: TeachingSnapshot): TeachingEligibility =>
-    hasObjective(snapshot, templateKey) ? 'eligible' : 'unknown'
+    hasObjective(snapshot, templateKeys) ? 'eligible' : 'unknown'
 
 const isMature = (dweller: SnapshotDweller): boolean => MATURE_AGE_GROUPS.has(dweller.age_group)
 
@@ -160,7 +161,7 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
     kind: 'inspection',
     title: 'Understand SPECIAL staffing',
     body: 'Each worker is strongest in one SPECIAL stat. Open Dwellers to review who matches their room; move someone only when a better slot is open.',
-    templateKey: OBJECTIVE_KEYS.staffing,
+    templateKeys: OBJECTIVE_KEYS.staffing,
     anchors: ['nav-dwellers'],
     route: 'dwellers',
     routeLabel: 'Open Dwellers',
@@ -171,7 +172,7 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
     kind: 'objective-explanation',
     title: 'Build more Living Quarters',
     body: 'Housing sets how many dwellers the vault can hold. Build another quarter to make room, and a new dweller will join.',
-    templateKey: OBJECTIVE_KEYS.housing,
+    templateKeys: OBJECTIVE_KEYS.housing,
     anchors: ['build-living-room', 'build'],
     route: '',
     routeLabel: 'Open Vault',
@@ -182,7 +183,7 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
     kind: 'objective-explanation',
     title: 'Send a dweller exploring',
     body: 'An explorer brings back caps and loot. Pick a healthy adult, choose a short run, and check supplies before you confirm.',
-    templateKey: OBJECTIVE_KEYS.departure,
+    templateKeys: OBJECTIVE_KEYS.departure,
     anchors: ['wasteland', 'nav-exploration'],
     route: 'exploration',
     routeLabel: 'Open Exploration',

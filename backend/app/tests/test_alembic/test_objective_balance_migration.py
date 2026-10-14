@@ -131,6 +131,7 @@ def test_spine_migration_rebalances_starter_rows_without_touching_claims(monkeyp
     with engine.begin() as connection:
         metadata.create_all(connection)
         identifier = uuid4()
+        retired_id = uuid4()
         connection.execute(
             objective.insert().values(
                 id=identifier,
@@ -146,6 +147,20 @@ def test_spine_migration_rebalances_starter_rows_without_touching_claims(monkeyp
             )
         )
         connection.execute(
+            objective.insert().values(
+                id=retired_id,
+                challenge="Collect 150 Power",
+                reward="50 power",
+                category="starter",
+                objective_type="collect",
+                target_entity={"resource_type": "power"},
+                target_amount=150,
+                sequence=4,
+                description="Retired orientation step.",
+                template_key="starter:collect 150 power",
+            )
+        )
+        connection.execute(
             link.insert().values(
                 vault_id=uuid4(),
                 objective_id=identifier,
@@ -153,6 +168,17 @@ def test_spine_migration_rebalances_starter_rows_without_touching_claims(monkeyp
                 total=1,
                 is_completed=True,
                 reward_snapshot="50 caps",
+                credited_dweller_ids=[],
+            )
+        )
+        connection.execute(
+            link.insert().values(
+                vault_id=uuid4(),
+                objective_id=retired_id,
+                progress=5,
+                total=150,
+                is_completed=False,
+                reward_snapshot=None,
                 credited_dweller_ids=[],
             )
         )
@@ -165,9 +191,14 @@ def test_spine_migration_rebalances_starter_rows_without_touching_claims(monkeyp
         assert reworded["challenge"] == "Match a dweller to their room"
         assert reworded["template_key"] == "starter:assign a dweller correctly"
         assert reworded["sequence"] == 0
-        assert len(connection.execute(sa.select(objectives)).all()) == 85
-        assert connection.execute(sa.select(links)).mappings().one()["reward_snapshot"] == "50 caps"
+        assert connection.execute(sa.select(objectives).where(objectives.c.id == retired_id)).first() is None
+        assert connection.execute(sa.select(links).where(links.c.objective_id == retired_id)).first() is None
+        assert len(connection.execute(sa.select(objectives)).all()) == 93
+        earned = connection.execute(sa.select(links).where(links.c.objective_id == identifier)).mappings().one()
+        assert earned["reward_snapshot"] == "50 caps"
         assert _frozen_catalog(migration) == _json_catalog()
+        migration.upgrade()
+        assert len(connection.execute(sa.select(objectives)).all()) == 93
         migration.downgrade()
-        assert len(connection.execute(sa.select(objectives)).all()) == 85
+        assert len(connection.execute(sa.select(objectives)).all()) == 93
     engine.dispose()

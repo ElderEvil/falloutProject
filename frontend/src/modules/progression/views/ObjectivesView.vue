@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useStorage } from '@vueuse/core'
 import { useObjectivesStore } from '@/modules/progression/stores/objectives'
-import type { Objective } from '@/modules/progression/models/objective'
+import { currentObjective, type Objective } from '@/modules/progression/models/objective'
 import { getErrorMessage } from '@/core/utils/errorHandler'
 import { useObjectiveClaim } from '@/modules/progression/composables/useObjectiveClaim'
 import SidePanel from '@/core/components/common/SidePanel.vue'
@@ -20,11 +19,15 @@ const objectivesStore = useObjectivesStore()
 const { isCollapsed } = useSidePanel()
 const activeTab = ref('daily')
 const objectiveTabs = [
+  { key: 'starter', label: 'Starter', icon: 'mdi:map-marker-path' },
   { key: 'daily', label: 'Daily', icon: 'mdi:calendar-today' },
   { key: 'weekly', label: 'Weekly', icon: 'mdi:calendar-week' },
   { key: 'achievement', label: 'Achievement', icon: 'mdi:trophy' },
   { key: 'completed', label: 'Completed', icon: 'mdi:check-circle' },
 ]
+const STARTER_TAB = 'starter'
+// The starter step that builds the Overseer's Office; the regular tabs open once it is behind us.
+const OFFICE_STEP_SEQUENCE = 5
 
 const vaultId = computed(() => route.params.id as string)
 
@@ -47,28 +50,31 @@ watch(
   { immediate: true }
 )
 
+// The Starter tab is the permanent claim surface; the rest open on the Office unlock.
+const currentStarter = computed(() => {
+  const objective = currentObjective(objectivesStore.objectives)
+  return objective?.category === 'starter' ? objective : null
+})
+const objectivesUnlocked = computed(
+  () => !currentStarter.value || (currentStarter.value.sequence ?? 0) > OFFICE_STEP_SEQUENCE
+)
+const visibleTabs = computed(() =>
+  objectivesUnlocked.value ? objectiveTabs : objectiveTabs.filter((tab) => tab.key === STARTER_TAB)
+)
+const effectiveTab = computed(() =>
+  visibleTabs.value.some((tab) => tab.key === activeTab.value) ? activeTab.value : STARTER_TAB
+)
 const visibleObjectives = computed(() =>
   objectivesStore.objectives.filter((objective) =>
-    activeTab.value === 'completed'
+    effectiveTab.value === 'completed'
       ? objective.is_completed
-      : objective.category === activeTab.value && !objective.is_completed
+      : objective.category === effectiveTab.value && !objective.is_completed
   )
 )
 const emptyMessage = computed(() =>
-  activeTab.value === 'completed'
+  effectiveTab.value === 'completed'
     ? 'No completed objectives yet'
-    : `No ${activeTab.value} objectives available`
-)
-
-// Regular objectives open once the starter arc is finished, or if the tour was skipped.
-const onboardingState = useStorage<Record<string, { skipped?: boolean }>>('onboarding:v1', {})
-const startersComplete = computed(() =>
-  objectivesStore.objectives
-    .filter((objective) => objective.category === 'starter')
-    .every((objective) => objective.is_completed)
-)
-const objectivesUnlocked = computed(
-  () => startersComplete.value || !!onboardingState.value[vaultId.value]?.skipped
+    : `No ${effectiveTab.value} objectives available`
 )
 
 function handleClaimObjective(objectiveId: string): void {
@@ -103,17 +109,16 @@ function closeClaimModal(): void {
               {{ loadError || claimError }}
             </p>
 
-            <Tabs
-              v-if="objectivesUnlocked"
-              :model-value="activeTab"
-              @update:model-value="activeTab = String($event)"
-            >
+            <Tabs :model-value="effectiveTab" @update:model-value="activeTab = String($event)">
               <TabsList>
-                <TabsTrigger v-for="tab in objectiveTabs" :key="tab.key" :value="tab.key">
+                <TabsTrigger v-for="tab in visibleTabs" :key="tab.key" :value="tab.key">
                   <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
                   {{ tab.label }}
                 </TabsTrigger>
               </TabsList>
+              <p v-if="!objectivesUnlocked" class="unlock-hint">
+                Daily, weekly and achievement objectives unlock once you build the Overseer's Office.
+              </p>
               <div class="tab-content">
                 <div v-if="visibleObjectives.length === 0" class="empty-state">
                   <p>{{ emptyMessage }}</p>
@@ -129,11 +134,6 @@ function closeClaimModal(): void {
                 </div>
               </div>
             </Tabs>
-
-            <div v-else class="objectives-locked">
-              <Icon icon="mdi:lock-outline" class="locked-icon" />
-              <p>Finish your starter objectives to unlock daily, weekly and achievement objectives.</p>
-            </div>
           </div>
         </PageContentRail>
       </div>
@@ -193,20 +193,13 @@ function closeClaimModal(): void {
   font-size: 0.9rem;
 }
 
-.objectives-locked {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 48px 24px;
+.unlock-hint {
+  margin: 16px 0;
+  padding: 12px 16px;
+  border: 1px dashed var(--color-theme-accent);
+  border-radius: 4px;
   color: var(--color-gray-500);
-  text-align: center;
-  font-size: 1.1rem;
-}
-
-.locked-icon {
-  font-size: 2.5rem;
-  color: var(--color-theme-accent);
+  font-size: 0.9rem;
 }
 
 .objective-grid {

@@ -9,7 +9,7 @@ import type { Objective } from '@/modules/progression/models/objective'
 
 vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-123' } }))
 
-const claimableObjective: Objective = {
+const dailyObjective: Objective = {
   id: 'obj-1',
   vault_id: 'vault-123',
   challenge: 'Collect 100 caps',
@@ -21,15 +21,16 @@ const claimableObjective: Objective = {
   created_at: '',
 }
 
-const incompleteStarter: Objective = {
-  ...claimableObjective,
-  id: 'starter-1',
+const starterObjective = (sequence: number, completed = false): Objective => ({
+  ...dailyObjective,
+  id: `starter-${sequence}`,
   category: 'starter',
-  sequence: 1,
-  challenge: 'Match a dweller to their room',
-  progress: 0,
+  sequence,
+  challenge: `Starter step ${sequence}`,
+  progress: completed ? 1 : 0,
   total: 1,
-}
+  is_completed: completed,
+})
 
 let wrapper: VueWrapper
 let objectivesStore: ReturnType<typeof useObjectivesStore>
@@ -58,8 +59,8 @@ beforeEach(() => {
 
 describe('ObjectivesView claim flow', () => {
   it('claiming an objective calls completeObjective and opens the completion modal', async () => {
-    objectivesStore.objectives = [{ ...claimableObjective }]
-    const completed = { ...claimableObjective, is_completed: true }
+    objectivesStore.objectives = [{ ...dailyObjective }]
+    const completed = { ...dailyObjective, is_completed: true }
     const completeSpy = vi.spyOn(objectivesStore, 'completeObjective').mockResolvedValue(completed)
 
     wrapper = mountView()
@@ -81,7 +82,7 @@ describe('ObjectivesView claim flow', () => {
   })
 
   it('a failed claim surfaces an error toast and opens no modal', async () => {
-    objectivesStore.objectives = [{ ...claimableObjective }]
+    objectivesStore.objectives = [{ ...dailyObjective }]
     vi.spyOn(objectivesStore, 'completeObjective').mockRejectedValue(new Error('Claim failed'))
 
     wrapper = mountView()
@@ -98,37 +99,61 @@ describe('ObjectivesView claim flow', () => {
 })
 
 describe('ObjectivesView objective gating', () => {
-  it('locks the tabs while a starter step is incomplete', async () => {
-    objectivesStore.objectives = [incompleteStarter, { ...claimableObjective, id: 'daily-1' }]
-
-    wrapper = mountView()
-    await wrapper.vm.$nextTick()
-
-    expect(wrapper.findAll('[role="tab"]').length).toBe(0)
-    expect(wrapper.text()).toContain('Finish your starter objectives')
-    expect(wrapper.text()).not.toContain('Collect 100 caps')
-  })
-
-  it('unlocks the tabs once every starter step is complete', async () => {
+  it('keeps the Starter tab claimable and hides the regular tabs before the Office', async () => {
     objectivesStore.objectives = [
-      { ...incompleteStarter, is_completed: true },
-      { ...claimableObjective, id: 'daily-1' },
+      { ...starterObjective(1), challenge: 'Match a dweller to their room' },
+      { ...dailyObjective },
     ]
 
     wrapper = mountView()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.findAll('[role="tab"]').length).toBe(4)
-    expect(wrapper.text()).toContain('Collect 100 caps')
+    const tabs = wrapper.findAll('[role="tab"]')
+    expect(tabs.length).toBe(1)
+    expect(tabs[0].text()).toContain('Starter')
+    expect(wrapper.text()).toContain('Match a dweller to their room')
+    expect(wrapper.text()).toContain("build the Overseer's Office")
+    expect(wrapper.text()).not.toContain('Collect 100 caps')
   })
 
-  it('unlocks the tabs when onboarding was skipped', async () => {
-    localStorage.setItem('onboarding:v1', JSON.stringify({ 'vault-123': { skipped: true } }))
-    objectivesStore.objectives = [incompleteStarter, { ...claimableObjective, id: 'daily-1' }]
+  it('opens the regular tabs once the Office step is behind', async () => {
+    objectivesStore.objectives = [starterObjective(5, true), starterObjective(6), { ...dailyObjective }]
 
     wrapper = mountView()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.findAll('[role="tab"]').length).toBe(4)
+    expect(wrapper.findAll('[role="tab"]').length).toBe(5)
+    expect(wrapper.text()).toContain('Collect 100 caps')
+  })
+
+  it('keeps the Starter tab after the spotlight is skipped', async () => {
+    localStorage.setItem('onboarding:v1', JSON.stringify({ 'vault-123': { skipped: true } }))
+    objectivesStore.objectives = [{ ...starterObjective(1), challenge: 'Match a dweller to their room' }]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    const tabs = wrapper.findAll('[role="tab"]')
+    expect(tabs.length).toBe(1)
+    expect(tabs[0].text()).toContain('Starter')
+    expect(wrapper.text()).toContain('Match a dweller to their room')
+  })
+
+  it('claims a starter objective from the Starter tab', async () => {
+    const objective = { ...starterObjective(1), progress: 1 }
+    objectivesStore.objectives = [objective]
+    const completeSpy = vi.spyOn(objectivesStore, 'completeObjective').mockResolvedValue({
+      ...objective,
+      is_completed: true,
+    })
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('.claim-btn').trigger('click')
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    expect(completeSpy).toHaveBeenCalledWith('vault-123', 'starter-1')
   })
 })

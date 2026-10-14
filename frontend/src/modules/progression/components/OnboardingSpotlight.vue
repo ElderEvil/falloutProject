@@ -11,19 +11,17 @@ import { currentObjective } from '../models/objective'
 
 /** Starter step sequence → the `data-onboarding` anchor it points at (see docs/frontend/ONBOARDING.md). */
 const STEP_ANCHORS: Record<number, string> = {
-  0: 'room-power',
-  1: 'resource-power',
-  2: 'build',
-  3: 'nav-dwellers',
-  4: 'nav-exploration',
-  5: 'population',
-  6: 'population',
-  7: 'build',
-  8: 'nav-storage',
-  9: 'nav-training',
-  10: 'nav-quests',
-  11: 'nav-dwellers',
-  12: 'population',
+  0: 'nav-dwellers',
+  1: 'build',
+  2: 'nav-exploration',
+  3: 'population',
+  4: 'population',
+  5: 'build',
+  6: 'nav-storage',
+  7: 'nav-training',
+  8: 'nav-quests',
+  9: 'nav-dwellers',
+  10: 'population',
 }
 
 interface OnboardingState {

@@ -33,6 +33,19 @@ const starterObjective = (sequence: number, completed = false): Objective => ({
   objective_type: 'collect',
 })
 
+const officeObjective = (completed = false): Objective => ({
+  ...dailyObjective,
+  id: 'office',
+  category: 'starter',
+  sequence: 5,
+  challenge: "Build Overseer's Office",
+  progress: completed ? 1 : 0,
+  total: 1,
+  is_completed: completed,
+  objective_type: 'build',
+  target_entity: { room_type: 'overseers_office' },
+})
+
 let wrapper: VueWrapper
 let objectivesStore: ReturnType<typeof useObjectivesStore>
 
@@ -131,14 +144,42 @@ describe('ObjectivesView objective gating', () => {
     expect(wrapper.text()).toContain('Collect 100 caps')
   })
 
-  it('opens the regular tabs once the Office step is behind', async () => {
-    objectivesStore.objectives = [starterObjective(5, true), starterObjective(6), { ...dailyObjective }]
+  it('keeps the tabs locked until the Office is completed', async () => {
+    objectivesStore.objectives = [officeObjective(false), { ...dailyObjective }]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('[role="tab"]').length).toBe(1)
+    expect(wrapper.text()).not.toContain('Collect 100 caps')
+  })
+
+  it('opens the regular tabs once the Office is completed', async () => {
+    objectivesStore.objectives = [
+      officeObjective(true),
+      starterObjective(6),
+      { ...dailyObjective },
+    ]
 
     wrapper = mountView()
     await wrapper.vm.$nextTick()
 
     expect(wrapper.findAll('[role="tab"]').length).toBe(5)
     expect(wrapper.text()).toContain('Collect 100 caps')
+  })
+
+  it('shows a compact current-step action', async () => {
+    objectivesStore.objectives = [
+      { ...starterObjective(1), challenge: 'Match a dweller to their room' },
+    ]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).toContain('Match a dweller to their room')
+    const action = wrapper.find('.current-step-action')
+    expect(action.exists()).toBe(true)
+    expect(action.text()).toContain('Open')
   })
 
   it('keeps the Starter tab after the spotlight is skipped', async () => {

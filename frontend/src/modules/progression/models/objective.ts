@@ -67,9 +67,15 @@ export function currentObjective(objectives: Objective[]): Objective | undefined
   )
 }
 
+export function isOfficeObjective(objective: Objective): boolean {
+  return (
+    objective.objective_type === 'build' &&
+    objective.target_entity?.room_type === 'overseers_office'
+  )
+}
+
 /** Existing game surfaces relevant to each objective, without inventing new routes. */
-export function objectiveActionPath(objective: Objective, vaultId: string): string {
-  const vault = `/vault/${vaultId}`
+export function objectiveActionPath(objective: Objective, vaultId: string): string {  const vault = `/vault/${vaultId}`
   switch (objective.objective_type) {
     case 'train':
       return `${vault}/training`

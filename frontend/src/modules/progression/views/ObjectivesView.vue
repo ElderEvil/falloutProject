@@ -2,7 +2,12 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useObjectivesStore } from '@/modules/progression/stores/objectives'
-import { currentObjective, type Objective } from '@/modules/progression/models/objective'
+import {
+  currentObjective,
+  isOfficeObjective,
+  objectiveActionPath,
+  type Objective,
+} from '@/modules/progression/models/objective'
 import { getErrorMessage } from '@/core/utils/errorHandler'
 import { useObjectiveClaim } from '@/modules/progression/composables/useObjectiveClaim'
 import SidePanel from '@/core/components/common/SidePanel.vue'
@@ -26,8 +31,6 @@ const objectiveTabs = [
   { key: 'completed', label: 'Completed', icon: 'mdi:check-circle' },
 ]
 const STARTER_TAB = 'starter'
-// The starter step that builds the Overseer's Office; the regular tabs open once it is behind us.
-const OFFICE_STEP_SEQUENCE = 5
 
 const vaultId = computed(() => route.params.id as string)
 
@@ -55,9 +58,12 @@ const currentStarter = computed(() => {
   const objective = currentObjective(objectivesStore.objectives)
   return objective?.category === 'starter' ? objective : null
 })
-const objectivesUnlocked = computed(
-  () => !currentStarter.value || (currentStarter.value.sequence ?? 0) > OFFICE_STEP_SEQUENCE
+const officeCompleted = computed(() =>
+  objectivesStore.objectives.some(
+    (objective) => isOfficeObjective(objective) && objective.is_completed
+  )
 )
+const objectivesUnlocked = computed(() => !currentStarter.value || officeCompleted.value)
 const visibleTabs = computed(() =>
   objectivesUnlocked.value ? objectiveTabs : objectiveTabs.filter((tab) => tab.key === STARTER_TAB)
 )
@@ -108,6 +114,16 @@ function closeClaimModal(): void {
             <p v-if="loadError || claimError" class="claim-error" role="alert">
               {{ loadError || claimError }}
             </p>
+
+            <div v-if="currentStarter" class="current-step">
+              <span class="current-step-label">Next step: {{ currentStarter.challenge }}</span>
+              <RouterLink
+                class="current-step-action"
+                :to="objectiveActionPath(currentStarter, vaultId)"
+              >
+                Open
+              </RouterLink>
+            </div>
 
             <Tabs :model-value="effectiveTab" @update:model-value="activeTab = String($event)">
               <TabsList>
@@ -191,6 +207,25 @@ function closeClaimModal(): void {
   border-radius: 4px;
   color: var(--color-danger, #ff5555);
   font-size: 0.9rem;
+}
+
+.current-step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--color-theme-primary);
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.current-step-action {
+  flex-shrink: 0;
+  color: var(--color-theme-primary);
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
 .unlock-hint {

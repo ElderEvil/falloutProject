@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncSession as RawAsyncSession
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -665,7 +666,7 @@ class TestArenaService:
 
     @pytest.mark.asyncio
     async def test_brawl_knockout_keeps_fighter_alive_and_match_running(
-        self, async_session, arena_room, fighter_a, fighter_b, fighter_c, fighter_d
+        self, async_session, db_connection, arena_room, fighter_a, fighter_b, fighter_c, fighter_d
     ):
         from datetime import datetime, timedelta
 
@@ -700,18 +701,21 @@ class TestArenaService:
         assert fighter_b.health >= 1
         assert fighter_d.health > 0
 
-        # A fresh service instance (empty in-memory state) still sees the persisted KO.
+        # A fresh worker service and raw SQLAlchemy session still see the persisted KO.
         fresh = ArenaService()
-        team_a, team_b = await fresh.get_teams(async_session, arena_room)
-        assert len(team_a) == 2
-        assert len(team_b) == 2
-        knocked_out = next(p for p in team_b if p.key == str(fighter_b.id))
-        assert knocked_out.health == 0
+        async with RawAsyncSession(
+            bind=db_connection, expire_on_commit=False, join_transaction_mode="create_savepoint"
+        ) as worker_session:
+            team_a, team_b = await fresh.get_teams(worker_session, arena_room)
+            assert len(team_a) == 2
+            assert len(team_b) == 2
+            knocked_out = next(p for p in team_b if p.key == str(fighter_b.id))
+            assert knocked_out.health == 0
 
-        # The next tick still resolves a round: a lone KO must not freeze the match.
-        result = await fresh.process_arena_ticks(async_session, 1)
-        assert result["arena"]["rounds"]
-        assert result["arena"]["rounds"][0]["status"] == "ongoing"
+            # The next tick still resolves a round: a lone KO must not freeze the match.
+            result = await fresh.process_arena_ticks(worker_session, 1)
+            assert result["arena"]["rounds"]
+            assert result["arena"]["rounds"][0]["status"] == "ongoing"
 
     @pytest.mark.asyncio
     async def test_resolve_round_team_defeat_reports_winner_and_loser(self, async_session, arena_room):

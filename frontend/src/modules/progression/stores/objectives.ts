@@ -1,39 +1,44 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import axios from '@/core/plugins/axios'
+import * as objectiveService from '../services/objectiveService'
 import type { Objective, ObjectiveCreate } from '../models/objective'
 
 export const useObjectivesStore = defineStore('objectives', () => {
   // State
   const objectives = ref<Objective[]>([])
+  const objectivesVaultId = ref<string | null>(null)
+  let fetchGeneration = 0
 
   // Actions
   async function fetchObjectives(vaultId: string, skip = 0, limit = 100): Promise<void> {
-    const response = await axios.get<Objective[]>(`/api/v1/objectives/${vaultId}/`, {
-      params: { skip, limit },
-    })
-    objectives.value = response.data
+    const generation = ++fetchGeneration
+    if (objectivesVaultId.value !== vaultId) objectives.value = []
+    objectivesVaultId.value = vaultId
+    const objectivesData = await objectiveService.fetchObjectives(vaultId, skip, limit)
+    if (generation === fetchGeneration) objectives.value = objectivesData
   }
 
   async function addObjective(vaultId: string, objectiveData: ObjectiveCreate): Promise<void> {
-    await axios.post(`/api/v1/objectives/${vaultId}/`, objectiveData)
+    await objectiveService.addObjective(vaultId, objectiveData)
     await fetchObjectives(vaultId)
   }
 
   async function getObjective(vaultId: string, objectiveId: string): Promise<Objective> {
-    const response = await axios.get<Objective>(`/api/v1/objectives/${vaultId}/${objectiveId}`)
-    return response.data
+    return objectiveService.getObjective(vaultId, objectiveId)
   }
 
   async function completeObjective(vaultId: string, objectiveId: string): Promise<Objective> {
-    const response = await axios.post<Objective>(
-      `/api/v1/objectives/${vaultId}/${objectiveId}/complete`
-    )
-    const index = objectives.value.findIndex((obj) => obj.id === objectiveId)
-    if (index !== -1) {
-      objectives.value[index] = response.data
+    const objective = objectives.value.find((item) => item.id === objectiveId)
+    if (!objective) throw new Error('Objective no longer available')
+    ++fetchGeneration
+    const progress = await objectiveService.claimObjective(vaultId, objectiveId)
+    const completed = { ...objective, ...progress }
+    if (objectivesVaultId.value === vaultId) {
+      ++fetchGeneration
+      const index = objectives.value.findIndex((item) => item.id === objectiveId)
+      if (index !== -1) objectives.value[index] = completed
     }
-    return response.data
+    return completed
   }
 
   async function updateProgress(
@@ -41,19 +46,17 @@ export const useObjectivesStore = defineStore('objectives', () => {
     objectiveId: string,
     progress: number
   ): Promise<Objective> {
-    const response = await axios.post<Objective>(
-      `/api/v1/objectives/${vaultId}/${objectiveId}/progress`,
-      { progress }
-    )
+    const updated = await objectiveService.updateProgress(vaultId, objectiveId, progress)
     const index = objectives.value.findIndex((obj) => obj.id === objectiveId)
     if (index !== -1) {
-      objectives.value[index] = response.data
+      objectives.value[index] = updated
     }
-    return response.data
+    return updated
   }
 
   return {
     objectives,
+    objectivesVaultId,
     fetchObjectives,
     addObjective,
     getObjective,

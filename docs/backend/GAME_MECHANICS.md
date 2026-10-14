@@ -10,6 +10,25 @@ must surface via modal/pop-up or toast **in addition to** the notification bell 
 notification-only. A new progression flow without visible surfacing is incomplete; keep existing surfacing
 intact when touching these flows.
 
+## Objectives: guidance, earned progress and explicit claims
+
+- Objective progress advances automatically from game events; **rewards do not**. Reaching the target creates
+  a ready-to-claim outcome. `is_completed` means the reward was claimed, including historical automatically paid
+  rows; `progress >= total` with `is_completed == false` means earned and unclaimed. Never repay historical rows.
+- Owners claim through `POST /objectives/{vault_id}/{objective_id}/claim`. Claims require an assigned, earned
+  objective and serialize reward settlement with the completion flag; incomplete, foreign and repeat claims fail.
+  The administrative `/complete` operation stays separate from ordinary player claims.
+- The authored `starter` category is the ordered **vault guide**, including post-Office chapters. The lowest
+  unclaimed sequence is current and advances only after a claim. The guide is visible across vault screens;
+  everyday objectives become visible alongside it after the Office chapter.
+- Already-achieved state (rooms, staffing, population, levels, completed training and quests) may satisfy the
+  current guided milestone. Derive this on reads without writing; validate again during the claim. Event counters
+  such as resource earnings and scrapping keep their recorded progress. Later steps cannot be claimed early.
+- Earned daily/weekly rewards survive reset until claimed; resets may replace unfinished objectives and remove
+  already-claimed links. Objective rewards never count toward another resource-collection objective.
+- Ready rewards keep their routine bell/toast event; successful claims show a modal or toast. Notification opt-outs
+  affect notification delivery, not reward settlement or the player-opened guide.
+
 ## Notification preferences
 
 Players may explicitly opt out of routine notification categories. The preference is persisted at
@@ -124,3 +143,45 @@ callers; `app/utils/` never imports `app.services.*`.
 Incident types map to channels via `effects_for_incident_type` in `app/models/incident.py`:
 FIRE deals fire damage, RADSCORPION_ATTACK deals physical damage and also irradiates, everything
 else deals physical damage without radiation.
+
+### Wave 2 resource reserves
+
+Primary production remains 0.0012 per SPECIAL point per output unit per second.
+Power draw is 0.40 per weighted room size/tier per minute; food and water draw
+are 0.30 per adult in the vault per minute. Dead/deleted dwellers and dwellers
+on exploration or quests do not draw vault food/water; children and teens use
+the existing 70% youth multiplier.
+
+Catch-up uses steps of at most 60 seconds so restored power enables other
+production on the following step. Fractional stock persists on GameState;
+capacity and reserve clamps discard unusable excess/debt. After the existing
+10-minute activity timeout, net-negative changes stop at 25% capacity, or at
+the current amount if already below that floor. This never grants resources.
+Active vaults retain full drain; returning resumes it. There is no Survival
+mode selector yet. Production and medical storage limits remain in force.
+
+### Wave 2 objective economy
+
+Primary-resource objectives say **Collect** and count gross production, including
+output at full storage. Fractional output persists until it produces a whole
+objective unit; resource gifts and refunds do not advance these tasks. Medical
+objectives count supplies actually retained in storage. Weapon/outfit/junk
+objectives accept item events only. **Build** requires a new room, and quest
+completion objectives say **Quests** rather than Expeditions. Training to a
+stat threshold requires the resulting stat value, not merely a training event.
+
+Non-starter assignment, correct-assignment, training and level-up templates
+count distinct dwellers. Previously recorded progress remains intact; identities
+are recorded for future events. A refreshed task starts a new counting window.
+Templates have stable category-qualified keys, so labels may change without
+duplicating templates or colliding with another category. Catalog migrations
+preserve objective IDs, custom templates, historical links and ready claims.
+
+Rewards freeze when earned. Pending earned rewards retain their previous payout
+after the balance migration, and the UI displays that saved payout. Objective
+rewards continue to suppress collection events to avoid reward feedback loops.
+Starter grants remain unchanged. The uniform-selection caps-only expectation
+for a fully completed batch is now 216.14 daily and 589.62 weekly (previously
+1,034.09 and 2,959.62). The achievement caps pool is 43,765 (previously 95,250).
+These are catalog expectations, not measured income: item/lunchbox value and
+actual completion rates are excluded. Prices are unchanged pending income data.

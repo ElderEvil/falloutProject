@@ -1,7 +1,9 @@
 """Enhanced resource management system for vault resources."""
 
 import logging
+import math
 from collections.abc import Sequence
+from datetime import timedelta
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -11,6 +13,7 @@ from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud.resource import resource as resource_crud
 from app.models import Dweller, Room, Vault
+from app.models.game_state import GameState
 from app.options.identity_modifiers import effective_stat, identity_modifiers_for
 from app.schemas.vault import (
     PrimaryResourceAmounts,
@@ -55,12 +58,13 @@ class ResourceManager:
         """
         resource_data = await resource_crud.get_vault_resource_data(db_session, vault_id)
 
-        resource_update, events = await self._calculate_net_resource_change(
+        resource_update, events = self.calculate_resource_window(
             resource_data.vault,
             resource_data.rooms,
             resource_data.dweller_count,
             resource_data.rooms_with_dwellers,
             seconds_passed,
+            state=resource_data.game_state,
         )
 
         # Write medical production to Storage (separate from VaultUpdate)
@@ -84,24 +88,59 @@ class ResourceManager:
                     setattr(events.production, resource_type, stored_amount - previous_amount)
                 resource_crud.save_storage(db_session, storage)
 
+        if events.objective_production is not None:
+            events.objective_production.stimpack = events.production.stimpack
+            events.objective_production.radaway = events.production.radaway
         return resource_update, events
 
-    async def _calculate_net_resource_change(
+    def calculate_resource_window(
         self,
         vault: Vault,
         rooms: Sequence[Room],
-        dweller_count: int,
+        dweller_count: float,
         rooms_with_dwellers: list[tuple[Room, list[Dweller]]],
         seconds_passed: int,
+        *,
+        state: GameState | None = None,
     ) -> tuple[VaultUpdate, ResourceTickEvents]:
         """Calculate net resource change considering production, consumption, and efficiency.
 
         Returns:
             tuple: Updated resource levels and typed tick events.
         """
-        consumption = self._calculate_consumption(rooms, dweller_count, seconds_passed)
-        production = self._calculate_production(rooms_with_dwellers, seconds_passed, vault.power)
-        new_resources = self._apply_resource_changes(vault, consumption, production)
+        # Minute-sized steps use recovered power immediately on the following step.
+        # Keep fractions outside the integer wire values, across worker restarts too.
+        remainders = dict(state.resource_remainders) if state else {}
+        stocks = {key: float(getattr(vault, key)) + remainders.get(key, 0.0) for key in ("power", "food", "water")}
+        consumption = dict.fromkeys(stocks, 0.0)
+        production = dict.fromkeys((*stocks, "stimpack", "radaway"), 0.0)
+        elapsed = 0
+        while elapsed < seconds_passed:
+            step = min(60, seconds_passed - elapsed)
+            used = self._calculate_consumption(rooms, dweller_count, step)
+            made = self._calculate_production(rooms_with_dwellers, step, stocks["power"])
+            offline = (
+                state is not None
+                and (state.last_tick_time + timedelta(seconds=elapsed) - state.last_activity_time).total_seconds() > 600
+            )
+            for key, stock in stocks.items():
+                maximum = getattr(vault, f"{key}_max")
+                floor = min(stock, math.ceil(maximum * game_config.resource.offline_reserve_fraction)) if offline else 0
+                stocks[key] = max(floor, min(maximum, stock + made[key] - used[key]))
+                consumption[key] += used[key]
+            for key in production:
+                production[key] += made[key]
+            elapsed += step
+        new_resources = stocks
+        if state is not None:
+            remainders.update({key: value - round(value) for key, value in stocks.items()})
+        objective_production = dict(production)
+        for key in stocks:
+            counted = production[key] + remainders.get(f"produced_{key}", 0.0)
+            objective_production[key] = math.floor(counted + 1e-9)
+            remainders[f"produced_{key}"] = max(0.0, counted - objective_production[key])
+        if state is not None:
+            state.resource_remainders = remainders
         warnings = get_resource_warnings(vault, new_resources)
 
         self._log_resource_changes(vault, new_resources)
@@ -115,12 +154,13 @@ class ResourceManager:
             ResourceTickEvents(
                 warnings=warnings,
                 production=ResourceProduction(**production),
+                objective_production=ResourceProduction(**objective_production),
                 consumption=PrimaryResourceAmounts(**consumption),
             ),
         )
 
     def _calculate_consumption(
-        self, rooms: Sequence[Room], dweller_count: int, seconds_passed: int
+        self, rooms: Sequence[Room], dweller_count: float, seconds_passed: int
     ) -> dict[str, float]:
         """Calculate resource consumption for power, food, and water."""
         power_consumption = sum(
@@ -138,7 +178,7 @@ class ResourceManager:
         }
 
     def _calculate_production(
-        self, rooms_with_dwellers: list[tuple[Room, list[Dweller]]], seconds_passed: int, current_power: int
+        self, rooms_with_dwellers: list[tuple[Room, list[Dweller]]], seconds_passed: int, current_power: float
     ) -> dict[str, float]:
         """Calculate resource production from all production rooms."""
         production_totals = {"power": 0.0, "food": 0.0, "water": 0.0, "stimpack": 0.0, "radaway": 0.0}
@@ -157,7 +197,7 @@ class ResourceManager:
             production = self._calculate_room_production(room, dwellers, seconds_passed)
             self._apply_room_production(room.name, room.ability, production, production_totals)
 
-        return {k: round(v, 2) for k, v in production_totals.items()}
+        return production_totals
 
     def _calculate_room_production(self, room: Room, dwellers: list[Dweller], seconds_passed: int) -> float:
         """Calculate production from the room's workers.
@@ -219,17 +259,6 @@ class ResourceManager:
                 for resource in base_resources:
                     totals[resource] += per_share
 
-    @staticmethod
-    def _apply_resource_changes(
-        vault: Vault, consumption: dict[str, float], production: dict[str, float]
-    ) -> dict[str, float]:
-        """Calculate new resource levels after applying consumption and production."""
-        return {
-            "power": max(0, min(vault.power - consumption["power"] + production["power"], vault.power_max)),
-            "food": max(0, min(vault.food - consumption["food"] + production["food"], vault.food_max)),
-            "water": max(0, min(vault.water - consumption["water"] + production["water"], vault.water_max)),
-        }
-
     def _log_resource_changes(self, vault: Vault, new_resources: dict[str, float]) -> None:
         """Log resource changes for debugging."""
         self.logger.debug(
@@ -241,13 +270,13 @@ class ResourceManager:
     @staticmethod
     async def emit_production_events(vault_id: UUID4, events: ResourceTickEvents) -> None:
         """Emit objective events after the resource transaction has committed."""
-        for resource_type, amount in events.production.model_dump().items():
+        for resource_type, amount in (events.objective_production or events.production).model_dump().items():
             int_amount = int(amount)
             if int_amount > 0:
                 await event_bus.emit(
                     GameEvent.RESOURCE_COLLECTED,
                     vault_id,
-                    {"resource_type": resource_type, "amount": int_amount},
+                    {"resource_type": resource_type, "amount": int_amount, "source": "production"},
                 )
 
     async def check_resource_availability(self, vault: Vault) -> dict[str, bool]:

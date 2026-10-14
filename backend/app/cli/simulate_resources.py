@@ -12,6 +12,7 @@ import dataclasses
 from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from typing import Annotated
+from uuid import uuid4
 
 import typer
 
@@ -19,6 +20,7 @@ from app.core.enums import RoomTypeEnum
 from app.core.game_config import game_config
 from app.crud.room import CRUDRoom
 from app.models import Dweller, Room, Vault
+from app.models.game_state import GameState
 from app.services.resource_manager import ResourceManager
 from app.utils.static_data import game_data_store
 
@@ -140,6 +142,7 @@ def simulate(config: ResourceEconomyConfig) -> ResourceEconomyResult:
         raise ValueError("duration_minutes must be an exact multiple of tick_interval")
     ticks = duration_seconds // config.tick_interval
 
+    state = GameState(vault_id=uuid4())
     initial_rates: dict[str, float] = {}
     with _production_rate_override(config.base_production_rate):
         for tick in range(ticks):
@@ -151,9 +154,11 @@ def simulate(config: ResourceEconomyConfig) -> ResourceEconomyResult:
                     for resource in RESOURCE_NAMES
                 }
 
-            new_resources = manager._apply_resource_changes(vault, consumption, production)
+            update, _ = manager.calculate_resource_window(
+                vault, rooms, config.population, rooms_with_dwellers, config.tick_interval, state=state
+            )
             for resource in RESOURCE_NAMES:
-                setattr(vault, resource, round(new_resources[resource]))
+                setattr(vault, resource, getattr(update, resource))
 
     final_resources = {resource: float(getattr(vault, resource)) for resource in RESOURCE_NAMES}
     forecasts = {

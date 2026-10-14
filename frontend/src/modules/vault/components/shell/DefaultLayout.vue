@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { computed, inject, ref } from 'vue'
+import { computed, defineAsyncComponent, inject, ref } from 'vue'
 import NavBar from './NavBar.vue'
 import ExitRequestModal from '@/modules/dwellers/components/modals/ExitRequestModal.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+
+const ObjectiveGuide = defineAsyncComponent(
+  () => import('@/modules/progression/components/ObjectiveGuide.vue')
+)
 
 defineProps<{
   isFlickering: boolean
@@ -29,6 +33,7 @@ const scanlinesEnabled = inject('scanlines', ref(true))
       :style="flickerOpacity !== undefined ? { opacity: flickerOpacity } : {}"
       role="main"
     >
+      <ObjectiveGuide v-if="isAuthenticated" />
       <slot></slot>
     </main>
     <ExitRequestModal v-if="isAuthenticated" />

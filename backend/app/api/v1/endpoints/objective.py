@@ -12,9 +12,11 @@ from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_current_active
 from app.db.session import get_async_session
 from app.models.objective import Objective
 from app.models.vault import Vault
+from app.models.vault_objective import VaultObjectiveProgressLink
 from app.schemas.objective import ObjectiveCreate, ObjectiveRead
 from app.schemas.responses import AssignedResponse
 from app.services.progression.objectives.assignment import ObjectiveAssignmentService
+from app.services.progression.objectives.guidance import read_objectives
 from app.services.reward_service import reward_service
 from app.utils.exceptions import ResourceNotFoundException
 
@@ -53,7 +55,7 @@ async def read_objective_list(
         AccessDeniedException: If the user doesn't own the vault.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.objective_crud.get_multi_for_vault(db_session, vault_id, skip=skip, limit=limit)
+    return await read_objectives(db_session, vault_id, skip=skip, limit=limit)
 
 
 @router.get("/{objective_id}", response_model=ObjectiveRead)
@@ -71,6 +73,18 @@ async def read_objective(
         The requested objective.
     """
     return await crud.objective_crud.get(db_session, objective_id)
+
+
+@router.post("/{vault_id}/{objective_id}/claim", response_model=VaultObjectiveProgressLink)
+async def claim_objective_reward(
+    vault_id: UUID4,
+    objective_id: UUID4,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    user: CurrentActiveUser,
+) -> VaultObjectiveProgressLink:
+    """Let a vault owner claim a reward after its objective target is met."""
+    await get_user_vault_or_403(vault_id, user, db_session)
+    return await reward_service.claim_objective_reward(db_session, objective_id, vault_id)
 
 
 @router.post("/{vault_id}/{objective_id}/complete", response_model=Objective)

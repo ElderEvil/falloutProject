@@ -7,17 +7,19 @@
     "target_entity": {"room_type": "power_generator"},
     "target_amount": 3,
     "sequence": 0,
-    "description": "Open the Power Generator and assign dwellers."
+    "description": "Open the Power Generator and assign dwellers.",
+    "template_key": "starter:assign dwellers to power"
   },
   {
     "challenge": "Collect 150 Power",
     "reward": "50 power",
     "category": "starter",
     "objective_type": "collect",
-    "target_entity": {"resource_type": "power"},
+    "target_entity": {"resource_type": "power", "production_only": true},
     "target_amount": 150,
     "sequence": 1,
-    "description": "Power keeps every room running."
+    "description": "Staff a Power Generator with Strength workers. Gross output counts even when storage is full.",
+    "template_key": "starter:collect 150 power"
   },
   {
     "challenge": "Build a Living Quarters",
@@ -27,7 +29,8 @@
     "target_entity": {"room_type": "living_room"},
     "target_amount": 1,
     "sequence": 2,
-    "description": "More living space lets the vault grow."
+    "description": "More living space lets the vault grow.",
+    "template_key": "starter:build a living quarters"
   },
   {
     "challenge": "Assign a dweller correctly",
@@ -37,7 +40,8 @@
     "target_entity": {},
     "target_amount": 1,
     "sequence": 3,
-    "description": "Match a dweller's best SPECIAL to the room."
+    "description": "Match a dweller's best SPECIAL to the room.",
+    "template_key": "starter:assign a dweller correctly"
   },
   {
     "challenge": "Scavenge caps in the wasteland",
@@ -47,7 +51,8 @@
     "target_entity": {"resource_type": "caps"},
     "target_amount": 300,
     "sequence": 4,
-    "description": "Send a healthy dweller to explore — they return with caps and loot."
+    "description": "Send a healthy dweller to explore \u2014 they return with caps and loot.",
+    "template_key": "starter:scavenge caps in the wasteland"
   },
   {
     "challenge": "Reach 10 Dwellers",
@@ -57,7 +62,8 @@
     "target_entity": {"reach_type": "dweller_count"},
     "target_amount": 10,
     "sequence": 5,
-    "description": "Grow population via the radio or breeding."
+    "description": "Grow population via the radio or breeding.",
+    "template_key": "starter:reach 10 dwellers"
   },
   {
     "challenge": "Reach 18 Dwellers",
@@ -67,7 +73,8 @@
     "target_entity": {"reach_type": "dweller_count"},
     "target_amount": 18,
     "sequence": 6,
-    "description": "The Overseer's Office needs 18 dwellers."
+    "description": "The Overseer's Office needs 18 dwellers.",
+    "template_key": "starter:reach 18 dwellers"
   },
   {
     "challenge": "Build Overseer's Office",
@@ -77,7 +84,8 @@
     "target_entity": {"room_type": "overseers_office"},
     "target_amount": 1,
     "sequence": 7,
-    "description": "Costs 1000 caps — keep exploring and selling loot."
+    "description": "Costs 1000 caps \u2014 keep exploring and selling loot.",
+    "template_key": "starter:build overseer's office"
   },
   {
     "challenge": "Reverse-engineer a schematic",
@@ -87,6 +95,51 @@
     "target_entity": {"item_type": "weapon", "rarity": "rare"},
     "target_amount": 1,
     "sequence": 8,
-    "description": "Find a rare weapon in the wasteland and scrap it to learn its schematic."
+    "description": "Find a rare weapon in the wasteland and scrap it to learn its schematic.",
+    "template_key": "starter:reverse-engineer a schematic"
+  },
+  {
+    "challenge": "Train a SPECIAL stat",
+    "reward": "200 caps",
+    "category": "starter",
+    "objective_type": "train",
+    "target_entity": {},
+    "target_amount": 1,
+    "sequence": 9,
+    "description": "Build a training room and train one stat. Choose a stat that improves a dweller's next job or quest role.",
+    "template_key": "starter:train a special stat"
+  },
+  {
+    "challenge": "Complete 3 quest missions",
+    "reward": "1 lunchbox",
+    "category": "starter",
+    "objective_type": "expedition",
+    "target_entity": {},
+    "target_amount": 3,
+    "sequence": 10,
+    "description": "Use the Overseer's Office to choose missions, prepare a party and claim the rewards after each return.",
+    "template_key": "starter:complete 3 quest missions"
+  },
+  {
+    "challenge": "Develop a level 20 dweller",
+    "reward": "750 caps",
+    "category": "starter",
+    "objective_type": "reach",
+    "target_entity": {"reach_type": "level"},
+    "target_amount": 20,
+    "sequence": 11,
+    "description": "Develop a veteran through work, quests or exploration. Review newly available missions and their equipment requirements.",
+    "template_key": "starter:develop a level 20 dweller"
+  },
+  {
+    "challenge": "Grow a 50-dweller vault",
+    "reward": "1 lunchbox",
+    "category": "starter",
+    "objective_type": "reach",
+    "target_entity": {"reach_type": "dweller_count"},
+    "target_amount": 50,
+    "sequence": 12,
+    "description": "Expand living space and recruit or raise dwellers. Keep production and medical capacity ahead of population growth.",
+    "template_key": "starter:grow a 50-dweller vault"
   }
 ]

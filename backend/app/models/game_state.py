@@ -3,6 +3,7 @@
 from datetime import datetime
 
 from pydantic import UUID4
+from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
@@ -25,6 +26,8 @@ class GameStateBase(SQLModel):
 
 class GameState(BaseUUIDModel, GameStateBase, TimeStampMixin, table=True):
     """Game state model linked to a specific vault."""
+
+    resource_remainders: dict[str, float] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
 
     vault_id: UUID4 = Field(foreign_key="vault.id", unique=True, index=True, ondelete="CASCADE")
 

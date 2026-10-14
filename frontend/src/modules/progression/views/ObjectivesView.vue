@@ -1,9 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useObjectivesStore } from '@/modules/progression/stores/objectives'
-import { useVaultStore } from '@/modules/vault/stores/vault'
-import type { Objective } from '@/modules/progression/models/objective'
+import {
+  currentObjective,
+  objectiveActionPath,
+  type Objective,
+} from '@/modules/progression/models/objective'
+import { Button } from '@/core/components/ui/button'
+import { getErrorMessage } from '@/core/utils/errorHandler'
+import { useObjectiveClaim } from '@/modules/progression/composables/useObjectiveClaim'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
@@ -15,7 +21,6 @@ import ObjectiveCompleteModal from '../components/ObjectiveCompleteModal.vue'
 
 const route = useRoute()
 const objectivesStore = useObjectivesStore()
-const vaultStore = useVaultStore()
 const { isCollapsed } = useSidePanel()
 const activeTab = ref('daily')
 const objectiveTabs = [
@@ -26,51 +31,49 @@ const objectiveTabs = [
 ]
 
 const vaultId = computed(() => route.params.id as string)
-const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
-
-onMounted(() => {
-  if (vaultId.value) {
-    objectivesStore.fetchObjectives(vaultId.value)
-  }
-})
-
-const completedObjectives = computed(() =>
-  objectivesStore.objectives.filter((objective) => objective.is_completed === true)
-)
-const dailyObjectives = computed(() =>
-  objectivesStore.objectives.filter((obj) => obj.category === 'daily' && !obj.is_completed)
-)
-
-const weeklyObjectives = computed(() =>
-  objectivesStore.objectives.filter((obj) => obj.category === 'weekly' && !obj.is_completed)
-)
-
-const achievementObjectives = computed(() =>
-  objectivesStore.objectives.filter((obj) => obj.category === 'achievement' && !obj.is_completed)
-)
-
-// While a starter step is unfinished it is the only surface (pre-Office); tabs return once the arc is done.
-const currentStarterStep = computed<Objective | null>(
-  () =>
-    objectivesStore.objectives
-      .filter((obj) => obj.category === 'starter' && !obj.is_completed)
-      .sort((a, b) => (a.sequence ?? Infinity) - (b.sequence ?? Infinity))[0] ?? null
-)
 
 // Claim + celebration modal (mirrors the quest claim flow)
+const { claiming: isClaiming, error: claimError, claim } = useObjectiveClaim(vaultId)
 const claimedObjective = ref<Objective | null>(null)
 const showClaimModal = ref(false)
-const claimError = ref<string | null>(null)
+const loadError = ref<string | null>(null)
 
-async function handleClaimObjective(objectiveId: string): Promise<void> {
-  claimError.value = null
-  if (!vaultId.value) return
-  try {
-    claimedObjective.value = await objectivesStore.completeObjective(vaultId.value, objectiveId)
-    showClaimModal.value = claimedObjective.value !== null
-  } catch (err) {
-    claimError.value = err instanceof Error ? err.message : 'Failed to claim objective reward'
-  }
+watch(
+  vaultId,
+  (id) => {
+    showClaimModal.value = false
+    claimedObjective.value = null
+    loadError.value = null
+    void objectivesStore.fetchObjectives(id).catch((err) => {
+      loadError.value = getErrorMessage(err)
+    })
+  },
+  { immediate: true }
+)
+
+const visibleObjectives = computed(() =>
+  objectivesStore.objectives.filter((objective) =>
+    activeTab.value === 'completed'
+      ? objective.is_completed
+      : objective.category === activeTab.value && !objective.is_completed
+  )
+)
+const emptyMessage = computed(() =>
+  activeTab.value === 'completed'
+    ? 'No completed objectives yet'
+    : `No ${activeTab.value} objectives available`
+)
+
+// The guide remains visible after the Office unlocks the regular objective tabs.
+const currentStarterStep = computed(() => {
+  const objective = currentObjective(objectivesStore.objectives)
+  return objective?.category === 'starter' ? objective : null
+})
+function handleClaimObjective(objectiveId: string): void {
+  void claim(objectiveId, (claimed) => {
+    claimedObjective.value = claimed
+    showClaimModal.value = claimed !== null
+  })
 }
 
 function closeClaimModal(): void {
@@ -94,9 +97,11 @@ function closeClaimModal(): void {
               icon="mdi:target"
               subtitle="Complete Vault-Tec directives to earn rewards."
             />
-            <p v-if="claimError" class="claim-error" role="alert">{{ claimError }}</p>
+            <p v-if="loadError || claimError" class="claim-error" role="alert">
+              {{ loadError || claimError }}
+            </p>
 
-            <!-- Next-step hero: the starter arc is the only surface until it is finished -->
+            <!-- Current guide step, retained until its reward is claimed -->
             <div v-if="currentStarterStep" class="next-step-hero">
               <div class="next-step-label">
                 <Icon icon="mdi:map-marker-path" class="next-step-icon" />
@@ -105,71 +110,44 @@ function closeClaimModal(): void {
               <ObjectiveCard
                 :objective="currentStarterStep"
                 class="next-step-card"
+                :claiming="isClaiming"
                 @claim="handleClaimObjective"
               />
+              <Button
+                v-if="currentStarterStep.progress < currentStarterStep.total"
+                as-child
+                class="mt-3 w-full"
+                ><RouterLink :to="objectiveActionPath(currentStarterStep, vaultId)"
+                  >Continue objective</RouterLink
+                ></Button
+              >
             </div>
 
-            <Tabs v-else :model-value="activeTab" @update:model-value="activeTab = String($event)">
+            <Tabs
+              v-if="!currentStarterStep || (currentStarterStep.sequence ?? 0) > 7"
+              :model-value="activeTab"
+              @update:model-value="activeTab = String($event)"
+            >
               <TabsList>
                 <TabsTrigger v-for="tab in objectiveTabs" :key="tab.key" :value="tab.key">
                   <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
                   {{ tab.label }}
                 </TabsTrigger>
               </TabsList>
-                <div v-if="activeTab === 'daily'" class="tab-content">
-                  <div v-if="dailyObjectives.length === 0" class="empty-state">
-                    <p>No daily objectives available</p>
-                  </div>
-                  <div v-else class="objective-grid">
-                    <ObjectiveCard
-                      v-for="objective in dailyObjectives"
-                      :key="objective.id"
-                      :objective="objective"
-                      @claim="handleClaimObjective"
-                    />
-                  </div>
+              <div class="tab-content">
+                <div v-if="visibleObjectives.length === 0" class="empty-state">
+                  <p>{{ emptyMessage }}</p>
                 </div>
-
-                <div v-if="activeTab === 'weekly'" class="tab-content">
-                  <div v-if="weeklyObjectives.length === 0" class="empty-state">
-                    <p>No weekly objectives available</p>
-                  </div>
-                  <div v-else class="objective-grid">
-                    <ObjectiveCard
-                      v-for="objective in weeklyObjectives"
-                      :key="objective.id"
-                      :objective="objective"
-                      @claim="handleClaimObjective"
-                    />
-                  </div>
+                <div v-else class="objective-grid">
+                  <ObjectiveCard
+                    v-for="objective in visibleObjectives"
+                    :key="objective.id"
+                    :objective="objective"
+                    :claiming="isClaiming"
+                    @claim="handleClaimObjective"
+                  />
                 </div>
-
-                <div v-if="activeTab === 'achievement'" class="tab-content">
-                  <div v-if="achievementObjectives.length === 0" class="empty-state">
-                    <p>No achievement objectives available</p>
-                  </div>
-                  <div v-else class="objective-grid">
-                    <ObjectiveCard
-                      v-for="objective in achievementObjectives"
-                      :key="objective.id"
-                      :objective="objective"
-                      @claim="handleClaimObjective"
-                    />
-                  </div>
-                </div>
-
-                <div v-if="activeTab === 'completed'" class="tab-content">
-                  <div v-if="completedObjectives.length === 0" class="empty-state">
-                    <p>No completed objectives yet</p>
-                  </div>
-                  <div v-else class="objective-grid">
-                    <ObjectiveCard
-                      v-for="objective in completedObjectives"
-                      :key="objective.id"
-                      :objective="objective"
-                    />
-                  </div>
-                </div>
+              </div>
             </Tabs>
           </div>
         </PageContentRail>

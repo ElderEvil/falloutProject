@@ -1,11 +1,17 @@
-from pydantic import UUID4
+from pydantic import UUID4, Field, model_validator
 
 from app.models.objective import ObjectiveBase
 from app.utils.partial import optional
 
 
 class ObjectiveCreate(ObjectiveBase):
-    pass
+    template_key: str | None = Field(default=None, max_length=160)
+
+    @model_validator(mode="after")
+    def assign_template_key(self) -> "ObjectiveCreate":
+        if self.template_key is None:
+            self.template_key = f"{self.category.value}:{self.challenge.strip().lower()}"
+        return self
 
 
 class ObjectiveRead(ObjectiveBase):

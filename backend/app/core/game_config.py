@@ -467,9 +467,11 @@ class ResourceConfig(BaseSettings):
     tier_3_multiplier: float = Field(default=2.0, ge=0.0)
 
     # Consumption
-    power_consumption_rate: float = Field(default=0.5 / 60, description="Per room per tier per second", ge=0.0)
-    food_consumption_per_dweller: float = Field(default=0.36 / 60, description="Per dweller per second", ge=0.0)
-    water_consumption_per_dweller: float = Field(default=0.36 / 60, description="Per dweller per second", ge=0.0)
+    power_consumption_rate: float = Field(default=0.4 / 60, description="Per room per tier per second", ge=0.0)
+    food_consumption_per_dweller: float = Field(default=0.30 / 60, description="Per dweller per second", ge=0.0)
+    water_consumption_per_dweller: float = Field(default=0.30 / 60, description="Per dweller per second", ge=0.0)
+
+    offline_reserve_fraction: float = Field(default=0.25, ge=0.0, le=1.0)
 
     # Thresholds
     low_threshold: float = Field(default=0.2, description="20% of max", ge=0.0, le=1.0)

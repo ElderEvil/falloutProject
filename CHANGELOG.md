@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.211.2 (2026-10-15)
+
+### Bug Fixes
+
+* **ci:** diagnose deploy SSH connectivity failures and document the runbook 4f5a44f
+* **ci:** report DNS, TCP and stall point in the deploy SSH probe 54e6bb7
+
+### Documentation
+
+* **deploy:** how to confirm GitHub runner IPs are banned c6c63a5
+* **deploy:** read the SSH failure by where the handshake stops 51a38f4
+* **deploy:** record the confirmed fail2ban cause and the jail fix 39615d0
+
 ## 2.211.1 (2026-10-15)
 
 ### Bug Fixes

@@ -12,6 +12,7 @@ from app.core.game_config import game_config
 from app.crud.dweller import dweller as crud_dweller
 from app.crud.incident import incident_crud
 from app.crud.room import room as room_crud
+from app.crud.user_profile import profile_crud
 from app.crud.vault import vault as vault_crud
 from app.models.game_state import GameState
 from app.models.incident import Incident, IncidentType, hazard_team_for
@@ -174,6 +175,7 @@ async def spawn_incident(
     incident_publishing.record_event(
         db_session, incident, "spawned", f"{incident_name} detected in {target_room.name}."
     )
+    await profile_crud.increment_statistic(db_session, vault.user_id, "total_incidents", commit=False)
     await db_session.commit()
 
     logger.info(f"Spawned {incident_type} (difficulty {difficulty}) in room {target_room.name} of vault {vault_id}")

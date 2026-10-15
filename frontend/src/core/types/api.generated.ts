@@ -1824,6 +1824,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/game/vaults/{vault_id}/presence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Presence
+         * @description Stamp a visibility-gated vault-view heartbeat for incident spawn gating.
+         *
+         *     The frontend calls this only while the vault overview is visible, so
+         *     incidents spawn for watching players instead of background tabs.
+         *
+         *     Returns:
+         *         PresenceResponse: Presence confirmation with vault state.
+         */
+        post: operations["record_presence_api_v1_game_vaults__vault_id__presence_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/game/vaults/{vault_id}/game-state": {
         parameters: {
             query?: never;
@@ -9223,6 +9249,16 @@ export interface components {
          * @enum {string}
          */
         PregnancyStatusEnum: "pregnant" | "delivered" | "miscarried";
+        /**
+         * PresenceResponse
+         * @description Visibility-gated vault-view heartbeat confirmation.
+         */
+        PresenceResponse: {
+            /** Vault Id */
+            vault_id: string;
+            /** Last Presence At */
+            last_presence_at: string | null;
+        };
         /** ProfileRead */
         ProfileRead: {
             /** Bio */
@@ -9253,6 +9289,24 @@ export interface components {
              * @default 0
              */
             total_rooms_built: number;
+            /**
+             * Total Incidents
+             * @description Total vault incidents spawned
+             * @default 0
+             */
+            total_incidents: number;
+            /**
+             * Total Incidents Won
+             * @description Total vault incidents resolved successfully
+             * @default 0
+             */
+            total_incidents_won: number;
+            /**
+             * Total Incidents Lost
+             * @description Total vault incidents failed
+             * @default 0
+             */
+            total_incidents_lost: number;
             /**
              * Total Dwellers Born
              * @description Total dwellers born via breeding
@@ -13888,6 +13942,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PauseResumeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_presence_api_v1_game_vaults__vault_id__presence_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresenceResponse"];
                 };
             };
             /** @description Validation Error */

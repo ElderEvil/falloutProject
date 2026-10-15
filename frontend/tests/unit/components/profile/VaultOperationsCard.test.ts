@@ -7,6 +7,9 @@ const activeRecord = {
   total_caps_earned: 5_000,
   total_explorations: 8,
   total_rooms_built: 4,
+  total_incidents: 9,
+  total_incidents_won: 6,
+  total_incidents_lost: 3,
 }
 
 describe('VaultOperationsCard', () => {
@@ -20,6 +23,10 @@ describe('VaultOperationsCard', () => {
     expect(wrapper.text()).toContain('4')
     expect(wrapper.find('[role="status"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('Population')
+    expect(wrapper.text()).toContain('Incidents')
+    expect(wrapper.text()).toContain('Incidents won')
+    expect(wrapper.text()).toContain('Incidents lost')
+    expect(wrapper.text()).toContain('9')
   })
 
   it('explains why an empty operation record has no values yet', () => {
@@ -30,6 +37,9 @@ describe('VaultOperationsCard', () => {
           total_caps_earned: 0,
           total_explorations: 0,
           total_rooms_built: 0,
+          total_incidents: 0,
+          total_incidents_won: 0,
+          total_incidents_lost: 0,
         },
       },
     })

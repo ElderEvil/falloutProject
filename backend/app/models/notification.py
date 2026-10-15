@@ -35,6 +35,7 @@ class NotificationType(StrEnum):
     COMBAT_STARTED = "combat_started"
     COMBAT_VICTORY = "combat_victory"
     COMBAT_DEFEAT = "combat_defeat"
+    ARENA_MORALE_BOOST = "arena_morale_boost"
     DWELLER_INJURED = "dweller_injured"
     DWELLER_DIED = "dweller_died"
 

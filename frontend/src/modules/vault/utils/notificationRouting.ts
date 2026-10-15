@@ -57,7 +57,8 @@ export function getNotificationRoute(notification: NotificationNavigationContext
       return dwellerId ? `${vaultPath}/dwellers/${dwellerId}` : `${vaultPath}/dwellers`
     case 'combat_started':
     case 'combat_victory':
-    case 'combat_defeat': {
+    case 'combat_defeat':
+    case 'arena_morale_boost': {
       const roomId = metadataString(notification, 'room_id')
       return roomId ? `${vaultPath}?roomId=${encodeURIComponent(roomId)}` : vaultPath
     }

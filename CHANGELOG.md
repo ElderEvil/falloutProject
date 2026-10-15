@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.207.0 (2026-10-15)
+
+### Features
+
+* **arena:** grant vault-wide morale on match completion f60fe3e
+
+### Bug Fixes
+
+* **arena:** drain deferred notifications after the arena tick commits 647cb7e
+
 ## 2.206.0 (2026-10-15)
 
 ### Features

@@ -122,6 +122,28 @@ deployment manifest is added; do not provision an unused worker log volume.
 The Gateway-specific secret patch and API verification steps are documented in
 [Pydantic AI Gateway Setup](backend/PYDANTIC_AI_GATEWAY.md).
 
+### Runner cannot reach the host
+
+The workflow's **Probe SSH connectivity** step fails when GitHub-hosted runners cannot open port 22 on the
+production host. A raw `ssh: connect ... timed out` / `Timeout before authentication` from a runner — while the
+same host answers from a workstation — is a network or ban problem, not a credential problem. Check, in order:
+
+1. **fail2ban.** The host runs an sshd jail with `mode = aggressive`, `maxretry = 3`, `bantime = 1h`. Aggressive
+   mode counts "Timeout before authentication" and banner-exchange events as failures, and the default action
+   drops banned packets, so a ban reads as a silent timeout. Inspect and clear:
+   `sudo fail2ban-client status sshd` then `sudo fail2ban-client set sshd unbanip <ip>`. GitHub-hosted runners
+   come from shared cloud ranges, so a single ban can outlive the run that earned it. If the bans repeat, add the
+   GitHub Actions egress ranges (`https://api.github.com/meta` → `actions`) to `ignoreip`, or relax the jail.
+2. **Hetzner Cloud Firewall.** Confirm port 22 still admits the GitHub Actions ranges; a firewall tightened to a
+   single home IP produces exactly this timeout while local access keeps working.
+3. **Secrets.** Confirm `HETZNER_HOST` still resolves to the live host and `HETZNER_SSH_KEY` is the current key.
+
+When the pipeline is blocked, the same steps can be replayed by hand — the workflow is a scripted version of them.
+Stop the writers, run the migration Job with the target image, set the images (including the backend's
+`run-migrations` init container), restore the writers, then verify. Migrations deadlock against live traffic on
+this database, so use `maintenance_mode=true`: an additive `ALTER TABLE` can still wait on a lock the running API
+holds and abort the upgrade.
+
 ### Room layout data backfills
 
 The unit-grid release changed how vault rooms are placed and extended. Existing vaults keep their previous

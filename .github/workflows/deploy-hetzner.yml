@@ -48,6 +48,24 @@ jobs:
           chmod 600 ~/.ssh/hetzner_key
           ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
 
+      # A runner that cannot reach the host used to fail inside a later step with a raw
+      # `ssh: connect ... timed out`, which says nothing about the cause. Probe first and
+      # name the usual suspects (see docs/DEPLOYMENT.md "Runner cannot reach the host").
+      - name: Probe SSH connectivity
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3; do
+            if ssh -o ConnectTimeout=15 -o ConnectionAttempts=3 -o BatchMode=yes \
+                 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} 'echo ssh-reachable'; then
+              echo "✅ SSH reachable"
+              exit 0
+            fi
+            echo "Attempt $attempt/3 failed; retrying in 10s"
+            sleep 10
+          done
+          echo "::error::GitHub runners cannot reach the production host over SSH. Check: (1) the Hetzner Cloud Firewall allows GitHub Actions egress ranges on port 22, (2) fail2ban has not banned runner IPs (sudo fail2ban-client status sshd) - its sshd jail runs mode=aggressive with maxretry=3 and drops banned IPs, which reads as a timeout, (3) the HETZNER_HOST and HETZNER_SSH_KEY secrets still match the live host."
+          exit 1
+
       - name: Log in to Docker Hub
         if: ${{ !inputs.preflight_only }}
         uses: docker/login-action@v4

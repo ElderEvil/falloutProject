@@ -51,19 +51,31 @@ jobs:
       # A runner that cannot reach the host used to fail inside a later step with a raw
       # `ssh: connect ... timed out`, which says nothing about the cause. Probe first and
       # name the usual suspects (see docs/DEPLOYMENT.md "Runner cannot reach the host").
+      # The host is redacted from output: this repository's Actions logs are public.
       - name: Probe SSH connectivity
+        env:
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER }}
         run: |
           set -uo pipefail
+          redact() { sed -e "s/${DEPLOY_HOST}/***/g"; }
+          echo "Host fingerprint: sha256:$(printf '%s' "$DEPLOY_HOST" | sha256sum | cut -c1-12)"
+          if getent hosts "$DEPLOY_HOST" >/dev/null 2>&1; then echo "DNS: resolves"; else echo "DNS: does NOT resolve"; fi
+          if timeout 10 bash -c "exec 3<>/dev/tcp/${DEPLOY_HOST}/22" 2>/dev/null; then
+            echo "TCP 22: open"
+          else
+            echo "TCP 22: unreachable (packets dropped before sshd, or nothing listening)"
+          fi
           for attempt in 1 2 3; do
-            if ssh -o ConnectTimeout=15 -o ConnectionAttempts=3 -o BatchMode=yes \
-                 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} 'echo ssh-reachable'; then
+            if ssh -v -o ConnectTimeout=15 -o ConnectionAttempts=3 -o BatchMode=yes \
+                 -i ~/.ssh/hetzner_key "${DEPLOY_USER}@${DEPLOY_HOST}" 'echo ssh-reachable' 2>&1 | redact; then
               echo "✅ SSH reachable"
               exit 0
             fi
             echo "Attempt $attempt/3 failed; retrying in 10s"
             sleep 10
           done
-          echo "::error::GitHub runners cannot reach the production host over SSH. Check: (1) the Hetzner Cloud Firewall allows GitHub Actions egress ranges on port 22, (2) fail2ban has not banned runner IPs (sudo fail2ban-client status sshd) - its sshd jail runs mode=aggressive with maxretry=3 and drops banned IPs, which reads as a timeout, (3) the HETZNER_HOST and HETZNER_SSH_KEY secrets still match the live host."
+          echo "::error::GitHub runners cannot reach the production host over SSH. Read the verbose output above: 'connect to host ... timed out' means packets never arrived (Hetzner Cloud Firewall or a fail2ban DROP - check sudo fail2ban-client status sshd), while 'kex_exchange_identification'/'Connection closed' means the host answered and refused (stale HETZNER_SSH_KEY, or the runner IP is banned mid-handshake). Verify HETZNER_HOST with the fingerprint above."
           exit 1
 
       - name: Log in to Docker Hub

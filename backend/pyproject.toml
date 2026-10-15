@@ -30,7 +30,7 @@ dependencies = [
     "httpcore>=1.0.9",
     "httptools>=0.8.0,<1",
     "greenlet>=3.5.3",
-    "pydantic-ai-slim[anthropic,logfire,openai]>=2.52.0",
+    "pydantic-ai-slim[anthropic,logfire,openai,typesafe]>=2.52.0",
     "aiosmtplib>=5.1.2",
     "python-json-logger>=4.0.0",
     "uvloop>=0.21.0; sys_platform != 'win32'",

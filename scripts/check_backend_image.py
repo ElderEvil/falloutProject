@@ -33,6 +33,8 @@ os.environ.update(
 )
 for module in ("main", "app.api.tasks"):
     __import__(module)
+# Jev is lazy-loaded by chat: importing the API alone does not exercise its SDK.
+__import__("pydantic_ai.models.typesafe")
 for command in ("uvicorn", "alembic", "dramatiq", "periodiq", "fo-cli"):
     subprocess.run(
         ["/bin/uv", "run", "--offline", command, "--help"],

@@ -266,14 +266,14 @@ describe('AIUsageCard', () => {
 
       const quotaBars = wrapper
         .findAll('[data-slot="progress"]')
-        .filter((b) => ((b.attributes('style') ?? '') as string).includes('rgb(245 158 11)'))
+        .filter((b) => ((b.attributes('style') ?? '') as string).includes('var(--color-warning)'))
       expect(quotaBars.length).toBeGreaterThan(0)
 
       const percentageText = wrapper.find('.text-warning')
       expect(percentageText.exists()).toBe(true)
     })
 
-    it('should use amber color between 80-99%', () => {
+    it('should use warning token between 80-99%', () => {
       const stats = createMockStats({
         quota_used: 90000,
         quota_limit: 100000,
@@ -288,7 +288,7 @@ describe('AIUsageCard', () => {
 
       const quotaBars = wrapper
         .findAll('[data-slot="progress"]')
-        .filter((b) => ((b.attributes('style') ?? '') as string).includes('rgb(245 158 11)'))
+        .filter((b) => ((b.attributes('style') ?? '') as string).includes('var(--color-warning)'))
       expect(quotaBars.length).toBeGreaterThan(0)
     })
 
@@ -307,14 +307,14 @@ describe('AIUsageCard', () => {
 
       const quotaBars = wrapper
         .findAll('[data-slot="progress"]')
-        .filter((b) => ((b.attributes('style') ?? '') as string).includes('rgb(239 68 68)'))
+        .filter((b) => ((b.attributes('style') ?? '') as string).includes('var(--color-danger)'))
       expect(quotaBars.length).toBeGreaterThan(0)
 
       const percentageText = wrapper.find('.text-danger')
       expect(percentageText.exists()).toBe(true)
     })
 
-    it('should use red color when exceeding 100%', () => {
+    it('should use danger token when exceeding 100%', () => {
       const stats = createMockStats({
         quota_used: 120000,
         quota_limit: 100000,
@@ -329,7 +329,7 @@ describe('AIUsageCard', () => {
 
       const quotaBars = wrapper
         .findAll('[data-slot="progress"]')
-        .filter((b) => ((b.attributes('style') ?? '') as string).includes('rgb(239 68 68)'))
+        .filter((b) => ((b.attributes('style') ?? '') as string).includes('var(--color-danger)'))
       expect(quotaBars.length).toBeGreaterThan(0)
     })
   })

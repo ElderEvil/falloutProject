@@ -41,8 +41,8 @@ const quotaColor = computed(() => {
 const usageBarColor = 'var(--color-theme-primary)'
 const quotaFillColor = computed(() => {
   const pct = quotaPercentage.value
-  if (pct >= 100) return 'rgb(239 68 68)'
-  if (pct >= 80) return 'rgb(245 158 11)'
+  if (pct >= 100) return 'var(--color-danger)'
+  if (pct >= 80) return 'var(--color-warning)'
   return 'var(--color-theme-primary)'
 })
 

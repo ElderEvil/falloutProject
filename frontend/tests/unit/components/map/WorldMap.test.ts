@@ -59,7 +59,7 @@ const MarkerListPanelStub = {
 const ButtonStub = {
   name: 'Button',
   props: ['variant', 'size', 'disabled', 'ariaLabel'],
-  template: '<button class="ubutton-stub"><slot /></button>',
+  template: '<button class="ubutton-stub" :aria-label="ariaLabel"><slot /></button>',
 }
 
 const IconStub = {
@@ -751,6 +751,80 @@ describe('WorldMap', () => {
       expect(svg.attributes('role')).toBeUndefined()
       expect(svg.attributes('aria-label')).toBeUndefined()
     })
+  })
+
+  describe('Initial home-vault focus', () => {
+    const home: WastelandLocationWithDwellers = {
+      ...createLocations(1)[0],
+      id: 'home',
+      type: 'home_vault',
+      coord_x: 112,
+      coord_y: 48,
+    }
+
+    it('opens on the active vault without selecting it or opening a modal', async () => {
+      const wrapper = mount(WorldMap, {
+        props: { locations: [home], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+      await nextTick()
+
+      expect(wrapper.get('svg').attributes('viewBox')).toBe('72 8 80 80')
+      expect(wrapper.emitted('marker-click')).toBeUndefined()
+      expect(wrapper.emitted('vault-info')).toBeUndefined()
+      expect(wrapper.emitted('update:selectedMarkerId')).toBeUndefined()
+    })
+
+    it('focuses when the home marker arrives after mounting', async () => {
+      const wrapper = mount(WorldMap, {
+        props: { locations: [], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+      await wrapper.setProps({ locations: [home] })
+
+      expect(wrapper.get('svg').attributes('viewBox')).toBe('72 8 80 80')
+    })
+
+    it('preserves user navigation on refresh and focuses a newly opened vault', async () => {
+      const wrapper = mount(WorldMap, {
+        props: { locations: [home], vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+      await nextTick()
+      await wrapper.get('button[aria-label="Reset zoom"]').trigger('click')
+      const navigatedView = wrapper.get('svg').attributes('viewBox')
+      await wrapper.setProps({ locations: [{ ...home, name: 'Refreshed vault' }] })
+      expect(wrapper.get('svg').attributes('viewBox')).toBe(navigatedView)
+
+      await wrapper.setProps({
+        locations: [{ ...home, id: 'other-home', vault_id: 'vault-2', coord_x: 48, coord_y: 112 }],
+      })
+      expect(wrapper.get('svg').attributes('viewBox')).toBe('8 72 80 80')
+    })
+
+    it.each([
+      { width: 1200, height: 600, viewBox: '0 -20 80 80' },
+      { width: 400, height: 800, viewBox: '-20 0 80 80' },
+    ])(
+      'keeps an edge vault visible in a $width × $height pane',
+      async ({ width, height, viewBox }) => {
+        vi.spyOn(SVGElement.prototype, 'getBoundingClientRect').mockReturnValue({
+          width,
+          height,
+        } as DOMRect)
+        const wrapper = mount(WorldMap, {
+          props: {
+            locations: [{ ...home, coord_x: 16, coord_y: 16 }],
+            vaultMarkers: [],
+            selectedMarkerId: null,
+          },
+          global: { stubs: defaultStubs },
+        })
+        await nextTick()
+
+        expect(wrapper.get('svg').attributes('viewBox')).toBe(viewBox)
+      }
+    )
   })
 
   describe('Marker click emission', () => {

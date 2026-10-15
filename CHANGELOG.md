@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.209.2 (2026-10-15)
+
+### Bug Fixes
+
+* **map:** focus the home vault when opening the map ([#1010](https://github.com/ElderEvil/falloutProject/issues/1010)) 811c7e3
+
 ## 2.209.1 (2026-10-15)
 
 ### Bug Fixes

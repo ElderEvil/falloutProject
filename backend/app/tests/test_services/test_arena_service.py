@@ -448,8 +448,9 @@ class TestArenaService:
         assert room_arena_state.fight_started_at is None
         await async_session.refresh(fighter_a)
         await async_session.refresh(fighter_b)
-        assert fighter_a.health == fighter_a.effective_max_health
-        assert fighter_b.health == fighter_b.effective_max_health
+        assert fighter_a.health == 40
+        assert fighter_b.health == 1
+        assert (fighter_a.radiation, fighter_b.radiation) == (20, 10)
 
         # Regression (PR #534): get_arena_state must serialize effective_max_health
         # as max_health, or irradiated dwellers show wrong health ratios to clients.
@@ -458,13 +459,47 @@ class TestArenaService:
         fighters_by_id = {f.id: f for f in room_state.fighters}
         for fighter in (fighter_a, fighter_b):
             serialized = fighters_by_id[str(fighter.id)]
+            assert serialized.health == fighter.health
             assert serialized.max_health == fighter.effective_max_health
             assert serialized.max_health != fighter.max_health
         roster_by_id = {r.id: r for r in room_state.roster}
         for fighter in (fighter_a, fighter_b):
             serialized = roster_by_id[str(fighter.id)]
+            assert serialized.health == fighter.health
             assert serialized.max_health == fighter.effective_max_health
             assert serialized.max_health != fighter.max_health
+
+    @pytest.mark.parametrize("mode", list(ArenaMode))
+    async def test_assignment_and_repeated_selection_preserve_injuries(
+        self, async_session, arena_room, fighter_a, fighter_b, fighter_c, fighter_d, mode
+    ):
+        fighters = (fighter_a, fighter_b, fighter_c, fighter_d)
+        health = (40, 1, 35, 7)
+        for fighter, hp in zip(fighters, health, strict=True):
+            fighter.health = hp
+        await async_session.commit()
+        for fighter in fighters:
+            await dweller_service.move_to_room(async_session, fighter.id, arena_room.id)
+            await async_session.refresh(fighter)
+        assert tuple(fighter.health for fighter in fighters) == health
+
+        selection = {"mode": mode}
+        if mode == ArenaMode.BRAWL:
+            selection.update(fighter_c_id=fighter_c.id, fighter_d_id=fighter_d.id)
+        elif mode == ArenaMode.HUNT:
+            selection.update(fighter_c_id=fighter_c.id, opponent_keys=["training-eyebot"])
+        service = ArenaService()
+        for _ in range(2):
+            await service.set_fighters(
+                async_session,
+                arena_room.id,
+                fighter_a.id,
+                fighter_b.id if mode != ArenaMode.HUNT else None,
+                **selection,
+            )
+            for fighter in fighters:
+                await async_session.refresh(fighter)
+            assert tuple(fighter.health for fighter in fighters) == health
 
     @pytest.mark.asyncio
     async def test_set_fighters_rejects_dweller_not_in_room(self, async_session, arena_room, fighter_a, fighter_b):

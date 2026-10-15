@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.211.1 (2026-10-15)
+
+### Bug Fixes
+
+* **frontend:** preserve briefing alert contrast across themes af1de8c
+* **frontend:** use semantic quota fill colors 4aa81cb
+
 ## 2.211.0 (2026-10-15)
 
 ### Features

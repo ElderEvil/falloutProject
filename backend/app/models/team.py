@@ -139,6 +139,18 @@ class TeamMember(BaseUUIDModel, TimeStampMixin, table=True):
         default="assigned",
         description="assigned, in_progress, completed, failed (quest/incident); active, reserve (hazard)",
     )
+    # Auto-dispatch provenance: the room an incident responder was posted in before
+    # being moved into the incident room, so the return pass can restore a station
+    # posting instead of silently reassigning to production. NULL for manually
+    # assigned responders and every non-incident roster; a deleted room clears it
+    # (SET NULL), which correctly means "no posting to restore".
+    origin_room_id: UUID4 | None = Field(
+        default=None,
+        foreign_key="room.id",
+        nullable=True,
+        ondelete="SET NULL",
+        description="Pre-dispatch posting of an auto-dispatched incident responder; NULL otherwise",
+    )
 
     # Relationships
     team: "Team" = Relationship(back_populates="members")

@@ -14,6 +14,12 @@ describe('WastelandDropzone', () => {
     expect(wrapper.text()).toContain('Drag dwellers here to send them exploring')
   })
 
+  it('exposes the onboarding anchor for the explore step', () => {
+    const wrapper = mount(WastelandDropzone)
+
+    expect(wrapper.find('[data-onboarding="wasteland"]').exists()).toBe(true)
+  })
+
   it('renders slot content', () => {
     const wrapper = mount(WastelandDropzone, {
       slots: {

@@ -88,6 +88,7 @@ RESOURCE_ALIASES: dict[str, str] = {
     "food": "food",
     "water": "water",
     "power": "power",
+    "stimpack": "stimpak",
     "stimpak": "stimpak",
     "radaway": "radaway",
     # Common aliases
@@ -108,6 +109,7 @@ RESOURCE_ALIASES: dict[str, str] = {
 
 # Map from item type aliases to canonical names
 ITEM_ALIASES: dict[str, str] = {
+    "stimpack": "stimpak",
     # Plural variants
     "weapons": "weapon",
     "outfits": "outfit",

@@ -17,9 +17,14 @@ import { Icon } from '@iconify/vue'
 import type { Incident } from '@/modules/combat/models/incident'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
 import type { Room } from '../models/room'
-import { getTrainingRoomCapacity, hasElevatorAbove, isLevelBuildable } from '@/modules/rooms/utils/room'
+import {
+  getTrainingRoomCapacity,
+  hasElevatorAbove,
+  isLevelBuildable,
+} from '@/modules/rooms/utils/room'
 import { ADULT_AGE_GROUPS } from '@/modules/dwellers/models/dweller'
 import RoomGridCell from './RoomGridCell.vue'
+import { findProductionRoom } from '../models/roomParts'
 
 // Lazy load heavy modal
 const RoomDetailModal = defineAsyncComponent({
@@ -53,6 +58,8 @@ const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerS
 const trainingStore = useTrainingStore()
 const toast = useToast()
 const rooms = computed(() => (Array.isArray(roomStore.rooms) ? roomStore.rooms : []))
+
+const powerRoomId = computed(() => findProductionRoom(rooms.value, 'power')?.id ?? null)
 const vaultId = computed(() => (route?.params.id as string) ?? '')
 
 // Power outage logic
@@ -126,7 +133,7 @@ const isValidPlacementAt = (x: number, y: number) => {
       (room: Room) =>
         (room.coordinate_x ?? 0) <= cell.x &&
         (room.coordinate_x ?? 0) + (room.size || room.size_min) > cell.x &&
-        (room.coordinate_y ?? 0) === cell.y,
+        (room.coordinate_y ?? 0) === cell.y
     )
     if (occupied) return false
     if (isElevator) return hasElevatorAbove(roomStore.rooms, cell.x, cell.y)
@@ -172,9 +179,7 @@ const isLevelLocked = (y: number) => !isLevelBuildable(rooms.value, y)
 
 // Elevators can still be placed on locked levels (stacked below an existing
 // shaft) because building one is exactly what unlocks the level.
-const isPlacingElevator = computed(
-  () => roomStore.selectedRoom?.name.toLowerCase() === 'elevator'
-)
+const isPlacingElevator = computed(() => roomStore.selectedRoom?.name.toLowerCase() === 'elevator')
 const canInteractWithLevel = (y: number) => !isLevelLocked(y) || isPlacingElevator.value
 
 // Drag and drop for dweller assignment
@@ -305,6 +310,12 @@ const handleRoomUpdated = async () => {
     await roomStore.fetchRooms(vaultId, authStore.token)
     await dwellerStore.fetchDwellersByVault(vaultId, authStore.token)
   }
+  // The open modal holds its own room snapshot; re-point it at the refreshed
+  // row so an expansion's new size and capacity show without reopening.
+  if (selectedRoomForDetail.value) {
+    const refreshed = roomStore.rooms.find((room) => room.id === selectedRoomForDetail.value?.id)
+    if (refreshed) selectedRoomForDetail.value = refreshed
+  }
 }
 
 // Close detail modal
@@ -317,108 +328,113 @@ const closeDetailModal = () => {
 <template>
   <TooltipProvider :delay-duration="200">
     <div class="room-grid-container">
-    <!-- Room Detail Modal -->
-    <RoomDetailModal
-      :room="selectedRoomForDetail"
-      :overseer-briefing="overseerBriefing"
-      :vault-id="vaultId"
-      v-model="showDetailModal"
-      @close="closeDetailModal"
-      @room-updated="handleRoomUpdated"
-      @review-incidents="emit('reviewIncidents')"
-    />
-
-    <div
-      class="room-grid"
-      :class="{ 'critical-power': isPowerOutage }"
-      :style="{
-        gridTemplateColumns: `repeat(${floorUnits}, minmax(0, 1fr))`,
-        gridTemplateRows: `repeat(${buildRowCount}, 104px) repeat(${lockedRowCount}, 60px)`,
-      }"
-    >
-      <RoomGridCell
-        v-for="room in rooms"
-        :key="room.id"
-        :room="room"
-        :show-room-images="showRoomImages"
-        :is-power-outage="isPowerOutage"
-        :incident="getRoomIncident(room.id)"
-        :overseer-attention-count="overseerAttentionCount"
-        :selected="selectedRoomId === room.id"
-        :is-dragging-over="draggingOverRoomId === room.id"
-        :highlighted="highlightedRoomId != null && highlightedRoomId === room.id"
-        :merged="roomStore.mergedRoomId === room.id"
-        @click="handleRoomClick"
-        @upgrade="handleUpgradeRoom"
-        @destroy="destroyRoom"
-        @incident-click="handleIncidentClick"
-        @dragover="handleDragOver"
-        @dragleave="handleDragLeave"
-        @drop="handleDrop"
+      <!-- Room Detail Modal -->
+      <RoomDetailModal
+        :room="selectedRoomForDetail"
+        :overseer-briefing="overseerBriefing"
+        :vault-id="vaultId"
+        v-model="showDetailModal"
+        @close="closeDetailModal"
+        @room-updated="handleRoomUpdated"
+        @review-incidents="emit('reviewIncidents')"
       />
 
-      <!-- Render empty cells -->
       <div
-        v-for="cell in gridCells"
-        :key="cell.key"
+        class="room-grid"
+        :class="{ 'critical-power': isPowerOutage }"
         :style="{
-          gridRow: cell.y + 1,
-          gridColumn: `${cell.x + 1} / span ${cell.span}`,
+          gridTemplateColumns: `repeat(${floorUnits}, minmax(0, 1fr))`,
+          gridTemplateRows: `repeat(${buildRowCount}, 104px) repeat(${lockedRowCount}, 60px)`,
         }"
-        class="room empty"
-        :class="{
-          'level-locked': isLevelLocked(cell.y) && !isPlacingElevator,
-          'hover-preview': previewCells.some(
-            (previewCell) => previewCell.x === cell.x && previewCell.y === cell.y
-          ),
-          'valid-placement':
-            isValidPlacement &&
-            previewCells.some(
-              (previewCell) => previewCell.x === cell.x && previewCell.y === cell.y
-            ),
-          'invalid-placement':
-            !isValidPlacement &&
-            hoverPosition &&
-            previewCells.some(
-              (previewCell) => previewCell.x === cell.x && previewCell.y === cell.y
-            ),
-        }"
-        @mouseenter="canInteractWithLevel(cell.y) && handleHover(cell.x, cell.y)"
-        @mouseleave="clearHover"
-        :role="roomStore.isPlacingRoom && canInteractWithLevel(cell.y) ? 'button' : undefined"
-        :tabindex="roomStore.isPlacingRoom && canInteractWithLevel(cell.y) ? 0 : undefined"
-        :aria-label="
-          isLevelLocked(cell.y) && !isPlacingElevator
-            ? `Level ${cell.y + 1} is locked`
-            : roomStore.isPlacingRoom
-              ? `Build room at row ${cell.y + 1}, column ${cell.x + 1}`
-              : `Empty room cell at row ${cell.y + 1}, column ${cell.x + 1}`
-        "
-        @click="canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y)"
-        @keydown.enter.prevent="canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y)"
-        @keydown.space.prevent="canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y)"
       >
-        <span v-if="isLevelLocked(cell.y) && !isPlacingElevator" class="level-lock-indicator">
-          <Icon icon="mdi:lock" />
-        </span>
-      </div>
+        <RoomGridCell
+          v-for="room in rooms"
+          :key="room.id"
+          :room="room"
+          :onboarding-anchor="powerRoomId === room.id ? 'room-power' : undefined"
+          :show-room-images="showRoomImages"
+          :is-power-outage="isPowerOutage"
+          :incident="getRoomIncident(room.id)"
+          :overseer-attention-count="overseerAttentionCount"
+          :selected="selectedRoomId === room.id"
+          :is-dragging-over="draggingOverRoomId === room.id"
+          :highlighted="highlightedRoomId != null && highlightedRoomId === room.id"
+          :merged="roomStore.mergedRoomId === room.id"
+          @click="handleRoomClick"
+          @upgrade="handleUpgradeRoom"
+          @destroy="destroyRoom"
+          @incident-click="handleIncidentClick"
+          @dragover="handleDragOver"
+          @dragleave="handleDragLeave"
+          @drop="handleDrop"
+        />
 
-      <!-- Locked rows below the buildable area -->
-      <div
-        v-for="y in lockedRowCount"
-        :key="`locked-${y}`"
-        class="locked-row"
-        :style="{
-          gridRow: buildRowCount + y,
-          gridColumn: '1 / -1',
-        }"
-      >
-        <Icon icon="mdi:lock" class="locked-icon" />
-        <span class="locked-text"
-          >Locked Area - Future Expansion (Row {{ buildRowCount + y - 1 }})</span
+        <!-- Render empty cells -->
+        <div
+          v-for="cell in gridCells"
+          :key="cell.key"
+          :style="{
+            gridRow: cell.y + 1,
+            gridColumn: `${cell.x + 1} / span ${cell.span}`,
+          }"
+          class="room empty"
+          :class="{
+            'level-locked': isLevelLocked(cell.y) && !isPlacingElevator,
+            'hover-preview': previewCells.some(
+              (previewCell) => previewCell.x === cell.x && previewCell.y === cell.y
+            ),
+            'valid-placement':
+              isValidPlacement &&
+              previewCells.some(
+                (previewCell) => previewCell.x === cell.x && previewCell.y === cell.y
+              ),
+            'invalid-placement':
+              !isValidPlacement &&
+              hoverPosition &&
+              previewCells.some(
+                (previewCell) => previewCell.x === cell.x && previewCell.y === cell.y
+              ),
+          }"
+          @mouseenter="canInteractWithLevel(cell.y) && handleHover(cell.x, cell.y)"
+          @mouseleave="clearHover"
+          :role="roomStore.isPlacingRoom && canInteractWithLevel(cell.y) ? 'button' : undefined"
+          :tabindex="roomStore.isPlacingRoom && canInteractWithLevel(cell.y) ? 0 : undefined"
+          :aria-label="
+            isLevelLocked(cell.y) && !isPlacingElevator
+              ? `Level ${cell.y + 1} is locked`
+              : roomStore.isPlacingRoom
+                ? `Build room at row ${cell.y + 1}, column ${cell.x + 1}`
+                : `Empty room cell at row ${cell.y + 1}, column ${cell.x + 1}`
+          "
+          @click="canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y)"
+          @keydown.enter.prevent="
+            canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y)
+          "
+          @keydown.space.prevent="
+            canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y)
+          "
         >
+          <span v-if="isLevelLocked(cell.y) && !isPlacingElevator" class="level-lock-indicator">
+            <Icon icon="mdi:lock" />
+          </span>
+        </div>
+
+        <!-- Locked rows below the buildable area -->
+        <div
+          v-for="y in lockedRowCount"
+          :key="`locked-${y}`"
+          class="locked-row"
+          :style="{
+            gridRow: buildRowCount + y,
+            gridColumn: '1 / -1',
+          }"
+        >
+          <Icon icon="mdi:lock" class="locked-icon" />
+          <span class="locked-text"
+            >Locked Area - Future Expansion (Row {{ buildRowCount + y - 1 }})</span
+          >
+        </div>
       </div>
-    </div>
     </div>
   </TooltipProvider>
 </template>

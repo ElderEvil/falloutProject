@@ -41,7 +41,9 @@ const handleDrop = (event: DragEvent) => {
 </script>
 
 <template>
+  <!-- @vue-ignore -->
   <div
+    data-onboarding="wasteland"
     class="wasteland-dropzone flex min-h-20 cursor-pointer flex-col justify-start rounded-lg border-2 border-dashed border-[rgba(205,133,63,0.5)] bg-[rgba(139,69,19,0.2)] p-4 transition-all duration-300 hover:border-[rgba(205,133,63,0.8)] hover:bg-[rgba(139,69,19,0.3)]"
     :class="isDraggingOver
       ? 'drag-over scale-[1.02] border-solid !border-theme-primary !border-[3px] !bg-theme-glow shadow-[0_0_20px_var(--color-theme-glow)]'

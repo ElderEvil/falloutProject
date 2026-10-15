@@ -113,10 +113,10 @@ jobs:
         working-directory: frontend
         run: node scripts/check-raw-controls.mjs
 
-      - name: Run tests
+      - name: Run tests with coverage
         if: steps.filter.outputs.src == 'true'
         working-directory: frontend
-        run: pnpm run test -- --run
+        run: pnpm run test:run --coverage
 
       - name: Install Playwright Chromium
         if: steps.filter.outputs.src == 'true'

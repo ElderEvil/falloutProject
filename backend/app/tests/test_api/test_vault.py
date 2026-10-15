@@ -348,25 +348,27 @@ async def test_auto_assign_crafting_rejects_foreign_vault(
 
 @pytest.mark.smoke
 @pytest.mark.asyncio
-async def test_vault_initiate_superuser_creates_boosted_population(
+async def test_vault_initiate_does_not_boost_superusers_by_default(
     async_client: AsyncClient,
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ):
-    """Test that superuser (boosted) vault initialization seeds more than 32 dwellers."""
+    """A superuser is only boosted when the request asks for it, like any other user."""
     from uuid import UUID
 
-    vault_number = {"number": 202}
-    response = await async_client.post("/vaults/initiate", headers=superuser_token_headers, json=vault_number)
+    response = await async_client.post("/vaults/initiate", headers=superuser_token_headers, json={"number": 202})
     assert response.status_code == 201
     vault_id = UUID(response.json()["id"])
 
     vault_with_counts = await vault_service.get_vault_with_room_and_dweller_count(
         db_session=async_session, vault_id=vault_id
     )
-    assert vault_with_counts.dweller_count > 32, (
-        f"Expected more than 32 dwellers for superuser, got {vault_with_counts.dweller_count}"
+    assert vault_with_counts.dweller_count <= 32, (
+        f"Superuser was boosted without requesting it: {vault_with_counts.dweller_count} dwellers"
     )
+    rooms = await crud.room.get_all_by_vault(async_session, vault_id)
+    # Crafting workshops are seeded only for boosted vaults.
+    assert not any(room.category.value == "crafting" for room in rooms)
 
 
 @pytest.mark.smoke
@@ -379,7 +381,9 @@ async def test_vault_initiate_boosted_seeds_crafting_and_capacity(
     """Boosted vaults seed staffed workshops, merged living space, and capacity to match."""
     from uuid import UUID
 
-    response = await async_client.post("/vaults/initiate", headers=superuser_token_headers, json={"number": 203})
+    response = await async_client.post(
+        "/vaults/initiate", headers=superuser_token_headers, json={"number": 203, "boosted": True}
+    )
     assert response.status_code == 201
     vault_id = UUID(response.json()["id"])
 

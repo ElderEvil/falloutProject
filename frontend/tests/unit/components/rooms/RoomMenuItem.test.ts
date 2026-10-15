@@ -59,6 +59,23 @@ describe('RoomMenuItem', () => {
     expect(details.indexOf(rows[1].element)).toBeLessThan(details.indexOf(progress.element))
   })
 
+  it('anchors the Living room option for the onboarding tour', () => {
+    const living = mount(RoomMenuItem, { props: { room: { ...room, name: 'Living room' } } })
+    expect(living.find('[data-onboarding="build-living-room"]').exists()).toBe(true)
+
+    const other = mount(RoomMenuItem, { props: { room } })
+    expect(other.find('[data-onboarding]').exists()).toBe(false)
+  })
+
+  it('shows the station category icon when a response room has no artwork', () => {
+    const wrapper = mount(RoomMenuItem, {
+      props: { room: { ...room, name: 'Response Station', category: 'response', image_url: null } },
+    })
+
+    expect(wrapper.find('.room-icon img').exists()).toBe(false)
+    expect(wrapper.find('.room-icon [data-icon="mdi:shield-account"]').exists()).toBe(true)
+  })
+
   it('renders all four room detail rows', () => {
     const wrapper = mount(RoomMenuItem, {
       props: { room: { ...room, population_required: 10 } },

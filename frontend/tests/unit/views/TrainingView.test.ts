@@ -68,7 +68,7 @@ describe('TrainingView', () => {
       },
     ] as typeof roomStore.rooms
     vi.spyOn(vaultStore, 'ensureVaultLoaded').mockResolvedValue()
-    vi.spyOn(roomStore, 'fetchRooms').mockResolvedValue()
+    vi.spyOn(roomStore, 'fetchRooms').mockResolvedValue('loaded')
 
     const router = createRouter({
       history: createMemoryHistory(),

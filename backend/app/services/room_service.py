@@ -9,6 +9,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core import db_locks
 from app.core.enums import RoomActionEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
@@ -16,12 +17,14 @@ from app.core.grid_config import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN
 from app.crud.training import training as training_crud
 from app.models.room import Room
 from app.schemas.room import RoomBuild, RoomCreate, RoomUpdate
+from app.services.room_assignment_policy import vault_placement_lock_key
 from app.services.user_service import user_service
 from app.services.vault_service import vault_service
 from app.utils import room_rules
 from app.utils.exceptions import (
     InsufficientResourcesException,
     NoSpaceAvailableException,
+    ResourceConflictException,
     UniqueRoomViolationException,
     VaultOperationException,
 )
@@ -311,7 +314,26 @@ class RoomService:
 
         Scans left-to-right, top-to-bottom and repeatedly merges each room with
         adjacent identical neighbours until no more merges fit within ``size_max``.
+        Apply mode holds the vault placement lock so it cannot interleave with a
+        concurrent build or upgrade; a dry run only reports the merges it would make
+        and stays lock-free.
         """
+        if dry_run:
+            return await self._merge_adjacent_vault_rooms(db_session, vault_id, dry_run=True)
+
+        async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(vault_id)) as acquired:
+            if not acquired:
+                raise ResourceConflictException(detail=f"Vault {vault_id} is already being built in — try again")
+            return await self._merge_adjacent_vault_rooms(db_session, vault_id, dry_run=False)
+
+    async def _merge_adjacent_vault_rooms(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        *,
+        dry_run: bool,
+    ) -> dict[str, int]:
+        """Run the vault-wide adjacent-room merge scan; caller owns the placement lock."""
         rooms = await crud.room.get_all_by_vault(db_session, vault_id)
         vault = await crud.vault.get(db_session, id=vault_id)
         absorbed_ids: set[UUID4] = set()
@@ -408,7 +430,14 @@ class RoomService:
             return room
 
     async def _build(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> tuple[Room, bool]:
-        """Build a room from a full create payload, expanding when the same room exists."""
+        """Build a room under the vault's placement lock, merging into an adjacent identical room."""
+        async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(obj_in.vault_id)) as acquired:
+            if not acquired:
+                raise ResourceConflictException(detail=f"Vault {obj_in.vault_id} is already being built in — try again")
+            return await self._build_locked(db_session=db_session, obj_in=obj_in)
+
+    async def _build_locked(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> tuple[Room, bool]:
+        """Build a room from a full create payload, merging into an adjacent identical room."""
         vault = await crud.vault.get(db_session, id=obj_in.vault_id)
 
         if obj_in.size_min is None or obj_in.size_min < 1:
@@ -461,8 +490,6 @@ class RoomService:
             obj_in.capacity_formula = room_template.capacity_formula
             obj_in.output_formula = room_template.output_formula
 
-        await crud.room.check_is_unique_room(db_session=db_session, obj_in=obj_in)
-
         merge_result = await self.merge_adjacent_rooms(db_session=db_session, candidate=obj_in)
         if merge_result.merged and merge_result.room is not None:
             survivor = merge_result.room
@@ -484,6 +511,11 @@ class RoomService:
                 {"room_type": survivor.name, "tier": survivor.tier, "room_id": str(survivor.id)},
             )
             return survivor, merge_result.created
+
+        # Uniqueness blocks only a *new* copy: an adjacent segment already merged into
+        # the existing room above, while a disconnected second copy is rejected here —
+        # before any caps move or a row is created.
+        await crud.room.check_is_unique_room(db_session=db_session, obj_in=obj_in)
 
         if obj_in.capacity_formula:
             room_size = obj_in.size if obj_in.size is not None else obj_in.size_min
@@ -548,6 +580,10 @@ class RoomService:
 
         await room_rules.validate_elevator_destroy(db_session, room)
 
+        # A demolished room must leave no dangling dispatch origin behind: clear the
+        # provenance pointing here before the row goes, so the incident return pass
+        # reads "no posting to restore" instead of a room that no longer exists.
+        await crud.room.clear_origin_room_references(db_session, room_id)
         db_obj = await crud.room.delete(db_session, id=room_id)
 
         refundable_total = db_obj.base_cost + (db_obj.incremental_cost or 0)
@@ -593,7 +629,15 @@ class RoomService:
             raise VaultOperationException(detail=str(e)) from e
 
     async def _upgrade(self, db_session: AsyncSession, room_id: UUID4) -> Room:
+        """Upgrade a room under the vault's placement lock, merging into an adjacent identical room."""
         room = await crud.room.get(db_session, room_id)
+        async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(room.vault_id)) as acquired:
+            if not acquired:
+                raise ResourceConflictException(detail=f"Vault {room.vault_id} is already being built in — try again")
+            return await self._upgrade_locked(db_session, room)
+
+    async def _upgrade_locked(self, db_session: AsyncSession, room: Room) -> Room:
+        """Apply the tier change and fuse any adjacent identical room while the lock is held."""
         vault = await crud.vault.get(db_session, id=room.vault_id)
 
         max_tier = room.max_tier
@@ -686,7 +730,9 @@ class RoomService:
     ) -> list:
         """Get list of rooms that can be built in a vault.
 
-        Filters out vault doors and unique rooms already built.
+        Filters out vault doors and unique rooms already grown to their maximum
+        footprint. A unique room below ``size_max`` stays buildable because a new
+        segment merges into it.
 
         Args:
             db_session: Database session
@@ -698,8 +744,8 @@ class RoomService:
         from app.core.game_data import get_static_game_data
 
         data_store = await get_static_game_data()
-        existing_room_names = await crud.room.get_existing_room_names(db_session=db_session, vault_id=vault_id)
-        return data_store.get_buildable_rooms(existing_room_names)
+        blocked_names = await crud.room.get_maxed_unique_room_names(db_session=db_session, vault_id=vault_id)
+        return data_store.get_buildable_rooms(blocked_names)
 
     async def get_rooms_by_name_pattern(
         self,

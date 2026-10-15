@@ -9,6 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
 from app.db.session import get_async_session
 from app.schemas.arena import (
+    ArenaCreature,
     ArenaEventsCleared,
     ArenaFightersRequest,
     ArenaFightersResponse,
@@ -31,6 +32,17 @@ async def get_arena_state(
     return await arena_service.get_arena_state(db_session, vault_id)
 
 
+@router.get("/vault/{vault_id}/creatures", response_model=list[ArenaCreature])
+async def list_arena_creatures(
+    vault_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> list[ArenaCreature]:
+    """List the creatures selectable as hunt opponents."""
+    await get_user_vault_or_403(vault_id, user, db_session)
+    return [ArenaCreature(**creature) for creature in arena_service.list_creatures()]
+
+
 @router.post("/vault/{vault_id}/rooms/{room_id}/fighters", response_model=ArenaFightersResponse)
 async def set_arena_fighters(
     vault_id: UUID4,
@@ -41,11 +53,21 @@ async def set_arena_fighters(
 ) -> ArenaFightersResponse:
     """Pick which assigned dwellers fight. Changing the selection resets the match."""
     await get_user_vault_or_403(vault_id, user, db_session)
-    room = await arena_service.set_fighters(db_session, room_id, payload.fighter_a_id, payload.fighter_b_id, vault_id)
+    state = await arena_service.set_fighters(
+        db_session,
+        room_id,
+        payload.fighter_a_id,
+        payload.fighter_b_id,
+        vault_id,
+        mode=payload.mode,
+        fighter_c_id=payload.fighter_c_id,
+        fighter_d_id=payload.fighter_d_id,
+        opponent_keys=payload.opponent_keys,
+    )
     return ArenaFightersResponse(
-        room_id=str(room.id),
-        fighter_a_id=str(room.arena_fighter_a_id) if room.arena_fighter_a_id else None,
-        fighter_b_id=str(room.arena_fighter_b_id) if room.arena_fighter_b_id else None,
+        room_id=str(state.room_id),
+        fighter_a_id=str(state.fighter_a_id) if state.fighter_a_id else None,
+        fighter_b_id=str(state.fighter_b_id) if state.fighter_b_id else None,
     )
 
 

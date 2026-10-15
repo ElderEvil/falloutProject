@@ -3,6 +3,7 @@ import logging
 import operator
 
 from pydantic import UUID4
+from sqlalchemy import update
 from sqlmodel import and_, func, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -99,6 +100,20 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         return {name.lower() for name in await CRUDRoom.get_names_by_vault(db_session, vault_id)}
 
     @staticmethod
+    async def get_maxed_unique_room_names(*, db_session: AsyncSession, vault_id: UUID4) -> set[str]:
+        """Lowercase names of unique rooms already at ``size_max``.
+
+        A unique room below its maximum footprint can still merge an adjacent
+        segment, so only the maxed ones are blocked from the build menu.
+        """
+        rooms = await CRUDRoom.get_all_by_vault(db_session, vault_id)
+        return {
+            room.name.lower()
+            for room in rooms
+            if room.is_unique and (room.size if room.size is not None else room.size_min) >= room.size_max
+        }
+
+    @staticmethod
     async def has_room_type(db_session: AsyncSession, vault_id: UUID4, room_type: str) -> bool:
         """Whether the vault has a built room matching the normalized room type."""
         normalized = normalize_room_type(room_type)
@@ -140,6 +155,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
                 & (Dweller.room_id.is_not(None))
                 & (Room.name != "Elevator")  # Exclude elevators
                 & (Room.category != RoomTypeEnum.ARENA)  # An arena hosts matches, not incidents
+                & (Room.category != RoomTypeEnum.RESPONSE)  # A management surface, not a combat destination
             )
             .distinct()
         )
@@ -157,6 +173,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             & (Room.coordinate_y.is_not(None))
             & (Room.name != "Elevator")  # Exclude elevators from spread
             & (Room.category != RoomTypeEnum.ARENA)  # An arena hosts matches, not incidents
+            & (Room.category != RoomTypeEnum.RESPONSE)  # A management surface, not a combat destination
             & (
                 # Adjacent horizontally (same floor, next to each other)
                 ((Room.coordinate_y == coord_y) & (Room.coordinate_x.between(coord_x - 2, coord_x + 2)))
@@ -176,15 +193,6 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             query = query.where(Room.id == room_id)
         if vault_id is not None:
             query = query.where(Room.vault_id == vault_id)
-        return list((await db_session.execute(query)).scalars().all())
-
-    @staticmethod
-    async def get_arena_rooms_with_fighter(db_session: AsyncSession, dweller_id: UUID4) -> list[Room]:
-        """Arena rooms where the dweller occupies either fighter slot."""
-        query = select(Room).where(
-            Room.category == RoomTypeEnum.ARENA,
-            (Room.arena_fighter_a_id == dweller_id) | (Room.arena_fighter_b_id == dweller_id),
-        )
         return list((await db_session.execute(query)).scalars().all())
 
     @staticmethod
@@ -253,6 +261,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         Calculate the price of building a room in a vault.
         It considers the base cost of the room type and applies an incremental cost
         based on the number of similar rooms already built in the vault.
+        A unique room (zero/null incremental cost) charges only its base price.
         """
         response = await db_session.execute(
             select(Room).where(Room.vault_id == room_in.vault_id, Room.category == room_in.category)
@@ -260,8 +269,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         rooms = response.scalars().all()
 
         if not room_in.incremental_cost:
-            msg = "Incremental cost must be set for the room category."
-            raise ValueError(msg)
+            return room_in.base_cost
         return room_in.base_cost + (len(rooms) * room_in.incremental_cost)
 
     @staticmethod
@@ -285,6 +293,22 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         """Check if the room category needs to be recalculated."""
         return room_obj.category == RoomTypeEnum.CAPACITY or (
             room_obj.category == RoomTypeEnum.PRODUCTION and room_obj.name != "Radio studio"
+        )
+
+    @staticmethod
+    async def clear_origin_room_references(db_session: AsyncSession, room_id: UUID4) -> None:
+        """Null the dispatch provenance that points at a room about to be demolished.
+
+        Mirrors the ``team_member.origin_room_id`` FK's ``ON DELETE SET NULL`` in the
+        application layer, so the documented "a deleted room means no posting to
+        restore" invariant holds even where the database does not enforce the
+        constraint (e.g. the SQLite test schema). Without it a dangling origin stays
+        on the incident roster and the return pass raises resolving it.
+        """
+        from app.models.team import TeamMember
+
+        await db_session.execute(
+            update(TeamMember).where(TeamMember.origin_room_id == room_id).values(origin_room_id=None)
         )
 
 

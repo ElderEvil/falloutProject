@@ -19,8 +19,8 @@ from app.schemas.room import RoomCreate
 # living space is one fully merged room (size 9) plus a base room, which is what
 # gives the boosted population its capacity.
 BOOSTED_CRAFTING_ROOM_SPECS: tuple[tuple[str, int, int], ...] = (
-    ("Weapon workshop", 7, 0),
-    ("Outfit workshop", 16, 0),
+    ("Weapon workshop", 7, 4),
+    ("Outfit workshop", 16, 4),
 )
 BOOSTED_MERGED_LIVING_ROOM: tuple[str, int, int, int] = ("living room", 16, 3, 9)
 BOOSTED_TRAINING_STATS = (

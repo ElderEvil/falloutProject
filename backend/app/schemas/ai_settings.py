@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import UUID4, BaseModel, Field
 
-ALLOWED_AI_PROVIDERS = {"openai", "anthropic", "ollama", "lmstudio"}
+ALLOWED_AI_PROVIDERS = {"openai", "ollama", "lmstudio"}
 
 
 class AISettingsProfile(BaseModel):

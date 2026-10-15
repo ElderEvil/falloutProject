@@ -177,12 +177,35 @@ class TestGetExistingRoomNames:
 
 class TestGetRoomBuildPrice:
     @pytest.mark.asyncio
-    async def test_zero_incremental_cost_raises_value_error(self, room_crud, async_session: AsyncSession, vault: Vault):
-        """incremental_cost=0 is falsy, so `not room_in.incremental_cost` is True -> raises."""
-        room_in = _make_room_create(vault_id=vault.id, base_cost=100, incremental_cost=0)
+    async def test_zero_incremental_cost_prices_at_base_cost(
+        self, room_crud, async_session: AsyncSession, vault: Vault
+    ):
+        """A unique room (zero/null incremental cost) is priced at its base cost.
 
-        with pytest.raises(ValueError, match="Incremental cost must be set"):
-            await room_crud.get_room_build_price(db_session=async_session, room_in=room_in)
+        Supersedes the old ``test_zero_incremental_cost_raises_value_error`` raise
+        contract: ``RoomBase.is_unique`` defines zero/null incremental cost as the
+        unique-room marker, so a unique room must charge its base price (issue #997).
+        """
+        room_in = _make_room_create(vault_id=vault.id, base_cost=100, incremental_cost=0)
+        assert room_in.is_unique is True
+
+        price = await room_crud.get_room_build_price(db_session=async_session, room_in=room_in)
+
+        assert price == 100
+
+    @pytest.mark.asyncio
+    async def test_unique_room_ignores_existing_room_count(self, room_crud, async_session: AsyncSession, vault: Vault):
+        """Zero/null incremental cost applies no per-room increment, even with same-category rooms built."""
+        await _create_room(async_session, vault.id, category=RoomTypeEnum.PRODUCTION, coordinate_x=1)
+        await _create_room(async_session, vault.id, category=RoomTypeEnum.PRODUCTION, coordinate_x=3)
+        room_in = _make_room_create(
+            vault_id=vault.id, category=RoomTypeEnum.PRODUCTION, base_cost=300, incremental_cost=None
+        )
+        assert room_in.is_unique is True
+
+        price = await room_crud.get_room_build_price(db_session=async_session, room_in=room_in)
+
+        assert price == 300
 
     @pytest.mark.asyncio
     async def test_price_counts_only_same_category_rooms(self, room_crud, async_session: AsyncSession, vault: Vault):
@@ -381,6 +404,49 @@ class TestBuild:
         assert created is False
         assert result.id == survivor.id
         assert result.size == 6
+
+    @pytest.mark.asyncio
+    async def test_unique_room_charges_base_price_and_rejects_second(self, async_session: AsyncSession, vault: Vault):
+        """A unique room builds through the real service and charges only its base price;
+        a disconnected second unique room of the same name is rejected before any caps are
+        charged (issue #997)."""
+        await crud.vault.update(db_session=async_session, id=vault.id, obj_in={"bottle_caps": 10_000})
+        await _create_room(
+            async_session,
+            vault.id,
+            name="Vault Door",
+            incremental_cost=0,
+            size=1,
+            size_min=1,
+            coordinate_x=0,
+            coordinate_y=0,
+        )
+        unique = {
+            "vault_id": vault.id,
+            "name": "Response Station",
+            "category": RoomTypeEnum.PRODUCTION,
+            "base_cost": 500,
+            "incremental_cost": 0,
+            "size": 1,
+            "size_min": 1,
+            "coordinate_x": 1,
+            "coordinate_y": 0,
+        }
+
+        room, created = await RoomService()._build(db_session=async_session, obj_in=_make_room_create(**unique))
+
+        assert created is True
+        assert room.name == "Response Station"
+        assert vault.bottle_caps == 9_500
+
+        # A neighbour makes the second station's cell buildable, but it is not adjacent to
+        # the first, so it cannot merge and uniqueness must reject it.
+        await _create_room(async_session, vault.id, name="Diner", size=1, size_min=1, coordinate_x=4, coordinate_y=0)
+        second = _make_room_create(**{**unique, "coordinate_x": 3})
+        with pytest.raises(UniqueRoomViolationException):
+            await RoomService()._build(db_session=async_session, obj_in=second)
+
+        assert vault.bottle_caps == 9_500
 
 
 # =============================================================================

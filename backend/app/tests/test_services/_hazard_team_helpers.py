@@ -1,11 +1,14 @@
 """Shared helpers for the hazard-team service tests."""
 
+from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import GenderEnum, HazardTeam, OutfitTypeEnum, RarityEnum
+from app.core.enums import GenderEnum, HazardTeam, OutfitTypeEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.models.incident import IncidentType
+from app.models.room import Room
 from app.models.team import TeamMember
+from app.schemas.room import RoomCreate
 from app.services.hazard_team_service import hazard_team_service
 
 
@@ -15,8 +18,45 @@ async def raise_incident(session: AsyncSession, room, incident_type: IncidentTyp
     )
 
 
+async def ensure_station(session: AsyncSession, vault_id: UUID4) -> Room:
+    """Give the vault a Response Station — the precondition for any hazard-team place.
+
+    Idempotent: a station already standing is returned as-is, so a test that builds
+    or demolishes its own station keeps its intent. Tests that only care about
+    qualification call this first instead of restating the unique-room payload.
+    """
+    existing = await crud.room.get_by_category(session, vault_id, RoomTypeEnum.RESPONSE)
+    if existing:
+        return existing[0]
+    station = RoomCreate(
+        vault_id=vault_id,
+        name="Response Station",
+        category=RoomTypeEnum.RESPONSE,
+        ability=SPECIALEnum.ENDURANCE,
+        population_required=None,
+        base_cost=600,
+        incremental_cost=None,
+        t2_upgrade_cost=None,
+        t3_upgrade_cost=None,
+        capacity=None,
+        output=None,
+        size_min=3,
+        size_max=9,
+        size=3,
+        tier=1,
+        coordinate_x=1,
+        coordinate_y=1,
+        image_url=None,
+        speedup_multiplier=1.0,
+        capacity_formula=None,
+        output_formula=None,
+    )
+    return await crud.room.create(session, obj_in=station)
+
+
 async def fight(session: AsyncSession, room, incident_type: IncidentType, dwellers: list):
     """Give each dweller one callout against the given hazard and persist it."""
+    await ensure_station(session, room.vault_id)
     incident = await raise_incident(session, room, incident_type)
     await hazard_team_service.record_participation(session, incident, dwellers)
     await session.commit()

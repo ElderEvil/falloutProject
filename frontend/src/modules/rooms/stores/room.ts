@@ -18,9 +18,13 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 
 type GridConfig = components['schemas']['GridConfig']
 
+/** Outcome of a room fetch: whose data (if any) now owns the store state. */
+export type FetchRoomsResult = 'loaded' | 'superseded' | 'failed'
+
 export const useRoomStore = defineStore('room', () => {
   // State
   const rooms = ref<Room[]>([])
+  const roomsLoadedVaultId = ref<string | null>(null)
   const gridConfig = ref<GridConfig | null>(null)
   const availableRooms = ref<RoomTemplate[]>([])
   const selectedRoom = ref<RoomTemplate | null>(null)
@@ -41,7 +45,7 @@ export const useRoomStore = defineStore('room', () => {
   }
 
   // Actions
-  async function fetchRooms(vaultId: string, token: string, throwOnError = false): Promise<void> {
+  async function fetchRooms(vaultId: string, token: string, throwOnError = false): Promise<FetchRoomsResult> {
     const requestSequence = ++fetchRoomsRequestSequence
 
     try {
@@ -50,15 +54,16 @@ export const useRoomStore = defineStore('room', () => {
           Authorization: `Bearer ${token}`,
         },
       })
-      if (requestSequence === fetchRoomsRequestSequence) {
-        rooms.value = response.data
-      }
+      if (requestSequence !== fetchRoomsRequestSequence) return 'superseded'
+      rooms.value = response.data
+      roomsLoadedVaultId.value = vaultId
+      return 'loaded'
     } catch (error) {
       handleStoreError(error, 'Failed to fetch rooms')
-      if (requestSequence === fetchRoomsRequestSequence) {
-        rooms.value = [] // Reset to empty array on error
-      }
+      if (requestSequence !== fetchRoomsRequestSequence) return 'superseded'
+      rooms.value = [] // Reset to empty array on error
       if (throwOnError) throw error
+      return 'failed'
     }
   }
 
@@ -221,6 +226,7 @@ export const useRoomStore = defineStore('room', () => {
   return {
     // State
     rooms,
+    roomsLoadedVaultId,
     gridConfig,
     availableRooms,
     selectedRoom,

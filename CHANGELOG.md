@@ -2,6 +2,123 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.205.3 (2026-10-15)
+
+### Bug Fixes
+
+* **rooms:** enforce worker capacity on manual assignment under concurrency f655236
+* **rooms:** re-check occupancy lock in bulk assignment persist path cd8cb04
+* **rooms:** retain bulk candidates when a room is busy 9354099
+
+## 2.205.2 (2026-10-15)
+
+### Bug Fixes
+
+* **ai:** include TypeSafe SDK in production dependencies 8131f90
+* **ai:** remove unused Anthropic provider support 4f5debc
+
+## 2.205.1 (2026-10-15)
+
+### Bug Fixes
+
+* **radio:** exclude away dwellers from happiness broadcasts 62bc536
+
+## 2.205.0 (2026-10-15)
+
+### Features
+
+* Response Station — a home for the fire & radiation teams ([#997](https://github.com/ElderEvil/falloutProject/issues/997)) ([#1002](https://github.com/ElderEvil/falloutProject/issues/1002)) ee492b9
+
+## 2.204.0 (2026-10-14)
+
+### Features
+
+* **objectives:** restore the legacy starter cohort and version the revised track 440b81d
+* **onboarding:** add the teaching ledger and authored orientation definitions 21071b9
+* **onboarding:** replace the objective banner with a spotlight guide dcc3cf1
+* **onboarding:** ship the ledger-driven spotlight 45614fe
+* **onboarding:** slim the starter arc to a three-step spine 2dbae72
+* **onboarding:** wire starter-spine contracts and spotlight state 3b38fc5
+* **progression:** gate objective tabs by Office identity and restore a current-step action 30c3dbd
+
+### Bug Fixes
+
+* **dwellers:** serialize read_data templates through the response model 4059624
+* **objectives:** create the assignable index, keep both filters, neutral housing copy a03e9cd
+* **onboarding:** address review findings on the starter arc ddf33cd
+* **onboarding:** keep the guide persistent, resilient and correctly scoped 1d633aa
+* **onboarding:** price housing from the real build cost and mirror departure policy 35af7ef
+* **onboarding:** retire instead of erase, and hand off after orientation 8d184b0
+* **onboarding:** scope housing rooms to the active vault and mark the created vault from the response 753dbe9
+* **vault:** do not boost a new vault for superusers unless requested e931427
+
+### Performance Improvements
+
+* **vault:** lazy-load the exit-request modal off the critical path 8cf3c5c
+
+### Documentation
+
+* **onboarding:** mark the feature implemented pending release and record validation fdd9bc7
+* **onboarding:** settle ordering, acknowledgement and stale-finding ambiguities 66ee6ee
+
+### Code Refactoring
+
+* **onboarding:** trim the snapshot, migration inference and docs 21872bc
+
+## 2.203.0 (2026-10-14)
+
+### Features
+
+* guide objective progression with explicit reward claims 340171a
+* rebalance objective rewards and fix progress counting 9bb6171
+* soften resource drain and preserve offline reserves 022127a
+
+### Bug Fixes
+
+* lazy-load objective guide within initial bundle budget d6b6e34
+* **migrations:** scope guided-arc template lookup to the starter category 4b1bf46
+* **objectives:** revert Produce rename, raise daily resource payouts, drop research dump 04e8afb
+
+### Documentation
+
+* retain wave 2 balance research with implementation b6cc823
+
+### Code Refactoring
+
+* **progression:** share objective claim flow and credit existing staffing dc0977a
+
+## 2.202.1 (2026-10-14)
+
+### Code Refactoring
+
+* **arena:** extract arena state into its own table f744a6d
+* **arena:** persist arena state via get_or_create on write paths 3700f4d
+
+## 2.202.0 (2026-10-14)
+
+### Features
+
+* **arena:** 2v2 mode and four-slot selection in the UI a09faaa
+* **arena:** add arena mode and team columns d774e3e
+* **arena:** hunt mode and creature picker in the UI 3f598d3
+* **arena:** hunt mode vs creatures f3248aa
+* **arena:** improve battle journal UX 5426312
+* **arena:** polish tiered fights and creature artwork c094a50
+* **arena:** support 2v2 brawl selection and rounds 3fd350f
+* **assets:** add empty industrial Arena detail scene and fallbacks 78b6a40
+* **assets:** replace arena scenes with wide Fallout tier artwork 9598a23
+
+### Bug Fixes
+
+* **arena:** keep knocked-out fighters alive and count only standing attackers 4ad766b
+* **arena:** resync the fighter draft when the server rejects a selection aecf68c
+* **arena:** use a design token for the creature combatant colour 0fb052c
+* **rooms:** fall back to grid sprite when a room cell scene fails to load 872fd34
+
+### Code Refactoring
+
+* **arena:** resolve rounds between teams b3203cf
+
 ## 2.201.1 (2026-10-13)
 
 ### Bug Fixes

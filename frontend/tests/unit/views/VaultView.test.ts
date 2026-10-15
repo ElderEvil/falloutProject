@@ -58,7 +58,7 @@ async function mountLoadedVault() {
   vi.spyOn(vaultStore, 'revalidateVault').mockResolvedValue()
   vi.spyOn(vaultStore, 'fetchGameState').mockResolvedValue()
   vi.spyOn(vaultStore, 'startResourcePolling').mockImplementation(() => {})
-  vi.spyOn(roomStore, 'fetchRooms').mockResolvedValue()
+  vi.spyOn(roomStore, 'fetchRooms').mockResolvedValue('loaded')
   vi.spyOn(roomStore, 'fetchBuildableRooms').mockResolvedValue()
   vi.spyOn(roomStore, 'deselectRoom').mockImplementation(() => {})
   vi.spyOn(dwellerStore, 'fetchDwellersByVault').mockResolvedValue()

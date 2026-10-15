@@ -235,14 +235,17 @@ onUnmounted(() => {
             aria-label="Vault population"
           >
             <div v-if="isReady" class="flex items-center gap-3">
-              <PageHeaderMetric
-                compact
-                icon="mdi:account-group"
-                :value="`${dwellersCount} / ${populationMax}`"
-                label="Dwellers"
-                :tooltip="dwellersTooltip"
-                :value-class="populationColor"
-              />
+              <!-- @vue-ignore -->
+              <span data-onboarding="population">
+                <PageHeaderMetric
+                  compact
+                  icon="mdi:account-group"
+                  :value="`${dwellersCount} / ${populationMax}`"
+                  label="Dwellers"
+                  :tooltip="dwellersTooltip"
+                  :value-class="populationColor"
+                />
+              </span>
               <PageHeaderMetric
                 compact
                 icon="mdi:emoticon-happy"
@@ -274,15 +277,18 @@ onUnmounted(() => {
               {{ loadFailed ? 'Vault status unavailable' : 'Syncing vault status' }}
             </div>
             <div v-else class="flex items-center gap-4">
-              <ResourceBar
-                navbar
-                :current="energy.current"
-                :max="energy.max"
-                icon="mdi:lightning-bolt"
-                label="Power"
-                :production-rate="resourceRates?.power"
-                :critical-to="productionRoomRoute('power')"
-              />
+              <!-- @vue-ignore -->
+              <span data-onboarding="resource-power">
+                <ResourceBar
+                  navbar
+                  :current="energy.current"
+                  :max="energy.max"
+                  icon="mdi:lightning-bolt"
+                  label="Power"
+                  :production-rate="resourceRates?.power"
+                  :critical-to="productionRoomRoute('power')"
+                />
+              </span>
               <ResourceBar
                 navbar
                 :current="food.current"

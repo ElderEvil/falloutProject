@@ -7,7 +7,9 @@ to avoid real network calls. Uses singleton reset between test groups.
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 
+from app.core.config import Settings, settings
 from app.services.ai_service import (
     AIService,
     ChatCompletionResult,
@@ -145,20 +147,21 @@ class TestInitializationDirect:
             mock_warn.assert_called_once()
             assert "deprecated" in str(mock_warn.call_args[0][0]).lower()
 
-    def test_direct_anthropic_with_key_raises(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "anthropic")
-        monkeypatch.setattr("app.services.ai_service.settings.ANTHROPIC_API_KEY", "sk-ant-test")
-        svc = _make_fresh_service()
-        with pytest.raises(RuntimeError, match="Direct Anthropic API access is not supported"):
-            svc._initialize_direct_provider()
+    def test_anthropic_provider_is_rejected(self) -> None:
+        config = settings.model_dump() | {"AI_PROVIDER": "anthropic"}
+        with pytest.raises(ValidationError, match="AI_PROVIDER"):
+            Settings(**config)
 
-    def test_direct_anthropic_without_key_logs_warning(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "anthropic")
-        monkeypatch.setattr("app.services.ai_service.settings.ANTHROPIC_API_KEY", None)
-        svc = _make_fresh_service()
-        with patch("app.services.ai_service.logger") as mock_logger:
-            svc._initialize_direct_provider()
-            mock_logger.warning.assert_called_once()
+    def test_legacy_anthropic_key_does_not_enable_ai(self) -> None:
+        config = settings.model_dump() | {
+            "AI_PROVIDER": "openai",
+            "OPENAI_API_KEY": None,
+            "PYDANTIC_AI_GATEWAY_API_KEY": None,
+            "ANTHROPIC_API_KEY": "unused-legacy-key",
+        }
+        resolved = Settings(**config)
+        assert resolved.ai_provider_mode == "disabled"
+        assert resolved.effective_ai_mode(None) == "disabled"
 
     def test_direct_unknown_provider_logs_warning(self, monkeypatch) -> None:
         monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "ollama")
@@ -485,7 +488,7 @@ class TestGenerateSpeechFromText:
         result = await svc.generate_speech_from_text(text_input="Hello", speech_file_path="/tmp/speech.mp3")
         assert result == "/tmp/speech.mp3"
         svc._client.audio.speech.create.assert_called_once_with(model="tts-1", voice="echo", input="Hello")
-        mock_response.stream_to_file.assert_called_once_with("/tmp/speech.mp3")
+        mock_response.write_to_file.assert_called_once_with("/tmp/speech.mp3")
 
 
 # ============================================================================

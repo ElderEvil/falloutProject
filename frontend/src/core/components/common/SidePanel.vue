@@ -102,12 +102,6 @@ const navItems = computed((): NavItem[] => {
       hotkey: '9',
     },
     {
-      id: 'response-teams',
-      label: 'Response Teams',
-      icon: 'mdi:account-hard-hat',
-      path: `/vault/${vaultId.value}/response-teams`,
-    },
-    {
       id: 'trading',
       label: 'Trading Post',
       icon: 'mdi:store',
@@ -270,9 +264,11 @@ watch(
         <TooltipProvider :delay-duration="200">
           <Tooltip v-for="item in navItems" :key="item.id">
             <TooltipTrigger as-child>
+              <!-- @vue-ignore -->
               <RouterLink
                 :to="item.path"
                 class="nav-item"
+                :data-onboarding="`nav-${item.id}`"
                 :class="{ active: isActive(item.path) }"
                 :aria-label="`${item.label}${showLabels && item.hotkey ? ' ' + item.hotkey : ''}`"
                 :aria-current="isActive(item.path) ? 'page' : undefined"

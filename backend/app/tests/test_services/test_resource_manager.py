@@ -170,7 +170,7 @@ def test_base_production_rate_default_matches_resource_economy_baseline() -> Non
 @pytest.mark.parametrize(
     ("workers_per_room", "expected_net_per_tick"),
     [
-        (2, {"power": 16, "food": 17, "water": 17}),
+        (2, {"power": 17, "food": 17, "water": 17}),
         (1, {"power": 6, "food": 7, "water": 7}),
         (0, {"power": -4, "food": -3, "water": -3}),
     ],
@@ -253,8 +253,8 @@ async def test_live_tick_matches_offline_kernel_production_at_default_rate(vault
         assert getattr(events.production, resource) == pytest.approx(offline[resource])
 
 
-def test_offline_single_step_window_diverges_from_per_tick_rounding() -> None:
-    """Offline catch-up runs one 3600 s window; per-tick stepping accumulates per-tick integer rounding."""
+def test_offline_window_matches_per_tick_fractional_carry() -> None:
+    """Catch-up and minute ticks share the same fractional stock kernel."""
     from app.cli.simulate_resources import _build_scenario
 
     cfg = ResourceEconomyConfig(
@@ -272,11 +272,9 @@ def test_offline_single_step_window_diverges_from_per_tick_rounding() -> None:
     )
     vault, rooms, rooms_with_dwellers = _build_scenario(cfg)
     manager = ResourceManager()
-    consumption = manager._calculate_consumption(rooms, cfg.population, 3600)
-    production = manager._calculate_production(rooms_with_dwellers, 3600, vault.power)
-    single_step_power = round(manager._apply_resource_changes(vault, consumption, production)["power"])
-    per_tick_power = simulate(cfg).final_resources["power"]
-    assert single_step_power < per_tick_power
+    update, _ = manager.calculate_resource_window(vault, rooms, cfg.population, rooms_with_dwellers, 3600)
+    per_tick = simulate(cfg).final_resources
+    assert {key: getattr(update, key) for key in ("power", "food", "water")} == per_tick
 
 
 def _seeded_net(
@@ -346,7 +344,7 @@ async def test_seeded_boosted_vault_size_six_generator_keeps_live_power_positive
 
     assert len(generators) == 1  # seeded directly at final size, no fusion round-trip
     assert generators[0].size == 6
-    assert generators[0].output == 58  # (2*6*(1+4))-2 at tier 1, size 6
+    assert generators[0].output == 70  # (2*6*(2+4))-2 at tier 2, size 6
 
     full = [[*_outfitted_workers("strength", 5), _apprentice(5)]]
     assert _seeded_net(prepared, 33, full, "power", "power") > 100
@@ -354,7 +352,8 @@ async def test_seeded_boosted_vault_size_six_generator_keeps_live_power_positive
     two_left = [[*_outfitted_workers("strength", 2), _apprentice(5)]]
     assert _seeded_net(prepared, 33, two_left, "power", "power") > 0
     one_left = [[*_outfitted_workers("strength", 1), _apprentice(5)]]
-    assert _seeded_net(prepared, 33, one_left, "power", "power") < 0
+    assert _seeded_net(prepared, 33, one_left, "power", "power") > 0
+    assert _seeded_net(prepared, 33, [[_apprentice(5)]], "power", "power") < 0
 
 
 @pytest.mark.asyncio

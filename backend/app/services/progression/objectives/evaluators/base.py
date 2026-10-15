@@ -1,7 +1,7 @@
 """Objective evaluator base: the shared event-handling engine.
 
 Each evaluator listens for specific game events, finds matching active objectives
-for the vault, updates progress, and auto-completes when the target is reached.
+for the vault, updates progress, and marks rewards ready when the target is reached.
 
 Example flow:
     Player collects 100 caps
@@ -9,7 +9,7 @@ Example flow:
     -> CollectEvaluator receives event
     -> Finds "Collect 100 Caps" objective for vault
     -> Updates progress: 50 -> 100
-    -> Auto-completes and grants reward
+    -> Makes the reward ready to claim
 """
 
 import abc
@@ -73,8 +73,7 @@ class ObjectiveEvaluator(abc.ABC):
                 try:
                     if self._matches(objective, event_type, data):
                         logger.debug(f"[DEBUG] MATCH: Objective '{objective.challenge}' matches {event_type}")
-                        amount = self._extract_amount(data)
-                        await self._update_progress(db_session, vault_id, objective, link, amount)
+                        await self._credit_event(db_session, vault_id, objective, link, data)
                     else:
                         logger.debug(f"[DEBUG] NO MATCH: Objective '{objective.challenge}' does not match {event_type}")
                 except Exception:
@@ -108,6 +107,34 @@ class ObjectiveEvaluator(abc.ABC):
         """Increment per matching event by default; amount-aware evaluators override."""
         return 1
 
+    async def _credit_event(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        objective: Objective,
+        link: VaultObjectiveProgressLink,
+        data: dict[str, Any],
+    ) -> None:
+        """A qualifying dweller can contribute once to a distinct-dweller objective."""
+        from app.crud.objective import objective_crud
+
+        # A previous objective commit releases locks on the remaining loaded
+        # links. Reload this link under its own lock before crediting the event.
+        locked_link = await objective_crud.get_link_for_update(db_session, objective.id, vault_id)
+        if locked_link is None or locked_link.is_completed or locked_link.progress >= locked_link.total:
+            return
+        link = locked_link
+        amount = self._extract_amount(data)
+        if amount <= 0:
+            return
+        if (objective.target_entity or {}).get("distinct_dwellers"):
+            dweller_id = data.get("dweller_id")
+            if not dweller_id or str(dweller_id) in link.credited_dweller_ids:
+                return
+            link.credited_dweller_ids = [*link.credited_dweller_ids, str(dweller_id)]
+            amount = 1
+        await self._update_progress(db_session, vault_id, objective, link, amount)
+
     async def _update_progress(
         self,
         db_session: AsyncSession,
@@ -126,31 +153,23 @@ class ObjectiveEvaluator(abc.ABC):
         )
 
         if link.progress >= objective.target_amount:
-            await self._auto_complete(db_session, vault_id, objective, link)
+            await self._mark_ready(db_session, vault_id, objective, link)
         else:
             await db_session.commit()
 
-    async def _auto_complete(
+    async def _mark_ready(
         self,
         db_session: AsyncSession,
         vault_id: UUID4,
         objective: Objective,
         link: VaultObjectiveProgressLink,
     ) -> None:
-        """Auto-complete objective and grant reward in single transaction."""
-        from app.services.reward_service import reward_service
-        from app.utils.reward_delivery import defer_reward_delivery
-
+        """Persist earned progress; the owner must explicitly claim the reward."""
         link.progress = objective.target_amount
-
-        async with defer_reward_delivery(db_session):
-            await reward_service.process_objective_reward(db_session, vault_id, link)
-            link.is_completed = True
-            await db_session.commit()
-
+        link.reward_snapshot = link.reward_snapshot or objective.reward
+        await db_session.commit()
         await self._event_bus.emit(
             GameEvent.OBJECTIVE_COMPLETED,
             vault_id,
-            {"objective_id": str(objective.id), "challenge": objective.challenge},
+            {"objective_id": str(objective.id), "challenge": objective.challenge, "ready_to_claim": True},
         )
-        logger.info(f"Objective '{objective.challenge}' auto-completed and reward granted for vault {vault_id}")

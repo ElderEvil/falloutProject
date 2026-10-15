@@ -998,6 +998,10 @@ export interface paths {
          * Read Dwellers Data
          * @description Get static dweller creation data.
          *
+         *     Templates are typed for load-time identity validation, so their
+         *     ``visual_attributes`` is a model while this wire shape wants a dict; dumping
+         *     each template lets the response model validate the serialized payload.
+         *
          *     Returns:
          *         list[DwellerCreateWithoutVaultID]: List of dweller templates.
          */
@@ -2433,6 +2437,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/objectives/{vault_id}/{objective_id}/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Claim Objective Reward
+         * @description Let a vault owner claim a reward after its objective target is met.
+         */
+        post: operations["claim_objective_reward_api_v1_objectives__vault_id___objective_id__claim_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/objectives/{vault_id}/{objective_id}/complete": {
         parameters: {
             query?: never;
@@ -3210,6 +3234,26 @@ export interface paths {
          * @description Return arena rooms with their selected fighters, roster, match state, and journal.
          */
         get: operations["get_arena_state_api_v1_arena_vault__vault_id__state_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/arena/vault/{vault_id}/creatures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Arena Creatures
+         * @description List the creatures selectable as hunt opponents.
+         */
+        get: operations["list_arena_creatures_api_v1_arena_vault__vault_id__creatures_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5070,6 +5114,20 @@ export interface components {
          */
         AgeGroupEnum: "child" | "teen" | "adult" | "elder";
         /**
+         * ArenaCreature
+         * @description A selectable hunt opponent from the creature catalog.
+         */
+        ArenaCreature: {
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Power */
+            power: number;
+            /** Max Hp */
+            max_hp: number;
+        };
+        /**
          * ArenaEventsCleared
          * @description Journal clear result.
          */
@@ -5106,16 +5164,33 @@ export interface components {
             max_health: number;
             /** Power */
             power: number;
+            /**
+             * Is Creature
+             * @default false
+             */
+            is_creature: boolean;
+            /** Image Url */
+            image_url?: string | null;
+            /** Thumbnail Url */
+            thumbnail_url?: string | null;
         };
         /**
          * ArenaFightersRequest
          * @description Fighter slot selection payload.
          */
         ArenaFightersRequest: {
+            /** @default duel */
+            mode: components["schemas"]["ArenaMode"];
             /** Fighter A Id */
             fighter_a_id?: string | null;
             /** Fighter B Id */
             fighter_b_id?: string | null;
+            /** Fighter C Id */
+            fighter_c_id?: string | null;
+            /** Fighter D Id */
+            fighter_d_id?: string | null;
+            /** Opponent Keys */
+            opponent_keys?: string[];
         };
         /**
          * ArenaFightersResponse
@@ -5144,6 +5219,11 @@ export interface components {
             message: string;
         };
         /**
+         * ArenaMode
+         * @enum {string}
+         */
+        ArenaMode: "duel" | "brawl" | "hunt";
+        /**
          * ArenaRoomState
          * @description Full arena room state: fighters, roster, match flags, and journal.
          */
@@ -5154,12 +5234,20 @@ export interface components {
             room_name: string;
             /** Tier */
             tier: number;
+            /** Mode */
+            mode: string;
+            /** Available Modes */
+            available_modes: components["schemas"]["ArenaMode"][];
             /** Fighter A Id */
             fighter_a_id: string | null;
             /** Fighter B Id */
             fighter_b_id: string | null;
             /** Fighters */
             fighters: components["schemas"]["ArenaFighter"][];
+            /** Team A */
+            team_a: components["schemas"]["ArenaFighter"][];
+            /** Team B */
+            team_b: components["schemas"]["ArenaFighter"][];
             /** Roster */
             roster: components["schemas"]["ArenaRosterEntry"][];
             /** Fight Ready */
@@ -5192,6 +5280,10 @@ export interface components {
             health: number;
             /** Max Health */
             max_health: number;
+            /** Image Url */
+            image_url?: string | null;
+            /** Thumbnail Url */
+            thumbnail_url?: string | null;
         };
         /**
          * ArenaState
@@ -7724,6 +7816,29 @@ export interface components {
             name: string;
             /** Level */
             level: number;
+            /**
+             * Service Count
+             * @description Distinct incidents of this team's hazard the dweller has fought
+             * @default 0
+             */
+            service_count: number;
+            /**
+             * Outfit Name
+             * @description Name of the currently equipped outfit, or null when the dweller is bare
+             */
+            outfit_name?: string | null;
+            /**
+             * Has Matching Gear
+             * @description Wearing this team's named matching suit; false does NOT mean zero protection
+             * @default false
+             */
+            has_matching_gear: boolean;
+            /**
+             * Hazard Resist
+             * @description Share (0.0-1.0) of this team's hazard the current outfit removes
+             * @default 0
+             */
+            hazard_resist: number;
         };
         /**
          * HazardTeamPlaceUpdate
@@ -8514,6 +8629,14 @@ export interface components {
              * Format: uuid4
              */
             id?: string;
+            /** Template Key */
+            template_key?: string | null;
+            /**
+             * Assignable
+             * @description Whether this template is assigned to new vaults; legacy templates stay false while their links remain evaluable
+             * @default true
+             */
+            assignable: boolean;
         };
         /**
          * ObjectiveCategoryEnum
@@ -8556,6 +8679,8 @@ export interface components {
              * @description Player-facing guidance for how/why to complete the objective
              */
             description?: string | null;
+            /** Template Key */
+            template_key?: string | null;
         };
         /** ObjectiveRead */
         ObjectiveRead: {
@@ -8593,6 +8718,8 @@ export interface components {
              * @description Player-facing guidance for how/why to complete the objective
              */
             description?: string | null;
+            /** Template Key */
+            template_key?: string | null;
             /**
              * Id
              * Format: uuid4
@@ -9771,20 +9898,6 @@ export interface components {
              * @default 1
              */
             speedup_multiplier: number;
-            /**
-             * Arena Last Fight At
-             * @description When the last arena match finished; fights stay stopped until a dweller is reassigned
-             */
-            arena_last_fight_at?: string | null;
-            /**
-             * Arena Fight Started At
-             * @description When the armed arena match was started by the player (fight button); NULL means waiting
-             */
-            arena_fight_started_at?: string | null;
-            /** Arena Fighter A Id */
-            arena_fighter_a_id?: string | null;
-            /** Arena Fighter B Id */
-            arena_fighter_b_id?: string | null;
             /** Capacity Formula */
             capacity_formula?: string | null;
             /** Output Formula */
@@ -9833,20 +9946,6 @@ export interface components {
              */
             speedup_multiplier: number;
             /**
-             * Arena Last Fight At
-             * @description When the last arena match finished; fights stay stopped until a dweller is reassigned
-             */
-            arena_last_fight_at?: string | null;
-            /**
-             * Arena Fight Started At
-             * @description When the armed arena match was started by the player (fight button); NULL means waiting
-             */
-            arena_fight_started_at?: string | null;
-            /** Arena Fighter A Id */
-            arena_fighter_a_id?: string | null;
-            /** Arena Fighter B Id */
-            arena_fighter_b_id?: string | null;
-            /**
              * Id
              * Format: uuid4
              */
@@ -9866,7 +9965,7 @@ export interface components {
          * RoomTypeEnum
          * @enum {string}
          */
-        RoomTypeEnum: "capacity" | "crafting" | "misc." | "production" | "quests" | "theme" | "training" | "arena";
+        RoomTypeEnum: "capacity" | "crafting" | "misc." | "production" | "quests" | "theme" | "training" | "arena" | "response";
         /**
          * SPECIALEnum
          * @enum {string}
@@ -10691,6 +10790,38 @@ export interface components {
              * @default false
              */
             boosted: boolean;
+        };
+        /** VaultObjectiveProgressLink */
+        VaultObjectiveProgressLink: {
+            /**
+             * Vault Id
+             * Format: uuid4
+             */
+            vault_id: string;
+            /**
+             * Objective Id
+             * Format: uuid4
+             */
+            objective_id: string;
+            /**
+             * Progress
+             * @default 0
+             */
+            progress: number;
+            /**
+             * Total
+             * @default 1
+             */
+            total: number;
+            /**
+             * Is Completed
+             * @default false
+             */
+            is_completed: boolean;
+            /** Credited Dweller Ids */
+            credited_dweller_ids?: string[];
+            /** Reward Snapshot */
+            reward_snapshot?: string | null;
         };
         /** VaultRead */
         VaultRead: {
@@ -14682,6 +14813,38 @@ export interface operations {
             };
         };
     };
+    claim_objective_reward_api_v1_objectives__vault_id___objective_id__claim_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                objective_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VaultObjectiveProgressLink"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     complete_objective_api_v1_objectives__vault_id___objective_id__complete_post: {
         parameters: {
             query?: never;
@@ -15819,6 +15982,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ArenaState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_arena_creatures_api_v1_arena_vault__vault_id__creatures_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArenaCreature"][];
                 };
             };
             /** @description Validation Error */

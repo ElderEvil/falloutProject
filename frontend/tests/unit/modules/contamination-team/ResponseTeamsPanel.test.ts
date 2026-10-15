@@ -65,6 +65,49 @@ describe('ResponseTeamsPanel', () => {
     expect(wrapper.text()).toContain('LVL 12')
   })
 
+  it('states each member’s service count and the protection their worn gear removes', () => {
+    const wrapper = mountPanel({
+      teams: [
+        {
+          team: 'fire',
+          active: [
+            {
+              dweller_id: 'd1',
+              status: 'active',
+              name: 'Ash',
+              level: 9,
+              service_count: 3,
+              outfit_name: 'Firefighter suit',
+              has_matching_gear: true,
+              hazard_resist: 0.7,
+            },
+          ],
+          reserve: [
+            {
+              dweller_id: 'd2',
+              status: 'reserve',
+              name: 'Ember',
+              level: 4,
+              service_count: 0,
+              outfit_name: 'Vault suit',
+              has_matching_gear: false,
+              hazard_resist: 0.15,
+            },
+          ],
+        },
+        { team: 'radiation', active: [], reserve: [] },
+      ],
+    })
+
+    expect(wrapper.text()).toContain('3 incidents served')
+    expect(wrapper.text()).toContain('Matching suit · protection 70%')
+    expect(wrapper.text()).toContain('0 incidents served')
+    expect(wrapper.text()).toContain('No matching suit · protection 15%')
+    expect(wrapper.text()).toContain(
+      'No matching Firefighter suit equipped. Worn gear removes 15 percent of fire hazard damage.'
+    )
+  })
+
   it('shows a muted placeholder when a member has no name', () => {
     const wrapper = mountPanel()
 

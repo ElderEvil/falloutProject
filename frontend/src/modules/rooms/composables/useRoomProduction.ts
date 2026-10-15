@@ -3,6 +3,7 @@ import type { Room } from '../models/room'
 import { producesResources } from '../models/roomParts'
 import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller'
 import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
+import { getRoomDetailScene } from '../models/roomScenes'
 import { getRoomImageUrl } from '@/core/utils/image'
 import { useGameBalance } from '@/core/composables/useGameBalance'
 
@@ -19,7 +20,8 @@ export function useRoomProduction(
     return getAbilityConfig(room.value?.ability)?.resourceName ?? 'Resources'
   })
 
-  const roomImageUrl = computed(() => getRoomImageUrl(room.value?.image_url))
+  const roomGridImageUrl = computed(() => getRoomImageUrl(room.value?.image_url))
+  const roomImageUrl = computed(() => getRoomDetailScene(room.value) ?? roomGridImageUrl.value)
 
   // Live backend value from /balance; null until loaded, so no production
   // numbers render rather than stale ones.
@@ -66,6 +68,7 @@ export function useRoomProduction(
     resourceIcon,
     resourceName,
     roomImageUrl,
+    roomGridImageUrl,
     productionInfo,
   }
 }

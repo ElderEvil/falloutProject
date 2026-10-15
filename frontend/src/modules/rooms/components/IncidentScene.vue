@@ -6,13 +6,20 @@ import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getCombatPower } from '@/modules/dwellers/models/dweller'
 import type { Incident, IncidentTeamMember } from '@/modules/combat/models/incident'
 import { getIncidentIcon } from '@/modules/combat/models/incident'
+import { useFallbackImage } from '../composables/useFallbackImage'
 
 const props = defineProps<{
   incident: Incident
   dwellers: DwellerShort[]
   roomImageUrl?: string | null
+  fallbackImageUrl?: string | null
   team?: IncidentTeamMember[]
 }>()
+
+const { url: sceneImageUrl, onError: imageFailed } = useFallbackImage(() => [
+  props.roomImageUrl,
+  props.fallbackImageUrl,
+])
 
 // The roster from GET /incidents/{id}/team is authoritative: auto-dispatched
 // hazard-team responders keep a stale room_id in the dweller store (it only
@@ -46,7 +53,9 @@ const latestEffect = computed(
 )
 const dwellerDamage = computed(() => Number(latestEffect.value?.data?.damage_to_dwellers ?? 0))
 const threatDamage = computed(() => Number(latestEffect.value?.data?.damage_to_threat ?? 0))
-const containmentGain = computed(() => Math.round(Number(latestEffect.value?.data?.amount ?? 0) * 100))
+const containmentGain = computed(() =>
+  Math.round(Number(latestEffect.value?.data?.amount ?? 0) * 100)
+)
 </script>
 
 <template>
@@ -55,12 +64,14 @@ const containmentGain = computed(() => Math.round(Number(latestEffect.value?.dat
     :class="`incident-scene--${incident.family}`"
     aria-label="Incident live status"
   >
-    <div
-      v-if="roomImageUrl"
+    <img
+      v-if="sceneImageUrl"
+      :src="sceneImageUrl"
       class="scene-backdrop"
-      :style="{ backgroundImage: `url(${roomImageUrl})` }"
+      alt=""
       aria-hidden="true"
-    ></div>
+      @error="imageFailed"
+    />
 
     <div class="stage-side">
       <span class="stage-label">RESPONDERS</span>
@@ -76,11 +87,10 @@ const containmentGain = computed(() => Math.round(Number(latestEffect.value?.dat
           <span class="combatant-portrait">{{ dweller.first_name[0] }}</span>
           <span class="combatant-name">{{ dweller.first_name }}</span>
           <span v-if="dispatchedIds.has(dweller.id)" class="combatant-dispatched">DISPATCHED</span>
-          <span class="combatant-power">POW {{ getCombatPower(dweller) }} · Lv {{ dweller.level }}</span>
-          <Progress
-            :model-value="(dweller.health / dweller.max_health) * 100"
-            class="h-[7px]"
-          />
+          <span class="combatant-power"
+            >POW {{ getCombatPower(dweller) }} · Lv {{ dweller.level }}</span
+          >
+          <Progress :model-value="(dweller.health / dweller.max_health) * 100" class="h-[7px]" />
         </div>
         <span v-if="!responders.length" class="stage-empty">No responders assigned</span>
       </div>
@@ -138,11 +148,7 @@ const containmentGain = computed(() => Math.round(Number(latestEffect.value?.dat
         <Icon v-else :icon="getIncidentIcon(incident.type)" class="hazard-icon" />
         <div>
           <strong>{{ incident.progress.label }}</strong>
-          <Progress
-            :model-value="progressPercent"
-            class="h-2"
-            tone="warning"
-          />
+          <Progress :model-value="progressPercent" class="h-2" tone="warning" />
           <span
             >{{ incident.risk.rooms_affected }} room{{
               incident.risk.rooms_affected === 1 ? '' : 's'
@@ -170,7 +176,9 @@ const containmentGain = computed(() => Math.round(Number(latestEffect.value?.dat
 .scene-backdrop {
   position: absolute;
   inset: 0;
-  background-size: cover;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   background-position: center;
   opacity: 0.18;
 }

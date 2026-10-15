@@ -42,6 +42,7 @@ from app.core.config import settings
 # Compare against the live PG enum type name (`typname`) and labels (`enumlabel`).
 PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
     "agegroupenum": {"CHILD", "TEEN", "ADULT", "ELDER"},
+    "arenamode": {"DUEL", "BRAWL", "HUNT"},
     "craftingorderstatus": {"ACTIVE", "COMPLETED", "COLLECTED"},
     "deathcauseenum": {"HEALTH", "RADIATION", "INCIDENT", "EXPLORATION", "COMBAT", "EXILE"},
     "dwellerlocationrelationenum": {"ORIGIN", "VISITED"},
@@ -101,7 +102,17 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
     "relationshiptypeenum": {"ACQUAINTANCE", "FRIEND", "ROMANTIC", "PARTNER", "MARRIED", "EX"},
     "requirementtype": {"LEVEL", "ITEM", "ROOM", "DWELLER_COUNT", "QUEST_COMPLETED", "ATTACK", "STAT"},
     "rewardtype": {"CAPS", "ITEM", "DWELLER", "RESOURCE", "EXPERIENCE", "STIMPAK", "RADAWAY", "LUNCHBOX"},
-    "roomtypeenum": {"CAPACITY", "CRAFTING", "MISC", "PRODUCTION", "QUESTS", "THEME", "TRAINING", "ARENA"},
+    "roomtypeenum": {
+        "CAPACITY",
+        "CRAFTING",
+        "MISC",
+        "PRODUCTION",
+        "QUESTS",
+        "THEME",
+        "TRAINING",
+        "ARENA",
+        "RESPONSE",
+    },
     "specialenum": {"STRENGTH", "PERCEPTION", "ENDURANCE", "CHARISMA", "INTELLIGENCE", "AGILITY", "LUCK"},
     "trainingstatus": {"ACTIVE", "COMPLETED", "CANCELLED"},
     "weaponsubtypeenum": {

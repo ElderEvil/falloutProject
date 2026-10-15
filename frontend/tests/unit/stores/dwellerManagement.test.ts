@@ -48,7 +48,7 @@ describe('useDwellerManagementStore', () => {
     const managementStore = useDwellerManagementStore()
     const roomStore = useRoomStore()
 
-    vi.spyOn(roomStore, 'fetchRooms').mockResolvedValue()
+    vi.spyOn(roomStore, 'fetchRooms').mockResolvedValue('loaded')
     roomStore.rooms = [
       { id: 'room-1', name: 'Power Generator', category: 'production', ability: 'strength' },
       { id: 'room-2', name: 'Diner', category: 'production', ability: 'agility' },
@@ -73,7 +73,7 @@ describe('useDwellerManagementStore', () => {
     const managementStore = useDwellerManagementStore()
     const roomStore = useRoomStore()
 
-    vi.spyOn(roomStore, 'fetchRooms').mockResolvedValue()
+    vi.spyOn(roomStore, 'fetchRooms').mockResolvedValue('loaded')
     roomStore.rooms = [
       { id: 'room-1', name: 'Power Generator', category: 'production', ability: 'strength' },
     ] as never

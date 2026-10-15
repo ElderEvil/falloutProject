@@ -11,6 +11,7 @@ export type ObjectiveType =
   | 'assign_correct'
   | 'build'
   | 'collect'
+  | 'explore'
   | 'expedition'
   | 'level_up'
   | 'reach'
@@ -27,6 +28,7 @@ export interface Objective {
   is_completed: boolean
   category: ObjectiveCategory
   objective_type?: ObjectiveType
+  template_key?: string | null
   target_entity?: Record<string, unknown>
   sequence?: number | null
   description?: string | null
@@ -48,4 +50,52 @@ export interface ObjectiveCreate {
  */
 export interface ObjectiveProgressUpdate {
   progress: number
+}
+
+/** The guided arc stays on the current step until its reward is claimed. */
+export function currentObjective(objectives: Objective[]): Objective | undefined {
+  const active = objectives.filter(
+    (objective) =>
+      !objective.is_completed && !(objective.category === 'starter' && !objective.objective_type)
+  )
+  return (
+    active
+      .filter((objective) => objective.category === 'starter')
+      .sort((a, b) => (a.sequence ?? Infinity) - (b.sequence ?? Infinity))[0] ??
+    active.find((objective) => objective.progress >= objective.total) ??
+    active[0]
+  )
+}
+
+export function isOfficeObjective(objective: Objective): boolean {
+  return (
+    objective.objective_type === 'build' &&
+    objective.target_entity?.room_type === 'overseers_office'
+  )
+}
+
+/** Existing game surfaces relevant to each objective, without inventing new routes. */
+export function objectiveActionPath(objective: Objective, vaultId: string): string {  const vault = `/vault/${vaultId}`
+  switch (objective.objective_type) {
+    case 'train':
+      return `${vault}/training`
+    case 'expedition':
+      return `${vault}/quests`
+    case 'explore':
+      return `${vault}/exploration`
+    case 'scrap':
+      return `${vault}/storage`
+    case 'collect':
+      return objective.target_entity?.resource_type === 'caps' ? `${vault}/exploration` : vault
+    case 'reach':
+      return objective.target_entity?.reach_type === 'dweller_count'
+        ? `${vault}/relationships`
+        : `${vault}/dwellers`
+    case 'assign':
+    case 'assign_correct':
+    case 'level_up':
+      return `${vault}/dwellers`
+    default:
+      return vault
+  }
 }

@@ -28,6 +28,7 @@ const categoryIcons: Record<string, string> = {
   crafting: 'mdi:hammer',
   theme: 'mdi:palette',
   arena: 'mdi:sword-cross',
+  response: 'mdi:shield-account',
 }
 
 const vaultId = computed(() => route.params.id as string)
@@ -55,15 +56,21 @@ const populationProgress = computed(() => {
   return Math.min(100, Math.round((currentPopulation.value / popRequired) * 100))
 })
 const categoryIcon = computed(() => categoryIcons[props.room.category.toLowerCase()] ?? 'mdi:cube')
+
+const onboardingAnchor = computed(() =>
+  props.room.name.trim().toLowerCase() === 'living room' ? 'build-living-room' : undefined
+)
 </script>
 
 <template>
+  <!-- @vue-ignore -->
   <li
     @click="!isLocked && emit('select', room)"
     role="button"
     tabindex="0"
     @keydown.enter.prevent="!isLocked && emit('select', room)"
     @keydown.space.prevent="!isLocked && emit('select', room)"
+    :data-onboarding="onboardingAnchor"
     class="room-menu-item"
     :class="{
       locked: isLocked,

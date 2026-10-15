@@ -34,16 +34,16 @@ async def test_update_objective_progress(async_session: AsyncSession) -> None:
     )
 
     initial_caps = vault.bottle_caps
-    # Update progress to 5 (with total=1 by default, this will auto-complete since 5 >= 1)
+    # Update progress beyond the target; a claim is still required.
     link = await reward_service.settle_objective_progress(
         db_session=async_session, objective_id=objective.id, vault_id=vault.id, progress=5
     )
 
     assert link.progress == 5
-    # With total=1 by default, progress=5 should auto-complete since 5 >= 1
-    assert link.is_completed is True
+    # Progress reaching the target makes the reward claimable, without paying it.
+    assert link.is_completed is False
     await async_session.refresh(vault)
-    assert vault.bottle_caps == initial_caps + 500
+    assert vault.bottle_caps == initial_caps
 
 
 @pytest.mark.asyncio
@@ -139,7 +139,7 @@ async def test_update_progress_creates_link_if_not_exists(async_session: AsyncSe
     objective = await crud.objective_crud.create(async_session, obj_in=objective_data)
 
     initial_caps = vault.bottle_caps
-    # Update progress (should create and complete the link)
+    # Update progress (should create a claimable link).
     link = await reward_service.settle_objective_progress(
         db_session=async_session, objective_id=objective.id, vault_id=vault.id, progress=3
     )
@@ -147,9 +147,9 @@ async def test_update_progress_creates_link_if_not_exists(async_session: AsyncSe
     assert link.vault_id == vault.id
     assert link.objective_id == objective.id
     assert link.progress == 3
-    assert link.is_completed is True
+    assert link.is_completed is False
     await async_session.refresh(vault)
-    assert vault.bottle_caps == initial_caps + 50
+    assert vault.bottle_caps == initial_caps
 
 
 @pytest.mark.asyncio
@@ -180,6 +180,35 @@ async def test_assign_initial_objectives(async_session: AsyncSession) -> None:
         ObjectiveCategoryEnum.WEEKLY,
         ObjectiveCategoryEnum.ACHIEVEMENT,
     }
+
+
+@pytest.mark.asyncio
+async def test_vault_read_exposes_template_key(async_session: AsyncSession) -> None:
+    """The vault read carries template_key, the identity onboarding keys on."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    await crud.objective_crud.create(
+        async_session,
+        obj_in=ObjectiveCreate(
+            challenge="Match a dweller to their room",
+            reward="50 caps",
+            category=ObjectiveCategoryEnum.STARTER,
+            objective_type="assign_correct",
+            target_entity={},
+            target_amount=1,
+            sequence=0,
+            description="Match a dweller's best SPECIAL to the room.",
+            template_key="starter:assign a dweller correctly",
+        ),
+    )
+
+    await crud.objective_crud.assign_initial(async_session, vault.id, is_boosted=False)
+    read = await crud.objective_crud.get_multi_for_vault(async_session, vault.id)
+
+    assert {objective.template_key for objective in read} == {"starter:assign a dweller correctly"}
 
 
 @pytest.mark.asyncio
@@ -276,6 +305,7 @@ async def test_completed_link_progress_not_mutated(async_session: AsyncSession) 
     link = await reward_service.settle_objective_progress(
         db_session=async_session, objective_id=objective.id, vault_id=vault.id, progress=5
     )
+    await reward_service.claim_objective_reward(async_session, objective.id, vault.id)
     assert link.is_completed is True
     assert link.progress == 5
 
@@ -284,3 +314,29 @@ async def test_completed_link_progress_not_mutated(async_session: AsyncSession) 
     )
     assert relink.progress == 5
     assert relink.is_completed is True
+
+
+async def test_reset_reads_latest_progress_even_when_link_is_cached(async_session, vault):
+    """A reset must re-read earned progress rather than delete a stale unfinished row."""
+    from sqlalchemy import update
+
+    from app.models.objective import Objective
+    from app.models.vault_objective import VaultObjectiveProgressLink
+    from app.services.progression.objectives.assignment import ObjectiveAssignmentService
+
+    objective = Objective(challenge="Earn one", reward="50 caps", category="daily")
+    link = VaultObjectiveProgressLink(vault_id=vault.id, objective_id=objective.id, total=1)
+    async_session.add_all([objective, link])
+    await async_session.commit()
+    await async_session.execute(
+        update(VaultObjectiveProgressLink)
+        .where(VaultObjectiveProgressLink.objective_id == objective.id)
+        .values(progress=1)
+        .execution_options(synchronize_session=False)
+    )
+    await async_session.commit()
+    assert link.progress == 0  # Identity map is deliberately stale.
+    assert await ObjectiveAssignmentService(async_session).clear_daily_objectives(vault.id) == 0
+    await async_session.refresh(link)
+    assert link.progress == 1
+    assert not link.is_completed

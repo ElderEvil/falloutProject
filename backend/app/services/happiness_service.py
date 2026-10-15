@@ -86,7 +86,7 @@ class HappinessService:
 
             # Apply change
             old_happiness = dweller.happiness
-            dweller.happiness = max(10, min(100, dweller.happiness + change))
+            dweller.sqlmodel_update({"happiness": max(10, min(100, dweller.happiness + change))})
             actual_change = dweller.happiness - old_happiness
 
             # Update stats
@@ -276,7 +276,7 @@ class HappinessService:
             change += game_config.happiness.no_incidents_bonus * tick_multiplier
 
         # Radio happiness bonus (when in happiness mode)
-        if vault_factors["radio_happiness_bonus"] > 0:
+        if dweller.is_in_vault:
             change += vault_factors["radio_happiness_bonus"] * tick_multiplier
 
         # Pet happiness bonus (additive fraction, capped)
@@ -369,7 +369,7 @@ class HappinessService:
         modifiers["negative"].append({"name": "Base Decay", "value": -game_config.happiness.base_decay})
 
         # Radio happiness bonus
-        if vault_factors["radio_happiness_bonus"] > 0:
+        if dweller.is_in_vault and vault_factors["radio_happiness_bonus"] > 0:
             modifiers["positive"].append(
                 {
                     "name": "Radio (Happiness Mode)",

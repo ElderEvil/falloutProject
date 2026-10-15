@@ -52,7 +52,8 @@ const formProviderSelect = computed<AcceptableValue>({
     const next = value === DEFAULT_PROVIDER ? '' : (value as AIProvider)
     const previous = formProvider.value
     if (next === previous) return
-    const isUntouchedDefault = formBaseUrl.value === '' || LOCAL_PROVIDER_DEFAULTS.has(formBaseUrl.value)
+    const isUntouchedDefault =
+      formBaseUrl.value === '' || LOCAL_PROVIDER_DEFAULTS.has(formBaseUrl.value)
     if (isUntouchedDefault) {
       formBaseUrl.value = localDefaultUrl(next)
     }
@@ -173,7 +174,9 @@ const providerHelperText = computed(() => {
   const provider = formProvider.value
   if (provider === '') return 'Default uses the server environment variable.'
   if (provider === 'ollama' || provider === 'lmstudio')
-    return modelConfigured.value ? 'Local provider — Base URL is required.' : 'Set a model to configure this provider.'
+    return modelConfigured.value
+      ? 'Local provider — Base URL is required.'
+      : 'Set a model to configure this provider.'
   return 'Cloud provider — Base URL is not needed.'
 })
 
@@ -250,7 +253,11 @@ const effectiveFields = computed(() => {
     { label: 'Provider', value: effective.provider, source: getProvenance('provider') },
     { label: 'Model', value: effective.model, source: getProvenance('model') },
     { label: 'Base URL', value: effective.base_url || '—', source: getProvenance('base_url') },
-    { label: 'Gateway route', value: effective.gateway_route || '—', source: getProvenance('gateway_route') },
+    {
+      label: 'Gateway route',
+      value: effective.gateway_route || '—',
+      source: getProvenance('gateway_route'),
+    },
     { label: 'Mode', value: effective.mode, source: null },
   ]
 })
@@ -286,7 +293,10 @@ onMounted(() => {
     </Card>
 
     <!-- Main Content -->
-    <div v-else-if="settings" class="grid max-w-6xl items-start gap-6 2xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+    <div
+      v-else-if="settings"
+      class="grid max-w-6xl items-start gap-6 2xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]"
+    >
       <!-- Form Card -->
       <Card class="gap-0 border-theme-primary/20 bg-surface">
         <CardHeader class="pb-5">
@@ -414,7 +424,7 @@ onMounted(() => {
                 id="ai-gateway-route"
                 v-model="formGatewayRoute"
                 type="text"
-                placeholder="e.g. anthropic, openai"
+                placeholder="e.g. openai"
                 class="h-auto w-full rounded-md border-theme-primary/30 bg-surface-raised px-4 py-2 text-theme-primary placeholder:text-theme-primary/40"
               />
               <p class="mt-1 text-xs text-theme-primary/50">
@@ -425,20 +435,12 @@ onMounted(() => {
 
           <!-- Actions -->
           <div class="mt-6 flex flex-wrap items-center gap-3 border-t border-theme-primary/20 pt-4">
-            <Button
-              variant="default"
-              :disabled="!hasChanges || isLoadingSave"
-              @click="handleSave"
-            >
+            <Button variant="default" :disabled="!hasChanges || isLoadingSave" @click="handleSave">
               <Icon v-if="isLoadingSave" icon="mdi:loading" class="mr-1 animate-spin" />
               <Icon v-else icon="mdi:content-save" class="mr-1" />
               Save &amp; Apply
             </Button>
-            <Button
-              variant="outline"
-              :disabled="isLoading"
-              @click="handleTest"
-            >
+            <Button variant="outline" :disabled="isLoading" @click="handleTest">
               <Icon v-if="isLoadingTest" icon="mdi:loading" class="mr-1 animate-spin" />
               <Icon v-else icon="mdi:connection" class="mr-1" />
               Test Connection
@@ -459,7 +461,15 @@ onMounted(() => {
           </div>
 
           <!-- Test Result -->
-          <div v-if="testResult" class="mt-4 rounded-md border p-3 text-sm" :class="testResult.status === 'ok' ? 'border-theme-primary/30 bg-theme-primary/5' : 'border-danger/50 bg-danger/5'">
+          <div
+            v-if="testResult"
+            class="mt-4 rounded-md border p-3 text-sm"
+            :class="
+              testResult.status === 'ok'
+                ? 'border-theme-primary/30 bg-theme-primary/5'
+                : 'border-danger/50 bg-danger/5'
+            "
+          >
             <div class="flex items-start gap-2">
               <Icon
                 :icon="testResult.status === 'ok' ? 'mdi:check-circle' : 'mdi:alert'"
@@ -486,7 +496,9 @@ onMounted(() => {
       <Card class="gap-0 border-theme-primary/20 bg-surface">
         <CardHeader class="pb-5">
           <div class="flex items-center justify-between gap-3">
-            <CardTitle class="text-xl font-bold text-theme-primary">Effective configuration</CardTitle>
+            <CardTitle class="text-xl font-bold text-theme-primary"
+              >Effective configuration</CardTitle
+            >
             <Button
               variant="outline"
               size="xs"
@@ -494,7 +506,10 @@ onMounted(() => {
               @click="handleCopyConfig"
               aria-label="Copy configuration"
             >
-              <Icon :icon="copiedConfig ? 'mdi:check' : 'mdi:content-copy'" class="mr-1 h-3.5 w-3.5" />
+              <Icon
+                :icon="copiedConfig ? 'mdi:check' : 'mdi:content-copy'"
+                class="mr-1 h-3.5 w-3.5"
+              />
               {{ copiedConfig ? 'Copied' : 'Copy' }}
             </Button>
           </div>
@@ -545,7 +560,9 @@ onMounted(() => {
                 {{ settings.jev.enabled ? 'Enabled' : 'Disabled' }}
               </span>
             </div>
-            <dl class="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 font-mono text-xs text-theme-primary/80">
+            <dl
+              class="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 font-mono text-xs text-theme-primary/80"
+            >
               <dt class="text-theme-primary/50">Model</dt>
               <dd class="text-right">{{ settings.jev.model }}</dd>
               <dt class="text-theme-primary/50">Timeout</dt>
@@ -553,7 +570,10 @@ onMounted(() => {
               <dt class="text-theme-primary/50">API key</dt>
               <dd class="text-right">{{ settings.jev.configured ? 'configured' : 'missing' }}</dd>
             </dl>
-            <p v-if="settings.jev.enabled && !settings.jev.configured" class="mt-2 text-xs text-danger">
+            <p
+              v-if="settings.jev.enabled && !settings.jev.configured"
+              class="mt-2 text-xs text-danger"
+            >
               Enabled but no API key — calls fail open and run unchecked.
             </p>
             <p class="mt-2 text-[0.65rem] leading-4 text-theme-primary/50">

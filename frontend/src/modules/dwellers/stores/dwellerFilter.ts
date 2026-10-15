@@ -224,6 +224,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   // only when they still match the active vault and the latest request.
   let allDwellersVaultId: string | null = null
   let allDwellersRequestSeq = 0
+  const allDwellersLoadedVaultId = ref<string | null>(null)
 
   // Filter and sort state (persisted in localStorage)
   const filterFocus = useLocalStorage<DwellerRosterFocus>('dwellerFilterFocus', 'all', {
@@ -460,6 +461,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       }
       if (requestSeq === allDwellersRequestSeq && allDwellersVaultId === vaultId) {
         allDwellers.value = collected
+        allDwellersLoadedVaultId.value = vaultId
       }
     } catch (error) {
       handleStoreError(error, `Failed to fetch all dwellers for vault ${vaultId}`)
@@ -559,6 +561,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   return {
     dwellers,
     allDwellers,
+    allDwellersLoadedVaultId,
     dwellersWithStatus,
     detailedDwellers,
     isLoading,

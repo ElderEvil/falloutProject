@@ -16,6 +16,7 @@ from sqlalchemy import orm
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import DwellerStatusEnum
+from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import exploration as crud_exploration
 from app.crud import team_crud
@@ -342,6 +343,11 @@ class ExplorationService:
         await db_session.commit()
         await db_session.refresh(exploration)
         await user_service.record_vault_statistic(db_session, vault_id, "total_explorations")
+        await event_bus.emit(
+            GameEvent.DWELLER_DEPARTED,
+            vault_id,
+            {"dweller_ids": [str(dweller.id) for dweller in dwellers]},
+        )
         return exploration
 
     async def _vault_origin(self, db_session: AsyncSession, vault_id: UUID4) -> tuple[float, float] | None:

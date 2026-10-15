@@ -24,8 +24,8 @@ export default defineConfig(({ mode }) => ({
     arrowParens: 'always',
   },
   staged: {
-    '*.{js,ts,tsx,vue}': ['vp lint --fix', 'vp fmt'],
-    '*.{json,md,css,html}': 'vp fmt',
+    '*.{js,ts,tsx,vue}': ['vp lint --fix', 'vp fmt --no-error-on-unmatched-pattern'],
+    '*.{json,md,css,html}': 'vp fmt --no-error-on-unmatched-pattern',
   },
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
@@ -33,12 +33,13 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     vue(),
     tailwindcss(),
-    mode === 'analyze' && visualizer({
-      filename: 'dist/stats.html',
-      template: 'treemap',
-      gzipSize: true,
-      brotliSize: true,
-    }),
+    mode === 'analyze' &&
+      visualizer({
+        filename: 'dist/stats.html',
+        template: 'treemap',
+        gzipSize: true,
+        brotliSize: true,
+      }),
   ],
   resolve: {
     alias: {

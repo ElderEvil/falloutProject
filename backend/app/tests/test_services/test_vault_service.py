@@ -9,12 +9,14 @@ import pytest
 from pydantic import UUID4, ValidationError
 
 from app import crud
+from app.core.enums import HazardTeam
 from app.core.game_config import game_config
 from app.core.game_data import get_static_game_data
 from app.core.grid_config import FLOOR_UNITS, SHAFT_X
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.storage import Storage
+from app.models.team import ACTIVE_STATUS
 from app.models.vault import Vault
 from app.schemas.common import (
     AgeGroupEnum,
@@ -249,6 +251,39 @@ class TestCreateInitialDwellers:
         # 16 production (2 in each apprentice room, 3 elsewhere incl. the second
         # generator) + 7 training + 1 radio + 2 living + 3 family children = 29
         assert call_count == 29
+
+    async def test_boosted_vault_stations_a_fire_and_a_radiation_responder(self, async_session, vault) -> None:
+        """Boosted seeding stations one fire and one radiation responder in the Response Station."""
+        station = await crud.room.create(
+            async_session,
+            RoomCreate(
+                vault_id=vault.id,
+                name="Response Station",
+                category=RoomTypeEnum.RESPONSE,
+                ability=SPECIALEnum.ENDURANCE,
+                population_required=15,
+                base_cost=600,
+                incremental_cost=None,
+                t2_upgrade_cost=None,
+                t3_upgrade_cost=None,
+                capacity_formula=None,
+                size_min=3,
+                size_max=9,
+                size=3,
+                tier=1,
+                coordinate_x=13,
+                coordinate_y=3,
+            ),
+        )
+
+        await seeding.seed_boosted_response_team(async_session, vault.id, station)
+
+        fire = await crud.team_crud.get_hazard_team(async_session, vault.id, HazardTeam.FIRE)
+        radiation = await crud.team_crud.get_hazard_team(async_session, vault.id, HazardTeam.RADIATION)
+        assert [member.status for member in fire] == [ACTIVE_STATUS]
+        assert [member.status for member in radiation] == [ACTIVE_STATUS]
+        assert fire[0].dweller_id != radiation[0].dweller_id
+        assert {fire[0].dweller.room_id, radiation[0].dweller.room_id} == {station.id}
 
     async def test_dweller_creation_failure_logs_and_raises(self) -> None:
         """Exception during dweller creation logs and re-raises."""
@@ -1092,18 +1127,18 @@ class TestInitiateVault:
             elevators = sorted(
                 (room.coordinate_x, room.coordinate_y) for room in rooms if room.name.lower() == "elevator"
             )
-            assert elevators == [(SHAFT_X, 0), (SHAFT_X, 1), (SHAFT_X, 2), (SHAFT_X, 3)]
+            assert elevators == [(SHAFT_X, level) for level in range(5 if is_boosted else 4)]
 
     async def test_boosted_seed_builds_one_size_six_generator_directly(self, boosted_seed: SimpleNamespace) -> None:
         """The boosted generator is seeded at its final size-6 footprint and takes the double crew."""
         seed = boosted_seed
 
-        fused_capacity = 25 * 6 * (1 + 1)  # capacity_formula 25*S*(L+1) at size 6, tier 1
+        fused_capacity = 25 * 6 * (2 + 1)  # capacity_formula 25*S*(L+1) at size 6, tier 2
         power_rooms = [room for room in seed.created.production if room.name.lower().startswith("power")]
         assert len(power_rooms) == 1  # seeded directly at (0, 1), no fusion round-trip
         assert power_rooms[0].size == 6
-        assert power_rooms[0].output == 58  # (2*6*(1+4))-2 at tier 1, size 6
-        assert power_rooms[0].image_url == get_room_image_url("Power Generator", tier=1, size=6)
+        assert power_rooms[0].output == 70  # (2*6*(2+4))-2 at tier 2, size 6
+        assert power_rooms[0].image_url == get_room_image_url("Power Generator", tier=2, size=6)
         assert seed.vault_obj.power_max == seed.base_power_max + fused_capacity
 
         persisted = [
@@ -1118,7 +1153,7 @@ class TestInitiateVault:
         assert len(generator_crew) == 6  # five adults plus the seeded family teen
         assert all(dweller.status == DwellerStatusEnum.WORKING for dweller in generator_crew)
         assert [d for d in generator_crew if d.apprentice_stat == SPECIALEnum.STRENGTH]  # the seeded family teen
-        assert len(seed.dwellers) == 33  # non-legendary headcount (33 + 3 legendary = 36)
+        assert len(seed.dwellers) == 35  # non-legendary headcount (35 + 3 legendary = 38)
 
     async def test_boosted_production_workers_wear_matching_common_three_outfits(
         self, boosted_seed: SimpleNamespace
@@ -1141,8 +1176,9 @@ class TestInitiateVault:
             assert outfit.rarity == RarityEnum.COMMON
             assert getattr(outfit, ability.value.lower()) == 3
 
-    async def test_initiate_vault_boosted(self) -> None:
-        """Boosted vault includes training sessions."""
+    @pytest.mark.parametrize("is_boosted", [True, False], ids=["boosted", "standard"])
+    async def test_initiate_vault_start_resources(self, is_boosted: bool) -> None:
+        """Boosted starts fund Arena upgrades; standard starts keep their existing caps."""
         vault_id = VAULT_ID
         user_id = UUID4("11111111-1111-1111-1111-111111111111")
 
@@ -1217,7 +1253,9 @@ class TestInitiateVault:
                 new_callable=AsyncMock,
                 return_value=storage_obj,
             ),
-            patch("app.services.vault_service.vault_crud.update", new_callable=AsyncMock, return_value=vault),
+            patch(
+                "app.services.vault_service.vault_crud.update", new_callable=AsyncMock, return_value=vault
+            ) as mock_update,
             patch(
                 "app.services.vault_service.get_static_game_data",
                 new_callable=AsyncMock,
@@ -1265,14 +1303,24 @@ class TestInitiateVault:
         ):
             result = await VaultService().initiate_vault(
                 db_session,
-                VaultNumber(number=99, boosted=True),
+                VaultNumber(number=99, boosted=is_boosted),
                 user_id,
-                is_boosted=True,
+                is_boosted=is_boosted,
             )
 
         assert result == vault
         mock_start_training.assert_awaited_once()
-        mock_assign_initial.assert_awaited_once_with(db_session, vault.id, is_boosted=True)
+        mock_assign_initial.assert_awaited_once_with(db_session, vault.id, is_boosted=is_boosted)
+
+        initial_caps = mock_update.call_args.kwargs["obj_in"].bottle_caps
+        if initial_caps is None:
+            initial_caps = vault.bottle_caps
+        arena_template = next(room for room in (await get_static_game_data()).rooms if room.name.lower() == "arena")
+        upgrade_budget = arena_template.t2_upgrade_cost + arena_template.t3_upgrade_cost
+        if is_boosted:
+            assert initial_caps >= upgrade_budget + 1_000
+        else:
+            assert initial_caps == vault.bottle_caps
 
 
 class TestVaultStartConfig:

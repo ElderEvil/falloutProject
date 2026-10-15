@@ -52,6 +52,13 @@ class ObjectiveBase(SQLModel):
 
 
 class Objective(BaseUUIDModel, ObjectiveBase, table=True):
+    template_key: str | None = Field(default=None, max_length=160, unique=True, index=True)
+    assignable: bool = Field(
+        default=True,
+        sa_column=Column(sa.Boolean, nullable=False, server_default=sa.true(), index=True),
+        description="Whether this template is assigned to new vaults; legacy templates stay false while their links remain evaluable",
+    )
+
     vaults: list["Vault"] = Relationship(
         back_populates="objectives",
         link_model=VaultObjectiveProgressLink,

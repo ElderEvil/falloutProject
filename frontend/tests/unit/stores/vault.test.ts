@@ -162,7 +162,7 @@ describe('Vault Store', () => {
         data: [mockVault, { ...mockVault, id: 'vault-2' }, { ...mockVault, id: 'vault-3' }],
       })
 
-      expect(await store.createVault(104, false, 'test-token')).toBe(false)
+      expect(await store.createVault(104, false, 'test-token')).toBe(null)
       expect(axios.post).not.toHaveBeenCalled()
     })
 
@@ -170,13 +170,13 @@ describe('Vault Store', () => {
       const store = useVaultStore()
       vi.mocked(axios.get).mockRejectedValueOnce(new Error('Fetch failed'))
 
-      expect(await store.createVault(104, false, 'test-token')).toBe(false)
+      expect(await store.createVault(104, false, 'test-token')).toBe(null)
       expect(axios.post).not.toHaveBeenCalled()
     })
 
     it('should create vault and refresh list', async () => {
       const store = useVaultStore()
-      vi.mocked(axios.post).mockResolvedValueOnce({})
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'vault-1' } })
       vi.mocked(axios.get)
         .mockResolvedValueOnce({ data: [] })
         .mockResolvedValueOnce({ data: [mockVault] })
@@ -193,12 +193,12 @@ describe('Vault Store', () => {
 
     it('reports success when the vault is created even if the refresh fails', async () => {
       const store = useVaultStore()
-      vi.mocked(axios.post).mockResolvedValueOnce({})
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'vault-1' } })
       vi.mocked(axios.get)
         .mockResolvedValueOnce({ data: [] })
         .mockRejectedValueOnce(new Error('Fetch failed'))
 
-      expect(await store.createVault(101, false, 'test-token')).toBe(true)
+      expect(await store.createVault(101, false, 'test-token')).toBe('vault-1')
       expect(axios.post).toHaveBeenCalled()
     })
 

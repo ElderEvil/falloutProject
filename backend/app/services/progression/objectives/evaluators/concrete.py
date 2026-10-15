@@ -38,6 +38,11 @@ class CollectEvaluator(ObjectiveEvaluator):
         target = objective.target_entity or {}
 
         if event_type == GameEvent.RESOURCE_COLLECTED:
+            if target.get("production_only") and data.get("source") != "production":
+                return False
+            if target.get("item_type") and not target.get("resource_type"):
+                item = normalize_item_type(target["item_type"])
+                return item in {"stimpak", "radaway"} and item == normalize_resource_type(data.get("resource_type"))
             target_resource = target.get("resource_type")
             # Wildcard matches any resource ("*", "any", or null)
             if not target_resource or target_resource in ("*", "any"):
@@ -48,6 +53,8 @@ class CollectEvaluator(ObjectiveEvaluator):
             return event_resource == target_normalized
 
         if event_type == GameEvent.ITEM_COLLECTED:
+            if target.get("resource_type") and not target.get("item_type"):
+                return False
             target_item = target.get("item_type")
             # Wildcard matches any item ("*", "any", or null)
             if not target_item or target_item in ("*", "any"):
@@ -97,14 +104,16 @@ class ScrapEvaluator(ObjectiveEvaluator):
 class BuildEvaluator(ObjectiveEvaluator):
     """Evaluates 'build' objectives (e.g. 'Build 3 Rooms', 'Build a Living Quarter').
 
-    Listens to ROOM_BUILT and ROOM_UPGRADED events.
+    Listens only to ROOM_BUILT events; an upgrade does not build a new room.
     Matches on target_entity["room_type"]. If room_type is absent or "*", matches any room.
     """
 
     objective_type = "build"
-    subscribed_events = (GameEvent.ROOM_BUILT, GameEvent.ROOM_UPGRADED)
+    subscribed_events = (GameEvent.ROOM_BUILT,)
 
     def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:
+        if event_type != GameEvent.ROOM_BUILT:
+            return False
         target = objective.target_entity or {}
         target_room_type = target.get("room_type")
 
@@ -133,10 +142,10 @@ class TrainEvaluator(ObjectiveEvaluator):
         target = objective.target_entity or {}
         target_stat = target.get("stat")
 
-        if not target_stat:
-            return True
-
-        return data.get("stat_trained") == target_stat
+        if target_stat and str(data.get("stat_trained", "")).lower() != str(target_stat).lower():
+            return False
+        target_value = target.get("target_value")
+        return target_value is None or (data.get("new_value") is not None and data["new_value"] >= target_value)
 
 
 class AssignEvaluator(ObjectiveEvaluator):
@@ -175,6 +184,20 @@ class AssignCorrectEvaluator(ObjectiveEvaluator):
 
     def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:
         return data.get("is_correct", False)
+
+
+class ExploreEvaluator(ObjectiveEvaluator):
+    """Evaluates 'explore' objectives (e.g. 'Send a dweller exploring').
+
+    Credits at departure, not return: the player's action is sending the dweller, and
+    the run itself takes hours. Listens to DWELLER_DEPARTED events.
+    """
+
+    objective_type = "explore"
+    subscribed_events = (GameEvent.DWELLER_DEPARTED,)
+
+    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:
+        return bool(data.get("dweller_ids"))
 
 
 class ReachEvaluator(ObjectiveEvaluator):
@@ -237,7 +260,7 @@ class ReachEvaluator(ObjectiveEvaluator):
         )
 
         if link.progress >= objective.target_amount:
-            await self._auto_complete(db_session, vault_id, objective, link)
+            await self._mark_ready(db_session, vault_id, objective, link)
         else:
             await db_session.commit()
 

@@ -14,16 +14,14 @@ from app.utils.room_rules import is_elevator, validate_build_placement, validate
 @pytest.fixture
 def mock_session() -> AsyncMock:
     session = AsyncMock()
-    session.execute = AsyncMock()
+    session.exec = AsyncMock()
     return session
 
 
 def _make_mock_execute_result(scalars_all=None, scalars_first=None):
-    scalars_result = MagicMock()
-    scalars_result.all.return_value = scalars_all
-    scalars_result.first.return_value = scalars_first
     result = MagicMock()
-    result.scalars.return_value = scalars_result
+    result.all.return_value = scalars_all
+    result.first.return_value = scalars_first
     return result
 
 
@@ -47,18 +45,18 @@ def _make_room(**overrides) -> Room:
 class TestValidateBuildPlacement:
     @pytest.mark.asyncio
     async def test_elevator_rejected_without_elevator_above(self, mock_session):
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_first=None)
+        mock_session.exec.return_value = _make_mock_execute_result(scalars_first=None)
         with pytest.raises(Exception, match="directly under another elevator"):
             await validate_build_placement(mock_session, uuid4(), "Elevator", 0, 4, 1)
 
     @pytest.mark.asyncio
     async def test_elevator_allowed_with_elevator_above(self, mock_session):
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_first=_make_room(name="Elevator"))
+        mock_session.exec.return_value = _make_mock_execute_result(scalars_first=_make_room(name="Elevator"))
         await validate_build_placement(mock_session, uuid4(), "Elevator", 0, 4, 1)
 
     @pytest.mark.asyncio
     async def test_non_elevator_rejected_without_elevator_on_level(self, mock_session):
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_first=None)
+        mock_session.exec.return_value = _make_mock_execute_result(scalars_first=None)
         with pytest.raises(Exception, match="has no elevator"):
             await validate_build_placement(mock_session, uuid4(), "Diner", 2, 5, 3)
 
@@ -67,7 +65,7 @@ class TestValidateBuildPlacement:
         vault_id = uuid4()
         elevator = _make_room(name="Elevator", coordinate_x=0, coordinate_y=2, size=1, vault_id=vault_id)
         existing = _make_room(name="Diner", coordinate_x=3, coordinate_y=2, size=3, vault_id=vault_id)
-        mock_session.execute.side_effect = [
+        mock_session.exec.side_effect = [
             _make_mock_execute_result(scalars_first=elevator),
             _make_mock_execute_result(scalars_all=[elevator, existing]),
         ]
@@ -79,7 +77,7 @@ class TestValidateBuildPlacement:
     async def test_floating_room_rejected(self, mock_session):
         vault_id = uuid4()
         elevator = _make_room(name="Elevator", coordinate_x=0, coordinate_y=2, size=1, vault_id=vault_id)
-        mock_session.execute.side_effect = [
+        mock_session.exec.side_effect = [
             _make_mock_execute_result(scalars_first=elevator),
             _make_mock_execute_result(scalars_all=[elevator]),
         ]
@@ -91,7 +89,7 @@ class TestValidateBuildPlacement:
     async def test_adjacent_room_allowed(self, mock_session):
         vault_id = uuid4()
         elevator = _make_room(name="Elevator", coordinate_x=0, coordinate_y=2, size=1, vault_id=vault_id)
-        mock_session.execute.side_effect = [
+        mock_session.exec.side_effect = [
             _make_mock_execute_result(scalars_first=elevator),
             _make_mock_execute_result(scalars_all=[elevator]),
         ]
@@ -104,19 +102,19 @@ class TestValidateElevatorDestroy:
     async def test_non_elevator_returns_immediately(self, mock_session):
         room = _make_room(name="Diner")
         await validate_elevator_destroy(mock_session, room)
-        mock_session.execute.assert_not_called()
+        mock_session.exec.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_elevator_with_elevator_above_rejects_destroy(self, mock_session):
         """Destroying an elevator that supports another elevator above breaks the stack."""
         elevator = _make_room(name="Elevator", coordinate_y=2, coordinate_x=0)
         elevator_above = _make_room(name="Elevator", coordinate_y=1, coordinate_x=0, id=uuid4())
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_first=elevator_above)
+        mock_session.exec.return_value = _make_mock_execute_result(scalars_first=elevator_above)
 
         with pytest.raises(ValueError, match="stacked directly above"):
             await validate_elevator_destroy(mock_session, elevator)
 
-        query = mock_session.execute.call_args_list[0].args[0]
+        query = mock_session.exec.call_args_list[0].args[0]
         assert query.compile().params["coordinate_y_1"] == 1
 
     @pytest.mark.asyncio
@@ -126,7 +124,7 @@ class TestValidateElevatorDestroy:
         other_elevator = _make_room(name="Elevator", coordinate_y=5, vault_id=vault_id, id=uuid4())
         no_above = _make_mock_execute_result(scalars_first=None)
         all_elevators = _make_mock_execute_result(scalars_all=[elevator, other_elevator])
-        mock_session.execute.side_effect = [no_above, all_elevators]
+        mock_session.exec.side_effect = [no_above, all_elevators]
 
         await validate_elevator_destroy(mock_session, elevator)
 
@@ -138,7 +136,7 @@ class TestValidateElevatorDestroy:
         no_above = _make_mock_execute_result(scalars_first=None)
         all_elevators = _make_mock_execute_result(scalars_all=[elevator])
         rooms_on_level = _make_mock_execute_result(scalars_all=[other_room])
-        mock_session.execute.side_effect = [no_above, all_elevators, rooms_on_level]
+        mock_session.exec.side_effect = [no_above, all_elevators, rooms_on_level]
 
         with pytest.raises(ValueError, match="Cannot destroy this elevator"):
             await validate_elevator_destroy(mock_session, elevator)
@@ -153,7 +151,7 @@ async def test_elevator_overlapping_existing_room_rejected(mock_session):
         scalars_first=_make_room(name="Elevator", coordinate_y=4, vault_id=vault_id)
     )
     rooms_on_level = _make_mock_execute_result(scalars_all=[occupied])
-    mock_session.execute.side_effect = [elevator_above, rooms_on_level]
+    mock_session.exec.side_effect = [elevator_above, rooms_on_level]
 
     with pytest.raises(VaultOperationException, match="overlaps"):
         await validate_build_placement(mock_session, vault_id, "Elevator", 6, 5, 1)
@@ -165,7 +163,7 @@ async def test_same_name_different_tier_at_occupied_coordinate_rejected(mock_ses
     vault_id = uuid4()
     occupied = _make_room(name="Diner", coordinate_x=0, coordinate_y=0, tier=2, vault_id=vault_id)
     rooms_on_level = _make_mock_execute_result(scalars_all=[occupied])
-    mock_session.execute.side_effect = [rooms_on_level]
+    mock_session.exec.side_effect = [rooms_on_level]
 
     with pytest.raises(VaultOperationException, match="overlaps"):
         await validate_build_placement(mock_session, vault_id, "Diner", 0, 0, 3, tier=1)

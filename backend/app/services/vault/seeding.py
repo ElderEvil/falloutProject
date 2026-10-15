@@ -17,6 +17,7 @@ from app.core.enums import (
     AgeGroupEnum,
     DwellerStatusEnum,
     GenderEnum,
+    HazardTeam,
     RarityEnum,
     RoomTypeEnum,
     SPECIALEnum,
@@ -28,11 +29,13 @@ from app.crud import dweller as dweller_crud
 from app.crud import outfit as outfit_crud
 from app.crud import pet as pet_crud
 from app.crud import room as room_crud
+from app.crud import team_crud
 from app.crud import weapon as weapon_crud
 from app.crud.relationship import relationship_crud
 from app.crud.storage import storage as storage_crud
 from app.models import Dweller, Room
 from app.models.outfit import Outfit
+from app.models.team import ACTIVE_STATUS, TeamMember
 from app.models.vault import Vault
 from app.models.weapon import Weapon
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
@@ -75,6 +78,7 @@ def build_room(
     x: int,
     y: int,
     size: int | None = None,
+    tier: int = 1,
 ) -> RoomCreate:
     template = rooms_by_name.get(name.lower())
     if template is None:
@@ -83,7 +87,6 @@ def build_room(
     size = size if size is not None else data["size_min"]
     if size > data["size_max"]:
         raise ValueError(f"Room '{name}' cannot span {size} units (max {data['size_max']})")
-    tier = 1
     if data.get("capacity_formula"):
         data["capacity"] = room_crud.evaluate_capacity_formula(data["capacity_formula"], tier, size)
     if data.get("output_formula"):
@@ -107,7 +110,8 @@ def prepare_initial_rooms(
     def mk_sized(specs: list[tuple[str, int, int, int]]) -> list[RoomCreate]:
         return [build_room(rooms_by_name, n, vault_id, x, y, size=s) for n, x, y, s in specs]
 
-    infrastructure = mk([("vault door", 0, 0), *[("elevator", SHAFT_X, level) for level in range(4)]])
+    elevator_levels = 5 if is_boosted else 4
+    infrastructure = mk([("vault door", 0, 0), *[("elevator", SHAFT_X, level) for level in range(elevator_levels)]])
     if is_boosted:
         # Boosted blocks read top to bottom: level 1 is the training block,
         # level 2 holds the storage row with medbay and science lab side by
@@ -117,22 +121,30 @@ def prepare_initial_rooms(
             ("storage room", 7, 2, 3),
             ("storage room", 10, 2, 3),
             ("storage room", 13, 2, 3),
-            BOOSTED_MERGED_LIVING_ROOM,
         ]
     else:
         capacity_specs = [("living room", 7, 1, 3), ("storage room", 7, 2, 3)]
     capacity = mk_sized(capacity_specs)
     if is_boosted:
+        # The seeded Response Station crew needs living capacity, so a third living
+        # room fills the level-3 gap the arena left when it moved to the door level.
+        merged_name, merged_x, merged_y, merged_size = BOOSTED_MERGED_LIVING_ROOM
+        capacity.append(build_room(rooms_by_name, merged_name, vault_id, merged_x, merged_y, size=merged_size))
+        capacity.append(build_room(rooms_by_name, "living room", vault_id, 10, 3))
+    if is_boosted:
         # The boosted room set draws ~51.5 power/min, so boosted seeds the
         # generator at its final size-6 footprint at (0, 1) — same footprint,
         # capacity (300), output (58) and art as a fused pair, without the
         # seed-time merge round-trip.
-        production = mk_sized([("power generator", 0, 1, 6), ("diner", 3, 2, 3), ("water treatment", 3, 3, 3)])
+        production = [build_room(rooms_by_name, "power generator", vault_id, 0, 1, size=6, tier=2)]
+        production += mk_sized([("diner", 3, 2, 3), ("water treatment", 3, 3, 3)])
         production += mk([("science lab", 19, 2), ("medbay", 16, 2)])
     else:
         production = mk([("power generator", 3, 1), ("diner", 3, 2), ("water treatment", 3, 3)])
-    misc = mk([("radio studio", 7, 3)] + ([("overseer's office", 22, 2)] if is_boosted else []))
-    arena = mk([("arena", 10, 3)] if is_boosted else [])
+    misc = mk(
+        [("radio studio", 7, 3)] + ([("overseer's office", 22, 2), ("response station", 13, 0)] if is_boosted else [])
+    )
+    arena = mk([("arena", 7, 0)] if is_boosted else [])
     crafting = mk(list(BOOSTED_CRAFTING_ROOM_SPECS)) if is_boosted else []
     training = mk(
         [
@@ -266,6 +278,39 @@ async def equip_boosted_worker_outfit(db_session: AsyncSession, worker: Dweller,
     await outfit_crud.equip(db_session=db_session, item_id=item.id, dweller_id=worker.id, commit=False)
 
 
+async def seed_boosted_response_team(db_session: AsyncSession, vault_id: UUID4, station_room: Room) -> None:
+    """Station one fire and one radiation responder in a boosted vault's Response Station.
+
+    Hazard membership is otherwise earned through service and gated on the station
+    existing; a boosted vault seeds both so the room and its rosters are populated out
+    of the box. Normal vaults still build the station as a progression sink.
+    """
+    from app.services.dweller_service import dweller_service
+
+    for team, boosted_stat in (
+        (HazardTeam.FIRE, SPECIALEnum.STRENGTH),
+        (HazardTeam.RADIATION, SPECIALEnum.ENDURANCE),
+    ):
+        dweller = await dweller_service.create_random_dweller(
+            db_session,
+            vault_id,
+            DwellerCreateCommonOverride(special_boost=boosted_stat),
+            rarity=roll_initial_rarity(is_boosted=True),
+        )
+        await dweller_crud.update(
+            db_session=db_session,
+            id=dweller.id,
+            obj_in=DwellerUpdate(room_id=station_room.id, status=DwellerStatusEnum.WORKING),
+        )
+        dweller.room_id = station_room.id
+        hazard_team = await team_crud.get_or_create_hazard_team(db_session, vault_id, team)
+        await team_crud.add_member(
+            db_session,
+            TeamMember(team_id=hazard_team.id, dweller_id=dweller.id, status=ACTIVE_STATUS, slot_number=1),
+        )
+        logger.info("Seeded %s responder %s in Response Station %s", team.value, dweller.id, station_room.id)
+
+
 async def create_initial_dwellers(
     db_session: AsyncSession,
     vault_id: UUID4,
@@ -337,6 +382,11 @@ async def create_initial_dwellers(
                 workers.append(
                     await seed_working_dweller(db_session, vault_id, radio_room, SPECIALEnum.CHARISMA, is_boosted)
                 )
+
+        if is_boosted:
+            station_room = next((r for r in created_misc_rooms if r.category == RoomTypeEnum.RESPONSE), None)
+            if station_room is not None:
+                await seed_boosted_response_team(db_session, vault_id, station_room)
 
         living: list[Dweller] = []
         living_rooms = [r for r in created_capacity_rooms if "living" in r.name.lower()]

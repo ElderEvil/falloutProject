@@ -7,14 +7,16 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core import db_locks
-from app.core.enums import HazardTeam
+from app.core.enums import HazardTeam, RoomTypeEnum
 from app.crud import outfit as outfit_crud
 from app.crud.dweller import dweller as crud_dweller
 from app.crud.incident_participant import incident_participant_crud
+from app.crud.room import room as crud_room
 from app.crud.storage import storage as crud_storage
 from app.crud.team import team_crud
 from app.models.dweller import Dweller
 from app.models.incident import HAZARD_TEAM_INCIDENT_TYPES, Incident, hazard_team_for
+from app.models.outfit import Outfit
 from app.models.team import ACTIVE_STATUS, DISPATCHED_STATUS, RESERVE_STATUS, TeamMember
 from app.schemas.contamination_team import ContaminationTeamRead, HazardTeamMemberRead, HazardTeamRosterRead
 from app.services.bio_service import bio_service
@@ -24,7 +26,9 @@ from app.utils.exceptions import (
     ContentNoChangeException,
     ResourceConflictException,
     ResourceNotFoundException,
+    ValidationException,
 )
+from app.utils.hazard_resist import outfit_fire_resist, outfit_radiation_resist
 
 logger = logging.getLogger(__name__)
 
@@ -129,9 +133,17 @@ class HazardTeamService:
         )
         return HazardTeamRoundResult(new_places=new_places, active_gainers=active_gainers, active_ids=active_ids)
 
+    async def _has_response_station(self, db_session: AsyncSession, vault_id: UUID4) -> bool:
+        """Whether the vault has built its Response Station — the gate on team formation."""
+        return bool(await crud_room.get_by_category(db_session, vault_id, RoomTypeEnum.RESPONSE))
+
     async def _join_if_qualified(
         self, db_session: AsyncSession, vault_id: UUID4, dweller: Dweller, team: HazardTeam
     ) -> TeamMember | None:
+        # Formation gating: no station, no team to join. The participation credit already
+        # stands, so a place is earned on a later callout once the station is built.
+        if not await self._has_response_station(db_session, vault_id):
+            return None
         if await team_crud.get_hazard_member(db_session, vault_id, team, dweller.id):
             return None
         fought = await incident_participant_crud.count_incidents(
@@ -176,6 +188,8 @@ class HazardTeamService:
         dwellers_by_id: dict[UUID4, Dweller],
     ) -> list[tuple[TeamMember, Dweller]]:
         """Step the most senior bench members into any places a loss freed."""
+        if not await self._has_response_station(db_session, vault_id):
+            return []
         vacancies = TEAM_SIZE - await team_crud.count_active_hazard(db_session, vault_id, team)
         promoted: list[TeamMember] = []
         for place in await team_crud.get_hazard_reserve(db_session, vault_id, team):
@@ -319,10 +333,16 @@ class HazardTeamService:
             if not candidates:
                 return []
 
+            # Snapshot every responder's posting before the move overwrites room_id,
+            # so the return pass can restore a station posting (issue #997 task 6).
+            origins = {dweller.id: dweller.room_id for dweller in candidates}
             ids = [dweller.id for dweller in candidates]
-            await team_crud.add_incident_team_members(
+            members = await team_crud.add_incident_team_members(
                 db_session, incident.id, incident.vault_id, ids, status=DISPATCHED_STATUS
             )
+            for member in members:
+                member.origin_room_id = origins.get(member.dweller_id)
+                db_session.add(member)
 
             from app.services.dweller_service import dweller_service
 
@@ -350,13 +370,20 @@ class HazardTeamService:
         else:
             return dispatched
 
+    async def _is_station_posting(self, db_session: AsyncSession, room_id: UUID4 | None) -> bool:
+        """Whether ``room_id`` is the Response Station — the one posting the return pass restores."""
+        if room_id is None:
+            return False
+        room = await crud_room.get(db_session, room_id)
+        return room is not None and room.category == RoomTypeEnum.RESPONSE
+
     async def return_dispatched_responders(self, db_session: AsyncSession, incident: Incident) -> int:
         """Put auto-dispatched hazard-team responders back to work after the incident ends.
 
-        Re-assigns every living ``dispatched`` member of the incident's roster to a
-        production room and flips their member status to ``completed`` so a later
-        pass cannot return them twice. Best-effort — never raises; returns the
-        count re-assigned.
+        A responder whose recorded posting was the Response Station returns there;
+        every other living ``dispatched`` member is auto-assigned to a production
+        room as before, and each is flipped to ``completed`` so a later pass cannot
+        return them twice. Best-effort — never raises; returns the count re-assigned.
         """
         try:
             members = await team_crud.get_incident_team(db_session, incident.id, incident.vault_id)
@@ -379,7 +406,12 @@ class HazardTeamService:
                     closed += 1
                     continue
                 try:
-                    await dweller_service.auto_assign_to_best_room(db_session, member.dweller_id)
+                    station_room_id = member.origin_room_id
+                    if station_room_id is not None and await self._is_station_posting(db_session, station_room_id):
+                        if dweller.room_id != station_room_id:
+                            await dweller_service.move_to_room(db_session, member.dweller_id, station_room_id)
+                    else:
+                        await dweller_service.auto_assign_to_best_room(db_session, member.dweller_id)
                 except ContentNoChangeException:
                     # Already back at work in the best matching room.
                     pass
@@ -405,17 +437,28 @@ class HazardTeamService:
             return returned
 
     async def get_roster(self, db_session: AsyncSession, vault_id: UUID4) -> ContaminationTeamRead:
-        """Every team's roster for a vault, active places and bench included."""
+        """Every team's roster for a vault, active places and bench included.
+
+        Service counts come from one grouped participation query per hazard, never
+        a per-member read; gear reflects the equipment currently worn.
+        """
         teams: list[HazardTeamRosterRead] = []
         for team in HazardTeam:
             places = await team_crud.get_hazard_team(db_session, vault_id, team)
-            teams.append(
-                HazardTeamRosterRead(
-                    team=team,
-                    active=[_place_read(place) for place in places if place.status == ACTIVE_STATUS],
-                    reserve=[_place_read(place) for place in places if place.status == RESERVE_STATUS],
-                )
+            counts = await incident_participant_crud.count_incidents_by_dweller(
+                db_session, [place.dweller_id for place in places], HAZARD_TEAM_INCIDENT_TYPES[team]
             )
+            active = [
+                _place_read(place, team, counts.get(place.dweller_id, 0))
+                for place in places
+                if place.status == ACTIVE_STATUS
+            ]
+            reserve = [
+                _place_read(place, team, counts.get(place.dweller_id, 0))
+                for place in places
+                if place.status == RESERVE_STATUS
+            ]
+            teams.append(HazardTeamRosterRead(team=team, active=active, reserve=reserve))
         return ContaminationTeamRead(vault_id=vault_id, teams=teams)
 
     async def set_place(
@@ -442,6 +485,10 @@ class HazardTeamService:
         if active:
             if member.status == ACTIVE_STATUS:
                 return await self.get_roster(db_session, vault_id)
+            if not await self._has_response_station(db_session, vault_id):
+                raise ValidationException(
+                    detail="A Response Station is required before a dweller can be promoted into a fire or radiation team."
+                )
             if await team_crud.count_active_hazard(db_session, vault_id, team) >= TEAM_SIZE:
                 raise ResourceConflictException("The team already has 3 active members — bench one first.")
             member.status = ACTIVE_STATUS
@@ -474,10 +521,20 @@ class HazardTeamService:
 hazard_team_service = HazardTeamService()
 
 
-def _place_read(place: TeamMember) -> HazardTeamMemberRead:
+def _outfit_hazard_resist(team: HazardTeam, outfit: Outfit | None) -> float:
+    """The equipped outfit's share of THIS team's hazard; 0.0 only when nothing reduces it."""
+    return outfit_radiation_resist(outfit) if team == HazardTeam.RADIATION else outfit_fire_resist(outfit)
+
+
+def _place_read(place: TeamMember, team: HazardTeam, service_count: int) -> HazardTeamMemberRead:
+    outfit = place.dweller.outfit
     return HazardTeamMemberRead(
         dweller_id=place.dweller_id,
         status=place.status,
         name=place.dweller.display_name,
         level=place.dweller.level,
+        service_count=service_count,
+        outfit_name=outfit.name if outfit is not None else None,
+        has_matching_gear=outfit is not None and outfit.name == TEAM_OUTFIT_NAMES[team],
+        hazard_resist=_outfit_hazard_resist(team, outfit),
     )

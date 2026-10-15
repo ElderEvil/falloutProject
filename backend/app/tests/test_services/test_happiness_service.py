@@ -6,6 +6,8 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import DwellerStatusEnum
+from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.incident import Incident, IncidentStatus, IncidentType
 from app.models.pet import Pet
@@ -54,6 +56,55 @@ async def working_dweller_fixture(
 @pytest.mark.asyncio
 class TestHappinessService:
     """Test happiness service functionality."""
+
+    @pytest.mark.parametrize(
+        ("status", "receives_radio"),
+        [
+            (DwellerStatusEnum.EXPLORING, False),
+            (DwellerStatusEnum.QUESTING, False),
+            (DwellerStatusEnum.WORKING, True),
+            (DwellerStatusEnum.TRAINING, True),
+        ],
+    )
+    async def test_radio_happiness_only_reaches_dwellers_in_vault(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+        working_dweller: Dweller,
+        test_room: Room,
+        status: DwellerStatusEnum,
+        receives_radio: bool,
+    ):
+        """Radio affects residents' tick and breakdown, never explorers or quest parties."""
+        test_room.name = "Radio studio"
+        test_room.speedup_multiplier = 1.0
+        working_dweller.status = status
+        assert working_dweller.is_in_vault is receives_radio
+        working_dweller.partner_id = None
+        working_dweller.happiness = 50
+        vault.radio_mode = "recruitment"
+        async_session.add_all([test_room, working_dweller, vault])
+        await async_session.commit()
+
+        await happiness_service.update_vault_happiness(async_session, vault.id, seconds_passed=120)
+        await async_session.refresh(working_dweller)
+        without_radio = working_dweller.happiness
+
+        working_dweller.happiness = 50
+        vault.radio_mode = "happiness"
+        async_session.add_all([working_dweller, vault])
+        await async_session.commit()
+
+        await happiness_service.update_vault_happiness(async_session, vault.id, seconds_passed=120)
+        await async_session.refresh(working_dweller)
+        expected_bonus = game_config.radio.happiness_bonus * 2 if receives_radio else 0
+        assert working_dweller.happiness - without_radio == pytest.approx(expected_bonus)
+
+        modifiers = await happiness_service.get_happiness_modifiers(async_session, working_dweller.id)
+        radio_modifiers = [entry for entry in modifiers["positive"] if entry["name"] == "Radio (Happiness Mode)"]
+        assert bool(radio_modifiers) is receives_radio
+        if receives_radio:
+            assert radio_modifiers[0]["value"] == pytest.approx(game_config.radio.happiness_bonus)
 
     async def test_low_resources_reduces_happiness(
         self,

@@ -18,6 +18,7 @@ export type RoomPart =
   | 'actions'
   | 'radioControls'
   | 'training'
+  | 'responseStation'
   | 'incident'
   | 'aftermath'
 
@@ -74,6 +75,11 @@ export function isTrainingRoom(room: Room | null): boolean {
   return room?.category.toLowerCase() === 'training'
 }
 
+/** The Response Station has its own management surface; matched by category, not name. */
+export function isResponseStation(room: Room | null): boolean {
+  return room?.category.toLowerCase() === 'response'
+}
+
 /** Catalog a workshop crafts; workshop name-matching lives only here. */
 export function craftingItemType(room: Room | null): 'weapon' | 'outfit' | null {
   if (!isCraftingRoom(room) || !room) return null
@@ -107,6 +113,7 @@ export function getRoomDetailParts(
   else if (producesResources(room)) parts.push('productionStats')
   if (craftingItemType(room)) parts.push('crafting')
   if (isTrainingRoom(room)) parts.push('training')
+  if (isResponseStation(room)) parts.push('responseStation')
   parts.push('dwellerList', 'actions')
   if (isRadioRoom(room)) parts.push('radioControls')
   return parts

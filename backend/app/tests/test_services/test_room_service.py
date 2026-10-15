@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from datetime import datetime
 from unittest.mock import AsyncMock, patch
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -17,8 +18,9 @@ from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
+from app.services.room_assignment_policy import calculate_room_capacity
 from app.services.room_service import room_service
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, UniqueRoomViolationException
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -63,7 +65,7 @@ def _make_room_create(
     )
 
 
-async def _create_elevator(session: AsyncSession, vault_id: UUID, coordinate_y: int) -> Room:
+async def _create_elevator(session: AsyncSession, vault_id: UUID, coordinate_y: int, *, coordinate_x: int = 6) -> Room:
     return await crud.room.create(
         session,
         obj_in=RoomCreate(
@@ -82,7 +84,7 @@ async def _create_elevator(session: AsyncSession, vault_id: UUID, coordinate_y: 
             size_max=1,
             size=1,
             tier=1,
-            coordinate_x=6,
+            coordinate_x=coordinate_x,
             coordinate_y=coordinate_y,
             image_url=None,
             speedup_multiplier=1.0,
@@ -654,3 +656,264 @@ async def test_upgrade_no_merge_different_tier(async_session: AsyncSession, rich
     assert result.id == upgraded.id
     assert result.tier == 2
     assert result.size == 3
+
+
+# ---------------------------------------------------------------------------
+# Response Station — unique room growth via an adjacent segment (issue #997)
+# ---------------------------------------------------------------------------
+
+
+def _make_response_room_create(
+    vault_id: UUID, *, coordinate_x: int, coordinate_y: int = 0, size: int = 3
+) -> RoomCreate:
+    """A Response Station catalog payload: unique (null incremental cost), 3..9 footprint."""
+    return RoomCreate(
+        vault_id=vault_id,
+        name="Response Station",
+        category=RoomTypeEnum.RESPONSE,
+        ability=SPECIALEnum.ENDURANCE,
+        population_required=None,
+        base_cost=600,
+        incremental_cost=None,
+        t2_upgrade_cost=None,
+        t3_upgrade_cost=None,
+        capacity=None,
+        output=None,
+        size_min=3,
+        size_max=9,
+        size=size,
+        tier=1,
+        coordinate_x=coordinate_x,
+        coordinate_y=coordinate_y,
+        image_url=None,
+        speedup_multiplier=1.0,
+        capacity_formula=None,
+        output_formula=None,
+    )
+
+
+async def _create_response_station(
+    session: AsyncSession, vault_id: UUID, *, coordinate_x: int = 1, size: int = 3
+) -> Room:
+    return await crud.room.create(
+        session, obj_in=_make_response_room_create(vault_id, coordinate_x=coordinate_x, size=size)
+    )
+
+
+@pytest.mark.asyncio
+async def test_adjacent_station_segment_merges_into_one_row(async_session: AsyncSession, rich_vault: Vault):
+    """An adjacent segment joins the station (same row id) and grows it 3 -> 6 -> 9."""
+    station = await _create_response_station(async_session, rich_vault.id, coordinate_x=1)
+    assert calculate_room_capacity(station.size) == 2
+
+    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
+        grown_to_six, created = await room_service._build(
+            db_session=async_session,
+            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=4),
+        )
+
+    assert grown_to_six.id == station.id
+    assert created is False
+    assert grown_to_six.size == 6
+    assert calculate_room_capacity(grown_to_six.size) == 4
+
+    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
+        grown_to_nine, created = await room_service._build(
+            db_session=async_session,
+            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=7),
+        )
+
+    assert grown_to_nine.id == station.id
+    assert created is False
+    assert grown_to_nine.size == 9
+    assert calculate_room_capacity(grown_to_nine.size) == 6
+
+    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
+    assert names.count("Response Station") == 1
+
+
+@pytest.mark.asyncio
+async def test_adjacent_station_segment_charges_one_build_price_per_segment(
+    async_session: AsyncSession, rich_vault: Vault
+):
+    """Each adjacent segment costs one station build price; the row id never changes."""
+    await _create_response_station(async_session, rich_vault.id, coordinate_x=1)
+    starting_caps = rich_vault.bottle_caps
+
+    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
+        await room_service._build(
+            db_session=async_session, obj_in=_make_response_room_create(rich_vault.id, coordinate_x=4)
+        )
+        await room_service._build(
+            db_session=async_session, obj_in=_make_response_room_create(rich_vault.id, coordinate_x=7)
+        )
+
+    await async_session.refresh(rich_vault)
+    assert rich_vault.bottle_caps == starting_caps - 1200
+
+
+@pytest.mark.asyncio
+async def test_adjacent_station_segment_preserves_dwellers(async_session: AsyncSession, rich_vault: Vault):
+    """A merge keeps the station row and its occupants; no second station row appears."""
+    station = await _create_response_station(async_session, rich_vault.id, coordinate_x=1)
+    dweller = await _create_dweller_in_room(async_session, rich_vault.id, station)
+
+    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
+        grown, _created = await room_service._build(
+            db_session=async_session,
+            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=4),
+        )
+
+    assert grown.id == station.id
+    await async_session.refresh(dweller)
+    assert dweller.room_id == station.id
+    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
+    assert names.count("Response Station") == 1
+
+
+@pytest.mark.asyncio
+async def test_disconnected_second_station_rejected_without_charge(async_session: AsyncSession, rich_vault: Vault):
+    """A second station that cannot merge is rejected before any caps move or row is created."""
+    await _create_response_station(async_session, rich_vault.id, coordinate_x=1)
+    await _create_elevator(async_session, rich_vault.id, coordinate_y=1, coordinate_x=0)
+    starting_caps = rich_vault.bottle_caps
+
+    with pytest.raises(UniqueRoomViolationException):
+        await room_service._build(
+            db_session=async_session,
+            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=1, coordinate_y=1),
+        )
+
+    await async_session.refresh(rich_vault)
+    assert rich_vault.bottle_caps == starting_caps
+    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
+    assert names.count("Response Station") == 1
+
+
+@pytest.mark.asyncio
+async def test_adjacent_station_segment_at_size_max_rejected_without_charge(
+    async_session: AsyncSession, rich_vault: Vault
+):
+    """A station already at size_max rejects another adjacent segment and charges nothing."""
+    station = await _create_response_station(async_session, rich_vault.id, coordinate_x=1, size=9)
+    starting_caps = rich_vault.bottle_caps
+
+    with pytest.raises(UniqueRoomViolationException):
+        await room_service._build(
+            db_session=async_session,
+            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=10),
+        )
+
+    await async_session.refresh(rich_vault)
+    assert rich_vault.bottle_caps == starting_caps
+    await async_session.refresh(station)
+    assert station.size == 9
+    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
+    assert names.count("Response Station") == 1
+
+
+@asynccontextmanager
+async def _placement_lock_held(*_args, **_kwargs):
+    """Stand-in for hold_advisory_lock when another build owns the vault placement lock."""
+    yield False
+
+
+@pytest.mark.asyncio
+async def test_build_refused_when_vault_placement_lock_is_held(async_session: AsyncSession, rich_vault: Vault):
+    """A concurrent build cannot run while another holds the vault placement lock."""
+    starting_caps = rich_vault.bottle_caps
+
+    with (
+        patch("app.services.room_service.db_locks.hold_advisory_lock", new=_placement_lock_held),
+        pytest.raises(ResourceConflictException),
+    ):
+        await room_service._build(
+            db_session=async_session,
+            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=1),
+        )
+
+    await async_session.refresh(rich_vault)
+    assert rich_vault.bottle_caps == starting_caps
+
+
+@pytest.mark.asyncio
+async def test_upgrade_refused_when_vault_placement_lock_is_held(async_session: AsyncSession, rich_vault: Vault):
+    """An upgrade merges under the vault placement lock; a concurrent build's lock refuses it."""
+    room = await _create_existing_room(async_session, rich_vault.id, coordinate_x=0, tier=1)
+
+    with (
+        patch("app.services.room_service.db_locks.hold_advisory_lock", new=_placement_lock_held),
+        pytest.raises(ResourceConflictException),
+    ):
+        await room_service._upgrade(async_session, room.id)
+
+
+@pytest.mark.asyncio
+async def test_backfill_apply_refused_when_vault_placement_lock_is_held(async_session: AsyncSession, rich_vault: Vault):
+    """Apply-mode backfill merges under the vault placement lock; a held lock refuses it."""
+    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
+    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
+
+    with (
+        patch("app.services.room_service.db_locks.hold_advisory_lock", new=_placement_lock_held),
+        pytest.raises(ResourceConflictException),
+    ):
+        await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=False)
+
+
+@pytest.mark.asyncio
+async def test_backfill_dry_run_ignores_vault_placement_lock(async_session: AsyncSession, rich_vault: Vault):
+    """Dry run is lock-free, so it still reports merges while another holder owns the lock."""
+    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
+    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
+    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
+
+    with patch("app.services.room_service.db_locks.hold_advisory_lock", new=_placement_lock_held):
+        summary = await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=True)
+
+    assert summary["merged"] == 1
+
+
+@pytest.mark.asyncio
+async def test_boosted_seeded_station_grows_to_nine(async_session: AsyncSession, rich_vault: Vault):
+    """The real boosted layout's station slot merges two adjacent segments to size 9.
+
+    The seeded station at (13, 0) must have free adjacent cells at (16, 0) and
+    (19, 0); the test fails if the slot has no room to grow.
+    """
+    from app.core.game_data import get_static_game_data
+    from app.services.vault import seeding
+
+    game_data = await get_static_game_data()
+    prepared = seeding.prepare_initial_rooms(game_data.rooms, rich_vault.id, is_boosted=True)
+    await crud.vault.create_storage(db_session=async_session, vault_id=rich_vault.id)
+    await seeding.create_initial_rooms(async_session, rich_vault, prepared)
+
+    station = next(
+        room
+        for room in await crud.room.get_all_by_vault(async_session, rich_vault.id)
+        if room.name == "Response Station"
+    )
+    assert station.size == 3
+    assert calculate_room_capacity(station.size) == 2
+
+    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
+        grown_to_six, _created = await room_service._build(
+            db_session=async_session,
+            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=16, coordinate_y=0),
+        )
+    assert grown_to_six.id == station.id
+    assert grown_to_six.size == 6
+    assert calculate_room_capacity(grown_to_six.size) == 4
+
+    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
+        grown_to_nine, _created = await room_service._build(
+            db_session=async_session,
+            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=19, coordinate_y=0),
+        )
+    assert grown_to_nine.id == station.id
+    assert grown_to_nine.size == 9
+    assert calculate_room_capacity(grown_to_nine.size) == 6
+
+    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
+    assert names.count("Response Station") == 1

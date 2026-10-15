@@ -15,13 +15,16 @@ from typing import Any
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import ObjectiveCategoryEnum
 from app.crud.objective import objective_crud
+from app.crud.vault import vault as vault_crud
 from app.models.objective import Objective
 from app.models.quest import Quest
 from app.models.quest_reward import QuestReward, RewardType
 from app.models.vault_objective import VaultObjectiveProgressLink
+from app.services.progression.objectives.guidance import current_state_progress
 from app.services.rewards import items, lunchbox, resources
-from app.utils.exceptions import ResourceConflictException
+from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 from app.utils.reward_delivery import defer_reward_delivery
 
 logger = logging.getLogger(__name__)
@@ -52,7 +55,7 @@ async def process_objective_reward(
     db_session: AsyncSession, vault_id: UUID4, objective: VaultObjectiveProgressLink
 ) -> dict[str, Any]:
     objective_obj = await objective_crud.get(db_session, id=objective.objective_id)
-    reward_str = objective_obj.reward
+    reward_str = objective.reward_snapshot or objective_obj.reward
 
     reward_type, reward_data = _parse_objective_reward(reward_str)
     result = await _process_single_reward(db_session, vault_id, reward_type, reward_data, emit_event=False)
@@ -60,8 +63,36 @@ async def process_objective_reward(
     return result
 
 
+async def claim_objective_reward(
+    db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4
+) -> VaultObjectiveProgressLink:
+    """Claim an assigned, earned reward atomically and reject repeat claims."""
+    await vault_crud.lock_for_update(db_session, vault_id)
+    link = await objective_crud.get_link_for_update(db_session, objective_id, vault_id)
+    if link is None:
+        raise ResourceNotFoundException(Objective, objective_id)
+    if link.is_completed:
+        raise ResourceConflictException("Objective reward already claimed")
+    objective = await objective_crud.get(db_session, objective_id)
+    progress = link.progress
+    if objective.category == ObjectiveCategoryEnum.STARTER and objective.objective_type is not None:
+        if await objective_crud.get_current_starter_id(db_session, vault_id) != objective_id:
+            raise ValidationException("Claim the current guided objective before moving to the next step")
+        progress = max(progress, await current_state_progress(db_session, vault_id, objective))
+    if progress < link.total:
+        raise ValidationException("Complete the objective before claiming its reward")
+    link.progress = max(link.progress, min(progress, link.total))
+    try:
+        await _settle_objective_link(db_session, vault_id, link)
+    except Exception:
+        await db_session.rollback()
+        raise
+    return link
+
+
 async def settle_objective_completion(db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4) -> Objective:
     """Mark an objective complete for a vault and deliver its reward in one transaction."""
+    await vault_crud.lock_for_update(db_session, vault_id)
     objective = await objective_crud.get(db_session, objective_id)
     link = await objective_crud.get_link_for_update(db_session, objective_id, vault_id)
     if not link:
@@ -78,7 +109,7 @@ async def settle_objective_completion(db_session: AsyncSession, objective_id: UU
 async def settle_objective_progress(
     db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4, progress: int
 ) -> VaultObjectiveProgressLink:
-    """Update objective progress, settling its reward once the target is reached."""
+    """Update earned progress without paying the reward; owners claim separately."""
     link = await objective_crud.get_link_for_update(db_session, objective_id, vault_id)
     if not link:
         objective = await objective_crud.get(db_session, objective_id)
@@ -93,10 +124,10 @@ async def settle_objective_progress(
         return link
 
     link.progress = progress
-    if link.progress < link.total:
-        await db_session.commit()
-    else:
-        await _settle_objective_link(db_session, vault_id, link)
+    if link.progress >= link.total and link.reward_snapshot is None:
+        objective = await objective_crud.get(db_session, objective_id)
+        link.reward_snapshot = objective.reward
+    await db_session.commit()
     await db_session.refresh(link)
     return link
 

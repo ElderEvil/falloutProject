@@ -4,7 +4,14 @@ import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
 import type { components } from '@/core/types/api.generated'
 import type { Room, RoomBuild, RoomTemplate } from '../models/room'
-import { FLOOR_UNITS, ROOM_SLOT_STARTS, SHAFT_X, UNITS_PER_ROOM, BUILD_Y_MAX, Y_MAX } from '../models/grid'
+import {
+  FLOOR_UNITS,
+  ROOM_SLOT_STARTS,
+  SHAFT_X,
+  UNITS_PER_ROOM,
+  BUILD_Y_MAX,
+  Y_MAX,
+} from '../models/grid'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { audioManager } from '@/core/audio/audioManager'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -38,7 +45,11 @@ export const useRoomStore = defineStore('room', () => {
   }
 
   // Actions
-  async function fetchRooms(vaultId: string, token: string): Promise<FetchRoomsResult> {
+  async function fetchRooms(
+    vaultId: string,
+    token: string,
+    throwOnError = false
+  ): Promise<FetchRoomsResult> {
     const requestSequence = ++fetchRoomsRequestSequence
 
     try {
@@ -55,6 +66,7 @@ export const useRoomStore = defineStore('room', () => {
       handleStoreError(error, 'Failed to fetch rooms')
       if (requestSequence !== fetchRoomsRequestSequence) return 'superseded'
       rooms.value = [] // Reset to empty array on error
+      if (throwOnError) throw error
       return 'failed'
     }
   }

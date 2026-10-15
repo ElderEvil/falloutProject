@@ -18,6 +18,7 @@ import { RevivalSection } from './death'
 import { canUseRadaway, getActivitySummary, getDwellerDisplayName } from '../models/dweller'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 
+const emit = defineEmits<{ chooseRoom: [] }>()
 const ctx = useDwellerDetailContext()
 
 const dweller = computed(() => ctx.dweller.value!)
@@ -100,7 +101,7 @@ const breadcrumbs = computed(() => [
           :available-radaways="ctx.availableRadaways.value"
           :healing-supply="ctx.healingSupply.value"
           @chat="ctx.actions.navigateToChat()"
-          @assign="ctx.actions.assign()"
+          @assign="emit('chooseRoom')"
           @unassign="ctx.actions.unassign()"
           @recall="ctx.actions.recall()"
           @heal-stimpack="ctx.actions.healSupply('stimpack')"

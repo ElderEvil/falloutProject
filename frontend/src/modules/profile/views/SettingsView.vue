@@ -77,9 +77,9 @@
                 </CardHeader>
                 <CardContent class="px-0">
                   <SettingItem
-                    label="Spawn Chance"
-                    :value="(settings.incident.spawn_chance_per_hour * 100).toFixed(1)"
-                    unit="% per hour"
+                    label="Spawn Rate"
+                    :value="incidentSpawnRateLabel"
+                    unit="per hour by vault size"
                   />
                   <SettingItem
                     label="Min Population"
@@ -598,7 +598,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useToast } from '@/core/composables/useToast'
 import { useBackNavigation } from '@/core/composables/useBackNavigation'
@@ -644,6 +644,14 @@ const tabs = [
 const settings = ref<any>({})
 const loading = ref(true)
 const error = ref<string | null>(null)
+
+const incidentSpawnRateLabel = computed(() => {
+  const tiers: unknown = settings.value?.incident?.room_rate_tiers
+  if (!Array.isArray(tiers) || !tiers.length) return '—'
+  const rates = tiers.map((tier) => Number(tier?.[1])).filter((rate) => Number.isFinite(rate))
+  if (!rates.length) return '—'
+  return `${Math.min(...rates)}–${Math.max(...rates)}`
+})
 
 async function loadSettings() {
   try {

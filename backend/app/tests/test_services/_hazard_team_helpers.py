@@ -18,6 +18,29 @@ async def raise_incident(session: AsyncSession, room, incident_type: IncidentTyp
     )
 
 
+async def empty_room(session: AsyncSession, vault_id: UUID4, *, name: str = "Diner", x: int = 7) -> Room:
+    """A room with no dwellers in it — nobody to respond to an incident there."""
+    return await crud.room.create(
+        session,
+        RoomCreate(
+            name=name,
+            category=RoomTypeEnum.PRODUCTION,
+            ability=None,
+            base_cost=100,
+            incremental_cost=50,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=3,
+            size_max=6,
+            size=3,
+            tier=1,
+            coordinate_x=x,
+            coordinate_y=0,
+            vault_id=vault_id,
+        ),
+    )
+
+
 async def ensure_station(session: AsyncSession, vault_id: UUID4) -> Room:
     """Give the vault a Response Station — the precondition for any hazard-team place.
 

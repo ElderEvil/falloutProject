@@ -127,6 +127,40 @@ def test_matchup_zero_responders_reports_unopposed_instead_of_crashing():
     assert sum(outcome.deaths for outcome in run) == 0
 
 
+def test_matchup_zero_responders_honors_configured_grace():
+    """Unopposed matchup runs wait out the configured grace, like the live engine."""
+    cfg = IncidentConfig(defenders_per_incident=0)
+    run = sim_cli.run_matchup(cfg, IncidentType.RAIDER_ATTACK, 2, 3, seed=3)
+    expected_ticks = cfg.response_grace_seconds // cfg.incident_dt + 1
+    assert len(run) == 3
+    assert all(outcome.failed and not outcome.resolved for outcome in run)
+    assert all(outcome.ticks == expected_ticks for outcome in run)
+    assert sum(outcome.damage_taken for outcome in run) == 0
+    assert sum(outcome.deaths for outcome in run) == 0
+
+
+def test_resolve_incidents_passes_configured_grace():
+    """The simulator resolve path runs the real kernel with the configured grace."""
+    cfg = IncidentConfig(response_rate=0.0)
+    sim = IncidentSimulator(cfg)
+    roster = [SimDefender(profile=_profile("d0", 10.0), health=100)]
+    vault = sim_cli.VaultState(population=1, adults=1, roster=roster)
+    vault.incidents.append(sim_cli.Incident(start_time=0, incident_type=IncidentType.RAIDER_ATTACK, difficulty=2))
+    resolution_times: list[int] = []
+
+    with patch(
+        "app.cli.simulate_incidents.resolve_incident",
+        wraps=sim_cli.resolve_incident,
+    ) as spy_resolve:
+        sim._resolve_incidents(vault, resolution_times, random.Random(0))
+
+    assert spy_resolve.call_count == 1
+    assert spy_resolve.call_args.kwargs["response_grace_seconds"] == cfg.response_grace_seconds
+    assert vault.incidents[0].resolved is True
+    assert vault.incidents_failed == 1
+    assert resolution_times == [cfg.response_grace_seconds // cfg.incident_dt + 1]
+
+
 def test_matchup_cli_rejects_vault_id_combination():
     """--matchup runs a synthetic roster, so combining it with --vault-id is a loud error."""
     from click import unstyle

@@ -67,12 +67,13 @@ DEFAULT_HAPPINESS_PENALTY_SPREAD = 3.0
 # tuning changes flow straight into the balance check.
 DEFAULT_TICK_INTERVAL = game_config.game_loop.tick_interval
 DEFAULT_INCIDENT_DT = game_config.game_loop.incident_tick_seconds
-DEFAULT_SPAWN_CHANCE_PER_HOUR = game_config.incident.spawn_chance_per_hour
+DEFAULT_SPAWN_CHANCE_PER_HOUR = game_config.incident.get_spawn_rate(0)
 DEFAULT_MIN_VAULT_POPULATION = game_config.incident.min_vault_population
 DEFAULT_MAX_ACTIVE_INCIDENTS = game_config.incident.max_active_incidents
 DEFAULT_SPAWN_COOLDOWN_SECONDS = game_config.incident.spawn_cooldown_seconds
 DEFAULT_SPREAD_DURATION = game_config.incident.spread_duration
 DEFAULT_MAX_SPREAD_COUNT = game_config.incident.max_spread_count
+DEFAULT_RESPONSE_GRACE_SECONDS = game_config.incident.response_grace_seconds
 
 DEFAULT_BASE_RAIDER_POWER = game_config.combat.base_raider_power
 DEFAULT_LEVEL_BONUS_MULTIPLIER = game_config.combat.level_bonus_multiplier
@@ -101,6 +102,7 @@ class IncidentConfig:
     spawn_cooldown_seconds: int = DEFAULT_SPAWN_COOLDOWN_SECONDS
     spread_duration: int = DEFAULT_SPREAD_DURATION
     max_spread_count: int = DEFAULT_MAX_SPREAD_COUNT
+    response_grace_seconds: int = DEFAULT_RESPONSE_GRACE_SECONDS
 
     base_raider_power: int = DEFAULT_BASE_RAIDER_POWER
     level_bonus_multiplier: int = DEFAULT_LEVEL_BONUS_MULTIPLIER
@@ -324,6 +326,7 @@ class IncidentSimulator:
                 duration=self.cfg.spread_duration,
                 max_spread_count=self.cfg.max_spread_count,
                 base_raider_power=self.cfg.base_raider_power,
+                response_grace_seconds=self.cfg.response_grace_seconds,
             )
 
             incident.deaths += outcome.deaths
@@ -724,6 +727,7 @@ def run_matchup(
                 duration=config.spread_duration,
                 max_spread_count=config.max_spread_count,
                 base_raider_power=config.base_raider_power,
+                response_grace_seconds=config.response_grace_seconds,
             )
         )
     return outcomes

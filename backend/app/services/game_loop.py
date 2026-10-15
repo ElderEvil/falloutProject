@@ -214,6 +214,12 @@ class GameLoopService:
         self.logger.info(f"Vault {vault_id} paused")
         return game_state
 
+    async def record_presence(self, db_session: AsyncSession, vault_id: UUID4) -> GameState:
+        """Stamp a visibility-gated vault-view heartbeat for spawn gating."""
+        game_state = await game_state_crud.record_presence(db_session, vault_id)
+        self.logger.debug(f"Vault {vault_id} presence ping")
+        return game_state
+
     async def resume_vault(self, db_session: AsyncSession, vault_id: UUID4) -> GameState:
         """Resume game loop for a specific vault."""
         game_state = await game_state_crud.resume(db_session, vault_id)

@@ -22,6 +22,7 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
+import { usePresenceHeartbeat } from '../composables/usePresenceHeartbeat'
 import type { RoomTemplate } from '@/modules/rooms/models/room'
 
 interface Position {
@@ -108,6 +109,12 @@ usePolling(
       ? vaultStore.fetchGameState(vaultId.value, authStore.token)
       : undefined,
   { interval: 60_000, immediate: false }
+)
+
+// Incident spawns need a watching player: heartbeat only while this overview is visible.
+usePresenceHeartbeat(
+  () => vaultId.value,
+  () => authStore.token
 )
 
 const loadVaultData = async (id: string) => {

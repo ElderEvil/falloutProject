@@ -37,6 +37,9 @@ describe('ProfileView', () => {
     total_caps_earned: 5000,
     total_explorations: 25,
     total_rooms_built: 8,
+    total_incidents: 9,
+    total_incidents_won: 6,
+    total_incidents_lost: 3,
     created_at: '2023-01-01T00:00:00Z',
     updated_at: '2023-01-02T00:00:00Z',
   }

@@ -8,6 +8,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.enums import HazardTeam
 from app.core.game_config import game_config
 from app.crud.dweller import dweller as crud_dweller
+from app.crud.user_profile import profile_crud
+from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.incident import (
     Incident,
@@ -29,7 +31,12 @@ logger = logging.getLogger(__name__)
 
 
 async def no_defender_outcome(db_session: AsyncSession, incident: Incident) -> IncidentRoundResult:
-    """An active incident nobody responds to: spread it, keep waiting, or lose it."""
+    """An active incident nobody responds to: grace, then spread it, keep waiting, or lose it."""
+    grace = game_config.incident.response_grace_seconds
+    if grace > 0 and incident.elapsed_time() < grace:
+        # Fresh incident: give the player time to respond instead of failing on
+        # the first no-defender round. Nothing mutated, nothing to commit.
+        return IncidentRoundResult(no_defenders=True)
     if (
         incident.elapsed_time() >= incident.duration
         and incident.spread_count < game_config.incident.max_spread_count
@@ -48,6 +55,9 @@ async def no_defender_outcome(db_session: AsyncSession, incident: Incident) -> I
             f"Failed to {get_incident_definition(incident.type).objective.value} before escalation.",
         )
         db_session.add(incident)
+        vault = await vault_crud.get(db_session, incident.vault_id)
+        if vault is not None:
+            await profile_crud.increment_statistic(db_session, vault.user_id, "total_incidents_lost", commit=False)
         await db_session.commit()
         await incident_publishing.publish_sse(incident, "incident_resolved", success=False)
         await incident_publishing.notify_resolution(db_session, incident, success=False)
@@ -116,6 +126,10 @@ async def resolve_victory(db_session: AsyncSession, incident: Incident, dwellers
 
     incident.loot = incident_math.generate_loot(incident.difficulty, incident.type)
     incident.resolve(success=True)
+
+    vault = await vault_crud.get(db_session, incident.vault_id)
+    if vault is not None:
+        await profile_crud.increment_statistic(db_session, vault.user_id, "total_incidents_won", commit=False)
 
     caps_earned = incident.loot.get("caps", 0)
     storage = await loot_overflow_service.storage_for(db_session, incident.vault_id)

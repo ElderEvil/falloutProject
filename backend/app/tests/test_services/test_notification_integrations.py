@@ -7,6 +7,7 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.game_config import game_config
 from app.models.exploration import ExplorationStatus
 from app.models.incident import IncidentStatus, IncidentType
 from app.models.notification import NotificationType
@@ -155,7 +156,9 @@ class TestIncidentNotifications:
             incident_type=IncidentType.FIRE,
             difficulty=1,
         )
-        incident.start_time = datetime.utcnow() - timedelta(seconds=incident.duration)
+        incident.start_time = datetime.utcnow() - timedelta(
+            seconds=incident.duration + game_config.incident.response_grace_seconds + 1
+        )
         async_session.add(incident)
         await async_session.commit()
         await async_session.refresh(incident)

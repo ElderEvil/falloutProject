@@ -357,6 +357,20 @@ export const useVaultStore = defineStore('vault', () => {
     }
   }
 
+  async function pingPresence(vaultId: string, token: string): Promise<void> {
+    try {
+      await axios.post(
+        `/api/v1/game/vaults/${vaultId}/presence`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      )
+    } catch (error) {
+      handleStoreError(error, 'Failed to send presence heartbeat', false)
+    }
+  }
+
   function startGameTickSse(vaultId: string, token: string): void {
     stopGameTickSse()
     const apiBase = import.meta.env.VITE_API_BASE_URL ?? ''
@@ -468,6 +482,7 @@ export const useVaultStore = defineStore('vault', () => {
     fetchGameState,
     pauseVault,
     resumeVault,
+    pingPresence,
     startResourcePolling,
     stopResourcePolling,
     startGameTickSse,

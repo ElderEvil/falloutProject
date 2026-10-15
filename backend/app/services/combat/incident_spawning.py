@@ -2,6 +2,7 @@
 
 import logging
 import random
+from datetime import datetime
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -11,6 +12,7 @@ from app.core.game_config import game_config
 from app.crud.dweller import dweller as crud_dweller
 from app.crud.incident import incident_crud
 from app.crud.room import room as room_crud
+from app.crud.user_profile import profile_crud
 from app.crud.vault import vault as vault_crud
 from app.models.game_state import GameState
 from app.models.incident import Incident, IncidentType, hazard_team_for
@@ -51,6 +53,18 @@ async def should_spawn_incident(
         logger.debug(f"Vault {vault_id} is offline, suppressing incident spawn")
         return False
 
+    # Spawns need a watching player: the vault overview must have sent a
+    # visibility-gated heartbeat inside the presence window, so background
+    # tabs start nothing.
+    presence_window = game_config.incident.spawn_presence_seconds
+    if (
+        game_state is None
+        or game_state.last_presence_at is None
+        or (datetime.utcnow() - game_state.last_presence_at).total_seconds() > presence_window
+    ):
+        logger.debug(f"Vault {vault_id} has no fresh presence heartbeat, suppressing incident spawn")
+        return False
+
     vault = await vault_crud.get_or_none(db_session, vault_id, include_deleted=True)
     if is_spawning_disabled(vault):
         logger.debug(f"Incidents are disabled for vault {vault_id}")
@@ -67,8 +81,6 @@ async def should_spawn_incident(
 
     # Check cooldown period (if there are any incidents, check the most recent one)
     if active_incidents:
-        from datetime import datetime
-
         most_recent = max(active_incidents, key=lambda i: i.start_time)
         seconds_since_last = (datetime.utcnow() - most_recent.start_time).total_seconds()
         if seconds_since_last < game_config.incident.spawn_cooldown_seconds:
@@ -77,7 +89,8 @@ async def should_spawn_incident(
     # Time-based cap: limit spawn chance growth to prevent bursts
     # Cap hours_passed to prevent excessive spawn chance after long offline periods
     hours_passed = min(seconds_passed / 3600, 2.0)  # Cap at 2 hours worth of chance
-    spawn_chance = game_config.incident.spawn_chance_per_hour * hours_passed
+    room_count = await room_crud.count_by_vault(db_session, vault_id)
+    spawn_chance = game_config.incident.get_spawn_rate(room_count) * hours_passed
 
     # Random roll
     return random.random() < spawn_chance
@@ -163,6 +176,7 @@ async def spawn_incident(
     incident_publishing.record_event(
         db_session, incident, "spawned", f"{incident_name} detected in {target_room.name}."
     )
+    await profile_crud.increment_statistic(db_session, vault.user_id, "total_incidents", commit=False)
     await db_session.commit()
 
     logger.info(f"Spawned {incident_type} (difficulty {difficulty}) in room {target_room.name} of vault {vault_id}")
@@ -279,6 +293,9 @@ async def spread_incident(db_session: AsyncSession, incident: Incident) -> bool:
         incident.spread_to_room(str(new_room.id))
         db_session.add(incident)
         incident_publishing.record_event(db_session, incident, "spread", f"Spread to {new_room.name}.")
+        spread_vault = await vault_crud.get(db_session, incident.vault_id)
+        if spread_vault is not None:
+            await profile_crud.increment_statistic(db_session, spread_vault.user_id, "total_incidents", commit=False)
 
         logger.warning(
             f"Incident {incident.type} spread from {current_room.name} to {new_room.name} "

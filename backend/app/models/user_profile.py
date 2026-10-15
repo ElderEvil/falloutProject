@@ -20,6 +20,9 @@ class UserProfileBase(SQLModel):
     total_caps_earned: int = Field(default=0, ge=0)
     total_explorations: int = Field(default=0, ge=0)
     total_rooms_built: int = Field(default=0, ge=0)
+    total_incidents: int = Field(default=0, ge=0, description="Total vault incidents spawned")
+    total_incidents_won: int = Field(default=0, ge=0, description="Total vault incidents resolved successfully")
+    total_incidents_lost: int = Field(default=0, ge=0, description="Total vault incidents failed")
 
     # Life & Death Statistics
     total_dwellers_born: int = Field(default=0, ge=0, description="Total dwellers born via breeding")

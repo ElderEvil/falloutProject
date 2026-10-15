@@ -6,7 +6,13 @@ import type { UserProfile } from '../models/profile'
 
 type VaultRecord = Pick<
   UserProfile,
-  'total_dwellers_created' | 'total_caps_earned' | 'total_explorations' | 'total_rooms_built'
+  | 'total_dwellers_created'
+  | 'total_caps_earned'
+  | 'total_explorations'
+  | 'total_rooms_built'
+  | 'total_incidents'
+  | 'total_incidents_won'
+  | 'total_incidents_lost'
 >
 
 const props = withDefaults(
@@ -41,6 +47,24 @@ const metrics = computed(() => [
     value: props.record.total_rooms_built,
     detail: 'Rooms commissioned',
     icon: 'mdi:office-building',
+  },
+  {
+    label: 'Incidents',
+    value: props.record.total_incidents,
+    detail: 'Vault emergencies faced',
+    icon: 'mdi:alert-octagon',
+  },
+  {
+    label: 'Incidents won',
+    value: props.record.total_incidents_won,
+    detail: 'Threats defeated',
+    icon: 'mdi:shield-check',
+  },
+  {
+    label: 'Incidents lost',
+    value: props.record.total_incidents_lost,
+    detail: 'Emergencies lost',
+    icon: 'mdi:shield-off',
   },
 ])
 

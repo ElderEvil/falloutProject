@@ -7,7 +7,7 @@ Usage:
     from app.core.game_config import game_config
 
     # Access nested configs
-    spawn_rate = game_config.incident.spawn_chance_per_hour
+    spawn_rate = game_config.incident.get_spawn_rate(room_count=12)
     training_time = game_config.training.base_duration_seconds
 """
 
@@ -84,11 +84,9 @@ class IncidentConfig(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="INCIDENT_")
 
-    spawn_chance_per_hour: float = Field(
-        default=0.05,
-        description="5% chance per hour for incident to spawn",
-        ge=0.0,
-        le=1.0,
+    room_rate_tiers: list[list[float]] = Field(
+        default=[[15, 1.0], [30, 2.0], [9999, 4.0]],
+        description="Max rooms (transit included) to incidents per hour, first match wins; starter vaults see one per hour, developed ones one per quarter",
     )
     min_vault_population: int = Field(
         default=5,
@@ -106,6 +104,11 @@ class IncidentConfig(BaseSettings):
         ge=0,
         le=10,
     )
+    response_grace_seconds: int = Field(
+        default=120,
+        description="Seconds after spawn during which an undefended incident waits for responders instead of spreading or failing",
+        ge=0,
+    )
     max_active_incidents: int = Field(
         default=5,
         description="Maximum number of active incidents per vault",
@@ -117,6 +120,11 @@ class IncidentConfig(BaseSettings):
         description="Minimum seconds between incident spawns",
         ge=0,
         le=600,
+    )
+    spawn_presence_seconds: int = Field(
+        default=90,
+        description="Spawns require a vault-view heartbeat within this window, so background tabs start nothing",
+        ge=0,
     )
 
     # Difficulty ranges by type
@@ -161,6 +169,31 @@ class IncidentConfig(BaseSettings):
             IncidentType.FERAL_GHOUL_ATTACK: self.weight_feral_ghoul,
             IncidentType.DEATHCLAW_ATTACK: self.weight_deathclaw,
         }
+
+    def get_spawn_rate(self, room_count: int) -> float:
+        """Hourly spawn rate for a vault's room count (first tier whose cap fits)."""
+        for cap, rate in self.room_rate_tiers:
+            if room_count <= cap:
+                return rate
+        return self.room_rate_tiers[-1][1]
+
+    @field_validator("room_rate_tiers")
+    @classmethod
+    def validate_room_rate_tiers(cls, tiers: list[list[float]]) -> list[list[float]]:
+        """Require non-empty [cap, rate] tiers with strictly ascending caps and non-negative rates."""
+        if not tiers:
+            raise ValueError("room_rate_tiers must not be empty")
+        previous_cap = float("-inf")
+        for tier in tiers:
+            if len(tier) != 2:
+                raise ValueError("Each room_rate_tiers entry must be [cap, rate]")
+            cap, rate = tier
+            if cap <= previous_cap:
+                raise ValueError("room_rate_tiers caps must ascend")
+            if rate < 0:
+                raise ValueError("room_rate_tiers rates must be non-negative")
+            previous_cap = cap
+        return tiers
 
     @property
     def vault_door_incidents(self) -> set[str]:
@@ -1219,7 +1252,7 @@ game_config = GameConfig()
 # Log configuration on initialization
 logger.info("Game configuration loaded successfully")
 logger.info(f"Game loop tick interval: {game_config.game_loop.tick_interval}s")
-logger.info(f"Incident spawn chance: {game_config.incident.spawn_chance_per_hour:.2%}/hour")
+logger.info(f"Incident spawn tiers: {game_config.incident.room_rate_tiers} (rooms to per-hour)")
 logger.info(f"Training base duration: {game_config.training.base_duration_seconds}s")
 logger.info(f"Resource low threshold: {game_config.resource.low_threshold:.0%}")
 logger.info(f"Max dweller level: {game_config.leveling.max_level}")

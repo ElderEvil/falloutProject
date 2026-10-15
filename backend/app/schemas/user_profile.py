@@ -36,6 +36,9 @@ class ProfileUpdateStatistics(SQLModel):
     total_caps_earned: int | None = None
     total_explorations: int | None = None
     total_rooms_built: int | None = None
+    total_incidents: int | None = None
+    total_incidents_won: int | None = None
+    total_incidents_lost: int | None = None
     total_dwellers_born: int | None = None
     total_dwellers_died: int | None = None
     deaths_by_health: int | None = None

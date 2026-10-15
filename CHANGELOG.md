@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.206.0 (2026-10-15)
+
+### Features
+
+* **ui:** compare production rooms before dweller assignment 4be1e7a
+
+### Bug Fixes
+
+* **ui:** keep assignment state safe during saves and refreshes 1a9ee27
+* **ui:** preserve described-by attributes through Button 9273a03
+
 ## 2.205.3 (2026-10-15)
 
 ### Bug Fixes

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.205.2 (2026-10-15)
+
+### Bug Fixes
+
+* **ai:** include TypeSafe SDK in production dependencies 8131f90
+* **ai:** remove unused Anthropic provider support 4f5debc
+
 ## 2.205.1 (2026-10-15)
 
 ### Bug Fixes

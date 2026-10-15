@@ -122,6 +122,45 @@ deployment manifest is added; do not provision an unused worker log volume.
 The Gateway-specific secret patch and API verification steps are documented in
 [Pydantic AI Gateway Setup](backend/PYDANTIC_AI_GATEWAY.md).
 
+### Runner cannot reach the host
+
+The workflow's **Probe SSH connectivity** step fails when GitHub-hosted runners cannot complete an SSH session to the
+production host. Read its output before changing anything: it prints a host fingerprint, DNS resolution, raw TCP 22
+reachability, and verbose `ssh` output. `TCP 22: open` with a completed key exchange means the network path is fine
+and the problem is in authentication, not routing.
+
+Read the failure by where it stops:
+
+| Verbose output stops at | Meaning |
+|---|---|
+| `Connecting to ...` then `timed out` | Packets never arrive: Hetzner Cloud Firewall, or a fail2ban DROP on that source |
+| `kex_exchange_identification` / `Connection closed` before keys | The host answered and refused the handshake |
+| Keys exchanged, then `Connection closed by remote host` after ~120s | Authentication never completed. 120s is sshd's `LoginGraceTime`; the client's auth packets were dropped mid-connection (a ban applied to an established session does this) or auth stalled |
+
+Confirm the runner is talking to the intended machine by comparing the host key it prints with
+`ssh-keyscan -t ed25519 <host> | ssh-keygen -lf -`. To verify which value a secret holds without printing it,
+compare `printf '%s' "<candidate>" | sha256sum | cut -c1-12` against the probe's fingerprint.
+
+The usual cause on this host is **fail2ban**: the sshd jail runs `mode = aggressive`, `maxretry = 3`, `bantime = 1h`,
+and its default action drops banned packets, so a ban reads as a timeout. Aggressive mode counts "Timeout before
+authentication" and banner-exchange events as failures, and cloud CI addresses are shared — a GitHub runner can
+inherit a ban earned by unrelated traffic from the same address. This was confirmed by experiment: with
+`fail2ban` stopped the identical probe connected immediately and the workflow passed.
+
+Keep the sshd jail in `mode = normal` with `maxretry` of at least 5. `aggressive` is not worth it on a host that
+is scanned continuously, and banning shared cloud ranges breaks CI. Confirm the diagnosis by testing the jail's ban
+list against GitHub's `actions` ranges (`https://api.github.com/meta`) — runner addresses do appear there. Inspect
+and clear bans with `sudo fail2ban-client status sshd` and `sudo fail2ban-client unban --all`; bans persist in
+fail2ban's database across restarts, so a restart alone does not release them. Whitelisting the GitHub Actions
+egress ranges is impractical at ~7000 CIDRs, so relax the jail instead. Leaving `fail2ban` stopped is not a fix —
+the host sees thousands of brute-force attempts and would be unprotected.
+
+When the pipeline is blocked, the same steps can be replayed by hand — the workflow is a scripted version of them.
+Stop the writers, run the migration Job with the target image, set the images (including the backend's
+`run-migrations` init container), restore the writers, then verify. Migrations deadlock against live traffic on
+this database, so use `maintenance_mode=true`: an additive `ALTER TABLE` can still wait on a lock the running API
+holds and abort the upgrade.
+
 ### Room layout data backfills
 
 The unit-grid release changed how vault rooms are placed and extended. Existing vaults keep their previous

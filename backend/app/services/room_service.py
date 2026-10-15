@@ -314,7 +314,26 @@ class RoomService:
 
         Scans left-to-right, top-to-bottom and repeatedly merges each room with
         adjacent identical neighbours until no more merges fit within ``size_max``.
+        Apply mode holds the vault placement lock so it cannot interleave with a
+        concurrent build or upgrade; a dry run only reports the merges it would make
+        and stays lock-free.
         """
+        if dry_run:
+            return await self._merge_adjacent_vault_rooms(db_session, vault_id, dry_run=True)
+
+        async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(vault_id)) as acquired:
+            if not acquired:
+                raise ResourceConflictException(detail=f"Vault {vault_id} is already being built in — try again")
+            return await self._merge_adjacent_vault_rooms(db_session, vault_id, dry_run=False)
+
+    async def _merge_adjacent_vault_rooms(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        *,
+        dry_run: bool,
+    ) -> dict[str, int]:
+        """Run the vault-wide adjacent-room merge scan; caller owns the placement lock."""
         rooms = await crud.room.get_all_by_vault(db_session, vault_id)
         vault = await crud.vault.get(db_session, id=vault_id)
         absorbed_ids: set[UUID4] = set()
@@ -610,7 +629,15 @@ class RoomService:
             raise VaultOperationException(detail=str(e)) from e
 
     async def _upgrade(self, db_session: AsyncSession, room_id: UUID4) -> Room:
+        """Upgrade a room under the vault's placement lock, merging into an adjacent identical room."""
         room = await crud.room.get(db_session, room_id)
+        async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(room.vault_id)) as acquired:
+            if not acquired:
+                raise ResourceConflictException(detail=f"Vault {room.vault_id} is already being built in — try again")
+            return await self._upgrade_locked(db_session, room)
+
+    async def _upgrade_locked(self, db_session: AsyncSession, room: Room) -> Room:
+        """Apply the tier change and fuse any adjacent identical room while the lock is held."""
         vault = await crud.vault.get(db_session, id=room.vault_id)
 
         max_tier = room.max_tier

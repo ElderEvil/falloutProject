@@ -837,6 +837,46 @@ async def test_build_refused_when_vault_placement_lock_is_held(async_session: As
 
 
 @pytest.mark.asyncio
+async def test_upgrade_refused_when_vault_placement_lock_is_held(async_session: AsyncSession, rich_vault: Vault):
+    """An upgrade merges under the vault placement lock; a concurrent build's lock refuses it."""
+    room = await _create_existing_room(async_session, rich_vault.id, coordinate_x=0, tier=1)
+
+    with (
+        patch("app.services.room_service.db_locks.hold_advisory_lock", new=_placement_lock_held),
+        pytest.raises(ResourceConflictException),
+    ):
+        await room_service._upgrade(async_session, room.id)
+
+
+@pytest.mark.asyncio
+async def test_backfill_apply_refused_when_vault_placement_lock_is_held(
+    async_session: AsyncSession, rich_vault: Vault
+):
+    """Apply-mode backfill merges under the vault placement lock; a held lock refuses it."""
+    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
+    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
+
+    with (
+        patch("app.services.room_service.db_locks.hold_advisory_lock", new=_placement_lock_held),
+        pytest.raises(ResourceConflictException),
+    ):
+        await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=False)
+
+
+@pytest.mark.asyncio
+async def test_backfill_dry_run_ignores_vault_placement_lock(async_session: AsyncSession, rich_vault: Vault):
+    """Dry run is lock-free, so it still reports merges while another holder owns the lock."""
+    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
+    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
+    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
+
+    with patch("app.services.room_service.db_locks.hold_advisory_lock", new=_placement_lock_held):
+        summary = await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=True)
+
+    assert summary["merged"] == 1
+
+
+@pytest.mark.asyncio
 async def test_boosted_seeded_station_grows_to_nine(async_session: AsyncSession, rich_vault: Vault):
     """The real boosted layout's station slot merges two adjacent segments to size 9.
 

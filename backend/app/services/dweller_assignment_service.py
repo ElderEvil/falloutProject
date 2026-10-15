@@ -13,8 +13,13 @@ from app.crud.dweller import determine_status_for_room
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.schemas.dweller import DwellerUpdate
-from app.services.room_assignment_policy import ABILITY_TO_STAT_MAP, calculate_room_capacity
+from app.services.room_assignment_policy import (
+    ABILITY_TO_STAT_MAP,
+    calculate_room_capacity,
+    validate_room_worker_capacity,
+)
 from app.services.training_service import training_service
+from app.utils.exceptions import ResourceConflictException
 
 PRODUCTION_ABILITIES = [
     SPECIALEnum.STRENGTH,
@@ -52,13 +57,24 @@ class DwellerAssignmentService:
         assignments.append({"dweller_id": str(dweller_id), "room_id": str(room.id), "room_name": room.name})
         assigned_dweller_ids.add(dweller_id)
 
-    async def _persist_room_assignment(self, db_session: AsyncSession, dweller_id: UUID4, room: Room) -> None:
-        """Persist a standard worker placement (room + derived status)."""
+    async def _try_claim_worker_slot(self, db_session: AsyncSession, room: Room) -> bool:
+        """Take the room's occupancy lock and re-check capacity; False means skip this room."""
+        try:
+            await validate_room_worker_capacity(db_session, room)
+        except ResourceConflictException:
+            return False
+        return True
+
+    async def _persist_room_assignment(self, db_session: AsyncSession, dweller_id: UUID4, room: Room) -> bool:
+        """Persist a standard worker placement (room + derived status); False leaves it unassigned."""
+        if not await self._try_claim_worker_slot(db_session, room):
+            return False
         await crud.dweller.update(
             db_session,
             dweller_id,
             DwellerUpdate(room_id=room.id, status=determine_status_for_room(room.category, room.name)),
         )
+        return True
 
     @staticmethod
     def _sort_by_ability(
@@ -83,14 +99,17 @@ class DwellerAssignmentService:
         db_session: AsyncSession,
         assignments: list[dict[str, str]],
         assigned_dweller_ids: set,
-    ) -> None:
-        """Assign a single dweller to a room and record the assignment."""
+    ) -> bool:
+        """Assign a single dweller to a room and record the assignment; False leaves it unassigned."""
         if room.category == RoomTypeEnum.TRAINING:
+            if not await self._try_claim_worker_slot(db_session, room):
+                return False
             await training_service.start_training(db_session, dweller.id, room.id)
-        else:
-            await self._persist_room_assignment(db_session, dweller.id, room)
+        elif not await self._persist_room_assignment(db_session, dweller.id, room):
+            return False
 
         self._record_assignment(assignments, assigned_dweller_ids, dweller.id, room)
+        return True
 
     def _filter_rooms_by_abilities(self, rooms: list[Room], abilities: list[SPECIALEnum]) -> list[Room]:
         """Filter rooms by a list of abilities."""
@@ -156,8 +175,10 @@ class DwellerAssignmentService:
             for _ in range(actual_for_room):
                 if not sorted_dwellers:
                     break
-                dweller = sorted_dwellers.pop(0)
-                await self._assign_dweller_to_room(dweller, room, db_session, assignments, assigned_dweller_ids)
+                dweller = sorted_dwellers[0]
+                if not await self._assign_dweller_to_room(dweller, room, db_session, assignments, assigned_dweller_ids):
+                    break
+                sorted_dwellers.pop(0)
 
         return [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids]
 
@@ -230,10 +251,13 @@ class DwellerAssignmentService:
             available_slots = await self._get_available_slots(room, db_session)
             if available_slots <= 0:
                 continue
+            consumed = 0
             for dweller in ranked[:available_slots]:
-                await self._persist_room_assignment(db_session, dweller.id, room)
+                if not await self._persist_room_assignment(db_session, dweller.id, room):
+                    break
                 self._record_assignment(assignments, assigned_dweller_ids, dweller.id, room)
-            ranked = ranked[available_slots:]
+                consumed += 1
+            ranked = ranked[consumed:]
 
         return [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids]
 
@@ -370,7 +394,8 @@ class DwellerAssignmentService:
                 )
 
                 for dweller in sorted_dwellers[:available_slots]:
-                    await self._persist_room_assignment(db_session, dweller.id, room)
+                    if not await self._persist_room_assignment(db_session, dweller.id, room):
+                        break
                     self._record_assignment(assignments, assigned_dweller_ids, dweller.id, room)
 
             unassigned_dwellers = [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids]

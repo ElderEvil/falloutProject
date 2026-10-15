@@ -38,7 +38,7 @@ pytestmark = pytest.mark.integration
 
 #: Format the production helper must produce; kept literal here so the collision
 #: tests do not depend on the (new) production symbol to collect.
-_STATION_KEY_PREFIX = "response-station"
+_STATION_KEY_PREFIX = "room-occupancy"
 
 
 def _station_lock_key(room_id) -> str:
@@ -196,9 +196,9 @@ async def _occupants(ctx: dict) -> int:
 @pytest.mark.asyncio
 async def test_lock_key_format_matches_production_helper(station_ctx: dict) -> None:
     """The literal key the tests contend on must equal the production helper's key."""
-    from app.services.room_assignment_policy import response_station_lock_key
+    from app.services.room_assignment_policy import room_occupancy_lock_key
 
-    assert response_station_lock_key(station_ctx["station_id"]) == _station_lock_key(station_ctx["station_id"])
+    assert room_occupancy_lock_key(station_ctx["station_id"]) == _station_lock_key(station_ctx["station_id"])
 
 
 # ---------------------------------------------------------------------------

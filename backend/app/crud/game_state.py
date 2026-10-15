@@ -1,5 +1,7 @@
 """CRUD operations for GameState model."""
 
+from datetime import datetime
+
 from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -35,6 +37,16 @@ class CRUDGameState:
         """Pause game state for a vault."""
         game_state = await CRUDGameState.get_or_create(db_session, vault_id)
         game_state.pause()
+        db_session.add(game_state)
+        await db_session.commit()
+        await db_session.refresh(game_state)
+        return game_state
+
+    @staticmethod
+    async def record_presence(db_session: AsyncSession, vault_id: UUID4) -> GameState:
+        """Stamp a visibility-gated vault-view heartbeat for spawn gating."""
+        game_state = await CRUDGameState.get_or_create(db_session, vault_id)
+        game_state.last_presence_at = datetime.utcnow()
         db_session.add(game_state)
         await db_session.commit()
         await db_session.refresh(game_state)

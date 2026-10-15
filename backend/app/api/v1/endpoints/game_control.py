@@ -23,7 +23,7 @@ from app.schemas.incident import (
     PendingIncidentOverflowRead,
 )
 from app.schemas.overflow import OverflowActionRequest, OverflowActionResponse
-from app.schemas.system import GameBalanceResponse
+from app.schemas.system import GameBalanceResponse, PresenceResponse
 from app.schemas.team import TeamMemberRead
 from app.services.combat.incident_service import incident_service
 from app.services.game_loop import game_loop_service
@@ -124,6 +124,28 @@ async def resume_vault(
         vault_id=str(vault.id),
         is_paused=game_state.is_paused,
         resumed_at=game_state.resumed_at.isoformat() if game_state.resumed_at else None,
+    )
+
+
+@router.post("/vaults/{vault_id}/presence", response_model=PresenceResponse, status_code=200)
+async def record_presence(
+    *,
+    vault: Annotated[Vault, Depends(get_user_vault_or_403)],
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> PresenceResponse:
+    """Stamp a visibility-gated vault-view heartbeat for incident spawn gating.
+
+    The frontend calls this only while the vault overview is visible, so
+    incidents spawn for watching players instead of background tabs.
+
+    Returns:
+        PresenceResponse: Presence confirmation with vault state.
+    """
+    game_state = await game_loop_service.record_presence(db_session, vault.id)
+
+    return PresenceResponse(
+        vault_id=str(vault.id),
+        last_presence_at=game_state.last_presence_at.isoformat() if game_state.last_presence_at else None,
     )
 
 

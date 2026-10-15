@@ -123,6 +123,11 @@ class IncidentConfig(BaseSettings):
         ge=0,
         le=600,
     )
+    spawn_presence_seconds: int = Field(
+        default=90,
+        description="Spawns require a vault-view heartbeat within this window, so background tabs start nothing",
+        ge=0,
+    )
 
     # Difficulty ranges by type
     difficulty_fire: tuple[int, int] = (2, 4)

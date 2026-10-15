@@ -32,6 +32,13 @@ class InfoResponse(BaseModel):
     build_date: str
 
 
+class PresenceResponse(BaseModel):
+    """Visibility-gated vault-view heartbeat confirmation."""
+
+    vault_id: str
+    last_presence_at: str | None
+
+
 class FeaturesResponse(BaseModel):
     """Feature switches clients use to hide what is switched off."""
 

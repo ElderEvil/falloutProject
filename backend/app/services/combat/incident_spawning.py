@@ -2,6 +2,7 @@
 
 import logging
 import random
+from datetime import datetime
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -51,6 +52,18 @@ async def should_spawn_incident(
         logger.debug(f"Vault {vault_id} is offline, suppressing incident spawn")
         return False
 
+    # Spawns need a watching player: the vault overview must have sent a
+    # visibility-gated heartbeat inside the presence window, so background
+    # tabs start nothing.
+    presence_window = game_config.incident.spawn_presence_seconds
+    if (
+        game_state is None
+        or game_state.last_presence_at is None
+        or (datetime.utcnow() - game_state.last_presence_at).total_seconds() > presence_window
+    ):
+        logger.debug(f"Vault {vault_id} has no fresh presence heartbeat, suppressing incident spawn")
+        return False
+
     vault = await vault_crud.get_or_none(db_session, vault_id, include_deleted=True)
     if is_spawning_disabled(vault):
         logger.debug(f"Incidents are disabled for vault {vault_id}")
@@ -67,8 +80,6 @@ async def should_spawn_incident(
 
     # Check cooldown period (if there are any incidents, check the most recent one)
     if active_incidents:
-        from datetime import datetime
-
         most_recent = max(active_incidents, key=lambda i: i.start_time)
         seconds_since_last = (datetime.utcnow() - most_recent.start_time).total_seconds()
         if seconds_since_last < game_config.incident.spawn_cooldown_seconds:

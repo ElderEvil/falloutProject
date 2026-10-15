@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.208.0 (2026-10-15)
+
+### Features
+
+* **arena:** add training bot partners to Hunt and Brawl ([#1007](https://github.com/ElderEvil/falloutProject/issues/1007)) e029a4f
+
 ## 2.207.0 (2026-10-15)
 
 ### Features

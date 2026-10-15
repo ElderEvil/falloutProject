@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.211.0 (2026-10-15)
+
+### Features
+
+* **arena:** clarify roster assignment and refresh match UI 95ba086
+
+### Bug Fixes
+
+* **arena:** compact controls and move preview first d1122e8
+* **arena:** disable all room management during matches 92af910
+* **arena:** heal unstocked fighters from vault medical supplies 7bcef56
+* **arena:** keep assignment controls in room preview b92f7fa
+* **arena:** share damage feedback and guard unloaded management 207e741
+* **arena:** use compact underlined match mode tabs 3927e3b
+
+### Documentation
+
+* **rooms:** record scene and management UI research 523ce33
+
 ## 2.210.0 (2026-10-15)
 
 ### Features

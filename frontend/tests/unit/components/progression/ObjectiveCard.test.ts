@@ -41,8 +41,8 @@ describe('ObjectiveCard', () => {
         },
       },
     })
-    expect(card.find('.completed-card').exists()).toBe(true)
-    expect(card.find('.completed-stamp').exists()).toBe(true)
+    expect(card.find('.progression-card--completed').exists()).toBe(true)
+    expect(card.find('.progression-stamp').exists()).toBe(true)
     expect(card.find('.claim-btn').exists()).toBe(false)
   })
 
@@ -63,8 +63,8 @@ describe('ObjectiveCard', () => {
       },
     })
     expect(card.find('.claim-btn').exists()).toBe(true)
-    expect(card.find('.completed-card').exists()).toBe(false)
-    expect(card.find('.completed-stamp').exists()).toBe(false)
+    expect(card.find('.progression-card--completed').exists()).toBe(false)
+    expect(card.find('.progression-stamp').exists()).toBe(false)
   })
 
   it.each([

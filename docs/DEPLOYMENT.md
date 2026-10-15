@@ -124,19 +124,31 @@ The Gateway-specific secret patch and API verification steps are documented in
 
 ### Runner cannot reach the host
 
-The workflow's **Probe SSH connectivity** step fails when GitHub-hosted runners cannot open port 22 on the
-production host. A raw `ssh: connect ... timed out` / `Timeout before authentication` from a runner — while the
-same host answers from a workstation — is a network or ban problem, not a credential problem. Check, in order:
+The workflow's **Probe SSH connectivity** step fails when GitHub-hosted runners cannot complete an SSH session to the
+production host. Read its output before changing anything: it prints a host fingerprint, DNS resolution, raw TCP 22
+reachability, and verbose `ssh` output. `TCP 22: open` with a completed key exchange means the network path is fine
+and the problem is in authentication, not routing.
 
-1. **fail2ban.** The host runs an sshd jail with `mode = aggressive`, `maxretry = 3`, `bantime = 1h`. Aggressive
-   mode counts "Timeout before authentication" and banner-exchange events as failures, and the default action
-   drops banned packets, so a ban reads as a silent timeout. Inspect and clear:
-   `sudo fail2ban-client status sshd` then `sudo fail2ban-client set sshd unbanip <ip>`. GitHub-hosted runners
-   come from shared cloud ranges, so a single ban can outlive the run that earned it. If the bans repeat, add the
-   GitHub Actions egress ranges (`https://api.github.com/meta` → `actions`) to `ignoreip`, or relax the jail.
-2. **Hetzner Cloud Firewall.** Confirm port 22 still admits the GitHub Actions ranges; a firewall tightened to a
-   single home IP produces exactly this timeout while local access keeps working.
-3. **Secrets.** Confirm `HETZNER_HOST` still resolves to the live host and `HETZNER_SSH_KEY` is the current key.
+Read the failure by where it stops:
+
+| Verbose output stops at | Meaning |
+|---|---|
+| `Connecting to ...` then `timed out` | Packets never arrive: Hetzner Cloud Firewall, or a fail2ban DROP on that source |
+| `kex_exchange_identification` / `Connection closed` before keys | The host answered and refused the handshake |
+| Keys exchanged, then `Connection closed by remote host` after ~120s | Authentication never completed. 120s is sshd's `LoginGraceTime`; the client's auth packets were dropped mid-connection (a ban applied to an established session does this) or auth stalled |
+
+Confirm the runner is talking to the intended machine by comparing the host key it prints with
+`ssh-keyscan -t ed25519 <host> | ssh-keygen -lf -`. To verify which value a secret holds without printing it,
+compare `printf '%s' "<candidate>" | sha256sum | cut -c1-12` against the probe's fingerprint.
+
+The usual cause on this host is **fail2ban**: the sshd jail runs `mode = aggressive`, `maxretry = 3`, `bantime = 1h`,
+and its default action drops banned packets, so a ban reads as a timeout. Aggressive mode counts "Timeout before
+authentication" and banner-exchange events as failures, so one stalled connection can ban the source and turn every
+later attempt into a timeout. Inspect and clear with `sudo fail2ban-client status sshd` and
+`sudo fail2ban-client set sshd unbanip <ip>`. GitHub-hosted runners share cloud ranges, so a ban outlives the run
+that earned it: either add the GitHub Actions egress ranges (`https://api.github.com/meta` → `actions`) to
+`ignoreip`, or relax the jail (`mode = normal`, higher `maxretry`). Stopping fail2ban briefly is a safe way to prove
+the cause.
 
 When the pipeline is blocked, the same steps can be replayed by hand — the workflow is a scripted version of them.
 Stop the writers, run the migration Job with the target image, set the images (including the backend's

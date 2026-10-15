@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Arena room fixture</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import '../../../src/assets/tailwind.css'
+      import '../../../src/assets/main.css'
+      import { createApp, h } from 'vue'
+      import { createPinia } from 'pinia'
+      import { createRouter, createMemoryHistory } from 'vue-router'
+      import RoomDetailModal from '../../../src/modules/rooms/components/RoomDetailModal.vue'
+      import { useAuthStore } from '../../../src/modules/auth/stores/auth'
+      import { useDwellerStore } from '../../../src/modules/dwellers/stores/dweller'
+      const pinia = createPinia()
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes: [{ path: '/', component: { render: () => null } }],
+      })
+      const app = createApp({
+        render: () =>
+          h(RoomDetailModal, {
+            vaultId: 'vault-1',
+            modelValue: true,
+            room: {
+              id: 'arena-1',
+              vault_id: 'vault-1',
+              name: 'Arena',
+              category: 'arena',
+              tier: 3,
+              size: 9,
+              size_min: 3,
+              size_max: 9,
+              capacity: 6,
+              ability: null,
+              t2_upgrade_cost: 500,
+              t3_upgrade_cost: 1000,
+            },
+          }),
+      })
+      app.use(pinia)
+      app.use(router)
+      useAuthStore(pinia).token = 'arena-test-token'
+      useDwellerStore().filter.dwellers = ['Lucy MacLean', 'Maximus', 'Cooper Howard'].map(
+        (name, i) => ({
+          id: `dweller-${i}`,
+          first_name: name,
+          last_name: '',
+          level: i + 3,
+          age_group: 'adult',
+          status: 'idle',
+          room_id: null,
+          health: 80 - i * 30,
+          max_health: 100,
+          apprentice_stat: null,
+        })
+      )
+      app.mount('#app')
+    </script>
+  </body>
+</html>

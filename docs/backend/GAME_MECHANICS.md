@@ -75,7 +75,9 @@ surfaces as an always-on `arena_morale_boost` bell entry plus toast — the aren
 
 Assigning dwellers to the arena or selecting fighters for a new match preserves their current health and
 radiation. Match resets preserve injuries; healing uses the existing medical and recovery
-systems. Catalog opponents and training bots still reset to full match HP.
+systems. A manual stimpack heal uses carried stock first, falling back to vault storage only while
+the dweller is inside the vault. Stock deduction and healing commit together; outside dwellers
+can only use their carried supplies. Catalog opponents and training bots still reset to full match HP.
 
 ## Race and faction switches
 

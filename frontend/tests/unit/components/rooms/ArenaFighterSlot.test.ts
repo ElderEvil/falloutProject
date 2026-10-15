@@ -47,6 +47,24 @@ describe('ArenaFighterSlot portraits', () => {
     expect(wrapper.text()).toContain('80/100')
   })
 
+  it('disables roster selection when no candidate is available', async () => {
+    const wrapper = mount(ArenaFighterSlot, {
+      props: {
+        side: 'a',
+        fighter: null,
+        canChange: true,
+        damageNumbers: [],
+        options: [],
+        pickerOpen: false,
+      },
+    })
+    const choose = wrapper.get('.fighter-slot-empty')
+    expect(choose.text()).toContain('Choose from roster')
+    expect(choose.attributes('disabled')).toBeDefined()
+    await choose.trigger('click')
+    expect(wrapper.emitted('togglePicker')).toBeUndefined()
+  })
+
   it('shows picker portraits without altering the selected roster entry', async () => {
     const wrapper = mount(ArenaFighterSlot, {
       props: {

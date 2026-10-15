@@ -1,9 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createIconifyMock, createToastMock } from '../../helpers/mocks'
-import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
+import { mount, flushPromises, enableAutoUnmount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import { useDwellerMedicalStore } from '@/modules/dwellers/stores/dwellerMedical'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import ArenaModal from '@/modules/rooms/components/ArenaModal.vue'
 import type { ArenaRoomState } from '@/modules/rooms/api/arena'
+
+enableAutoUnmount(afterEach)
 
 const mockToast = createToastMock()
 
@@ -182,8 +186,12 @@ const mountModal = () =>
     global: { plugins: [createPinia()] },
   })
 
-const modeButton = (wrapper: VueWrapper, label: string) =>
-  wrapper.findAll('.mode-select button').find((button) => button.text() === label)!
+const modeTabs = (wrapper: VueWrapper) => wrapper.findAll('[role="tab"]')
+const chooseMode = async (wrapper: VueWrapper, label: string) => {
+  const tab = modeTabs(wrapper).find((tab) => tab.text().toUpperCase() === label)!
+  await tab.trigger('keydown', { key: 'Enter' })
+  await flushPromises()
+}
 
 const slots = (wrapper: VueWrapper) => wrapper.findAll('.fighter-slot')
 
@@ -213,9 +221,10 @@ describe('ArenaModal', () => {
       storeMock.currentRoom = { ...storeMock.readyRoom, tier, available_modes: [...availableModes] }
       const wrapper = mountModal()
       await flushPromises()
-      expect(modeButton(wrapper, 'DUEL').attributes('disabled')).toBeUndefined()
-      expect(modeButton(wrapper, 'BRAWL').attributes('disabled') !== undefined).toBe(brawlLocked)
-      expect(modeButton(wrapper, 'HUNT').attributes('disabled') !== undefined).toBe(huntLocked)
+      const options = modeTabs(wrapper)
+      expect(options[0].attributes('disabled')).toBeUndefined()
+      expect(options[1].attributes('disabled') !== undefined).toBe(brawlLocked)
+      expect(options[2].attributes('disabled') !== undefined).toBe(huntLocked)
     }
   )
 
@@ -225,6 +234,39 @@ describe('ArenaModal', () => {
     storeMock.fetchState.mockReset().mockResolvedValue(true)
     storeMock.setFighters.mockReset().mockResolvedValue(true)
     storeMock.fetchCreatures.mockReset().mockResolvedValue(true)
+  })
+
+  it('explains assignment before offering match slots for an empty roster', async () => {
+    storeMock.currentRoom = {
+      ...storeMock.readyRoom,
+      roster: [],
+      fighter_a_id: null,
+      fighter_b_id: null,
+      fighters: [],
+      team_a: [],
+      team_b: [],
+      can_start: false,
+    }
+    const wrapper = mountModal()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Assign adult dwellers to the Arena first')
+    expect(wrapper.find('.fighter-slot-empty').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('START FIGHT')
+  })
+
+  it('shows useful bench details without duplicating selected fighters', async () => {
+    const wrapper = mountModal()
+    await flushPromises()
+    const bench = wrapper.get('[aria-label="Arena bench"]')
+    expect(bench.text()).toContain('Charlie Dweller')
+    expect(bench.text()).toContain('Level 7')
+    expect(bench.text()).toContain('80 / 100 HP')
+    expect(bench.text()).not.toContain('Alpha Dweller')
+    expect(bench.findAll('[role="progressbar"]')).toHaveLength(3)
+    expect(
+      bench.findAll('[role="progressbar"]').every((bar) => !!bar.attributes('aria-label'))
+    ).toBe(true)
   })
 
   it('renders fighter slots with names and power', async () => {
@@ -245,15 +287,16 @@ describe('ArenaModal', () => {
     expect(wrapper.text()).toContain('READY')
   })
 
-  it('offers duel, brawl, and hunt modes with the active one pressed', async () => {
+  it('shows all match modes as tabs with the current mode selected', async () => {
     const wrapper = mountModal()
     await flushPromises()
-
-    const buttons = wrapper.findAll('.mode-select button')
-    expect(buttons.map((button) => button.text())).toEqual(['DUEL', 'BRAWL', 'HUNT'])
-    expect(buttons[0].attributes('aria-pressed')).toBe('true')
-    expect(buttons[1].attributes('aria-pressed')).toBe('false')
-    expect(buttons[2].attributes('aria-pressed')).toBe('false')
+    expect(wrapper.get('[role="tablist"]').attributes('aria-label')).toBe('Match mode')
+    const tabs = modeTabs(wrapper)
+    expect(tabs.map((tab) => tab.text())).toEqual(['Duel', 'Brawl', 'Hunt'])
+    expect(tabs.map((tab) => tab.attributes('aria-selected'))).toEqual(['true', 'false', 'false'])
+    expect(wrapper.get('[role="tabpanel"]').attributes('aria-labelledby')).toBe(
+      tabs[0].attributes('id')
+    )
   })
 
   it('labels readiness with the mode-sized fighter count', async () => {
@@ -273,7 +316,7 @@ describe('ArenaModal', () => {
     await flushPromises()
     expect(slots(wrapper)).toHaveLength(2)
 
-    await modeButton(wrapper, 'BRAWL').trigger('click')
+    await chooseMode(wrapper, 'BRAWL')
     await flushPromises()
 
     expect(slots(wrapper)).toHaveLength(4)
@@ -294,8 +337,10 @@ describe('ArenaModal', () => {
     }
     const wrapper = mountModal()
     await flushPromises()
-    expect(wrapper.get('.roster-chip img').attributes('src')).toContain('/static/portraits/c-1.png')
-    await modeButton(wrapper, 'BRAWL').trigger('click')
+    expect(
+      wrapper.get('[aria-label="Arena bench"] img[alt="Charlie Dweller"]').attributes('src')
+    ).toContain('/static/portraits/c-1.png')
+    await chooseMode(wrapper, 'BRAWL')
     const picker = await openPicker(wrapper, 1)
     await pickOption(picker, 'Charlie Dweller')
     expect(slots(wrapper)[1].get('.fighter-portrait img').attributes('src')).toContain(
@@ -307,7 +352,7 @@ describe('ArenaModal', () => {
   it('fills the brawl slots without duplicating a dweller and persists the four ids', async () => {
     const wrapper = mountModal()
     await flushPromises()
-    await modeButton(wrapper, 'BRAWL').trigger('click')
+    await chooseMode(wrapper, 'BRAWL')
     await flushPromises()
 
     const secondA = await openPicker(wrapper, 1)
@@ -346,7 +391,7 @@ describe('ArenaModal', () => {
     }
     const wrapper = mountModal()
     await flushPromises()
-    await modeButton(wrapper, 'BRAWL').trigger('click')
+    await chooseMode(wrapper, 'BRAWL')
     await flushPromises()
 
     const secondA = await openPicker(wrapper, 1)
@@ -372,9 +417,9 @@ describe('ArenaModal', () => {
   it('returns to duel with a duel payload when switching back', async () => {
     const wrapper = mountModal()
     await flushPromises()
-    await modeButton(wrapper, 'BRAWL').trigger('click')
+    await chooseMode(wrapper, 'BRAWL')
     await flushPromises()
-    await modeButton(wrapper, 'DUEL').trigger('click')
+    await chooseMode(wrapper, 'DUEL')
     await flushPromises()
 
     expect(storeMock.setFighters).toHaveBeenCalledWith(
@@ -397,7 +442,7 @@ describe('ArenaModal', () => {
   it('switches to hunt with dweller slots on team A and a creature picker on team B', async () => {
     const wrapper = mountModal()
     await flushPromises()
-    await modeButton(wrapper, 'HUNT').trigger('click')
+    await chooseMode(wrapper, 'HUNT')
     await flushPromises()
 
     expect(storeMock.fetchCreatures).toHaveBeenCalledWith('vault-1', 'test-token')
@@ -414,7 +459,7 @@ describe('ArenaModal', () => {
   it('persists the hunt payload with dweller slots and opponent keys', async () => {
     const wrapper = mountModal()
     await flushPromises()
-    await modeButton(wrapper, 'HUNT').trigger('click')
+    await chooseMode(wrapper, 'HUNT')
     await flushPromises()
 
     const secondDweller = await openPicker(wrapper, 1)
@@ -473,6 +518,33 @@ describe('ArenaModal', () => {
 
     expect(wrapper.text()).toContain('NEEDS DWELLERS + CREATURES')
   })
+
+  it.each([true, false])(
+    'refreshes vault stock and stops on a failed heal (success=%s)',
+    async (success) => {
+      storeMock.currentRoom = {
+        ...storeMock.readyRoom,
+        match_done: true,
+        team_a: storeMock.readyRoom.team_a.map((fighter) => ({ ...fighter, health: 10 })),
+        team_b: storeMock.readyRoom.team_b.map((fighter) => ({ ...fighter, health: 10 })),
+      }
+      const wrapper = mountModal()
+      const medical = useDwellerMedicalStore()
+      const heal = vi
+        .spyOn(medical, 'useStimpack')
+        .mockResolvedValue(success ? ({ health: 60 } as never) : null)
+      const refresh = vi.spyOn(useVaultStore(), 'refreshVault').mockResolvedValue()
+      await flushPromises()
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('HEAL INJURED'))!
+        .trigger('click')
+      await flushPromises()
+      expect(heal).toHaveBeenCalledTimes(success ? 2 : 1)
+      expect(heal).toHaveBeenCalledWith('a-1', 'test-token')
+      expect(refresh).toHaveBeenCalledWith('vault-1', 'test-token')
+    }
+  )
 
   it('excludes defeated creatures from the heal-injured action', async () => {
     storeMock.currentRoom = {

@@ -51,6 +51,37 @@ vi.mock('@/core/composables/useToast', () => ({
 vi.mock('@/core/plugins/axios', () => ({
   default: {
     get: vi.fn((url: string) => {
+      if (url.includes('/arena/') && url.endsWith('/state')) {
+        return Promise.resolve({
+          data: {
+            rooms: [
+              {
+                room_id: 'room-1',
+                room_name: 'Arena',
+                tier: 1,
+                mode: 'duel',
+                available_modes: ['duel'],
+                fighter_a_id: null,
+                fighter_b_id: null,
+                fighters: [],
+                team_a: [],
+                team_b: [],
+                roster: [],
+                events: [],
+                fight_ready: false,
+                match_done: false,
+                fight_started: false,
+                countdown_remaining: 0,
+                can_start: false,
+                winner_name: null,
+              },
+            ],
+          },
+        })
+      }
+      if (url.includes('/arena/') && url.endsWith('/creatures')) {
+        return Promise.resolve({ data: [] })
+      }
       if (url.includes('game/balance')) {
         return Promise.resolve({
           data: {
@@ -72,9 +103,7 @@ vi.mock('@/core/plugins/axios', () => ({
 
 // Mock vue-router with shared mocks so we can spy on router.push
 const { mockRouterPush } = vi.hoisted(() => ({ mockRouterPush: vi.fn() }))
-vi.mock('vue-router', () =>
-  createRouterMock({ params: { id: 'vault-123' }, push: mockRouterPush })
-)
+vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-123' }, push: mockRouterPush }))
 
 describe('RoomDetailModal', () => {
   beforeEach(() => {
@@ -231,7 +260,9 @@ describe('RoomDetailModal', () => {
       })
 
       expect(wrapper.find('.room-scene').exists()).toBe(true)
-      expect(wrapper.find('.room-preview-section > .section-title').text()).toContain('Room Preview')
+      expect(wrapper.find('.room-preview-section > .section-title').text()).toContain(
+        'Room Preview'
+      )
       expect(wrapper.findAll('.slot-filled')).toHaveLength(2)
       expect(wrapper.find('.staffing-summary').exists()).toBe(false)
       expect(wrapper.find('.header-metadata').text()).toContain('Capacity: 4')
@@ -310,21 +341,19 @@ describe('RoomDetailModal', () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers.map((dweller) => ({ ...dweller, status: 'training' }))
       useAuthStore().token = 'test-token'
-      const fetchSpy = vi
-        .spyOn(useTrainingStore(), 'fetchRoomTrainings')
-        .mockResolvedValue([
-          {
-            id: 'training-1',
-            dweller_id: 'dweller-2',
-            stat_being_trained: 'strength',
-            status: 'active',
-            progress: 0.5,
-            started_at: new Date(Date.now() - 60000).toISOString(),
-            estimated_completion_at: new Date(Date.now() + 60000).toISOString(),
-            current_stat_value: 9,
-            target_stat_value: 10,
-          },
-        ] as never)
+      const fetchSpy = vi.spyOn(useTrainingStore(), 'fetchRoomTrainings').mockResolvedValue([
+        {
+          id: 'training-1',
+          dweller_id: 'dweller-2',
+          stat_being_trained: 'strength',
+          status: 'active',
+          progress: 0.5,
+          started_at: new Date(Date.now() - 60000).toISOString(),
+          estimated_completion_at: new Date(Date.now() + 60000).toISOString(),
+          current_stat_value: 9,
+          target_stat_value: 10,
+        },
+      ] as never)
 
       const wrapper = mount(RoomDetailModal, {
         props: {
@@ -617,7 +646,13 @@ describe('RoomDetailModal', () => {
         .spyOn(dwellerManagementStore, 'assignDwellerToRoom')
         .mockResolvedValue({} as never)
       dwellerStore.dwellers = [
-        { ...mockDwellers[0], age_group: 'adult', apprentice_stat: null, room_id: null, status: 'idle' },
+        {
+          ...mockDwellers[0],
+          age_group: 'adult',
+          apprentice_stat: null,
+          room_id: null,
+          status: 'idle',
+        },
       ] as never
 
       const wrapper = mount(RoomDetailModal, {
@@ -636,6 +671,73 @@ describe('RoomDetailModal', () => {
       await pickerCard!.get('.dweller-card__details').trigger('click')
 
       expect(assignSpy).toHaveBeenCalledWith('dweller-1', 'room-1', 'test-token')
+    })
+
+    it('assigns an adult to the Arena through a preview slot', async () => {
+      const { filter, management } = useDwellerStore()
+      useAuthStore().token = 'test-token'
+      const assign = vi.spyOn(management, 'assignDwellerToRoom').mockResolvedValue({} as never)
+      filter.dwellers = [
+        {
+          ...mockDwellers[0],
+          age_group: 'adult',
+          apprentice_stat: null,
+          room_id: null,
+          status: 'idle',
+        },
+        {
+          ...mockDwellers[1],
+          age_group: 'child',
+          apprentice_stat: null,
+          room_id: null,
+          status: 'idle',
+        },
+      ] as never
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, name: 'Arena', category: 'ARENA', ability: null },
+          vaultId: 'vault-123',
+          modelValue: true,
+        },
+      })
+
+      await flushPromises()
+      await wrapper.get('[aria-label="Assign worker"]').trigger('click')
+      expect(wrapper.get('.picker-title').text()).toBe('Assign to Arena')
+      expect(wrapper.findAll('.dweller-picker .dweller-card')).toHaveLength(1)
+      await wrapper.get('.dweller-picker .dweller-card__details').trigger('click')
+      await flushPromises()
+
+      expect(assign).toHaveBeenCalledWith('dweller-1', 'room-1', 'test-token')
+      expect(wrapper.find('.dweller-picker').exists()).toBe(false)
+      expect(wrapper.emitted('roomUpdated')).toBeTruthy()
+    })
+
+    it('shows Arena assignment failures so the player can recover', async () => {
+      const { filter, management } = useDwellerStore()
+      useAuthStore().token = 'test-token'
+      vi.spyOn(management, 'assignDwellerToRoom').mockRejectedValue(new Error('Full'))
+      filter.dwellers = [
+        {
+          ...mockDwellers[0],
+          age_group: 'adult',
+          apprentice_stat: null,
+          room_id: null,
+          status: 'idle',
+        },
+      ] as never
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, name: 'Arena', category: 'ARENA', ability: null },
+          vaultId: 'vault-123',
+          modelValue: true,
+        },
+      })
+      await flushPromises()
+      await wrapper.get('[aria-label="Assign worker"]').trigger('click')
+      await wrapper.get('.dweller-picker .dweller-card__details').trigger('click')
+      await flushPromises()
+      expect(wrapper.text()).toContain('Failed to assign dweller to room')
     })
 
     it('assigns a youth through the dedicated apprentice action', async () => {
@@ -744,7 +846,9 @@ describe('RoomDetailModal', () => {
 
       expect(wrapper.text()).toContain('Max tier reached')
       expect(wrapper.text()).toContain('(3/3)')
-      expect(wrapper.findAll('.mock-button').some((button) => button.text().includes('Upgrade to Tier'))).toBe(false)
+      expect(
+        wrapper.findAll('.mock-button').some((button) => button.text().includes('Upgrade to Tier'))
+      ).toBe(false)
     })
 
     it('should omit upgrade controls for rooms without an upgrade path', () => {
@@ -823,7 +927,9 @@ describe('RoomDetailModal', () => {
       const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
       const authStore = useAuthStore()
       authStore.token = 'test-token'
-      const unassignSpy = vi.spyOn(dwellerManagementStore, 'unassignDwellerFromRoom').mockResolvedValue({} as never)
+      const unassignSpy = vi
+        .spyOn(dwellerManagementStore, 'unassignDwellerFromRoom')
+        .mockResolvedValue({} as never)
       dwellerStore.dwellers = mockDwellers
 
       const wrapper = mount(RoomDetailModal, {

@@ -1,5 +1,8 @@
 # Empty room detail scenes (#819)
 
+For the current scene/management component audit and ambient-first UI proposal, see
+[Room UI research](ROOM_UI_RESEARCH.md). The implementation observations there are dated 2026-10-15.
+
 The Arena is a former Vault-Tec recreation room converted for wasteland combat training.
 Three approved cartoon scenes show the same room progressing from a patched duel pit to
 a reinforced spectator arena and then a creature-containment arena. Printed Vault Boy

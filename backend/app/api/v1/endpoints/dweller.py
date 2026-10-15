@@ -413,7 +413,7 @@ async def use_stimpack(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Dweller:
-    """Use one of the dweller's stimpacks to heal them.
+    """Heal using a carried stimpack, or vault storage when the dweller is inside the vault.
 
     Returns:
         DwellerRead: The healed dweller.

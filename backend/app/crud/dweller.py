@@ -881,11 +881,11 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     async def get_for_update(
         self, db_session: AsyncSession, dweller_id: UUID4, include_deleted: bool = False
     ) -> Dweller | None:
-        """One dweller locked FOR UPDATE (recycling race protection)."""
+        """Load fresh dweller state locked FOR UPDATE."""
         query = select(self.model).where(self.model.id == dweller_id)
         if not include_deleted:
             query = query.where(~col(self.model.is_deleted))
-        result = await db_session.execute(query.with_for_update())
+        result = await db_session.execute(query.with_for_update().execution_options(populate_existing=True))
         return result.scalars().one_or_none()
 
     async def get_soft_deleted_before(

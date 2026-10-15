@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useArenaStore } from '../stores/arena'
+import DwellerList from './DwellerList.vue'
 import type { Room } from '../models/room'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import RoomPreviewSection from './RoomPreviewSection.vue'
@@ -24,17 +27,29 @@ interface Props {
   isVaultDoor: boolean
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   upgrade: []
   destroy: []
   unassignAll: []
+  assignDweller: [dwellerId: string]
+  unassignDweller: [dwellerId: string]
+  viewDweller: [dwellerId: string]
 }>()
+
+const arenaStore = useArenaStore()
+const roomState = computed(() => arenaStore.getRoom(props.room.id))
+const isFighting = computed(() => !!roomState.value?.fight_started && !roomState.value.match_done)
+const managementLocked = computed(() => !roomState.value || isFighting.value)
+
+const assignmentMode = defineModel<'worker' | 'apprentice' | null>('assignmentMode', {
+  default: null,
+})
 </script>
 
 <template>
-  <div class="arena-room-detail">
+  <div class="arena-room-detail flex flex-col gap-3">
     <RoomPreviewSection
       :room-name="room.name"
       :image-url="room.image_url ?? null"
@@ -42,13 +57,28 @@ const emit = defineEmits<{
       :room-units="room.size ?? room.size_min ?? 3"
       :dweller-capacity="dwellerCapacity"
       :assigned-dwellers="assignedDwellers"
-      :assign-enabled="false"
+      :assign-enabled="!managementLocked"
+      @activate="emit('viewDweller', $event)"
+      @unassign="emit('unassignDweller', $event)"
+      @assign-worker="assignmentMode = 'worker'"
     />
-    <ArenaModal
-      :vault-id="vaultId"
-      :room-id="room.id"
+    <p v-if="!roomState" class="text-xs text-muted-foreground">
+      Room management is unavailable until match state loads.
+    </p>
+    <p v-else-if="isFighting" class="text-xs text-muted-foreground">
+      Room management is locked until the match finishes.
+    </p>
+    <DwellerList
+      v-if="assignmentMode && !managementLocked && assignedDwellers.length < dwellerCapacity"
+      v-model:assignment-mode="assignmentMode"
+      :ability="null"
+      title="Assign to Arena"
+      empty-text="No unassigned adults available. Unassign an adult from another room first."
+      @assign-dweller="emit('assignDweller', $event)"
     />
+    <ArenaModal :vault-id="vaultId" :room-id="room.id" />
     <RoomActions
+      :disabled="managementLocked"
       :room="room"
       :upgrade-info="upgradeInfo"
       :is-upgrading="isUpgrading"
@@ -61,11 +91,3 @@ const emit = defineEmits<{
     />
   </div>
 </template>
-
-<style scoped>
-.arena-room-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-</style>

@@ -2,16 +2,19 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
-import { Progress } from '@/core/components/ui/progress'
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/core/components/ui/tooltip'
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/core/components/ui/card'
+import { Progress } from '@/core/components/ui/progress'
 import type { ArenaRosterEntry } from '../api/arena'
 import type { ArenaSlotFighter, ArenaSlotKey } from '../models/arena'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
+import ArenaDamageNumbers from './ArenaDamageNumbers.vue'
 
 interface Props {
   side: ArenaSlotKey
@@ -39,59 +42,70 @@ const healthPercent = (f: ArenaSlotFighter | null) =>
 </script>
 
 <template>
-  <div class="fighter-slot">
-    <div v-if="fighter" class="fighter-card">
-      <TooltipProvider v-if="canChange" :delay-duration="200">
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Button
-              class="slot-clear"
-              size="icon-lg"
-              variant="destructive"
-              aria-label="Clear fighter"
-              @click="emit('clear', side)"
-            >
-              <Icon icon="mdi:close" class="size-5 text-danger" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Clear fighter</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      <div class="damage-layer">
-        <span v-for="d in damageNumbers" :key="d.id" class="damage-number">-{{ d.amount }}</span>
-      </div>
-      <div class="fighter-portrait">
-        <DwellerPortrait
-          :image-url="fighter.image_url"
-          :thumbnail-url="fighter.thumbnail_url"
-          :alt="fighter.name"
-          prefer-thumbnail
-          image-class="h-full w-full rounded-full object-cover"
-          fallback-class="h-8 w-8 text-theme-primary"
-        />
-      </div>
-      <div class="fighter-name">{{ fighter.name }}</div>
-      <div class="fighter-meta">
-        Lv {{ fighter.level }}
-        <template v-if="powerLabel !== null"> &middot; POW {{ powerLabel }}</template>
-      </div>
-      <div class="hp-track">
-        <Progress :model-value="healthPercent(fighter)" class="h-2.5" />
-      </div>
-      <div class="hp-text">{{ fighter.health }}/{{ fighter.max_health }}</div>
-      <Button v-if="canChange" variant="ghost" size="xs" @click="emit('togglePicker', side)"
-        >SWAP</Button
+  <div class="fighter-slot relative flex min-w-0 flex-col gap-2">
+    <Card v-if="fighter" class="fighter-card relative gap-2 py-3" size="sm">
+      <ArenaDamageNumbers :numbers="damageNumbers" />
+      <CardHeader class="justify-items-center text-center">
+        <div
+          class="fighter-portrait flex size-10 items-center justify-center overflow-hidden rounded-full border-2 border-theme-primary bg-surface-raised"
+        >
+          <DwellerPortrait
+            :image-url="fighter.image_url"
+            :thumbnail-url="fighter.thumbnail_url"
+            :alt="fighter.name"
+            prefer-thumbnail
+            image-class="size-full rounded-full object-cover"
+            fallback-class="size-8 text-theme-primary"
+          />
+        </div>
+        <CardTitle class="mt-1 max-w-full break-words">{{ fighter.name }}</CardTitle>
+        <CardDescription class="flex flex-wrap justify-center gap-x-2 gap-y-1">
+          <span class="whitespace-nowrap">Lv {{ fighter.level }}</span>
+          <span v-if="powerLabel !== null" class="whitespace-nowrap">POW {{ powerLabel }}</span>
+        </CardDescription>
+      </CardHeader>
+      <CardContent class="flex flex-col gap-1">
+        <Progress :model-value="healthPercent(fighter)" :label="`${fighter.name} health`" />
+        <span class="text-center text-xs text-muted-foreground tabular-nums"
+          >{{ fighter.health }}/{{ fighter.max_health }}</span
+        >
+      </CardContent>
+      <CardFooter v-if="canChange" class="flex flex-wrap justify-center gap-1">
+        <Button variant="outline" size="xs" @click="emit('togglePicker', side)">SWAP</Button>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          aria-label="Clear fighter"
+          @click="emit('clear', side)"
+        >
+          <Icon icon="mdi:close" />
+        </Button>
+      </CardFooter>
+    </Card>
+    <template v-else>
+      <Button
+        class="fighter-slot-empty h-auto min-h-24 w-full flex-col gap-2 whitespace-normal border-dashed px-2 py-4 text-center"
+        variant="outline"
+        :disabled="!canChange || !options.length"
+        :aria-expanded="pickerOpen"
+        @click="emit('togglePicker', side)"
       >
-    </div>
-    <button v-else class="fighter-slot-empty" type="button" @click="emit('togglePicker', side)">
-      <span>+ PICK FIGHTER</span>
-    </button>
-    <div v-if="pickerOpen && canChange" class="picker">
-      <button
+        <Icon icon="mdi:account-outline" />
+        Choose from roster
+      </Button>
+      <p v-if="canChange && !options.length" class="text-center text-xs text-muted-foreground">
+        No other assigned adults available.
+      </p>
+    </template>
+    <div
+      v-if="pickerOpen && canChange"
+      class="picker flex max-h-48 flex-col gap-1 overflow-y-auto rounded-md border border-input bg-popover p-1"
+    >
+      <Button
         v-for="entry in options"
         :key="entry.id"
-        class="picker-option"
-        type="button"
+        class="picker-option h-auto w-full justify-start gap-2 whitespace-normal px-2 py-2 text-left"
+        variant="ghost"
         @click="emit('select', side, entry)"
       >
         <DwellerPortrait
@@ -99,182 +113,19 @@ const healthPercent = (f: ArenaSlotFighter | null) =>
           :thumbnail-url="entry.thumbnail_url"
           :alt="entry.name"
           prefer-thumbnail
-          image-class="h-8 w-8 shrink-0 rounded-full object-cover"
-          fallback-class="h-8 w-8 text-theme-primary"
+          image-class="size-8 shrink-0 rounded-md object-cover"
+          fallback-class="size-8 shrink-0 text-theme-primary"
         />
-        <span class="flex min-w-0 flex-col">
-          <span class="picker-name">{{ entry.name }}</span>
-          <span class="picker-meta">Lv {{ entry.level }} &middot; {{ entry.health }} HP</span>
+        <span class="flex min-w-0 flex-col gap-0.5">
+          <span class="break-words">{{ entry.name }}</span>
+          <span class="text-xs text-muted-foreground"
+            >Lv {{ entry.level }} &middot; {{ entry.health }} / {{ entry.max_health }} HP</span
+          >
         </span>
-      </button>
-      <div v-if="!options.length" class="picker-empty">
-        No available adults &mdash; assign dwellers to the Arena first.
-      </div>
+      </Button>
+      <p v-if="!options.length" class="p-2 text-xs text-muted-foreground">
+        No other assigned adults available. Assign more dwellers to the Arena first.
+      </p>
     </div>
   </div>
 </template>
-
-<style scoped>
-.fighter-slot {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
-.slot-clear {
-  position: absolute;
-  top: 4px;
-  right: 6px;
-  z-index: 3;
-}
-
-.fighter-slot-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 160px;
-  padding: 1rem;
-  border: 1px dashed var(--color-surface-hover);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--color-gray-500);
-  font-size: 0.8rem;
-  font-weight: bold;
-  letter-spacing: 0.05em;
-  cursor: pointer;
-}
-
-.fighter-slot-empty:hover {
-  border-color: var(--color-theme-primary);
-  color: var(--color-theme-primary);
-}
-
-.picker {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 10;
-  margin-top: 0.25rem;
-  max-height: 160px;
-  overflow-y: auto;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-surface-hover);
-  border-radius: 6px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-}
-
-.picker-option {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 0.5rem;
-  width: 100%;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  padding: 0.45rem 0.6rem;
-  cursor: pointer;
-}
-
-.picker-option:hover {
-  background: var(--color-surface-hover);
-}
-
-.picker-name {
-  font-size: 0.8rem;
-  color: var(--color-theme-primary);
-}
-
-.picker-meta {
-  font-size: 0.65rem;
-  color: var(--color-gray-400);
-}
-
-.picker-empty {
-  padding: 0.6rem;
-  font-size: 0.7rem;
-  color: var(--color-gray-500);
-}
-
-.fighter-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 3.25rem 1rem 1rem;
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-surface-hover);
-  border-radius: 8px;
-}
-
-.damage-layer {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.damage-number {
-  position: absolute;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: var(--color-danger);
-  font-weight: bold;
-  font-size: 0.95rem;
-  text-shadow: 0 0 8px rgba(255, 0, 0, 0.5);
-  animation: damage-float 0.9s ease-out forwards;
-  z-index: 2;
-}
-
-@keyframes damage-float {
-  from {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
-  to {
-    opacity: 0;
-    transform: translate(-50%, -32px);
-  }
-}
-
-.fighter-card.vacant {
-  opacity: 0.5;
-}
-
-.fighter-portrait {
-  width: 56px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  border: 2px solid var(--color-theme-primary);
-  background: var(--color-surface-raised);
-  color: var(--color-theme-primary);
-  font-size: 1.5rem;
-  font-weight: bold;
-}
-
-.fighter-name {
-  font-weight: 600;
-  color: var(--color-theme-primary);
-  text-align: center;
-}
-
-.fighter-meta {
-  font-size: 0.7rem;
-  color: var(--color-gray-400);
-}
-
-.hp-track {
-  width: 100%;
-}
-
-.hp-text {
-  font-size: 0.7rem;
-  color: var(--color-gray-400);
-}
-</style>

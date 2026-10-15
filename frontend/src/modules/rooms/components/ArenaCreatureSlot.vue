@@ -13,6 +13,7 @@ import type { ArenaCreature } from '../api/arena'
 import type { ArenaCreatureView } from '../models/arena'
 import { getCreatureImagePath } from '@/core/utils/creatureAssets'
 import { getStaticImageUrl } from '@/core/utils/image'
+import ArenaDamageNumbers from './ArenaDamageNumbers.vue'
 
 interface Props {
   creature: ArenaCreatureView | null
@@ -69,9 +70,7 @@ const healthPercent = (creature: ArenaCreatureView | null) =>
           <TooltipContent>Clear creature</TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <div class="damage-layer">
-        <span v-for="d in damageNumbers" :key="d.id" class="damage-number">-{{ d.amount }}</span>
-      </div>
+      <ArenaDamageNumbers :numbers="damageNumbers" />
       <div
         class="flex h-28 w-full items-center justify-center rounded-lg border bg-surface-raised"
         :class="friendly ? 'border-theme-primary' : 'border-danger'"
@@ -237,37 +236,6 @@ const healthPercent = (creature: ArenaCreatureView | null) =>
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-surface-hover);
   border-radius: 8px;
-}
-
-.damage-layer {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.damage-number {
-  position: absolute;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: var(--color-danger);
-  font-weight: bold;
-  font-size: 0.95rem;
-  text-shadow: 0 0 8px color-mix(in srgb, var(--color-danger) 50%, transparent);
-  animation: damage-float 0.9s ease-out forwards;
-  z-index: 2;
-}
-
-@keyframes damage-float {
-  from {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
-  to {
-    opacity: 0;
-    transform: translate(-50%, -32px);
-  }
 }
 
 .creature-name {

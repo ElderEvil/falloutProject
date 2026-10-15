@@ -1,5 +1,16 @@
 import { test, expect } from '@playwright/test'
 
+test('creature damage feedback respects reduced motion', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.route('**/static/creature_images/**', (route) => route.abort())
+  await page.goto('/tests/e2e/fixtures/arena-creature.html?damage')
+  const damage = page.getByText('-15', { exact: true })
+  await expect(damage).toHaveCSS('animation-name', 'none')
+  await expect(damage.locator('..')).toHaveAttribute('aria-hidden', 'true')
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await expect(damage).toHaveCSS('animation-name', /damage-float/)
+})
+
 for (const { mirror, robot, enemy } of [
   { mirror: false, robot: false, enemy: false },
   { mirror: true, robot: false, enemy: false },
@@ -148,9 +159,10 @@ for (const width of [1280, 390]) {
       'transform',
       'none'
     )
-    await page.getByRole('button', { name: 'BRAWL', exact: true }).click()
+    await page.getByRole('tab', { name: 'Hunt', exact: true }).press('ArrowLeft')
+    await page.getByRole('tab', { name: 'Brawl', exact: true }).press('Enter')
     await page
-      .getByRole('button', { name: /PICK FIGHTER/ })
+      .getByRole('button', { name: /Choose from roster/ })
       .first()
       .click()
     await page.getByRole('button', { name: /^Bravo/ }).click()

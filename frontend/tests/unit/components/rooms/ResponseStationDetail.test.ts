@@ -91,13 +91,14 @@ describe('ResponseStationDetail', () => {
     vi.mocked(fetchResponseRoster).mockResolvedValue(roster())
   })
 
-  it('renders stationed capacity, footprint and crew totals', async () => {
+  it('renders stationed capacity, gear readiness and crew totals', async () => {
     const wrapper = mountStation()
     await flushPromises()
 
     expect(fetchResponseRoster).toHaveBeenCalledWith('vault-1', 'test-token')
     expect(wrapper.text()).toContain('1 / 2 stationed')
-    expect(wrapper.text()).toContain('3 / 9 cells')
+    expect(wrapper.text()).toContain('Gear ready')
+    expect(wrapper.text()).toContain('1 / 1')
     expect(wrapper.text()).toContain('1 / 6')
     expect(wrapper.text()).toContain('earn a place by fighting three matching incidents')
   })

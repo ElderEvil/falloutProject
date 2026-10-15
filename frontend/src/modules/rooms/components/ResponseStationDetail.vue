@@ -26,10 +26,16 @@ const authStore = useAuthStore()
 const stationStore = useResponseStationStore()
 
 const token = computed(() => (typeof authStore.token === 'string' ? authStore.token : ''))
-const currentSize = computed(() => props.room.size ?? props.room.size_min)
 
 const activeTotal = computed(
   () => stationStore.roster?.teams.reduce((sum, team) => sum + team.active.length, 0) ?? 0
+)
+const gearReadyTotal = computed(
+  () =>
+    stationStore.roster?.teams.reduce(
+      (sum, team) => sum + team.active.filter((member) => member.has_matching_gear).length,
+      0
+    ) ?? 0
 )
 const reserveTotal = computed(
   () => stationStore.roster?.teams.reduce((sum, team) => sum + team.reserve.length, 0) ?? 0
@@ -88,9 +94,9 @@ function handleSetPlace(team: HazardTeam, dwellerId: string, active: boolean): v
           <div
             class="flex flex-col gap-0.5 rounded border border-theme-primary/20 bg-terminal-background px-3 py-2"
           >
-            <dt class="text-[0.65rem] tracking-wider text-theme-primary/60 uppercase">Footprint</dt>
+            <dt class="text-[0.65rem] tracking-wider text-theme-primary/60 uppercase">Gear ready</dt>
             <dd class="text-lg font-bold text-theme-primary">
-              {{ currentSize }} / {{ room.size_max }} cells
+              {{ gearReadyTotal }} / {{ activeTotal }}
             </dd>
           </div>
           <div

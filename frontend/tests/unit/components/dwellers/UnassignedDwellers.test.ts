@@ -158,6 +158,45 @@ describe('UnassignedDwellers', () => {
     })
   })
 
+  describe('Collapsed panel', () => {
+    it('keeps the panel collapsed and the count current when dwellers refresh', async () => {
+      dwellerStore.dwellers = [mockDweller]
+      const wrapper = mount(UnassignedDwellers)
+      const panel = wrapper.get('details')
+      const summary = wrapper.get('summary')
+
+      await summary.trigger('click')
+      expect((panel.element as HTMLDetailsElement).open).toBe(false)
+      expect(wrapper.get('.dweller-card').isVisible()).toBe(false)
+      expect(wrapper.get('.filter-panel-mock').isVisible()).toBe(false)
+
+      dwellerStore.dwellers = [mockDweller, { ...mockDweller, id: 'dweller-2' }]
+      await flushPromises()
+      expect((panel.element as HTMLDetailsElement).open).toBe(false)
+      expect(summary.get('.count-badge').text()).toBe('2')
+
+      await summary.trigger('click')
+      expect(wrapper.get('.dweller-card').isVisible()).toBe(true)
+      expect(wrapper.get('.filter-panel-mock').isVisible()).toBe(true)
+    })
+
+    it('unassigns room dwellers dropped on the collapsed header', async () => {
+      const wrapper = mount(UnassignedDwellers)
+      const summary = wrapper.get('summary')
+      await summary.trigger('click')
+
+      await summary.trigger('drop', createDropEvent('dweller-1', 'John', 'Doe', 'room-1'))
+      await flushPromises()
+
+      expect(dwellerManagementStore.unassignDwellerFromRoom).toHaveBeenCalledExactlyOnceWith(
+        'dweller-1',
+        'mock-token'
+      )
+      expect(mockToast.success).toHaveBeenCalledWith('John Doe unassigned from room')
+      expect((wrapper.get('details').element as HTMLDetailsElement).open).toBe(false)
+    })
+  })
+
   describe('Filtering', () => {
     it('should filter out dwellers with room assignments', () => {
       const assignedDweller = { ...mockDweller, id: 'dweller-2', room_id: 'room-1' }
@@ -320,6 +359,24 @@ describe('UnassignedDwellers', () => {
       expect(wrapper.find('.drop-overlay').exists()).toBe(true)
       expect(wrapper.text()).toContain('Drop to unassign')
     })
+
+    it.each([false, true])(
+      'keeps the drop hint active across panel children (populated=%s)',
+      async (populated) => {
+        dwellerStore.dwellers = populated ? [mockDweller] : []
+        const wrapper = mount(UnassignedDwellers)
+        const panel = wrapper.get('details')
+        const area = wrapper.get(populated ? '.dweller-grid-container' : '.empty-state')
+        await area.trigger('dragover', { dataTransfer: { dropEffect: '' } })
+        expect(wrapper.text()).toContain('Drop to unassign')
+
+        await area.trigger('dragleave', { relatedTarget: wrapper.get('summary').element })
+        expect(wrapper.text()).toContain('Drop to unassign')
+
+        await panel.trigger('dragleave', { relatedTarget: document.body })
+        expect(wrapper.text()).not.toContain('Drop to unassign')
+      }
+    )
 
     it('should unassign dweller on drop', async () => {
       dwellerStore.dwellers = []

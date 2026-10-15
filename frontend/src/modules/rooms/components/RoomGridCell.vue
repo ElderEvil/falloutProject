@@ -94,6 +94,15 @@ const cellTitle = computed(() => {
   const tier = props.room.tier ? ` (Tier ${props.room.tier})` : ''
   return `${props.room.name}${tier}`
 })
+
+function handleDragLeave(event: DragEvent): void {
+  if (
+    event.relatedTarget instanceof Node &&
+    (event.currentTarget as HTMLElement).contains(event.relatedTarget)
+  )
+    return
+  emit('dragleave')
+}
 </script>
 
 <template>
@@ -119,7 +128,7 @@ const cellTitle = computed(() => {
     @keydown.enter.prevent="emit('click', room, $event)"
     @keydown.space.prevent="emit('click', room, $event)"
     @dragover="emit('dragover', $event, room.id)"
-    @dragleave="emit('dragleave')"
+    @dragleave="handleDragLeave"
     @drop="emit('drop', $event, room.id)"
   >
     <div class="room-content">

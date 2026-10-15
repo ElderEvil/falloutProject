@@ -64,7 +64,7 @@ const assignmentMode = defineModel<'worker' | 'apprentice' | null>('assignmentMo
       @assign-worker="assignmentMode = 'worker'"
     />
     <p v-if="isFighting" class="text-xs text-muted-foreground">
-      Wait for the match to finish before changing the roster.
+      Room management is locked until the match finishes.
     </p>
     <DwellerList
       v-if="assignmentMode && !isFighting && assignedDwellers.length < dwellerCapacity"
@@ -76,6 +76,7 @@ const assignmentMode = defineModel<'worker' | 'apprentice' | null>('assignmentMo
     />
     <ArenaModal :vault-id="vaultId" :room-id="room.id" />
     <RoomActions
+      :disabled="isFighting"
       :room="room"
       :upgrade-info="upgradeInfo"
       :is-upgrading="isUpgrading"

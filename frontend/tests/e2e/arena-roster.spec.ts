@@ -12,6 +12,8 @@ for (const width of [1280, 390]) {
     }> = []
     let fighterA: string | null = null
     let fighterB: string | null = null
+    let fighting = false
+    let finished = false
     const names = ['Lucy MacLean', 'Maximus', 'Cooper Howard']
     await page.route('**/api/v1/**', async (route) => {
       const request = route.request()
@@ -32,6 +34,10 @@ for (const width of [1280, 390]) {
         const body = request.postDataJSON()
         fighterA = body.fighter_a_id
         fighterB = body.fighter_b_id
+        return route.fulfill({ json: {} })
+      }
+      if (request.url().endsWith('/start')) {
+        fighting = true
         return route.fulfill({ json: {} })
       }
       if (request.url().endsWith('/state')) {
@@ -55,10 +61,10 @@ for (const width of [1280, 390]) {
                 team_b: fighter(fighterB),
                 roster,
                 fight_ready: !!fighterA && !!fighterB,
-                can_start: !!fighterA && !!fighterB,
-                fight_started: false,
-                match_done: false,
-                countdown_remaining: 0,
+                can_start: !!fighterA && !!fighterB && !fighting,
+                fight_started: fighting,
+                match_done: finished,
+                countdown_remaining: fighting && !finished ? 5 : 0,
                 winner_name: null,
                 events: [],
               },
@@ -115,5 +121,13 @@ for (const width of [1280, 390]) {
     expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
       true
     )
+    await dialog.getByRole('button', { name: 'START FIGHT', exact: true }).click()
+    const management = dialog.locator('.room-management')
+    for (const button of await management.getByRole('button').all()) {
+      await expect(button).toBeDisabled()
+    }
+    finished = true
+    await expect(management.getByRole('button', { name: 'Unassign All Dwellers' })).toBeEnabled()
+    await expect(management.getByRole('button', { name: 'Destroy Room' })).toBeEnabled()
   })
 }

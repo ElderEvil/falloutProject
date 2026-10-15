@@ -2,7 +2,12 @@
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
 import { Button } from '@/core/components/ui/button'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 
 interface UpgradeInfo {
   canUpgrade: boolean
@@ -18,6 +23,7 @@ interface Props {
   isDestroying: boolean
   isVaultDoor: boolean
   assignedDwellerCount: number
+  disabled?: boolean
 }
 
 defineProps<Props>()
@@ -39,7 +45,7 @@ const emit = defineEmits<{
       <Button
         v-if="upgradeInfo?.canUpgrade"
         @click="emit('upgrade')"
-        :disabled="isUpgrading"
+        :disabled="disabled || isUpgrading"
         variant="secondary"
         size="sm"
         class="action-btn action-btn--upgrade justify-start"
@@ -61,7 +67,7 @@ const emit = defineEmits<{
 
       <Button
         @click="emit('unassignAll')"
-        :disabled="assignedDwellerCount === 0"
+        :disabled="disabled || assignedDwellerCount === 0"
         variant="secondary"
         size="sm"
         class="action-btn action-btn--half justify-start"
@@ -73,7 +79,12 @@ const emit = defineEmits<{
       <TooltipProvider v-if="isVaultDoor" :delay-duration="200">
         <Tooltip>
           <TooltipTrigger as-child>
-            <Button disabled variant="secondary" size="sm" class="action-btn action-btn--half destroy-btn justify-start">
+            <Button
+              disabled
+              variant="secondary"
+              size="sm"
+              class="action-btn action-btn--half destroy-btn justify-start"
+            >
               <Icon icon="mdi:delete" class="h-4 w-4" />
               Destroy Room
             </Button>
@@ -84,7 +95,7 @@ const emit = defineEmits<{
       <Button
         v-else
         @click="emit('destroy')"
-        :disabled="isDestroying"
+        :disabled="disabled || isDestroying"
         variant="secondary"
         size="sm"
         class="action-btn action-btn--half destroy-btn justify-start"

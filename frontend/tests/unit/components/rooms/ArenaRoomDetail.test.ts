@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useArenaStore } from '@/modules/rooms/stores/arena'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import ArenaRoomDetail from '@/modules/rooms/components/ArenaRoomDetail.vue'
 
 describe('ArenaRoomDetail', () => {
@@ -36,6 +36,46 @@ describe('ArenaRoomDetail', () => {
     expect(wrapper.getComponent({ name: 'RoomPreviewSection' }).props('assignEnabled')).toBe(
       !fighting
     )
+  })
+
+  it('locks every management action for a running match and unlocks them after it finishes', async () => {
+    const arenaStore = useArenaStore()
+    arenaStore.rooms.set('arena-1', { fight_started: false, match_done: false } as never)
+    const wrapper = mount(ArenaRoomDetail, {
+      props: {
+        room: { id: 'arena-1', name: 'Arena', tier: 1, category: 'ARENA', ability: null } as never,
+        vaultId: 'vault-1',
+        assignedDwellers: [{ id: 'dweller-1' }] as never,
+        dwellerCapacity: 4,
+        roomImageUrl: null,
+        upgradeInfo: { canUpgrade: true, upgradeCost: 500, nextTier: 2, maxTier: 3 },
+        isUpgrading: false,
+        isDestroying: false,
+        isVaultDoor: false,
+      },
+      global: { stubs: { ArenaModal: true, RoomPreviewSection: true } },
+    })
+    const buttons = () => wrapper.findAll('.room-management button')
+    expect(buttons()).toHaveLength(3)
+    expect(buttons().every((button) => button.attributes('disabled') === undefined)).toBe(true)
+
+    arenaStore.rooms.set('arena-1', { fight_started: true, match_done: false } as never)
+    await flushPromises()
+    for (const button of buttons()) {
+      expect(button.attributes('disabled')).toBeDefined()
+      await button.trigger('click')
+    }
+    expect(wrapper.emitted('upgrade')).toBeUndefined()
+    expect(wrapper.emitted('unassignAll')).toBeUndefined()
+    expect(wrapper.emitted('destroy')).toBeUndefined()
+
+    arenaStore.rooms.set('arena-1', { fight_started: true, match_done: true } as never)
+    await flushPromises()
+    expect(buttons().every((button) => button.attributes('disabled') === undefined)).toBe(true)
+    for (const button of buttons()) await button.trigger('click')
+    expect(wrapper.emitted('upgrade')).toHaveLength(1)
+    expect(wrapper.emitted('unassignAll')).toHaveLength(1)
+    expect(wrapper.emitted('destroy')).toHaveLength(1)
   })
 
   it('uses the shared room-management section below the battle panel', () => {

@@ -292,6 +292,9 @@ async def spread_incident(db_session: AsyncSession, incident: Incident) -> bool:
         incident.spread_to_room(str(new_room.id))
         db_session.add(incident)
         incident_publishing.record_event(db_session, incident, "spread", f"Spread to {new_room.name}.")
+        spread_vault = await vault_crud.get(db_session, incident.vault_id)
+        if spread_vault is not None:
+            await profile_crud.increment_statistic(db_session, spread_vault.user_id, "total_incidents", commit=False)
 
         logger.warning(
             f"Incident {incident.type} spread from {current_room.name} to {new_room.name} "

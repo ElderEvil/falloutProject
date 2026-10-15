@@ -71,3 +71,25 @@ async def test_undefended_failure_counts_a_lost_incident(async_session: AsyncSes
     profile = await profile_crud.get_by_user_id(async_session, vault.user_id)
     assert profile.total_incidents_lost == 1
     assert profile.total_incidents_won == 0
+
+
+@pytest.mark.asyncio
+async def test_spread_counts_a_happened_incident(
+    async_session: AsyncSession, vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A spread-created incident row counts toward happened, keeping won/lost consistent."""
+    from app.core.game_config import game_config
+
+    monkeypatch.setattr(game_config.incident, "max_spread_count", 1)
+    source = await empty_room(async_session, vault.id, name="Source", x=7)
+    neighbor = await empty_room(async_session, vault.id, name="Neighbor", x=9)
+    await _profile(async_session, vault)
+    incident = await raise_incident(async_session, source, IncidentType.RADROACH_INFESTATION)
+    incident.start_time = datetime.utcnow() - timedelta(hours=1)
+
+    await incident_service.process_incident(async_session, incident, 2)
+
+    rows = await crud.incident_crud.get_active_by_vault(async_session, vault.id)
+    assert {row.room_id for row in rows} == {source.id, neighbor.id}
+    profile = await profile_crud.get_by_user_id(async_session, vault.user_id)
+    assert profile.total_incidents == 1

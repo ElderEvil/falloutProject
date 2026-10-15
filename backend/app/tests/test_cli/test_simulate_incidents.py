@@ -140,21 +140,25 @@ def test_matchup_zero_responders_honors_configured_grace():
 
 
 def test_resolve_incidents_passes_configured_grace():
-    """The simulator resolve path threads the configured grace into the kernel."""
+    """The simulator resolve path runs the real kernel with the configured grace."""
     cfg = IncidentConfig(response_rate=0.0)
     sim = IncidentSimulator(cfg)
     roster = [SimDefender(profile=_profile("d0", 10.0), health=100)]
     vault = sim_cli.VaultState(population=1, adults=1, roster=roster)
     vault.incidents.append(sim_cli.Incident(start_time=0, incident_type=IncidentType.RAIDER_ATTACK, difficulty=2))
+    resolution_times: list[int] = []
 
     with patch(
         "app.cli.simulate_incidents.resolve_incident",
-        return_value=IncidentOutcome(resolved=False, failed=True, ticks=1, progress=0.0, damage_taken=0, deaths=0),
-    ) as mock_resolve:
-        sim._resolve_incidents(vault, [], random.Random(0))
+        wraps=sim_cli.resolve_incident,
+    ) as spy_resolve:
+        sim._resolve_incidents(vault, resolution_times, random.Random(0))
 
-    assert mock_resolve.call_count == 1
-    assert mock_resolve.call_args.kwargs["response_grace_seconds"] == cfg.response_grace_seconds
+    assert spy_resolve.call_count == 1
+    assert spy_resolve.call_args.kwargs["response_grace_seconds"] == cfg.response_grace_seconds
+    assert vault.incidents[0].resolved is True
+    assert vault.incidents_failed == 1
+    assert resolution_times == [cfg.response_grace_seconds // cfg.incident_dt + 1]
 
 
 def test_matchup_cli_rejects_vault_id_combination():

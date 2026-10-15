@@ -16,7 +16,7 @@ const creature = (key: string, name = key): ArenaCreatureView => ({
   id: `${key}#0`,
 })
 
-const render = (selected: ArenaCreatureView | null) =>
+const render = (selected: ArenaCreatureView | null, mirror = false) =>
   mount(ArenaCreatureSlot, {
     props: {
       creature: selected,
@@ -24,6 +24,7 @@ const render = (selected: ArenaCreatureView | null) =>
       damageNumbers: [],
       options: [],
       pickerOpen: false,
+      mirror,
     },
   })
 
@@ -81,5 +82,10 @@ describe('ArenaCreatureSlot artwork', () => {
     expect(wrapper.get('[data-icon="mdi:paw"]').exists()).toBe(true)
     await wrapper.setProps({ creature: creature('radroach-swarm') })
     expect(wrapper.get('img').attributes('src')).toContain('/assembled/radroach.webp')
+  })
+
+  it('mirrors the sprite only when the mirror control is set', () => {
+    expect(render(creature('giant-radscorpion')).get('img').classes()).not.toContain('face-center')
+    expect(render(creature('giant-radscorpion'), true).get('img').classes()).toContain('face-center')
   })
 })

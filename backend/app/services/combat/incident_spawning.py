@@ -89,7 +89,8 @@ async def should_spawn_incident(
     # Time-based cap: limit spawn chance growth to prevent bursts
     # Cap hours_passed to prevent excessive spawn chance after long offline periods
     hours_passed = min(seconds_passed / 3600, 2.0)  # Cap at 2 hours worth of chance
-    spawn_chance = game_config.incident.spawn_chance_per_hour * hours_passed
+    room_count = await room_crud.count_by_vault(db_session, vault_id)
+    spawn_chance = game_config.incident.get_spawn_rate(room_count) * hours_passed
 
     # Random roll
     return random.random() < spawn_chance

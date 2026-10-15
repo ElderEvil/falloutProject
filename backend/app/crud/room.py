@@ -81,6 +81,12 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         return list(response.scalars().all() or [])
 
     @staticmethod
+    async def count_by_vault(db_session: AsyncSession, vault_id: UUID4) -> int:
+        """Every room of a vault, transit included, for development-scaled rules."""
+        result = await db_session.execute(select(func.count(Room.id)).where(Room.vault_id == vault_id))
+        return int(result.scalar_one())
+
+    @staticmethod
     async def get_names_by_ids(db_session: AsyncSession, room_ids: list[UUID4]) -> dict[UUID4, str]:
         """Map room id to name for the given ids; empty when none are given."""
         if not room_ids:

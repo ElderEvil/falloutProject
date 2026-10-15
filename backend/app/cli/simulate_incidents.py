@@ -67,7 +67,7 @@ DEFAULT_HAPPINESS_PENALTY_SPREAD = 3.0
 # tuning changes flow straight into the balance check.
 DEFAULT_TICK_INTERVAL = game_config.game_loop.tick_interval
 DEFAULT_INCIDENT_DT = game_config.game_loop.incident_tick_seconds
-DEFAULT_SPAWN_CHANCE_PER_HOUR = game_config.incident.spawn_chance_per_hour
+DEFAULT_SPAWN_CHANCE_PER_HOUR = 1.0
 DEFAULT_MIN_VAULT_POPULATION = game_config.incident.min_vault_population
 DEFAULT_MAX_ACTIVE_INCIDENTS = game_config.incident.max_active_incidents
 DEFAULT_SPAWN_COOLDOWN_SECONDS = game_config.incident.spawn_cooldown_seconds

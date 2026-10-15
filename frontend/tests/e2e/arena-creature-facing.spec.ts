@@ -148,8 +148,8 @@ for (const width of [1280, 390]) {
       'transform',
       'none'
     )
-    await page.getByRole('combobox', { name: 'Match mode' }).press('Enter')
-    await page.getByRole('option', { name: 'Brawl', exact: true }).press('Enter')
+    await page.getByRole('tab', { name: 'Hunt', exact: true }).press('ArrowLeft')
+    await page.getByRole('tab', { name: 'Brawl', exact: true }).press('Enter')
     await page
       .getByRole('button', { name: /Choose from roster/ })
       .first()

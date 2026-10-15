@@ -184,21 +184,10 @@ const mountModal = () =>
     global: { plugins: [createPinia()] },
   })
 
-const openModes = async (wrapper: VueWrapper) => {
-  wrapper
-    .get('[role="combobox"]')
-    .element.dispatchEvent(new MouseEvent('pointerdown', { button: 0, bubbles: true }))
-  await flushPromises()
-  return Array.from(document.body.querySelectorAll<HTMLElement>('[role="option"]'))
-}
-
+const modeTabs = (wrapper: VueWrapper) => wrapper.findAll('[role="tab"]')
 const chooseMode = async (wrapper: VueWrapper, label: string) => {
-  const options = await openModes(wrapper)
-  const option = options.find((option) =>
-    option.textContent?.trim().toUpperCase().startsWith(label)
-  )!
-  expect(option).toBeDefined()
-  option.dispatchEvent(new MouseEvent('pointerup', { button: 0, bubbles: true }))
+  const tab = modeTabs(wrapper).find((tab) => tab.text().toUpperCase() === label)!
+  await tab.trigger('keydown', { key: 'Enter' })
   await flushPromises()
 }
 
@@ -230,10 +219,10 @@ describe('ArenaModal', () => {
       storeMock.currentRoom = { ...storeMock.readyRoom, tier, available_modes: [...availableModes] }
       const wrapper = mountModal()
       await flushPromises()
-      const options = await openModes(wrapper)
-      expect(options[0].getAttribute('aria-disabled')).not.toBe('true')
-      expect(options[1].getAttribute('aria-disabled') === 'true').toBe(brawlLocked)
-      expect(options[2].getAttribute('aria-disabled') === 'true').toBe(huntLocked)
+      const options = modeTabs(wrapper)
+      expect(options[0].attributes('disabled')).toBeUndefined()
+      expect(options[1].attributes('disabled') !== undefined).toBe(brawlLocked)
+      expect(options[2].attributes('disabled') !== undefined).toBe(huntLocked)
     }
   )
 
@@ -296,14 +285,16 @@ describe('ArenaModal', () => {
     expect(wrapper.text()).toContain('READY')
   })
 
-  it('offers match modes in a dropdown with the current mode selected', async () => {
+  it('shows all match modes as tabs with the current mode selected', async () => {
     const wrapper = mountModal()
     await flushPromises()
-    expect(wrapper.get('[role="combobox"]').attributes('aria-label')).toBe('Match mode')
-    expect(wrapper.get('[role="combobox"]').text()).toContain('Duel')
-    const options = await openModes(wrapper)
-    expect(options.map((option) => option.textContent?.trim())).toEqual(['Duel', 'Brawl', 'Hunt'])
-    expect(options[0].getAttribute('data-state')).toBe('checked')
+    expect(wrapper.get('[role="tablist"]').attributes('aria-label')).toBe('Match mode')
+    const tabs = modeTabs(wrapper)
+    expect(tabs.map((tab) => tab.text())).toEqual(['Duel', 'Brawl', 'Hunt'])
+    expect(tabs.map((tab) => tab.attributes('aria-selected'))).toEqual(['true', 'false', 'false'])
+    expect(wrapper.get('[role="tabpanel"]').attributes('aria-labelledby')).toBe(
+      tabs[0].attributes('id')
+    )
   })
 
   it('labels readiness with the mode-sized fighter count', async () => {

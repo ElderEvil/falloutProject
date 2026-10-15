@@ -75,7 +75,7 @@ for (const width of [1280, 390]) {
       'aria-label',
       'Arena room preview'
     )
-    await expect(dialog.getByRole('combobox', { name: 'Match mode' })).toBeVisible()
+    await expect(dialog.getByRole('tablist', { name: 'Match mode' })).toBeVisible()
     await expect(dialog.getByText('Build your arena roster', { exact: true })).toBeVisible()
     await expect(
       dialog.getByRole('button', { name: 'Choose from roster', exact: true })

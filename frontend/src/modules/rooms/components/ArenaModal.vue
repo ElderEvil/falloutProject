@@ -12,14 +12,7 @@ import {
   CardTitle,
 } from '@/core/components/ui/card'
 import { ToggleGroup, ToggleGroupItem } from '@/core/components/ui/toggle-group'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/core/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { Progress } from '@/core/components/ui/progress'
 import {
   Tooltip,
@@ -587,197 +580,196 @@ const updateMode = (value: unknown) => {
     </Alert>
 
     <template v-else>
-      <Card size="sm" class="overflow-visible border border-theme-primary/30">
-        <CardHeader>
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <div class="flex items-center gap-2">
-              <CardTitle>Match</CardTitle>
+      <Tabs as-child :model-value="mode" activation-mode="manual" @update:model-value="updateMode">
+        <Card size="sm" class="overflow-visible border border-theme-primary/30">
+          <CardHeader>
+            <CardTitle class="sr-only">Match</CardTitle>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <!-- @vue-ignore -->
+              <TabsList variant="line" aria-label="Match mode">
+                <!-- @vue-ignore -->
+                <TabsTrigger
+                  v-for="(option, index) in MODE_OPTIONS"
+                  :key="option.value"
+                  :value="option.value"
+                  class="px-3 py-1.5"
+                  :disabled="!canChangeFighters || !availableModes.includes(option.value)"
+                  :title="
+                    availableModes.includes(option.value)
+                      ? undefined
+                      : `Unlocks at Tier ${index + 1}`
+                  "
+                >
+                  {{ option.label }}
+                  <Icon v-if="!availableModes.includes(option.value)" icon="mdi:lock-outline" />
+                </TabsTrigger>
+              </TabsList>
               <Badge :variant="canStart ? 'default' : 'outline'">{{ statusLabel }}</Badge>
             </div>
-            <Select
-              :model-value="mode"
-              :disabled="!canChangeFighters"
-              @update:model-value="updateMode"
-            >
-              <SelectTrigger size="sm" aria-label="Match mode" class="w-32"
-                ><SelectValue
-              /></SelectTrigger>
-              <SelectContent position="popper">
-                <SelectGroup>
-                  <SelectItem
-                    v-for="(option, index) in MODE_OPTIONS"
-                    :key="option.value"
-                    :value="option.value"
-                    :disabled="!availableModes.includes(option.value)"
+            <CardDescription class="text-xs">{{ modeDescription }}</CardDescription>
+            <p v-if="mode !== 'duel'" class="text-xs text-muted-foreground">
+              Bots reset each match and earn no rewards.
+            </p>
+          </CardHeader>
+          <TabsContent :value="mode" as-child>
+            <CardContent class="arena-content flex flex-col gap-3">
+              <Alert v-if="!roster.length">
+                <Icon icon="mdi:account-plus-outline" :ariaHidden="true" />
+                <AlertTitle>Build your arena roster</AlertTitle>
+                <AlertDescription>
+                  Assign adult dwellers to the Arena first using Assign dwellers above.
+                </AlertDescription>
+              </Alert>
+              <template v-else>
+                <Alert v-if="mode !== 'hunt' && roster.length < 2">
+                  <AlertTitle>One more adult needed</AlertTitle>
+                  <AlertDescription
+                    >Assign another adult to the Arena so each side has a dweller.</AlertDescription
                   >
-                    {{ option.label
-                    }}{{ availableModes.includes(option.value) ? '' : ` (Tier ${index + 1})` }}
-                  </SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-          <CardDescription class="text-xs">{{ modeDescription }}</CardDescription>
-          <p v-if="mode !== 'duel'" class="text-xs text-muted-foreground">
-            Bots reset each match and earn no rewards.
-          </p>
-        </CardHeader>
-        <CardContent class="arena-content flex flex-col gap-3">
-          <Alert v-if="!roster.length">
-            <Icon icon="mdi:account-plus-outline" :ariaHidden="true" />
-            <AlertTitle>Build your arena roster</AlertTitle>
-            <AlertDescription>
-              Assign adult dwellers to the Arena first using Assign dwellers above.
-            </AlertDescription>
-          </Alert>
-          <template v-else>
-            <Alert v-if="mode !== 'hunt' && roster.length < 2">
-              <AlertTitle>One more adult needed</AlertTitle>
-              <AlertDescription
-                >Assign another adult to the Arena so each side has a dweller.</AlertDescription
-              >
-            </Alert>
-            <div
-              class="teams-row grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 sm:gap-4"
-            >
-              <template v-for="side in TEAM_SIDES" :key="side">
+                </Alert>
                 <div
-                  v-if="side === 'B'"
-                  class="versus flex flex-col items-center gap-1 self-center"
+                  class="teams-row grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 sm:gap-4"
                 >
-                  <Transition name="countdown-pop" mode="out-in">
-                    <span
-                      v-if="isFighting && countdown > 0"
-                      :key="countdown"
-                      class="countdown-number text-3xl font-bold text-danger"
-                      >{{ countdown }}</span
+                  <template v-for="side in TEAM_SIDES" :key="side">
+                    <div
+                      v-if="side === 'B'"
+                      class="versus flex flex-col items-center gap-1 self-center"
                     >
-                    <Icon
-                      v-else
-                      icon="mdi:sword-cross"
-                      class="size-5 text-theme-primary"
-                      :ariaHidden="true"
-                    />
-                  </Transition>
-                  <span v-if="countdown === 0" class="text-xs font-bold text-theme-primary"
-                    >VS</span
-                  >
-                </div>
-                <div class="team flex min-w-0 flex-col gap-3">
-                  <span
-                    v-if="mode !== 'duel'"
-                    class="team-label text-center text-xs font-semibold tracking-wider text-muted-foreground"
-                    >{{ side === 'B' && mode === 'hunt' ? 'CREATURES' : `TEAM ${side}` }}</span
-                  >
-                  <template v-if="side === 'B' && mode === 'hunt'">
-                    <ArenaCreatureSlot
-                      v-for="(slot, index) in creatureSlots"
-                      :key="slot?.key ?? 'creature-slot-' + index"
-                      :creature="slot"
-                      :can-change="canChangeFighters"
-                      :damage-numbers="damageForId(slot?.id ?? null)"
-                      :options="creaturePickerOptions"
-                      :mirror-bots="true"
-                      :picker-open="creaturePickerOpen && slot === null"
-                      @toggle-picker="toggleCreaturePicker"
-                      @clear="clearCreature"
-                      @select="selectCreature"
-                    />
-                  </template>
-                  <template v-else>
-                    <div v-for="slot in slotsFor(side)" :key="slot" class="min-w-0">
-                      <!-- @vue-ignore -->
-                      <ToggleGroup
-                        v-if="slot === partnerSlot(side)"
-                        type="single"
-                        variant="outline"
-                        size="sm"
-                        class="mb-2"
-                        :model-value="botEnabled[side] ? 'bot' : 'dweller'"
-                        :disabled="!canChangeFighters"
-                        :aria-label="`Team ${side} partner`"
-                        @update:model-value="
-                          (value) => {
-                            if (value === 'bot' || value === 'dweller')
-                              choosePartnerType(side, value === 'bot')
-                          }
-                        "
+                      <Transition name="countdown-pop" mode="out-in">
+                        <span
+                          v-if="isFighting && countdown > 0"
+                          :key="countdown"
+                          class="countdown-number text-3xl font-bold text-danger"
+                          >{{ countdown }}</span
+                        >
+                        <Icon
+                          v-else
+                          icon="mdi:sword-cross"
+                          class="size-5 text-theme-primary"
+                          :ariaHidden="true"
+                        />
+                      </Transition>
+                      <span v-if="countdown === 0" class="text-xs font-bold text-theme-primary"
+                        >VS</span
                       >
-                        <!-- @vue-ignore -->
-                        <ToggleGroupItem value="dweller">Dweller</ToggleGroupItem>
-                        <!-- @vue-ignore -->
-                        <ToggleGroupItem value="bot">Bot</ToggleGroupItem>
-                      </ToggleGroup>
-                      <ArenaCreatureSlot
-                        v-if="slot === partnerSlot(side) && botEnabled[side]"
-                        :creature="botView(side)"
-                        :can-change="canChangeFighters"
-                        :damage-numbers="damageForId(botView(side)?.id ?? null)"
-                        :options="robotOptions"
-                        :mirror="side === 'B'"
-                        :friendly="side === 'A'"
-                        empty-label="+ ADD BOT"
-                        :picker-open="botPicker === side"
-                        @toggle-picker="botPicker = botPicker === side ? null : side"
-                        @clear="clearBot(side)"
-                        @select="selectBot(side, $event)"
-                      />
-                      <ArenaFighterSlot
-                        v-else
-                        :side="slot"
-                        :fighter="slotFighter(slot)"
-                        :can-change="canChangeFighters"
-                        :damage-numbers="damageForId(draft[slot])"
-                        :options="pickerOptions(slot)"
-                        :picker-open="openPicker === slot"
-                        @toggle-picker="togglePicker"
-                        @clear="clearFighter"
-                        @select="selectFighter"
-                      />
+                    </div>
+                    <div class="team flex min-w-0 flex-col gap-3">
+                      <span
+                        v-if="mode !== 'duel'"
+                        class="team-label text-center text-xs font-semibold tracking-wider text-muted-foreground"
+                        >{{ side === 'B' && mode === 'hunt' ? 'CREATURES' : `TEAM ${side}` }}</span
+                      >
+                      <template v-if="side === 'B' && mode === 'hunt'">
+                        <ArenaCreatureSlot
+                          v-for="(slot, index) in creatureSlots"
+                          :key="slot?.key ?? 'creature-slot-' + index"
+                          :creature="slot"
+                          :can-change="canChangeFighters"
+                          :damage-numbers="damageForId(slot?.id ?? null)"
+                          :options="creaturePickerOptions"
+                          :mirror-bots="true"
+                          :picker-open="creaturePickerOpen && slot === null"
+                          @toggle-picker="toggleCreaturePicker"
+                          @clear="clearCreature"
+                          @select="selectCreature"
+                        />
+                      </template>
+                      <template v-else>
+                        <div v-for="slot in slotsFor(side)" :key="slot" class="min-w-0">
+                          <!-- @vue-ignore -->
+                          <ToggleGroup
+                            v-if="slot === partnerSlot(side)"
+                            type="single"
+                            variant="outline"
+                            size="sm"
+                            class="mb-2"
+                            :model-value="botEnabled[side] ? 'bot' : 'dweller'"
+                            :disabled="!canChangeFighters"
+                            :aria-label="`Team ${side} partner`"
+                            @update:model-value="
+                              (value) => {
+                                if (value === 'bot' || value === 'dweller')
+                                  choosePartnerType(side, value === 'bot')
+                              }
+                            "
+                          >
+                            <!-- @vue-ignore -->
+                            <ToggleGroupItem value="dweller">Dweller</ToggleGroupItem>
+                            <!-- @vue-ignore -->
+                            <ToggleGroupItem value="bot">Bot</ToggleGroupItem>
+                          </ToggleGroup>
+                          <ArenaCreatureSlot
+                            v-if="slot === partnerSlot(side) && botEnabled[side]"
+                            :creature="botView(side)"
+                            :can-change="canChangeFighters"
+                            :damage-numbers="damageForId(botView(side)?.id ?? null)"
+                            :options="robotOptions"
+                            :mirror="side === 'B'"
+                            :friendly="side === 'A'"
+                            empty-label="+ ADD BOT"
+                            :picker-open="botPicker === side"
+                            @toggle-picker="botPicker = botPicker === side ? null : side"
+                            @clear="clearBot(side)"
+                            @select="selectBot(side, $event)"
+                          />
+                          <ArenaFighterSlot
+                            v-else
+                            :side="slot"
+                            :fighter="slotFighter(slot)"
+                            :can-change="canChangeFighters"
+                            :damage-numbers="damageForId(draft[slot])"
+                            :options="pickerOptions(slot)"
+                            :picker-open="openPicker === slot"
+                            @toggle-picker="togglePicker"
+                            @clear="clearFighter"
+                            @select="selectFighter"
+                          />
+                        </div>
+                      </template>
                     </div>
                   </template>
                 </div>
               </template>
-            </div>
-          </template>
 
-          <Alert v-if="winnerName" class="result-banner">
-            <Icon icon="mdi:trophy" :ariaHidden="true" />
-            <AlertTitle v-if="roomState?.mode === 'duel'"
-              >MATCH COMPLETE &mdash; {{ winnerName }} wins!</AlertTitle
-            >
-            <AlertTitle v-else>MATCH COMPLETE &mdash; Victory for {{ winnerName }}!</AlertTitle>
-          </Alert>
-          <div v-if="isDone && injuredFighters.length" class="flex justify-center">
-            <Button variant="secondary" size="sm" :disabled="isHealing" @click="healInjured">
-              <!-- @vue-ignore -->
-              <Icon
-                v-if="isHealing"
-                icon="mdi:loading"
-                data-icon="inline-start"
-                class="animate-spin"
-              />
-              <!-- @vue-ignore -->
-              <Icon v-else icon="mdi:medication" data-icon="inline-start" />
-              HEAL INJURED ({{ injuredFighters.length }})
-            </Button>
-          </div>
-          <div v-if="canStart" class="flex justify-center">
-            <Button :disabled="isStarting" @click="startFight">
-              <!-- @vue-ignore -->
-              <Icon
-                v-if="isStarting"
-                icon="mdi:loading"
-                data-icon="inline-start"
-                class="animate-spin"
-              />
-              <!-- @vue-ignore -->
-              <Icon v-else icon="mdi:sword-cross" data-icon="inline-start" />
-              START FIGHT
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+              <Alert v-if="winnerName" class="result-banner">
+                <Icon icon="mdi:trophy" :ariaHidden="true" />
+                <AlertTitle v-if="roomState?.mode === 'duel'"
+                  >MATCH COMPLETE &mdash; {{ winnerName }} wins!</AlertTitle
+                >
+                <AlertTitle v-else>MATCH COMPLETE &mdash; Victory for {{ winnerName }}!</AlertTitle>
+              </Alert>
+              <div v-if="isDone && injuredFighters.length" class="flex justify-center">
+                <Button variant="secondary" size="sm" :disabled="isHealing" @click="healInjured">
+                  <!-- @vue-ignore -->
+                  <Icon
+                    v-if="isHealing"
+                    icon="mdi:loading"
+                    data-icon="inline-start"
+                    class="animate-spin"
+                  />
+                  <!-- @vue-ignore -->
+                  <Icon v-else icon="mdi:medication" data-icon="inline-start" />
+                  HEAL INJURED ({{ injuredFighters.length }})
+                </Button>
+              </div>
+              <div v-if="canStart" class="flex justify-center">
+                <Button :disabled="isStarting" @click="startFight">
+                  <!-- @vue-ignore -->
+                  <Icon
+                    v-if="isStarting"
+                    icon="mdi:loading"
+                    data-icon="inline-start"
+                    class="animate-spin"
+                  />
+                  <!-- @vue-ignore -->
+                  <Icon v-else icon="mdi:sword-cross" data-icon="inline-start" />
+                  START FIGHT
+                </Button>
+              </div>
+            </CardContent>
+          </TabsContent>
+        </Card>
+      </Tabs>
 
       <section v-if="bench.length" aria-label="Arena bench">
         <Card size="sm">

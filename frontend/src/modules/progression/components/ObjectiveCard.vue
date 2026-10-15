@@ -54,7 +54,7 @@ const canClaim = computed(() => isObjectiveClaimable(props.objective))
 </script>
 
 <template>
-  <Card class="objective-card" :class="{ 'completed-card': isCompleted }">
+  <Card class="objective-card" :class="{ 'completed-card': objective.is_completed }">
     <!-- Header with icon and category -->
     <div class="objective-header">
       <div class="objective-icon-wrapper">

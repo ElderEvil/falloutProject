@@ -46,6 +46,27 @@ describe('ObjectiveCard', () => {
     expect(card.find('.claim-btn').exists()).toBe(false)
   })
 
+  it('keeps a claimable objective at full strength so its claim button is not faded', () => {
+    const card = mount(ObjectiveCard, {
+      props: {
+        objective: {
+          id: '4',
+          vault_id: 'v1',
+          challenge: 'Collect caps',
+          progress: 100,
+          total: 100,
+          reward: '50 Caps',
+          is_completed: false,
+          category: 'daily',
+          created_at: '',
+        },
+      },
+    })
+    expect(card.find('.claim-btn').exists()).toBe(true)
+    expect(card.find('.completed-card').exists()).toBe(false)
+    expect(card.find('.completed-stamp').exists()).toBe(false)
+  })
+
   it.each([
     ['production_only', 'Production counts even when storage is full.'],
     ['distinct_dwellers', 'Each dweller counts once for this objective.'],

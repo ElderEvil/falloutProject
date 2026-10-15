@@ -29,6 +29,8 @@ withDefaults(defineProps<Props>(), { description: null, completed: false })
 
     <p v-if="description" class="progression-description">{{ description }}</p>
 
+    <div class="progression-divider border-t border-theme-primary/20 my-3"></div>
+
     <slot />
 
     <div v-if="completed" class="progression-stamp">

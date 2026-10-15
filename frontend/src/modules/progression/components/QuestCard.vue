@@ -247,9 +247,6 @@ const handleAction = () => {
         </div>
       </div>
 
-      <!-- Divider -->
-      <div class="quest-divider"></div>
-
       <QuestRequirementList
         v-if="hasPrerequisites"
         :requirements="quest.quest_requirements ?? []"
@@ -372,12 +369,6 @@ const handleAction = () => {
 }
 
 
-.quest-divider {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--color-theme-primary), transparent);
-  margin: 12px 0;
-  opacity: 0.3;
-}
 
 .quest-section {
   margin-bottom: 12px;

@@ -67,6 +67,11 @@ export function currentObjective(objectives: Objective[]): Objective | undefined
   )
 }
 
+/** A finished objective whose reward the owner has not claimed yet. */
+export function isObjectiveClaimable(objective: Objective): boolean {
+  return !objective.is_completed && objective.progress >= objective.total
+}
+
 export function isOfficeObjective(objective: Objective): boolean {
   return (
     objective.objective_type === 'build' &&

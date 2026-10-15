@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Objective } from '../models/objective'
+import { isObjectiveClaimable } from '../models/objective'
 import { Badge } from '@/core/components/ui/badge'
 import { Card } from '@/core/components/ui/card'
 import { Progress } from '@/core/components/ui/progress'
@@ -48,9 +49,7 @@ const isCompleted = computed(() => {
   return props.objective.is_completed || props.objective.progress >= props.objective.total
 })
 
-const canClaim = computed(() => {
-  return isCompleted.value && !props.objective.is_completed
-})
+const canClaim = computed(() => isObjectiveClaimable(props.objective))
 </script>
 
 <template>
@@ -246,7 +245,7 @@ const canClaim = computed(() => {
 }
 
 .reward-section {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--color-surface);
   padding: 12px;
   border-radius: 4px;
   border-left: 3px solid var(--color-theme-accent);

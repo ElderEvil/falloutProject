@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.209.0 (2026-10-15)
+
+### Features
+
+* **incidents:** response grace, presence-gated spawns, and profile counters ([#1008](https://github.com/ElderEvil/falloutProject/issues/1008)) 02f3dbd
+
 ## 2.208.0 (2026-10-15)
 
 ### Features

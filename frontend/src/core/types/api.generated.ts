@@ -5126,6 +5126,11 @@ export interface components {
             power: number;
             /** Max Hp */
             max_hp: number;
+            /**
+             * Is Robot
+             * @default false
+             */
+            is_robot: boolean;
         };
         /**
          * ArenaEventsCleared
@@ -5169,6 +5174,11 @@ export interface components {
              * @default false
              */
             is_creature: boolean;
+            /**
+             * Is Robot
+             * @default false
+             */
+            is_robot: boolean;
             /** Image Url */
             image_url?: string | null;
             /** Thumbnail Url */
@@ -5191,6 +5201,10 @@ export interface components {
             fighter_d_id?: string | null;
             /** Opponent Keys */
             opponent_keys?: string[];
+            /** Team A Bot Key */
+            team_a_bot_key?: string | null;
+            /** Team B Bot Key */
+            team_b_bot_key?: string | null;
         };
         /**
          * ArenaFightersResponse

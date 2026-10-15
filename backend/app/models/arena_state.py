@@ -26,6 +26,7 @@ class ArenaState(TimeStampMixin, table=True):
     fighter_c_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
     fighter_d_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
     opponents: list[dict] | None = Field(default=None, sa_column=sa.Column(JSONB))
+    support_bots: dict[str, dict] | None = Field(default=None, sa_column=sa.Column(JSONB))
     last_fight_at: datetime | None = Field(default=None)
     fight_started_at: datetime | None = Field(default=None)
     knocked_out_ids: list[str] | None = Field(default=None, sa_column=sa.Column(JSONB))

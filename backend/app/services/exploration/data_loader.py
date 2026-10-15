@@ -40,7 +40,6 @@ def list_arena_creatures() -> list[dict]:
     defeated by dealing ``raider_power(N)`` total damage, so that is its effective HP.
     """
     enemies = [enemy for enemy in load_enemies() if _creature_key(enemy["name"]) != "raider-gang"]
-    enemies.extend([{"name": "Training Eyebot", "difficulty": 2}, {"name": "Training Mr. Handy", "difficulty": 3}])
     creatures: list[dict] = []
     for enemy in sorted(enemies, key=itemgetter("difficulty")):
         power = incident_math.raider_power(enemy["difficulty"])
@@ -50,8 +49,15 @@ def list_arena_creatures() -> list[dict]:
                 "name": enemy["name"],
                 "power": power,
                 "max_hp": int(power),
+                "is_robot": False,
             }
         )
+    for name, power, hp in (
+        ("Training Eyebot", 30, 20),
+        ("Training Mr. Handy", 20, 30),
+        ("Training Protectron", 10, 60),
+    ):
+        creatures.append({"key": _creature_key(name), "name": name, "power": power, "max_hp": hp, "is_robot": True})
     return creatures
 
 

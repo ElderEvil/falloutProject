@@ -19,6 +19,7 @@ export interface ArenaSlotFighter extends Omit<ArenaFighter, 'power'> {
 // live values (and participant id) once the selection is committed.
 export interface ArenaCreatureView {
   key: string
+  is_robot?: boolean
   name: string
   power: number
   health: number

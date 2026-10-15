@@ -60,6 +60,7 @@ class ArenaParticipant:
     health: int
     max_health: int
     is_creature: bool = False
+    is_robot: bool = False
     dweller: Dweller | None = None
 
 
@@ -146,6 +147,7 @@ class ArenaService:
                     "power": creature["power"],
                     "max_hp": creature["max_hp"],
                     "hp": creature["max_hp"],
+                    "is_robot": creature.get("is_robot", False),
                 }
             )
         return opponents
@@ -162,6 +164,8 @@ class ArenaService:
         fighter_c_id: UUID4 | None = None,
         fighter_d_id: UUID4 | None = None,
         opponent_keys: list[str] | None = None,
+        team_a_bot_key: str | None = None,
+        team_b_bot_key: str | None = None,
     ) -> ArenaState:
         """Pick the fighters that fight, per mode.
 
@@ -173,6 +177,21 @@ class ArenaService:
         """
         room = await self._get_arena_room(db_session, room_id, vault_id)
         self._validate_mode_tier(room, mode)
+        bot_keys = {"A": team_a_bot_key, "B": team_b_bot_key}
+        support_bots = {}
+        catalogue = {entry["key"]: entry for entry in self.list_creatures()}
+        for side, key in bot_keys.items():
+            if key is None:
+                continue
+            if mode == ArenaMode.DUEL or (mode == ArenaMode.HUNT and side == "B"):
+                raise ValidationException(
+                    detail="Training bot support is only available in Brawl and on the Hunt dweller side"
+                )
+            if not catalogue.get(key, {}).get("is_robot"):
+                raise ValidationException(detail="Choose a training bot for support")
+            if (fighter_c_id if side == "A" else fighter_d_id) is not None:
+                raise ValidationException(detail="The second slot holds either a dweller or a training bot")
+            support_bots[side] = self._hunt_opponents([key])[0]
         opponents: list[dict] | None = None
         if mode == ArenaMode.HUNT:
             if fighter_b_id is not None or fighter_d_id is not None:
@@ -182,8 +201,13 @@ class ArenaService:
             opponents = self._hunt_opponents(opponent_keys or [])
         elif mode == ArenaMode.DUEL and (fighter_c_id is not None or fighter_d_id is not None):
             raise ValidationException(detail="Duel mode takes exactly two fighters")
-        elif mode == ArenaMode.BRAWL and None in (fighter_a_id, fighter_b_id, fighter_c_id, fighter_d_id):
-            raise ValidationException(detail="Brawl mode needs four fighters")
+        elif mode == ArenaMode.BRAWL:
+            leads_selected = fighter_a_id is not None and fighter_b_id is not None
+            partners_selected = (fighter_c_id is not None or team_a_bot_key) and (
+                fighter_d_id is not None or team_b_bot_key
+            )
+            if not leads_selected or not partners_selected:
+                raise ValidationException(detail="Brawl mode needs four fighters")
 
         selected_ids = [fid for fid in (fighter_a_id, fighter_b_id, fighter_c_id, fighter_d_id) if fid is not None]
         if len(set(selected_ids)) != len(selected_ids):
@@ -203,6 +227,7 @@ class ArenaService:
         state.fighter_d_id = fighter_d_id
         state.mode = mode
         state.opponents = opponents
+        state.support_bots = support_bots or None
         state.last_fight_at = None
         state.fight_started_at = None
         state.knocked_out_ids = None
@@ -231,29 +256,36 @@ class ArenaService:
         return participants
 
     @staticmethod
-    def _creature_participants(state: ArenaState) -> list[ArenaParticipant]:
+    def _catalog_participants(entries: list[dict], side: str = "") -> list[ArenaParticipant]:
+        robots = {entry["key"] for entry in list_arena_creatures() if entry.get("is_robot")}
         return [
             ArenaParticipant(
-                key=f"{opponent['key']}#{index}",
-                name=opponent["name"],
-                short_name=opponent["name"],
-                power=float(opponent["power"]),
-                health=int(opponent["hp"]),
-                max_health=int(opponent["max_hp"]),
+                key=f"{entry['key']}#{side}{index}",
+                name=entry["name"],
+                short_name=entry["name"],
+                power=float(entry["power"]),
+                health=int(entry["hp"]),
+                max_health=int(entry["max_hp"]),
                 is_creature=True,
+                is_robot=bool(entry.get("is_robot", entry["key"] in robots)),
             )
-            for index, opponent in enumerate(state.opponents or [])
+            for index, entry in enumerate(entries)
         ]
 
     @staticmethod
-    def _persist_creature_hp(state: ArenaState, creatures: list[ArenaParticipant]) -> None:
-        """Write resolved creature HP back into ``state.opponents`` so it survives ticks."""
-        opponents = state.opponents or []
-        if len(opponents) != len(creatures):
-            return
-        state.opponents = [
-            {**opponent, "hp": creature.health} for opponent, creature in zip(opponents, creatures, strict=True)
-        ]
+    def _persist_creature_hp(state: ArenaState, team_a: list[ArenaParticipant], team_b: list[ArenaParticipant]) -> None:
+        """Persist both opponent and support HP without mutating JSON in place."""
+        by_id = {member.key: member.health for member in (*team_a, *team_b)}
+        if state.opponents:
+            state.opponents = [
+                {**entry, "hp": by_id.get(f"{entry['key']}#{index}", entry["hp"])}
+                for index, entry in enumerate(state.opponents)
+            ]
+        if state.support_bots:
+            state.support_bots = {
+                side: {**entry, "hp": by_id.get(f"{entry['key']}#{side}0", entry["hp"])}
+                for side, entry in state.support_bots.items()
+            }
 
     async def get_teams(
         self, db_session: AsyncSession, room: Room
@@ -277,8 +309,19 @@ class ArenaService:
 
         team_a = self._dweller_participants(a_slots, by_id)
         team_b = (
-            self._creature_participants(state) if mode == ArenaMode.HUNT else self._dweller_participants(b_slots, by_id)
+            self._catalog_participants(state.opponents or [])
+            if mode == ArenaMode.HUNT
+            else self._dweller_participants(b_slots, by_id)
         )
+        if mode != ArenaMode.DUEL:
+            for side, team, lead in (("A", team_a, state.fighter_a_id), ("B", team_b, state.fighter_b_id)):
+                if mode == ArenaMode.HUNT and side == "B":
+                    continue
+                bot = (state.support_bots or {}).get(side)
+                if bot:
+                    if lead is None or not team or len(team) != 1:
+                        return [], []
+                    team.extend(self._catalog_participants([bot], side))
         # Knocked-out dwellers stay on the team (so the selection is not rejected)
         # but fight at 0 HP.
         knocked_out = set(state.knocked_out_ids or [])
@@ -332,6 +375,7 @@ class ArenaService:
             max_health=participant.max_health,
             power=participant.power,
             is_creature=participant.is_creature,
+            is_robot=participant.is_robot,
             image_url=participant.dweller.image_url if participant.dweller else None,
             thumbnail_url=participant.dweller.thumbnail_url if participant.dweller else None,
         )
@@ -364,7 +408,6 @@ class ArenaService:
             mode = state.mode or ArenaMode.DUEL
             available_modes = [choice for choice, tier in MODE_UNLOCK_TIERS.items() if room.tier >= tier]
             mode_unlocked = mode in available_modes
-            size = self._required_team_size(mode)
             team_a, team_b = await self._teams_from_state(db_session, room, state)
             roster = await self.get_roster(db_session, room)
 
@@ -410,8 +453,7 @@ class ArenaService:
                         )
                         for d in roster
                     ],
-                    fight_ready=mode_unlocked
-                    and (len(roster) >= 1 if mode == ArenaMode.HUNT else len(roster) >= size * 2),
+                    fight_ready=mode_unlocked and (len(roster) >= 1 if mode == ArenaMode.HUNT else len(roster) >= 2),
                     match_done=match_done,
                     fight_started=started,
                     countdown_remaining=countdown_remaining,
@@ -551,8 +593,7 @@ class ArenaService:
                 continue
 
             round_result = await self._resolve_round(db_session, room, team_a, team_b, seconds_passed, state=state)
-            if mode == ArenaMode.HUNT:
-                self._persist_creature_hp(state, team_b)
+            self._persist_creature_hp(state, team_a, team_b)
             db_session.add(state)
             rounds.append({"room_id": str(room.id), **round_result})
 

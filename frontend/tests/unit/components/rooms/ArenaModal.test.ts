@@ -13,8 +13,12 @@ vi.mock('@iconify/vue', () =>
 
 vi.mock('@/core/composables/useToast', () => ({ useToast: () => mockToast }))
 
+const pollMock = vi.hoisted(() => ({ run: null as null | (() => Promise<unknown>) }))
 vi.mock('@/core/composables/usePolling', () => ({
-  usePolling: () => vi.fn(),
+  usePolling: (callback: () => Promise<unknown>) => {
+    pollMock.run = callback
+    return vi.fn()
+  },
 }))
 
 vi.mock('@/modules/auth/stores/auth', () => ({
@@ -136,6 +140,21 @@ const storeMock = vi.hoisted(() => {
     setFighters: vi.fn(),
     fetchCreatures: vi.fn(),
     creatures: [
+      { key: 'training-eyebot', name: 'Training Eyebot', power: 30, max_hp: 20, is_robot: true },
+      {
+        key: 'training-mr-handy',
+        name: 'Training Mr. Handy',
+        power: 20,
+        max_hp: 30,
+        is_robot: true,
+      },
+      {
+        key: 'training-protectron',
+        name: 'Training Protectron',
+        power: 10,
+        max_hp: 60,
+        is_robot: true,
+      },
       { key: 'radroach-swarm', name: 'Radroach swarm', power: 35, max_hp: 35 },
       { key: 'deathclaw', name: 'Deathclaw', power: 120, max_hp: 120 },
     ],
@@ -246,7 +265,7 @@ describe('ArenaModal', () => {
     storeMock.currentRoom = { ...storeMock.readyRoom, mode: 'brawl', can_start: false }
     const brawl = mountModal()
     await flushPromises()
-    expect(brawl.text()).toContain('NEEDS 4 FIGHTERS')
+    expect(brawl.text()).toContain('NEEDS 2 DWELLERS + PARTNERS')
   })
 
   it('switches to brawl with two slots per team', async () => {
@@ -307,7 +326,15 @@ describe('ArenaModal', () => {
     expect(storeMock.setFighters).toHaveBeenCalledWith(
       'vault-1',
       'room-1',
-      { mode: 'brawl', fighterAId: 'a-1', fighterBId: 'b-1', fighterCId: 'c-1', fighterDId: 'd-1' },
+      {
+        mode: 'brawl',
+        fighterAId: 'a-1',
+        fighterBId: 'b-1',
+        fighterCId: 'c-1',
+        fighterDId: 'd-1',
+        teamABotKey: null,
+        teamBBotKey: null,
+      },
       'test-token'
     )
   })
@@ -329,7 +356,15 @@ describe('ArenaModal', () => {
     expect(storeMock.setFighters).toHaveBeenCalledWith(
       'vault-1',
       'room-1',
-      { mode: 'brawl', fighterAId: 'a-1', fighterBId: 'b-1', fighterCId: 'c-1', fighterDId: 'd-1' },
+      {
+        mode: 'brawl',
+        fighterAId: 'a-1',
+        fighterBId: 'b-1',
+        fighterCId: 'c-1',
+        fighterDId: 'd-1',
+        teamABotKey: null,
+        teamBBotKey: null,
+      },
       'test-token'
     )
   })
@@ -345,7 +380,15 @@ describe('ArenaModal', () => {
     expect(storeMock.setFighters).toHaveBeenCalledWith(
       'vault-1',
       'room-1',
-      { mode: 'duel', fighterAId: 'a-1', fighterBId: 'b-1', fighterCId: null, fighterDId: null },
+      {
+        mode: 'duel',
+        fighterAId: 'a-1',
+        fighterBId: 'b-1',
+        fighterCId: null,
+        fighterDId: null,
+        teamABotKey: null,
+        teamBBotKey: null,
+      },
       'test-token'
     )
     expect(slots(wrapper)).toHaveLength(2)
@@ -393,6 +436,8 @@ describe('ArenaModal', () => {
         fighterBId: null,
         fighterCId: 'c-1',
         fighterDId: null,
+        teamABotKey: null,
+        teamBBotKey: null,
         opponentKeys: ['radroach-swarm'],
       },
       'test-token'
@@ -545,4 +590,65 @@ describe('ArenaModal', () => {
     expect(wrapper.text()).toContain('READY')
     expect(wrapper.text()).not.toContain('NEEDS 2 FIGHTERS')
   })
+  it.each(['hunt', 'brawl'] as const)(
+    'selects a bot instead of the second dweller in %s',
+    async (mode) => {
+      storeMock.currentRoom = {
+        ...(mode === 'hunt' ? storeMock.huntRoom : storeMock.readyRoom),
+        mode,
+      }
+      const wrapper = mountModal()
+      await flushPromises()
+      const group = wrapper.get('[role="group"][aria-label="Team A partner"]')
+      await group
+        .findAll('button')
+        .find((button) => button.text() === 'Bot')!
+        .trigger('click')
+      await flushPromises()
+      await pollMock.run!()
+      await flushPromises()
+      expect(
+        group
+          .findAll('button')
+          .find((button) => button.text() === 'Bot')!
+          .attributes('aria-pressed')
+      ).toBe('true')
+      expect(storeMock.setFighters).not.toHaveBeenCalled()
+      const option = wrapper
+        .findAll('.picker-option')
+        .find((button) => button.text().includes('Training Eyebot'))!
+      expect(
+        wrapper.findAll('.picker-option').filter((button) => button.text().includes('Deathclaw'))
+      ).toHaveLength(0)
+      await option.trigger('click')
+      await flushPromises()
+      // A Brawl without its second partner remains a local draft until both teams are complete.
+      if (mode === 'brawl') {
+        const b = wrapper.get('[role="group"][aria-label="Team B partner"]')
+        await b
+          .findAll('button')
+          .find((button) => button.text() === 'Bot')!
+          .trigger('click')
+        await flushPromises()
+        await wrapper
+          .findAll('.picker-option')
+          .find((button) => button.text().includes('Training Protectron'))!
+          .trigger('click')
+        await flushPromises()
+      }
+      expect(storeMock.setFighters).toHaveBeenLastCalledWith(
+        'vault-1',
+        'room-1',
+        expect.objectContaining({
+          mode,
+          fighterAId: 'a-1',
+          fighterCId: null,
+          teamABotKey: 'training-eyebot',
+          teamBBotKey: mode === 'brawl' ? 'training-protectron' : null,
+        }),
+        'test-token'
+      )
+      expect(wrapper.text()).toContain('Bots reset each match and earn no rewards')
+    }
+  )
 })

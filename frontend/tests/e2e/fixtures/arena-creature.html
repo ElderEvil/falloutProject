@@ -9,13 +9,18 @@
     <script type="module">
       import { createApp, h } from 'vue'
       import ArenaCreatureSlot from '../../../src/modules/rooms/components/ArenaCreatureSlot.vue'
-      const mirror = new URLSearchParams(location.search).get('mirror') === 'true'
+      const params = new URLSearchParams(location.search)
+      const mirror = params.get('mirror') === 'true'
+      const isRobot = params.get('robot') === 'true'
+      const key = isRobot ? 'training-eyebot' : 'giant-radscorpion'
+      const name = isRobot ? 'Training Eyebot' : 'Radscorpion'
       createApp({
         render: () =>
           h(ArenaCreatureSlot, {
             creature: {
-              key: 'giant-radscorpion',
-              name: 'Radscorpion',
+              key,
+              name,
+              is_robot: isRobot,
               power: 35,
               health: 20,
               max_health: 35,
@@ -23,9 +28,10 @@
             },
             canChange: true,
             damageNumbers: [],
-            options: [{ key: 'giant-radscorpion', name: 'Radscorpion', power: 35, max_hp: 35 }],
+            options: [{ key, name, is_robot: isRobot, power: 35, max_hp: 35 }],
             pickerOpen: true,
             mirror,
+            mirrorBots: params.get('enemy') === 'true',
           }),
       }).mount('#app')
     </script>

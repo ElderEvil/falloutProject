@@ -17,6 +17,8 @@ export interface ArenaFighterSelection {
   fighterCId?: string | null
   fighterDId?: string | null
   opponentKeys?: string[]
+  teamABotKey?: string | null
+  teamBBotKey?: string | null
 }
 
 export const arenaApi = {
@@ -49,6 +51,8 @@ export const arenaApi = {
         fighter_c_id: selection.fighterCId ?? null,
         fighter_d_id: selection.fighterDId ?? null,
         opponent_keys: selection.opponentKeys ?? [],
+        team_a_bot_key: selection.teamABotKey ?? null,
+        team_b_bot_key: selection.teamBBotKey ?? null,
       },
       { headers: { Authorization: `Bearer ${token}` } }
     )

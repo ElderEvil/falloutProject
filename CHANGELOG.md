@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.209.1 (2026-10-15)
+
+### Bug Fixes
+
+* **arena:** preserve dweller health when selecting fighters ([#1009](https://github.com/ElderEvil/falloutProject/issues/1009)) fb59d9a
+
 ## 2.209.0 (2026-10-15)
 
 ### Features

@@ -360,6 +360,24 @@ describe('UnassignedDwellers', () => {
       expect(wrapper.text()).toContain('Drop to unassign')
     })
 
+    it.each([false, true])(
+      'keeps the drop hint active across panel children (populated=%s)',
+      async (populated) => {
+        dwellerStore.dwellers = populated ? [mockDweller] : []
+        const wrapper = mount(UnassignedDwellers)
+        const panel = wrapper.get('details')
+        const area = wrapper.get(populated ? '.dweller-grid-container' : '.empty-state')
+        await area.trigger('dragover', { dataTransfer: { dropEffect: '' } })
+        expect(wrapper.text()).toContain('Drop to unassign')
+
+        await area.trigger('dragleave', { relatedTarget: wrapper.get('summary').element })
+        expect(wrapper.text()).toContain('Drop to unassign')
+
+        await panel.trigger('dragleave', { relatedTarget: document.body })
+        expect(wrapper.text()).not.toContain('Drop to unassign')
+      }
+    )
+
     it('should unassign dweller on drop', async () => {
       dwellerStore.dwellers = []
 

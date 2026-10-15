@@ -54,20 +54,33 @@ describe('RoomGrid', () => {
     await wrapper.vm.$nextTick()
   }
 
+  it('keeps the assignment hint active while dragging between room children', async () => {
+    useRoomStore().rooms = [mockRoom]
+    const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+    const room = wrapper.get('.built-room')
+    await room.trigger('dragover', { dataTransfer: { dropEffect: '' } })
+    expect(room.text()).toContain('Drop to assign')
+
+    await room.trigger('dragleave', { relatedTarget: room.get('.room-name').element })
+    expect(room.text()).toContain('Drop to assign')
+
+    await room.trigger('dragleave', { relatedTarget: document.body })
+    expect(room.text()).not.toContain('Drop to assign')
+  })
+
   it('names empty room cells for screen-reader users', () => {
     const wrapper = mount(RoomGrid, { props: { incidents: [] } })
 
-    expect(wrapper.find('.room.empty').attributes('aria-label')).toBe('Empty room cell at row 1, column 1')
+    expect(wrapper.find('.room.empty').attributes('aria-label')).toBe(
+      'Empty room cell at row 1, column 1'
+    )
     expect(wrapper.find('.room.empty').attributes('role')).toBeUndefined()
   })
 
   describe('Room Highlighting', () => {
     it('shows an attention count only on the Overseer’s Office', () => {
       const roomStore = useRoomStore()
-      roomStore.rooms = [
-        { ...mockRoom, id: 'office-123', name: "Overseer's Office" },
-        mockRoom,
-      ]
+      roomStore.rooms = [{ ...mockRoom, id: 'office-123', name: "Overseer's Office" }, mockRoom]
 
       const wrapper = mount(RoomGrid, {
         props: { incidents: [], overseerAttentionCount: 3 },
@@ -264,7 +277,15 @@ describe('RoomGrid', () => {
       const roomStore = useRoomStore()
       roomStore.rooms = [
         mockRoom,
-        { ...mockRoom, id: 'elev-1', name: 'Elevator', coordinate_x: 0, coordinate_y: 1, size: 1, size_min: 1 },
+        {
+          ...mockRoom,
+          id: 'elev-1',
+          name: 'Elevator',
+          coordinate_x: 0,
+          coordinate_y: 1,
+          size: 1,
+          size_min: 1,
+        },
       ]
       roomStore.selectedRoom = {
         name: 'Diner',
@@ -283,14 +304,10 @@ describe('RoomGrid', () => {
       const wrapper = mount(RoomGrid, {
         props: { incidents: [] },
       })
-      const cell = wrapper
-        .findAll('.empty:not(.level-locked)')
-        .find((item) => {
-          const style = item.element as HTMLElement
-          return (
-            parseInt(style.style.gridColumn, 10) === 4 && style.style.gridRow === '2'
-          )
-        })!
+      const cell = wrapper.findAll('.empty:not(.level-locked)').find((item) => {
+        const style = item.element as HTMLElement
+        return parseInt(style.style.gridColumn, 10) === 4 && style.style.gridRow === '2'
+      })!
 
       await cell.trigger('mouseenter')
 
@@ -756,7 +773,12 @@ describe('RoomGrid', () => {
           selected: true,
           isDraggingOver: false,
           highlighted: false,
-          incident: { id: 'incident-1', room_id: 'room-123', type: 'FIRE', severity: 'medium' } as any,
+          incident: {
+            id: 'incident-1',
+            room_id: 'room-123',
+            type: 'FIRE',
+            severity: 'medium',
+          } as any,
         },
         global: { stubs: { TooltipLabel: tooltipLabelStub } },
       })
@@ -820,10 +842,7 @@ describe('RoomGrid', () => {
     })
 
     it('still blocks an adult when all worker slots are taken', async () => {
-      const dwellerStore = setupDrop([
-        ...staffedFull,
-        dwellerIn({ id: 'adult-3', room_id: null }),
-      ])
+      const dwellerStore = setupDrop([...staffedFull, dwellerIn({ id: 'adult-3', room_id: null })])
 
       const assignSpy = vi
         .spyOn(dwellerStore.management, 'assignDwellerToRoom')

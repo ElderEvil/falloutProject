@@ -107,7 +107,12 @@ const handleDropZoneDragOver = (event: DragEvent) => {
   isDraggingOver.value = true
 }
 
-const handleDropZoneDragLeave = () => {
+const handleDropZoneDragLeave = (event: DragEvent) => {
+  if (
+    event.relatedTarget instanceof Node &&
+    (event.currentTarget as HTMLElement).contains(event.relatedTarget)
+  )
+    return
   isDraggingOver.value = false
 }
 
@@ -134,12 +139,15 @@ const handleDropZoneDrop = async (event: DragEvent) => {
 </script>
 
 <template>
-  <details class="unassigned-dwellers-panel group" open>
+  <details
+    class="unassigned-dwellers-panel group"
+    open
+    @dragover="handleDropZoneDragOver"
+    @dragleave="handleDropZoneDragLeave"
+    @drop="handleDropZoneDrop"
+  >
     <summary
       class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary [&::-webkit-details-marker]:hidden"
-      @dragover="handleDropZoneDragOver"
-      @dragleave="handleDropZoneDragLeave"
-      @drop="handleDropZoneDrop"
     >
       <h3 class="panel-title">
         <Icon icon="mdi:account-multiple" class="inline h-5 w-5" :ariaHidden="true" />
@@ -181,11 +189,8 @@ const handleDropZoneDrop = async (event: DragEvent) => {
 
     <div
       v-if="unassignedDwellers.length === 0"
-      class="empty-state"
+      class="empty-state [&>*]:pointer-events-none"
       :class="{ 'drop-zone-active': isDraggingOver }"
-      @dragover="handleDropZoneDragOver"
-      @dragleave="handleDropZoneDragLeave"
-      @drop="handleDropZoneDrop"
     >
       <template v-if="isDraggingOver">
         <Icon icon="mdi:arrow-down-bold" class="h-12 w-12 animate-bounce text-theme-primary" />
@@ -201,13 +206,7 @@ const handleDropZoneDrop = async (event: DragEvent) => {
       </template>
     </div>
 
-    <div
-      v-else
-      class="dweller-grid-container"
-      @dragover="handleDropZoneDragOver"
-      @dragleave="handleDropZoneDragLeave"
-      @drop="handleDropZoneDrop"
-    >
+    <div v-else class="dweller-grid-container">
       <div v-if="isDraggingOver" class="drop-overlay">
         <Icon icon="mdi:arrow-down-bold" class="h-12 w-12 animate-bounce" />
         <p>Drop to unassign</p>

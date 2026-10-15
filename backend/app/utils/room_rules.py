@@ -90,32 +90,6 @@ def _room_span(room: Room) -> tuple[int, int]:
     return start, start + size - 1
 
 
-def _reject_overlaps(
-    rooms: list[Room],
-    *,
-    start: int,
-    end: int,
-    action: str,
-    room_name: str,
-    coordinate_x: int,
-    coordinate_y: int,
-    exclude: Room | None = None,
-) -> None:
-    """Raise if the closed span ``start..end`` intersects any room footprint.
-
-    The build/merge path rejects overlaps through this helper so the same exception
-    contract holds for every placement change.
-    """
-    for room in rooms:
-        if room is exclude:
-            continue
-        room_start, room_end = _room_span(room)
-        if start <= room_end and room_start <= end:
-            raise VaultOperationException(
-                detail=f"Cannot {action} {room_name} at ({coordinate_x}, {coordinate_y}): overlaps {room.name}."
-            )
-
-
 async def _validate_footprint(
     db_session: AsyncSession,
     vault_id: UUID4,
@@ -155,16 +129,14 @@ async def _validate_footprint(
     if expansion is not None:
         end = _room_span(expansion)[1] + size
 
-    _reject_overlaps(
-        rooms_on_level,
-        start=start,
-        end=end,
-        action="build",
-        room_name=room_name,
-        coordinate_x=coordinate_x,
-        coordinate_y=coordinate_y,
-        exclude=expansion,
-    )
+    for room in rooms_on_level:
+        if room is expansion:
+            continue
+        room_start, room_end = _room_span(room)
+        if start <= room_end and room_start <= end:
+            raise VaultOperationException(
+                detail=(f"Cannot build {room_name} at ({coordinate_x}, {coordinate_y}): overlaps {room.name}.")
+            )
 
     if expansion is not None or not require_adjacency:
         return

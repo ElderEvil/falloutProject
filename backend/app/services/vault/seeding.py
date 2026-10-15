@@ -110,7 +110,8 @@ def prepare_initial_rooms(
     def mk_sized(specs: list[tuple[str, int, int, int]]) -> list[RoomCreate]:
         return [build_room(rooms_by_name, n, vault_id, x, y, size=s) for n, x, y, s in specs]
 
-    infrastructure = mk([("vault door", 0, 0), *[("elevator", SHAFT_X, level) for level in range(4)]])
+    elevator_levels = 5 if is_boosted else 4
+    infrastructure = mk([("vault door", 0, 0), *[("elevator", SHAFT_X, level) for level in range(elevator_levels)]])
     if is_boosted:
         # Boosted blocks read top to bottom: level 1 is the training block,
         # level 2 holds the storage row with medbay and science lab side by
@@ -125,10 +126,11 @@ def prepare_initial_rooms(
         capacity_specs = [("living room", 7, 1, 3), ("storage room", 7, 2, 3)]
     capacity = mk_sized(capacity_specs)
     if is_boosted:
-        # The boosted grid has no free slot, so the merged living room seeds one
-        # tier up; its tier-scaled capacity covers the seeded Response Station crew.
+        # The seeded Response Station crew needs living capacity, so a third living
+        # room fills the level-3 gap the arena left when it moved to the door level.
         merged_name, merged_x, merged_y, merged_size = BOOSTED_MERGED_LIVING_ROOM
-        capacity.append(build_room(rooms_by_name, merged_name, vault_id, merged_x, merged_y, size=merged_size, tier=2))
+        capacity.append(build_room(rooms_by_name, merged_name, vault_id, merged_x, merged_y, size=merged_size))
+        capacity.append(build_room(rooms_by_name, "living room", vault_id, 10, 3))
     if is_boosted:
         # The boosted room set draws ~51.5 power/min, so boosted seeds the
         # generator at its final size-6 footprint at (0, 1) — same footprint,
@@ -142,8 +144,8 @@ def prepare_initial_rooms(
     misc = mk(
         [("radio studio", 7, 3)] + ([("overseer's office", 22, 2), ("response station", 13, 0)] if is_boosted else [])
     )
-    arena = mk([("arena", 10, 3)] if is_boosted else [])
-    crafting = mk_sized([(name, x, y, 3) for name, x, y in BOOSTED_CRAFTING_ROOM_SPECS]) if is_boosted else []
+    arena = mk([("arena", 7, 0)] if is_boosted else [])
+    crafting = mk(list(BOOSTED_CRAFTING_ROOM_SPECS)) if is_boosted else []
     training = mk(
         [
             ("weight room", 7, 1),

@@ -31,9 +31,9 @@ def response_station_lock_key(room_id: UUID4) -> str:
 def vault_placement_lock_key(vault_id: UUID4) -> str:
     """Advisory-lock key guarding every placement change in one vault's grid.
 
-    Construction and in-place expansion both rewrite room footprints against the
-    same grid, so they share a vault-scoped key: a build cannot occupy the space an
-    expansion is growing into, and two builds cannot land on the same cells.
+    Construction, the upgrade merge and the vault-wide merge backfill all rewrite
+    room footprints against the same grid, so they share a vault-scoped key: two
+    placement changes cannot land on the same cells.
     """
     return f"vault-placement:{vault_id}"
 

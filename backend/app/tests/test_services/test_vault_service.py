@@ -1127,7 +1127,7 @@ class TestInitiateVault:
             elevators = sorted(
                 (room.coordinate_x, room.coordinate_y) for room in rooms if room.name.lower() == "elevator"
             )
-            assert elevators == [(SHAFT_X, 0), (SHAFT_X, 1), (SHAFT_X, 2), (SHAFT_X, 3)]
+            assert elevators == [(SHAFT_X, level) for level in range(5 if is_boosted else 4)]
 
     async def test_boosted_seed_builds_one_size_six_generator_directly(self, boosted_seed: SimpleNamespace) -> None:
         """The boosted generator is seeded at its final size-6 footprint and takes the double crew."""

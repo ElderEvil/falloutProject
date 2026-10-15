@@ -849,9 +849,7 @@ async def test_upgrade_refused_when_vault_placement_lock_is_held(async_session: 
 
 
 @pytest.mark.asyncio
-async def test_backfill_apply_refused_when_vault_placement_lock_is_held(
-    async_session: AsyncSession, rich_vault: Vault
-):
+async def test_backfill_apply_refused_when_vault_placement_lock_is_held(async_session: AsyncSession, rich_vault: Vault):
     """Apply-mode backfill merges under the vault placement lock; a held lock refuses it."""
     await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
     await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)

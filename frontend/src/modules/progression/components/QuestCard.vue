@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
-import { Card } from '@/core/components/ui/card'
+import ProgressionCard from './ProgressionCard.vue'
 import { Progress } from '@/core/components/ui/progress'
 import { useNow } from '@/core/composables/useNow'
 import { formatClock } from '@/core/utils/format'
@@ -199,16 +199,15 @@ const handleAction = () => {
 </script>
 
 <template>
-  <Card
+  <ProgressionCard
     class="quest-card flex h-full flex-col"
     :style="{ borderColor: cardBorderColor }"
-    :class="{ 'completed-quest': status === 'completed' }"
+    :title="quest.title"
+    :description="quest.short_description"
+    :completed="status === 'completed'"
   >
-    <div class="quest-card-content flex-1">
-      <!-- Header -->
-      <div class="quest-header">
-        <h3 class="quest-title">{{ quest.title }}</h3>
-        <div class="quest-badges">
+    <template #badges>
+      <div class="quest-badges">
           <QuestTypeBadge :quest-type="quest.quest_type" />
           <Badge
             v-if="quest.quest_category"
@@ -225,12 +224,10 @@ const handleAction = () => {
             <Icon icon="mdi:lock" class="inline-icon" />
             LOCKED
           </Badge>
-        </div>
       </div>
+    </template>
 
-      <!-- Description -->
-      <p class="quest-description">{{ quest.short_description }}</p>
-
+    <div class="quest-card-content flex-1">
       <!-- Lock Reason (backend-owned, e.g. Overseer's Office / chain / requirements) -->
       <div
         v-if="isLocked && (quest.lock_reason || previousQuestName)"
@@ -316,13 +313,8 @@ const handleAction = () => {
       </div>
     </div>
 
-    <div>
-      <div v-if="status === 'completed'" class="completed-stamp">
-        <Icon icon="mdi:check-circle" class="stamp-icon" />
-        Completed
-      </div>
+    <template #action>
       <Button
-        v-else
         class="quest-action-btn"
         variant="default"
         :disabled="isButtonDisabled"
@@ -346,63 +338,17 @@ const handleAction = () => {
         />
         {{ actionButtonText }}
       </Button>
-    </div>
-  </Card>
+    </template>
+  </ProgressionCard>
 </template>
 
 <style scoped>
-.quest-card {
-  background: var(--color-surface-warm-dark);
-  border: 2px solid var(--color-theme-primary);
-  border-radius: 6px;
-  padding: 16px;
-  transition: all 0.2s;
-  position: relative;
-  overflow: hidden;
-}
 
-.quest-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--color-theme-primary);
-  box-shadow: 0 0 8px var(--color-theme-glow);
-}
 
-.quest-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px var(--color-theme-glow);
-}
 
-.completed-quest {
-  opacity: 0.75;
-  background: var(--color-surface-warm-dark);
-}
 
-.completed-quest::before {
-  background: var(--color-quest-muted);
-}
 
-.quest-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
-  gap: 12px;
-}
 
-.quest-title {
-  font-size: 1.1rem;
-  font-weight: bold;
-  color: var(--color-theme-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  flex: 1;
-  margin: 0;
-}
 
 .quest-badges {
   display: flex;
@@ -425,13 +371,6 @@ const handleAction = () => {
   color: var(--color-quest-locked) !important;
 }
 
-.quest-description {
-  font-size: 0.9rem;
-  color: var(--color-theme-primary);
-  opacity: 0.85;
-  margin-bottom: 12px;
-  line-height: 1.5;
-}
 
 .quest-divider {
   height: 1px;
@@ -460,26 +399,7 @@ const handleAction = () => {
   width: 100%;
 }
 
-.completed-stamp {
-  width: 100%;
-  padding: 10px 16px;
-  background: color-mix(in srgb, var(--color-theme-primary) 10%, transparent);
-  border: 2px dashed var(--color-quest-muted);
-  border-radius: 4px;
-  color: var(--color-theme-primary);
-  font-weight: bold;
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
 
-.stamp-icon {
-  font-size: 1.2rem;
-}
 
 .inline-icon {
   display: inline;

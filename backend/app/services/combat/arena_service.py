@@ -557,6 +557,9 @@ class ArenaService:
             rounds.append({"room_id": str(room.id), **round_result})
 
         await db_session.commit()
+        from app.services.notification_service import NotificationService
+
+        await NotificationService.deliver_deferred_notifications(db_session)
         return {"arena": {"rooms": len(rooms), "rounds": rounds}}
 
     async def _get_arena_rooms(self, db_session: AsyncSession, vault_id: UUID4) -> list[Room]:

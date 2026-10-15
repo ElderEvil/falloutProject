@@ -1265,3 +1265,38 @@ class TestArenaMoraleBonus:
         assert result["status"] == "finished"
         assert fighter_a.happiness == 100
         assert bystander.happiness == 100
+
+    @pytest.mark.asyncio
+    async def test_arena_tick_delivers_morale_toast_after_commit(
+        self, async_session, arena_room, fighter_a, fighter_b, vault
+    ):
+        """The actual tick drains deferred notifications: the bell row gets its live toast."""
+        from datetime import datetime, timedelta
+        from unittest.mock import AsyncMock, patch
+
+        from app.crud.notification import notification as notification_crud
+        from app.services.notification_service import NotificationService
+
+        fighter_a.room_id = arena_room.id
+        fighter_b.room_id = arena_room.id
+        await configure_arena(
+            async_session,
+            arena_room,
+            fighter_a_id=fighter_a.id,
+            fighter_b_id=fighter_b.id,
+            fight_started_at=datetime.utcnow() - timedelta(seconds=10),
+        )
+        await async_session.refresh(fighter_a, ["weapon"])
+        await async_session.refresh(fighter_b, ["weapon"])
+        await async_session.commit()
+        service = ArenaService()
+        with patch.object(NotificationService, "_deliver", new=AsyncMock()) as deliver:
+            result = await service.process_arena_ticks(async_session, 3600)
+        assert result["arena"]["rounds"][0]["status"] == "finished"
+        rows = await notification_crud.get_user_notifications(async_session, vault.user_id)
+        morale = [row for row in rows if row.notification_type == "arena_morale_boost"]
+        assert len(morale) == 1
+        assert deliver.await_count == 1
+        user_id, payload = deliver.await_args.args
+        assert user_id == vault.user_id
+        assert payload["notification"]["notification_type"] == "arena_morale_boost"

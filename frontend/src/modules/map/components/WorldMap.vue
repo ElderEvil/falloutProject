@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useMediaQuery } from '@vueuse/core'
 import { Button } from '@/core/components/ui/button'
@@ -89,11 +89,12 @@ const knownLocations = computed(() =>
 // Fog/mask grid resolution follows the backend snapshot when loaded, so fog
 // cells align with rendered terrain cells; defaults preserve current behavior.
 const gridTiles = computed(() => mapStore.worldSnapshot?.width ?? ATLAS_TILES)
+const homeVault = computed(() => props.locations.find((loc) => loc.type === 'home_vault'))
 
 const exploredMask = computed(() =>
   computeExploredMask(
     {
-      home: props.locations.find((loc) => loc.type === 'home_vault') ?? null,
+      home: homeVault.value ?? null,
       discovered: props.locations.filter(isKnownLocation),
       trailPoints: props.discoveryRoutes.flatMap((route) => route.points),
       // Movement trails (every point location-free) interpolate their
@@ -138,7 +139,7 @@ const visibleLocations = computed(() => {
 // fog has been lifted, so the shared atlas does not flood the map with unrelated
 // vaults.
 const ownPlayerVaults = computed(() => {
-  const homeVaultId = props.locations.find((loc) => loc.type === 'home_vault')?.vault_id
+  const homeVaultId = homeVault.value?.vault_id
   return props.playerVaults.filter((pv) => pv.is_mine && pv.vault_id !== homeVaultId)
 })
 
@@ -157,7 +158,7 @@ const foreignVaultHints = computed(() =>
 
 // Expeditions start at the home vault — anchor every trail there.
 const homeCoords = computed<[number, number]>(() => {
-  const home = props.locations.find((loc) => loc.type === 'home_vault')
+  const home = homeVault.value
   return home ? [home.coord_x, home.coord_y] : [80, 80]
 })
 
@@ -312,8 +313,17 @@ function syncViewportAspect(): void {
   if (rect) syncViewport(rect)
 }
 
-onMounted(() => {
+function focusHomeVault(): void {
   syncViewportAspect()
+  const home = homeVault.value
+  if (home) focusOnMarker(home.coord_x, home.coord_y)
+}
+
+// Focus on entry or a different vault, preserving camera movement during polling.
+watch(() => homeVault.value?.vault_id, focusHomeVault, { flush: 'post' })
+
+onMounted(() => {
+  focusHomeVault()
   if (typeof ResizeObserver === 'undefined') return
   resizeObserver = new ResizeObserver(syncViewportAspect)
   if (containerRef.value) resizeObserver.observe(containerRef.value)

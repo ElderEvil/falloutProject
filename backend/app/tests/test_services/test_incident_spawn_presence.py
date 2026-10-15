@@ -20,9 +20,7 @@ from app.tests.factory.dwellers import create_random_common_dweller
 async def _populated_vault(session: AsyncSession, vault: Vault, *, dwellers: int = 5) -> None:
     """Meet the minimum-population spawn precondition with idle adults."""
     for _ in range(dwellers):
-        await crud.dweller.create(
-            session, obj_in=DwellerCreate(**create_random_common_dweller(), vault_id=vault.id)
-        )
+        await crud.dweller.create(session, obj_in=DwellerCreate(**create_random_common_dweller(), vault_id=vault.id))
 
 
 async def _online_game_state(session: AsyncSession, vault: Vault):

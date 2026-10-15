@@ -45,9 +45,7 @@ async def test_undefended_incident_fails_after_grace(async_session: AsyncSession
 
 def test_sim_models_the_grace_window() -> None:
     """The offline kernel waits out an explicit grace, then fails without defenders."""
-    outcome = resolve_incident(
-        IncidentType.RAIDER_ATTACK, 1, [], dt=2, duration=60, response_grace_seconds=120
-    )
+    outcome = resolve_incident(IncidentType.RAIDER_ATTACK, 1, [], dt=2, duration=60, response_grace_seconds=120)
     assert outcome.failed
     assert not outcome.resolved
     assert outcome.ticks == 120 // 2 + 1

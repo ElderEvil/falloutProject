@@ -78,6 +78,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
         "COMBAT_STARTED",
         "COMBAT_VICTORY",
         "COMBAT_DEFEAT",
+        "ARENA_MORALE_BOOST",
         "DWELLER_INJURED",
         "DWELLER_DIED",
         "DWELLER_EXIT_REQUESTED",

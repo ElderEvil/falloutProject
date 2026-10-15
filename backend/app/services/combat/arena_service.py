@@ -14,7 +14,7 @@ This is an experimental feature on branch `experiment/arena`.
 import logging
 import random
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -711,6 +711,8 @@ class ArenaService:
             if participant.dweller is not None:
                 await self._award_combat_xp(db_session, participant.dweller)
 
+        await self._grant_arena_morale(db_session, room)
+
         db_session.add(
             ArenaMatchEvent(
                 room_id=room.id,
@@ -760,6 +762,40 @@ class ArenaService:
             await leveling_service.settle_level_up(
                 db_session, dweller, old_level=dweller.level - levels_gained, levels_gained=levels_gained
             )
+
+    async def _grant_arena_morale(self, db_session: AsyncSession, room: Room) -> bool:
+        """Lift every living vault resident's happiness once per cooldown window.
+
+        Mirrors the exit-request refusal path: a vault-scoped lock serializes the
+        cooldown check-and-stamp, the bulk target is ``get_living_in_vault``
+        (fighters included — they are living residents too), and the award lands
+        in the caller's transaction. Returns whether the bonus was granted.
+        """
+        from app.crud import vault as vault_crud
+        from app.services.notification_service import NotificationService
+
+        bonus = game_config.combat.arena_morale_bonus
+        if bonus <= 0:
+            return False
+        vault = await vault_crud.get(db_session, room.vault_id)
+        if vault is None:
+            return False
+        if not await db_locks.try_advisory_xact_lock(db_session, f"arena-morale:{vault.id}"):
+            return False
+        now = datetime.now(UTC).replace(tzinfo=None)
+        cooldown = timedelta(seconds=game_config.combat.arena_morale_cooldown_seconds)
+        if vault.arena_morale_awarded_at is not None and now - vault.arena_morale_awarded_at < cooldown:
+            return False
+        for member in await crud_dweller.get_living_in_vault(db_session, vault.id):
+            member.happiness = min(100, member.happiness + bonus)
+            db_session.add(member)
+        vault.arena_morale_awarded_at = now
+        db_session.add(vault)
+        if vault.user_id is not None:
+            await NotificationService.notify_arena_morale_boost(
+                db_session, vault.user_id, vault.id, room_id=room.id, commit=False
+            )
+        return True
 
 
 arena_service = ArenaService()

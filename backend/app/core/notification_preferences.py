@@ -38,6 +38,7 @@ NOTIFICATION_CATEGORY_BY_TYPE: dict[NotificationType, NotificationCategory | Non
     NotificationType.COMBAT_STARTED: None,
     NotificationType.COMBAT_VICTORY: None,
     NotificationType.COMBAT_DEFEAT: None,
+    NotificationType.ARENA_MORALE_BOOST: None,
     NotificationType.DWELLER_INJURED: None,
     NotificationType.DWELLER_DIED: None,
     NotificationType.DWELLER_EXIT_REQUESTED: None,

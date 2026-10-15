@@ -329,8 +329,8 @@ class TestArenaService:
         assert arena_state is not None
         assert arena_state.last_fight_at is not None
         # Winner gains happiness, loser loses it (uncommitted session state)
-        assert fighter_a.happiness == 60  # 50 + 10
-        assert fighter_b.happiness == 40  # 50 - 10
+        assert fighter_a.happiness == 61  # 50 + 10 swing + 1 vault-wide morale
+        assert fighter_b.happiness == 41  # 50 - 10 swing + 1 vault-wide morale
 
     @pytest.mark.asyncio
     async def test_process_arena_ticks_fights_once_then_stops(self, async_session, arena_room, fighter_a, fighter_b):
@@ -1154,3 +1154,114 @@ class TestArenaService:
         assert [opponent["hp"] for opponent in arena_state.opponents] == [0, 0]
         state = (await service.get_arena_state(async_session, arena_room.vault_id)).rooms[0]
         assert next(event.message for event in state.events if event.kind == "finish") == "Dwellers defeated Creatures!"
+
+
+async def _morale_bystander(session: AsyncSession, vault_id, surname: str, happiness: int) -> Dweller:
+    """An idle vault resident who never enters the arena."""
+    dweller = await crud.dweller.create(
+        db_session=session,
+        obj_in=DwellerCreate(
+            first_name="Morale",
+            last_name=surname,
+            vault_id=vault_id,
+            gender=GenderEnum.FEMALE,
+            rarity=RarityEnum.COMMON,
+            age_group=AgeGroupEnum.ADULT,
+            level=1,
+            max_health=100,
+            health=100,
+            strength=5,
+            perception=5,
+            endurance=5,
+            charisma=5,
+            intelligence=5,
+            agility=5,
+            luck=5,
+        ),
+    )
+    dweller.happiness = happiness
+    return dweller
+
+
+class TestArenaMoraleBonus:
+    """Vault-wide +1 morale on match completion (issue #999), through the real finish path."""
+
+    @pytest.mark.asyncio
+    async def test_finished_match_grants_morale_to_every_living_dweller(
+        self, async_session, arena_room, fighter_a, fighter_b, vault
+    ):
+        """Winner/loser keep their ±10 swing and everyone — fighters included — gains +1."""
+        for fighter in (fighter_a, fighter_b):
+            fighter.room_id = arena_room.id
+            fighter.happiness = 50
+        bystander = await _morale_bystander(async_session, vault.id, "Bystander", 50)
+        fighter_a.health = 1200
+        fighter_b.health = 1
+        await async_session.refresh(fighter_a, ["weapon"])
+        await async_session.refresh(fighter_b, ["weapon"])
+        service = ArenaService()
+        result = await service._resolve_round(
+            async_session,
+            arena_room,
+            [participant_from_dweller(fighter_a)],
+            [participant_from_dweller(fighter_b)],
+            1000,
+        )
+        assert result["status"] == "finished"
+        assert fighter_a.happiness == 61
+        assert fighter_b.happiness == 41
+        assert bystander.happiness == 51
+
+    @pytest.mark.asyncio
+    async def test_second_match_inside_cooldown_grants_nothing(
+        self, async_session, arena_room, fighter_a, fighter_b, vault
+    ):
+        """A completion inside the vault-wide window keeps the ±10 swing but skips the +1."""
+        from datetime import UTC, datetime
+
+        vault.arena_morale_awarded_at = datetime.now(UTC).replace(tzinfo=None)
+        async_session.add(vault)
+        for fighter in (fighter_a, fighter_b):
+            fighter.room_id = arena_room.id
+            fighter.happiness = 50
+        bystander = await _morale_bystander(async_session, vault.id, "Bystander", 50)
+        fighter_a.health = 1200
+        fighter_b.health = 1
+        await async_session.refresh(fighter_a, ["weapon"])
+        await async_session.refresh(fighter_b, ["weapon"])
+        service = ArenaService()
+        result = await service._resolve_round(
+            async_session,
+            arena_room,
+            [participant_from_dweller(fighter_a)],
+            [participant_from_dweller(fighter_b)],
+            1000,
+        )
+        assert result["status"] == "finished"
+        assert fighter_a.happiness == 60
+        assert fighter_b.happiness == 40
+        assert bystander.happiness == 50
+
+    @pytest.mark.asyncio
+    async def test_morale_grant_clamps_at_100(self, async_session, arena_room, fighter_a, fighter_b, vault):
+        """Nobody exceeds the dweller happiness cap when the swing and the bonus stack."""
+        for fighter in (fighter_a, fighter_b):
+            fighter.room_id = arena_room.id
+        fighter_a.happiness = 95
+        fighter_b.happiness = 50
+        bystander = await _morale_bystander(async_session, vault.id, "Capped", 100)
+        fighter_a.health = 1200
+        fighter_b.health = 1
+        await async_session.refresh(fighter_a, ["weapon"])
+        await async_session.refresh(fighter_b, ["weapon"])
+        service = ArenaService()
+        result = await service._resolve_round(
+            async_session,
+            arena_room,
+            [participant_from_dweller(fighter_a)],
+            [participant_from_dweller(fighter_b)],
+            1000,
+        )
+        assert result["status"] == "finished"
+        assert fighter_a.happiness == 100
+        assert bystander.happiness == 100

@@ -85,8 +85,8 @@ class IncidentConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="INCIDENT_")
 
     spawn_chance_per_hour: float = Field(
-        default=0.05,
-        description="5% chance per hour for incident to spawn",
+        default=1.0,
+        description="Expected incidents per hour for a present player; caps and cooldowns keep it balanced",
         ge=0.0,
         le=1.0,
     )
@@ -105,6 +105,11 @@ class IncidentConfig(BaseSettings):
         description="Maximum incident spreads; temporarily disabled for balance",
         ge=0,
         le=10,
+    )
+    response_grace_seconds: int = Field(
+        default=120,
+        description="Seconds after spawn during which an undefended incident waits for responders instead of spreading or failing",
+        ge=0,
     )
     max_active_incidents: int = Field(
         default=5,

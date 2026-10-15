@@ -29,7 +29,12 @@ logger = logging.getLogger(__name__)
 
 
 async def no_defender_outcome(db_session: AsyncSession, incident: Incident) -> IncidentRoundResult:
-    """An active incident nobody responds to: spread it, keep waiting, or lose it."""
+    """An active incident nobody responds to: grace, then spread it, keep waiting, or lose it."""
+    grace = game_config.incident.response_grace_seconds
+    if grace > 0 and incident.elapsed_time() < grace:
+        # Fresh incident: give the player time to respond instead of failing on
+        # the first no-defender round. Nothing mutated, nothing to commit.
+        return IncidentRoundResult(no_defenders=True)
     if (
         incident.elapsed_time() >= incident.duration
         and incident.spread_count < game_config.incident.max_spread_count

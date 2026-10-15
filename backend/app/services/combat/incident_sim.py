@@ -82,6 +82,7 @@ def resolve_incident(
     duration: int = 60,
     max_spread_count: int = 0,
     base_raider_power: float | None = None,
+    response_grace_seconds: int = 0,
 ) -> IncidentOutcome:
     """Resolve one incident to completion against the given responders.
 
@@ -94,8 +95,9 @@ def resolve_incident(
     outfit/team reduction, clamping health to ``max(1, max_health - radiation)``.
     FIRE wins at ``progress >= 1``; every other type wins at
     ``int(progress) >= difficulty * 2``. With no living responders and spread
-    disabled the incident fails on that round, like production's
-    no-defender outcome — it does not burn sub-ticks to the duration.
+    disabled the incident fails on that round once ``response_grace_seconds``
+    has elapsed, like production's no-defender outcome — it does not burn
+    sub-ticks to the duration.
     ``max_spread_count`` is accepted for signature parity with the
     production engine; when > 0 it extends the effective duration (one extra
     ``duration`` per spread) as an unopposed-spread window, otherwise the
@@ -123,6 +125,10 @@ def resolve_incident(
     while True:
         living = [defender for defender in responders if defender.health > 0]
         if not living:
+            if elapsed < response_grace_seconds:
+                elapsed += dt
+                ticks += 1
+                continue
             if max_spread_count == 0:
                 elapsed += dt
                 ticks += 1

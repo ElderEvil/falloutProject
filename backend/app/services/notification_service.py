@@ -340,6 +340,27 @@ class NotificationService:
         )
 
     @staticmethod
+    async def notify_arena_morale_boost(
+        db: AsyncSession,
+        user_id: UUID,
+        vault_id: UUID,
+        room_id: UUID | None = None,
+        commit: bool = True,
+    ):
+        """Notify user that an arena show lifted vault morale."""
+        return await NotificationService.create_and_send(
+            db,
+            user_id=user_id,
+            vault_id=vault_id,
+            notification_type=NotificationType.ARENA_MORALE_BOOST,
+            priority=NotificationPriority.NORMAL,
+            title="Arena morale boost",
+            message="Arena show lifted vault morale",
+            meta_data={"room_id": str(room_id)} if room_id is not None else None,
+            commit=commit,
+        )
+
+    @staticmethod
     async def notify_radio_new_dweller(
         db: AsyncSession,
         user_id: UUID,

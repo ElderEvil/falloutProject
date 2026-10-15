@@ -215,6 +215,48 @@ describe('NotificationBell SSE watcher null-safety', () => {
     wrapper.unmount()
   })
 
+  it('toasts and adds a bell entry when an arena morale boost arrives', async () => {
+    // ARRANGE: authenticated user, SSE delivers an arena_morale_boost notification
+    const authStore = useAuthStore()
+    authStore.token = 'test-token'
+    const { toasts } = useToast()
+    toasts.value = []
+
+    const moraleNotifData = JSON.stringify({
+      notification: {
+        id: 'n4',
+        notification_type: 'arena_morale_boost',
+        title: 'Arena morale boost',
+        message: 'Arena show lifted vault morale',
+        priority: 'normal',
+        created_at: '2026-10-15T10:00:00',
+        meta_data: {
+          room_id: 'arena-1',
+          vault_id: 'vault-1',
+        },
+      },
+    })
+    fetchMock.mockResolvedValue(
+      createMockResponse([encodeSse(moraleNotifData, 'notification')], { hang: true })
+    )
+
+    // ACT: mount (onMounted starts SSE) and let the stream flush
+    const wrapper = mount(NotificationBell)
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+
+    // ASSERT: the event surfaced as a toast (progression red line)
+    expect(toasts.value.some((t) => t.message === 'Arena show lifted vault morale')).toBe(true)
+
+    // ASSERT: the event also produced a normal bell entry
+    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Arena morale boost')
+    expect(wrapper.text()).toContain('Arena show lifted vault morale')
+
+    wrapper.unmount()
+  })
+
   it('surfaces an exploration completion that lands away from the exploration routes', async () => {
     // ARRANGE: authenticated user, SSE delivers the arrival notification
     const authStore = useAuthStore()

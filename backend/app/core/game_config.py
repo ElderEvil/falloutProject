@@ -249,6 +249,17 @@ class CombatConfig(BaseSettings):
         description='SPECIAL weights per weapon type, e.g. COMBAT_WEAPON_STAT_WEIGHTS=\'{"melee": {"strength": 0.3}}\'',
     )
     level_bonus_multiplier: int = Field(default=2, ge=0)
+    arena_morale_bonus: int = Field(
+        default=1,
+        ge=0,
+        le=100,
+        description="Happiness every living dweller gains when an arena match finishes",
+    )
+    arena_morale_cooldown_seconds: int = Field(
+        default=3600,
+        ge=0,
+        description="Per-vault window during which further arena finishes grant no morale",
+    )
 
     @field_validator("weapon_stat_weights", mode="before")
     @classmethod

@@ -63,6 +63,16 @@ is real, not a rerollable button:
 The UI states the cost before the click (modal copy + button label) and surfaces the outcome as a toast;
 the ask keeps its always-on bell notification.
 
+## Arena morale (The Crowd Goes Wild)
+
+Finishing any arena match (duel, brawl, or hunt) lifts the whole vault: every living dweller — fighters
+included, on top of their existing ±10 participant swing — gains `COMBAT_ARENA_MORALE_BONUS` (1), clamped to
+the 10..100 dweller contract. A per-vault rolling window (`vault.arena_morale_awarded_at`,
+`COMBAT_ARENA_MORALE_COOLDOWN_SECONDS` (3600)) keeps multiple arenas from stacking the bonus: the arena that
+finishes first sets the window and later completions inside it grant nothing (the participant swing still
+applies). The grant serializes on a vault-scoped advisory lock, lands in the match's own transaction, and
+surfaces as an always-on `arena_morale_boost` bell entry plus toast — the arena's first progression surface.
+
 ## Race and faction switches
 
 Race mechanics are **on** (`FEATURE_RACE_MECHANICS`) and faction mechanics are **off**

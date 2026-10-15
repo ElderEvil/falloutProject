@@ -67,7 +67,7 @@ const handleViewDetails = () => {
 <template>
   <Card
     class="dead-dweller-card h-full flex flex-col gap-0 rounded-lg border-2 border-theme-primary/20 p-4 shadow-glow-md ring-0 crt-screen"
-    :class="{ 'border-red-500/50': isUrgent && !dweller.is_permanently_dead }"
+    :class="{ 'border-danger/50': isUrgent && !dweller.is_permanently_dead }"
   >
     <div class="flex gap-4">
       <!-- Thumbnail Section -->
@@ -86,12 +86,12 @@ const handleViewDetails = () => {
             class="w-full h-full object-cover opacity-70"
           />
         </div>
-        <div v-else class="absolute inset-0 flex items-center justify-center bg-gray-900">
-          <Icon icon="mdi:account" class="w-12 h-12 text-gray-600" />
+        <div v-else class="absolute inset-0 flex items-center justify-center bg-surface-sunken">
+          <Icon icon="mdi:account" class="w-12 h-12 text-muted-foreground" />
         </div>
 
         <!-- Red tint overlay -->
-        <div class="absolute inset-0 bg-red-900/30 mix-blend-overlay"></div>
+        <div class="absolute inset-0 bg-danger/30 mix-blend-overlay"></div>
 
         <!-- Level Badge -->
         <div
@@ -122,7 +122,9 @@ const handleViewDetails = () => {
                 <span>{{ deathCauseText }}</span>
               </Badge>
 
-              <span v-if="dweller.is_permanently_dead" class="text-xs text-gray-500 font-mono"
+              <span
+                v-if="dweller.is_permanently_dead"
+                class="text-xs text-muted-foreground font-mono"
                 >[DECEASED]</span
               >
             </div>
@@ -141,7 +143,7 @@ const handleViewDetails = () => {
       class="mt-3 mb-3 text-xs font-mono flex items-center justify-between px-2 py-1 rounded bg-black/40 border"
       :class="
         isUrgent
-          ? 'border-red-500/50 text-red-400 animate-pulse'
+          ? 'border-danger/50 text-danger animate-pulse'
           : 'border-theme-primary/20 text-theme-primary/60'
       "
     >

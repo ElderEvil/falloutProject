@@ -118,24 +118,23 @@ const statusLabel = computed(() => {
 })
 
 const statusClass = computed(() => {
-  if (props.activeIncidentCount > 0) return 'border-red-500/60 bg-red-950/40 text-red-300'
-  if (attentionItems.value.length > 0)
-    return 'border-yellow-500/60 bg-yellow-950/40 text-yellow-300'
+  if (props.activeIncidentCount > 0) return 'border-danger/60 bg-danger/10 text-foreground'
+  if (attentionItems.value.length > 0) return 'border-warning/60 bg-warning/10 text-foreground'
   return 'border-terminal-green/50 bg-terminal-green/10 text-terminal-green'
 })
 
 const attentionClass = (tone: BriefingItem['tone']) =>
   tone === 'critical'
-    ? 'border-red-500/40 bg-red-950/20 text-red-200'
-    : 'border-yellow-500/40 bg-yellow-950/20 text-yellow-200'
+    ? 'border-danger/40 bg-danger/10 text-foreground'
+    : 'border-warning/40 bg-warning/10 text-foreground'
 
 const attentionIconClass = (tone: BriefingItem['tone']) =>
-  tone === 'critical' ? 'text-red-400' : 'text-yellow-400'
+  tone === 'critical' ? 'text-danger' : 'text-warning'
 </script>
 
 <template>
   <section class="overseer-briefing border-y border-theme-primary/20 py-4">
-    <p class="mb-3 text-xs text-gray-400">
+    <p class="mb-3 text-xs text-muted-foreground">
       After 10 minutes away, reserves limit further drain. Returning resumes consumption. Empty
       stock must be produced; use the room staffing controls and treat injured workers.
     </p>
@@ -145,7 +144,7 @@ const attentionIconClass = (tone: BriefingItem['tone']) =>
           VAULT {{ vaultNumber }} / COMMAND TERMINAL
         </p>
         <h3 class="mt-1 text-base font-bold text-theme-primary">VAULT STATUS</h3>
-        <p class="text-xs text-gray-400">{{ activeOperationCount }} active operations</p>
+        <p class="text-xs text-muted-foreground">{{ activeOperationCount }} active operations</p>
       </div>
       <span
         class="inline-flex items-center gap-2 rounded border px-2 py-1 text-[0.65rem] font-bold tracking-wider"
@@ -195,7 +194,7 @@ const attentionIconClass = (tone: BriefingItem['tone']) =>
         <router-link
           v-else-if="item.action === 'dwellers'"
           :to="dwellersPath"
-          class="shrink-0 rounded border border-yellow-300/50 px-2 py-1 text-[0.65rem] font-bold hover:bg-yellow-300/10"
+          class="shrink-0 rounded border border-warning/50 px-2 py-1 text-[0.65rem] font-bold hover:bg-warning/10"
         >
           REVIEW
         </router-link>

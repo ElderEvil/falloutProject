@@ -277,7 +277,7 @@ const handleDropZoneDrop = async (event: DragEvent) => {
           </div>
 
           <div class="drag-indicator">
-            <Icon icon="mdi:drag" class="h-5 w-5 text-gray-500" />
+            <Icon icon="mdi:drag" class="h-5 w-5 text-muted-foreground" />
           </div>
         </div>
       </div>

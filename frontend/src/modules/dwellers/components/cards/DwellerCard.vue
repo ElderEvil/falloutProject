@@ -128,7 +128,7 @@ const canHealRadaway = computed(
           />
           <span
             v-if="dweller.is_dead"
-            class="dead-portrait-marker absolute right-3 top-3 rounded-full border border-red-400/70 bg-black/75 p-2 text-red-400 shadow-[0_0_12px_rgba(248,113,113,0.6)]"
+            class="dead-portrait-marker absolute right-3 top-3 rounded-full border border-danger/70 bg-black/75 p-2 text-danger shadow-[0_0_12px_rgba(248,113,113,0.6)]"
             role="img"
             aria-label="Deceased"
           >
@@ -235,7 +235,7 @@ const canHealRadaway = computed(
 
         <div v-if="dweller.radiation && dweller.radiation > 0" class="stat-row">
           <span class="stat-label">Radiation</span>
-          <span class="stat-value text-yellow-400">{{ dweller.radiation }}</span>
+          <span class="stat-value text-warning">{{ dweller.radiation }}</span>
         </div>
       </div>
     </div>

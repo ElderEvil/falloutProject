@@ -18,7 +18,9 @@ const tokenTotal = computed(() => debug?.total_tokens ?? 0)
 </script>
 
 <template>
-  <div class="rounded-md border border-theme-primary/40 bg-terminal-background/80 p-3 font-mono text-xs">
+  <div
+    class="rounded-md border border-theme-primary/40 bg-terminal-background/80 p-3 font-mono text-xs"
+  >
     <div class="mb-2 flex items-center gap-1.5 text-theme-primary/70 uppercase tracking-[0.05em]">
       <Icon icon="mdi:bug-outline" class="h-3.5 w-3.5" />
       <span>Chat debug</span>
@@ -44,14 +46,18 @@ const tokenTotal = computed(() => debug?.total_tokens ?? 0)
 
       <div class="text-theme-primary/60">
         guardrail
-        <span :class="debug.guardrail?.blocked ? 'text-red-400' : 'text-emerald-400'">{{
+        <span :class="debug.guardrail?.blocked ? 'text-danger' : 'text-success'">{{
           guardrailLabel
         }}</span>
       </div>
 
       <div v-if="debug.jev_decisions?.length" class="text-theme-primary/60">
         jev
-        <span v-for="decision in debug.jev_decisions" :key="decision.name" class="mr-2 text-theme-primary">
+        <span
+          v-for="decision in debug.jev_decisions"
+          :key="decision.name"
+          class="mr-2 text-theme-primary"
+        >
           {{ decision.name }}:{{
             Object.entries(decision.fields ?? {})
               .map(([f, v]) => `${f}=${v.answer ? 'yes' : 'no'}(${v.confidence.toFixed(2)})`)

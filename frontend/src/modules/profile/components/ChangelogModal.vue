@@ -161,16 +161,13 @@ onUnmounted(() => {
 
           <!-- Error state -->
           <div v-else-if="error" class="flex flex-col items-center justify-center py-12">
-            <div class="text-red-400 mb-4">{{ error }}</div>
+            <div class="text-danger mb-4">{{ error }}</div>
             <Button variant="default" @click="fetchChangelog">Retry</Button>
           </div>
 
           <!-- No new versions -->
           <div v-else-if="!hasNewVersions" class="flex flex-col items-center justify-center py-12">
-            <Icon
-              icon="mdi:check-circle"
-              class="h-16 w-16 text-theme-primary mb-4"
-            />
+            <Icon icon="mdi:check-circle" class="h-16 w-16 text-theme-primary mb-4" />
             <div class="text-theme-primary text-xl mb-2">All caught up!</div>
             <div class="text-theme-primary/60">You're running the latest version</div>
           </div>
@@ -187,7 +184,9 @@ onUnmounted(() => {
               >
                 <div class="flex items-center gap-3">
                   <Badge variant="default" class="text-lg"> v{{ entry.version }} </Badge>
-                  <span class="text-theme-primary/60 text-sm font-mono">{{ entry.date_display }}</span>
+                  <span class="text-theme-primary/60 text-sm font-mono">{{
+                    entry.date_display
+                  }}</span>
                 </div>
               </div>
 

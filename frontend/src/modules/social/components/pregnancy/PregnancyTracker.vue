@@ -9,7 +9,7 @@
       <Card
         class="gap-0 rounded-lg border-2 border-theme-primary/20 p-6 shadow-glow-md ring-0 crt-screen"
       >
-        <p class="text-red-400 mb-4">{{ error }}</p>
+        <p class="text-danger mb-4">{{ error }}</p>
         <Button
           variant="outline"
           class="border-2 border-theme-primary bg-transparent"

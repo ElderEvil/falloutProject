@@ -64,7 +64,9 @@ describe('AIUsageCard', () => {
       const quotaTrack = wrapper.find('.relative.h-6')
 
       expect(statisticInsets).toHaveLength(2)
-      expect(statisticInsets.every((inset) => inset.classes().includes('bg-surface-sunken'))).toBe(true)
+      expect(statisticInsets.every((inset) => inset.classes().includes('bg-surface-sunken'))).toBe(
+        true
+      )
       expect(quotaTrack.classes()).toContain('bg-surface-sunken')
     })
 
@@ -203,9 +205,11 @@ describe('AIUsageCard', () => {
         props: { stats },
       })
 
-      const exceededAlert = wrapper.find('.text-red-400')
-      expect(exceededAlert.exists()).toBe(true)
-      expect(exceededAlert.text()).toContain('Quota exceeded')
+      const exceededAlert = wrapper
+        .findAll('.text-danger')
+        .find((element) => element.text().includes('Quota exceeded'))
+      expect(exceededAlert).toBeDefined()
+      expect(exceededAlert?.text()).toContain('Quota exceeded')
     })
 
     it('should not show blocking message when quota_exceeded is false', () => {
@@ -239,11 +243,15 @@ describe('AIUsageCard', () => {
         props: { stats },
       })
 
-      const quotaBars = wrapper.findAll('[data-slot="progress"]').filter((b) => ((b.attributes('style') ?? '') as string).includes('var(--color-theme-primary)'))
+      const quotaBars = wrapper
+        .findAll('[data-slot="progress"]')
+        .filter((b) =>
+          ((b.attributes('style') ?? '') as string).includes('var(--color-theme-primary)')
+        )
       expect(quotaBars.length).toBeGreaterThan(0)
     })
 
-    it('should use amber color at 80%', () => {
+    it('should use warning token at 80%', () => {
       const stats = createMockStats({
         quota_used: 80000,
         quota_limit: 100000,
@@ -256,14 +264,16 @@ describe('AIUsageCard', () => {
         props: { stats },
       })
 
-      const quotaBars = wrapper.findAll('[data-slot="progress"]').filter((b) => ((b.attributes('style') ?? '') as string).includes('rgb(245 158 11)'))
+      const quotaBars = wrapper
+        .findAll('[data-slot="progress"]')
+        .filter((b) => ((b.attributes('style') ?? '') as string).includes('var(--color-warning)'))
       expect(quotaBars.length).toBeGreaterThan(0)
 
-      const percentageText = wrapper.find('.text-amber-500')
+      const percentageText = wrapper.find('.text-warning')
       expect(percentageText.exists()).toBe(true)
     })
 
-    it('should use amber color between 80-99%', () => {
+    it('should use warning token between 80-99%', () => {
       const stats = createMockStats({
         quota_used: 90000,
         quota_limit: 100000,
@@ -276,11 +286,13 @@ describe('AIUsageCard', () => {
         props: { stats },
       })
 
-      const quotaBars = wrapper.findAll('[data-slot="progress"]').filter((b) => ((b.attributes('style') ?? '') as string).includes('rgb(245 158 11)'))
+      const quotaBars = wrapper
+        .findAll('[data-slot="progress"]')
+        .filter((b) => ((b.attributes('style') ?? '') as string).includes('var(--color-warning)'))
       expect(quotaBars.length).toBeGreaterThan(0)
     })
 
-    it('should use red color at 100%', () => {
+    it('should use danger token at 100%', () => {
       const stats = createMockStats({
         quota_used: 100000,
         quota_limit: 100000,
@@ -293,14 +305,16 @@ describe('AIUsageCard', () => {
         props: { stats },
       })
 
-      const quotaBars = wrapper.findAll('[data-slot="progress"]').filter((b) => ((b.attributes('style') ?? '') as string).includes('rgb(239 68 68)'))
+      const quotaBars = wrapper
+        .findAll('[data-slot="progress"]')
+        .filter((b) => ((b.attributes('style') ?? '') as string).includes('var(--color-danger)'))
       expect(quotaBars.length).toBeGreaterThan(0)
 
-      const percentageText = wrapper.find('.text-red-500')
+      const percentageText = wrapper.find('.text-danger')
       expect(percentageText.exists()).toBe(true)
     })
 
-    it('should use red color when exceeding 100%', () => {
+    it('should use danger token when exceeding 100%', () => {
       const stats = createMockStats({
         quota_used: 120000,
         quota_limit: 100000,
@@ -313,7 +327,9 @@ describe('AIUsageCard', () => {
         props: { stats },
       })
 
-      const quotaBars = wrapper.findAll('[data-slot="progress"]').filter((b) => ((b.attributes('style') ?? '') as string).includes('rgb(239 68 68)'))
+      const quotaBars = wrapper
+        .findAll('[data-slot="progress"]')
+        .filter((b) => ((b.attributes('style') ?? '') as string).includes('var(--color-danger)'))
       expect(quotaBars.length).toBeGreaterThan(0)
     })
   })
@@ -376,7 +392,11 @@ describe('AIUsageCard', () => {
       expect(wrapper.text()).toContain('3 requests')
       expect(wrapper.text()).not.toContain('quota_tracking')
       expect(wrapper.text()).not.toContain('Other AI activity')
-      expect(wrapper.find('[aria-label="Dweller chat: 450 tokens across 3 requests, 60% of this month"]').exists()).toBe(true)
+      expect(
+        wrapper
+          .find('[aria-label="Dweller chat: 450 tokens across 3 requests, 60% of this month"]')
+          .exists()
+      ).toBe(true)
     })
 
     it('uses a safe label for unrecognised operations and explains chat-heavy use', () => {

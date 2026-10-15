@@ -294,7 +294,7 @@ const reviewActiveIncidents = () => {
         <p class="mb-6 text-terminal-green">{{ errorMessage }}</p>
         <router-link
           to="/"
-          class="rounded bg-terminal-green px-6 py-2 font-bold text-black hover:bg-green-400"
+          class="rounded bg-terminal-green px-6 py-2 font-bold text-black hover:bg-success"
         >
           Go to Vault List
         </router-link>

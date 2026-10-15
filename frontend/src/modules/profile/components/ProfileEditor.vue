@@ -1,11 +1,7 @@
 <template>
-  <Card
-    class="profile-editor gap-0 border border-theme-primary/20 bg-surface p-5 ring-0 sm:p-6"
-  >
+  <Card class="profile-editor gap-0 border border-theme-primary/20 bg-surface p-5 ring-0 sm:p-6">
     <CardHeader class="mb-6 gap-0 border-b border-theme-primary/20 px-0 pb-5">
-      <p class="mb-1 text-xs font-medium text-theme-primary/60">
-        Your account
-      </p>
+      <p class="mb-1 text-xs font-medium text-theme-primary/60">Your account</p>
       <CardTitle class="text-2xl font-bold tracking-tight text-theme-primary">
         Edit Profile
       </CardTitle>
@@ -93,7 +89,10 @@
           <p class="text-xs leading-5 text-theme-primary/50">{{ currentThemeDescription }}</p>
         </div>
 
-        <details :open="Boolean(jsonError)" class="rounded-md border border-theme-primary/20 bg-surface p-3">
+        <details
+          :open="Boolean(jsonError)"
+          class="rounded-md border border-theme-primary/20 bg-surface p-3"
+        >
           <summary class="cursor-pointer text-sm font-semibold text-theme-primary/75">
             Advanced preferences (JSON)
           </summary>
@@ -120,26 +119,17 @@
         <Alert
           v-if="error"
           variant="destructive"
-          class="rounded-md border-danger/40 bg-danger/10 px-3 py-2 text-sm text-red-300"
+          class="rounded-md border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger"
         >
           {{ error }}
         </Alert>
 
         <div class="flex flex-col gap-3 border-t border-theme-primary/20 pt-5 sm:flex-row">
-          <Button
-            type="submit"
-            :disabled="loading"
-            class="w-full"
-          >
+          <Button type="submit" :disabled="loading" class="w-full">
             <Icon v-if="loading" icon="mdi:loading" class="mr-1 animate-spin" />
             {{ loading ? 'Saving...' : 'Save Changes' }}
           </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            class="w-full"
-            @click="$emit('cancel')"
-          >
+          <Button type="button" variant="secondary" class="w-full" @click="$emit('cancel')">
             Cancel
           </Button>
         </div>
@@ -154,7 +144,13 @@ import type { ProfileUpdate } from '@/modules/profile/models/profile'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 import type { AcceptableValue } from 'reka-ui'
 import { Button } from '@/core/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/core/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/core/components/ui/card'
 import { Input } from '@/core/components/ui/input'
 import { Label } from '@/core/components/ui/label'
 import { Alert } from '@/core/components/ui/alert'

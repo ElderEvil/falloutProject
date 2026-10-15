@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Overseer briefing contrast fixture</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import '../../../src/assets/tailwind.css'
+      import '../../../src/assets/main.css'
+      import { createApp, h } from 'vue'
+      import { createRouter, createMemoryHistory } from 'vue-router'
+      import { useTheme } from '../../../src/core/composables/useTheme'
+      import OverseerBriefing from '../../../src/modules/vault/components/shell/OverseerBriefing.vue'
+
+      const params = new URLSearchParams(location.search)
+      const surfaces = {
+        canvas: 'bg-surface-canvas',
+        surface: 'bg-surface',
+        raised: 'bg-surface-raised',
+      }
+      const props = {
+        vaultNumber: 42,
+        activeIncidentCount: 0,
+        activeExplorationCount: 0,
+        trainingCount: 0,
+        questingCount: 0,
+        unassignedCount: 0,
+        populationUtilization: 20,
+        happiness: 100,
+        resourceWarnings: [],
+        dwellersPath: '/vault/vault-1/dwellers',
+      }
+      const app = createApp({
+        setup() {
+          useTheme().setTheme(params.get('theme') ?? 'fo4')
+          return () =>
+            h(
+              'main',
+              { class: ['min-h-screen p-6', surfaces[params.get('surface')] ?? surfaces.canvas] },
+              [
+                h(OverseerBriefing, { ...props, activeIncidentCount: 1 }),
+                h(OverseerBriefing, { ...props, happiness: 30 }),
+              ]
+            )
+        },
+      })
+      app.use(
+        createRouter({
+          history: createMemoryHistory(),
+          routes: [{ path: '/', component: { render: () => null } }],
+        })
+      )
+      app.mount('#app')
+    </script>
+  </body>
+</html>

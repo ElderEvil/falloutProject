@@ -68,6 +68,26 @@
        stylesheet so the critical-path CSS budget is unaffected). */
     --color-happiness-high: #00ff00;
 
+    /* Fixed activity identity hues; icons and labels carry the status meaning. */
+    --color-status-exploring: #60a5fa;
+    --color-status-questing: #fb923c;
+    --color-status-working: #4ade80;
+    --color-status-training: var(--color-status-questing);
+    --color-status-resting: #f472b6;
+    --color-status-fighting: #f87171;
+    --color-status-dead: var(--color-status-fighting);
+    --color-status-idle: #facc15;
+    --color-status-unknown: var(--color-gray-400);
+
+    /* SPECIAL identity colors pair with each attribute's name, letter and icon. */
+    --color-special-strength: var(--color-status-fighting);
+    --color-special-perception: var(--color-status-exploring);
+    --color-special-endurance: var(--color-status-questing);
+    --color-special-charisma: var(--color-status-resting);
+    --color-special-intelligence: #c084fc;
+    --color-special-agility: var(--color-status-working);
+    --color-special-luck: var(--color-status-idle);
+
     /* Resource Colors */
     --color-power: #ffdd57;
     --color-food: #ff6b6b;

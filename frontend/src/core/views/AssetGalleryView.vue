@@ -207,7 +207,7 @@ onMounted(async () => {
     <p v-if="!token" class="mt-3 text-sm opacity-70">
       Creature and pet previews are available here. Log in to load the other catalogs.
     </p>
-    <p v-if="loadError" class="mt-4 text-sm text-red-400">{{ loadError }}</p>
+    <p v-if="loadError" class="mt-4 text-sm text-danger">{{ loadError }}</p>
 
     <Tabs :model-value="activeTab" @update:model-value="setActiveTab" class="mt-4">
       <TabsList class="h-auto max-w-full flex-wrap justify-start">

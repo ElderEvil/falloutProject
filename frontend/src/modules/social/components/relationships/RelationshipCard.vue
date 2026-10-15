@@ -77,7 +77,7 @@
         class="flex items-center gap-1 rounded border px-1.5 py-0.5 text-[0.65rem] font-bold uppercase tracking-[0.1em]"
         :class="
           pregnancy.is_due
-            ? 'animate-pulse motion-reduce:animate-none border-yellow-400/50 text-yellow-400'
+            ? 'animate-pulse motion-reduce:animate-none border-warning/50 text-warning'
             : 'border-theme-primary/30 text-theme-primary/70'
         "
       >

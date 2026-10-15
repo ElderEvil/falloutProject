@@ -5,7 +5,12 @@ import DwellerStatusBadge from '../stats/DwellerStatusBadge.vue'
 import DwellerAgeBadge from '../DwellerAgeBadge.vue'
 import DwellerGenderBadge from '../DwellerGenderBadge.vue'
 import DwellerRarityBadge from '../DwellerRarityBadge.vue'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
 import type { DwellerShort } from '../../models/dweller'
 import {
@@ -42,22 +47,27 @@ const emit = defineEmits<{
 const healthPercentage = computed(() => {
   if (!props.dweller.max_health) return 0
   return (
-    (Math.min(props.dweller.health, getEffectiveMaxHealth(props.dweller.radiation, props.dweller.max_health)) /
+    (Math.min(
+      props.dweller.health,
+      getEffectiveMaxHealth(props.dweller.radiation, props.dweller.max_health)
+    ) /
       props.dweller.max_health) *
     100
   )
 })
 
-const radiationPercentage = computed(() => getRadiationPercentage(props.dweller.radiation, props.dweller.max_health))
+const radiationPercentage = computed(() =>
+  getRadiationPercentage(props.dweller.radiation, props.dweller.max_health)
+)
 
 // Room stat is passed precomputed from the list view (DwellersList.getRoomStat)
 // so the grid and list render identical values (combat power for arena, else SPECIAL).
 
 // Get color class based on stat value
 const getStatColorClass = (value: number) => {
-  if (value >= 7) return 'text-green-400'
-  if (value >= 4) return 'text-yellow-400'
-  return 'text-red-400'
+  if (value >= 7) return 'text-success'
+  if (value >= 4) return 'text-warning'
+  return 'text-danger'
 }
 </script>
 
@@ -79,7 +89,6 @@ const getStatColorClass = (value: number) => {
         <DwellerPortrait
           :thumbnail-url="dweller.thumbnail_url"
           alt=""
-
           image-class="thumbnail-image"
         />
       </template>
@@ -132,7 +141,9 @@ const getStatColorClass = (value: number) => {
         </div>
         <div class="stat-item">
           <span class="stat-label">HP</span>
-          <span class="stat-value">{{ getHealthDisplay(dweller.health, dweller.max_health, dweller.radiation) }}</span>
+          <span class="stat-value">{{
+            getHealthDisplay(dweller.health, dweller.max_health, dweller.radiation)
+          }}</span>
         </div>
         <div class="stat-item">
           <span class="stat-label">😊</span>
@@ -147,7 +158,10 @@ const getStatColorClass = (value: number) => {
       <div v-if="roomStat" class="job-stat">
         <Icon :icon="roomStat.icon" class="job-stat-icon" />
         <span class="job-stat-label">{{ roomStat.label }}:</span>
-        <span class="job-stat-value" :class="roomStat.isPower ? 'text-orange-400' : getStatColorClass(roomStat.value)">
+        <span
+          class="job-stat-value"
+          :class="roomStat.isPower ? 'text-warning' : getStatColorClass(roomStat.value)"
+        >
           {{ roomStat.value }}
         </span>
       </div>

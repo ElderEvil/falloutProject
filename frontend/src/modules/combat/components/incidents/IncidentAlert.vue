@@ -31,7 +31,7 @@
 
     <span
       v-if="incidents.length > 1"
-      class="shrink-0 rounded-full bg-danger px-3 py-1 text-xs font-bold text-gray-100"
+      class="shrink-0 rounded-full bg-danger px-3 py-1 text-xs font-bold text-white"
     >
       {{ incidents.length }} ACTIVE
     </span>
@@ -68,7 +68,9 @@ const hasActiveIncidents = computed(() => props.incidents.length > 0)
 
 const primaryIncident = computed(() => props.incidents[0])
 
-const incidentIcon = computed(() => (primaryIncident.value ? getIncidentIcon(primaryIncident.value.type) : 'mdi:alert-octagon'))
+const incidentIcon = computed(() =>
+  primaryIncident.value ? getIncidentIcon(primaryIncident.value.type) : 'mdi:alert-octagon'
+)
 
 const incidentTitle = computed(() => {
   if (!primaryIncident.value) return 'INCIDENT ALERT'

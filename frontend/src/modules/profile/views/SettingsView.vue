@@ -28,7 +28,7 @@
           </div>
 
           <div v-else-if="error" class="error-state">
-            <p class="text-red-500">{{ error }}</p>
+            <p class="text-danger">{{ error }}</p>
           </div>
 
           <div v-else>

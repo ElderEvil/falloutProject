@@ -62,7 +62,10 @@ async def test_fire_spawn_dispatches_active_team(
             t3_upgrade_cost=1500,
             size_min=3,
             size_max=6,
-            size=3,
+            # Size 6 (4 worker slots): the setup parks extra plus both team
+            # members here, which a size-3 room could not hold under the
+            # manual-assignment worker cap.
+            size=6,
             tier=1,
             coordinate_x=5,
             coordinate_y=5,

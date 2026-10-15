@@ -17,15 +17,15 @@ from app.utils.exceptions import ResourceConflictException, ValidationException
 ABILITY_TO_STAT_MAP = STAT_BY_SPECIAL
 
 
-def response_station_lock_key(room_id: UUID4) -> str:
-    """Advisory-lock key guarding one Response Station's occupancy.
+def room_occupancy_lock_key(room_id: UUID4) -> str:
+    """Advisory-lock key guarding one room's occupant count.
 
-    Assignment mutates the station's occupant count, so every assignment takes the
-    key and concurrent moves serialize instead of both reading the last free slot.
-    The station grows by building an adjacent segment, which serializes on the vault
-    placement lock instead.
+    Assignment mutates the room's occupant count, so every manual and automatic
+    move into the same room takes this key first: concurrent moves serialize
+    instead of both reading the last free slot. Footprint changes (build,
+    upgrade merge, backfill) serialize separately on the vault placement lock.
     """
-    return f"response-station:{room_id}"
+    return f"room-occupancy:{room_id}"
 
 
 def vault_placement_lock_key(vault_id: UUID4) -> str:
@@ -53,30 +53,35 @@ def adult_assignment_conditions() -> tuple:
     return (col(Dweller.age_group).in_(ADULT_AGE_GROUPS),)
 
 
-async def validate_response_station_capacity(db_session: AsyncSession, room: Room) -> None:
-    """Refuse to overfill the Response Station, whose occupancy must follow its footprint.
+async def validate_room_worker_capacity(db_session: AsyncSession, room: Room) -> None:
+    """Refuse to overfill a room's worker slots, whose count must follow its footprint.
 
-    The station grows by building an adjacent segment like any room, so its
-    assignment path enforces the 2-per-3-units capacity that the larger footprint
-    raises. Non-response rooms keep their existing (uncapped) manual-assignment
-    behaviour.
+    The automatic path selects rooms through ``calculate_room_capacity`` (2 workers
+    per 3 size units); the manual path enforces the same count here so a move into
+    a full room is rejected instead of persisted. Production apprentices sit
+    outside worker capacity (see ``DwellerAssignmentService._get_available_slots``);
+    every other room counts all occupants.
     """
-    if room.category != RoomTypeEnum.RESPONSE:
-        return
-
     # Count-then-move is a TOCTOU race: two assignments can both read the last free
     # slot and both proceed. A transaction-scoped lock taken before the count is
     # held until ``move_to_room`` commits, so the check and the move that follows it
     # are one critical section (a no-op True outside PostgreSQL).
-    if not await db_locks.try_advisory_xact_lock(db_session, response_station_lock_key(room.id)):
+    if not await db_locks.try_advisory_xact_lock(db_session, room_occupancy_lock_key(room.id)):
         raise ResourceConflictException(detail=f"{room.name} is busy — try again")
 
     room_size = room.size if room.size is not None else room.size_min
     capacity = calculate_room_capacity(room_size)
+    if capacity <= 0:
+        # No footprint-based slots (unsized rooms, sub-3 fixtures): the formula
+        # does not speak for these rooms, so manual assignment keeps its
+        # existing behaviour there.
+        return
 
     from app.crud.dweller import dweller as dweller_crud
 
-    occupants = await dweller_crud.count_in_room(db_session, room.id)
+    occupants = await dweller_crud.count_in_room(
+        db_session, room.id, include_apprentices=room.category != RoomTypeEnum.PRODUCTION
+    )
     if occupants >= capacity:
         raise ResourceConflictException(detail=f"{room.name} is at full capacity ({capacity})")
 
@@ -87,8 +92,8 @@ async def validate_room_assignment(db_session: AsyncSession, dweller: Dweller, r
     A junior worker both assists production (at the reduced junior rate in the
     resource manager) and advances the room's SPECIAL while they are posted there.
     """
-    await validate_response_station_capacity(db_session, room)
     if dweller.is_mature:
+        await validate_room_worker_capacity(db_session, room)
         return
     if room.category == RoomTypeEnum.ARENA:
         raise ValidationException(detail="Only adult dwellers can fight in the Arena")

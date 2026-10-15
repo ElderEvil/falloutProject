@@ -121,7 +121,7 @@ async def _grow_station(session: AsyncSession, vault_id: UUID, station_id: UUID)
 
 
 async def _create_non_unique_room(session: AsyncSession, vault_id: UUID, *, coordinate_x: int = 1) -> Room:
-    """A mergeable production room; its manual assignment must stay uncapped."""
+    """A mergeable production room; worker capacity follows its footprint like any room."""
     return await crud.room.create(
         session,
         obj_in=RoomCreate(
@@ -281,25 +281,6 @@ async def test_station_grows_three_six_nine_through_assignment_path(
         await assign_next()
     assert await _occupants(async_session, station) == 6
     await expect_overflow_rejected()
-
-
-@pytest.mark.asyncio
-async def test_non_unique_room_manual_assignment_is_not_capacity_capped(
-    async_session: AsyncSession, vault: Vault
-) -> None:
-    """Guard: the unique-room cap must not change non-unique room assignment.
-
-    A mergeable size-3 room computes occupancy capacity 2, but manual assignment
-    stays uncapped exactly as before this change.
-    """
-    room = await _create_non_unique_room(async_session, vault.id)
-    assert not room.is_unique
-
-    dwellers = [await _create_adult(async_session, vault.id, f"Worker{i}") for i in range(3)]
-    for dweller in dwellers:
-        await dweller_service.move_to_room(async_session, dweller.id, room.id)
-
-    assert await _occupants(async_session, room) == 3
 
 
 # ---------------------------------------------------------------------------

@@ -14,6 +14,7 @@ import { Progress } from '@/core/components/ui/progress'
 import type { ArenaRosterEntry } from '../api/arena'
 import type { ArenaSlotFighter, ArenaSlotKey } from '../models/arena'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
+import ArenaDamageNumbers from './ArenaDamageNumbers.vue'
 
 interface Props {
   side: ArenaSlotKey
@@ -43,9 +44,7 @@ const healthPercent = (f: ArenaSlotFighter | null) =>
 <template>
   <div class="fighter-slot relative flex min-w-0 flex-col gap-2">
     <Card v-if="fighter" class="fighter-card relative gap-2 py-3" size="sm">
-      <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-        <span v-for="d in damageNumbers" :key="d.id" class="damage-number">-{{ d.amount }}</span>
-      </div>
+      <ArenaDamageNumbers :numbers="damageNumbers" />
       <CardHeader class="justify-items-center text-center">
         <div
           class="fighter-portrait flex size-10 items-center justify-center overflow-hidden rounded-full border-2 border-theme-primary bg-surface-raised"
@@ -130,31 +129,3 @@ const healthPercent = (f: ArenaSlotFighter | null) =>
     </div>
   </div>
 </template>
-
-<style scoped>
-.damage-number {
-  position: absolute;
-  top: 10px;
-  left: 50%;
-  color: var(--color-danger);
-  font-weight: bold;
-  font-size: 0.95rem;
-  animation: damage-float 0.9s ease-out forwards;
-}
-@keyframes damage-float {
-  from {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
-  to {
-    opacity: 0;
-    transform: translate(-50%, -32px);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .damage-number {
-    animation: none;
-    transform: translateX(-50%);
-  }
-}
-</style>

@@ -51,6 +51,37 @@ vi.mock('@/core/composables/useToast', () => ({
 vi.mock('@/core/plugins/axios', () => ({
   default: {
     get: vi.fn((url: string) => {
+      if (url.includes('/arena/') && url.endsWith('/state')) {
+        return Promise.resolve({
+          data: {
+            rooms: [
+              {
+                room_id: 'room-1',
+                room_name: 'Arena',
+                tier: 1,
+                mode: 'duel',
+                available_modes: ['duel'],
+                fighter_a_id: null,
+                fighter_b_id: null,
+                fighters: [],
+                team_a: [],
+                team_b: [],
+                roster: [],
+                events: [],
+                fight_ready: false,
+                match_done: false,
+                fight_started: false,
+                countdown_remaining: 0,
+                can_start: false,
+                winner_name: null,
+              },
+            ],
+          },
+        })
+      }
+      if (url.includes('/arena/') && url.endsWith('/creatures')) {
+        return Promise.resolve({ data: [] })
+      }
       if (url.includes('game/balance')) {
         return Promise.resolve({
           data: {
@@ -670,6 +701,7 @@ describe('RoomDetailModal', () => {
         },
       })
 
+      await flushPromises()
       await wrapper.get('[aria-label="Assign worker"]').trigger('click')
       expect(wrapper.get('.picker-title').text()).toBe('Assign to Arena')
       expect(wrapper.findAll('.dweller-picker .dweller-card')).toHaveLength(1)
@@ -701,6 +733,7 @@ describe('RoomDetailModal', () => {
           modelValue: true,
         },
       })
+      await flushPromises()
       await wrapper.get('[aria-label="Assign worker"]').trigger('click')
       await wrapper.get('.dweller-picker .dweller-card__details').trigger('click')
       await flushPromises()

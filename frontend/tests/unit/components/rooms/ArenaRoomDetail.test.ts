@@ -38,9 +38,8 @@ describe('ArenaRoomDetail', () => {
     )
   })
 
-  it('locks every management action for a running match and unlocks them after it finishes', async () => {
+  it('locks management until match state is known and while a match is running', async () => {
     const arenaStore = useArenaStore()
-    arenaStore.rooms.set('arena-1', { fight_started: false, match_done: false } as never)
     const wrapper = mount(ArenaRoomDetail, {
       props: {
         room: { id: 'arena-1', name: 'Arena', tier: 1, category: 'ARENA', ability: null } as never,
@@ -57,7 +56,14 @@ describe('ArenaRoomDetail', () => {
     })
     const buttons = () => wrapper.findAll('.room-management button')
     expect(buttons()).toHaveLength(3)
+    expect(buttons().every((button) => button.attributes('disabled') !== undefined)).toBe(true)
+    expect(wrapper.getComponent({ name: 'RoomPreviewSection' }).props('assignEnabled')).toBe(false)
+    expect(wrapper.text()).toContain('Room management is unavailable until match state loads.')
+
+    arenaStore.rooms.set('arena-1', { fight_started: false, match_done: false } as never)
+    await flushPromises()
     expect(buttons().every((button) => button.attributes('disabled') === undefined)).toBe(true)
+    expect(wrapper.getComponent({ name: 'RoomPreviewSection' }).props('assignEnabled')).toBe(true)
 
     arenaStore.rooms.set('arena-1', { fight_started: true, match_done: false } as never)
     await flushPromises()

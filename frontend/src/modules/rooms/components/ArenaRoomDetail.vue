@@ -39,10 +39,9 @@ const emit = defineEmits<{
 }>()
 
 const arenaStore = useArenaStore()
-const isFighting = computed(() => {
-  const state = arenaStore.getRoom(props.room.id)
-  return !!state?.fight_started && !state.match_done
-})
+const roomState = computed(() => arenaStore.getRoom(props.room.id))
+const isFighting = computed(() => !!roomState.value?.fight_started && !roomState.value.match_done)
+const managementLocked = computed(() => !roomState.value || isFighting.value)
 
 const assignmentMode = defineModel<'worker' | 'apprentice' | null>('assignmentMode', {
   default: null,
@@ -58,16 +57,19 @@ const assignmentMode = defineModel<'worker' | 'apprentice' | null>('assignmentMo
       :room-units="room.size ?? room.size_min ?? 3"
       :dweller-capacity="dwellerCapacity"
       :assigned-dwellers="assignedDwellers"
-      :assign-enabled="!isFighting"
+      :assign-enabled="!managementLocked"
       @activate="emit('viewDweller', $event)"
       @unassign="emit('unassignDweller', $event)"
       @assign-worker="assignmentMode = 'worker'"
     />
-    <p v-if="isFighting" class="text-xs text-muted-foreground">
+    <p v-if="!roomState" class="text-xs text-muted-foreground">
+      Room management is unavailable until match state loads.
+    </p>
+    <p v-else-if="isFighting" class="text-xs text-muted-foreground">
       Room management is locked until the match finishes.
     </p>
     <DwellerList
-      v-if="assignmentMode && !isFighting && assignedDwellers.length < dwellerCapacity"
+      v-if="assignmentMode && !managementLocked && assignedDwellers.length < dwellerCapacity"
       v-model:assignment-mode="assignmentMode"
       :ability="null"
       title="Assign to Arena"
@@ -76,7 +78,7 @@ const assignmentMode = defineModel<'worker' | 'apprentice' | null>('assignmentMo
     />
     <ArenaModal :vault-id="vaultId" :room-id="room.id" />
     <RoomActions
-      :disabled="isFighting"
+      :disabled="managementLocked"
       :room="room"
       :upgrade-info="upgradeInfo"
       :is-upgrading="isUpgrading"

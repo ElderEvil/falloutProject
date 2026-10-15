@@ -76,11 +76,10 @@ class Settings(BaseSettings):
     PYDANTIC_AI_GATEWAY_BASE_URL: str | None = None
 
     # Legacy direct provider API keys (deprecated, use Gateway instead)
-    AI_PROVIDER: Literal["openai", "anthropic", "ollama", "lmstudio"] = "openai"
+    AI_PROVIDER: Literal["openai", "ollama", "lmstudio"] = "openai"
     AI_MODEL: str = "gpt-4o"
     AI_IMAGE_MODEL: str = "gpt-image-1"
     OPENAI_API_KEY: str | None = None
-    ANTHROPIC_API_KEY: str | None = None
     OLLAMA_BASE_URL: str = "http://localhost:11434/v1"
     LMSTUDIO_BASE_URL: str = "http://localhost:1234/v1"
 
@@ -107,7 +106,7 @@ class Settings(BaseSettings):
         """
         if self.PYDANTIC_AI_GATEWAY_API_KEY:
             return "gateway"
-        if self.OPENAI_API_KEY or self.ANTHROPIC_API_KEY:
+        if self.OPENAI_API_KEY:
             return "direct"
         if self.AI_PROVIDER == "ollama" and self.OLLAMA_BASE_URL:
             return "ollama"
@@ -157,7 +156,7 @@ class Settings(BaseSettings):
             return "lmstudio"
         if self.PYDANTIC_AI_GATEWAY_API_KEY:
             return "gateway"
-        if self.OPENAI_API_KEY or self.ANTHROPIC_API_KEY:
+        if self.OPENAI_API_KEY:
             return "direct"
         return "disabled"
 

@@ -46,13 +46,14 @@ class TestGetEffective:
 
 
 class TestUpdateProfile:
-    async def test_update_rejects_invalid_provider(self, async_session) -> None:
+    @pytest.mark.parametrize("provider", ["invalid_provider", "anthropic"])
+    async def test_update_rejects_invalid_provider(self, async_session, provider: str) -> None:
         from app.schemas.ai_settings import AISettingsUpdate
 
         with pytest.raises(ValidationException, match="Invalid provider"):
             await ai_settings_service.update_profile(
                 async_session,
-                update=AISettingsUpdate(provider="invalid_provider"),
+                update=AISettingsUpdate(provider=provider),
             )
 
     async def test_update_accepts_lmstudio(self, async_session) -> None:
@@ -100,7 +101,6 @@ class TestAIServiceReconfigure:
         with (
             patch.object(settings, "PYDANTIC_AI_GATEWAY_API_KEY", None),
             patch.object(settings, "OPENAI_API_KEY", None),
-            patch.object(settings, "ANTHROPIC_API_KEY", None),
             patch("app.services.ai_service.OpenAIChatModel", side_effect=Exception("init failed")),
         ):
             result = svc.reconfigure(provider="lmstudio", model="test", base_url="http://x:1234/v1")

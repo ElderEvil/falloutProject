@@ -148,11 +148,12 @@ inherit a ban earned by unrelated traffic from the same address. This was confir
 `fail2ban` stopped the identical probe connected immediately and the workflow passed.
 
 Keep the sshd jail in `mode = normal` with `maxretry` of at least 5. `aggressive` is not worth it on a host that
-is scanned continuously, and banning shared cloud ranges breaks CI. Inspect and clear bans with
-`sudo fail2ban-client status sshd` and `sudo fail2ban-client set sshd unbanip <ip>`; whitelisting the GitHub
-Actions egress ranges (`https://api.github.com/meta` → `actions`) is impractical at ~7000 CIDRs, so relax the jail
-instead. Leaving `fail2ban` stopped is not a fix — the host sees thousands of brute-force attempts and would be
-unprotected.
+is scanned continuously, and banning shared cloud ranges breaks CI. Confirm the diagnosis by testing the jail's ban
+list against GitHub's `actions` ranges (`https://api.github.com/meta`) — runner addresses do appear there. Inspect
+and clear bans with `sudo fail2ban-client status sshd` and `sudo fail2ban-client unban --all`; bans persist in
+fail2ban's database across restarts, so a restart alone does not release them. Whitelisting the GitHub Actions
+egress ranges is impractical at ~7000 CIDRs, so relax the jail instead. Leaving `fail2ban` stopped is not a fix —
+the host sees thousands of brute-force attempts and would be unprotected.
 
 When the pipeline is blocked, the same steps can be replayed by hand — the workflow is a scripted version of them.
 Stop the writers, run the migration Job with the target image, set the images (including the backend's

@@ -1462,7 +1462,6 @@ describe('Response Station surface', () => {
     expect(wrapper.find('.response-station').exists()).toBe(true)
     expect(wrapper.text()).toContain('Station Management')
     expect(wrapper.text()).toContain('stationed')
-    expect(wrapper.text()).toContain('Expand Station')
     expect(wrapper.text()).toContain('Destroy Room')
     expect(wrapper.find('.header-metadata').text()).toContain('Capacity: 2')
   })

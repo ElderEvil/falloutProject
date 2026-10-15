@@ -220,7 +220,6 @@ onUnmounted(stopAmbience)
             :assigned-dwellers="assignedDwellers"
             :dweller-capacity="dwellerCapacity"
             @view-dweller="openDwellerDetails"
-            @room-updated="emit('roomUpdated')"
           />
 
           <DwellerList

@@ -47,6 +47,7 @@ describe('ResponseTeamsView (compatibility redirect)', () => {
     storeState.fetchRooms.mockImplementation(async (id: string) => {
       storeState.rooms = [...returnedRooms]
       storeState.roomsLoadedVaultId = id
+      return true
     })
     vi.mocked(useRoomStore).mockReturnValue(storeState as never)
   })
@@ -89,6 +90,7 @@ describe('ResponseTeamsView (compatibility redirect)', () => {
     storeState.fetchRooms.mockImplementation(async () => {
       storeState.rooms = []
       storeState.roomsLoadedVaultId = null
+      return false
     })
 
     mountWithSetup(ResponseTeamsView)

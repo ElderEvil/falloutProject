@@ -10,7 +10,6 @@ import type { ContaminationTeamRead } from '@/modules/contamination-team/models/
 vi.mock('@/modules/rooms/services/responseStationService', () => ({
   fetchResponseRoster: vi.fn(),
   updateResponseTeamPlace: vi.fn(),
-  expandResponseStation: vi.fn(),
 }))
 
 const mockToast = {

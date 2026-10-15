@@ -31,11 +31,11 @@ async function openStationOrExplain(): Promise<void> {
   const token = authStore.token
   if (!id || typeof token !== 'string' || !token || handled.value) return
 
-  await roomStore.fetchRooms(id, token)
+  const loaded = await roomStore.fetchRooms(id, token)
   if (disposed.value || id !== vaultId.value) return
   handled.value = true
 
-  if (roomStore.roomsLoadedVaultId !== id) {
+  if (!loaded) {
     toast.error('Could not load this vault’s rooms — open it from the vault list.')
     await router.replace({ path: `/vault/${id}` })
     return

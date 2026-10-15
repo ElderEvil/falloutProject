@@ -8,7 +8,6 @@ import { FLOOR_UNITS, ROOM_SLOT_STARTS, SHAFT_X, UNITS_PER_ROOM, BUILD_Y_MAX, Y_
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { audioManager } from '@/core/audio/audioManager'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import { expandResponseStation } from '../services/responseStationService'
 
 type GridConfig = components['schemas']['GridConfig']
 
@@ -36,7 +35,7 @@ export const useRoomStore = defineStore('room', () => {
   }
 
   // Actions
-  async function fetchRooms(vaultId: string, token: string): Promise<void> {
+  async function fetchRooms(vaultId: string, token: string): Promise<boolean> {
     const requestSequence = ++fetchRoomsRequestSequence
 
     try {
@@ -49,11 +48,13 @@ export const useRoomStore = defineStore('room', () => {
         rooms.value = response.data
         roomsLoadedVaultId.value = vaultId
       }
+      return requestSequence === fetchRoomsRequestSequence
     } catch (error) {
       handleStoreError(error, 'Failed to fetch rooms')
       if (requestSequence === fetchRoomsRequestSequence) {
         rooms.value = [] // Reset to empty array on error
       }
+      return false
     }
   }
 
@@ -171,26 +172,6 @@ export const useRoomStore = defineStore('room', () => {
     await refreshVaultSafely(vaultId, token, 'Failed to refresh vault after upgrading room')
   }
 
-  // Unique rooms grow in place instead of building a second copy; the row keeps
-  // its id, dwellers and assignments, so a list resync is enough.
-  async function expandRoom(roomId: string, token: string, vaultId: string): Promise<Room> {
-    try {
-      const expanded = await expandResponseStation(roomId, token)
-      audioManager.play('vaultBuild', 'sfx')
-      if (roomsLoadedVaultId.value === vaultId) {
-        await fetchRooms(vaultId, token)
-        await refreshVaultSafely(vaultId, token, 'Failed to refresh vault after expanding room')
-      }
-      return expanded
-    } catch (error) {
-      handleStoreError(error, 'Failed to expand room')
-      if (error instanceof AxiosError && error.response?.data?.detail) {
-        throw new Error(error.response.data.detail)
-      }
-      throw error
-    }
-  }
-
   function flashMergedRoom(roomId: string): void {
     mergedRoomId.value = roomId
     if (mergedHighlightTimeout !== null) clearTimeout(mergedHighlightTimeout)
@@ -255,7 +236,6 @@ export const useRoomStore = defineStore('room', () => {
     buildRoom,
     destroyRoom,
     upgradeRoom,
-    expandRoom,
     selectRoom,
     deselectRoom,
   }

@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { mountWithSetup } from '../../helpers/mountWithSetup'
 import ResponseStationDetail from '@/modules/rooms/components/ResponseStationDetail.vue'
-import { useRoomStore } from '@/modules/rooms/stores/room'
 import {
   fetchResponseRoster,
   updateResponseTeamPlace,
@@ -13,24 +12,11 @@ import type { ContaminationTeamRead } from '@/modules/contamination-team/models/
 vi.mock('@/modules/rooms/services/responseStationService', () => ({
   fetchResponseRoster: vi.fn(),
   updateResponseTeamPlace: vi.fn(),
-  expandResponseStation: vi.fn(),
 }))
 
 vi.mock('@/modules/auth/stores/auth', () => ({
   useAuthStore: () => ({ token: 'test-token' }),
 }))
-
-const mockToast = {
-  success: vi.fn(),
-  error: vi.fn(),
-  warning: vi.fn(),
-  info: vi.fn(),
-  show: vi.fn(),
-  remove: vi.fn(),
-  toasts: { value: [] },
-}
-
-vi.mock('@/core/composables/useToast', () => ({ useToast: () => mockToast }))
 
 const station = (overrides: Partial<Room> = {}): Room =>
   ({
@@ -105,7 +91,7 @@ describe('ResponseStationDetail', () => {
     vi.mocked(fetchResponseRoster).mockResolvedValue(roster())
   })
 
-  it('renders stationed capacity, footprint, crew totals and expansion terms', async () => {
+  it('renders stationed capacity, footprint and crew totals', async () => {
     const wrapper = mountStation()
     await flushPromises()
 
@@ -113,9 +99,7 @@ describe('ResponseStationDetail', () => {
     expect(wrapper.text()).toContain('1 / 2 stationed')
     expect(wrapper.text()).toContain('3 / 9 cells')
     expect(wrapper.text()).toContain('1 / 6')
-    expect(wrapper.text()).toContain('600 caps adds one segment')
     expect(wrapper.text()).toContain('earn a place by fighting three matching incidents')
-    expect(findButton(wrapper, 'Expand Station').attributes('disabled')).toBeUndefined()
   })
 
   it('renders both rosters with service counts and matching-suit protection', async () => {
@@ -163,31 +147,5 @@ describe('ResponseStationDetail', () => {
 
     expect(fetchResponseRoster).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).toContain('Fire Team')
-  })
-
-  it('expands the station through the room store and notifies the parent', async () => {
-    const wrapper = mountStation()
-    await flushPromises()
-    const roomStore = useRoomStore()
-    const expandSpy = vi
-      .spyOn(roomStore, 'expandRoom')
-      .mockResolvedValue(station({ size: 6 }) as Room)
-
-    await findButton(wrapper, 'Expand Station').trigger('click')
-    await flushPromises()
-
-    expect(expandSpy).toHaveBeenCalledWith('station-1', 'test-token', 'vault-1')
-    expect(wrapper.emitted('roomUpdated')).toHaveLength(1)
-    expect(mockToast.success).toHaveBeenCalledWith(
-      expect.stringContaining('Response Station expanded to 6 cells')
-    )
-  })
-
-  it('disables expansion and explains the ceiling at maximum footprint', async () => {
-    const wrapper = mountStation({ size: 9, size_max: 9 })
-    await flushPromises()
-
-    expect(findButton(wrapper, 'Expand Station').attributes('disabled')).toBeDefined()
-    expect(wrapper.text()).toContain('Maximum footprint reached')
   })
 })

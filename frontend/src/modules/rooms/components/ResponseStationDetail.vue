@@ -1,19 +1,14 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, onUnmounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Badge } from '@/core/components/ui/badge'
-import { Button } from '@/core/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/core/components/ui/card'
-import { useToast } from '@/core/composables/useToast'
-import { handleStoreError } from '@/core/utils/errorHandler'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { HAZARD_TEAM_SIZE } from '@/modules/contamination-team/models/contaminationTeam'
 import type { HazardTeam } from '@/modules/contamination-team/models/contaminationTeam'
 import ResponseTeamsPanel from '@/modules/contamination-team/components/ResponseTeamsPanel.vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { Room } from '../models/room'
-import { getRoomSegmentCount } from '../utils/room'
-import { useRoomStore } from '../stores/room'
 import { useResponseStationStore } from '../stores/responseStation'
 
 const props = defineProps<{
@@ -24,21 +19,14 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  roomUpdated: []
   viewDweller: [dwellerId: string]
 }>()
 
 const authStore = useAuthStore()
 const stationStore = useResponseStationStore()
-const roomStore = useRoomStore()
-const toast = useToast()
 
 const token = computed(() => (typeof authStore.token === 'string' ? authStore.token : ''))
 const currentSize = computed(() => props.room.size ?? props.room.size_min)
-const nextSize = computed(() => currentSize.value + props.room.size_min)
-const canExpand = computed(() => nextSize.value <= props.room.size_max)
-const isExpanding = ref(false)
-const actionError = ref<string | null>(null)
 
 const activeTotal = computed(
   () => stationStore.roster?.teams.reduce((sum, team) => sum + team.active.length, 0) ?? 0
@@ -64,24 +52,6 @@ onUnmounted(() => stationStore.reset())
 
 function handleSetPlace(team: HazardTeam, dwellerId: string, active: boolean): void {
   void stationStore.setPlace(props.vaultId, team, dwellerId, active, token.value)
-}
-
-async function handleExpand(): Promise<void> {
-  if (!canExpand.value || isExpanding.value || !token.value) return
-  isExpanding.value = true
-  actionError.value = null
-  try {
-    const expanded = await roomStore.expandRoom(props.room.id, token.value, props.vaultId)
-    toast.success(
-      `${props.room.name} expanded to ${expanded.size ?? expanded.size_min} cells ` +
-        `(${getRoomSegmentCount(expanded)} segments).`
-    )
-    emit('roomUpdated')
-  } catch (error) {
-    actionError.value = handleStoreError(error, 'Failed to expand Response Station')
-  } finally {
-    isExpanding.value = false
-  }
 }
 </script>
 
@@ -140,32 +110,6 @@ async function handleExpand(): Promise<void> {
             <dd class="text-lg font-bold text-theme-primary">{{ reserveTotal }}</dd>
           </div>
         </dl>
-
-        <div class="flex flex-wrap items-center gap-3">
-          <Button
-            variant="secondary"
-            size="sm"
-            :disabled="!canExpand || isExpanding || !token"
-            @click="handleExpand"
-          >
-            <Icon
-              :icon="isExpanding ? 'mdi:loading' : 'mdi:arrow-expand-horizontal'"
-              class="h-4 w-4"
-              :class="{ 'animate-spin': isExpanding }"
-              :ariaHidden="true"
-            />
-            {{ isExpanding ? 'Expanding station…' : 'Expand Station' }}
-          </Button>
-          <p v-if="canExpand" class="text-xs text-theme-primary/60">
-            {{ room.base_cost }} caps adds one segment, raising the footprint to
-            {{ nextSize }} cells.
-          </p>
-          <p v-else class="text-xs text-theme-primary/60">
-            Maximum footprint reached — the station already spans {{ currentSize }} cells.
-          </p>
-        </div>
-
-        <p v-if="actionError" class="text-xs text-danger" role="alert">{{ actionError }}</p>
       </CardContent>
     </Card>
 

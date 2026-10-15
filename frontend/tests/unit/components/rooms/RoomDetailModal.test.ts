@@ -642,7 +642,7 @@ describe('RoomDetailModal', () => {
       expect(assignSpy).toHaveBeenCalledWith('dweller-1', 'room-1', 'test-token')
     })
 
-    it('assigns an adult to the Arena through its roster action', async () => {
+    it('assigns an adult to the Arena through a preview slot', async () => {
       const { filter, management } = useDwellerStore()
       useAuthStore().token = 'test-token'
       const assign = vi.spyOn(management, 'assignDwellerToRoom').mockResolvedValue({} as never)
@@ -670,10 +670,7 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      await wrapper
-        .findAll('button')
-        .find((button) => button.text() === 'Assign dwellers')!
-        .trigger('click')
+      await wrapper.get('[aria-label="Assign worker"]').trigger('click')
       expect(wrapper.get('.picker-title').text()).toBe('Assign to Arena')
       expect(wrapper.findAll('.dweller-picker .dweller-card')).toHaveLength(1)
       await wrapper.get('.dweller-picker .dweller-card__details').trigger('click')
@@ -704,10 +701,7 @@ describe('RoomDetailModal', () => {
           modelValue: true,
         },
       })
-      await wrapper
-        .findAll('button')
-        .find((button) => button.text() === 'Assign dwellers')!
-        .trigger('click')
+      await wrapper.get('[aria-label="Assign worker"]').trigger('click')
       await wrapper.get('.dweller-picker .dweller-card__details').trigger('click')
       await flushPromises()
       expect(wrapper.text()).toContain('Failed to assign dweller to room')

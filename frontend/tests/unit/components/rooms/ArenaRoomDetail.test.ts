@@ -7,10 +7,10 @@ import ArenaRoomDetail from '@/modules/rooms/components/ArenaRoomDetail.vue'
 describe('ArenaRoomDetail', () => {
   beforeEach(() => setActivePinia(createPinia()))
   it.each([
-    [0, false, false],
-    [6, false, true],
-    [2, true, true],
-  ])('guards assignment with %i dwellers and fighting=%s', (count, fighting, disabled) => {
+    [0, false],
+    [6, false],
+    [2, true],
+  ])('guards assignment with %i dwellers and fighting=%s', (count, fighting) => {
     useArenaStore().rooms.set('arena-1', { fight_started: fighting, match_done: false } as never)
     const wrapper = mount(ArenaRoomDetail, {
       props: {
@@ -26,10 +26,13 @@ describe('ArenaRoomDetail', () => {
         isDestroying: false,
         isVaultDoor: false,
       },
-      global: { stubs: { ArenaModal: true, RoomPreviewSection: true } },
+      global: { stubs: { ArenaModal: true } },
     })
-    const assign = wrapper.findAll('button').find((button) => button.text() === 'Assign dwellers')!
-    expect(assign.attributes('disabled') !== undefined).toBe(disabled)
+    expect(wrapper.findAll('[aria-label="Assign worker"]')).toHaveLength(fighting ? 0 : 6 - count)
+    expect(wrapper.findAll('button').some((button) => button.text() === 'Assign dwellers')).toBe(
+      false
+    )
+    expect(wrapper.text()).not.toMatch(/\d+ \/ \d+ assigned/)
     expect(wrapper.getComponent({ name: 'RoomPreviewSection' }).props('assignEnabled')).toBe(
       !fighting
     )

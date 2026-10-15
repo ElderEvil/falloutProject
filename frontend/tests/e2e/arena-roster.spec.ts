@@ -83,7 +83,7 @@ for (const width of [1280, 390]) {
     await page.screenshot({ path: testInfo.outputPath('empty-arena.png'), fullPage: true })
 
     for (const name of names) {
-      await dialog.getByRole('button', { name: 'Assign dwellers', exact: true }).click()
+      await dialog.getByRole('button', { name: 'Assign worker', exact: true }).first().click()
       await expect(dialog.getByText('Assign to Arena', { exact: true })).toBeVisible()
       await dialog
         .locator('.dweller-picker')

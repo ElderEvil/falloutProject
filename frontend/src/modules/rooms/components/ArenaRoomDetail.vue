@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useArenaStore } from '../stores/arena'
-import { Icon } from '@iconify/vue'
-import { Badge } from '@/core/components/ui/badge'
-import { Button } from '@/core/components/ui/button'
 import DwellerList from './DwellerList.vue'
 import type { Room } from '../models/room'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
@@ -66,21 +63,6 @@ const assignmentMode = defineModel<'worker' | 'apprentice' | null>('assignmentMo
       @unassign="emit('unassignDweller', $event)"
       @assign-worker="assignmentMode = 'worker'"
     />
-    <div class="flex flex-wrap items-center justify-between gap-2">
-      <Badge variant="outline"
-        >{{ assignedDwellers.length }} / {{ dwellerCapacity }} assigned</Badge
-      >
-      <Button
-        size="sm"
-        :variant="assignedDwellers.length ? 'outline' : 'default'"
-        :disabled="isFighting || assignedDwellers.length >= dwellerCapacity"
-        @click="assignmentMode = 'worker'"
-      >
-        <!-- @vue-ignore -->
-        <Icon icon="mdi:account-plus-outline" data-icon="inline-start" />
-        Assign dwellers
-      </Button>
-    </div>
     <p v-if="isFighting" class="text-xs text-muted-foreground">
       Wait for the match to finish before changing the roster.
     </p>

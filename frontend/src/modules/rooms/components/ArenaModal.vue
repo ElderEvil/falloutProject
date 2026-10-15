@@ -617,7 +617,8 @@ const updateMode = (value: unknown) => {
                 <Icon icon="mdi:account-plus-outline" :ariaHidden="true" />
                 <AlertTitle>Build your arena roster</AlertTitle>
                 <AlertDescription>
-                  Assign adult dwellers to the Arena first using Assign dwellers above.
+                  Assign adult dwellers to the Arena first using an empty dweller slot in the room
+                  preview.
                 </AlertDescription>
               </Alert>
               <template v-else>

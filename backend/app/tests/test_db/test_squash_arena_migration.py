@@ -21,21 +21,28 @@ assert MIGRATION_SPEC.loader
 MIGRATION = importlib.util.module_from_spec(MIGRATION_SPEC)
 MIGRATION_SPEC.loader.exec_module(MIGRATION)
 
+# Labels added to the persisted enums by migrations that shipped AFTER this
+# squash. The squash downgrade rebuilds the pre-branch label set, so every
+# post-squash ``ADD VALUE`` migration must extend the matching set here (along
+# with PG_ENUM_LABELS_SNAPSHOT) — otherwise this guard silently drifts.
+ROOM_TYPE_LABELS_ADDED_AFTER_SQUASH: set[str] = {"ARENA", "RESPONSE"}
+DWELLER_STATUS_LABELS_ADDED_AFTER_SQUASH: set[str] = {"FIGHTING"}
+
 
 def test_upgrade_labels_match_enum_drift_snapshot() -> None:
     snapshot_room = PG_ENUM_LABELS_SNAPSHOT["roomtypeenum"]
     snapshot_status = PG_ENUM_LABELS_SNAPSHOT["dwellerstatusenum"]
 
-    assert "ARENA" in snapshot_room
-    assert "FIGHTING" in snapshot_status
+    assert snapshot_room >= ROOM_TYPE_LABELS_ADDED_AFTER_SQUASH
+    assert snapshot_status >= DWELLER_STATUS_LABELS_ADDED_AFTER_SQUASH
 
 
 def test_downgrade_labels_are_snapshot_minus_branch_labels() -> None:
     snapshot_room = PG_ENUM_LABELS_SNAPSHOT["roomtypeenum"]
     snapshot_status = PG_ENUM_LABELS_SNAPSHOT["dwellerstatusenum"]
 
-    assert set(MIGRATION.ROOM_TYPE_LABELS) == snapshot_room - {"ARENA"}
-    assert set(MIGRATION.DWELLER_STATUS_LABELS) == snapshot_status - {"FIGHTING"}
+    assert set(MIGRATION.ROOM_TYPE_LABELS) == snapshot_room - ROOM_TYPE_LABELS_ADDED_AFTER_SQUASH
+    assert set(MIGRATION.DWELLER_STATUS_LABELS) == snapshot_status - DWELLER_STATUS_LABELS_ADDED_AFTER_SQUASH
 
 
 def test_downgrade_recreates_enums_without_branch_labels() -> None:

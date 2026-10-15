@@ -12,7 +12,7 @@ from app.crud.user_profile import profile_crud
 from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
-from app.schemas.room import RoomBuild, RoomCreate
+from app.schemas.room import RoomBuild, RoomCreate, RoomUpdate
 from app.schemas.vault import VaultUpdate
 from app.services.room_service import room_service
 from app.tests.factory.rooms import create_fake_room
@@ -56,9 +56,9 @@ async def test_get_buildable_rooms_awaits_static_game_data() -> None:
     with (
         patch("app.core.game_data.get_static_game_data", new_callable=AsyncMock, return_value=game_data),
         patch(
-            "app.services.room_service.crud.room.get_existing_room_names",
+            "app.services.room_service.crud.room.get_maxed_unique_room_names",
             new_callable=AsyncMock,
-            return_value=["vault door"],
+            return_value={"vault door"},
         ),
     ):
         buildable_rooms = await room_service.get_buildable_rooms(MagicMock(), uuid4())
@@ -332,44 +332,50 @@ async def test_upgrade_room_capacity_calculation(
 
 
 @pytest.mark.asyncio
-async def test_get_buildable_rooms_excludes_built_unique_rooms(
+async def test_get_buildable_rooms_offers_unique_until_max_footprint(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
     async_session: AsyncSession,
     vault: Vault,
 ):
-    """Test that buildable rooms endpoint excludes unique rooms already built in vault."""
-    # First, get the list of buildable rooms to find a unique room
+    """A unique room stays buildable while it can still merge, and disappears at size_max."""
     response = await async_client.get(f"/rooms/buildable/{vault.id}/", headers=superuser_token_headers)
     assert response.status_code == 200
     initial_buildable = response.json()
 
-    # A fresh vault can always build at least one unique room (no incremental_cost),
-    # so this asserts rather than skips: a broken precondition is a loud failure, not
-    # a silent skip that moves the suite's skip count.
-    unique_room_data = next((room for room in initial_buildable if room.get("incremental_cost") is None), None)
-    assert unique_room_data is not None, "the fixture vault should always have a unique room to build"
-
-    # Build the unique room in the vault - exclude fields we'll set explicitly
-    exclude_fields = ("capacity_formula", "output_formula", "size", "coordinate_x", "coordinate_y")
-    room_dict = {k: v for k, v in unique_room_data.items() if k not in exclude_fields}
-    room_create = RoomCreate(
-        **room_dict,
-        vault_id=vault.id,
-        size=unique_room_data["size_min"],
-        coordinate_x=5,
-        coordinate_y=5,
+    # The station is the growable unique room (3..9); a fresh vault can always build it.
+    growable = next(
+        (
+            room
+            for room in initial_buildable
+            if room.get("incremental_cost") is None and room["size_max"] > room["size_min"]
+        ),
+        None,
     )
-    await crud.room.create(async_session, room_create)
+    assert growable is not None, "the fixture vault should always have a growable unique room"
+    assert (growable["size_min"], growable["size_max"]) == (3, 9)
 
-    # Now get buildable rooms again
-    response = await async_client.get(f"/rooms/buildable/{vault.id}/", headers=superuser_token_headers)
-    assert response.status_code == 200
-    updated_buildable = response.json()
+    exclude_fields = ("capacity_formula", "output_formula", "size", "coordinate_x", "coordinate_y")
+    room_dict = {k: v for k, v in growable.items() if k not in exclude_fields}
+    room = await crud.room.create(
+        async_session,
+        RoomCreate(**room_dict, vault_id=vault.id, size=3, coordinate_x=5, coordinate_y=5),
+    )
 
-    # The unique room we just built should no longer be in the buildable list
-    updated_room_names = [r["name"].lower() for r in updated_buildable]
-    assert unique_room_data["name"].lower() not in updated_room_names
+    async def buildable_names() -> list[str]:
+        listing = await async_client.get(f"/rooms/buildable/{vault.id}/", headers=superuser_token_headers)
+        assert listing.status_code == 200
+        return [r["name"].lower() for r in listing.json()]
+
+    name = growable["name"].lower()
+    assert room.size == 3
+    assert name in await buildable_names(), "size 3: a mergeable segment must stay offered"
+
+    await crud.room.update(db_session=async_session, id=room.id, obj_in=RoomUpdate(size=6))
+    assert name in await buildable_names(), "size 6: a mergeable segment must stay offered"
+
+    await crud.room.update(db_session=async_session, id=room.id, obj_in=RoomUpdate(size=9))
+    assert name not in await buildable_names(), "size 9: at size_max the unique room is hidden"
 
 
 class TestVaultDoorProtection:

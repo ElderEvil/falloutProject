@@ -7,6 +7,7 @@ import {
   isElevator,
   isOverseersOffice,
   isRadioRoom,
+  isResponseStation,
   isTrainingRoom,
   isVaultDoor,
   producesResources,
@@ -110,6 +111,13 @@ describe('getRoomDetailParts', () => {
     expect(parts).not.toContain('crafting')
   })
 
+  it('renders the station surface for response rooms', () => {
+    const parts = getRoomDetailParts(
+      room({ name: 'Response Station', category: 'response', ability: 'endurance' })
+    )
+    expect(names(parts)).toBe('preview,info,responseStation,dwellerList,actions')
+  })
+
   it('replaces every generic section with the overlay while an incident is live', () => {
     expect(getRoomDetailParts(room(), incident())).toEqual(['incident'])
   })
@@ -178,6 +186,15 @@ describe('special room predicates', () => {
     expect(isElevator(room({ name: 'Elevator' }))).toBe(true)
     expect(isElevator(room({ name: 'Elevators' }))).toBe(false)
     expect(isElevator(null)).toBe(false)
+  })
+
+  it('detects response rooms by category, not name', () => {
+    expect(isResponseStation(room({ category: 'response', name: 'Response Station' }))).toBe(true)
+    expect(isResponseStation(room({ category: 'RESPONSE', name: 'Anything' }))).toBe(true)
+    expect(isResponseStation(room({ category: 'production', name: 'Response Station' }))).toBe(
+      false
+    )
+    expect(isResponseStation(null)).toBe(false)
   })
 })
 

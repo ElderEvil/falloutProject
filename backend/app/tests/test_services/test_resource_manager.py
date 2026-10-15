@@ -344,7 +344,7 @@ async def test_seeded_boosted_vault_size_six_generator_keeps_live_power_positive
 
     assert len(generators) == 1  # seeded directly at final size, no fusion round-trip
     assert generators[0].size == 6
-    assert generators[0].output == 58  # (2*6*(1+4))-2 at tier 1, size 6
+    assert generators[0].output == 70  # (2*6*(2+4))-2 at tier 2, size 6
 
     full = [[*_outfitted_workers("strength", 5), _apprentice(5)]]
     assert _seeded_net(prepared, 33, full, "power", "power") > 100

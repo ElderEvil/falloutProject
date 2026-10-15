@@ -310,6 +310,12 @@ const handleRoomUpdated = async () => {
     await roomStore.fetchRooms(vaultId, authStore.token)
     await dwellerStore.fetchDwellersByVault(vaultId, authStore.token)
   }
+  // The open modal holds its own room snapshot; re-point it at the refreshed
+  // row so an expansion's new size and capacity show without reopening.
+  if (selectedRoomForDetail.value) {
+    const refreshed = roomStore.rooms.find((room) => room.id === selectedRoomForDetail.value?.id)
+    if (refreshed) selectedRoomForDetail.value = refreshed
+  }
 }
 
 // Close detail modal

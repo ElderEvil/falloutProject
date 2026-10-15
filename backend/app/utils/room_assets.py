@@ -39,6 +39,7 @@ SPECIAL_CASE_ROOMS = {
     "Vault Door": "Vault Door Adv.png",
     "Barbershop": "FOS Barber 1.png",  # Only has 2 tiers
     "Arena": "arena.webp",  # AI-generated wide arena image (single tier/size variant)
+    "Response Station": "response-bay-size-{size}.webp",  # One image per footprint
 }
 
 # Workshops use different naming (no tier-segment)
@@ -100,7 +101,7 @@ def get_room_image_url(room_name: str, tier: int = 1, size: int = 3) -> str | No
     """
     # Handle special cases first
     if room_name in SPECIAL_CASE_ROOMS:
-        return f"/static/room_images/{SPECIAL_CASE_ROOMS[room_name]}"
+        return f"/static/room_images/{SPECIAL_CASE_ROOMS[room_name].format(size=size)}"
 
     # Get asset key
     asset_key = ROOM_NAME_TO_ASSET_KEY.get(room_name)

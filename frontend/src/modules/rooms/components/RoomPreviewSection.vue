@@ -5,6 +5,7 @@ import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getRoomImageUrl } from '@/core/utils/image'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { useFallbackImage } from '../composables/useFallbackImage'
+import { RESPONSE_DETAIL_SCENES } from '../models/roomScenes'
 
 interface Props {
   roomName: string
@@ -35,7 +36,12 @@ const { url: sceneImageUrl, onError: imageFailed } = useFallbackImage(() => [
 ])
 const sceneSizeClass = computed(() => {
   if (props.roomUnits <= 1) return 'room-scene--compact'
-  if (props.roomUnits >= 6) return 'room-scene--wide'
+  if (props.roomUnits >= 6) {
+    // The size-6 Response Station bay ships as a 2:1 scene while the wide frame is
+    // 3:1, so cropping to the frame would cut off its floor and equipment. Let that
+    // scene set its own frame height instead of cropping it.
+    return props.roomImageUrl === RESPONSE_DETAIL_SCENES[6] ? 'room-scene--wide-native' : 'room-scene--wide'
+  }
   return null
 })
 const workerDwellers = computed(() =>
@@ -236,6 +242,22 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   height: 100%;
   max-height: none;
   object-fit: cover;
+}
+
+/* A wide scene that is not 3:1 (the 2:1 size-6 Response Station bay) sets its own
+   frame height and is contained, so its floor and equipment stay inside the frame. */
+.room-scene--wide-native .room-image-container {
+  min-height: 0;
+  aspect-ratio: 2 / 1;
+}
+
+.room-scene--wide-native .room-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: contain;
 }
 
 .room-image {

@@ -1,5 +1,6 @@
 """Room endpoints."""
 
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -9,6 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403, verify_room_access
 from app.db.session import get_async_session
+from app.models.room import Room
 from app.schemas.grid import GridConfig, grid_config
 from app.schemas.room import RoomBuild, RoomCreateWithoutVaultID, RoomRead
 from app.services.room_service import room_service
@@ -28,7 +30,7 @@ async def read_room_list(
     _: CurrentSuperuser,
     skip: int = 0,
     limit: int = 100,
-) -> list[RoomRead]:
+) -> Sequence[Room]:
     """Retrieve a paginated list of rooms.
 
     Returns:
@@ -44,7 +46,7 @@ async def read_rooms_by_vault(
     user: CurrentActiveUser,
     skip: int = 0,
     limit: int = 100,
-) -> list[RoomRead]:
+) -> Sequence[Room]:
     """Retrieve rooms for a specific vault.
 
     Returns:
@@ -57,7 +59,7 @@ async def read_rooms_by_vault(
 @router.get("/{room_id}", response_model=RoomRead)
 async def read_room(
     room_id: UUID4, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
-) -> RoomRead:
+) -> Room:
     """Retrieve a room by ID.
 
     Returns:
@@ -91,7 +93,7 @@ async def build_room(
     room_request: RoomBuild,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> RoomRead:
+) -> Room:
     """Build a new room in a vault.
 
     Returns:
@@ -109,7 +111,7 @@ async def destroy_room(
 ) -> None:
     """Destroy a room in a vault."""
     await verify_room_access(room_id, user, db_session)
-    return await room_service.destroy_room(db_session, room_id)
+    await room_service.destroy_room(db_session, room_id)
 
 
 @router.post("/upgrade/{room_id}", response_model=RoomRead)
@@ -117,7 +119,7 @@ async def upgrade_room(
     room_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> RoomRead:
+) -> Room:
     """Upgrade a room to the next level.
 
     Returns:

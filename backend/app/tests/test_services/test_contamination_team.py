@@ -13,12 +13,20 @@ from app.models.notification import Notification, NotificationType
 from app.models.team import ACTIVE_STATUS, RESERVE_STATUS
 from app.schemas.dweller import DwellerCreate
 from app.services.combat.incident_service import incident_service
+from app.services.exploration.data_loader import load_outfits
 from app.services.hazard_team_service import (
     QUALIFYING_INCIDENTS,
     TEAM_SIZE,
     hazard_team_service,
 )
-from app.tests.test_services._hazard_team_helpers import fight, outfit_data, raise_incident
+from app.tests.test_services._hazard_team_helpers import (
+    ensure_station,
+    fight,
+    make_member,
+    outfit_data,
+    raise_incident,
+)
+from app.utils.item_factory import build_outfit
 
 
 @pytest.mark.asyncio
@@ -209,6 +217,80 @@ async def test_roster_reports_both_teams(async_session: AsyncSession, room_with_
     assert all(entry.active == [] and entry.reserve == [] for entry in roster.teams)
 
 
+@pytest.mark.asyncio
+async def test_roster_counts_distinct_incidents_per_hazard(async_session: AsyncSession, room_with_dwellers: dict):
+    """Service count is DISTINCT incidents per hazard, not per round, and hazards don't mix."""
+    room = room_with_dwellers["room"]
+    dweller = room_with_dwellers["dwellers"][0]
+
+    for _ in range(2):
+        incident = await raise_incident(async_session, room, IncidentType.FIRE)
+        await crud.incident_participant_crud.record(async_session, incident.id, [dweller.id])
+        await crud.incident_participant_crud.record(async_session, incident.id, [dweller.id])
+    radiation_incident = await raise_incident(async_session, room, IncidentType.RADSCORPION_ATTACK)
+    await crud.incident_participant_crud.record(async_session, radiation_incident.id, [dweller.id])
+    await async_session.commit()
+
+    await make_member(async_session, room.vault_id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
+    await make_member(async_session, room.vault_id, dweller.id, HazardTeam.RADIATION, RESERVE_STATUS)
+
+    roster = await hazard_team_service.get_roster(async_session, room.vault_id)
+    fire = next(entry for entry in roster.teams if entry.team == HazardTeam.FIRE)
+    radiation = next(entry for entry in roster.teams if entry.team == HazardTeam.RADIATION)
+
+    assert fire.active[0].service_count == 2
+    assert radiation.reserve[0].service_count == 1
+
+
+def _outfit_catalog_entry(name: str) -> dict:
+    return next(entry for entry in load_outfits() if entry["name"] == name)
+
+
+async def _equip_catalog_outfit(async_session: AsyncSession, dweller_id, name: str, storage_id) -> None:
+    """Equip a real catalog outfit, built through the factory so catalog-owned columns survive."""
+    entry = _outfit_catalog_entry(name)
+    outfit = build_outfit(entry, entry["rarity"], storage_id)
+    async_session.add(outfit)
+    await async_session.commit()
+    await crud.outfit.equip(db_session=async_session, item_id=outfit.id, dweller_id=dweller_id)
+
+
+@pytest.mark.asyncio
+async def test_roster_reflects_current_equipment_not_a_cached_flag(
+    async_session: AsyncSession, room_with_dwellers: dict
+):
+    """Gear reads the outfit worn NOW: a non-suit that still resists is not 'zero protection'."""
+    room = room_with_dwellers["room"]
+    dweller = room_with_dwellers["dwellers"][0]
+    await make_member(async_session, room.vault_id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
+    storage = await crud.vault.create_storage(db_session=async_session, vault_id=room.vault_id)
+
+    expected_resist = float(_outfit_catalog_entry("Firefighter suit, rad helmet").get("fire_resist") or 0.0)
+    assert expected_resist > 0.0
+    await _equip_catalog_outfit(async_session, dweller.id, "Firefighter suit, rad helmet", storage.id)
+
+    fire = next(
+        entry
+        for entry in (await hazard_team_service.get_roster(async_session, room.vault_id)).teams
+        if entry.team == HazardTeam.FIRE
+    )
+    member = fire.active[0]
+    assert member.outfit_name == "Firefighter suit, rad helmet"
+    assert member.has_matching_gear is False
+    assert member.hazard_resist == pytest.approx(expected_resist)
+
+    await _equip_catalog_outfit(async_session, dweller.id, "Firefighter suit", storage.id)
+
+    fire = next(
+        entry
+        for entry in (await hazard_team_service.get_roster(async_session, room.vault_id)).teams
+        if entry.team == HazardTeam.FIRE
+    )
+    member = fire.active[0]
+    assert member.outfit_name == "Firefighter suit"
+    assert member.has_matching_gear is True
+
+
 async def _hazard_notifications(session: AsyncSession) -> list[Notification]:
     result = await session.execute(
         select(Notification).where(Notification.notification_type == NotificationType.HAZARD_TEAM_JOINED)
@@ -248,6 +330,7 @@ async def test_qualification_loop_through_real_rounds_places_equips_and_notifies
     room = room_with_dwellers["room"]
     dwellers = room_with_dwellers["dwellers"]
     storage = await crud.vault.create_storage(db_session=async_session, vault_id=room.vault_id)
+    await ensure_station(async_session, room.vault_id)
     for _ in dwellers:
         await crud.outfit.create(async_session, outfit_data("Firefighter suit", storage_id=storage.id))
 

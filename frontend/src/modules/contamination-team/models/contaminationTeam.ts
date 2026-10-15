@@ -11,16 +11,18 @@ export const HAZARD_TEAM_SIZE = 3
 /** Shared presentation metadata for roster cards and dweller membership chips. */
 export const HAZARD_TEAM_CONFIG: Record<
   HazardTeam,
-  { label: string; icon: string; description: string }
+  { label: string; icon: string; description: string; suitName: string }
 > = {
   fire: {
     label: 'Fire',
     icon: 'mdi:fire',
     description: 'Contain vault fires and reduce matching hazard damage.',
+    suitName: 'Firefighter suit',
   },
   radiation: {
     label: 'Radiation',
     icon: 'mdi:radioactive',
     description: 'Answer radscorpion incidents and reduce matching radiation exposure.',
+    suitName: 'Hazmat suit',
   },
 }

@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { readFileSync } from 'node:fs'
-import { getRoomDetailScene, ARENA_DETAIL_SCENES } from '@/modules/rooms/models/roomScenes'
+import {
+  getRoomDetailScene,
+  ARENA_DETAIL_SCENES,
+  RESPONSE_DETAIL_SCENES,
+} from '@/modules/rooms/models/roomScenes'
 import { getRoomImageUrl } from '@/core/utils/image'
 import RoomPreviewSection from '@/modules/rooms/components/RoomPreviewSection.vue'
 import RoomGridCell from '@/modules/rooms/components/RoomGridCell.vue'
@@ -36,6 +40,35 @@ const mountGridCell = (room: Room) =>
   })
 
 describe('room detail scene roles', () => {
+  it.each([3, 6, 9])('renders the response room artwork at footprint %i', (size) => {
+    const room = {
+      ...arenaRoom(1),
+      name: 'Response Station',
+      category: 'response',
+      size,
+      size_min: 3,
+      image_url: `/static/room_images/response-bay-size-${size}.webp`,
+    } as Room
+    expect(getRoomDetailScene(room)).toBe(RESPONSE_DETAIL_SCENES[size])
+    expect(mountGridCell(room).get('img').attributes('src')).toBe(RESPONSE_DETAIL_SCENES[size])
+  })
+
+  it.each([3, 6, 9])(
+    'ships size-%i artwork at its native footprint ratio with matching fallback',
+    (size) => {
+      const bytes = readFileSync(`public${RESPONSE_DETAIL_SCENES[size]}`)
+      expect(bytes.toString('ascii', 0, 4)).toBe('RIFF')
+      expect(bytes.toString('ascii', 8, 12)).toBe('WEBP')
+      expect(bytes.readUInt16LE(26) & 0x3fff).toBe((724 * size) / 3)
+      expect(bytes.readUInt16LE(28) & 0x3fff).toBe(724)
+      expect(
+        bytes.equals(
+          readFileSync(`../backend/app/static/room_images/response-bay-size-${size}.webp`)
+        )
+      ).toBe(true)
+    }
+  )
+
   it.each([1, 2, 3])(
     'uses the same new Arena artwork in the grid and preview at tier %i',
     (tier) => {

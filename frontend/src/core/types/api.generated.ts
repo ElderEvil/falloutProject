@@ -7816,6 +7816,29 @@ export interface components {
             name: string;
             /** Level */
             level: number;
+            /**
+             * Service Count
+             * @description Distinct incidents of this team's hazard the dweller has fought
+             * @default 0
+             */
+            service_count: number;
+            /**
+             * Outfit Name
+             * @description Name of the currently equipped outfit, or null when the dweller is bare
+             */
+            outfit_name?: string | null;
+            /**
+             * Has Matching Gear
+             * @description Wearing this team's named matching suit; false does NOT mean zero protection
+             * @default false
+             */
+            has_matching_gear: boolean;
+            /**
+             * Hazard Resist
+             * @description Share (0.0-1.0) of this team's hazard the current outfit removes
+             * @default 0
+             */
+            hazard_resist: number;
         };
         /**
          * HazardTeamPlaceUpdate
@@ -9942,7 +9965,7 @@ export interface components {
          * RoomTypeEnum
          * @enum {string}
          */
-        RoomTypeEnum: "capacity" | "crafting" | "misc." | "production" | "quests" | "theme" | "training" | "arena";
+        RoomTypeEnum: "capacity" | "crafting" | "misc." | "production" | "quests" | "theme" | "training" | "arena" | "response";
         /**
          * SPECIALEnum
          * @enum {string}

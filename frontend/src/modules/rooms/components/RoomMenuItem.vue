@@ -28,6 +28,7 @@ const categoryIcons: Record<string, string> = {
   crafting: 'mdi:hammer',
   theme: 'mdi:palette',
   arena: 'mdi:sword-cross',
+  response: 'mdi:shield-account',
 }
 
 const vaultId = computed(() => route.params.id as string)

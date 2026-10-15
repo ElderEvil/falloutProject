@@ -22,6 +22,7 @@ import DwellerList from './DwellerList.vue'
 import RadioControls from './RadioControls.vue'
 import RoomActions from './RoomActions.vue'
 import RoomTrainingSection from './RoomTrainingSection.vue'
+import ResponseStationDetail from './ResponseStationDetail.vue'
 import ArenaRoomDetail from './ArenaRoomDetail.vue'
 import RoomIncidentDetail from './RoomIncidentDetail.vue'
 import IncidentAftermath from './IncidentAftermath.vue'
@@ -210,6 +211,15 @@ onUnmounted(stopAmbience)
             @unassign="handleUnassignDweller"
             @assign-worker="assignmentMode = 'worker'"
             @assign-apprentice="assignmentMode = 'apprentice'"
+          />
+
+          <ResponseStationDetail
+            v-if="has('responseStation')"
+            :room="room"
+            :vault-id="vaultId"
+            :assigned-dwellers="assignedDwellers"
+            :dweller-capacity="dwellerCapacity"
+            @view-dweller="openDwellerDetails"
           />
 
           <DwellerList

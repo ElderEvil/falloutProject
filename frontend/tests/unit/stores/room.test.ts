@@ -88,7 +88,7 @@ describe('Room Store', () => {
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockRooms })
 
       const store = useRoomStore()
-      await store.fetchRooms('vault-1', 'test-token')
+      const result = await store.fetchRooms('vault-1', 'test-token')
 
       expect(axios.get).toHaveBeenCalledWith(
         '/api/v1/rooms/vault/vault-1/',
@@ -97,15 +97,17 @@ describe('Room Store', () => {
         })
       )
       expect(store.rooms).toEqual(mockRooms)
+      expect(result).toBe('loaded')
     })
 
     it('should handle errors gracefully', async () => {
       vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network error'))
 
       const store = useRoomStore()
-      await store.fetchRooms('vault-1', 'test-token')
+      const result = await store.fetchRooms('vault-1', 'test-token')
 
       expect(store.rooms).toEqual([])
+      expect(result).toBe('failed')
     })
 
     it('should ignore a stale room response after a newer modal request', async () => {
@@ -126,12 +128,34 @@ describe('Room Store', () => {
       const firstRequest = store.fetchRooms('vault-1', 'test-token')
       const secondRequest = store.fetchRooms('vault-1', 'test-token')
 
-      await secondRequest
+      expect(await secondRequest).toBe('loaded')
       expect(store.rooms).toEqual(freshRooms)
 
       resolveFirst({ data: staleRooms })
-      await firstRequest
+      expect(await firstRequest).toBe('superseded')
 
+      expect(store.rooms).toEqual(freshRooms)
+    })
+
+    it('reports a superseded request as superseded even when it errored', async () => {
+      let rejectFirst!: (reason: unknown) => void
+      const freshRooms = [{ id: 'fresh', name: 'New Gym' }]
+
+      vi.mocked(axios.get)
+        .mockImplementationOnce(
+          () =>
+            new Promise((_, reject) => {
+              rejectFirst = reject
+            })
+        )
+        .mockResolvedValueOnce({ data: freshRooms })
+
+      const store = useRoomStore()
+      const firstRequest = store.fetchRooms('vault-1', 'test-token')
+      await store.fetchRooms('vault-1', 'test-token')
+
+      rejectFirst(new Error('Network error'))
+      expect(await firstRequest).toBe('superseded')
       expect(store.rooms).toEqual(freshRooms)
     })
   })

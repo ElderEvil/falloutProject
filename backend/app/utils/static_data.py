@@ -89,15 +89,16 @@ class StaticGameData:
                 room.image_url = get_room_image_url(room.name, tier=room.tier, size=room_size)
         return self._rooms
 
-    def get_buildable_rooms(self, existing_room_names: set[str]) -> list[RoomCreateWithoutVaultID]:
+    def get_buildable_rooms(self, blocked_room_names: set[str]) -> list[RoomCreateWithoutVaultID]:
         """
         Get list of rooms that can be built in a vault.
 
         Filters out:
         - Vault door (never buildable by user)
-        - Unique rooms that are already built (by name, case-insensitive)
+        - Unique rooms already grown to ``size_max`` (a unique room below its maximum
+          still merges an adjacent segment, so it stays offered)
 
-        :param existing_room_names: Set of lowercase room names already built in the vault
+        :param blocked_room_names: Lowercase names of unique rooms already at size_max
         :returns: List of buildable room definitions
         """
         buildable_rooms = []
@@ -106,8 +107,8 @@ class StaticGameData:
             if room.name.lower() == "vault door":
                 continue
 
-            # Exclude unique rooms that are already built
-            if room.is_unique and room.name.lower() in existing_room_names:
+            # Exclude unique rooms that can no longer merge a segment
+            if room.is_unique and room.name.lower() in blocked_room_names:
                 continue
 
             buildable_rooms.append(room)

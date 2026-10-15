@@ -3,16 +3,39 @@
 # TODO: relocate this room-assignment kernel outside services so CRUD can share it
 # (dweller availability now lives in app/utils/dweller_availability.py).
 
+from pydantic import UUID4
 from sqlmodel import col
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core import db_locks
 from app.core.enums import ADULT_AGE_GROUPS, STAT_BY_SPECIAL, RoomTypeEnum, SPECIALEnum
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.schemas.dweller import DwellerReadFull
-from app.utils.exceptions import ValidationException
+from app.utils.exceptions import ResourceConflictException, ValidationException
 
 ABILITY_TO_STAT_MAP = STAT_BY_SPECIAL
+
+
+def response_station_lock_key(room_id: UUID4) -> str:
+    """Advisory-lock key guarding one Response Station's occupancy.
+
+    Assignment mutates the station's occupant count, so every assignment takes the
+    key and concurrent moves serialize instead of both reading the last free slot.
+    The station grows by building an adjacent segment, which serializes on the vault
+    placement lock instead.
+    """
+    return f"response-station:{room_id}"
+
+
+def vault_placement_lock_key(vault_id: UUID4) -> str:
+    """Advisory-lock key guarding every placement change in one vault's grid.
+
+    Construction, the upgrade merge and the vault-wide merge backfill all rewrite
+    room footprints against the same grid, so they share a vault-scoped key: two
+    placement changes cannot land on the same cells.
+    """
+    return f"vault-placement:{vault_id}"
 
 
 def get_highest_special(dweller: Dweller | DwellerReadFull) -> SPECIALEnum:
@@ -30,12 +53,41 @@ def adult_assignment_conditions() -> tuple:
     return (col(Dweller.age_group).in_(ADULT_AGE_GROUPS),)
 
 
+async def validate_response_station_capacity(db_session: AsyncSession, room: Room) -> None:
+    """Refuse to overfill the Response Station, whose occupancy must follow its footprint.
+
+    The station grows by building an adjacent segment like any room, so its
+    assignment path enforces the 2-per-3-units capacity that the larger footprint
+    raises. Non-response rooms keep their existing (uncapped) manual-assignment
+    behaviour.
+    """
+    if room.category != RoomTypeEnum.RESPONSE:
+        return
+
+    # Count-then-move is a TOCTOU race: two assignments can both read the last free
+    # slot and both proceed. A transaction-scoped lock taken before the count is
+    # held until ``move_to_room`` commits, so the check and the move that follows it
+    # are one critical section (a no-op True outside PostgreSQL).
+    if not await db_locks.try_advisory_xact_lock(db_session, response_station_lock_key(room.id)):
+        raise ResourceConflictException(detail=f"{room.name} is busy — try again")
+
+    room_size = room.size if room.size is not None else room.size_min
+    capacity = calculate_room_capacity(room_size)
+
+    from app.crud.dweller import dweller as dweller_crud
+
+    occupants = await dweller_crud.count_in_room(db_session, room.id)
+    if occupants >= capacity:
+        raise ResourceConflictException(detail=f"{room.name} is at full capacity ({capacity})")
+
+
 async def validate_room_assignment(db_session: AsyncSession, dweller: Dweller, room: Room) -> None:
     """Allow one youth junior worker in each production room, training its ability.
 
     A junior worker both assists production (at the reduced junior rate in the
     resource manager) and advances the room's SPECIAL while they are posted there.
     """
+    await validate_response_station_capacity(db_session, room)
     if dweller.is_mature:
         return
     if room.category == RoomTypeEnum.ARENA:

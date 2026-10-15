@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
+from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -32,6 +33,7 @@ from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
+from app.services.dweller_assignment_service import DwellerAssignmentService, dweller_assignment_service
 from app.services.dweller_service import dweller_service
 from app.services.room_assignment_policy import calculate_room_capacity
 from app.tests.factory.vaults import random_vault_number
@@ -42,13 +44,15 @@ from app.utils.exceptions import ResourceConflictException, ValidationException
 # ---------------------------------------------------------------------------
 
 
-def _production_room_create(vault_id: UUID, *, name: str, x: int) -> RoomCreate:
+def _production_room_create(
+    vault_id: UUID, *, name: str, x: int, ability: SPECIALEnum = SPECIALEnum.STRENGTH
+) -> RoomCreate:
     """A size-3 production room payload: 2 adult worker slots plus one apprentice slot."""
     return RoomCreate(
         vault_id=vault_id,
         name=name,
         category=RoomTypeEnum.PRODUCTION,
-        ability=SPECIALEnum.STRENGTH,
+        ability=ability,
         population_required=None,
         base_cost=100,
         incremental_cost=25,
@@ -173,6 +177,30 @@ async def test_junior_slot_sits_outside_full_worker_capacity(async_session: Asyn
         await dweller_service.move_to_room(async_session, extra_youth.id, room.id)
 
 
+@pytest.mark.asyncio
+async def test_bulk_assignment_does_not_overfill_a_stale_slot(async_session: AsyncSession, vault: Vault) -> None:
+    """Bulk auto-assign re-checks capacity at persist time.
+
+    The slot count is computed up front; a room that filled after selection
+    (simulated here with a stale count) must not be overfilled by the persist
+    pass — the leftover dweller stays unassigned.
+    """
+    room = await _create_room(async_session, vault.id, name="Power Generator", x=10)
+
+    first = await _create_adult(async_session, vault.id, "First")
+    second = await _create_adult(async_session, vault.id, "Second")
+    await dweller_service.move_to_room(async_session, first.id, room.id)
+    await dweller_service.move_to_room(async_session, second.id, room.id)
+    leftover = await _create_adult(async_session, vault.id, "Leftover")
+
+    with patch.object(DwellerAssignmentService, "_get_available_slots", new=AsyncMock(return_value=1)):
+        result = await dweller_assignment_service.auto_assign_production_rooms(async_session, vault.id)
+
+    assert await _occupants(async_session, room) == 2
+    assert result["assigned_count"] == 0
+    assert (await crud.dweller.get(async_session, leftover.id)).room_id is None
+
+
 # ---------------------------------------------------------------------------
 # Live-PostgreSQL race: the last free worker slot goes to exactly one request
 # ---------------------------------------------------------------------------
@@ -269,4 +297,68 @@ async def test_two_concurrent_production_moves_admit_only_one(production_ctx: di
 
     assert len(successes) == 1, results
     assert len(conflicts) == 1, results
+    assert occupants == 2
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_bulk_and_manual_race_for_last_slot(production_ctx: dict) -> None:
+    """Bulk auto-assign racing a manual move for the last worker slot: exactly one wins."""
+    maker = production_ctx["maker"]
+    vault_id = production_ctx["vault_id"]
+    room_id = production_ctx["room_id"]
+    prefill_id, bulk_id, manual_id = production_ctx["dweller_ids"]
+
+    async with maker() as session:
+        spare = await crud.room.create(
+            session,
+            obj_in=RoomCreate(
+                vault_id=vault_id,
+                name="Athletics Room",
+                category=RoomTypeEnum.TRAINING,
+                ability=SPECIALEnum.INTELLIGENCE,
+                population_required=None,
+                base_cost=100,
+                incremental_cost=25,
+                t2_upgrade_cost=500,
+                t3_upgrade_cost=1500,
+                capacity=None,
+                output=None,
+                size_min=3,
+                size_max=9,
+                size=3,
+                tier=1,
+                coordinate_x=16,
+                coordinate_y=1,
+                image_url=None,
+                speedup_multiplier=1.0,
+                capacity_formula=None,
+                output_formula=None,
+            ),
+        )
+        # Prefill one of the two target slots; park the manual mover in the
+        # training room so the bulk production flow cannot take it itself.
+        await dweller_service.move_to_room(session, prefill_id, room_id)
+        await dweller_service.move_to_room(session, manual_id, spare.id)
+
+    async def manual() -> object:
+        async with maker() as session:
+            return await dweller_service.move_to_room(session, manual_id, room_id)
+
+    async def bulk() -> object:
+        async with maker() as session:
+            return await dweller_assignment_service.auto_assign_production_rooms(session, vault_id)
+
+    manual_res, bulk_res = await asyncio.gather(manual(), bulk(), return_exceptions=True)
+    manual_ok = not isinstance(manual_res, BaseException)
+    bulk_took_target = isinstance(bulk_res, dict) and any(
+        entry["room_id"] == str(room_id) for entry in bulk_res["assignments"]
+    )
+
+    async with maker() as reader:
+        occupants = await crud.dweller.count_in_room(reader, room_id)
+
+    assert manual_ok ^ bulk_took_target
+    if not manual_ok:
+        assert isinstance(manual_res, ResourceConflictException)
     assert occupants == 2

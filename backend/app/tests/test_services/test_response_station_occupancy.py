@@ -9,6 +9,7 @@ active places a dweller holds.
 from __future__ import annotations
 
 import inspect
+from unittest.mock import AsyncMock, patch
 from uuid import UUID
 
 import pytest
@@ -67,6 +68,56 @@ async def _create_station(session: AsyncSession, vault_id: UUID, *, coordinate_x
     return await crud.room.create(
         session, obj_in=_response_station_create(vault_id, coordinate_x=coordinate_x, size=size)
     )
+
+
+async def _ensure_elevator(session: AsyncSession, vault_id: UUID, coordinate_y: int) -> None:
+    """Place the level-1 access the build-placement rules require before growing the station."""
+    existing = await crud.room.get_room_by_coordinates(
+        db_session=session, vault_id=vault_id, x_coord=0, y_coord=coordinate_y
+    )
+    if existing is not None:
+        return
+    await crud.room.create(
+        session,
+        obj_in=RoomCreate(
+            vault_id=vault_id,
+            name="Elevator",
+            category=RoomTypeEnum.MISC,
+            ability=None,
+            population_required=None,
+            base_cost=100,
+            incremental_cost=None,
+            t2_upgrade_cost=None,
+            t3_upgrade_cost=None,
+            capacity=None,
+            output=None,
+            size_min=1,
+            size_max=1,
+            size=1,
+            tier=1,
+            coordinate_x=0,
+            coordinate_y=coordinate_y,
+            image_url=None,
+            speedup_multiplier=1.0,
+        ),
+    )
+
+
+async def _grow_station(session: AsyncSession, vault_id: UUID, station_id: UUID) -> Room:
+    """Grow the station one segment by building an adjacent segment through the real service path."""
+    station = await crud.room.get(session, station_id)
+    assert station.coordinate_x is not None
+    assert station.coordinate_y is not None
+    await _ensure_elevator(session, vault_id, station.coordinate_y)
+    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
+        grown, _created = await room_service._build(
+            db_session=session,
+            obj_in=_response_station_create(
+                vault_id,
+                coordinate_x=station.coordinate_x + (station.size or station.size_min),
+            ),
+        )
+    return grown
 
 
 async def _create_non_unique_room(session: AsyncSession, vault_id: UUID, *, coordinate_x: int = 1) -> Room:
@@ -166,29 +217,29 @@ async def test_station_size_three_holds_two_then_rejects_third(async_session: As
 
 
 @pytest.mark.asyncio
-async def test_station_expands_to_six_holds_four_then_rejects_fifth(
+async def test_station_grown_to_six_holds_four_then_rejects_fifth(
     async_session: AsyncSession, rich_vault: Vault
 ) -> None:
-    """After expanding 3 -> 6 the station holds 4; the 5th assignment is rejected."""
+    """After growing 3 -> 6 the station holds 4; the 5th assignment is rejected."""
     station = await _create_station(async_session, rich_vault.id)
 
-    expanded = await room_service.expand_room(async_session, station.id)
+    await _grow_station(async_session, rich_vault.id, station.id)
     # Re-read the row so the assertion runs against committed state, not the stale instance.
-    expanded = await crud.room.get(async_session, station.id)
-    assert expanded.id == station.id
-    assert expanded.size == 6
-    assert calculate_room_capacity(expanded.size) == 4
+    grown = await crud.room.get(async_session, station.id)
+    assert grown.id == station.id
+    assert grown.size == 6
+    assert calculate_room_capacity(grown.size) == 4
 
     dwellers = [await _create_adult(async_session, rich_vault.id, f"Occupant{i}") for i in range(4)]
     for dweller in dwellers:
-        await dweller_service.move_to_room(async_session, dweller.id, expanded.id)
-    assert await _occupants(async_session, expanded) == 4
+        await dweller_service.move_to_room(async_session, dweller.id, grown.id)
+    assert await _occupants(async_session, grown) == 4
 
     extra = await _create_adult(async_session, rich_vault.id, "Overflow")
     with pytest.raises(ResourceConflictException, match="full capacity"):
-        await dweller_service.move_to_room(async_session, extra.id, expanded.id)
+        await dweller_service.move_to_room(async_session, extra.id, grown.id)
 
-    assert await _occupants(async_session, expanded) == 4
+    assert await _occupants(async_session, grown) == 4
 
 
 @pytest.mark.asyncio
@@ -215,7 +266,7 @@ async def test_station_grows_three_six_nine_through_assignment_path(
     assert await _occupants(async_session, station) == 2
     await expect_overflow_rejected()
 
-    grown_to_six = await room_service.expand_room(async_session, station.id)
+    grown_to_six = await _grow_station(async_session, rich_vault.id, station.id)
     assert grown_to_six.size == 6
     assert calculate_room_capacity(grown_to_six.size) == 4
     for _ in range(2):
@@ -223,7 +274,7 @@ async def test_station_grows_three_six_nine_through_assignment_path(
     assert await _occupants(async_session, station) == 4
     await expect_overflow_rejected()
 
-    grown_to_nine = await room_service.expand_room(async_session, station.id)
+    grown_to_nine = await _grow_station(async_session, rich_vault.id, station.id)
     assert grown_to_nine.size == 9
     assert calculate_room_capacity(grown_to_nine.size) == 6
     for _ in range(2):

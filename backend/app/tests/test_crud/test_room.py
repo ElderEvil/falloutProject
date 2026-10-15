@@ -408,7 +408,8 @@ class TestBuild:
     @pytest.mark.asyncio
     async def test_unique_room_charges_base_price_and_rejects_second(self, async_session: AsyncSession, vault: Vault):
         """A unique room builds through the real service and charges only its base price;
-        a second unique room of the same name is rejected before any caps are charged (issue #997)."""
+        a disconnected second unique room of the same name is rejected before any caps are
+        charged (issue #997)."""
         await crud.vault.update(db_session=async_session, id=vault.id, obj_in={"bottle_caps": 10_000})
         await _create_room(
             async_session,
@@ -438,7 +439,12 @@ class TestBuild:
         assert room.name == "Response Station"
         assert vault.bottle_caps == 9_500
 
-        second = _make_room_create(**{**unique, "coordinate_x": 2})
+        # A neighbour makes the second station's cell buildable, but it is not adjacent to
+        # the first, so it cannot merge and uniqueness must reject it.
+        await _create_room(
+            async_session, vault.id, name="Diner", size=1, size_min=1, coordinate_x=4, coordinate_y=0
+        )
+        second = _make_room_create(**{**unique, "coordinate_x": 3})
         with pytest.raises(UniqueRoomViolationException):
             await RoomService()._build(db_session=async_session, obj_in=second)
 

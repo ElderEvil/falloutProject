@@ -4,13 +4,12 @@ from __future__ import annotations
 
 from datetime import datetime
 from unittest.mock import AsyncMock, patch
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.grid_config import GRID_X_MAX
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.training import Training
@@ -20,7 +19,7 @@ from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.room_assignment_policy import calculate_room_capacity
 from app.services.room_service import room_service
-from app.utils.exceptions import ResourceNotFoundException, UniqueRoomViolationException, VaultOperationException
+from app.utils.exceptions import ResourceNotFoundException, UniqueRoomViolationException
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -65,7 +64,7 @@ def _make_room_create(
     )
 
 
-async def _create_elevator(session: AsyncSession, vault_id: UUID, coordinate_y: int) -> Room:
+async def _create_elevator(session: AsyncSession, vault_id: UUID, coordinate_y: int, *, coordinate_x: int = 6) -> Room:
     return await crud.room.create(
         session,
         obj_in=RoomCreate(
@@ -84,7 +83,7 @@ async def _create_elevator(session: AsyncSession, vault_id: UUID, coordinate_y: 
             size_max=1,
             size=1,
             tier=1,
-            coordinate_x=6,
+            coordinate_x=coordinate_x,
             coordinate_y=coordinate_y,
             image_url=None,
             speedup_multiplier=1.0,
@@ -659,7 +658,7 @@ async def test_upgrade_no_merge_different_tier(async_session: AsyncSession, rich
 
 
 # ---------------------------------------------------------------------------
-# expand_room — unique in-place growth (issue #997, Response Station)
+# Response Station — unique room growth via an adjacent segment (issue #997)
 # ---------------------------------------------------------------------------
 
 
@@ -701,107 +700,90 @@ async def _create_response_station(
 
 
 @pytest.mark.asyncio
-async def test_expand_unique_room_grows_in_place_and_charges_base_price(async_session: AsyncSession, rich_vault: Vault):
-    """3 -> 6 -> 9 in place: same row id, one base price per segment, occupancy 2/4/6."""
+async def test_adjacent_station_segment_merges_into_one_row(async_session: AsyncSession, rich_vault: Vault):
+    """An adjacent segment joins the station (same row id) and grows it 3 -> 6 -> 9."""
     station = await _create_response_station(async_session, rich_vault.id, coordinate_x=1)
     assert calculate_room_capacity(station.size) == 2
-    starting_caps = rich_vault.bottle_caps
 
-    first = await room_service.expand_room(async_session, station.id)
+    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
+        grown_to_six, created = await room_service._build(
+            db_session=async_session,
+            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=4),
+        )
 
-    assert first.id == station.id
-    assert first.size == 6
-    assert calculate_room_capacity(first.size) == 4
-    assert rich_vault.bottle_caps == starting_caps - 600
+    assert grown_to_six.id == station.id
+    assert created is False
+    assert grown_to_six.size == 6
+    assert calculate_room_capacity(grown_to_six.size) == 4
 
-    second = await room_service.expand_room(async_session, station.id)
+    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
+        grown_to_nine, created = await room_service._build(
+            db_session=async_session,
+            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=7),
+        )
 
-    assert second.id == station.id
-    assert second.size == 9
-    assert calculate_room_capacity(second.size) == 6
-    assert rich_vault.bottle_caps == starting_caps - 1200
+    assert grown_to_nine.id == station.id
+    assert created is False
+    assert grown_to_nine.size == 9
+    assert calculate_room_capacity(grown_to_nine.size) == 6
 
-
-@pytest.mark.asyncio
-async def test_expand_preserves_identity_and_attached_dwellers(async_session: AsyncSession, rich_vault: Vault):
-    """Growth is an in-place update: the row id and its room assignment survive."""
-    station = await _create_response_station(async_session, rich_vault.id)
-    dweller = await _create_dweller_in_room(async_session, rich_vault.id, station)
-    original_id = station.id
-
-    grown = await room_service.expand_room(async_session, station.id)
-
-    assert grown.id == original_id
-    assert dweller.room_id == original_id
-    assert grown.size == 6
     names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
     assert names.count("Response Station") == 1
 
 
 @pytest.mark.asyncio
-async def test_expand_rejects_at_maximum_size(async_session: AsyncSession, rich_vault: Vault):
-    """Growing past size_max is rejected before any caps move."""
-    station = await _create_response_station(async_session, rich_vault.id, size=9)
+async def test_adjacent_station_segment_charges_one_build_price_per_segment(
+    async_session: AsyncSession, rich_vault: Vault
+):
+    """Each adjacent segment costs one station build price; the row id never changes."""
+    await _create_response_station(async_session, rich_vault.id, coordinate_x=1)
     starting_caps = rich_vault.bottle_caps
 
-    with pytest.raises(VaultOperationException, match="maximum size"):
-        await room_service.expand_room(async_session, station.id)
+    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
+        await room_service._build(
+            db_session=async_session, obj_in=_make_response_room_create(rich_vault.id, coordinate_x=4)
+        )
+        await room_service._build(
+            db_session=async_session, obj_in=_make_response_room_create(rich_vault.id, coordinate_x=7)
+        )
 
-    assert rich_vault.bottle_caps == starting_caps
+    await async_session.refresh(rich_vault)
+    assert rich_vault.bottle_caps == starting_caps - 1200
 
 
 @pytest.mark.asyncio
-async def test_expand_rejects_non_unique_room(async_session: AsyncSession, rich_vault: Vault):
-    """Non-unique rooms grow through build+merge, never the expansion path."""
-    room = await _create_existing_room(
-        async_session, rich_vault.id, coordinate_x=1, capacity_formula=None, output_formula=None
-    )
-    starting_caps = rich_vault.bottle_caps
-
-    with pytest.raises(VaultOperationException, match="not a unique room"):
-        await room_service.expand_room(async_session, room.id)
-
-    assert rich_vault.bottle_caps == starting_caps
-    await async_session.refresh(room)
-    assert room.size == 3
-
-
-@pytest.mark.asyncio
-async def test_expand_rejects_overlapping_neighbour(async_session: AsyncSession, rich_vault: Vault):
-    """A neighbour inside the grown footprint blocks the expansion."""
+async def test_adjacent_station_segment_preserves_dwellers(async_session: AsyncSession, rich_vault: Vault):
+    """A merge keeps the station row and its occupants; no second station row appears."""
     station = await _create_response_station(async_session, rich_vault.id, coordinate_x=1)
-    await _create_existing_room(async_session, rich_vault.id, name="Diner", coordinate_x=4, coordinate_y=0)
-    starting_caps = rich_vault.bottle_caps
+    dweller = await _create_dweller_in_room(async_session, rich_vault.id, station)
 
-    with pytest.raises(VaultOperationException, match="overlaps"):
-        await room_service.expand_room(async_session, station.id)
+    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
+        grown, _created = await room_service._build(
+            db_session=async_session,
+            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=4),
+        )
 
-    assert rich_vault.bottle_caps == starting_caps
-
-
-@pytest.mark.asyncio
-async def test_expand_rejects_grid_boundary(async_session: AsyncSession, rich_vault: Vault):
-    """Growth that would run past the last grid column is rejected."""
-    station = await _create_response_station(async_session, rich_vault.id, coordinate_x=GRID_X_MAX - 2)
-    starting_caps = rich_vault.bottle_caps
-
-    with pytest.raises(VaultOperationException, match="max X"):
-        await room_service.expand_room(async_session, station.id)
-
-    assert rich_vault.bottle_caps == starting_caps
+    assert grown.id == station.id
+    await async_session.refresh(dweller)
+    assert dweller.room_id == station.id
+    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
+    assert names.count("Response Station") == 1
 
 
 @pytest.mark.asyncio
-async def test_second_response_station_still_rejected_after_expansion(async_session: AsyncSession, rich_vault: Vault):
-    """Expansion never creates a copy; the build path still rejects a second station."""
-    station = await _create_response_station(async_session, rich_vault.id, coordinate_x=1)
-    await room_service.expand_room(async_session, station.id)
+async def test_disconnected_second_station_rejected_without_charge(async_session: AsyncSession, rich_vault: Vault):
+    """A second station that cannot merge is rejected before any caps move or row is created."""
+    await _create_response_station(async_session, rich_vault.id, coordinate_x=1)
+    await _create_elevator(async_session, rich_vault.id, coordinate_y=1, coordinate_x=0)
+    starting_caps = rich_vault.bottle_caps
 
     with pytest.raises(UniqueRoomViolationException):
         await room_service._build(
             db_session=async_session,
-            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=7),
+            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=1, coordinate_y=1),
         )
 
+    await async_session.refresh(rich_vault)
+    assert rich_vault.bottle_caps == starting_caps
     names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
     assert names.count("Response Station") == 1

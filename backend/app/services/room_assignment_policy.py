@@ -18,11 +18,12 @@ ABILITY_TO_STAT_MAP = STAT_BY_SPECIAL
 
 
 def response_station_lock_key(room_id: UUID4) -> str:
-    """Advisory-lock key guarding one Response Station's footprint and occupancy.
+    """Advisory-lock key guarding one Response Station's occupancy.
 
-    Expansion and assignment both mutate what the station can hold, so they share
-    the key: either side serializes against the other instead of racing the count
-    or the 3 -> 6 -> 9 growth.
+    Assignment mutates the station's occupant count, so every assignment takes the
+    key and concurrent moves serialize instead of both reading the last free slot.
+    The station grows by building an adjacent segment, which serializes on the vault
+    placement lock instead.
     """
     return f"response-station:{room_id}"
 
@@ -55,10 +56,10 @@ def adult_assignment_conditions() -> tuple:
 async def validate_response_station_capacity(db_session: AsyncSession, room: Room) -> None:
     """Refuse to overfill the Response Station, whose occupancy must follow its footprint.
 
-    The station is a unique room that grows in place (``RoomService.expand_room``)
-    rather than by building an adjacent segment, so its assignment path must enforce
-    the 2-per-3-units capacity that expansion raises. Non-response rooms keep their
-    existing (uncapped) manual-assignment behaviour.
+    The station grows by building an adjacent segment like any room, so its
+    assignment path enforces the 2-per-3-units capacity that the larger footprint
+    raises. Non-response rooms keep their existing (uncapped) manual-assignment
+    behaviour.
     """
     if room.category != RoomTypeEnum.RESPONSE:
         return

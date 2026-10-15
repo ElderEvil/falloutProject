@@ -313,12 +313,12 @@ chase vibes. Design doc: `docs/backend/CONTAMINATION_TEAM.md`.
   dweller earning an ACTIVE place on the matching team is auto-equipped with an available spare (fire
   team → Firefighter suit, radiation team → Hazmat suit). Bench members are not equipped; there is no
   auto-unequip on leaving.
-- **Response Station** — one unique room per vault (population 15, 600 caps, footprint 3→9 via
-  `POST /rooms/expand/{room_id}`, occupancy 2/4/6) gates team formation and is the only management
-  surface: the standalone Response Teams page is retired to a compatibility redirect and the sidebar
-  entry is gone. Station postings survive a response, and the station is excluded from incident origin
-  and spread. Expansion and assignment serialize on a shared lock so it cannot be double-charged or
-  overfilled.
+- **Response Station** — one unique room per vault (population 15, 600 caps, footprint 3→9, occupancy
+  2/4/6) gates team formation and is the only management surface: the standalone Response Teams page
+  is retired to a compatibility redirect and the sidebar entry is gone. It grows by building an
+  adjacent segment, like any room, and a disconnected second station is rejected. Station postings
+  survive a response, and the station is excluded from incident origin and spread. Assignment
+  serializes on a shared lock so the station cannot be overfilled.
 
 **Next, in rough order:**
 

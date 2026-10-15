@@ -127,18 +127,3 @@ async def upgrade_room(
     """
     await verify_room_access(room_id, user, db_session)
     return await room_service.upgrade_room(db_session, room_id)
-
-
-@router.post("/expand/{room_id}", response_model=RoomRead)
-async def expand_room(
-    room_id: UUID4,
-    user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> Room:
-    """Grow a unique room's footprint in place by one segment.
-
-    Returns:
-        The expanded room.
-    """
-    await verify_room_access(room_id, user, db_session)
-    return await room_service.expand_room(db_session, room_id)

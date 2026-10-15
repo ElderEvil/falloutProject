@@ -140,10 +140,10 @@ def prepare_initial_rooms(
     else:
         production = mk([("power generator", 3, 1), ("diner", 3, 2), ("water treatment", 3, 3)])
     misc = mk(
-        [("radio studio", 7, 3)] + ([("overseer's office", 22, 2), ("response station", 25, 0)] if is_boosted else [])
+        [("radio studio", 7, 3)] + ([("overseer's office", 22, 2), ("response station", 13, 0)] if is_boosted else [])
     )
     arena = mk([("arena", 10, 3)] if is_boosted else [])
-    crafting = mk(list(BOOSTED_CRAFTING_ROOM_SPECS)) if is_boosted else []
+    crafting = mk_sized([(name, x, y, 3) for name, x, y in BOOSTED_CRAFTING_ROOM_SPECS]) if is_boosted else []
     training = mk(
         [
             ("weight room", 7, 1),

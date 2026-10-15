@@ -1,10 +1,10 @@
-"""Live-PostgreSQL concurrency checks for Response Station expansion and occupancy.
+"""Live-PostgreSQL concurrency checks for Response Station occupancy.
 
-Two concurrent expands must charge and grow exactly once, and a station down to
-its last free slot must admit exactly one of two concurrent assignments. The guard
-is the repo's existing advisory-lock primitive; SQLite cannot demonstrate it (no
-advisory locks, single writer), so these run against live PostgreSQL and skip when
-it is unavailable — mirroring ``test_hazard_team_concurrency``.
+A station down to its last free slot must admit exactly one of two concurrent
+assignments. The guard is the repo's existing advisory-lock primitive; SQLite
+cannot demonstrate it (no advisory locks, single writer), so these run against
+live PostgreSQL and skip when it is unavailable — mirroring
+``test_hazard_team_concurrency``.
 """
 
 import asyncio
@@ -31,7 +31,6 @@ from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.dweller_service import dweller_service
 from app.services.hazard_team_service import hazard_team_service
-from app.services.room_service import room_service
 from app.tests.factory.vaults import random_vault_number
 from app.utils.exceptions import ResourceConflictException
 
@@ -190,38 +189,8 @@ async def _occupants(ctx: dict) -> int:
 
 
 # ---------------------------------------------------------------------------
-# Expansion: one concurrent request wins, the other charges and grows nothing
+# Occupancy lock: the literal the tests contend on matches the production helper
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_second_concurrent_expand_is_rejected_without_charge_or_growth(station_ctx: dict) -> None:
-    """While one expand holds the vault placement lock, a second is refused; net: one charge, one growth."""
-    from app.services.room_assignment_policy import vault_placement_lock_key
-
-    station_id = station_ctx["station_id"]
-    starting_size, starting_caps = await _read_station_and_caps(station_ctx)
-
-    async with (
-        station_ctx["maker"]() as holder,
-        db_locks.hold_advisory_lock(holder, vault_placement_lock_key(station_ctx["vault_id"])) as acquired,
-    ):
-        assert acquired is True
-        async with station_ctx["maker"]() as contender:
-            with pytest.raises(ResourceConflictException):
-                await room_service.expand_room(contender, station_id)
-
-    # The refused request moved no caps and changed no footprint.
-    assert (await _read_station_and_caps(station_ctx)) == (starting_size, starting_caps)
-
-    # Exactly one charge and one growth when the room is free again.
-    async with station_ctx["maker"]() as worker:
-        grown = await room_service.expand_room(worker, station_id)
-
-    size_after, caps_after = await _read_station_and_caps(station_ctx)
-    assert grown.size == starting_size + 3
-    assert size_after == starting_size + 3
-    assert caps_after == starting_caps - 600
 
 
 @pytest.mark.asyncio

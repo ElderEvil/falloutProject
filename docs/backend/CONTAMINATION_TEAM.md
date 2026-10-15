@@ -88,10 +88,10 @@ base footprint 3) is the teams' home and the only management surface.
   station exists. The automatic join from participation silently defers without a station, so an incident
   round is never aborted; a promotion attempt returns 400. Assignment never grants membership, and
   existing teams and participation records are untouched.
-- **It grows in place.** Uniqueness blocks the build-and-merge route, so the station expands one
-  `size_min` segment per call (`POST /rooms/expand/{room_id}`), 3 → 6 → 9, at one build price per
-  segment. Occupancy follows the footprint: 2 / 4 / 6. Expansion and station assignment serialize on a
-  shared advisory lock, so it can never be double-charged or overfilled.
+- **It grows by building an adjacent segment, like any room.** Uniqueness only blocks a disconnected
+  second copy; building next to the station merges the segment into it, 3 → 6 → 9, at one build price
+  per segment. Occupancy follows the footprint: 2 / 4 / 6, and assignment serializes on the station's
+  advisory lock so it can never be overfilled.
 - **Station postings survive a response.** A responder posted in the station returns to it after the
   incident instead of being reassigned to production; `TeamMember.origin_room_id` records the
   pre-dispatch posting, and responders posted elsewhere keep the existing return behaviour.

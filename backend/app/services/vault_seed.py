@@ -20,7 +20,7 @@ from app.schemas.room import RoomCreate
 # gives the boosted population its capacity.
 BOOSTED_CRAFTING_ROOM_SPECS: tuple[tuple[str, int, int], ...] = (
     ("Weapon workshop", 7, 0),
-    ("Outfit workshop", 16, 0),
+    ("Outfit workshop", 10, 0),
 )
 BOOSTED_MERGED_LIVING_ROOM: tuple[str, int, int, int] = ("living room", 16, 3, 9)
 BOOSTED_TRAINING_STATS = (

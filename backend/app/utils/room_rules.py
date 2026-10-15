@@ -17,7 +17,6 @@ from sqlalchemy import and_
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.grid_config import GRID_X_MAX
 from app.models.room import Room
 from app.utils.exceptions import VaultOperationException
 
@@ -104,8 +103,8 @@ def _reject_overlaps(
 ) -> None:
     """Raise if the closed span ``start..end`` intersects any room footprint.
 
-    Shared by the build/merge path and the in-place expansion path so both reject
-    the same overlaps with the same exception contract.
+    The build/merge path rejects overlaps through this helper so the same exception
+    contract holds for every placement change.
     """
     for room in rooms:
         if room is exclude:
@@ -180,49 +179,6 @@ async def _validate_footprint(
                 "rooms must be built next to another room or an elevator."
             )
         )
-
-
-async def validate_expansion_placement(db_session: AsyncSession, room: Room, target_size: int) -> None:
-    """Reject an in-place footprint growth that leaves the grid or overlaps a room.
-
-    Reuses the build/merge footprint rules: the grown span is checked against every
-    other room on the level. Level access (R2) is already satisfied because the room
-    exists where it was placed, and adjacency is not required for a room that
-    already occupies the level.
-    """
-    if room.coordinate_x is None or room.coordinate_y is None:
-        raise VaultOperationException(detail=f"Cannot expand {room.name}: room has no grid position.")
-
-    start = room.coordinate_x
-    end = start + target_size - 1
-    if end > GRID_X_MAX:
-        raise VaultOperationException(detail=f"Cannot expand {room.name}: max X {end} > {GRID_X_MAX}")
-
-    rooms_on_level = list(
-        (
-            await db_session.exec(
-                select(Room).where(
-                    and_(
-                        col(Room.vault_id) == room.vault_id,
-                        col(Room.coordinate_y) == room.coordinate_y,
-                        col(Room.coordinate_x).is_not(None),
-                    )
-                )
-            )
-        ).all()
-        or []
-    )
-
-    _reject_overlaps(
-        rooms_on_level,
-        start=start,
-        end=end,
-        action="expand",
-        room_name=room.name,
-        coordinate_x=start,
-        coordinate_y=room.coordinate_y,
-        exclude=room,
-    )
 
 
 async def validate_elevator_destroy(db_session: AsyncSession, elevator_room: Room) -> None:

@@ -3,6 +3,8 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import axios from '@/core/plugins/axios'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useRoomStore } from '@/modules/rooms/stores/room'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import RoomAssignmentModal from '@/modules/dwellers/components/modals/RoomAssignmentModal.vue'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 
@@ -42,7 +44,12 @@ const mountPicker = async (changes: Partial<Dweller> = {}) => {
   const wrapper = mount(RoomAssignmentModal, {
     props: { open: true, vaultId: 'vault-1', dweller: { ...dweller, ...changes } },
     global: {
-      stubs: { TerminalModal: { template: '<section><slot /><slot name="footer" /></section>' } },
+      stubs: {
+        TerminalModal: {
+          name: 'TerminalModal',
+          template: '<section><slot /><slot name="footer" /></section>',
+        },
+      },
     },
   })
   await flushPromises()
@@ -97,6 +104,9 @@ describe('dweller-first room assignment', () => {
     const wrapper = await mountPicker()
     const lab = choiceButtons(wrapper).find((button) => button.text().includes('Science Lab'))!
     expect(lab.attributes('disabled')).toBeDefined()
+    expect(wrapper.find(`#${lab.attributes('aria-describedby')}`).text()).toContain(
+      'All worker slots are occupied'
+    )
     expect(wrapper.text()).toContain('All worker slots are occupied')
     expect(axios.post).not.toHaveBeenCalled()
   })
@@ -152,5 +162,51 @@ describe('dweller-first room assignment', () => {
     const away = await mountPicker({ status: 'exploring' })
     expect(away.text()).toContain('away from the vault')
     expect(choiceButtons(away)[0].attributes('disabled')).toBeDefined()
+  })
+  it.each(['rooms', 'dwellers'])(
+    'does not show choices after a superseded %s fetch',
+    async (source) => {
+      let resolveFirst!: (value: { data: unknown[] }) => void
+      let held = false
+      vi.mocked(axios.get).mockImplementation(async (url) => {
+        const isRooms = String(url).includes('/rooms/')
+        if (!held && (source === 'rooms' ? isRooms : !isRooms)) {
+          held = true
+          return new Promise((resolve) => {
+            resolveFirst = resolve
+          })
+        }
+        return { data: isRooms ? rooms : residents }
+      })
+      const wrapper = await mountPicker()
+      if (source === 'rooms') await useRoomStore().fetchRooms('vault-2', 'test-token')
+      else await useDwellerStore().filter.fetchAllDwellers('vault-2', 'test-token')
+      resolveFirst({ data: source === 'rooms' ? rooms : residents })
+      await flushPromises()
+      expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+      expect(choiceButtons(wrapper)).toHaveLength(0)
+    }
+  )
+
+  it('blocks shell dismissal while an assignment is pending', async () => {
+    let finish!: (value: unknown) => void
+    vi.mocked(axios.post).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
+    )
+    const wrapper = await mountPicker()
+    await choiceButtons(wrapper)[0].trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Confirm assignment')!
+      .trigger('click')
+    wrapper.findComponent({ name: 'TerminalModal' }).vm.$emit('update:open', false)
+    await flushPromises()
+    expect(wrapper.emitted('update:open')).toBeUndefined()
+    finish({ data: dweller })
+    await flushPromises()
+    expect(wrapper.emitted('update:open')).toEqual([[false]])
   })
 })

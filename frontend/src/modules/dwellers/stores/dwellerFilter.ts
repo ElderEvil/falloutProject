@@ -462,6 +462,8 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       if (requestSeq === allDwellersRequestSeq && allDwellersVaultId === vaultId) {
         allDwellers.value = collected
         allDwellersLoadedVaultId.value = vaultId
+      } else if (throwOnError) {
+        throw new Error('Dweller list changed while loading. Try again.')
       }
     } catch (error) {
       handleStoreError(error, `Failed to fetch all dwellers for vault ${vaultId}`)

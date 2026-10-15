@@ -77,11 +77,13 @@ async function loadChoices() {
   loaded.value = false
   try {
     if (!auth.token) throw new Error('Sign in again to load rooms.')
-    await Promise.all([
+    const [roomResult] = await Promise.all([
       roomStore.fetchRooms(props.vaultId, auth.token, true),
       filter.fetchAllDwellers(props.vaultId, auth.token, true),
     ])
-    if (sequence === loadSequence) loaded.value = true
+    if (sequence !== loadSequence) return
+    if (roomResult !== 'loaded') throw new Error('Rooms changed while loading. Try again.')
+    loaded.value = true
   } catch (cause) {
     if (sequence === loadSequence)
       error.value = getErrorMessage(cause, 'Could not load rooms. Try again.')
@@ -115,20 +117,24 @@ async function assignSelected() {
     title="Choose a production room"
     size="xl"
     max-height="80"
-    @update:open="emit('update:open', $event)"
+    :show-close="!saving"
+    @update:open="!saving && emit('update:open', $event)"
   >
-    <div class="flex flex-col gap-3 overflow-y-auto p-5" :aria-busy="loading || saving">
+    <div
+      class="flex flex-col gap-3 overflow-y-auto overscroll-contain p-5"
+      :aria-busy="loading || saving"
+    >
       <p class="text-theme-primary">
         {{ getDwellerDisplayName(dweller) }} · {{ isMature(dweller) ? 'Worker' : 'Apprentice' }}
       </p>
       <p class="text-sm text-muted-foreground">
-        Compare the SPECIAL each room uses. Highest effective stat appears first. Training and Arena
-        have separate controls.
+        Compare the SPECIAL each room uses. Highest effective stat appears first. Training, Arena,
+        and the Response Station have separate controls.
       </p>
       <p v-if="loading" role="status">Loading rooms and occupancy…</p>
       <div v-else-if="error" role="alert" class="flex flex-col gap-2">
         <p class="text-danger">{{ error }}</p>
-        <Button v-if="!saving" variant="outline" @click="loadChoices">Try again</Button>
+        <Button v-if="!saving && !loaded" variant="outline" @click="loadChoices">Try again</Button>
       </div>
       <p v-if="unavailable" role="status">{{ unavailable }}</p>
       <template v-if="!loading && loaded">
@@ -141,6 +147,9 @@ async function assignSelected() {
             class="h-auto w-full whitespace-normal py-3"
             :aria-pressed="selectedId === choice.room.id"
             :aria-label="`${choice.room.name}, tier ${choice.room.tier}, ${choice.ability.label} ${choice.stat}, ${choice.workers} of ${choice.capacity} workers`"
+            :aria-describedby="
+              choice.restriction ? `room-restriction-${choice.room.id}` : undefined
+            "
             :disabled="!!choice.restriction || saving"
             @click="selectedId = choice.room.id"
           >
@@ -157,7 +166,11 @@ async function assignSelected() {
               >
             </span>
           </Button>
-          <p v-if="choice.restriction" class="text-sm text-muted-foreground">
+          <p
+            v-if="choice.restriction"
+            :id="`room-restriction-${choice.room.id}`"
+            class="text-sm text-muted-foreground"
+          >
             {{ choice.restriction }}
           </p>
         </div>

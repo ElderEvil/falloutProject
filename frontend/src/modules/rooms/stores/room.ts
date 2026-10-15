@@ -45,7 +45,11 @@ export const useRoomStore = defineStore('room', () => {
   }
 
   // Actions
-  async function fetchRooms(vaultId: string, token: string, throwOnError = false): Promise<FetchRoomsResult> {
+  async function fetchRooms(
+    vaultId: string,
+    token: string,
+    throwOnError = false
+  ): Promise<FetchRoomsResult> {
     const requestSequence = ++fetchRoomsRequestSequence
 
     try {

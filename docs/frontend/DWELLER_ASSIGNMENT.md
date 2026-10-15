@@ -74,8 +74,9 @@ background callers unchanged. Submission uses existing service/store error handl
 | busy submit | block duplicate confirmation/cancel buttons during the request |
 
 The server remains authoritative. Occupancy is a snapshot: a source audit found manual
-move_to lacks the automatic path's transactional worker-capacity enforcement. This
-requires a focused backend follow-up; the UI does not guarantee concurrency safety.
+move_to lacked the automatic path's transactional worker-capacity enforcement.
+PR #1005 now enforces it for manual and bulk assignments; stale UI choices can
+still receive a server conflict, which stays visible without losing selection.
 
 ## Evaluation and browser evidence
 
@@ -107,3 +108,20 @@ usability targets or invented before/after timing measurements are claimed.
 existing policy and row locks, with a failing regression first and a competing PostgreSQL
 assignment test. Keep junior slots separate. This follows from the source audit above;
 production estimates and broader reward-settlement research (#928) remain separate work.
+
+## Integration review (2026-10-15)
+
+Updated against master after #1005. Room loading preserves the store's loaded,
+failed and superseded results; a superseded room or roster request shows a retry
+state instead of claiming that occupancy is loaded. While saving, Escape, outside
+click and shell-close cannot dismiss/reopen the picker and submit a duplicate.
+Submission conflicts retain selection and the confirmation button retries them;
+the load retry button appears only when loading failed. Disabled destinations
+reference their restriction text with aria-describedby; body scroll is contained.
+
+Chromium checks at 1440×1000 and 390×844 used the actual modal and fixture data,
+including a long destination and a full room. Enter opens, Space selects, Escape
+returns focus to the trigger when idle, and Escape/outside click cannot dismiss
+a pending POST. Each scenario sent exactly one POST and produced the named toast.
+Both widths had no horizontal document overflow or page errors. Reduced-motion
+preference was enabled. This is browser verification, not a human usability study.

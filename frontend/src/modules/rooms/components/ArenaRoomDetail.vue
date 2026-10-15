@@ -4,13 +4,6 @@ import { useArenaStore } from '../stores/arena'
 import { Icon } from '@iconify/vue'
 import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/core/components/ui/card'
 import DwellerList from './DwellerList.vue'
 import type { Room } from '../models/room'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
@@ -60,50 +53,7 @@ const assignmentMode = defineModel<'worker' | 'apprentice' | null>('assignmentMo
 </script>
 
 <template>
-  <div class="arena-room-detail flex flex-col gap-4">
-    <Card class="border border-theme-primary/30">
-      <CardHeader>
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle>1 · Assign dwellers</CardTitle>
-          <Badge variant="outline"
-            >{{ assignedDwellers.length }} / {{ dwellerCapacity }} assigned</Badge
-          >
-        </div>
-        <CardDescription>
-          Assign adult dwellers to this room to build your arena roster. Then choose who fights
-          below. A Duel needs two adults; Brawl and Hunt can also use training bots.
-        </CardDescription>
-      </CardHeader>
-      <CardContent class="flex flex-col gap-3">
-        <div class="flex flex-wrap items-center gap-3">
-          <Button
-            :disabled="isFighting || assignedDwellers.length >= dwellerCapacity"
-            @click="assignmentMode = 'worker'"
-          >
-            <!-- @vue-ignore -->
-            <Icon icon="mdi:account-plus-outline" data-icon="inline-start" />
-            Assign dwellers
-          </Button>
-          <p class="text-xs text-muted-foreground">
-            {{
-              isFighting
-                ? 'Wait for the match to finish before changing the roster.'
-                : assignedDwellers.length >= dwellerCapacity
-                  ? 'Arena roster is full.'
-                  : 'You can also drag dwellers onto this room in your vault.'
-            }}
-          </p>
-        </div>
-        <DwellerList
-          v-if="assignmentMode && !isFighting && assignedDwellers.length < dwellerCapacity"
-          v-model:assignment-mode="assignmentMode"
-          :ability="null"
-          title="Assign to Arena"
-          empty-text="No unassigned adults available. Unassign an adult from another room first."
-          @assign-dweller="emit('assignDweller', $event)"
-        />
-      </CardContent>
-    </Card>
+  <div class="arena-room-detail flex flex-col gap-3">
     <RoomPreviewSection
       :room-name="room.name"
       :image-url="room.image_url ?? null"
@@ -115,6 +65,32 @@ const assignmentMode = defineModel<'worker' | 'apprentice' | null>('assignmentMo
       @activate="emit('viewDweller', $event)"
       @unassign="emit('unassignDweller', $event)"
       @assign-worker="assignmentMode = 'worker'"
+    />
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <Badge variant="outline"
+        >{{ assignedDwellers.length }} / {{ dwellerCapacity }} assigned</Badge
+      >
+      <Button
+        size="sm"
+        :variant="assignedDwellers.length ? 'outline' : 'default'"
+        :disabled="isFighting || assignedDwellers.length >= dwellerCapacity"
+        @click="assignmentMode = 'worker'"
+      >
+        <!-- @vue-ignore -->
+        <Icon icon="mdi:account-plus-outline" data-icon="inline-start" />
+        Assign dwellers
+      </Button>
+    </div>
+    <p v-if="isFighting" class="text-xs text-muted-foreground">
+      Wait for the match to finish before changing the roster.
+    </p>
+    <DwellerList
+      v-if="assignmentMode && !isFighting && assignedDwellers.length < dwellerCapacity"
+      v-model:assignment-mode="assignmentMode"
+      :ability="null"
+      title="Assign to Arena"
+      empty-text="No unassigned adults available. Unassign an adult from another room first."
+      @assign-dweller="emit('assignDweller', $event)"
     />
     <ArenaModal :vault-id="vaultId" :room-id="room.id" />
     <RoomActions

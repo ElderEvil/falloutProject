@@ -42,13 +42,13 @@ const healthPercent = (f: ArenaSlotFighter | null) =>
 
 <template>
   <div class="fighter-slot relative flex min-w-0 flex-col gap-2">
-    <Card v-if="fighter" class="fighter-card relative" size="sm">
+    <Card v-if="fighter" class="fighter-card relative gap-2 py-3" size="sm">
       <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
         <span v-for="d in damageNumbers" :key="d.id" class="damage-number">-{{ d.amount }}</span>
       </div>
       <CardHeader class="justify-items-center text-center">
         <div
-          class="fighter-portrait flex size-14 items-center justify-center overflow-hidden rounded-full border-2 border-theme-primary bg-surface-raised"
+          class="fighter-portrait flex size-10 items-center justify-center overflow-hidden rounded-full border-2 border-theme-primary bg-surface-raised"
         >
           <DwellerPortrait
             :image-url="fighter.image_url"
@@ -65,7 +65,7 @@ const healthPercent = (f: ArenaSlotFighter | null) =>
           <span v-if="powerLabel !== null" class="whitespace-nowrap">POW {{ powerLabel }}</span>
         </CardDescription>
       </CardHeader>
-      <CardContent class="flex flex-col gap-2">
+      <CardContent class="flex flex-col gap-1">
         <Progress :model-value="healthPercent(fighter)" :label="`${fighter.name} health`" />
         <span class="text-center text-xs text-muted-foreground tabular-nums"
           >{{ fighter.health }}/{{ fighter.max_health }}</span
@@ -85,7 +85,7 @@ const healthPercent = (f: ArenaSlotFighter | null) =>
     </Card>
     <template v-else>
       <Button
-        class="fighter-slot-empty h-auto min-h-40 w-full flex-col gap-2 whitespace-normal border-dashed px-2 py-4 text-center"
+        class="fighter-slot-empty h-auto min-h-24 w-full flex-col gap-2 whitespace-normal border-dashed px-2 py-4 text-center"
         variant="outline"
         :disabled="!canChange || !options.length"
         :aria-expanded="pickerOpen"

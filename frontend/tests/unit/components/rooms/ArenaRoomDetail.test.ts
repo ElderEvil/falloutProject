@@ -59,11 +59,15 @@ describe('ArenaRoomDetail', () => {
       global: {
         stubs: {
           ArenaModal: { template: '<div class="battle-panel">Battle UI</div>' },
-          RoomPreviewSection: { template: '<div />' },
+          RoomPreviewSection: { template: '<div class="preview-panel" />' },
         },
       },
     })
 
+    expect(wrapper.get('.arena-room-detail').element.firstElementChild).toBe(
+      wrapper.get('.preview-panel').element
+    )
+    expect(wrapper.text()).not.toMatch(/[12] ·/)
     expect(wrapper.text()).toContain('Battle UI')
     expect(wrapper.find('.room-management').text()).toContain('Management')
     expect(wrapper.text()).toContain('Upgrade to Tier 2')

@@ -71,6 +71,11 @@ for (const width of [1280, 390]) {
     })
     await page.goto('/tests/e2e/fixtures/arena-room.html')
     const dialog = page.getByRole('dialog')
+    await expect(dialog.locator('.arena-room-detail > :first-child')).toHaveAttribute(
+      'aria-label',
+      'Arena room preview'
+    )
+    await expect(dialog.getByRole('combobox', { name: 'Match mode' })).toBeVisible()
     await expect(dialog.getByText('Build your arena roster', { exact: true })).toBeVisible()
     await expect(
       dialog.getByRole('button', { name: 'Choose from roster', exact: true })

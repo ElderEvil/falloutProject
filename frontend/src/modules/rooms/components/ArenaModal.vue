@@ -12,6 +12,14 @@ import {
   CardTitle,
 } from '@/core/components/ui/card'
 import { ToggleGroup, ToggleGroupItem } from '@/core/components/ui/toggle-group'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/core/components/ui/select'
 import { Progress } from '@/core/components/ui/progress'
 import {
   Tooltip,
@@ -49,9 +57,9 @@ interface Props {
 const props = defineProps<Props>()
 
 const MODE_OPTIONS: Array<{ value: ArenaMode; label: string }> = [
-  { value: 'duel', label: 'DUEL' },
-  { value: 'brawl', label: 'BRAWL' },
-  { value: 'hunt', label: 'HUNT' },
+  { value: 'duel', label: 'Duel' },
+  { value: 'brawl', label: 'Brawl' },
+  { value: 'hunt', label: 'Hunt' },
 ]
 
 type DraftSlots = Record<ArenaSlotKey, string | null>
@@ -549,10 +557,10 @@ const hpTone = (entry: ArenaRosterEntry) => {
 
 const modeDescription = computed(() => {
   if (mode.value === 'hunt')
-    return 'One or two dwellers against creatures. A training bot can join your lead dweller.'
+    return '1–2 dwellers against creatures. A training bot can join your lead dweller.'
   if (mode.value === 'brawl')
-    return 'Two teams of two. Each team needs a dweller and either another dweller or a training bot.'
-  return 'Two assigned dwellers face off, one on each side. Choose them from your arena roster.'
+    return 'Two teams: a lead dweller and a second dweller or training bot.'
+  return 'Two assigned dwellers, one on each side.'
 })
 
 const statusLabel = computed(() => {
@@ -569,7 +577,7 @@ const updateMode = (value: unknown) => {
 </script>
 
 <template>
-  <div class="arena-panel flex flex-col gap-4">
+  <div class="arena-panel flex flex-col gap-3">
     <ComponentLoader v-if="isLoading" label="Loading arena…" />
 
     <Alert v-else-if="loadFailed" variant="destructive">
@@ -579,62 +587,47 @@ const updateMode = (value: unknown) => {
     </Alert>
 
     <template v-else>
-      <Card class="overflow-visible border border-theme-primary/30">
+      <Card size="sm" class="overflow-visible border border-theme-primary/30">
         <CardHeader>
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle class="flex items-center gap-2">
-              <Icon icon="mdi:sword-cross" class="size-4 text-theme-primary" :ariaHidden="true" />
-              2 · Set up a match
-            </CardTitle>
-            <Badge :variant="canStart ? 'default' : 'outline'">{{ statusLabel }}</Badge>
-          </div>
-          <CardDescription>{{ modeDescription }}</CardDescription>
-        </CardHeader>
-        <CardContent class="arena-content flex flex-col gap-4">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <!-- @vue-ignore -->
-            <ToggleGroup
-              class="mode-select"
-              type="single"
-              variant="outline"
+            <div class="flex items-center gap-2">
+              <CardTitle>Match</CardTitle>
+              <Badge :variant="canStart ? 'default' : 'outline'">{{ statusLabel }}</Badge>
+            </div>
+            <Select
               :model-value="mode"
               :disabled="!canChangeFighters"
-              aria-label="Match mode"
               @update:model-value="updateMode"
             >
-              <!-- @vue-ignore -->
-              <ToggleGroupItem
-                v-for="option in MODE_OPTIONS"
-                :key="option.value"
-                :value="option.value"
-                :disabled="!availableModes.includes(option.value)"
-                :title="
-                  availableModes.includes(option.value)
-                    ? undefined
-                    : 'Upgrade the Arena to unlock this mode'
-                "
-              >
-                {{ option.label }}
-              </ToggleGroupItem>
-            </ToggleGroup>
-            <span class="text-xs text-muted-foreground">Tier {{ roomState?.tier ?? 1 }}</span>
+              <SelectTrigger size="sm" aria-label="Match mode" class="w-32"
+                ><SelectValue
+              /></SelectTrigger>
+              <SelectContent position="popper">
+                <SelectGroup>
+                  <SelectItem
+                    v-for="(option, index) in MODE_OPTIONS"
+                    :key="option.value"
+                    :value="option.value"
+                    :disabled="!availableModes.includes(option.value)"
+                  >
+                    {{ option.label
+                    }}{{ availableModes.includes(option.value) ? '' : ` (Tier ${index + 1})` }}
+                  </SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </div>
-          <p
-            v-if="availableModes.length < MODE_OPTIONS.length"
-            class="text-xs text-muted-foreground"
-          >
-            Tier 2 unlocks Brawl. Tier 3 unlocks Hunt.
-          </p>
+          <CardDescription class="text-xs">{{ modeDescription }}</CardDescription>
           <p v-if="mode !== 'duel'" class="text-xs text-muted-foreground">
             Bots reset each match and earn no rewards.
           </p>
-
+        </CardHeader>
+        <CardContent class="arena-content flex flex-col gap-3">
           <Alert v-if="!roster.length">
             <Icon icon="mdi:account-plus-outline" :ariaHidden="true" />
             <AlertTitle>Build your arena roster</AlertTitle>
             <AlertDescription>
-              Assign adult dwellers to the Arena first using Assign dwellers above, or drag them
-              onto this room in your vault. They will then appear here for match selection.
+              Assign adult dwellers to the Arena first using Assign dwellers above.
             </AlertDescription>
           </Alert>
           <template v-else>
@@ -787,7 +780,7 @@ const updateMode = (value: unknown) => {
       </Card>
 
       <section v-if="bench.length" aria-label="Arena bench">
-        <Card>
+        <Card size="sm">
           <CardHeader>
             <div class="flex items-center justify-between gap-2">
               <CardTitle class="flex items-center gap-2">
@@ -800,13 +793,9 @@ const updateMode = (value: unknown) => {
               </CardTitle>
               <Badge variant="secondary">{{ bench.length }} waiting</Badge>
             </div>
-            <CardDescription
-              >Assigned dwellers waiting for a match. Choose them from a fighter
-              slot.</CardDescription
-            >
           </CardHeader>
-          <CardContent class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <Card v-for="entry in bench" :key="entry.id" size="sm">
+          <CardContent class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <Card v-for="entry in bench" :key="entry.id" size="sm" class="gap-2 py-3">
               <CardHeader>
                 <div class="flex items-start gap-2">
                   <DwellerPortrait
@@ -854,7 +843,7 @@ const updateMode = (value: unknown) => {
         </Card>
       </section>
 
-      <Card>
+      <Card size="sm">
         <CardHeader>
           <div class="flex items-center justify-between gap-2">
             <CardTitle class="flex items-center gap-2">
@@ -875,14 +864,17 @@ const updateMode = (value: unknown) => {
         </CardContent>
       </Card>
 
-      <Alert>
-        <Icon icon="mdi:information-outline" :ariaHidden="true" />
-        <AlertTitle>Every match has a cost</AlertTitle>
-        <AlertDescription>
+      <details class="text-xs text-muted-foreground">
+        <summary
+          class="cursor-pointer rounded-sm py-1 focus-visible:outline focus-visible:outline-ring"
+        >
+          Match rewards &amp; recovery
+        </summary>
+        <p class="pt-2 leading-relaxed">
           Winners gain happiness and XP. Losing dwellers lose happiness and are left at 1 HP. Check
           their health before the next fight. Change the fighters to start a new match.
-        </AlertDescription>
-      </Alert>
+        </p>
+      </details>
     </template>
   </div>
 </template>

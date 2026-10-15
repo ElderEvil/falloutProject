@@ -195,3 +195,22 @@ for a fully completed batch is now 216.14 daily and 589.62 weekly (previously
 1,034.09 and 2,959.62). The achievement caps pool is 43,765 (previously 95,250).
 These are catalog expectations, not measured income: item/lunchbox value and
 actual completion rates are excluded. Prices are unchanged pending income data.
+
+## Arena training bot partners
+
+Hunt allows one or two dwellers, or one dweller with a training bot. Brawl requires
+one lead dweller per side and a second dweller or training bot in each partner slot.
+Duel stays dweller-only. Each team has at most two participants; bots never replace
+the required lead dweller and do not occupy vault population or room worker slots.
+
+Both sides use the same arena catalog: Training Eyebot 30 power/20 HP, Training
+Mr. Handy 20/30, Training Protectron 10/60. These are free arena training partners,
+not owned dwellers. Their HP persists across combat ticks and resets on a new match
+selection. Destroyed bots stay at 0 HP and deal no damage. Only real dwellers get
+the existing participant XP/happiness rewards; bot support adds no reward multiplier.
+Existing match-completion morale rules, when enabled, remain vault-scoped.
+
+Arena bots face right beside allied dwellers and mirror left on the enemy side,
+including picker previews. Creature artwork retains its native enemy-facing direction.
+Incomplete partner edits stay local and disable Start until selection is complete;
+polling must not overwrite an open bot selection.

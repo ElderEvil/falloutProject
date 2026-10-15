@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Arena teams fixture</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import '../../../src/assets/tailwind.css'
+      import '../../../src/assets/main.css'
+      import { createApp, h } from 'vue'
+      import { createPinia } from 'pinia'
+      import ArenaModal from '../../../src/modules/rooms/components/ArenaModal.vue'
+      import { useAuthStore } from '../../../src/modules/auth/stores/auth'
+      const pinia = createPinia()
+      const app = createApp({
+        render: () => h(ArenaModal, { vaultId: 'vault-1', roomId: 'arena-1' }),
+      })
+      app.use(pinia)
+      useAuthStore(pinia).token = 'arena-test-token'
+      app.mount('#app')
+    </script>
+  </body>
+</html>

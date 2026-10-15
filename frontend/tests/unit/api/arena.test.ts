@@ -28,6 +28,8 @@ describe('arenaApi.setFighters', () => {
         fighter_b_id: 'b-1',
         fighter_c_id: 'c-1',
         fighter_d_id: 'd-1',
+        team_a_bot_key: null,
+        team_b_bot_key: null,
         opponent_keys: [],
       },
       { headers: { Authorization: 'Bearer token' } }
@@ -50,7 +52,39 @@ describe('arenaApi.setFighters', () => {
         fighter_b_id: null,
         fighter_c_id: null,
         fighter_d_id: null,
+        team_a_bot_key: null,
+        team_b_bot_key: null,
         opponent_keys: [],
+      },
+      { headers: { Authorization: 'Bearer token' } }
+    )
+  })
+
+  it('posts both training bot partners for a brawl', async () => {
+    await arenaApi.setFighters(
+      'vault-1',
+      'room-1',
+      {
+        mode: 'brawl',
+        fighterAId: 'a-1',
+        fighterBId: 'b-1',
+        teamABotKey: 'training-eyebot',
+        teamBBotKey: 'training-protectron',
+      },
+      'token'
+    )
+
+    expect(axios.post).toHaveBeenCalledWith(
+      '/api/v1/arena/vault/vault-1/rooms/room-1/fighters',
+      {
+        mode: 'brawl',
+        fighter_a_id: 'a-1',
+        fighter_b_id: 'b-1',
+        fighter_c_id: null,
+        fighter_d_id: null,
+        opponent_keys: [],
+        team_a_bot_key: 'training-eyebot',
+        team_b_bot_key: 'training-protectron',
       },
       { headers: { Authorization: 'Bearer token' } }
     )
@@ -79,6 +113,8 @@ describe('arenaApi.setFighters', () => {
         fighter_b_id: null,
         fighter_c_id: 'c-1',
         fighter_d_id: null,
+        team_a_bot_key: null,
+        team_b_bot_key: null,
         opponent_keys: ['radroach-swarm', 'deathclaw'],
       },
       { headers: { Authorization: 'Bearer token' } }

@@ -14,6 +14,8 @@ class ArenaFightersRequest(BaseModel):
     fighter_c_id: UUID4 | None = None
     fighter_d_id: UUID4 | None = None
     opponent_keys: list[str] = Field(default_factory=list)
+    team_a_bot_key: str | None = None
+    team_b_bot_key: str | None = None
 
 
 class ArenaCreature(BaseModel):
@@ -23,6 +25,7 @@ class ArenaCreature(BaseModel):
     name: str
     power: float
     max_hp: int
+    is_robot: bool = False
 
 
 class ArenaFighter(BaseModel):
@@ -35,6 +38,7 @@ class ArenaFighter(BaseModel):
     max_health: int
     power: float
     is_creature: bool = False
+    is_robot: bool = False
     image_url: str | None = None
     thumbnail_url: str | None = None
 

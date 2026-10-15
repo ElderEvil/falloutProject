@@ -20,6 +20,10 @@ interface Props {
   damageNumbers: Array<{ id: number; amount: number }>
   options: ArenaCreature[]
   pickerOpen: boolean
+  mirror?: boolean
+  mirrorBots?: boolean
+  friendly?: boolean
+  emptyLabel?: string
 }
 
 const props = defineProps<Props>()
@@ -69,7 +73,8 @@ const healthPercent = (creature: ArenaCreatureView | null) =>
         <span v-for="d in damageNumbers" :key="d.id" class="damage-number">-{{ d.amount }}</span>
       </div>
       <div
-        class="flex h-28 w-full items-center justify-center rounded-lg border border-danger bg-surface-raised"
+        class="flex h-28 w-full items-center justify-center rounded-lg border bg-surface-raised"
+        :class="friendly ? 'border-theme-primary' : 'border-danger'"
       >
         <img
           v-if="creatureImage"
@@ -77,11 +82,14 @@ const healthPercent = (creature: ArenaCreatureView | null) =>
           :src="creatureImage"
           :alt="creature.name"
           class="h-full w-full object-contain p-2"
+          :class="{ 'face-center': props.mirror || (props.mirrorBots && creature.is_robot) }"
           @error="onImageError"
         />
         <Icon v-else icon="mdi:paw" class="h-10 w-10 text-danger" />
       </div>
-      <div class="creature-name">{{ creature.name }}</div>
+      <div class="creature-name" :class="friendly ? 'text-theme-primary' : 'text-danger'">
+        {{ creature.name }}
+      </div>
       <div class="creature-meta">POW {{ powerLabel }}</div>
       <div class="hp-track">
         <Progress :model-value="healthPercent(creature)" class="h-2.5" />
@@ -95,7 +103,7 @@ const healthPercent = (creature: ArenaCreatureView | null) =>
       type="button"
       @click="emit('togglePicker')"
     >
-      <span>+ ADD CREATURE</span>
+      <span>{{ emptyLabel ?? '+ ADD CREATURE' }}</span>
     </Button>
     <div v-if="pickerOpen && canChange" class="picker">
       <Button
@@ -111,6 +119,7 @@ const healthPercent = (creature: ArenaCreatureView | null) =>
           :src="image"
           alt=""
           class="h-10 w-10 shrink-0 object-contain"
+          :class="{ 'face-center': props.mirror || (props.mirrorBots && option.is_robot) }"
           @error="onImageError"
         />
         <Icon v-else icon="mdi:paw" class="h-10 w-10 shrink-0 text-danger" />
@@ -131,6 +140,10 @@ const healthPercent = (creature: ArenaCreatureView | null) =>
   position: relative;
   display: flex;
   flex-direction: column;
+}
+
+.face-center {
+  transform: scaleX(-1);
 }
 
 .slot-clear {
@@ -259,7 +272,6 @@ const healthPercent = (creature: ArenaCreatureView | null) =>
 
 .creature-name {
   font-weight: 600;
-  color: var(--color-danger);
   text-align: center;
 }
 

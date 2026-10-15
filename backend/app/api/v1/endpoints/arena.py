@@ -63,6 +63,8 @@ async def set_arena_fighters(
         fighter_c_id=payload.fighter_c_id,
         fighter_d_id=payload.fighter_d_id,
         opponent_keys=payload.opponent_keys,
+        team_a_bot_key=payload.team_a_bot_key,
+        team_b_bot_key=payload.team_b_bot_key,
     )
     return ArenaFightersResponse(
         room_id=str(state.room_id),

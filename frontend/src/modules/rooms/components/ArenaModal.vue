@@ -24,7 +24,6 @@ import { useDwellerMedicalStore } from '@/modules/dwellers/stores/dwellerMedical
 import type { ArenaCreature, ArenaFighter, ArenaMode, ArenaRosterEntry } from '../api/arena'
 import {
   arenaSlotsFor,
-  arenaTeamSize,
   creatureKeyOf,
   type ArenaCreatureView,
   type ArenaSlotFighter,
@@ -65,6 +64,11 @@ const creaturePickerOpen = ref(false)
 const mode = ref<ArenaMode>('duel')
 const draft = ref<DraftSlots>({ ...EMPTY_DRAFT })
 const opponentKeys = ref<string[]>([])
+const TEAM_SIDES = ['A', 'B'] as const
+const botKeys = ref<Record<ArenaTeamSide, string | null>>({ A: null, B: null })
+const botEnabled = ref<Record<ArenaTeamSide, boolean>>({ A: false, B: false })
+const botPicker = ref<ArenaTeamSide | null>(null)
+const partnerSlot = (side: ArenaTeamSide): ArenaSlotKey => (side === 'A' ? 'c' : 'd')
 const draftDirty = ref(false)
 const isStarting = ref(false)
 let damageSeq = 0
@@ -115,11 +119,20 @@ const applyState = () => {
 const syncFromState = () => {
   const state = roomState.value
   if (!state || draftDirty.value) return
+  for (const side of TEAM_SIDES) {
+    const team = side === 'A' ? state.team_a : state.team_b
+    const bot =
+      state.mode === 'duel' || (state.mode === 'hunt' && side === 'B')
+        ? undefined
+        : team.find((fighter) => fighter.is_robot)
+    botKeys.value[side] = bot ? creatureKeyOf(bot.id) : null
+    botEnabled.value[side] = !!bot
+  }
   if (state.mode === 'hunt') {
     mode.value = 'hunt'
     draft.value = {
       a: state.team_a[0]?.id ?? state.fighter_a_id,
-      c: state.team_a[1]?.id ?? null,
+      c: botKeys.value.A ? null : (state.team_a[1]?.id ?? null),
       b: null,
       d: null,
     }
@@ -130,9 +143,9 @@ const syncFromState = () => {
     mode.value = 'brawl'
     draft.value = {
       a: state.team_a[0]?.id ?? state.fighter_a_id,
-      c: state.team_a[1]?.id ?? null,
+      c: botKeys.value.A ? null : (state.team_a[1]?.id ?? null),
       b: state.team_b[0]?.id ?? state.fighter_b_id,
-      d: state.team_b[1]?.id ?? null,
+      d: botKeys.value.B ? null : (state.team_b[1]?.id ?? null),
     }
   } else {
     mode.value = 'duel'
@@ -176,7 +189,9 @@ const activeSlots = computed<ArenaSlotKey[]>(() => [...slotsFor('A'), ...slotsFo
 const needsLabel = computed(() =>
   mode.value === 'hunt'
     ? 'NEEDS DWELLERS + CREATURES'
-    : `NEEDS ${arenaTeamSize(mode.value) * 2} FIGHTERS`
+    : mode.value === 'brawl'
+      ? 'NEEDS 2 DWELLERS + PARTNERS'
+      : 'NEEDS 2 FIGHTERS'
 )
 
 const creaturesByKey = computed(
@@ -196,6 +211,7 @@ const creatureSlots = computed<Array<ArenaCreatureView | null>>(() => {
     if (stateFighter) {
       return {
         key,
+        is_robot: stateFighter.is_robot,
         name: stateFighter.name,
         power: stateFighter.power,
         health: stateFighter.health,
@@ -207,6 +223,7 @@ const creatureSlots = computed<Array<ArenaCreatureView | null>>(() => {
     if (!catalogue) return null
     return {
       key,
+      is_robot: catalogue.is_robot,
       name: catalogue.name,
       power: catalogue.power,
       health: catalogue.max_hp,
@@ -221,6 +238,48 @@ const creatureSlots = computed<Array<ArenaCreatureView | null>>(() => {
 const creaturePickerOptions = computed(() =>
   arenaStore.creatures.filter((creature) => !opponentKeys.value.includes(creature.key))
 )
+
+const robotOptions = computed(() => arenaStore.creatures.filter((creature) => creature.is_robot))
+const botView = (side: ArenaTeamSide): ArenaCreatureView | null => {
+  const key = botKeys.value[side]
+  if (!key) return null
+  const live = (side === 'A' ? roomState.value?.team_a : roomState.value?.team_b)?.find(
+    (fighter) => fighter.is_robot && creatureKeyOf(fighter.id) === key
+  )
+  const entry = creaturesByKey.value.get(key)
+  if (!entry) return null
+  return {
+    key,
+    is_robot: true,
+    name: entry.name,
+    power: live?.power ?? entry.power,
+    health: live?.health ?? entry.max_hp,
+    max_health: live?.max_health ?? entry.max_hp,
+    id: live?.id ?? null,
+  }
+}
+const choosePartnerType = (side: ArenaTeamSide, bot: boolean) => {
+  if (!canChangeFighters.value || botEnabled.value[side] === bot) return
+  botEnabled.value[side] = bot
+  botKeys.value[side] = null
+  draft.value[partnerSlot(side)] = null
+  botPicker.value = bot ? side : null
+  openPicker.value = null
+  creaturePickerOpen.value = false
+  draftDirty.value = true
+  void commitDraft()
+}
+const selectBot = (side: ArenaTeamSide, bot: ArenaCreature) => {
+  botKeys.value[side] = bot.key
+  botPicker.value = null
+  draftDirty.value = true
+  void commitDraft()
+}
+const clearBot = (side: ArenaTeamSide) => {
+  botKeys.value[side] = null
+  draftDirty.value = true
+  void commitDraft()
+}
 
 const serverFightersById = computed(() => {
   const byId = new Map<string, ArenaFighter>()
@@ -245,6 +304,7 @@ const slotFighter = (slot: ArenaSlotKey): ArenaSlotFighter | null => {
     max_health: entry.max_health,
     power: null,
     is_creature: false,
+    is_robot: false,
     image_url: entry.image_url,
     thumbnail_url: entry.thumbnail_url,
   }
@@ -281,7 +341,20 @@ const togglePicker = (slot: ArenaSlotKey) => {
 // is valid again.
 const commitDraft = async () => {
   if (!authStore.token) return
-  if (mode.value === 'brawl' && activeSlots.value.some((slot) => !draft.value[slot])) return
+  if (
+    mode.value !== 'duel' &&
+    TEAM_SIDES.some((side) => botEnabled.value[side] && !botKeys.value[side])
+  )
+    return
+  if (
+    mode.value === 'brawl' &&
+    TEAM_SIDES.some(
+      (side) =>
+        !draft.value[side === 'A' ? 'a' : 'b'] ||
+        !(draft.value[partnerSlot(side)] || botKeys.value[side])
+    )
+  )
+    return
   if (mode.value === 'hunt' && (!draft.value.a || opponentKeys.value.length === 0)) return
   const ok = await arenaStore.setFighters(
     props.vaultId,
@@ -290,7 +363,9 @@ const commitDraft = async () => {
       mode: mode.value,
       fighterAId: draft.value.a,
       fighterBId: mode.value === 'hunt' ? null : draft.value.b,
-      fighterCId: draft.value.c,
+      fighterCId: botKeys.value.A ? null : draft.value.c,
+      teamABotKey: mode.value === 'duel' ? null : botKeys.value.A,
+      teamBBotKey: mode.value === 'brawl' ? botKeys.value.B : null,
       fighterDId: mode.value === 'hunt' ? null : draft.value.d,
       ...(mode.value === 'hunt' ? { opponentKeys: [...opponentKeys.value] } : {}),
     },
@@ -311,6 +386,15 @@ const switchMode = (next: ArenaMode) => {
   if (next === mode.value || !canChangeFighters.value || !availableModes.value.includes(next))
     return
   mode.value = next
+  botPicker.value = null
+  if (next === 'duel') {
+    botKeys.value = { A: null, B: null }
+    botEnabled.value = { A: false, B: false }
+  }
+  if (next === 'hunt') {
+    botKeys.value.B = null
+    botEnabled.value.B = false
+  }
   openPicker.value = null
   creaturePickerOpen.value = false
   if (next === 'duel') {
@@ -327,11 +411,22 @@ const switchMode = (next: ArenaMode) => {
 
 const selectFighter = (slot: ArenaSlotKey, entry: ArenaRosterEntry) => {
   draft.value[slot] = entry.id
+  openPicker.value = null
+  if (slot === 'c' || slot === 'd') {
+    const side = slot === 'c' ? 'A' : 'B'
+    botKeys.value[side] = null
+    botEnabled.value[side] = false
+  }
 
   // Smart pairing: when exactly one slot is empty and exactly one candidate
   // remains, fill it — picking all but one almost always means the last
   // dweller belongs in the last corner.
-  const emptySlots = activeSlots.value.filter((key) => !draft.value[key])
+  const emptySlots = activeSlots.value.filter(
+    (key) =>
+      !draft.value[key] &&
+      !(key === 'c' && botEnabled.value.A) &&
+      !(key === 'd' && botEnabled.value.B)
+  )
   const taken = new Set(Object.values(draft.value).filter((id): id is string => !!id))
   const remaining = roster.value.filter((candidate) => !taken.has(candidate.id))
   if (emptySlots.length === 1 && remaining.length === 1)
@@ -511,66 +606,97 @@ const hpFillColor = (entry: ArenaRosterEntry) =>
         >
           Tier 2 unlocks Brawl. Tier 3 unlocks Hunt.
         </p>
+        <p v-if="mode !== 'duel'" class="mb-3 text-sm text-muted-foreground">
+          A training bot can replace the second dweller. Bots reset each match and earn no rewards.
+        </p>
         <div class="teams-row">
-          <div class="team">
-            <span v-if="mode !== 'duel'" class="team-label">TEAM A</span>
-            <ArenaFighterSlot
-              v-for="slot in slotsFor('A')"
-              :key="slot"
-              :side="slot"
-              :fighter="slotFighter(slot)"
-              :can-change="canChangeFighters"
-              :damage-numbers="damageForId(draft[slot])"
-              :options="pickerOptions(slot)"
-              :picker-open="openPicker === slot"
-              @toggle-picker="togglePicker"
-              @clear="clearFighter"
-              @select="selectFighter"
-            />
-          </div>
-
-          <div class="versus">
-            <Transition name="countdown-pop" mode="out-in">
-              <span v-if="isFighting && countdown > 0" :key="countdown" class="countdown-number">
-                {{ countdown }}
-              </span>
-              <Icon v-else icon="mdi:sword-cross" class="versus-icon" />
-            </Transition>
-            <span v-if="countdown === 0" class="versus-text">VS</span>
-          </div>
-
-          <div class="team">
-            <span v-if="mode !== 'duel'" class="team-label">{{
-              mode === 'hunt' ? 'CREATURES' : 'TEAM B'
-            }}</span>
-            <template v-if="mode === 'hunt'">
-              <ArenaCreatureSlot
-                v-for="(slot, index) in creatureSlots"
-                :key="slot?.key ?? 'creature-slot-' + index"
-                :creature="slot"
-                :can-change="canChangeFighters"
-                :damage-numbers="damageForId(slot?.id ?? null)"
-                :options="creaturePickerOptions"
-                :picker-open="creaturePickerOpen && slot === null"
-                @toggle-picker="toggleCreaturePicker"
-                @clear="clearCreature"
-                @select="selectCreature"
-              />
-            </template>
-            <ArenaFighterSlot
-              v-for="slot in slotsFor('B')"
-              :key="slot"
-              :side="slot"
-              :fighter="slotFighter(slot)"
-              :can-change="canChangeFighters"
-              :damage-numbers="damageForId(draft[slot])"
-              :options="pickerOptions(slot)"
-              :picker-open="openPicker === slot"
-              @toggle-picker="togglePicker"
-              @clear="clearFighter"
-              @select="selectFighter"
-            />
-          </div>
+          <template v-for="side in TEAM_SIDES" :key="side">
+            <div v-if="side === 'B'" class="versus">
+              <Transition name="countdown-pop" mode="out-in">
+                <span
+                  v-if="isFighting && countdown > 0"
+                  :key="countdown"
+                  class="countdown-number"
+                  >{{ countdown }}</span
+                >
+                <Icon v-else icon="mdi:sword-cross" class="versus-icon" />
+              </Transition>
+              <span v-if="countdown === 0" class="versus-text">VS</span>
+            </div>
+            <div class="team">
+              <span v-if="mode !== 'duel'" class="team-label">{{
+                side === 'B' && mode === 'hunt' ? 'CREATURES' : `TEAM ${side}`
+              }}</span>
+              <template v-if="side === 'B' && mode === 'hunt'">
+                <ArenaCreatureSlot
+                  v-for="(slot, index) in creatureSlots"
+                  :key="slot?.key ?? 'creature-slot-' + index"
+                  :creature="slot"
+                  :can-change="canChangeFighters"
+                  :damage-numbers="damageForId(slot?.id ?? null)"
+                  :options="creaturePickerOptions"
+                  :mirror-bots="true"
+                  :picker-open="creaturePickerOpen && slot === null"
+                  @toggle-picker="toggleCreaturePicker"
+                  @clear="clearCreature"
+                  @select="selectCreature"
+                />
+              </template>
+              <template v-else>
+                <div v-for="slot in slotsFor(side)" :key="slot">
+                  <div
+                    v-if="slot === partnerSlot(side)"
+                    role="group"
+                    :aria-label="`Team ${side} partner`"
+                    class="mb-2 flex gap-2"
+                  >
+                    <Button
+                      size="sm"
+                      :variant="botEnabled[side] ? 'secondary' : 'default'"
+                      :aria-pressed="!botEnabled[side]"
+                      :disabled="!canChangeFighters"
+                      @click="choosePartnerType(side, false)"
+                      >Dweller</Button
+                    >
+                    <Button
+                      size="sm"
+                      :variant="botEnabled[side] ? 'default' : 'secondary'"
+                      :aria-pressed="botEnabled[side]"
+                      :disabled="!canChangeFighters"
+                      @click="choosePartnerType(side, true)"
+                      >Bot</Button
+                    >
+                  </div>
+                  <ArenaCreatureSlot
+                    v-if="slot === partnerSlot(side) && botEnabled[side]"
+                    :creature="botView(side)"
+                    :can-change="canChangeFighters"
+                    :damage-numbers="damageForId(botView(side)?.id ?? null)"
+                    :options="robotOptions"
+                    :mirror="side === 'B'"
+                    :friendly="side === 'A'"
+                    empty-label="+ ADD BOT"
+                    :picker-open="botPicker === side"
+                    @toggle-picker="botPicker = botPicker === side ? null : side"
+                    @clear="clearBot(side)"
+                    @select="selectBot(side, $event)"
+                  />
+                  <ArenaFighterSlot
+                    v-else
+                    :side="slot"
+                    :fighter="slotFighter(slot)"
+                    :can-change="canChangeFighters"
+                    :damage-numbers="damageForId(draft[slot])"
+                    :options="pickerOptions(slot)"
+                    :picker-open="openPicker === slot"
+                    @toggle-picker="togglePicker"
+                    @clear="clearFighter"
+                    @select="selectFighter"
+                  />
+                </div>
+              </template>
+            </div>
+          </template>
         </div>
       </div>
 

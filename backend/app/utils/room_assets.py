@@ -99,6 +99,9 @@ def get_room_image_url(room_name: str, tier: int = 1, size: int = 3) -> str | No
         URL path to the room image, or None if not found
     """
     # Handle special cases first
+    if room_name == "Response Station":
+        return f"/static/room_images/response-bay-size-{size}.webp"
+
     if room_name in SPECIAL_CASE_ROOMS:
         return f"/static/room_images/{SPECIAL_CASE_ROOMS[room_name]}"
 

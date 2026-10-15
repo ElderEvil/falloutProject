@@ -105,6 +105,129 @@
       "active": true,
       "quality": "medium",
       "wide_prompt": "Use case: precise-object-edit.\nInput image 1 is the approved Fallout arena Tier 3 artwork. Recompose this same scene as an extremely WIDE, SHORT game room panorama with 3:1 landscape aspect ratio, ideally 1536x512 or 3072x1024. The aspect ratio is the primary requirement: match Fallout Shelter Overseer's Office room framing, approximately three times wider than tall. Do not return a 3:2 or 16:9 image.\nPreserve the recognizable tier-specific architecture, room upgrades, Fallout-inspired props, poster text, illustration style, muted blue/yellow/rust palette and warm lights. Keep all walls, props and floor contained within the wide composition. Use a straight-on vault-room cutaway camera, reduce ceiling space substantially, shorten wall height and floor depth, spread rear-wall props horizontally and scale them proportionately as needed. Avoid stretching shapes or lettering. No letterboxing or decorative borders.\nRetain a clear empty fighting floor in the lower third, with room for actor positions at x35% and x65%, y82%; do not simply crop away the fighting floor or cut off the posters. Upper two-thirds contains the back wall and essential readable props, and the lower third contains the floor. Keep the visual progression: basic patched Duel room (tier1), reinforced Brawl room with announcer booth and Nuka-Cola sign (tier2), Hunt room with containment gates, beacons, RobCo console and maintenance bay (tier3). This input is Tier 3; retain only that tier's existing equipment.\nOpaque image. No actual people, fighters, creatures, weapons, gore, HUD, watermark, extra tiers or multi-panel collage. Generate one single 3:1 panoramic illustration."
+    },
+    {
+      "id": "response-bay-size-3-v1",
+      "role": "room_detail_scene",
+      "catalog_key": "Response Station",
+      "tiers": [
+        1
+      ],
+      "size_behavior": "Footprint 3, 1:1 image, 2 equipment places",
+      "path": "/assets/room-scenes/response-bay-size-3-v1.webp",
+      "encoding": "webp",
+      "width": 724,
+      "height": 724,
+      "alpha": false,
+      "camera": "Frontal illustrated retrofuturistic vault interior, matching Arena scene direction",
+      "safe_crop": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "floor_baseline": 0.8,
+      "actor_anchors": [
+        [
+          0.35,
+          0.8
+        ],
+        [
+          0.65,
+          0.8
+        ]
+      ],
+      "ui_placement": "Room grid, detail preview; backend room sprite uses the same artwork",
+      "source": "Built-in image_gen tool, 2026-10-15",
+      "workflow": "Size 9 is the approved original; sizes 3 and 6 recomposed from it using the built-in image tool. cwebp quality 82, common height 724.",
+      "model": "Not exposed by built-in tool",
+      "review_status": "Agent inspected matching style, equipment places and native aspect ratios; maintainer review pending",
+      "prompt": "Use case: precise-object-edit.\nInput image is the approved Emergency Bay / Response Station room artwork, reference for exact visual design, palette, architecture and camera.\nCreate its SIZE 3 single-segment variant for a Fallout Shelter-style vault room. This is a narrower footprint, NOT a technology tier upgrade. Deliver one SQUARE 1:1 image.\nKeep the same frontal cutaway illustrated vault style, dark cartoon outlines, worn teal-blue steel walls, yellow beams, warm hanging lamps and clear foreground floor. Preserve the scale of helmets, doors and equipment relative to room height; do not squeeze or distort the wide source.\nRecompose into a compact single bay: one firefighter jacket with helmet on one wall hook, one hazmat suit with mask on a second hook, a small hose reel and extinguisher, compact breathing apparatus storage and one small CRT emergency console. Fire and radiation pictograms. The large decontamination shower and spare storage of the full-width room do not fit in this compact variant; omit them. One unified room, two equipment places total, an empty uncluttered floor in lower quarter for two later animated dwellers.\nWhole room visible with left and right structural edges, straight level floor, same eye height as reference. No people, no mannequins, no title or readable text, no UI or watermark. Opaque edge-to-edge game environment background, no letterboxing or collage.",
+      "sizes": [
+        3
+      ]
+    },
+    {
+      "id": "response-bay-size-6-v1",
+      "role": "room_detail_scene",
+      "catalog_key": "Response Station",
+      "tiers": [
+        1
+      ],
+      "size_behavior": "Footprint 6, 2:1 image, 4 equipment places",
+      "path": "/assets/room-scenes/response-bay-size-6-v1.webp",
+      "encoding": "webp",
+      "width": 1448,
+      "height": 724,
+      "alpha": false,
+      "camera": "Frontal illustrated retrofuturistic vault interior, matching Arena scene direction",
+      "safe_crop": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "floor_baseline": 0.8,
+      "actor_anchors": [
+        [
+          0.35,
+          0.8
+        ],
+        [
+          0.65,
+          0.8
+        ]
+      ],
+      "ui_placement": "Room grid, detail preview; backend room sprite uses the same artwork",
+      "source": "Built-in image_gen tool, 2026-10-15",
+      "workflow": "Size 9 is the approved original; sizes 3 and 6 recomposed from it using the built-in image tool. cwebp quality 82, common height 724.",
+      "model": "Not exposed by built-in tool",
+      "review_status": "Agent inspected matching style, equipment places and native aspect ratios; maintainer review pending",
+      "prompt": "Use case: precise-object-edit.\nThe input image is the approved wide SIZE 9 Emergency Bay / Response Station, reference for exact visual design, palette, equipment and viewpoint.\nCreate the matching SIZE 6 double-segment variant for the same Fallout Shelter-style vault room. Deliver one 2:1 landscape image, twice as wide as tall. This is intermediate footprint growth, not a technology tier.\nPreserve the source's hand-painted cartoon cutaway look, crisp dark outlines, teal-blue worn metal walls, yellow steel beams, warm industrial pendant lamps, horizontal floor baseline and shallow frontal floor perspective. Keep equipment the same apparent scale relative to wall height. Recompose instead of squeezing or cropping the wide source.\nExactly two firefighter jackets with helmets and two yellow hazmat suits on rear-wall equipment racks. Include the same hose reel, extinguishers, compact breathing apparatus storage, one small green CRT emergency console, and one compact decontamination shower between the fire and radiation equipment areas. Flame and radiation pictograms only. The room should visibly be between a compact two-place bay and the full six-place room, with four equipment places and modest storage. Clear empty floor in lower quarter for four later animated dwellers.\nWhole unified room interior visible, structural edges at left and right. No people, no mannequins, no readable text or title, no UI, border, collage, letterboxing or watermark. Opaque image. Keep the exact 2:1 width-to-height ratio.",
+      "sizes": [
+        6
+      ]
+    },
+    {
+      "id": "response-bay-size-9-v1",
+      "role": "room_detail_scene",
+      "catalog_key": "Response Station",
+      "tiers": [
+        1
+      ],
+      "size_behavior": "Footprint 9, 3:1 image, 6 equipment places",
+      "path": "/assets/room-scenes/response-bay-size-9-v1.webp",
+      "encoding": "webp",
+      "width": 2172,
+      "height": 724,
+      "alpha": false,
+      "camera": "Frontal illustrated retrofuturistic vault interior, matching Arena scene direction",
+      "safe_crop": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "floor_baseline": 0.8,
+      "actor_anchors": [
+        [
+          0.35,
+          0.8
+        ],
+        [
+          0.65,
+          0.8
+        ]
+      ],
+      "ui_placement": "Room grid, detail preview; backend room sprite uses the same artwork",
+      "source": "Built-in image_gen tool, 2026-10-15",
+      "workflow": "Size 9 is the approved original; sizes 3 and 6 recomposed from it using the built-in image tool. cwebp quality 82, common height 724.",
+      "model": "Not exposed by built-in tool",
+      "review_status": "Agent inspected matching style, equipment places and native aspect ratios; maintainer review pending",
+      "prompt": "Use case: stylized-concept.\nAsset type: production game room background for a Fallout Shelter-style vault room, shared fire and radiation responders.\nCreate one complete ultra-wide 3:1 panoramic illustration of an EMPTY emergency response bay inside an underground retrofuturistic vault.\nStyle: hand-painted 2D cartoon game environment, crisp dark ink outlines, slightly worn muted teal-blue steel walls, mustard-yellow structural accents, warm overhead industrial lamps, shallow frontal floor perspective. Match the visual language of a side-view vault management game rather than a promotional splash screen. Subtle wear, readable silhouettes at tiny grid-cell scale.\nRoom contents: a unified practical mustering room with firefighting hose reel, red extinguishers, firefighter jackets and helmets on wall hooks, hazmat protective suits hanging in open equipment lockers, breathing apparatus, a compact decontamination shower with drain grate, radiation-monitoring instrument and small green CRT dispatch console. Integrate recognizable flame and radiation pictograms on their equipment areas. Keep the gear along the rear wall and side walls, with an uncluttered continuous foreground floor for six later animated dwellers. The room should feel ready for an emergency, functional and calmly staffed-offscreen.\nCamera/composition: frontal cutaway interior, straight horizontal ceiling and floor, very wide landscape 3:1 canvas. Whole room shown, no exterior, no sky, no cars. Floor occupies lower 25 percent, wall equipment at rear, floor contact baseline at about 80 percent height; generous clear standing areas at normalized x .35 and .65. Balanced integrated fire and hazmat equipment, not two separately framed images. Environment illustration fills the frame edge to edge.\nConstraints: EMPTY of people, no characters, no human figures, no mascot posters. No readable words, no room title, no UI, no buttons, no border, no watermark. Pictograms only. Opaque background. A single coherent scene, not a contact sheet.",
+      "sizes": [
+        9
+      ]
     }
   ]
 }

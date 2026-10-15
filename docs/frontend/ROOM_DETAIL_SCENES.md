@@ -8,6 +8,17 @@ details. The fighting floor stays empty; animation and actor rendering stay with
 
 ## Asset contract
 
+The shared fire/radiation response room has three empty scenes in the same
+illustrated vault style as the Arena. Footprints 3/6/9 use 724×724, 1448×724 and
+2172×724 artwork respectively, with two/four/six equipment places and clear
+foreground floors. The compact room has basic fire/hazmat gear; the wider rooms
+add decontamination and storage. `response-bay-size-{3,6,9}-v1.webp` is resolved
+by the `response` category and actual room size, falling back to `size_min` when
+size is absent. Backend sprites use matching `response-bay-size-{3,6,9}.webp` files.
+The manifest records all generation prompts and the built-in image tool source.
+The proposed room name is Emergency Bay; the catalog name remains Response Station
+until the naming decision is settled.
+
 `frontend/public/assets/room-scenes/manifest.json` records role, stable catalog key,
 source/workflow, actual encoding/dimensions, camera, floor baseline, normalized actor
 anchors and responsive placement. Artwork was generated and edited through the OpenAI

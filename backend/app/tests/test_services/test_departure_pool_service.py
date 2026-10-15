@@ -119,9 +119,7 @@ async def test_claim_transfers_ownership_and_preserves_identity(async_session: A
 @pytest.mark.asyncio
 async def test_claim_rejects_a_vault_at_population_capacity(async_session: AsyncSession, vault: Vault) -> None:
     """A buyer at its population cap is refused before any caps are charged."""
-    await crud.vault.update(
-        db_session=async_session, id=vault.id, obj_in={"bottle_caps": 100_000, "population_max": 1}
-    )
+    await crud.vault.update(db_session=async_session, id=vault.id, obj_in={"bottle_caps": 100_000, "population_max": 1})
     dweller = await _depart(async_session, await _create(async_session, vault), source_vault_id=uuid4())
     await _create(async_session, vault, first_name="Filler", last_name="Dweller")
 

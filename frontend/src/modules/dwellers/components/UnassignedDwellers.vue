@@ -55,7 +55,9 @@ const GENDER_FILTERS: { value: GenderFilter; label: string; icon: string; accent
   })),
 ]
 
-const hasAnyUnassigned = computed(() => dwellerStore.dwellersWithStatus.some(isAvailableUnassignedDweller))
+const hasAnyUnassigned = computed(() =>
+  dwellerStore.dwellersWithStatus.some(isAvailableUnassignedDweller)
+)
 
 // Use unfiltered dwellers from store, but only show unassigned ones, ordered by the
 // shared sort preference without being affected by the global status filter.
@@ -132,17 +134,28 @@ const handleDropZoneDrop = async (event: DragEvent) => {
 </script>
 
 <template>
-  <div class="unassigned-dwellers-panel">
+  <details class="unassigned-dwellers-panel group" open>
+    <summary
+      class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary [&::-webkit-details-marker]:hidden"
+      @dragover="handleDropZoneDragOver"
+      @dragleave="handleDropZoneDragLeave"
+      @drop="handleDropZoneDrop"
+    >
+      <h3 class="panel-title">
+        <Icon icon="mdi:account-multiple" class="inline h-5 w-5" :ariaHidden="true" />
+        Unassigned Dwellers
+        <span class="count-badge">{{ unassignedDwellers.length }}</span>
+      </h3>
+      <Icon
+        icon="mdi:chevron-down"
+        class="size-5 shrink-0 text-theme-primary transition-transform group-open:rotate-180"
+        :ariaHidden="true"
+      />
+    </summary>
+
     <div class="panel-header">
       <div class="header-row">
-        <div>
-          <h3 class="panel-title">
-            <Icon icon="mdi:account-multiple" class="inline h-5 w-5" />
-            Unassigned Dwellers
-            <span class="count-badge">{{ unassignedDwellers.length }}</span>
-          </h3>
-          <p class="panel-subtitle">Drag dwellers here to unassign them from rooms</p>
-        </div>
+        <p class="panel-subtitle">Drag dwellers here to unassign them from rooms</p>
 
         <!-- Shared filter controls; age and sorting come from the Dwellers view -->
         <DwellerFilterPanel class="w-full" :show-status-filter="false" :show-age-filter="true">
@@ -175,24 +188,15 @@ const handleDropZoneDrop = async (event: DragEvent) => {
       @drop="handleDropZoneDrop"
     >
       <template v-if="isDraggingOver">
-        <Icon
-          icon="mdi:arrow-down-bold"
-          class="h-12 w-12 animate-bounce text-theme-primary"
-        />
+        <Icon icon="mdi:arrow-down-bold" class="h-12 w-12 animate-bounce text-theme-primary" />
         <p class="drop-message">Drop to unassign</p>
       </template>
       <template v-else-if="hasAnyUnassigned">
-        <Icon
-          icon="mdi:filter-off-outline"
-          class="h-12 w-12 text-theme-primary"
-        />
+        <Icon icon="mdi:filter-off-outline" class="h-12 w-12 text-theme-primary" />
         <p>No dwellers match the filters</p>
       </template>
       <template v-else>
-        <Icon
-          icon="mdi:check-circle"
-          class="h-12 w-12 text-theme-primary"
-        />
+        <Icon icon="mdi:check-circle" class="h-12 w-12 text-theme-primary" />
         <p>All dwellers are assigned!</p>
       </template>
     </div>
@@ -219,7 +223,10 @@ const handleDropZoneDrop = async (event: DragEvent) => {
           @dragend="handleDragEnd"
         >
           <div class="dweller-top">
-            <div class="dweller-avatar" :style="{ '--rarity-ring': getRarityColor(dweller.rarity) }">
+            <div
+              class="dweller-avatar"
+              :style="{ '--rarity-ring': getRarityColor(dweller.rarity) }"
+            >
               <DwellerPortrait
                 :thumbnail-url="dweller.thumbnail_url"
                 :alt="getDwellerDisplayName(dweller)"
@@ -276,7 +283,7 @@ const handleDropZoneDrop = async (event: DragEvent) => {
         </div>
       </div>
     </div>
-  </div>
+  </details>
 </template>
 
 <style scoped>

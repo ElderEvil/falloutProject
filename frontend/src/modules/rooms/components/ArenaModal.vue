@@ -1,8 +1,17 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
-import { Alert, AlertTitle } from '@/core/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@/core/components/ui/alert'
 import { Button } from '@/core/components/ui/button'
+import { Badge } from '@/core/components/ui/badge'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/core/components/ui/card'
+import { ToggleGroup, ToggleGroupItem } from '@/core/components/ui/toggle-group'
 import { Progress } from '@/core/components/ui/progress'
 import {
   Tooltip,
@@ -533,567 +542,370 @@ const journalEntries = computed<BattleLogEntry[]>(() =>
 const hpPercent = (entry: ArenaRosterEntry) =>
   entry.max_health > 0 ? Math.round((entry.health / entry.max_health) * 100) : 0
 
-const hpClass = (entry: ArenaRosterEntry) => {
+const hpTone = (entry: ArenaRosterEntry) => {
   const pct = hpPercent(entry)
-  if (pct < 25) return 'hp-critical'
-  if (pct < 50) return 'hp-low'
-  return 'hp-healthy'
+  return pct < 25 ? 'danger' : pct < 50 ? 'warning' : 'success'
 }
 
-const HP_FILL_COLOR: Record<string, string> = {
-  'hp-healthy': 'var(--color-success)',
-  'hp-low': 'var(--color-warning)',
-  'hp-critical': 'var(--color-danger)',
-}
+const modeDescription = computed(() => {
+  if (mode.value === 'hunt')
+    return 'One or two dwellers against creatures. A training bot can join your lead dweller.'
+  if (mode.value === 'brawl')
+    return 'Two teams of two. Each team needs a dweller and either another dweller or a training bot.'
+  return 'Two assigned dwellers face off, one on each side. Choose them from your arena roster.'
+})
 
-const hpFillColor = (entry: ArenaRosterEntry) =>
-  HP_FILL_COLOR[hpClass(entry)] ?? HP_FILL_COLOR['hp-healthy']!
+const statusLabel = computed(() => {
+  if (isFighting.value) return 'FIGHT IN PROGRESS'
+  if (isDone.value) return 'DONE'
+  if (canStart.value) return 'READY'
+  return roster.value.length ? needsLabel.value : 'ASSIGN DWELLERS'
+})
+
+const updateMode = (value: unknown) => {
+  const option = MODE_OPTIONS.find((option) => option.value === value)
+  if (option) switchMode(option.value)
+}
 </script>
 
 <template>
-  <div class="arena-panel">
-    <div class="arena-header">
-      <Icon icon="mdi:sword-cross" class="arena-header-icon" />
-      <div>
-        <h2 class="arena-title">ARENA</h2>
-        <p class="arena-subtitle">
-          {{ roomState?.room_name ?? 'Arena' }} &middot; Tier {{ roomState?.tier ?? 1 }}
-        </p>
-      </div>
-      <span class="arena-badge" :class="{ ready: canStart, done: isDone }">
-        {{ isDone ? 'DONE' : canStart ? 'READY' : needsLabel }}
-      </span>
-    </div>
-
+  <div class="arena-panel flex flex-col gap-4">
     <ComponentLoader v-if="isLoading" label="Loading arena…" />
 
-    <Alert v-else-if="loadFailed" variant="default" class="border-danger bg-danger/10 text-danger">
+    <Alert v-else-if="loadFailed" variant="destructive">
       <AlertTitle>Arena unavailable</AlertTitle>
-      <p>Unable to load Arena status.</p>
+      <AlertDescription>Unable to load Arena status.</AlertDescription>
       <Button class="mt-3" variant="secondary" size="sm" @click="load()">RETRY</Button>
     </Alert>
 
-    <div v-else class="arena-content">
-      <!-- Fighters -->
-      <div class="section">
-        <div class="section-header">
-          <h3 class="section-title">
-            <Icon icon="mdi:sword-cross" class="section-title-icon" />
-            Fighters
-          </h3>
-          <div class="mode-select" role="group" aria-label="Match mode">
-            <Button
-              v-for="option in MODE_OPTIONS"
-              :key="option.value"
-              :variant="mode === option.value ? 'default' : 'secondary'"
-              size="sm"
-              :disabled="!canChangeFighters || !availableModes.includes(option.value)"
-              :title="
-                availableModes.includes(option.value)
-                  ? undefined
-                  : 'Upgrade the Arena to unlock this mode'
-              "
-              :aria-pressed="mode === option.value"
-              @click="switchMode(option.value)"
-            >
-              {{ option.label }}
-            </Button>
+    <template v-else>
+      <Card class="overflow-visible border border-theme-primary/30">
+        <CardHeader>
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle class="flex items-center gap-2">
+              <Icon icon="mdi:sword-cross" class="size-4 text-theme-primary" :ariaHidden="true" />
+              2 · Set up a match
+            </CardTitle>
+            <Badge :variant="canStart ? 'default' : 'outline'">{{ statusLabel }}</Badge>
           </div>
-        </div>
-        <p
-          v-if="roomState && availableModes.length < MODE_OPTIONS.length"
-          class="mb-3 text-xs text-gray-400"
-        >
-          Tier 2 unlocks Brawl. Tier 3 unlocks Hunt.
-        </p>
-        <p v-if="mode !== 'duel'" class="mb-3 text-sm text-muted-foreground">
-          A training bot can replace the second dweller. Bots reset each match and earn no rewards.
-        </p>
-        <div class="teams-row">
-          <template v-for="side in TEAM_SIDES" :key="side">
-            <div v-if="side === 'B'" class="versus">
-              <Transition name="countdown-pop" mode="out-in">
-                <span
-                  v-if="isFighting && countdown > 0"
-                  :key="countdown"
-                  class="countdown-number"
-                  >{{ countdown }}</span
+          <CardDescription>{{ modeDescription }}</CardDescription>
+        </CardHeader>
+        <CardContent class="arena-content flex flex-col gap-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <!-- @vue-ignore -->
+            <ToggleGroup
+              class="mode-select"
+              type="single"
+              variant="outline"
+              :model-value="mode"
+              :disabled="!canChangeFighters"
+              aria-label="Match mode"
+              @update:model-value="updateMode"
+            >
+              <!-- @vue-ignore -->
+              <ToggleGroupItem
+                v-for="option in MODE_OPTIONS"
+                :key="option.value"
+                :value="option.value"
+                :disabled="!availableModes.includes(option.value)"
+                :title="
+                  availableModes.includes(option.value)
+                    ? undefined
+                    : 'Upgrade the Arena to unlock this mode'
+                "
+              >
+                {{ option.label }}
+              </ToggleGroupItem>
+            </ToggleGroup>
+            <span class="text-xs text-muted-foreground">Tier {{ roomState?.tier ?? 1 }}</span>
+          </div>
+          <p
+            v-if="availableModes.length < MODE_OPTIONS.length"
+            class="text-xs text-muted-foreground"
+          >
+            Tier 2 unlocks Brawl. Tier 3 unlocks Hunt.
+          </p>
+          <p v-if="mode !== 'duel'" class="text-xs text-muted-foreground">
+            Bots reset each match and earn no rewards.
+          </p>
+
+          <Alert v-if="!roster.length">
+            <Icon icon="mdi:account-plus-outline" :ariaHidden="true" />
+            <AlertTitle>Build your arena roster</AlertTitle>
+            <AlertDescription>
+              Assign adult dwellers to the Arena first using Assign dwellers above, or drag them
+              onto this room in your vault. They will then appear here for match selection.
+            </AlertDescription>
+          </Alert>
+          <template v-else>
+            <Alert v-if="mode !== 'hunt' && roster.length < 2">
+              <AlertTitle>One more adult needed</AlertTitle>
+              <AlertDescription
+                >Assign another adult to the Arena so each side has a dweller.</AlertDescription
+              >
+            </Alert>
+            <div
+              class="teams-row grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 sm:gap-4"
+            >
+              <template v-for="side in TEAM_SIDES" :key="side">
+                <div
+                  v-if="side === 'B'"
+                  class="versus flex flex-col items-center gap-1 self-center"
                 >
-                <Icon v-else icon="mdi:sword-cross" class="versus-icon" />
-              </Transition>
-              <span v-if="countdown === 0" class="versus-text">VS</span>
-            </div>
-            <div class="team">
-              <span v-if="mode !== 'duel'" class="team-label">{{
-                side === 'B' && mode === 'hunt' ? 'CREATURES' : `TEAM ${side}`
-              }}</span>
-              <template v-if="side === 'B' && mode === 'hunt'">
-                <ArenaCreatureSlot
-                  v-for="(slot, index) in creatureSlots"
-                  :key="slot?.key ?? 'creature-slot-' + index"
-                  :creature="slot"
-                  :can-change="canChangeFighters"
-                  :damage-numbers="damageForId(slot?.id ?? null)"
-                  :options="creaturePickerOptions"
-                  :mirror-bots="true"
-                  :picker-open="creaturePickerOpen && slot === null"
-                  @toggle-picker="toggleCreaturePicker"
-                  @clear="clearCreature"
-                  @select="selectCreature"
-                />
-              </template>
-              <template v-else>
-                <div v-for="slot in slotsFor(side)" :key="slot">
-                  <div
-                    v-if="slot === partnerSlot(side)"
-                    role="group"
-                    :aria-label="`Team ${side} partner`"
-                    class="mb-2 flex gap-2"
+                  <Transition name="countdown-pop" mode="out-in">
+                    <span
+                      v-if="isFighting && countdown > 0"
+                      :key="countdown"
+                      class="countdown-number text-3xl font-bold text-danger"
+                      >{{ countdown }}</span
+                    >
+                    <Icon
+                      v-else
+                      icon="mdi:sword-cross"
+                      class="size-5 text-theme-primary"
+                      :ariaHidden="true"
+                    />
+                  </Transition>
+                  <span v-if="countdown === 0" class="text-xs font-bold text-theme-primary"
+                    >VS</span
                   >
-                    <Button
-                      size="sm"
-                      :variant="botEnabled[side] ? 'secondary' : 'default'"
-                      :aria-pressed="!botEnabled[side]"
-                      :disabled="!canChangeFighters"
-                      @click="choosePartnerType(side, false)"
-                      >Dweller</Button
-                    >
-                    <Button
-                      size="sm"
-                      :variant="botEnabled[side] ? 'default' : 'secondary'"
-                      :aria-pressed="botEnabled[side]"
-                      :disabled="!canChangeFighters"
-                      @click="choosePartnerType(side, true)"
-                      >Bot</Button
-                    >
-                  </div>
-                  <ArenaCreatureSlot
-                    v-if="slot === partnerSlot(side) && botEnabled[side]"
-                    :creature="botView(side)"
-                    :can-change="canChangeFighters"
-                    :damage-numbers="damageForId(botView(side)?.id ?? null)"
-                    :options="robotOptions"
-                    :mirror="side === 'B'"
-                    :friendly="side === 'A'"
-                    empty-label="+ ADD BOT"
-                    :picker-open="botPicker === side"
-                    @toggle-picker="botPicker = botPicker === side ? null : side"
-                    @clear="clearBot(side)"
-                    @select="selectBot(side, $event)"
-                  />
-                  <ArenaFighterSlot
-                    v-else
-                    :side="slot"
-                    :fighter="slotFighter(slot)"
-                    :can-change="canChangeFighters"
-                    :damage-numbers="damageForId(draft[slot])"
-                    :options="pickerOptions(slot)"
-                    :picker-open="openPicker === slot"
-                    @toggle-picker="togglePicker"
-                    @clear="clearFighter"
-                    @select="selectFighter"
-                  />
+                </div>
+                <div class="team flex min-w-0 flex-col gap-3">
+                  <span
+                    v-if="mode !== 'duel'"
+                    class="team-label text-center text-xs font-semibold tracking-wider text-muted-foreground"
+                    >{{ side === 'B' && mode === 'hunt' ? 'CREATURES' : `TEAM ${side}` }}</span
+                  >
+                  <template v-if="side === 'B' && mode === 'hunt'">
+                    <ArenaCreatureSlot
+                      v-for="(slot, index) in creatureSlots"
+                      :key="slot?.key ?? 'creature-slot-' + index"
+                      :creature="slot"
+                      :can-change="canChangeFighters"
+                      :damage-numbers="damageForId(slot?.id ?? null)"
+                      :options="creaturePickerOptions"
+                      :mirror-bots="true"
+                      :picker-open="creaturePickerOpen && slot === null"
+                      @toggle-picker="toggleCreaturePicker"
+                      @clear="clearCreature"
+                      @select="selectCreature"
+                    />
+                  </template>
+                  <template v-else>
+                    <div v-for="slot in slotsFor(side)" :key="slot" class="min-w-0">
+                      <!-- @vue-ignore -->
+                      <ToggleGroup
+                        v-if="slot === partnerSlot(side)"
+                        type="single"
+                        variant="outline"
+                        size="sm"
+                        class="mb-2"
+                        :model-value="botEnabled[side] ? 'bot' : 'dweller'"
+                        :disabled="!canChangeFighters"
+                        :aria-label="`Team ${side} partner`"
+                        @update:model-value="
+                          (value) => {
+                            if (value === 'bot' || value === 'dweller')
+                              choosePartnerType(side, value === 'bot')
+                          }
+                        "
+                      >
+                        <!-- @vue-ignore -->
+                        <ToggleGroupItem value="dweller">Dweller</ToggleGroupItem>
+                        <!-- @vue-ignore -->
+                        <ToggleGroupItem value="bot">Bot</ToggleGroupItem>
+                      </ToggleGroup>
+                      <ArenaCreatureSlot
+                        v-if="slot === partnerSlot(side) && botEnabled[side]"
+                        :creature="botView(side)"
+                        :can-change="canChangeFighters"
+                        :damage-numbers="damageForId(botView(side)?.id ?? null)"
+                        :options="robotOptions"
+                        :mirror="side === 'B'"
+                        :friendly="side === 'A'"
+                        empty-label="+ ADD BOT"
+                        :picker-open="botPicker === side"
+                        @toggle-picker="botPicker = botPicker === side ? null : side"
+                        @clear="clearBot(side)"
+                        @select="selectBot(side, $event)"
+                      />
+                      <ArenaFighterSlot
+                        v-else
+                        :side="slot"
+                        :fighter="slotFighter(slot)"
+                        :can-change="canChangeFighters"
+                        :damage-numbers="damageForId(draft[slot])"
+                        :options="pickerOptions(slot)"
+                        :picker-open="openPicker === slot"
+                        @toggle-picker="togglePicker"
+                        @clear="clearFighter"
+                        @select="selectFighter"
+                      />
+                    </div>
+                  </template>
                 </div>
               </template>
             </div>
           </template>
-        </div>
-      </div>
 
-      <!-- Bench: assigned dwellers not currently fighting -->
-      <div v-if="bench.length" class="section">
-        <h3 class="section-title">
-          <Icon icon="mdi:account-group-outline" class="section-title-icon" />
-          Bench
-        </h3>
-        <div class="roster-chips">
-          <div
-            v-for="entry in bench"
-            :key="entry.id"
-            class="roster-chip"
-            :title="`HP ${entry.health}/${entry.max_health}`"
-          >
-            <div class="roster-chip-main">
-              <DwellerPortrait
-                :image-url="entry.image_url"
-                :thumbnail-url="entry.thumbnail_url"
-                :alt="entry.name"
-                prefer-thumbnail
-                image-class="h-8 w-8 shrink-0 rounded-full object-cover"
-                fallback-class="h-8 w-8 text-theme-primary"
+          <Alert v-if="winnerName" class="result-banner">
+            <Icon icon="mdi:trophy" :ariaHidden="true" />
+            <AlertTitle v-if="roomState?.mode === 'duel'"
+              >MATCH COMPLETE &mdash; {{ winnerName }} wins!</AlertTitle
+            >
+            <AlertTitle v-else>MATCH COMPLETE &mdash; Victory for {{ winnerName }}!</AlertTitle>
+          </Alert>
+          <div v-if="isDone && injuredFighters.length" class="flex justify-center">
+            <Button variant="secondary" size="sm" :disabled="isHealing" @click="healInjured">
+              <!-- @vue-ignore -->
+              <Icon
+                v-if="isHealing"
+                icon="mdi:loading"
+                data-icon="inline-start"
+                class="animate-spin"
               />
-              <span class="roster-name">{{ entry.name }}</span>
-              <span class="roster-hp" :class="hpClass(entry)"
-                >{{ entry.health }}/{{ entry.max_health }}</span
-              >
-            </div>
-            <div class="roster-hp-bar">
-              <Progress :model-value="hpPercent(entry)" class="h-1" :fill="hpFillColor(entry)" />
-            </div>
-            <TooltipProvider v-if="!isFighting" :delay-duration="200">
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <Button
-                    class="roster-remove"
-                    size="icon-sm"
-                    variant="ghost"
-                    :aria-label="`Remove ${entry.name} from Arena`"
-                    @click="unassign(entry)"
-                  >
-                    <Icon icon="mdi:close" class="h-4 w-4 text-danger" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Remove {{ entry.name }} from Arena</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+              <!-- @vue-ignore -->
+              <Icon v-else icon="mdi:medication" data-icon="inline-start" />
+              HEAL INJURED ({{ injuredFighters.length }})
+            </Button>
           </div>
-        </div>
-      </div>
+          <div v-if="canStart" class="flex justify-center">
+            <Button :disabled="isStarting" @click="startFight">
+              <!-- @vue-ignore -->
+              <Icon
+                v-if="isStarting"
+                icon="mdi:loading"
+                data-icon="inline-start"
+                class="animate-spin"
+              />
+              <!-- @vue-ignore -->
+              <Icon v-else icon="mdi:sword-cross" data-icon="inline-start" />
+              START FIGHT
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
-      <!-- Match result -->
-      <div v-if="winnerName" class="result-banner finished">
-        <Icon icon="mdi:trophy" class="result-icon" />
-        <span v-if="roomState?.mode === 'duel'">MATCH COMPLETE &mdash; {{ winnerName }} wins!</span>
-        <span v-else>MATCH COMPLETE &mdash; Victory for {{ winnerName }}!</span>
-      </div>
+      <section v-if="bench.length" aria-label="Arena bench">
+        <Card>
+          <CardHeader>
+            <div class="flex items-center justify-between gap-2">
+              <CardTitle class="flex items-center gap-2">
+                <Icon
+                  icon="mdi:account-group-outline"
+                  class="size-4 text-theme-primary"
+                  :ariaHidden="true"
+                />
+                Bench
+              </CardTitle>
+              <Badge variant="secondary">{{ bench.length }} waiting</Badge>
+            </div>
+            <CardDescription
+              >Assigned dwellers waiting for a match. Choose them from a fighter
+              slot.</CardDescription
+            >
+          </CardHeader>
+          <CardContent class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Card v-for="entry in bench" :key="entry.id" size="sm">
+              <CardHeader>
+                <div class="flex items-start gap-2">
+                  <DwellerPortrait
+                    :image-url="entry.image_url"
+                    :thumbnail-url="entry.thumbnail_url"
+                    :alt="entry.name"
+                    prefer-thumbnail
+                    image-class="size-10 shrink-0 rounded-md object-cover"
+                    fallback-class="size-10 shrink-0 text-theme-primary"
+                  />
+                  <div class="flex min-w-0 flex-1 flex-col gap-1">
+                    <CardTitle class="break-words">{{ entry.name }}</CardTitle>
+                    <CardDescription>Level {{ entry.level }}</CardDescription>
+                  </div>
+                  <TooltipProvider v-if="!isFighting" :delay-duration="200">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          :aria-label="`Remove ${entry.name} from Arena`"
+                          @click="unassign(entry)"
+                        >
+                          <Icon icon="mdi:account-minus-outline" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Remove {{ entry.name }} from Arena</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </CardHeader>
+              <CardContent class="flex flex-col gap-2">
+                <span class="text-xs text-muted-foreground tabular-nums"
+                  >{{ entry.health }} / {{ entry.max_health }} HP</span
+                >
+                <Progress
+                  :model-value="hpPercent(entry)"
+                  :tone="hpTone(entry)"
+                  :label="`${entry.name} health`"
+                  :value-text="`${entry.health} of ${entry.max_health} HP`"
+                />
+              </CardContent>
+            </Card>
+          </CardContent>
+        </Card>
+      </section>
 
-      <!-- Post-battle actions -->
-      <div v-if="isDone && injuredFighters.length" class="post-battle-actions">
-        <Button variant="secondary" size="sm" :disabled="isHealing" @click="healInjured">
-          <Icon v-if="isHealing" icon="mdi:loading" class="action-icon animate-spin" />
-          <Icon v-else icon="mdi:medication" class="action-icon" />
-          HEAL INJURED ({{ injuredFighters.length }})
-        </Button>
-      </div>
+      <Card>
+        <CardHeader>
+          <div class="flex items-center justify-between gap-2">
+            <CardTitle class="flex items-center gap-2">
+              <Icon
+                icon="mdi:clipboard-text-clock-outline"
+                class="size-4 text-theme-primary"
+                :ariaHidden="true"
+              />
+              Battle Journal
+            </CardTitle>
+            <Button v-if="roomState?.events.length" variant="ghost" size="xs" @click="clearJournal"
+              >CLEAR</Button
+            >
+          </div>
+        </CardHeader>
+        <CardContent>
+          <BattleLog :entries="journalEntries" empty-text="No rounds fought yet." />
+        </CardContent>
+      </Card>
 
-      <!-- Start fight -->
-      <div v-if="canStart" class="fight-actions">
-        <Button variant="default" :disabled="isStarting" @click="startFight">
-          <Icon v-if="isStarting" icon="mdi:loading" class="fight-button-icon animate-spin" />
-          <Icon v-else icon="mdi:sword-cross" class="fight-button-icon" />
-          START FIGHT
-        </Button>
-      </div>
-
-      <!-- Battle journal -->
-      <div class="section">
-        <div class="journal-header">
-          <h3 class="section-title">
-            <Icon icon="mdi:clipboard-text-clock-outline" class="section-title-icon" />
-            Battle Journal
-          </h3>
-          <Button v-if="roomState?.events.length" variant="ghost" size="xs" @click="clearJournal"
-            >CLEAR</Button
-          >
-        </div>
-        <BattleLog :entries="journalEntries" empty-text="No rounds fought yet." />
-      </div>
-
-      <div class="arena-note">
-        <Icon icon="mdi:information-outline" class="note-icon" />
-        <span>
-          Assign adult dwellers to the Arena room, pick the fighters for each side, then press START
-          FIGHT. The winners gain happiness and XP, the losers lose happiness and are left standing
-          at 1 HP. Change the fighters to start a new match.
-        </span>
-      </div>
-    </div>
+      <Alert>
+        <Icon icon="mdi:information-outline" :ariaHidden="true" />
+        <AlertTitle>Every match has a cost</AlertTitle>
+        <AlertDescription>
+          Winners gain happiness and XP. Losing dwellers lose happiness and are left at 1 HP. Check
+          their health before the next fight. Change the fighters to start a new match.
+        </AlertDescription>
+      </Alert>
+    </template>
   </div>
 </template>
 
 <style scoped>
-.arena-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 1rem;
-  margin: 0.5rem 0;
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-surface-hover);
-  border-radius: 8px;
-}
-
-.arena-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.arena-header-icon {
-  width: 32px;
-  height: 32px;
-  color: var(--color-theme-primary);
-}
-
-.arena-title {
-  font-size: 1.25rem;
-  font-weight: bold;
-  color: var(--color-theme-primary);
-  margin: 0;
-  letter-spacing: 0.1em;
-}
-
-.arena-subtitle {
-  font-size: 0.75rem;
-  color: var(--color-gray-500);
-  margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.arena-badge {
-  margin-left: auto;
-  padding: 0.25rem 0.75rem;
-  border: 1px solid var(--color-surface-hover);
-  border-radius: 4px;
-  font-size: 0.65rem;
-  font-weight: bold;
-  letter-spacing: 0.08em;
-  color: var(--color-gray-400);
-}
-
-.arena-badge.ready {
-  border-color: var(--color-theme-primary);
-  color: var(--color-theme-primary);
-}
-
-.arena-badge.done {
-  border-color: var(--color-warning);
-  color: var(--color-warning);
-}
-
-/* Section pattern shared with the other room-modal sections */
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-theme-primary);
-  margin: 0;
-}
-
-.section-title-icon {
-  width: 0.875rem;
-  height: 0.875rem;
-}
-
-.arena-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  padding: 0.5rem 0;
-}
-
-.roster-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.roster-chip {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.3rem 0.5rem;
-  border: 1px solid var(--color-surface-hover);
-  border-radius: 4px;
-  font-size: 0.75rem;
-  color: var(--color-gray-300);
-}
-
-.roster-chip-main {
-  display: flex;
-  align-items: baseline;
-  gap: 0.4rem;
-}
-
-.roster-name {
-  white-space: nowrap;
-}
-
-.roster-hp {
-  font-size: 0.65rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.roster-hp.hp-healthy {
-  color: var(--color-success);
-}
-
-.roster-hp.hp-low {
-  color: var(--color-warning);
-}
-
-.roster-hp.hp-critical {
-  color: var(--color-danger);
-}
-
-.roster-hp-bar {
-  width: 48px;
-}
-
-.roster-remove {
-  margin: -0.25rem;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.mode-select {
-  display: flex;
-  gap: 0.35rem;
-}
-
-.teams-row {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 1rem;
-  align-items: center;
-}
-
-.team {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.team-label {
-  text-align: center;
-  font-size: 0.65rem;
-  font-weight: bold;
-  letter-spacing: 0.1em;
-  color: var(--color-gray-500);
-}
-
-.versus {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.countdown-number {
-  font-size: 2.5rem;
-  font-weight: bold;
-  color: var(--color-danger);
-  text-shadow: 0 0 12px rgba(255, 0, 0, 0.6);
-  line-height: 1;
-}
-
 .countdown-pop-enter-active,
 .countdown-pop-leave-active {
   transition:
     opacity 0.3s ease,
     transform 0.3s ease;
 }
-
 .countdown-pop-enter-from {
   opacity: 0;
   transform: scale(1.6);
 }
-
 .countdown-pop-leave-to {
   opacity: 0;
   transform: scale(0.6);
 }
-
-.fight-actions {
-  display: flex;
-  justify-content: center;
-  padding: 0.25rem 0;
-}
-
-.fight-button-icon {
-  width: 18px;
-  height: 18px;
-  margin-right: 0.4rem;
-}
-
-.journal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.4rem;
-}
-
-.versus-icon {
-  width: 24px;
-  height: 24px;
-  color: var(--color-theme-primary);
-}
-
-.versus-text {
-  font-size: 0.875rem;
-  font-weight: bold;
-  color: var(--color-theme-primary);
-  letter-spacing: 0.1em;
-}
-
-.result-banner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.6rem;
-  border-radius: 4px;
-  font-size: 0.875rem;
-}
-
-.result-banner.finished {
-  background: color-mix(in srgb, var(--color-theme-primary) 12%, transparent);
-  border: 1px solid var(--color-theme-primary);
-  color: var(--color-theme-primary);
-}
-
-.result-icon {
-  width: 18px;
-  height: 18px;
-}
-
-.post-battle-actions {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.action-icon {
-  width: 14px;
-  height: 14px;
-  margin-right: 0.3rem;
-}
-
-.arena-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  padding: 0.6rem;
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-surface-hover);
-  border-radius: 4px;
-  font-size: 0.75rem;
-  color: var(--color-gray-400);
-  line-height: 1.5;
-}
-
-.note-icon {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  color: var(--color-theme-primary);
+@media (prefers-reduced-motion: reduce) {
+  .countdown-pop-enter-active,
+  .countdown-pop-leave-active {
+    transition: none;
+  }
 }
 </style>

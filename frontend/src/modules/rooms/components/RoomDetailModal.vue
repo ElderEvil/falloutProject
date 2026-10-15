@@ -158,10 +158,7 @@ onUnmounted(stopAmbience)
     <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
       <div v-if="room" class="modal-content">
         <!-- Error display -->
-        <div
-          v-if="actionError && !has('arena') && !has('incident') && !has('aftermath')"
-          class="error-banner"
-        >
+        <div v-if="actionError && !has('incident') && !has('aftermath')" class="error-banner">
           <Icon icon="mdi:alert-circle" class="h-5 w-5" />
           {{ actionError }}
         </div>
@@ -183,6 +180,7 @@ onUnmounted(stopAmbience)
 
         <ArenaRoomDetail
           v-else-if="has('arena')"
+          v-model:assignment-mode="assignmentMode"
           :room="room"
           :vault-id="props.vaultId"
           :assigned-dwellers="assignedDwellers"
@@ -195,6 +193,9 @@ onUnmounted(stopAmbience)
           @upgrade="handleUpgrade"
           @destroy="handleDestroy"
           @unassign-all="handleUnassignAll"
+          @assign-dweller="handleAssignDweller"
+          @unassign-dweller="handleUnassignDweller"
+          @view-dweller="openDwellerDetails"
         />
 
         <template v-else>

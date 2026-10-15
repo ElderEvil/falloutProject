@@ -150,7 +150,7 @@ for (const width of [1280, 390]) {
     )
     await page.getByRole('button', { name: 'BRAWL', exact: true }).click()
     await page
-      .getByRole('button', { name: /PICK FIGHTER/ })
+      .getByRole('button', { name: /Choose from roster/ })
       .first()
       .click()
     await page.getByRole('button', { name: /^Bravo/ }).click()

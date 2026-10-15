@@ -11,6 +11,8 @@ import RoomDwellerCard from './RoomDwellerCard.vue'
 
 interface Props {
   ability: string | null
+  title?: string
+  emptyText?: string
 }
 
 const props = defineProps<Props>()
@@ -30,7 +32,10 @@ const abilityKey = computed<SpecialKey | null>(() => {
   return props.ability!.toLowerCase() as SpecialKey
 })
 
-const byAbilityThenName = (a: (typeof dwellerStore.dwellers)[number], b: (typeof dwellerStore.dwellers)[number]) => {
+const byAbilityThenName = (
+  a: (typeof dwellerStore.dwellers)[number],
+  b: (typeof dwellerStore.dwellers)[number]
+) => {
   const key = abilityKey.value
   if (key) {
     const diff = (b[key] ?? 0) - (a[key] ?? 0)
@@ -56,14 +61,24 @@ const pickDweller = (dwellerId: string) => {
   emit('assignDweller', dwellerId)
 }
 
-const pickerTitle = computed(() => (assignmentMode.value === 'apprentice' ? 'Select Apprentice' : 'Select Worker'))
+const pickerTitle = computed(
+  () =>
+    props.title ?? (assignmentMode.value === 'apprentice' ? 'Select Apprentice' : 'Select Worker')
+)
 </script>
 
 <template>
   <div v-if="assignmentMode" class="dweller-picker">
     <div class="picker-header">
       <span class="picker-title">{{ pickerTitle }}</span>
-      <button type="button" class="picker-close" aria-label="Close picker" @click="assignmentMode = null">×</button>
+      <button
+        type="button"
+        class="picker-close"
+        aria-label="Close picker"
+        @click="assignmentMode = null"
+      >
+        ×
+      </button>
     </div>
     <RoomDwellerCard
       v-for="dweller in availableDwellers"
@@ -72,7 +87,9 @@ const pickerTitle = computed(() => (assignmentMode.value === 'apprentice' ? 'Sel
       :ability="ability"
       @activate="pickDweller($event)"
     />
-    <p v-if="!availableDwellers.length" class="picker-empty">No available dwellers</p>
+    <p v-if="!availableDwellers.length" class="picker-empty">
+      {{ emptyText ?? 'No available dwellers' }}
+    </p>
   </div>
 </template>
 

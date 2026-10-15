@@ -227,6 +227,39 @@ describe('ArenaModal', () => {
     storeMock.fetchCreatures.mockReset().mockResolvedValue(true)
   })
 
+  it('explains assignment before offering match slots for an empty roster', async () => {
+    storeMock.currentRoom = {
+      ...storeMock.readyRoom,
+      roster: [],
+      fighter_a_id: null,
+      fighter_b_id: null,
+      fighters: [],
+      team_a: [],
+      team_b: [],
+      can_start: false,
+    }
+    const wrapper = mountModal()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Assign adult dwellers to the Arena first')
+    expect(wrapper.find('.fighter-slot-empty').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('START FIGHT')
+  })
+
+  it('shows useful bench details without duplicating selected fighters', async () => {
+    const wrapper = mountModal()
+    await flushPromises()
+    const bench = wrapper.get('[aria-label="Arena bench"]')
+    expect(bench.text()).toContain('Charlie Dweller')
+    expect(bench.text()).toContain('Level 7')
+    expect(bench.text()).toContain('80 / 100 HP')
+    expect(bench.text()).not.toContain('Alpha Dweller')
+    expect(bench.findAll('[role="progressbar"]')).toHaveLength(3)
+    expect(
+      bench.findAll('[role="progressbar"]').every((bar) => !!bar.attributes('aria-label'))
+    ).toBe(true)
+  })
+
   it('renders fighter slots with names and power', async () => {
     const wrapper = mountModal()
     await flushPromises()
@@ -294,7 +327,9 @@ describe('ArenaModal', () => {
     }
     const wrapper = mountModal()
     await flushPromises()
-    expect(wrapper.get('.roster-chip img').attributes('src')).toContain('/static/portraits/c-1.png')
+    expect(
+      wrapper.get('[aria-label="Arena bench"] img[alt="Charlie Dweller"]').attributes('src')
+    ).toContain('/static/portraits/c-1.png')
     await modeButton(wrapper, 'BRAWL').trigger('click')
     const picker = await openPicker(wrapper, 1)
     await pickOption(picker, 'Charlie Dweller')

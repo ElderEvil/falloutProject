@@ -1,4 +1,17 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useArenaStore } from '../stores/arena'
+import { Icon } from '@iconify/vue'
+import { Badge } from '@/core/components/ui/badge'
+import { Button } from '@/core/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/core/components/ui/card'
+import DwellerList from './DwellerList.vue'
 import type { Room } from '../models/room'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import RoomPreviewSection from './RoomPreviewSection.vue'
@@ -24,17 +37,73 @@ interface Props {
   isVaultDoor: boolean
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   upgrade: []
   destroy: []
   unassignAll: []
+  assignDweller: [dwellerId: string]
+  unassignDweller: [dwellerId: string]
+  viewDweller: [dwellerId: string]
 }>()
+
+const arenaStore = useArenaStore()
+const isFighting = computed(() => {
+  const state = arenaStore.getRoom(props.room.id)
+  return !!state?.fight_started && !state.match_done
+})
+
+const assignmentMode = defineModel<'worker' | 'apprentice' | null>('assignmentMode', {
+  default: null,
+})
 </script>
 
 <template>
-  <div class="arena-room-detail">
+  <div class="arena-room-detail flex flex-col gap-4">
+    <Card class="border border-theme-primary/30">
+      <CardHeader>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle>1 · Assign dwellers</CardTitle>
+          <Badge variant="outline"
+            >{{ assignedDwellers.length }} / {{ dwellerCapacity }} assigned</Badge
+          >
+        </div>
+        <CardDescription>
+          Assign adult dwellers to this room to build your arena roster. Then choose who fights
+          below. A Duel needs two adults; Brawl and Hunt can also use training bots.
+        </CardDescription>
+      </CardHeader>
+      <CardContent class="flex flex-col gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+          <Button
+            :disabled="isFighting || assignedDwellers.length >= dwellerCapacity"
+            @click="assignmentMode = 'worker'"
+          >
+            <!-- @vue-ignore -->
+            <Icon icon="mdi:account-plus-outline" data-icon="inline-start" />
+            Assign dwellers
+          </Button>
+          <p class="text-xs text-muted-foreground">
+            {{
+              isFighting
+                ? 'Wait for the match to finish before changing the roster.'
+                : assignedDwellers.length >= dwellerCapacity
+                  ? 'Arena roster is full.'
+                  : 'You can also drag dwellers onto this room in your vault.'
+            }}
+          </p>
+        </div>
+        <DwellerList
+          v-if="assignmentMode && !isFighting && assignedDwellers.length < dwellerCapacity"
+          v-model:assignment-mode="assignmentMode"
+          :ability="null"
+          title="Assign to Arena"
+          empty-text="No unassigned adults available. Unassign an adult from another room first."
+          @assign-dweller="emit('assignDweller', $event)"
+        />
+      </CardContent>
+    </Card>
     <RoomPreviewSection
       :room-name="room.name"
       :image-url="room.image_url ?? null"
@@ -42,12 +111,12 @@ const emit = defineEmits<{
       :room-units="room.size ?? room.size_min ?? 3"
       :dweller-capacity="dwellerCapacity"
       :assigned-dwellers="assignedDwellers"
-      :assign-enabled="false"
+      :assign-enabled="!isFighting"
+      @activate="emit('viewDweller', $event)"
+      @unassign="emit('unassignDweller', $event)"
+      @assign-worker="assignmentMode = 'worker'"
     />
-    <ArenaModal
-      :vault-id="vaultId"
-      :room-id="room.id"
-    />
+    <ArenaModal :vault-id="vaultId" :room-id="room.id" />
     <RoomActions
       :room="room"
       :upgrade-info="upgradeInfo"
@@ -61,11 +130,3 @@ const emit = defineEmits<{
     />
   </div>
 </template>
-
-<style scoped>
-.arena-room-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-</style>

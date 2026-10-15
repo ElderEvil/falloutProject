@@ -177,6 +177,24 @@ class IncidentConfig(BaseSettings):
                 return rate
         return self.room_rate_tiers[-1][1]
 
+    @field_validator("room_rate_tiers")
+    @classmethod
+    def validate_room_rate_tiers(cls, tiers: list[list[float]]) -> list[list[float]]:
+        """Require non-empty [cap, rate] tiers with strictly ascending caps and non-negative rates."""
+        if not tiers:
+            raise ValueError("room_rate_tiers must not be empty")
+        previous_cap = float("-inf")
+        for tier in tiers:
+            if len(tier) != 2:
+                raise ValueError("Each room_rate_tiers entry must be [cap, rate]")
+            cap, rate = tier
+            if cap <= previous_cap:
+                raise ValueError("room_rate_tiers caps must ascend")
+            if rate < 0:
+                raise ValueError("room_rate_tiers rates must be non-negative")
+            previous_cap = cap
+        return tiers
+
     @property
     def vault_door_incidents(self) -> set[str]:
         """Incidents that spawn at vault door (0,0) - external threats."""

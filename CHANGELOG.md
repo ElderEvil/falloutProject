@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.205.3 (2026-10-15)
+
+### Bug Fixes
+
+* **rooms:** enforce worker capacity on manual assignment under concurrency f655236
+* **rooms:** re-check occupancy lock in bulk assignment persist path cd8cb04
+* **rooms:** retain bulk candidates when a room is busy 9354099
+
 ## 2.205.2 (2026-10-15)
 
 ### Bug Fixes

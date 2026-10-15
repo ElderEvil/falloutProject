@@ -143,12 +143,16 @@ compare `printf '%s' "<candidate>" | sha256sum | cut -c1-12` against the probe's
 
 The usual cause on this host is **fail2ban**: the sshd jail runs `mode = aggressive`, `maxretry = 3`, `bantime = 1h`,
 and its default action drops banned packets, so a ban reads as a timeout. Aggressive mode counts "Timeout before
-authentication" and banner-exchange events as failures, so one stalled connection can ban the source and turn every
-later attempt into a timeout. Inspect and clear with `sudo fail2ban-client status sshd` and
-`sudo fail2ban-client set sshd unbanip <ip>`. GitHub-hosted runners share cloud ranges, so a ban outlives the run
-that earned it: either add the GitHub Actions egress ranges (`https://api.github.com/meta` → `actions`) to
-`ignoreip`, or relax the jail (`mode = normal`, higher `maxretry`). Stopping fail2ban briefly is a safe way to prove
-the cause.
+authentication" and banner-exchange events as failures, and cloud CI addresses are shared — a GitHub runner can
+inherit a ban earned by unrelated traffic from the same address. This was confirmed by experiment: with
+`fail2ban` stopped the identical probe connected immediately and the workflow passed.
+
+Keep the sshd jail in `mode = normal` with `maxretry` of at least 5. `aggressive` is not worth it on a host that
+is scanned continuously, and banning shared cloud ranges breaks CI. Inspect and clear bans with
+`sudo fail2ban-client status sshd` and `sudo fail2ban-client set sshd unbanip <ip>`; whitelisting the GitHub
+Actions egress ranges (`https://api.github.com/meta` → `actions`) is impractical at ~7000 CIDRs, so relax the jail
+instead. Leaving `fail2ban` stopped is not a fix — the host sees thousands of brute-force attempts and would be
+unprotected.
 
 When the pipeline is blocked, the same steps can be replayed by hand — the workflow is a scripted version of them.
 Stop the writers, run the migration Job with the target image, set the images (including the backend's

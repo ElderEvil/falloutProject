@@ -75,7 +75,7 @@ jobs:
             echo "Attempt $attempt/3 failed; retrying in 10s"
             sleep 10
           done
-          echo "::error::GitHub runners cannot reach the production host over SSH. Read the verbose output above: 'connect to host ... timed out' means packets never arrived (Hetzner Cloud Firewall or a fail2ban DROP - check sudo fail2ban-client status sshd), while 'kex_exchange_identification'/'Connection closed' means the host answered and refused (stale HETZNER_SSH_KEY, or the runner IP is banned mid-handshake). Verify HETZNER_HOST with the fingerprint above."
+          echo "::error::GitHub runners cannot reach the production host over SSH. Read the verbose output above: 'connect to host ... timed out' means packets never arrived (Hetzner Cloud Firewall, or a fail2ban DROP on that source), while a completed key exchange followed by 'Connection closed by remote host' after ~120s means authentication never finished - 120s is sshd's LoginGraceTime, and a ban landing mid-session drops the auth packets. fail2ban's sshd jail on this host runs mode=aggressive with maxretry=3, which bans shared CI addresses; check sudo fail2ban-client status sshd. See docs/DEPLOYMENT.md 'Runner cannot reach the host'."
           exit 1
 
       - name: Log in to Docker Hub

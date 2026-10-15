@@ -117,6 +117,40 @@ async def test_claim_transfers_ownership_and_preserves_identity(async_session: A
 
 
 @pytest.mark.asyncio
+async def test_claim_rejects_a_vault_at_population_capacity(async_session: AsyncSession, vault: Vault) -> None:
+    """A buyer at its population cap is refused before any caps are charged."""
+    await crud.vault.update(
+        db_session=async_session, id=vault.id, obj_in={"bottle_caps": 100_000, "population_max": 1}
+    )
+    dweller = await _depart(async_session, await _create(async_session, vault), source_vault_id=uuid4())
+    await _create(async_session, vault, first_name="Filler", last_name="Dweller")
+
+    with pytest.raises(ResourceConflictException, match="population capacity"):
+        await departure_pool_service.claim(async_session, vault, dweller.id)
+
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == 100_000
+
+
+@pytest.mark.asyncio
+async def test_claim_rejects_a_duplicate_active_identity(async_session: AsyncSession, vault: Vault) -> None:
+    """A curated name that is already active in the buyer vault is refused, like templates."""
+    await crud.vault.update(db_session=async_session, id=vault.id, obj_in={"bottle_caps": 100_000})
+    dweller = await _depart(
+        async_session,
+        await _create(async_session, vault, first_name="Sarah", last_name="Lyons"),
+        source_vault_id=uuid4(),
+    )
+    await _create(async_session, vault, first_name="Sarah", last_name="Lyons")
+
+    with pytest.raises(ResourceConflictException, match="already has an active"):
+        await departure_pool_service.claim(async_session, vault, dweller.id)
+
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == 100_000
+
+
+@pytest.mark.asyncio
 async def test_claim_rejects_your_own_departure(async_session: AsyncSession, vault: Vault) -> None:
     dweller = await _depart(async_session, await _create(async_session, vault), source_vault_id=vault.id)
 

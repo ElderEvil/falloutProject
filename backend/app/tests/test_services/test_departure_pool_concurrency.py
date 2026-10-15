@@ -68,7 +68,7 @@ async def two_buyers(live_pg_engine: AsyncEngine) -> tuple[UUID4, UUID4, UUID4]:
             user = User(username=f"pool_{label}_{tag}", email=f"pool_{label}_{tag}@vault.test", hashed_password="x")
             session.add(user)
             await session.flush()
-            vault = Vault(number=random.randint(1, 999), user_id=user.id, bottle_caps=100_000)
+            vault = Vault(number=random.randint(1, 999), user_id=user.id, bottle_caps=100_000, population_max=50)
             session.add(vault)
             await session.flush()
             wallets[label] = vault

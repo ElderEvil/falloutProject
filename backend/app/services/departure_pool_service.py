@@ -65,6 +65,18 @@ class DeparturePoolService:
         if not _consent_ok(dweller):
             raise ResourceConflictException(detail="Dweller's content is not shared for recruitment")
 
+        # Lock the buyer vault before charging caps: the lock serializes concurrent claims
+        # by the same buyer, so the withdrawal cannot lose an update, and it yields the
+        # active names that guard the per-vault curated-template reservation.
+        active_names = await dweller_crud.lock_vault_for_template(db_session, vault.id)
+        if dweller.display_name.casefold() in active_names:
+            raise ResourceConflictException(detail=f"Vault already has an active {dweller.display_name}")
+        population = await dweller_crud.count_living_in_vault(db_session, vault.id)
+        if vault_crud.population_limit_reached(vault.population_max, population):
+            raise ResourceConflictException(
+                detail=f"Vault population capacity reached ({population}/{vault.population_max})"
+            )
+
         price = trade_value(dweller)
         await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=price, commit=False)
         await self._return_equipment_to_source(db_session, dweller)
@@ -77,6 +89,12 @@ class DeparturePoolService:
         dweller.status = DwellerStatusEnum.IDLE
         dweller.departed_at = None
         dweller.departure_eligible_at = None
+        # A recruited person is alive by definition: clear any legacy death state a
+        # pre-lifecycle EXILE tombstone carried into the pool.
+        dweller.is_dead = False
+        dweller.is_permanently_dead = False
+        dweller.death_cause = None
+        dweller.death_timestamp = None
         db_session.add(dweller)
         await db_session.commit()
         await db_session.refresh(dweller)

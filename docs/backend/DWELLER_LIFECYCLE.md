@@ -1,8 +1,10 @@
 # Living departures and reusable identities
 
 Design contract for #831, following the maintainer's selection of a shared recruitment
-pool retaining identity (2026-10-13). This PR delivers the model and implementation plan;
-current runtime behavior remains described in GAME_MECHANICS.md until the implementation lands.
+pool retaining identity (2026-10-13). The model below is implemented: the canonical
+lifecycle/availability state and its migration, exit settlement as a living departure, and
+`DeparturePoolService.claim` for the shared pool. The pool is not yet player-reachable —
+it has no endpoints or Trading Post UI, and read schemas do not carry departure labels.
 
 ## Player stories
 
@@ -169,4 +171,5 @@ for row locks and constraints; mocked CRUD cannot prove uniqueness.
    #838 and roster filters with #829. Ghoulification stays outside this contract.
 
 Each slice needs its listed regression and concurrency checks before its feature is enabled.
-This design PR completes #831's agreed-model deliverable; it does not ship the pool mechanics.
+The implemented slices are the canonical state, exit settlement and pool claims; the pool
+becomes player-reachable once its endpoints, Trading Post UI and read-schema labels land.

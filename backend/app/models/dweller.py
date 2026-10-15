@@ -159,7 +159,7 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
         back_populates="dwellers", sa_relationship_kwargs={"foreign_keys": "Dweller.vault_id"}
     )
 
-    room_id: UUID4 = Field(default=None, foreign_key="room.id", nullable=True, ondelete="SET NULL", index=True)
+    room_id: UUID4 | None = Field(default=None, foreign_key="room.id", nullable=True, ondelete="SET NULL", index=True)
     room: "Room" = Relationship(
         back_populates="dwellers",
         sa_relationship_kwargs={"foreign_keys": "Dweller.room_id"},

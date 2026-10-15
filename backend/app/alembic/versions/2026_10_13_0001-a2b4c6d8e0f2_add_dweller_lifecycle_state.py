@@ -14,7 +14,7 @@ departure has been recruited, so operational rollback requires a backup restore 
 "Migration and API compatibility" item 7).
 
 Revision ID: a2b4c6d8e0f2
-Revises: 862c04111ec1
+Revises: 5b2fc79f1d46
 Create Date: 2026-10-13 00:00:00.000000
 
 """
@@ -27,7 +27,7 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 revision: str = "a2b4c6d8e0f2"
-down_revision: str | None = "862c04111ec1"
+down_revision: str | None = "5b2fc79f1d46"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -121,7 +121,9 @@ CURATED_DWELLER_NAMES: tuple[str, ...] = (
 # name-keyed content-provenance enrichment kept separate from membership.
 EXILE_TO_DEPARTURE_SQL = sa.text(
     "UPDATE dweller SET lifecycle = 'WASTELAND', availability = 'DEPARTURE', "
-    "previous_vault_id = vault_id, vault_id = NULL, departed_at = death_timestamp "
+    "previous_vault_id = vault_id, vault_id = NULL, departed_at = death_timestamp, "
+    "is_dead = FALSE, is_permanently_dead = FALSE, death_cause = NULL, "
+    "death_timestamp = NULL, status = 'IDLE' "
     "WHERE lifecycle IS NULL AND death_cause::text = 'EXILE' AND room_id IS NULL "
     "AND is_permanently_dead = TRUE AND is_deleted = FALSE"
 )

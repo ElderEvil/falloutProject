@@ -41,7 +41,7 @@ QUEST_RETURN_PARENT = "d5e6f7a8b9c0"
 QUEST_COMPLETION_REVISION = "8dca68ba234c"
 PET_PARENT = "907b110e6ae4"
 PET_REVISION = "c19031dc6b22"
-LIFECYCLE_PARENT = "862c04111ec1"
+LIFECYCLE_PARENT = "5b2fc79f1d46"
 LIFECYCLE_REVISION = "a2b4c6d8e0f2"
 
 #: Every dweller column that has no server default at this revision, plus the flags the
@@ -665,6 +665,17 @@ class TestDwellerLifecycleMigration:
         )[0]
         assert provenance == (vault_id, None, True, None, None)
         assert harness.scalar("SELECT vault_id::text FROM dweller WHERE id = :id", id=genuine) == vault_id
+
+        # A reclassified exile keeps no death state: a surviving is_dead flag would hide
+        # the person from every living-roster query once another vault recruits them.
+        assert harness.fetch(
+            "SELECT is_dead, is_permanently_dead, death_cause, death_timestamp, status::text "
+            "FROM dweller WHERE id = :id",
+            id=exiled,
+        )[0] == (False, False, None, None, "IDLE")
+        assert harness.fetch(
+            "SELECT is_dead, is_permanently_dead, death_cause::text FROM dweller WHERE id = :id", id=genuine
+        )[0] == (True, True, "COMBAT")
 
         harness.downgrade(LIFECYCLE_PARENT)
         # downgrade() is a documented no-op: canonical state is never reverted.

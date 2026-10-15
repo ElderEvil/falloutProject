@@ -25,15 +25,15 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.config import settings
+from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.vault import Vault
-from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
-from app.services.dweller_assignment_service import DwellerAssignmentService, dweller_assignment_service
+from app.services.dweller_assignment_service import dweller_assignment_service
 from app.services.dweller_service import dweller_service
 from app.services.room_assignment_policy import calculate_room_capacity
 from app.tests.factory.vaults import random_vault_number
@@ -182,8 +182,8 @@ async def test_bulk_assignment_does_not_overfill_a_stale_slot(async_session: Asy
     """Bulk auto-assign re-checks capacity at persist time.
 
     The slot count is computed up front; a room that filled after selection
-    (simulated here with a stale count) must not be overfilled by the persist
-    pass — the leftover dweller stays unassigned.
+    must not be overfilled by the persist pass — the leftover dweller stays
+    unassigned even if the caller selected the room from an earlier snapshot.
     """
     room = await _create_room(async_session, vault.id, name="Power Generator", x=10)
 
@@ -193,12 +193,40 @@ async def test_bulk_assignment_does_not_overfill_a_stale_slot(async_session: Asy
     await dweller_service.move_to_room(async_session, second.id, room.id)
     leftover = await _create_adult(async_session, vault.id, "Leftover")
 
-    with patch.object(DwellerAssignmentService, "_get_available_slots", new=AsyncMock(return_value=1)):
-        result = await dweller_assignment_service.auto_assign_production_rooms(async_session, vault.id)
+    result = await dweller_assignment_service._persist_room_assignment(async_session, leftover.id, room)
 
     assert await _occupants(async_session, room) == 2
-    assert result["assigned_count"] == 0
+    assert result is False
     assert (await crud.dweller.get(async_session, leftover.id)).room_id is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("category", [RoomTypeEnum.PRODUCTION, RoomTypeEnum.TRAINING])
+async def test_bulk_retries_candidate_in_next_room_when_first_is_busy(
+    async_session: AsyncSession, vault: Vault, category: RoomTypeEnum
+) -> None:
+    rooms = [
+        await crud.room.create(
+            async_session,
+            obj_in=_production_room_create(vault.id, name=f"Room {x}", x=x).model_copy(update={"category": category}),
+        )
+        for x in (10, 13)
+    ]
+    candidate = await _create_adult(async_session, vault.id, "Retry")
+    assignments: list[dict[str, str]] = []
+    with patch(
+        "app.services.room_assignment_policy.db_locks.try_advisory_xact_lock",
+        new=AsyncMock(side_effect=[False, True]),
+    ):
+        remaining = await dweller_assignment_service._assign_ability_dwellers(
+            SPECIALEnum.STRENGTH, rooms, async_session, [candidate], assignments, set(), 1
+        )
+
+    await async_session.refresh(candidate)
+    assert candidate.room_id == rooms[1].id
+    assert remaining == []
+    assert len(assignments) == 1
+    assert assignments[0]["room_id"] == str(rooms[1].id)
 
 
 # ---------------------------------------------------------------------------

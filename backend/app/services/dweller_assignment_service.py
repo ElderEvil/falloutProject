@@ -175,9 +175,10 @@ class DwellerAssignmentService:
             for _ in range(actual_for_room):
                 if not sorted_dwellers:
                     break
-                dweller = sorted_dwellers.pop(0)
+                dweller = sorted_dwellers[0]
                 if not await self._assign_dweller_to_room(dweller, room, db_session, assignments, assigned_dweller_ids):
                     break
+                sorted_dwellers.pop(0)
 
         return [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids]
 

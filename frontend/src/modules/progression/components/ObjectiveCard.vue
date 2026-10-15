@@ -40,11 +40,7 @@ const objectiveIcon = computed(() => {
   return 'mdi:target'
 })
 
-const category = computed(() => props.objective.category)
-
-const categoryLabel = computed(() => {
-  return capitalize(category.value)
-})
+const categoryLabel = computed(() => capitalize(props.objective.category))
 
 const isCompleted = computed(() => {
   return props.objective.is_completed || props.objective.progress >= props.objective.total
@@ -62,12 +58,7 @@ const canClaim = computed(() => isObjectiveClaimable(props.objective))
       </div>
       <div class="objective-info">
         <h3 class="objective-title">{{ objective.challenge }}</h3>
-        <Badge
-          :variant="
-            category === 'daily' ? 'default' : category === 'weekly' ? 'secondary' : 'outline'
-          "
-          class="category-badge"
-        >
+        <Badge variant="outline" class="category-badge">
           {{ categoryLabel }}
         </Badge>
       </div>

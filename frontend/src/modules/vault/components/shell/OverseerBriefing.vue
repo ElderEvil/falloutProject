@@ -134,7 +134,7 @@ const attentionIconClass = (tone: BriefingItem['tone']) =>
 
 <template>
   <section class="overseer-briefing border-y border-theme-primary/20 py-4">
-    <p class="mb-3 text-xs text-gray-400">
+    <p class="mb-3 text-xs text-muted-foreground">
       After 10 minutes away, reserves limit further drain. Returning resumes consumption. Empty
       stock must be produced; use the room staffing controls and treat injured workers.
     </p>

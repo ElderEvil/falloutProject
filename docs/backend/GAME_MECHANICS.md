@@ -73,6 +73,10 @@ finishes first sets the window and later completions inside it grant nothing (th
 applies). The grant serializes on a vault-scoped advisory lock, lands in the match's own transaction, and
 surfaces as an always-on `arena_morale_boost` bell entry plus toast — the arena's first progression surface.
 
+Assigning dwellers to the arena or selecting fighters for a new match preserves their current health and
+radiation. Match resets preserve injuries; healing uses the existing medical and recovery
+systems. Catalog opponents and training bots still reset to full match HP.
+
 ## Race and faction switches
 
 Race mechanics are **on** (`FEATURE_RACE_MECHANICS`) and faction mechanics are **off**

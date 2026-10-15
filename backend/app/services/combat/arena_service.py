@@ -172,8 +172,8 @@ class ArenaService:
         Duel uses the a/b slots; brawl fills all four (a/c vs b/d); hunt pits one or
         two dwellers (a, optional c) against creatures named by ``opponent_keys``.
         Every provided fighter must be an adult assigned to the room. Changing the
-        selection resets any previous match: flags cleared, journal wiped, fighters
-        healed.
+        selection resets any previous match: flags cleared and journal wiped.
+        Dwellers keep their current health; catalog opponents and support bots reset.
         """
         room = await self._get_arena_room(db_session, room_id, vault_id)
         self._validate_mode_tier(room, mode)
@@ -217,8 +217,6 @@ class ArenaService:
             fighters = list(await crud_dweller.get_arena_fighters(db_session, room.id, ids=selected_ids))
             if len(fighters) != len(selected_ids):
                 raise ValidationException(detail="Every fighter must be an adult dweller assigned to the Arena")
-        else:
-            fighters = []
 
         state = await arena_state_crud.get_or_create(db_session, room.id)
         state.fighter_a_id = fighter_a_id
@@ -235,10 +233,6 @@ class ArenaService:
         self._clear_room_state(str(room.id))
 
         await arena_match_event_crud.delete_for_room(db_session, room.id)
-
-        for fighter in fighters:
-            fighter.health = fighter.effective_max_health
-            db_session.add(fighter)
 
         await db_session.commit()
         return state
@@ -725,7 +719,7 @@ class ArenaService:
 
         # Dwellers stay standing (no death in the arena): every dweller is left at 1 HP.
         # Creatures may sit at 0. The match is marked done so it never re-runs until the
-        # fighter selection changes (set_fighters clears the flags, KOs and heals).
+        # fighter selection changes (set_fighters clears the match flags and KOs).
         for participant in (*team_a, *team_b):
             if not participant.is_creature:
                 participant.health = max(1, participant.health)

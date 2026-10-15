@@ -118,15 +118,15 @@ const statusLabel = computed(() => {
 })
 
 const statusClass = computed(() => {
-  if (props.activeIncidentCount > 0) return 'border-danger/60 bg-danger/40 text-danger'
-  if (attentionItems.value.length > 0) return 'border-warning/60 bg-warning/40 text-warning'
+  if (props.activeIncidentCount > 0) return 'border-danger/60 bg-danger/10 text-foreground'
+  if (attentionItems.value.length > 0) return 'border-warning/60 bg-warning/10 text-foreground'
   return 'border-terminal-green/50 bg-terminal-green/10 text-terminal-green'
 })
 
 const attentionClass = (tone: BriefingItem['tone']) =>
   tone === 'critical'
-    ? 'border-danger/40 bg-danger/20 text-danger'
-    : 'border-warning/40 bg-warning/20 text-warning'
+    ? 'border-danger/40 bg-danger/10 text-foreground'
+    : 'border-warning/40 bg-warning/10 text-foreground'
 
 const attentionIconClass = (tone: BriefingItem['tone']) =>
   tone === 'critical' ? 'text-danger' : 'text-warning'

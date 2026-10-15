@@ -412,12 +412,7 @@ onBeforeUnmount(() => {
                       {{ formatRelativeTime(notification.created_at) }}
                     </span>
                   </div>
-                  <p
-                    class="mt-1 text-xs"
-                    :class="
-                      notification.is_read ? 'text-muted-foreground' : 'text-muted-foreground'
-                    "
-                  >
+                  <p class="mt-1 text-xs text-muted-foreground">
                     {{ notification.message }}
                   </p>
                   <div v-if="!notification.is_read" class="mt-2 flex items-center">

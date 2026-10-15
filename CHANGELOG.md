@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.205.1 (2026-10-15)
+
+### Bug Fixes
+
+* **radio:** exclude away dwellers from happiness broadcasts 62bc536
+
 ## 2.205.0 (2026-10-15)
 
 ### Features

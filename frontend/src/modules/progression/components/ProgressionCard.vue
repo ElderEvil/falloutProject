@@ -82,7 +82,10 @@ withDefaults(defineProps<Props>(), { description: null, completed: false })
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin: -16px -16px 12px;
+  padding: 10px 16px;
+  background: color-mix(in srgb, var(--color-theme-primary) 14%, var(--color-surface-warm-dark));
+  border-bottom: 1px solid color-mix(in srgb, var(--color-theme-primary) 35%, transparent);
 }
 
 .progression-title {

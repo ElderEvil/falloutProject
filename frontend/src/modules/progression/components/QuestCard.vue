@@ -12,7 +12,6 @@ import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 import { linearProgress, parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
-import { QUEST_TYPE_COLORS } from '../models/quest'
 import { isStateQuestCategory } from '../models/quest'
 import type { QuestPartyMember, QuestRequirement, VaultQuest } from '../models/quest'
 import QuestTypeBadge from './QuestTypeBadge.vue'
@@ -96,17 +95,15 @@ const questProgressLabel = computed(() => {
 const hasParty = computed(() => partyMembers && partyMembers.length > 0)
 const isStateQuest = computed(() => isStateQuestCategory(quest.quest_category))
 
-const typeColor = computed(() => {
-  return QUEST_TYPE_COLORS[quest.quest_type] || QUEST_TYPE_COLORS.side
-})
-
 const isChainQuest = computed(() => {
   return quest.chain_id !== null
 })
 
-const chainPosition = computed(() => {
-  if (!isChainQuest.value) return null
-  return quest.chain_order > 0 ? `Quest ${quest.chain_order}` : 'Chain Quest'
+/** Position within the chain, e.g. "2/4" — the catalog holds the chain's quests. */
+const chainProgress = computed(() => {
+  if (!isChainQuest.value || !quest.chain_id) return null
+  const chainLength = questStore.quests.filter((entry) => entry.chain_id === quest.chain_id).length
+  return chainLength > 1 ? `${quest.chain_order}/${chainLength}` : null
 })
 
 // Get the previous quest name for locked quests
@@ -156,18 +153,6 @@ const actionButtonText = computed(() => {
   }[status]
 })
 
-const cardBorderColor = computed(() => {
-  if (isLocked) return 'var(--color-quest-locked)'
-  return {
-    available: typeColor.value.border,
-    active: 'var(--color-theme-accent)',
-    returning: 'var(--color-theme-secondary)',
-    ready: 'var(--color-rarity-legendary)',
-    completed: 'var(--color-quest-muted)',
-    locked: 'var(--color-quest-locked)',
-  }[status]
-})
-
 const isButtonDisabled = computed(() => {
   return isLocked || status === 'active' || status === 'returning'
 })
@@ -197,7 +182,6 @@ const handleAction = () => {
 <template>
   <ProgressionCard
     class="quest-card flex h-full flex-col"
-    :style="{ borderColor: cardBorderColor }"
     :title="quest.title"
     :description="quest.short_description"
     :completed="status === 'completed'"
@@ -208,9 +192,9 @@ const handleAction = () => {
           <Badge v-if="quest.quest_category" variant="outline" class="category-badge">
             {{ quest.quest_category }}
           </Badge>
-          <Badge v-if="isChainQuest" variant="outline" class="chain-badge">
+          <Badge v-if="chainProgress" variant="outline" class="chain-badge">
             <Icon icon="mdi:link-variant" class="inline-icon" />
-            {{ chainPosition }}
+            {{ chainProgress }}
           </Badge>
           <Badge v-if="isLocked" variant="outline" class="locked-badge">
             <Icon icon="mdi:lock" class="inline-icon" />
@@ -292,6 +276,9 @@ const handleAction = () => {
         <span class="timer-progress">{{ questProgressLabel }}</span>
       </div>
 
+    </div>
+
+    <template #action>
       <div
         v-if="status === 'available' && quest.duration_minutes && !isStateQuest"
         class="quest-duration"
@@ -300,9 +287,6 @@ const handleAction = () => {
         <span>Duration: {{ quest.duration_minutes }} min</span>
         <span v-if="!hasParty && !isStateQuest" class="duration-hint">(Assign party to start)</span>
       </div>
-    </div>
-
-    <template #action>
       <Button
         class="quest-action-btn"
         variant="default"

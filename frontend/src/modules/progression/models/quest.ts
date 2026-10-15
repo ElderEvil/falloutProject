@@ -164,7 +164,7 @@ function rewardAmount(value: unknown): number {
 
 /** Type chip colors shared by the quest card and detail badges. */
 export const QUEST_TYPE_COLORS: Record<string, { bg: string, text: string, border: string }> = {
-  main: { bg: 'var(--color-quest-main)', text: '#000000', border: 'var(--color-quest-main)' },
+  main: { bg: 'var(--color-theme-primary)', text: '#000000', border: 'var(--color-theme-primary)' },
   side: { bg: 'var(--color-quest-side)', text: 'var(--color-theme-primary)', border: 'var(--color-quest-side)' },
   daily: { bg: 'var(--color-quest-daily)', text: '#000000', border: 'var(--color-quest-daily)' },
   event: { bg: 'var(--color-quest-event)', text: '#ffffff', border: 'var(--color-quest-event)' },

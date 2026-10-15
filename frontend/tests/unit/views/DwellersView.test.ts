@@ -152,7 +152,9 @@ describe('DwellersView', () => {
       vi.spyOn(incidentStore, 'fetchIncidents').mockImplementation(() =>
         deferredRequest('incidents')
       )
-      vi.spyOn(_roomStore, 'fetchRooms').mockImplementation(() => deferredRequest('rooms'))
+      vi.spyOn(_roomStore, 'fetchRooms').mockImplementation(() =>
+        deferredRequest('rooms').then(() => 'loaded' as const)
+      )
 
       await router.isReady()
       mount(DwellersView, {
@@ -186,7 +188,7 @@ describe('DwellersView', () => {
       vi.spyOn(_dwellerStore.filter, 'fetchDwellersByVault').mockResolvedValue()
       vi.spyOn(_dwellerStore.filter, 'fetchAllDwellers').mockResolvedValue()
       vi.spyOn(incidentStore, 'fetchIncidents').mockResolvedValue()
-      vi.spyOn(_roomStore, 'fetchRooms').mockResolvedValue()
+      vi.spyOn(_roomStore, 'fetchRooms').mockResolvedValue('loaded')
 
       await router.isReady()
       const wrapper = mount(DwellersView, {

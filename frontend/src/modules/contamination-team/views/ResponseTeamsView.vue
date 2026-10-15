@@ -31,11 +31,19 @@ async function openStationOrExplain(): Promise<void> {
   const token = authStore.token
   if (!id || typeof token !== 'string' || !token || handled.value) return
 
-  const loaded = await roomStore.fetchRooms(id, token)
+  let result = await roomStore.fetchRooms(id, token)
   if (disposed.value || id !== vaultId.value) return
+
+  // A superseded load lost a race to a newer request; retry so the redirect reads
+  // that request's state instead of reporting a load that simply lost the race.
+  for (let attempt = 0; result === 'superseded' && attempt < 3; attempt++) {
+    result = await roomStore.fetchRooms(id, token)
+    if (disposed.value || id !== vaultId.value) return
+  }
+
   handled.value = true
 
-  if (!loaded) {
+  if (result === 'failed') {
     toast.error('Could not load this vault’s rooms — open it from the vault list.')
     await router.replace({ path: `/vault/${id}` })
     return

@@ -47,7 +47,7 @@ describe('ResponseTeamsView (compatibility redirect)', () => {
     storeState.fetchRooms.mockImplementation(async (id: string) => {
       storeState.rooms = [...returnedRooms]
       storeState.roomsLoadedVaultId = id
-      return true
+      return 'loaded'
     })
     vi.mocked(useRoomStore).mockReturnValue(storeState as never)
   })
@@ -90,7 +90,7 @@ describe('ResponseTeamsView (compatibility redirect)', () => {
     storeState.fetchRooms.mockImplementation(async () => {
       storeState.rooms = []
       storeState.roomsLoadedVaultId = null
-      return false
+      return 'failed'
     })
 
     mountWithSetup(ResponseTeamsView)
@@ -99,5 +99,42 @@ describe('ResponseTeamsView (compatibility redirect)', () => {
     expect(mockToast.error).toHaveBeenCalledTimes(1)
     expect(mockToast.info).not.toHaveBeenCalled()
     expect(mockReplace).toHaveBeenCalledWith({ path: '/vault/vault-1' })
+  })
+
+  it('retries a superseded load instead of reporting an error', async () => {
+    returnedRooms = [{ id: 'station-1', category: 'response' }]
+    let calls = 0
+    storeState.fetchRooms.mockImplementation(async (id: string) => {
+      calls += 1
+      if (calls === 1) return 'superseded'
+      storeState.rooms = [...returnedRooms]
+      storeState.roomsLoadedVaultId = id
+      return 'loaded'
+    })
+
+    mountWithSetup(ResponseTeamsView)
+    await flushPromises()
+
+    expect(storeState.fetchRooms).toHaveBeenCalledTimes(2)
+    expect(mockToast.error).not.toHaveBeenCalled()
+    expect(mockReplace).toHaveBeenCalledWith({
+      path: '/vault/vault-1',
+      query: { roomId: 'station-1' },
+    })
+  })
+
+  it('keeps retrying a superseded load without surfacing an error', async () => {
+    returnedRooms = [{ id: 'r1', category: 'production' }]
+    storeState.fetchRooms.mockImplementation(async (id: string) => {
+      storeState.rooms = [...returnedRooms]
+      storeState.roomsLoadedVaultId = id
+      return 'superseded'
+    })
+
+    mountWithSetup(ResponseTeamsView)
+    await flushPromises()
+
+    expect(mockToast.error).not.toHaveBeenCalled()
+    expect(mockReplace).toHaveBeenCalledWith({ path: '/vault/vault-1', query: {} })
   })
 })

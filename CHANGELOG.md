@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.210.0 (2026-10-15)
+
+### Features
+
+* **vault:** collapse unassigned dwellers and stabilize drop targets ([#1011](https://github.com/ElderEvil/falloutProject/issues/1011)) 0ac0a49
+
 ## 2.209.2 (2026-10-15)
 
 ### Bug Fixes

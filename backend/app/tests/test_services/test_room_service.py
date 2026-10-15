@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from datetime import datetime
 from unittest.mock import AsyncMock, patch
 from uuid import UUID
@@ -19,7 +20,7 @@ from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.room_assignment_policy import calculate_room_capacity
 from app.services.room_service import room_service
-from app.utils.exceptions import ResourceNotFoundException, UniqueRoomViolationException
+from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, UniqueRoomViolationException
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -785,5 +786,96 @@ async def test_disconnected_second_station_rejected_without_charge(async_session
 
     await async_session.refresh(rich_vault)
     assert rich_vault.bottle_caps == starting_caps
+    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
+    assert names.count("Response Station") == 1
+
+
+@pytest.mark.asyncio
+async def test_adjacent_station_segment_at_size_max_rejected_without_charge(
+    async_session: AsyncSession, rich_vault: Vault
+):
+    """A station already at size_max rejects another adjacent segment and charges nothing."""
+    station = await _create_response_station(async_session, rich_vault.id, coordinate_x=1, size=9)
+    starting_caps = rich_vault.bottle_caps
+
+    with pytest.raises(UniqueRoomViolationException):
+        await room_service._build(
+            db_session=async_session,
+            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=10),
+        )
+
+    await async_session.refresh(rich_vault)
+    assert rich_vault.bottle_caps == starting_caps
+    await async_session.refresh(station)
+    assert station.size == 9
+    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
+    assert names.count("Response Station") == 1
+
+
+@asynccontextmanager
+async def _placement_lock_held(*_args, **_kwargs):
+    """Stand-in for hold_advisory_lock when another build owns the vault placement lock."""
+    yield False
+
+
+@pytest.mark.asyncio
+async def test_build_refused_when_vault_placement_lock_is_held(async_session: AsyncSession, rich_vault: Vault):
+    """A concurrent build cannot run while another holds the vault placement lock."""
+    starting_caps = rich_vault.bottle_caps
+
+    with (
+        patch("app.services.room_service.db_locks.hold_advisory_lock", new=_placement_lock_held),
+        pytest.raises(ResourceConflictException),
+    ):
+        await room_service._build(
+            db_session=async_session,
+            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=1),
+        )
+
+    await async_session.refresh(rich_vault)
+    assert rich_vault.bottle_caps == starting_caps
+
+
+@pytest.mark.asyncio
+async def test_boosted_seeded_station_grows_to_nine(async_session: AsyncSession, rich_vault: Vault):
+    """The real boosted layout's station slot merges two adjacent segments to size 9.
+
+    The seeded station at (13, 0) must have free adjacent cells at (16, 0) and
+    (19, 0); the test fails if the slot has no room to grow.
+    """
+    from app.core.game_data import get_static_game_data
+    from app.services.vault import seeding
+
+    game_data = await get_static_game_data()
+    prepared = seeding.prepare_initial_rooms(game_data.rooms, rich_vault.id, is_boosted=True)
+    await crud.vault.create_storage(db_session=async_session, vault_id=rich_vault.id)
+    await seeding.create_initial_rooms(async_session, rich_vault, prepared)
+
+    station = next(
+        room
+        for room in await crud.room.get_all_by_vault(async_session, rich_vault.id)
+        if room.name == "Response Station"
+    )
+    assert station.size == 3
+    assert calculate_room_capacity(station.size) == 2
+
+    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
+        grown_to_six, _created = await room_service._build(
+            db_session=async_session,
+            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=16, coordinate_y=0),
+        )
+    assert grown_to_six.id == station.id
+    assert grown_to_six.size == 6
+    assert calculate_room_capacity(grown_to_six.size) == 4
+
+    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
+        grown_to_nine, _created = await room_service._build(
+            db_session=async_session,
+            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=19, coordinate_y=0),
+        )
+    assert grown_to_nine.id == station.id
+    assert grown_to_nine.size == 9
+    assert calculate_room_capacity(grown_to_nine.size) == 6
+
     names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
     assert names.count("Response Station") == 1

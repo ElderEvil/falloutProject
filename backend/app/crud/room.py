@@ -100,6 +100,20 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         return {name.lower() for name in await CRUDRoom.get_names_by_vault(db_session, vault_id)}
 
     @staticmethod
+    async def get_maxed_unique_room_names(*, db_session: AsyncSession, vault_id: UUID4) -> set[str]:
+        """Lowercase names of unique rooms already at ``size_max``.
+
+        A unique room below its maximum footprint can still merge an adjacent
+        segment, so only the maxed ones are blocked from the build menu.
+        """
+        rooms = await CRUDRoom.get_all_by_vault(db_session, vault_id)
+        return {
+            room.name.lower()
+            for room in rooms
+            if room.is_unique and (room.size if room.size is not None else room.size_min) >= room.size_max
+        }
+
+    @staticmethod
     async def has_room_type(db_session: AsyncSession, vault_id: UUID4, room_type: str) -> bool:
         """Whether the vault has a built room matching the normalized room type."""
         normalized = normalize_room_type(room_type)

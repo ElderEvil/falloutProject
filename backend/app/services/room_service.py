@@ -703,7 +703,9 @@ class RoomService:
     ) -> list:
         """Get list of rooms that can be built in a vault.
 
-        Filters out vault doors and unique rooms already built.
+        Filters out vault doors and unique rooms already grown to their maximum
+        footprint. A unique room below ``size_max`` stays buildable because a new
+        segment merges into it.
 
         Args:
             db_session: Database session
@@ -715,8 +717,8 @@ class RoomService:
         from app.core.game_data import get_static_game_data
 
         data_store = await get_static_game_data()
-        existing_room_names = await crud.room.get_existing_room_names(db_session=db_session, vault_id=vault_id)
-        return data_store.get_buildable_rooms(existing_room_names)
+        blocked_names = await crud.room.get_maxed_unique_room_names(db_session=db_session, vault_id=vault_id)
+        return data_store.get_buildable_rooms(blocked_names)
 
     async def get_rooms_by_name_pattern(
         self,

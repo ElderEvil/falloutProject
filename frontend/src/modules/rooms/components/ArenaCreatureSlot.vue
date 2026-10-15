@@ -20,7 +20,6 @@ interface Props {
   damageNumbers: Array<{ id: number; amount: number }>
   options: ArenaCreature[]
   pickerOpen: boolean
-  mirror?: boolean
 }
 
 const props = defineProps<Props>()
@@ -78,7 +77,6 @@ const healthPercent = (creature: ArenaCreatureView | null) =>
           :src="creatureImage"
           :alt="creature.name"
           class="h-full w-full object-contain p-2"
-          :class="{ 'face-center': props.mirror }"
           @error="onImageError"
         />
         <Icon v-else icon="mdi:paw" class="h-10 w-10 text-danger" />
@@ -113,7 +111,6 @@ const healthPercent = (creature: ArenaCreatureView | null) =>
           :src="image"
           alt=""
           class="h-10 w-10 shrink-0 object-contain"
-          :class="{ 'face-center': props.mirror }"
           @error="onImageError"
         />
         <Icon v-else icon="mdi:paw" class="h-10 w-10 shrink-0 text-danger" />
@@ -134,10 +131,6 @@ const healthPercent = (creature: ArenaCreatureView | null) =>
   position: relative;
   display: flex;
   flex-direction: column;
-}
-
-.face-center {
-  transform: scaleX(-1);
 }
 
 .slot-clear {

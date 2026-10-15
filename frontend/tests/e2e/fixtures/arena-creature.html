@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Arena creature facing fixture</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import { createApp, h } from 'vue'
+      import ArenaCreatureSlot from '../../../src/modules/rooms/components/ArenaCreatureSlot.vue'
+      const mirror = new URLSearchParams(location.search).get('mirror') === 'true'
+      createApp({
+        render: () =>
+          h(ArenaCreatureSlot, {
+            creature: {
+              key: 'giant-radscorpion',
+              name: 'Radscorpion',
+              power: 35,
+              health: 20,
+              max_health: 35,
+              id: 'radscorpion-1',
+            },
+            canChange: true,
+            damageNumbers: [],
+            options: [{ key: 'giant-radscorpion', name: 'Radscorpion', power: 35, max_hp: 35 }],
+            pickerOpen: true,
+            mirror,
+          }),
+      }).mount('#app')
+    </script>
+  </body>
+</html>

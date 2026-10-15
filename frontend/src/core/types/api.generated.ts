@@ -3817,29 +3817,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/rooms/expand/{room_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Expand Room
-         * @description Grow a unique room's footprint in place by one segment.
-         *
-         *     Returns:
-         *         The expanded room.
-         */
-        post: operations["expand_room_api_v1_rooms_expand__room_id__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/storage/vault/{vault_id}/space": {
         parameters: {
             query?: never;
@@ -16775,37 +16752,6 @@ export interface operations {
         };
     };
     upgrade_room_api_v1_rooms_upgrade__room_id__post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                room_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RoomRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    expand_room_api_v1_rooms_expand__room_id__post: {
         parameters: {
             query?: never;
             header?: never;

@@ -81,6 +81,11 @@ class DwellerBaseWithoutStats(SQLModel):
     # Status
     status: DwellerStatusEnum = Field(default=DwellerStatusEnum.IDLE, index=True)
 
+    @property
+    def is_in_vault(self) -> bool:
+        """Whether the dweller's travel status places them inside the vault."""
+        return self.status not in (DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING)
+
     # Exit requests: a dweller in despair asks to leave once they have been unhappy long enough;
     # the ask is resolved by granting or refusing it, or withdrawn when their mood recovers.
     exit_requested_at: datetime | None = Field(default=None)

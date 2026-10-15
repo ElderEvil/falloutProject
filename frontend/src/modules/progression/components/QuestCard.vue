@@ -100,10 +100,6 @@ const typeColor = computed(() => {
   return QUEST_TYPE_COLORS[quest.quest_type] || QUEST_TYPE_COLORS.side
 })
 
-const isBorderedCategory = computed(() =>
-  ['building', 'exploration'].includes(quest.quest_category ?? '')
-)
-
 const isChainQuest = computed(() => {
   return quest.chain_id !== null
 })
@@ -209,11 +205,7 @@ const handleAction = () => {
     <template #badges>
       <div class="quest-badges">
           <QuestTypeBadge :quest-type="quest.quest_type" />
-          <Badge
-            v-if="quest.quest_category"
-            :variant="isBorderedCategory ? 'outline' : 'secondary'"
-            class="category-badge"
-          >
+          <Badge v-if="quest.quest_category" variant="outline" class="category-badge">
             {{ quest.quest_category }}
           </Badge>
           <Badge v-if="isChainQuest" variant="outline" class="chain-badge">

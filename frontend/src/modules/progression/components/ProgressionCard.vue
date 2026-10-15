@@ -94,10 +94,11 @@ withDefaults(defineProps<Props>(), { description: null, completed: false })
   color: var(--color-theme-primary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  text-shadow: var(--glow-1);
 }
 
 .progression-description {
-  margin: 0 0 12px;
+  margin: 0;
   font-size: 0.9rem;
   line-height: 1.5;
   color: var(--color-theme-primary);

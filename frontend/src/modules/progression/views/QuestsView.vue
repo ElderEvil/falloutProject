@@ -103,6 +103,15 @@ const completedQuests = computed(() => questStore.questCategories.completed)
 // Travelling parties stay visible on the active tab and keep the poll alive.
 const travellingOrActiveQuests = computed(() => [...activeQuests.value, ...returningQuests.value])
 
+/** Active-tab display order: rewards ready to claim first, then travelling and in-flight quests. */
+const activeQuestsList = computed(() => [
+  ...readyToClaimQuests.value.map((quest) => ({ quest, status: 'ready' as const })),
+  ...travellingOrActiveQuests.value.map((quest) => ({
+    quest,
+    status: isQuestReturning(quest) ? ('returning' as const) : ('active' as const),
+  })),
+])
+
 const refreshActiveQuests = async () => {
   if (!vaultId.value || travellingOrActiveQuests.value.length === 0) return
   await questStore.fetchVaultQuests(vaultId.value, { silent: true })
@@ -308,49 +317,67 @@ onMounted(async () => {
             </PageHeader>
 
             <Tabs :model-value="activeTab" @update:model-value="activeTab = String($event)">
-              <TabsList>
-                <TabsTrigger v-for="tab in questTabs" :key="tab.key" :value="tab.key">
-                  <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
-                  {{ tab.label }}
-                </TabsTrigger>
-              </TabsList>
+              <div class="tabs-row">
+                <TabsList>
+                  <TabsTrigger v-for="tab in questTabs" :key="tab.key" :value="tab.key">
+                    <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
+                    {{ tab.label }}
+                  </TabsTrigger>
+                </TabsList>
+
+                <div v-if="activeTab === 'available'" class="filter-row">
+                  <Select
+                    :model-value="availableSort"
+                    @update:model-value="onAvailableSortChange"
+                  >
+                    <SelectTrigger
+                      size="sm"
+                      class="min-w-[9rem] border-theme-glow rounded-md px-3 py-2 text-[0.8125rem] opacity-[0.85] hover:opacity-100 hover:shadow-[0_0_8px_var(--color-theme-glow)]"
+                      aria-label="Sort available quests"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem
+                        v-for="option in availableSortOptions"
+                        :key="option.value"
+                        :value="option.value"
+                      >
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span v-if="showAllQuests" class="filter-hint">(Showing All)</span>
+                  <!-- Raw checkbox: no Checkbox/Switch primitive is vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
+                  <label class="toggle-label">
+                    <input v-model="showAllQuests" type="checkbox" class="toggle-input" />
+                    <span class="toggle-text">Show All</span>
+                  </label>
+                </div>
+              </div>
               <!-- Active Quests -->
               <div v-if="activeTab === 'active'" class="tab-content">
-                <div v-if="readyToClaimQuests.length > 0" class="quest-section">
-                  <h2 class="section-title">
-                    <Icon icon="mdi:treasure-chest" class="inline mr-2" />
-                    REWARDS READY TO CLAIM
-                  </h2>
+                <div v-if="activeQuestsList.length > 0" class="quest-section">
                   <div class="quest-grid">
                     <QuestCard
-                      v-for="quest in readyToClaimQuests"
-                      :key="quest.id"
-                      :quest="quest"
+                      v-for="entry in activeQuestsList"
+                      :key="entry.quest.id"
+                      :quest="entry.quest"
                       :vault-id="vaultId"
-                      status="ready"
+                      :status="entry.status"
+                      :party-members="
+                        entry.status === 'ready'
+                          ? undefined
+                          : questPartyMembersMap[entry.quest.id] || []
+                      "
                       @claim="handleClaimRewards"
-                    />
-                  </div>
-                </div>
-
-                <!-- Active Quests Section -->
-                <div v-if="travellingOrActiveQuests.length > 0" class="quest-section">
-                  <div class="quest-grid">
-                    <QuestCard
-                      v-for="quest in travellingOrActiveQuests"
-                      :key="quest.id"
-                      :quest="quest"
-                      :vault-id="vaultId"
-                      :status="isQuestReturning(quest) ? 'returning' : 'active'"
-                      :party-members="questPartyMembersMap[quest.id] || []"
                       @assign-party="handleAssignParty"
                     />
                   </div>
                 </div>
 
                 <!-- Empty State -->
-                <div
-                  v-if="readyToClaimQuests.length === 0 && travellingOrActiveQuests.length === 0"
+                <div v-if="activeQuestsList.length === 0"
                   class="empty-state"
                 >
                   <Icon icon="mdi:inbox" class="text-8xl mb-6 opacity-30" />
@@ -362,35 +389,6 @@ onMounted(async () => {
               <div v-if="activeTab === 'available'" class="tab-content">
                 <!-- Available Quests Section -->
                 <div v-if="filteredAvailableQuests.length > 0" class="quest-section">
-                  <div class="filter-row">
-                    <Select
-                      :model-value="availableSort"
-                      @update:model-value="onAvailableSortChange"
-                    >
-                      <SelectTrigger
-                        size="sm"
-                        class="min-w-[9rem] border-theme-glow rounded-md px-3 py-2 text-[0.8125rem] opacity-[0.85] hover:opacity-100 hover:shadow-[0_0_8px_var(--color-theme-glow)]"
-                        aria-label="Sort available quests"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem
-                          v-for="option in availableSortOptions"
-                          :key="option.value"
-                          :value="option.value"
-                        >
-                          {{ option.label }}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <span v-if="showAllQuests" class="filter-hint">(Showing All)</span>
-                    <!-- Raw checkbox: no Checkbox/Switch primitive is vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
-                    <label class="toggle-label">
-                      <input v-model="showAllQuests" type="checkbox" class="toggle-input" />
-                      <span class="toggle-text">Show All</span>
-                    </label>
-                  </div>
                   <div class="quest-grid">
                     <QuestCard
                       v-for="quest in sortedAvailableQuests"
@@ -554,19 +552,6 @@ onMounted(async () => {
   color: var(--color-theme-accent);
 }
 
-.section-title {
-  font-size: 1.3rem;
-  font-weight: bold;
-  color: var(--color-theme-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 0;
-  border-bottom: none;
-  padding-bottom: 0;
-}
 
 .toggle-label {
   display: flex;
@@ -629,5 +614,13 @@ onMounted(async () => {
 
 .empty-state p {
   font-size: 1.5rem;
+}
+
+.tabs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 </style>

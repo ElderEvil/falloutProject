@@ -1,4 +1,4 @@
-export type AIProvider = 'openai' | 'anthropic' | 'ollama' | 'lmstudio'
+export type AIProvider = 'openai' | 'ollama' | 'lmstudio'
 
 export type AIMode = 'gateway' | 'direct' | 'ollama' | 'lmstudio' | 'disabled'
 
@@ -42,7 +42,6 @@ export interface AISettingsUpdate {
 export const AI_PROVIDER_OPTIONS: { value: AIProvider | ''; label: string }[] = [
   { value: '', label: 'Default (from env)' },
   { value: 'openai', label: 'OpenAI' },
-  { value: 'anthropic', label: 'Anthropic' },
   { value: 'ollama', label: 'Ollama' },
   { value: 'lmstudio', label: 'LM Studio' },
 ]

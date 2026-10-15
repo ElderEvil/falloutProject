@@ -20,7 +20,7 @@ import base64
 import logging
 import warnings
 from dataclasses import dataclass
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self, cast
 
 import openai
 from pydantic_ai.models.openai import OpenAIChatModel
@@ -28,6 +28,12 @@ from pydantic_ai.providers.gateway import gateway_provider
 
 from app.core.config import Settings, settings
 from app.utils.image_processing import image_url_to_bytes
+
+if TYPE_CHECKING:
+    from openai.types import ImagesResponse
+    from openai.types.audio import Transcription
+    from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
+    from pydantic_ai.usage import RunUsage
 
 logger = logging.getLogger(__name__)
 
@@ -152,19 +158,6 @@ class AIService:
                     provider = OpenAIProvider(api_key=config.OPENAI_API_KEY, base_url=base_url)
                     self._model = OpenAIChatModel(model_name=config.AI_MODEL, provider=provider)
                     logger.warning("AI initialized with direct OpenAI API (deprecated)")
-            case "anthropic":
-                if config.ANTHROPIC_API_KEY:
-                    # Anthropic direct access - use Gateway instead for better compatibility
-                    raise RuntimeError(
-                        f"Direct Anthropic API access is not supported. "
-                        f"AI_PROVIDER={config.AI_PROVIDER} requires Pydantic AI Gateway. "
-                        f"Set PYDANTIC_AI_GATEWAY_API_KEY to use Anthropic models, "
-                        f"or switch to a supported provider (AI_PROVIDER=openai, ollama)."
-                    )
-                logger.warning(
-                    "Direct provider mode does not support: %s. AI features will be disabled.",
-                    config.AI_PROVIDER,
-                )
             case _:
                 logger.warning(
                     "Direct provider mode does not support: %s. AI features will be disabled.",
@@ -306,7 +299,10 @@ class AIService:
             quality="auto",
             n=1,
         )
-        data = response.data[0]
+        images = cast("ImagesResponse", response).data
+        if not images:
+            raise RuntimeError("Failed to generate image: no image data returned")
+        data = images[0]
 
         if return_bytes:
             if data.b64_json:
@@ -345,6 +341,8 @@ class AIService:
             )
 
     def _sync_generate_audio(self, model: str, voice: str, text: str) -> bytes:
+        if self._client is None:
+            raise RuntimeError("OpenAI client not available")
         with self._client.audio.speech.with_streaming_response.create(
             model=model,
             voice=voice,
@@ -378,9 +376,9 @@ class AIService:
         response = await asyncio.to_thread(
             self._client.chat.completions.create,
             model="gpt-3.5-turbo",
-            messages=messages,
+            messages=cast("list[ChatCompletionMessageParam]", messages),
         )
-        content = response.choices[0].message.content
+        content = cast("ChatCompletion", response).choices[0].message.content
         if content is None:
             raise RuntimeError("Failed to generate completion: no content returned")
         return content
@@ -404,7 +402,7 @@ class AIService:
                 {"role": "user", "content": prompt},
             ],
         )
-        content = response.choices[0].message.content
+        content = cast("ChatCompletion", response).choices[0].message.content
         if content is None:
             raise RuntimeError("Failed to generate JSON completion: no content returned")
         return content
@@ -420,7 +418,7 @@ class AIService:
             voice="echo",
             input=text_input,
         )
-        await asyncio.to_thread(response.stream_to_file, speech_file_path)
+        await asyncio.to_thread(response.write_to_file, speech_file_path)
         return speech_file_path
 
     async def transcribe_audio(self, audio_bytes: bytes, filename: str = "audio.webm") -> str:
@@ -446,7 +444,7 @@ class AIService:
                 file=audio_file,
                 response_format="text",
             )
-            return response.strip() if isinstance(response, str) else response.text.strip()
+            return response.strip() if isinstance(response, str) else cast("Transcription", response).text.strip()
         except Exception as e:
             err_msg = f"Error transcribing audio: {e}"
             logger.exception(err_msg)
@@ -476,7 +474,7 @@ class AIService:
         result = await agent.run(user_input)
 
         try:
-            usage = result.usage()
+            usage = cast("RunUsage", result.usage() if callable(result.usage) else result.usage)
             prompt_tokens = usage.input_tokens
             completion_tokens = usage.output_tokens
             total_tokens = usage.total_tokens

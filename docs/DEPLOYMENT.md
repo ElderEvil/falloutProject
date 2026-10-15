@@ -401,7 +401,7 @@ PRODUCTION_API_URL=https://fallout-api.evillab.tech
 PYDANTIC_AI_GATEWAY_API_KEY=... # Recommended: routes chat and Pydantic AI agents through Gateway
 PYDANTIC_AI_GATEWAY_ROUTE=...   # Optional custom Gateway provider or routing-group identifier
 PYDANTIC_AI_GATEWAY_BASE_URL=... # Regional Gateway proxy, e.g. https://gateway-eu.pydantic.dev/proxy
-AI_PROVIDER=openai               # or: anthropic; Ollama is local development only
+AI_PROVIDER=openai               # Ollama and LM Studio are local development only
 AI_MODEL=gpt-4o
 OPENAI_API_KEY=sk-...            # Still required for OpenAI image generation, TTS, and Whisper
 ```

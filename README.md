@@ -263,7 +263,7 @@ docker compose start fastapi
   - `PYDANTIC_AI_GATEWAY_API_KEY` - Recommended for chat and Pydantic AI agent calls; it routes to `AI_PROVIDER` and `AI_MODEL`
   - `PYDANTIC_AI_GATEWAY_ROUTE` - Optional custom Gateway provider or routing-group identifier
   - `PYDANTIC_AI_GATEWAY_BASE_URL` - Regional Gateway proxy URL, such as `https://gateway-eu.pydantic.dev/proxy`
-  - `AI_PROVIDER` - `openai` (default), `anthropic`, or `ollama` (local/free)
+  - `AI_PROVIDER` - `openai` (default), `ollama`, or `lmstudio` (local/free)
   - `OPENAI_API_KEY` - Required for OpenAI image generation, TTS, and transcription; also enables legacy direct chat when no Gateway key is set
   - Database: `POSTGRES_SERVER`, `POSTGRES_DB`, `POSTGRES_USER`
   - Redis: `REDIS_HOST`, `REDIS_PORT`

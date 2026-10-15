@@ -14,6 +14,7 @@ interface Props extends PrimitiveProps {
   disabled?: boolean
   'aria-label'?: string
   'aria-describedby'?: string
+  ariaDescribedby?: string
   ariaLabel?: string
   'aria-expanded'?: boolean
   ariaExpanded?: boolean
@@ -44,7 +45,7 @@ const rootAttrs = computed<Record<string, unknown>>(() => ({
   disabled: props.disabled,
   type: props.type,
   'aria-label': props.ariaLabel ?? props['aria-label'],
-  'aria-describedby': props['aria-describedby'],
+  'aria-describedby': props.ariaDescribedby ?? props['aria-describedby'],
   'aria-expanded': props.ariaExpanded ?? props['aria-expanded'],
   'aria-pressed': props.ariaPressed ?? props['aria-pressed'],
   title: props.title,

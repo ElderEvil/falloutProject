@@ -1,7 +1,7 @@
 """Add last_presence_at to game_state (incident spawn presence gating).
 
 Revision ID: 8ea4b5cffb08
-Revises: d87f17395e24
+Revises: e91c7a50b62d
 Create Date: 2026-10-15 00:00:00.000000
 
 Visibility-gated vault-view heartbeat timestamp; spawns require one inside
@@ -16,7 +16,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "8ea4b5cffb08"
-down_revision: str | None = "d87f17395e24"
+down_revision: str | None = "e91c7a50b62d"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

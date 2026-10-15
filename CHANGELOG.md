@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.205.0 (2026-10-15)
+
+### Features
+
+* Response Station — a home for the fire & radiation teams ([#997](https://github.com/ElderEvil/falloutProject/issues/997)) ([#1002](https://github.com/ElderEvil/falloutProject/issues/1002)) ee492b9
+
 ## 2.204.0 (2026-10-14)
 
 ### Features

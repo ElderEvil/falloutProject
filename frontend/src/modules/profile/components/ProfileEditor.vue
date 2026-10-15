@@ -76,7 +76,7 @@
           <Select v-model="themeSelectModel">
             <SelectTrigger
               id="theme"
-              class="w-full rounded-md border-theme-primary/30 bg-surface-sunken px-3 py-2.5 text-sm text-theme-primary data-[size=default]:h-auto"
+              class="w-full"
             >
               <SelectValue placeholder="Select a theme" />
             </SelectTrigger>

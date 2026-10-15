@@ -302,7 +302,8 @@ watch(() => [props.vaultId, props.itemType], loadAll)
         />
         <Select v-model="rarityFilterSelect">
           <SelectTrigger
-            class="h-auto rounded-sm border-theme-primary/30 bg-surface-sunken/60 px-2 py-1 text-xs text-theme-primary data-[size=default]:h-auto"
+            size="sm"
+            class="text-xs"
           >
             <SelectValue placeholder="All rarities" />
           </SelectTrigger>

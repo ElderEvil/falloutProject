@@ -74,8 +74,13 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
         return result.scalar_one_or_none()
 
     async def get_by_vault_for_update(self, db_session: AsyncSession, vault_id: UUID4) -> Storage | None:
-        """Get a vault's storage row locked FOR UPDATE (overflow claiming serialization)."""
-        result = await db_session.execute(select(self.model).where(self.model.vault_id == vault_id).with_for_update())
+        """Load fresh vault storage state locked FOR UPDATE."""
+        result = await db_session.execute(
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         return result.scalar_one_or_none()
 
     @staticmethod

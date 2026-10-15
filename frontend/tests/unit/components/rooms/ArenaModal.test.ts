@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createIconifyMock, createToastMock } from '../../helpers/mocks'
 import { mount, flushPromises, enableAutoUnmount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import { useDwellerMedicalStore } from '@/modules/dwellers/stores/dwellerMedical'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import ArenaModal from '@/modules/rooms/components/ArenaModal.vue'
 import type { ArenaRoomState } from '@/modules/rooms/api/arena'
 
@@ -516,6 +518,33 @@ describe('ArenaModal', () => {
 
     expect(wrapper.text()).toContain('NEEDS DWELLERS + CREATURES')
   })
+
+  it.each([true, false])(
+    'refreshes vault stock and stops on a failed heal (success=%s)',
+    async (success) => {
+      storeMock.currentRoom = {
+        ...storeMock.readyRoom,
+        match_done: true,
+        team_a: storeMock.readyRoom.team_a.map((fighter) => ({ ...fighter, health: 10 })),
+        team_b: storeMock.readyRoom.team_b.map((fighter) => ({ ...fighter, health: 10 })),
+      }
+      const wrapper = mountModal()
+      const medical = useDwellerMedicalStore()
+      const heal = vi
+        .spyOn(medical, 'useStimpack')
+        .mockResolvedValue(success ? ({ health: 60 } as never) : null)
+      const refresh = vi.spyOn(useVaultStore(), 'refreshVault').mockResolvedValue()
+      await flushPromises()
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('HEAL INJURED'))!
+        .trigger('click')
+      await flushPromises()
+      expect(heal).toHaveBeenCalledTimes(success ? 2 : 1)
+      expect(heal).toHaveBeenCalledWith('a-1', 'test-token')
+      expect(refresh).toHaveBeenCalledWith('vault-1', 'test-token')
+    }
+  )
 
   it('excludes defeated creatures from the heal-injured action', async () => {
     storeMock.currentRoom = {

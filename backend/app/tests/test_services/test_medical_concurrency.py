@@ -156,3 +156,70 @@ async def test_concurrent_use_radaway_spends_once(
     removal = radiation_removal_amount(30, successes[0].max_health)
     assert successes[0].radiation == 30 - removal
     assert successes[0].radaway == 0
+
+
+@pytest_asyncio.fixture
+async def vault_stimpack_stock(live_pg_engine: AsyncEngine, radiated_dweller: tuple[UUID4, int]):
+    """Two injured dwellers sharing the last vault stimpack."""
+    from app.models.storage import Storage
+    from app.tests.factory.dwellers import create_random_common_dweller
+
+    maker = _sessions(live_pg_engine)
+    async with maker() as session:
+        first = await session.get(Dweller, radiated_dweller[0])
+        assert first is not None
+        first.stimpack = 0
+        second = Dweller(**(create_random_common_dweller() | {"vault_id": first.vault_id, "health": 10, "stimpack": 0}))
+        stock = Storage(vault_id=first.vault_id, stimpack=1)
+        session.add_all([first, second, stock])
+        await session.commit()
+        ids = (first.id, second.id, stock.id)
+    yield ids
+    async with maker() as session:
+        await session.execute(delete(Storage).where(Storage.id == ids[2]))
+        await session.execute(delete(Dweller).where(Dweller.id == ids[1]))
+        await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_two_dwellers_cannot_spend_the_same_vault_stimpack(live_pg_engine: AsyncEngine, vault_stimpack_stock):
+    """Separate fighter requests sharing one dose heal exactly one fighter."""
+    from app.models.storage import Storage
+
+    first_id, second_id, stock_id = vault_stimpack_stock
+    maker = _sessions(live_pg_engine)
+    async with maker() as first, maker() as second:
+        results = await asyncio.gather(
+            medical_service.use_stimpack(first, first_id),
+            medical_service.use_stimpack(second, second_id),
+            return_exceptions=True,
+        )
+    assert sum(isinstance(result, Dweller) for result in results) == 1, results
+    assert sum(isinstance(result, ResourceConflictException) for result in results) == 1, results
+    async with maker() as session:
+        stock = await session.get(Storage, stock_id)
+        assert stock is not None
+        assert stock.stimpack == 0
+
+
+@pytest.mark.asyncio
+async def test_vault_stimpack_use_waits_for_pending_stock_spend(live_pg_engine: AsyncEngine, vault_stimpack_stock):
+    """A pending stock deduction must be seen even when the actor has cached the old row."""
+    from app.models.storage import Storage
+
+    first_id, _, stock_id = vault_stimpack_stock
+    maker = _sessions(live_pg_engine)
+    async with maker() as holder, maker() as actor:
+        cached = await actor.get(Storage, stock_id)
+        assert cached is not None
+        assert cached.stimpack == 1
+        async with holder.begin():
+            stock = await holder.get(Storage, stock_id)
+            assert stock is not None
+            stock.stimpack = 0
+            await holder.flush()
+            task = asyncio.create_task(medical_service.use_stimpack(actor, first_id))
+            await asyncio.sleep(0.5)
+            assert not task.done(), "healing did not wait for the stock mutation"
+        with pytest.raises(ResourceConflictException):
+            await asyncio.wait_for(task, timeout=10)

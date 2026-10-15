@@ -63,7 +63,11 @@ async def get_dweller_medical_status(
 
 
 async def use_stimpack(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
-    """Spend one carried stimpack and heal the dweller up to the radiation-reduced ceiling."""
+    """Heal using a carried stimpack, falling back to vault stock for in-vault dwellers."""
+    current = await dweller_crud.get(db_session, dweller_id)
+    vault_id = current.vault_id
+    # Stock first, then the dweller: match bulk recovery's lock order.
+    storage = await storage_crud.get_by_vault_for_update(db_session, vault_id) if vault_id else None
     dweller_obj = await dweller_crud.get_for_update(db_session, dweller_id)
     if dweller_obj is None:
         raise ResourceNotFoundException(Dweller, identifier=dweller_id)
@@ -71,7 +75,11 @@ async def use_stimpack(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
     if dweller_obj.is_dead:
         raise ResourceConflictException(detail="Dead dweller must be revived before treatment.")
 
-    if dweller_obj.stimpack <= 0:
+    carried = dweller_obj.stimpack > 0
+    can_use_storage = (
+        dweller_obj.is_in_vault and dweller_obj.vault_id == vault_id and storage is not None and storage.stimpack > 0
+    )
+    if not carried and not can_use_storage:
         raise ResourceConflictException(detail="No stimpacks available to use.")
 
     if dweller_obj.health >= dweller_obj.effective_max_health:
@@ -79,8 +87,12 @@ async def use_stimpack(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
 
     new_health = apply_health_gain(dweller_obj, stimpack_heal_amount(dweller_obj.max_health))
 
+    if not carried and storage is not None:
+        storage.stimpack -= 1
+        db_session.add(storage)
+
     return await dweller_crud.update(
-        db_session, dweller_id, DwellerUpdate(health=new_health, stimpack=dweller_obj.stimpack - 1)
+        db_session, dweller_id, DwellerUpdate(health=new_health, stimpack=dweller_obj.stimpack - int(carried))
     )
 
 

@@ -20,6 +20,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/core/components/ui/tooltip'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useToast } from '@/core/composables/useToast'
@@ -63,6 +64,7 @@ const authStore = useAuthStore()
 const toast = useToast()
 const { management: dwellerManagementStore } = useDwellerStore()
 const medicalStore = useDwellerMedicalStore()
+const vaultStore = useVaultStore()
 const arenaStore = useArenaStore()
 
 const isLoading = ref(true)
@@ -496,10 +498,11 @@ const healInjured = async () => {
   isHealing.value = true
   try {
     for (const fighter of injuredFighters.value) {
-      await medicalStore.useStimpack(fighter.id, authStore.token)
+      const healed = await medicalStore.useStimpack(fighter.id, authStore.token)
+      if (!healed) break
     }
     previousHp.value = {}
-    await load(true)
+    await Promise.all([load(true), vaultStore.refreshVault(props.vaultId, authStore.token)])
   } finally {
     isHealing.value = false
   }
@@ -864,8 +867,9 @@ const updateMode = (value: unknown) => {
           Match rewards &amp; recovery
         </summary>
         <p class="pt-2 leading-relaxed">
-          Winners gain happiness and XP. Losing dwellers lose happiness and are left at 1 HP. Check
-          their health before the next fight. Change the fighters to start a new match.
+          Winners gain happiness and XP. Losing dwellers lose happiness and are left at 1 HP.
+          Healing uses carried stimpaks, or vault storage when none are carried. Check their health
+          before the next fight. Change the fighters to start a new match.
         </p>
       </details>
     </template>

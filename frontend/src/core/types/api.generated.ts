@@ -1025,7 +1025,7 @@ export interface paths {
         put?: never;
         /**
          * Use Stimpack
-         * @description Use one of the dweller's stimpacks to heal them.
+         * @description Heal using a carried stimpack, or vault storage when the dweller is inside the vault.
          *
          *     Returns:
          *         DwellerRead: The healed dweller.

@@ -3,8 +3,10 @@
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import DwellerStatusEnum
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
+from app.models.storage import Storage
 from app.models.vault import Vault
 from app.services import medical_service
 from app.utils.exceptions import ContentNoChangeException, ResourceConflictException
@@ -85,6 +87,70 @@ class TestUseRadaway:
 
 class TestUseStimpack:
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(("health", "radiation"), [(10, 0), (30, 40)])
+    async def test_uses_vault_storage_when_no_stimpack_is_carried(
+        self, async_session: AsyncSession, vault: Vault, dweller: Dweller, health: int, radiation: int
+    ):
+        await _set_dweller_state(async_session, dweller, max_health=100, health=health, radiation=radiation, stimpack=0)
+        storage = Storage(vault_id=vault.id, stimpack=2, radaway=3)
+        async_session.add(storage)
+        await async_session.commit()
+
+        healed = await medical_service.use_stimpack(async_session, dweller.id)
+
+        await async_session.refresh(storage)
+        assert healed.health == min(health + int(100 * game_config.health.stimpack_heal_percent), 100 - radiation)
+        assert healed.stimpack == 0
+        assert storage.stimpack == 1
+        assert storage.radaway == 3
+
+    @pytest.mark.asyncio
+    async def test_prefers_carried_stimpack_without_spending_vault_stock(
+        self, async_session: AsyncSession, vault: Vault, dweller: Dweller
+    ):
+        await _set_dweller_state(async_session, dweller, max_health=100, health=10, radiation=0, stimpack=1)
+        storage = Storage(vault_id=vault.id, stimpack=2)
+        async_session.add(storage)
+        await async_session.commit()
+        healed = await medical_service.use_stimpack(async_session, dweller.id)
+        await async_session.refresh(storage)
+        assert healed.stimpack == 0
+        assert storage.stimpack == 2
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status", [DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING])
+    async def test_outside_dwellers_cannot_use_vault_stock(
+        self, async_session: AsyncSession, vault: Vault, dweller: Dweller, status: DwellerStatusEnum
+    ):
+        await _set_dweller_state(async_session, dweller, max_health=100, health=10, radiation=0, stimpack=0)
+        dweller.status = status
+        storage = Storage(vault_id=vault.id, stimpack=2)
+        async_session.add_all([dweller, storage])
+        await async_session.commit()
+        with pytest.raises(ResourceConflictException, match="No stimpacks"):
+            await medical_service.use_stimpack(async_session, dweller.id)
+        await async_session.refresh(storage)
+        assert storage.stimpack == 2
+        assert dweller.health == 10
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(("health", "dead"), [(100, False), (0, True)])
+    async def test_does_not_waste_vault_stock_on_full_health_or_dead_dweller(
+        self, async_session: AsyncSession, vault: Vault, dweller: Dweller, health: int, dead: bool
+    ):
+        await _set_dweller_state(async_session, dweller, max_health=100, health=health, radiation=0, stimpack=0)
+        dweller.is_dead = dead
+        storage = Storage(vault_id=vault.id, stimpack=2)
+        async_session.add_all([dweller, storage])
+        await async_session.commit()
+        expected = ResourceConflictException if dead else ContentNoChangeException
+        with pytest.raises(expected):
+            await medical_service.use_stimpack(async_session, dweller.id)
+        await async_session.refresh(storage)
+        assert storage.stimpack == 2
+        assert dweller.health == health
+
+    @pytest.mark.asyncio
     async def test_heals_configured_share_of_max_health(
         self, async_session: AsyncSession, vault: Vault, dweller: Dweller
     ):
@@ -133,8 +199,6 @@ class TestDistributeRecoverySupplies:
     async def test_treats_dweller_with_radaway_then_stimpack(
         self, async_session: AsyncSession, vault: Vault, dweller: Dweller
     ):
-        from app.models.storage import Storage
-
         await _set_dweller_state(async_session, dweller, max_health=100, radiation=100, health=1)
         async_session.add(Storage(vault_id=vault.id, radaway=10, stimpack=10))
         await async_session.commit()
@@ -171,8 +235,6 @@ class TestDistributeRecoverySupplies:
 
     @pytest.mark.asyncio
     async def test_empty_stock_is_noop(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
-        from app.models.storage import Storage
-
         await _set_dweller_state(async_session, dweller, radiation=50)
         async_session.add(Storage(vault_id=vault.id, radaway=0, stimpack=0))
         await async_session.commit()

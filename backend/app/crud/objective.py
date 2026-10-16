@@ -4,7 +4,6 @@ from collections.abc import Sequence
 from uuid import UUID
 
 from pydantic import UUID4
-from sqlalchemy import or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
@@ -144,14 +143,10 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
     async def get_active_with_links(
         self, db_session: AsyncSession, vault_id: UUID4, objective_type: str
     ) -> list[tuple[Objective, VaultObjectiveProgressLink]]:
-        """(objective, link) pairs of unfinished vault objectives of one objective_type.
+        """Unfinished assigned objectives, including later starter steps.
 
-        Only the current ``starter`` step (lowest ``sequence`` unfinished link) is
-        returned for the ``starter`` category; non-current starter steps are excluded
-        so evaluators never progress an out-of-order objective. Non-starter
-        categories are unaffected.
+        Record actions as they happen; reward settlement enforces guide claim order.
         """
-        current_starter_id = self._current_starter_query(vault_id)
         query = (
             select(self.model, self.link_model)
             .join(self.link_model)
@@ -160,10 +155,6 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
                 col(self.link_model.is_completed).is_(False),
                 self.model.objective_type == objective_type,
                 self.link_model.progress < self.link_model.total,
-                or_(
-                    col(self.model.category) != ObjectiveCategoryEnum.STARTER,
-                    col(self.model.id).in_(current_starter_id),
-                ),
             )
         )
         query = query.with_for_update(of=self.link_model).execution_options(populate_existing=True)

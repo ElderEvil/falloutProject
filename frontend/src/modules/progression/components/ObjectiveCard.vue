@@ -12,6 +12,7 @@ import ProgressionCard from './ProgressionCard.vue'
 interface Props {
   objective: Objective
   claiming?: boolean
+  claimLocked?: boolean
 }
 
 const props = defineProps<Props>()
@@ -63,6 +64,10 @@ const canClaim = computed(() => isObjectiveClaimable(props.objective))
     </template>
 
     <template #note>
+      <p v-if="claimLocked" class="objective-note">
+        {{ canClaim ? 'Progress saved.' : 'Actions count now.' }} Claim earlier starter rewards
+        first.
+      </p>
       <p v-if="objective.target_entity?.production_only" class="objective-note">
         Production counts even when storage is full.
       </p>
@@ -101,7 +106,7 @@ const canClaim = computed(() => isObjectiveClaimable(props.objective))
         v-if="canClaim"
         class="claim-btn"
         variant="default"
-        :disabled="claiming"
+        :disabled="claiming || claimLocked"
         @click="emit('claim', objective.id)"
       >
         <Icon icon="mdi:gift-open" class="btn-icon" />

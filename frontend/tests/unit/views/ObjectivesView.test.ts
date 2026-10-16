@@ -89,6 +89,23 @@ beforeEach(() => {
   document.querySelectorAll('[role="tooltip"]').forEach((element) => element.remove())
 })
 
+it('saves future starter progress without offering or counting a locked claim', async () => {
+  objectivesStore.objectives = [starterObjective(0), { ...starterObjective(1), progress: 1 }]
+  wrapper = mountView()
+  await flushPromises()
+
+  expect(wrapper.text()).toContain('Progress saved. Claim earlier starter rewards first.')
+  expect(wrapper.find('.claim-btn').attributes('disabled')).toBeDefined()
+  expect(wrapper.find('[aria-label="1 reward ready to claim"]').exists()).toBe(false)
+
+  objectivesStore.objectives[0]!.is_completed = true
+  await nextTick()
+
+  expect(wrapper.text()).not.toContain('Progress saved. Claim earlier starter rewards first.')
+  expect(wrapper.find('.claim-btn').attributes('disabled')).toBeUndefined()
+  expect(wrapper.find('[aria-label="1 reward ready to claim"]').exists()).toBe(true)
+})
+
 describe('ObjectivesView claim flow', () => {
   it('claiming an objective calls completeObjective and opens the completion modal', async () => {
     objectivesStore.objectives = [{ ...dailyObjective }]
@@ -151,7 +168,13 @@ describe('ObjectivesView objective gating', () => {
   it('ignores a retired starter when picking the current step', async () => {
     objectivesStore.objectives = [
       starterObjective(5, true),
-      { ...dailyObjective, id: 'retired', category: 'starter', sequence: null, objective_type: undefined },
+      {
+        ...dailyObjective,
+        id: 'retired',
+        category: 'starter',
+        sequence: null,
+        objective_type: undefined,
+      },
       { ...dailyObjective, id: 'daily-1' },
     ]
 
@@ -173,11 +196,7 @@ describe('ObjectivesView objective gating', () => {
   })
 
   it('opens the regular tabs once the Office is completed', async () => {
-    objectivesStore.objectives = [
-      officeObjective(true),
-      starterObjective(6),
-      { ...dailyObjective },
-    ]
+    objectivesStore.objectives = [officeObjective(true), starterObjective(6), { ...dailyObjective }]
 
     wrapper = mountView()
     await wrapper.vm.$nextTick()
@@ -202,7 +221,9 @@ describe('ObjectivesView objective gating', () => {
 
   it('keeps the Starter tab after the spotlight is skipped', async () => {
     localStorage.setItem('onboarding:v1', JSON.stringify({ 'vault-123': { skipped: true } }))
-    objectivesStore.objectives = [{ ...starterObjective(1), challenge: 'Match a dweller to their room' }]
+    objectivesStore.objectives = [
+      { ...starterObjective(1), challenge: 'Match a dweller to their room' },
+    ]
 
     wrapper = mountView()
     await wrapper.vm.$nextTick()
@@ -245,7 +266,10 @@ describe('ObjectivesView claimable counters', () => {
     await wrapper.vm.$nextTick()
 
     const tabText = (label: string) =>
-      wrapper.findAll('[role="tab"]').find((tab) => tab.text().startsWith(label))?.text() ?? ''
+      wrapper
+        .findAll('[role="tab"]')
+        .find((tab) => tab.text().startsWith(label))
+        ?.text() ?? ''
 
     expect(tabText('Daily')).toContain('2')
     expect(tabText('Weekly')).toContain('1')
@@ -254,7 +278,9 @@ describe('ObjectivesView claimable counters', () => {
   })
 
   it('does not count an already claimed reward', async () => {
-    objectivesStore.objectives = [{ ...dailyObjective, is_completed: true, progress: 100, total: 100 }]
+    objectivesStore.objectives = [
+      { ...dailyObjective, is_completed: true, progress: 100, total: 100 },
+    ]
 
     wrapper = mountView()
     await wrapper.vm.$nextTick()

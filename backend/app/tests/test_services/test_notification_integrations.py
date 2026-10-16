@@ -18,6 +18,31 @@ from app.services.notification_service import NotificationService
 from app.services.radio_service import RadioService
 
 
+class TestObjectiveProgressNotifications:
+    @pytest.mark.parametrize("locked", [False, True])
+    async def test_earned_objective_explains_claim_availability(self, async_session, user_with_vault, locked):
+        user, vault = user_with_vault
+        with (
+            patch("app.services.notification_service.manager.send_personal_message", new_callable=AsyncMock),
+            patch("app.services.notification_service.sse_manager.publish", new_callable=AsyncMock),
+        ):
+            notification = await NotificationService.notify_objective_completed(
+                async_session,
+                user.id,
+                vault.id,
+                "Scrap a rare weapon",
+                "300 caps",
+                meta_data={"ready_to_claim": not locked, "claim_locked": locked},
+            )
+        assert notification.notification_type == NotificationType.OBJECTIVE_COMPLETED
+        if locked:
+            assert notification.title == "Objective Progress Saved"
+            assert "claim earlier starter rewards first" in notification.message
+        else:
+            assert notification.title == "Objective Reward Ready"
+            assert "claim 300 caps in Objectives" in notification.message
+
+
 class TestIncidentNotifications:
     """Test incident spawn notifications."""
 

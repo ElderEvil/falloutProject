@@ -19,6 +19,18 @@ class RadioModeEnum(StrEnum):
     HAPPINESS = "happiness"
 
 
+class VaultModeEnum(CaseInsensitiveEnum):
+    """Per-vault difficulty mode.
+
+    Chosen once at vault creation and immutable afterwards. ``SURVIVAL`` makes every
+    dweller death permanent (immediate permanent-death memorial, no caps revival
+    window). Stored as a plain string column, mirroring ``Vault.radio_mode``.
+    """
+
+    STANDARD = "standard"
+    SURVIVAL = "survival"
+
+
 class DwellerStatusEnum(CaseInsensitiveEnum):
     IDLE = "idle"
     WORKING = "working"

@@ -7,6 +7,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/core/components/ui/tooltip'
+import { Badge } from '@/core/components/ui/badge'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
@@ -27,6 +28,14 @@ const props = defineProps<{
 const isPaused = computed(() => vaultStore.gameState?.is_paused ?? false)
 const isLoading = computed(() => vaultStore.isLoading)
 const isSpawningIncident = ref(false)
+
+const vault = computed(() => vaultStore.loadedVaults[props.vaultId] ?? null)
+const isSurvival = computed(() => vault.value?.vault_mode === 'survival')
+const modeBadgeClass = computed(() =>
+  isSurvival.value
+    ? 'border-danger/60 bg-danger/10 text-danger'
+    : 'border-theme-primary/40 bg-theme-primary/10 text-theme-primary'
+)
 
 const testIncidents = [
   { type: IncidentType.FIRE, label: 'Fire', icon: 'mdi:fire' },
@@ -91,6 +100,22 @@ onMounted(() => {
   <div
     class="fixed bottom-4 left-1/2 z-50 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-nowrap items-center gap-2 overflow-x-auto rounded border border-theme-primary/30 bg-surface-warm/90 px-4 py-2 shadow-lg"
   >
+    <!-- Vault Mode -->
+    <div v-if="vault" class="flex shrink-0 items-center gap-2">
+      <Badge variant="outline" class="badge-info gap-1.5 px-2.5" :class="modeBadgeClass">
+        <Icon
+          :icon="isSurvival ? 'mdi:skull-outline' : 'mdi:shield-check-outline'"
+          class="h-3.5 w-3.5"
+        />
+        <span class="text-[0.65rem] font-bold tracking-[0.1em]">
+          {{ isSurvival ? 'SURVIVAL' : 'STANDARD' }}
+        </span>
+      </Badge>
+      <span v-if="isSurvival" class="text-xs font-semibold text-danger">
+        Deaths are permanent
+      </span>
+    </div>
+
     <!-- Game Time -->
     <div class="hidden shrink-0 items-center gap-2 text-theme-primary sm:flex">
       <Icon icon="mdi:clock-outline" class="h-5 w-5" />

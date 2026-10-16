@@ -31,6 +31,29 @@ describe('Vault Number Validation', () => {
       })
     })
 
+    describe('Vault Mode', () => {
+      it('should accept standard mode', () => {
+        const result = vaultNumberSchema.parse({ number: 100, vaultMode: 'standard' })
+        expect(result.vaultMode).toBe('standard')
+      })
+
+      it('should accept survival mode', () => {
+        const result = vaultNumberSchema.parse({ number: 100, vaultMode: 'survival' })
+        expect(result.vaultMode).toBe('survival')
+      })
+
+      it('should default to standard mode when omitted', () => {
+        const result = vaultNumberSchema.parse({ number: 100 })
+        expect(result.vaultMode).toBe('standard')
+      })
+
+      it('should reject an unknown mode', () => {
+        expect(() =>
+          vaultNumberSchema.parse({ number: 100, vaultMode: 'hardcore' as any })
+        ).toThrow(ZodError)
+      })
+    })
+
     describe('Edge Cases - Invalid Values', () => {
       it('should reject numbers below 1', () => {
         expect(() => vaultNumberSchema.parse({ number: -1 })).toThrow(ZodError)

@@ -6,6 +6,7 @@ import GameControlPanel from '@/modules/vault/components/shell/GameControlPanel.
 const vaultStore = {
   gameState: null,
   isLoading: false,
+  loadedVaults: {} as Record<string, { vault_mode: string }>,
   fetchGameState: vi.fn(),
   startResourcePolling: vi.fn(),
   stopResourcePolling: vi.fn(),
@@ -31,6 +32,7 @@ vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span />', props: [
 describe('GameControlPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vaultStore.loadedVaults = {}
   })
 
   it('keeps pause and spawn controls inside the panel box', () => {
@@ -56,5 +58,29 @@ describe('GameControlPanel', () => {
     await wrapper.findAll('.admin-incident-button')[0].trigger('click')
 
     expect(incidentStore.spawnDebugIncident).toHaveBeenCalledWith('vault-1', 'test-token', 'fire')
+  })
+
+  it('shows a neutral mode chip for standard vaults without the permanent-death note', () => {
+    vaultStore.loadedVaults = { 'vault-1': { vault_mode: 'standard' } }
+    const wrapper = mount(GameControlPanel, { props: { vaultId: 'vault-1' } })
+
+    expect(wrapper.text()).toContain('STANDARD')
+    expect(wrapper.text()).not.toContain('Deaths are permanent')
+  })
+
+  it('surfaces the permanent-death rule for survival vaults', () => {
+    vaultStore.loadedVaults = { 'vault-1': { vault_mode: 'survival' } }
+    const wrapper = mount(GameControlPanel, { props: { vaultId: 'vault-1' } })
+
+    expect(wrapper.text()).toContain('SURVIVAL')
+    expect(wrapper.text()).toContain('Deaths are permanent')
+    expect(wrapper.text()).not.toContain('STANDARD')
+  })
+
+  it('hides the mode chip until the vault has loaded', () => {
+    const wrapper = mount(GameControlPanel, { props: { vaultId: 'vault-1' } })
+
+    expect(wrapper.text()).not.toContain('STANDARD')
+    expect(wrapper.text()).not.toContain('SURVIVAL')
   })
 })

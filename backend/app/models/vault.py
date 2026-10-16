@@ -5,6 +5,7 @@ from pydantic import UUID4
 from sqlalchemy import Column, String
 from sqlmodel import Field, Relationship, SQLModel
 
+from app.core.enums import VaultModeEnum
 from app.models.base import BaseUUIDModel, SoftDeleteMixin, TimeStampMixin
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.vault_quest import (
@@ -42,6 +43,13 @@ class VaultBase(SQLModel):
     # Radio settings
     # Store as string in database to avoid enum type issues
     radio_mode: str = Field(default="recruitment", sa_column=Column(String(50)))
+
+    # String column, not a PG enum, mirroring radio_mode: avoids the enum-type/migration trap.
+    vault_mode: str = Field(
+        default=VaultModeEnum.STANDARD.value,
+        sa_column=Column(String(50), nullable=False),
+        description="Difficulty mode chosen at creation; immutable thereafter",
+    )
 
     # Incident control (e.g. a test playground vault)
     incidents_disabled: bool = Field(default=False, description="Suppresses incident spawns and processing")

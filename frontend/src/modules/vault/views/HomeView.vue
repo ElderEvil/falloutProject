@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, ref } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { MAX_USER_VAULTS, useVaultStore } from '../stores/vault'
+import { MAX_USER_VAULTS, useVaultStore, type VaultMode } from '../stores/vault'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { Alert, AlertDescription, AlertTitle } from '@/core/components/ui/alert'
+import { ToggleGroup, ToggleGroupItem } from '@/core/components/ui/toggle-group'
 import { Button } from '@/core/components/ui/button'
 import { Card } from '@/core/components/ui/card'
 import { Progress } from '@/core/components/ui/progress'
@@ -26,6 +27,22 @@ const isFlickering = inject('isFlickering', ref(true))
 
 const newVaultNumber = ref('')
 const boostedStart = ref(false)
+const vaultMode = ref<VaultMode>('standard')
+const vaultModes: { value: VaultMode; label: string; description: string }[] = [
+  {
+    value: 'standard',
+    label: 'Standard',
+    description: 'Normal difficulty. Dwellers lost in incidents can be revived with caps.',
+  },
+  {
+    value: 'survival',
+    label: 'Survival',
+    description: 'Deaths are permanent — no caps revival window.',
+  },
+]
+const selectVaultMode = (value: unknown) => {
+  if (value === 'standard' || value === 'survival') vaultMode.value = value
+}
 const showCreation = ref(false)
 const selectedVaultId = ref<string | null>(null)
 const creatingVault = ref(false)
@@ -66,13 +83,15 @@ const createVault = async () => {
     const createdId = await vaultStore.createVault(
       parseInt(newVaultNumber.value, 10),
       boosted,
-      authStore.token as string
+      authStore.token as string,
+      vaultMode.value
     )
     if (!createdId) return
 
     if (!boosted) markCreatedVault(createdId)
     newVaultNumber.value = ''
     boostedStart.value = false
+    vaultMode.value = 'standard'
     showCreation.value = false
   } finally {
     creatingVault.value = false
@@ -210,6 +229,33 @@ onMounted(async () => {
                 </span>
               </label>
             </div>
+
+            <fieldset class="mt-3">
+              <legend class="mb-2 text-xs font-bold tracking-[0.14em] text-theme-primary/60">
+                VAULT MODE
+              </legend>
+              <ToggleGroup
+                type="single"
+                :model-value="vaultMode"
+                :spacing="8"
+                class="grid w-full grid-cols-1 gap-2 sm:grid-cols-2"
+                @update:model-value="selectVaultMode"
+              >
+                <ToggleGroupItem
+                  v-for="mode in vaultModes"
+                  :key="mode.value"
+                  :value="mode.value"
+                  class="h-auto flex-col items-start gap-1 rounded border border-theme-primary/20 px-3 py-2 text-left data-[state=on]:border-theme-primary data-[state=on]:bg-theme-primary/10"
+                >
+                  <span class="font-semibold">{{ mode.label }}</span>
+                  <span class="text-xs leading-5 text-theme-primary/65">{{ mode.description }}</span>
+                </ToggleGroupItem>
+              </ToggleGroup>
+              <p class="mt-2 flex items-start gap-1.5 text-xs leading-5 text-warning">
+                <Icon icon="mdi:lock-outline" class="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                Vault mode is chosen at creation and cannot be changed later.
+              </p>
+            </fieldset>
           </div>
 
           <Alert variant="default" class="mt-4 border-warning bg-warning/10 text-warning">

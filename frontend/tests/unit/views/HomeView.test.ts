@@ -303,7 +303,7 @@ describe('HomeView', () => {
       // This documents current behavior - decimals are truncated
       expect(axios.post).toHaveBeenCalledWith(
         '/api/v1/vaults/initiate',
-        { number: 100, boosted: false }, // Not 100.5
+        { number: 100, boosted: false, vault_mode: 'standard' }, // Not 100.5
         expect.anything()
       )
     })
@@ -350,7 +350,7 @@ describe('HomeView', () => {
 
       expect(axios.post).toHaveBeenCalledWith(
         '/api/v1/vaults/initiate',
-        { number: 123, boosted: false },
+        { number: 123, boosted: false, vault_mode: 'standard' },
         expect.objectContaining({
           headers: expect.objectContaining({
             Authorization: 'Bearer test-token',
@@ -481,6 +481,48 @@ describe('HomeView', () => {
       await flushPromises()
 
       expect(axios.post).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('Vault Mode Selection', () => {
+    const findModeToggle = (wrapper: any, label: string) =>
+      wrapper.findAll('button').find((button: any) => button.text().includes(label))
+
+    it('defaults to Standard, explains both modes, and warns the choice is irreversible', async () => {
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      const standard = findModeToggle(wrapper, 'Standard')
+      const survival = findModeToggle(wrapper, 'Survival')
+      expect(standard).toBeDefined()
+      expect(survival).toBeDefined()
+      expect(standard!.attributes('data-state')).toBe('on')
+      expect(survival!.attributes('data-state')).toBe('off')
+      expect(wrapper.text()).toContain('can be revived with caps')
+      expect(wrapper.text()).toContain('Deaths are permanent')
+      expect(wrapper.text()).toContain('cannot be changed later')
+    })
+
+    it('posts the selected survival mode', async () => {
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'new-vault' } })
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
+
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      const input = wrapper.find('input[type="number"]')
+      await input.setValue('123')
+      await findModeToggle(wrapper, 'Survival')!.trigger('click')
+
+      const submitBtn = findCreateButton(wrapper)
+      await submitBtn!.trigger('click')
+      await flushPromises()
+
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/v1/vaults/initiate',
+        { number: 123, boosted: false, vault_mode: 'survival' },
+        expect.anything()
+      )
     })
   })
 

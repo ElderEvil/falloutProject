@@ -14,13 +14,19 @@ interface Props {
   title: string
   description?: string | null
   completed?: boolean
+  /** Status-driven border colour; falls back to the themed primary when omitted. */
+  borderColor?: string | null
 }
 
-withDefaults(defineProps<Props>(), { description: null, completed: false })
+withDefaults(defineProps<Props>(), { description: null, completed: false, borderColor: null })
 </script>
 
 <template>
-  <Card class="progression-card" :class="{ 'progression-card--completed': completed }">
+  <Card
+    class="progression-card"
+    :class="{ 'progression-card--completed': completed }"
+    :style="borderColor ? { borderColor } : undefined"
+  >
     <div class="progression-header">
       <slot name="leading" />
       <h3 class="progression-title">{{ title }}</h3>
@@ -28,6 +34,8 @@ withDefaults(defineProps<Props>(), { description: null, completed: false })
     </div>
 
     <p v-if="description" class="progression-description">{{ description }}</p>
+
+    <div class="progression-divider border-t border-theme-primary/20 my-3"></div>
 
     <slot />
 
@@ -80,7 +88,10 @@ withDefaults(defineProps<Props>(), { description: null, completed: false })
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin: -16px -16px 12px;
+  padding: 10px 16px;
+  background: color-mix(in srgb, var(--color-theme-primary) 14%, var(--color-surface-warm-dark));
+  border-bottom: 1px solid color-mix(in srgb, var(--color-theme-primary) 35%, transparent);
 }
 
 .progression-title {
@@ -92,10 +103,11 @@ withDefaults(defineProps<Props>(), { description: null, completed: false })
   color: var(--color-theme-primary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  text-shadow: var(--glow-1);
 }
 
 .progression-description {
-  margin: 0 0 12px;
+  margin: 0;
   font-size: 0.9rem;
   line-height: 1.5;
   color: var(--color-theme-primary);

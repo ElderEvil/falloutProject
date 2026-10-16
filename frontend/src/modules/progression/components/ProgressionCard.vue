@@ -14,13 +14,19 @@ interface Props {
   title: string
   description?: string | null
   completed?: boolean
+  /** Status-driven border colour; falls back to the themed primary when omitted. */
+  borderColor?: string | null
 }
 
-withDefaults(defineProps<Props>(), { description: null, completed: false })
+withDefaults(defineProps<Props>(), { description: null, completed: false, borderColor: null })
 </script>
 
 <template>
-  <Card class="progression-card" :class="{ 'progression-card--completed': completed }">
+  <Card
+    class="progression-card"
+    :class="{ 'progression-card--completed': completed }"
+    :style="borderColor ? { borderColor } : undefined"
+  >
     <div class="progression-header">
       <slot name="leading" />
       <h3 class="progression-title">{{ title }}</h3>

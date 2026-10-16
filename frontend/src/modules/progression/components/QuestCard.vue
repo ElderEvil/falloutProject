@@ -12,7 +12,7 @@ import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 import { linearProgress, parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
-import { isStateQuestCategory } from '../models/quest'
+import { QUEST_TYPE_COLORS, isStateQuestCategory } from '../models/quest'
 import type { QuestPartyMember, QuestRequirement, VaultQuest } from '../models/quest'
 import QuestTypeBadge from './QuestTypeBadge.vue'
 import QuestRewardList from './QuestRewardList.vue'
@@ -95,6 +95,10 @@ const questProgressLabel = computed(() => {
 const hasParty = computed(() => partyMembers && partyMembers.length > 0)
 const isStateQuest = computed(() => isStateQuestCategory(quest.quest_category))
 
+const typeColor = computed(() => {
+  return QUEST_TYPE_COLORS[quest.quest_type] || QUEST_TYPE_COLORS.side
+})
+
 const isChainQuest = computed(() => {
   return quest.chain_id !== null
 })
@@ -153,6 +157,18 @@ const actionButtonText = computed(() => {
   }[status]
 })
 
+const cardBorderColor = computed(() => {
+  if (isLocked) return 'var(--color-quest-locked)'
+  return {
+    available: typeColor.value.border,
+    active: 'var(--color-theme-accent)',
+    returning: 'var(--color-theme-secondary)',
+    ready: 'var(--color-rarity-legendary)',
+    completed: 'var(--color-quest-muted)',
+    locked: 'var(--color-quest-locked)',
+  }[status]
+})
+
 const isButtonDisabled = computed(() => {
   return isLocked || status === 'active' || status === 'returning'
 })
@@ -185,6 +201,7 @@ const handleAction = () => {
     :title="quest.title"
     :description="quest.short_description"
     :completed="status === 'completed'"
+    :border-color="cardBorderColor"
   >
     <template #badges>
       <div class="quest-badges">

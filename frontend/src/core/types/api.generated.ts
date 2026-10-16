@@ -9155,6 +9155,11 @@ export interface components {
             storage_id?: string | null;
             /** @description The pet's catalog-resolved bonus, so clients can explain its contribution. */
             readonly effect: components["schemas"]["PetEffectRead"];
+            /**
+             * Description
+             * @description The pet's catalog description, or None when it has no catalog entry.
+             */
+            readonly description: string | null;
         };
         /**
          * PlaceGroupRead

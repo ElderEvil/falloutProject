@@ -140,3 +140,12 @@ async def test_seed_rejects_unknown_group(async_session: AsyncSession, monkeypat
         await seed_places_from_json(async_session, commit=False)
 
     assert await wl_crud.get_registry_by_normalized(async_session, "nowhere gulch") is None
+
+
+def test_seed_descriptions_fit_the_registry_column() -> None:
+    """Every seed description must fit the registry column: Postgres rejects overflow (SQLite does not)."""
+    from app.models.world_location import WorldLocation
+
+    limit = WorldLocation.__table__.c.description.type.length
+    for entry in load_seed_entries():
+        assert len(entry.get("description") or "") <= limit, entry["name"]

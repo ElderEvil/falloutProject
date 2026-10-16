@@ -26,7 +26,7 @@ class WorldLocationBase(SQLModel):
     vault_number: int | None = Field(default=None)
     coord_x: float = Field(ge=0, le=100)
     coord_y: float = Field(ge=0, le=100)
-    description: str | None = Field(default=None, max_length=255)
+    description: str | None = Field(default=None, max_length=1000)
     # Site-type archetype key (see data/places/place_groups.json). A data-defined
     # string rather than an enum so new site types need no migration.
     group_key: str | None = Field(default=None, max_length=32, index=True)
@@ -67,7 +67,7 @@ class VaultLocationStateBase(SQLModel):
     """Shared fields for a vault's fog entry over a canonical location."""
 
     type: LocationTypeEnum
-    description: str | None = Field(default=None, max_length=255)
+    description: str | None = Field(default=None, max_length=1000)
 
 
 class VaultLocationState(BaseUUIDModel, VaultLocationStateBase, TimeStampMixin, table=True):

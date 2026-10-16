@@ -5,7 +5,6 @@ import { useElementBounding, usePreferredReducedMotion } from '@vueuse/core'
 import { Button } from '@/core/components/ui/button'
 import { Alert } from '@/core/components/ui/alert'
 import { Card } from '@/core/components/ui/card'
-import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -23,13 +22,14 @@ import {
 } from '../models'
 import { currentObjective as lowestUnfinishedStarter } from '../models/objective'
 import type { Objective } from '../models/objective'
+import ObjectiveCompleteModal from './ObjectiveCompleteModal.vue'
+import IntroHandoffCard from './IntroHandoffCard.vue'
 
 const store = useObjectivesStore()
 const vaultStore = useVaultStore()
 const roomStore = useRoomStore()
 const dwellerStore = useDwellerStore()
 const auth = useAuthStore()
-const toast = useToast()
 const reducedMotion = usePreferredReducedMotion()
 const route = useRoute()
 const router = useRouter()
@@ -55,7 +55,8 @@ const replayMode = computed(() => teachingState.value.replayOrientation)
 const objectiveByKey = computed(() => {
   const byKey = new Map<string, Objective>()
   for (const objective of store.objectives) {
-    if (objective.template_key) byKey.set(objective.template_key, objective)
+    if (objective.template_key && objective.vault_id === vaultId.value)
+      byKey.set(objective.template_key, objective)
   }
   return byKey
 })
@@ -82,6 +83,13 @@ const optedIn = computed(() => !!vaultState.value.created || replayMode.value)
 const welcomePending = computed(() => !!vaultState.value.created && !vaultState.value.welcomed)
 const active = computed(
   () => !!vaultId.value && !vaultState.value.skipped && optedIn.value && !!currentLesson.value
+)
+const showHandoff = computed(() =>
+  !!vaultId.value && optedIn.value && !vaultState.value.skipped && !replayMode.value &&
+  !vaultState.value.handoffDismissed && !currentLesson.value &&
+  ORIENTATION_STEPS.some((lesson) =>
+    lesson.id === 'orientation.departure' && objectiveFor(lesson)?.is_completed
+  )
 )
 const showWelcome = computed(() => active.value && welcomePending.value)
 const showLesson = computed(() => active.value && !showWelcome.value && !!currentLesson.value)
@@ -154,8 +162,12 @@ watch(
 )
 
 const loadFailed = ref(false)
+const claimedObjective = ref<Objective | null>(null)
+const handoffCard = ref<InstanceType<typeof IntroHandoffCard> | null>(null)
+watch(vaultId, () => { claimedObjective.value = null })
 const refresh = () => {
   if (!vaultId.value || vaultState.value.skipped) return
+  void handoffCard.value?.refresh()
   store
     .fetchObjectives(vaultId.value)
     .then(() => {
@@ -331,7 +343,7 @@ function onClaim() {
   if (!objective || !lesson) return
   void claim(objective.id, (claimed) => {
     acknowledgeLesson(vaultId.value, lesson.id)
-    toast.success(`${claimed.reward} claimed`)
+    claimedObjective.value = claimed
   })
 }
 </script>
@@ -448,7 +460,22 @@ function onClaim() {
         </template>
       </Card>
     </template>
+    <IntroHandoffCard
+      v-if="showHandoff && vaultId"
+      v-show="!blockedByOverlay"
+      :key="vaultId"
+      ref="handoffCard"
+      :vault-id="vaultId"
+      class="onboarding-card"
+      @dismiss="patch(vaultId, { handoffDismissed: true })"
+    />
   </Teleport>
+  <ObjectiveCompleteModal
+    :objective="claimedObjective"
+    :show="!!claimedObjective"
+    @close="claimedObjective = null"
+    @confirm="claimedObjective = null"
+  />
 </template>
 
 <style scoped>

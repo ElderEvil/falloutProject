@@ -6,6 +6,8 @@ export interface OnboardingState {
   skipped?: boolean
   welcomed?: boolean
   created?: boolean
+  /** The player dismissed the optional first-exploration handoff. */
+  handoffDismissed?: boolean
 }
 
 export type LessonStatus = 'acknowledged' | 'skipped'

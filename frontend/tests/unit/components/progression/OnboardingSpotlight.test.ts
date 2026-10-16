@@ -621,7 +621,7 @@ describe('OnboardingSpotlight', () => {
       const wrapper = mountSpotlight()
       await flushPromises()
       await clickButton('Start')
-      expect(card()?.textContent).toContain('Power, food and water refill')
+      expect(card()?.textContent).toContain('Your crew keeps power, food and water flowing')
       expect(collapseToggle()?.getAttribute('aria-expanded')).toBe('true')
 
       collapseToggle()?.click()
@@ -747,5 +747,81 @@ describe('OnboardingSpotlight', () => {
       expect(findButton('Open Dwellers')).toBeDefined()
       wrapper.unmount()
     })
+  })
+})
+
+
+describe('first-session continuity', () => {
+  const mountHandoff = () => mount(OnboardingSpotlight, {
+    attachTo: document.body,
+    global: { stubs: {
+      IntroHandoffCard: {
+        props: ['vaultId'], emits: ['dismiss'],
+        template: '<section aria-label="First expedition handoff"><button @click="$emit(\'dismiss\')">Finish intro</button></section>',
+      },
+    } },
+  })
+  const finishOrientation = () => {
+    acknowledgeLessons(...ALL_LESSONS)
+    useOnboardingState().patch('v1', { welcomed: true })
+    useObjectivesStore().objectives = [objective('departure', {
+      templateKey: DEPARTURE_KEY, progress: 1, total: 1, isCompleted: true,
+    })]
+  }
+
+  it('hands off only after a real departure claim and keeps dismissal per vault', async () => {
+    finishOrientation()
+    const wrapper = mountHandoff()
+    await flushPromises()
+    expect(!!document.querySelector('[aria-label="First expedition handoff"]')).toBe(true)
+    expect(document.querySelector('.onboarding-cutout')).toBeNull()
+    document.querySelector<HTMLButtonElement>('[aria-label="First expedition handoff"] button')!.click()
+    await flushPromises()
+    expect(useOnboardingState().vaultState('v1').handoffDismissed).toBe(true)
+    expect(useOnboardingState().vaultState('v2').handoffDismissed).toBeUndefined()
+    expect(!!document.querySelector('[aria-label="First expedition handoff"]')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it.each(['skip', 'replay', 'unearned', 'other-vault'])(
+    'does not show the handoff for %s', async (condition) => {
+      finishOrientation()
+      if (condition === 'skip') useOnboardingState().skipTour('v1')
+      if (condition === 'replay') {
+        useOnboardingState().replayOrientation('v1')
+        acknowledgeLessons(...ALL_LESSONS)
+      }
+      if (condition === 'unearned') useObjectivesStore().objectives[0]!.is_completed = false
+      if (condition === 'other-vault') useObjectivesStore().objectives[0]!.vault_id = 'v2'
+      const wrapper = mountHandoff()
+      await flushPromises()
+      expect(!!document.querySelector('[aria-label="First expedition handoff"]')).toBe(false)
+      wrapper.unmount()
+    }
+  )
+
+  it('shows a celebration and roster handoff when housing is claimed in the guide', async () => {
+    seedHousing(200)
+    acknowledgeLessons('orientation.resources', 'orientation.generator', 'orientation.staffing')
+    const store = useObjectivesStore()
+    store.objectives[0]!.progress = 2
+    store.objectives[0]!.reward = 'dweller:Wanderer'
+    const claimed = { ...store.objectives[0]!, is_completed: true }
+    vi.spyOn(store, 'completeObjective').mockImplementation(async () => {
+      store.objectives = [claimed]
+      return claimed
+    })
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    await clickButton('Start')
+    await clickButton('Claim dweller:Wanderer')
+    expect(document.body.textContent).toContain('Wanderer has joined your vault')
+    const view = [...document.querySelectorAll<HTMLButtonElement>('button')]
+      .find(button => button.textContent?.trim() === 'View dwellers')
+    expect(view).toBeDefined()
+    view!.click()
+    await flushPromises()
+    expect(router.push).toHaveBeenCalledWith('/vault/v1/dwellers')
+    wrapper.unmount()
   })
 })

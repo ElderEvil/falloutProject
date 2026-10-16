@@ -267,9 +267,10 @@ onMounted(async () => {
     await roomStore.fetchRooms(vaultId.value, token)
     await dwellerStore.fetchDwellersByVault(vaultId.value, token)
 
-    // Fetch all quests so we can filter client-side (including locked ones)
-    await questStore.fetchVaultQuests(vaultId.value)
+    // Fetch the catalog first so chain badges resolve on the vault quests' first paint,
+    // then the vault quests (filtered client-side, including locked ones).
     await questStore.fetchAllQuests()
+    await questStore.fetchVaultQuests(vaultId.value)
     await loadPartyMembers()
   }
 })

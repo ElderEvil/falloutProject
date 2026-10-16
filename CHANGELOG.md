@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.212.2 (2026-10-16)
+
+### Bug Fixes
+
+* **ui:** render the unread badge in the default theme color 67511a1
+
 ## 2.212.1 (2026-10-16)
 
 ### Code Refactoring

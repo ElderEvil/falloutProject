@@ -119,6 +119,10 @@ class ExitRequestService:
         reason = self._eligibility_reason(dweller)
         if reason:
             raise VaultOperationException(detail=reason)
+        from app.services.combat.incident_service import committed_responder_ids
+
+        if dweller.id in await committed_responder_ids(db_session, vault.id):
+            raise VaultOperationException(detail="Dweller is responding to an active incident")
         reason = await self._population_block(db_session, vault.id)
         if reason:
             raise VaultOperationException(detail=reason)

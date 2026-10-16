@@ -21,11 +21,13 @@ from app.core.game_config import game_config
 from app.crud import training as training_crud
 from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
+from app.models.incident import IncidentStatus, IncidentType
 from app.models.training import TrainingStatus
 from app.models.vault import Vault
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
+from app.services.combat.incident_service import incident_service
 from app.services.exit_request_service import exit_request_service
 from app.services.family.death_service import death_service
 from app.services.training_service import training_service
@@ -208,6 +210,66 @@ async def test_granted_exit_has_no_revival_window(async_session: AsyncSession, v
     granted = await exit_request_service.grant_exit(async_session, vault, dwellers[0].id)
 
     assert death_service.get_days_until_permanent(granted) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("member_status", ["assigned", "dispatched"])
+@pytest.mark.parametrize("incident_status", [IncidentStatus.ACTIVE, IncidentStatus.SPREADING])
+@pytest.mark.parametrize("success", [False, True])
+async def test_grant_exit_waits_for_incident_resolution(
+    async_session: AsyncSession, vault: Vault, member_status: str, incident_status: IncidentStatus, success: bool
+) -> None:
+    residents = await _with_room_for_one_exit(async_session, vault)
+    responder = residents[0]
+    await exit_request_service.request_exit(async_session, responder.id)
+    requested_at = responder.exit_requested_at
+    cooldown = vault.last_exit_request_at
+    room = await room_crud.create(
+        async_session,
+        RoomCreate(
+            name="Power Generator",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=SPECIALEnum.STRENGTH,
+            base_cost=100,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=3,
+            size_max=9,
+            size=3,
+            tier=1,
+            vault_id=vault.id,
+        ),
+    )
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=vault.id,
+        room_id=room.id,
+        incident_type=IncidentType.FIRE,
+        difficulty=2,
+    )
+    await incident_service.assign_responders(async_session, incident, [responder.id])
+    members = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
+    members[0].status = member_status
+    incident.status = incident_status
+    await async_session.commit()
+
+    with pytest.raises(VaultOperationException, match="active incident"):
+        await exit_request_service.grant_exit(async_session, vault, responder.id)
+
+    await async_session.refresh(responder)
+    await async_session.refresh(vault)
+    assert responder.vault_id == vault.id
+    assert responder.room_id == room.id
+    assert responder.exit_requested_at == requested_at
+    assert responder.departed_at is None
+    assert vault.last_exit_request_at == cooldown
+
+    # A historical roster entry must not stop departure after either outcome.
+    await crud.incident_crud.resolve(async_session, incident.id, success=success)
+    granted = await exit_request_service.grant_exit(async_session, vault, responder.id)
+    assert granted.vault_id is None
+    assert granted.availability is AvailabilityEnum.DEPARTURE
+    assert granted.exit_requested_at is None
 
 
 @pytest.mark.asyncio

@@ -128,7 +128,7 @@ jobs:
         working-directory: frontend
         env:
           PW_SKIP_BACKEND: '1'
-        run: pnpm exec playwright test tests/e2e/crt-baselines.spec.ts tests/e2e/arena-creature-facing.spec.ts tests/e2e/arena-roster.spec.ts tests/e2e/overseer-briefing-contrast.spec.ts
+        run: pnpm exec playwright test tests/e2e/crt-baselines.spec.ts tests/e2e/arena-creature-facing.spec.ts tests/e2e/arena-roster.spec.ts tests/e2e/overseer-briefing-contrast.spec.ts tests/e2e/onboarding-spotlight.spec.ts
 
       - name: Upload Playwright failure artifacts
         if: failure()

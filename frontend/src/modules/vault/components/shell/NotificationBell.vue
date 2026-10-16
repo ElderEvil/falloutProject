@@ -327,7 +327,7 @@ onBeforeUnmount(() => {
             <!-- Unread Badge -->
             <span
               v-if="hasUnread"
-              class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-danger/20 text-xs font-bold text-white shadow-lg"
+              class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-theme-primary text-xs font-bold text-black shadow-lg"
             >
               {{ unreadCount > 99 ? '99+' : unreadCount }}
             </span>

@@ -751,4 +751,20 @@ describe('NotificationBell popup accessibility', () => {
 
     wrapper.unmount()
   })
+
+  it('renders the unread badge in the default theme color so the count stays readable', async () => {
+    const wrapper = await mountBell([informationalNotification])
+
+    const badge = wrapper.findAll('span').find((span) => span.text() === '1')
+    expect(badge).toBeDefined()
+    // jsdom has no CSS pipeline, so the theme-color requirement is asserted on
+    // the class attr: the translucent danger wash with white text is unreadable
+    // on the dark CRT shell.
+    const badgeClass = badge?.attributes('class') ?? ''
+    expect(badgeClass).toMatch(/(^|\s)bg-theme-primary(\s|$)/)
+    expect(badgeClass).not.toMatch(/bg-danger\/20/)
+    expect(badgeClass).toMatch(/(^|\s)text-black(\s|$)/)
+
+    wrapper.unmount()
+  })
 })

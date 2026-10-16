@@ -44,6 +44,11 @@ describe('ArenaCreatureSlot artwork', () => {
     ['training-eyebot', 'eyebot'],
     ['training-protectron', 'protectron'],
     ['training-mr-handy', 'mr-handy'],
+    ['yao-guai', 'yao-guai'],
+    ['mirelurk', 'mirelurk'],
+    ['bloatfly', 'bloatfly'],
+    ['radstag', 'radstag'],
+    ['night-stalker', 'night-stalker'],
   ])('renders artwork for catalog key %s alongside live HP', (key, filename) => {
     const wrapper = render(creature(key, 'Opponent'))
     const image = wrapper.get('img')

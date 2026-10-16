@@ -196,7 +196,7 @@ async def test_arena_path_surfaces_level_up(async_session: AsyncSession, vault: 
             new_callable=AsyncMock,
         ) as notify,
     ):
-        await arena_service._award_combat_xp(async_session, dweller)
+        await arena_service._award_combat_xp(async_session, dweller, 60)
 
     await async_session.refresh(dweller)
     assert dweller.level == 2

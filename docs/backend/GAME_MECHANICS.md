@@ -91,6 +91,21 @@ systems. A manual stimpack heal uses carried stock first, falling back to vault 
 the dweller is inside the vault. Stock deduction and healing commit together; outside dwellers
 can only use their carried supplies. Catalog opponents and training bots still reset to full match HP.
 
+Arena-only wildlife extends hunt selection without changing exploration encounters: Bloatfly uses
+difficulty 1, Radstag 2, Night Stalker 3, and Mirelurk/Yao Guai 4, below Deathclaw at 5. These opponents
+reuse the existing difficulty-based power/HP scaling and ordinary creature combat. Brahmin artwork is
+reserved for future caravans and is not an arena opponent or training partner.
+
+A Hunt victory awards a shared XP pool of `floor(combined opponent power /
+COMBAT_BASE_RAIDER_POWER * COMBAT_XP_PER_DIFFICULTY)`. At the default 10 power per
+difficulty and 30 XP per difficulty, Pest Control yields 60 XP, Wasteland Pack 150,
+and Heavyweights 240. Split the pool equally among real participating dwellers,
+including teammates knocked out during the win; allocate any leftover XP in team
+slot order so the pool is conserved. Support bots neither earn XP nor take a share.
+Defeated hunters earn none. Duel/brawl retain their existing per-winner award of
+`2 * COMBAT_XP_PER_DIFFICULTY`. The persisted reward event lists each dweller's XP
+and happiness change and appears in both the match-result banner and battle log.
+
 ## Race and faction switches
 
 Race mechanics are **on** (`FEATURE_RACE_MECHANICS`) and faction mechanics are **off**

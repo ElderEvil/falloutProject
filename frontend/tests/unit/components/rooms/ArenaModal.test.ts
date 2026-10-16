@@ -161,6 +161,11 @@ const storeMock = vi.hoisted(() => {
       },
       { key: 'radroach-swarm', name: 'Radroach swarm', power: 35, max_hp: 35 },
       { key: 'deathclaw', name: 'Deathclaw', power: 120, max_hp: 120 },
+      { key: 'bloatfly', name: 'Bloatfly', power: 10, max_hp: 10 },
+      { key: 'mole-rat-pack', name: 'Mole Rat pack', power: 20, max_hp: 20 },
+      { key: 'night-stalker', name: 'Night Stalker', power: 30, max_hp: 30 },
+      { key: 'mirelurk', name: 'Mirelurk', power: 40, max_hp: 40 },
+      { key: 'yao-guai', name: 'Yao Guai', power: 40, max_hp: 40 },
     ],
     readyRoom,
     huntRoom,
@@ -489,6 +494,72 @@ describe('ArenaModal', () => {
     )
   })
 
+  it.each([
+    ['Pest Control', ['radroach-swarm', 'bloatfly'], 45],
+    ['Wasteland Pack', ['mole-rat-pack', 'night-stalker'], 50],
+    ['Heavyweights', ['mirelurk', 'yao-guai'], 80],
+  ] as const)('selects %s through the existing hunt draft', async (name, keys, power) => {
+    storeMock.currentRoom = storeMock.huntRoom
+    const wrapper = mountModal()
+    await flushPromises()
+    const group = wrapper.get('[aria-label="Hunt preset"]')
+    await group
+      .findAll('button')
+      .find((button) => button.text() === name)!
+      .trigger('click')
+    await flushPromises()
+    expect(storeMock.setFighters).toHaveBeenCalledTimes(1)
+    expect(storeMock.setFighters).toHaveBeenCalledWith(
+      'vault-1',
+      'room-1',
+      expect.objectContaining({ mode: 'hunt', fighterAId: 'a-1', opponentKeys: [...keys] }),
+      'test-token'
+    )
+    expect(wrapper.text()).toContain(`Combined opponent power: ${power}`)
+    expect(
+      group
+        .findAll('button')
+        .find((button) => button.text() === name)!
+        .attributes('aria-pressed')
+    ).toBe('true')
+  })
+
+  it('allows customizing a preset and clears its selected state', async () => {
+    storeMock.currentRoom = storeMock.huntRoom
+    const wrapper = mountModal()
+    await flushPromises()
+    const group = wrapper.get('[aria-label="Hunt preset"]')
+    await group
+      .findAll('button')
+      .find((button) => button.text() === 'Heavyweights')!
+      .trigger('click')
+    await flushPromises()
+    await wrapper.get('button[aria-label="Clear Mirelurk"]').trigger('click')
+    await flushPromises()
+    expect(storeMock.setFighters).toHaveBeenLastCalledWith(
+      'vault-1',
+      'room-1',
+      expect.objectContaining({ opponentKeys: ['yao-guai'] }),
+      'test-token'
+    )
+    expect(group.findAll('[aria-pressed="true"]')).toHaveLength(0)
+    expect(wrapper.text()).toContain('Combined opponent power: 40')
+  })
+
+  it('locks hunt presets during a fight and hides them in other modes', async () => {
+    let wrapper = mountModal()
+    await flushPromises()
+    expect(wrapper.find('[aria-label="Hunt preset"]').exists()).toBe(false)
+    wrapper.unmount()
+    storeMock.currentRoom = { ...storeMock.huntRoom, fight_started: true, match_done: false }
+    wrapper = mountModal()
+    await flushPromises()
+    const buttons = wrapper.get('[aria-label="Hunt preset"]').findAll('button')
+    expect(buttons.every((button) => button.attributes('disabled') !== undefined)).toBe(true)
+    await buttons[0]!.trigger('click')
+    expect(storeMock.setFighters).not.toHaveBeenCalled()
+  })
+
   it('renders hunted creatures on team B with matching artwork and live stats', async () => {
     storeMock.currentRoom = storeMock.huntRoom
     const wrapper = mountModal()
@@ -590,6 +661,40 @@ describe('ArenaModal', () => {
 
     expect(wrapper.text()).toContain('MATCH COMPLETE')
     expect(wrapper.text()).toContain('Alpha Dweller wins')
+  })
+
+  it('shows the server-awarded XP in the completed match result', async () => {
+    const reward = 'Alpha +120 XP, Charlie +120 XP, Alpha & Charlie happiness +10'
+    storeMock.currentRoom = {
+      ...storeMock.huntRoom,
+      match_done: true,
+      winner_name: 'Alpha Dweller & Charlie Dweller',
+      events: [
+        { id: 'old-reward', round_seq: 1, kind: 'reward', message: 'Old fighter +60 XP' },
+        { id: 'finish', round_seq: 2, kind: 'finish', message: 'Dwellers defeated Creatures!' },
+        { id: 'reward', round_seq: 2, kind: 'reward', message: reward },
+      ],
+    }
+    const wrapper = mountModal()
+    await flushPromises()
+    const banner = wrapper.get('.result-banner')
+    expect(banner.text()).toContain(reward)
+    expect(banner.text()).not.toContain('Old fighter')
+  })
+
+  it('does not show an older reward beside a new legacy result', async () => {
+    storeMock.currentRoom = {
+      ...storeMock.huntRoom,
+      match_done: true,
+      winner_name: 'Alpha Dweller',
+      events: [
+        { id: 'old-reward', round_seq: 1, kind: 'reward', message: 'Old fighter +60 XP' },
+        { id: 'finish', round_seq: 2, kind: 'finish', message: 'Dwellers defeated Creatures!' },
+      ],
+    }
+    const wrapper = mountModal()
+    await flushPromises()
+    expect(wrapper.get('.result-banner').text()).not.toContain('Old fighter')
   })
 
   it.each(['hunt', 'brawl'])('credits the complete winning side in %s mode', async (mode) => {

@@ -144,13 +144,16 @@ def render_bio(
     return template.format(origin=origin, visited=_join_visited(visited))
 
 
-# Secondhand, unresolved claims about the Quiet Zone and its "anomalies": never
+# Secondhand, unresolved claims about the Quiet Zone and Clearance Protocol: never
 # confirmed, always deniable. Appended to a small share of generated bios.
 ZONE_RUMORS: tuple[str, ...] = (
     (
         "I've heard the scavengers talk about the Quiet Zone, a fenced industrial site where the air "
         "supposedly bends after a radstorm. The engineers say the scavengers drink too much."
     ),
+    "A surface volunteer showed me a sealed polishing cloth. He said opening it voided his exterior clearance; his sister said it was only a cleaning kit.",
+    "I've heard the Department of Exterior Continuity keeps two current editions of its Compact. Each edition calls the other a forgery.",
+    "A mechanic swears Department-Issue Heat Tape outlasted its cheaper replacement. Her supervisor says the old stock never met specification.",
     "I carry a pouch of rusty bolts for testing bad ground. I've never needed them, which proves nothing.",
     (
         "A scout I knew swore she saw a fireball hovering over the Quiet Zone. Her old caravan partner "
@@ -177,7 +180,7 @@ ZONE_RUMORS: tuple[str, ...] = (
 
 
 def maybe_zone_rumor(rng: random.Random | ModuleType, chance: float) -> str | None:
-    """Return one unresolved Quiet Zone rumour, or None when the chance roll misses."""
+    """Return one unresolved wasteland rumour, or None when the chance roll misses."""
     if chance <= 0 or rng.random() >= chance:
         return None
     return rng.choice(ZONE_RUMORS)

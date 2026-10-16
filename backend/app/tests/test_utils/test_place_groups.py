@@ -32,6 +32,8 @@ CLEARABLE_GROUPS = {
     "ruin",
     "exclusion_zone",
     "wasteland_site",
+    "observation_facility",
+    "vertical_refuge",
 }
 NON_CLEARABLE_GROUPS = {"settlement", "city", "landmark", "region"}
 

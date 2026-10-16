@@ -186,7 +186,7 @@
     "first_name": "Carlos",
     "template_id": "carlos-the-great",
     "last_name": "the Great",
-    "bio": "Self-crowned ruler of Republic of Dave. Carlos the Great levied taxes in Dave, paraded through Canterbury Commons, and negotiated water with Megaton and Rivet City. His Medieval ruler outfit hides a surprisingly balanced 42 SPECIAL spread — a king who learned every vault job.",
+    "bio": "Self-crowned ruler of Republic of Dave. Carlos the Great levied taxes in Dave, paraded through Canterbury Commons, and negotiated water with Megaton and Rivet City. His Medieval ruler outfit hides a surprisingly balanced 42 SPECIAL spread \u2014 a king who learned every vault job.",
     "origin_place": "Republic of Dave",
     "visited_places": [
       "Canterbury Commons",
@@ -358,12 +358,13 @@
     "first_name": "Laurel",
     "template_id": "laurel-divinitus",
     "last_name": "Divinitus",
-    "bio": "Matriarch of the Republic of Dave in miniature. Laurel Divinitus ruled Republic robes evenly across all 7 SPECIAL, mediating between Megaton, Canterbury Commons, and Rivet City. Her balanced grace keeps any room humming — the rare dweller who never needs a boost.",
+    "bio": "Matriarch of the Republic of Dave in miniature. Laurel Divinitus ruled Republic robes evenly across all 7 SPECIAL, mediating between Megaton, Canterbury Commons, and Rivet City. Her balanced grace keeps any room humming \u2014 the rare dweller who never needs a boost. At The Outlook Station she copied two blue-sky monitor timestamps that could not describe the same day; she still refuses to call either one false.",
     "origin_place": "Republic of Dave",
     "visited_places": [
       "Megaton",
       "Canterbury Commons",
-      "Rivet City"
+      "Rivet City",
+      "The Outlook Station"
     ],
     "visual_attributes": {
       "race": "human",
@@ -392,11 +393,12 @@
     "first_name": "Martha",
     "template_id": "martha-dewey",
     "last_name": "Dewey",
-    "bio": "Librarian of Rivet City's archive. Martha Dewey catalogued the Capitol Preservation Society's overflow, filed holotapes in Megaton, and debated history with Abraham Washington in Canterbury Commons. Her 8 Perception spots misfiled junk before it hits the floor.",
+    "bio": "Librarian of Rivet City's archive. Martha Dewey catalogued the Capitol Preservation Society's overflow, filed holotapes in Megaton, and debated history with Abraham Washington in Canterbury Commons. Her 8 Perception spots misfiled junk before it hits the floor. She carried conflicting Continuity Compact fragments out of The Mile-Deep Shelter; the Department of Exterior Continuity insisted both revisions were current.",
     "origin_place": "Rivet City",
     "visited_places": [
       "Megaton",
-      "Canterbury Commons"
+      "Canterbury Commons",
+      "The Mile-Deep Shelter"
     ],
     "visual_attributes": {
       "race": "human",
@@ -459,7 +461,7 @@
     "first_name": "Oscar",
     "template_id": "oscar-blood",
     "last_name": "Blood",
-    "bio": "Horror fan of Megaton's late-night reels. Oscar Blood hosted double features in Megaton, hunted ghoultown lore near Rivet City, and recorded screams for his collection. His 8 Perception keeps water treatment clear — he spots contamination like a jump scare. Also visited Canterbury Commons.",
+    "bio": "Horror fan of Megaton's late-night reels. Oscar Blood hosted double features in Megaton, hunted ghoultown lore near Rivet City, and recorded screams for his collection. His 8 Perception keeps water treatment clear \u2014 he spots contamination like a jump scare. Also visited Canterbury Commons.",
     "origin_place": "Megaton",
     "visited_places": [
       "Rivet City",
@@ -626,11 +628,12 @@
     "first_name": "Tina",
     "template_id": "tina-wrenchley",
     "last_name": "Wrenchley",
-    "bio": "Engineer of Rivet City's broken bows. Tina Wrenchley rewired the carrier's turbines, patched Megaton's purifier, and tuned Tenpenny Tower's generators. Her Engineer outfit and 8 Intelligence keep production humming.",
+    "bio": "Engineer of Rivet City's broken bows. Tina Wrenchley rewired the carrier's turbines, patched Megaton's purifier, and tuned Tenpenny Tower's generators. Her Engineer outfit and 8 Intelligence keep production humming. At The Heartworks she read the Heat Tape replacement notice and the missing shift names; she suspects cheap maintenance, though nobody will show her the specifications.",
     "origin_place": "Rivet City",
     "visited_places": [
       "Megaton",
-      "Tenpenny Tower"
+      "Tenpenny Tower",
+      "The Heartworks"
     ],
     "visual_attributes": {
       "race": "human",

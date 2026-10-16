@@ -29,6 +29,10 @@
     "Located a secure shelter and rested. Restored {health} HP.",
     "Treated wounds using scavenged medical supplies. Healed {health} HP.",
     "Rested in a safe location and recovered. Gained {health} HP.",
-    "Found edible food and fresh water. Health restored by {health}."
+    "Found edible food and fresh water. Health restored by {health}.",
+    "Sheltered beside a sealed Exterior Clearance Detail kit and an unsigned optics checklist. The cloth looked unused; the log claimed daily maintenance. Recovered {health} HP.",
+    "Rested near two observation monitors showing incompatible blue skies. A label said live feed; a technician blamed an old training reel. Restored {health} HP.",
+    "Found a Continuity Compact fragment authorizing departure and another forbidding it. Slept beneath their overlapping revision stamps. Recovered {health} HP.",
+    "Took shelter beside a Thermal Seal Tape spool and an efficiency notice for its replacement. The machine hummed; its shift roster was blank. Restored {health} HP."
   ]
 }

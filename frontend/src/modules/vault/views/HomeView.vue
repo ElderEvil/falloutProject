@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, ref } from 'vue'
+import { computed, inject, nextTick, onMounted, ref, watch } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { MAX_USER_VAULTS, useVaultStore, type VaultMode } from '../stores/vault'
 import { useRouter } from 'vue-router'
@@ -41,8 +41,13 @@ const vaultModes: { value: VaultMode; label: string; description: string }[] = [
   },
 ]
 const selectVaultMode = (value: unknown) => {
-  if (value === 'standard' || value === 'survival') vaultMode.value = value
+  if (value !== 'standard' && value !== 'survival') return
+  vaultMode.value = value
+  // Issue 1031: Survival has no Boosted Start — clear any pending boost so
+  // the payload never combines boosted: true with survival.
+  if (value === 'survival') boostedStart.value = false
 }
+const isSurvivalMode = computed(() => vaultMode.value === 'survival')
 const showCreation = ref(false)
 const selectedVaultId = ref<string | null>(null)
 const creatingVault = ref(false)
@@ -63,6 +68,15 @@ const isCreationVisible = computed(
   () => canCreateVault.value && (!sortedVaults.value.length || showCreation.value)
 )
 
+// Commissioning opens either from the toggle or because the user owns no vaults
+// yet: once the card is on screen, put the caret in the number field so the
+// flow starts ready to type.
+watch(isCreationVisible, async (visible) => {
+  if (!visible) return
+  await nextTick()
+  vaultNumberFieldRef.value?.focus()
+})
+
 const refreshVaults = async () => {
   loadingVaults.value = true
   vaultsReady.value = await vaultStore.fetchVaults(authStore.token as string)
@@ -79,7 +93,8 @@ const createVault = async () => {
 
   creatingVault.value = true
   try {
-    const boosted = boostedStart.value
+    // Issue 1031: Survival never carries a boosted start.
+    const boosted = boostedStart.value && !isSurvivalMode.value
     const createdId = await vaultStore.createVault(
       parseInt(newVaultNumber.value, 10),
       boosted,
@@ -181,6 +196,10 @@ onMounted(async () => {
               READY
             </div>
           </div>
+          <p class="mb-4 flex items-start gap-1.5 text-xs leading-5 text-theme-primary/65">
+            <Icon icon="mdi:information-outline" class="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>Choose an unused vault number (1-999), pick a vault mode, then Create.</span>
+          </p>
           <div class="flex flex-col gap-2">
             <div class="flex items-start gap-2">
               <VaultNumberField v-model="newVaultNumber" ref="vaultNumberFieldRef" />
@@ -203,16 +222,18 @@ onMounted(async () => {
             -->
               <label
                 for="boosted-start"
-                class="flex cursor-pointer items-start gap-3 rounded border border-theme-primary/20 bg-surface p-3 transition-colors hover:bg-surface-hover"
+                class="flex items-start gap-3 rounded border border-theme-primary/20 bg-surface p-3 transition-colors"
+                :class="isSurvivalMode ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-surface-hover'"
               >
                 <input
                   id="boosted-start"
                   v-model="boostedStart"
                   type="checkbox"
                   class="peer sr-only"
+                  :disabled="isSurvivalMode"
                 />
                 <span
-                  class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border border-theme-primary/50 bg-surface-sunken text-black transition-colors peer-checked:border-theme-primary peer-checked:bg-theme-primary peer-focus-visible:ring-2 peer-focus-visible:ring-theme-primary/50"
+                  class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border border-theme-primary/50 bg-surface-sunken text-black transition-colors peer-checked:border-theme-primary peer-checked:bg-theme-primary peer-focus-visible:ring-2 peer-focus-visible:ring-theme-primary/50 peer-disabled:border-theme-primary/20 peer-disabled:opacity-40"
                 >
                   <Icon
                     icon="mdi:check"
@@ -226,6 +247,12 @@ onMounted(async () => {
                     seven training rooms with sessions underway—plus extra objectives and caps for
                     upgrades.
                   </span>
+                  <span
+                    v-if="isSurvivalMode"
+                    class="mt-1 block text-xs leading-5 text-warning"
+                  >
+                    Not available in Survival mode.
+                  </span>
                 </span>
               </label>
             </div>
@@ -238,14 +265,18 @@ onMounted(async () => {
                 type="single"
                 :model-value="vaultMode"
                 :spacing="8"
-                class="grid w-full grid-cols-1 gap-2 sm:grid-cols-2"
+                class="grid w-full grid-cols-1 gap-2"
                 @update:model-value="selectVaultMode"
               >
+                <!-- Cards stay stacked in one column: the card is max-w-md at
+                     every breakpoint, so side-by-side only cramp the copy.
+                     whitespace-normal + min-w-0 override the toggle primitives,
+                     whose whitespace-nowrap let descriptions escape the box. -->
                 <ToggleGroupItem
                   v-for="mode in vaultModes"
                   :key="mode.value"
                   :value="mode.value"
-                  class="h-auto flex-col items-start gap-1 rounded border border-theme-primary/20 px-3 py-2 text-left data-[state=on]:border-theme-primary data-[state=on]:bg-theme-primary/10"
+                  class="h-auto w-full min-w-0 flex-col items-start gap-1 whitespace-normal break-words rounded border border-theme-primary/20 px-3 py-2 text-left data-[state=on]:border-theme-primary data-[state=on]:bg-theme-primary/10"
                 >
                   <span class="font-semibold">{{ mode.label }}</span>
                   <span class="text-xs leading-5 text-theme-primary/65">{{ mode.description }}</span>
@@ -264,7 +295,7 @@ onMounted(async () => {
           </Alert>
         </Card>
 
-        <div v-if="sortedVaults.length" class="order-1 w-full max-w-4xl">
+        <div v-if="sortedVaults.length && !showCreation" class="order-1 w-full max-w-4xl">
           <h2 class="mb-4 text-2xl font-bold text-theme-primary">Your Vaults</h2>
           <ul class="flex flex-col gap-4">
             <li

@@ -224,6 +224,59 @@ describe('HomeView', () => {
     })
   })
 
+  describe('Creation focus mode', () => {
+    const clickButtonWithText = async (wrapper: any, text: string) => {
+      const button = wrapper.findAll('button').find((btn: any) => btn.text().includes(text))
+      expect(button, `button "${text}" should exist`).toBeDefined()
+      await button!.trigger('click')
+    }
+
+    it('hides the vault list while creating and restores it when creation is hidden', async () => {
+      vaultStore.vaults = vaultsAtCount(2)
+
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Your Vaults')
+      expect(wrapper.findAll('[aria-label$="terminal"]')).toHaveLength(2)
+
+      await clickButtonWithText(wrapper, 'Create another vault')
+
+      expect(wrapper.text()).toContain('Create New Vault')
+      expect(wrapper.text()).not.toContain('Your Vaults')
+      expect(wrapper.findAll('[aria-label$="terminal"]')).toHaveLength(0)
+
+      await clickButtonWithText(wrapper, 'Hide new vault form')
+
+      expect(wrapper.text()).toContain('Your Vaults')
+      expect(wrapper.findAll('[aria-label$="terminal"]')).toHaveLength(2)
+    })
+
+    it('shows step guidance at the top of the creation card', async () => {
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Choose an unused vault number (1-999)')
+      expect(wrapper.text()).toContain('pick a vault mode, then Create')
+    })
+
+    it('focuses the vault number input when the creation form opens', async () => {
+      vaultStore.vaults = vaultsAtCount(1)
+
+      const wrapper = mount(HomeView, {
+        attachTo: document.body,
+        global: { plugins: [router] },
+      })
+      await flushPromises()
+
+      await clickButtonWithText(wrapper, 'Create another vault')
+      await flushPromises()
+
+      expect(document.activeElement).toBe(wrapper.find('input[type="number"]').element)
+      wrapper.unmount()
+    })
+  })
+
   describe('Vault Number Validation', () => {
     it('should accept valid vault number (0-999)', async () => {
       const wrapper = mount(HomeView, {
@@ -523,6 +576,45 @@ describe('HomeView', () => {
         { number: 123, boosted: false, vault_mode: 'survival' },
         expect.anything()
       )
+    })
+
+    it('disables Boosted Start in Survival mode and never posts a boost with survival', async () => {
+      vi.mocked(axios.post).mockRejectedValueOnce(new Error('creation rejected'))
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
+
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      const input = wrapper.find('input[type="number"]')
+      await input.setValue('123')
+
+      // Opt into Boosted Start while Standard is selected.
+      await wrapper.find('#boosted-start').setValue(true)
+      expect((wrapper.find('#boosted-start').element as HTMLInputElement).checked).toBe(true)
+      expect(wrapper.find('#boosted-start').attributes('disabled')).toBeUndefined()
+
+      // Survival disables the control, states the reason, and clears the boost.
+      await findModeToggle(wrapper, 'Survival')!.trigger('click')
+      expect(wrapper.find('#boosted-start').attributes('disabled')).toBeDefined()
+      expect((wrapper.find('#boosted-start').element as HTMLInputElement).checked).toBe(false)
+      expect(wrapper.text()).toContain('Not available in Survival mode')
+      // The control stays visible with its label and description intact.
+      expect(wrapper.find('label[for="boosted-start"]').text()).toContain('Boosted Start')
+      expect(wrapper.find('label[for="boosted-start"]').text()).toContain('Creates an expanded vault')
+
+      await findCreateButton(wrapper)!.trigger('click')
+      await flushPromises()
+
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/v1/vaults/initiate',
+        { number: 123, boosted: false, vault_mode: 'survival' },
+        expect.anything()
+      )
+
+      // Switching back to Standard re-enables Boosted Start.
+      await findModeToggle(wrapper, 'Standard')!.trigger('click')
+      expect(wrapper.find('#boosted-start').attributes('disabled')).toBeUndefined()
+      expect(wrapper.text()).not.toContain('Not available in Survival mode')
     })
   })
 

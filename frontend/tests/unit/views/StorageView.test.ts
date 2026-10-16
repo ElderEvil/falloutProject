@@ -174,6 +174,10 @@ describe('StorageView pets bucket', () => {
       pets: [],
     })
 
-    expect(wrapper.find('button[aria-label="About Vault Storage"]').exists()).toBe(true)
+    // PageHelp loads asynchronously, so poll instead of assuming mountWith's
+    // single flush settles the dynamic import.
+    await vi.waitFor(() => {
+      expect(wrapper.find('button[aria-label="About Vault Storage"]').exists()).toBe(true)
+    })
   })
 })

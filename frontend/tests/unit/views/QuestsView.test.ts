@@ -1080,9 +1080,12 @@ describe('QuestsView', () => {
 
     it('offers header help about quests', async () => {
       wrapper = mountWithQuests([quest({ id: 'quest-1' })])
-      await flushPromises()
 
-      expect(wrapper.find('button[aria-label="About Quests"]').exists()).toBe(true)
+      // PageHelp loads asynchronously, so poll instead of assuming one flush
+      // settles the dynamic import.
+      await vi.waitFor(() => {
+        expect(wrapper.find('button[aria-label="About Quests"]').exists()).toBe(true)
+      })
     })
   })
 })

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.221.2 (2026-10-16)
+
+### Bug Fixes
+
+* **pets:** stop duplicating pet bonuses in the equipment card 0bdbce4
+
 ## 2.221.1 (2026-10-16)
 
 ### Bug Fixes

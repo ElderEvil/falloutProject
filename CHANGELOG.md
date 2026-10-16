@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.212.0 (2026-10-16)
+
+### Features
+
+* **objectives:** count claimable rewards per tab and lighten the reward block fbfcdb9
+
+### Bug Fixes
+
+* **objectives:** stop dimming cards that are waiting to be claimed b93259a
+
+### Code Refactoring
+
+* **objectives:** use the shared Button for the claim action b00c91a, closes #208 #804
+
 ## 2.211.2 (2026-10-15)
 
 ### Bug Fixes

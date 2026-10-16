@@ -1,8 +1,13 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, afterEach } from 'vitest'
 import { createIconifyMock } from '../../helpers/mocks'
-import { flushPromises, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { Dialog } from '@/core/components/ui/dialog'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
+import { isOverlayBlocking } from '@/core/composables/useBlockingOverlay'
+
+// TerminalModal registers global overlay state; leaving mounts alive would leak
+// an open registration into later assertions.
+enableAutoUnmount(afterEach)
 
 vi.mock('@iconify/vue', () => createIconifyMock())
 
@@ -139,5 +144,26 @@ describe('TerminalModal', () => {
 
     expect(wrapper.emitted('update:open')).toEqual([[false]])
     expect(wrapper.emitted('close')).toHaveLength(1)
+  })
+
+  it('registers as a blocking overlay while open and releases when closed', async () => {
+    // The spotlight guide reads this signal instead of sniffing [role="dialog"].
+    expect(isOverlayBlocking.value).toBe(false)
+
+    const wrapper = mountModal({ open: true })
+    expect(isOverlayBlocking.value).toBe(true)
+
+    await wrapper.setProps({ open: false })
+    expect(isOverlayBlocking.value).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('releases its overlay registration on unmount', () => {
+    const wrapper = mountModal({ open: true })
+    expect(isOverlayBlocking.value).toBe(true)
+
+    wrapper.unmount()
+    expect(isOverlayBlocking.value).toBe(false)
   })
 })

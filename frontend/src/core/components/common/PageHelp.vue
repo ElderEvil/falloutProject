@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import {
@@ -9,12 +10,18 @@ import {
   DialogDescription,
   DialogTrigger,
 } from '@/core/components/ui/dialog'
+import { useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
 
 defineProps<{ title: string }>()
+
+// The dialog is uncontrolled by default; bind it so the help panel can register
+// as an attention owner like every other dialog.
+const open = ref(false)
+useBlockingOverlay(open)
 </script>
 
 <template>
-  <Dialog>
+  <Dialog v-model:open="open">
     <DialogTrigger as-child>
       <Button variant="ghost" size="sm" :aria-label="`About ${title}`">
         <Icon icon="mdi:information-outline" />

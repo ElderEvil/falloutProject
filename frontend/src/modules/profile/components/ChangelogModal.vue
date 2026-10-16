@@ -15,6 +15,7 @@ import {
 import FormattedChangeDescription from '@/modules/profile/components/FormattedChangeDescription.vue'
 import { getChangelogCategoryIcon } from '@/modules/profile/components/changelogCategoryIcons'
 import { useToast } from '@/core/composables/useToast'
+import { useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
 
 interface Props {
   show: boolean
@@ -30,6 +31,8 @@ interface Emits {
 const { currentVersion = '2.7.5', lastSeenVersion = undefined, show } = defineProps<Props>()
 
 const emit = defineEmits<Emits>()
+
+useBlockingOverlay(() => show)
 
 const changelog = ref<ChangelogEntry[]>([])
 const loading = ref(false)

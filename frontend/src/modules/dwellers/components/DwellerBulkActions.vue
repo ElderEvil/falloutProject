@@ -13,6 +13,7 @@ import { ADULT_AGE_GROUPS } from '../models/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { isCraftingRoom, isTrainingRoom } from '@/modules/rooms/models/roomParts'
+import { useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
 
 interface Props {
   vaultId: string
@@ -26,6 +27,7 @@ const roomStore = useRoomStore()
 const unassigningAll = ref(false)
 const autoAssigning = ref<'all' | 'production' | 'training' | 'crafting' | null>(null)
 const showConfirmDialog = ref(false)
+useBlockingOverlay(() => showConfirmDialog.value)
 
 /**
  * Idle adults without a room among the currently fetched (already filtered)

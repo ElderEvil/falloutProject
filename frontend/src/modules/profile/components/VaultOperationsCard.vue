@@ -34,7 +34,7 @@ const metrics = computed(() => [
     label: 'Economy',
     value: props.record.total_caps_earned,
     detail: 'Caps earned',
-    icon: 'mdi:currency-usd',
+    icon: 'mdi:coins',
   },
   {
     label: 'Exploration',

@@ -22,7 +22,7 @@ describe('QuestRewardList', () => {
     expect(wrapper.text()).not.toContain('(common)')
     expect(wrapper.text()).toContain('(50%)')
     const icons = wrapper.findAllComponents(Icon).map((icon) => icon.props('icon'))
-    expect(icons).toContain('mdi:currency-usd')
+    expect(icons).toContain('mdi:coins')
     expect(icons).toContain('mdi:medical-bag')
   })
 

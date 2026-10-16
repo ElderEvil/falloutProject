@@ -162,7 +162,7 @@ const party = computed<(DwellerShort | Dweller)[]>(() => {
         label="Items"
         :value="exploration.loot_collected?.length || 0"
       />
-      <TerminalMetric icon="mdi:currency-usd" label="Caps" :value="exploration.total_caps_found" />
+      <TerminalMetric icon="mdi:coins" label="Caps" :value="exploration.total_caps_found" />
       <TerminalMetric
         v-if="!isParty"
         icon="mdi:medical-bag"

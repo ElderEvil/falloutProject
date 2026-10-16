@@ -164,4 +164,16 @@ describe('StorageView pets bucket', () => {
     expect(wrapper.text()).toContain('No pets Found')
     expect(wrapper.text()).not.toContain('Dogmeat')
   })
+
+  it('offers header help about vault storage', async () => {
+    const wrapper = await mountWith({
+      weapons: [],
+      outfits: [],
+      junk: [],
+      items: [],
+      pets: [],
+    })
+
+    expect(wrapper.find('button[aria-label="About Vault Storage"]').exists()).toBe(true)
+  })
 })

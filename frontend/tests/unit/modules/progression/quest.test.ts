@@ -17,7 +17,7 @@ describe('describeGrantedReward', () => {
   it('renders caps with their label and amount', () => {
     const reward: GrantedReward = { reward_type: 'caps', amount: 25 }
     expect(describeGrantedReward(reward)).toEqual({
-      icon: 'mdi:currency-usd',
+      icon: 'mdi:coins',
       label: 'Bottle Caps',
       value: '25',
     })
@@ -26,7 +26,7 @@ describe('describeGrantedReward', () => {
   it('renders resources with their type-specific icon and label', () => {
     const reward: GrantedReward = { reward_type: 'resource', resource_type: 'food', amount: 10 }
     expect(describeGrantedReward(reward)).toEqual({
-      icon: 'mdi:food-apple',
+      icon: 'mdi:silverware',
       label: 'Food',
       value: '10',
     })

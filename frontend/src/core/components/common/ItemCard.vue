@@ -42,7 +42,7 @@ const stats = computed<ItemStat[]>(() => {
       ? getWeaponStats(item as WeaponStatsSource)
       : getOutfitStats(item as OutfitStatsSource)
   return showValueAsStat && item.value != null
-    ? [...base, { label: 'Value', value: item.value, icon: 'mdi:currency-usd' }]
+    ? [...base, { label: 'Value', value: item.value, icon: 'mdi:coins' }]
     : base
 })
 

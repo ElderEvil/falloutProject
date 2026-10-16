@@ -54,7 +54,7 @@ const vitals = computed(() => {
       class="flex flex-col items-center rounded-md border border-theme-primary/30 bg-terminal-background p-2 text-center transition duration-[var(--transition-base)] hover:-translate-y-px hover:border-theme-primary hover:shadow-[0_0_12px_var(--color-theme-glow)]"
     >
       <Icon
-        icon="mdi:currency-usd"
+        icon="mdi:coins"
         class="mb-1 h-7 w-7 text-theme-primary [filter:drop-shadow(0_0_6px_var(--color-theme-glow))]"
       />
       <div class="text-center">

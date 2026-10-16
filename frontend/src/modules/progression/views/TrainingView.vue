@@ -114,11 +114,13 @@ onMounted(async () => {
               icon="mdi:account-multiple"
               :value="activeTrainings.length"
               label="Training"
+              tooltip="Dwellers currently in training sessions"
             />
             <PageHeaderMetric
               icon="mdi:progress-clock"
               :value="`${roomsInUse} / ${trainingRooms.length}`"
               label="Rooms in use"
+              tooltip="Training rooms with active sessions out of the total"
             />
           </template>
         </PageHeader>

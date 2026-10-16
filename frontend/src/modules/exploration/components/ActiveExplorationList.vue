@@ -132,7 +132,7 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
             </div>
             <span class="text-[rgba(205,133,63,0.4)] text-[0.65rem]">•</span>
             <div class="stat-item">
-              <Icon icon="mdi:currency-usd" class="h-3.5 w-3.5" />
+              <Icon icon="mdi:coins" class="h-3.5 w-3.5" />
               <span>{{ exploration.total_caps_found || 0 }}</span>
             </div>
             <span class="text-[rgba(205,133,63,0.4)] text-[0.65rem]">•</span>

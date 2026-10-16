@@ -342,6 +342,7 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
               icon="mdi:account-arrow-right"
               :value="activeExplorerCount"
               label="Active explorers"
+              tooltip="Dwellers currently exploring the wasteland"
             />
           </template>
         </PageHeader>

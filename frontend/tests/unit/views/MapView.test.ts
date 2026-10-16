@@ -109,15 +109,19 @@ describe('MapView', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
-  function mountView() {
+  function mountView(withRealHeader = false) {
     return mount(MapView, {
       global: {
         stubs: {
           SidePanel: true,
-          PageHeader: {
-            name: 'PageHeader',
-            template: '<header class="page-header-stub"><slot name="actions" /></header>',
-          },
+          ...(withRealHeader
+            ? {}
+            : {
+                PageHeader: {
+                  name: 'PageHeader',
+                  template: '<header class="page-header-stub"><slot name="actions" /></header>',
+                },
+              }),
           USkeleton: true,
           WorldMap: {
             name: 'WorldMap',
@@ -1142,6 +1146,22 @@ describe('MapView', () => {
         .findComponent({ name: 'WorldMap' })
         .props('explorerTracks') as ExplorerTrack[]
       expect(tracks[0].partyNames).toEqual(['Stephanie Boyd'])
+      wrapper.unmount()
+    })
+  })
+
+  describe('header help', () => {
+    it('offers header help about the world map', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = []
+      mapStore.isLoading = false
+
+      const wrapper = mountView(true)
+      // PageHelp loads asynchronously on the first header mount of the file, so
+      // poll instead of assuming one flush settles the dynamic import.
+      await vi.waitFor(() => {
+        expect(wrapper.find('button[aria-label="About World Map"]').exists()).toBe(true)
+      })
       wrapper.unmount()
     })
   })

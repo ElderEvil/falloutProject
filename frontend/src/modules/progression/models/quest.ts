@@ -255,7 +255,7 @@ export function questRewardIcon(reward: QuestReward): string {
   }
   switch (type) {
     case 'caps':
-      return 'mdi:currency-usd'
+      return 'mdi:coins'
     case 'resource':
       return 'mdi:package-variant'
     case 'experience':
@@ -295,24 +295,16 @@ export interface QuestUpdate {
   rewards?: string
 }
 
-const GRANTED_ICONS: Record<GrantedReward['reward_type'], string> = {
-  caps: 'mdi:currency-usd',
-  item: 'mdi:package-variant',
-  dweller: 'mdi:account-plus',
-  resource: 'mdi:database',
-  experience: 'mdi:star',
-  stimpak: 'mdi:medical-bag',
-  radaway: 'mdi:radiation',
-}
-
-const GRANTED_LABELS: Record<GrantedReward['reward_type'], string> = {
-  caps: 'Bottle Caps',
-  item: 'Item',
-  dweller: 'New Dweller',
-  resource: 'Resource',
-  experience: 'Experience',
-  stimpak: 'Stimpak',
-  radaway: 'RadAway',
+/** Shared reward-type icon-and-label metadata for advertised and granted rewards. */
+export const REWARD_TYPE_META: Record<QuestReward['reward_type'], { icon: string, label: string }> = {
+  caps: { icon: 'mdi:coins', label: 'Bottle Caps' },
+  item: { icon: 'mdi:package-variant', label: 'Item' },
+  dweller: { icon: 'mdi:account-plus', label: 'New Dweller' },
+  resource: { icon: 'mdi:database', label: 'Resource' },
+  experience: { icon: 'mdi:star', label: 'Experience' },
+  stimpak: { icon: 'mdi:medical-bag', label: 'Stimpak' },
+  radaway: { icon: 'mdi:radiation', label: 'RadAway' },
+  lunchbox: { icon: 'mdi:gift', label: 'Lunchbox' },
 }
 
 export const QUEST_ITEM_LABELS: Record<string, string> = {
@@ -324,16 +316,11 @@ export const QUEST_ITEM_LABELS: Record<string, string> = {
   lunchbox: 'Lunchbox',
 }
 
-const GRANTED_RESOURCE_ICONS: Record<string, string> = {
-  power: 'mdi:flash',
-  food: 'mdi:food-apple',
-  water: 'mdi:water',
-}
-
-const GRANTED_RESOURCE_LABELS: Record<string, string> = {
-  power: 'Power',
-  food: 'Food',
-  water: 'Water',
+/** Shared resource icon-and-label metadata for advertised and granted rewards. */
+export const RESOURCE_META: Record<string, { icon: string, label: string }> = {
+  power: { icon: 'mdi:flash', label: 'Power' },
+  food: { icon: 'mdi:silverware', label: 'Food' },
+  water: { icon: 'mdi:water', label: 'Water' },
 }
 
 export interface GrantedRewardDisplay {
@@ -350,34 +337,37 @@ export interface GrantedRewardDisplay {
 export function describeGrantedReward(reward: GrantedReward): GrantedRewardDisplay {
   switch (reward.reward_type) {
     case 'caps':
-      return { icon: GRANTED_ICONS.caps, label: GRANTED_LABELS.caps, value: String(reward.amount) }
-    case 'resource':
+      return { ...REWARD_TYPE_META.caps, value: String(reward.amount) }
+    case 'resource': {
+      const meta = RESOURCE_META[reward.resource_type]
       return {
-        icon: GRANTED_RESOURCE_ICONS[reward.resource_type] ?? GRANTED_ICONS.resource,
-        label: GRANTED_RESOURCE_LABELS[reward.resource_type] ?? GRANTED_LABELS.resource,
+        icon: meta?.icon ?? REWARD_TYPE_META.resource.icon,
+        label: meta?.label ?? REWARD_TYPE_META.resource.label,
         value: String(reward.amount),
       }
+    }
     case 'experience':
       return {
-        icon: GRANTED_ICONS.experience,
-        label: GRANTED_LABELS.experience,
+        ...REWARD_TYPE_META.experience,
         value: reward.name ?? `${reward.amount} XP`,
       }
     case 'dweller':
-      return { icon: GRANTED_ICONS.dweller, label: GRANTED_LABELS.dweller, value: reward.name }
+      return { ...REWARD_TYPE_META.dweller, value: reward.name }
     case 'stimpak':
-    case 'radaway':
+    case 'radaway': {
+      const meta = REWARD_TYPE_META[reward.reward_type]
       return {
-        icon: GRANTED_ICONS[reward.reward_type],
-        label: GRANTED_LABELS[reward.reward_type],
+        icon: meta.icon,
+        label: meta.label,
         // amount 0 renders as the bare label, matching the backend summary ("RadAway", not "0 RadAway").
-        value: reward.amount ? String(reward.amount) : GRANTED_LABELS[reward.reward_type],
+        value: reward.amount ? String(reward.amount) : meta.label,
       }
+    }
     case 'item': {
       const quantity = reward.amount > 1 ? `${reward.amount}x ` : ''
       return {
         icon: questCategoryIcon(reward.item_type),
-        label: QUEST_ITEM_LABELS[reward.item_type] ?? GRANTED_LABELS.item,
+        label: QUEST_ITEM_LABELS[reward.item_type] ?? REWARD_TYPE_META.item.label,
         value: `${quantity}${reward.name}`,
       }
     }

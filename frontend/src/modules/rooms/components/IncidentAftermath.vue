@@ -81,7 +81,7 @@ const dismiss = () => incidentStore.clearAftermath(props.aftermath.roomId)
         variant="experience"
       />
       <RewardCard
-        icon="mdi:currency-usd"
+        icon="mdi:coins"
         label="Bottle Caps"
         :value="String(aftermath.capsEarned)"
         variant="caps"

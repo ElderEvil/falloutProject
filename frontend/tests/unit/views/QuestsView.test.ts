@@ -1077,5 +1077,12 @@ describe('QuestsView', () => {
         .find((tab) => tab.text().includes('Active'))
       expect(activeTab?.find('[data-slot="badge"]').exists()).toBe(false)
     })
+
+    it('offers header help about quests', async () => {
+      wrapper = mountWithQuests([quest({ id: 'quest-1' })])
+      await flushPromises()
+
+      expect(wrapper.find('button[aria-label="About Quests"]').exists()).toBe(true)
+    })
   })
 })

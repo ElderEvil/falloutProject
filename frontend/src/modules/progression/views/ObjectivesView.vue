@@ -148,6 +148,28 @@ function closeClaimModal(): void {
               icon="mdi:target"
               subtitle="Complete Vault-Tec directives to earn rewards."
             >
+              <template #help>
+                <section>
+                  <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                    <Icon icon="mdi:map-marker-path" class="size-4 shrink-0" />
+                    Follow the starter arc
+                  </h2>
+                  <p>
+                    The starter steps guide the early vault. Claim the Overseer's Office objective
+                    to unlock daily, weekly and achievement objectives.
+                  </p>
+                </section>
+                <section>
+                  <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                    <Icon icon="mdi:gift" class="size-4 shrink-0" />
+                    Claim finished objectives
+                  </h2>
+                  <p>
+                    Tabs with a count badge hold rewards ready to claim. Claimed objectives move to
+                    the Completed tab.
+                  </p>
+                </section>
+              </template>
               <template #actions>
                 <PageHeaderMetric
                   icon="mdi:target"
@@ -208,7 +230,8 @@ function closeClaimModal(): void {
                 </template>
               </TabsList>
               <p v-if="!objectivesUnlocked" class="unlock-hint">
-                Daily, weekly and achievement objectives unlock once you build the Overseer's Office.
+                Daily, weekly and achievement objectives unlock once you claim the Overseer's
+                Office objective.
               </p>
               <div class="tab-content">
                 <div v-if="visibleObjectives.length === 0" class="empty-state">

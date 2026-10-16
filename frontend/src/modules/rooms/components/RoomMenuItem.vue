@@ -110,7 +110,7 @@ const onboardingAnchor = computed(() =>
 
         <div class="room-detail-row">
           <div class="room-cost text-theme-primary">
-            <Icon icon="mdi:currency-usd" class="w-4 h-4" />
+            <Icon icon="mdi:coins" class="w-4 h-4" />
             <span>{{ roomCost }}</span>
           </div>
 

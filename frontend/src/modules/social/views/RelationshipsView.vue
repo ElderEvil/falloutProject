@@ -161,6 +161,7 @@ const navigateToDweller = (dwellerId: string) => {
               icon="mdi:heart-multiple"
               :value="totalRelationships"
               :label="totalRelationships === 1 ? 'relationship' : 'relationships'"
+              tooltip="Dweller pairs tracked in this vault"
             />
           </template>
         </PageHeader>

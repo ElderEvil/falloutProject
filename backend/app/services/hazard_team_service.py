@@ -413,6 +413,7 @@ class HazardTeamService:
                 dweller = member.dweller
                 if (
                     dweller is None
+                    or dweller.vault_id != incident.vault_id
                     or availability_error(dweller, require_healthy=True) is not None
                     or member.dweller_id in committed
                     or dweller.room_id not in (None, incident.room_id, member.origin_room_id)

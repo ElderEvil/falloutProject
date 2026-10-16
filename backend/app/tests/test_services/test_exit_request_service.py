@@ -30,6 +30,7 @@ from app.schemas.room import RoomCreate
 from app.services.combat.incident_service import incident_service
 from app.services.exit_request_service import exit_request_service
 from app.services.family.death_service import death_service
+from app.services.hazard_team_service import hazard_team_service
 from app.services.training_service import training_service
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 
@@ -270,6 +271,13 @@ async def test_grant_exit_waits_for_incident_resolution(
     assert granted.vault_id is None
     assert granted.availability is AvailabilityEnum.DEPARTURE
     assert granted.exit_requested_at is None
+
+    # A delayed return tick must close the old roster, not reclaim a departed person.
+    assert await hazard_team_service.return_dispatched_responders(async_session, incident) == 0
+    assert await crud.incident_crud.get_pending_responder_returns(async_session, vault.id) == []
+    await async_session.refresh(responder)
+    assert responder.vault_id is None
+    assert responder.room_id is None
 
 
 @pytest.mark.asyncio

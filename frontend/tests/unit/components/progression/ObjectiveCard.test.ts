@@ -1,92 +1,84 @@
-import { mount } from '@vue/test-utils'
+import { mount, type VueWrapper } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { Progress } from '@/core/components/ui/progress'
 import ObjectiveCard from '@/modules/progression/components/ObjectiveCard.vue'
+import type { Objective } from '@/modules/progression/models/objective'
+
+const objective = (overrides: Partial<Objective> = {}): Objective => ({
+  id: '4',
+  vault_id: 'v1',
+  challenge: 'Collect caps',
+  progress: 100,
+  total: 100,
+  reward: '50 Caps',
+  is_completed: false,
+  category: 'daily',
+  created_at: '',
+  ...overrides,
+})
+
+// The claim action is a shadcn Button, so target it by its visible label rather
+// than by an internal class name that the shared shell may rename.
+const findButton = (wrapper: VueWrapper, label: string) =>
+  wrapper.findAll('button').find((button) => button.text().includes(label))
 
 describe('ObjectiveCard', () => {
   it('uses the shared progress bar with the objective percentage', () => {
     const progressBar = mount(ObjectiveCard, {
-      props: {
-        objective: {
-          id: '1',
-          vault_id: 'v1',
-          challenge: 'Collect caps',
-          progress: 40,
-          total: 100,
-          reward: '50 Caps',
-          is_completed: false,
-          category: 'daily',
-          created_at: '',
-        },
-      },
+      props: { objective: objective({ id: '1', progress: 40 }) },
     }).findComponent(Progress)
     expect(progressBar.exists()).toBe(true)
     expect(progressBar.props()).toMatchObject({ modelValue: 40 })
     expect(progressBar.find('[aria-label="Objective progress"]').exists()).toBe(true)
   })
 
-  it('marks a completed objective with the completed card and stamp instead of the claim button', () => {
+  it('marks a completed objective with visible Completed text and drops the claim action', () => {
     const card = mount(ObjectiveCard, {
-      props: {
-        objective: {
-          id: '2',
-          vault_id: 'v1',
-          challenge: 'Collect caps',
-          progress: 100,
-          total: 100,
-          reward: '50 Caps',
-          is_completed: true,
-          category: 'daily',
-          created_at: '',
-        },
-      },
+      props: { objective: objective({ id: '2', is_completed: true }) },
     })
-    expect(card.find('.progression-card--completed').exists()).toBe(true)
-    expect(card.find('.progression-stamp').exists()).toBe(true)
-    expect(card.find('.claim-btn').exists()).toBe(false)
+    expect(card.text()).toContain('Completed')
+    expect(findButton(card, 'Claim Reward')).toBeUndefined()
   })
 
-  it('keeps a claimable objective at full strength so its claim button is not faded', () => {
+  it('offers an enabled Claim Reward action for a finished objective awaiting its claim', () => {
     const card = mount(ObjectiveCard, {
-      props: {
-        objective: {
-          id: '4',
-          vault_id: 'v1',
-          challenge: 'Collect caps',
-          progress: 100,
-          total: 100,
-          reward: '50 Caps',
-          is_completed: false,
-          category: 'daily',
-          created_at: '',
-        },
-      },
+      props: { objective: objective({ id: '4' }) },
     })
-    expect(card.find('.claim-btn').exists()).toBe(true)
-    expect(card.find('.progression-card--completed').exists()).toBe(false)
-    expect(card.find('.progression-stamp').exists()).toBe(false)
+    expect(card.text()).not.toContain('Completed')
+    expect(findButton(card, 'Claim Reward')?.attributes('disabled')).toBeUndefined()
+  })
+
+  it('disables the Claim Reward action while the claim is in flight', () => {
+    const card = mount(ObjectiveCard, {
+      props: { objective: objective({ id: '4' }), claiming: true },
+    })
+    expect(findButton(card, 'Claim Reward')?.attributes('disabled')).toBeDefined()
+  })
+
+  it('emits the claim event with the objective id when Claim Reward is pressed', async () => {
+    const card = mount(ObjectiveCard, {
+      props: { objective: objective({ id: '4' }) },
+    })
+    await findButton(card, 'Claim Reward')?.trigger('click')
+    expect(card.emitted('claim')).toEqual([['4']])
   })
 
   it.each([
     ['production_only', 'Production counts even when storage is full.'],
     ['distinct_dwellers', 'Each dweller counts once for this objective.'],
   ])('explains the %s counting rule', (rule, message) => {
-    const objective = {
+    const withRule = objective({
       id: '3',
-      vault_id: 'v1',
       challenge: 'Collect power',
       progress: 10,
       total: 150,
       reward: '15 caps',
-      is_completed: false,
-      category: 'daily' as const,
-      created_at: '',
       target_entity: { [rule]: true },
-    }
-    const card = mount(ObjectiveCard, { props: { objective } })
+    })
+    const card = mount(ObjectiveCard, { props: { objective: withRule } })
     expect(card.text()).toContain(message)
     const ordinary = mount(ObjectiveCard, {
-      props: { objective: { ...objective, target_entity: {} } },
+      props: { objective: { ...withRule, target_entity: {} } },
     })
     expect(ordinary.text()).not.toContain(message)
   })

@@ -333,28 +333,35 @@ onMounted(async () => {
             <Tabs :model-value="activeTab" @update:model-value="activeTab = String($event)">
               <div class="tabs-row">
                 <TabsList>
-                  <TabsTrigger v-for="tab in questTabs" :key="tab.key" :value="tab.key">
-                    <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
-                    {{ tab.label }}
-                    <TooltipProvider
-                      v-if="tab.key === 'active' && readyToClaimQuests.length > 0"
-                      :delay-duration="200"
-                    >
+                  <template v-for="tab in questTabs" :key="tab.key">
+                    <TooltipProvider :delay-duration="200">
                       <Tooltip>
                         <TooltipTrigger as-child>
-                          <span :aria-label="readyClaimTip">
-                            <Badge
-                              variant="outline"
-                              class="ml-2 border-0 bg-terminal-background text-theme-primary"
+                          <TabsTrigger :value="tab.key">
+                            <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
+                            {{ tab.label }}
+                            <span
+                              v-if="tab.key === 'active' && readyToClaimQuests.length > 0"
+                              :aria-label="readyClaimTip"
                             >
-                              {{ readyToClaimQuests.length }}
-                            </Badge>
-                          </span>
+                              <Badge
+                                variant="outline"
+                                class="ml-2 border-0 bg-terminal-background text-theme-primary"
+                              >
+                                {{ readyToClaimQuests.length }}
+                              </Badge>
+                            </span>
+                          </TabsTrigger>
                         </TooltipTrigger>
-                        <TooltipContent side="bottom">{{ readyClaimTip }}</TooltipContent>
+                        <TooltipContent
+                          v-if="tab.key === 'active' && readyToClaimQuests.length > 0"
+                          side="bottom"
+                        >
+                          {{ readyClaimTip }}
+                        </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                  </TabsTrigger>
+                  </template>
                 </TabsList>
 
                 <div v-if="activeTab === 'available'" class="filter-row">

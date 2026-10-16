@@ -1058,10 +1058,10 @@ describe('QuestsView', () => {
       expect(badge?.text()).toContain('2')
 
       // reka-ui's TooltipTrigger opens on native focus (immediate, no delay);
-      // dispatch a real event like the StorageItemCard tooltip tests do.
+      // the whole tab is the trigger so keyboard focus reveals the tip too.
       const tip = activeTab?.find('span[aria-label]')
       expect(tip?.attributes('aria-label')).toBe('2 rewards ready to claim')
-      tip?.element.dispatchEvent(new FocusEvent('focus'))
+      activeTab?.element.dispatchEvent(new FocusEvent('focus'))
       await nextTick()
       expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
         '2 rewards ready to claim'

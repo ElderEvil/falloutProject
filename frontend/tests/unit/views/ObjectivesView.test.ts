@@ -282,7 +282,10 @@ describe('ObjectivesView claimable counters', () => {
     expect(badge.exists()).toBe(true)
     const tip = wrapper.find('span[aria-label]')
     expect(tip.attributes('aria-label')).toBe('1 reward ready to claim')
-    tip.element.dispatchEvent(new FocusEvent('focus'))
+    const tab = wrapper
+      .findAll('[role="tab"]')
+      .find((candidate) => candidate.find('[data-slot="badge"]').exists())
+    tab?.element.dispatchEvent(new FocusEvent('focus'))
     await nextTick()
     expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
       '1 reward ready to claim'

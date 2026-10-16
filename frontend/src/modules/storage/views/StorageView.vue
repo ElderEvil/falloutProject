@@ -299,23 +299,43 @@ const closeLunchboxModal = async () => {
       :class="isCollapsed ? 'ml-16' : 'ml-60'"
     >
       <PageContentRail>
-        <PageHeader
-          title="Vault Storage"
-          icon="mdi:package-variant"
-          subtitle="Organize equipment, supplies & recovered wasteland loot."
-        >
-          <template v-if="storageSpace" #actions>
+          <PageHeader
+            title="Vault Storage"
+            icon="mdi:package-variant"
+            subtitle="Organize equipment, supplies & recovered wasteland loot."
+          >
+            <template #help>
+              <section>
+                <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                  <Icon icon="mdi:package-variant" class="size-4 shrink-0" />
+                  Manage the stockpile
+                </h2>
+                <p>
+                  Equipment, supplies and recovered wasteland loot live here. Stimpaks heal
+                  dwellers, RadAway cures radiation, and the utilization bar tracks used slots
+                  against the vault total.
+                </p>
+              </section>
+            </template>
+            <template v-if="storageSpace" #actions>
             <PageHeaderMetric
               icon="mdi:package-variant"
               :value="`${storageSpace.used_space} / ${storageSpace.max_space}`"
               label="Slots used"
+              tooltip="Storage slots occupied out of the vault total"
             />
             <PageHeaderMetric
               icon="mdi:medical-bag"
               :value="storageSpace.stimpack"
               label="Stimpaks"
+              tooltip="Heals dwellers in incidents and the wasteland"
             />
-            <PageHeaderMetric icon="mdi:pill" :value="storageSpace.radaway" label="RadAway" />
+            <PageHeaderMetric
+              icon="mdi:pill"
+              :value="storageSpace.radaway"
+              label="RadAway"
+              tooltip="Cures radiation for dwellers and explorers"
+            />
           </template>
         </PageHeader>
 

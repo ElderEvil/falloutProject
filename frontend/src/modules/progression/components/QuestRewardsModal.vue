@@ -5,7 +5,7 @@ import RewardCard from '@/core/components/common/RewardCard.vue'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
 import type { QuestReward, VaultQuest } from '../models/quest'
-import { questCategoryIcon, QUEST_ITEM_LABELS } from '../models/quest'
+import { questCategoryIcon, QUEST_ITEM_LABELS, RESOURCE_META, REWARD_TYPE_META } from '../models/quest'
 
 interface Props {
   quest: VaultQuest | null
@@ -19,23 +19,6 @@ const emit = defineEmits<{
   close: []
   confirm: []
 }>()
-
-const REWARD_META: Record<QuestReward['reward_type'], { icon: string, label: string }> = {
-  caps: { icon: 'mdi:currency-usd', label: 'Bottle Caps' },
-  item: { icon: 'mdi:package-variant', label: 'Item' },
-  dweller: { icon: 'mdi:account-plus', label: 'New Dweller' },
-  resource: { icon: 'mdi:database', label: 'Resource' },
-  experience: { icon: 'mdi:star', label: 'Experience' },
-  stimpak: { icon: 'mdi:medical-bag', label: 'Stimpak' },
-  radaway: { icon: 'mdi:radiation', label: 'RadAway' },
-  lunchbox: { icon: 'mdi:gift', label: 'Lunchbox' },
-}
-
-const RESOURCE_META: Record<string, { icon: string, label: string }> = {
-  power: { icon: 'mdi:flash', label: 'Power' },
-  food: { icon: 'mdi:food-apple', label: 'Food' },
-  water: { icon: 'mdi:water', label: 'Water' },
-}
 
 const rewards = computed(() => props.quest?.quest_rewards ?? [])
 
@@ -60,7 +43,7 @@ const inferItemCategory = (reward: QuestReward): string => {
 }
 
 const rewardMeta = (reward: QuestReward): { icon: string, label: string } => {
-  const base = REWARD_META[reward.reward_type] ?? { icon: 'mdi:gift', label: 'Reward' }
+  const base = REWARD_TYPE_META[reward.reward_type] ?? { icon: 'mdi:gift', label: 'Reward' }
   const data = reward.reward_data
 
   if (reward.reward_type === 'item') {

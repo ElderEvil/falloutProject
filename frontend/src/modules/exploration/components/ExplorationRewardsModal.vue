@@ -130,7 +130,7 @@ const tryClose = () => emit('close', requiresResolution.value)
           span
         />
         <RewardCard
-          icon="mdi:currency-usd"
+          icon="mdi:coins"
           label="Bottle Caps"
           :value="String(safeRewards.caps)"
           variant="caps"

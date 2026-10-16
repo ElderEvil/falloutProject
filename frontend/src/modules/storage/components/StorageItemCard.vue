@@ -51,7 +51,7 @@ const isOpenable = computed(() => itemType === 'lunchbox')
           class="mt-auto flex items-center justify-between gap-3 border-t border-(--color-theme-primary)/20 pt-2"
         >
           <div class="flex items-center gap-1.5 text-sm font-bold text-(--color-theme-primary)">
-            <Icon icon="mdi:currency-usd" class="h-4 w-4 text-(--color-caps)" />
+            <Icon icon="mdi:coins" class="h-4 w-4 text-(--color-caps)" />
             <span>{{ item.value || 0 }}</span>
           </div>
           <div class="flex flex-wrap justify-end gap-2">
@@ -83,7 +83,7 @@ const isOpenable = computed(() => itemType === 'lunchbox')
                     @click="emit('sell')"
                     class="border-2 border-(--color-caps) font-mono text-(--color-caps) hover:bg-(--color-caps)/20 hover:text-(--color-caps)"
                   >
-                    <Icon icon="mdi:cash" class="h-4 w-4" />
+                    <Icon icon="mdi:coins" class="h-4 w-4" />
                     Sell
                   </Button>
                 </TooltipTrigger>
@@ -111,7 +111,7 @@ const isOpenable = computed(() => itemType === 'lunchbox')
                     @click="emit('sellAll')"
                     class="border-2 border-(--color-caps) bg-(--color-caps)/20 font-mono text-(--color-caps) hover:bg-(--color-caps)/30"
                   >
-                    <Icon icon="mdi:cash-multiple" class="h-4 w-4" />
+                    <Icon icon="mdi:coins" class="h-4 w-4" />
                     Sell all
                   </Button>
                 </TooltipTrigger>

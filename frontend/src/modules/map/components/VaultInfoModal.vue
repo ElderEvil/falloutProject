@@ -29,7 +29,7 @@ const updatedAt = computed(() =>
 // Local descriptor list so the three resource rows share one template block.
 const RESOURCE_ROWS = [
   { key: 'power', icon: 'mdi:flash', label: 'Power' },
-  { key: 'food', icon: 'mdi:food', label: 'Food' },
+  { key: 'food', icon: 'mdi:silverware', label: 'Food' },
   { key: 'water', icon: 'mdi:water', label: 'Water' },
 ] as const
 
@@ -56,7 +56,7 @@ const resourcePercentage = (current: number, maximum: number) =>
 
         <div class="grid grid-cols-2 gap-2 lg:grid-cols-4">
           <TerminalMetric
-            icon="mdi:currency-usd"
+            icon="mdi:coins"
             label="Caps"
             :value="vault.bottle_caps"
             tone="caps"

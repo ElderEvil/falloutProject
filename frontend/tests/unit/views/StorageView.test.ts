@@ -164,4 +164,20 @@ describe('StorageView pets bucket', () => {
     expect(wrapper.text()).toContain('No pets Found')
     expect(wrapper.text()).not.toContain('Dogmeat')
   })
+
+  it('offers header help about vault storage', async () => {
+    const wrapper = await mountWith({
+      weapons: [],
+      outfits: [],
+      junk: [],
+      items: [],
+      pets: [],
+    })
+
+    // PageHelp loads asynchronously, so poll instead of assuming mountWith's
+    // single flush settles the dynamic import.
+    await vi.waitFor(() => {
+      expect(wrapper.find('button[aria-label="About Vault Storage"]').exists()).toBe(true)
+    })
+  })
 })

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createRouterMock } from '../helpers/mocks'
-import { mount, VueWrapper } from '@vue/test-utils'
+import { mount, VueWrapper, flushPromises } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import ObjectivesView from '@/modules/progression/views/ObjectivesView.vue'
@@ -58,6 +58,22 @@ function mountView() {
         SidePanel: true,
         PageContentRail: { template: '<div><slot /></div>' },
         PageHeader: true,
+        Icon: true,
+      },
+    },
+  })
+}
+
+// Named slots do not render through the PageHeader stub, so header-level
+// assertions mount once with the real header.
+function mountWithRealHeader() {
+  return mount(ObjectivesView, {
+    attachTo: document.body,
+    global: {
+      stubs: {
+        SidePanel: true,
+        PageContentRail: { template: '<div><slot /></div>' },
+        PageHeader: false,
         Icon: true,
       },
     },
@@ -128,7 +144,7 @@ describe('ObjectivesView objective gating', () => {
     expect(tabs.length).toBe(1)
     expect(tabs[0].text()).toContain('Starter')
     expect(wrapper.text()).toContain('Match a dweller to their room')
-    expect(wrapper.text()).toContain("build the Overseer's Office")
+    expect(wrapper.text()).toContain("claim the Overseer's Office")
     expect(wrapper.text()).not.toContain('Collect 100 caps')
   })
 
@@ -253,23 +269,22 @@ describe('ObjectivesView claimable counters', () => {
       { ...dailyObjective, id: 'daily-done', is_completed: true },
     ]
 
-    // Named slots do not render through the PageHeader stub, so mount this
-    // once with the real header to assert the metrics.
-    wrapper = mount(ObjectivesView, {
-      attachTo: document.body,
-      global: {
-        stubs: {
-          SidePanel: true,
-          PageContentRail: { template: '<div><slot /></div>' },
-          PageHeader: false,
-          Icon: true,
-        },
-      },
-    })
+    wrapper = mountWithRealHeader()
     await wrapper.vm.$nextTick()
 
     expect(wrapper.text()).toContain('Open objectives')
     expect(wrapper.text()).toContain('Rewards ready')
+  })
+
+  it('offers header help about objectives', async () => {
+    objectivesStore.objectives = [{ ...dailyObjective, id: 'daily-1' }]
+
+    wrapper = mountWithRealHeader()
+    // PageHelp loads asynchronously on the first header mount of the file, so
+    // poll instead of assuming one flush settles the dynamic import.
+    await vi.waitFor(() => {
+      expect(wrapper.find('button[aria-label="About Objectives"]').exists()).toBe(true)
+    })
   })
 
   it('explains what a tab badge number means', async () => {

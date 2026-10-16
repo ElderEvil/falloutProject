@@ -1077,5 +1077,15 @@ describe('QuestsView', () => {
         .find((tab) => tab.text().includes('Active'))
       expect(activeTab?.find('[data-slot="badge"]').exists()).toBe(false)
     })
+
+    it('offers header help about quests', async () => {
+      wrapper = mountWithQuests([quest({ id: 'quest-1' })])
+
+      // PageHelp loads asynchronously, so poll instead of assuming one flush
+      // settles the dynamic import.
+      await vi.waitFor(() => {
+        expect(wrapper.find('button[aria-label="About Quests"]').exists()).toBe(true)
+      })
+    })
   })
 })

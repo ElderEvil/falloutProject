@@ -273,7 +273,7 @@ onMounted(async () => {
 
                   <div class="grid grid-cols-2 gap-2 lg:grid-cols-4">
                     <TerminalMetric
-                      icon="mdi:currency-usd"
+                      icon="mdi:coins"
                       label="Caps"
                       :value="vault.bottle_caps"
                       tone="caps"
@@ -311,7 +311,7 @@ onMounted(async () => {
                       />
                     </div>
                     <div class="grid gap-1.5">
-                      <span><Icon icon="mdi:food" /> Food</span
+                      <span><Icon icon="mdi:silverware" /> Food</span
                       ><strong>{{ vault.food }} / {{ vault.food_max }}</strong>
                       <Progress
                         :model-value="resourcePercentage(vault.food, vault.food_max)"

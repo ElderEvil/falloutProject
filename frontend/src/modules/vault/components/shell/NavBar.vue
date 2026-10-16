@@ -293,7 +293,7 @@ onUnmounted(() => {
                 navbar
                 :current="food.current"
                 :max="food.max"
-                icon="mdi:food-apple"
+                icon="mdi:silverware"
                 label="Food"
                 :production-rate="resourceRates?.food"
                 :critical-to="productionRoomRoute('food')"
@@ -325,7 +325,7 @@ onUnmounted(() => {
             />
             <PageHeaderMetric
               compact
-              icon="mdi:currency-usd"
+              icon="mdi:coins"
               :value="bottleCaps.toLocaleString('en-US')"
               label="Caps"
               :tooltip="capsTooltip"

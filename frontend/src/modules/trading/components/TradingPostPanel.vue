@@ -77,7 +77,7 @@ watch(
 <template>
   <div class="trading-post">
     <div class="caps-bar">
-      <Icon icon="mdi:currency-usd" class="h-5 w-5" />
+      <Icon icon="mdi:coins" class="h-5 w-5" />
       <span>{{ bottleCaps }} caps</span>
     </div>
 

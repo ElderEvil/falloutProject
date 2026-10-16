@@ -314,6 +314,28 @@ onMounted(async () => {
               icon="mdi:book-open-page-variant"
               subtitle="Deploy teams, track missions & collect rewards."
             >
+              <template #help>
+                <section>
+                  <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                    <Icon icon="mdi:book-open-page-variant" class="size-4 shrink-0" />
+                    Run a quest
+                  </h2>
+                  <p>
+                    Pick a quest on the Available tab and assign a party. Travelling parties stay
+                    on the Active tab until they return.
+                  </p>
+                </section>
+                <section>
+                  <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                    <Icon icon="mdi:treasure-chest" class="size-4 shrink-0" />
+                    Claim rewards
+                  </h2>
+                  <p>
+                    Finished quests wait on the Active tab with their rewards ready. Claim them to
+                    collect the payout.
+                  </p>
+                </section>
+              </template>
               <template #actions>
                 <PageHeaderMetric
                   icon="mdi:book-open-page-variant"

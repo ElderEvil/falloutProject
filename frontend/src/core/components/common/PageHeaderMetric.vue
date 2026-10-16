@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useAttrs } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Card } from '@/core/components/ui/card'
 import {
@@ -10,8 +10,7 @@ import {
 } from '@/core/components/ui/tooltip'
 import { cn } from '@/core/utils/cn'
 
-const props = withDefaults(
-  defineProps<{
+const props = withDefaults(defineProps<{
     label: string
     value: number | string
     icon: string
@@ -25,6 +24,11 @@ const props = withDefaults(
     compact: false,
   }
 )
+
+// Reka's TooltipProvider sets inheritAttrs: false, so a caller class would be
+// swallowed on the tooltip branch — forward it to the Card explicitly. The
+// plain branch keeps automatic fallthrough and stays untouched.
+const attrs = useAttrs()
 
 const labelClasses = computed(() =>
   cn(
@@ -71,7 +75,7 @@ const cardClasses = computed(() =>
   <TooltipProvider v-if="tooltip" :delay-duration="200">
     <Tooltip>
       <TooltipTrigger as-child>
-        <Card size="sm" :class="cardClasses" v-bind="{ tabindex: '0' }">
+        <Card size="sm" :class="[cardClasses, attrs.class]" v-bind="{ tabindex: '0' }">
           <Icon :icon="icon" :class="iconClasses" :ariaHidden="true" />
           <div class="min-w-0">
             <div :class="valueClasses">

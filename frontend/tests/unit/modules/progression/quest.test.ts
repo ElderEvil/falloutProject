@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { describeGrantedReward, formatGrantedReward, type GrantedReward } from '@/modules/progression/models/quest'
+import {
+  describeGrantedReward,
+  formatGrantedReward,
+  questRewardIcon,
+  type GrantedReward,
+  type QuestReward,
+} from '@/modules/progression/models/quest'
 
 /**
  * Frontend display contract for settled rewards.
@@ -17,7 +23,7 @@ describe('describeGrantedReward', () => {
   it('renders caps with their label and amount', () => {
     const reward: GrantedReward = { reward_type: 'caps', amount: 25 }
     expect(describeGrantedReward(reward)).toEqual({
-      icon: 'mdi:currency-usd',
+      icon: 'mdi:coins',
       label: 'Bottle Caps',
       value: '25',
     })
@@ -26,7 +32,7 @@ describe('describeGrantedReward', () => {
   it('renders resources with their type-specific icon and label', () => {
     const reward: GrantedReward = { reward_type: 'resource', resource_type: 'food', amount: 10 }
     expect(describeGrantedReward(reward)).toEqual({
-      icon: 'mdi:food-apple',
+      icon: 'mdi:silverware',
       label: 'Food',
       value: '10',
     })
@@ -107,5 +113,46 @@ describe('formatGrantedReward', () => {
 
   it('renders a zero-amount medication as its bare label, like the backend summary', () => {
     expect(formatGrantedReward({ reward_type: 'radaway', amount: 0 })).toBe('RadAway')
+  })
+})
+
+describe('questRewardIcon', () => {
+  const questReward = (overrides: Partial<QuestReward> = {}): QuestReward => ({
+    id: 'reward-1',
+    quest_id: 'quest-1',
+    reward_type: 'caps',
+    reward_data: {},
+    reward_chance: 1,
+    ...overrides,
+  })
+
+  it('shares the common reward-type icons with the granted-reward mapping', () => {
+    expect(questRewardIcon(questReward({ reward_type: 'caps' }))).toBe('mdi:coins')
+    expect(questRewardIcon(questReward({ reward_type: 'radaway' }))).toBe('mdi:radiation')
+    expect(questRewardIcon(questReward({ reward_type: 'stimpak' }))).toBe('mdi:medical-bag')
+    expect(questRewardIcon(questReward({ reward_type: 'lunchbox' }))).toBe('mdi:gift')
+  })
+
+  it('resolves resource rewards by their resource type', () => {
+    expect(
+      questRewardIcon(questReward({ reward_type: 'resource', reward_data: { resource_type: 'food' } }))
+    ).toBe('mdi:silverware')
+    expect(
+      questRewardIcon(questReward({ reward_type: 'resource', reward_data: { resource_type: 'mystery' } }))
+    ).toBe('mdi:database')
+  })
+
+  it('keeps item rewards on category, then name, then the generic fallback', () => {
+    expect(
+      questRewardIcon(
+        questReward({ reward_type: 'item', reward_data: { item_type: 'weapon', item_name: 'Rifle' } })
+      )
+    ).toBe('mdi:pistol')
+    expect(
+      questRewardIcon(questReward({ reward_type: 'item', reward_data: { item_name: 'RadAway' } }))
+    ).toBe('mdi:radiation')
+    expect(
+      questRewardIcon(questReward({ reward_type: 'item', reward_data: { item_name: 'Mystery Trinket' } }))
+    ).toBe('mdi:package-variant')
   })
 })

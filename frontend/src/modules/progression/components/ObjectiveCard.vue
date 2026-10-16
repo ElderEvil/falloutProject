@@ -30,7 +30,7 @@ const progressPercent = computed(() => {
 const objectiveIcon = computed(() => {
   if (props.objective.target_entity?.production_only) return 'mdi:factory'
   const challenge = props.objective.challenge.toLowerCase()
-  if (challenge.includes('cap') || challenge.includes('collect')) return 'mdi:cash'
+  if (challenge.includes('cap') || challenge.includes('collect')) return 'mdi:coins'
   if (challenge.includes('dweller')) return 'mdi:account-group'
   if (challenge.includes('room') || challenge.includes('build')) return 'mdi:home-group'
   if (challenge.includes('train')) return 'mdi:dumbbell'

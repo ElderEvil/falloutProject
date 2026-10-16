@@ -13,6 +13,7 @@ import { useSse, type SseEvent } from '@/core/composables/useEventStream'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { useSound } from '@/core/composables/useSound'
 import { useToast } from '@/core/composables/useToast'
+import { useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
 import { addPendingReport } from '@/modules/exploration/composables/usePendingReports'
 import { getNotificationRoute } from '@/modules/vault/utils/notificationRouting'
 import { formatRelativeTime } from '@/core/utils/time'
@@ -37,6 +38,7 @@ const { playSound } = useSound()
 const toast = useToast()
 const POPUP_ID = 'notifications-popup'
 const showPopup = ref(false)
+useBlockingOverlay(() => showPopup.value)
 const bellButtonRef = ref<HTMLButtonElement | null>(null)
 const popupRef = ref<HTMLElement | null>(null)
 const notifications = ref<Notification[]>([])

@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/core/components/ui/dialog'
+import { useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
 
 /** Width variants observed across the migrated modal shells. */
 type TerminalModalSize = 'sm' | 'md' | 'xl' | '3xl' | '5xl' | '6xl'
@@ -57,6 +58,10 @@ const emit = defineEmits<{
   'update:open': [open: boolean]
   close: []
 }>()
+
+// Every Reka dialog shell registers here, so overlay owners do not each have to
+// remember to announce themselves to cross-cutting consumers.
+useBlockingOverlay(() => props.open)
 
 // Literal class strings keep every variant statically visible to Tailwind.
 const MAX_HEIGHT_CLASSES: Record<TerminalModalMaxHeight, string> = {

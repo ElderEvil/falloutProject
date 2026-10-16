@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
+import { useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
 import { useRoomStore } from '../stores/room'
 import RoomMenuItem from './RoomMenuItem.vue'
 import type { RoomTemplate } from '../models/room'
@@ -13,6 +14,9 @@ const emit = defineEmits<{
   (e: 'roomSelected', room: RoomTemplate): void
   (e: 'close'): void
 }>()
+
+// Mounted only while the build menu is open (`v-if` at the call site).
+useBlockingOverlay(() => true)
 
 const selectRoom = (room: RoomTemplate) => {
   emit('roomSelected', room)

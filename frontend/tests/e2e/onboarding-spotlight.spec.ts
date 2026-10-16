@@ -179,4 +179,19 @@ test.describe('Spotlight guide — vault page', () => {
     })
     await expect(page.locator('.onboarding-cutout--off')).toHaveCount(0)
   })
+
+  test('re-resolves the guide when resizing hides the control', async ({ page }) => {
+    await openVault(page, ORIENTATION_ACKNOWLEDGED)
+    await expect(page.locator('.onboarding-cutout')).toBeAttached({ timeout: 15000 })
+
+    // Below the desktop breakpoint the side panel collapses, hiding the anchor;
+    // the detached spotlight must go and a fallback action must appear (navigate
+    // when the control is gone, scroll when it is merely out of view).
+    await page.setViewportSize({ width: 390, height: 844 })
+
+    await expect(page.locator('.onboarding-cutout')).toHaveCount(0)
+    await expect(
+      page.locator('.onboarding-actions button', { hasText: /Open Dwellers|Show control/ })
+    ).toBeVisible({ timeout: 10000 })
+  })
 })

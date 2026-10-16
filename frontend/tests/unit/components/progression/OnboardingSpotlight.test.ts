@@ -669,4 +669,83 @@ describe('OnboardingSpotlight', () => {
       wrapper.unmount()
     })
   })
+
+  describe('viewport lifecycle', () => {
+    const offScreenRect = () =>
+      ({
+        width: 40,
+        height: 20,
+        top: 5000,
+        left: 10,
+        right: 50,
+        bottom: 5020,
+        x: 10,
+        y: 5000,
+        toJSON: () => ({}),
+      }) as DOMRect
+
+    const onScreenRect = () =>
+      ({
+        width: 40,
+        height: 20,
+        top: 10,
+        left: 10,
+        right: 50,
+        bottom: 30,
+        x: 10,
+        y: 10,
+        toJSON: () => ({}),
+      }) as DOMRect
+
+    it('restores the spotlight after an off-screen control is scrolled into view', async () => {
+      let onScreen = false
+      const anchor = document.createElement('div')
+      anchor.setAttribute('data-onboarding', 'resource-power')
+      anchor.getBoundingClientRect = () => (onScreen ? onScreenRect() : offScreenRect())
+      anchor.scrollIntoView = vi.fn()
+      document.body.appendChild(anchor)
+
+      const wrapper = mountSpotlight()
+      await flushPromises()
+      await clickButton('Start')
+      expect(findButton('Show control')).toBeDefined()
+      expect(document.querySelector('.onboarding-cutout')).toBeNull()
+
+      onScreen = true
+      await clickButton('Show control')
+
+      await vi.waitFor(() => expect(document.querySelector('.onboarding-cutout')).not.toBeNull())
+      expect(findButton('Show control')).toBeUndefined()
+      wrapper.unmount()
+    })
+
+    it('swaps the spotlight for navigation when resizing hides the control', async () => {
+      const anchor = boundedAnchor('nav-dwellers')
+      useObjectivesStore().objectives = [objective('first')]
+      acknowledgeLessons('orientation.resources', 'orientation.generator')
+
+      const wrapper = mountSpotlight()
+      await flushPromises()
+      await clickButton('Start')
+      await vi.waitFor(() => expect(document.querySelector('.onboarding-cutout')).not.toBeNull())
+
+      anchor.getBoundingClientRect = () =>
+        ({
+          width: 0,
+          height: 0,
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect
+      window.dispatchEvent(new Event('resize'))
+
+      await vi.waitFor(() => expect(document.querySelector('.onboarding-cutout')).toBeNull())
+      expect(findButton('Open Dwellers')).toBeDefined()
+      wrapper.unmount()
+    })
+  })
 })

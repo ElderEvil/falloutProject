@@ -45,7 +45,10 @@ A first-session guide that shows one useful action at a time, then hands off to 
   the lesson changes, so a background poll never reopens the card, moves focus or re-announces
   unchanged copy. When the control is on the current page but out of view, the guide offers an
   explicit **Show control** action that scrolls only when clicked; navigating to the route you
-  are already on is not offered.
+  are already on is not offered. Anchor selection and card placement re-resolve on scroll and
+  resize — both read the same reactive element bounds — so scrolling a control into view restores
+  the spotlight (`Show control` calls the refresh directly) and resizing that hides the control
+  falls back to explicit navigation instead of leaving a detached highlight.
 
 ## Compatibility (starter cohort)
 
@@ -102,13 +105,14 @@ Run for the simplification pass:
 
 Run for the dialog/placement pass (#1001):
 
-- Frontend: `typecheck` + `lint` clean, full suite **3142 passed**; `OnboardingSpotlight`
+- Frontend: `typecheck` + `lint` clean, full suite **3144 passed**; `OnboardingSpotlight`
   unit suite covers dialog suspension (incl. nested and unmount-during-navigation), the
-  off-screen scroll action, collapse preserving the title, and refresh-quiet state.
+  off-screen scroll action restoring the spotlight, resize re-resolution, collapse preserving
+  the title, and refresh-quiet state.
 - Browser: `tests/e2e/onboarding-spotlight.spec.ts` drives the real vault page at phone width
   (card does not cover the highlighted control), yields to a dialog-role overlay and resumes,
-  keyboard-activates an on-screen control, and falls back to navigation when the control is
-  hidden.
+  keyboard-activates an on-screen control, falls back to navigation when the control is hidden,
+  and re-resolves after a resize that hides the control.
 
 Still owed before release sign-off:
 

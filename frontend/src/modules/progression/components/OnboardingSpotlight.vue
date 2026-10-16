@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useElementBounding, usePreferredReducedMotion } from '@vueuse/core'
 import { Button } from '@/core/components/ui/button'
@@ -199,6 +199,9 @@ function resolveTarget() {
   const candidates = anchorCandidates()
   presentAnchorEl.value = candidates.find(hasSize) ?? null
   targetEl.value = candidates.find(isUsableAnchor) ?? null
+  // Re-measure once the ref settles so a target chosen on scroll/resize is ready
+  // in the same frame as the cut-out that depends on its bounds.
+  void nextTick(() => updateBounds())
 }
 watch([() => currentLesson.value?.id, showWelcome], () => resolveTarget(), { flush: 'post' })
 
@@ -214,7 +217,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => observer?.disconnect())
 
-const { top, left, width, height } = useElementBounding(targetEl)
+const { top, left, width, height, update: updateBounds } = useElementBounding(targetEl)
 const rectReady = computed(() => width.value > 0 && height.value > 0)
 const showCutout = computed(
   () => showLesson.value && actionable.value && targetEl.value !== null && rectReady.value
@@ -227,18 +230,37 @@ const cutoutStyle = computed(() => ({
 }))
 
 const viewportHeight = ref(typeof window === 'undefined' ? 0 : window.innerHeight || 0)
-const onResize = () => {
-  viewportHeight.value = window.innerHeight || 0
+
+// Scroll and resize change which anchor is on screen (an off-screen control
+// scrolled into view, or a control hidden by a narrower layout), so re-resolve
+// then instead of only on mutations and lesson changes.
+let anchorFrame = 0
+const refreshViewport = () => {
+  if (anchorFrame) return
+  anchorFrame = requestAnimationFrame(() => {
+    anchorFrame = 0
+    viewportHeight.value = window.innerHeight || 0
+    resolveTarget()
+  })
 }
-onMounted(() => window.addEventListener('resize', onResize))
-onBeforeUnmount(() => window.removeEventListener('resize', onResize))
+onMounted(() => {
+  window.addEventListener('resize', refreshViewport)
+  // Capture catches scrolling inside panels (the side panel has its own scroller).
+  window.addEventListener('scroll', refreshViewport, { capture: true, passive: true })
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', refreshViewport)
+  window.removeEventListener('scroll', refreshViewport, { capture: true })
+  if (anchorFrame) cancelAnimationFrame(anchorFrame)
+})
 
 // The card sits opposite the control being explained, so it never covers it on
 // small screens; when the control is below the fold the card reduces itself so
-// the lesson stays visible without pushing the control off-screen.
+// the lesson stays visible without pushing the control off-screen. Placement
+// reads the reactive element bounds, so scroll and resize update it too.
 const anchorBelowFold = computed(() => {
-  if (!viewportHeight.value || !targetEl.value) return false
-  return targetEl.value.getBoundingClientRect().top > viewportHeight.value / 2
+  if (!viewportHeight.value || height.value <= 0) return false
+  return top.value > viewportHeight.value / 2
 })
 const cardPlacement = computed(() => (anchorBelowFold.value ? 'top' : 'bottom'))
 
@@ -278,6 +300,9 @@ const scrollToControl = () => {
     behavior: reducedMotion.value === 'reduce' ? 'auto' : 'smooth',
     block: 'center',
   })
+  // Re-resolve now so the spotlight is restored even if the programmatic scroll
+  // raises no scroll event (or the element was already inside the viewport).
+  refreshViewport()
 }
 const showNavigate = computed(
   () => !!navPath.value && targetEl.value === null && presentAnchorEl.value === null

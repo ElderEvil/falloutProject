@@ -93,3 +93,28 @@ async def test_developed_vault_spawns_where_a_starter_vault_does_not(
 
     monkeypatch.setattr(room_crud, "count_by_vault", AsyncMock(return_value=40))
     assert await incident_service.should_spawn_incident(async_session, vault.id, 1800, state) is True
+
+
+@pytest.mark.asyncio
+async def test_dead_and_archived_dwellers_do_not_satisfy_the_population_gate(
+    async_session: AsyncSession, vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only living dwellers count: dead/archived rows cannot unlock incidents."""
+    state = await _online_game_state(async_session, vault)
+    state.last_presence_at = datetime.utcnow()
+    monkeypatch.setattr("random.random", lambda: 0.0)
+
+    dwellers = [
+        await crud.dweller.create(
+            async_session, obj_in=DwellerCreate(**create_random_common_dweller(), vault_id=vault.id)
+        )
+        for _ in range(8)
+    ]
+    for dweller in dwellers[4:]:
+        dweller.is_dead = True
+        async_session.add(dweller)
+    await async_session.commit()
+
+    assert await crud.dweller.count_in_vault(async_session, vault.id) == 8
+    assert await crud.dweller.count_living_in_vault(async_session, vault.id) == 4
+    assert await incident_service.should_spawn_incident(async_session, vault.id, 3600, state) is False

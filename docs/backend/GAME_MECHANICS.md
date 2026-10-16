@@ -93,9 +93,25 @@ Survival deaths land in the canonical `DEAD_PERMANENT` lifecycle with `ARCHIVE` 
 immutable memorial as a standard death past its window, reached immediately. That is deliberate: the
 recycling path restores the *same* row, which the lifecycle contract forbids for permanently dead people.
 Survival adds no recyclable tombstone; future reuse must copy eligible content into a new identity. The
-per-vault mode is also the switch that a later batch reads to trigger earlier Survival-only incident
-progression (see issue #838); the standard-mode Deathclaw population gate is a separate, explicitly
-documented behavior change, not an incidental one.
+mode also sets the Deathclaw population gate (survival 35 living dwellers, standard 60) — see Incident
+threat progression below.
+
+## Incident threat progression (population gates)
+
+Incident type selection is no longer population-blind. `IncidentConfig.get_spawn_weights(population, mode)`
+drops every threat the vault's living population has not qualified for; `roll_incident_type` uses the gated
+table, and a wave already in progress keeps its type without re-rolling.
+
+- Only **Deathclaw attacks** are gated today: 60 living dwellers in standard mode, 35 in survival
+  (`deathclaw_min_population` / `deathclaw_min_population_survival`). Every other threat has a 0 gate.
+- The count is the **living** population (`count_living_in_vault` — not soft-deleted, not dead). Dead and
+  archived dwellers never influence incident eligibility; the living definition used everywhere else now
+  also gates the pre-spawn population check.
+
+**Standard-mode behavior change:** selection was previously population-blind, so a Deathclaw could spawn in
+any vault past `min_vault_population` (5). The 60-dweller gate is an intentional standard-mode change — no
+Deathclaw below 60 living dwellers (35 in survival). `/game/balance.spawn_weights` still reports the ungated
+balance table for display.
 
 ## Arena morale (The Crowd Goes Wild)
 

@@ -98,7 +98,10 @@ async def test_runtime_spawn_rolls_from_the_balance_weights(async_session: Async
 
     assert incident is not None
     assert incident.type == IncidentType.FIRE
-    assert chooser.call_args.kwargs["weights"] == list(game_config.incident.get_spawn_weights().values())
+    vault = await crud.vault.get(async_session, room.vault_id)
+    population = await crud.dweller.count_living_in_vault(async_session, room.vault_id)
+    expected = game_config.incident.get_spawn_weights(population, vault.vault_mode)
+    assert chooser.call_args.kwargs["weights"] == list(expected.values())
 
 
 @pytest.mark.asyncio

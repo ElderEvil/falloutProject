@@ -8,7 +8,8 @@ import { Card } from '@/core/components/ui/card'
  *
  * The bodies differ by design — an objective shows one progress bar, a quest shows rewards,
  * requirements, a party and a duration — so they arrive through the default slot, and each
- * card keeps its own props, emits and action behaviour.
+ * card keeps its own props, emits and action behaviour. The optional note slot sits above
+ * the divider for lines that belong to the header block, like counting-rule notes.
  */
 interface Props {
   title: string
@@ -35,7 +36,9 @@ withDefaults(defineProps<Props>(), { description: null, completed: false, border
 
     <p v-if="description" class="progression-description">{{ description }}</p>
 
-    <div class="progression-divider border-t border-theme-primary/20 my-3"></div>
+    <slot name="note" />
+
+    <div class="progression-divider border-t border-theme-primary/20 mt-2 mb-3"></div>
 
     <slot />
 

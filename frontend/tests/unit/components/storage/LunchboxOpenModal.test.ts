@@ -19,11 +19,23 @@ vi.mock('@iconify/vue', () => createIconifyMock())
 const result: LunchboxOpened = {
   reward_type: 'lunchbox',
   items: [
-    { name: 'Laser Pistol', type: 'weapon', rarity: 'rare' },
+    {
+      name: 'Laser Pistol',
+      type: 'weapon',
+      rarity: 'rare',
+      image_url: '/static/weapon_images/laser-pistol.png',
+    },
     { name: 'Vault Suit', type: 'outfit', rarity: 'common' },
     { name: 'Combat Armor', type: 'outfit', rarity: 'legendary' },
   ],
-  dweller: { reward_type: 'dweller', dweller_id: 'dweller-1', name: 'Jane Doe' },
+  dweller: {
+    reward_type: 'dweller',
+    dweller_id: 'dweller-1',
+    name: 'Jane Doe',
+    rarity: 'rare',
+    image_url: '/static/dwellers/jane.png',
+    thumbnail_url: '/static/dwellers/jane-thumb.png',
+  },
 }
 
 const mountModal = (options: Parameters<typeof mount>[1] = {}) =>
@@ -73,6 +85,39 @@ describe('LunchboxOpenModal', () => {
     expect(wrapper.text()).toContain('rare')
     expect(wrapper.text()).toContain('Vault Suit')
     expect(wrapper.text()).toContain('Jane Doe')
+    expect(wrapper.find('img[alt="Laser Pistol"]').attributes('src')).toContain('laser-pistol.png')
+    expect(wrapper.find('img[alt="Jane Doe"]').attributes('src')).toContain('jane-thumb.png')
+    expect(wrapper.find('[aria-label="Rarity: Rare"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('3 items added to Storage')
+  })
+
+  it('falls back to item icons and a dweller silhouette when images fail', async () => {
+    wrapper = mountModal()
+    await findButton(wrapper, 'Reveal Contents')!.trigger('click')
+    await wrapper.find('img[alt="Laser Pistol"]').trigger('error')
+    await wrapper.find('img[alt="Jane Doe"]').trigger('error')
+
+    expect(wrapper.find('img[alt="Laser Pistol"]').exists()).toBe(false)
+    expect(wrapper.find('[role="img"][aria-label="Jane Doe"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Laser Pistol')
+    expect(wrapper.text()).toContain('Jane Doe')
+  })
+
+  it('plays the legendary fanfare for a legendary dweller even when equipment is common', async () => {
+    vi.useFakeTimers()
+    wrapper = mountModal({
+      props: {
+        show: true,
+        result: {
+          ...result,
+          items: [{ name: 'Vault Suit', type: 'outfit', rarity: 'common' }],
+          dweller: { ...result.dweller, rarity: 'legendary' },
+        },
+      },
+    })
+    await findButton(wrapper, 'Reveal Contents')!.trigger('click')
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(soundMock.playSound).toHaveBeenCalledWith('cardLegendary', 'sfx')
   })
 
   it('plays staggered card sounds on reveal and a legendary fanfare after', async () => {

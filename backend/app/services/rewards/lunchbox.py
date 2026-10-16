@@ -10,6 +10,7 @@ through the facade in ``app.services.reward_service``.
 import logging
 import random
 from typing import Any
+from uuid import UUID
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -105,7 +106,7 @@ async def _roll_lunchbox_contents(
         entry = random.choice(pool)
         item = build_weapon(entry, rarity, storage_id) if kind == "weapon" else build_outfit(entry, rarity, storage_id)
         db_session.add(item)
-        granted_items.append({"name": item.name, "type": kind, "rarity": rarity.value})
+        granted_items.append({"name": item.name, "type": kind, "rarity": rarity.value, "image_url": item.image_url})
 
     lunchbox_rarity = random.choices(
         [RarityEnum.COMMON, RarityEnum.RARE, RarityEnum.LEGENDARY], weights=[0.7, 0.2, 0.1]
@@ -125,4 +126,10 @@ async def _roll_lunchbox_contents(
     else:
         dweller_data = _lunchbox_common_dweller_data(random.randint(1, 5), lunchbox_rarity)
         granted_dweller = await items.grant_dweller(db_session, vault_id, dweller_data)
+    dweller = await dweller_crud.get(db_session, UUID(granted_dweller["dweller_id"]))
+    granted_dweller.update(
+        rarity=dweller.rarity,
+        image_url=dweller.image_url,
+        thumbnail_url=dweller.thumbnail_url,
+    )
     return granted_items, granted_dweller

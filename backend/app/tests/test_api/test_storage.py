@@ -197,6 +197,16 @@ async def test_open_lunchbox_success(
     assert len(data["items"]) == 3
     assert data["dweller"]["dweller_id"]
     assert data["dweller"]["name"]
+    dweller = await crud.dweller.get(async_session, UUID(data["dweller"]["dweller_id"]))
+    assert data["dweller"]["rarity"] == dweller.rarity.value
+    assert data["dweller"]["image_url"] == dweller.image_url
+    assert data["dweller"]["thumbnail_url"] == dweller.thumbnail_url
+    from app.utils.outfit_assets import get_outfit_image_url
+    from app.utils.weapon_assets import get_weapon_image_url
+
+    for item in data["items"]:
+        image_for = get_weapon_image_url if item["type"] == "weapon" else get_outfit_image_url
+        assert item["image_url"] == image_for(item["name"])
 
     remaining = await crud.storage.get_unopened_lunchbox(async_session, UUID(minted["item_id"]), vault.id)
     assert remaining is None

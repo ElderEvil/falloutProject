@@ -8418,7 +8418,25 @@ export interface components {
             reward_type: "lunchbox";
             /** Items */
             items?: components["schemas"]["LunchboxOpenedItem"][];
-            dweller: components["schemas"]["DwellerGranted"];
+            dweller: components["schemas"]["LunchboxOpenedDweller"];
+        };
+        /** LunchboxOpenedDweller */
+        LunchboxOpenedDweller: {
+            /**
+             * Reward Type
+             * @default dweller
+             * @constant
+             */
+            reward_type: "dweller";
+            /** Dweller Id */
+            dweller_id: string;
+            /** Name */
+            name: string;
+            rarity: components["schemas"]["RarityEnum"];
+            /** Image Url */
+            image_url?: string | null;
+            /** Thumbnail Url */
+            thumbnail_url?: string | null;
         };
         /** LunchboxOpenedItem */
         LunchboxOpenedItem: {
@@ -8428,6 +8446,8 @@ export interface components {
             type: string;
             /** Rarity */
             rarity: string;
+            /** Image Url */
+            image_url?: string | null;
         };
         /**
          * ManualRecruitRequest

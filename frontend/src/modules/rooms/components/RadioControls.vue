@@ -134,6 +134,12 @@ const emit = defineEmits<{
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .status-dot {
+    animation: none;
+  }
+}
+
 .radio-mode-switch {
   display: flex;
   background: var(--color-surface);

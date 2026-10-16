@@ -6,6 +6,7 @@ import {
   currentObjective,
   isObjectiveClaimable,
   isOfficeObjective,
+  isRetiredStarter,
   objectiveActionPath,
   type Objective,
 } from '@/modules/progression/models/objective'
@@ -19,6 +20,7 @@ import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import { Icon } from '@iconify/vue'
 import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { Badge } from '@/core/components/ui/badge'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import { ObjectiveCard } from '../components'
 import ObjectiveCompleteModal from '../components/ObjectiveCompleteModal.vue'
 
@@ -69,7 +71,10 @@ const officeCompleted = computed(() =>
 const objectivesUnlocked = computed(() => !currentStarter.value || officeCompleted.value)
 const hasOpenStarter = computed(() =>
   objectivesStore.objectives.some(
-    (objective) => objective.category === STARTER_TAB && !objective.is_completed
+    (objective) =>
+      objective.category === STARTER_TAB &&
+      !objective.is_completed &&
+      (!isRetiredStarter(objective) || isObjectiveClaimable(objective))
   )
 )
 const visibleTabs = computed(() => {
@@ -177,19 +182,24 @@ function closeClaimModal(): void {
                 <TabsTrigger v-for="tab in visibleTabs" :key="tab.key" :value="tab.key">
                   <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
                   {{ tab.label }}
-                  <span
-                    v-if="claimableCounts[tab.key]"
-                    :title="claimTooltip(claimableCounts[tab.key] ?? 0)"
-                    :aria-label="claimTooltip(claimableCounts[tab.key] ?? 0)"
-                  >
-                    <Badge
-                      variant="outline"
-                      class="ml-2 border-0 bg-terminal-background text-theme-primary"
-                    >
-                      {{ claimableCounts[tab.key] }}
-                      <span class="sr-only">claimable</span>
-                    </Badge>
-                  </span>
+                  <TooltipProvider v-if="claimableCounts[tab.key]" :delay-duration="200">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <span :aria-label="claimTooltip(claimableCounts[tab.key] ?? 0)">
+                          <Badge
+                            variant="outline"
+                            class="ml-2 border-0 bg-terminal-background text-theme-primary"
+                          >
+                            {{ claimableCounts[tab.key] }}
+                            <span class="sr-only">claimable</span>
+                          </Badge>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        {{ claimTooltip(claimableCounts[tab.key] ?? 0) }}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </TabsTrigger>
               </TabsList>
               <p v-if="!objectivesUnlocked" class="unlock-hint">

@@ -52,11 +52,15 @@ export interface ObjectiveProgressUpdate {
   progress: number
 }
 
+/** A starter row kept for its progress links that no longer advances the arc. */
+export function isRetiredStarter(objective: Objective): boolean {
+  return objective.category === 'starter' && !objective.objective_type
+}
+
 /** The guided arc stays on the current step until its reward is claimed. */
 export function currentObjective(objectives: Objective[]): Objective | undefined {
   const active = objectives.filter(
-    (objective) =>
-      !objective.is_completed && !(objective.category === 'starter' && !objective.objective_type)
+    (objective) => !objective.is_completed && !isRetiredStarter(objective)
   )
   return (
     active

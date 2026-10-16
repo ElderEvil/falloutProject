@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createRouterMock } from '../helpers/mocks'
 import { mount, VueWrapper } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import ObjectivesView from '@/modules/progression/views/ObjectivesView.vue'
 import ObjectiveCompleteModal from '@/modules/progression/components/ObjectiveCompleteModal.vue'
@@ -69,6 +70,7 @@ beforeEach(() => {
   objectivesStore = useObjectivesStore()
   vi.clearAllMocks()
   vi.spyOn(objectivesStore, 'fetchObjectives').mockResolvedValue()
+  document.querySelectorAll('[role="tooltip"]').forEach((element) => element.remove())
 })
 
 describe('ObjectivesView claim flow', () => {
@@ -278,9 +280,13 @@ describe('ObjectivesView claimable counters', () => {
 
     const badge = wrapper.find('[data-slot="badge"]')
     expect(badge.exists()).toBe(true)
-    const badgeTip = badge.element.parentElement
-    expect(badgeTip?.getAttribute('title')).toBe('1 reward ready to claim')
-    expect(badgeTip?.getAttribute('aria-label')).toBe('1 reward ready to claim')
+    const tip = wrapper.find('span[aria-label]')
+    expect(tip.attributes('aria-label')).toBe('1 reward ready to claim')
+    tip.element.dispatchEvent(new FocusEvent('focus'))
+    await nextTick()
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
+      '1 reward ready to claim'
+    )
   })
 
   it('hides the Starter tab once every starter objective is done', async () => {
@@ -303,6 +309,48 @@ describe('ObjectivesView claimable counters', () => {
       officeObjective(true),
       { ...starterObjective(6) },
       { ...dailyObjective },
+    ]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    const labels = wrapper.findAll('[role="tab"]').map((tab) => tab.text())
+    expect(labels.some((label) => label.startsWith('Starter'))).toBe(true)
+  })
+
+  it('hides the Starter tab when only retired, unearned starters remain', async () => {
+    objectivesStore.objectives = [
+      { ...starterObjective(1, true) },
+      {
+        ...dailyObjective,
+        id: 'retired-1',
+        category: 'starter',
+        sequence: null,
+        objective_type: undefined,
+        progress: 0,
+      },
+      { ...dailyObjective, id: 'daily-1' },
+    ]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    const labels = wrapper.findAll('[role="tab"]').map((tab) => tab.text())
+    expect(labels.some((label) => label.startsWith('Starter'))).toBe(false)
+    expect(labels.length).toBe(4)
+  })
+
+  it('keeps the Starter tab for a retired starter with an unclaimed reward', async () => {
+    objectivesStore.objectives = [
+      { ...starterObjective(1, true) },
+      {
+        ...dailyObjective,
+        id: 'retired-1',
+        category: 'starter',
+        sequence: null,
+        objective_type: undefined,
+      },
+      { ...dailyObjective, id: 'daily-1' },
     ]
 
     wrapper = mountView()

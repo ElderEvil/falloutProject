@@ -220,6 +220,19 @@ describe('UnassignedDwellers', () => {
       await wrapper.get('details').trigger('dragover', { dataTransfer: { dropEffect: '' } })
       expect(panel().open).toBe(true)
     })
+
+    it('stays open on a zero-match filter so its own controls keep working', async () => {
+      dwellerStore.dwellers = [mockDweller]
+      const wrapper = mount(UnassignedDwellers)
+      expect((wrapper.get('details').element as HTMLDetailsElement).open).toBe(true)
+
+      const chip = wrapper.findAll('.filter-chip').find((c) => c.text() === 'Legendary')
+      expect(chip).toBeTruthy()
+      await chip!.trigger('click')
+
+      expect((wrapper.get('details').element as HTMLDetailsElement).open).toBe(true)
+      expect(wrapper.text()).toContain('No dwellers match the filters')
+    })
   })
 
   describe('Filtering', () => {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, VueWrapper } from '@vue/test-utils'
-import { reactive } from 'vue'
+import { nextTick, reactive } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import QuestsView from '@/modules/progression/views/QuestsView.vue'
 import { useQuestStore } from '@/modules/progression/stores/quest'
@@ -38,6 +38,9 @@ describe('QuestsView', () => {
     vi.clearAllMocks()
     routeQuery.claimQuest = undefined
 
+    // Tooltip content is teleported to <body>; drop leftovers between tests.
+    document.querySelectorAll('[role="tooltip"]').forEach((element) => element.remove())
+
     // Prevent unhandled rejections from real HTTP calls during onMounted
     vi.spyOn(questStore, 'fetchAllQuests').mockResolvedValue()
     vi.spyOn(questStore, 'fetchVaultQuests').mockResolvedValue()
@@ -46,6 +49,7 @@ describe('QuestsView', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+    document.querySelectorAll('[role="tooltip"]').forEach((element) => element.remove())
   })
 
   describe('Overseer Office Lock', () => {
@@ -1052,9 +1056,16 @@ describe('QuestsView', () => {
       const badge = activeTab?.find('[data-slot="badge"]')
       expect(badge?.exists()).toBe(true)
       expect(badge?.text()).toContain('2')
-      const badgeTip = badge?.element.parentElement
-      expect(badgeTip?.getAttribute('title')).toBe('2 rewards ready to claim')
-      expect(badgeTip?.getAttribute('aria-label')).toBe('2 rewards ready to claim')
+
+      // reka-ui's TooltipTrigger opens on native focus (immediate, no delay);
+      // dispatch a real event like the StorageItemCard tooltip tests do.
+      const tip = activeTab?.find('span[aria-label]')
+      expect(tip?.attributes('aria-label')).toBe('2 rewards ready to claim')
+      tip?.element.dispatchEvent(new FocusEvent('focus'))
+      await nextTick()
+      expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
+        '2 rewards ready to claim'
+      )
     })
 
     it('omits the Active tab badge when nothing is ready to claim', async () => {

@@ -78,15 +78,13 @@ const unassignedDwellers = computed(() => {
 const isDraggingOver = ref(false)
 
 // The panel folds itself away when the roster empties and unfolds when the
-// first dweller needs assigning; any other change leaves a manual toggle alone.
-const isCollapsed = ref(unassignedDwellers.value.length === 0)
-watch(
-  () => unassignedDwellers.value.length,
-  (count, previous) => {
-    if (count === 0) isCollapsed.value = true
-    else if (previous === 0) isCollapsed.value = false
-  }
-)
+// first dweller needs assigning. The watch drives off the unfiltered roster so
+// a zero-match filter never hides its own controls; any other change leaves a
+// manual toggle alone.
+const isCollapsed = ref(!hasAnyUnassigned.value)
+watch(hasAnyUnassigned, (has) => {
+  isCollapsed.value = !has
+})
 
 // The summary click is intercepted so Vue state stays the single source of
 // truth; letting the native disclosure toggle itself would desync from the

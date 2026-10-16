@@ -30,6 +30,22 @@ A first-session guide that shows one useful action at a time, then hands off to 
   or unsupported persisted data degrades to an empty ledger. A failed objective read surfaces
   Retry; a claim error clears when the lesson or vault changes; hidden or off-screen anchors
   fall back to explicit navigation.
+- **Yields to dialogs.** The guide reads a shared blocking-overlay signal
+  (`core/composables/useBlockingOverlay.ts`) instead of sniffing the DOM for `[role="dialog"]`.
+  Both the card and the cut-out suspend while a player-opened dialog, incident dialog,
+  confirmation or the About help owns attention, and the same pending lesson resumes on
+  dismissal without acknowledging, skipping or completing it. Nested dialogs keep it suspended
+  until the whole stack closes, and an overlay torn down by navigation releases immediately.
+  Tooltips and ordinary popovers deliberately do not suspend it. `TerminalModal` registers once
+  for every Reka dialog shell; `RoomMenu`, `NotificationBell`, `DwellerBulkActions`,
+  `ChangelogModal` and `PageHelp` register their own non-`TerminalModal` dialogs.
+- **Responsive placement.** The card sits on the opposite side of the highlighted control so it
+  never covers what it explains. When the control is below the fold the card moves above it and
+  collapses to its title (the lesson is preserved); a manual collapse/expand toggle wins until
+  the lesson changes, so a background poll never reopens the card, moves focus or re-announces
+  unchanged copy. When the control is on the current page but out of view, the guide offers an
+  explicit **Show control** action that scrolls only when clicked; navigating to the route you
+  are already on is not offered.
 
 ## Compatibility (starter cohort)
 
@@ -55,9 +71,12 @@ separate revised templates rather than an in-place rewrite.
 |---|---|
 | Teaching order, anchors, presentation | Frontend definition list + ledger |
 | Reward order, completion targets, payouts, claim gating | Backend catalog |
+| "Is a blocking overlay open?" | `core/composables/useBlockingOverlay.ts` (dialogs register; the guide reads) |
 
 Tap and inspection lessons advance by Continue; objective-backed lessons advance by claim or
 Skip step. Selection changes, navigation and background polling never count as acknowledgement.
+The overlay signal carries only that boolean — lesson selection, placement and progress stay in
+the onboarding module.
 
 ## Acceptance criteria
 
@@ -87,6 +106,10 @@ Still owed before release sign-off:
 - Full-seed resource stability across a 20-minute active session and a return from inactivity.
 - Keyboard, touch and small-screen walkthrough of the spotlight and the Starter surface.
 - Real-service walkthrough of the cohort migration against production-like legacy rows.
+- Browser (Playwright) coverage that actually clicks and keyboard-activates the highlighted
+  control at phone width and 200% zoom, rather than asserting visibility alone.
+- Composing the lesson content with the `Card`/`Alert` primitives (current pass keeps the
+  existing bespoke card markup; `Button` is already the shared primitive).
 
 ## Deferred
 

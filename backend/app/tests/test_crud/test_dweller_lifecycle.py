@@ -7,7 +7,7 @@ booleans as derived projections. These tests run the real session and assert on 
 the queries return, not on a stubbed CRUD return value.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -21,6 +21,7 @@ from app.core.enums import (
 from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
+from app.services.family.death_service import death_service
 from app.tests.factory.dwellers import create_fake_dweller
 from app.utils import dweller_lifecycle
 
@@ -131,6 +132,97 @@ async def test_public_market_listing_excludes_departures(async_session: AsyncSes
     ids = {row.id for row in await crud.dweller.get_tradable(async_session, vault_id=vault.id)}
     assert listing.id in ids
     assert departed.id not in ids
+
+
+async def test_classified_resident_permanent_death_lands_in_the_graveyard(
+    async_session: AsyncSession, vault: Vault
+) -> None:
+    """A migrated ALIVE/VAULT resident's death must move canonical state or the graveyard loses them.
+
+    The migration classifies living residents as ``alive``/``vault``; a death writer that only
+    flips the legacy flags leaves ``lifecycle`` alive, so ``get_graveyard`` (which prefers the
+    canonical state) stops seeing genuine deaths.
+    """
+    resident = await _dweller(
+        async_session,
+        vault,
+        lifecycle=LifecycleEnum.ALIVE,
+        availability=AvailabilityEnum.VAULT,
+    )
+
+    await death_service.mark_as_dead(async_session, resident, DeathCauseEnum.HEALTH, permanent=True)
+    await async_session.refresh(resident)
+
+    assert resident.lifecycle is LifecycleEnum.DEAD_PERMANENT
+    assert resident.availability is AvailabilityEnum.ARCHIVE
+    assert [row.id for row in await crud.dweller.get_graveyard(async_session, vault.id)] == [resident.id]
+
+
+async def test_classified_resident_temporary_death_stays_revivable(async_session: AsyncSession, vault: Vault) -> None:
+    """A non-permanent death of a classified resident is revivable and not a memorial."""
+    resident = await _dweller(
+        async_session,
+        vault,
+        lifecycle=LifecycleEnum.ALIVE,
+        availability=AvailabilityEnum.VAULT,
+    )
+
+    await death_service.mark_as_dead(async_session, resident, DeathCauseEnum.HEALTH)
+    await async_session.refresh(resident)
+
+    assert resident.lifecycle is LifecycleEnum.DEAD_REVIVABLE
+    assert resident.availability is AvailabilityEnum.VAULT
+    assert await crud.dweller.get_graveyard(async_session, vault.id) == []
+
+
+async def test_permanent_death_expiry_updates_canonical_state_and_graveyard(
+    async_session: AsyncSession, vault: Vault
+) -> None:
+    """The expiry sweep promotes a revivable death to canonical ``dead_permanent``/``archive``."""
+    expired = await _dweller(
+        async_session,
+        vault,
+        lifecycle=LifecycleEnum.DEAD_REVIVABLE,
+        availability=AvailabilityEnum.VAULT,
+        is_dead=True,
+        is_permanently_dead=False,
+        death_cause=DeathCauseEnum.EXPLORATION,
+        death_timestamp=datetime.utcnow() - timedelta(days=10),
+    )
+
+    count = await death_service.check_and_mark_permanent_deaths(async_session)
+    await async_session.refresh(expired)
+
+    assert count == 1
+    assert expired.lifecycle is LifecycleEnum.DEAD_PERMANENT
+    assert expired.availability is AvailabilityEnum.ARCHIVE
+    assert [row.id for row in await crud.dweller.get_graveyard(async_session, vault.id)] == [expired.id]
+
+
+async def test_revival_restores_canonical_lifecycle(async_session: AsyncSession, vault: Vault) -> None:
+    """Reviving a classified dead resident returns them to canonical ``alive``/``vault``."""
+    dead = await _dweller(
+        async_session,
+        vault,
+        lifecycle=LifecycleEnum.DEAD_REVIVABLE,
+        availability=AvailabilityEnum.VAULT,
+        is_dead=True,
+        is_permanently_dead=False,
+        death_cause=DeathCauseEnum.HEALTH,
+        death_timestamp=datetime.utcnow() - timedelta(days=1),
+        health=0,
+    )
+    vault.bottle_caps = 10_000
+    async_session.add(vault)
+    await async_session.commit()
+    owner = await crud.user.get(async_session, vault.user_id)
+
+    await death_service.revive_dweller(async_session, dead.id, owner)
+    await async_session.refresh(dead)
+
+    assert dead.lifecycle is LifecycleEnum.ALIVE
+    assert dead.availability is AvailabilityEnum.VAULT
+    assert await crud.dweller.get_graveyard(async_session, vault.id) == []
 
 
 async def test_memorial_is_excluded_from_recycling_and_purge(async_session: AsyncSession, vault: Vault) -> None:

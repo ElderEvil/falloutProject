@@ -18,11 +18,17 @@ from app.core.enums import (
     RarityEnum,
 )
 from app.core.game_config import game_config
+from app.crud import training as training_crud
+from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
+from app.models.training import TrainingStatus
 from app.models.vault import Vault
+from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
+from app.schemas.room import RoomCreate
 from app.services.exit_request_service import exit_request_service
 from app.services.family.death_service import death_service
+from app.services.training_service import training_service
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 
 
@@ -202,6 +208,41 @@ async def test_granted_exit_has_no_revival_window(async_session: AsyncSession, v
     granted = await exit_request_service.grant_exit(async_session, vault, dwellers[0].id)
 
     assert death_service.get_days_until_permanent(granted) is None
+
+
+@pytest.mark.asyncio
+async def test_grant_exit_cancels_active_training(async_session: AsyncSession, vault: Vault) -> None:
+    """A grant stops active training inside the departure transaction, as the lifecycle contract requires."""
+    dwellers = await _with_room_for_one_exit(async_session, vault)
+    trainee = dwellers[0]
+    room = await room_crud.create(
+        async_session,
+        RoomCreate(
+            name="Weight Room",
+            category=RoomTypeEnum.TRAINING,
+            tier=1,
+            size=2,
+            capacity=6,
+            ability=SPECIALEnum.STRENGTH,
+            base_cost=1000,
+            t2_upgrade_cost=2500,
+            t3_upgrade_cost=5000,
+            size_min=1,
+            size_max=3,
+            vault_id=vault.id,
+        ),
+    )
+    await crud.dweller.update(async_session, trainee.id, {"status": DwellerStatusEnum.IDLE, "strength": 3})
+    training = await training_service.start_training(async_session, trainee.id, room.id)
+    await exit_request_service.request_exit(async_session, trainee.id)
+
+    await exit_request_service.grant_exit(async_session, vault, trainee.id)
+
+    await async_session.refresh(training)
+    assert training.status is TrainingStatus.CANCELLED
+    assert training.completed_at is not None
+    # The source vault's training tick only processes ACTIVE sessions, so the departed is dropped.
+    assert await training_crud.training.get_active_by_vault(async_session, vault.id) == []
 
 
 @pytest.mark.asyncio

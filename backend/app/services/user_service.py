@@ -50,10 +50,7 @@ class UserService:
         existing = await crud.user.get_by_username(db_session, username=username)
         if existing and existing.id != user.id:
             raise ResourceConflictException(detail="This username is already taken.")
-        user.username = username
-        await db_session.commit()
-        await db_session.refresh(user)
-        return user
+        return await crud.user.update(db_session, id=user.id, obj_in={"username": username})
 
     async def register_user(
         self,

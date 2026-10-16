@@ -136,3 +136,44 @@ Out of scope for this PR; tracked in [`../ROADMAP.md`](../ROADMAP.md).
 - **Later chapters** (Medbay, Science Lab, Office quests, Workshops, Training, 50+ vault) as
   contextual lessons — the Briefing owns the next action until something is actionable.
 - A dedicated `exploration_id` on the departure event.
+
+## First-session continuity follow-up
+
+The presentation work above is followed by three small handoffs, using existing
+lessons, reward claims and game data:
+
+1. **Connect the five explanations.** Reserves lead to the generator, then SPECIAL
+   staffing, housing, the newcomer and exploration preparation. Keep stable teaching
+   IDs and all server objective keys. The starting crew needs inspection rather than
+   an artificial reassignment. Explain that dispatching a worker reduces production.
+2. **Make the newcomer visible.** Successful guide claims use the existing
+   `ObjectiveCompleteModal`, as claims from Objectives already do. Dweller rewards
+   explain that the newcomer has joined immediately and offer **View dwellers**.
+   The existing claim response has no granted dweller ID, so the action deliberately
+   opens the correct vault's roster instead of guessing a record. Close and ordinary
+   reward confirmation keep their existing behavior. Failed claims show no celebration.
+3. **Hand off after the first expedition.** Once all orientation explanations are
+   handled and the departure objective is claimed, a compact optional card replaces
+   the guide. Later population milestones remain server objectives, not prerequisites
+   for finishing the introduction. The card shows an active/returning exploration
+   from this vault, or honestly says no explorers are away. It offers one suggestion:
+   a resource warning, otherwise an available healthy adult, otherwise stored
+   unequipped gear, otherwise the Briefing and permission to return later. Loading
+   and failed reads never imply that the vault is empty or healthy.
+
+`IntroHandoffCard.vue` uses existing exploration/roster stores and the storage
+service. It refreshes on entry and through the guide's existing refresh cadence;
+there is no new polling loop or gameplay timer. Time display uses the existing
+exploration progress composable. Navigation is optional and never claims rewards
+or changes assignments. Both the guide and handoff yield to blocking dialogs.
+
+**Finish intro** persists only `handoffDismissed` in the existing per-vault onboarding
+record. It changes no teaching acknowledgements or server objectives. Skip tour
+suppresses the handoff; Replay remains explanation-only and does not reopen it.
+Late results and celebrations are guarded against switching vaults. No new reward
+track, catalog change, migration, forced wait, or recruitment-rate change is involved.
+
+Validation for this follow-up: frontend lint/typecheck clean; full unit suite
+**3159 passed across 263 files**; all **8 onboarding browser tests passed**. Browser
+checks cover housing claim → celebration → roster, the optional handoff at phone
+width, dialog suspension/resumption, and dismissal surviving reload.

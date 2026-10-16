@@ -132,7 +132,10 @@ async function openVault(page: Page, teaching?: unknown) {
     (record) => {
       // Opt this vault into the orientation and seed the "What's New" key so the
       // changelog modal never races the guide.
-      window.localStorage.setItem('onboarding:v1', JSON.stringify(record))
+      // Seed once: a reload must preserve progress and handoff dismissal.
+      if (!window.localStorage.getItem('onboarding:v1')) {
+        window.localStorage.setItem('onboarding:v1', JSON.stringify(record))
+      }
       window.localStorage.setItem('fallout_changelog_last_seen', '999.0.0')
     },
     { 'vault-1': { created: true, ...(teaching ? { welcomed: true, teaching } : {}) } }
@@ -247,5 +250,69 @@ test.describe('Spotlight guide — vault page', () => {
 
     await expect(page.locator('.onboarding-cutout')).toBeAttached({ timeout: 10000 })
     await expect(page.getByRole('button', { name: 'Show control' })).toHaveCount(0)
+  })
+
+  test('a housing claim welcomes the dweller and hands off to the roster', async ({ page }) => {
+    await openVault(page, ORIENTATION_ACKNOWLEDGED)
+    let completed = false
+    const housing = {
+      ...STAFFING_OBJECTIVE, id: 'housing', challenge: 'Build a Living Quarters',
+      template_key: 'starter:build a living quarters#v2', objective_type: 'build',
+      target_entity: { room_type: 'living_room' }, progress: 1, total: 1, reward: 'dweller:Wanderer',
+    }
+    await page.route('**/api/v1/objectives/vault-1/**', async route => {
+      if (route.request().url().endsWith('/housing/claim')) {
+        completed = true
+        return route.fulfill({ json: { progress: 1, total: 1, is_completed: true } })
+      }
+      return route.fulfill({ json: [{ ...housing, is_completed: completed }] })
+    })
+    await page.goto('/vault/vault-1/objectives')
+    await page.getByRole('button', { name: 'Claim Reward', exact: true }).click()
+    const celebration = page.getByRole('dialog', { name: 'Objective Complete!' })
+    await expect(celebration).toContainText('Wanderer has joined your vault')
+    await celebration.getByRole('button', { name: 'View dwellers' }).click()
+    await expect(page).toHaveURL(/\/vault\/vault-1\/dwellers$/)
+    await expect(celebration).toHaveCount(0)
+  })
+
+  test('the first-expedition handoff offers one task and stays dismissed after reload', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    const teaching = {
+      ...ORIENTATION_ACKNOWLEDGED,
+      lessons: {
+        ...ORIENTATION_ACKNOWLEDGED.lessons,
+        'orientation.staffing': 'acknowledged',
+        'orientation.housing': 'acknowledged',
+        'orientation.departure': 'acknowledged',
+      },
+    }
+    await openVault(page, teaching)
+    await page.route('**/api/v1/objectives/vault-1/**', route => route.fulfill({ json: [{
+      ...STAFFING_OBJECTIVE, id: 'departure', template_key: 'starter:send a dweller exploring',
+      objective_type: 'explore', progress: 1, total: 1, is_completed: true,
+    }] }))
+    await page.route('**/api/v1/explorations/vault/vault-1?*', route => route.fulfill({ json: [{
+      id: 'first-run', vault_id: 'vault-1', dweller_id: 'wanderer', status: 'active',
+      duration: 1, start_time: new Date().toISOString(),
+    }] }))
+    await page.route('**/api/v1/storage/vault/vault-1/items', route => route.fulfill({
+      json: { weapons: [{ id: 'weapon', dweller_id: null }], outfits: [], items: [], junk: [], pets: [] },
+    }))
+    await page.reload()
+    const handoff = page.getByRole('region', { name: 'First expedition handoff' })
+    await expect(handoff).toContainText('While they’re away')
+    await expect(handoff.getByRole('button', { name: 'Review equipment' })).toBeVisible()
+    await expect(page.locator('.onboarding-cutout')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Notifications' }).click()
+    await expect(page.getByRole('dialog', { name: 'Notifications' })).toBeVisible()
+    await expect(handoff).toBeHidden()
+    await page.keyboard.press('Escape')
+    await expect(handoff).toBeVisible()
+    await handoff.getByRole('button', { name: 'Finish intro' }).click()
+    await expect(handoff).toHaveCount(0)
+    await page.reload()
+    await expect(page.getByText('Vault 42', { exact: true }).first()).toBeVisible()
+    await expect(handoff).toHaveCount(0)
   })
 })

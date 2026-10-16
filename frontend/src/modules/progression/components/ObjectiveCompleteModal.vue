@@ -1,21 +1,36 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import RewardCard from '@/core/components/common/RewardCard.vue'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
 import type { Objective } from '../models/objective'
+import { REWARD_TYPE_META } from '../models/quest'
 
 interface Props {
   objective: Objective | null
   show: boolean
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
+const router = useRouter()
+const newDwellerName = computed(() => {
+  const reward = props.objective?.reward ?? ''
+  return reward.toLowerCase().startsWith('dweller:') ? reward.slice('dweller:'.length).trim() : ''
+})
 
 const emit = defineEmits<{
   close: []
   confirm: []
 }>()
+
+function confirm(): void {
+  const vaultId = props.objective?.vault_id
+  const showRoster = !!newDwellerName.value && !!vaultId
+  emit('confirm')
+  if (showRoster) void router.push(`/vault/${vaultId}/dwellers`)
+}
 </script>
 
 <template>
@@ -36,10 +51,14 @@ const emit = defineEmits<{
 
     <div v-if="objective" class="grid grid-cols-1 gap-4">
       <RewardCard
-        icon="mdi:gift"
-        label="Reward"
-        :value="objective.reward"
+        :icon="newDwellerName ? REWARD_TYPE_META.dweller.icon : 'mdi:gift'"
+        :label="newDwellerName ? REWARD_TYPE_META.dweller.label : 'Reward'"
+        :value="newDwellerName || objective.reward"
       />
+      <p v-if="newDwellerName" class="text-sm leading-relaxed text-muted-foreground">
+        {{ newDwellerName }} has joined your vault. Review their SPECIAL and equipment before
+        choosing a job or preparing their first exploration.
+      </p>
     </div>
 
     </div>
@@ -47,11 +66,11 @@ const emit = defineEmits<{
     <template #footer>
       <TerminalModalActions
         cancel-label="Close"
-        confirm-label="Continue"
-        confirm-icon="mdi:check-bold"
+        :confirm-label="newDwellerName ? 'View dwellers' : 'Continue'"
+        :confirm-icon="newDwellerName ? 'mdi:account-group' : 'mdi:check-bold'"
         alignment="between"
         @cancel="emit('close')"
-        @confirm="emit('confirm')"
+        @confirm="confirm"
       />
     </template>
   </TerminalModal>

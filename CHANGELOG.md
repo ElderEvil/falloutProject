@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.214.0 (2026-10-16)
+
+### Features
+
+* **dwellers:** canonical lifecycle/availability state (slice 1) f5d8430, closes #831
+* **dwellers:** grant exit as a living departure (slice 2) 692a776
+* **dwellers:** keep permanent-death memorials immutable (slice 4) 4c5ff30, closes 838/#829
+* **dwellers:** shared pool claims for living departures (slice 3) 9e0c42a
+
+### Bug Fixes
+
+* **dwellers:** block departure during incident response 2d698cd
+* **dwellers:** clear exile death state, guard pool claims, rebase the migration a473eda
+* **dwellers:** compare death_cause as text in the lifecycle migration 490822b
+* **dwellers:** keep canonical lifecycle on death and stop training on exit fe2a8b7
+* **dwellers:** settle responder returns after departure a28c308
+
+### Documentation
+
+* define living departures and shared recruitment contract a09a042
+
 ## 2.213.1 (2026-10-16)
 
 ### Bug Fixes

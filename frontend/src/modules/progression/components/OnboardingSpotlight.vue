@@ -12,6 +12,7 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useObjectiveClaim } from '../composables/useObjectiveClaim'
 import { useOnboardingState } from '@/core/composables/useOnboardingState'
+import { isOverlayBlocking } from '@/core/composables/useBlockingOverlay'
 import {
   ORIENTATION_STEPS,
   type OnboardingLesson,
@@ -166,7 +167,17 @@ watch([vaultId, () => route.fullPath], () => refresh(), { immediate: true })
 usePolling(refresh, { interval: 30_000, immediate: false })
 
 const targetEl = ref<HTMLElement | null>(null)
-const modalOpen = ref(false)
+// The first anchor rendered on this page regardless of viewport position, so an
+// off-screen control can be scrolled to instead of "navigated" to in place.
+const presentAnchorEl = ref<HTMLElement | null>(null)
+
+/** True while a dialog or confirmation owns attention; the guide yields to it. */
+const blockedByOverlay = isOverlayBlocking
+
+function hasSize(element: HTMLElement): boolean {
+  const rect = element.getBoundingClientRect()
+  return rect.width > 0 && rect.height > 0
+}
 
 function isUsableAnchor(element: HTMLElement): boolean {
   const rect = element.getBoundingClientRect()
@@ -176,14 +187,16 @@ function isUsableAnchor(element: HTMLElement): boolean {
   return rect.bottom > 0 && rect.top < viewportHeight && rect.right > 0 && rect.left < viewportWidth
 }
 
+function anchorCandidates(): HTMLElement[] {
+  return (currentLesson.value?.anchors ?? [])
+    .map((key) => document.querySelector<HTMLElement>(`[data-onboarding="${key}"]`))
+    .filter((element): element is HTMLElement => element !== null)
+}
+
 function resolveTarget() {
-  const anchors = currentLesson.value?.anchors ?? []
-  targetEl.value =
-    anchors
-      .map((key) => document.querySelector<HTMLElement>(`[data-onboarding="${key}"]`))
-      .find((element): element is HTMLElement => element !== null && isUsableAnchor(element)) ??
-    null
-  modalOpen.value = document.querySelector('[role="dialog"]') !== null
+  const candidates = anchorCandidates()
+  presentAnchorEl.value = candidates.find(hasSize) ?? null
+  targetEl.value = candidates.find(isUsableAnchor) ?? null
 }
 watch([() => currentLesson.value?.id, showWelcome], () => resolveTarget(), { flush: 'post' })
 
@@ -211,13 +224,57 @@ const cutoutStyle = computed(() => ({
   height: `${height.value + 8}px`,
 }))
 
+const viewportHeight = ref(typeof window === 'undefined' ? 0 : window.innerHeight || 0)
+const onResize = () => {
+  viewportHeight.value = window.innerHeight || 0
+}
+onMounted(() => window.addEventListener('resize', onResize))
+onBeforeUnmount(() => window.removeEventListener('resize', onResize))
+
+// The card sits opposite the control being explained, so it never covers it on
+// small screens; when the control is below the fold the card reduces itself so
+// the lesson stays visible without pushing the control off-screen.
+const anchorBelowFold = computed(() => {
+  if (!viewportHeight.value || !targetEl.value) return false
+  return targetEl.value.getBoundingClientRect().top > viewportHeight.value / 2
+})
+const cardPlacement = computed(() => (anchorBelowFold.value ? 'top' : 'bottom'))
+
+// A manual toggle wins until the lesson changes; data refreshes never reopen or
+// re-collapse the card or move focus.
+const userCollapsed = ref<boolean | null>(null)
+const collapsed = computed(() => userCollapsed.value ?? anchorBelowFold.value)
+const toggleCollapsed = () => {
+  userCollapsed.value = !collapsed.value
+}
+watch(
+  () => currentLesson.value?.id,
+  () => {
+    userCollapsed.value = null
+  }
+)
+
 const navPath = computed(() => {
   const lesson = currentLesson.value
   if (!lesson || lesson.route === undefined || !vaultId.value) return undefined
   return lesson.route ? `/vault/${vaultId.value}/${lesson.route}` : `/vault/${vaultId.value}`
 })
 const navLabel = computed(() => currentLesson.value?.routeLabel ?? 'Open')
-const showNavigate = computed(() => !!navPath.value && targetEl.value === null)
+// The control is on this page but out of view: scroll to it rather than pushing
+// the same route, which would navigate nowhere. Position for the anchor is
+// re-resolved after the scroll by the existing MutationObserver + layout watch.
+const showScrollToControl = computed(
+  () => !!presentAnchorEl.value && targetEl.value === null
+)
+const scrollToControl = () => {
+  presentAnchorEl.value?.scrollIntoView({
+    behavior: reducedMotion.value === 'reduce' ? 'auto' : 'smooth',
+    block: 'center',
+  })
+}
+const showNavigate = computed(
+  () => !!navPath.value && targetEl.value === null && presentAnchorEl.value === null
+)
 const navigateToLesson = () => {
   if (navPath.value) void router.push(navPath.value)
 }
@@ -255,13 +312,15 @@ function onClaim() {
         class="onboarding-cutout"
         :class="{
           'onboarding-cutout--static': reducedMotion === 'reduce',
-          'onboarding-cutout--off': modalOpen,
+          'onboarding-cutout--off': blockedByOverlay,
         }"
         :style="cutoutStyle"
         aria-hidden="true"
       />
       <section
+        v-if="!blockedByOverlay"
         class="onboarding-card"
+        :class="[`onboarding-card--${cardPlacement}`, { 'onboarding-card--collapsed': collapsed }]"
         role="region"
         aria-live="polite"
         aria-label="Vault onboarding"
@@ -279,18 +338,40 @@ function onClaim() {
           </div>
         </template>
         <template v-else-if="currentLesson">
-          <p class="onboarding-eyebrow">NEXT STEP</p>
+          <div class="onboarding-heading">
+            <p class="onboarding-eyebrow">NEXT STEP</p>
+            <button
+              type="button"
+              class="onboarding-collapse"
+              :aria-expanded="!collapsed"
+              aria-controls="onboarding-guide-body"
+              :aria-label="collapsed ? 'Expand guide' : 'Collapse guide'"
+              @click="toggleCollapsed"
+            >
+              {{ collapsed ? 'Expand' : 'Collapse' }}
+            </button>
+          </div>
           <h2 class="onboarding-title">{{ currentLesson.title }}</h2>
-          <p class="onboarding-body">{{ currentLesson.body }}</p>
-          <p v-if="lessonObjective" class="onboarding-progress">
-            {{ lessonObjective.progress }} / {{ lessonObjective.total }}
-          </p>
-          <div class="onboarding-actions">
+          <div v-show="!collapsed" id="onboarding-guide-body" class="onboarding-details">
+            <p class="onboarding-body">{{ currentLesson.body }}</p>
+            <p v-if="lessonObjective" class="onboarding-progress">
+              {{ lessonObjective.progress }} / {{ lessonObjective.total }}
+            </p>
+            <div class="onboarding-actions">
             <Button v-if="ready" size="sm" :disabled="claiming" @click="onClaim">
               {{ claiming ? 'Claiming…' : `Claim ${lessonObjective?.reward}` }}
             </Button>
             <Button v-else-if="showContinue" size="sm" :disabled="claiming" @click="continueLesson">
               Continue
+            </Button>
+            <Button
+              v-if="showScrollToControl"
+              size="sm"
+              variant="outline"
+              :disabled="claiming"
+              @click="scrollToControl"
+            >
+              Show control
             </Button>
             <Button
               v-if="showNavigate"
@@ -326,6 +407,7 @@ function onClaim() {
             Claim your earlier reward in Starter first.
           </p>
           <p v-if="claimError" class="onboarding-error" role="alert">{{ claimError }}</p>
+          </div>
         </template>
       </section>
     </template>
@@ -392,6 +474,43 @@ function onClaim() {
     left: auto;
     margin: 0;
   }
+}
+
+/* Placed opposite the highlighted control so the card never covers it. */
+.onboarding-card--top {
+  top: 1rem;
+  bottom: auto;
+}
+
+@media (min-width: 640px) {
+  .onboarding-card--top {
+    top: 1.5rem;
+    bottom: auto;
+  }
+}
+
+.onboarding-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.onboarding-collapse {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-theme-accent);
+  font-family: inherit;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.onboarding-collapse:hover {
+  color: var(--color-theme-primary);
 }
 
 .onboarding-eyebrow {

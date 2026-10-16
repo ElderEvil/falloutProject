@@ -1,8 +1,10 @@
 import { mount, flushPromises } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { reactive, ref } from 'vue'
+import { effectScope, reactive, ref } from 'vue'
 import OnboardingSpotlight from '@/modules/progression/components/OnboardingSpotlight.vue'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
+import { useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
 import { useOnboardingState } from '@/core/composables/useOnboardingState'
 import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import type { Objective } from '@/modules/progression/models/objective'
@@ -478,5 +480,193 @@ describe('OnboardingSpotlight', () => {
     expect(document.querySelector('.onboarding-cutout')).toBeNull()
     expect(findButton('Open Dwellers')).toBeDefined()
     wrapper.unmount()
+  })
+
+  describe('dialog coordination', () => {
+    const openOverlay = () => {
+      const scope = effectScope()
+      const open = ref(false)
+      scope.run(() => useBlockingOverlay(open))
+      return { scope, open }
+    }
+
+    it('suspends the card and cut-out while a dialog is open, then resumes the same lesson', async () => {
+      boundedAnchor('resource-power')
+      const wrapper = mountSpotlight()
+      await flushPromises()
+      await clickButton('Start')
+      expect(document.body.textContent).toContain('Keep the power on')
+      expect(document.querySelector('.onboarding-card')).not.toBeNull()
+
+      const { scope, open } = openOverlay()
+      open.value = true
+      await flushPromises()
+      expect(document.querySelector('.onboarding-card')).toBeNull()
+      expect(document.querySelector('.onboarding-cutout--off')).not.toBeNull()
+
+      open.value = false
+      await flushPromises()
+      expect(document.querySelector('.onboarding-card')).not.toBeNull()
+      expect(document.body.textContent).toContain('Keep the power on')
+
+      scope.stop()
+      wrapper.unmount()
+    })
+
+    it('stays suspended until every stacked dialog closes', async () => {
+      const wrapper = mountSpotlight()
+      await flushPromises()
+      await clickButton('Start')
+      expect(document.querySelector('.onboarding-card')).not.toBeNull()
+
+      const roomDialog = openOverlay()
+      const confirmDialog = openOverlay()
+      roomDialog.open.value = true
+      confirmDialog.open.value = true
+      await flushPromises()
+      expect(document.querySelector('.onboarding-card')).toBeNull()
+
+      confirmDialog.open.value = false
+      await flushPromises()
+      expect(document.querySelector('.onboarding-card')).toBeNull()
+
+      roomDialog.open.value = false
+      await flushPromises()
+      expect(document.querySelector('.onboarding-card')).not.toBeNull()
+
+      roomDialog.scope.stop()
+      confirmDialog.scope.stop()
+      wrapper.unmount()
+    })
+
+    it('releases suspension when an open dialog unmounts with the route', async () => {
+      const wrapper = mountSpotlight()
+      await flushPromises()
+      await clickButton('Start')
+      expect(document.querySelector('.onboarding-card')).not.toBeNull()
+
+      const dialog = mount(TerminalModal, {
+        props: { open: true },
+        global: { stubs: { Icon: true, Teleport: { template: '<div><slot /></div>' } } },
+      })
+      await flushPromises()
+      expect(document.querySelector('.onboarding-card')).toBeNull()
+
+      dialog.unmount()
+      await flushPromises()
+      expect(document.querySelector('.onboarding-card')).not.toBeNull()
+      wrapper.unmount()
+    })
+  })
+
+  it('offers to scroll to an off-screen control instead of navigating in place', async () => {
+    const offscreen = document.createElement('div')
+    offscreen.setAttribute('data-onboarding', 'nav-dwellers')
+    offscreen.getBoundingClientRect = () =>
+      ({
+        width: 40,
+        height: 20,
+        top: 5000,
+        left: 10,
+        right: 50,
+        bottom: 5020,
+        x: 10,
+        y: 5000,
+        toJSON: () => ({}),
+      }) as DOMRect
+    const scrollIntoView = vi.fn()
+    offscreen.scrollIntoView = scrollIntoView
+    document.body.appendChild(offscreen)
+    acknowledgeLessons('orientation.resources', 'orientation.generator')
+
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    await clickButton('Start')
+
+    // The control is on this page but out of view: scroll, do not re-navigate.
+    expect(findButton('Show control')).toBeDefined()
+    expect(findButton('Open Dwellers')).toBeUndefined()
+
+    await clickButton('Show control')
+    expect(scrollIntoView).toHaveBeenCalled()
+    expect(router.push).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  describe('guide card', () => {
+    const card = () => document.querySelector<HTMLElement>('.onboarding-card')
+    const collapseToggle = () =>
+      document.querySelector<HTMLButtonElement>('.onboarding-collapse')
+
+    const anchored = (top: number, key = 'resource-power') => {
+      const anchor = document.createElement('div')
+      anchor.setAttribute('data-onboarding', key)
+      anchor.getBoundingClientRect = () =>
+        ({
+          width: 40,
+          height: 20,
+          top,
+          left: 10,
+          right: 50,
+          bottom: top + 20,
+          x: 10,
+          y: top,
+          toJSON: () => ({}),
+        }) as DOMRect
+      document.body.appendChild(anchor)
+      return anchor
+    }
+
+    it('collapses to the title and expands again, preserving the lesson', async () => {
+      const wrapper = mountSpotlight()
+      await flushPromises()
+      await clickButton('Start')
+      expect(card()?.textContent).toContain('Power, food and water refill')
+      expect(collapseToggle()?.getAttribute('aria-expanded')).toBe('true')
+
+      collapseToggle()?.click()
+      await flushPromises()
+      expect(collapseToggle()?.getAttribute('aria-expanded')).toBe('false')
+      expect(document.querySelector('#onboarding-guide-body')?.getAttribute('style')).toContain(
+        'display: none'
+      )
+      // Collapsed keeps the lesson title on screen.
+      expect(card()?.textContent).toContain('Keep the power on')
+
+      collapseToggle()?.click()
+      await flushPromises()
+      expect(collapseToggle()?.getAttribute('aria-expanded')).toBe('true')
+      expect(document.querySelector('#onboarding-guide-body')?.getAttribute('style') ?? '').not.toContain(
+        'display: none'
+      )
+      wrapper.unmount()
+    })
+
+    it('moves the card above and collapses it when the control sits below the fold', async () => {
+      anchored(600)
+      const wrapper = mountSpotlight()
+      await flushPromises()
+      await clickButton('Start')
+
+      expect(card()?.getAttribute('class')).toContain('onboarding-card--top')
+      expect(collapseToggle()?.getAttribute('aria-expanded')).toBe('false')
+      wrapper.unmount()
+    })
+
+    it('keeps a collapsed card collapsed when objectives refresh, without stealing focus', async () => {
+      const wrapper = mountSpotlight()
+      await flushPromises()
+      await clickButton('Start')
+      collapseToggle()?.click()
+      await flushPromises()
+      expect(collapseToggle()?.getAttribute('aria-expanded')).toBe('false')
+
+      useObjectivesStore().objectives = [objective('first', { progress: 1 })]
+      await flushPromises()
+
+      expect(collapseToggle()?.getAttribute('aria-expanded')).toBe('false')
+      expect(document.body.textContent).toContain('Keep the power on')
+      wrapper.unmount()
+    })
   })
 })

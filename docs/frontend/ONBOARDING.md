@@ -112,7 +112,8 @@ Run for the dialog/placement pass (#1001):
 - Browser: `tests/e2e/onboarding-spotlight.spec.ts` drives the real vault page at phone width
   (card does not cover the highlighted control), yields to a dialog-role overlay and resumes,
   keyboard-activates an on-screen control, falls back to navigation when the control is hidden,
-  and re-resolves after a resize that hides the control.
+  re-resolves after a resize that hides the control, and restores the spotlight after
+  **Show control** scrolls an off-screen control into view.
 
 Still owed before release sign-off:
 

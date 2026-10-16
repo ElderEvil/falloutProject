@@ -9,6 +9,9 @@ test.use({
   locale: 'en-US',
   timezoneId: 'UTC',
   viewport: { width: 1280, height: 900 },
+  // Reduced motion removes the side-panel slide, so resize/hide timing is
+  // deterministic instead of racing a 300ms transition.
+  reducedMotion: 'reduce',
 })
 
 const TOKEN = 'deterministic-e2e-token'
@@ -71,6 +74,36 @@ const ORIENTATION_ACKNOWLEDGED = {
   replayOrientation: false,
 }
 
+// Only the first lesson needs acknowledging to reach the generator lesson, whose
+// `room-power` anchor sits in the scrollable room grid (unlike the fixed chrome).
+const RESOURCES_ACKNOWLEDGED = {
+  version: 1,
+  lessons: { 'orientation.resources': 'acknowledged' },
+  replayOrientation: false,
+}
+
+const POWER_ROOM = {
+  id: 'room-1',
+  vault_id: 'vault-1',
+  name: 'Power Plant',
+  category: 'Production',
+  ability: 'strength',
+  level: 1,
+  max_level: 3,
+  row: 0,
+  col: 0,
+  width: 1,
+  height: 1,
+  is_max_level: false,
+  assigned_dwellers: [],
+  production_rate: null,
+  resource_type: 'power',
+  build_cost: 0,
+  upgrade_cost: 0,
+  created_at: '2026-01-15T10:30:00Z',
+  updated_at: '2026-01-15T10:30:00Z',
+}
+
 async function mockApi(page: Page) {
   await page.route('**/api/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname
@@ -80,6 +113,9 @@ async function mockApi(page: Page) {
     if (path === '/api/v1/vaults/vault-1') return route.fulfill({ json: VAULT })
     if (path === '/api/v1/objectives/vault-1/') {
       return route.fulfill({ json: [STAFFING_OBJECTIVE] })
+    }
+    if (path === '/api/v1/rooms/vault/vault-1/') {
+      return route.fulfill({ json: [POWER_ROOM] })
     }
     if (path === '/api/v1/notifications/unread-count') return route.fulfill({ json: { count: 0 } })
     if (path === '/api/v1/notifications/') return route.fulfill({ json: [] })
@@ -193,5 +229,23 @@ test.describe('Spotlight guide — vault page', () => {
     await expect(
       page.locator('.onboarding-actions button', { hasText: /Open Dwellers|Show control/ })
     ).toBeVisible({ timeout: 10000 })
+  })
+
+  test('restores the spotlight after Show control scrolls the control into view', async ({
+    page,
+  }) => {
+    // A short viewport leaves the power room below the fold while it is present
+    // in the DOM, which is exactly the off-screen case the scroll path serves.
+    await page.setViewportSize({ width: 1280, height: 360 })
+    await openVault(page, RESOURCES_ACKNOWLEDGED)
+
+    const showControl = page.getByRole('button', { name: 'Show control' })
+    await expect(showControl).toBeVisible({ timeout: 15000 })
+    await expect(page.locator('.onboarding-cutout')).toHaveCount(0)
+
+    await showControl.click()
+
+    await expect(page.locator('.onboarding-cutout')).toBeAttached({ timeout: 10000 })
+    await expect(page.getByRole('button', { name: 'Show control' })).toHaveCount(0)
   })
 })

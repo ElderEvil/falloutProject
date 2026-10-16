@@ -4,7 +4,7 @@ from datetime import datetime
 from pydantic import UUID4, BaseModel, computed_field
 
 from app.models.item import ItemBase
-from app.options.pet_modifiers import pet_effect_for_name
+from app.options.pet_modifiers import pet_description_for_name, pet_effect_for_name
 from app.utils.partial import optional
 
 
@@ -49,6 +49,12 @@ class PetRead(ItemBase):
     def effect(self) -> PetEffectRead:
         """The pet's catalog-resolved bonus, so clients can explain its contribution."""
         return PetEffectRead(**asdict(pet_effect_for_name(self.name)))
+
+    @computed_field
+    @property
+    def description(self) -> str | None:
+        """The pet's catalog description, or None when it has no catalog entry."""
+        return pet_description_for_name(self.name)
 
 
 @optional()

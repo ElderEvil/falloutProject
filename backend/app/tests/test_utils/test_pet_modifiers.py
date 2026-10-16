@@ -12,13 +12,15 @@ import pytest
 from app.models.pet import Pet
 from app.options.pet_modifiers import (
     NEUTRAL_EFFECT,
+    PET_DESCRIPTION_BY_NAME,
     PET_EFFECT_BY_NAME,
     PetEffect,
+    pet_description_for_name,
     pet_effect_for_name,
     pet_modifiers_for,
 )
 from app.utils.equipped import equipped_pet
-from app.utils.pet_assets import get_pet_image_url
+from app.utils.pet_assets import PET_NAME_TO_IMAGE_FILE, get_pet_image_url
 
 
 def _pet(name: str) -> Pet:
@@ -70,3 +72,49 @@ def test_catalog_covers_every_effect_field_at_least_once() -> None:
 def test_every_catalog_key_resolves_to_real_pet_art() -> None:
     unresolved = [name for name in PET_EFFECT_BY_NAME if get_pet_image_url(name) is None]
     assert unresolved == []
+
+
+def test_known_pet_name_resolves_to_its_description() -> None:
+    assert pet_description_for_name("CX404") == PET_DESCRIPTION_BY_NAME["cx404"]
+
+
+def test_pet_description_for_name_normalizes_whitespace_and_case() -> None:
+    assert pet_description_for_name("  Vault-Tec Parrot  ") == PET_DESCRIPTION_BY_NAME["vault-tec parrot"]
+
+
+def test_unknown_blank_or_none_name_has_no_description() -> None:
+    assert pet_description_for_name("Deathclaw") is None
+    assert pet_description_for_name("  ") is None
+    assert pet_description_for_name(None) is None
+
+
+def test_every_catalogued_pet_has_a_description() -> None:
+    assert [name for name in PET_EFFECT_BY_NAME if name not in PET_DESCRIPTION_BY_NAME] == []
+
+
+def test_every_art_mapped_pet_has_a_description() -> None:
+    assert [name for name in PET_NAME_TO_IMAGE_FILE if name not in PET_DESCRIPTION_BY_NAME] == []
+
+
+def test_description_catalog_has_no_extra_keys() -> None:
+    assert [name for name in PET_DESCRIPTION_BY_NAME if name not in PET_NAME_TO_IMAGE_FILE] == []
+
+
+def test_descriptions_are_non_blank_and_reasonably_short() -> None:
+    assert [name for name, text in PET_DESCRIPTION_BY_NAME.items() if not text.strip()] == []
+    assert [name for name, text in PET_DESCRIPTION_BY_NAME.items() if len(text) > 120] == []
+
+
+def test_pet_read_exposes_the_catalog_description() -> None:
+    from datetime import datetime
+    from uuid import uuid4
+
+    from app.core.enums import RarityEnum
+    from app.schemas.pet import PetRead
+
+    now = datetime.now()
+    read = PetRead(id=uuid4(), created_at=now, updated_at=now, name="CX404", rarity=RarityEnum.LEGENDARY, value=100)
+
+    assert read.description == PET_DESCRIPTION_BY_NAME["cx404"]
+    unknown = PetRead(id=uuid4(), created_at=now, updated_at=now, name="Deathclaw", rarity=RarityEnum.COMMON, value=10)
+    assert unknown.description is None

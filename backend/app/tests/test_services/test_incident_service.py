@@ -910,16 +910,19 @@ async def test_only_one_incident_type_per_vault(async_session: AsyncSession, vau
 
     # Create three separate rooms with dwellers (need 3+ rooms for multiple incidents)
     room1_data = create_fake_room()
+    room1_data["name"] = "Power Generator"
     room1_data["category"] = "Production"
     room1_in = RoomCreate(**room1_data, vault_id=vault.id, coordinate_x=1, coordinate_y=1)
     room1 = await crud.room.create(db_session=async_session, obj_in=room1_in)
 
     room2_data = create_fake_room()
+    room2_data["name"] = "Water Treatment"
     room2_data["category"] = "Production"
     room2_in = RoomCreate(**room2_data, vault_id=vault.id, coordinate_x=2, coordinate_y=1)
     room2 = await crud.room.create(db_session=async_session, obj_in=room2_in)
 
     room3_data = create_fake_room()
+    room3_data["name"] = "Diner"
     room3_data["category"] = "Production"
     room3_in = RoomCreate(**room3_data, vault_id=vault.id, coordinate_x=3, coordinate_y=1)
     room3 = await crud.room.create(db_session=async_session, obj_in=room3_in)

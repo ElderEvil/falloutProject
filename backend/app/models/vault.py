@@ -47,7 +47,7 @@ class VaultBase(SQLModel):
     # String column, not a PG enum, mirroring radio_mode: avoids the enum-type/migration trap.
     vault_mode: str = Field(
         default=VaultModeEnum.STANDARD.value,
-        sa_column=Column(String(50)),
+        sa_column=Column(String(50), nullable=False),
         description="Difficulty mode chosen at creation; immutable thereafter",
     )
 

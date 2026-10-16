@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import DeathCauseEnum, DwellerStatusEnum
+from app.core.enums import AvailabilityEnum, DeathCauseEnum, DwellerStatusEnum, LifecycleEnum
 from app.core.game_config import game_config
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.user_profile import profile_crud
@@ -16,7 +16,12 @@ from app.models.user import User
 from app.schemas.dweller import DwellerRead, DwellerReviveResponse, DwellerUpdate, RevivalCostResponse
 from app.services.access_service import assert_vault_owner
 from app.services.notification_service import notification_service
-from app.utils.exceptions import ContentNoChangeException, InsufficientResourcesException, ResourceNotFoundException
+from app.utils.exceptions import (
+    ContentNoChangeException,
+    InsufficientResourcesException,
+    ResourceNotFoundException,
+    VaultOperationException,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +59,8 @@ class DeathService:
         if dweller.is_dead:
             raise ContentNoChangeException(detail="Dweller is already dead")
 
+        vault_id = self._require_vault_id(dweller)
+
         # Generate default epitaph if not provided
         if not epitaph:
             epitaph = self._generate_epitaph(dweller, cause)
@@ -75,34 +82,36 @@ class DeathService:
                 health=0,
                 room_id=None,  # Remove from room
                 is_permanently_dead=permanent,
+                lifecycle=LifecycleEnum.DEAD_PERMANENT if permanent else LifecycleEnum.DEAD_REVIVABLE,
+                availability=AvailabilityEnum.ARCHIVE if permanent else AvailabilityEnum.VAULT,
             ),
             commit=commit,
         )
 
         # Increment death statistics (deferred with the caller's commit)
-        await self._increment_death_stats(db_session, dweller.vault_id, cause, commit=commit)
+        await self._increment_death_stats(db_session, vault_id, cause, commit=commit)
 
         logger.info(
             "Dweller %s (%s) died of %s in vault %s",
             dweller.first_name,
             dweller.last_name or "",
             cause.value,
-            dweller.vault_id,
+            vault_id,
         )
 
         # Broadcast WebSocket event (best-effort, don't fail death flow)
         await notification_service.notify_owner(
             db_session,
-            dweller.vault_id,
-            context=f"dweller_died vault={dweller.vault_id} dweller={dweller.id} cause={cause.value}",
+            vault_id,
+            context=f"dweller_died vault={vault_id} dweller={dweller.id} cause={cause.value}",
             sender=lambda user_id: notification_service.notify_dweller_died(
                 db_session,
                 user_id=user_id,
-                vault_id=dweller.vault_id,
+                vault_id=vault_id,
                 dweller_id=dweller.id,
                 dweller_name=dweller.display_name,
                 cause=cause.value,
-                meta_data={"cause": cause.value, "vault_id": str(dweller.vault_id)},
+                meta_data={"cause": cause.value, "vault_id": str(vault_id)},
                 commit=commit,
             ),
         )
@@ -140,7 +149,7 @@ class DeathService:
         if dweller.is_permanently_dead:
             raise ContentNoChangeException(detail="Dweller is permanently dead and cannot be revived")
 
-        vault = await vault_crud.get(db_session, dweller.vault_id)
+        vault = await vault_crud.get(db_session, self._require_vault_id(dweller))
         assert_vault_owner(vault, user)
 
         revival_cost = self.get_revival_cost(dweller.level)
@@ -176,6 +185,8 @@ class DeathService:
                 status=DwellerStatusEnum.IDLE,
                 health=revival_health,
                 radiation=0,
+                lifecycle=LifecycleEnum.ALIVE,
+                availability=AvailabilityEnum.VAULT,
             ),
         )
 
@@ -215,7 +226,7 @@ class DeathService:
         if not dweller.is_dead:
             raise ContentNoChangeException(detail="Dweller is not dead")
 
-        vault = await vault_crud.get(db_session, dweller.vault_id)
+        vault = await vault_crud.get(db_session, self._require_vault_id(dweller))
         assert_vault_owner(vault, user)
 
         revival_cost = self.get_revival_cost(dweller.level)
@@ -229,6 +240,13 @@ class DeathService:
             can_afford=vault.bottle_caps >= revival_cost,
             vault_caps=vault.bottle_caps,
         )
+
+    @staticmethod
+    def _require_vault_id(dweller: Dweller) -> UUID4:
+        """The dweller's active vault, required by death and revival; a departure never reaches here."""
+        if dweller.vault_id is None:
+            raise VaultOperationException(detail="Dweller is no longer in this vault")
+        return dweller.vault_id
 
     def get_revival_cost(self, level: int) -> int:
         """Calculate the revival cost for a dweller based on their level.
@@ -284,7 +302,11 @@ class DeathService:
             await dweller_crud.update(
                 db_session,
                 dweller.id,
-                DwellerUpdate(is_permanently_dead=True),
+                DwellerUpdate(
+                    is_permanently_dead=True,
+                    lifecycle=LifecycleEnum.DEAD_PERMANENT,
+                    availability=AvailabilityEnum.ARCHIVE,
+                ),
             )
             logger.info(
                 "Dweller %s (%s %s) marked as permanently dead",

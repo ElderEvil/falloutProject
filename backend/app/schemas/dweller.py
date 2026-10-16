@@ -9,10 +9,12 @@ from app.core.enums import (
     STAT_BY_LETTER,
     STATE_OF_BEING_TYPE,
     AgeGroupEnum,
+    AvailabilityEnum,
     DeathCauseEnum,
     DwellerStatusEnum,
     FactionEnum,
     GenderEnum,
+    LifecycleEnum,
     RaceEnum,
     RarityEnum,
     RelationshipTypeEnum,
@@ -364,6 +366,10 @@ class DwellerReadFull(DwellerRead):
 class DwellerUpdate(DwellerBase):
     room_id: UUID4 | None = None
     visual_attributes: DwellerVisualAttributesInput | None = Field(default=None)
+    # Canonical state is written by system transitions (death, expiry, revival); it is
+    # deliberately absent from DwellerUpdateRequest so players cannot set it.
+    lifecycle: LifecycleEnum | None = None
+    availability: AvailabilityEnum | None = None
 
 
 @optional()

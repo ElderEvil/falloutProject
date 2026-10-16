@@ -43,6 +43,7 @@ from app.core.config import settings
 PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
     "agegroupenum": {"CHILD", "TEEN", "ADULT", "ELDER"},
     "arenamode": {"DUEL", "BRAWL", "HUNT"},
+    "availabilityenum": {"VAULT", "DEPARTURE", "POOL", "MARKET", "ARCHIVE"},
     "craftingorderstatus": {"ACTIVE", "COMPLETED", "COLLECTED"},
     "deathcauseenum": {"HEALTH", "RADIATION", "INCIDENT", "EXPLORATION", "COMBAT", "EXILE"},
     "dwellerlocationrelationenum": {"ORIGIN", "VISITED"},
@@ -62,6 +63,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
         "FIRE",
     },
     "junktypeenum": {"CIRCUITRY", "LEATHER", "ADHESIVE", "CLOTH", "SCIENCE", "STEEL", "VALUABLES"},
+    "lifecycleenum": {"ALIVE", "DEAD_REVIVABLE", "DEAD_PERMANENT", "WASTELAND"},
     "locationtypeenum": {"ORIGIN", "VISITED", "DISCOVERY", "HOME_VAULT"},
     "notificationpriority": {"INFO", "NORMAL", "HIGH", "URGENT"},
     "notificationtype": {

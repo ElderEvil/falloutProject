@@ -9,9 +9,12 @@ from sqlmodel import Field, Relationship, SQLModel
 from app.core.enums import (
     ADULT_AGE_GROUPS,
     AgeGroupEnum,
+    AvailabilityEnum,
+    ContentProvenanceEnum,
     DeathCauseEnum,
     DwellerStatusEnum,
     GenderEnum,
+    LifecycleEnum,
     RarityEnum,
     SPECIALEnum,
     WeaponTypeEnum,
@@ -151,10 +154,12 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
         ),
     )
 
-    vault_id: UUID4 = Field(default=None, foreign_key="vault.id", ondelete="CASCADE", index=True)
-    vault: "Vault" = Relationship(back_populates="dwellers")
+    vault_id: UUID4 | None = Field(default=None, foreign_key="vault.id", ondelete="CASCADE", index=True)
+    vault: "Vault" = Relationship(
+        back_populates="dwellers", sa_relationship_kwargs={"foreign_keys": "Dweller.vault_id"}
+    )
 
-    room_id: UUID4 = Field(default=None, foreign_key="room.id", nullable=True, ondelete="SET NULL", index=True)
+    room_id: UUID4 | None = Field(default=None, foreign_key="room.id", nullable=True, ondelete="SET NULL", index=True)
     room: "Room" = Relationship(
         back_populates="dwellers",
         sa_relationship_kwargs={"foreign_keys": "Dweller.room_id"},
@@ -171,6 +176,24 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
         default_factory=dict,
         sa_column=sa.Column(sa.JSON, nullable=False, server_default=sa.text("'{}'")),
     )
+
+    # Canonical state; NULL = not yet classified (legacy readers fall back to the flags below).
+    lifecycle: LifecycleEnum | None = Field(default=None, index=True)
+    availability: AvailabilityEnum | None = Field(default=None, index=True)
+
+    # Provenance stays separate from the active vault_id (the single membership authority).
+    previous_vault_id: UUID4 | None = Field(
+        default=None,
+        sa_column=sa.Column(sa.UUID, sa.ForeignKey("vault.id", ondelete="SET NULL"), nullable=True),
+    )
+    content_provenance: ContentProvenanceEnum | None = Field(
+        default=None,
+        sa_column=sa.Column(sa.String(16), nullable=True),
+    )
+    sharing_consent: bool | None = Field(default=None)
+
+    departed_at: datetime | None = Field(default=None)
+    departure_eligible_at: datetime | None = Field(default=None)
 
     def restore(self):
         """Restore the dweller and clear any trade state."""

@@ -7,13 +7,31 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import SPECIAL_STATS, AgeGroupEnum, DeathCauseEnum, DwellerStatusEnum, GenderEnum, RarityEnum
+from app.core.enums import (
+    SPECIAL_STATS,
+    AgeGroupEnum,
+    AvailabilityEnum,
+    DeathCauseEnum,
+    DwellerStatusEnum,
+    GenderEnum,
+    LifecycleEnum,
+    RarityEnum,
+)
 from app.core.game_config import game_config
+from app.crud import training as training_crud
+from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
+from app.models.incident import IncidentStatus, IncidentType
+from app.models.training import TrainingStatus
 from app.models.vault import Vault
+from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
+from app.schemas.room import RoomCreate
+from app.services.combat.incident_service import incident_service
 from app.services.exit_request_service import exit_request_service
 from app.services.family.death_service import death_service
+from app.services.hazard_team_service import hazard_team_service
+from app.services.training_service import training_service
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 
 
@@ -164,19 +182,24 @@ async def test_refuse_exit_happiness_is_clamped_at_ten(async_session: AsyncSessi
 
 
 @pytest.mark.asyncio
-async def test_grant_exit_is_permanent_death_by_exile(async_session: AsyncSession, vault: Vault) -> None:
-    """The one-way ticket: dead by EXILE and past the revive window in the same write."""
+async def test_grant_exit_records_a_living_departure(async_session: AsyncSession, vault: Vault) -> None:
+    """A grant is a living departure: no death fields, no vault membership, request resolved."""
     dwellers = await _with_room_for_one_exit(async_session, vault)
     await exit_request_service.request_exit(async_session, dwellers[0].id)
 
     granted = await exit_request_service.grant_exit(async_session, vault, dwellers[0].id)
 
-    assert granted.is_dead is True
-    assert granted.death_cause is DeathCauseEnum.EXILE
-    assert granted.is_permanently_dead is True
-    assert granted.status is DwellerStatusEnum.DEAD
+    assert granted.lifecycle is LifecycleEnum.WASTELAND
+    assert granted.availability is AvailabilityEnum.DEPARTURE
+    assert granted.vault_id is None
+    assert granted.previous_vault_id == vault.id
+    assert granted.departed_at is not None
+    assert granted.departure_eligible_at is not None
+    assert granted.is_dead is False
+    assert granted.is_permanently_dead is False
+    assert granted.death_cause is None
+    assert granted.room_id is None
     assert granted.exit_requested_at is None
-    assert "did not return" in (granted.epitaph or "")
     assert granted.id not in [d.id for d in await exit_request_service.list_pending(async_session, vault.id)]
 
 
@@ -188,6 +211,108 @@ async def test_granted_exit_has_no_revival_window(async_session: AsyncSession, v
     granted = await exit_request_service.grant_exit(async_session, vault, dwellers[0].id)
 
     assert death_service.get_days_until_permanent(granted) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("member_status", ["assigned", "dispatched"])
+@pytest.mark.parametrize("incident_status", [IncidentStatus.ACTIVE, IncidentStatus.SPREADING])
+@pytest.mark.parametrize("success", [False, True])
+async def test_grant_exit_waits_for_incident_resolution(
+    async_session: AsyncSession, vault: Vault, member_status: str, incident_status: IncidentStatus, success: bool
+) -> None:
+    residents = await _with_room_for_one_exit(async_session, vault)
+    responder = residents[0]
+    await exit_request_service.request_exit(async_session, responder.id)
+    requested_at = responder.exit_requested_at
+    cooldown = vault.last_exit_request_at
+    room = await room_crud.create(
+        async_session,
+        RoomCreate(
+            name="Power Generator",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=SPECIALEnum.STRENGTH,
+            base_cost=100,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=3,
+            size_max=9,
+            size=3,
+            tier=1,
+            vault_id=vault.id,
+        ),
+    )
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=vault.id,
+        room_id=room.id,
+        incident_type=IncidentType.FIRE,
+        difficulty=2,
+    )
+    await incident_service.assign_responders(async_session, incident, [responder.id])
+    members = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
+    members[0].status = member_status
+    incident.status = incident_status
+    await async_session.commit()
+
+    with pytest.raises(VaultOperationException, match="active incident"):
+        await exit_request_service.grant_exit(async_session, vault, responder.id)
+
+    await async_session.refresh(responder)
+    await async_session.refresh(vault)
+    assert responder.vault_id == vault.id
+    assert responder.room_id == room.id
+    assert responder.exit_requested_at == requested_at
+    assert responder.departed_at is None
+    assert vault.last_exit_request_at == cooldown
+
+    # A historical roster entry must not stop departure after either outcome.
+    await crud.incident_crud.resolve(async_session, incident.id, success=success)
+    granted = await exit_request_service.grant_exit(async_session, vault, responder.id)
+    assert granted.vault_id is None
+    assert granted.availability is AvailabilityEnum.DEPARTURE
+    assert granted.exit_requested_at is None
+
+    # A delayed return tick must close the old roster, not reclaim a departed person.
+    assert await hazard_team_service.return_dispatched_responders(async_session, incident) == 0
+    assert await crud.incident_crud.get_pending_responder_returns(async_session, vault.id) == []
+    await async_session.refresh(responder)
+    assert responder.vault_id is None
+    assert responder.room_id is None
+
+
+@pytest.mark.asyncio
+async def test_grant_exit_cancels_active_training(async_session: AsyncSession, vault: Vault) -> None:
+    """A grant stops active training inside the departure transaction, as the lifecycle contract requires."""
+    dwellers = await _with_room_for_one_exit(async_session, vault)
+    trainee = dwellers[0]
+    room = await room_crud.create(
+        async_session,
+        RoomCreate(
+            name="Weight Room",
+            category=RoomTypeEnum.TRAINING,
+            tier=1,
+            size=2,
+            capacity=6,
+            ability=SPECIALEnum.STRENGTH,
+            base_cost=1000,
+            t2_upgrade_cost=2500,
+            t3_upgrade_cost=5000,
+            size_min=1,
+            size_max=3,
+            vault_id=vault.id,
+        ),
+    )
+    await crud.dweller.update(async_session, trainee.id, {"status": DwellerStatusEnum.IDLE, "strength": 3})
+    training = await training_service.start_training(async_session, trainee.id, room.id)
+    await exit_request_service.request_exit(async_session, trainee.id)
+
+    await exit_request_service.grant_exit(async_session, vault, trainee.id)
+
+    await async_session.refresh(training)
+    assert training.status is TrainingStatus.CANCELLED
+    assert training.completed_at is not None
+    # The source vault's training tick only processes ACTIVE sessions, so the departed is dropped.
+    assert await training_crud.training.get_active_by_vault(async_session, vault.id) == []
 
 
 @pytest.mark.asyncio

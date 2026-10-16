@@ -648,10 +648,10 @@ async def grant_exit_request(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ExitDecisionResponse:
-    """Let the dweller go: permanent death by exile, with no way back.
+    """Let the dweller go: a living departure, not a death, with no way back to this vault.
 
     Returns:
-        ExitDecisionResponse: The exile outcome, including the epitaph.
+        ExitDecisionResponse: The departure outcome; ``epitaph`` stays null.
     """
     dweller = await crud.dweller.get(db_session, dweller_id, include_deleted=True)
     vault = await get_user_vault_or_403(dweller.vault_id, user, db_session)

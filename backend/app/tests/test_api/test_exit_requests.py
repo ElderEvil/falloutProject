@@ -7,6 +7,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.core.enums import AvailabilityEnum, LifecycleEnum
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.vault import Vault
@@ -74,7 +75,7 @@ async def test_list_exit_requests_returns_only_pending(
     assert requests[0]["dweller_name"] == "Asker Seeker"
 
 
-async def test_grant_exit_is_permanent_and_removes_the_request(
+async def test_grant_exit_records_a_living_departure(
     async_client: AsyncClient,
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
@@ -89,12 +90,15 @@ async def test_grant_exit_is_permanent_and_removes_the_request(
     assert response.status_code == 200
     body = response.json()
     assert body["granted"] is True
-    assert "did not return" in body["epitaph"]
+    assert body["epitaph"] is None
 
     await async_session.refresh(dwelling)
-    assert dwelling.is_dead is True
-    assert dwelling.is_permanently_dead is True
-    assert dwelling.death_cause.value == "exile"
+    assert dwelling.lifecycle is LifecycleEnum.WASTELAND
+    assert dwelling.availability is AvailabilityEnum.DEPARTURE
+    assert dwelling.vault_id is None
+    assert dwelling.previous_vault_id == vault.id
+    assert dwelling.is_dead is False
+    assert dwelling.is_permanently_dead is False
 
     remaining = await async_client.get(f"/dwellers/vault/{vault.id}/exit-requests", headers=superuser_token_headers)
     assert remaining.json() == []

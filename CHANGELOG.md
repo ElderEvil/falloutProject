@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.213.0 (2026-10-16)
+
+### Features
+
+* **arena:** add wasteland hunts and shared XP rewards cff4d8e
+
 ## 2.212.4 (2026-10-16)
 
 ### Bug Fixes

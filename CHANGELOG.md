@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.221.1 (2026-10-16)
+
+### Bug Fixes
+
+* **vault:** wrap mode copy, focus creation, and block Boosted in Survival a7dd7a9
+* **world:** widen location descriptions so long seed lore fits 76e84f7, closes #988
+
 ## 2.221.0 (2026-10-16)
 
 ### Features

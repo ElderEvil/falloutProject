@@ -84,12 +84,12 @@ async def update_user_me(
     Returns:
         The updated user.
     """
+    if username is not None:
+        return await user_service.update_username(db_session, user, username)
     user_data = jsonable_encoder(user)
     user_in = UserUpdate(**user_data)
     if password is not None:
         user_in.password = password
-    if username is not None:
-        user_in.username = username
     if email is not None:
         user_in.email = email
     return await crud.user.update(db_session, id=user.id, obj_in=user_in)

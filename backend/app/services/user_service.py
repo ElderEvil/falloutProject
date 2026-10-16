@@ -15,7 +15,12 @@ from app.crud.user_profile import profile_crud
 from app.models.user import User
 from app.models.vault import Vault
 from app.schemas.user import UserCreate, UserWithTokens
-from app.utils.exceptions import AccessDeniedException, ResourceAlreadyExistsException
+from app.utils.exceptions import (
+    AccessDeniedException,
+    ResourceAlreadyExistsException,
+    ResourceConflictException,
+    ValidationException,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +34,26 @@ ProfileStatistic = Literal[
 
 class UserService:
     """Service for user registration and profile operations."""
+
+    async def update_username(self, db_session: AsyncSession, user: User, username: str) -> User:
+        """Validate and apply a username change for an existing user.
+
+        Raises:
+            ValidationException: 400 if the username violates length bounds.
+            ResourceConflictException: 409 if another active user holds the name.
+        """
+        username = username.strip()
+        if not 3 <= len(username) <= 32:
+            raise ValidationException("Username must be between 3 and 32 characters.")
+        if username == user.username:
+            return user
+        existing = await crud.user.get_by_username(db_session, username=username)
+        if existing and existing.id != user.id:
+            raise ResourceConflictException(detail="This username is already taken.")
+        user.username = username
+        await db_session.commit()
+        await db_session.refresh(user)
+        return user
 
     async def register_user(
         self,

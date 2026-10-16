@@ -50,4 +50,7 @@ export const authService = {
       throw new AuthError('Failed to fetch current user')
     }
   },
+  async updateUsername(username: string): Promise<AxiosResponse<User>> {
+    return await apiRequest<User>('put', '/api/v1/users/me', { username })
+  },
 }

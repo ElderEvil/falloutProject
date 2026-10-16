@@ -387,7 +387,7 @@ class HazardTeamService:
                     await dweller_service.update_dweller(db_session, member.dweller_id, {"room_id": None})
                 await dweller_service.auto_assign_to_best_room(db_session, member.dweller_id)
         except ContentNoChangeException:
-            pass
+            return dweller.room_id is not None
         except ResourceConflictException:
             if dweller.room_id == incident.room_id:
                 await dweller_service.update_dweller(db_session, member.dweller_id, {"room_id": None})

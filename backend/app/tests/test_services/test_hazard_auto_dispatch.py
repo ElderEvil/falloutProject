@@ -13,6 +13,7 @@ from app.models.team import ACTIVE_STATUS, DISPATCHED_STATUS, RESERVE_STATUS, Te
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
+from app.schemas.vault import VaultUpdate
 from app.services.combat.incident_service import MAX_INCIDENT_RESPONDERS, incident_service
 from app.services.dweller_service import dweller_service
 from app.services.hazard_team_service import hazard_team_service
@@ -737,8 +738,9 @@ async def test_auto_return_does_not_leave_incident_room_over_capacity(
         assert responder.room_id == origin.id
 
 
+@pytest.mark.parametrize("population_full", [False, True])
 async def test_full_original_room_leaves_manual_responder_idle_until_retry(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict, population_full: bool
 ):
     vault = room_with_dwellers["vault"]
     responder = room_with_dwellers["dwellers"][0]
@@ -767,6 +769,17 @@ async def test_full_original_room_leaves_manual_responder_idle_until_retry(
         incident.id
     ]
     assert await crud.dweller.count_in_room(async_session, origin.id) == 2
+
+    if population_full:
+        # Free an original-room slot without freeing a vault population slot.
+        await crud.vault.update(async_session, vault.id, VaultUpdate(population_max=3))
+        await dweller_service.move_to_room(async_session, blockers[0].id, room_with_dwellers["room"].id)
+        assert await hazard_team_service.return_dispatched_responders(async_session, incident) == 0
+        await async_session.refresh(responder)
+        assert responder.room_id is None
+        assert [row.id for row in await crud.incident_crud.get_pending_responder_returns(async_session, vault.id)] == [
+            incident.id
+        ]
 
     await dweller_service.update_dweller(async_session, blockers[0].id, {"room_id": None})
     assert await hazard_team_service.return_dispatched_responders(async_session, incident) == 1

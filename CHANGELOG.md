@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.212.1 (2026-10-16)
+
+### Code Refactoring
+
+* **progression:** share one card shell between objectives and quests a1efc25
+
 ## 2.212.0 (2026-10-16)
 
 ### Features

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { isObjectiveClaimable, type Objective } from '@/modules/progression/models/objective'
+import {
+  isObjectiveClaimable,
+  isRetiredStarter,
+  type Objective,
+} from '@/modules/progression/models/objective'
 
 const objective = (overrides: Partial<Objective> = {}): Objective => ({
   id: 'obj-1',
@@ -22,5 +26,15 @@ describe('isObjectiveClaimable', () => {
     expect(isObjectiveClaimable(objective({ progress: 100, total: 100, is_completed: true }))).toBe(
       false
     )
+  })
+})
+
+describe('isRetiredStarter', () => {
+  it('flags starter rows without an objective type and nothing else', () => {
+    expect(isRetiredStarter(objective({ category: 'starter' }))).toBe(true)
+    expect(
+      isRetiredStarter(objective({ category: 'starter', objective_type: 'collect' }))
+    ).toBe(false)
+    expect(isRetiredStarter(objective({ category: 'daily' }))).toBe(false)
   })
 })

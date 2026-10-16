@@ -27,7 +27,7 @@ const emit = defineEmits<{
         <span
           class="status-dot"
           :class="{
-            active: localRadioMode === 'recruitment',
+            recruiting: localRadioMode === 'recruitment',
           }"
         ></span>
         {{ localRadioMode === 'recruitment' ? 'Recruiting' : 'Broadcasting' }}
@@ -114,12 +114,12 @@ const emit = defineEmits<{
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: var(--color-gray-600);
-}
-
-.status-dot.active {
   background-color: var(--color-theme-primary);
   animation: pulse 2s infinite;
+}
+
+.status-dot.recruiting {
+  background-color: var(--color-danger);
 }
 
 @keyframes pulse {
@@ -131,6 +131,12 @@ const emit = defineEmits<{
   }
   100% {
     opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-dot {
+    animation: none;
   }
 }
 

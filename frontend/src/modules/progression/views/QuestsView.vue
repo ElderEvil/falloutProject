@@ -15,6 +15,7 @@ import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import { Icon } from '@iconify/vue'
 import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import {
   Select,
   SelectContent,
@@ -23,6 +24,7 @@ import {
   SelectValue,
 } from '@/core/components/ui/select'
 import { QuestCard, PartySelectionModal } from '../components'
+import { Badge } from '@/core/components/ui/badge'
 import QuestRewardsModal from '../components/QuestRewardsModal.vue'
 import type { QuestAvailableSortBy, VaultQuest } from '../models/quest'
 import { compareQuestsByAvailableSort, isQuestReturning } from '../models/quest'
@@ -99,6 +101,10 @@ const officeLocked = computed(() =>
 const activeQuests = computed(() => questStore.questCategories.active)
 const returningQuests = computed(() => questStore.questCategories.returning)
 const readyToClaimQuests = computed(() => questStore.questCategories.readyToClaim)
+const readyClaimTip = computed(() => {
+  const count = readyToClaimQuests.value.length
+  return `${count} reward${count === 1 ? '' : 's'} ready to claim`
+})
 const completedQuests = computed(() => questStore.questCategories.completed)
 // Travelling parties stay visible on the active tab and keep the poll alive.
 const travellingOrActiveQuests = computed(() => [...activeQuests.value, ...returningQuests.value])
@@ -313,6 +319,13 @@ onMounted(async () => {
                   icon="mdi:book-open-page-variant"
                   :value="availableQuests.length"
                   label="Available quests"
+                  tooltip="Quests ready for a party to be assigned"
+                />
+                <PageHeaderMetric
+                  icon="mdi:treasure-chest"
+                  :value="readyToClaimQuests.length"
+                  label="Rewards ready"
+                  tooltip="Finished quests with rewards ready to claim"
                 />
               </template>
             </PageHeader>
@@ -320,10 +333,35 @@ onMounted(async () => {
             <Tabs :model-value="activeTab" @update:model-value="activeTab = String($event)">
               <div class="tabs-row">
                 <TabsList>
-                  <TabsTrigger v-for="tab in questTabs" :key="tab.key" :value="tab.key">
-                    <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
-                    {{ tab.label }}
-                  </TabsTrigger>
+                  <template v-for="tab in questTabs" :key="tab.key">
+                    <TooltipProvider :delay-duration="200">
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <TabsTrigger :value="tab.key">
+                            <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
+                            {{ tab.label }}
+                            <span
+                              v-if="tab.key === 'active' && readyToClaimQuests.length > 0"
+                              :aria-label="readyClaimTip"
+                            >
+                              <Badge
+                                variant="outline"
+                                class="ml-2 border-0 bg-terminal-background text-theme-primary"
+                              >
+                                {{ readyToClaimQuests.length }}
+                              </Badge>
+                            </span>
+                          </TabsTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent
+                          v-if="tab.key === 'active' && readyToClaimQuests.length > 0"
+                          side="bottom"
+                        >
+                          {{ readyClaimTip }}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </template>
                 </TabsList>
 
                 <div v-if="activeTab === 'available'" class="filter-row">

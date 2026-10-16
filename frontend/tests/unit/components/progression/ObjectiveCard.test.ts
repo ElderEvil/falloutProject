@@ -63,6 +63,29 @@ describe('ObjectiveCard', () => {
     expect(card.emitted('claim')).toEqual([['4']])
   })
 
+  it('separates the counting-rule note from the progress block with the divider', () => {
+    const card = mount(ObjectiveCard, {
+      props: {
+        objective: objective({
+          id: '5',
+          target_entity: { production_only: true },
+        }),
+      },
+    })
+    const order = (selector: string) => {
+      const nodes = [...card.element.querySelectorAll('*')]
+      return nodes.findIndex((node) => node.matches(selector))
+    }
+    const note = order('.objective-note')
+    const divider = order('.progression-divider')
+    const progress = order('[aria-label="Objective progress"]')
+    const claim = order('button')
+    expect(note).toBeGreaterThanOrEqual(0)
+    expect(divider).toBeGreaterThan(note)
+    expect(progress).toBeGreaterThan(divider)
+    expect(claim).toBeGreaterThan(divider)
+  })
+
   it.each([
     ['production_only', 'Production counts even when storage is full.'],
     ['distinct_dwellers', 'Each dweller counts once for this objective.'],

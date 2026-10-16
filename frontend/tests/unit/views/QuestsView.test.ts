@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, VueWrapper } from '@vue/test-utils'
-import { reactive } from 'vue'
+import { nextTick, reactive } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import QuestsView from '@/modules/progression/views/QuestsView.vue'
 import { useQuestStore } from '@/modules/progression/stores/quest'
@@ -38,6 +38,9 @@ describe('QuestsView', () => {
     vi.clearAllMocks()
     routeQuery.claimQuest = undefined
 
+    // Tooltip content is teleported to <body>; drop leftovers between tests.
+    document.querySelectorAll('[role="tooltip"]').forEach((element) => element.remove())
+
     // Prevent unhandled rejections from real HTTP calls during onMounted
     vi.spyOn(questStore, 'fetchAllQuests').mockResolvedValue()
     vi.spyOn(questStore, 'fetchVaultQuests').mockResolvedValue()
@@ -46,6 +49,7 @@ describe('QuestsView', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+    document.querySelectorAll('[role="tooltip"]').forEach((element) => element.remove())
   })
 
   describe('Overseer Office Lock', () => {
@@ -991,6 +995,87 @@ describe('QuestsView', () => {
 
       // This tests that the component structure supports the collapsed state
       expect(wrapper.find('.main-content').exists()).toBe(true)
+    })
+  })
+
+  describe('Header metrics and tab badges', () => {
+    const quest = (overrides: Record<string, unknown>) => ({
+      id: 'quest-x',
+      title: 'X',
+      short_description: 'X',
+      long_description: 'X',
+      requirements: 'None',
+      rewards: '10 caps',
+      created_at: '2025-01-01',
+      updated_at: '2025-01-01',
+      is_visible: true,
+      is_locked: false,
+      lock_reason: null,
+      is_completed: false,
+      is_reward_ready: false,
+      started_at: null,
+      duration_minutes: null,
+      ...overrides,
+    })
+
+    const mountWithQuests = (quests: Record<string, unknown>[]) => {
+      questStore.vaultQuests = quests as never
+      return mount(QuestsView, {
+        global: {
+          stubs: {
+            SidePanel: true,
+            Icon: true,
+          },
+        },
+      })
+    }
+
+    it('shows Available and Rewards-ready totals in the page header', async () => {
+      wrapper = mountWithQuests([
+        quest({ id: 'quest-1' }),
+        quest({ id: 'quest-2', is_reward_ready: true }),
+      ])
+      await flushPromises()
+
+      const header = wrapper.text()
+      expect(header).toContain('Available quests')
+      expect(header).toContain('Rewards ready')
+    })
+
+    it('badges the Active tab with the ready-to-claim count and explains it', async () => {
+      wrapper = mountWithQuests([
+        quest({ id: 'quest-1' }),
+        quest({ id: 'quest-2', is_reward_ready: true }),
+        quest({ id: 'quest-3', is_reward_ready: true }),
+      ])
+      await flushPromises()
+
+      const activeTab = wrapper
+        .findAll('[role="tab"]')
+        .find((tab) => tab.text().includes('Active'))
+      const badge = activeTab?.find('[data-slot="badge"]')
+      expect(badge?.exists()).toBe(true)
+      expect(badge?.text()).toContain('2')
+
+      // reka-ui's TooltipTrigger opens on native focus (immediate, no delay);
+      // the whole tab is the trigger so keyboard focus reveals the tip too.
+      const tip = activeTab?.find('span[aria-label]')
+      expect(tip?.attributes('aria-label')).toBe('2 rewards ready to claim')
+      activeTab?.element.dispatchEvent(new FocusEvent('focus'))
+      await nextTick()
+      expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
+        '2 rewards ready to claim'
+      )
+    })
+
+    it('omits the Active tab badge when nothing is ready to claim', async () => {
+      wrapper = mountWithQuests([quest({ id: 'quest-1' })])
+      await flushPromises()
+
+      const activeTab = wrapper
+        .findAll('[role="tab"]')
+        .find((tab) => tab.text().includes('Active'))
+      expect(activeTab?.find('[data-slot="badge"]').exists()).toBe(false)
     })
   })
 })

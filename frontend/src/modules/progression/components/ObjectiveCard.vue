@@ -62,12 +62,14 @@ const canClaim = computed(() => isObjectiveClaimable(props.objective))
       <Badge variant="outline" class="category-badge">{{ categoryLabel }}</Badge>
     </template>
 
-    <p v-if="objective.target_entity?.production_only" class="objective-note">
-      Production counts even when storage is full.
-    </p>
-    <p v-else-if="objective.target_entity?.distinct_dwellers" class="objective-note">
-      Each dweller counts once for this objective.
-    </p>
+    <template #note>
+      <p v-if="objective.target_entity?.production_only" class="objective-note">
+        Production counts even when storage is full.
+      </p>
+      <p v-else-if="objective.target_entity?.distinct_dwellers" class="objective-note">
+        Each dweller counts once for this objective.
+      </p>
+    </template>
 
     <!-- Progress Section -->
     <div class="progress-section">

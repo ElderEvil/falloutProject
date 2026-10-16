@@ -6,6 +6,7 @@ import {
   currentObjective,
   isObjectiveClaimable,
   isOfficeObjective,
+  isRetiredStarter,
   objectiveActionPath,
   type Objective,
 } from '@/modules/progression/models/objective'
@@ -15,9 +16,11 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageHeader from '@/core/components/common/PageHeader.vue'
+import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import { Icon } from '@iconify/vue'
 import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { Badge } from '@/core/components/ui/badge'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import { ObjectiveCard } from '../components'
 import ObjectiveCompleteModal from '../components/ObjectiveCompleteModal.vue'
 
@@ -66,11 +69,24 @@ const officeCompleted = computed(() =>
   )
 )
 const objectivesUnlocked = computed(() => !currentStarter.value || officeCompleted.value)
-const visibleTabs = computed(() =>
-  objectivesUnlocked.value ? objectiveTabs : objectiveTabs.filter((tab) => tab.key === STARTER_TAB)
+const hasOpenStarter = computed(() =>
+  objectivesStore.objectives.some(
+    (objective) =>
+      objective.category === STARTER_TAB &&
+      !objective.is_completed &&
+      (!isRetiredStarter(objective) || isObjectiveClaimable(objective))
+  )
 )
+const visibleTabs = computed(() => {
+  const tabs = objectivesUnlocked.value
+    ? objectiveTabs
+    : objectiveTabs.filter((tab) => tab.key === STARTER_TAB)
+  return tabs.filter((tab) => tab.key !== STARTER_TAB || hasOpenStarter.value)
+})
 const effectiveTab = computed(() =>
-  visibleTabs.value.some((tab) => tab.key === activeTab.value) ? activeTab.value : STARTER_TAB
+  visibleTabs.value.some((tab) => tab.key === activeTab.value)
+    ? activeTab.value
+    : (visibleTabs.value[0]?.key ?? STARTER_TAB)
 )
 const visibleObjectives = computed(() =>
   objectivesStore.objectives.filter((objective) =>
@@ -94,6 +110,15 @@ const claimableCounts = computed(() => {
   }
   return counts
 })
+const claimableTotal = computed(() =>
+  Object.values(claimableCounts.value).reduce((total, count) => total + count, 0)
+)
+const openObjectivesCount = computed(() =>
+  objectivesStore.objectives.filter((objective) => !objective.is_completed).length
+)
+function claimTooltip(count: number): string {
+  return `${count} reward${count === 1 ? '' : 's'} ready to claim`
+}
 
 function handleClaimObjective(objectiveId: string): void {
   void claim(objectiveId, (claimed) => {
@@ -122,7 +147,22 @@ function closeClaimModal(): void {
               title="Objectives"
               icon="mdi:target"
               subtitle="Complete Vault-Tec directives to earn rewards."
-            />
+            >
+              <template #actions>
+                <PageHeaderMetric
+                  icon="mdi:target"
+                  :value="openObjectivesCount"
+                  label="Open objectives"
+                  tooltip="Objectives still waiting to be finished"
+                />
+                <PageHeaderMetric
+                  icon="mdi:treasure-chest"
+                  :value="claimableTotal"
+                  label="Rewards ready"
+                  tooltip="Finished objectives with rewards ready to claim"
+                />
+              </template>
+            </PageHeader>
             <p v-if="loadError || claimError" class="claim-error" role="alert">
               {{ loadError || claimError }}
             </p>
@@ -139,18 +179,33 @@ function closeClaimModal(): void {
 
             <Tabs :model-value="effectiveTab" @update:model-value="activeTab = String($event)">
               <TabsList>
-                <TabsTrigger v-for="tab in visibleTabs" :key="tab.key" :value="tab.key">
-                  <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
-                  {{ tab.label }}
-                  <Badge
-                    v-if="claimableCounts[tab.key]"
-                    variant="outline"
-                    class="ml-2 border-0 bg-terminal-background text-theme-primary"
-                  >
-                    {{ claimableCounts[tab.key] }}
-                    <span class="sr-only">claimable</span>
-                  </Badge>
-                </TabsTrigger>
+                <template v-for="tab in visibleTabs" :key="tab.key">
+                  <TooltipProvider :delay-duration="200">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <TabsTrigger :value="tab.key">
+                          <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
+                          {{ tab.label }}
+                          <span
+                            v-if="claimableCounts[tab.key]"
+                            :aria-label="claimTooltip(claimableCounts[tab.key] ?? 0)"
+                          >
+                            <Badge
+                              variant="outline"
+                              class="ml-2 border-0 bg-terminal-background text-theme-primary"
+                            >
+                              {{ claimableCounts[tab.key] }}
+                              <span class="sr-only">claimable</span>
+                            </Badge>
+                          </span>
+                        </TabsTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent v-if="claimableCounts[tab.key]" side="bottom">
+                        {{ claimTooltip(claimableCounts[tab.key] ?? 0) }}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </template>
               </TabsList>
               <p v-if="!objectivesUnlocked" class="unlock-hint">
                 Daily, weekly and achievement objectives unlock once you build the Overseer's Office.

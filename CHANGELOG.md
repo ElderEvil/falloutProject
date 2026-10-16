@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.215.0 (2026-10-16)
+
+### Features
+
+* **ui:** unify progression counters, fold the empty unassigned panel a0bae45
+
+### Bug Fixes
+
+* **a11y:** open badge tooltips from tab keyboard focus 6442713
+* **ui:** keep the card divider between the note and the progress block 6d86532
+* **ui:** review follow-ups on progression parity 2ed5f44
+
 ## 2.214.0 (2026-10-16)
 
 ### Features

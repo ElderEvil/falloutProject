@@ -8,7 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.incident import Incident, IncidentStatus, IncidentType
 from app.models.incident_event import IncidentEvent
-from app.models.team import DISPATCHED_STATUS, Team, TeamMember
+from app.models.team import COMMITTED_MEMBER_STATUSES, Team, TeamMember
 
 
 class CRUDIncident:
@@ -72,7 +72,7 @@ class CRUDIncident:
 
     @staticmethod
     async def get_pending_responder_returns(db_session: AsyncSession, vault_id: UUID4) -> list[Incident]:
-        """Finished incidents whose auto-dispatched responders still need to return."""
+        """Finished incidents whose manual or automatic responders still need to return."""
         statement = (
             select(Incident)
             .join(Team, col(Team.incident_id) == col(Incident.id))
@@ -80,7 +80,7 @@ class CRUDIncident:
             .where(
                 Incident.vault_id == vault_id,
                 col(Incident.status).in_([IncidentStatus.RESOLVED, IncidentStatus.FAILED]),
-                TeamMember.status == DISPATCHED_STATUS,
+                col(TeamMember.status).in_(COMMITTED_MEMBER_STATUSES),
             )
             .distinct()
         )

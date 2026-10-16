@@ -17,7 +17,7 @@ from app.crud.team import team_crud
 from app.models.dweller import Dweller
 from app.models.incident import HAZARD_TEAM_INCIDENT_TYPES, Incident, hazard_team_for
 from app.models.outfit import Outfit
-from app.models.team import ACTIVE_STATUS, DISPATCHED_STATUS, RESERVE_STATUS, TeamMember
+from app.models.team import ACTIVE_STATUS, COMMITTED_MEMBER_STATUSES, DISPATCHED_STATUS, RESERVE_STATUS, TeamMember
 from app.schemas.contamination_team import ContaminationTeamRead, HazardTeamMemberRead, HazardTeamRosterRead
 from app.services.bio_service import bio_service
 from app.services.notification_service import notification_service
@@ -334,7 +334,7 @@ class HazardTeamService:
                 return []
 
             # Snapshot every responder's posting before the move overwrites room_id,
-            # so the return pass can restore a station posting (issue #997 task 6).
+            # so the return pass can restore their posting.
             origins = {dweller.id: dweller.room_id for dweller in candidates}
             ids = [dweller.id for dweller in candidates]
             members = await team_crud.add_incident_team_members(
@@ -370,59 +370,60 @@ class HazardTeamService:
         else:
             return dispatched
 
-    async def _is_station_posting(self, db_session: AsyncSession, room_id: UUID4 | None) -> bool:
-        """Whether ``room_id`` is the Response Station — the one posting the return pass restores."""
-        if room_id is None:
+    async def _return_to_posting(self, db_session: AsyncSession, member: TeamMember, incident: Incident) -> bool:
+        """Restore a posting with normal capacity checks; wait unassigned if it is busy."""
+        from app.services.dweller_service import dweller_service
+
+        dweller = member.dweller
+        try:
+            origin = await crud_room.get_or_none(db_session, member.origin_room_id) if member.origin_room_id else None
+            if origin is not None:
+                if dweller.room_id != origin.id:
+                    await dweller_service.move_to_room(db_session, member.dweller_id, origin.id)
+            else:
+                # Clear the temporary posting before auto-assignment, which otherwise
+                # treats an overfilled incident room as already matching the best stat.
+                if dweller.room_id == incident.room_id:
+                    await dweller_service.update_dweller(db_session, member.dweller_id, {"room_id": None})
+                await dweller_service.auto_assign_to_best_room(db_session, member.dweller_id)
+        except ContentNoChangeException:
+            pass
+        except ResourceConflictException:
+            if dweller.room_id == incident.room_id:
+                await dweller_service.update_dweller(db_session, member.dweller_id, {"room_id": None})
+            logger.info("Responder %s is waiting for a room to return to", member.dweller_id)
             return False
-        room = await crud_room.get(db_session, room_id)
-        return room is not None and room.category == RoomTypeEnum.RESPONSE
+        return True
 
     async def return_dispatched_responders(self, db_session: AsyncSession, incident: Incident) -> int:
-        """Put auto-dispatched hazard-team responders back to work after the incident ends.
-
-        A responder whose recorded posting was the Response Station returns there;
-        every other living ``dispatched`` member is auto-assigned to a production
-        room as before, and each is flipped to ``completed`` so a later pass cannot
-        return them twice. Best-effort — never raises; returns the count re-assigned.
-        """
+        """Return manual and automatic responders, retrying full postings on later ticks."""
         try:
             members = await team_crud.get_incident_team(db_session, incident.id, incident.vault_id)
-            dispatched = [member for member in members if member.status == DISPATCHED_STATUS]
+            dispatched = [member for member in members if member.status in COMMITTED_MEMBER_STATUSES]
             if not dispatched:
                 return 0
 
-            from app.services.dweller_service import dweller_service
+            from app.services.combat.incident_service import committed_responder_ids
+
+            committed = await committed_responder_ids(db_session, incident.vault_id, exclude_incident_id=incident.id)
 
             returned = 0
             closed = 0
             for member in dispatched:
                 dweller = member.dweller
-                if dweller is None or availability_error(dweller, require_healthy=True) is not None:
-                    # Terminal state (dead, wounded, gone): nobody to send back
-                    # to work, but the ledger still closes so "dispatched"
-                    # never lingers on a finished incident.
+                if (
+                    dweller is None
+                    or availability_error(dweller, require_healthy=True) is not None
+                    or member.dweller_id in committed
+                    or dweller.room_id not in (None, incident.room_id, member.origin_room_id)
+                ):
+                    # Dead/unavailable responders and newer player assignments must
+                    # not be moved. Close the old ledger so it cannot reclaim them.
                     member.status = "completed"
                     db_session.add(member)
                     closed += 1
                     continue
-                try:
-                    station_room_id = member.origin_room_id
-                    if station_room_id is not None and await self._is_station_posting(db_session, station_room_id):
-                        if dweller.room_id != station_room_id:
-                            await dweller_service.move_to_room(db_session, member.dweller_id, station_room_id)
-                    else:
-                        await dweller_service.auto_assign_to_best_room(db_session, member.dweller_id)
-                except ContentNoChangeException:
-                    # Already back at work in the best matching room.
-                    pass
-                except ResourceConflictException:
-                    logger.info(
-                        "Dispatched responder %s has no production room to return to; leaving for a later pass",
-                        member.dweller_id,
-                    )
-                    continue
-                except Exception:
-                    logger.exception("Failed to return dispatched responder %s to work", member.dweller_id)
+                if not await self._return_to_posting(db_session, member, incident):
                     continue
                 member.status = "completed"
                 db_session.add(member)

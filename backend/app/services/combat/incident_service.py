@@ -18,6 +18,7 @@ from app.models.incident import (
     IncidentType,
     get_incident_definition,
 )
+from app.models.team import COMMITTED_MEMBER_STATUSES
 from app.schemas.incident import (
     IncidentEventRead,
     IncidentListItem,
@@ -41,9 +42,6 @@ logger = logging.getLogger(__name__)
 
 #: Hard ceiling on one incident's designated responder roster.
 MAX_INCIDENT_RESPONDERS = 6
-
-#: Member statuses that commit a dweller to an incident response.
-COMMITTED_MEMBER_STATUSES: frozenset[str] = frozenset({"assigned", "dispatched"})
 
 
 async def committed_responder_ids(
@@ -341,7 +339,11 @@ class IncidentService:
         if len(existing_member_ids | set(eligible_ids)) > MAX_INCIDENT_RESPONDERS:
             raise ValidationException("An incident team holds at most 6 responders")
 
-        await team_crud.add_incident_team_members(db_session, incident.id, incident.vault_id, eligible_ids)
+        origins = {dweller.id: dweller.room_id for dweller in eligible}
+        members = await team_crud.add_incident_team_members(db_session, incident.id, incident.vault_id, eligible_ids)
+        for member in members:
+            member.origin_room_id = origins[member.dweller_id]
+            db_session.add(member)
 
         from app.services.dweller_service import dweller_service
 

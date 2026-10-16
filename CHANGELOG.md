@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.222.0 (2026-10-16)
+
+### Features
+
+* **pets:** add a catalog description for every pet a62ca80
+
 ## 2.221.2 (2026-10-16)
 
 ### Bug Fixes

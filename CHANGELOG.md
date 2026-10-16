@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.213.1 (2026-10-16)
+
+### Bug Fixes
+
+* **progression:** load the quest catalog before vault quests 738588e
+* **progression:** preserve shared select styling after master merge f78747f
+* **progression:** restore the quest status border on the shared shell 616a995
+
+### Code Refactoring
+
+* **progression:** finish the shared quest card migration 91db9a7
+* **progression:** move the quest card onto the shared shell e6adf49
+
 ## 2.213.0 (2026-10-16)
 
 ### Features

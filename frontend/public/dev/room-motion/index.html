@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vault room motion study</title>
+    <style>
+      :root {
+        color-scheme:dark;
+        --green:#93c889;
+        --line:#344837;
+        --muted:#8c9d8d;
+        --surface:#131c17;
+        --warm:#e6b96d;
+        font-family:ui-monospace,monospace;
+        background:#0b100d;
+        color:#d8e1d7
+      }
+      * {
+        box-sizing:border-box
+      }
+      body {
+        margin:0
+      }
+      main {
+        max-width:1280px;
+        margin:auto;
+        padding:36px 24px
+      }
+      header {
+        display:flex;
+        justify-content:space-between;
+        gap:24px;
+        align-items:end;
+        flex-wrap:wrap;
+        margin-bottom:24px
+      }
+      .eyebrow {
+        font-size:11px;
+        letter-spacing:.17em;
+        color:var(--green)
+      }
+      h1 {
+        font-size:26px;
+        font-weight:500;
+        margin:10px 0
+      }
+      p {
+        color:var(--muted);
+        font-size:13px;
+        line-height:1.65;
+        max-width:78ch
+      }
+      button,select {
+        font:inherit;
+        color:inherit;
+        border:1px solid var(--line);
+        border-radius:5px;
+        background:var(--surface);
+        padding:8px 12px;
+        cursor:pointer
+      }
+      button:hover {
+        border-color:var(--green)
+      }
+      button:focus-visible,select:focus-visible {
+        outline:2px solid var(--green);
+        outline-offset:3px
+      }
+      button[aria-pressed=true] {
+        background:#253d29;
+        color:#b8e8a8;
+        border-color:#6a9e62
+      }
+      .controls {
+        display:flex;
+        flex-wrap:wrap;
+        gap:8px;
+        align-items:center;
+        font-size:12px
+      }
+      .rooms {
+        align-items:start;
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:20px
+      }
+      .room {
+        border:1px solid var(--line);
+        border-radius:9px;
+        overflow:hidden;
+        background:var(--surface)
+      }
+      .room>header {
+        margin:0;
+        padding:16px 18px;
+        align-items:center;
+        gap:8px
+      }
+      .room h2 {
+        font-size:16px;
+        margin:0;
+        font-weight:500
+      }
+      .tag {
+        font-size:10px;
+        letter-spacing:.09em;
+        text-transform:uppercase;
+        color:var(--green);
+        border:1px solid var(--line);
+        padding:4px 6px;
+        border-radius:4px
+      }
+      .scene {
+        position:relative;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        overflow:hidden;
+        background:#090e0b;
+        min-height:180px;
+        border-block:1px solid var(--line)
+      }
+      .art {
+        position:relative;
+        width:100%
+      }
+      .art img {
+        display:block;
+        width:100%
+      }
+      .arena-art {
+        aspect-ratio:3/1
+      }
+      .response-art {
+        width:100%;
+        aspect-ratio:1
+      }
+      .lamp-glow {
+        position:absolute;
+        inset:0;
+        pointer-events:none;
+        mix-blend-mode:screen;
+        animation:lamps 7s ease-in-out infinite;
+        background:radial-gradient(ellipse at 13% 8%,#fbc75e24,transparent 21%),radial-gradient(ellipse at 50% 8%,#fbc75e16,transparent 28%),radial-gradient(ellipse at 87% 8%,#fbc75e24,transparent 21%)
+      }
+      .radar {
+        position:absolute;
+        inset:0;
+        width:100%;
+        height:100%;
+        opacity:.8;
+        mix-blend-mode:screen;
+        pointer-events:none
+      }
+      .radar-beam {
+        transform-box:view-box;
+        transform-origin:599px 342px;
+        animation:sweep 4s ease-in-out infinite alternate
+      }
+      .screen-glow {
+        position:absolute;
+        left:76%;
+        top:43.8%;
+        width:12%;
+        height:8.6%;
+        border-radius:10%;
+        background:#35ec5225;
+        box-shadow:0 0 15px #29e04135;
+        animation:screen 6s ease-in-out infinite;
+        pointer-events:none
+      }
+      .state {
+        display:none;
+        text-align:center;
+        padding:24px;
+        color:var(--muted);
+        font-size:13px
+      }
+      .state strong {
+        display:block;
+        font-weight:500;
+        color:var(--green);
+        margin-bottom:8px
+      }
+      .state small {
+        display:block;
+        line-height:1.6
+      }
+      .management {
+        padding:18px
+      }
+      .management h3 {
+        font-size:12px;
+        text-transform:uppercase;
+        letter-spacing:.1em;
+        color:var(--green);
+        font-weight:500;
+        margin:0 0 12px
+      }
+      .management p {
+        margin-bottom:0;
+        font-size:12px
+      }
+      .row {
+        display:flex;
+        justify-content:space-between;
+        gap:10px;
+        font-size:12px;
+        padding:9px 0;
+        border-bottom:1px solid #28382c
+      }
+      .row span:last-child {
+        color:var(--warm)
+      }
+      .mode-note {
+        margin:0 0 20px;
+        min-height:45px
+      }
+      .footnote {
+        font-size:11px;
+        margin-top:18px
+      }
+      .paused .ambient,.paused .ambient:after,.paused .radar-beam {
+        animation-play-state:paused
+      }
+      body[data-state=loading] .art,body[data-state=empty] .art {
+        display:none
+      }
+      body[data-state=loading] .loading,body[data-state=empty] .empty {
+        display:block
+      }
+      .loading:before {
+        content:'';
+        display:block;
+        width:150px;
+        height:5px;
+        margin:0 auto 18px;
+        background:linear-gradient(90deg,#263a29,#7fb376,#263a29);
+        background-size:200%;
+        animation:load 2s linear infinite
+      }
+      .paused .loading:before {
+        animation-play-state:paused
+      }
+      @keyframes lamps {
+        0%,100% {
+          opacity:.4
+        }
+        50% {
+          opacity:.85
+        }
+      }
+      @keyframes sweep {
+        from {
+          transform:rotate(-87deg)
+        }
+        to {
+          transform:rotate(87deg)
+        }
+      }
+      @keyframes screen {
+        0%,100% {
+          opacity:.45
+        }
+        50% {
+          opacity:.9
+        }
+      }
+      @keyframes load {
+        to {
+          background-position:200%
+        }
+      }
+      @media(prefers-reduced-motion:reduce) {
+        .ambient,.ambient:after,.radar-beam,.loading:before {
+          animation:none!important
+        }
+      }
+      @media(max-width:760px) {
+        main {
+          padding:24px 14px
+        }
+        .rooms {
+          grid-template-columns:1fr
+        }
+        h1 {
+          font-size:23px
+        }
+        .scene {
+          min-height:160px
+        }
+      }
+      .arena-atmosphere {
+        position:absolute;
+        inset:0;
+        width:100%;
+        height:100%;
+        pointer-events:none
+      }
+      .vent-fan {
+        transform-box:view-box;
+        transform-origin:1020px 225px;
+        animation:vent-turn 12s linear infinite
+      }
+      .dust-mote {
+        fill:#f4d396;
+        opacity:0;
+        animation:dust-drift 10s linear infinite
+      }
+      .dust-mote:nth-of-type(2) {
+        animation-delay:-3s;
+        animation-duration:13s
+      }
+      .dust-mote:nth-of-type(3) {
+        animation-delay:-7s;
+        animation-duration:11s
+      }
+      .dust-mote:nth-of-type(4) {
+        animation-delay:-5s;
+        animation-duration:14s
+      }
+      @keyframes vent-turn {
+        to {
+          transform:rotate(360deg)
+        }
+      }
+      @keyframes dust-drift {
+        0% {
+          opacity:0;
+          transform:translate(0,0)
+        }
+        20%,65% {
+          opacity:.45
+        }
+        100% {
+          opacity:0;
+          transform:translate(22px,65px)
+        }
+      }
+      .paused .vent-fan,.paused .dust-mote {
+        animation-play-state:paused
+      }
+      @media(prefers-reduced-motion:reduce) {
+        .vent-fan {
+          animation:none
+        }
+        .dust-mote {
+          animation:none;
+          opacity:0
+        }
+      }
+    </style>
+  </head>
+  <body data-state="ready">
+    <main>
+      <header>
+        <div>
+          <div class="eyebrow">VAULT-TEC / ROOM MOTION STUDY</div>
+          <h1>A little life inside the vault.</h1>
+          <p>
+            Existing artwork, a quiet scene, management underneath. A visual prototype; it does not
+            change the game.
+          </p>
+        </div>
+        <div class="controls">
+          <button id="pause" aria-pressed="false">Pause motion</button
+          ><label for="state">Scene</label
+          ><select id="state">
+            <option value="ready">Ready</option>
+            <option value="loading">Loading</option>
+            <option value="empty">Missing art</option>
+          </select>
+        </div>
+      </header>
+      <p class="mode-note">
+        <span
+          >CSS: the original pixels stay intact. Slow lights, ventilation and dust in the Arena; a
+          radar sweep and screen glow in the Response Station. No generated frames or extra image
+          download.</span
+        >
+      </p>
+      <div class="rooms">
+        <article class="room">
+          <header>
+            <h2>Arena</h2>
+            <span class="tag">Standing by</span>
+          </header>
+          <div class="scene" aria-label="Arena scene">
+            <div class="art arena-art">
+              <img
+                src="/assets/room-scenes/arena-cartoon-tier-1-v1.webp"
+                alt="Empty vault arena with a marked combat ring"
+              />
+              <div class="ambient lamp-glow" aria-hidden="true"></div>
+              <svg
+                class="arena-atmosphere ambient"
+                viewBox="0 0 2048 683"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <defs>
+                  <!-- Only the dark openings move; the painted grille and rim remain intact. -->
+                  <clipPath id="arena-vent-openings">
+                    <path
+                      d="M974 158 H1062 V166 H974 Z M955 181 H1082 V189 H955 Z M946 204 H1091 V212 H946 Z M943 227 H1095 V235 H943 Z M949 250 H1089 V258 H949 Z M962 273 H1076 V280 H962 Z"
+                    />
+                  </clipPath>
+                </defs>
+                <g clip-path="url(#arena-vent-openings)">
+                  <g class="vent-fan" fill="#080e10" opacity=".55">
+                    <path d="M1019 226 C977 207 971 164 1010 154 C1044 146 1033 201 1019 226 Z" />
+                    <path d="M1019 226 C1054 197 1095 211 1084 249 C1074 281 1037 245 1019 226 Z" />
+                    <path d="M1019 226 C1024 270 993 300 968 270 C947 244 995 230 1019 226 Z" />
+                    <circle cx="1019" cy="226" r="9" />
+                  </g>
+                </g>
+                <g>
+                  <circle class="dust-mote" cx="261" cy="128" r="1.7" />
+                  <circle class="dust-mote" cx="1001" cy="151" r="1.5" />
+                  <circle class="dust-mote" cx="1778" cy="116" r="1.8" />
+                  <circle class="dust-mote" cx="300" cy="207" r="1.4" />
+                </g>
+              </svg>
+            </div>
+            <div class="state loading" role="status">
+              <strong>Preparing room preview</strong
+              ><small>Management stays available below.</small>
+            </div>
+            <div class="state empty">
+              <strong>Room preview unavailable</strong
+              ><small>Your teams and room controls stay available.</small>
+            </div>
+          </div>
+          <div class="management">
+            <h3>Match preparation</h3>
+            <div class="row"><span>Fighters</span><span>Assign dwellers below the scene</span></div>
+            <div class="row"><span>Match setup</span><span>Duel · Brawl · Hunt</span></div>
+            <p>
+              Team selection, supplies and room actions belong here. Combatants can later occupy the
+              clear floor; the ambient background stays independent of match state.
+            </p>
+          </div>
+        </article>
+        <article class="room">
+          <header>
+            <h2>Response Station</h2>
+            <span class="tag">On call</span>
+          </header>
+          <div class="scene" aria-label="Response Station scene">
+            <div class="art response-art">
+              <img
+                class="original"
+                src="/assets/room-scenes/response-bay-size-3-v1.webp"
+                alt="Response equipment bay with fire gear and a dispatch console"
+              />
+              <div class="ambient screen-glow" aria-hidden="true"></div>
+              <svg class="ambient radar" viewBox="0 0 724 724" aria-hidden="true" focusable="false">
+                <defs>
+                  <clipPath id="radar-display-arc">
+                    <path d="M569 342 A30 29 0 0 1 629 342 Z" />
+                  </clipPath>
+                </defs>
+                <g clip-path="url(#radar-display-arc)">
+                  <g class="radar-beam">
+                    <path d="M599 342 L588 314 L599 312 Z" fill="#68fb6c" fill-opacity=".2" />
+                    <path d="M599 342 V312" stroke="#a1ffac" stroke-width="1" />
+                  </g>
+                </g>
+              </svg>
+            </div>
+            <div class="state loading" role="status">
+              <strong>Preparing room preview</strong
+              ><small>Management stays available below.</small>
+            </div>
+            <div class="state empty">
+              <strong>Room preview unavailable</strong
+              ><small>Your teams and room controls stay available.</small>
+            </div>
+          </div>
+          <div class="management">
+            <h3>Station management</h3>
+            <div class="row"><span>Fire response</span><span>Active crew / reserves</span></div>
+            <div class="row">
+              <span>Radiation response</span><span>Active crew / reserves</span>
+            </div>
+            <p>
+              Roster, readiness and equipment information sit below the scene. The dispatch console
+              supplies the motion; suits and room structure should remain still.
+            </p>
+          </div>
+        </article>
+      </div>
+      <p class="footnote">
+        Layout sketches only. Loading and missing-art controls demonstrate the intended frame
+        contract. Reduced motion and Pause keep the artwork still. CSS and SVG only; no generated
+        video.
+      </p>
+    </main>
+    <script>
+      document.querySelector('#pause').onclick = (event) => {
+        const paused = document.body.classList.toggle('paused')
+        event.currentTarget.setAttribute('aria-pressed', String(paused))
+        event.currentTarget.textContent = paused ? 'Resume motion' : 'Pause motion'
+      }
+      document.querySelector('#state').onchange = (event) => {
+        document.body.dataset.state = event.target.value
+      }
+    </script>
+  </body>
+</html>

@@ -17,7 +17,7 @@ from typing import Any
 from pydantic import Field, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.core.enums import RarityEnum, SPECIALEnum, WeaponTypeEnum
+from app.core.enums import RarityEnum, SPECIALEnum, VaultModeEnum, WeaponTypeEnum
 from app.core.grid_config import (
     GRID_BUILD_X_MAX,
     GRID_BUILD_Y_MAX,
@@ -93,6 +93,16 @@ class IncidentConfig(BaseSettings):
         description="Minimum dwellers required for incidents",
         ge=0,
     )
+    deathclaw_min_population: int = Field(
+        default=60,
+        description="Living dwellers required before Deathclaw attacks can spawn in standard mode",
+        ge=0,
+    )
+    deathclaw_min_population_survival: int = Field(
+        default=35,
+        description="Living dwellers required before Deathclaw attacks can spawn in survival mode",
+        ge=0,
+    )
     spread_duration: int = Field(
         default=60,
         description="Seconds before incident spreads to adjacent rooms",
@@ -158,9 +168,24 @@ class IncidentConfig(BaseSettings):
         }
         return difficulty_map.get(incident_type, (1, 5))
 
-    def get_spawn_weights(self) -> dict[IncidentType, int]:
-        """Get spawn weights for all incident types."""
-        return {
+    def get_min_population(self, incident_type: IncidentType, mode: str = VaultModeEnum.STANDARD.value) -> int:
+        """Living dwellers a vault must have before this threat may be rolled."""
+        if incident_type == IncidentType.DEATHCLAW_ATTACK:
+            if mode == VaultModeEnum.SURVIVAL.value:
+                return self.deathclaw_min_population_survival
+            return self.deathclaw_min_population
+        return 0
+
+    def get_spawn_weights(
+        self, population: int | None = None, mode: str = VaultModeEnum.STANDARD.value
+    ) -> dict[IncidentType, int]:
+        """Spawn weights, optionally limited to the threats a population qualifies for.
+
+        ``population=None`` returns the full balance table (display/CLI); passing a *living*
+        population drops every threat whose minimum the vault has not reached yet, so an
+        under-grown vault never rolls a Deathclaw.
+        """
+        weights = {
             IncidentType.FIRE: self.weight_fire,
             IncidentType.RADROACH_INFESTATION: self.weight_radroach,
             IncidentType.MOLE_RAT_ATTACK: self.weight_mole_rat,
@@ -168,6 +193,13 @@ class IncidentConfig(BaseSettings):
             IncidentType.RAIDER_ATTACK: self.weight_raider,
             IncidentType.FERAL_GHOUL_ATTACK: self.weight_feral_ghoul,
             IncidentType.DEATHCLAW_ATTACK: self.weight_deathclaw,
+        }
+        if population is None:
+            return weights
+        return {
+            incident_type: weight
+            for incident_type, weight in weights.items()
+            if population >= self.get_min_population(incident_type, mode)
         }
 
     def get_spawn_rate(self, room_count: int) -> float:

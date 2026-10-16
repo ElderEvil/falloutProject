@@ -70,8 +70,7 @@ async def should_spawn_incident(
         logger.debug(f"Incidents are disabled for vault {vault_id}")
         return False
 
-    # Need minimum population
-    if await crud_dweller.count_in_vault(db_session, vault_id) < game_config.incident.min_vault_population:
+    if await crud_dweller.count_living_in_vault(db_session, vault_id) < game_config.incident.min_vault_population:
         return False
 
     # Check if max active incidents reached
@@ -96,9 +95,9 @@ async def should_spawn_incident(
     return random.random() < spawn_chance
 
 
-def roll_incident_type() -> IncidentType:
-    """Pick a spawn type from the configured balance weights."""
-    weights = game_config.incident.get_spawn_weights()
+def roll_incident_type(population: int, mode: str) -> IncidentType:
+    """Pick a spawn type from the balance weights this population and mode qualify for."""
+    weights = game_config.incident.get_spawn_weights(population, mode)
     return random.choices(list(weights), weights=list(weights.values()), k=1)[0]
 
 
@@ -146,7 +145,11 @@ async def spawn_incident(
     # rolls from the balance weights. Explicit types stay available to
     # administrative and test callers.
     if incident_type is None:
-        incident_type = next(iter(active_types)) if active_types else roll_incident_type()
+        if active_types:
+            incident_type = next(iter(active_types))
+        else:
+            population = await crud_dweller.count_living_in_vault(db_session, vault_id)
+            incident_type = roll_incident_type(population, vault.vault_mode)
 
     # If type specified but vault has different type, don't spawn
     if active_types and incident_type not in active_types:
@@ -210,7 +213,7 @@ async def select_spawn_room(
         # External attacks spawn at vault door (0,0) and spread inward
         target_room = await room_crud.get_room_by_coordinates(
             db_session=db_session,
-            vault_id=vault_id,  # ty: ignore[invalid-argument-type]
+            vault_id=vault_id,
             x_coord=0,
             y_coord=0,
         )

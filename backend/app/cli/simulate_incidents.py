@@ -365,7 +365,7 @@ class IncidentSimulator:
         if rng.random() >= spawn_chance:
             return False
 
-        weights = game_config.incident.get_spawn_weights()
+        weights = game_config.incident.get_spawn_weights(vault.population)
         incident_type = rng.choices(list(weights), weights=list(weights.values()), k=1)[0]
         difficulty = self.cfg.roll_difficulty(incident_type, rng)
 

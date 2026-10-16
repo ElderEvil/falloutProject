@@ -369,16 +369,20 @@ function onClaim() {
         <template v-else-if="currentLesson">
           <div class="onboarding-heading">
             <p class="onboarding-eyebrow">NEXT STEP</p>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="sm"
               class="onboarding-collapse"
-              :aria-expanded="!collapsed"
-              aria-controls="onboarding-guide-body"
-              :aria-label="collapsed ? 'Expand guide' : 'Collapse guide'"
+              v-bind="{
+                type: 'button',
+                'aria-expanded': !collapsed,
+                'aria-controls': 'onboarding-guide-body',
+                'aria-label': collapsed ? 'Expand guide' : 'Collapse guide',
+              }"
               @click="toggleCollapsed"
             >
               {{ collapsed ? 'Expand' : 'Collapse' }}
-            </button>
+            </Button>
           </div>
           <h2 class="onboarding-title">{{ currentLesson.title }}</h2>
           <div v-show="!collapsed" id="onboarding-guide-body" class="onboarding-details">

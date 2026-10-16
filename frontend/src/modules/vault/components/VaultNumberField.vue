@@ -13,6 +13,7 @@ import { Label } from '@/core/components/ui/label'
 
 const modelValue = defineModel<string>({ required: true })
 const error = ref<string | null>(null)
+const numberInput = ref<InstanceType<typeof Input> | null>(null)
 
 watch(modelValue, () => validate())
 
@@ -50,7 +51,16 @@ function isValid(): boolean {
   }
 }
 
-defineExpose({ isValid })
+// Parent-driven autofocus: bring the field into view, then move the caret
+// without letting the browser jump-scroll and cut the smooth scroll short.
+function focus(): void {
+  const inputEl = numberInput.value?.$el as HTMLInputElement | undefined
+  if (!inputEl) return
+  inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  inputEl.focus({ preventScroll: true })
+}
+
+defineExpose({ isValid, focus })
 </script>
 
 <template>
@@ -60,6 +70,7 @@ defineExpose({ isValid })
     </Label>
     <Input
       id="vault-number"
+      ref="numberInput"
       v-model="modelValue"
       type="number"
       placeholder="Vault Number (1-999)"

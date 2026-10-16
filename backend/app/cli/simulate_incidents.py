@@ -352,8 +352,8 @@ class IncidentSimulator:
         if vault.population < self.cfg.min_vault_population:
             return False
 
-        active = len([i for i in vault.incidents if not i.resolved])
-        if active >= self.cfg.max_active_incidents:
+        active = [i for i in vault.incidents if not i.resolved]
+        if len(active) >= self.cfg.max_active_incidents:
             return False
 
         seconds_since_last = now - last_spawn_time
@@ -365,8 +365,11 @@ class IncidentSimulator:
         if rng.random() >= spawn_chance:
             return False
 
-        weights = game_config.incident.get_spawn_weights(vault.population)
-        incident_type = rng.choices(list(weights), weights=list(weights.values()), k=1)[0]
+        if active:
+            incident_type = active[0].incident_type
+        else:
+            weights = game_config.incident.get_spawn_weights(vault.population)
+            incident_type = rng.choices(list(weights), weights=list(weights.values()), k=1)[0]
         difficulty = self.cfg.roll_difficulty(incident_type, rng)
 
         incident = Incident(

@@ -3,6 +3,7 @@
 import random
 from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
 from app.cli import simulate_incidents as sim_cli
@@ -51,6 +52,18 @@ def test_simulator_differs_with_different_seed():
     first = sim.run(48, seed=1)
     second = sim.run(48, seed=2)
     assert (first.total_incidents, first.total_deaths) != (second.total_incidents, second.total_deaths)
+
+
+@pytest.mark.parametrize("resolved", [False, True])
+def test_spawn_preserves_active_wave_below_deathclaw_gate(resolved: bool):
+    sim = IncidentSimulator(IncidentConfig(spawn_chance_per_hour=3600, max_active_incidents=2))
+    vault = sim_cli.VaultState(population=59)
+    vault.incidents.append(
+        sim_cli.Incident(start_time=0, incident_type=IncidentType.DEATHCLAW_ATTACK, difficulty=4, resolved=resolved)
+    )
+
+    assert sim._spawn_incidents(vault, now=3600, last_spawn_time=0, rng=random.Random(0))
+    assert (vault.incidents[-1].incident_type == IncidentType.DEATHCLAW_ATTACK) is not resolved
 
 
 def test_defenders_per_incident_caps_responders():

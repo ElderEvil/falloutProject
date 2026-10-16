@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.217.0 (2026-10-16)
+
+### Features
+
+* **onboarding:** add a blocking-overlay signal for dialogs 60cb05a
+* **onboarding:** yield the guide to dialogs and keep it placeable a12724c
+
+### Bug Fixes
+
+* **onboarding:** re-resolve the anchor and card on scroll and resize c721b4a
+* **onboarding:** use the shared Button for the guide collapse toggle 58f732e
+
+### Documentation
+
+* **onboarding:** record dialog yielding, placement and outstanding checks 10ea6c0
+
+### Code Refactoring
+
+* **onboarding:** compose the guide card from the Card and Alert primitives 1a3c9bd
+
 ## 2.216.0 (2026-10-16)
 
 ### Features

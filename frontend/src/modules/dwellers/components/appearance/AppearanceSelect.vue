@@ -28,8 +28,6 @@ defineEmits<{
 
 const labelClass = 'flex items-center gap-1 text-sm font-medium text-theme-primary/70'
 const labelIconClass = 'h-3.5 w-3.5 text-theme-primary/60'
-const selectTriggerClass =
-  'w-full rounded border-2 border-theme-primary/50 bg-surface-raised py-2 pl-3 pr-3 text-terminal-green'
 
 const selectOptions = (values: readonly string[]) =>
   values.map((value) => ({ value, label: formatIdentityLabel(value) }))
@@ -42,7 +40,7 @@ const selectOptions = (values: readonly string[]) =>
       {{ label }}
     </Label>
     <Select :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)">
-      <SelectTrigger :id="id" :class="selectTriggerClass">
+      <SelectTrigger :id="id" class="w-full">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

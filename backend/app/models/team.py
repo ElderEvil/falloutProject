@@ -30,9 +30,10 @@ if TYPE_CHECKING:
 #: ``reserve`` (bench).
 ACTIVE_STATUS = "active"
 RESERVE_STATUS = "reserve"
-#: Marks an incident responder placed by hazard auto-dispatch (not the player),
-#: so the return-to-work pass can find exactly the dwellers it moved.
+#: Distinguishes hazard auto-dispatch from manual assignment; both return after the incident.
 DISPATCHED_STATUS = "dispatched"
+#: Incident responders awaiting settlement, regardless of manual or automatic dispatch.
+COMMITTED_MEMBER_STATUSES: frozenset[str] = frozenset({"assigned", DISPATCHED_STATUS})
 
 
 class Team(BaseUUIDModel, TimeStampMixin, table=True):
@@ -139,17 +140,16 @@ class TeamMember(BaseUUIDModel, TimeStampMixin, table=True):
         default="assigned",
         description="assigned, in_progress, completed, failed (quest/incident); active, reserve (hazard)",
     )
-    # Auto-dispatch provenance: the room an incident responder was posted in before
-    # being moved into the incident room, so the return pass can restore a station
-    # posting instead of silently reassigning to production. NULL for manually
-    # assigned responders and every non-incident roster; a deleted room clears it
+    # Dispatch provenance: the room an incident responder was posted in before
+    # being moved into the incident room, for both manual and automatic dispatch.
+    # NULL for previously unassigned responders and non-incident rosters; deletion clears it
     # (SET NULL), which correctly means "no posting to restore".
     origin_room_id: UUID4 | None = Field(
         default=None,
         foreign_key="room.id",
         nullable=True,
         ondelete="SET NULL",
-        description="Pre-dispatch posting of an auto-dispatched incident responder; NULL otherwise",
+        description="Pre-dispatch posting of an incident responder; NULL when unassigned or unknown",
     )
 
     # Relationships

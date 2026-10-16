@@ -313,7 +313,7 @@ onMounted(() => {
               </Label>
               <Select v-model="formProviderSelect">
                 <SelectTrigger
-                  class="w-full rounded-md border-theme-primary/30 bg-surface-raised py-2 pl-4 pr-4 text-theme-primary"
+                  class="w-full"
                 >
                   <SelectValue placeholder="Default (from env)" />
                 </SelectTrigger>

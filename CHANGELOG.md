@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.212.3 (2026-10-16)
+
+### Bug Fixes
+
+* **ui:** give the select trigger the shared CRT look e8ac05f
+
 ## 2.212.2 (2026-10-16)
 
 ### Bug Fixes

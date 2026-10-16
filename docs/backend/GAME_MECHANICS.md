@@ -29,6 +29,18 @@ intact when touching these flows.
 - Ready rewards keep their routine bell/toast event; successful claims show a modal or toast. Notification opt-outs
   affect notification delivery, not reward settlement or the player-opened guide.
 
+## Incident responder returns
+
+- Manual and automatic dispatch record the responder's original room once, before moving them.
+  Re-selecting someone already on the incident roster must not overwrite that posting.
+- After victory or defeat, restore surviving available responders to their original room through
+  normal room-assignment capacity checks. Residents originally posted in the incident room stay there.
+- If that posting is full or busy, clear the temporary incident assignment and retry on subsequent
+  online, unpaused incident ticks. If the posting was demolished or unknown, use capacity-checked
+  production auto-assignment; no available room leaves the responder unassigned pending retry.
+- Mark settled roster entries completed. A newer player room assignment or another active incident
+  takes precedence over an older return. Returns do not heal dwellers or restart cancelled training.
+
 ## Notification preferences
 
 Players may explicitly opt out of routine notification categories. The preference is persisted at

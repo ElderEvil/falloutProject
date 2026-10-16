@@ -330,7 +330,7 @@ onMounted(async () => {
                   <Select :model-value="availableSort" @update:model-value="onAvailableSortChange">
                     <SelectTrigger
                       size="sm"
-                      class="min-w-[9rem] border-theme-glow rounded-md px-3 py-2 text-[0.8125rem] opacity-[0.85] hover:opacity-100 hover:shadow-[0_0_8px_var(--color-theme-glow)]"
+                      class="min-w-[9rem]"
                       aria-label="Sort available quests"
                     >
                       <SelectValue />

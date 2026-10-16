@@ -249,28 +249,15 @@ export function questRewardIcon(reward: QuestReward): string {
     const itemName = rewardText(
       reward.reward_data?.item_name || reward.item_data?.name || reward.reward_data?.name
     ).toLowerCase()
-    if (itemName.includes('stimpak')) return 'mdi:medical-bag'
-    if (itemName.includes('radaway')) return 'mdi:pill'
-    return 'mdi:package-variant'
+    if (itemName.includes('stimpak')) return REWARD_TYPE_META.stimpak.icon
+    if (itemName.includes('radaway')) return REWARD_TYPE_META.radaway.icon
+    return REWARD_TYPE_META.item.icon
   }
-  switch (type) {
-    case 'caps':
-      return 'mdi:coins'
-    case 'resource':
-      return 'mdi:package-variant'
-    case 'experience':
-      return 'mdi:star'
-    case 'dweller':
-      return 'mdi:account-plus'
-    case 'stimpak':
-      return 'mdi:medical-bag'
-    case 'radaway':
-      return 'mdi:pill'
-    case 'lunchbox':
-      return 'mdi:gift'
-    default:
-      return 'mdi:gift'
+  if (type === 'resource') {
+    const resourceType = rewardText(reward.reward_data?.resource_type)
+    return RESOURCE_META[resourceType]?.icon ?? REWARD_TYPE_META.resource.icon
   }
+  return REWARD_TYPE_META[type as QuestReward['reward_type']]?.icon ?? 'mdi:gift'
 }
 
 /**

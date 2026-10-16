@@ -213,3 +213,34 @@ describe('ObjectivesView objective gating', () => {
     expect(completeSpy).toHaveBeenCalledWith('vault-123', 'starter-1')
   })
 })
+
+describe('ObjectivesView claimable counters', () => {
+  it('counts claimable rewards per tab and omits a tab with none', async () => {
+    objectivesStore.objectives = [
+      { ...dailyObjective, id: 'daily-1' },
+      { ...dailyObjective, id: 'daily-2' },
+      { ...dailyObjective, id: 'weekly-1', category: 'weekly' },
+      { ...dailyObjective, id: 'daily-pending', progress: 3, total: 10 },
+    ]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    const tabText = (label: string) =>
+      wrapper.findAll('[role="tab"]').find((tab) => tab.text().startsWith(label))?.text() ?? ''
+
+    expect(tabText('Daily')).toContain('2')
+    expect(tabText('Weekly')).toContain('1')
+    expect(tabText('Achievement')).not.toMatch(/\d/)
+    expect(tabText('Completed')).not.toMatch(/\d/)
+  })
+
+  it('does not count an already claimed reward', async () => {
+    objectivesStore.objectives = [{ ...dailyObjective, is_completed: true, progress: 100, total: 100 }]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('[role="tab"]').text()).not.toMatch(/\d/)
+  })
+})

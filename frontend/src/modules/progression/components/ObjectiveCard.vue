@@ -2,7 +2,9 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Objective } from '../models/objective'
+import { isObjectiveClaimable } from '../models/objective'
 import { Badge } from '@/core/components/ui/badge'
+import { Button } from '@/core/components/ui/button'
 import { Card } from '@/core/components/ui/card'
 import { Progress } from '@/core/components/ui/progress'
 import { capitalize } from '@/core/utils/format'
@@ -38,23 +40,17 @@ const objectiveIcon = computed(() => {
   return 'mdi:target'
 })
 
-const category = computed(() => props.objective.category)
-
-const categoryLabel = computed(() => {
-  return capitalize(category.value)
-})
+const categoryLabel = computed(() => capitalize(props.objective.category))
 
 const isCompleted = computed(() => {
   return props.objective.is_completed || props.objective.progress >= props.objective.total
 })
 
-const canClaim = computed(() => {
-  return isCompleted.value && !props.objective.is_completed
-})
+const canClaim = computed(() => isObjectiveClaimable(props.objective))
 </script>
 
 <template>
-  <Card class="objective-card" :class="{ 'completed-card': isCompleted }">
+  <Card class="objective-card" :class="{ 'completed-card': objective.is_completed }">
     <!-- Header with icon and category -->
     <div class="objective-header">
       <div class="objective-icon-wrapper">
@@ -62,12 +58,7 @@ const canClaim = computed(() => {
       </div>
       <div class="objective-info">
         <h3 class="objective-title">{{ objective.challenge }}</h3>
-        <Badge
-          :variant="
-            category === 'daily' ? 'default' : category === 'weekly' ? 'secondary' : 'outline'
-          "
-          class="category-badge"
-        >
+        <Badge variant="outline" class="category-badge">
           {{ categoryLabel }}
         </Badge>
       </div>
@@ -107,15 +98,16 @@ const canClaim = computed(() => {
     </div>
 
     <!-- Claim Button (if completed but not claimed) -->
-    <button
+    <Button
       v-if="canClaim"
       class="claim-btn"
+      variant="default"
       :disabled="claiming"
       @click="emit('claim', objective.id)"
     >
       <Icon icon="mdi:gift-open" class="btn-icon" />
       Claim Reward
-    </button>
+    </Button>
 
     <!-- Completed Stamp -->
     <div v-else-if="isCompleted" class="completed-stamp">
@@ -246,7 +238,7 @@ const canClaim = computed(() => {
 }
 
 .reward-section {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--color-surface);
   padding: 12px;
   border-radius: 4px;
   border-left: 3px solid var(--color-theme-accent);
@@ -277,27 +269,6 @@ const canClaim = computed(() => {
 .claim-btn {
   width: 100%;
   margin-top: 12px;
-  padding: 10px 16px;
-  background: var(--color-theme-accent);
-  color: var(--color-terminal-background);
-  border: none;
-  border-radius: 4px;
-  font-weight: bold;
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.claim-btn:hover {
-  background: var(--color-theme-primary);
-  box-shadow: 0 0 15px var(--color-theme-glow);
-  transform: translateY(-1px);
 }
 
 .completed-stamp {
@@ -323,6 +294,6 @@ const canClaim = computed(() => {
 }
 
 .btn-icon {
-  font-size: 1.1rem;
+  margin-right: 8px;
 }
 </style>

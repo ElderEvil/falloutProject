@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import {
   currentObjective,
+  isObjectiveClaimable,
   isOfficeObjective,
   objectiveActionPath,
   type Objective,
@@ -16,6 +17,7 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Icon } from '@iconify/vue'
 import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
+import { Badge } from '@/core/components/ui/badge'
 import { ObjectiveCard } from '../components'
 import ObjectiveCompleteModal from '../components/ObjectiveCompleteModal.vue'
 
@@ -83,6 +85,16 @@ const emptyMessage = computed(() =>
     : `No ${effectiveTab.value} objectives available`
 )
 
+/** Claimable rewards per category, so a tab shows its pending claims at a glance. */
+const claimableCounts = computed(() => {
+  const counts: Record<string, number> = {}
+  for (const objective of objectivesStore.objectives) {
+    if (isObjectiveClaimable(objective))
+      counts[objective.category] = (counts[objective.category] ?? 0) + 1
+  }
+  return counts
+})
+
 function handleClaimObjective(objectiveId: string): void {
   void claim(objectiveId, (claimed) => {
     claimedObjective.value = claimed
@@ -130,6 +142,14 @@ function closeClaimModal(): void {
                 <TabsTrigger v-for="tab in visibleTabs" :key="tab.key" :value="tab.key">
                   <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
                   {{ tab.label }}
+                  <Badge
+                    v-if="claimableCounts[tab.key]"
+                    variant="outline"
+                    class="ml-2 border-0 bg-terminal-background text-theme-primary"
+                  >
+                    {{ claimableCounts[tab.key] }}
+                    <span class="sr-only">claimable</span>
+                  </Badge>
                 </TabsTrigger>
               </TabsList>
               <p v-if="!objectivesUnlocked" class="unlock-hint">

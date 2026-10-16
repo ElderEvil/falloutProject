@@ -566,7 +566,8 @@ const hasNoData = computed(
                   <Select v-if="siteGroupOptions.length" v-model="siteTypeFilterSelect">
                     <SelectTrigger
                       aria-label="Filter by site type"
-                      class="w-full h-auto rounded-sm border-theme-primary/30 bg-surface-sunken/60 px-2 py-1 text-xs text-theme-primary data-[size=default]:h-auto"
+                      size="sm"
+                      class="w-full text-xs"
                     >
                       <SelectValue placeholder="All sites" />
                     </SelectTrigger>

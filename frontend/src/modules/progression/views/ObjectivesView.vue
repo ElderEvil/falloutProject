@@ -15,6 +15,7 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageHeader from '@/core/components/common/PageHeader.vue'
+import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import { Icon } from '@iconify/vue'
 import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { Badge } from '@/core/components/ui/badge'
@@ -66,11 +67,21 @@ const officeCompleted = computed(() =>
   )
 )
 const objectivesUnlocked = computed(() => !currentStarter.value || officeCompleted.value)
-const visibleTabs = computed(() =>
-  objectivesUnlocked.value ? objectiveTabs : objectiveTabs.filter((tab) => tab.key === STARTER_TAB)
+const hasOpenStarter = computed(() =>
+  objectivesStore.objectives.some(
+    (objective) => objective.category === STARTER_TAB && !objective.is_completed
+  )
 )
+const visibleTabs = computed(() => {
+  const tabs = objectivesUnlocked.value
+    ? objectiveTabs
+    : objectiveTabs.filter((tab) => tab.key === STARTER_TAB)
+  return tabs.filter((tab) => tab.key !== STARTER_TAB || hasOpenStarter.value)
+})
 const effectiveTab = computed(() =>
-  visibleTabs.value.some((tab) => tab.key === activeTab.value) ? activeTab.value : STARTER_TAB
+  visibleTabs.value.some((tab) => tab.key === activeTab.value)
+    ? activeTab.value
+    : (visibleTabs.value[0]?.key ?? STARTER_TAB)
 )
 const visibleObjectives = computed(() =>
   objectivesStore.objectives.filter((objective) =>
@@ -94,6 +105,15 @@ const claimableCounts = computed(() => {
   }
   return counts
 })
+const claimableTotal = computed(() =>
+  Object.values(claimableCounts.value).reduce((total, count) => total + count, 0)
+)
+const openObjectivesCount = computed(() =>
+  objectivesStore.objectives.filter((objective) => !objective.is_completed).length
+)
+function claimTooltip(count: number): string {
+  return `${count} reward${count === 1 ? '' : 's'} ready to claim`
+}
 
 function handleClaimObjective(objectiveId: string): void {
   void claim(objectiveId, (claimed) => {
@@ -122,7 +142,22 @@ function closeClaimModal(): void {
               title="Objectives"
               icon="mdi:target"
               subtitle="Complete Vault-Tec directives to earn rewards."
-            />
+            >
+              <template #actions>
+                <PageHeaderMetric
+                  icon="mdi:target"
+                  :value="openObjectivesCount"
+                  label="Open objectives"
+                  tooltip="Objectives still waiting to be finished"
+                />
+                <PageHeaderMetric
+                  icon="mdi:treasure-chest"
+                  :value="claimableTotal"
+                  label="Rewards ready"
+                  tooltip="Finished objectives with rewards ready to claim"
+                />
+              </template>
+            </PageHeader>
             <p v-if="loadError || claimError" class="claim-error" role="alert">
               {{ loadError || claimError }}
             </p>
@@ -142,14 +177,19 @@ function closeClaimModal(): void {
                 <TabsTrigger v-for="tab in visibleTabs" :key="tab.key" :value="tab.key">
                   <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
                   {{ tab.label }}
-                  <Badge
+                  <span
                     v-if="claimableCounts[tab.key]"
-                    variant="outline"
-                    class="ml-2 border-0 bg-terminal-background text-theme-primary"
+                    :title="claimTooltip(claimableCounts[tab.key] ?? 0)"
+                    :aria-label="claimTooltip(claimableCounts[tab.key] ?? 0)"
                   >
-                    {{ claimableCounts[tab.key] }}
-                    <span class="sr-only">claimable</span>
-                  </Badge>
+                    <Badge
+                      variant="outline"
+                      class="ml-2 border-0 bg-terminal-background text-theme-primary"
+                    >
+                      {{ claimableCounts[tab.key] }}
+                      <span class="sr-only">claimable</span>
+                    </Badge>
+                  </span>
                 </TabsTrigger>
               </TabsList>
               <p v-if="!objectivesUnlocked" class="unlock-hint">

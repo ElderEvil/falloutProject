@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/core/components/ui/select'
 import { QuestCard, PartySelectionModal } from '../components'
+import { Badge } from '@/core/components/ui/badge'
 import QuestRewardsModal from '../components/QuestRewardsModal.vue'
 import type { QuestAvailableSortBy, VaultQuest } from '../models/quest'
 import { compareQuestsByAvailableSort, isQuestReturning } from '../models/quest'
@@ -313,6 +314,13 @@ onMounted(async () => {
                   icon="mdi:book-open-page-variant"
                   :value="availableQuests.length"
                   label="Available quests"
+                  tooltip="Quests ready for a party to be assigned"
+                />
+                <PageHeaderMetric
+                  icon="mdi:treasure-chest"
+                  :value="readyToClaimQuests.length"
+                  label="Rewards ready"
+                  tooltip="Finished quests with rewards ready to claim"
                 />
               </template>
             </PageHeader>
@@ -323,6 +331,18 @@ onMounted(async () => {
                   <TabsTrigger v-for="tab in questTabs" :key="tab.key" :value="tab.key">
                     <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
                     {{ tab.label }}
+                    <span
+                      v-if="tab.key === 'active' && readyToClaimQuests.length > 0"
+                      :title="`${readyToClaimQuests.length} rewards ready to claim`"
+                      :aria-label="`${readyToClaimQuests.length} rewards ready to claim`"
+                    >
+                      <Badge
+                        variant="outline"
+                        class="ml-2 border-0 bg-terminal-background text-theme-primary"
+                      >
+                        {{ readyToClaimQuests.length }}
+                      </Badge>
+                    </span>
                   </TabsTrigger>
                 </TabsList>
 

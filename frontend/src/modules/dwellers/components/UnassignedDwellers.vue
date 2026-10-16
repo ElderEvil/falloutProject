@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useDwellerStore, compareDwellers, matchesAgeGroup } from '../stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
@@ -77,6 +77,24 @@ const unassignedDwellers = computed(() => {
 
 const isDraggingOver = ref(false)
 
+// The panel folds itself away when the roster empties and unfolds when the
+// first dweller needs assigning; any other change leaves a manual toggle alone.
+const isCollapsed = ref(unassignedDwellers.value.length === 0)
+watch(
+  () => unassignedDwellers.value.length,
+  (count, previous) => {
+    if (count === 0) isCollapsed.value = true
+    else if (previous === 0) isCollapsed.value = false
+  }
+)
+
+// The summary click is intercepted so Vue state stays the single source of
+// truth; letting the native disclosure toggle itself would desync from the
+// bound `open` attribute and snap the panel shut on the next re-render.
+const toggleCollapsed = () => {
+  isCollapsed.value = !isCollapsed.value
+}
+
 const emit = defineEmits<{
   dragStart: [dweller: DwellerShort]
   dragEnd: []
@@ -105,6 +123,8 @@ const handleDropZoneDragOver = (event: DragEvent) => {
   event.preventDefault()
   event.dataTransfer!.dropEffect = 'move'
   isDraggingOver.value = true
+  // A drag over the folded panel unfolds it so the drop zone can catch it.
+  isCollapsed.value = false
 }
 
 const handleDropZoneDragLeave = (event: DragEvent) => {
@@ -141,13 +161,14 @@ const handleDropZoneDrop = async (event: DragEvent) => {
 <template>
   <details
     class="unassigned-dwellers-panel group"
-    open
+    :open="!isCollapsed"
     @dragover="handleDropZoneDragOver"
     @dragleave="handleDropZoneDragLeave"
     @drop="handleDropZoneDrop"
   >
     <summary
       class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary [&::-webkit-details-marker]:hidden"
+      @click.prevent="toggleCollapsed"
     >
       <h3 class="panel-title">
         <Icon icon="mdi:account-multiple" class="inline h-5 w-5" :ariaHidden="true" />

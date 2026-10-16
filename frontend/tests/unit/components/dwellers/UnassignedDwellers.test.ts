@@ -182,10 +182,9 @@ describe('UnassignedDwellers', () => {
 
     it('unassigns room dwellers dropped on the collapsed header', async () => {
       const wrapper = mount(UnassignedDwellers)
-      const summary = wrapper.get('summary')
-      await summary.trigger('click')
+      expect((wrapper.get('details').element as HTMLDetailsElement).open).toBe(false)
 
-      await summary.trigger('drop', createDropEvent('dweller-1', 'John', 'Doe', 'room-1'))
+      await wrapper.get('summary').trigger('drop', createDropEvent('dweller-1', 'John', 'Doe', 'room-1'))
       await flushPromises()
 
       expect(dwellerManagementStore.unassignDwellerFromRoom).toHaveBeenCalledExactlyOnceWith(
@@ -194,6 +193,32 @@ describe('UnassignedDwellers', () => {
       )
       expect(mockToast.success).toHaveBeenCalledWith('John Doe unassigned from room')
       expect((wrapper.get('details').element as HTMLDetailsElement).open).toBe(false)
+    })
+
+    it('starts collapsed when empty and unfolds when a dweller needs assigning', async () => {
+      dwellerStore.dwellers = []
+      const wrapper = mount(UnassignedDwellers)
+      const panel = () => wrapper.get('details').element as HTMLDetailsElement
+
+      expect(panel().open).toBe(false)
+
+      dwellerStore.dwellers = [mockDweller]
+      await flushPromises()
+      expect(panel().open).toBe(true)
+
+      dwellerStore.dwellers = []
+      await flushPromises()
+      expect(panel().open).toBe(false)
+    })
+
+    it('unfolds on drag-over so the drop zone can catch the dweller', async () => {
+      dwellerStore.dwellers = []
+      const wrapper = mount(UnassignedDwellers)
+      const panel = () => wrapper.get('details').element as HTMLDetailsElement
+      expect(panel().open).toBe(false)
+
+      await wrapper.get('details').trigger('dragover', { dataTransfer: { dropEffect: '' } })
+      expect(panel().open).toBe(true)
     })
   })
 

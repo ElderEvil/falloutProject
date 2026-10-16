@@ -243,4 +243,72 @@ describe('ObjectivesView claimable counters', () => {
 
     expect(wrapper.find('[role="tab"]').text()).not.toMatch(/\d/)
   })
+
+  it('shows open and rewards-ready totals in the page header', async () => {
+    objectivesStore.objectives = [
+      { ...dailyObjective, id: 'daily-1' },
+      { ...dailyObjective, id: 'daily-2', progress: 3, total: 10 },
+      { ...dailyObjective, id: 'daily-done', is_completed: true },
+    ]
+
+    // Named slots do not render through the PageHeader stub, so mount this
+    // once with the real header to assert the metrics.
+    wrapper = mount(ObjectivesView, {
+      attachTo: document.body,
+      global: {
+        stubs: {
+          SidePanel: true,
+          PageContentRail: { template: '<div><slot /></div>' },
+          PageHeader: false,
+          Icon: true,
+        },
+      },
+    })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).toContain('Open objectives')
+    expect(wrapper.text()).toContain('Rewards ready')
+  })
+
+  it('explains what a tab badge number means', async () => {
+    objectivesStore.objectives = [{ ...dailyObjective, id: 'daily-1' }]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    const badge = wrapper.find('[data-slot="badge"]')
+    expect(badge.exists()).toBe(true)
+    const badgeTip = badge.element.parentElement
+    expect(badgeTip?.getAttribute('title')).toBe('1 reward ready to claim')
+    expect(badgeTip?.getAttribute('aria-label')).toBe('1 reward ready to claim')
+  })
+
+  it('hides the Starter tab once every starter objective is done', async () => {
+    objectivesStore.objectives = [
+      { ...starterObjective(1, true) },
+      { ...dailyObjective, id: 'daily-1' },
+    ]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    const labels = wrapper.findAll('[role="tab"]').map((tab) => tab.text())
+    expect(labels.some((label) => label.startsWith('Starter'))).toBe(false)
+    for (const expected of ['Daily', 'Weekly', 'Achievement', 'Completed'])
+      expect(labels.some((label) => label.startsWith(expected))).toBe(true)
+  })
+
+  it('keeps the Starter tab while a starter objective is still open', async () => {
+    objectivesStore.objectives = [
+      officeObjective(true),
+      { ...starterObjective(6) },
+      { ...dailyObjective },
+    ]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    const labels = wrapper.findAll('[role="tab"]').map((tab) => tab.text())
+    expect(labels.some((label) => label.startsWith('Starter'))).toBe(true)
+  })
 })

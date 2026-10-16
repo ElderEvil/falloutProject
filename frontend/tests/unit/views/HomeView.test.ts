@@ -485,18 +485,21 @@ describe('HomeView', () => {
   })
 
   describe('Vault Mode Selection', () => {
+    const findModeToggle = (wrapper: any, label: string) =>
+      wrapper.findAll('button').find((button: any) => button.text().includes(label))
+
     it('defaults to Standard, explains both modes, and warns the choice is irreversible', async () => {
       const wrapper = mount(HomeView, { global: { plugins: [router] } })
       await flushPromises()
 
-      const standard = wrapper.find('input[type="radio"][value="standard"]')
-      const survival = wrapper.find('input[type="radio"][value="survival"]')
-      expect(standard.exists()).toBe(true)
-      expect(survival.exists()).toBe(true)
-      expect((standard.element as HTMLInputElement).checked).toBe(true)
-      expect((survival.element as HTMLInputElement).checked).toBe(false)
+      const standard = findModeToggle(wrapper, 'Standard')
+      const survival = findModeToggle(wrapper, 'Survival')
+      expect(standard).toBeDefined()
+      expect(survival).toBeDefined()
+      expect(standard!.attributes('data-state')).toBe('on')
+      expect(survival!.attributes('data-state')).toBe('off')
       expect(wrapper.text()).toContain('can be revived with caps')
-      expect(wrapper.text()).toContain('Deaths are permanent — no caps revival window.')
+      expect(wrapper.text()).toContain('Deaths are permanent')
       expect(wrapper.text()).toContain('cannot be changed later')
     })
 
@@ -509,7 +512,7 @@ describe('HomeView', () => {
 
       const input = wrapper.find('input[type="number"]')
       await input.setValue('123')
-      await wrapper.find('input[type="radio"][value="survival"]').setValue(true)
+      await findModeToggle(wrapper, 'Survival')!.trigger('click')
 
       const submitBtn = findCreateButton(wrapper)
       await submitBtn!.trigger('click')

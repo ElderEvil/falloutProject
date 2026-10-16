@@ -5,6 +5,7 @@ import { MAX_USER_VAULTS, useVaultStore, type VaultMode } from '../stores/vault'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { Alert, AlertDescription, AlertTitle } from '@/core/components/ui/alert'
+import { ToggleGroup, ToggleGroupItem } from '@/core/components/ui/toggle-group'
 import { Button } from '@/core/components/ui/button'
 import { Card } from '@/core/components/ui/card'
 import { Progress } from '@/core/components/ui/progress'
@@ -39,6 +40,9 @@ const vaultModes: { value: VaultMode; label: string; description: string }[] = [
     description: 'Deaths are permanent — no caps revival window.',
   },
 ]
+const selectVaultMode = (value: unknown) => {
+  if (value === 'standard' || value === 'survival') vaultMode.value = value
+}
 const showCreation = ref(false)
 const selectedVaultId = ref<string | null>(null)
 const creatingVault = ref(false)
@@ -230,52 +234,23 @@ onMounted(async () => {
               <legend class="mb-2 text-xs font-bold tracking-[0.14em] text-theme-primary/60">
                 VAULT MODE
               </legend>
-              <div class="flex flex-col gap-2">
-                <!--
-                Native radio group stays: the sr-only input keeps native radio
-                semantics (one selection, arrow-key navigation); the visible
-                card/dot are siblings styled from the bound vaultMode value.
-              -->
-                <label
+              <ToggleGroup
+                type="single"
+                :model-value="vaultMode"
+                :spacing="8"
+                class="grid w-full grid-cols-1 gap-2 sm:grid-cols-2"
+                @update:model-value="selectVaultMode"
+              >
+                <ToggleGroupItem
                   v-for="mode in vaultModes"
                   :key="mode.value"
-                  :for="`vault-mode-${mode.value}`"
-                  class="flex cursor-pointer items-start gap-3 rounded border p-3 transition-colors"
-                  :class="
-                    vaultMode === mode.value
-                      ? 'border-theme-primary bg-theme-primary/10'
-                      : 'border-theme-primary/20 bg-surface hover:bg-surface-hover'
-                  "
+                  :value="mode.value"
+                  class="h-auto flex-col items-start gap-1 rounded border border-theme-primary/20 px-3 py-2 text-left data-[state=on]:border-theme-primary data-[state=on]:bg-theme-primary/10"
                 >
-                  <input
-                    :id="`vault-mode-${mode.value}`"
-                    v-model="vaultMode"
-                    type="radio"
-                    name="vault-mode"
-                    :value="mode.value"
-                    class="peer sr-only"
-                  />
-                  <span
-                    class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-theme-primary/50"
-                    :class="
-                      vaultMode === mode.value
-                        ? 'border-theme-primary'
-                        : 'border-theme-primary/50 bg-surface-sunken'
-                    "
-                  >
-                    <span
-                      class="h-2.5 w-2.5 rounded-full bg-theme-primary transition-opacity"
-                      :class="vaultMode === mode.value ? 'opacity-100' : 'opacity-0'"
-                    ></span>
-                  </span>
-                  <span class="select-none text-sm text-theme-primary">
-                    <span class="font-semibold">{{ mode.label }}</span>
-                    <span class="mt-1 block text-xs leading-5 text-theme-primary/65">
-                      {{ mode.description }}
-                    </span>
-                  </span>
-                </label>
-              </div>
+                  <span class="font-semibold">{{ mode.label }}</span>
+                  <span class="text-xs leading-5 text-theme-primary/65">{{ mode.description }}</span>
+                </ToggleGroupItem>
+              </ToggleGroup>
               <p class="mt-2 flex items-start gap-1.5 text-xs leading-5 text-warning">
                 <Icon icon="mdi:lock-outline" class="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 Vault mode is chosen at creation and cannot be changed later.

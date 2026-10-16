@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.218.0 (2026-10-16)
+
+### Features
+
+* **lore:** add descriptive Clearance Protocol discoveries 55392e1
+* **lore:** share the overseer farewell on every wasteland departure bcd122c
+
 ## 2.217.0 (2026-10-16)
 
 ### Features

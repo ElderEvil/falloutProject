@@ -49,7 +49,7 @@ describe('PetCard', () => {
     expect(wrapper.text()).toContain('rare')
   })
 
-  it('renders bonus chips from the pet effect', () => {
+  it('renders the pet effect once, as stat rows (no duplicate chips)', () => {
     const wrapper = mount(PetCard, {
       props: {
         pet: makePet({
@@ -65,18 +65,22 @@ describe('PetCard', () => {
       global: { stubs: { Icon: true } },
     })
 
-    expect(wrapper.text()).toContain('Strength +2')
-    expect(wrapper.text()).toContain('Max HP +50')
-    expect(wrapper.text()).toContain('Damage +25%')
-    expect(wrapper.text()).toContain('XP +50%')
+    const text = wrapper.text()
+    expect(text).toContain('Strength')
+    expect(text).toContain('+2')
+    expect(text).toContain('+25%')
+    expect(text.match(/Max HP/g) ?? []).toHaveLength(1)
+    expect(text.match(/\+50%/g) ?? []).toHaveLength(1)
+    expect(wrapper.findAll('[data-slot="badge"]')).toHaveLength(0)
   })
 
-  it('renders no chips for a neutral pet', () => {
+  it('renders no stat rows for a neutral pet', () => {
     const wrapper = mount(PetCard, {
       props: { pet: makePet() },
       global: { stubs: { Icon: true } },
     })
 
+    expect(wrapper.text()).not.toContain('Strength')
     expect(wrapper.findAll('[data-slot="badge"]')).toHaveLength(0)
   })
 

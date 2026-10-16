@@ -190,8 +190,11 @@ describe('DwellerEquipment', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Dogmeat')
-    expect(wrapper.text()).toContain('Strength +2')
-    expect(wrapper.text()).toContain('Max HP +50')
+    expect(wrapper.text()).toContain('Strength')
+    expect(wrapper.text()).toContain('+2')
+    expect(wrapper.text()).toContain('Max HP')
+    expect(wrapper.text()).toContain('+50')
+    expect(wrapper.findAll('[data-slot="badge"]')).toHaveLength(0)
   })
 
   it('equips a pet from the inventory picker with the test pet id', async () => {

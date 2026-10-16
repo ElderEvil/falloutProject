@@ -1,11 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Pet } from '../models/pet'
-import { getPetBonuses } from '../models/pet'
 import ItemCard from '@/core/components/common/ItemCard.vue'
 import { Button } from '@/core/components/ui/button'
-import { Badge } from '@/core/components/ui/badge'
 
 interface Props {
   pet: Pet
@@ -20,8 +17,6 @@ const emit = defineEmits<{
   (e: 'equip'): void
   (e: 'unequip'): void
 }>()
-
-const bonuses = computed(() => getPetBonuses(pet.effect))
 </script>
 
 <template>
@@ -60,16 +55,5 @@ const bonuses = computed(() => getPetBonuses(pet.effect))
         </div>
       </template>
     </ItemCard>
-
-    <div v-if="bonuses.length > 0" class="flex flex-wrap gap-1.5">
-      <Badge
-        v-for="bonus in bonuses"
-        :key="bonus.label"
-        variant="outline"
-        class="border-theme-primary/30 bg-black/30 text-theme-primary"
-      >
-        {{ bonus.label }} {{ bonus.value }}
-      </Badge>
-    </div>
   </div>
 </template>

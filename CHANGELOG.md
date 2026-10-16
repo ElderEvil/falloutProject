@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.212.4 (2026-10-16)
+
+### Bug Fixes
+
+* **incidents:** keep population-blocked returns pending e31ff58
+* **incidents:** restore responder postings after resolution 7487cf1
+
 ## 2.212.3 (2026-10-16)
 
 ### Bug Fixes

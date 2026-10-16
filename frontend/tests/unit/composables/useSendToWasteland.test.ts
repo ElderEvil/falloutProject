@@ -107,6 +107,19 @@ describe('useSendToWasteland', () => {
     expect(sendWasteland.pendingDweller.value).toBeNull()
   })
 
+  it('shares the overseer farewell line on every departure', async () => {
+    vi.spyOn(useExplorationStore(), 'sendDwellerToWasteland').mockResolvedValue({} as never)
+    const sendWasteland = useSendToWasteland(() => 'vault-1')
+
+    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+    const dispatched = await sendWasteland.confirm({ duration: 8, stimpaks: 0, radaways: 0 })
+
+    expect(dispatched).toBe(true)
+    expect(toastMocks.info).toHaveBeenCalledWith(
+      'Overseer: "Mind your Rad-X, trust your Pip-Boy, and come back with stories."'
+    )
+  })
+
   it('passes a heading through to the store action when one is chosen', async () => {
     const dispatchSpy = vi
       .spyOn(useExplorationStore(), 'sendDwellerToWasteland')

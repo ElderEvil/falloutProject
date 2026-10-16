@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.220.0 (2026-10-16)
+
+### Features
+
+* **onboarding:** connect the first-session flow and expedition handoff 58eab5b
+
 ## 2.219.0 (2026-10-16)
 
 ### Features

@@ -8,7 +8,8 @@ import type { components } from '@/core/types/api.generated'
 import { getItemIcon } from '@/core/models/items'
 import { capitalize } from '@/core/utils/format'
 
-export type GrantedReward = components['schemas']['QuestCompleteResponse']['granted_rewards'][number]
+export type GrantedReward =
+  components['schemas']['QuestCompleteResponse']['granted_rewards'][number]
 export interface Quest {
   id: string
   title: string
@@ -37,7 +38,14 @@ export type QuestType = 'main' | 'side' | 'daily' | 'event' | 'repeatable'
 export interface QuestRequirement {
   id: string
   quest_id: string
-  requirement_type: 'level' | 'item' | 'room' | 'dweller_count' | 'quest_completed' | 'attack' | 'stat'
+  requirement_type:
+    | 'level'
+    | 'item'
+    | 'room'
+    | 'dweller_count'
+    | 'quest_completed'
+    | 'attack'
+    | 'stat'
   requirement_data: Record<string, unknown>
   is_mandatory: boolean
 }
@@ -116,12 +124,17 @@ export function formatQuestReward(reward: QuestReward): string {
     case 'experience':
       return `${rewardAmount(data.amount)} XP`
     case 'item': {
-      const itemName
-        = rewardText(data.item_name) || rewardText(itemData.name) || rewardText(data.name) || 'Unknown Item'
-      const category = rewardText(reward.item_data?.item_type ?? reward.reward_data?.item_type).toLowerCase()
+      const itemName =
+        rewardText(data.item_name) ||
+        rewardText(itemData.name) ||
+        rewardText(data.name) ||
+        'Unknown Item'
+      const category = rewardText(
+        reward.item_data?.item_type ?? reward.reward_data?.item_type
+      ).toLowerCase()
       const lowerName = itemName.toLowerCase()
-      const isConsumable
-        = category === 'consumable' || lowerName.includes('stimpak') || lowerName.includes('radaway')
+      const isConsumable =
+        category === 'consumable' || lowerName.includes('stimpak') || lowerName.includes('radaway')
       const rarityValue = rewardText(itemData.rarity) || rewardText(data.rarity)
       const rarity = !isConsumable && rarityValue ? ` (${rarityValue})` : ''
       return `${itemName}${rarity}`
@@ -163,12 +176,20 @@ function rewardAmount(value: unknown): number {
 }
 
 /** Type chip colors shared by the quest card and detail badges. */
-export const QUEST_TYPE_COLORS: Record<string, { bg: string, text: string, border: string }> = {
-  main: { bg: 'var(--color-quest-main)', text: '#000000', border: 'var(--color-quest-main)' },
-  side: { bg: 'var(--color-quest-side)', text: 'var(--color-theme-primary)', border: 'var(--color-quest-side)' },
+export const QUEST_TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  main: { bg: 'var(--color-theme-primary)', text: '#000000', border: 'var(--color-theme-primary)' },
+  side: {
+    bg: 'var(--color-quest-side)',
+    text: 'var(--color-theme-primary)',
+    border: 'var(--color-quest-side)',
+  },
   daily: { bg: 'var(--color-quest-daily)', text: '#000000', border: 'var(--color-quest-daily)' },
   event: { bg: 'var(--color-quest-event)', text: '#ffffff', border: 'var(--color-quest-event)' },
-  repeatable: { bg: 'var(--color-theme-primary)', text: '#000000', border: 'var(--color-theme-primary)' },
+  repeatable: {
+    bg: 'var(--color-theme-primary)',
+    text: '#000000',
+    border: 'var(--color-theme-primary)',
+  },
 }
 
 export function questTypeLabel(questType: string | null | undefined): string {
@@ -221,7 +242,9 @@ export function humanizeSlug(value: unknown): string {
 export function questRewardIcon(reward: QuestReward): string {
   const type = reward.reward_type.toLowerCase()
   if (type === 'item') {
-    const category = rewardText(reward.item_data?.item_type ?? reward.reward_data?.item_type).toLowerCase()
+    const category = rewardText(
+      reward.item_data?.item_type ?? reward.reward_data?.item_type
+    ).toLowerCase()
     if (category && category in QUEST_ITEM_LABELS) return questCategoryIcon(category)
     const itemName = rewardText(
       reward.reward_data?.item_name || reward.item_data?.name || reward.reward_data?.name

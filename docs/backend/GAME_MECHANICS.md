@@ -29,6 +29,18 @@ intact when touching these flows.
 - Ready rewards keep their routine bell/toast event; successful claims show a modal or toast. Notification opt-outs
   affect notification delivery, not reward settlement or the player-opened guide.
 
+## Incident responder returns
+
+- Manual and automatic dispatch record the responder's original room once, before moving them.
+  Re-selecting someone already on the incident roster must not overwrite that posting.
+- After victory or defeat, restore surviving available responders to their original room through
+  normal room-assignment capacity checks. Residents originally posted in the incident room stay there.
+- If that posting is full or busy, clear the temporary incident assignment and retry on subsequent
+  online, unpaused incident ticks. If the posting was demolished or unknown, use capacity-checked
+  production auto-assignment; no available room leaves the responder unassigned pending retry.
+- Mark settled roster entries completed. A newer player room assignment or another active incident
+  takes precedence over an older return. Returns do not heal dwellers or restart cancelled training.
+
 ## Notification preferences
 
 Players may explicitly opt out of routine notification categories. The preference is persisted at
@@ -78,6 +90,21 @@ radiation. Match resets preserve injuries; healing uses the existing medical and
 systems. A manual stimpack heal uses carried stock first, falling back to vault storage only while
 the dweller is inside the vault. Stock deduction and healing commit together; outside dwellers
 can only use their carried supplies. Catalog opponents and training bots still reset to full match HP.
+
+Arena-only wildlife extends hunt selection without changing exploration encounters: Bloatfly uses
+difficulty 1, Radstag 2, Night Stalker 3, and Mirelurk/Yao Guai 4, below Deathclaw at 5. These opponents
+reuse the existing difficulty-based power/HP scaling and ordinary creature combat. Brahmin artwork is
+reserved for future caravans and is not an arena opponent or training partner.
+
+A Hunt victory awards a shared XP pool of `floor(combined opponent power /
+COMBAT_BASE_RAIDER_POWER * COMBAT_XP_PER_DIFFICULTY)`. At the default 10 power per
+difficulty and 30 XP per difficulty, Pest Control yields 60 XP, Wasteland Pack 150,
+and Heavyweights 240. Split the pool equally among real participating dwellers,
+including teammates knocked out during the win; allocate any leftover XP in team
+slot order so the pool is conserved. Support bots neither earn XP nor take a share.
+Defeated hunters earn none. Duel/brawl retain their existing per-winner award of
+`2 * COMBAT_XP_PER_DIFFICULTY`. The persisted reward event lists each dweller's XP
+and happiness change and appears in both the match-result banner and battle log.
 
 ## Race and faction switches
 

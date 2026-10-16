@@ -40,7 +40,14 @@ interface StaticAsset {
   sourceImage?: string
 }
 
-const creatures: StaticAsset[] = CREATURE_ASSETS.map((asset) => ({ ...asset, kind: 'creature' }))
+const creatures: StaticAsset[] = [
+  ...CREATURE_ASSETS.map((asset) => ({ ...asset, kind: 'creature' })),
+  {
+    name: 'Brahmin',
+    kind: 'creature',
+    image: '/static/creature_images/assembled/brahmin.webp',
+  },
+]
 
 // Starter plus full FOS breed roster (generated from the wiki pet tables).
 const pets: StaticAsset[] = [

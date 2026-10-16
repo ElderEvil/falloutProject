@@ -2,6 +2,64 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.213.1 (2026-10-16)
+
+### Bug Fixes
+
+* **progression:** load the quest catalog before vault quests 738588e
+* **progression:** preserve shared select styling after master merge f78747f
+* **progression:** restore the quest status border on the shared shell 616a995
+
+### Code Refactoring
+
+* **progression:** finish the shared quest card migration 91db9a7
+* **progression:** move the quest card onto the shared shell e6adf49
+
+## 2.213.0 (2026-10-16)
+
+### Features
+
+* **arena:** add wasteland hunts and shared XP rewards cff4d8e
+
+## 2.212.4 (2026-10-16)
+
+### Bug Fixes
+
+* **incidents:** keep population-blocked returns pending e31ff58
+* **incidents:** restore responder postings after resolution 7487cf1
+
+## 2.212.3 (2026-10-16)
+
+### Bug Fixes
+
+* **ui:** give the select trigger the shared CRT look e8ac05f
+
+## 2.212.2 (2026-10-16)
+
+### Bug Fixes
+
+* **ui:** render the unread badge in the default theme color 67511a1
+
+## 2.212.1 (2026-10-16)
+
+### Code Refactoring
+
+* **progression:** share one card shell between objectives and quests a1efc25
+
+## 2.212.0 (2026-10-16)
+
+### Features
+
+* **objectives:** count claimable rewards per tab and lighten the reward block fbfcdb9
+
+### Bug Fixes
+
+* **objectives:** stop dimming cards that are waiting to be claimed b93259a
+
+### Code Refactoring
+
+* **objectives:** use the shared Button for the claim action b00c91a, closes #208 #804
+
 ## 2.211.2 (2026-10-15)
 
 ### Bug Fixes

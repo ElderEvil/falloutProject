@@ -34,12 +34,22 @@ def _creature_key(name: str) -> str:
 
 @lru_cache(maxsize=1)
 def list_arena_creatures() -> list[dict]:
-    """Arena opponents reuse the enemy catalog, with training robots replacing raiders.
+    """Reuse exploration scaling for arena wildlife and training robots, excluding raiders.
 
     Power reuses incident threat scaling; an incident threat of difficulty N is
     defeated by dealing ``raider_power(N)`` total damage, so that is its effective HP.
     """
     enemies = [enemy for enemy in load_enemies() if _creature_key(enemy["name"]) != "raider-gang"]
+    enemies.extend(
+        {"name": name, "difficulty": difficulty}
+        for name, difficulty in (
+            ("Bloatfly", 1),
+            ("Radstag", 2),
+            ("Night Stalker", 3),
+            ("Mirelurk", 4),
+            ("Yao Guai", 4),
+        )
+    )
     creatures: list[dict] = []
     for enemy in sorted(enemies, key=itemgetter("difficulty")):
         power = incident_math.raider_power(enemy["difficulty"])

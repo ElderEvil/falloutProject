@@ -90,7 +90,7 @@ function applyPreset(presetId: string) {
       <Select :model-value="sortByValue" @update:model-value="onSortByChange">
         <SelectTrigger
           size="sm"
-          class="min-w-[8rem] border-theme-glow rounded-md px-3 py-2 text-[0.8125rem] opacity-[0.85] hover:opacity-100 hover:shadow-[0_0_8px_var(--color-theme-glow)]"
+          class="min-w-[8rem]"
           aria-label="Sort dwellers"
         >
           <SelectValue />

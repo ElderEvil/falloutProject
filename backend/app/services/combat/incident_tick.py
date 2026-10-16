@@ -90,7 +90,7 @@ async def process_vault_incidents(
                 if incident.status.value in ("resolved", "failed"):
                     stats["resolved"] += 1
                     logger.info(f"Incident {incident.id} auto-resolved with status {incident.status}")
-                    # Put any auto-dispatched hazard-team responders back to work.
+                    # Return both player-selected and automatic responders.
                     returned = await hazard_team_service.return_dispatched_responders(db_session, incident)
                     if returned:
                         await db_session.commit()

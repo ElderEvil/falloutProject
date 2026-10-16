@@ -2,10 +2,12 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Objective } from '../models/objective'
+import { isObjectiveClaimable } from '../models/objective'
 import { Badge } from '@/core/components/ui/badge'
-import { Card } from '@/core/components/ui/card'
+import { Button } from '@/core/components/ui/button'
 import { Progress } from '@/core/components/ui/progress'
 import { capitalize } from '@/core/utils/format'
+import ProgressionCard from './ProgressionCard.vue'
 
 interface Props {
   objective: Objective
@@ -38,47 +40,32 @@ const objectiveIcon = computed(() => {
   return 'mdi:target'
 })
 
-const category = computed(() => props.objective.category)
+const categoryLabel = computed(() => capitalize(props.objective.category))
 
-const categoryLabel = computed(() => {
-  return capitalize(category.value)
-})
-
-const isCompleted = computed(() => {
-  return props.objective.is_completed || props.objective.progress >= props.objective.total
-})
-
-const canClaim = computed(() => {
-  return isCompleted.value && !props.objective.is_completed
-})
+const canClaim = computed(() => isObjectiveClaimable(props.objective))
 </script>
 
 <template>
-  <Card class="objective-card" :class="{ 'completed-card': isCompleted }">
-    <!-- Header with icon and category -->
-    <div class="objective-header">
+  <ProgressionCard
+    class="objective-card"
+    :title="objective.challenge"
+    :description="objective.description"
+    :completed="objective.is_completed"
+  >
+    <template #leading>
       <div class="objective-icon-wrapper">
         <Icon :icon="objectiveIcon" class="objective-icon" />
       </div>
-      <div class="objective-info">
-        <h3 class="objective-title">{{ objective.challenge }}</h3>
-        <Badge
-          :variant="
-            category === 'daily' ? 'default' : category === 'weekly' ? 'secondary' : 'outline'
-          "
-          class="category-badge"
-        >
-          {{ categoryLabel }}
-        </Badge>
-      </div>
-    </div>
+    </template>
 
-    <p v-if="objective.description" class="objective-description">{{ objective.description }}</p>
+    <template #badges>
+      <Badge variant="outline" class="category-badge">{{ categoryLabel }}</Badge>
+    </template>
 
-    <p v-if="objective.target_entity?.production_only" class="objective-description">
+    <p v-if="objective.target_entity?.production_only" class="objective-note">
       Production counts even when storage is full.
     </p>
-    <p v-else-if="objective.target_entity?.distinct_dwellers" class="objective-description">
+    <p v-else-if="objective.target_entity?.distinct_dwellers" class="objective-note">
       Each dweller counts once for this objective.
     </p>
 
@@ -107,68 +94,22 @@ const canClaim = computed(() => {
     </div>
 
     <!-- Claim Button (if completed but not claimed) -->
-    <button
-      v-if="canClaim"
-      class="claim-btn"
-      :disabled="claiming"
-      @click="emit('claim', objective.id)"
-    >
-      <Icon icon="mdi:gift-open" class="btn-icon" />
-      Claim Reward
-    </button>
-
-    <!-- Completed Stamp -->
-    <div v-else-if="isCompleted" class="completed-stamp">
-      <Icon icon="mdi:check-circle" class="stamp-icon" />
-      Completed
-    </div>
-  </Card>
+    <template #action>
+      <Button
+        v-if="canClaim"
+        class="claim-btn"
+        variant="default"
+        :disabled="claiming"
+        @click="emit('claim', objective.id)"
+      >
+        <Icon icon="mdi:gift-open" class="btn-icon" />
+        Claim Reward
+      </Button>
+    </template>
+  </ProgressionCard>
 </template>
 
 <style scoped>
-.objective-card {
-  background: var(--color-surface-warm-dark);
-  border: 2px solid var(--color-theme-primary);
-  border-radius: 6px;
-  padding: 16px;
-  transition: all 0.2s;
-  position: relative;
-  overflow: hidden;
-}
-
-.objective-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--color-theme-primary);
-  box-shadow: 0 0 8px var(--color-theme-glow);
-}
-
-.objective-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px var(--color-theme-glow);
-}
-
-.completed-card {
-  border-color: var(--color-quest-muted);
-  opacity: 0.75;
-  background: var(--color-surface-warm-dark);
-}
-
-.completed-card::before {
-  background: var(--color-quest-muted);
-}
-
-.objective-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
 .objective-icon-wrapper {
   width: 48px;
   height: 48px;
@@ -185,30 +126,18 @@ const canClaim = computed(() => {
   color: var(--color-theme-primary);
 }
 
-.objective-info {
-  flex: 1;
-}
-
-.objective-title {
-  font-size: 1rem;
-  font-weight: bold;
-  color: var(--color-theme-primary);
-  margin: 0 0 8px 0;
-  line-height: 1.3;
-}
-
 .category-badge {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
 
-.objective-description {
-  font-size: 0.85rem;
+.objective-note {
+  font-size: 0.9rem;
   color: var(--color-theme-primary);
-  opacity: 0.8;
+  opacity: 0.85;
   line-height: 1.5;
-  margin: 0 0 16px 0;
+  margin: 0 0 12px;
 }
 
 .progress-section {
@@ -246,7 +175,7 @@ const canClaim = computed(() => {
 }
 
 .reward-section {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--color-surface-raised);
   padding: 12px;
   border-radius: 4px;
   border-left: 3px solid var(--color-theme-accent);
@@ -277,52 +206,9 @@ const canClaim = computed(() => {
 .claim-btn {
   width: 100%;
   margin-top: 12px;
-  padding: 10px 16px;
-  background: var(--color-theme-accent);
-  color: var(--color-terminal-background);
-  border: none;
-  border-radius: 4px;
-  font-weight: bold;
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.claim-btn:hover {
-  background: var(--color-theme-primary);
-  box-shadow: 0 0 15px var(--color-theme-glow);
-  transform: translateY(-1px);
-}
-
-.completed-stamp {
-  margin-top: 12px;
-  text-align: center;
-  padding: 8px;
-  background: color-mix(in srgb, var(--color-theme-primary) 10%, transparent);
-  border: 2px dashed var(--color-quest-muted);
-  border-radius: 4px;
-  color: var(--color-theme-primary);
-  font-weight: bold;
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.stamp-icon {
-  font-size: 1.2rem;
 }
 
 .btn-icon {
-  font-size: 1.1rem;
+  margin-right: 8px;
 }
 </style>

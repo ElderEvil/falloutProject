@@ -8,10 +8,15 @@ export const CREATURE_ASSETS = [
   { name: 'Eyebot', key: 'eyebot', arenaKey: 'training-eyebot' },
   { name: 'Protectron', key: 'protectron', arenaKey: 'training-protectron' },
   { name: 'Mr. Handy', key: 'mr-handy', arenaKey: 'training-mr-handy' },
+  { name: 'Yao Guai', key: 'yao-guai', arenaKey: 'yao-guai', generated: true },
+  { name: 'Mirelurk', key: 'mirelurk', arenaKey: 'mirelurk', generated: true },
+  { name: 'Bloatfly', key: 'bloatfly', arenaKey: 'bloatfly', generated: true },
+  { name: 'Radstag', key: 'radstag', arenaKey: 'radstag', generated: true },
+  { name: 'Night Stalker', key: 'night-stalker', arenaKey: 'night-stalker', generated: true },
 ].map((asset) => ({
   ...asset,
   image: `/static/creature_images/assembled/${asset.key}.webp`,
-  sourceImage: `/static/creature_images/${asset.key}.png`,
+  sourceImage: asset.generated ? undefined : `/static/creature_images/${asset.key}.png`,
 }))
 
 export const getCreatureImagePath = (key: string): string | undefined =>

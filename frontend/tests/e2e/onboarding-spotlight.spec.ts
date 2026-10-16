@@ -44,6 +44,33 @@ const VAULT = {
   radaway: 2,
 }
 
+// The staffing lesson only highlights when its objective is present and eligible.
+const STAFFING_OBJECTIVE = {
+  id: 'obj-staffing',
+  vault_id: 'vault-1',
+  challenge: 'Match a dweller to their room',
+  description: 'Do the thing.',
+  progress: 0,
+  total: 2,
+  reward: '25 caps',
+  is_completed: false,
+  category: 'starter',
+  sequence: 1,
+  template_key: 'starter:assign a dweller correctly#v2',
+  objective_type: 'assign_correct',
+  target_entity: {},
+  created_at: '2026-01-15T10:30:00Z',
+}
+
+const ORIENTATION_ACKNOWLEDGED = {
+  version: 1,
+  lessons: {
+    'orientation.resources': 'acknowledged',
+    'orientation.generator': 'acknowledged',
+  },
+  replayOrientation: false,
+}
+
 async function mockApi(page: Page) {
   await page.route('**/api/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname
@@ -51,6 +78,9 @@ async function mockApi(page: Page) {
     if (path === '/api/v1/users/me') return route.fulfill({ json: AUTH_USER })
     if (path === '/api/v1/vaults/my') return route.fulfill({ json: [VAULT] })
     if (path === '/api/v1/vaults/vault-1') return route.fulfill({ json: VAULT })
+    if (path === '/api/v1/objectives/vault-1/') {
+      return route.fulfill({ json: [STAFFING_OBJECTIVE] })
+    }
     if (path === '/api/v1/notifications/unread-count') return route.fulfill({ json: { count: 0 } })
     if (path === '/api/v1/notifications/') return route.fulfill({ json: [] })
     if (path.startsWith('/api/v1/stream/')) {
@@ -61,13 +91,16 @@ async function mockApi(page: Page) {
   })
 }
 
-async function openVault(page: Page) {
-  await page.addInitScript(() => {
-    // Opt this vault into the orientation and seed the "What's New" key so the
-    // changelog modal never races the guide.
-    window.localStorage.setItem('onboarding:v1', JSON.stringify({ 'vault-1': { created: true } }))
-    window.localStorage.setItem('fallout_changelog_last_seen', '999.0.0')
-  })
+async function openVault(page: Page, teaching?: unknown) {
+  await page.addInitScript(
+    (record) => {
+      // Opt this vault into the orientation and seed the "What's New" key so the
+      // changelog modal never races the guide.
+      window.localStorage.setItem('onboarding:v1', JSON.stringify(record))
+      window.localStorage.setItem('fallout_changelog_last_seen', '999.0.0')
+    },
+    { 'vault-1': { created: true, ...(teaching ? { welcomed: true, teaching } : {}) } }
+  )
   await mockApi(page)
   await page.goto('/login')
   await setAuthToken(page, TOKEN, AUTH_USER)
@@ -120,5 +153,30 @@ test.describe('Spotlight guide — vault page', () => {
     await expect(page.getByRole('dialog', { name: 'Notifications' })).toHaveCount(0)
     await expect(card).toBeVisible()
     await expect(card).toContainText('Keep the power on')
+  })
+
+  test('keyboard-activates the highlighted control when it is on screen', async ({ page }) => {
+    await openVault(page, ORIENTATION_ACKNOWLEDGED)
+
+    const control = page.locator('[data-onboarding="nav-dwellers"]')
+    await expect(control).toBeVisible({ timeout: 15000 })
+
+    await control.focus()
+    await expect(control).toBeFocused()
+    await page.keyboard.press('Enter')
+
+    await expect(page).toHaveURL(/\/vault\/vault-1\/dwellers/, { timeout: 10000 })
+  })
+
+  test('offers explicit navigation at phone width when the control is hidden', async ({ page }) => {
+    // The side panel collapses below the desktop breakpoint, so the staffing
+    // anchor is hidden; the guide must navigate rather than spotlight nothing.
+    await page.setViewportSize({ width: 390, height: 844 })
+    await openVault(page, ORIENTATION_ACKNOWLEDGED)
+
+    await expect(page.getByRole('button', { name: 'Open Dwellers' })).toBeVisible({
+      timeout: 15000,
+    })
+    await expect(page.locator('.onboarding-cutout--off')).toHaveCount(0)
   })
 })

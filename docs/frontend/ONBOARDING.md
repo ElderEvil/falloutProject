@@ -100,14 +100,26 @@ Run for the simplification pass:
 - Frontend: `typecheck` + `lint` clean, **114 passed** (`OnboardingSpotlight`,
   `useOnboardingState` + persistence, `onboardingSteps`, `ObjectivesView`, `dwellerFilter`).
 
+Run for the dialog/placement pass (#1001):
+
+- Frontend: `typecheck` + `lint` clean, full suite **3142 passed**; `OnboardingSpotlight`
+  unit suite covers dialog suspension (incl. nested and unmount-during-navigation), the
+  off-screen scroll action, collapse preserving the title, and refresh-quiet state.
+- Browser: `tests/e2e/onboarding-spotlight.spec.ts` drives the real vault page at phone width
+  (card does not cover the highlighted control), yields to a dialog-role overlay and resumes,
+  keyboard-activates an on-screen control, and falls back to navigation when the control is
+  hidden.
+
 Still owed before release sign-off:
 
 - Full backend and frontend suite runs.
 - Full-seed resource stability across a 20-minute active session and a return from inactivity.
 - Keyboard, touch and small-screen walkthrough of the spotlight and the Starter surface.
 - Real-service walkthrough of the cohort migration against production-like legacy rows.
-- Browser (Playwright) coverage that actually clicks and keyboard-activates the highlighted
-  control at phone width and 200% zoom, rather than asserting visibility alone.
+- A taught-control click/keyboard check at 200% zoom for a lesson whose anchor lives inside the
+  side panel: the panel collapses below the desktop breakpoint, so at that width the guide
+  correctly falls back to explicit navigation (covered) rather than spotlighting a hidden
+  control. Covering the zoomed highlight itself needs a lesson anchored in always-visible chrome.
 
 ## Deferred
 

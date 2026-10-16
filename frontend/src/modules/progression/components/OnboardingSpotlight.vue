@@ -3,6 +3,8 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useElementBounding, usePreferredReducedMotion } from '@vueuse/core'
 import { Button } from '@/core/components/ui/button'
+import { Alert } from '@/core/components/ui/alert'
+import { Card } from '@/core/components/ui/card'
 import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import { useObjectivesStore } from '@/modules/progression/stores/objectives'
@@ -244,6 +246,11 @@ const cardPlacement = computed(() => (anchorBelowFold.value ? 'top' : 'bottom'))
 // re-collapse the card or move focus.
 const userCollapsed = ref<boolean | null>(null)
 const collapsed = computed(() => userCollapsed.value ?? anchorBelowFold.value)
+const cardClass = computed(() => [
+  'onboarding-card',
+  `onboarding-card--${cardPlacement.value}`,
+  { 'onboarding-card--collapsed': collapsed.value },
+])
 const toggleCollapsed = () => {
   userCollapsed.value = !collapsed.value
 }
@@ -317,13 +324,10 @@ function onClaim() {
         :style="cutoutStyle"
         aria-hidden="true"
       />
-      <section
+      <Card
         v-if="!blockedByOverlay"
-        class="onboarding-card"
-        :class="[`onboarding-card--${cardPlacement}`, { 'onboarding-card--collapsed': collapsed }]"
-        role="region"
-        aria-live="polite"
-        aria-label="Vault onboarding"
+        :class="cardClass"
+        v-bind="{ role: 'region', 'aria-live': 'polite', 'aria-label': 'Vault onboarding' }"
       >
         <template v-if="showWelcome">
           <p class="onboarding-eyebrow">VAULT-TEC // ORIENTATION</p>
@@ -401,15 +405,19 @@ function onClaim() {
               Retry
             </Button>
           </div>
-          <p v-if="loadFailed" class="onboarding-note">Could not refresh the guide. Retry.</p>
-          <p v-if="blockedReason" class="onboarding-note">{{ blockedReason }}</p>
-          <p v-if="blockedByEarlier" class="onboarding-note">
+          <Alert v-if="loadFailed" class="onboarding-note">
+            Could not refresh the guide. Retry.
+          </Alert>
+          <Alert v-if="blockedReason" class="onboarding-note">{{ blockedReason }}</Alert>
+          <Alert v-if="blockedByEarlier" class="onboarding-note">
             Claim your earlier reward in Starter first.
-          </p>
-          <p v-if="claimError" class="onboarding-error" role="alert">{{ claimError }}</p>
+          </Alert>
+          <Alert v-if="claimError" variant="destructive" class="onboarding-error">
+            {{ claimError }}
+          </Alert>
           </div>
         </template>
-      </section>
+      </Card>
     </template>
   </Teleport>
 </template>
@@ -542,12 +550,18 @@ function onClaim() {
 
 .onboarding-note {
   margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   font-size: 0.7rem;
   color: var(--color-theme-accent);
 }
 
 .onboarding-error {
   margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   font-size: 0.7rem;
   color: var(--color-danger);
 }

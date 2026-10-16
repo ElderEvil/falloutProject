@@ -108,8 +108,6 @@ Still owed before release sign-off:
 - Real-service walkthrough of the cohort migration against production-like legacy rows.
 - Browser (Playwright) coverage that actually clicks and keyboard-activates the highlighted
   control at phone width and 200% zoom, rather than asserting visibility alone.
-- Composing the lesson content with the `Card`/`Alert` primitives (current pass keeps the
-  existing bespoke card markup; `Button` is already the shared primitive).
 
 ## Deferred
 

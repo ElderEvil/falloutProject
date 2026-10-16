@@ -254,6 +254,42 @@ describe('ObjectivesView objective gating', () => {
 })
 
 describe('ObjectivesView claimable counters', () => {
+  it.each([0, 1])(
+    'omits hidden daily and weekly rewards until the Office unlock (starter progress %i)',
+    async (progress) => {
+      objectivesStore.objectives = [
+        { ...starterObjective(4), progress },
+        officeObjective(),
+        { ...dailyObjective },
+        { ...dailyObjective, id: 'weekly-1', category: 'weekly' },
+      ]
+      wrapper = mountWithRealHeader()
+      await nextTick()
+      const rewardsReady = () => wrapper.findAll('.page-header-metric-value')[1]!.text()
+
+      expect(rewardsReady()).toBe(String(progress))
+      expect(
+        wrapper
+          .findAll('[role="tab"]')
+          .map((tab) => tab.text())
+          .join(' ')
+      ).not.toContain('Daily')
+
+      objectivesStore.objectives[0]!.is_completed = true
+      objectivesStore.objectives[1]!.is_completed = true
+      await nextTick()
+
+      expect(rewardsReady()).toBe('2')
+      expect(
+        wrapper
+          .findAll('[role="tab"]')
+          .map((tab) => tab.text())
+          .join(' ')
+      ).toContain('Daily')
+      expect(wrapper.find('[aria-label="1 reward ready to claim"]').exists()).toBe(true)
+    }
+  )
+
   it('counts claimable rewards per tab and omits a tab with none', async () => {
     objectivesStore.objectives = [
       { ...dailyObjective, id: 'daily-1' },

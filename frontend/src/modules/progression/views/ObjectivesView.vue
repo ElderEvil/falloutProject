@@ -119,6 +119,7 @@ function isClaimLocked(objective: Objective): boolean {
 const claimableCounts = computed(() => {
   const counts: Record<string, number> = {}
   for (const objective of objectivesStore.objectives) {
+    if (!visibleTabs.value.some((tab) => tab.key === objective.category)) continue
     if (isObjectiveClaimable(objective) && !isClaimLocked(objective))
       counts[objective.category] = (counts[objective.category] ?? 0) + 1
   }
@@ -250,7 +251,7 @@ function closeClaimModal(): void {
               </TabsList>
               <p v-if="!objectivesUnlocked" class="unlock-hint">
                 Daily, weekly and achievement objectives unlock once you claim the Overseer's Office
-                objective.
+                objective. Rewards already earned stay saved until then.
               </p>
               <div class="tab-content">
                 <div v-if="visibleObjectives.length === 0" class="empty-state">

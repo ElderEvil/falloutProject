@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.221.0 (2026-10-16)
+
+### Features
+
+* **incidents:** gate incident types by living population and vault mode ([#838](https://github.com/ElderEvil/falloutProject/issues/838)) 2a034c8
+
+### Bug Fixes
+
+* **incidents:** preserve active waves in balance simulator 8d29b5a
+
 ## 2.220.0 (2026-10-16)
 
 ### Features

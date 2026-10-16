@@ -175,7 +175,7 @@ const canClaim = computed(() => isObjectiveClaimable(props.objective))
 }
 
 .reward-section {
-  background: var(--color-surface);
+  background: var(--color-surface-raised);
   padding: 12px;
   border-radius: 4px;
   border-left: 3px solid var(--color-theme-accent);

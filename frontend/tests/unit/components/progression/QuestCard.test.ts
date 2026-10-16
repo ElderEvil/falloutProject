@@ -554,4 +554,26 @@ describe('QuestCard', () => {
       expect(wrapper.text()).toContain(category)
     }
   )
+
+  it.each([
+    ['available', 'var(--color-quest-side)'],
+    ['active', 'var(--color-theme-accent)'],
+    ['returning', 'var(--color-theme-secondary)'],
+    ['ready', 'var(--color-rarity-legendary)'],
+    ['completed', 'var(--color-quest-muted)'],
+    ['locked', 'var(--color-quest-locked)'],
+  ] as const)('keeps the %s status border colour on the shared card shell', (status, border) => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: { ...quest, is_completed: status === 'completed' },
+        vaultId: 'vault-1',
+        status,
+        isLocked: status === 'locked',
+        partyMembers: [],
+      },
+    })
+
+    expect(wrapper.find('.quest-card').attributes('style')).toContain(`border-color: ${border}`)
+  })
 })

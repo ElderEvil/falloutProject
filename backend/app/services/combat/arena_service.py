@@ -745,9 +745,28 @@ class ArenaService:
             if participant.dweller is not None:
                 participant.dweller.happiness = max(10, participant.dweller.happiness - HAPPINESS_LOSE)
                 db_session.add(participant.dweller)
-        for participant in winner_team:
-            if participant.dweller is not None:
-                await self._award_combat_xp(db_session, participant.dweller)
+        winning_dwellers = [participant.dweller for participant in winner_team if participant.dweller is not None]
+        reward_messages = []
+        if winning_dwellers:
+            xp = game_config.combat.xp_per_difficulty * 2
+            remainder = 0
+            if state.mode == ArenaMode.HUNT:
+                pool = int(
+                    sum(participant.power for participant in loser_team)
+                    / game_config.combat.base_raider_power
+                    * game_config.combat.xp_per_difficulty
+                )
+                xp, remainder = divmod(pool, len(winning_dwellers))
+            for index, dweller in enumerate(winning_dwellers):
+                awarded = xp + (index < remainder)
+                await self._award_combat_xp(db_session, dweller, awarded)
+                reward_messages.append(f"{dweller.first_name} +{awarded} XP")
+
+        reward_messages.extend(
+            f"{' & '.join(p.short_name for p in team if p.dweller)} happiness {change:+d}"
+            for team, change in [(winner_team, HAPPINESS_WIN), (loser_team, -HAPPINESS_LOSE)]
+            if any(p.dweller for p in team)
+        )
 
         await self._grant_arena_morale(db_session, room)
 
@@ -764,11 +783,7 @@ class ArenaService:
                 room_id=room.id,
                 round_seq=seq,
                 kind="reward",
-                message=", ".join(
-                    f"{' & '.join(p.short_name for p in team if p.dweller)} happiness {change:+d}"
-                    for team, change in [(winner_team, HAPPINESS_WIN), (loser_team, -HAPPINESS_LOSE)]
-                    if any(p.dweller for p in team)
-                ),
+                message=", ".join(reward_messages),
             )
         )
 
@@ -789,10 +804,10 @@ class ArenaService:
             "loser": loser.name,
         }
 
-    async def _award_combat_xp(self, db_session: AsyncSession, dweller: Dweller) -> None:
+    async def _award_combat_xp(self, db_session: AsyncSession, dweller: Dweller, xp: int) -> None:
+        """Award a participant's XP share and settle any resulting level-ups."""
         from app.services.leveling_service import leveling_service
 
-        xp = game_config.combat.xp_per_difficulty * 2
         dweller.experience = max(0, dweller.experience + xp)
         db_session.add(dweller)
         leveled_up, levels_gained = await leveling_service.check_level_up(db_session, dweller)

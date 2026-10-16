@@ -49,12 +49,149 @@ def test_training_robots_are_valid_hunt_opponents():
         ArenaService._hunt_opponents(["raider-gang"])
 
 
+def test_arena_wildlife_preserves_exploration_catalog_and_reserves_brahmin():
+    creatures = {creature["key"]: creature for creature in ArenaService.list_creatures()}
+    keys = ["bloatfly", "radstag", "night-stalker", "mirelurk", "yao-guai"]
+    assert set(keys).issubset(creatures)
+    assert all(not creatures[key]["is_robot"] for key in keys)
+    assert (
+        creatures["bloatfly"]["power"]
+        < creatures["radstag"]["power"]
+        < creatures["night-stalker"]["power"]
+        < creatures["mirelurk"]["power"]
+        == creatures["yao-guai"]["power"]
+        < creatures["deathclaw"]["power"]
+    )
+    assert not {creatures[key]["name"] for key in keys} & {enemy["name"] for enemy in load_enemies()}
+    with pytest.raises(ValidationException, match="Unknown hunt opponent"):
+        ArenaService._hunt_opponents(["brahmin"])
+
+
 def test_team_damage_ignores_knocked_out_attackers():
     team = [
         ArenaParticipant(key="down", name="Down", short_name="Down", power=100.0, health=0, max_health=100),
         ArenaParticipant(key="up", name="Up", short_name="Up", power=20.0, health=10, max_health=100),
     ]
     assert ArenaService._team_damage(team, 1) == pytest.approx(4.0)
+
+
+@pytest.mark.parametrize(
+    ("keys", "two_dwellers", "bot", "knocked_out", "xp_rate", "expected"),
+    [
+        (["radroach-swarm", "bloatfly"], False, False, False, 30, [60]),
+        (["mole-rat-pack", "night-stalker"], False, False, False, 30, [150]),
+        (["mirelurk", "yao-guai"], False, False, False, 30, [240]),
+        (["mirelurk", "yao-guai"], True, False, False, 30, [120, 120]),
+        (["mirelurk", "yao-guai"], False, True, False, 30, [240]),
+        (["mirelurk", "yao-guai"], True, False, True, 30, [120, 120]),
+        (["night-stalker"], True, False, False, 1, [2, 1]),
+        (["bloatfly"], False, False, False, 0, [0]),
+    ],
+)
+async def test_hunt_xp_pool_is_split_and_reported_once(
+    async_session,
+    arena_room,
+    fighter_a,
+    fighter_c,
+    monkeypatch,
+    keys,
+    two_dwellers,
+    bot,
+    knocked_out,
+    xp_rate,
+    expected,
+):
+    from app.core.game_config import game_config
+
+    monkeypatch.setattr(game_config.combat, "xp_per_difficulty", xp_rate)
+    dwellers = [fighter_a, fighter_c] if two_dwellers else [fighter_a]
+    for dweller in dwellers:
+        dweller.room_id = arena_room.id
+        dweller.experience = 0
+    await async_session.commit()
+    service = ArenaService()
+    state = await service.set_fighters(
+        async_session,
+        arena_room.id,
+        fighter_a.id,
+        None,
+        mode=ArenaMode.HUNT,
+        fighter_c_id=fighter_c.id if two_dwellers else None,
+        team_a_bot_key="training-eyebot" if bot else None,
+        opponent_keys=keys,
+    )
+    team_a, team_b = await service.get_teams(async_session, arena_room)
+    team_a[0].power = 1000
+    if knocked_out:
+        team_a[1].health = 0
+    result = await service._resolve_round(async_session, arena_room, team_a, team_b, 1, state=state)
+    assert result["status"] == "finished"
+    assert [dweller.experience for dweller in dwellers] == expected
+    await async_session.commit()
+    view = (await service.get_arena_state(async_session, arena_room.vault_id)).rooms[0]
+    reward = next(event.message for event in view.events if event.kind == "reward")
+    for dweller, xp in zip(dwellers, expected, strict=True):
+        assert f"{dweller.first_name} +{xp} XP" in reward
+    assert "Eyebot +" not in reward
+    assert (await service.process_arena_ticks(async_session, 3600))["arena"]["rounds"] == []
+    for dweller, xp in zip(dwellers, expected, strict=True):
+        await async_session.refresh(dweller)
+        assert dweller.experience == xp
+
+
+async def test_defeated_hunters_receive_no_xp(async_session, arena_room, fighter_a):
+    fighter_a.room_id = arena_room.id
+    fighter_a.experience = 0
+    await async_session.commit()
+    service = ArenaService()
+    state = await service.set_fighters(
+        async_session,
+        arena_room.id,
+        fighter_a.id,
+        None,
+        mode=ArenaMode.HUNT,
+        opponent_keys=["yao-guai"],
+    )
+    team_a, team_b = await service.get_teams(async_session, arena_room)
+    team_a[0].power = 0
+    team_a[0].health = 1
+    assert (await service._resolve_round(async_session, arena_room, team_a, team_b, 1, state=state))[
+        "status"
+    ] == "finished"
+    assert fighter_a.experience == 0
+    await async_session.commit()
+    view = (await service.get_arena_state(async_session, arena_room.vault_id)).rooms[0]
+    assert "XP" not in next(event.message for event in view.events if event.kind == "reward")
+
+
+@pytest.mark.parametrize("mode", [ArenaMode.DUEL, ArenaMode.BRAWL])
+async def test_dweller_matches_keep_existing_xp_per_winner(
+    async_session, arena_room, fighter_a, fighter_b, fighter_c, fighter_d, mode
+):
+    from app.core.game_config import game_config
+
+    for dweller in (fighter_a, fighter_b, fighter_c, fighter_d):
+        dweller.room_id = arena_room.id
+        dweller.experience = 0
+    await async_session.commit()
+    service = ArenaService()
+    state = await service.set_fighters(
+        async_session,
+        arena_room.id,
+        fighter_a.id,
+        fighter_b.id,
+        mode=mode,
+        fighter_c_id=fighter_c.id if mode == ArenaMode.BRAWL else None,
+        fighter_d_id=fighter_d.id if mode == ArenaMode.BRAWL else None,
+    )
+    team_a, team_b = await service.get_teams(async_session, arena_room)
+    team_a[0].power = 10000
+    for participant in team_b:
+        participant.power = 0
+    await service._resolve_round(async_session, arena_room, team_a, team_b, 1, state=state)
+    assert fighter_a.experience == game_config.combat.xp_per_difficulty * 2
+    assert fighter_c.experience == (game_config.combat.xp_per_difficulty * 2 if mode == ArenaMode.BRAWL else 0)
+    assert fighter_b.experience == fighter_d.experience == 0
 
 
 @pytest_asyncio.fixture(name="arena_room")
@@ -1161,7 +1298,14 @@ class TestArenaService:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "opponent_keys", [["radroach-swarm", "mole-rat-pack"], ["training-eyebot", "training-mr-handy"]]
+        "opponent_keys",
+        [
+            ["radroach-swarm", "mole-rat-pack"],
+            ["training-eyebot", "training-mr-handy"],
+            ["bloatfly", "radstag"],
+            ["night-stalker", "mirelurk"],
+            ["yao-guai", "radstag"],
+        ],
     )
     async def test_process_arena_ticks_hunt_two_creatures_defeated(
         self, async_session, arena_room, fighter_a, opponent_keys
@@ -1500,7 +1644,7 @@ class TestArenaBotSupport:
         a, b = await service.get_teams(async_session, arena_room)
         result = await service._resolve_round(async_session, arena_room, a, b, 2)
         assert result["status"] == "finished"
-        assert fighter_a.experience == game_config.combat.xp_per_difficulty * 2
+        assert fighter_a.experience == game_config.combat.xp_per_difficulty
         assert fighter_a.happiness == 61
         assert await crud.dweller.count_in_room(async_session, arena_room.id) == 1
 

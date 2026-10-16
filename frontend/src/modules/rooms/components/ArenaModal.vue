@@ -56,6 +56,12 @@ const MODE_OPTIONS: Array<{ value: ArenaMode; label: string }> = [
   { value: 'hunt', label: 'Hunt' },
 ]
 
+const HUNT_PRESETS = [
+  { name: 'Pest Control', keys: ['radroach-swarm', 'bloatfly'] },
+  { name: 'Wasteland Pack', keys: ['mole-rat-pack', 'night-stalker'] },
+  { name: 'Heavyweights', keys: ['mirelurk', 'yao-guai'] },
+]
+
 type DraftSlots = Record<ArenaSlotKey, string | null>
 
 const EMPTY_DRAFT: DraftSlots = { a: null, b: null, c: null, d: null }
@@ -95,6 +101,14 @@ onUnmounted(() => {
 const roomState = computed(() => arenaStore.getRoom(props.roomId))
 
 const winnerName = computed(() => roomState.value?.winner_name ?? null)
+const matchReward = computed(() => {
+  const events = [...(roomState.value?.events ?? [])].reverse()
+  const finish = events.find((event) => event.kind === 'finish')
+  return finish
+    ? events.find((event) => event.kind === 'reward' && event.round_seq === finish.round_seq)
+        ?.message
+    : undefined
+})
 
 const teamFighters = computed<ArenaFighter[]>(() => [
   ...(roomState.value?.team_a ?? []),
@@ -208,6 +222,25 @@ const needsLabel = computed(() =>
 
 const creaturesByKey = computed(
   () => new Map(arenaStore.creatures.map((creature) => [creature.key, creature]))
+)
+const huntPresets = computed(() =>
+  HUNT_PRESETS.filter((preset) => preset.keys.every((key) => creaturesByKey.value.has(key)))
+)
+const selectedHuntPreset = computed(
+  () =>
+    huntPresets.value.find(
+      (preset) =>
+        preset.keys.length === opponentKeys.value.length &&
+        preset.keys.every((key) => opponentKeys.value.includes(key))
+    )?.name ?? ''
+)
+const opponentPower = computed(() =>
+  Math.round(
+    opponentKeys.value.reduce(
+      (total, key) => total + (creaturesByKey.value.get(key)?.power ?? 0),
+      0
+    )
+  )
 )
 
 // Team B in hunt: local picks first so a pending draft stays visible, overlaid
@@ -468,6 +501,16 @@ const selectCreature = (creature: ArenaCreature) => {
   void commitDraft()
 }
 
+const selectHuntPreset = (value: unknown) => {
+  if (mode.value !== 'hunt' || !canChangeFighters.value) return
+  const preset = huntPresets.value.find((candidate) => candidate.name === value)
+  if (!preset) return
+  opponentKeys.value = [...preset.keys]
+  creaturePickerOpen.value = false
+  draftDirty.value = true
+  void commitDraft()
+}
+
 const clearCreature = (key: string) => {
   opponentKeys.value = opponentKeys.value.filter((candidate) => candidate !== key)
   draftDirty.value = true
@@ -625,6 +668,32 @@ const updateMode = (value: unknown) => {
                 </AlertDescription>
               </Alert>
               <template v-else>
+                <div v-if="mode === 'hunt'" class="flex flex-col gap-2">
+                  <!-- @vue-ignore -->
+                  <ToggleGroup
+                    v-if="huntPresets.length"
+                    type="single"
+                    variant="outline"
+                    size="sm"
+                    class="max-w-full flex-wrap"
+                    aria-label="Hunt preset"
+                    :model-value="selectedHuntPreset"
+                    :disabled="!canChangeFighters"
+                    @update:model-value="selectHuntPreset"
+                  >
+                    <!-- @vue-ignore -->
+                    <ToggleGroupItem
+                      v-for="preset in huntPresets"
+                      :key="preset.name"
+                      :value="preset.name"
+                    >
+                      {{ preset.name }}
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                  <p v-if="opponentKeys.length" class="text-xs text-muted-foreground">
+                    Combined opponent power: {{ opponentPower }}
+                  </p>
+                </div>
                 <Alert v-if="mode !== 'hunt' && roster.length < 2">
                   <AlertTitle>One more adult needed</AlertTitle>
                   <AlertDescription
@@ -741,6 +810,7 @@ const updateMode = (value: unknown) => {
                   >MATCH COMPLETE &mdash; {{ winnerName }} wins!</AlertTitle
                 >
                 <AlertTitle v-else>MATCH COMPLETE &mdash; Victory for {{ winnerName }}!</AlertTitle>
+                <AlertDescription v-if="matchReward">{{ matchReward }}</AlertDescription>
               </Alert>
               <div v-if="isDone && injuredFighters.length" class="flex justify-center">
                 <Button variant="secondary" size="sm" :disabled="isHealing" @click="healInjured">

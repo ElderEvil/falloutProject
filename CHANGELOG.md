@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.219.0 (2026-10-16)
+
+### Features
+
+* **vault:** add Survival mode with permanent death ([#838](https://github.com/ElderEvil/falloutProject/issues/838)) 3b88deb
+
+### Bug Fixes
+
+* **vault:** declare vault_mode NOT NULL to match the migration 6ca6ca4
+* **vault:** use the ToggleGroup primitive for the mode picker 9654d90
+
 ## 2.218.0 (2026-10-16)
 
 ### Features

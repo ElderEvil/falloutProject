@@ -1304,10 +1304,10 @@ export interface paths {
         put?: never;
         /**
          * Grant Exit Request
-         * @description Let the dweller go: permanent death by exile, with no way back.
+         * @description Let the dweller go: a living departure, not a death, with no way back to this vault.
          *
          *     Returns:
-         *         ExitDecisionResponse: The exile outcome, including the epitaph.
+         *         ExitDecisionResponse: The departure outcome; ``epitaph`` stays null.
          */
         post: operations["grant_exit_request_api_v1_dwellers__dweller_id__grant_exit_post"];
         delete?: never;
@@ -10721,6 +10721,12 @@ export interface components {
              */
             radio_mode: string;
             /**
+             * Vault Mode
+             * @description Difficulty mode chosen at creation; immutable thereafter
+             * @default standard
+             */
+            vault_mode: string;
+            /**
              * Incidents Disabled
              * @description Suppresses incident spawns and processing
              * @default false
@@ -10795,6 +10801,8 @@ export interface components {
              * @default recruitment
              */
             radio_mode: string;
+            /** @default standard */
+            vault_mode: components["schemas"]["VaultModeEnum"];
             /**
              * Incidents Disabled
              * @description Suppresses incident spawns and processing
@@ -10851,6 +10859,16 @@ export interface components {
             /** Description */
             description: string;
         };
+        /**
+         * VaultModeEnum
+         * @description Per-vault difficulty mode.
+         *
+         *     Chosen once at vault creation and immutable afterwards. ``SURVIVAL`` makes every
+         *     dweller death permanent (immediate permanent-death memorial, no caps revival
+         *     window). Stored as a plain string column, mirroring ``Vault.radio_mode``.
+         * @enum {string}
+         */
+        VaultModeEnum: "standard" | "survival";
         /** VaultNumber */
         VaultNumber: {
             /** Number */
@@ -10860,6 +10878,8 @@ export interface components {
              * @default false
              */
             boosted: boolean;
+            /** @default standard */
+            vault_mode: components["schemas"]["VaultModeEnum"];
         };
         /** VaultObjectiveProgressLink */
         VaultObjectiveProgressLink: {
@@ -10948,6 +10968,12 @@ export interface components {
              */
             radio_mode: string;
             /**
+             * Vault Mode
+             * @description Difficulty mode chosen at creation; immutable thereafter
+             * @default standard
+             */
+            vault_mode: string;
+            /**
              * Incidents Disabled
              * @description Suppresses incident spawns and processing
              * @default false
@@ -11025,6 +11051,12 @@ export interface components {
              * @default recruitment
              */
             radio_mode: string;
+            /**
+             * Vault Mode
+             * @description Difficulty mode chosen at creation; immutable thereafter
+             * @default standard
+             */
+            vault_mode: string;
             /**
              * Incidents Disabled
              * @description Suppresses incident spawns and processing
@@ -11111,6 +11143,12 @@ export interface components {
              * @default recruitment
              */
             radio_mode: string;
+            /**
+             * Vault Mode
+             * @description Difficulty mode chosen at creation; immutable thereafter
+             * @default standard
+             */
+            vault_mode: string;
             /**
              * Incidents Disabled
              * @description Suppresses incident spawns and processing
@@ -11201,6 +11239,11 @@ export interface components {
             population_max?: number | null;
             /** Radio Mode */
             radio_mode?: string | null;
+            /**
+             * Vault Mode
+             * @description Difficulty mode chosen at creation; immutable thereafter
+             */
+            vault_mode?: string | null;
             /**
              * Incidents Disabled
              * @description Suppresses incident spawns and processing

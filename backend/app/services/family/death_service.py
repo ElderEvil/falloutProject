@@ -6,13 +6,14 @@ from datetime import UTC, datetime, timedelta
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import AvailabilityEnum, DeathCauseEnum, DwellerStatusEnum, LifecycleEnum
+from app.core.enums import AvailabilityEnum, DeathCauseEnum, DwellerStatusEnum, LifecycleEnum, VaultModeEnum
 from app.core.game_config import game_config
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.user_profile import profile_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.user import User
+from app.models.vault import Vault
 from app.schemas.dweller import DwellerRead, DwellerReviveResponse, DwellerUpdate, RevivalCostResponse
 from app.services.access_service import assert_vault_owner
 from app.services.notification_service import notification_service
@@ -50,7 +51,7 @@ class DeathService:
         :type epitaph: Optional[str]
         :param commit: Whether to commit the change
         :type commit: bool
-        :param permanent: Skip the caps-revival window (used by an exit, which is one-way)
+        :param permanent: Skip the caps-revival window. Forced on for survival-mode vaults.
         :type permanent: bool
         :returns: Updated dweller
         :rtype: Dweller
@@ -60,6 +61,10 @@ class DeathService:
             raise ContentNoChangeException(detail="Dweller is already dead")
 
         vault_id = self._require_vault_id(dweller)
+        vault = await vault_crud.get(db_session, vault_id)
+
+        if vault.vault_mode == VaultModeEnum.SURVIVAL.value:
+            permanent = True
 
         # Generate default epitaph if not provided
         if not epitaph:
@@ -89,7 +94,7 @@ class DeathService:
         )
 
         # Increment death statistics (deferred with the caller's commit)
-        await self._increment_death_stats(db_session, vault_id, cause, commit=commit)
+        await self._increment_death_stats(db_session, vault, cause, commit=commit)
 
         logger.info(
             "Dweller %s (%s) died of %s in vault %s",
@@ -374,13 +379,12 @@ class DeathService:
     async def _increment_death_stats(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault: Vault,
         cause: DeathCauseEnum,
         commit: bool = True,
     ) -> None:
         """Increment death statistics for the vault owner."""
-        vault = await vault_crud.get(db_session, vault_id)
-        if not vault or not vault.user_id:
+        if not vault.user_id:
             return
 
         # Map cause to stat field

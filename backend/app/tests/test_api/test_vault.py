@@ -426,3 +426,71 @@ async def test_vault_initiate_boosted_seeds_crafting_and_capacity(
 
     used_space = await crud.storage.storage.count_items(async_session, storage.id)
     assert storage.max_space > used_space
+
+
+@pytest.mark.smoke
+@pytest.mark.asyncio
+async def test_vault_initiate_survival_mode(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+):
+    """A survival vault is created and reports its mode back through the vault API."""
+    response = await async_client.post(
+        "/vaults/initiate",
+        headers=superuser_token_headers,
+        json={"number": 211, "vault_mode": "survival"},
+    )
+    assert response.status_code == 201
+    assert response.json()["vault_mode"] == "survival"
+
+    read = await async_client.get(f"/vaults/{response.json()['id']}", headers=superuser_token_headers)
+    assert read.status_code == 200
+    assert read.json()["vault_mode"] == "survival"
+
+
+@pytest.mark.asyncio
+async def test_vault_initiate_defaults_to_standard_mode(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+):
+    response = await async_client.post("/vaults/initiate", headers=superuser_token_headers, json={"number": 212})
+    assert response.status_code == 201
+    assert response.json()["vault_mode"] == "standard"
+
+
+@pytest.mark.asyncio
+async def test_vault_initiate_rejects_unknown_mode(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+):
+    response = await async_client.post(
+        "/vaults/initiate",
+        headers=superuser_token_headers,
+        json={"number": 213, "vault_mode": "nightmare"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_vault_mode_is_immutable_via_api(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+):
+    """Attempting to change the mode through the update endpoint is rejected and takes no effect."""
+    created = await async_client.post(
+        "/vaults/initiate",
+        headers=superuser_token_headers,
+        json={"number": 214, "vault_mode": "survival"},
+    )
+    assert created.status_code == 201
+    vault_id = created.json()["id"]
+
+    response = await async_client.put(
+        f"/vaults/{vault_id}",
+        headers=superuser_token_headers,
+        json={"vault_mode": "standard"},
+    )
+    assert response.status_code == 422
+
+    read = await async_client.get(f"/vaults/{vault_id}", headers=superuser_token_headers)
+    assert read.json()["vault_mode"] == "survival"

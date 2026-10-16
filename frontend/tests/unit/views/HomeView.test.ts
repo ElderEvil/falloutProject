@@ -303,7 +303,7 @@ describe('HomeView', () => {
       // This documents current behavior - decimals are truncated
       expect(axios.post).toHaveBeenCalledWith(
         '/api/v1/vaults/initiate',
-        { number: 100, boosted: false }, // Not 100.5
+        { number: 100, boosted: false, vault_mode: 'standard' }, // Not 100.5
         expect.anything()
       )
     })
@@ -350,7 +350,7 @@ describe('HomeView', () => {
 
       expect(axios.post).toHaveBeenCalledWith(
         '/api/v1/vaults/initiate',
-        { number: 123, boosted: false },
+        { number: 123, boosted: false, vault_mode: 'standard' },
         expect.objectContaining({
           headers: expect.objectContaining({
             Authorization: 'Bearer test-token',
@@ -481,6 +481,45 @@ describe('HomeView', () => {
       await flushPromises()
 
       expect(axios.post).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('Vault Mode Selection', () => {
+    it('defaults to Standard, explains both modes, and warns the choice is irreversible', async () => {
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      const standard = wrapper.find('input[type="radio"][value="standard"]')
+      const survival = wrapper.find('input[type="radio"][value="survival"]')
+      expect(standard.exists()).toBe(true)
+      expect(survival.exists()).toBe(true)
+      expect((standard.element as HTMLInputElement).checked).toBe(true)
+      expect((survival.element as HTMLInputElement).checked).toBe(false)
+      expect(wrapper.text()).toContain('can be revived with caps')
+      expect(wrapper.text()).toContain('Deaths are permanent — no caps revival window.')
+      expect(wrapper.text()).toContain('cannot be changed later')
+    })
+
+    it('posts the selected survival mode', async () => {
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'new-vault' } })
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
+
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      const input = wrapper.find('input[type="number"]')
+      await input.setValue('123')
+      await wrapper.find('input[type="radio"][value="survival"]').setValue(true)
+
+      const submitBtn = findCreateButton(wrapper)
+      await submitBtn!.trigger('click')
+      await flushPromises()
+
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/v1/vaults/initiate',
+        { number: 123, boosted: false, vault_mode: 'survival' },
+        expect.anything()
+      )
     })
   })
 

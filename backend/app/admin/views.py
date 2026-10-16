@@ -123,6 +123,7 @@ class VaultAdmin(AdminModelView, model=Vault):
         Vault.water_max,
         Vault.population_max,
         Vault.radio_mode,
+        Vault.vault_mode,
         Vault.incidents_disabled,
         Vault.user,
         Vault.created_at,

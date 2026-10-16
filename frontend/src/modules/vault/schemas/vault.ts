@@ -14,6 +14,7 @@ export const vaultNumberSchema = z.object({
     .min(1, { error: 'Vault number must be at least 1' })
     .max(999, { error: 'Vault number must be 999 or less' }),
   boosted: z.boolean().default(false),
+  vaultMode: z.enum(['standard', 'survival']).default('standard'),
 })
 
 export type VaultNumberData = z.infer<typeof vaultNumberSchema>

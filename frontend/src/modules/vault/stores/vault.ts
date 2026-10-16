@@ -11,6 +11,8 @@ import type { components } from '@/core/types/api.generated'
 type VaultReadWithNumbers = components['schemas']['VaultReadWithNumbers']
 
 export type VaultWithNumbers = VaultReadWithNumbers
+/** Difficulty mode chosen at vault creation; immutable afterwards. */
+export type VaultMode = components['schemas']['VaultModeEnum']
 export const MAX_USER_VAULTS = 3
 
 type ResourceName = 'power' | 'food' | 'water'
@@ -121,7 +123,12 @@ export const useVaultStore = defineStore('vault', () => {
     }
   }
 
-  async function createVault(number: number, boosted: boolean, token: string) {
+  async function createVault(
+    number: number,
+    boosted: boolean,
+    token: string,
+    vaultMode: VaultMode = 'standard'
+  ) {
     if (!(await fetchVaults(token))) return null
     if (vaults.value.length >= MAX_USER_VAULTS) {
       toast.warning(`Creating another vault is prohibited. Limit: ${MAX_USER_VAULTS} vaults.`)
@@ -131,7 +138,7 @@ export const useVaultStore = defineStore('vault', () => {
     try {
       const response = await axios.post<{ id: string }>(
         '/api/v1/vaults/initiate',
-        { number, boosted },
+        { number, boosted, vault_mode: vaultMode },
         {
           headers: {
             Authorization: `Bearer ${token}`,

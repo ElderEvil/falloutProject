@@ -185,10 +185,23 @@ describe('Vault Store', () => {
 
       expect(axios.post).toHaveBeenCalledWith(
         '/api/v1/vaults/initiate',
-        { number: 101, boosted: false },
+        { number: 101, boosted: false, vault_mode: 'standard' },
         { headers: { Authorization: 'Bearer test-token' } }
       )
       expect(store.vaults).toEqual([mockVault])
+    })
+
+    it('posts the chosen survival mode', async () => {
+      const store = useVaultStore()
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'vault-1' } })
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] }).mockResolvedValueOnce({ data: [] })
+
+      expect(await store.createVault(101, false, 'test-token', 'survival')).toBe('vault-1')
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/v1/vaults/initiate',
+        { number: 101, boosted: false, vault_mode: 'survival' },
+        { headers: { Authorization: 'Bearer test-token' } }
+      )
     })
 
     it('reports success when the vault is created even if the refresh fails', async () => {

@@ -4,12 +4,13 @@ from typing import Self
 from pydantic import UUID4, BaseModel, Field, model_validator
 from sqlmodel import SQLModel
 
+from app.core.enums import VaultModeEnum
 from app.models.vault import VaultBase
 from app.utils.partial import optional
 
 
 class VaultCreate(VaultBase):
-    pass
+    vault_mode: VaultModeEnum = VaultModeEnum.STANDARD
 
 
 class VaultCreateWithUserID(VaultBase):
@@ -19,6 +20,7 @@ class VaultCreateWithUserID(VaultBase):
 class VaultNumber(SQLModel):
     number: int = Field(gt=0, lt=1_000)
     boosted: bool = False
+    vault_mode: VaultModeEnum = VaultModeEnum.STANDARD
 
 
 class ResourceLevelWarning(SQLModel):
@@ -126,4 +128,8 @@ class VaultReadWithNumbers(VaultRead):
 
 @optional()
 class VaultUpdate(VaultBase):
-    pass
+    @model_validator(mode="after")
+    def _reject_vault_mode_change(self) -> Self:
+        if self.vault_mode is not None:
+            raise ValueError("vault_mode is immutable and cannot be changed after creation")
+        return self

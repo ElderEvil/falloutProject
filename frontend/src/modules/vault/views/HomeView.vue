@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, ref } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { MAX_USER_VAULTS, useVaultStore } from '../stores/vault'
+import { MAX_USER_VAULTS, useVaultStore, type VaultMode } from '../stores/vault'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { Alert, AlertDescription, AlertTitle } from '@/core/components/ui/alert'
@@ -26,6 +26,19 @@ const isFlickering = inject('isFlickering', ref(true))
 
 const newVaultNumber = ref('')
 const boostedStart = ref(false)
+const vaultMode = ref<VaultMode>('standard')
+const vaultModes: { value: VaultMode; label: string; description: string }[] = [
+  {
+    value: 'standard',
+    label: 'Standard',
+    description: 'Normal difficulty. Dwellers lost in incidents can be revived with caps.',
+  },
+  {
+    value: 'survival',
+    label: 'Survival',
+    description: 'Deaths are permanent — no caps revival window.',
+  },
+]
 const showCreation = ref(false)
 const selectedVaultId = ref<string | null>(null)
 const creatingVault = ref(false)
@@ -66,13 +79,15 @@ const createVault = async () => {
     const createdId = await vaultStore.createVault(
       parseInt(newVaultNumber.value, 10),
       boosted,
-      authStore.token as string
+      authStore.token as string,
+      vaultMode.value
     )
     if (!createdId) return
 
     if (!boosted) markCreatedVault(createdId)
     newVaultNumber.value = ''
     boostedStart.value = false
+    vaultMode.value = 'standard'
     showCreation.value = false
   } finally {
     creatingVault.value = false
@@ -210,6 +225,62 @@ onMounted(async () => {
                 </span>
               </label>
             </div>
+
+            <fieldset class="mt-3">
+              <legend class="mb-2 text-xs font-bold tracking-[0.14em] text-theme-primary/60">
+                VAULT MODE
+              </legend>
+              <div class="flex flex-col gap-2">
+                <!--
+                Native radio group stays: the sr-only input keeps native radio
+                semantics (one selection, arrow-key navigation); the visible
+                card/dot are siblings styled from the bound vaultMode value.
+              -->
+                <label
+                  v-for="mode in vaultModes"
+                  :key="mode.value"
+                  :for="`vault-mode-${mode.value}`"
+                  class="flex cursor-pointer items-start gap-3 rounded border p-3 transition-colors"
+                  :class="
+                    vaultMode === mode.value
+                      ? 'border-theme-primary bg-theme-primary/10'
+                      : 'border-theme-primary/20 bg-surface hover:bg-surface-hover'
+                  "
+                >
+                  <input
+                    :id="`vault-mode-${mode.value}`"
+                    v-model="vaultMode"
+                    type="radio"
+                    name="vault-mode"
+                    :value="mode.value"
+                    class="peer sr-only"
+                  />
+                  <span
+                    class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-theme-primary/50"
+                    :class="
+                      vaultMode === mode.value
+                        ? 'border-theme-primary'
+                        : 'border-theme-primary/50 bg-surface-sunken'
+                    "
+                  >
+                    <span
+                      class="h-2.5 w-2.5 rounded-full bg-theme-primary transition-opacity"
+                      :class="vaultMode === mode.value ? 'opacity-100' : 'opacity-0'"
+                    ></span>
+                  </span>
+                  <span class="select-none text-sm text-theme-primary">
+                    <span class="font-semibold">{{ mode.label }}</span>
+                    <span class="mt-1 block text-xs leading-5 text-theme-primary/65">
+                      {{ mode.description }}
+                    </span>
+                  </span>
+                </label>
+              </div>
+              <p class="mt-2 flex items-start gap-1.5 text-xs leading-5 text-warning">
+                <Icon icon="mdi:lock-outline" class="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                Vault mode is chosen at creation and cannot be changed later.
+              </p>
+            </fieldset>
           </div>
 
           <Alert variant="default" class="mt-4 border-warning bg-warning/10 text-warning">

@@ -75,6 +75,28 @@ is real, not a rerollable button:
 The UI states the cost before the click (modal copy + button label) and surfaces the outcome as a toast;
 the ask keeps its always-on bell notification.
 
+## Vault difficulty: Survival Mode
+
+`vault.vault_mode` is `standard` (default) or `survival`. It is chosen once at vault creation and is
+**immutable** thereafter — the update schema rejects any attempt to change it (`422`), and the field is a
+plain `String(50)` column (mirroring `radio_mode`), not a PostgreSQL enum. Existing vaults stay `standard`
+via the column's server default.
+
+- **Standard** — a death is revivable for `permanent_death_days` (7) at the caps cost, then becomes a
+  permanent memorial. This path is unchanged.
+- **Survival** — every death is permanent on the spot: `DeathService.mark_as_dead` forces the permanent
+  flag for survival vaults, so `revive_dweller` rejects it with "permanently dead" and no revival window
+  exists. The dweller keeps the ordinary death cleanup (cleared room posting) and remains a visible
+  graveyard memorial.
+
+Survival deaths land in the canonical `DEAD_PERMANENT` lifecycle with `ARCHIVE` availability — the same
+immutable memorial as a standard death past its window, reached immediately. That is deliberate: the
+recycling path restores the *same* row, which the lifecycle contract forbids for permanently dead people.
+Survival adds no recyclable tombstone; future reuse must copy eligible content into a new identity. The
+per-vault mode is also the switch that a later batch reads to trigger earlier Survival-only incident
+progression (see issue #838); the standard-mode Deathclaw population gate is a separate, explicitly
+documented behavior change, not an incidental one.
+
 ## Arena morale (The Crowd Goes Wild)
 
 Finishing any arena match (duel, brawl, or hunt) lifts the whole vault: every living dweller — fighters

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.216.0 (2026-10-16)
+
+### Features
+
+* **ui:** header tooltips, help coverage and icon unification ([#1023](https://github.com/ElderEvil/falloutProject/issues/1023)) c1dbbc5
+
 ## 2.215.0 (2026-10-16)
 
 ### Features

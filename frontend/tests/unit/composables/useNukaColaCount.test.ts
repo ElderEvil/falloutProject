@@ -4,6 +4,7 @@ import { effectScope, nextTick, ref, type EffectScope, type Ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import {
   countNukaColaBottles,
+  refreshNukaColaCount,
   useNukaColaCount,
   type NukaColaCountState,
 } from '@/modules/vault/composables/useNukaColaCount'
@@ -33,8 +34,8 @@ function storageItems(...names: string[]): StorageItemsResponse {
   }
 }
 
-function newCache(): Map<string, number> {
-  return new Map<string, number>()
+function newCache(): Map<string, Ref<number | null>> {
+  return new Map<string, Ref<number | null>>()
 }
 
 describe('countNukaColaBottles', () => {
@@ -69,8 +70,8 @@ describe('useNukaColaCount', () => {
     scope.stop()
   })
 
-  function useCount(vaultId: Ref<string | null>, cache = newCache()): NukaColaCountState {
-    const state = scope.run(() => useNukaColaCount(vaultId, cache))
+  function useCount(vaultId: Ref<string | null>, cache?: Map<string, Ref<number | null>>): NukaColaCountState {
+    const state = scope.run(() => useNukaColaCount(vaultId, cache as Map<string, Ref<number | null>> | undefined))
     if (!state) throw new Error('composable did not run inside the effect scope')
     return state
   }
@@ -106,7 +107,7 @@ describe('useNukaColaCount', () => {
     expect(storageService.getStorageItems).not.toHaveBeenCalled()
   })
 
-  it('caches per vault id and skips a refetch on remount', async () => {
+  it('serves a cached count on remount and revalidates in the background', async () => {
     const cache = newCache()
     vi.mocked(storageService.getStorageItems).mockResolvedValue(storageItems('Nuka-Cola'))
 
@@ -117,7 +118,37 @@ describe('useNukaColaCount', () => {
     const second = useCount(ref('vault-1'), cache)
     expect(second.nukaColaCount.value).toBe(1)
     await flushPromises()
-    expect(storageService.getStorageItems).toHaveBeenCalledTimes(1)
+    expect(storageService.getStorageItems).toHaveBeenCalledTimes(2)
+    expect(second.nukaColaCount.value).toBe(1)
+  })
+
+  it('re-reads after storage changed between visits (stale cache never sticks)', async () => {
+    const cache = newCache()
+    vi.mocked(storageService.getStorageItems).mockResolvedValueOnce(storageItems())
+
+    useCount(ref('vault-1'), cache)
+    await flushPromises()
+
+    const returned = useCount(ref('vault-1'), cache)
+    expect(returned.nukaColaCount.value).toBe(0)
+    vi.mocked(storageService.getStorageItems).mockResolvedValueOnce(storageItems('Nuka-Cola'))
+    await flushPromises()
+    expect(returned.nukaColaCount.value).toBe(1)
+  })
+
+  it('refreshNukaColaCount updates shared-default mounted headers after a claim', async () => {
+    vi.mocked(storageService.getStorageItems).mockResolvedValue(storageItems('Nuka-Cola'))
+
+    const { nukaColaCount } = useCount(ref('vault-1'))
+    await flushPromises()
+    expect(nukaColaCount.value).toBe(1)
+
+    vi.mocked(storageService.getStorageItems).mockResolvedValue(
+      storageItems('Nuka-Cola', 'Nuka-Cola', 'Nuka-Cola')
+    )
+    await refreshNukaColaCount('vault-1')
+
+    expect(nukaColaCount.value).toBe(3)
   })
 
   it('shares one in-flight request across concurrent mounts', async () => {
@@ -140,13 +171,16 @@ describe('useNukaColaCount', () => {
     expect(second.nukaColaCount.value).toBe(1)
   })
 
-  it('keeps the count unloaded when the storage fetch fails', async () => {
+  it('keeps the count unloaded when the storage fetch fails and logs context', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     vi.mocked(storageService.getStorageItems).mockRejectedValueOnce(new Error('offline'))
 
-    const { nukaColaCount } = useCount(ref('vault-1'))
+    const { nukaColaCount } = useCount(ref('vault-1'), newCache())
 
     await flushPromises()
     expect(nukaColaCount.value).toBeNull()
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Nuka-Cola count stays unloaded'))
+    warnSpy.mockRestore()
   })
 
   it('ignores a late count from a vault the header has left', async () => {

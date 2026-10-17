@@ -450,3 +450,37 @@ async def test_grid_config_is_served_from_backend_constants(
     assert data["shaft_x"] == SHAFT_X
     assert data["right_slot_starts"][0] == SHAFT_X + ELEVATOR_UNITS
     assert len(data["left_slot_starts"]) == 2
+
+
+async def test_split_and_merge_room_endpoints(async_client, async_session, vault, superuser_token_headers):
+    from app.tests.test_services.test_room_service import _create_existing_room
+
+    source = await _create_existing_room(async_session, vault.id, coordinate_x=7, size=6)
+    split = await async_client.post(f"/rooms/split/{source.id}", headers=superuser_token_headers)
+    assert split.status_code == 200
+    pieces = split.json()
+    assert [r["size"] for r in pieces] == [3, 3]
+    merge = await async_client.post(
+        f"/rooms/merge/{pieces[1]['id']}", json={"other_room_id": pieces[0]["id"]}, headers=superuser_token_headers
+    )
+    assert merge.status_code == 200
+    assert merge.json()["id"] == str(source.id)
+    assert merge.json()["size"] == 6
+
+
+@pytest.mark.parametrize("action", ["split", "merge"])
+async def test_room_remodel_requires_ownership(async_client, async_session, vault, action):
+    from app.tests.test_services.test_room_service import _create_existing_room
+
+    source = await _create_existing_room(async_session, vault.id, coordinate_x=7, size=6)
+    headers = await authentication_token_from_email(
+        client=async_client, email="remodel-visitor@example.com", db_session=async_session
+    )
+    response = await async_client.post(
+        f"/rooms/{action}/{source.id}",
+        json={"other_room_id": str(source.id)} if action == "merge" else {},
+        headers=headers,
+    )
+    assert response.status_code == 403
+    await async_session.refresh(source)
+    assert source.size == 6

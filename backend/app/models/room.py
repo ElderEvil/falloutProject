@@ -52,6 +52,8 @@ class RoomBase(SQLModel):
 
 
 class Room(BaseUUIDModel, RoomBase, TimeStampMixin, table=True):
+    # NULL retains the legacy formula; remodeling allocates the exact rounded refund.
+    refund_caps: int | None = Field(default=None, ge=0)
     vault_id: UUID4 = Field(default=None, foreign_key="vault.id", index=True)
     vault: "Vault" = Relationship(back_populates="rooms")
 

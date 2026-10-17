@@ -18,7 +18,8 @@ from sqlalchemy import and_
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.models.room import Room
+from app.core.game_config import game_config
+from app.models.room import Room, RoomBase
 from app.utils.exceptions import VaultOperationException
 
 ELEVATOR = "elevator"
@@ -219,3 +220,16 @@ async def validate_elevator_destroy(db_session: AsyncSession, elevator_room: Roo
             f"Cannot destroy this elevator. It provides the only access to level {elevator_level} "
             f"which contains {len(other_rooms_on_level)} other room(s)."
         )
+
+
+def room_refund(room: RoomBase) -> int:
+    """Exact allocated refund, or the historical formula for untouched rooms."""
+    allocated = getattr(room, "refund_caps", None)
+    if allocated is not None:
+        return int(allocated)
+    total = room.base_cost + (room.incremental_cost or 0)
+    if room.tier >= 2:
+        total += room.t2_upgrade_cost or 0
+    if room.tier >= 3:
+        total += room.t3_upgrade_cost or 0
+    return int(total * room.segment_count * game_config.resource.destroy_room_refund_rate)

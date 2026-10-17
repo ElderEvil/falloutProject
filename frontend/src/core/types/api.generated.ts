@@ -3843,6 +3843,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rooms/split/{room_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Split Room
+         * @description Split a merged room into its base segments without charging caps.
+         */
+        post: operations["split_room_api_v1_rooms_split__room_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rooms/merge/{room_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge Rooms
+         * @description Merge two explicitly chosen adjacent rooms.
+         */
+        post: operations["merge_rooms_api_v1_rooms_merge__room_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/storage/vault/{vault_id}/space": {
         parameters: {
             query?: never;
@@ -9445,12 +9485,8 @@ export interface components {
             quest_type: components["schemas"]["QuestType"];
             /** Quest Category */
             quest_category?: string | null;
-            /**
-             * Duration Minutes
-             * @description Quest duration in minutes
-             * @default 60
-             */
-            duration_minutes: number;
+            /** Duration Minutes */
+            duration_minutes?: number | null;
             /** Chain Id */
             chain_id?: string | null;
             /**
@@ -9514,8 +9550,12 @@ export interface components {
             quest_type: components["schemas"]["QuestType"];
             /** Quest Category */
             quest_category?: string | null;
-            /** Duration Minutes */
-            duration_minutes?: number | null;
+            /**
+             * Duration Minutes
+             * @description Quest duration in minutes
+             * @default 60
+             */
+            duration_minutes: number;
             /** Chain Id */
             chain_id?: string | null;
             /**
@@ -9995,6 +10035,14 @@ export interface components {
             capacity_formula?: string | null;
             /** Output Formula */
             output_formula?: string | null;
+        };
+        /** RoomMerge */
+        RoomMerge: {
+            /**
+             * Other Room Id
+             * Format: uuid4
+             */
+            other_room_id: string;
         };
         /** RoomRead */
         RoomRead: {
@@ -13966,7 +14014,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -13997,7 +14045,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14028,7 +14076,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14059,7 +14107,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14092,7 +14140,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14123,7 +14171,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14154,7 +14202,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14186,7 +14234,7 @@ export interface operations {
             header?: never;
             path: {
                 incident_id: string;
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14218,7 +14266,7 @@ export interface operations {
             header?: never;
             path: {
                 incident_id: string;
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14249,7 +14297,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14283,7 +14331,7 @@ export interface operations {
             header?: never;
             path: {
                 incident_id: string;
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14319,7 +14367,7 @@ export interface operations {
             header?: never;
             path: {
                 incident_id: string;
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14351,7 +14399,7 @@ export interface operations {
             header?: never;
             path: {
                 incident_id: string;
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14387,7 +14435,7 @@ export interface operations {
             header?: never;
             path: {
                 incident_id: string;
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14424,7 +14472,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14689,7 +14737,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14721,7 +14769,7 @@ export interface operations {
             header?: never;
             path: {
                 location_id: string;
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -16951,6 +16999,72 @@ export interface operations {
             };
         };
     };
+    split_room_api_v1_rooms_split__room_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    merge_rooms_api_v1_rooms_merge__room_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoomMerge"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_storage_space_api_v1_storage_vault__vault_id__space_get: {
         parameters: {
             query?: never;
@@ -17139,7 +17253,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -17170,7 +17284,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -17201,7 +17315,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -17232,7 +17346,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -17265,7 +17379,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -17298,7 +17412,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -17942,7 +18056,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -17973,7 +18087,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -18011,7 +18125,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -18104,7 +18218,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -18137,7 +18251,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -18170,7 +18284,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -18203,7 +18317,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -18236,7 +18350,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };

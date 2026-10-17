@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoomStore } from '../stores/room'
-import { isRoomAtRowEnd } from '../utils/room'
+import {
+  isRoomAtRowEnd,
+  canRemodelRoom,
+  getMergeCandidates,
+  getRoomSegmentCount,
+} from '../utils/room'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
 import { Button } from '@/core/components/ui/button'
@@ -24,6 +29,7 @@ interface Props {
   upgradeInfo: UpgradeInfo | null
   isUpgrading: boolean
   isDestroying: boolean
+  isRemodeling?: boolean
   isVaultDoor: boolean
   assignedDwellerCount: number
   disabled?: boolean
@@ -35,10 +41,20 @@ const isInnerRoom = computed(
   () => props.room.name.toLowerCase() !== 'elevator' && !isRoomAtRowEnd(roomStore.rooms, props.room)
 )
 
+const canSplit = computed(
+  () => canRemodelRoom(props.room) && (props.room.size ?? props.room.size_min) > props.room.size_min
+)
+const mergeCandidates = computed(() => getMergeCandidates(roomStore.rooms, props.room))
+const busy = computed(
+  () => props.disabled || props.isUpgrading || props.isDestroying || props.isRemodeling
+)
+
 const emit = defineEmits<{
   upgrade: []
   destroy: []
   unassignAll: []
+  split: []
+  merge: [otherRoomId: string]
 }>()
 </script>
 
@@ -52,7 +68,7 @@ const emit = defineEmits<{
       <Button
         v-if="upgradeInfo?.canUpgrade"
         @click="emit('upgrade')"
-        :disabled="disabled || isUpgrading"
+        :disabled="busy"
         variant="secondary"
         size="sm"
         class="action-btn action-btn--upgrade justify-start"
@@ -74,13 +90,37 @@ const emit = defineEmits<{
 
       <Button
         @click="emit('unassignAll')"
-        :disabled="disabled || assignedDwellerCount === 0"
+        :disabled="busy || assignedDwellerCount === 0"
         variant="secondary"
         size="sm"
         class="action-btn action-btn--half justify-start"
       >
         <Icon icon="mdi:account-remove" class="h-4 w-4" />
         Unassign All Dwellers
+      </Button>
+
+      <Button
+        v-if="canSplit"
+        :disabled="busy"
+        @click="emit('split')"
+        variant="secondary"
+        size="sm"
+        class="action-btn justify-start"
+      >
+        <Icon icon="mdi:arrow-split-vertical" class="h-4 w-4" />
+        Split into {{ getRoomSegmentCount(room) }} rooms
+      </Button>
+      <Button
+        v-for="neighbor in mergeCandidates"
+        :key="neighbor.id"
+        :disabled="busy"
+        @click="emit('merge', neighbor.id)"
+        variant="secondary"
+        size="sm"
+        class="action-btn justify-start"
+      >
+        <Icon icon="mdi:arrow-collapse-horizontal" class="h-4 w-4" />
+        Merge {{ neighbor.coordinate_x! < room.coordinate_x! ? 'left' : 'right' }}
       </Button>
 
       <TooltipProvider v-if="isVaultDoor" :delay-duration="200">
@@ -102,7 +142,7 @@ const emit = defineEmits<{
       <Button
         v-else
         @click="emit('destroy')"
-        :disabled="disabled || isDestroying || isInnerRoom"
+        :disabled="busy || isInnerRoom"
         :title="isInnerRoom ? 'Remove the outer rooms first.' : undefined"
         variant="secondary"
         size="sm"

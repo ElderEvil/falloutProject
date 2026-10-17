@@ -6,6 +6,7 @@ import { useRoomStore } from '../stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
 import { useRoomDestroy } from './useRoomDestroy'
+import { getErrorMessage } from '@/core/utils/errorHandler'
 import { getRoomSegmentCount } from '../utils/room'
 
 export function useRoomUpgrade(
@@ -23,6 +24,7 @@ export function useRoomUpgrade(
 
   const isUpgrading = ref(false)
   const justUpgraded = ref(false)
+  const isRemodeling = ref(false)
 
   const upgradeInfo = computed(() => {
     if (!room.value) return null
@@ -112,8 +114,34 @@ export function useRoomUpgrade(
     })
   }
 
+  const handleRemodel = async (otherRoomId?: string) => {
+    if (!room.value || !authStore.token || isRemodeling.value) return
+    const verb = otherRoomId ? 'Merge' : 'Split'
+    if (
+      !confirm(
+        `${verb} ${room.value.name}? This is free and preserves dwellers, capacity and refund value.`
+      )
+    )
+      return
+    isRemodeling.value = true
+    actionError.value = null
+    try {
+      await roomStore.remodelRoom(room.value.id, authStore.token, otherRoomId)
+      toast.success(otherRoomId ? 'Rooms merged.' : 'Room split into base segments.')
+      emitRoomUpdated()
+      emitClose()
+    } catch (error) {
+      actionError.value = getErrorMessage(error)
+      toast.error(actionError.value)
+    } finally {
+      isRemodeling.value = false
+    }
+  }
+
   return {
     isUpgrading,
+    isRemodeling,
+    handleRemodel,
     isDestroying,
     justUpgraded,
     upgradeInfo,

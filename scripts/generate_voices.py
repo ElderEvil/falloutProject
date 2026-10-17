@@ -99,7 +99,9 @@ def resolve_voice(entry: dict, registry: dict[str, str]) -> str:
     voice_type = entry.get("voice_type", "echo")
     voice_id = registry.get(voice_type)
     if not voice_id:
-        raise ValueError(f"{entry.get('key', '<entry>')}: voice_type '{voice_type}' not in manifest voice registry")
+        raise ValueError(
+            f"{entry.get('key', '<entry>')}: voice_type '{voice_type}' not in manifest voice registry"
+        )
     return voice_id
 
 

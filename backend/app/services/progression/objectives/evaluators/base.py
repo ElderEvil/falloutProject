@@ -20,7 +20,6 @@ from typing import Any
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import ObjectiveCategoryEnum
 from app.core.event_bus import EventBus, GameEvent
 from app.db.session import async_session_maker
 from app.models.objective import Objective
@@ -169,19 +168,13 @@ class ObjectiveEvaluator(abc.ABC):
         link.progress = objective.target_amount
         link.reward_snapshot = link.reward_snapshot or objective.reward
         await db_session.commit()
-        from app.crud.objective import objective_crud
 
-        claim_locked = (
-            objective.category == ObjectiveCategoryEnum.STARTER
-            and await objective_crud.get_current_starter_id(db_session, vault_id) != objective.id
-        )
         await self._event_bus.emit(
             GameEvent.OBJECTIVE_COMPLETED,
             vault_id,
             {
                 "objective_id": str(objective.id),
                 "challenge": objective.challenge,
-                "ready_to_claim": not claim_locked,
-                **({"claim_locked": True} if claim_locked else {}),
+                "ready_to_claim": True,
             },
         )

@@ -106,22 +106,12 @@ const emptyMessage = computed(() =>
     : `No ${effectiveTab.value} objectives available`
 )
 
-function isClaimLocked(objective: Objective): boolean {
-  return (
-    !objective.is_completed &&
-    objective.category === STARTER_TAB &&
-    !isRetiredStarter(objective) &&
-    objective.id !== currentStarter.value?.id
-  )
-}
-
 /** Claimable rewards per category, so a tab shows its pending claims at a glance. */
 const claimableCounts = computed(() => {
   const counts: Record<string, number> = {}
   for (const objective of objectivesStore.objectives) {
     if (!visibleTabs.value.some((tab) => tab.key === objective.category)) continue
-    if (isObjectiveClaimable(objective) && !isClaimLocked(objective))
-      counts[objective.category] = (counts[objective.category] ?? 0) + 1
+    if (isObjectiveClaimable(objective)) counts[objective.category] = (counts[objective.category] ?? 0) + 1
   }
   return counts
 })
@@ -263,7 +253,6 @@ function closeClaimModal(): void {
                     :key="objective.id"
                     :objective="objective"
                     :claiming="isClaiming"
-                    :claim-locked="isClaimLocked(objective)"
                     @claim="handleClaimObjective"
                   />
                 </div>

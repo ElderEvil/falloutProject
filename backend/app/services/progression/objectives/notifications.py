@@ -64,7 +64,6 @@ async def handle_objective_completed(_event_type: str, vault_id: UUID4, data: di
                         "objective_id": str(objective_id),
                         "reward": objective.reward,
                         "ready_to_claim": data.get("ready_to_claim", False),
-                        "claim_locked": data.get("claim_locked", False),
                     },
                 ),
                 context=f"objective_completed vault={vault_id} objective={objective_id}",

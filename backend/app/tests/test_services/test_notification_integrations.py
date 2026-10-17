@@ -19,28 +19,33 @@ from app.services.radio_service import RadioService
 
 
 class TestObjectiveProgressNotifications:
-    @pytest.mark.parametrize("locked", [False, True])
-    async def test_earned_objective_explains_claim_availability(self, async_session, user_with_vault, locked):
+    async def test_earned_objective_explains_claim_availability(self, async_session, user_with_vault):
         user, vault = user_with_vault
         with (
             patch("app.services.notification_service.manager.send_personal_message", new_callable=AsyncMock),
             patch("app.services.notification_service.sse_manager.publish", new_callable=AsyncMock),
         ):
-            notification = await NotificationService.notify_objective_completed(
+            ready = await NotificationService.notify_objective_completed(
                 async_session,
                 user.id,
                 vault.id,
                 "Scrap a rare weapon",
                 "300 caps",
-                meta_data={"ready_to_claim": not locked, "claim_locked": locked},
+                meta_data={"ready_to_claim": True},
             )
-        assert notification.notification_type == NotificationType.OBJECTIVE_COMPLETED
-        if locked:
-            assert notification.title == "Objective Progress Saved"
-            assert "claim earlier starter rewards first" in notification.message
-        else:
-            assert notification.title == "Objective Reward Ready"
-            assert "claim 300 caps in Objectives" in notification.message
+            pending = await NotificationService.notify_objective_completed(
+                async_session,
+                user.id,
+                vault.id,
+                "Scrap a rare weapon",
+                "300 caps",
+                meta_data={"ready_to_claim": False},
+            )
+        assert ready.notification_type == NotificationType.OBJECTIVE_COMPLETED
+        assert ready.title == "Objective Reward Ready"
+        assert "claim 300 caps in Objectives" in ready.message
+        assert pending.title == "Objective Complete!"
+        assert "completed! Reward: 300 caps" in pending.message
 
 
 class TestIncidentNotifications:

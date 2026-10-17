@@ -21,11 +21,11 @@ intact when touching these flows.
 - The authored `starter` category is the ordered **vault guide**, including post-Office chapters. The lowest
   unclaimed sequence is current and advances only after a claim. The guide is visible across vault screens;
   everyday objectives become visible alongside it after the Office chapter.
-- Actions count toward all assigned starter steps as they happen, including later steps. Saved progress does
-  not unlock an early reward claim; future earned steps display a locked claim and announce progress saved.
+- Actions count toward all assigned starter steps as they happen, including later steps. Earned rewards are
+  claimable in any order as soon as they are earned.
 - Already-achieved state (rooms, staffing, population, levels, completed training and quests) may satisfy the
   current guided milestone. Derive this on reads without writing; validate again during the claim. Event counters
-  such as resource earnings and scrapping keep their recorded progress. Later steps cannot be claimed early.
+  such as resource earnings and scrapping keep their recorded progress.
 - The starter scrap objective counts a rare **item instance** scrapped from Storage; finding it in the
   wasteland is not a requirement. Recipe learning separately follows the named catalog recipe's unlock rule,
   so a rare loot variant of a common recipe may yield materials without unlocking a schematic.

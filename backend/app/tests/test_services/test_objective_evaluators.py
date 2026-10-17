@@ -512,14 +512,14 @@ async def test_all_assigned_starter_steps_record_early_progress(
 
 
 @pytest.mark.asyncio
-async def test_storage_scrap_counts_early_but_rewards_stay_in_order(
+async def test_storage_scrap_counts_early_and_rewards_claim_in_any_order(
     async_session: AsyncSession, vault, fresh_event_bus, patched_session_maker
 ) -> None:
     from app.models.weapon import Weapon
     from app.services.item_service import item_service
     from app.services.recipe_unlock_service import catalog_entry
     from app.services.reward_service import reward_service
-    from app.utils.exceptions import ResourceConflictException, ValidationException
+    from app.utils.exceptions import ResourceConflictException
     from app.utils.item_factory import build_weapon
 
     current = Objective(
@@ -571,16 +571,16 @@ async def test_storage_scrap_counts_early_but_rewards_stay_in_order(
         {
             "objective_id": str(future.id),
             "challenge": future.challenge,
-            "ready_to_claim": False,
-            "claim_locked": True,
+            "ready_to_claim": True,
         }
     ]
-    with pytest.raises(ValidationException, match="current guided objective"):
-        await reward_service.claim_objective_reward(async_session, future.id, vault.id)
+
+    await reward_service.claim_objective_reward(async_session, future.id, vault.id)
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == initial_caps + 300
 
     await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "caps", "amount": 1})
     await reward_service.claim_objective_reward(async_session, current.id, vault.id)
-    await reward_service.claim_objective_reward(async_session, future.id, vault.id)
     await async_session.refresh(vault)
     assert vault.bottle_caps == initial_caps + 310
     with pytest.raises(ResourceConflictException, match="already claimed"):

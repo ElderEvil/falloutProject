@@ -106,7 +106,6 @@ const earned = computed(() => {
   return !!objective && objective.progress >= objective.total
 })
 const ready = computed(() => !replayMode.value && earned.value && isServerCurrent.value)
-const blockedByEarlier = computed(() => !replayMode.value && earned.value && !isServerCurrent.value)
 const showContinue = computed(() => {
   const lesson = currentLesson.value
   return !!lesson && (replayMode.value || lesson.kind !== 'objective-explanation')
@@ -322,9 +321,6 @@ const showNavigate = computed(
 const navigateToLesson = () => {
   if (navPath.value) void router.push(navPath.value)
 }
-const openStarter = () => {
-  if (vaultId.value) void router.push(`/vault/${vaultId.value}/objectives`)
-}
 
 const start = () => patch(vaultId.value, { welcomed: true })
 const skipTourAction = () => skipTour(vaultId.value)
@@ -427,15 +423,6 @@ function onClaim() {
             >
               {{ navLabel }}
             </Button>
-            <Button
-              v-if="blockedByEarlier"
-              size="sm"
-              variant="outline"
-              :disabled="claiming"
-              @click="openStarter"
-            >
-              Open Starter
-            </Button>
             <Button size="sm" variant="ghost" :disabled="claiming" @click="skipStepAction">
               Skip step
             </Button>
@@ -450,9 +437,6 @@ function onClaim() {
             Could not refresh the guide. Retry.
           </Alert>
           <Alert v-if="blockedReason" class="onboarding-note">{{ blockedReason }}</Alert>
-          <Alert v-if="blockedByEarlier" class="onboarding-note">
-            Claim your earlier reward in Starter first.
-          </Alert>
           <Alert v-if="claimError" variant="destructive" class="onboarding-error">
             {{ claimError }}
           </Alert>

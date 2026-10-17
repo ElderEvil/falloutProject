@@ -89,20 +89,15 @@ beforeEach(() => {
   document.querySelectorAll('[role="tooltip"]').forEach((element) => element.remove())
 })
 
-it('saves future starter progress without offering or counting a locked claim', async () => {
+it('offers an earned starter reward without waiting for earlier steps', async () => {
   objectivesStore.objectives = [starterObjective(0), { ...starterObjective(1), progress: 1 }]
   wrapper = mountView()
   await flushPromises()
 
-  expect(wrapper.text()).toContain('Progress saved. Claim earlier starter rewards first.')
-  expect(wrapper.find('.claim-btn').attributes('disabled')).toBeDefined()
-  expect(wrapper.find('[aria-label="1 reward ready to claim"]').exists()).toBe(false)
-
-  objectivesStore.objectives[0]!.is_completed = true
-  await nextTick()
-
-  expect(wrapper.text()).not.toContain('Progress saved. Claim earlier starter rewards first.')
-  expect(wrapper.find('.claim-btn').attributes('disabled')).toBeUndefined()
+  expect(wrapper.text()).not.toContain('Claim earlier starter rewards first.')
+  const claimButtons = wrapper.findAll('.claim-btn')
+  expect(claimButtons.length).toBe(1)
+  expect(claimButtons[0]!.attributes('disabled')).toBeUndefined()
   expect(wrapper.find('[aria-label="1 reward ready to claim"]').exists()).toBe(true)
 })
 

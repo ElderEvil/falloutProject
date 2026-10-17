@@ -569,10 +569,7 @@ class NotificationService:
         meta_data: dict[str, Any] | None = None,
     ):
         """Notify user that an objective has been completed."""
-        if (meta_data or {}).get("claim_locked"):
-            title = "Objective Progress Saved"
-            message = f"'{objective_challenge}' complete — claim earlier starter rewards first to receive {reward}"
-        elif (meta_data or {}).get("ready_to_claim"):
+        if (meta_data or {}).get("ready_to_claim"):
             title = "Objective Reward Ready"
             message = f"'{objective_challenge}' complete — claim {reward} in Objectives"
         else:

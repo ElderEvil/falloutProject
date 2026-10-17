@@ -69,10 +69,10 @@ async def test_objective_claim_rejects_foreign_vault_and_unassigned_objective(
         app.dependency_overrides.pop(get_current_active_user, None)
 
 
-async def test_current_guided_state_is_claimable_without_repeating_past_actions(
+async def test_earned_starter_state_is_claimable_in_any_order(
     async_client: AsyncClient, async_session: AsyncSession, user: User, vault: Vault, dweller
 ) -> None:
-    """Already-met population milestones count, but future tutorial steps cannot be claimed early."""
+    """Already-met population milestones count on read, and any earned starter step claims."""
     objectives = [
         Objective(
             challenge=f"Population step {sequence}",
@@ -97,8 +97,8 @@ async def test_current_guided_state_is_claimable_without_repeating_past_actions(
         assert current["progress"] == 1
         await async_session.refresh(links[0])
         assert links[0].progress == 0  # GET does not write.
-        future = await async_client.post(f"/objectives/{vault.id}/{objectives[1].id}/claim")
-        assert future.status_code == 400
+        later_claim = await async_client.post(f"/objectives/{vault.id}/{objectives[1].id}/claim")
+        assert later_claim.status_code == 200, later_claim.text
         current_claim = await async_client.post(f"/objectives/{vault.id}/{objectives[0].id}/claim")
         assert current_claim.status_code == 200, current_claim.text
     finally:

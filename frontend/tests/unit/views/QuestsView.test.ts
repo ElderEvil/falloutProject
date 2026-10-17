@@ -1030,6 +1030,18 @@ describe('QuestsView', () => {
       })
     }
 
+    it('puts claimable rewards before active quests regardless of server order', async () => {
+      wrapper = mountWithQuests([
+        quest({ id: 'active', started_at: '2025-01-02T00:00:00Z' }),
+        quest({ id: 'ready-1', is_reward_ready: true }),
+        quest({ id: 'ready-2', is_reward_ready: true }),
+      ])
+      await nextTick()
+      expect(
+        wrapper.findAllComponents({ name: 'QuestCard' }).map((card) => card.props('quest').id)
+      ).toEqual(['ready-1', 'ready-2', 'active'])
+    })
+
     it('shows Available and Rewards-ready totals in the page header', async () => {
       wrapper = mountWithQuests([
         quest({ id: 'quest-1' }),
@@ -1050,9 +1062,7 @@ describe('QuestsView', () => {
       ])
       await flushPromises()
 
-      const activeTab = wrapper
-        .findAll('[role="tab"]')
-        .find((tab) => tab.text().includes('Active'))
+      const activeTab = wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes('Active'))
       const badge = activeTab?.find('[data-slot="badge"]')
       expect(badge?.exists()).toBe(true)
       expect(badge?.text()).toContain('2')
@@ -1072,9 +1082,7 @@ describe('QuestsView', () => {
       wrapper = mountWithQuests([quest({ id: 'quest-1' })])
       await flushPromises()
 
-      const activeTab = wrapper
-        .findAll('[role="tab"]')
-        .find((tab) => tab.text().includes('Active'))
+      const activeTab = wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes('Active'))
       expect(activeTab?.find('[data-slot="badge"]').exists()).toBe(false)
     })
 

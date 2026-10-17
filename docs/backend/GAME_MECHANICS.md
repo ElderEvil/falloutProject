@@ -343,6 +343,12 @@ including picker previews. Creature artwork retains its native enemy-facing dire
 Incomplete partner edits stay local and disable Start until selection is complete;
 polling must not overwrite an open bot selection.
 
+## Storage equipment access
+
+- Dwellers exploring or on quests cannot equip weapons, outfits or pets from vault storage;
+  the API rejects these requests with 409 until they return. The equipment panel explains the restriction.
+- Equipping loot found during an expedition uses its separate exploration flow and remains available.
+
 ## Storage space: nuka-cola is free
 
 Nuka-cola bottles do not consume vault storage. `StorageRepository.count_items` counts every

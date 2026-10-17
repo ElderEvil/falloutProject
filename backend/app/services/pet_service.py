@@ -11,6 +11,7 @@ from app.crud.pet import pet as pet_crud
 from app.models.pet import Pet
 from app.models.user import User
 from app.services.access_service import get_accessible_vault, verify_dweller_access
+from app.utils.dweller_availability import require_vault_equipment_access
 from app.utils.exceptions import ResourceNotFoundException
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,7 @@ class PetService:
         belong to that same vault.
         """
         dweller = await verify_dweller_access(dweller_id, user, db_session)
+        require_vault_equipment_access(dweller)
         pet = await pet_crud.get(db_session, pet_id)
         pet_vault_id = await get_item_vault_id(db_session, pet)
         if pet_vault_id is None or pet_vault_id != dweller.vault_id:

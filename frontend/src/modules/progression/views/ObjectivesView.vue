@@ -94,11 +94,13 @@ const effectiveTab = computed(() =>
     : (visibleTabs.value[0]?.key ?? STARTER_TAB)
 )
 const visibleObjectives = computed(() =>
-  objectivesStore.objectives.filter((objective) =>
-    effectiveTab.value === 'completed'
-      ? objective.is_completed
-      : objective.category === effectiveTab.value && !objective.is_completed
-  )
+  objectivesStore.objectives
+    .filter((objective) =>
+      effectiveTab.value === 'completed'
+        ? objective.is_completed
+        : objective.category === effectiveTab.value && !objective.is_completed
+    )
+    .sort((a, b) => Number(isObjectiveClaimable(b)) - Number(isObjectiveClaimable(a)))
 )
 const emptyMessage = computed(() =>
   effectiveTab.value === 'completed'
@@ -111,7 +113,8 @@ const claimableCounts = computed(() => {
   const counts: Record<string, number> = {}
   for (const objective of objectivesStore.objectives) {
     if (!visibleTabs.value.some((tab) => tab.key === objective.category)) continue
-    if (isObjectiveClaimable(objective)) counts[objective.category] = (counts[objective.category] ?? 0) + 1
+    if (isObjectiveClaimable(objective))
+      counts[objective.category] = (counts[objective.category] ?? 0) + 1
   }
   return counts
 })

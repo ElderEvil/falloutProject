@@ -13,6 +13,7 @@ from sqlmodel import col
 
 from app.core.enums import ADULT_AGE_GROUPS, DwellerStatusEnum
 from app.models.dweller import Dweller
+from app.utils.exceptions import ResourceConflictException
 
 #: Statuses that make a dweller unavailable for a new assignment.
 UNAVAILABLE_STATUSES: frozenset[DwellerStatusEnum] = frozenset(
@@ -56,3 +57,9 @@ def available_dweller_conditions(*, require_healthy: bool = False) -> tuple:
     if require_healthy:
         conditions.append(col(Dweller.health) > 0)
     return tuple(conditions)
+
+
+def require_vault_equipment_access(dweller: Dweller) -> None:
+    """Storage equipment cannot be transferred to dwellers away from the vault."""
+    if dweller.status in (DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING):
+        raise ResourceConflictException(detail="Cannot change equipment while outside the vault.")

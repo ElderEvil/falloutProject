@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useEquipmentStore } from '@/modules/combat/stores/equipment'
 import { usePetsStore } from '@/modules/pets/stores/pets'
@@ -18,10 +18,15 @@ const authStore = useAuthStore()
 
 const dweller = computed(() => ctx.dweller.value)
 const vaultId = computed(() => ctx.vaultId.value)
+const isAway = computed(() => ['exploring', 'questing'].includes(dweller.value?.status ?? ''))
 
 const showInventoryModal = ref(false)
 const petActionPending = ref(false)
 const inventoryMode = ref<'weapon' | 'outfit' | 'pet'>('weapon')
+
+watch(isAway, (away) => {
+  if (away) showInventoryModal.value = false
+})
 
 // Get equipped items from the dweller object
 const equippedWeapon = computed(() => dweller.value?.weapon ?? null)
@@ -30,7 +35,11 @@ const equippedPet = computed(() => dweller.value?.pet ?? null)
 
 // Get available (unequipped) items
 const availableWeapons = computed(() => equipmentStore.getAvailableWeapons())
-const availableOutfits = computed(() => equipmentStore.getAvailableOutfits())
+const availableOutfits = computed(() =>
+  equipmentStore
+    .getAvailableOutfits()
+    .filter((outfit) => !outfit.gender || outfit.gender === dweller.value?.gender)
+)
 const availablePets = computed(() => petsStore.getAvailablePets())
 
 onMounted(async () => {
@@ -55,14 +64,14 @@ const handleUnequipOutfit = async () => {
 }
 
 const handleEquipWeapon = async (weaponId: string) => {
-  if (!authStore.token || !dweller.value?.id) return
+  if (isAway.value || !authStore.token || !dweller.value?.id) return
   await equipmentStore.equipWeapon(dweller.value.id, weaponId, authStore.token)
   showInventoryModal.value = false
   ctx.actions.refresh()
 }
 
 const handleEquipOutfit = async (outfitId: string) => {
-  if (!authStore.token || !dweller.value?.id) return
+  if (isAway.value || !authStore.token || !dweller.value?.id) return
   await equipmentStore.equipOutfit(dweller.value.id, outfitId, authStore.token)
   showInventoryModal.value = false
   ctx.actions.refresh()
@@ -80,7 +89,7 @@ const handleUnequipPet = async () => {
 }
 
 const handleEquipPet = async (petId: string) => {
-  if (petActionPending.value || !authStore.token || !dweller.value?.id) return
+  if (isAway.value || petActionPending.value || !authStore.token || !dweller.value?.id) return
   petActionPending.value = true
   try {
     const pet = await petsStore.equipPet(dweller.value.id, petId, authStore.token)
@@ -125,6 +134,9 @@ const modalIcon = computed(() => {
 
 <template>
   <div class="dweller-equipment">
+    <p v-if="isAway" class="text-sm text-theme-accent mb-4" role="status">
+      Return to the vault to change equipment.
+    </p>
     <div class="equipment-grid">
       <!-- Weapon Slot -->
       <div class="equipment-slot">
@@ -138,11 +150,17 @@ const modalIcon = computed(() => {
           :item="equippedWeapon"
           type="weapon"
           :equipped="true"
-          :show-actions="true"
+          :show-actions="!isAway"
           @unequip="handleUnequipWeapon"
         />
 
-        <button v-else type="button" class="empty-slot" @click="openWeaponInventory">
+        <button
+          v-else
+          type="button"
+          class="empty-slot"
+          :disabled="isAway"
+          @click="openWeaponInventory"
+        >
           <Icon icon="mdi:plus-circle" class="empty-icon" />
           <p class="empty-text">Click to equip weapon</p>
         </button>
@@ -160,11 +178,17 @@ const modalIcon = computed(() => {
           :item="equippedOutfit"
           type="outfit"
           :equipped="true"
-          :show-actions="true"
+          :show-actions="!isAway"
           @unequip="handleUnequipOutfit"
         />
 
-        <button v-else type="button" class="empty-slot" @click="openOutfitInventory">
+        <button
+          v-else
+          type="button"
+          class="empty-slot"
+          :disabled="isAway"
+          @click="openOutfitInventory"
+        >
           <Icon icon="mdi:plus-circle" class="empty-icon" />
           <p class="empty-text">Click to equip outfit</p>
         </button>
@@ -181,12 +205,18 @@ const modalIcon = computed(() => {
           v-if="equippedPet"
           :pet="equippedPet"
           :equipped="true"
-          :show-actions="true"
+          :show-actions="!isAway"
           :disabled="petActionPending"
           @unequip="handleUnequipPet"
         />
 
-        <button v-else type="button" class="empty-slot" @click="openPetInventory">
+        <button
+          v-else
+          type="button"
+          class="empty-slot"
+          :disabled="isAway"
+          @click="openPetInventory"
+        >
           <Icon icon="mdi:plus-circle" class="empty-icon" />
           <p class="empty-text">Click to equip pet</p>
         </button>
@@ -195,64 +225,65 @@ const modalIcon = computed(() => {
 
     <!-- Inventory Modal -->
     <TerminalModal
-      v-model:open="showInventoryModal"
+      :open="showInventoryModal && !isAway"
+      @update:open="showInventoryModal = $event"
       size="xl"
       max-height="75"
       title-class="flex items-center gap-3 text-2xl font-bold text-theme-primary terminal-glow"
     >
-        <template #title>
-          <Icon :icon="modalIcon" />
-          {{ modalTitle }}
-        </template>
+      <template #title>
+        <Icon :icon="modalIcon" />
+        {{ modalTitle }}
+      </template>
 
-        <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
-          <div class="items-list">
-            <template v-if="inventoryMode === 'weapon'">
-              <EquipmentCard
-                v-for="weapon in availableWeapons"
-                :key="weapon.id"
-                :item="weapon"
-                type="weapon"
-                :show-actions="true"
-                @equip="handleEquipWeapon(weapon.id)"
-              />
-              <div v-if="availableWeapons.length === 0" class="empty-state">
-                <Icon icon="mdi:package-variant" class="empty-state-icon" />
-                <p>No weapons available</p>
-              </div>
-            </template>
+      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+        <div class="items-list">
+          <template v-if="inventoryMode === 'weapon'">
+            <EquipmentCard
+              v-for="weapon in availableWeapons"
+              :key="weapon.id"
+              :item="weapon"
+              type="weapon"
+              :show-actions="!isAway"
+              @equip="handleEquipWeapon(weapon.id)"
+            />
+            <div v-if="availableWeapons.length === 0" class="empty-state">
+              <Icon icon="mdi:package-variant" class="empty-state-icon" />
+              <p>No weapons available</p>
+            </div>
+          </template>
 
-            <template v-else-if="inventoryMode === 'outfit'">
-              <EquipmentCard
-                v-for="outfit in availableOutfits"
-                :key="outfit.id"
-                :item="outfit"
-                type="outfit"
-                :show-actions="true"
-                @equip="handleEquipOutfit(outfit.id)"
-              />
-              <div v-if="availableOutfits.length === 0" class="empty-state">
-                <Icon icon="mdi:package-variant" class="empty-state-icon" />
-                <p>No outfits available</p>
-              </div>
-            </template>
+          <template v-else-if="inventoryMode === 'outfit'">
+            <EquipmentCard
+              v-for="outfit in availableOutfits"
+              :key="outfit.id"
+              :item="outfit"
+              type="outfit"
+              :show-actions="!isAway"
+              @equip="handleEquipOutfit(outfit.id)"
+            />
+            <div v-if="availableOutfits.length === 0" class="empty-state">
+              <Icon icon="mdi:package-variant" class="empty-state-icon" />
+              <p>No outfits available</p>
+            </div>
+          </template>
 
-            <template v-else>
-              <PetCard
-                v-for="pet in availablePets"
-                :key="pet.id"
-                :pet="pet"
-                :show-actions="true"
-                :disabled="petActionPending"
-                @equip="handleEquipPet(pet.id)"
-              />
-              <div v-if="availablePets.length === 0" class="empty-state">
-                <Icon icon="mdi:package-variant" class="empty-state-icon" />
-                <p>No pets available</p>
-              </div>
-            </template>
-          </div>
+          <template v-else>
+            <PetCard
+              v-for="pet in availablePets"
+              :key="pet.id"
+              :pet="pet"
+              :show-actions="!isAway"
+              :disabled="petActionPending"
+              @equip="handleEquipPet(pet.id)"
+            />
+            <div v-if="availablePets.length === 0" class="empty-state">
+              <Icon icon="mdi:package-variant" class="empty-state-icon" />
+              <p>No pets available</p>
+            </div>
+          </template>
         </div>
+      </div>
     </TerminalModal>
   </div>
 </template>

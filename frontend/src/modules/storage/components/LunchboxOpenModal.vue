@@ -3,19 +3,11 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useSound } from '@/core/composables/useSound'
 import { Button } from '@/core/components/ui/button'
-import { Badge } from '@/core/components/ui/badge'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/core/components/ui/card'
+import { Card, CardContent } from '@/core/components/ui/card'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
-import ItemIcon from '@/core/components/common/ItemIcon.vue'
+import RewardItemCard from '@/core/components/common/RewardItemCard.vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import DwellerRarityBadge from '@/modules/dwellers/components/DwellerRarityBadge.vue'
-import { getRarityBorderClass, getRarityTextClass } from '@/core/models/items'
 import type { components } from '@/core/types/api.generated'
 
 type LunchboxOpened = components['schemas']['LunchboxOpened']
@@ -112,11 +104,15 @@ const itemLabel = (type: string): string => (type === 'weapon' ? 'Weapon' : 'Out
         class="flex flex-col gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2"
         aria-live="polite"
       >
-        <Card
-          class="flex-row gap-0 rounded-lg border bg-surface py-0 shadow-none"
-          :class="getRarityBorderClass(result.dweller.rarity)"
+        <RewardItemCard
+          :name="dwellerName"
+          :rarity="result.dweller.rarity"
+          label="New Dweller"
+          meta="Has joined your vault."
+          kind="dweller"
+          layout="row"
         >
-          <CardContent class="grid w-28 shrink-0 place-items-center bg-surface-sunken p-0 sm:w-36">
+          <template #media>
             <DwellerPortrait
               :image-url="result.dweller.image_url"
               :thumbnail-url="result.dweller.thumbnail_url"
@@ -125,61 +121,22 @@ const itemLabel = (type: string): string => (type === 'weapon' ? 'Weapon' : 'Out
               image-class="h-32 w-full object-cover object-top sm:h-36"
               fallback-class="size-14 text-theme-primary/50"
             />
-          </CardContent>
-          <CardHeader class="min-w-0 flex-1 content-center gap-2 p-4 sm:p-5">
-            <CardDescription class="flex items-center gap-1.5 text-xs uppercase tracking-wider">
-              <Icon icon="mdi:account-plus" class="size-4" />
-              New Dweller
-            </CardDescription>
-            <CardTitle
-              class="break-words text-xl sm:text-2xl"
-              :class="getRarityTextClass(result.dweller.rarity)"
-            >
-              {{ dwellerName }}
-            </CardTitle>
-            <div class="flex">
-              <DwellerRarityBadge :rarity="result.dweller.rarity" show-label size="sm" />
-            </div>
-            <p class="text-xs text-muted-foreground">Has joined your vault.</p>
-          </CardHeader>
-        </Card>
+          </template>
+          <template #badge>
+            <DwellerRarityBadge :rarity="result.dweller.rarity" show-label size="sm" />
+          </template>
+        </RewardItemCard>
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Card
+          <RewardItemCard
             v-for="(item, index) in items"
             :key="index"
-            class="flex-row gap-0 rounded-lg border bg-surface py-0 shadow-none sm:flex-col"
-            :class="getRarityBorderClass(item.rarity)"
-          >
-            <CardContent
-              class="grid w-24 shrink-0 place-items-center bg-surface-sunken p-3 sm:h-32 sm:w-full sm:p-4"
-            >
-              <ItemIcon
-                :item="item"
-                :item-type="item.type"
-                img-class="size-20 object-contain sm:size-24"
-                icon-class="size-12 text-theme-primary/60"
-              />
-            </CardContent>
-            <CardHeader class="min-w-0 flex-1 content-center gap-2 p-3 sm:p-4">
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <CardDescription class="text-xs">{{ itemLabel(item.type) }}</CardDescription>
-                <Badge
-                  variant="outline"
-                  class="text-[0.65rem] capitalize"
-                  :class="[getRarityTextClass(item.rarity), getRarityBorderClass(item.rarity)]"
-                >
-                  {{ item.rarity }}
-                </Badge>
-              </div>
-              <CardTitle
-                class="break-words text-sm leading-snug"
-                :class="getRarityTextClass(item.rarity)"
-              >
-                {{ item.name }}
-              </CardTitle>
-            </CardHeader>
-          </Card>
+            :name="item.name"
+            :rarity="item.rarity"
+            :label="itemLabel(item.type)"
+            :item-type="item.type"
+            :image-url="item.image_url"
+          />
         </div>
         <p class="text-center text-xs text-muted-foreground">
           {{ items.length }} items added to Storage · 1 dweller joined your vault

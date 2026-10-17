@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createIconifyMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { Button } from '@/core/components/ui/button'
+import RewardItemCard from '@/core/components/common/RewardItemCard.vue'
 import QuestRewardsModal from '@/modules/progression/components/QuestRewardsModal.vue'
 import type { QuestReward, VaultQuest } from '@/modules/progression/models/quest'
 
@@ -129,5 +130,92 @@ describe('QuestRewardsModal', () => {
 
     expect(wrapper.text()).toContain('No rewards listed for this quest')
     expect(wrapper.text()).not.toContain('100')
+  })
+
+  it('renders item rewards with their real artwork, item type and rarity', () => {
+    const itemQuest = {
+      ...quest,
+      quest_rewards: [
+        {
+          id: 'reward-item',
+          quest_id: 'quest-1',
+          reward_type: 'item',
+          reward_data: { item_name: 'Assault rifle', quantity: 1 },
+          reward_chance: 1,
+          item_data: {
+            name: 'Assault rifle',
+            item_type: 'weapon',
+            rarity: 'rare',
+            image_url: '/static/weapon_images/assault_rifle.png',
+          },
+        },
+      ] as QuestReward[],
+    } as VaultQuest
+    const wrapper = mount(QuestRewardsModal, {
+      props: { show: true, quest: itemQuest },
+      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+    })
+
+    const card = wrapper.getComponent(RewardItemCard)
+    expect(card.props('kind')).toBe('item')
+    expect(card.props('imageUrl')).toBe('/static/weapon_images/assault_rifle.png')
+    expect(wrapper.get('img[alt="Assault rifle"]').attributes('src')).toContain(
+      '/static/weapon_images/assault_rifle.png'
+    )
+    expect(wrapper.text()).toContain('Weapon')
+    expect(wrapper.text()).toContain('rare')
+    expect(wrapper.find('.reward-card').exists()).toBe(false)
+  })
+
+  it('renders dweller rewards as dweller cards with a portrait and rarity badge', () => {
+    const dwellerQuest = {
+      ...quest,
+      quest_rewards: [
+        {
+          id: 'reward-dweller',
+          quest_id: 'quest-1',
+          reward_type: 'dweller',
+          reward_data: { template_id: 'vault-dweller', name: 'jane doe', rarity: 'legendary' },
+          reward_chance: 0.75,
+        },
+      ] as QuestReward[],
+    } as VaultQuest
+    const wrapper = mount(QuestRewardsModal, {
+      props: { show: true, quest: dwellerQuest },
+      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+    })
+
+    const card = wrapper.getComponent(RewardItemCard)
+    expect(card.props('kind')).toBe('dweller')
+    expect(card.props('name')).toBe('Jane Doe')
+    expect(card.props('rarity')).toBe('legendary')
+    expect(wrapper.text()).toContain('New Dweller')
+    expect(wrapper.text()).toContain('75% chance')
+    expect(wrapper.find('[role="img"][aria-label="Jane Doe"]').exists()).toBe(true)
+    expect(wrapper.find('.reward-card').exists()).toBe(false)
+  })
+
+  it('keeps numeric rewards on the shared stat card', () => {
+    const capsQuest = {
+      ...quest,
+      quest_rewards: [
+        {
+          id: 'reward-caps',
+          quest_id: 'quest-1',
+          reward_type: 'caps',
+          reward_data: { amount: 100 },
+          reward_chance: 1,
+        },
+      ] as QuestReward[],
+    } as VaultQuest
+    const wrapper = mount(QuestRewardsModal, {
+      props: { show: true, quest: capsQuest },
+      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+    })
+
+    expect(wrapper.findComponent(RewardItemCard).exists()).toBe(false)
+    expect(wrapper.find('.reward-card').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Bottle Caps')
+    expect(wrapper.text()).toContain('100')
   })
 })

@@ -108,20 +108,28 @@ const tryClose = () => emit('close', requiresResolution.value)
   >
     <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
       <!-- Dweller Name -->
-      <div class="dweller-name">
-        <Icon icon="mdi:account-check" class="mr-2 h-6 w-6 shrink-0" />
+      <div
+        class="mb-6 flex items-center gap-2 rounded border border-theme-primary/20 bg-theme-primary/5 p-4 text-lg font-semibold text-theme-primary"
+      >
+        <Icon icon="mdi:account-check" class="h-6 w-6 shrink-0" />
         {{ dwellerName }} has returned from the wasteland!
       </div>
 
       <!-- Recalled Early Banner -->
-      <div v-if="safeRewards.recalled_early" class="recalled-banner">
-        <Icon icon="mdi:information" class="mr-2 h-6 w-6 shrink-0" />
+      <div
+        v-if="safeRewards.recalled_early"
+        class="mb-6 flex items-center gap-2 rounded border border-warning/30 bg-warning/10 p-3 text-sm text-warning"
+      >
+        <Icon icon="mdi:information" class="h-6 w-6 shrink-0" />
         Recalled early ({{ Math.round(safeRewards.progress_percentage || 0) }}% complete) - Reduced
         rewards
       </div>
 
       <!-- Rewards Grid -->
-      <div v-if="!pendingOnly" class="rewards-grid">
+      <div
+        v-if="!pendingOnly"
+        class="mb-8 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-4"
+      >
         <RewardCard
           icon="mdi:star"
           label="Experience Gained"
@@ -157,48 +165,54 @@ const tryClose = () => emit('close', requiresResolution.value)
       </div>
 
       <!-- Items Found -->
-      <div v-if="safeRewards.items && safeRewards.items.length > 0" class="items-section">
-        <h3 class="section-title">
-          <Icon icon="mdi:package-variant" class="mr-2" />
-          {{ requiresResolution ? 'Stored in Vault' : 'Items Found' }}
+      <div v-if="safeRewards.items && safeRewards.items.length > 0" class="mt-6">
+        <h3 class="panel-header text-lg font-bold text-theme-primary">
+          <span class="flex items-center gap-2">
+            <Icon icon="mdi:package-variant" />
+            {{ requiresResolution ? 'Stored in Vault' : 'Items Found' }}
+          </span>
         </h3>
-        <div class="items-list">
+        <div class="flex flex-col gap-3">
           <ExplorationItemRow v-for="(item, index) in safeRewards.items" :key="index" :item="item">
-            <Icon icon="mdi:check-circle" class="item-check" />
+            <Icon icon="mdi:check-circle" class="h-6 w-6 shrink-0 text-theme-primary" />
           </ExplorationItemRow>
         </div>
       </div>
 
-      <div v-else-if="!hasOverflow" class="no-items">
-        <Icon icon="mdi:package-variant-closed" class="no-items-icon" />
+      <div
+        v-else-if="!hasOverflow"
+        class="flex flex-col items-center justify-center gap-4 px-8 py-12 text-theme-primary/50"
+      >
+        <Icon icon="mdi:package-variant-closed" class="h-16 w-16" />
         <p>No items found during this exploration</p>
       </div>
 
       <!-- Overflow Items (Storage Full) -->
-      <div v-if="hasOverflow" class="items-section overflow-section">
-        <h3 class="section-title overflow-title">
-          <Icon icon="mdi:package-variant-closed-remove" class="mr-2" />
-          {{
-            legacyOverflow ? 'Storage Full — Items Left Behind' : 'Storage Full — Needs Decision'
-          }}
+      <div v-if="hasOverflow" class="mt-6">
+        <h3 class="panel-header text-lg font-bold text-theme-primary">
+          <span class="flex items-center gap-2">
+            <Icon icon="mdi:package-variant-closed-remove" />
+            {{
+              legacyOverflow ? 'Storage Full — Items Left Behind' : 'Storage Full — Needs Decision'
+            }}
+          </span>
         </h3>
         <p v-if="legacyOverflow" class="text-sm text-theme-primary/70">
           This report predates overflow resolution. These items were left behind.
         </p>
-        <div v-else class="items-list">
+        <div v-else class="flex flex-col gap-3">
           <ExplorationItemRow
             v-for="(item, index) in unclaimed"
             :key="`${item.item_name}-${index}`"
             :item="item"
-            class="overflow-item"
           >
-            <div class="overflow-actions">
+            <div class="overflow-actions flex shrink-0 gap-2">
               <Button
                 size="sm"
                 :disabled="busyIndex !== null"
                 @click="resolveOverflow('take', index)"
               >
-                <Icon v-if="busyIndex === index" icon="mdi:loading" class="mr-1 animate-spin" />
+                <Icon v-if="busyIndex === index" icon="mdi:loading" class="animate-spin" />
                 Take
               </Button>
               <Button
@@ -226,123 +240,10 @@ const tryClose = () => emit('close', requiresResolution.value)
     </div>
 
     <template #footer>
-      <button @click="tryClose" class="collect-btn">
-        <Icon :icon="hasOverflow ? 'mdi:clock-outline' : 'mdi:check-bold'" class="mr-2" />
+      <Button variant="default" class="collect-btn w-full" @click="tryClose">
+        <Icon :icon="hasOverflow ? 'mdi:clock-outline' : 'mdi:check-bold'" />
         {{ hasOverflow ? 'Resolve Later' : 'Collect Rewards' }}
-      </button>
+      </Button>
     </template>
   </TerminalModal>
 </template>
-
-<style scoped>
-.dweller-name {
-  display: flex;
-  align-items: center;
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 6px var(--color-theme-glow);
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  background: color-mix(in srgb, var(--color-theme-primary) 5%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
-  border-radius: 4px;
-}
-
-.recalled-banner {
-  display: flex;
-  align-items: center;
-  font-size: 0.875rem;
-  color: var(--color-warning);
-  text-shadow: 0 0 4px rgba(255, 165, 0, 0.5);
-  margin-bottom: 1.5rem;
-  padding: 0.75rem;
-  background: rgba(255, 165, 0, 0.1);
-  border: 1px solid rgba(255, 165, 0, 0.3);
-  border-radius: 4px;
-}
-
-.rewards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.items-section {
-  margin-top: 1.5rem;
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 6px var(--color-theme-glow);
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 2px solid color-mix(in srgb, var(--color-theme-primary) 30%, transparent);
-}
-
-.items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.overflow-actions {
-  display: flex;
-  flex-shrink: 0;
-  gap: 0.5rem;
-}
-
-.item-check {
-  width: 1.5rem;
-  height: 1.5rem;
-  color: var(--color-theme-primary);
-  flex-shrink: 0;
-}
-
-.no-items {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  padding: 3rem 2rem;
-  color: color-mix(in srgb, var(--color-theme-primary) 50%, transparent);
-}
-
-.no-items-icon {
-  width: 4rem;
-  height: 4rem;
-}
-
-.collect-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 1rem;
-  background: color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
-  border: 2px solid var(--color-theme-primary);
-  border-radius: 6px;
-  color: var(--color-theme-primary);
-  font-size: 1.125rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.collect-btn:hover:not(:disabled) {
-  background: var(--color-theme-primary);
-  color: var(--color-terminal-background);
-  box-shadow: 0 0 20px var(--color-theme-glow);
-}
-
-.collect-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-</style>

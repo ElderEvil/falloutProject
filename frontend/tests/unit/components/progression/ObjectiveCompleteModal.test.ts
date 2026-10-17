@@ -1,5 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import RewardItemCard from '@/core/components/common/RewardItemCard.vue'
+import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import ObjectiveCompleteModal from '@/modules/progression/components/ObjectiveCompleteModal.vue'
 import type { Objective } from '@/modules/progression/models/objective'
 
@@ -29,6 +31,11 @@ describe('ObjectiveCompleteModal handoff', () => {
 
   it('celebrates a granted dweller and links to the actual vault roster without guessing an id', async () => {
     const wrapper = mountModal('dweller:Wanderer')
+    const card = wrapper.getComponent(RewardItemCard)
+    expect(card.props('kind')).toBe('dweller')
+    expect(card.props('name')).toBe('Wanderer')
+    expect(wrapper.findComponent(DwellerPortrait).exists()).toBe(true)
+    expect(wrapper.find('img').exists()).toBe(false)
     expect(wrapper.text()).toContain('Wanderer has joined your vault')
     await wrapper.get('button.confirm').trigger('click')
     expect(wrapper.emitted('confirm')).toHaveLength(1)
@@ -39,6 +46,8 @@ describe('ObjectiveCompleteModal handoff', () => {
 
   it('keeps ordinary reward confirmation and closing free of navigation', async () => {
     const wrapper = mountModal('50 caps')
+    expect(wrapper.findComponent(RewardItemCard).exists()).toBe(false)
+    expect(wrapper.find('.reward-card').exists()).toBe(true)
     await wrapper.get('button.cancel').trigger('click')
     expect(wrapper.emitted('close')).toHaveLength(1)
     expect(router.push).not.toHaveBeenCalled()

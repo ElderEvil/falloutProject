@@ -103,7 +103,7 @@ const dismiss = () => incidentStore.clearAftermath(props.aftermath.roomId)
 
     <div
       v-if="lootItems.length > 0"
-      class="rounded-lg border-2 border-theme-primary/40 bg-terminal-background p-3"
+      class="rounded-lg border-2 border-theme-primary/40 bg-surface-canvas p-3"
     >
       <h4 class="mb-2 flex items-center text-xs font-bold uppercase tracking-wide text-terminal-green-dim">
         <Icon icon="mdi:package-variant-closed-check" class="mr-1.5 h-4 w-4" />
@@ -113,7 +113,7 @@ const dismiss = () => incidentStore.clearAftermath(props.aftermath.roomId)
         <li
           v-for="(item, index) in lootItems"
           :key="index"
-          class="flex items-center justify-between rounded border-l-[3px] bg-terminal-background p-2"
+          class="flex items-center justify-between rounded border-l-2 bg-surface-canvas p-2"
           :class="getRarityBorderClass(item.rarity)"
         >
           <span
@@ -128,7 +128,7 @@ const dismiss = () => incidentStore.clearAftermath(props.aftermath.roomId)
       </ul>
     </div>
 
-    <div v-if="heldItems.length > 0" class="rounded-lg border-2 border-warning/50 bg-terminal-background p-3">
+    <div v-if="heldItems.length > 0" class="rounded-lg border-2 border-warning/50 bg-surface-canvas p-3">
       <h4 class="mb-1 flex items-center text-xs font-bold uppercase tracking-wide text-warning">
         <Icon icon="mdi:package-variant-closed-remove" class="mr-1.5 h-4 w-4" />
         Held — Storage Full ({{ heldItems.length }})
@@ -140,7 +140,7 @@ const dismiss = () => incidentStore.clearAftermath(props.aftermath.roomId)
         <li
           v-for="(item, index) in heldItems"
           :key="index"
-          class="flex items-center justify-between gap-2 rounded border-l-[3px] bg-terminal-background p-2"
+          class="flex items-center justify-between gap-2 rounded border-l-2 bg-surface-canvas p-2"
           :class="getRarityBorderClass(item.rarity)"
         >
           <span

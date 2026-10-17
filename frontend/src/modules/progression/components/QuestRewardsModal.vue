@@ -2,10 +2,19 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import RewardCard from '@/core/components/common/RewardCard.vue'
+import RewardItemCard from '@/core/components/common/RewardItemCard.vue'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
+import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
+import DwellerRarityBadge from '@/modules/dwellers/components/DwellerRarityBadge.vue'
 import type { QuestReward, VaultQuest } from '../models/quest'
-import { questCategoryIcon, QUEST_ITEM_LABELS, RESOURCE_META, REWARD_TYPE_META } from '../models/quest'
+import {
+  questCategoryIcon,
+  questDwellerName,
+  QUEST_ITEM_LABELS,
+  RESOURCE_META,
+  REWARD_TYPE_META,
+} from '../models/quest'
 
 interface Props {
   quest: VaultQuest | null
@@ -22,23 +31,53 @@ const emit = defineEmits<{
 
 const rewards = computed(() => props.quest?.quest_rewards ?? [])
 
-const chanceSuffix = (reward: QuestReward): string => {
-  if (reward.reward_chance >= 1) return ''
-  return ` · ${Math.round(reward.reward_chance * 100)}% chance`
+const rewardText = (value: unknown): string => (typeof value === 'string' ? value : '')
+
+const isItemReward = (reward: QuestReward): boolean => reward.reward_type === 'item'
+const isDwellerReward = (reward: QuestReward): boolean => reward.reward_type === 'dweller'
+
+const itemData = (reward: QuestReward): Record<string, unknown> => reward.item_data ?? {}
+
+const itemName = (reward: QuestReward): string =>
+  rewardText(itemData(reward).name) ||
+  rewardText(reward.reward_data.item_name) ||
+  rewardText(reward.reward_data.name) ||
+  'Item'
+
+const itemType = (reward: QuestReward): string =>
+  rewardText(itemData(reward).item_type) || rewardText(reward.reward_data.item_type) || 'item'
+
+const itemRarity = (reward: QuestReward): string =>
+  rewardText(itemData(reward).rarity) || rewardText(reward.reward_data.rarity)
+
+const itemImage = (reward: QuestReward): string | null =>
+  rewardText(itemData(reward).image_url) || null
+
+const itemQuantity = (reward: QuestReward): number | undefined => {
+  const raw = reward.reward_data.quantity ?? reward.reward_data.amount
+  const quantity = Number(raw)
+  return Number.isFinite(quantity) ? quantity : undefined
 }
 
-const rewardLabel = (reward: QuestReward): string => {
-  const data = reward.reward_data as Record<string, unknown>
-  const qtyRaw = (data.quantity ?? data.amount) as unknown
-  const qtyNum = typeof qtyRaw === 'number' ? qtyRaw : Number(qtyRaw ?? 0)
-  const qtyPrefix = qtyNum > 1 ? `${qtyNum}x ` : ''
-  if (reward.reward_type === 'item') return `${qtyPrefix}${String(data.item_name || reward.item_data?.name || 'Item')}${chanceSuffix(reward)}`
-  if (reward.reward_type === 'dweller') return `${String((data.template_id as string) || (data.name as string) || 'New Dweller').replaceAll('-', ' ')}${chanceSuffix(reward)}`
-  return `${String(data.amount ?? qtyRaw ?? '—')}${chanceSuffix(reward)}`
+const dwellerRarity = (reward: QuestReward): string => rewardText(reward.reward_data.rarity)
+
+const chanceText = (reward: QuestReward): string => {
+  if (reward.reward_chance >= 1) return ''
+  return `${Math.round(reward.reward_chance * 100)}% chance`
+}
+
+const chanceSuffix = (reward: QuestReward): string => {
+  const chance = chanceText(reward)
+  return chance ? ` · ${chance}` : ''
+}
+
+const numericRewardLabel = (reward: QuestReward): string => {
+  const amount = reward.reward_data.amount ?? reward.reward_data.quantity ?? '—'
+  return `${String(amount)}${chanceSuffix(reward)}`
 }
 
 const inferItemCategory = (reward: QuestReward): string => {
-  const explicit = String(reward.item_data?.item_type ?? reward.reward_data.item_type ?? '').toLowerCase()
+  const explicit = itemType(reward).toLowerCase()
   return explicit && QUEST_ITEM_LABELS[explicit] ? explicit : ''
 }
 
@@ -58,6 +97,11 @@ const rewardMeta = (reward: QuestReward): { icon: string, label: string } => {
 
   return base
 }
+
+const itemCardLabel = (reward: QuestReward): string => `${rewardMeta(reward).label}${chanceSuffix(reward)}`
+
+const dwellerCardMeta = (reward: QuestReward): string =>
+  chanceText(reward) || 'Joins your vault on claim'
 </script>
 
 <template>
@@ -77,14 +121,51 @@ const rewardMeta = (reward: QuestReward): { icon: string, label: string } => {
       {{ quest.title }} has returned. Confirm delivery to your vault.
     </div>
 
-    <div v-if="rewards.length > 0" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <RewardCard
-        v-for="reward in rewards"
-        :key="reward.id"
-        :icon="rewardMeta(reward).icon"
-        :label="rewardMeta(reward).label"
-        :value="rewardLabel(reward)"
-      />
+    <div
+      v-if="rewards.length > 0"
+      class="grid grid-cols-1 gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 sm:grid-cols-2"
+      aria-live="polite"
+    >
+      <template v-for="reward in rewards" :key="reward.id">
+        <RewardItemCard
+          v-if="isDwellerReward(reward)"
+          :name="questDwellerName(reward)"
+          :rarity="dwellerRarity(reward)"
+          label="New Dweller"
+          :meta="dwellerCardMeta(reward)"
+          kind="dweller"
+          layout="row"
+          class="sm:col-span-2"
+        >
+          <template #media>
+            <DwellerPortrait
+              :alt="questDwellerName(reward)"
+              image-class="h-32 w-full object-cover object-top sm:h-36"
+              fallback-class="size-14 text-theme-primary/50"
+            />
+          </template>
+          <template #badge>
+            <DwellerRarityBadge :rarity="dwellerRarity(reward)" show-label size="sm" />
+          </template>
+        </RewardItemCard>
+
+        <RewardItemCard
+          v-else-if="isItemReward(reward)"
+          :name="itemName(reward)"
+          :rarity="itemRarity(reward)"
+          :label="itemCardLabel(reward)"
+          :quantity="itemQuantity(reward)"
+          :item-type="itemType(reward)"
+          :image-url="itemImage(reward)"
+        />
+
+        <RewardCard
+          v-else
+          :icon="rewardMeta(reward).icon"
+          :label="rewardMeta(reward).label"
+          :value="numericRewardLabel(reward)"
+        />
+      </template>
     </div>
 
     <div v-else class="flex flex-col items-center gap-3 p-8 text-theme-primary/60">

@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { refreshNukaColaCount } from '@/modules/vault/composables/useNukaColaCount'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
 import { useSound } from '@/core/composables/useSound'
@@ -273,6 +274,7 @@ const handleOpenLunchbox = async (itemId: string) => {
   if (!vaultId.value) return
   try {
     lunchboxResult.value = await storageService.openLunchbox(vaultId.value, itemId)
+    void refreshNukaColaCount(vaultId.value)
     playSound('lunchboxOpen', 'ui')
     showLunchboxModal.value = true
   } catch (error: unknown) {

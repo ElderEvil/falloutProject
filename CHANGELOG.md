@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.226.1 (2026-10-17)
+
+### Bug Fixes
+
+* **progression:** fund the Office gate through starter teaching rewards ([#1049](https://github.com/ElderEvil/falloutProject/issues/1049)) 3268716
+
 ## 2.226.0 (2026-10-17)
 
 ### Features

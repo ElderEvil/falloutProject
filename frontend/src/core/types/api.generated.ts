@@ -9485,8 +9485,12 @@ export interface components {
             quest_type: components["schemas"]["QuestType"];
             /** Quest Category */
             quest_category?: string | null;
-            /** Duration Minutes */
-            duration_minutes?: number | null;
+            /**
+             * Duration Minutes
+             * @description Quest duration in minutes
+             * @default 60
+             */
+            duration_minutes: number;
             /** Chain Id */
             chain_id?: string | null;
             /**
@@ -9624,6 +9628,8 @@ export interface components {
             };
             /** Is Mandatory */
             is_mandatory: boolean;
+            /** Is Met */
+            is_met?: boolean | null;
         };
         /** QuestRewardRead */
         QuestRewardRead: {

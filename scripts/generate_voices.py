@@ -109,7 +109,9 @@ def upload_entry(entry: dict, audio_bytes: bytes, key: str) -> None:
 
     storage = get_storage_client()
     if storage is None or not storage.enabled:
-        logger.warning("  [warn] Storage service unavailable; skipping upload of %s", key)
+        logger.warning(
+            "  [warn] Storage service unavailable; skipping upload of %s", key
+        )
         return
 
     try:
@@ -140,7 +142,9 @@ def main() -> None:
 
     elevenlabs_svc = ElevenLabsTtsService()
     if not elevenlabs_svc.is_enabled and not args.dry_run:
-        logger.warning("ElevenLabs API key not configured. Set ELEVENLABS_API_KEY in the environment.")
+        logger.warning(
+            "ElevenLabs API key not configured. Set ELEVENLABS_API_KEY in the environment."
+        )
         logger.warning("With --dry-run this is fine; otherwise generation will fail.")
 
     entries = load_manifest(manifest_path)
@@ -187,8 +191,10 @@ def main() -> None:
         if args.upload:
             upload_entry(entry, audio_bytes, key)
 
-    print(f"\nSummary: {generated} generated, {skipped} skipped, {failed} failed "
-          f"out of {len(entries)} entries")
+    print(
+        f"\nSummary: {generated} generated, {skipped} skipped, {failed} failed "
+        f"out of {len(entries)} entries"
+    )
 
 
 if __name__ == "__main__":

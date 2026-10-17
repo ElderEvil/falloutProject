@@ -86,7 +86,8 @@ export function isOfficeObjective(objective: Objective): boolean {
 
 /** Named rewards use the same single-item format as backend settlement. */
 export function objectiveRewardDetails(reward: string) {
-  const [prefix, value, itemName] = reward.split(':')
+  const [rawPrefix, value, itemName] = reward.split(':')
+  const prefix = rawPrefix.toLowerCase()
   if ((prefix === 'weapon' || prefix === 'outfit') && value) {
     return {
       kind: 'item' as const,

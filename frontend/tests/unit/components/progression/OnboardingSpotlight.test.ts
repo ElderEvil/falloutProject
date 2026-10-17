@@ -185,7 +185,9 @@ describe('OnboardingSpotlight', () => {
     await clickButton('Start')
     await clickButton('Continue')
     expect(document.body.textContent).toContain('Open the Power Generator')
-    expect(useOnboardingState().teaching('v1').lessons['orientation.resources']).toBe('acknowledged')
+    expect(useOnboardingState().teaching('v1').lessons['orientation.resources']).toBe(
+      'acknowledged'
+    )
     wrapper.unmount()
   })
 
@@ -401,6 +403,76 @@ describe('OnboardingSpotlight', () => {
     wrapper.unmount()
   })
 
+  it('highlights the housing option inside the room menu but yields to nested dialogs', async () => {
+    seedHousing(500)
+    boundedAnchor('build-living-room')
+    acknowledgeLessons('orientation.resources', 'orientation.generator', 'orientation.staffing')
+    const scope = effectScope()
+    scope.run(() => useBlockingOverlay(() => true, 'room-menu'))
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    useOnboardingState().patch('v1', { welcomed: true })
+    await flushPromises()
+    await vi.waitFor(() =>
+      expect(document.querySelector('.onboarding-cutout--modal')).not.toBeNull()
+    )
+    expect(document.querySelector('.onboarding-card--modal')).not.toBeNull()
+    const nested = effectScope()
+    nested.run(() => useBlockingOverlay(() => true))
+    await flushPromises()
+    expect(document.querySelector('.onboarding-card')).toBeNull()
+    nested.stop()
+    await flushPromises()
+    expect(document.querySelector('.onboarding-card--modal')).not.toBeNull()
+    scope.stop()
+    wrapper.unmount()
+  })
+
+  it('uses a visible duplicate anchor when the first instance is hidden', async () => {
+    useObjectivesStore().objectives = [objective('first')]
+    const hidden = boundedAnchor('nav-dwellers')
+    hidden.getBoundingClientRect = () => ({ width: 0, height: 0 }) as DOMRect
+    boundedAnchor('nav-dwellers')
+    acknowledgeLessons('orientation.resources', 'orientation.generator')
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    await clickButton('Start')
+    await vi.waitFor(() => expect(document.querySelector('.onboarding-cutout')).not.toBeNull())
+    wrapper.unmount()
+  })
+
+  it('recovers when asynchronous styling hides the highlighted control', async () => {
+    useObjectivesStore().objectives = [objective('first')]
+    const anchor = boundedAnchor('nav-dwellers')
+    acknowledgeLessons('orientation.resources', 'orientation.generator')
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    await clickButton('Start')
+    await vi.waitFor(() => expect(document.querySelector('.onboarding-cutout')).not.toBeNull())
+    anchor.getBoundingClientRect = () => ({ width: 0, height: 0 }) as DOMRect
+    anchor.setAttribute('class', 'hidden')
+    await vi.waitFor(() => expect(document.querySelector('.onboarding-cutout')).toBeNull())
+    expect(findButton('Open Dwellers')).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it('offers the earned housing reward without asking the player to build again', async () => {
+    seedHousing(0)
+    useObjectivesStore().objectives[0]!.progress = 2
+    boundedAnchor('build')
+    acknowledgeLessons('orientation.resources', 'orientation.generator', 'orientation.staffing')
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    await clickButton('Start')
+    expect(findButton('Claim 25 caps')).toBeDefined()
+    expect(document.querySelector('.onboarding-note')?.textContent ?? '').not.toContain(
+      'Not enough caps'
+    )
+    expect(document.querySelector('.onboarding-cutout')).toBeNull()
+    expect(document.body.textContent).not.toContain('Build another Living Quarters')
+    wrapper.unmount()
+  })
+
   it('dims an eligible lesson that has a visible anchor', async () => {
     useObjectivesStore().objectives = [objective('first')]
     boundedAnchor('nav-dwellers')
@@ -592,8 +664,7 @@ describe('OnboardingSpotlight', () => {
 
   describe('guide card', () => {
     const card = () => document.querySelector<HTMLElement>('.onboarding-card')
-    const collapseToggle = () =>
-      document.querySelector<HTMLButtonElement>('.onboarding-collapse')
+    const collapseToggle = () => document.querySelector<HTMLButtonElement>('.onboarding-collapse')
 
     const anchored = (top: number, key = 'resource-power') => {
       const anchor = document.createElement('div')
@@ -633,9 +704,9 @@ describe('OnboardingSpotlight', () => {
       collapseToggle()?.click()
       await flushPromises()
       expect(collapseToggle()?.getAttribute('aria-expanded')).toBe('true')
-      expect(document.querySelector('#onboarding-guide-body')?.getAttribute('style') ?? '').not.toContain(
-        'display: none'
-      )
+      expect(
+        document.querySelector('#onboarding-guide-body')?.getAttribute('style') ?? ''
+      ).not.toContain('display: none')
       wrapper.unmount()
     })
 
@@ -747,23 +818,32 @@ describe('OnboardingSpotlight', () => {
   })
 })
 
-
 describe('first-session continuity', () => {
-  const mountHandoff = () => mount(OnboardingSpotlight, {
-    attachTo: document.body,
-    global: { stubs: {
-      IntroHandoffCard: {
-        props: ['vaultId'], emits: ['dismiss'],
-        template: '<section aria-label="First expedition handoff"><button @click="$emit(\'dismiss\')">Finish intro</button></section>',
+  const mountHandoff = () =>
+    mount(OnboardingSpotlight, {
+      attachTo: document.body,
+      global: {
+        stubs: {
+          IntroHandoffCard: {
+            props: ['vaultId'],
+            emits: ['dismiss'],
+            template:
+              '<section aria-label="First expedition handoff"><button @click="$emit(\'dismiss\')">Finish intro</button></section>',
+          },
+        },
       },
-    } },
-  })
+    })
   const finishOrientation = () => {
     acknowledgeLessons(...ALL_LESSONS)
     useOnboardingState().patch('v1', { welcomed: true })
-    useObjectivesStore().objectives = [objective('departure', {
-      templateKey: DEPARTURE_KEY, progress: 1, total: 1, isCompleted: true,
-    })]
+    useObjectivesStore().objectives = [
+      objective('departure', {
+        templateKey: DEPARTURE_KEY,
+        progress: 1,
+        total: 1,
+        isCompleted: true,
+      }),
+    ]
   }
 
   it('hands off only after a real departure claim and keeps dismissal per vault', async () => {
@@ -772,7 +852,9 @@ describe('first-session continuity', () => {
     await flushPromises()
     expect(!!document.querySelector('[aria-label="First expedition handoff"]')).toBe(true)
     expect(document.querySelector('.onboarding-cutout')).toBeNull()
-    document.querySelector<HTMLButtonElement>('[aria-label="First expedition handoff"] button')!.click()
+    document
+      .querySelector<HTMLButtonElement>('[aria-label="First expedition handoff"] button')!
+      .click()
     await flushPromises()
     expect(useOnboardingState().vaultState('v1').handoffDismissed).toBe(true)
     expect(useOnboardingState().vaultState('v2').handoffDismissed).toBeUndefined()
@@ -781,7 +863,8 @@ describe('first-session continuity', () => {
   })
 
   it.each(['skip', 'replay', 'unearned', 'other-vault'])(
-    'does not show the handoff for %s', async (condition) => {
+    'does not show the handoff for %s',
+    async (condition) => {
       finishOrientation()
       if (condition === 'skip') useOnboardingState().skipTour('v1')
       if (condition === 'replay') {
@@ -813,8 +896,9 @@ describe('first-session continuity', () => {
     await clickButton('Start')
     await clickButton('Claim dweller:Wanderer')
     expect(document.body.textContent).toContain('Wanderer has joined your vault')
-    const view = [...document.querySelectorAll<HTMLButtonElement>('button')]
-      .find(button => button.textContent?.trim() === 'View dwellers')
+    const view = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
+      (button) => button.textContent?.trim() === 'View dwellers'
+    )
     expect(view).toBeDefined()
     view!.click()
     await flushPromises()

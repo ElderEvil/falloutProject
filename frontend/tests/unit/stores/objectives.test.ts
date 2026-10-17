@@ -21,6 +21,18 @@ describe('Objectives Store', () => {
     })
   })
 
+  it('attaches the requested vault context to the backend objective payload', async () => {
+    const payload = {
+      id: 'starter',
+      template_key: 'starter:build a living quarters',
+      progress: 1,
+      total: 1,
+    }
+    vi.mocked(axios.get).mockResolvedValueOnce({ data: [payload] })
+    await objectivesStore.fetchObjectives('vault-123')
+    expect(objectivesStore.objectives[0]).toEqual({ ...payload, vault_id: 'vault-123' })
+  })
+
   describe('fetchObjectives Action', () => {
     describe('Happy Path', () => {
       it('should fetch objectives successfully', async () => {
@@ -50,7 +62,9 @@ describe('Objectives Store', () => {
         expect(axios.get).toHaveBeenCalledWith('/api/v1/objectives/vault-123/', {
           params: { skip: 0, limit: 100 },
         })
-        expect(objectivesStore.objectives).toEqual(mockObjectives)
+        expect(objectivesStore.objectives).toEqual(
+          mockObjectives.map((objective) => ({ ...objective, vault_id: 'vault-123' }))
+        )
       })
 
       it('should fetch objectives with custom skip and limit', async () => {
@@ -114,7 +128,9 @@ describe('Objectives Store', () => {
         expect(axios.get).toHaveBeenCalledWith('/api/v1/objectives/vault-123/', {
           params: { skip: 0, limit: 100 },
         })
-        expect(objectivesStore.objectives).toEqual(updatedObjectives)
+        expect(objectivesStore.objectives).toEqual(
+          updatedObjectives.map((objective) => ({ ...objective, vault_id: 'vault-123' }))
+        )
       })
 
       it('should use correct API endpoint format for add (bug fix validation)', async () => {
@@ -159,7 +175,7 @@ describe('Objectives Store', () => {
         const result = await objectivesStore.getObjective('vault-123', 'obj-1')
 
         expect(axios.get).toHaveBeenCalledWith('/api/v1/objectives/vault-123/obj-1')
-        expect(result).toEqual(mockObjective)
+        expect(result).toEqual({ ...mockObjective, vault_id: 'vault-123' })
       })
 
       it('should use correct API endpoint format for get (bug fix validation)', async () => {
@@ -247,7 +263,7 @@ describe('Objectives Store', () => {
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [completeObjective] })
       await objectivesStore.fetchObjectives('vault-123')
 
-      expect(objectivesStore.objectives[0]).toEqual(completeObjective)
+      expect(objectivesStore.objectives[0]).toEqual({ ...completeObjective, vault_id: 'vault-123' })
     })
 
     it('should handle completed objectives', async () => {

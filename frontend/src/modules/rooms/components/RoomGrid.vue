@@ -364,6 +364,14 @@ const closeDetailModal = () => {
             gridColumn: `${cell.x + 1} / span ${cell.span}`,
           }"
           class="room empty"
+          v-bind="{
+            'data-onboarding':
+              roomStore.isPlacingRoom &&
+              roomStore.selectedRoom?.name.toLowerCase() === 'living room' &&
+              isValidPlacementAt(cell.x, cell.y)
+                ? 'build-living-room-slot'
+                : undefined,
+          }"
           :class="{
             'level-locked': isLevelLocked(cell.y) && !isPlacingElevator,
             'hover-preview': previewCells.some(

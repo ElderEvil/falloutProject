@@ -36,13 +36,16 @@ A first-session guide that shows one useful action at a time, then hands off to 
   confirmation or the About help owns attention, and the same pending lesson resumes on
   dismissal without acknowledging, skipping or completing it. Nested dialogs keep it suspended
   until the whole stack closes, and an overlay torn down by navigation releases immediately.
+  During the actionable housing lesson, the build menu alone allows the guide to highlight
+  Living room (or its search field). Any additional dialog suspends the guide again.
   Tooltips and ordinary popovers deliberately do not suspend it. `TerminalModal` registers once
   for every Reka dialog shell; `RoomMenu`, `NotificationBell`, `DwellerBulkActions`,
   `ChangelogModal` and `PageHelp` register their own non-`TerminalModal` dialogs.
 - **Responsive placement.** The card sits on the opposite side of the highlighted control so it
   never covers what it explains. When the control is below the fold the card moves above it and
-  collapses to its title (the lesson is preserved); a manual collapse/expand toggle wins until
-  the lesson changes, so a background poll never reopens the card, moves focus or re-announces
+  collapses to its title (the lesson is preserved). Earned rewards stay expanded by default;
+  a manual collapse/expand toggle wins until the lesson changes, so a background poll never
+  reopens the card, moves focus or re-announces
   unchanged copy. When the control is on the current page but out of view, the guide offers an
   explicit **Show control** action that scrolls only when clicked; navigating to the route you
   are already on is not offered. Anchor selection and card placement re-resolve on scroll and
@@ -78,8 +81,8 @@ separate revised templates rather than an in-place rewrite.
 
 Tap and inspection lessons advance by Continue; objective-backed lessons advance by claim or
 Skip step. Selection changes, navigation and background polling never count as acknowledgement.
-The overlay signal carries only that boolean — lesson selection, placement and progress stay in
-the onboarding module.
+The overlay registry exposes whether any dialog is open and whether a named overlay is the
+only one open; lesson selection, placement and progress stay in the onboarding module.
 
 ## Acceptance criteria
 
@@ -177,3 +180,27 @@ Validation for this follow-up: frontend lint/typecheck clean; full unit suite
 **3159 passed across 263 files**; all **8 onboarding browser tests passed**. Browser
 checks cover housing claim → celebration → roster, the optional handoff at phone
 width, dialog suspension/resumption, and dismissal surviving reload.
+
+## Housing spotlight repair (#1034)
+
+The housing lesson follows Build → Living room → a valid placement slot. The build menu
+supports case-insensitive search by room name or category, a clear action, and an empty
+result message. Filtering out Living room moves the spotlight to search. Placement anchors
+reuse the grid's existing rules for adjacency, space and row limits.
+
+Anchor selection considers every matching node, ignores hidden or disabled controls, and
+checks clipping within scrolling panels. Styling changes refresh selection. Once the build
+objective is earned, the guide offers its reward without highlighting construction or checking
+whether another build is affordable. Earlier unclaimed objectives link back to Starter.
+
+Objective responses omit vault identity; the existing scoped service attaches the requested
+vault ID so guide filtering and reward roster links work with the actual response shape.
+Search, room selection and building do not acknowledge the teaching step or claim its reward.
+
+Regression coverage includes scoped/nested dialogs, duplicate and asynchronously hidden anchors,
+earned housing rewards, room search, keyboard selection, and desktop/phone browser flows through
+room selection and placement. Browser tests mock backend responses; they do not replace a fresh
+vault walkthrough against real services. The wider tutorial coverage remains a separate design task.
+
+Validation: frontend lint/typecheck and staged `prek` checks passed; **3260 unit tests**
+across **266 files** and all **10 onboarding browser tests** passed.

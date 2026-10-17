@@ -13,7 +13,7 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useObjectiveClaim } from '../composables/useObjectiveClaim'
 import { useOnboardingState } from '@/core/composables/useOnboardingState'
-import { isOverlayBlocking } from '@/core/composables/useBlockingOverlay'
+import { isOverlayBlocking, isOnlyBlockingOverlay } from '@/core/composables/useBlockingOverlay'
 import {
   ORIENTATION_STEPS,
   type OnboardingLesson,
@@ -84,12 +84,17 @@ const welcomePending = computed(() => !!vaultState.value.created && !vaultState.
 const active = computed(
   () => !!vaultId.value && !vaultState.value.skipped && optedIn.value && !!currentLesson.value
 )
-const showHandoff = computed(() =>
-  !!vaultId.value && optedIn.value && !vaultState.value.skipped && !replayMode.value &&
-  !vaultState.value.handoffDismissed && !currentLesson.value &&
-  ORIENTATION_STEPS.some((lesson) =>
-    lesson.id === 'orientation.departure' && objectiveFor(lesson)?.is_completed
-  )
+const showHandoff = computed(
+  () =>
+    !!vaultId.value &&
+    optedIn.value &&
+    !vaultState.value.skipped &&
+    !replayMode.value &&
+    !vaultState.value.handoffDismissed &&
+    !currentLesson.value &&
+    ORIENTATION_STEPS.some(
+      (lesson) => lesson.id === 'orientation.departure' && objectiveFor(lesson)?.is_completed
+    )
 )
 const showWelcome = computed(() => active.value && welcomePending.value)
 const showLesson = computed(() => active.value && !showWelcome.value && !!currentLesson.value)
@@ -106,6 +111,14 @@ const earned = computed(() => {
   return !!objective && objective.progress >= objective.total
 })
 const ready = computed(() => !replayMode.value && earned.value && isServerCurrent.value)
+const needsEarlierClaim = computed(
+  () =>
+    !replayMode.value &&
+    currentLesson.value?.kind === 'objective-explanation' &&
+    !!lessonObjective.value &&
+    !isServerCurrent.value
+)
+
 const showContinue = computed(() => {
   const lesson = currentLesson.value
   return !!lesson && (replayMode.value || lesson.kind !== 'objective-explanation')
@@ -117,22 +130,27 @@ const snapshot = computed<TeachingSnapshot>(() => ({
   builtRooms: roomStore.rooms,
   roomsLoaded: !!vaultId.value && roomStore.roomsLoadedVaultId === vaultId.value,
   dwellers: dwellerStore.filter.allDwellers,
-  dwellersLoaded:
-    !!vaultId.value && dwellerStore.filter.allDwellersLoadedVaultId === vaultId.value,
+  dwellersLoaded: !!vaultId.value && dwellerStore.filter.allDwellersLoadedVaultId === vaultId.value,
   objectives: store.objectives,
 }))
 const lessonEligibility = computed<TeachingEligibility>(() => {
   const lesson = currentLesson.value
-  return lesson ? lesson.eligibility(snapshot.value) : 'unknown'
+  return earned.value ? 'eligible' : lesson ? lesson.eligibility(snapshot.value) : 'unknown'
 })
 const actionable = computed(() => lessonEligibility.value === 'eligible')
 const blockedReason = computed(() => {
+  if (needsEarlierClaim.value)
+    return 'Claim your earlier starter reward before continuing this step.'
   const eligibility = lessonEligibility.value
   return typeof eligibility === 'object' ? eligibility.blocked : undefined
 })
 
-const { claiming, error: claimError, claim, clearError: clearClaimError } =
-  useObjectiveClaim(vaultId)
+const {
+  claiming,
+  error: claimError,
+  claim,
+  clearError: clearClaimError,
+} = useObjectiveClaim(vaultId)
 
 watch([() => currentLesson.value?.id, vaultId], () => clearClaimError())
 
@@ -163,7 +181,9 @@ watch(
 const loadFailed = ref(false)
 const claimedObjective = ref<Objective | null>(null)
 const handoffCard = ref<InstanceType<typeof IntroHandoffCard> | null>(null)
-watch(vaultId, () => { claimedObjective.value = null })
+watch(vaultId, () => {
+  claimedObjective.value = null
+})
 const refresh = () => {
   if (!vaultId.value || vaultState.value.skipped) return
   void handoffCard.value?.refresh()
@@ -185,25 +205,61 @@ const targetEl = ref<HTMLElement | null>(null)
 const presentAnchorEl = ref<HTMLElement | null>(null)
 
 /** True while a dialog or confirmation owns attention; the guide yields to it. */
-const blockedByOverlay = isOverlayBlocking
+const guidingRoomMenu = computed(
+  () =>
+    currentLesson.value?.id === 'orientation.housing' &&
+    !earned.value &&
+    !needsEarlierClaim.value &&
+    actionable.value &&
+    isOnlyBlockingOverlay('room-menu')
+)
+const blockedByOverlay = computed(() => isOverlayBlocking.value && !guidingRoomMenu.value)
 
 function hasSize(element: HTMLElement): boolean {
+  if (
+    element.matches(':disabled, [aria-disabled="true"]') ||
+    element.closest('[hidden], [inert], [aria-hidden="true"]')
+  )
+    return false
+  if (getComputedStyle(element).visibility === 'hidden') return false
   const rect = element.getBoundingClientRect()
   return rect.width > 0 && rect.height > 0
 }
 
 function isUsableAnchor(element: HTMLElement): boolean {
+  if (!hasSize(element)) return false
   const rect = element.getBoundingClientRect()
-  if (rect.width <= 0 || rect.height <= 0) return false
-  const viewportWidth = window.innerWidth || 0
-  const viewportHeight = window.innerHeight || 0
-  return rect.bottom > 0 && rect.top < viewportHeight && rect.right > 0 && rect.left < viewportWidth
+  let left = Math.max(0, rect.left)
+  let right = Math.min(window.innerWidth, rect.right)
+  let top = Math.max(0, rect.top)
+  let bottom = Math.min(window.innerHeight, rect.bottom)
+  // A node can be inside the viewport but clipped by a scrolling panel.
+  for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+    const style = getComputedStyle(parent)
+    const bounds = parent.getBoundingClientRect()
+    if (/(auto|scroll|hidden|clip)/.test(style.overflowX)) {
+      left = Math.max(left, bounds.left)
+      right = Math.min(right, bounds.right)
+    }
+    if (/(auto|scroll|hidden|clip)/.test(style.overflowY)) {
+      top = Math.max(top, bounds.top)
+      bottom = Math.min(bottom, bounds.bottom)
+    }
+  }
+  if (right <= left || bottom <= top) return false
+  const hit = document.elementFromPoint?.((left + right) / 2, (top + bottom) / 2)
+  return !hit || element.contains(hit)
 }
 
 function anchorCandidates(): HTMLElement[] {
-  return (currentLesson.value?.anchors ?? [])
-    .map((key) => document.querySelector<HTMLElement>(`[data-onboarding="${key}"]`))
-    .filter((element): element is HTMLElement => element !== null)
+  const keys = guidingRoomMenu.value
+    ? document.querySelector('[data-onboarding="build-living-room"]')
+      ? ['build-living-room']
+      : ['room-search']
+    : (currentLesson.value?.anchors ?? [])
+  return keys.flatMap((key) => [
+    ...document.querySelectorAll<HTMLElement>(`[data-onboarding="${key}"]`),
+  ])
 }
 
 function resolveTarget() {
@@ -214,16 +270,36 @@ function resolveTarget() {
   // in the same frame as the cut-out that depends on its bounds.
   void nextTick(() => updateBounds())
 }
-watch([() => currentLesson.value?.id, showWelcome], () => resolveTarget(), { flush: 'post' })
+watch([() => currentLesson.value?.id, showWelcome, guidingRoomMenu], () => resolveTarget(), {
+  flush: 'post',
+})
 
 let observer: MutationObserver | null = null
 onMounted(() => {
   resolveTarget()
-  observer = new MutationObserver(() => resolveTarget())
+  observer = new MutationObserver((records) => {
+    if (
+      records.some(
+        ({ target }) =>
+          !(target instanceof Element) || !target.closest('.onboarding-card, .onboarding-cutout')
+      )
+    )
+      resolveTarget()
+  })
   observer.observe(document.body, {
     childList: true,
     subtree: true,
-    attributeFilter: ['data-onboarding'],
+    attributes: true,
+    attributeFilter: [
+      'data-onboarding',
+      'class',
+      'style',
+      'hidden',
+      'aria-hidden',
+      'disabled',
+      'aria-disabled',
+      'inert',
+    ],
   })
 })
 onBeforeUnmount(() => observer?.disconnect())
@@ -231,7 +307,13 @@ onBeforeUnmount(() => observer?.disconnect())
 const { top, left, width, height, update: updateBounds } = useElementBounding(targetEl)
 const rectReady = computed(() => width.value > 0 && height.value > 0)
 const showCutout = computed(
-  () => showLesson.value && actionable.value && targetEl.value !== null && rectReady.value
+  () =>
+    showLesson.value &&
+    !earned.value &&
+    !needsEarlierClaim.value &&
+    actionable.value &&
+    targetEl.value !== null &&
+    rectReady.value
 )
 const cutoutStyle = computed(() => ({
   top: `${top.value - 4}px`,
@@ -271,18 +353,21 @@ onBeforeUnmount(() => {
 // reads the reactive element bounds, so scroll and resize update it too.
 const anchorBelowFold = computed(() => {
   if (!viewportHeight.value || height.value <= 0) return false
-  return top.value > viewportHeight.value / 2
+  return top.value + height.value / 2 > viewportHeight.value / 2
 })
 const cardPlacement = computed(() => (anchorBelowFold.value ? 'top' : 'bottom'))
 
 // A manual toggle wins until the lesson changes; data refreshes never reopen or
 // re-collapse the card or move focus.
 const userCollapsed = ref<boolean | null>(null)
-const collapsed = computed(() => userCollapsed.value ?? anchorBelowFold.value)
+const collapsed = computed(() => userCollapsed.value ?? (!earned.value && anchorBelowFold.value))
 const cardClass = computed(() => [
   'onboarding-card',
   `onboarding-card--${cardPlacement.value}`,
-  { 'onboarding-card--collapsed': collapsed.value },
+  {
+    'onboarding-card--collapsed': collapsed.value,
+    'onboarding-card--modal': guidingRoomMenu.value,
+  },
 ])
 const toggleCollapsed = () => {
   userCollapsed.value = !collapsed.value
@@ -296,15 +381,20 @@ watch(
 
 const navPath = computed(() => {
   const lesson = currentLesson.value
-  if (!lesson || lesson.route === undefined || !vaultId.value) return undefined
+  if (!lesson || !vaultId.value) return undefined
+  if (needsEarlierClaim.value) return `/vault/${vaultId.value}/objectives`
+  if (lesson.route === undefined) return undefined
   return lesson.route ? `/vault/${vaultId.value}/${lesson.route}` : `/vault/${vaultId.value}`
 })
-const navLabel = computed(() => currentLesson.value?.routeLabel ?? 'Open')
+const navLabel = computed(() =>
+  needsEarlierClaim.value ? 'Open Starter' : (currentLesson.value?.routeLabel ?? 'Open')
+)
 // The control is on this page but out of view: scroll to it rather than pushing
 // the same route, which would navigate nowhere. Position for the anchor is
 // re-resolved after the scroll by the existing MutationObserver + layout watch.
 const showScrollToControl = computed(
-  () => !!presentAnchorEl.value && targetEl.value === null
+  () =>
+    !earned.value && !needsEarlierClaim.value && !!presentAnchorEl.value && targetEl.value === null
 )
 const scrollToControl = () => {
   presentAnchorEl.value?.scrollIntoView({
@@ -316,7 +406,11 @@ const scrollToControl = () => {
   refreshViewport()
 }
 const showNavigate = computed(
-  () => !!navPath.value && targetEl.value === null && presentAnchorEl.value === null
+  () =>
+    !ready.value &&
+    !guidingRoomMenu.value &&
+    !!navPath.value &&
+    (needsEarlierClaim.value || (targetEl.value === null && presentAnchorEl.value === null))
 )
 const navigateToLesson = () => {
   if (navPath.value) void router.push(navPath.value)
@@ -353,6 +447,7 @@ function onClaim() {
         :class="{
           'onboarding-cutout--static': reducedMotion === 'reduce',
           'onboarding-cutout--off': blockedByOverlay,
+          'onboarding-cutout--modal': guidingRoomMenu,
         }"
         :style="cutoutStyle"
         aria-hidden="true"
@@ -394,52 +489,76 @@ function onClaim() {
           </div>
           <h2 class="onboarding-title">{{ currentLesson.title }}</h2>
           <div v-show="!collapsed" id="onboarding-guide-body" class="onboarding-details">
-            <p class="onboarding-body">{{ currentLesson.body }}</p>
+            <p class="onboarding-body">
+              {{
+                ready
+                  ? 'This step is complete. Claim your reward to continue.'
+                  : needsEarlierClaim
+                    ? 'Finish and claim the earlier starter objective first. Your progress here is saved.'
+                    : guidingRoomMenu
+                      ? 'Choose Living room from this menu. Use search if needed, then select an adjacent empty slot in your vault.'
+                      : currentLesson.body
+              }}
+            </p>
+            <p v-if="replayMode" class="onboarding-note">
+              Replay explains the controls; you do not need to repeat actions.
+            </p>
             <p v-if="lessonObjective" class="onboarding-progress">
               {{ lessonObjective.progress }} / {{ lessonObjective.total }}
             </p>
             <div class="onboarding-actions">
-            <Button v-if="ready" size="sm" :disabled="claiming" @click="onClaim">
-              {{ claiming ? 'Claiming…' : `Claim ${lessonObjective?.reward}` }}
-            </Button>
-            <Button v-else-if="showContinue" size="sm" :disabled="claiming" @click="continueLesson">
-              Continue
-            </Button>
-            <Button
-              v-if="showScrollToControl"
-              size="sm"
-              variant="outline"
-              :disabled="claiming"
-              @click="scrollToControl"
-            >
-              Show control
-            </Button>
-            <Button
-              v-if="showNavigate"
-              size="sm"
-              variant="outline"
-              :disabled="claiming"
-              @click="navigateToLesson"
-            >
-              {{ navLabel }}
-            </Button>
-            <Button size="sm" variant="ghost" :disabled="claiming" @click="skipStepAction">
-              Skip step
-            </Button>
-            <Button size="sm" variant="ghost" :disabled="claiming" @click="skipTourAction">
-              Skip tour
-            </Button>
-            <Button v-if="loadFailed" size="sm" variant="outline" :disabled="claiming" @click="refresh">
-              Retry
-            </Button>
-          </div>
-          <Alert v-if="loadFailed" class="onboarding-note">
-            Could not refresh the guide. Retry.
-          </Alert>
-          <Alert v-if="blockedReason" class="onboarding-note">{{ blockedReason }}</Alert>
-          <Alert v-if="claimError" variant="destructive" class="onboarding-error">
-            {{ claimError }}
-          </Alert>
+              <Button v-if="ready" size="sm" :disabled="claiming" @click="onClaim">
+                {{ claiming ? 'Claiming…' : `Claim ${lessonObjective?.reward}` }}
+              </Button>
+              <Button
+                v-else-if="showContinue"
+                size="sm"
+                :disabled="claiming"
+                @click="continueLesson"
+              >
+                Continue
+              </Button>
+              <Button
+                v-if="showScrollToControl"
+                size="sm"
+                variant="outline"
+                :disabled="claiming"
+                @click="scrollToControl"
+              >
+                Show control
+              </Button>
+              <Button
+                v-if="showNavigate"
+                size="sm"
+                variant="outline"
+                :disabled="claiming"
+                @click="navigateToLesson"
+              >
+                {{ navLabel }}
+              </Button>
+              <Button size="sm" variant="ghost" :disabled="claiming" @click="skipStepAction">
+                Skip step
+              </Button>
+              <Button size="sm" variant="ghost" :disabled="claiming" @click="skipTourAction">
+                Skip tour
+              </Button>
+              <Button
+                v-if="loadFailed"
+                size="sm"
+                variant="outline"
+                :disabled="claiming"
+                @click="refresh"
+              >
+                Retry
+              </Button>
+            </div>
+            <Alert v-if="loadFailed" class="onboarding-note">
+              Could not refresh the guide. Retry.
+            </Alert>
+            <Alert v-if="blockedReason" class="onboarding-note">{{ blockedReason }}</Alert>
+            <Alert v-if="claimError" variant="destructive" class="onboarding-error">
+              {{ claimError }}
+            </Alert>
           </div>
         </template>
       </Card>
@@ -473,6 +592,14 @@ function onClaim() {
   box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.7);
   transition: opacity 0.2s ease-out;
   animation: onboarding-pulse 1.6s ease-in-out infinite;
+}
+
+.onboarding-cutout--modal {
+  z-index: 1001;
+}
+
+.onboarding-card.onboarding-card--modal {
+  z-index: 1002;
 }
 
 .onboarding-cutout--off {

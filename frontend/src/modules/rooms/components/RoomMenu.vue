@@ -1,14 +1,24 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
 import { useRoomStore } from '../stores/room'
 import RoomMenuItem from './RoomMenuItem.vue'
 import type { RoomTemplate } from '../models/room'
+import { Input } from '@/core/components/ui/input'
+import { Button } from '@/core/components/ui/button'
 
 const roomStore = useRoomStore()
 const availableRooms = computed(() =>
   Array.isArray(roomStore.availableRooms) ? roomStore.availableRooms : []
 )
+
+const search = ref('')
+const filteredRooms = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  return availableRooms.value.filter((room) =>
+    `${room.name} ${room.category}`.toLowerCase().includes(query)
+  )
+})
 
 const emit = defineEmits<{
   (e: 'roomSelected', room: RoomTemplate): void
@@ -16,7 +26,7 @@ const emit = defineEmits<{
 }>()
 
 // Mounted only while the build menu is open (`v-if` at the call site).
-useBlockingOverlay(() => true)
+useBlockingOverlay(() => true, 'room-menu')
 
 const selectRoom = (room: RoomTemplate) => {
   emit('roomSelected', room)
@@ -56,10 +66,34 @@ onUnmounted(() => {
         <h2 class="text-xl font-bold text-terminal-green">Room to Build</h2>
         <button @click="closeModal" class="close-btn" aria-label="Close">×</button>
       </div>
+      <div class="flex items-center gap-2 px-6 py-3">
+        <Input
+          v-model="search"
+          type="search"
+          v-bind="{ 'aria-label': 'Search rooms', 'data-onboarding': 'room-search' }"
+          placeholder="Search rooms by name or category…"
+          autocomplete="off"
+        />
+        <Button
+          v-if="search"
+          variant="ghost"
+          size="sm"
+          aria-label="Clear room search"
+          @click="search = ''"
+          >Clear</Button
+        >
+      </div>
       <div class="rooms-scroll-container">
+        <p
+          v-if="!filteredRooms.length"
+          class="text-center text-sm text-theme-primary/70"
+          role="status"
+        >
+          No rooms match your search.
+        </p>
         <ul class="rooms-grid">
           <RoomMenuItem
-            v-for="room in availableRooms"
+            v-for="room in filteredRooms"
             :key="`${room.name}-${room.category}`"
             :room="room"
             @select="selectRoom"

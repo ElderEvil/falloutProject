@@ -61,7 +61,7 @@ const itemTypeDisplay = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
+  <div class="flex flex-col" :class="variant === 'list' ? 'gap-3' : 'gap-2'">
     <!-- Header: icon + name + optional count badge + type/rarity subtitle -->
     <div v-if="variant === 'list'" class="flex items-center gap-3">
       <ItemIcon :item="item" :item-type="itemType" />
@@ -77,16 +77,17 @@ const itemTypeDisplay = computed(() => {
         </p>
       </div>
     </div>
-    <div v-else class="flex items-start gap-3">
+    <div v-else class="grid grid-cols-[5rem_minmax(0,1fr)] gap-x-3 gap-y-1">
       <ItemIcon
         :item="item"
         :item-type="itemType"
-        imgClass="h-16 w-16 shrink-0 object-contain drop-shadow-[0_0_4px_var(--color-theme-glow)]"
-        iconClass="h-16 w-16 shrink-0 text-(--color-theme-primary) drop-shadow-[0_0_4px_var(--color-theme-glow)]"
+        imgClass="row-span-2 size-20 shrink-0 object-contain drop-shadow-[0_0_4px_var(--color-theme-glow)]"
+        iconClass="row-span-2 size-20 shrink-0 text-(--color-theme-primary) drop-shadow-[0_0_4px_var(--color-theme-glow)]"
       />
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-1.5">
           <h3
+            :title="item.name || 'Unknown Item'"
             :class="[
               'truncate text-base font-bold drop-shadow-[0_0_4px_currentColor]',
               rarityTextClass,
@@ -105,14 +106,17 @@ const itemTypeDisplay = computed(() => {
           {{ itemTypeDisplay }}
         </p>
       </div>
+      <p
+        class="line-clamp-2 text-xs leading-4 text-(--color-theme-primary)/70"
+        :title="item.description || 'No description available'"
+      >
+        {{ item.description || 'No description available' }}
+      </p>
     </div>
 
     <!-- Description -->
     <p v-if="variant === 'list'" class="text-sm leading-snug text-theme-primary opacity-80">
       {{ item.description }}
-    </p>
-    <p v-else class="min-h-8 text-xs leading-4 text-(--color-theme-primary)/70">
-      {{ item.description || 'No description available' }}
     </p>
 
     <!-- Stat block: vertical list (dweller) or 2-column grid (storage) -->
@@ -128,12 +132,12 @@ const itemTypeDisplay = computed(() => {
     </div>
     <div
       v-else-if="stats.length > 0"
-      class="grid grid-cols-2 gap-1 rounded border border-theme-primary/15 bg-surface-sunken p-1.5 text-xs text-(--color-theme-primary)"
+      class="grid grid-cols-2 gap-1 rounded border border-theme-primary/15 bg-surface-sunken p-1 text-xs text-(--color-theme-primary)"
     >
       <div
         v-for="stat in stats"
         :key="stat.label"
-        class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-1.5 rounded-sm bg-surface-raised/40 px-2 py-1.5"
+        class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-1 rounded-sm bg-surface-raised/40 px-1.5 py-0.5"
       >
         <Icon :icon="stat.icon" class="h-4 w-4 shrink-0" />
         <span class="truncate uppercase tracking-wide opacity-70">{{ stat.label }}:</span>

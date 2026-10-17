@@ -64,6 +64,7 @@ async def test_fractional_changes_survive_repeated_ticks():
 async def test_fractional_carry_survives_database_reload(async_session, vault):
     from app.models.game_state import GameState
 
+    vault.food = vault.water = 50
     vault.food_max = vault.water_max = 1000
     async_session.add(vault)
     state = GameState(vault_id=vault.id, resource_remainders={"food": 0.2, "water": 0.2})
@@ -75,6 +76,7 @@ async def test_fractional_carry_survives_database_reload(async_session, vault):
     vault = await async_session.get(Vault, vault_id)
     update, _ = ResourceManager().calculate_resource_window(vault, [], 1, [], 60, state=loaded)
     assert loaded.resource_remainders["food"] == pytest.approx(-0.1)
+    assert loaded.resource_remainders["water"] == pytest.approx(-0.1)
 
 
 async def test_population_counts_only_present_living_dwellers(async_session, vault):

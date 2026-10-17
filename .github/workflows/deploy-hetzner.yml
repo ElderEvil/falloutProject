@@ -223,10 +223,19 @@ jobs:
             done
             mkdir -p "$HOME/fallout-backups"
             backup="$HOME/fallout-backups/pre-${{ inputs.image_tag }}-${{ github.run_id }}.dump"
-            kubectl -n fallout exec "$postgres" -- sh -c \
-              'pg_dump -U "$POSTGRES_USER" -d "$1" --format=custom' backup "$database" > "$backup"
-            test -s "$backup"
-            kubectl -n fallout exec -i "$postgres" -- pg_restore --list < "$backup" >/dev/null
+            # Validate a file inside PostgreSQL's pod, avoiding a second interactive
+            # exec/stdin stream. Bound the client too so transport stalls restore writers.
+            timeout --kill-after=10s 120s kubectl -n fallout exec "$postgres" -- sh -c '
+              set -eu
+              dump=$(mktemp)
+              cleanup() { rm -f "$dump"; }
+              trap cleanup EXIT
+              pg_dump -U "$POSTGRES_USER" -d "$1" --format=custom -f "$dump"
+              pg_restore --list "$dump" >/dev/null
+              cat "$dump"
+            ' backup "$database" > "$backup.partial"
+            test -s "$backup.partial"
+            mv "$backup.partial" "$backup"
             trap - ERR
             echo "Database backup verified: $backup"
           SHELL

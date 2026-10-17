@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.227.0 (2026-10-17)
+
+### Features
+
+* **audio:** add progression feedback from existing samples ([#1050](https://github.com/ElderEvil/falloutProject/issues/1050)) 624f665
+
 ## 2.226.1 (2026-10-17)
 
 ### Bug Fixes

@@ -98,6 +98,12 @@ uv run fo-cli ops check-ai --api-url https://fallout-api.evillab.tech --skip-cha
    Enable `maintenance_mode` for incompatible schema changes, including the upgrade from v2.165.1 that drops
    `dweller.is_adult`: the workflow records API/worker replica counts, stops both writers, creates and verifies a
    PostgreSQL dump under the server user's `~/fallout-backups/`, migrates, then restores the replicas on the new image.
+   Backup creation, archive listing, and transfer share a 120-second deadline (with a 10-second termination grace).
+   The archive is listed inside the PostgreSQL pod from a temporary file, without streaming it back into an
+   interactive `kubectl exec`. The server receives a `.partial` file and renames it to `.dump` only after verification
+   and transfer succeed. A backup error or timeout restores the recorded API/worker replica counts and aborts before
+   migration; retain any `.partial` file for diagnosis, but do not use it as a verified backup. Archive listing checks
+   readability, not full restoreability; a separate isolated restore drill is still required.
    Plan a brief API maintenance window. Migration failure keeps writers stopped for inspection; retain the backup
    and restore the previous schema/image together rather than restarting old code against a changed schema.
 6. Confirm rollout and health after deployment:

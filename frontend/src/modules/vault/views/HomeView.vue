@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, inject, onMounted, ref } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { MAX_USER_VAULTS, useVaultStore } from '../stores/vault'
 import { useRouter } from 'vue-router'
@@ -10,10 +10,13 @@ import { Progress } from '@/core/components/ui/progress'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
-import VaultCreationWizard from '../components/VaultCreationWizard.vue'
 import type { VaultNumberData } from '../schemas/vault'
 import { formatDateTime } from '@/core/utils/format'
 import { useOnboardingState } from '@/core/composables/useOnboardingState'
+
+const VaultCreationWizard = defineAsyncComponent(
+  () => import('../components/VaultCreationWizard.vue')
+)
 
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()

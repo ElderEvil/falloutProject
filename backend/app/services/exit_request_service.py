@@ -128,6 +128,9 @@ class ExitRequestService:
         if reason:
             raise VaultOperationException(detail=reason)
 
+        from app.services.combat.arena_service import arena_service
+
+        await arena_service.clear_fighter_slots_for_dweller(db_session, dweller_id, commit=False)
         now = datetime.now(UTC).replace(tzinfo=None)
         await self._stop_training(db_session, dweller_id, now)
         dweller.exit_requested_at = None

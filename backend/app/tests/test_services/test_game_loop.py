@@ -701,3 +701,67 @@ class TestAgeChildren:
             mbs.age_children = AsyncMock(side_effect=ValueError("Invalid"))
             result = await game_loop_service._age_children(async_session, vault.id)
         assert result["children_aged"] == 0
+
+
+@pytest.mark.asyncio
+async def test_tick_reports_arena_and_preserves_paused_contract(async_session, vault):
+    result = await game_loop_service.process_vault_tick(async_session, vault.id)
+    assert result["updates"]["arena"] == {"rooms": []}
+    await game_loop_service.pause_vault(async_session, vault.id)
+    result = await game_loop_service.process_vault_tick(async_session, vault.id)
+    assert result == {"status": "paused"}
+
+
+@pytest.mark.asyncio
+async def test_arena_snapshot_database_failure_recovers_for_events(async_session, vault):
+    from sqlalchemy import event
+
+    from app import crud
+    from app.core.enums import RoomTypeEnum, SPECIALEnum
+    from app.models.arena_match_event import ArenaMatchEvent
+    from app.models.room import Room
+    from app.schemas.room import RoomCreate
+
+    room = await crud.room.create(
+        async_session,
+        RoomCreate(
+            name="Arena",
+            category=RoomTypeEnum.ARENA,
+            ability=SPECIALEnum.STRENGTH,
+            base_cost=100,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=6,
+            size_max=6,
+            vault_id=vault.id,
+        ),
+    )
+    async_session.add(ArenaMatchEvent(room_id=room.id, round_seq=1, kind="hit", message="saved"))
+    await async_session.commit()
+    vault_id = vault.id
+    connection = await async_session.connection()
+    failed = False
+
+    # Fail at the database boundary, once; exercise recovery and later phases for real.
+    def break_snapshot(conn, cursor, statement, parameters, context, executemany):
+        nonlocal failed
+        if "row_number() OVER" in statement and not failed:
+            failed = True
+            return "SELECT * FROM missing_arena_snapshot_table", ()
+        return statement, parameters
+
+    event.listen(connection.sync_connection, "before_cursor_execute", break_snapshot, retval=True)
+    try:
+        result = await game_loop_service.process_vault_tick(async_session, vault_id)
+    finally:
+        event.remove(connection.sync_connection, "before_cursor_execute", break_snapshot)
+    assert failed
+    assert result["updates"]["arena"]["rooms"] == []
+    assert "error" in result["updates"]["arena"]
+    assert "error" not in result["updates"]["events"]
+    # Session remains usable after recovery, and the persisted journal survived.
+    from app.services.combat.arena_service import arena_service
+
+    assert (await arena_service.get_tick_snapshot(async_session, vault_id))["rooms"][0]["events"][0][
+        "message"
+    ] == "saved"

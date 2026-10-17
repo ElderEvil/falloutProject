@@ -10,6 +10,17 @@ const affordable = {
 }
 
 describe('RevivalSection', () => {
+  it('removes the revive action when a quote is rejected', async () => {
+    const wrapper = mount(RevivalSection, {
+      props: { dwellerId: 'dweller-1', revivalCost: affordable },
+    })
+
+    await wrapper.setProps({ revivalCost: null })
+
+    expect(wrapper.find('button').exists()).toBe(false)
+    expect(wrapper.emitted('revive')).toBeUndefined()
+  })
+
   it('renders the revival cost and current vault funds', () => {
     const wrapper = mount(RevivalSection, {
       props: { dwellerId: 'dweller-1', revivalCost: affordable },

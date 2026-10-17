@@ -778,3 +778,31 @@ async def test_roster_attention_focus_is_validated_and_applied(
         f"/dwellers/vault/{vault.id}/", params={"focus": "unknown"}, headers=superuser_token_headers
     )
     assert invalid.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_revival_endpoints_reject_permanent_memorial(
+    async_client, async_session, dweller, superuser_token_headers
+):
+    from app.core.enums import DwellerStatusEnum, LifecycleEnum
+
+    dweller.lifecycle = LifecycleEnum.DEAD_PERMANENT
+    dweller.is_dead = True
+    dweller.is_permanently_dead = True
+    dweller.status = DwellerStatusEnum.DEAD
+    dweller.epitaph = "Remembered"
+    await async_session.commit()
+    dweller_id = dweller.id
+    vault = await crud.vault.get(async_session, dweller.vault_id)
+    caps = vault.bottle_caps
+    for method, path in [("get", "revival_cost"), ("post", "revive")]:
+        response = await getattr(async_client, method)(
+            f"/dwellers/{dweller_id}/{path}", headers=superuser_token_headers
+        )
+        assert response.status_code == 400
+        assert "permanently dead" in response.text
+    await async_session.refresh(dweller)
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == caps
+    assert dweller.lifecycle == LifecycleEnum.DEAD_PERMANENT
+    assert dweller.epitaph == "Remembered"

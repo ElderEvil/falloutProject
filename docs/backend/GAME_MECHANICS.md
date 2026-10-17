@@ -168,6 +168,24 @@ systems. A manual stimpack heal uses carried stock first, falling back to vault 
 the dweller is inside the vault. Stock deduction and healing commit together; outside dwellers
 can only use their carried supplies. Catalog opponents and training bots still reset to full match HP.
 
+Arena residents are `IDLE` until selected fighters start a match; the countdown counts as
+`FIGHTING`. Completion, replacement and cancellation release surviving participants still
+in that room, preserving injuries and radiation. The arena actor also reconciles stale
+fighting statuses in inactive rooms. Moving a fighter cancels the match in the same
+transaction as the move; their new room's status takes precedence. Arena residents never
+receive production work XP. Active fighters are in the vault but busy for exit requests.
+
+Vault ticks expose a read-only `updates.arena.rooms` snapshot. Each room reports `room_id`,
+`fight_started`, `match_done` and the latest 40 journal `events` in chronological order
+(`id`, `round_seq`, `kind`, `message`). Repeated reads retain event IDs for caller deduplication;
+clearing the journal or replacing selections removes events. This is not a durable replay
+feed. The arena actor alone advances combat; snapshots do not create match state or grant rewards.
+
+Revival quotes and revival actions share canonical lifecycle eligibility, falling back to
+legacy death flags only for unclassified rows. Both reject living or permanently dead dwellers
+with HTTP 400. For eligible dwellers, `can_afford` describes funds only, and
+`days_until_permanent: null` means the death timestamp is unknown.
+
 Arena-only wildlife extends hunt selection without changing exploration encounters: Bloatfly uses
 difficulty 1, Radstag 2, Night Stalker 3, and Mirelurk/Yao Guai 4, below Deathclaw at 5. These opponents
 reuse the existing difficulty-based power/HP scaling and ordinary creature combat. Brahmin artwork is

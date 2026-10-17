@@ -99,17 +99,21 @@ async def test_request_exit_rejects_children(async_session: AsyncSession, vault:
 
 
 @pytest.mark.parametrize(
-    "status",
-    [DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING, DwellerStatusEnum.FIGHTING],
+    ("status", "reason"),
+    [
+        (DwellerStatusEnum.EXPLORING, "away from the vault"),
+        (DwellerStatusEnum.QUESTING, "away from the vault"),
+        (DwellerStatusEnum.FIGHTING, "busy in an arena match"),
+    ],
 )
 @pytest.mark.asyncio
 async def test_request_exit_rejects_a_dweller_who_is_away(
-    async_session: AsyncSession, vault: Vault, status: DwellerStatusEnum
+    async_session: AsyncSession, vault: Vault, status: DwellerStatusEnum, reason: str
 ) -> None:
     dwellers = await _with_room_for_one_exit(async_session, vault)
     await crud.dweller.update(async_session, dwellers[0].id, {"status": status})
 
-    with pytest.raises(VaultOperationException, match="away from the vault"):
+    with pytest.raises(VaultOperationException, match=reason):
         await exit_request_service.request_exit(async_session, dwellers[0].id)
 
 
@@ -500,3 +504,62 @@ async def test_despair_leaves_content_dwellers_alone(async_session: AsyncSession
 
     assert await exit_request_service.sync_despair_requests(async_session, vault.id) == []
     assert all(d.exit_requested_at is None for d in dwellers)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("completed", [False, True])
+async def test_grant_exit_clears_idle_arena_selection(
+    async_session: AsyncSession, vault: Vault, completed: bool
+) -> None:
+    from app.crud.arena_state import arena_state_crud
+    from app.models.arena_match_event import ArenaMatchEvent
+    from app.services.combat.arena_service import arena_service
+
+    departing, teammate, replacement, *_ = await _with_room_for_one_exit(async_session, vault)
+    arena = await room_crud.create(
+        async_session,
+        RoomCreate(
+            name="Arena",
+            category=RoomTypeEnum.ARENA,
+            ability=SPECIALEnum.STRENGTH,
+            base_cost=800,
+            t2_upgrade_cost=3000,
+            t3_upgrade_cost=9000,
+            size_min=6,
+            size_max=6,
+            vault_id=vault.id,
+        ),
+    )
+    for dweller in (departing, teammate, replacement):
+        dweller.room_id = arena.id
+        dweller.status = DwellerStatusEnum.IDLE
+        dweller.health = 26
+        dweller.radiation = 11
+    await async_session.commit()
+    state = await arena_service.set_fighters(async_session, arena.id, departing.id, teammate.id)
+    if completed:
+        state.fight_started_at = datetime.utcnow() - timedelta(minutes=1)
+        state.last_fight_at = datetime.utcnow()
+    async_session.add(ArenaMatchEvent(room_id=arena.id, round_seq=1, kind="hit", message="Previous match"))
+    await async_session.commit()
+    await exit_request_service.request_exit(async_session, departing.id)
+
+    await exit_request_service.grant_exit(async_session, vault, departing.id)
+
+    await async_session.refresh(state)
+    await async_session.refresh(teammate)
+    assert state.fighter_a_id is None
+    assert state.fighter_b_id == teammate.id
+    assert state.fight_started_at is None
+    assert state.last_fight_at is None
+    assert departing.lifecycle == LifecycleEnum.WASTELAND
+    assert departing.vault_id is None
+    assert teammate.room_id == arena.id
+    assert teammate.status == DwellerStatusEnum.IDLE
+    assert teammate.health == departing.health == 26
+    assert teammate.radiation == departing.radiation == 11
+    assert (await arena_service.get_tick_snapshot(async_session, vault.id))["rooms"][0]["events"] == []
+    await arena_service.set_fighters(async_session, arena.id, replacement.id, teammate.id)
+    await arena_service.start_fight(async_session, arena.id)
+    await async_session.refresh(teammate)
+    assert teammate.status == DwellerStatusEnum.FIGHTING

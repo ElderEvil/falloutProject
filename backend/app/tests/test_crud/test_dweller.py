@@ -131,7 +131,7 @@ async def test_move_child_to_training_room_rejected(
 
 
 @pytest.mark.asyncio
-async def test_move_adult_to_arena_sets_fighting_status(async_session: AsyncSession):
+async def test_move_adult_to_arena_sets_idle_status(async_session: AsyncSession):
     from app.schemas.common import DwellerStatusEnum
 
     user_data = create_fake_user()
@@ -168,7 +168,7 @@ async def test_move_adult_to_arena_sets_fighting_status(async_session: AsyncSess
 
     moved = await dweller_service.move_to_room(async_session, dweller_id=dweller.id, room_id=arena_room.id)
     assert moved.room_id == arena_room.id
-    assert moved.status == DwellerStatusEnum.FIGHTING
+    assert moved.status == DwellerStatusEnum.IDLE
 
 
 @pytest.mark.asyncio

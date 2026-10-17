@@ -17,6 +17,7 @@ from app.models.vault import Vault
 from app.schemas.dweller import DwellerRead, DwellerReviveResponse, DwellerUpdate, RevivalCostResponse
 from app.services.access_service import assert_vault_owner
 from app.services.notification_service import notification_service
+from app.utils.dweller_lifecycle import is_dead, is_permanently_dead
 from app.utils.exceptions import (
     ContentNoChangeException,
     InsufficientResourcesException,
@@ -148,11 +149,7 @@ class DeathService:
         if dweller is None:
             raise ResourceNotFoundException(Dweller, identifier=dweller_id)
 
-        if not dweller.is_dead:
-            raise ContentNoChangeException(detail="Dweller is not dead")
-
-        if dweller.is_permanently_dead:
-            raise ContentNoChangeException(detail="Dweller is permanently dead and cannot be revived")
+        self._require_revivable(dweller)
 
         vault = await vault_crud.get(db_session, self._require_vault_id(dweller))
         assert_vault_owner(vault, user)
@@ -222,14 +219,13 @@ class DeathService:
         :param user: User requesting the quote
         :raises ResourceNotFoundException: If dweller not found
         :raises AccessDeniedException: If the user does not own the vault
-        :raises ContentNoChangeException: If the dweller is not dead
+        :raises ContentNoChangeException: If the dweller is living or permanently dead
         """
         dweller = await dweller_crud.get(db_session, dweller_id)
         if dweller is None:
             raise ResourceNotFoundException(Dweller, identifier=dweller_id)
 
-        if not dweller.is_dead:
-            raise ContentNoChangeException(detail="Dweller is not dead")
+        self._require_revivable(dweller)
 
         vault = await vault_crud.get(db_session, self._require_vault_id(dweller))
         assert_vault_owner(vault, user)
@@ -245,6 +241,13 @@ class DeathService:
             can_afford=vault.bottle_caps >= revival_cost,
             vault_caps=vault.bottle_caps,
         )
+
+    @staticmethod
+    def _require_revivable(dweller: Dweller) -> None:
+        if not is_dead(dweller):
+            raise ContentNoChangeException(detail="Dweller is not dead")
+        if is_permanently_dead(dweller):
+            raise ContentNoChangeException(detail="Dweller is permanently dead and cannot be revived")
 
     @staticmethod
     def _require_vault_id(dweller: Dweller) -> UUID4:
@@ -276,7 +279,7 @@ class DeathService:
         :returns: Days remaining, or None if not dead or already permanent
         :rtype: Optional[int]
         """
-        if not dweller.is_dead or dweller.is_permanently_dead or not dweller.death_timestamp:
+        if not is_dead(dweller) or is_permanently_dead(dweller) or not dweller.death_timestamp:
             return None
 
         permanent_date = dweller.death_timestamp + timedelta(days=game_config.death.permanent_death_days)

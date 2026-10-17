@@ -308,6 +308,7 @@ export const QUEST_ITEM_LABELS: Record<string, string> = {
   pet: 'Pet',
   consumable: 'Consumable',
   lunchbox: 'Lunchbox',
+  dweller: 'Dweller',
 }
 
 /** Shared resource icon-and-label metadata for advertised and granted rewards. */

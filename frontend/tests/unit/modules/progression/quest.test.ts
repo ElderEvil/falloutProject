@@ -73,6 +73,15 @@ describe('describeGrantedReward', () => {
     })
   })
 
+  it('renders a dweller-granting item reward with the dweller label and icon', () => {
+    const reward: GrantedReward = { reward_type: 'item', item_type: 'dweller', name: 'Legendary Dweller', amount: 1 }
+    expect(describeGrantedReward(reward)).toEqual({
+      icon: 'mdi:account-plus',
+      label: 'Dweller',
+      value: 'Legendary Dweller',
+    })
+  })
+
   it('falls back to the generic item icon and label for an unknown item type', () => {
     const reward: GrantedReward = { reward_type: 'item', item_type: 'unknown', name: 'Mystery Trinket', amount: 1 }
     expect(describeGrantedReward(reward)).toEqual({
@@ -144,9 +153,7 @@ describe('questRewardIcon', () => {
 
   it('keeps item rewards on category, then name, then the generic fallback', () => {
     expect(
-      questRewardIcon(
-        questReward({ reward_type: 'item', reward_data: { item_type: 'weapon', item_name: 'Rifle' } })
-      )
+      questRewardIcon(questReward({ reward_type: 'item', reward_data: { item_type: 'weapon', item_name: 'Rifle' } }))
     ).toBe('mdi:pistol')
     expect(
       questRewardIcon(questReward({ reward_type: 'item', reward_data: { item_name: 'RadAway' } }))
@@ -154,5 +161,13 @@ describe('questRewardIcon', () => {
     expect(
       questRewardIcon(questReward({ reward_type: 'item', reward_data: { item_name: 'Mystery Trinket' } }))
     ).toBe('mdi:package-variant')
+  })
+
+  it('uses the item-type icon for dweller-granting item rewards', () => {
+    expect(
+      questRewardIcon(
+        questReward({ reward_type: 'item', reward_data: { item_type: 'dweller', item_name: 'Legendary Dweller' } })
+      )
+    ).toBe('mdi:account-plus')
   })
 })

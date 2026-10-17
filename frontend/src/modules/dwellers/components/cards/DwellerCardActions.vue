@@ -130,7 +130,7 @@ const exploreTooltip = computed(() =>
             variant="outline"
             class="w-full"
             @click="emit('train')"
-            :disabled="loading || isTraining"
+            :disabled="loading || isTraining || !isMatureDweller"
           >
             <Icon icon="mdi:school" class="h-5 w-5 mr-2" />
             {{ isTraining ? 'Training…' : 'Train' }}
@@ -139,6 +139,13 @@ const exploreTooltip = computed(() =>
         <TooltipContent side="top">Train SPECIAL stats to improve dweller abilities</TooltipContent>
       </Tooltip>
     </TooltipProvider>
+    <p
+      v-if="!isMatureDweller && !isGone"
+      class="col-span-full text-xs text-theme-accent"
+      role="status"
+    >
+      Training unlocks at adulthood. Children and teens learn through apprenticeships.
+    </p>
   </div>
 </template>
 

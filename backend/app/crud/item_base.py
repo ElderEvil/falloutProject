@@ -8,7 +8,7 @@ from sqlalchemy.orm import aliased
 from sqlmodel import SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import ItemTypeEnum, JunkTypeEnum, RarityEnum
+from app.core.enums import AgeGroupEnum, ItemTypeEnum, JunkTypeEnum, RarityEnum
 from app.core.game_config import game_config
 from app.crud.base import CRUDBase
 from app.models import Outfit, Pet, Storage, Vault, Weapon
@@ -19,6 +19,7 @@ from app.utils.exceptions import (
     InvalidItemAssignmentException,
     ResourceConflictException,
     ResourceNotFoundException,
+    ValidationException,
 )
 
 ItemT = TypeVar("ItemT", Weapon, Outfit, Pet)
@@ -167,6 +168,14 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         dweller = dweller_result.scalar_one_or_none()
         if not dweller:
             raise ResourceNotFoundException(Dweller, identifier=dweller_id)
+
+        # Youth cannot use equipment until they mature (issue #1036): block
+        # CHILD and TEEN at the shared weapons/outfits/pets seam. Elders are
+        # mature adults and keep their gear.
+        if dweller.age_group in (AgeGroupEnum.CHILD, AgeGroupEnum.TEEN):
+            raise ValidationException(
+                detail=f"Only adult dwellers can use equipment; {dweller.first_name} is still a {dweller.age_group.value}."
+            )
 
         item = await db_session.get(self.model, item_id)
         if not item:

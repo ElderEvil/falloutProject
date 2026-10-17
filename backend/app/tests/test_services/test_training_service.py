@@ -456,3 +456,33 @@ async def test_cancel_training_persists_status_and_release_in_the_first_commit(
 
     assert observations == ["first"]
     assert cancelled.is_cancelled()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("age_group", ["child", "teen"])
+async def test_youth_cannot_start_training(async_session, vault, dweller, training_service, age_group):
+    from app.core.enums import AgeGroupEnum
+    from app.utils.exceptions import VaultOperationException
+
+    dweller.age_group = AgeGroupEnum(age_group)
+    async_session.add(dweller)
+    room = await room_crud.create(
+        async_session,
+        RoomCreate(
+            name="Weight Room",
+            category=RoomTypeEnum.TRAINING,
+            ability=SPECIALEnum.STRENGTH,
+            tier=1,
+            size=1,
+            capacity=2,
+            base_cost=1000,
+            t2_upgrade_cost=2500,
+            t3_upgrade_cost=5000,
+            size_min=1,
+            size_max=3,
+            vault_id=vault.id,
+        ),
+    )
+    with pytest.raises(VaultOperationException, match="adult"):
+        await training_service.start_training(async_session, dweller.id, room.id)
+    assert await training_crud.training.get_active_by_dweller(async_session, dweller.id) is None

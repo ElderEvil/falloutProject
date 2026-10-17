@@ -1,6 +1,7 @@
 """General dweller business logic service."""
 
 import logging
+import random
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, cast
@@ -61,6 +62,7 @@ from app.services.room_assignment_policy import (
 from app.services.training_service import training_service
 from app.services.user_service import user_service
 from app.services.vault_service import vault_service
+from app.utils.appearance_roll import complete_appearance
 from app.utils.dwellers import elder_birth_threshold
 from app.utils.exceptions import (
     ContentNoChangeException,
@@ -118,6 +120,7 @@ class DwellerService:
 
     async def create_dweller(self, db_session: AsyncSession, obj_in: DwellerCreate) -> Dweller:
         """Create a dweller and record the overseer's lifetime total."""
+        obj_in = obj_in.model_copy(update={"visual_attributes": complete_appearance(obj_in.model_dump())})
         dweller = await crud.dweller.create(db_session, obj_in)
         await user_service.record_vault_statistic(db_session, self._require_vault_id(dweller), "total_dwellers_created")
         await event_bus.emit(GameEvent.DWELLER_ADDED, self._require_vault_id(dweller), {"dweller_id": str(dweller.id)})
@@ -137,6 +140,7 @@ class DwellerService:
         Callers composing their OWN bio (e.g. pregen_service) pass ``register_bio_places=False``.
         """
         payload = await crud.dweller.prepare_random_dweller(db_session, vault_id, obj_in, seed=seed, rarity=rarity)
+        payload["visual_attributes"] = complete_appearance(payload, random.Random(seed))
         return await self._persist_registered_dweller(db_session, vault_id, payload, register_bio_places)
 
     async def create_dweller_from_template(
@@ -160,6 +164,7 @@ class DwellerService:
         """Persist a prepared payload, record the lifetime total and register explicit bio places."""
         from app.services.bio_service import make_entry
 
+        payload["visual_attributes"] = complete_appearance(payload)
         bio_places = payload.pop("_bio_places", None)
         if payload.get("bio") and not payload.get("bio_entries"):
             payload["bio_entries"] = [make_entry("template", payload["bio"])]

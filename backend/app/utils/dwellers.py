@@ -12,6 +12,7 @@ from app.options.bios import maybe_zone_rumor, render_bio
 from app.options.factions import FactionOption, faction_restrictions
 from app.options.races import STATE_OF_BEING_OPTIONS, RaceOption, is_ageless, race_of
 from app.schemas.dweller import LETTER_TO_STAT, STATS_RANGE_BY_RARITY, RarityEnum
+from app.utils.appearance_roll import complete_appearance, inherit_appearance_for_child, roll_appearance
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -134,7 +135,9 @@ def roll_child_identity(mother: Any, father: Any, source: random.Random | Module
     Mutation (``BreedingConfig.race_mutation_chance``) picks a race *different*
     from the parents, weighted by ``race_weights`` over the remaining candidates,
     which is how non-humans arise from breeding given that only humans are
-    breeding-eligible.
+    breeding-eligible. When the mutated race differs from both parents, the
+    finer appearance is re-rolled for that race (issue #1036): skin/hair/eye
+    traits that cannot transfer re-roll cleanly inside the new race's options.
     """
     parent_races = [race for race in (race_of(mother), race_of(father)) if race is not None] or [RaceOption.HUMAN]
     if source.random() < game_config.breeding.race_mutation_chance:
@@ -143,7 +146,13 @@ def roll_child_identity(mother: Any, father: Any, source: random.Random | Module
         race = source.choices(candidates, weights=[weights[candidate.value] for candidate in candidates])[0]
     else:
         race = source.choice(parent_races)
-    return _identity_for_race(race, source)
+    identity = _identity_for_race(race, source)
+
+    if race not in parent_races:
+        identity.update(roll_appearance(race, None, source, AgeGroupEnum.CHILD))
+    else:
+        identity.update(inherit_appearance_for_child(race, mother, father, source))
+    return identity
 
 
 def _rarity_start_level(rarity: RarityEnum | str, rng: random.Random | ModuleType) -> int:
@@ -204,6 +213,8 @@ def create_random_common_dweller(
         age_group = AgeGroupEnum.ADULT
     else:
         age_group = AgeGroupEnum.ELDER if birth_date <= elder_birth_threshold(now) else AgeGroupEnum.ADULT
+
+    identity.update(roll_appearance(_race_from_attributes(identity) or RaceOption.HUMAN, gender, rng, age_group))
     origin, visited = _procedural_bio_places(rng, rarity)
     bio = render_bio(origin, visited, race=_race_from_attributes(identity), rng=rng)
     if rumor := maybe_zone_rumor(rng, game_config.bio.zone_rumor_chance):
@@ -276,8 +287,7 @@ def create_dweller_from_template(
         data["max_health"] = _max_health_for_level(start_level)
         data["health"] = data["max_health"]
         data["experience"] = _xp_for_level(start_level)
-    if data.get("visual_attributes") is None:
-        data["visual_attributes"] = None
+    data["visual_attributes"] = complete_appearance(data, rng)
     data["_bio_places"] = (origin, visited) if origin or visited else None
     if not data.get("bio"):
         origin_fallback, visited_fallback = origin or "Vault 111", visited or []

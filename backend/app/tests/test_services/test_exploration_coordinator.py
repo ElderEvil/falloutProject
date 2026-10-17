@@ -464,6 +464,7 @@ async def test_auto_stimpak_skips_at_radiation_capped_health(
     dweller: Dweller,
 ):
     """A dweller at the radiation-reduced ceiling must not spend a Stimpak on 0 healing."""
+    dweller.stimpack = 1
     dweller.health = 40
     dweller.max_health = 100
     dweller.radiation = 60

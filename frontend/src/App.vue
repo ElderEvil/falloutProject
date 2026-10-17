@@ -46,6 +46,13 @@ const closeChat = () => {
 // Visual effects (replaces old useFlickering)
 const visualEffects = useVisualEffects()
 const { isFlickeringEnabled, scanlines, glowClass, flickerOpacity } = visualEffects
+watch(
+  isFlickeringEnabled,
+  (enabled) => {
+    document.documentElement.dataset.flickering = String(enabled)
+  },
+  { immediate: true }
+)
 
 // Theme system
 const { currentTheme, setTheme, availableThemes } = useTheme()

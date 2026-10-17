@@ -68,6 +68,17 @@ path (`start_quest`) — the two must never disagree:
 The vault quest read stamps each `QuestRequirementRead.is_met` from the same fail-closed dispatch the
 availability gate uses, so the UI shows per-row gate verdicts instead of inferring them from `is_locked`.
 
+## Incident preparation and reports
+
+- Profile preference `pause_on_incident` is an optional boolean, off by default. When enabled,
+  spawning an incident commits the vault pause with the incident before combat advances. The spawn
+  event refreshes the vault controls; players assign responders and resume explicitly.
+- Pause stops incident ticks and preserves the remaining response/spread time on resume. Repeated
+  pause/resume requests do not reset or double-count the stopped time, including incidents spawned
+  while a vault was already paused.
+- Completed incident reports remain reachable from the vault overview until dismissed in the room
+  aftermath. Room splitting remains a separate feature; these fixes do not alter automatic merging.
+
 ## Incident responder returns
 
 - Manual and automatic dispatch record the responder's original room once, before moving them.

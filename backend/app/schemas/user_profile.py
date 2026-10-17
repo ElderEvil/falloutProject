@@ -25,6 +25,8 @@ class ProfileUpdate(SQLModel):
     def validate_preferences(cls, preferences: dict | None) -> dict | None:
         if preferences is not None:
             validate_notification_preferences(preferences)
+            if "pause_on_incident" in preferences and type(preferences["pause_on_incident"]) is not bool:
+                raise ValueError("pause_on_incident must be a boolean")
         return preferences
 
 

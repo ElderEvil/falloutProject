@@ -9,7 +9,7 @@ import type { Room } from '@/modules/rooms/models/room'
  */
 export function getTrainingRoomCapacity(room: Pick<Room, 'size' | 'size_min'>): number {
   const size = room.size ?? room.size_min ?? 3
-  return Math.ceil(size / 3) * 2
+  return Math.floor(size / 3) * 2
 }
 
 /**
@@ -28,9 +28,7 @@ export function getRoomSegmentCount(room: Pick<Room, 'size' | 'size_min'>): numb
  */
 export function isLevelBuildable(rooms: Room[], level: number): boolean {
   if (level === 0) return true
-  return rooms.some(
-    (r) => r.name.toLowerCase() === 'elevator' && (r.coordinate_y ?? -1) === level
-  )
+  return rooms.some((r) => r.name.toLowerCase() === 'elevator' && (r.coordinate_y ?? -1) === level)
 }
 
 /**
@@ -39,6 +37,9 @@ export function isLevelBuildable(rooms: Room[], level: number): boolean {
  */
 export function hasElevatorAbove(rooms: Room[], x: number, y: number): boolean {
   return rooms.some(
-    (r) => r.name.toLowerCase() === 'elevator' && r.coordinate_x === x && (r.coordinate_y ?? -1) === y - 1
+    (r) =>
+      r.name.toLowerCase() === 'elevator' &&
+      r.coordinate_x === x &&
+      (r.coordinate_y ?? -1) === y - 1
   )
 }

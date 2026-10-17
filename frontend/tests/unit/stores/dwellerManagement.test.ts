@@ -24,6 +24,24 @@ describe('useDwellerManagementStore', () => {
     vi.clearAllMocks()
   })
 
+  it('renames both names and updates both cached representations', async () => {
+    const filter = useDwellerFilterStore()
+    const management = useDwellerManagementStore()
+    filter.dwellers = [{ id: 'd1', first_name: 'John', last_name: 'Doe' }] as never
+    filter.detailedDwellers.d1 = filter.dwellers[0] as never
+    vi.mocked(axios.patch).mockResolvedValue({
+      data: { id: 'd1', first_name: 'Jane', last_name: 'Smith' },
+    })
+    await management.renameDweller('d1', 'Jane', 'token', 'Smith')
+    expect(axios.patch).toHaveBeenCalledWith(
+      '/api/v1/dwellers/d1/rename',
+      { first_name: 'Jane', last_name: 'Smith' },
+      { headers: { Authorization: 'Bearer token' } }
+    )
+    expect(filter.dwellers[0]).toMatchObject({ first_name: 'Jane', last_name: 'Smith' })
+    expect(filter.detailedDwellers.d1).toMatchObject({ first_name: 'Jane', last_name: 'Smith' })
+  })
+
   it('assigns only available dwellers to production rooms and refreshes the list', async () => {
     const filterStore = useDwellerFilterStore()
     const managementStore = useDwellerManagementStore()

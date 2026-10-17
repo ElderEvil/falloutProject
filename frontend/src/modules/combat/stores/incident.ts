@@ -14,6 +14,7 @@ import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { audioManager } from '@/core/audio/audioManager'
 import { useSse } from '@/core/composables/useEventStream'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import { usePolling } from '@/core/composables/usePolling'
 
 export const useIncidentStore = defineStore('incident', () => {
@@ -58,7 +59,8 @@ export const useIncidentStore = defineStore('incident', () => {
     return counts
   })
 
-  const aftermathForRoom = (roomId: string): IncidentAftermath | undefined => aftermaths.value.get(roomId)
+  const aftermathForRoom = (roomId: string): IncidentAftermath | undefined =>
+    aftermaths.value.get(roomId)
 
   const clearAftermath = (roomId: string): void => {
     aftermaths.value.delete(roomId)
@@ -141,7 +143,11 @@ export const useIncidentStore = defineStore('incident', () => {
     } catch (error) {
       handleStoreError(error, 'Failed to store held incident loot')
       const status = (error as { response?: { status?: number } } | null)?.response?.status
-      showError(status === 409 ? 'Storage is full — sell the item or free a slot.' : 'Could not store the held item.')
+      showError(
+        status === 409
+          ? 'Storage is full — sell the item or free a slot.'
+          : 'Could not store the held item.'
+      )
     }
   }
 
@@ -237,7 +243,8 @@ export const useIncidentStore = defineStore('incident', () => {
     }
   }
 
-  const getIncidentTeam = (incidentId: string): IncidentTeamMember[] => incidentTeams.value.get(incidentId) ?? []
+  const getIncidentTeam = (incidentId: string): IncidentTeamMember[] =>
+    incidentTeams.value.get(incidentId) ?? []
 
   const hasLoadedIncidentTeam = (incidentId: string): boolean => incidentTeams.value.has(incidentId)
 
@@ -248,7 +255,11 @@ export const useIncidentStore = defineStore('incident', () => {
     )
   )
 
-  async function fetchIncidentTeam(vaultId: string, incidentId: string, token: string): Promise<void> {
+  async function fetchIncidentTeam(
+    vaultId: string,
+    incidentId: string,
+    token: string
+  ): Promise<void> {
     try {
       const team = await incidentApi.getIncidentTeam(vaultId, incidentId, token)
       incidentTeams.value.set(incidentId, team)
@@ -308,6 +319,13 @@ export const useIncidentStore = defineStore('incident', () => {
 
         switch (data.type) {
           case 'incident_spawned':
+            if (data.is_paused === true) {
+              void useVaultStore()
+                .fetchGameState(vaultId, token)
+                .catch((error) => {
+                  handleStoreError(error, 'Failed to refresh automatic pause state')
+                })
+            }
             sseConnected.value = true
             void fetchIncidents(vaultId, token)
             break

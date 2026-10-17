@@ -55,6 +55,7 @@ const appearanceEditorOpen = ctx.appearanceEditorOpen
 const trainingModalOpen = ctx.trainingModalOpen
 const renameDialogOpen = ctx.renameDialogOpen
 const renameDialogName = ctx.renameDialogName
+const renameDialogLastName = ctx.renameDialogLastName
 const softDeleteDialogOpen = ctx.softDeleteDialogOpen
 const wastelandModalOpen = ctx.wastelandModalOpen
 </script>
@@ -121,7 +122,24 @@ const wastelandModalOpen = ctx.wastelandModalOpen
         <Label for="rename-dweller" class="mb-1 block text-sm font-medium text-theme-primary/70">
           First name
         </Label>
-        <Input id="rename-dweller" v-model="renameDialogName" placeholder="Dweller name" />
+        <Input
+          id="rename-dweller"
+          v-model="renameDialogName"
+          placeholder="First name"
+          :maxlength="32"
+        />
+        <Label
+          for="rename-dweller-last-name"
+          class="mb-1 mt-3 block text-sm font-medium text-theme-primary/70"
+        >
+          Last name (optional)
+        </Label>
+        <Input
+          id="rename-dweller-last-name"
+          v-model="renameDialogLastName"
+          placeholder="Last name"
+          :maxlength="32"
+        />
       </div>
       <template #footer>
         <Button variant="secondary" @click="renameDialogOpen = false">Cancel</Button>

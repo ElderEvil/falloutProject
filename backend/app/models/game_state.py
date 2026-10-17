@@ -40,8 +40,9 @@ class GameState(BaseUUIDModel, GameStateBase, TimeStampMixin, table=True):
 
     def pause(self) -> None:
         """Pause the game state."""
-        self.is_paused = True
-        self.paused_at = datetime.utcnow()
+        if not self.is_paused:
+            self.is_paused = True
+            self.paused_at = datetime.utcnow()
 
     def resume(self) -> None:
         """Resume the game state."""

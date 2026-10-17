@@ -43,7 +43,7 @@ function createDefaultActions(): DwellerDetailActions {
  * on the actions it calls through `inject` instead of props/emits.
  */
 export function createMockDwellerDetailContext(
-  overrides: Partial<DwellerDetailContext> = {},
+  overrides: Partial<DwellerDetailContext> = {}
 ): DwellerDetailContext {
   const base: DwellerDetailContext = {
     dweller: ref<Dweller | null | undefined>(null),
@@ -70,6 +70,7 @@ export function createMockDwellerDetailContext(
     trainingModalOpen: ref(false),
     renameDialogOpen: ref(false),
     renameDialogName: ref(''),
+    renameDialogLastName: ref(''),
     wastelandModalOpen: ref(false),
     wastelandPendingDweller: ref<{ firstName: string; lastName?: string } | null>(null),
     actions: createDefaultActions(),
@@ -83,7 +84,7 @@ export function createMockDwellerDetailContext(
  */
 export function mountWithDwellerContext(
   Component: unknown,
-  options: MountingOptions<unknown> & { context?: DwellerDetailContext } = {},
+  options: MountingOptions<unknown> & { context?: DwellerDetailContext } = {}
 ): VueWrapper {
   const { context, props: _props, ...mountOptions } = options
   const ctx = context ?? createMockDwellerDetailContext()

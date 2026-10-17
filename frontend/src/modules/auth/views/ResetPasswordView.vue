@@ -99,7 +99,10 @@ const handleSubmit = async () => {
           </div>
 
           <div class="form-group">
-            <Label for="reset-confirm-password" class="mb-1 text-sm font-medium text-theme-primary/70">
+            <Label
+              for="reset-confirm-password"
+              class="mb-1 text-sm font-medium text-theme-primary/70"
+            >
               > CONFIRM PASSPHRASE:
             </Label>
             <Input
@@ -165,20 +168,6 @@ const handleSubmit = async () => {
   z-index: 2;
   max-width: 600px;
   width: 90%;
-}
-
-.flicker {
-  animation: flicker 0.15s ease-in-out infinite;
-}
-
-@keyframes flicker {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.95;
-  }
 }
 
 .login-box {

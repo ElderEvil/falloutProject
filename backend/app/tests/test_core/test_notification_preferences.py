@@ -12,6 +12,7 @@ from app.core.notification_preferences import (
 )
 from app.crud.user_profile import profile_crud
 from app.models.notification import Notification, NotificationType
+from app.schemas.user_profile import ProfileUpdate
 from app.services.notification_service import NotificationService
 
 
@@ -76,3 +77,9 @@ async def test_muted_notification_is_not_persisted_or_delivered(
     assert notification is None
     deliver.assert_not_awaited()
     assert (await async_session.execute(select(Notification))).scalars().all() == []
+
+
+@pytest.mark.parametrize("value", [None, "false", 0, [], {}])
+def test_profile_update_rejects_non_boolean_incident_pause(value):
+    with pytest.raises(ValueError, match="pause_on_incident must be a boolean"):
+        ProfileUpdate(preferences={"pause_on_incident": value})

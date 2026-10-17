@@ -2,9 +2,14 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { nextTick, ref } from 'vue'
 import { flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { incidentApi } from '@/modules/combat/api/incident'
-import type { IncidentListResponse, Incident, IncidentTeamMember } from '@/modules/combat/models/incident'
+import type {
+  IncidentListResponse,
+  Incident,
+  IncidentTeamMember,
+} from '@/modules/combat/models/incident'
 import { IncidentType, IncidentStatus } from '@/modules/combat/models/incident'
 
 vi.mock('@/modules/combat/api/incident')
@@ -261,9 +266,9 @@ describe('Incident Store', () => {
       const store = useIncidentStore()
       vi.mocked(incidentApi.assignResponders).mockRejectedValueOnce(new Error('Assignment failed'))
 
-      await expect(store.assignResponders('vault-1', 'incident-1', ['dweller-1'], 'token')).rejects.toThrow(
-        'Assignment failed'
-      )
+      await expect(
+        store.assignResponders('vault-1', 'incident-1', ['dweller-1'], 'token')
+      ).rejects.toThrow('Assignment failed')
 
       expect(incidentApi.getActiveIncidents).not.toHaveBeenCalled()
       expect(incidentApi.getIncident).not.toHaveBeenCalled()
@@ -317,7 +322,12 @@ describe('Incident Store', () => {
 
       await store.assignResponders('vault-1', 'incident-1', union, 'token')
 
-      expect(incidentApi.assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', union, 'token')
+      expect(incidentApi.assignResponders).toHaveBeenCalledWith(
+        'vault-1',
+        'incident-1',
+        union,
+        'token'
+      )
       expect(incidentApi.getIncidentTeam).toHaveBeenCalledWith('vault-1', 'incident-1', 'token')
       expect(store.getIncidentTeam('incident-1')).toEqual([teamMember])
     })
@@ -433,7 +443,10 @@ describe('Incident Store', () => {
     it('totalResponderCount sums the designated rosters of active incidents', () => {
       const store = useIncidentStore()
       store.activeIncidentIds = ['incident-1', 'incident-2']
-      store.incidentTeams.set('incident-1', [teamMember, { ...teamMember, id: 'tm-2', dweller_id: 'dweller-2' }])
+      store.incidentTeams.set('incident-1', [
+        teamMember,
+        { ...teamMember, id: 'tm-2', dweller_id: 'dweller-2' },
+      ])
       store.incidentTeams.set('incident-2', [teamMember])
 
       expect(store.totalResponderCount).toBe(3)
@@ -944,7 +957,9 @@ describe('Incident Store', () => {
       const store = useIncidentStore()
       const fireList: IncidentListResponse = {
         ...mockIncidentList,
-        incidents: [{ ...mockIncidentList.incidents[0], id: 'incident-2', type: IncidentType.FIRE }],
+        incidents: [
+          { ...mockIncidentList.incidents[0], id: 'incident-2', type: IncidentType.FIRE },
+        ],
       }
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(fireList)
       vi.mocked(incidentApi.getIncident).mockResolvedValueOnce({
@@ -958,6 +973,23 @@ describe('Incident Store', () => {
       expect(sseMock.playSound).toHaveBeenCalledWith('incidentFire', 'sfx')
     })
 
+    it('refreshes the vault controls when a spawn automatically pauses it', async () => {
+      const vault = useVaultStore()
+      const refresh = vi.spyOn(vault, 'fetchGameState').mockResolvedValue(undefined)
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValue(mockIncident)
+      store.startPolling('vault-1', 'token', 10_000)
+      sseMock.instance.event.value = {
+        event: 'incident',
+        data: { type: 'incident_spawned', is_paused: true },
+      }
+      await nextTick()
+      await flushPromises()
+      expect(refresh).toHaveBeenCalledWith('vault-1', 'token')
+      store.stopPolling()
+    })
+
     it('does not double-play the spawn sound when SSE and poll both see the incident', async () => {
       const store = useIncidentStore()
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
@@ -967,7 +999,11 @@ describe('Incident Store', () => {
 
       sseMock.instance.event.value = {
         event: 'incident',
-        data: { type: 'incident_spawned', incident_id: 'incident-1', incident_type: 'raider_attack' },
+        data: {
+          type: 'incident_spawned',
+          incident_id: 'incident-1',
+          incident_type: 'raider_attack',
+        },
       }
       await nextTick()
       await flushPromises()
@@ -1022,7 +1058,10 @@ describe('Incident Store', () => {
       const round1 = { id: 'e1', kind: 'round', message: 'Round 1', data: null }
       const round2 = { id: 'e2', kind: 'round', message: 'Round 2', data: null }
 
-      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce({ ...mockIncident, events: [round1] })
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce({
+        ...mockIncident,
+        events: [round1],
+      })
       await store.fetchIncidents('vault-1', 'token')
       expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentHit', 'sfx')
 
@@ -1030,8 +1069,18 @@ describe('Incident Store', () => {
       let resolveFresh!: (incident: Incident) => void
       let resolveStale!: (incident: Incident) => void
       vi.mocked(incidentApi.getIncident)
-        .mockImplementationOnce(() => new Promise((resolve) => { resolveFresh = resolve }))
-        .mockImplementationOnce(() => new Promise((resolve) => { resolveStale = resolve }))
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveFresh = resolve
+            })
+        )
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveStale = resolve
+            })
+        )
 
       const pollA = store.fetchIncidents('vault-1', 'token')
       const pollB = store.fetchIncidents('vault-1', 'token')
@@ -1048,7 +1097,10 @@ describe('Incident Store', () => {
       expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentHit', 'sfx')
 
       // The count was never lowered, so a later fresh response must not replay the hit.
-      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce({ ...mockIncident, events: [round1, round2] })
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce({
+        ...mockIncident,
+        events: [round1, round2],
+      })
       await store.fetchIncidents('vault-1', 'token')
       expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentHit', 'sfx')
     })
@@ -1066,7 +1118,12 @@ describe('Incident Store', () => {
 
       sseMock.instance.event.value = {
         event: 'incident',
-        data: { type: 'incident_resolved', incident_id: 'incident-1', success: true, caps_earned: 50 },
+        data: {
+          type: 'incident_resolved',
+          incident_id: 'incident-1',
+          success: true,
+          caps_earned: 50,
+        },
       }
       await nextTick()
 
@@ -1097,7 +1154,9 @@ describe('Incident Store', () => {
       await nextTick()
 
       expect(store.aftermathForRoom('room-1')).toMatchObject({ experienceEarned: 45 })
-      expect(sseMock.toast.success).toHaveBeenCalledWith('Incident victory — responders earned 45 XP.')
+      expect(sseMock.toast.success).toHaveBeenCalledWith(
+        'Incident victory — responders earned 45 XP.'
+      )
       store.stopPolling()
     })
 
@@ -1137,7 +1196,9 @@ describe('Incident Store', () => {
       }
       await nextTick()
 
-      expect(sseMock.toast.error).toHaveBeenCalledWith('Incident lost — the threat was not contained.')
+      expect(sseMock.toast.error).toHaveBeenCalledWith(
+        'Incident lost — the threat was not contained.'
+      )
       store.stopPolling()
     })
     it('announces a lost incident only once when the event is re-delivered', async () => {
@@ -1173,7 +1234,12 @@ describe('Incident Store', () => {
 
       const resolvedEvent = {
         event: 'incident',
-        data: { type: 'incident_resolved', incident_id: 'incident-1', success: true, caps_earned: 50 },
+        data: {
+          type: 'incident_resolved',
+          incident_id: 'incident-1',
+          success: true,
+          caps_earned: 50,
+        },
       }
       sseMock.instance.event.value = { ...resolvedEvent }
       await nextTick()
@@ -1195,7 +1261,10 @@ describe('Incident Store', () => {
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
       // The detail refresh and the aftermath reload both fetch the incident, and
       // either may run first, so every answer carries the held loot.
-      vi.mocked(incidentApi.getIncident).mockResolvedValue({ ...mockIncident, unclaimed_loot: heldLoot })
+      vi.mocked(incidentApi.getIncident).mockResolvedValue({
+        ...mockIncident,
+        unclaimed_loot: heldLoot,
+      })
       store.startPolling('vault-1', 'token', 10_000)
       await Promise.resolve()
 
@@ -1255,13 +1324,17 @@ describe('Incident Store', () => {
 
       vi.mocked(incidentApi.takeOverflow).mockRejectedValueOnce({ response: { status: 409 } })
       await store.takeOverflow('vault-1', 'incident-1', 0, 'token')
-      expect(sseMock.toast.error).toHaveBeenCalledWith('Storage is full — sell the item or free a slot.')
+      expect(sseMock.toast.error).toHaveBeenCalledWith(
+        'Storage is full — sell the item or free a slot.'
+      )
 
       sseMock.toast.error.mockClear()
       vi.mocked(incidentApi.takeOverflow).mockRejectedValueOnce({ response: { status: 500 } })
       await store.takeOverflow('vault-1', 'incident-1', 0, 'token')
       expect(sseMock.toast.error).toHaveBeenCalledWith('Could not store the held item.')
-      expect(sseMock.toast.error).not.toHaveBeenCalledWith('Storage is full — sell the item or free a slot.')
+      expect(sseMock.toast.error).not.toHaveBeenCalledWith(
+        'Storage is full — sell the item or free a slot.'
+      )
       store.stopPolling()
     })
   })

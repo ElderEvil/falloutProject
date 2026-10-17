@@ -36,7 +36,11 @@ const vaultFixture = {
 // Heavy/independent panels are stubbed so the tests focus on the build control.
 const stubs = {
   SidePanel: { template: '<aside data-testid="side-panel" />' },
-  RoomGrid: { template: '<div data-testid="room-grid" />' },
+  RoomGrid: {
+    name: 'RoomGrid',
+    template: '<div data-testid="room-grid" />',
+    props: ['openRoomId'],
+  },
   GameControlPanel: true,
   IncidentAlert: true,
   UnassignedDwellers: true,
@@ -89,6 +93,36 @@ const buildDialog = (wrapper: ReturnType<typeof mount>) =>
 describe('VaultView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+  })
+
+  it('keeps a completed incident report reachable until the player dismisses it', async () => {
+    const incidentStore = useIncidentStore()
+    useRoomStore().rooms = [{ id: 'room-1', vault_id: 'vault-1' }] as never
+    incidentStore.aftermaths.set('room-1', {
+      incidentId: 'incident-1',
+      roomId: 'room-1',
+      type: 'fire',
+      roomName: 'Generator',
+      outcome: 'victory',
+      capsEarned: 10,
+      experienceEarned: 5,
+      loot: null,
+      unclaimed: [],
+      enemiesDefeated: 0,
+      damageDealt: 0,
+      rounds: 1,
+    } as never)
+    const { wrapper } = await mountLoadedVault()
+    const report = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Review incident report'))
+    expect(report).toBeDefined()
+    await report!.trigger('click')
+    expect(wrapper.findComponent({ name: 'RoomGrid' }).props('openRoomId')).toBe('room-1')
+    incidentStore.clearAftermath('room-1')
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('Review incident report')
+    wrapper.unmount()
   })
 
   it('renders the vault loading error state with a way back', async () => {

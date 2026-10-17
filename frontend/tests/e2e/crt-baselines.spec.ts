@@ -211,7 +211,9 @@ test.describe('CRT baselines — entry routes', () => {
     await mockApi(page)
     await signIn(page)
     await page.goto('/profile')
-    await expect(page.getByRole('heading', { name: 'User Profile' })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'User Profile' })).toBeVisible({
+      timeout: 10000,
+    })
     await expect(page.getByRole('tab', { name: 'Dossier' })).toBeVisible()
 
     await expectCanonicalChrome(page)
@@ -232,4 +234,55 @@ test.describe('CRT baselines — entry routes', () => {
       timeout: 20000,
     })
   })
+})
+
+test('CSS flicker obeys its preference and reduced motion, including teleported content', async ({
+  page,
+}) => {
+  await mockApi(page)
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.goto('/login')
+  await page.evaluate(() => {
+    for (const cls of ['flicker', 'flicker-random', 'flicker-slow']) {
+      const probe = document.createElement('div')
+      probe.className = cls
+      probe.dataset.testid = cls
+      document.body.append(probe)
+    }
+  })
+  for (const cls of ['flicker', 'flicker-random', 'flicker-slow']) {
+    await expect(page.getByTestId(cls)).toHaveCSS('animation-name', 'none')
+  }
+  await page.evaluate(() => {
+    localStorage.setItem('visual-effects:flickering', 'true')
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: 'visual-effects:flickering',
+        newValue: 'true',
+        storageArea: localStorage,
+      })
+    )
+  })
+  for (const cls of ['flicker', 'flicker-random', 'flicker-slow']) {
+    await expect(page.getByTestId(cls)).toHaveCSS('animation-name', 'flicker')
+  }
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  for (const cls of ['flicker', 'flicker-random', 'flicker-slow']) {
+    await expect(page.getByTestId(cls)).toHaveCSS('animation-name', 'none')
+  }
+})
+
+test('legacy auth views obey the disabled flicker preference', async ({ page }) => {
+  await mockApi(page)
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  for (const path of [
+    '/forgot-password',
+    `/reset-password?token=${RESET_TOKEN}`,
+    '/verify-email',
+  ]) {
+    await page.goto(path)
+    const panel = page.locator('#app .crt-container, #app .terminal-window').first()
+    await expect(panel).toBeVisible()
+    await expect(panel).toHaveCSS('animation-name', 'none')
+  }
 })

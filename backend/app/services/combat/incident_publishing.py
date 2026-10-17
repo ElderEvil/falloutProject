@@ -39,6 +39,7 @@ async def publish_sse(
     caps_earned: int | None = None,
     experience_earned: int | None = None,
     room_name: str | None = None,
+    is_paused: bool | None = None,
 ) -> None:
     """Publish a non-critical incident event."""
     try:
@@ -54,6 +55,7 @@ async def publish_sse(
                 status=incident.status,
                 room_id=str(incident.room_id) if incident.room_id else None,
                 room_name=room_name,
+                is_paused=is_paused,
                 difficulty=incident.difficulty,
                 success=success,
                 caps_earned=caps_earned,

@@ -765,3 +765,30 @@ async def test_arena_snapshot_database_failure_recovers_for_events(async_session
     assert (await arena_service.get_tick_snapshot(async_session, vault_id))["rooms"][0]["events"][0][
         "message"
     ] == "saved"
+
+
+@pytest.mark.parametrize(("start_offset", "elapsed"), [(-20, 20), (400, 0)])
+async def test_resume_preserves_incident_response_time_and_does_not_shift_twice(
+    async_session, room_in_vault, start_offset, elapsed
+):
+    from app import crud
+    from app.models.incident import IncidentType
+
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=room_in_vault.vault_id,
+        room_id=room_in_vault.id,
+        incident_type=IncidentType.FIRE,
+        difficulty=1,
+    )
+    state = await game_loop_service.pause_vault(async_session, room_in_vault.vault_id)
+    state.paused_at = datetime.utcnow() - timedelta(minutes=10)
+    incident.start_time = state.paused_at + timedelta(seconds=start_offset)
+    await async_session.commit()
+    await game_loop_service.pause_vault(async_session, room_in_vault.vault_id)
+    await game_loop_service.resume_vault(async_session, room_in_vault.vault_id)
+    await async_session.refresh(incident)
+    assert max(0, elapsed - 1) <= incident.elapsed_time() <= elapsed + 1
+    shifted_start = incident.start_time
+    await game_loop_service.resume_vault(async_session, room_in_vault.vault_id)
+    assert incident.start_time == shifted_start

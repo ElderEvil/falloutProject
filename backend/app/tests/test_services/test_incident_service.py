@@ -1409,3 +1409,26 @@ async def test_failed_incident_rolls_back_before_the_next_one(async_session: Asy
 
     assert result["active_count"] == 1
     rollback_spy.assert_awaited()
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+async def test_spawn_honors_pause_on_incident_preference(async_session, room_with_dwellers, enabled):
+    from app.crud import game_state_crud
+    from app.crud.user_profile import profile_crud
+
+    room = room_with_dwellers["room"]
+    vault = await crud.vault.get(async_session, room.vault_id)
+    profile = await profile_crud.get_by_user_id(async_session, vault.user_id)
+    if profile is None:
+        profile = await profile_crud.create_for_user(async_session, vault.user_id)
+    profile.preferences = {"pause_on_incident": enabled}
+    await async_session.commit()
+    incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
+    assert incident is not None
+    state = await game_state_crud.get_by_vault_id(async_session, vault.id)
+    assert bool(state and state.is_paused) is enabled
+    if enabled:
+        stats = await incident_service.process_vault_incidents(async_session, vault.id, 60)
+        assert stats["processed"] == 0
+        await async_session.refresh(incident)
+        assert incident.combat_progress == 0

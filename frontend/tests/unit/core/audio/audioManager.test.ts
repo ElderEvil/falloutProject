@@ -131,6 +131,20 @@ describe('audioManager alarm', () => {
     vi.unstubAllGlobals()
   })
 
+  it.each(['ui', 'sfx', 'music', 'ambience'] as const)(
+    'maps %s volume perceptually while storing a linear preference',
+    async (bus) => {
+      const manager = await freshManager()
+      manager.setMuted(false)
+      window.dispatchEvent(new Event('pointerdown'))
+      manager.setVolume(bus, 0.1)
+      manager.play('objectiveClaim', bus)
+      expect(MockAudio.instances.at(-1)!.volume).toBeCloseTo(0.01)
+      expect(manager.volumes[bus]).toBe(0.1)
+      expect(JSON.parse(localStorage.getItem('audioSettings')!).volumes[bus]).toBe(0.1)
+    }
+  )
+
   it('starts an alarm requested before audio unlocks', async () => {
     const manager = await freshManager()
     manager.setMuted(false)
@@ -157,7 +171,7 @@ describe('audioManager alarm', () => {
     vi.advanceTimersByTime(600)
 
     expect(alarm.pause).not.toHaveBeenCalled()
-    expect(alarm.volume).toBeCloseTo(0.8)
+    expect(alarm.volume).toBeCloseTo(0.8 ** 2)
   })
 
   it('keeps a loop request deferred until audio unlocks', async () => {
@@ -230,7 +244,7 @@ describe('audioManager ambience', () => {
 
     const ambience = ambienceElement()
     expect(ambience?.loop).toBe(true)
-    expect(ambience?.volume).toBeCloseTo(0.4)
+    expect(ambience?.volume).toBeCloseTo(0.4 ** 2)
     expect(ambience?.play).toHaveBeenCalled()
   })
 
@@ -410,8 +424,8 @@ describe('audioManager ambience bus', () => {
 
     manager.setVolume('ambience', 0.2)
 
-    expect(ambience.volume).toBeCloseTo(0.2)
-    expect(loop.volume).toBeCloseTo(0.4)
+    expect(ambience.volume).toBeCloseTo(0.2 ** 2)
+    expect(loop.volume).toBeCloseTo(0.4 ** 2)
   })
 
   it('stops the ambience preview when a room ambience loop starts', async () => {

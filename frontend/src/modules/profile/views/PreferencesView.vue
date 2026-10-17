@@ -74,6 +74,21 @@ const replayGuideForVault = () => {
   toast.success('The guide will replay its open steps for this vault')
 }
 
+const pauseOnIncident = computed(
+  () => profileStore.profile?.preferences?.pause_on_incident === true
+)
+const savingIncidentPause = ref(false)
+async function setPauseOnIncident(enabled: boolean) {
+  savingIncidentPause.value = true
+  try {
+    await profileStore.savePreferences({ pause_on_incident: enabled })
+  } catch (error) {
+    handleStoreError(error, 'Failed to save incident pause preference')
+  } finally {
+    savingIncidentPause.value = false
+  }
+}
+
 const notificationCategories = [
   {
     key: 'exploration_updates',
@@ -454,6 +469,36 @@ const handleGlowSelect = (value: unknown) => {
               </CardContent>
             </Card>
 
+            <Card>
+              <CardHeader>
+                <CardTitle class="flex items-center gap-2 text-xl font-bold text-theme-primary">
+                  <Icon icon="mdi:pause-circle-outline" class="text-xl" />
+                  Incident preparation
+                </CardTitle>
+                <CardDescription
+                  >Take a moment to prepare your response before the fighting
+                  starts.</CardDescription
+                >
+              </CardHeader>
+              <CardContent>
+                <Label class="setting-row cursor-pointer">
+                  <div class="setting-info">
+                    <h4 class="setting-label">Pause on incident</h4>
+                    <p class="setting-description">
+                      Pause the vault when an incident starts. Assign responders, then resume with
+                      the vault controls.
+                    </p>
+                  </div>
+                  <Switch
+                    :checked="pauseOnIncident"
+                    :disabled="savingIncidentPause || !profileStore.profile"
+                    aria-label="Pause on incident"
+                    @update:checked="setPauseOnIncident"
+                  />
+                </Label>
+              </CardContent>
+            </Card>
+
             <!-- Notifications -->
             <Card>
               <CardHeader>
@@ -539,7 +584,7 @@ const handleGlowSelect = (value: unknown) => {
                         :model-value="[audioManager.volumes[option.bus]]"
                         :min="0"
                         :max="1"
-                        :step="0.05"
+                        :step="0.01"
                         :aria-label="`${option.label} volume`"
                         @update:model-value="setBusVolume(option.bus, $event[0] ?? 0)"
                       />

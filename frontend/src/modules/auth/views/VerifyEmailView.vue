@@ -38,7 +38,7 @@ onMounted(async () => {
 
 <template>
   <div class="verify-email-container">
-    <div class="terminal-window">
+    <div class="terminal-window flicker-slow">
       <div class="terminal-header">
         <span class="terminal-title">VAULT-TEC SECURE TERMINAL v2.1.5</span>
       </div>
@@ -72,7 +72,12 @@ onMounted(async () => {
           <p class="terminal-text error-text">> ERROR: VERIFICATION FAILED</p>
           <p class="terminal-text error-text">> {{ error }}</p>
           <div class="error-actions">
-            <Button variant="default" class="border-2 border-theme-primary hover:shadow-glow-md" @click="router.push('/login')">RETURN TO LOGIN</Button>
+            <Button
+              variant="default"
+              class="border-2 border-theme-primary hover:shadow-glow-md"
+              @click="router.push('/login')"
+              >RETURN TO LOGIN</Button
+            >
           </div>
         </div>
       </div>
@@ -127,26 +132,6 @@ onMounted(async () => {
     inset 0 0 60px rgba(0, 0, 0, 0.5);
   position: relative;
   z-index: 2;
-  animation: flicker 3s infinite;
-}
-
-@keyframes flicker {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  41.99%,
-  42.01% {
-    opacity: 0.98;
-  }
-  43%,
-  43.5% {
-    opacity: 0.96;
-  }
-  45%,
-  50% {
-    opacity: 1;
-  }
 }
 
 .terminal-header {

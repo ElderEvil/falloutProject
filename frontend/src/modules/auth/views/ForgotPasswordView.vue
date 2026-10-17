@@ -131,20 +131,6 @@ const handleSubmit = async () => {
   width: 90%;
 }
 
-.flicker {
-  animation: flicker 0.15s ease-in-out infinite;
-}
-
-@keyframes flicker {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.95;
-  }
-}
-
 .login-box {
   background: rgba(0, 0, 0, 0.9);
   border: 3px solid var(--color-theme-primary);

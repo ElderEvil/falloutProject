@@ -112,7 +112,7 @@ CurrentSuperuser = Annotated[User, Depends(get_current_active_superuser)]
 
 
 async def get_user_vault_or_403(
-    vault_id: UUID4,
+    vault_id: UUID4 | None,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Vault:

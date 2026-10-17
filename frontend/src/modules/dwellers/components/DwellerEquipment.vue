@@ -30,7 +30,11 @@ const equippedPet = computed(() => dweller.value?.pet ?? null)
 
 // Get available (unequipped) items
 const availableWeapons = computed(() => equipmentStore.getAvailableWeapons())
-const availableOutfits = computed(() => equipmentStore.getAvailableOutfits())
+const availableOutfits = computed(() =>
+  equipmentStore
+    .getAvailableOutfits()
+    .filter((outfit) => !outfit.gender || outfit.gender === dweller.value?.gender)
+)
 const availablePets = computed(() => petsStore.getAvailablePets())
 
 onMounted(async () => {
@@ -200,59 +204,59 @@ const modalIcon = computed(() => {
       max-height="75"
       title-class="flex items-center gap-3 text-2xl font-bold text-theme-primary terminal-glow"
     >
-        <template #title>
-          <Icon :icon="modalIcon" />
-          {{ modalTitle }}
-        </template>
+      <template #title>
+        <Icon :icon="modalIcon" />
+        {{ modalTitle }}
+      </template>
 
-        <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
-          <div class="items-list">
-            <template v-if="inventoryMode === 'weapon'">
-              <EquipmentCard
-                v-for="weapon in availableWeapons"
-                :key="weapon.id"
-                :item="weapon"
-                type="weapon"
-                :show-actions="true"
-                @equip="handleEquipWeapon(weapon.id)"
-              />
-              <div v-if="availableWeapons.length === 0" class="empty-state">
-                <Icon icon="mdi:package-variant" class="empty-state-icon" />
-                <p>No weapons available</p>
-              </div>
-            </template>
+      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+        <div class="items-list">
+          <template v-if="inventoryMode === 'weapon'">
+            <EquipmentCard
+              v-for="weapon in availableWeapons"
+              :key="weapon.id"
+              :item="weapon"
+              type="weapon"
+              :show-actions="true"
+              @equip="handleEquipWeapon(weapon.id)"
+            />
+            <div v-if="availableWeapons.length === 0" class="empty-state">
+              <Icon icon="mdi:package-variant" class="empty-state-icon" />
+              <p>No weapons available</p>
+            </div>
+          </template>
 
-            <template v-else-if="inventoryMode === 'outfit'">
-              <EquipmentCard
-                v-for="outfit in availableOutfits"
-                :key="outfit.id"
-                :item="outfit"
-                type="outfit"
-                :show-actions="true"
-                @equip="handleEquipOutfit(outfit.id)"
-              />
-              <div v-if="availableOutfits.length === 0" class="empty-state">
-                <Icon icon="mdi:package-variant" class="empty-state-icon" />
-                <p>No outfits available</p>
-              </div>
-            </template>
+          <template v-else-if="inventoryMode === 'outfit'">
+            <EquipmentCard
+              v-for="outfit in availableOutfits"
+              :key="outfit.id"
+              :item="outfit"
+              type="outfit"
+              :show-actions="true"
+              @equip="handleEquipOutfit(outfit.id)"
+            />
+            <div v-if="availableOutfits.length === 0" class="empty-state">
+              <Icon icon="mdi:package-variant" class="empty-state-icon" />
+              <p>No outfits available</p>
+            </div>
+          </template>
 
-            <template v-else>
-              <PetCard
-                v-for="pet in availablePets"
-                :key="pet.id"
-                :pet="pet"
-                :show-actions="true"
-                :disabled="petActionPending"
-                @equip="handleEquipPet(pet.id)"
-              />
-              <div v-if="availablePets.length === 0" class="empty-state">
-                <Icon icon="mdi:package-variant" class="empty-state-icon" />
-                <p>No pets available</p>
-              </div>
-            </template>
-          </div>
+          <template v-else>
+            <PetCard
+              v-for="pet in availablePets"
+              :key="pet.id"
+              :pet="pet"
+              :show-actions="true"
+              :disabled="petActionPending"
+              @equip="handleEquipPet(pet.id)"
+            />
+            <div v-if="availablePets.length === 0" class="empty-state">
+              <Icon icon="mdi:package-variant" class="empty-state-icon" />
+              <p>No pets available</p>
+            </div>
+          </template>
         </div>
+      </div>
     </TerminalModal>
   </div>
 </template>

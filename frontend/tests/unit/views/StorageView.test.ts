@@ -61,7 +61,7 @@ const petFixture = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 })
 
-describe('StorageView pets bucket', () => {
+describe('StorageView', () => {
   let router: ReturnType<typeof createRouter>
   let vaultStore: ReturnType<typeof useVaultStore>
 
@@ -116,6 +116,43 @@ describe('StorageView pets bucket', () => {
     await trigger.trigger('mousedown')
     await flushPromises()
   }
+
+  it.each(['sell', 'scrap'] as const)(
+    'keeps surviving cards mounted during a %s refresh',
+    async (action) => {
+      const items = {
+        weapons: [
+          { id: 'w1', name: 'Pistol', rarity: 'common', value: 10 },
+          { id: 'w2', name: 'Rifle', rarity: 'common', value: 20 },
+        ],
+        outfits: [],
+        junk: [],
+        items: [],
+        pets: [],
+      }
+      const wrapper = await mountWith(items)
+      const cards = wrapper.findAllComponents({ name: 'StorageItemCard' })
+      const survivor = cards[1]!.element
+      let finishRefresh!: (value: unknown) => void
+      vi.mocked(axios.post).mockResolvedValue({ data: {} })
+      vi.mocked(axios.get).mockImplementation(async (url: string) => {
+        if (url.includes('/space')) return { data: spaceData }
+        return new Promise((resolve) => {
+          finishRefresh = resolve
+        })
+      })
+      cards[0]!.vm.$emit(action)
+      await flushPromises()
+      expect(wrapper.text()).not.toContain('Loading storage...')
+      expect(wrapper.findAllComponents({ name: 'StorageItemCard' })[1]!.element).toBe(survivor)
+      finishRefresh({ data: { ...items, weapons: [items.weapons[1]] } })
+      await flushPromises()
+      expect(wrapper.findAllComponents({ name: 'StorageItemCard' })[0]!.element).toBe(survivor)
+      expect(wrapper.text()).not.toContain('Pistol')
+      expect(vaultStore.refreshVault).toHaveBeenCalled()
+      wrapper.unmount()
+    }
+  )
 
   it('renders returned pets with name and art in the pets tab', async () => {
     const wrapper = await mountWith({

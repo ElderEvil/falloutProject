@@ -225,7 +225,6 @@ const handleSellItem = async (itemId: string | string[], itemType: string) => {
       itemIds.length > 1 ? `Sold ${itemIds.length} items successfully` : 'Item sold successfully'
     )
 
-    // Force refresh storage and vault data
     await fetchStorageData()
     if (vaultId.value && authStore.token) {
       await vaultStore.refreshVault(vaultId.value, authStore.token)
@@ -256,7 +255,6 @@ const handleScrapItem = async (
 
     toast.success('Item scrapped for materials')
 
-    // Force refresh storage and vault data
     await fetchStorageData()
     if (vaultId.value && authStore.token) {
       await vaultStore.refreshVault(vaultId.value, authStore.token)
@@ -301,25 +299,25 @@ const closeLunchboxModal = async () => {
       :class="isCollapsed ? 'ml-16' : 'ml-60'"
     >
       <PageContentRail>
-          <PageHeader
-            title="Vault Storage"
-            icon="mdi:package-variant"
-            subtitle="Organize equipment, supplies & recovered wasteland loot."
-          >
-            <template #help>
-              <section>
-                <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
-                  <Icon icon="mdi:package-variant" class="size-4 shrink-0" />
-                  Manage the stockpile
-                </h2>
-                <p>
-                  Equipment, supplies and recovered wasteland loot live here. Stimpaks heal
-                  dwellers, RadAway cures radiation, and the utilization bar tracks used slots
-                  against the vault total.
-                </p>
-              </section>
-            </template>
-            <template v-if="storageSpace" #actions>
+        <PageHeader
+          title="Vault Storage"
+          icon="mdi:package-variant"
+          subtitle="Organize equipment, supplies & recovered wasteland loot."
+        >
+          <template #help>
+            <section>
+              <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                <Icon icon="mdi:package-variant" class="size-4 shrink-0" />
+                Manage the stockpile
+              </h2>
+              <p>
+                Equipment, supplies and recovered wasteland loot live here. Stimpaks heal dwellers,
+                RadAway cures radiation, and the utilization bar tracks used slots against the vault
+                total.
+              </p>
+            </section>
+          </template>
+          <template v-if="storageSpace" #actions>
             <PageHeaderMetric
               icon="mdi:package-variant"
               :value="`${storageSpace.used_space} / ${storageSpace.max_space}`"
@@ -388,9 +386,9 @@ const closeLunchboxModal = async () => {
           </TabsList>
 
           <TabsContent v-for="tab in tabs" :key="tab.key" :value="tab.key" class="py-2 text-base">
-            <!-- Loading State -->
+            <!-- Keep loaded cards mounted during background refreshes. -->
             <div
-              v-if="isLoading"
+              v-if="isLoading && !storageSpace"
               class="flex flex-col items-center justify-center py-16 text-theme-primary font-mono"
             >
               <Icon icon="mdi:loading" class="w-12 h-12 mb-4 animate-spin" />

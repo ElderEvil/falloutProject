@@ -102,6 +102,28 @@ it('offers an earned starter reward without waiting for earlier steps', async ()
   expect(wrapper.find('[aria-label="1 reward ready to claim"]').exists()).toBe(true)
 })
 
+it('puts earned rewards first without changing order within either group or the store', async () => {
+  objectivesStore.objectives = [
+    { ...dailyObjective, id: 'pending-1', progress: 0 },
+    { ...dailyObjective, id: 'ready-1' },
+    { ...dailyObjective, id: 'pending-2', progress: 1 },
+    { ...dailyObjective, id: 'ready-2' },
+    { ...dailyObjective, id: 'claimed', is_completed: true },
+  ]
+  wrapper = mountView()
+  await flushPromises()
+  expect(
+    wrapper.findAllComponents({ name: 'ObjectiveCard' }).map((card) => card.props('objective').id)
+  ).toEqual(['ready-1', 'ready-2', 'pending-1', 'pending-2'])
+  expect(objectivesStore.objectives.map(({ id }) => id)).toEqual([
+    'pending-1',
+    'ready-1',
+    'pending-2',
+    'ready-2',
+    'claimed',
+  ])
+})
+
 describe('ObjectivesView claim flow', () => {
   it('claiming an objective calls completeObjective and opens the completion modal', async () => {
     const play = vi.spyOn(audioManager, 'play').mockImplementation(() => {})

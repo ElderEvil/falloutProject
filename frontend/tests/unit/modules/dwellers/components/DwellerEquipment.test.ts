@@ -3,16 +3,21 @@ import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { ref, nextTick } from 'vue'
 import DwellerEquipment from '@/modules/dwellers/components/DwellerEquipment.vue'
-import { createMockDwellerDetailContext, mountWithDwellerContext } from '../../../helpers/dwellerDetailContext'
+import {
+  createMockDwellerDetailContext,
+  mountWithDwellerContext,
+} from '../../../helpers/dwellerDetailContext'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 import type { DwellerDetailContext } from '@/modules/dwellers/components/DwellerDetailContext'
+
+const availableOutfitsMock = vi.hoisted(() => vi.fn(() => [] as Record<string, unknown>[]))
 
 vi.mock('@/modules/combat/stores/equipment', () => ({
   useEquipmentStore: () => ({
     fetchWeapons: vi.fn().mockResolvedValue([]),
     fetchOutfits: vi.fn().mockResolvedValue([]),
     getAvailableWeapons: vi.fn().mockReturnValue([]),
-    getAvailableOutfits: vi.fn().mockReturnValue([]),
+    getAvailableOutfits: availableOutfitsMock,
     equipWeapon: vi.fn().mockResolvedValue(undefined),
     equipOutfit: vi.fn().mockResolvedValue(undefined),
     unequipWeapon: vi.fn().mockResolvedValue(undefined),
@@ -74,8 +79,7 @@ const sharedStubs = {
 }
 
 const petCardStub = {
-  template:
-    '<button class="pet-slot" @click="$emit(equipped ? \'unequip\' : \'equip\')"></button>',
+  template: '<button class="pet-slot" @click="$emit(equipped ? \'unequip\' : \'equip\')"></button>',
   props: ['pet', 'equipped', 'showActions'],
 }
 
@@ -102,11 +106,38 @@ describe('DwellerEquipment', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    availableOutfitsMock.mockReturnValue([])
     petsStoreMock.fetchPets.mockResolvedValue([])
     petsStoreMock.getAvailablePets.mockReturnValue([])
     petsStoreMock.equipPet.mockResolvedValue(undefined)
     petsStoreMock.unequipPet.mockResolvedValue(undefined)
   })
+
+  it.each(['male', 'female'] as const)(
+    'offers only compatible outfits for a %s dweller',
+    async (gender) => {
+      availableOutfitsMock.mockReturnValue([
+        { id: 'male', gender: 'male' },
+        { id: 'female', gender: 'female' },
+        { id: 'unisex', gender: null },
+        { id: 'unspecified' },
+      ])
+      const wrapper = mountEquip(
+        makeDweller({ gender }),
+        {},
+        {
+          TerminalModal: { template: '<div v-if="open"><slot /></div>', props: ['open'] },
+          EquipmentCard: {
+            template: '<div class="outfit-option" :data-id="item.id" />',
+            props: ['item'],
+          },
+        }
+      )
+      await wrapper.findAll('button.empty-slot')[1]!.trigger('click')
+      const outfits = wrapper.findAll('.outfit-option').map((card) => card.attributes('data-id'))
+      expect(outfits).toEqual([gender, 'unisex', 'unspecified'])
+    }
+  )
 
   it('renders equipment slots', () => {
     const wrapper = mountEquip(makeDweller())

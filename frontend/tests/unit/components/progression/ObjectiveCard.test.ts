@@ -23,6 +23,17 @@ const findButton = (wrapper: VueWrapper, label: string) =>
   wrapper.findAll('button').find((button) => button.text().includes(label))
 
 describe('ObjectiveCard', () => {
+  it.each([
+    ['weapon:rare:Hardened shotgun', 'Rare Hardened shotgun'],
+    ['outfit:Wasteland gear', 'Common Wasteland gear'],
+    ['DWELLER:Wanderer', 'Wanderer'],
+    ['50 Caps', '50 Caps'],
+  ])('previews %s with rarity only for equipment', (reward, expected) => {
+    const card = mount(ObjectiveCard, { props: { objective: objective({ reward }) } })
+    expect(card.get('.reward-value').text()).toBe(expected)
+    card.unmount()
+  })
+
   it('uses the shared progress bar with the objective percentage', () => {
     const progressBar = mount(ObjectiveCard, {
       props: { objective: objective({ id: '1', progress: 40 }) },

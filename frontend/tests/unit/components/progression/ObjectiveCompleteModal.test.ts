@@ -72,6 +72,8 @@ describe('ObjectiveCompleteModal handoff', () => {
         rarity: 'rare',
         itemType: 'weapon',
       })
+      expect(wrapper.getComponent(RewardItemCard).text()).toContain('Hardened shotgun')
+      expect(wrapper.getComponent(RewardItemCard).text()).toContain('rare')
       expect(wrapper.text()).not.toContain('weapon:rare:')
       wrapper.unmount()
     }

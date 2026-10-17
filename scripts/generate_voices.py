@@ -28,17 +28,16 @@ _BACKEND_ROOT = _REPO_ROOT / "backend"
 if str(_BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(_BACKEND_ROOT))
 
-from app.services.elevenlabs_service import (
-    DEFAULT_MODEL_ID,
-    DEFAULT_VOICE_ID,
-    ElevenLabsTtsService,
-)
+from app.core.config import settings as _settings
+from app.services.elevenlabs_service import ElevenLabsTtsService
 from app.utils.narration_keys import narration_cache_key
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-DEFAULT_OUTPUT_DIR = Path.home() / ".hermes" / "state" / "voice-pack"
+# Environment-agnostic staging dir: backend .env NARRATION_PACK_DIR, relative
+# to the repo root (never tied to any particular user's home directory).
+DEFAULT_OUTPUT_DIR = _REPO_ROOT / _settings.NARRATION_PACK_DIR
 MANIFEST_PATH = _REPO_ROOT / "scripts" / "voice_manifest.json"
 BUCKET = "dweller-audio"
 
@@ -93,12 +92,9 @@ def generate_entry(
 ) -> bytes:
     """Generate speech for one manifest entry. Raises on provider errors."""
     text = entry["text"]
-    voice_id = entry.get("voice_id", DEFAULT_VOICE_ID)
-    return asyncio.run(
-        elevenlabs_svc.generate_speech(
-            text=text, voice_id=voice_id, model_id=DEFAULT_MODEL_ID
-        )
-    )
+    # Per-entry voice override (e.g. a legend voice); None defers to settings.
+    voice_id = entry.get("voice_id") or None
+    return asyncio.run(elevenlabs_svc.generate_speech(text=text, voice_id=voice_id))
 
 
 def upload_entry(audio_bytes: bytes, cache_key: str, key: str) -> None:

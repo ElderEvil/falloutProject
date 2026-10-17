@@ -9,16 +9,14 @@ from app.utils.exceptions import ElevenLabsProviderException
 
 logger = logging.getLogger(__name__)
 
-ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"
-DEFAULT_MODEL_ID = "eleven_multilingual_v2"
-
 
 class ElevenLabsTtsService:
     """Thin async wrapper around ElevenLabs text-to-speech REST API.
 
-    The free tier has no quota, so callers may use this path without
-    checking token quotas.
+    All provider knobs (endpoint, voice, model, voice settings) come from
+    Settings, so deployments can override them via environment/backend .env
+    without touching code. The free tier has no quota, so callers may use
+    this path without checking token quotas.
     """
 
     @property
@@ -29,13 +27,18 @@ class ElevenLabsTtsService:
     async def generate_speech(
         self,
         text: str,
-        voice_id: str = DEFAULT_VOICE_ID,
-        model_id: str = DEFAULT_MODEL_ID,
+        voice_id: str | None = None,
+        model_id: str | None = None,
     ) -> bytes:
         """Generate speech audio via ElevenLabs and return raw bytes.
 
+        Args:
+            text: The line to speak.
+            voice_id: ElevenLabs voice; defaults to settings.ELEVENLABS_VOICE_ID.
+            model_id: ElevenLabs model; defaults to settings.ELEVENLABS_MODEL_ID.
+
         Raises:
-            ElevenLabsProviderException: On HTTP errors from the API.
+            ElevenLabsProviderException: On HTTP or transport errors from the API.
         """
         if not self.is_enabled:
             raise ElevenLabsProviderException(detail="ElevenLabs is not configured")
@@ -45,18 +48,20 @@ class ElevenLabsTtsService:
             "Content-Type": "application/json",
         }
         payload = {
-            "model_id": model_id,
+            "model_id": model_id or settings.ELEVENLABS_MODEL_ID,
             "text": text,
             "voice_settings": {
-                "stability": 0.5,
-                "similarity_boost": 0.75,
+                "stability": settings.ELEVENLABS_STABILITY,
+                "similarity_boost": settings.ELEVENLABS_SIMILARITY_BOOST,
             },
         }
+
+        url = f"{settings.ELEVENLABS_API_URL.rstrip('/')}/{voice_id or settings.ELEVENLABS_VOICE_ID}"
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
-                    ELEVENLABS_API_URL.format(voice_id=voice_id),
+                    url,
                     headers=headers,
                     json=payload,
                 )

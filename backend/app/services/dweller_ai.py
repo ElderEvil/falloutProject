@@ -21,7 +21,7 @@ from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.ai_service import get_ai_service
 from app.services.bio_service import bio_service, compile_bio, truncate_bio
 from app.services.dweller_service import dweller_service
-from app.services.elevenlabs_service import DEFAULT_VOICE_ID, get_elevenlabs_tts_service
+from app.services.elevenlabs_service import get_elevenlabs_tts_service
 from app.services.map_service import map_service
 from app.services.prompt_service import get_instructions, get_provider_model_snapshot
 from app.services.quota_service import quota_service
@@ -499,11 +499,11 @@ class DwellerAIService:
 
             if elevenlabs_svc.is_enabled:
                 provider = "elevenlabs"
-                model = "eleven_multilingual_v2"
+                model = settings.ELEVENLABS_MODEL_ID
                 try:
-                    audio_bytes = await elevenlabs_svc.generate_speech(
-                        text=text, voice_id=DEFAULT_VOICE_ID, model_id="eleven_multilingual_v2"
-                    )
+                    # No explicit voice_id/model_id: the service falls back to
+                    # the Settings-configured defaults.
+                    audio_bytes = await elevenlabs_svc.generate_speech(text=text)
                 except ElevenLabsProviderException:
                     logger.warning(
                         "ElevenLabs TTS failed for dweller %s, falling back to OpenAI",

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app import crud
+from app.core.enums import ItemTypeEnum
 from app.crud.user_profile import profile_crud
 from app.models.dweller import Dweller
 from app.models.item import Item
@@ -913,3 +914,60 @@ def test_reward_junk_falls_back_to_valuables_and_name_keyed_art() -> None:
     assert junk.description == "Desk Fan"
     assert junk.value is None
     assert junk.image_url == get_junk_image_url("Desk Fan")
+
+
+@pytest.mark.asyncio
+async def test_grant_item_nuka_cola_succeeds_with_full_storage(async_session: AsyncSession) -> None:
+    """Nuka-Cola bottles occupy no slot: they land even at zero available space."""
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    storage = Storage(vault_id=vault.id, max_space=1)
+    async_session.add(storage)
+    async_session.add(
+        Item(name="Stimpak", item_type=ItemTypeEnum.CONSUMABLE, rarity=RarityEnum.COMMON, storage_id=None)
+    )
+    await async_session.commit()
+    filler = await async_session.exec(select(Item).where(Item.name == "Stimpak"))
+    filler_row = filler.one()
+    filler_row.storage_id = storage.id
+    async_session.add(filler_row)
+    await async_session.commit()
+
+    result = await reward_service.grant_item(
+        async_session,
+        vault.id,
+        {"item_type": "consumable", "name": "Nuka-Cola Quantum"},
+    )
+    await async_session.commit()
+
+    assert result["item_type"] == "consumable"
+    assert result["item_id"] is not None
+    stored = await crud.storage.count_storage_items(async_session, storage.id)
+    assert stored == 1  # only the counted filler; the bottles are space-free
+
+
+@pytest.mark.asyncio
+async def test_grant_item_full_storage_still_rejects_counted_items(async_session: AsyncSession) -> None:
+    """Non-space-free rewards keep failing the capacity check in a full vault."""
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    storage = Storage(vault_id=vault.id, max_space=1)
+    async_session.add(storage)
+    async_session.add(
+        Item(name="Stimpak", item_type=ItemTypeEnum.CONSUMABLE, rarity=RarityEnum.COMMON, storage_id=None)
+    )
+    await async_session.commit()
+    filler_result = await async_session.exec(select(Item).where(Item.name == "Stimpak"))
+    filler_row = filler_result.one()
+    filler_row.storage_id = storage.id
+    async_session.add(filler_row)
+    await async_session.commit()
+
+    with pytest.raises(ResourceConflictException):
+        await reward_service.grant_item(async_session, vault.id, {"item_type": "lunchbox", "name": "Lunchbox"})

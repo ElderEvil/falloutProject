@@ -16,20 +16,18 @@ from app.models.pet import Pet
 from app.models.storage import Storage, StorageBase
 from app.models.weapon import Weapon
 from app.utils.exceptions import ResourceNotFoundException
+from app.utils.storage_policy import NUKA_COLA_LIKE
 
 logger = logging.getLogger(__name__)
-
-_NUKA_NAME_PATTERN = "%nuka%"
 
 
 def _storage_counted_items():
     """Rows that occupy storage space: everything except nuka-cola consumables.
 
-    Nuka-cola bottles are deliberately space-free (game design), so any
-    ``Item`` row that is a consumable *and* named like nuka-cola is excluded
-    from the count. This is the single source of truth for that exclusion.
+    The exclusion mirrors ``app.utils.storage_policy`` so counting and
+    admission cannot drift on the space-free bottle rule.
     """
-    return or_(col(Item.item_type) != ItemTypeEnum.CONSUMABLE.value, ~col(Item.name).ilike(_NUKA_NAME_PATTERN))
+    return or_(col(Item.item_type) != ItemTypeEnum.CONSUMABLE.value, ~col(Item.name).ilike(NUKA_COLA_LIKE))
 
 
 class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):

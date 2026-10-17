@@ -483,8 +483,8 @@ async def test_start_quest_with_level_qualifying_party(async_session: AsyncSessi
 
 
 @pytest.mark.asyncio
-async def test_start_quest_rejects_party_without_required_item(async_session: AsyncSession) -> None:
-    """A party without the required equipped item cannot start the quest."""
+async def test_start_quest_rejects_missing_required_item(async_session: AsyncSession) -> None:
+    """A quest whose required item exists nowhere in the vault cannot start."""
     from app.models.dweller import Dweller
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_adult_dweller
@@ -514,8 +514,8 @@ async def test_start_quest_rejects_party_without_required_item(async_session: As
 
 
 @pytest.mark.asyncio
-async def test_start_quest_with_equipped_item_party(async_session: AsyncSession) -> None:
-    """A party member equipped with the required item lets the quest start."""
+async def test_start_quest_with_required_item_equipped_in_vault(async_session: AsyncSession) -> None:
+    """An item equipped by a vault dweller lets the quest start."""
     from app.models.dweller import Dweller
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_adult_dweller
@@ -545,6 +545,52 @@ async def test_start_quest_with_equipped_item_party(async_session: AsyncSession)
     await crud.weapon.create(async_session, obj_in=weapon_data)
 
     await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
+
+    link = await quest_service.start_quest(async_session, quest.id, vault.id)
+
+    assert link.started_at is not None
+
+
+@pytest.mark.asyncio
+async def test_start_quest_accepts_required_outfit_equipped_by_a_vault_dweller(async_session: AsyncSession) -> None:
+    """An outfit equipped by any vault dweller satisfies ITEM, matching the read path.
+
+    The read path counts items equipped by vault dwellers (not only storage), so the start path
+    must agree: a quest that reads as available must not be rejected for an outfit another
+    dweller is wearing. Regression: "Ghoul in Black" refused to start though a dweller wore the
+    Vault 33 suit, because the start path demanded it on a dispatched party member.
+    """
+    from app.models.dweller import Dweller
+    from app.services.team_service import team_service
+    from app.tests.factory.dwellers import create_fake_adult_dweller
+    from app.tests.factory.items import create_fake_outfit
+
+    vault = await _vault_with_office(async_session)
+    quest = await _create_quest(async_session, title="Equipped Outfit Start")
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.ITEM,
+            requirement_data={"item_name": "Vault 33 suit"},
+            is_mandatory=True,
+        )
+    )
+    await async_session.commit()
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+
+    wearer = Dweller(**create_fake_adult_dweller(), vault_id=vault.id)
+    async_session.add(wearer)
+    await async_session.commit()
+
+    outfit_data = create_fake_outfit()
+    outfit_data["name"] = "Vault 33 suit"
+    outfit_data["dweller_id"] = wearer.id
+    await crud.outfit.create(async_session, obj_in=outfit_data)
+
+    party_member = Dweller(**create_fake_adult_dweller(), vault_id=vault.id)
+    async_session.add(party_member)
+    await async_session.commit()
+    await team_service.assign_quest_team(async_session, quest.id, vault.id, [party_member.id])
 
     link = await quest_service.start_quest(async_session, quest.id, vault.id)
 
@@ -824,3 +870,143 @@ def test_quest_service_facade_reexports_canonical_surface() -> None:
         assert getattr(facade, name) is getattr(availability, name)
     assert facade.QuestService is canonical.QuestService
     assert facade.quest_service is canonical.quest_service
+
+
+@pytest.mark.asyncio
+async def test_item_requirement_read_and_start_agree_for_non_party_wearer(
+    async_client, async_session: AsyncSession
+) -> None:
+    """A quest reads available and starts when a non-party dweller wears the required item.
+
+    Regression: "Ghoul in Black" read as startable because a vault dweller wore the Vault 33
+    suit, but the start path demanded the item on a dispatched party member and refused with 400.
+    """
+    from app.models.dweller import Dweller
+    from app.services.team_service import team_service
+    from app.tests.factory.dwellers import create_fake_adult_dweller
+    from app.tests.factory.items import create_fake_outfit
+    from app.tests.utils.user import user_authentication_headers
+
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    async_session.add(Room(**create_overseers_office(), vault_id=vault.id))
+    await async_session.commit()
+
+    quest = await _create_quest(async_session, title="Non-Party Wearer Agreement")
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.ITEM,
+            requirement_data={"item_name": "Vault 33 suit"},
+            is_mandatory=True,
+        )
+    )
+    await async_session.commit()
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+
+    wearer = Dweller(**create_fake_adult_dweller(), vault_id=vault.id)
+    async_session.add(wearer)
+    await async_session.commit()
+
+    outfit_data = create_fake_outfit()
+    outfit_data["name"] = "Vault 33 suit"
+    outfit_data["dweller_id"] = wearer.id
+    await crud.outfit.create(async_session, obj_in=outfit_data)
+
+    party_member = Dweller(**create_fake_adult_dweller(), vault_id=vault.id)
+    async_session.add(party_member)
+    await async_session.commit()
+    await team_service.assign_quest_team(async_session, quest.id, vault.id, [party_member.id])
+
+    headers = await user_authentication_headers(client=async_client, email=user.email, password=user_data["password"])
+
+    read_response = await async_client.get(f"/quests/{vault.id}/", headers=headers)
+    assert read_response.status_code == 200, f"Expected 200, got {read_response.status_code}: {read_response.text}"
+    quest_read = next(q for q in read_response.json() if q["id"] == str(quest.id))
+    assert quest_read["is_locked"] is False
+
+    start_response = await async_client.post(f"/quests/{vault.id}/{quest.id}/start", headers=headers)
+    assert start_response.status_code == 200, f"Expected 200, got {start_response.status_code}: {start_response.text}"
+
+
+@pytest.mark.asyncio
+async def test_start_quest_rejects_item_equipped_only_by_dead_dweller(async_session: AsyncSession) -> None:
+    """A dead dweller's worn outfit does not satisfy the vault-scoped ITEM gate."""
+    from app.models.dweller import Dweller
+    from app.services.team_service import team_service
+    from app.tests.factory.dwellers import create_fake_adult_dweller
+    from app.tests.factory.items import create_fake_outfit
+    from app.utils.exceptions import ValidationException
+
+    vault = await _vault_with_office(async_session)
+    quest = await _create_quest(async_session, title="Dead Wearer Item Gate")
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.ITEM,
+            requirement_data={"item_name": "Vault 33 suit"},
+            is_mandatory=True,
+        )
+    )
+    await async_session.commit()
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+
+    dead_data = create_fake_adult_dweller()
+    dead_data["is_dead"] = True
+    dead_wearer = Dweller(**dead_data, vault_id=vault.id)
+    async_session.add(dead_wearer)
+    await async_session.commit()
+
+    outfit_data = create_fake_outfit()
+    outfit_data["name"] = "Vault 33 suit"
+    outfit_data["dweller_id"] = dead_wearer.id
+    await crud.outfit.create(async_session, obj_in=outfit_data)
+
+    party_member = Dweller(**create_fake_adult_dweller(), vault_id=vault.id)
+    async_session.add(party_member)
+    await async_session.commit()
+    await team_service.assign_quest_team(async_session, quest.id, vault.id, [party_member.id])
+
+    with pytest.raises(ValidationException, match="Vault 33 suit"):
+        await quest_service.start_quest(async_session, quest.id, vault.id)
+
+
+@pytest.mark.asyncio
+async def test_start_quest_matches_required_item_case_insensitively(async_session: AsyncSession) -> None:
+    """The vault-scoped ITEM gate matches the required name case-insensitively."""
+    from app.models.dweller import Dweller
+    from app.services.team_service import team_service
+    from app.tests.factory.dwellers import create_fake_adult_dweller
+    from app.tests.factory.items import create_fake_outfit
+
+    vault = await _vault_with_office(async_session)
+    quest = await _create_quest(async_session, title="Case-Insensitive Item Gate")
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.ITEM,
+            requirement_data={"item_name": "Vault 33 suit"},
+            is_mandatory=True,
+        )
+    )
+    await async_session.commit()
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+
+    wearer = Dweller(**create_fake_adult_dweller(), vault_id=vault.id)
+    async_session.add(wearer)
+    await async_session.commit()
+
+    outfit_data = create_fake_outfit()
+    outfit_data["name"] = "vault 33 SUIT"
+    outfit_data["dweller_id"] = wearer.id
+    await crud.outfit.create(async_session, obj_in=outfit_data)
+
+    party_member = Dweller(**create_fake_adult_dweller(), vault_id=vault.id)
+    async_session.add(party_member)
+    await async_session.commit()
+    await team_service.assign_quest_team(async_session, quest.id, vault.id, [party_member.id])
+
+    link = await quest_service.start_quest(async_session, quest.id, vault.id)
+
+    assert link.started_at is not None

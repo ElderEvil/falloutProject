@@ -208,6 +208,34 @@ describe('QuestCard', () => {
     expect(wrapper.text()).not.toContain('living_quarter')
   })
 
+  it('marks an item requirement as met when the quest is available', () => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          quest_requirements: [
+            {
+              id: 'req-1',
+              requirement_type: 'item',
+              requirement_data: { item_name: 'Vault 33 suit' },
+            },
+          ],
+        },
+        vaultId: 'vault-1',
+        status: 'available',
+        partyMembers: [],
+      },
+    })
+
+    const icons = wrapper.findAllComponents(Icon).map((icon) => icon.props('icon'))
+    expect(icons).toContain('mdi:check-circle')
+    expect(icons).not.toContain('mdi:lock')
+    expect(wrapper.find('.prerequisite-item.met').exists()).toBe(true)
+    expect(wrapper.find('.prerequisite-item.unmet').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Requires Vault 33 suit')
+  })
+
   it('shows an unlocked lock when a dweller meets the level requirement', () => {
     setActivePinia(createPinia())
     const filterStore = useDwellerFilterStore()

@@ -19,7 +19,11 @@ from app.schemas.rewards import format_reward_summary, granted_reward_adapter
 from app.services.notification_service import notification_service
 from app.services.progression.quests import availability
 from app.services.progression.quests.availability import QuestAvailability
-from app.services.progression.quests.requirements import individual_meets_requirement, party_missing_requirements
+from app.services.progression.quests.requirements import (
+    individual_meets_requirement,
+    party_missing_requirements,
+    vault_missing_item_requirements,
+)
 from app.services.reward_service import reward_service
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 from app.utils.quest_duration import effective_quest_duration_minutes, quest_return_leg_minutes
@@ -142,7 +146,12 @@ class QuestService:
         if state is not None and "quest_requirements" in state.unloaded:
             await db_session.refresh(quest, ["quest_requirements"])
         party_dwellers = await crud.team_crud.get_quest_team_dwellers(db_session, quest_id, vault_id)
-        missing = party_missing_requirements(party_dwellers, quest)
+        # ITEM is vault-scoped, so it is gated here. The other vault gates
+        # (ROOM/DWELLER_COUNT/QUEST_COMPLETED) live in `vault_missing_requirements`
+        # and are enforced by `start_quest_for_vault` via `quest_availability`,
+        # which every production caller runs before this method.
+        missing = await vault_missing_item_requirements(db_session, vault_id, quest)
+        missing += party_missing_requirements(party_dwellers, quest)
         if missing:
             raise ValidationException("; ".join(missing))
 
@@ -378,9 +387,9 @@ class QuestService:
         """Dwellers who individually satisfy the quest's party-level requirement gates.
 
         A candidate is eligible when they meet every per-individual threshold
-        (LEVEL/ITEM/ATTACK/STAT), independent of the gate's aggregate ``count`` —
+        (LEVEL/ATTACK/STAT), independent of the gate's aggregate ``count`` —
         two qualifying dwellers are both eligible for a ``count: 2`` gate. Vault-level
-        gates (ROOM/DWELLER_COUNT/QUEST_COMPLETED) are checked on the start path, so
+        gates (ITEM/ROOM/DWELLER_COUNT/QUEST_COMPLETED) are checked on the start path, so
         they do not filter candidates here.
         """
         from app.utils.exceptions import ResourceNotFoundException

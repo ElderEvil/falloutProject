@@ -20,8 +20,9 @@ const authStore = useAuthStore()
 const dweller = computed(() => ctx.dweller.value)
 const vaultId = computed(() => ctx.vaultId.value)
 const mature = computed(() => !!dweller.value && isMature(dweller.value))
-const canEquip = computed(() => mature.value && !isAway.value)
 const isAway = computed(() => ['exploring', 'questing'].includes(dweller.value?.status ?? ''))
+const canUnequip = computed(() => !isAway.value)
+const canEquip = computed(() => mature.value && canUnequip.value)
 
 const showInventoryModal = ref(false)
 const petActionPending = ref(false)
@@ -32,9 +33,9 @@ watch(canEquip, (allowed) => {
 })
 
 // Get equipped items from the dweller object
-const equippedWeapon = computed(() => (mature.value ? (dweller.value?.weapon ?? null) : null))
-const equippedOutfit = computed(() => (mature.value ? (dweller.value?.outfit ?? null) : null))
-const equippedPet = computed(() => (mature.value ? (dweller.value?.pet ?? null) : null))
+const equippedWeapon = computed(() => dweller.value?.weapon ?? null)
+const equippedOutfit = computed(() => dweller.value?.outfit ?? null)
+const equippedPet = computed(() => dweller.value?.pet ?? null)
 
 // Get available (unequipped) items
 const availableWeapons = computed(() => equipmentStore.getAvailableWeapons())
@@ -55,13 +56,13 @@ onMounted(async () => {
 })
 
 const handleUnequipWeapon = async () => {
-  if (!equippedWeapon.value || !authStore.token || !dweller.value?.id) return
+  if (!canUnequip.value || !equippedWeapon.value || !authStore.token || !dweller.value?.id) return
   await equipmentStore.unequipWeapon(dweller.value.id, equippedWeapon.value.id, authStore.token)
   ctx.actions.refresh()
 }
 
 const handleUnequipOutfit = async () => {
-  if (!equippedOutfit.value || !authStore.token || !dweller.value?.id) return
+  if (!canUnequip.value || !equippedOutfit.value || !authStore.token || !dweller.value?.id) return
   await equipmentStore.unequipOutfit(dweller.value.id, equippedOutfit.value.id, authStore.token)
   ctx.actions.refresh()
 }
@@ -81,7 +82,14 @@ const handleEquipOutfit = async (outfitId: string) => {
 }
 
 const handleUnequipPet = async () => {
-  if (petActionPending.value || !equippedPet.value || !authStore.token || !dweller.value?.id) return
+  if (
+    !canUnequip.value ||
+    petActionPending.value ||
+    !equippedPet.value ||
+    !authStore.token ||
+    !dweller.value?.id
+  )
+    return
   petActionPending.value = true
   try {
     await petsStore.unequipPet(dweller.value.id, equippedPet.value.id, authStore.token)
@@ -156,7 +164,7 @@ const modalIcon = computed(() => {
           :item="equippedWeapon"
           type="weapon"
           :equipped="true"
-          :show-actions="canEquip"
+          :show-actions="canUnequip"
           @unequip="handleUnequipWeapon"
         />
 
@@ -184,7 +192,7 @@ const modalIcon = computed(() => {
           :item="equippedOutfit"
           type="outfit"
           :equipped="true"
-          :show-actions="canEquip"
+          :show-actions="canUnequip"
           @unequip="handleUnequipOutfit"
         />
 
@@ -211,7 +219,7 @@ const modalIcon = computed(() => {
           v-if="equippedPet"
           :pet="equippedPet"
           :equipped="true"
-          :show-actions="canEquip"
+          :show-actions="canUnequip"
           :disabled="petActionPending"
           @unequip="handleUnequipPet"
         />

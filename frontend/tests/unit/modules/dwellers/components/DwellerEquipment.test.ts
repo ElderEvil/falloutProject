@@ -114,6 +114,64 @@ describe('DwellerEquipment', () => {
     petsStoreMock.unequipPet.mockResolvedValue(undefined)
   })
 
+  it.each(['child', 'teen'] as const)(
+    'allows a %s to remove existing gear but not replace it',
+    async (age_group) => {
+      const dweller = ref(
+        makeDweller({
+          age_group,
+          weapon: { id: 'weapon-1' } as never,
+          outfit: { id: 'outfit-1' } as never,
+          pet: { id: 'pet-1' } as never,
+        })
+      )
+      const ctx = createMockDwellerDetailContext({ dweller: dweller as never })
+      const wrapper = mountEquip(dweller.value, ctx, { PetCard: petCardStub })
+      const cards = wrapper.findAllComponents(sharedStubs.EquipmentCard)
+      expect(cards).toHaveLength(2)
+      expect(cards.every((card) => card.props('showActions'))).toBe(true)
+      expect(wrapper.findComponent(petCardStub).props('showActions')).toBe(true)
+      for (const button of wrapper.findAll('button.equip-slot, button.pet-slot')) {
+        await button.trigger('click')
+      }
+      await flushPromises()
+      expect(ctx.actions.refresh).toHaveBeenCalledTimes(3)
+      expect(petsStoreMock.unequipPet).toHaveBeenCalledWith('dweller-1', 'pet-1', 'test-token')
+      dweller.value = makeDweller({ age_group })
+      await nextTick()
+      expect(
+        wrapper
+          .findAll('button.empty-slot')
+          .every((button) => button.attributes('disabled') !== undefined)
+      ).toBe(true)
+    }
+  )
+
+  it.each(['exploring', 'questing'])('blocks removal of existing gear while %s', async (status) => {
+    const ctx = createMockDwellerDetailContext()
+    const wrapper = mountEquip(
+      makeDweller({
+        age_group: 'teen',
+        status,
+        weapon: { id: 'weapon-1' } as never,
+        outfit: { id: 'outfit-1' } as never,
+        pet: { id: 'pet-1' } as never,
+      }),
+      { actions: ctx.actions },
+      { PetCard: petCardStub }
+    )
+    const cards = wrapper.findAllComponents(sharedStubs.EquipmentCard)
+    expect(cards).toHaveLength(2)
+    expect(cards.every((card) => !card.props('showActions'))).toBe(true)
+    expect(wrapper.findComponent(petCardStub).props('showActions')).toBe(false)
+    for (const button of wrapper.findAll('button.equip-slot, button.pet-slot')) {
+      await button.trigger('click')
+    }
+    await flushPromises()
+    expect(ctx.actions.refresh).not.toHaveBeenCalled()
+    expect(petsStoreMock.unequipPet).not.toHaveBeenCalled()
+  })
+
   it.each(['child', 'teen'] as const)('blocks all equipment for a %s', (age_group) => {
     const wrapper = mountEquip(makeDweller({ age_group }))
     expect(wrapper.findAll('button.empty-slot')).toHaveLength(3)

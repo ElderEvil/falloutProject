@@ -68,45 +68,38 @@ def test_child_appearance_is_deterministic():
     assert a == b
 
 
-def test_child_shares_a_parent_trait_without_mutation():
-    game_config.breeding.trait_mutation_chance = 0.0
-    try:
-        for seed in range(20):
-            child = roll_child_identity(HUMAN_MOTHER, HUMAN_FATHER, random.Random(seed))
-            parent_values = {
-                HUMAN_MOTHER.visual_attributes["skin_tone"],
-                HUMAN_FATHER.visual_attributes["skin_tone"],
-            }
-            assert child["skin_tone"] in parent_values
-    finally:
-        game_config.breeding.trait_mutation_chance = 0.15
+def test_child_shares_a_parent_trait_without_mutation(monkeypatch):
+    monkeypatch.setattr(game_config.breeding, "trait_mutation_chance", 0.0)
+    monkeypatch.setattr(game_config.breeding, "race_mutation_chance", 0.0)
+    for seed in range(20):
+        child = roll_child_identity(HUMAN_MOTHER, HUMAN_FATHER, random.Random(seed))
+        parent_values = {
+            HUMAN_MOTHER.visual_attributes["skin_tone"],
+            HUMAN_FATHER.visual_attributes["skin_tone"],
+        }
+        assert child["skin_tone"] in parent_values
 
 
-def test_trait_mutation_picks_a_different_valid_option():
-    game_config.breeding.trait_mutation_chance = 1.0
-    try:
-        child = roll_child_identity(HUMAN_MOTHER, HUMAN_FATHER, random.Random(5))
-        # Every trait must still be a valid option for the child's race.
+def test_trait_mutation_picks_a_different_valid_option(monkeypatch):
+    monkeypatch.setattr(game_config.breeding, "trait_mutation_chance", 1.0)
+    monkeypatch.setattr(game_config.breeding, "race_mutation_chance", 0.0)
+    mother = _parent("human", "Pale", "brunette", "Long Hair", "green")
+    father = _parent("human", "Pale", "black", "Short Hair", "blue")
+    child = roll_child_identity(mother, father, random.Random(5))
+    race = RaceOption(child["race"])
+    assert child["skin_tone"] in skin_tone_options[race]
+    assert child["hair_style"] in haircuts[race]
+    assert child["skin_tone"] != "Pale"
+
+
+def test_race_mutation_rerolls_appearance_for_the_mutated_race(monkeypatch):
+    monkeypatch.setattr(game_config.breeding, "race_mutation_chance", 1.0)
+    for seed in (1, 2, 3, 7, 11):
+        child = roll_child_identity(HUMAN_MOTHER, HUMAN_FATHER, random.Random(seed))
         race = RaceOption(child["race"])
+        assert race != RaceOption.HUMAN
         assert child["skin_tone"] in skin_tone_options[race]
         assert child["hair_style"] in haircuts[race]
-    finally:
-        game_config.breeding.trait_mutation_chance = 0.15
-
-
-def test_race_mutation_rerolls_appearance_for_the_mutated_race():
-    game_config.breeding.race_mutation_chance = 1.0
-    try:
-        for seed in (1, 2, 3, 7, 11):
-            child = roll_child_identity(HUMAN_MOTHER, HUMAN_FATHER, random.Random(seed))
-            race = RaceOption(child["race"])
-            # Mutated race differs from the human parents; appearance must be
-            # valid for it, not carry human-only values.
-            assert race != RaceOption.HUMAN
-            assert child["skin_tone"] in skin_tone_options[race]
-            assert child["hair_style"] in haircuts[race]
-    finally:
-        game_config.breeding.race_mutation_chance = 0.05
 
 
 def test_non_adult_cannot_get_facial_hair_from_roll():

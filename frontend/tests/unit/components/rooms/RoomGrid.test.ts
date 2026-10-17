@@ -273,7 +273,7 @@ describe('RoomGrid', () => {
       expect(unlockedRows).toContain('4')
     })
 
-    it('allows a standard room beside a legacy-size elevator on the same level', async () => {
+    it('allows a standard room beside a one-unit elevator on the same level', async () => {
       const roomStore = useRoomStore()
       roomStore.rooms = [
         mockRoom,
@@ -281,7 +281,7 @@ describe('RoomGrid', () => {
           ...mockRoom,
           id: 'elev-1',
           name: 'Elevator',
-          coordinate_x: 0,
+          coordinate_x: 6,
           coordinate_y: 1,
           size: 1,
           size_min: 1,
@@ -306,7 +306,7 @@ describe('RoomGrid', () => {
       })
       const cell = wrapper.findAll('.empty:not(.level-locked)').find((item) => {
         const style = item.element as HTMLElement
-        return parseInt(style.style.gridColumn, 10) === 4 && style.style.gridRow === '2'
+        return parseInt(style.style.gridColumn, 10) === 8 && style.style.gridRow === '2'
       })!
 
       await cell.trigger('mouseenter')
@@ -483,18 +483,36 @@ describe('RoomGrid', () => {
       speedup_multiplier: 1,
     }
 
+    it('rejects a gap in both the preview and click handler', async () => {
+      const roomStore = useRoomStore()
+      roomStore.rooms = [{ ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 }]
+      roomStore.selectedRoom = dinerTemplate
+      roomStore.isPlacingRoom = true
+      const build = vi.spyOn(roomStore, 'buildRoom')
+      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+      const cell = wrapper.get('[aria-label="Build room at row 1, column 11"]')
+      await cell.trigger('mouseenter')
+      expect(cell.classes()).toContain('invalid-placement')
+      await cell.trigger('click')
+      expect(build).not.toHaveBeenCalled()
+      const adjacent = wrapper.get('[aria-label="Build room at row 1, column 8"]')
+      await adjacent.trigger('mouseenter')
+      expect(adjacent.classes()).toContain('valid-placement')
+    })
+
     it('shows a built toast for a new room', async () => {
       const roomStore = useRoomStore()
       const authStore = useAuthStore()
       const { toasts } = useToast()
 
       authStore.token = 'mock-token'
+      roomStore.rooms = [{ ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 }]
       roomStore.selectedRoom = dinerTemplate
       roomStore.isPlacingRoom = true
       vi.spyOn(roomStore, 'buildRoom').mockResolvedValue('built')
 
       const wrapper = mount(RoomGrid, { props: { incidents: [] } })
-      const cell = wrapper.find('.empty:not(.level-locked)')
+      const cell = wrapper.get('[aria-label="Build room at row 1, column 8"]')
       await cell.trigger('click')
       await wrapper.vm.$nextTick()
 
@@ -508,12 +526,13 @@ describe('RoomGrid', () => {
       const { toasts } = useToast()
 
       authStore.token = 'mock-token'
+      roomStore.rooms = [{ ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 }]
       roomStore.selectedRoom = dinerTemplate
       roomStore.isPlacingRoom = true
       vi.spyOn(roomStore, 'buildRoom').mockResolvedValue('extended')
 
       const wrapper = mount(RoomGrid, { props: { incidents: [] } })
-      const cell = wrapper.find('.empty:not(.level-locked)')
+      const cell = wrapper.get('[aria-label="Build room at row 1, column 8"]')
       await cell.trigger('click')
       await wrapper.vm.$nextTick()
 

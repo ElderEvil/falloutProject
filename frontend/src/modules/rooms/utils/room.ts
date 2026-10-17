@@ -43,3 +43,17 @@ export function hasElevatorAbove(rooms: Room[], x: number, y: number): boolean {
       (r.coordinate_y ?? -1) === y - 1
   )
 }
+
+/** Only outer rooms may be removed; inner rooms keep the row connected. */
+export function isRoomAtRowEnd(rooms: Room[], room: Room): boolean {
+  const start = room.coordinate_x
+  if (start == null) return true
+  const end = start + (room.size ?? room.size_min)
+  const others = rooms.filter(
+    (r) => r.id !== room.id && r.coordinate_y === room.coordinate_y && r.coordinate_x != null
+  )
+  return (
+    !others.some((r) => r.coordinate_x! + (r.size ?? r.size_min) <= start) ||
+    !others.some((r) => r.coordinate_x! >= end)
+  )
+}

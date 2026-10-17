@@ -19,8 +19,8 @@ import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefi
 import type { Room } from '../models/room'
 import {
   getTrainingRoomCapacity,
-  hasElevatorAbove,
   isLevelBuildable,
+  isRoomAtRowEnd,
 } from '@/modules/rooms/utils/room'
 import { ADULT_AGE_GROUPS } from '@/modules/dwellers/models/dweller'
 import RoomGridCell from './RoomGridCell.vue'
@@ -68,7 +68,14 @@ const isPowerOutage = computed(() => {
 })
 
 const { selectedRoomId, toggleRoomSelection, destroyRoom } = useRoomInteractions()
-const { hoverPosition, handleHover, clearHover, previewCells, isValidPlacement } = useHoverPreview()
+const {
+  hoverPosition,
+  handleHover,
+  clearHover,
+  previewCells,
+  isValidPlacement,
+  isValidPlacementAt,
+} = useHoverPreview()
 const { showRoomImages } = useRoomRendering()
 
 // Room detail modal state
@@ -117,28 +124,6 @@ const placeRoom = async (x: number, y: number) => {
   } catch (error) {
     toast.error(error instanceof Error ? error.message : 'Failed to build room')
   }
-}
-
-const isValidPlacementAt = (x: number, y: number) => {
-  if (!roomStore.selectedRoom) return false
-  const selected = roomStore.selectedRoom
-  const isElevator = selected.name.toLowerCase() === 'elevator'
-  if (isElevator ? x !== shaftX.value : !roomSlotStarts.value.includes(x)) return false
-  const cellsCount = isElevator ? 1 : selected.size_min
-  const cells = Array.from({ length: cellsCount }, (_, i) => ({ x: x + i, y }))
-  return cells.every((cell) => {
-    const inBounds = cell.x >= 0 && cell.x < floorUnits.value
-    if (!inBounds) return false
-    const occupied = roomStore.rooms.some(
-      (room: Room) =>
-        (room.coordinate_x ?? 0) <= cell.x &&
-        (room.coordinate_x ?? 0) + (room.size || room.size_min) > cell.x &&
-        (room.coordinate_y ?? 0) === cell.y
-    )
-    if (occupied) return false
-    if (isElevator) return hasElevatorAbove(roomStore.rooms, cell.x, cell.y)
-    return isLevelBuildable(roomStore.rooms, cell.y)
-  })
 }
 
 const handleEmptyCellClick = (x: number, y: number) => {
@@ -357,6 +342,7 @@ const closeDetailModal = () => {
           :incident="getRoomIncident(room.id)"
           :overseer-attention-count="overseerAttentionCount"
           :selected="selectedRoomId === room.id"
+          :is-inner-room="room.name.toLowerCase() !== 'elevator' && !isRoomAtRowEnd(rooms, room)"
           :is-dragging-over="draggingOverRoomId === room.id"
           :highlighted="highlightedRoomId != null && highlightedRoomId === room.id"
           :merged="roomStore.mergedRoomId === room.id"

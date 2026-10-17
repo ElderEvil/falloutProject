@@ -28,13 +28,25 @@ export function useHoverPreview() {
     return Array.from({ length: cellsCount }, (_, i) => ({ x: x + i, y }))
   })
 
-  const isValidPlacement = computed(() => {
-    if (!hoverPosition.value || !roomStore.selectedRoom) return false
+  const isValidPlacementAt = (x: number, y: number) => {
+    if (!roomStore.selectedRoom) return false
     const selected = roomStore.selectedRoom
     const isElevator = selected.name.toLowerCase() === 'elevator'
-    const originX = hoverPosition.value.x
-    if (isElevator ? originX !== roomStore.shaftX : !roomStore.roomSlotStarts.includes(originX)) return false
-    return previewCells.value.every((cell) => {
+    const originX = x
+    if (isElevator ? originX !== roomStore.shaftX : !roomStore.roomSlotStarts.includes(originX))
+      return false
+    const size = isElevator ? 1 : selected.size_min
+    if (
+      !isElevator &&
+      !roomStore.rooms.some(
+        (room) =>
+          room.coordinate_y === y &&
+          room.coordinate_x != null &&
+          (room.coordinate_x + (room.size ?? room.size_min) === x || x + size === room.coordinate_x)
+      )
+    )
+      return false
+    return Array.from({ length: size }, (_, i) => ({ x: x + i, y })).every((cell) => {
       const inBounds = cell.x >= 0 && cell.x < roomStore.floorUnits
       if (!inBounds) return false
       const occupied = roomStore.rooms.some(
@@ -47,7 +59,11 @@ export function useHoverPreview() {
       if (isElevator) return hasElevatorAbove(roomStore.rooms, cell.x, cell.y)
       return isLevelBuildable(roomStore.rooms, cell.y)
     })
-  })
+  }
+
+  const isValidPlacement = computed(
+    () => !!hoverPosition.value && isValidPlacementAt(hoverPosition.value.x, hoverPosition.value.y)
+  )
 
   return {
     hoverPosition,
@@ -55,5 +71,6 @@ export function useHoverPreview() {
     clearHover,
     previewCells,
     isValidPlacement,
+    isValidPlacementAt,
   }
 }

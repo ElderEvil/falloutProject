@@ -31,7 +31,7 @@ def room_occupancy_lock_key(room_id: UUID4) -> str:
 def vault_placement_lock_key(vault_id: UUID4) -> str:
     """Advisory-lock key guarding every placement change in one vault's grid.
 
-    Construction, the upgrade merge and the vault-wide merge backfill all rewrite
+    Construction, demolition, upgrade merging and the vault-wide merge backfill rewrite
     room footprints against the same grid, so they share a vault-scoped key: two
     placement changes cannot land on the same cells.
     """

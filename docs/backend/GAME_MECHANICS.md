@@ -3,6 +3,15 @@
 Game-domain invariants for the Fallout Shelter simulation. These constrain *what the game must do*,
 unlike `AGENTS.md`, which constrains *how code must be structured*. Follow both.
 
+## Vault row continuity
+
+Build non-elevator rooms directly beside an existing room or elevator on the same floor;
+empty space between rooms is not a valid placement. Only the outermost room on either
+side of a floor can be demolished: remove rooms from the outside toward the elevator.
+Merged rooms follow the same rule using their entire footprint. Construction, demolition
+and room merging share the vault placement lock. Elevator dependency and vault door
+protections still apply.
+
 ## Progression visibility (red line)
 
 Every player-facing progression event — level-up, loot, training completion, quest/objective completion —

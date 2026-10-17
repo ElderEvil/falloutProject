@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.223.2 (2026-10-17)
+
+### Bug Fixes
+
+* **objectives:** claim earned starter rewards in any order d952a63
+* **objectives:** exclude hidden tabs from rewards-ready count e458a6e
+* **objectives:** retain early starter progress and clarify scrapping f5b2ce0
+
 ## 2.223.1 (2026-10-17)
 
 ### Bug Fixes

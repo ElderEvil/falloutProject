@@ -123,6 +123,17 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function updateUsername(username: string): Promise<boolean> {
+    try {
+      const response = await authService.updateUsername(username)
+      user.value = response.data
+      return true
+    } catch (error) {
+      handleStoreError(error, 'Failed to update username')
+      return false
+    }
+  }
+
   async function logout(): Promise<void> {
     try {
       if (token.value) {
@@ -158,6 +169,7 @@ export const useAuthStore = defineStore('auth', () => {
     register,
     fetchUser,
     refreshAccessToken,
+    updateUsername,
     logout,
   }
 })

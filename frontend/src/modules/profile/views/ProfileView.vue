@@ -98,8 +98,12 @@ const cancelEditing = () => {
   profileStore.clearError()
 }
 
-const handleProfileUpdate = async (data: ProfileUpdate) => {
+const handleProfileUpdate = async (data: ProfileUpdate, username: string | null) => {
   try {
+    if (username) {
+      const saved = await authStore.updateUsername(username)
+      if (!saved) return
+    }
     await profileStore.updateProfile(data)
     isEditing.value = false
   } catch {}
@@ -171,6 +175,7 @@ watch(
             <ProfileEditor
               v-if="isEditing"
               :initial-data="profileStore.profile"
+              :username="authStore.user?.username"
               :loading="profileStore.loading"
               :error="profileStore.error"
               @submit="handleProfileUpdate"

@@ -13,6 +13,27 @@
     <CardContent class="px-0">
       <form class="space-y-5" @submit.prevent="handleSubmit">
         <div class="space-y-2">
+          <Label for="username" class="text-sm font-semibold text-theme-primary/85"
+            >Username</Label
+          >
+          <Input
+            id="username"
+            v-model="usernameField"
+            type="text"
+            maxlength="32"
+            required
+            class="h-auto w-full rounded-md border-theme-primary/30 bg-surface-sunken px-3 py-2.5 text-sm text-theme-primary placeholder:text-theme-primary/35"
+            placeholder="Your display name"
+          />
+          <p v-if="usernameError" class="text-xs font-medium text-danger" role="alert">
+            {{ usernameError }}
+          </p>
+          <p class="text-xs leading-5 text-theme-primary/50">
+            3–32 characters. This is how other dwellers see you across the vault.
+          </p>
+        </div>
+
+        <div class="space-y-2">
           <div class="flex items-baseline justify-between gap-4">
             <Label for="bio" class="text-sm font-semibold text-theme-primary/85">Bio</Label>
             <span class="text-xs tabular-nums text-theme-primary/50">
@@ -169,14 +190,17 @@ interface Props {
     avatar_url?: string | null
     preferences?: any
   }
+  username?: string | null
   loading?: boolean
   error?: string | null
 }
 
-const { loading = false, error = null, initialData } = defineProps<Props>()
+const props = defineProps<Props>()
+
+const { loading = false, error = null, initialData } = props
 
 const emit = defineEmits<{
-  submit: [data: ProfileUpdate]
+  submit: [data: ProfileUpdate, username: string | null]
   cancel: []
 }>()
 
@@ -186,6 +210,19 @@ const formData = ref<ProfileUpdate>({
   bio: initialData.bio || '',
   avatar_url: initialData.avatar_url || '',
   preferences: initialData.preferences || {},
+})
+
+// Username lives on the auth user, not the profile. The parent (which owns the
+// auth store) passes the current name and handles persisting a change.
+const usernameField = ref(props.username ?? '')
+const usernameError = ref<string | null>(null)
+
+watch(usernameField, (value) => {
+  if (value.length !== 0 && (value.length < 3 || value.length > 32)) {
+    usernameError.value = 'Username must be between 3 and 32 characters.'
+  } else {
+    usernameError.value = null
+  }
 })
 
 // Extract theme from preferences or use default
@@ -237,7 +274,7 @@ const handleImageError = () => {
 }
 
 const handleSubmit = () => {
-  if (jsonError.value) {
+  if (jsonError.value || usernameError.value) {
     return
   }
 
@@ -247,10 +284,18 @@ const handleSubmit = () => {
     theme: selectedTheme.value,
   }
 
-  emit('submit', {
-    bio: formData.value.bio || null,
-    avatar_url: formData.value.avatar_url || null,
-    preferences: updatedPreferences,
-  })
+  const currentUsername = props.username ?? ''
+  const changedUsername =
+    usernameField.value !== currentUsername && usernameField.value.trim().length > 0
+
+  emit(
+    'submit',
+    {
+      bio: formData.value.bio || null,
+      avatar_url: formData.value.avatar_url || null,
+      preferences: updatedPreferences,
+    },
+    changedUsername ? usernameField.value.trim() : null
+  )
 }
 </script>

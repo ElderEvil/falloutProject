@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.228.1 (2026-10-17)
+
+### Bug Fixes
+
+* smooth inventory updates and prioritize claimable rewards ([#1055](https://github.com/ElderEvil/falloutProject/issues/1055)) 5219410
+
 ## 2.228.0 (2026-10-17)
 
 ### Features

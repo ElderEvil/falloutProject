@@ -51,6 +51,16 @@ describe('HomeView', () => {
     return wrapper.findAll('button').find((btn: any) => btn.text().includes('Create Vault'))
   }
 
+  const continueStep = async (wrapper: any) => {
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+  }
+
+  const goToReview = async (wrapper: any) => {
+    if (wrapper.find('input[type="number"]').exists()) await continueStep(wrapper)
+    await continueStep(wrapper)
+  }
+
   const vaultsAtCount = (count: number) =>
     Array.from({ length: count }, (_, index) => ({
       id: `vault-${index + 1}`,
@@ -90,7 +100,7 @@ describe('HomeView', () => {
 
       expect(wrapper.find('h2').text()).toContain('Create New Vault')
       expect(wrapper.find('input[type="number"]').exists()).toBe(true)
-      expect(findCreateButton(wrapper)).toBeDefined()
+      expect(wrapper.get('button[type="submit"]').text()).toBe('Continue')
       expect(wrapper.text()).toContain('VAULT-TEC // COMMISSIONING')
     })
 
@@ -98,19 +108,24 @@ describe('HomeView', () => {
       const wrapper = mount(HomeView, { global: { plugins: [router] } })
       await flushPromises()
 
-      const createButton = findCreateButton(wrapper)
-      expect(createButton).toBeDefined()
-      expect(createButton!.element.tagName).toBe('BUTTON')
+      const continueButton = wrapper.get('button[type="submit"]')
+      expect(continueButton.text()).toBe('Continue')
+      expect(continueButton.element.tagName).toBe('BUTTON')
+      expect(findCreateButton(wrapper)).toBeUndefined()
     })
 
     it('explains the boosted start and shows the experimental warning once', async () => {
       const wrapper = mount(HomeView, { global: { plugins: [router] } })
       await flushPromises()
 
+      await wrapper.get('input[type="number"]').setValue('123')
+      await continueStep(wrapper)
       expect(wrapper.text()).toContain('Creates an expanded vault')
       expect(wrapper.text()).toContain('an arena')
       expect(wrapper.text()).toContain('caps for upgrades')
       expect(wrapper.text()).toContain('all seven training rooms')
+      expect(wrapper.text()).not.toContain('Vaults are experimental')
+      await continueStep(wrapper)
       expect(wrapper.text().match(/Vaults are experimental/g)).toHaveLength(1)
     })
 
@@ -257,7 +272,8 @@ describe('HomeView', () => {
       await flushPromises()
 
       expect(wrapper.text()).toContain('Choose an unused vault number (1-999)')
-      expect(wrapper.text()).toContain('pick a vault mode, then Create')
+      expect(wrapper.get('[aria-current="step"]').text()).toContain('Vault number')
+      expect(wrapper.find('[aria-label="Vault setup progress"]').exists()).toBe(true)
     })
 
     it('focuses the vault number input when the creation form opens', async () => {
@@ -278,7 +294,7 @@ describe('HomeView', () => {
   })
 
   describe('Vault Number Validation', () => {
-    it('should accept valid vault number (0-999)', async () => {
+    it('should accept valid vault number (1-999)', async () => {
       const wrapper = mount(HomeView, {
         global: {
           plugins: [router],
@@ -287,7 +303,7 @@ describe('HomeView', () => {
       await flushPromises()
 
       const input = wrapper.find('input[type="number"]')
-      const submitBtn = findCreateButton(wrapper)
+      const submitBtn = wrapper.get('button[type="submit"]')
 
       await input.setValue('123')
       await flushPromises()
@@ -348,8 +364,9 @@ describe('HomeView', () => {
       const input = wrapper.find('input[type="number"]')
       await input.setValue('100.5')
 
+      await goToReview(wrapper)
       const submitBtn = findCreateButton(wrapper)
-      await submitBtn!.trigger('click')
+      await wrapper.get('form').trigger('submit')
       await flushPromises()
 
       // parseInt converts 100.5 to 100, which is valid
@@ -370,7 +387,7 @@ describe('HomeView', () => {
       await flushPromises()
 
       const input = wrapper.find('input[type="number"]')
-      const submitBtn = findCreateButton(wrapper)
+      const submitBtn = wrapper.get('button[type="submit"]')
 
       await input.setValue('1000')
       await flushPromises()
@@ -397,8 +414,9 @@ describe('HomeView', () => {
       const input = wrapper.find('input[type="number"]')
       await input.setValue('123')
 
+      await goToReview(wrapper)
       const submitBtn = findCreateButton(wrapper)
-      await submitBtn!.trigger('click')
+      await wrapper.get('form').trigger('submit')
       await flushPromises()
 
       expect(axios.post).toHaveBeenCalledWith(
@@ -427,8 +445,9 @@ describe('HomeView', () => {
       const input = wrapper.find('input[type="number"]')
       await input.setValue('123')
 
+      await goToReview(wrapper)
       const submitBtn = findCreateButton(wrapper)
-      submitBtn!.trigger('click')
+      wrapper.get('form').trigger('submit')
       await wrapper.vm.$nextTick()
 
       expect(submitBtn!.text()).toContain('Creating...')
@@ -449,11 +468,12 @@ describe('HomeView', () => {
       const input = wrapper.find('input[type="number"]')
       await input.setValue('123')
 
+      await goToReview(wrapper)
       const submitBtn = findCreateButton(wrapper)
-      await submitBtn!.trigger('click')
+      await wrapper.get('form').trigger('submit')
       await flushPromises()
 
-      expect((input.element as HTMLInputElement).value).toBe('')
+      expect((wrapper.get('input[type="number"]').element as HTMLInputElement).value).toBe('')
     })
 
     it('keeps commissioning open with the entered number when creation fails', async () => {
@@ -485,10 +505,19 @@ describe('HomeView', () => {
 
       const input = wrapper.find('input[type="number"]')
       await input.setValue('123')
-      await findCreateButton(wrapper)!.trigger('click')
+      await goToReview(wrapper)
+      await wrapper.get('form').trigger('submit')
       await flushPromises()
 
-      expect(wrapper.text()).toContain('Create New Vault')
+      expect(wrapper.text()).toContain('Ready to open the doors?')
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'Back')!
+        .trigger('click')
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'Back')!
+        .trigger('click')
       expect((wrapper.find('input[type="number"]').element as HTMLInputElement).value).toBe('123')
     })
 
@@ -507,10 +536,11 @@ describe('HomeView', () => {
       const input = wrapper.find('input[type="number"]')
       await input.setValue('123')
 
+      await goToReview(wrapper)
       const submitBtn = findCreateButton(wrapper)
-      submitBtn!.trigger('click')
-      submitBtn!.trigger('click')
-      submitBtn!.trigger('click')
+      wrapper.get('form').trigger('submit')
+      wrapper.get('form').trigger('submit')
+      wrapper.get('form').trigger('submit')
       await flushPromises()
 
       // Should only be called once
@@ -529,8 +559,8 @@ describe('HomeView', () => {
       await input.setValue('1000')
       await flushPromises()
 
-      const submitBtn = findCreateButton(wrapper)
-      await submitBtn!.trigger('click')
+      const submitBtn = wrapper.get('button[type="submit"]')
+      await wrapper.get('form').trigger('submit')
       await flushPromises()
 
       expect(axios.post).not.toHaveBeenCalled()
@@ -545,6 +575,8 @@ describe('HomeView', () => {
       const wrapper = mount(HomeView, { global: { plugins: [router] } })
       await flushPromises()
 
+      await wrapper.get('input[type="number"]').setValue('123')
+      await continueStep(wrapper)
       const standard = findModeToggle(wrapper, 'Standard')
       const survival = findModeToggle(wrapper, 'Survival')
       expect(standard).toBeDefined()
@@ -565,10 +597,12 @@ describe('HomeView', () => {
 
       const input = wrapper.find('input[type="number"]')
       await input.setValue('123')
+      await continueStep(wrapper)
       await findModeToggle(wrapper, 'Survival')!.trigger('click')
 
+      await goToReview(wrapper)
       const submitBtn = findCreateButton(wrapper)
-      await submitBtn!.trigger('click')
+      await wrapper.get('form').trigger('submit')
       await flushPromises()
 
       expect(axios.post).toHaveBeenCalledWith(
@@ -587,6 +621,7 @@ describe('HomeView', () => {
 
       const input = wrapper.find('input[type="number"]')
       await input.setValue('123')
+      await continueStep(wrapper)
 
       // Opt into Boosted Start while Standard is selected.
       await wrapper.find('#boosted-start').setValue(true)
@@ -600,9 +635,10 @@ describe('HomeView', () => {
       expect(wrapper.text()).toContain('Not available in Survival mode')
       // The control stays visible with its label and description intact.
       expect(wrapper.find('label[for="boosted-start"]').text()).toContain('Boosted Start')
-      expect(wrapper.find('label[for="boosted-start"]').text()).toContain('Creates an expanded vault')
+      expect(wrapper.find('details').text()).toContain('Creates an expanded vault')
 
-      await findCreateButton(wrapper)!.trigger('click')
+      await goToReview(wrapper)
+      await wrapper.get('form').trigger('submit')
       await flushPromises()
 
       expect(axios.post).toHaveBeenCalledWith(
@@ -612,9 +648,84 @@ describe('HomeView', () => {
       )
 
       // Switching back to Standard re-enables Boosted Start.
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'Back')!
+        .trigger('click')
       await findModeToggle(wrapper, 'Standard')!.trigger('click')
       expect(wrapper.find('#boosted-start').attributes('disabled')).toBeUndefined()
       expect(wrapper.text()).not.toContain('Not available in Survival mode')
+    })
+  })
+
+  describe('Commissioning steps', () => {
+    it('shows only the current decision and blocks skipping ahead', async () => {
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Choose your vault number')
+      expect(wrapper.find('#boosted-start').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('Deaths are permanent')
+      expect(findCreateButton(wrapper)).toBeUndefined()
+      expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
+      const futureSteps = wrapper.findAll('[aria-label="Vault setup progress"] button').slice(1)
+      expect(futureSteps.every((button) => button.attributes('disabled') !== undefined)).toBe(true)
+      await wrapper.get('input[type="number"]').setValue('1000')
+      await continueStep(wrapper)
+      expect(wrapper.text()).toContain('Choose your vault number')
+      expect(axios.post).not.toHaveBeenCalled()
+    })
+
+    it('retains choices when moving back and creates a boosted standard vault only after review', async () => {
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'new-vault' } })
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await flushPromises()
+      await wrapper.get('input[type="number"]').setValue('68')
+      await continueStep(wrapper)
+      await wrapper.get('#boosted-start').setValue(true)
+      await continueStep(wrapper)
+
+      expect(wrapper.text()).toContain('Ready to open the doors?')
+      expect(wrapper.text()).toContain('068')
+      expect(wrapper.text()).toContain('Boosted Start')
+      expect(axios.post).not.toHaveBeenCalled()
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'Back')!
+        .trigger('click')
+      expect((wrapper.get('#boosted-start').element as HTMLInputElement).checked).toBe(true)
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'Back')!
+        .trigger('click')
+      expect((wrapper.get('input[type="number"]').element as HTMLInputElement).value).toBe('68')
+      await goToReview(wrapper)
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/v1/vaults/initiate',
+        { number: 68, boosted: true, vault_mode: 'standard' },
+        expect.anything()
+      )
+    })
+
+    it('retains the reviewed options after an API error and allows retry', async () => {
+      vi.mocked(axios.post)
+        .mockRejectedValueOnce(new Error('Temporary failure'))
+        .mockResolvedValueOnce({ data: { id: 'new-vault' } })
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await flushPromises()
+      await wrapper.get('input[type="number"]').setValue('69')
+      await goToReview(wrapper)
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(wrapper.text()).toContain('Ready to open the doors?')
+      expect(wrapper.text()).toContain('069')
+      expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(axios.post).toHaveBeenCalledTimes(2)
+      expect((wrapper.get('input[type="number"]').element as HTMLInputElement).value).toBe('')
     })
   })
 

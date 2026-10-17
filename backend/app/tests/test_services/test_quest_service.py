@@ -1013,3 +1013,78 @@ async def test_start_quest_matches_required_item_case_insensitively(async_sessio
     link = await quest_service.start_quest(async_session, quest.id, vault.id)
 
     assert link.started_at is not None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("running_count", [2, 3])
+async def test_timed_quest_limit_counts_outbound_and_returning_only(async_session: AsyncSession, running_count: int):
+    from datetime import datetime, timedelta
+
+    from app.models.dweller import Dweller
+    from app.models.vault_quest import VaultQuestCompletionLink
+    from app.services.team_service import team_service
+    from app.tests.factory.dwellers import create_fake_adult_dweller
+    from app.utils.exceptions import ResourceConflictException
+
+    vault = await _vault_with_office(async_session)
+    other_vault = await _vault_with_office(async_session)
+    now = datetime.utcnow()
+    for index in range(running_count + 3):
+        quest = await _create_quest(async_session, title=f"Existing {index}")
+        if index == 0:
+            first_quest_id = quest.id
+        quest.quest_category = "training" if index == running_count + 2 else "combat"
+        async_session.add(quest)
+        async_session.add(
+            VaultQuestCompletionLink(
+                quest_id=quest.id,
+                vault_id=vault.id,
+                started_at=now,
+                duration_minutes=60,
+                return_started_at=now if index == 0 else None,
+                return_completes_at=now + timedelta(minutes=10) if index == 0 else None,
+                is_reward_ready=index == running_count,
+                is_completed=index == running_count + 1,
+            )
+        )
+        async_session.add(
+            VaultQuestCompletionLink(
+                quest_id=quest.id,
+                vault_id=other_vault.id,
+                started_at=now,
+                duration_minutes=60,
+            )
+        )
+        await async_session.commit()
+
+    candidate = await _create_quest(async_session, title="Next timed quest")
+    await crud.quest_crud.assign_to_vault(async_session, candidate.id, vault.id, is_visible=True)
+    dweller = Dweller(**create_fake_adult_dweller(), vault_id=vault.id)
+    async_session.add(dweller)
+    await async_session.commit()
+    await team_service.assign_quest_team(async_session, candidate.id, vault.id, [dweller.id])
+
+    if running_count == 3:
+        with pytest.raises(ResourceConflictException, match="3 timed quests"):
+            await quest_service.start_quest(async_session, candidate.id, vault.id)
+        link = await crud.quest_crud.get_link(async_session, quest_id=candidate.id, vault_id=vault.id)
+        assert link.started_at is None
+    else:
+        link = await quest_service.start_quest(async_session, candidate.id, vault.id)
+        assert link.started_at is not None
+
+    state_quest = await _create_quest(async_session, title="State quest at capacity")
+    state_quest.quest_category = "building"
+    async_session.add(state_quest)
+    await async_session.commit()
+    await crud.quest_crud.assign_to_vault(async_session, state_quest.id, vault.id, is_visible=True)
+    state_link = await quest_service.start_quest(async_session, state_quest.id, vault.id)
+    assert state_link.is_reward_ready
+    assert state_link.started_at is None
+
+    if running_count == 3:
+        returning = await crud.quest_crud.get_link(async_session, quest_id=first_quest_id, vault_id=vault.id)
+        returning.is_reward_ready = True
+        await async_session.commit()
+        started = await quest_service.start_quest(async_session, candidate.id, vault.id)
+        assert started.started_at is not None

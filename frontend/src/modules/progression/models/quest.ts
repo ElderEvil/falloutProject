@@ -105,6 +105,9 @@ export interface VaultQuest extends Quest {
   quest_rewards?: QuestReward[]
 }
 
+// Mirrors MAX_ACTIVE_TIMED_QUESTS in backend/app/utils/quest_duration.py.
+export const MAX_ACTIVE_TIMED_QUESTS = 3
+
 /** True while a quest party is travelling home and rewards are not yet claimable. */
 export function isQuestReturning(quest: VaultQuest): boolean {
   return quest.return_completes_at != null && !quest.is_reward_ready && !quest.is_completed
@@ -290,16 +293,17 @@ export interface QuestUpdate {
 }
 
 /** Shared reward-type icon-and-label metadata for advertised and granted rewards. */
-export const REWARD_TYPE_META: Record<QuestReward['reward_type'], { icon: string, label: string }> = {
-  caps: { icon: 'mdi:coins', label: 'Bottle Caps' },
-  item: { icon: 'mdi:package-variant', label: 'Item' },
-  dweller: { icon: 'mdi:account-plus', label: 'New Dweller' },
-  resource: { icon: 'mdi:database', label: 'Resource' },
-  experience: { icon: 'mdi:star', label: 'Experience' },
-  stimpak: { icon: 'mdi:medical-bag', label: 'Stimpak' },
-  radaway: { icon: 'mdi:radiation', label: 'RadAway' },
-  lunchbox: { icon: 'mdi:gift', label: 'Lunchbox' },
-}
+export const REWARD_TYPE_META: Record<QuestReward['reward_type'], { icon: string; label: string }> =
+  {
+    caps: { icon: 'mdi:coins', label: 'Bottle Caps' },
+    item: { icon: 'mdi:package-variant', label: 'Item' },
+    dweller: { icon: 'mdi:account-plus', label: 'New Dweller' },
+    resource: { icon: 'mdi:database', label: 'Resource' },
+    experience: { icon: 'mdi:star', label: 'Experience' },
+    stimpak: { icon: 'mdi:medical-bag', label: 'Stimpak' },
+    radaway: { icon: 'mdi:radiation', label: 'RadAway' },
+    lunchbox: { icon: 'mdi:gift', label: 'Lunchbox' },
+  }
 
 export const QUEST_ITEM_LABELS: Record<string, string> = {
   weapon: 'Weapon',
@@ -312,7 +316,7 @@ export const QUEST_ITEM_LABELS: Record<string, string> = {
 }
 
 /** Shared resource icon-and-label metadata for advertised and granted rewards. */
-export const RESOURCE_META: Record<string, { icon: string, label: string }> = {
+export const RESOURCE_META: Record<string, { icon: string; label: string }> = {
   power: { icon: 'mdi:flash', label: 'Power' },
   food: { icon: 'mdi:silverware', label: 'Food' },
   water: { icon: 'mdi:water', label: 'Water' },

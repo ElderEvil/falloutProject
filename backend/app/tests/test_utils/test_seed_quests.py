@@ -704,3 +704,77 @@ def test_quest_gear_rewards_are_catalog_backed() -> None:
 
     for path in (DATA_DIR / "quests").rglob("*.json"):
         walk(json.loads(path.read_text()))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("chain_id", "quest_count", "final_template"),
+    [
+        ("almost_human", 4, "harkness"),
+        ("climbing_the_ranks", 4, "sarah-lyons"),
+        ("a_settler_needs_your_help", 5, "preston-garvey"),
+    ],
+)
+async def test_wasteland_chains_seed_unlock_and_grant_rewards(
+    async_session: AsyncSession, vault, dweller, chain_id: str, quest_count: int, final_template: str
+) -> None:
+    """Exercise authored chains through real seeding, availability and reward settlement."""
+    from sqlalchemy.orm import selectinload
+
+    from app import crud
+    from app.core.enums import AgeGroupEnum
+    from app.models.vault_quest import VaultQuestCompletionLink
+    from app.services.progression.quests.availability import quest_availability
+    from app.services.reward_service import reward_service
+    from app.utils.item_factory import build_weapon
+
+    assert await seed_quests_from_json(async_session) > 0
+    quests = list(
+        (
+            await async_session.execute(
+                select(Quest)
+                .where(Quest.chain_id == chain_id)
+                .options(selectinload(Quest.quest_requirements), selectinload(Quest.quest_rewards))
+                .order_by(Quest.chain_order)
+            )
+        ).scalars()
+    )
+    assert len(quests) == quest_count
+    assert [quest.chain_order for quest in quests] == list(range(1, quest_count + 1))
+    requirement_count = len((await async_session.execute(select(QuestRequirement))).scalars().all())
+    reward_count = len((await async_session.execute(select(QuestReward))).scalars().all())
+    assert await seed_quests_from_json(async_session) == 0
+    assert len((await async_session.execute(select(QuestRequirement))).scalars().all()) == requirement_count
+    assert len((await async_session.execute(select(QuestReward))).scalars().all()) == reward_count
+
+    dweller.age_group = AgeGroupEnum.ADULT
+    dweller.level = 50
+    async_session.add(dweller)
+    catalog_weapon = next(weapon for weapon in game_data_store.weapons if weapon.name == "Plasma rifle")
+    weapon = build_weapon(catalog_weapon.model_dump(), catalog_weapon.rarity)
+    weapon.dweller_id = dweller.id
+    async_session.add(weapon)
+    storage = await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
+    storage.max_space = 100
+    async_session.add(storage)
+    await async_session.commit()
+
+    for index, quest in enumerate(quests):
+        assert quest.previous_quest_id == (quests[index - 1].id if index else None)
+        if index + 1 < len(quests):
+            blocked = await quest_availability(async_session, vault.id, quests[index + 1], has_office=True)
+            assert not blocked.available
+        available = await quest_availability(async_session, vault.id, quest, has_office=True)
+        assert available.available, available.lock_reason
+        assert all(reward.reward_chance == 1.0 for reward in quest.quest_rewards)
+        grants = await reward_service.process_quest_rewards(async_session, vault.id, quest)
+        assert len(grants) == len(quest.quest_rewards)
+        assert all(grant["amount"] > 0 for grant in grants if "amount" in grant)
+        async_session.add(VaultQuestCompletionLink(vault_id=vault.id, quest_id=quest.id, is_completed=True))
+        await async_session.commit()
+
+    template = game_data_store.get_dweller(final_template)
+    recruited = await crud.dweller.get_multi_by_vault(async_session, vault_id=vault.id)
+    assert any(
+        person.first_name == template.first_name and person.last_name == template.last_name for person in recruited
+    )

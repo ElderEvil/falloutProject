@@ -3,7 +3,12 @@ import { computed, ref } from 'vue'
 import axios from '@/core/plugins/axios'
 import type { components } from '@/core/types/api.generated'
 import type { Quest, QuestPartyMember, VaultQuest } from '../models/quest'
-import { formatGrantedReward, isQuestReturning } from '../models/quest'
+import {
+  formatGrantedReward,
+  isQuestReturning,
+  isStateQuestCategory,
+  MAX_ACTIVE_TIMED_QUESTS,
+} from '../models/quest'
 import { useToast } from '@/core/composables/useToast'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { refreshNukaColaCount } from '@/modules/vault/composables/useNukaColaCount'
@@ -62,6 +67,21 @@ export const useQuestStore = defineStore('quest', () => {
 
     return { active, returning, readyToClaim, completed, available, allVisible }
   })
+
+  const activeTimedQuestCount = computed(
+    () =>
+      vaultQuests.value.filter(
+        (quest) =>
+          quest.started_at &&
+          !quest.is_completed &&
+          !quest.is_reward_ready &&
+          (quest.duration_minutes ?? 0) > 0 &&
+          !isStateQuestCategory(quest.quest_category)
+      ).length
+  )
+  const timedQuestLimitReached = computed(
+    () => activeTimedQuestCount.value >= MAX_ACTIVE_TIMED_QUESTS
+  )
 
   // Actions
   async function fetchAllQuests(): Promise<void> {
@@ -244,6 +264,8 @@ export const useQuestStore = defineStore('quest', () => {
     isLoading,
     questPartyMap,
     questCategories,
+    activeTimedQuestCount,
+    timedQuestLimitReached,
     fetchAllQuests,
     fetchVaultQuests,
     fetchPartiesForActiveQuests,

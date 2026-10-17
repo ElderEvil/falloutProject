@@ -209,6 +209,13 @@ class AIAudioException(DomainError):
     default_detail = "Failed to generate audio. Please try again."
 
 
+class ElevenLabsProviderException(DomainError):
+    """Raised when an ElevenLabs API call fails."""
+
+    status_code = status.HTTP_502_BAD_GATEWAY
+    default_detail = "ElevenLabs provider request failed. Please try again."
+
+
 class BucketNotFoundError(DomainError):
     """Raised when a storage bucket is not found or cannot be created."""
 

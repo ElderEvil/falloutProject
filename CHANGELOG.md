@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.225.0 (2026-10-17)
+
+### Features
+
+* **narration:** cache-first ElevenLabs TTS pipeline ([#1046](https://github.com/ElderEvil/falloutProject/issues/1046)) 175f860
+
+## 2.224.1 (2026-10-17)
+
+### Bug Fixes
+
+* **ui:** use theme color for vault selection caps ([#1047](https://github.com/ElderEvil/falloutProject/issues/1047)) b9ffd17
+
+## 2.224.0 (2026-10-17)
+
+### Features
+
+* **quests:** expose per-requirement gate verdicts on the vault quest read bd63b3d
+
+### Bug Fixes
+
+* **quests:** treat quest ITEM requirement as vault-scoped 6de05ad
+
 ## 2.223.2 (2026-10-17)
 
 ### Bug Fixes

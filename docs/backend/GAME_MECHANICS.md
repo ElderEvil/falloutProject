@@ -312,3 +312,7 @@ weapon, outfit, junk, pet and generic item **except** `Item` rows that are `cons
 named like `%nuka%` (case-insensitive) — so `used_space`, `available_space` and every downstream
 consumer (grants, exploration rewards, incidents, loot overflow) agree. This is a deliberate
 mutation over Fallout Shelter's storage design; all other consumables still count.
+
+The same rule applies on admission: `rewards.items.grant_item` resolves nuka-cola candidates with
+a zero-space requirement, so a full vault still accepts bottle rewards. Counting and admission
+both import the predicate from `app/utils/storage_policy.py`; change it there only.

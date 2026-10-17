@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.226.0 (2026-10-17)
+
+### Features
+
+* **storage:** lunchbox reward reveal with shared reward tiles ([#1048](https://github.com/ElderEvil/falloutProject/issues/1048)) c87a4dd, closes media/#badge
+
 ## 2.225.0 (2026-10-17)
 
 ### Features

@@ -3,6 +3,7 @@ import {
   getRoomSegmentCount,
   getTrainingRoomCapacity,
   isRoomAtRowEnd,
+  getMergeCandidates,
 } from '@/modules/rooms/utils/room'
 import type { Room } from '@/modules/rooms/models/room'
 
@@ -50,5 +51,32 @@ describe('isRoomAtRowEnd', () => {
     expect(isRoomAtRowEnd([inner, outer, elevator], inner)).toBe(false)
     expect(isRoomAtRowEnd([inner, outer, elevator], outer)).toBe(true)
     expect(isRoomAtRowEnd([inner, elevator], inner)).toBe(true)
+  })
+})
+
+describe('manual merge candidates', () => {
+  const segment = {
+    id: 'source',
+    name: 'Diner',
+    incremental_cost: 25,
+    coordinate_x: 7,
+    coordinate_y: 1,
+    size: 3,
+    size_min: 3,
+    size_max: 9,
+    tier: 2,
+  } as Room
+  it('finds either neighbor while excluding gaps, mismatched tiers, and oversized merges', () => {
+    const left = { ...segment, id: 'left', coordinate_x: 4 }
+    const right = { ...segment, id: 'right', coordinate_x: 10 }
+    const gap = { ...segment, id: 'gap', coordinate_x: 16 }
+    const otherTier = { ...right, id: 'tier', tier: 1 }
+    const oversized = { ...right, id: 'oversized', size: 9 }
+    expect(
+      getMergeCandidates([segment, right, left, gap, otherTier, oversized], segment).map(
+        (r) => r.id
+      )
+    ).toEqual(['left', 'right'])
+    expect(getMergeCandidates([left, right], { ...segment, incremental_cost: 0 })).toEqual([])
   })
 })

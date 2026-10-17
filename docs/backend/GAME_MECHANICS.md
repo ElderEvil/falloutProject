@@ -304,3 +304,25 @@ Arena bots face right beside allied dwellers and mirror left on the enemy side,
 including picker previews. Creature artwork retains its native enemy-facing direction.
 Incomplete partner edits stay local and disable Start until selection is complete;
 polling must not overwrite an open bot selection.
+
+## Narration audio: cache-first provider chain
+
+Voice lines are generated through a cache-first pipeline:
+
+1. **Cache lookup** — a deterministic filename is computed from `sha256(text:voice)`,
+   stored under `pa/<16-hex>.mp3` in the `dweller-audio` bucket. If the object already
+   exists in RustFS, the URL is reused and no TTS API is called.
+2. **ElevenLabs (quota-exempt)** — when `ELEVENLABS_API_KEY` is set, the ElevenLabs
+   `eleven_multilingual_v2` model is used with `stability: 0.5` and
+   `similarity_boost: 0.75`. The free tier has no token quota, so no
+   `quota_service` check is performed. The `LLMInteraction` log records
+   `provider='elevenlabs'` and `model=<voice_id>`.
+3. **OpenAI fallback (quota-checked)** — if ElevenLabs is not configured or fails
+   (logged as a warning on failure), the pipeline falls through to OpenAI TTS.
+   The standard per-user token quota **is** checked here and enforced. The log
+   records `provider='openai'`, `model='tts-1'`.
+
+All paths write the audio under the cache key (`pa/<hash>.mp3`) so subsequent
+calls hit the cache even when the provider chain differs. The existing
+"already has an audio line" guard (`voice_line_url` present) fires before
+cache lookup and raises `ContentNoChangeException` unchanged.

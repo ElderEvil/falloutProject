@@ -83,6 +83,9 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = "http://localhost:11434/v1"
     LMSTUDIO_BASE_URL: str = "http://localhost:1234/v1"
 
+    # ElevenLabs TTS provider (free-tier narration, cache-first)
+    ELEVENLABS_API_KEY: str = ""
+
     # TypeSafe Jev decision model (optional). Independent of the chat provider:
     # Jev answers typed questions with confidence and is complementary to chat.
     TYPESAFE_API_KEY: str | None = None

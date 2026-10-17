@@ -327,14 +327,20 @@ async def test_generate_audio_quota_exceeded(mock_crud: MagicMock, mock_llm: Mag
 
     mock_storage = MagicMock()
     mock_storage.enabled = True
+    mock_storage.file_exists.return_value = False  # no cache hit
 
-    with patch.object(dweller_ai, "storage_service", mock_storage), pytest.raises(QuotaExceededException):
+    with (
+        patch.object(dweller_ai, "storage_service", mock_storage),
+        pytest.raises(QuotaExceededException),
+    ):
         await dweller_ai.generate_audio(
             text="Hello world test audio",
             user=_make_user_mock(),
             db_session=MagicMock(commit=AsyncMock()),
             dweller_info=mock_dweller,
         )
+
+    assert mock_storage.file_exists.call_count == 1
 
 
 @patch("app.services.dweller_ai.quota_service")
@@ -353,6 +359,7 @@ async def test_generate_audio_openai_error(mock_crud: MagicMock, mock_llm: Magic
 
     mock_storage = MagicMock()
     mock_storage.enabled = True
+    mock_storage.file_exists.return_value = False  # no cache hit
 
     mock_openai = MagicMock()
     mock_openai.generate_audio = AsyncMock(side_effect=ValueError("Invalid voice"))
@@ -386,6 +393,7 @@ async def test_generate_audio_empty_bytes_warning(
 
     mock_storage = MagicMock()
     mock_storage.enabled = True
+    mock_storage.file_exists.return_value = False  # no cache hit
     mock_storage.upload_file.return_value = "http://cdn.example.com/silent.mp3"
 
     mock_openai = MagicMock()
@@ -481,6 +489,7 @@ async def test_generate_avatar_with_voice_line(mock_crud: MagicMock) -> None:
 
     mock_storage = MagicMock()
     mock_storage.enabled = True
+    mock_storage.file_exists.return_value = False  # no cache hit
     mock_storage.upload_file.side_effect = [
         "http://cdn.example.com/photo.png",  # image upload
         "http://cdn.example.com/voice.mp3",  # audio upload

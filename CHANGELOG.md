@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.223.0 (2026-10-17)
+
+### Features
+
+* allow editing username from the profile editor b05fb2a
+
+### Code Refactoring
+
+* persist username change through crud layer deb916c
+
 ## 2.222.0 (2026-10-16)
 
 ### Features

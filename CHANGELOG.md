@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.225.0 (2026-10-17)
+
+### Features
+
+* **narration:** cache-first ElevenLabs TTS pipeline ([#1046](https://github.com/ElderEvil/falloutProject/issues/1046)) 175f860
+
 ## 2.224.1 (2026-10-17)
 
 ### Bug Fixes

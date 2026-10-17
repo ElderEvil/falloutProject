@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { audioManager, parseSoundSettings } from '@/core/audio/audioManager'
+import { SOUND_MANIFEST, MUSIC_MANIFEST, AMBIENCE_MANIFEST } from '@/core/audio/soundManifest'
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+it('ships every manifest audio file in the public directory', () => {
+  for (const src of Object.values({ ...SOUND_MANIFEST, ...MUSIC_MANIFEST, ...AMBIENCE_MANIFEST })) {
+    expect(existsSync(resolve('public', src.slice(1))), `Missing audio asset: ${src}`).toBe(true)
+  }
+})
 
 class MockAudio {
   static instances: MockAudio[] = []
@@ -246,7 +255,9 @@ describe('audioManager ambience', () => {
     manager.playAmbience('capacity')
 
     expect(ambienceElement()).toBe(first)
-    expect(MockAudio.instances.filter((audio) => audio.src.includes('/audio/ambience/'))).toHaveLength(1)
+    expect(
+      MockAudio.instances.filter((audio) => audio.src.includes('/audio/ambience/'))
+    ).toHaveLength(1)
   })
 
   it('stops ambience on request', async () => {

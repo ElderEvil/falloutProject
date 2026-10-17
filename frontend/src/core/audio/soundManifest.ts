@@ -9,6 +9,11 @@
  */
 export const SOUND_MANIFEST = {
   notification: '/audio/ui/notification.wav',
+  objectiveReady: '/audio/ui/objective-ready.wav',
+  objectiveClaim: '/audio/ui/objective-claim.wav',
+  levelUp: '/audio/ui/level-up.wav',
+  trainingComplete: '/audio/ui/training-complete.wav',
+  radioRecruit: '/audio/ui/radio-recruit.wav',
   // Curated from the library: an air-raid style invasion siren, looped while an
   // incident is active (was a gentle synthesized two-note ping).
   alarm: '/audio/ui/incident-alarm.wav',

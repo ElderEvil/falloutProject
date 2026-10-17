@@ -146,6 +146,12 @@ class GameLoopService:
             db_session.add(game_state)
             await db_session.commit()
 
+            # Issue #1042 momentum fix: refresh dailies/weeklies on game-time
+            # boundaries, so the caps drip reaches vaults that never tick
+            # across a wall-clock midnight. After commit — the refresh commits
+            # its own transaction.
+            await self._maybe_refresh_objectives(db_session, vault_id, game_state)
+
             await self.resource_manager.emit_production_events(vault_id, resource_events)
             results["updates"]["resources"] = {
                 "power": resource_update.power,
@@ -273,6 +279,36 @@ class GameLoopService:
     async def _get_or_create_game_state(self, db_session: AsyncSession, vault_id: UUID4) -> GameState:
         """Get existing game state or create a new one."""
         return await game_state_crud.get_or_create(db_session, vault_id)
+
+    async def _maybe_refresh_objectives(self, db_session: AsyncSession, vault_id: UUID4, game_state: GameState) -> None:
+        """Refresh daily/weekly objectives when game time crosses a cadence boundary.
+
+        Issue #1042: the wall-clock midnight cron never reaches vaults whose
+        player sleeps through it; tracking the last refresh in *game time*
+        gives every vault its own drip. Weekly uses the same mechanism at its
+        longer boundary.
+        """
+        from app.services.progression.objectives.assignment import ObjectiveAssignmentService
+
+        boundary = game_config.objectives.daily_refresh_game_hours * 3600
+        week_boundary = game_config.objectives.weekly_refresh_game_hours * 3600
+
+        daily_due = game_state.total_game_time > 0 and game_state.total_game_time % boundary < 60
+        weekly_due = game_state.total_game_time > 0 and game_state.total_game_time % week_boundary < 60
+        if not daily_due and not weekly_due:
+            return
+
+        service = ObjectiveAssignmentService(db_session)
+        try:
+            if daily_due:
+                await service.refresh_daily_objectives(vault_id)
+                self.logger.info("Daily objectives refreshed for vault %s (game-time boundary)", vault_id)
+            if weekly_due:
+                await service.refresh_weekly_objectives(vault_id)
+                self.logger.info("Weekly objectives refreshed for vault %s (game-time boundary)", vault_id)
+        except Exception:
+            await recover_session(db_session)
+            self.logger.exception("Objective refresh failed for vault %s", vault_id)
 
     async def _process_explorations(self, db_session: AsyncSession, vault_id: UUID4) -> ExplorationStats:
         """Process all active explorations for a vault."""

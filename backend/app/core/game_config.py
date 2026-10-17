@@ -42,6 +42,23 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
+class ObjectivesConfig(BaseSettings):
+    """Objective cadence configuration (issue #1042 momentum-wall fix)."""
+
+    model_config = SettingsConfigDict(env_prefix="OBJECTIVES_")
+
+    daily_refresh_game_hours: int = Field(
+        default=24,
+        description="Game-hours after which a vault's daily objectives refresh (caps drip)",
+        ge=1,
+    )
+    weekly_refresh_game_hours: int = Field(
+        default=168,
+        description="Game-hours after which a vault's weekly objectives refresh (7 days)",
+        ge=1,
+    )
+
+
 class GameLoopConfig(BaseSettings):
     """Game loop timing configuration."""
 
@@ -1256,6 +1273,7 @@ class GameConfig(BaseSettings):
 
     # Nested configs
     game_loop: GameLoopConfig = Field(default_factory=GameLoopConfig)
+    objectives: ObjectivesConfig = Field(default_factory=ObjectivesConfig)
     incident: IncidentConfig = Field(default_factory=IncidentConfig)
     vault_event: VaultEventConfig = Field(default_factory=VaultEventConfig)
     combat: CombatConfig = Field(default_factory=CombatConfig)

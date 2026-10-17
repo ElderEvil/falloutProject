@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.230.0 (2026-10-17)
+
+### Features
+
+* **dwellers:** semi-random appearance, inherited from parents at birth ([#1062](https://github.com/ElderEvil/falloutProject/issues/1062)) 9be8a80, closes #1036
+* **quests:** add wasteland story chains and timed mission limit ([#1064](https://github.com/ElderEvil/falloutProject/issues/1064)) 6c03c43
+
 ## 2.229.0 (2026-10-17)
 
 ### Features

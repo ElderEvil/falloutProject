@@ -1,32 +1,34 @@
-[
-  {
-    "key": "announcer.welcome",
-    "text": "Welcome to Vault-Tec's finest vault system. You're safe here. Stay calm and follow instructions.",
-    "voice_type": "echo",
-    "voice_id": "JBFqnCBsd6RMkjVDRZzb"
+{
+  "voices": {
+    "echo": "JBFqnCBsd6RMkjVDRZzb",
+    "alloy": "pNInz6obpgDQGcFmaJgB",
+    "fable": "21m00Tcm4TlvDq8ikWAM"
   },
-  {
-    "key": "announcer.alert",
-    "text": "Alert. This is not a drill. All vault personnel secure their stations immediately.",
-    "voice_type": "echo",
-    "voice_id": "pNInz6obpgDQGcFmaJgB"
-  },
-  {
-    "key": "announcer.status",
-    "text": "All systems nominal. Vault integrity holding steady. The future of humanity is secure.",
-    "voice_type": "echo",
-    "voice_id": "JBFqnCBsd6RMkjVDRZzb"
-  },
-  {
-    "key": "announcer.emergency",
-    "text": "Emergency broadcast. Radiation levels elevated in Sector Four. Evacuate all personnel to the lower levels.",
-    "voice_type": "echo",
-    "voice_id": "pNInz6obpgDQGcFmaJgB"
-  },
-  {
-    "key": "announcer.goodbye",
-    "text": "The vault door is closing. Remember: peace is our nuclear family. Stay safe, dwellers.",
-    "voice_type": "echo",
-    "voice_id": "21m00Tcm4TlvDq8ikWAM"
-  }
-]
+  "lines": [
+    {
+      "key": "announcer.welcome",
+      "text": "Welcome to Vault-Tec's finest vault system. You're safe here. Stay calm and follow instructions.",
+      "voice_type": "echo"
+    },
+    {
+      "key": "announcer.alert",
+      "text": "Alert. This is not a drill. All vault personnel secure their stations immediately.",
+      "voice_type": "echo"
+    },
+    {
+      "key": "announcer.status",
+      "text": "All systems nominal. Vault integrity holding steady. The future of humanity is secure.",
+      "voice_type": "echo"
+    },
+    {
+      "key": "announcer.emergency",
+      "text": "Emergency broadcast. Radiation levels elevated in Sector Four. Evacuate all personnel to the lower levels.",
+      "voice_type": "echo"
+    },
+    {
+      "key": "announcer.goodbye",
+      "text": "The vault door is closing. Remember: peace is our nuclear family. Stay safe, dwellers.",
+      "voice_type": "echo"
+    }
+  ]
+}

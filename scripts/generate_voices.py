@@ -69,9 +69,38 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_manifest(path: Path) -> list[dict]:
+def load_manifest(path: Path) -> tuple[dict[str, str], list[dict]]:
+    """Load manifest; returns (voice_registry, lines).
+
+    The voice registry is the authoritative game-side key -> ElevenLabs
+    voice_id mapping. Line entries reference voices only by key; a
+    per-entry ``voice_id`` override is rejected — one canonical provider
+    voice per game-side voice_type, or the content cache collides.
+    """
     with Path(path).open("r", encoding="utf-8") as fh:
-        return json.load(fh)
+        data = json.load(fh)
+    if isinstance(data, list):  # legacy format: no registry
+        return {}, data
+    return data.get("voices", {}), data.get("lines", [])
+
+
+def resolve_voice(entry: dict, registry: dict[str, str]) -> str:
+    """Resolve the entry's synthesis voice via the registry.
+
+    Raises:
+        ValueError: If the voice_type is unknown or a per-entry voice_id
+            override is present (contract: registry is the only mapping).
+    """
+    if entry.get("voice_id"):
+        raise ValueError(
+            f"{entry.get('key', '<entry>')}: per-entry voice_id is forbidden — "
+            "map the voice_type in the manifest's 'voices' registry instead"
+        )
+    voice_type = entry.get("voice_type", "echo")
+    voice_id = registry.get(voice_type)
+    if not voice_id:
+        raise ValueError(f"{entry.get('key', '<entry>')}: voice_type '{voice_type}' not in manifest voice registry")
+    return voice_id
 
 
 def content_cache_key(entry: dict) -> str:
@@ -79,7 +108,7 @@ def content_cache_key(entry: dict) -> str:
 
     Uses the entry's runtime voice_type ("echo" unless overridden) — the
     same identifier dweller requests hash — so pre-generated pack audio IS
-    the runtime cache. The ElevenLabs voice_id only steers generation.
+    the runtime cache.
     """
     text = entry["text"]
     voice_type = entry.get("voice_type", "echo")
@@ -89,11 +118,11 @@ def content_cache_key(entry: dict) -> str:
 def generate_entry(
     entry: dict,
     elevenlabs_svc: ElevenLabsTtsService,
+    registry: dict[str, str],
 ) -> bytes:
     """Generate speech for one manifest entry. Raises on provider errors."""
     text = entry["text"]
-    # Per-entry voice override (e.g. a legend voice); None defers to settings.
-    voice_id = entry.get("voice_id") or None
+    voice_id = resolve_voice(entry, registry)
     return asyncio.run(elevenlabs_svc.generate_speech(text=text, voice_id=voice_id))
 
 
@@ -152,7 +181,7 @@ def main() -> None:
         )
         logger.warning("With --dry-run this is fine; otherwise generation will fail.")
 
-    entries = load_manifest(manifest_path)
+    registry, entries = load_manifest(manifest_path)
     generated = 0
     skipped = 0
     failed = 0
@@ -161,6 +190,14 @@ def main() -> None:
         key = entry["key"]
         cache_key = content_cache_key(entry)
         mp3_path = output_dir / cache_key.replace("pa/", "")
+        try:
+            # Contract check up front: every line must resolve through the
+            # registry (no per-entry voice_id), or the cache contract breaks.
+            resolve_voice(entry, registry)
+        except ValueError as e:
+            logger.error("  [invalid] %s: %s", key, e)
+            failed += 1
+            continue
 
         # Local skip is keyed by content: changed text/voice regenerates.
         has_local = mp3_path.exists()
@@ -206,7 +243,7 @@ def main() -> None:
             continue
 
         try:
-            audio_bytes = generate_entry(entry, elevenlabs_svc)
+            audio_bytes = generate_entry(entry, elevenlabs_svc, registry)
         except Exception as e:  # noqa: BLE001 - CLI boundary: report-and-continue per entry
             logger.error("  [error] %s: %s", key, e)
             failed += 1

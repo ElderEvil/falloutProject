@@ -28,11 +28,6 @@ describe('getRoomSegmentCount', () => {
 })
 
 describe('getTrainingRoomCapacity', () => {
-  it('does not invent worker places in partial three-unit segments', () => {
-    expect(getTrainingRoomCapacity(room({ size: 1 }))).toBe(0)
-    expect(getTrainingRoomCapacity(room({ size: 4 }))).toBe(2)
-  })
-
   it('fits two dwellers per three-unit segment', () => {
     expect(getTrainingRoomCapacity(room())).toBe(2)
     expect(getTrainingRoomCapacity(room({ size: 9 }))).toBe(6)

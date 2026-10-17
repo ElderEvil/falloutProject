@@ -286,7 +286,7 @@ describe('RoomDetailModal', () => {
       expect(wide.find('.room-scene').classes()).toContain('room-scene--wide')
     })
 
-    it('does not invent an empty worker slot for elevators', () => {
+    it('renders one static slot with no assign action for elevators', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: { ...mockRoom, name: 'Elevator', size: 1, size_min: 1 },
@@ -295,7 +295,7 @@ describe('RoomDetailModal', () => {
       })
 
       expect(wrapper.find('.room-scene').classes()).toContain('room-scene--compact')
-      expect(wrapper.findAll('.dweller-sprite-slot')).toHaveLength(0)
+      expect(wrapper.findAll('.dweller-sprite-slot')).toHaveLength(1)
       expect(wrapper.find('.scene-empty-worker').exists()).toBe(false)
       expect(wrapper.find('.scene-unassign').exists()).toBe(false)
     })

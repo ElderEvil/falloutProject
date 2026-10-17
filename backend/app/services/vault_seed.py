@@ -22,7 +22,7 @@ BOOSTED_CRAFTING_ROOM_SPECS: tuple[tuple[str, int, int], ...] = (
     ("Weapon workshop", 7, 4),
     ("Outfit workshop", 16, 4),
 )
-BOOSTED_MERGED_LIVING_ROOM: tuple[str, int, int, int] = ("living room", 16, 3, 9)
+BOOSTED_MERGED_LIVING_ROOM: tuple[str, int, int, int] = ("living room", 13, 3, 9)
 BOOSTED_TRAINING_STATS = (
     SPECIALEnum.STRENGTH,
     SPECIALEnum.PERCEPTION,

@@ -1,5 +1,6 @@
 """Tests for vault service - initialization, resources, medical transfers."""
 
+from itertools import pairwise
 from operator import itemgetter
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -1111,6 +1112,14 @@ class TestInitiateVault:
             ]
 
             assert _layout_issues(rooms) == (0, 0, True)
+            for level in {room.coordinate_y for room in rooms}:
+                occupied = {
+                    x
+                    for room in rooms
+                    if room.coordinate_y == level
+                    for x in range(room.coordinate_x, room.coordinate_x + room.size)
+                }
+                assert occupied == set(range(min(occupied), max(occupied) + 1)), (is_boosted, level)
             assert len(prepared.crafting) == (2 if is_boosted else 0)
             if is_boosted:
                 assert {room.name for room in prepared.crafting} == {"Weapon workshop", "Outfit workshop"}
@@ -1128,6 +1137,16 @@ class TestInitiateVault:
                 (room.coordinate_x, room.coordinate_y) for room in rooms if room.name.lower() == "elevator"
             )
             assert elevators == [(SHAFT_X, level) for level in range(5 if is_boosted else 4)]
+
+    async def test_boosted_housing_has_no_internal_gap_after_seeding(self, boosted_seed: SimpleNamespace) -> None:
+        """Keep the three households and their capacity without a blank room between them."""
+        rooms = await crud.room.get_all_by_vault(boosted_seed.session, boosted_seed.vault.id)
+        housing_floor = sorted((room for room in rooms if room.coordinate_y == 3), key=lambda room: room.coordinate_x)
+        for left, right in pairwise(housing_floor):
+            assert left.coordinate_x + left.size == right.coordinate_x
+        living_rooms = [room for room in housing_floor if room.name == "Living room"]
+        assert sorted(room.size for room in living_rooms) == [3, 3, 9]
+        assert sorted(room.capacity for room in living_rooms) == [8, 8, 28]
 
     async def test_boosted_seed_builds_one_size_six_generator_directly(self, boosted_seed: SimpleNamespace) -> None:
         """The boosted generator is seeded at its final size-6 footprint and takes the double crew."""

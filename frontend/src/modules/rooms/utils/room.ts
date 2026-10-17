@@ -9,7 +9,7 @@ import type { Room } from '@/modules/rooms/models/room'
  */
 export function getTrainingRoomCapacity(room: Pick<Room, 'size' | 'size_min'>): number {
   const size = room.size ?? room.size_min ?? 3
-  return Math.floor(size / 3) * 2
+  return Math.ceil(size / 3) * 2
 }
 
 /**

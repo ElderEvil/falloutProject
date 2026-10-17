@@ -86,9 +86,7 @@ const {
 const { filter: dwellerStore } = useDwellerStore()
 const vaultDwellers = computed(() => dwellerStore.dwellers)
 
-const sceneCapacity = computed(() =>
-  isElevatorRoom.value ? assignedDwellers.value.length : dwellerCapacity.value
-)
+const sceneCapacity = computed(() => (isElevatorRoom.value ? 1 : dwellerCapacity.value))
 
 const { resourceIcon, roomImageUrl, roomGridImageUrl, productionInfo } = useRoomProduction(
   roomRef,

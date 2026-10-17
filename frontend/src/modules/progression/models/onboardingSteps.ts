@@ -7,6 +7,10 @@ import type { Objective } from './objective'
 export type LessonId =
   | 'orientation.resources'
   | 'orientation.generator'
+  | 'orientation.food'
+  | 'orientation.diner'
+  | 'orientation.water'
+  | 'orientation.water-treatment'
   | 'orientation.staffing'
   | 'orientation.housing'
   | 'orientation.departure'
@@ -143,7 +147,7 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
     id: 'orientation.resources',
     kind: 'tap',
     title: 'Keep the power on',
-    body: 'Your crew keeps power, food and water flowing. Check whether the reserves are growing or draining, then open the generator to meet the workers keeping the lights on.',
+    body: 'Power keeps the vault running. Watch this reserve and its production rate to see whether your supply is growing or draining. Next, meet the crew keeping the lights on.',
     anchors: ['resource-power'],
     eligibility: alwaysEligible,
   },
@@ -151,8 +155,44 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
     id: 'orientation.generator',
     kind: 'tap',
     title: 'Open the Power Generator',
-    body: 'Open the generator to see its crew and output. Strength helps these workers produce power; other rooms use different SPECIAL stats. Next, review who is suited to each job.',
+    body: 'Open the generator to see its crew and output. Strength helps these workers produce power; other rooms use different SPECIAL stats. Next, check the food supply.',
     anchors: ['room-power'],
+    eligibility: alwaysEligible,
+  },
+  {
+    id: 'orientation.food',
+    kind: 'tap',
+    title: 'Keep your dwellers fed',
+    body: 'Dwellers consume food over time. Watch this reserve and its production rate so you can act before supplies run low. Next, see where food is made.',
+    anchors: ['resource-food'],
+    eligibility: alwaysEligible,
+  },
+  {
+    id: 'orientation.diner',
+    kind: 'tap',
+    title: 'Open the Diner',
+    body: 'This room produces food. Agility helps its workers produce more, so match agile dwellers to the kitchen. Next, check your water supply.',
+    anchors: ['room-food'],
+    route: '',
+    routeLabel: 'Open Vault',
+    eligibility: alwaysEligible,
+  },
+  {
+    id: 'orientation.water',
+    kind: 'tap',
+    title: 'Keep clean water flowing',
+    body: 'Dwellers consume water over time. Keep an eye on this reserve and its production rate to avoid a shortage. Next, meet the water treatment crew.',
+    anchors: ['resource-water'],
+    eligibility: alwaysEligible,
+  },
+  {
+    id: 'orientation.water-treatment',
+    kind: 'tap',
+    title: 'Open Water Treatment',
+    body: 'This room produces clean water. Perception helps its workers produce more. Next, review your crew and compare their SPECIAL with their jobs.',
+    anchors: ['room-water'],
+    route: '',
+    routeLabel: 'Open Vault',
     eligibility: alwaysEligible,
   },
   {

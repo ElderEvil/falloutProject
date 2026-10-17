@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import { audioManager } from '@/core/audio/audioManager'
 import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
@@ -226,6 +227,21 @@ describe('Room Store', () => {
   })
 
   describe('buildRoom', () => {
+    it('refreshes server objective progress after building', async () => {
+      const room = makeRoom()
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: room })
+      vi.mocked(axios.get)
+        .mockResolvedValueOnce({ data: { id: 'vault-1', bottle_caps: 900 } })
+        .mockResolvedValueOnce({ data: [room] })
+        .mockResolvedValueOnce({ data: [{ id: 'housing', progress: 1, total: 1 }] })
+      await useRoomStore().buildRoom('Living room', 0, 0, 'token', 'vault-1')
+      await vi.waitFor(() =>
+        expect(useObjectivesStore().objectives).toEqual([
+          { id: 'housing', vault_id: 'vault-1', progress: 1, total: 1 },
+        ])
+      )
+    })
+
     it('should build a new room and refresh vault', async () => {
       const newRoom = makeRoom({
         id: 'room-3',
@@ -264,7 +280,12 @@ describe('Room Store', () => {
     })
 
     it('should replace an existing room when the response id is already present', async () => {
-      const existingRoom = makeRoom({ id: 'room-1', name: 'Power Generator', size: 3, coordinate_x: 0 })
+      const existingRoom = makeRoom({
+        id: 'room-1',
+        name: 'Power Generator',
+        size: 3,
+        coordinate_x: 0,
+      })
       const extendedRoom = makeRoom({
         id: 'room-1',
         name: 'Power Generator',
@@ -291,8 +312,18 @@ describe('Room Store', () => {
 
     it('drops rooms absorbed by a merge when the refetched list omits them', async () => {
       const survivor = makeRoom({ id: 'room-1', name: 'Power Generator', size: 9, coordinate_x: 0 })
-      const absorbedA = makeRoom({ id: 'room-2', name: 'Power Generator', size: 3, coordinate_x: 3 })
-      const absorbedB = makeRoom({ id: 'room-3', name: 'Power Generator', size: 3, coordinate_x: 6 })
+      const absorbedA = makeRoom({
+        id: 'room-2',
+        name: 'Power Generator',
+        size: 3,
+        coordinate_x: 3,
+      })
+      const absorbedB = makeRoom({
+        id: 'room-3',
+        name: 'Power Generator',
+        size: 3,
+        coordinate_x: 6,
+      })
 
       vi.mocked(axios.post).mockResolvedValueOnce({ data: survivor })
       vi.mocked(axios.get)

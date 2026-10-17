@@ -59,7 +59,15 @@ const trainingStore = useTrainingStore()
 const toast = useToast()
 const rooms = computed(() => (Array.isArray(roomStore.rooms) ? roomStore.rooms : []))
 
-const powerRoomId = computed(() => findProductionRoom(rooms.value, 'power')?.id ?? null)
+const productionAnchors = computed(
+  () =>
+    new Map(
+      (['power', 'food', 'water'] as const).map((resource) => [
+        findProductionRoom(rooms.value, resource)?.id,
+        `room-${resource}`,
+      ])
+    )
+)
 const vaultId = computed(() => (route?.params.id as string) ?? '')
 
 // Power outage logic
@@ -336,7 +344,7 @@ const closeDetailModal = () => {
           v-for="room in rooms"
           :key="room.id"
           :room="room"
-          :onboarding-anchor="powerRoomId === room.id ? 'room-power' : undefined"
+          :onboarding-anchor="productionAnchors.get(room.id)"
           :show-room-images="showRoomImages"
           :is-power-outage="isPowerOutage"
           :incident="getRoomIncident(room.id)"

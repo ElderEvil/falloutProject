@@ -8,8 +8,9 @@
 
 A first-session guide that shows one useful action at a time, then hands off to the Briefing.
 
-- **Five authored orientation lessons** (`frontend/src/modules/progression/models/onboardingSteps.ts`):
-  power bar → generator → SPECIAL staffing → housing → departure. This definition list is the
+- **Nine authored orientation lessons** (`frontend/src/modules/progression/models/onboardingSteps.ts`):
+  power → generator → food → diner → water → water treatment → SPECIAL staffing → housing →
+  departure. This definition list is the
   only source of **teaching** order.
 - **Local teaching progress is separate from server reward progress.** Teaching state is a
   per-vault ledger in `core/composables/useOnboardingState.ts`; reward order, completion
@@ -204,3 +205,25 @@ vault walkthrough against real services. The wider tutorial coverage remains a s
 
 Validation: frontend lint/typecheck and staged `prek` checks passed; **3260 unit tests**
 across **266 files** and all **10 onboarding browser tests** passed.
+
+## Individual resource lessons and construction refresh
+
+Each resource and its production room has its own lesson and a single spotlight:
+power → generator → food → diner → water → water treatment, followed by SPECIAL staffing,
+housing and departure. Continue and Skip step advance only the current explanation. The
+original power/generator teaching IDs remain stable; food and water have their own IDs.
+
+After a successful build, the guide refreshes server objective progress immediately through the
+room store after construction. An earned housing reward removes construction highlights without
+a reload or waiting for the periodic refresh; claiming still requires an explicit action.
+Static outlines remain visible with reduced motion. Tutorial body copy, progress and helper notes
+use 14px text, with an 18px heading and 12px labels.
+
+Departure stays pending and hidden until the full vault roster is loaded and contains a dweller.
+An empty roster is checked again through the existing refresh cadence; a newcomer makes the
+lesson available without acknowledging or skipping it. Earned rewards remain claimable even if
+the roster becomes empty.
+
+Validation: **3264 unit tests** across **266 files**, all **11 onboarding browser tests**,
+frontend typecheck and staged `prek` checks passed. Browser coverage exercises all six resource
+and production-room tips sequentially and construction completion without reloading.

@@ -291,24 +291,30 @@ onUnmounted(() => {
                   :critical-to="productionRoomRoute('power')"
                 />
               </span>
-              <ResourceBar
-                navbar
-                :current="food.current"
-                :max="food.max"
-                icon="mdi:silverware"
-                label="Food"
-                :production-rate="resourceRates?.food"
-                :critical-to="productionRoomRoute('food')"
-              />
-              <ResourceBar
-                navbar
-                :current="water.current"
-                :max="water.max"
-                icon="mdi:water"
-                label="Water"
-                :production-rate="resourceRates?.water"
-                :critical-to="productionRoomRoute('water')"
-              />
+              <!-- @vue-ignore -->
+              <span data-onboarding="resource-food">
+                <ResourceBar
+                  navbar
+                  :current="food.current"
+                  :max="food.max"
+                  icon="mdi:silverware"
+                  label="Food"
+                  :production-rate="resourceRates?.food"
+                  :critical-to="productionRoomRoute('food')"
+                />
+              </span>
+              <!-- @vue-ignore -->
+              <span data-onboarding="resource-water">
+                <ResourceBar
+                  navbar
+                  :current="water.current"
+                  :max="water.max"
+                  icon="mdi:water"
+                  label="Water"
+                  :production-rate="resourceRates?.water"
+                  :critical-to="productionRoomRoute('water')"
+                />
+              </span>
             </div>
           </div>
           <div

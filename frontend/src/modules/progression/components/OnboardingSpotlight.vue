@@ -81,8 +81,23 @@ const lessonObjective = computed(() => {
 
 const optedIn = computed(() => !!vaultState.value.created || replayMode.value)
 const welcomePending = computed(() => !!vaultState.value.created && !vaultState.value.welcomed)
+const canPresentLesson = computed(() => {
+  if (currentLesson.value?.id !== 'orientation.departure') return true
+  const objective = lessonObjective.value
+  // An earned reward remains claimable even if the vault no longer has a dweller.
+  if (objective && objective.progress >= objective.total) return true
+  return (
+    dwellerStore.filter.allDwellersLoadedVaultId === vaultId.value &&
+    dwellerStore.filter.allDwellers.length > 0
+  )
+})
 const active = computed(
-  () => !!vaultId.value && !vaultState.value.skipped && optedIn.value && !!currentLesson.value
+  () =>
+    !!vaultId.value &&
+    !vaultState.value.skipped &&
+    optedIn.value &&
+    !!currentLesson.value &&
+    canPresentLesson.value
 )
 const showHandoff = computed(
   () =>
@@ -187,6 +202,14 @@ watch(vaultId, () => {
 const refresh = () => {
   if (!vaultId.value || vaultState.value.skipped) return
   void handoffCard.value?.refresh()
+  if (
+    currentLesson.value?.id === 'orientation.departure' &&
+    dwellerStore.filter.allDwellersLoadedVaultId === vaultId.value &&
+    dwellerStore.filter.allDwellers.length === 0 &&
+    auth.token
+  ) {
+    void dwellerStore.filter.fetchAllDwellers(vaultId.value, auth.token)
+  }
   store
     .fetchObjectives(vaultId.value)
     .then(() => {
@@ -589,6 +612,8 @@ function onClaim() {
   z-index: 60;
   pointer-events: none;
   border-radius: 6px;
+  outline: 2px solid var(--color-theme-primary);
+  outline-offset: 2px;
   box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.7);
   transition: opacity 0.2s ease-out;
   animation: onboarding-pulse 1.6s ease-in-out infinite;
@@ -677,7 +702,7 @@ function onClaim() {
   background: transparent;
   color: var(--color-theme-accent);
   font-family: inherit;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -690,7 +715,7 @@ function onClaim() {
 
 .onboarding-eyebrow {
   margin: 0;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   color: var(--color-theme-accent);
@@ -698,20 +723,20 @@ function onClaim() {
 
 .onboarding-title {
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.125rem;
   font-weight: 700;
 }
 
 .onboarding-body {
   margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.4;
+  font-size: 0.875rem;
+  line-height: 1.5;
   color: color-mix(in srgb, var(--color-theme-primary) 75%, transparent);
 }
 
 .onboarding-progress {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 700;
 }
 
@@ -720,7 +745,7 @@ function onClaim() {
   padding: 0;
   border: 0;
   background: transparent;
-  font-size: 0.7rem;
+  font-size: 0.875rem;
   color: var(--color-theme-accent);
 }
 
@@ -729,7 +754,7 @@ function onClaim() {
   padding: 0;
   border: 0;
   background: transparent;
-  font-size: 0.7rem;
+  font-size: 0.875rem;
   color: var(--color-danger);
 }
 

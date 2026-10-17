@@ -48,9 +48,16 @@ const STAFFING_KEY = 'starter:assign a dweller correctly'
 const HOUSING_KEY = 'starter:build a living quarters'
 const DEPARTURE_KEY = 'starter:send a dweller exploring'
 
-const ALL_LESSONS = [
+const RESOURCE_LESSONS = [
   'orientation.resources',
   'orientation.generator',
+  'orientation.food',
+  'orientation.diner',
+  'orientation.water',
+  'orientation.water-treatment',
+] as const
+const ALL_LESSONS = [
+  ...RESOURCE_LESSONS,
   'orientation.staffing',
   'orientation.housing',
   'orientation.departure',
@@ -179,6 +186,30 @@ describe('OnboardingSpotlight', () => {
     wrapper.unmount()
   })
 
+  it('teaches each resource and its production room one at a time', async () => {
+    const steps = [
+      ['resource-power', 'Keep the power on'],
+      ['room-power', 'Open the Power Generator'],
+      ['resource-food', 'Keep your dwellers fed'],
+      ['room-food', 'Open the Diner'],
+      ['resource-water', 'Keep clean water flowing'],
+      ['room-water', 'Open Water Treatment'],
+    ]
+    for (const [anchor] of steps) boundedAnchor(anchor!)
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    await clickButton('Start')
+    for (const [, title] of steps) {
+      expect(document.querySelector('.onboarding-title')?.textContent).toBe(title)
+      await vi.waitFor(() =>
+        expect(document.querySelectorAll('.onboarding-cutout')).toHaveLength(1)
+      )
+      await clickButton('Continue')
+    }
+    expect(document.body.textContent).toContain('Understand SPECIAL staffing')
+    wrapper.unmount()
+  })
+
   it('advances to the next lesson when the current one is acknowledged', async () => {
     const wrapper = mountSpotlight()
     await flushPromises()
@@ -226,7 +257,7 @@ describe('OnboardingSpotlight', () => {
     const claim = vi
       .spyOn(store, 'completeObjective')
       .mockResolvedValue(objective('first', { progress: 2, isCompleted: true }))
-    acknowledgeLessons('orientation.resources', 'orientation.generator')
+    acknowledgeLessons(...RESOURCE_LESSONS)
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
@@ -240,7 +271,7 @@ describe('OnboardingSpotlight', () => {
     const store = useObjectivesStore()
     store.objectives = [objective('first', { progress: 2 })]
     vi.spyOn(store, 'completeObjective').mockRejectedValue(new Error('capacity reached'))
-    acknowledgeLessons('orientation.resources', 'orientation.generator')
+    acknowledgeLessons(...RESOURCE_LESSONS)
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
@@ -255,7 +286,7 @@ describe('OnboardingSpotlight', () => {
     const store = useObjectivesStore()
     store.objectives = [objective('first', { progress: 2 })]
     vi.spyOn(store, 'completeObjective').mockImplementation(() => new Promise(() => {}))
-    acknowledgeLessons('orientation.resources', 'orientation.generator')
+    acknowledgeLessons(...RESOURCE_LESSONS)
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
@@ -270,10 +301,9 @@ describe('OnboardingSpotlight', () => {
   it('replays a claimed explanation with Continue and no reward action', async () => {
     const store = useObjectivesStore()
     store.objectives = [objective('first', { progress: 2, isCompleted: true })]
-    const { replayOrientation, acknowledgeLesson } = useOnboardingState()
+    const { replayOrientation } = useOnboardingState()
     replayOrientation('v1')
-    acknowledgeLesson('v1', 'orientation.resources')
-    acknowledgeLesson('v1', 'orientation.generator')
+    acknowledgeLessons(...RESOURCE_LESSONS)
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
@@ -289,7 +319,7 @@ describe('OnboardingSpotlight', () => {
       objective('earlier', { sequence: 0, templateKey: 'starter:some earlier step' }),
       objective('first', { sequence: 1, progress: 2 }),
     ]
-    acknowledgeLessons('orientation.resources', 'orientation.generator')
+    acknowledgeLessons(...RESOURCE_LESSONS)
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
@@ -301,7 +331,7 @@ describe('OnboardingSpotlight', () => {
 
   it('does not dim housing when the raised price is unaffordable, and shows it', async () => {
     seedHousing(125)
-    acknowledgeLessons('orientation.resources', 'orientation.generator', 'orientation.staffing')
+    acknowledgeLessons(...RESOURCE_LESSONS, 'orientation.staffing')
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
@@ -315,7 +345,7 @@ describe('OnboardingSpotlight', () => {
 
   it('offers a route back to construction for housing', async () => {
     seedHousing(500)
-    acknowledgeLessons('orientation.resources', 'orientation.generator', 'orientation.staffing')
+    acknowledgeLessons(...RESOURCE_LESSONS, 'orientation.staffing')
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
@@ -324,16 +354,43 @@ describe('OnboardingSpotlight', () => {
     wrapper.unmount()
   })
 
+  it('waits for a dweller before showing departure without skipping the lesson', async () => {
+    useObjectivesStore().objectives = [objective('depart', { templateKey: DEPARTURE_KEY })]
+    stores.dweller.filter.allDwellersLoadedVaultId = 'v1'
+    const roster = reactive<unknown[]>([])
+    stores.dweller.filter.allDwellers = roster
+    acknowledgeLessons(...RESOURCE_LESSONS, 'orientation.staffing', 'orientation.housing')
+    useOnboardingState().patch('v1', { welcomed: true })
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    expect(document.querySelector('.onboarding-card')).toBeNull()
+    expect(useOnboardingState().teaching('v1').lessons['orientation.departure']).toBeUndefined()
+    roster.push({ id: 'newcomer', age_group: 'adult', status: 'idle', health: 100 })
+    await flushPromises()
+    expect(document.querySelector('.onboarding-title')?.textContent).toBe(
+      'Send a dweller exploring'
+    )
+    wrapper.unmount()
+  })
+
+  it('keeps an earned departure reward claimable even with an empty roster', async () => {
+    useObjectivesStore().objectives = [
+      objective('depart', { templateKey: DEPARTURE_KEY, progress: 2 }),
+    ]
+    stores.dweller.filter.allDwellersLoadedVaultId = 'v1'
+    acknowledgeLessons(...RESOURCE_LESSONS, 'orientation.staffing', 'orientation.housing')
+    useOnboardingState().patch('v1', { welcomed: true })
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    expect(findButton('Claim 25 caps')).toBeDefined()
+    wrapper.unmount()
+  })
+
   it('blocks departure with the remedy matching the blocker', async () => {
     const store = useObjectivesStore()
     store.objectives = [objective('depart', { templateKey: DEPARTURE_KEY })]
     stores.dweller.filter.allDwellersLoadedVaultId = 'v1'
-    acknowledgeLessons(
-      'orientation.resources',
-      'orientation.generator',
-      'orientation.staffing',
-      'orientation.housing'
-    )
+    acknowledgeLessons(...RESOURCE_LESSONS, 'orientation.staffing', 'orientation.housing')
 
     stores.dweller.filter.allDwellers = [
       { id: 'c', age_group: 'child', status: 'idle', health: 50 },
@@ -379,12 +436,7 @@ describe('OnboardingSpotlight', () => {
       { id: 'a', age_group: 'adult', status: 'resting', health: 50 },
     ]
     boundedAnchor('wasteland')
-    acknowledgeLessons(
-      'orientation.resources',
-      'orientation.generator',
-      'orientation.staffing',
-      'orientation.housing'
-    )
+    acknowledgeLessons(...RESOURCE_LESSONS, 'orientation.staffing', 'orientation.housing')
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
@@ -394,7 +446,7 @@ describe('OnboardingSpotlight', () => {
 
   it('does not dim a lesson whose required data is not loaded', async () => {
     boundedAnchor('nav-dwellers')
-    acknowledgeLessons('orientation.resources', 'orientation.generator')
+    acknowledgeLessons(...RESOURCE_LESSONS)
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
@@ -406,7 +458,7 @@ describe('OnboardingSpotlight', () => {
   it('highlights the housing option inside the room menu but yields to nested dialogs', async () => {
     seedHousing(500)
     boundedAnchor('build-living-room')
-    acknowledgeLessons('orientation.resources', 'orientation.generator', 'orientation.staffing')
+    acknowledgeLessons(...RESOURCE_LESSONS, 'orientation.staffing')
     const scope = effectScope()
     scope.run(() => useBlockingOverlay(() => true, 'room-menu'))
     const wrapper = mountSpotlight()
@@ -433,7 +485,7 @@ describe('OnboardingSpotlight', () => {
     const hidden = boundedAnchor('nav-dwellers')
     hidden.getBoundingClientRect = () => ({ width: 0, height: 0 }) as DOMRect
     boundedAnchor('nav-dwellers')
-    acknowledgeLessons('orientation.resources', 'orientation.generator')
+    acknowledgeLessons(...RESOURCE_LESSONS)
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
@@ -444,7 +496,7 @@ describe('OnboardingSpotlight', () => {
   it('recovers when asynchronous styling hides the highlighted control', async () => {
     useObjectivesStore().objectives = [objective('first')]
     const anchor = boundedAnchor('nav-dwellers')
-    acknowledgeLessons('orientation.resources', 'orientation.generator')
+    acknowledgeLessons(...RESOURCE_LESSONS)
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
@@ -460,7 +512,7 @@ describe('OnboardingSpotlight', () => {
     seedHousing(0)
     useObjectivesStore().objectives[0]!.progress = 2
     boundedAnchor('build')
-    acknowledgeLessons('orientation.resources', 'orientation.generator', 'orientation.staffing')
+    acknowledgeLessons(...RESOURCE_LESSONS, 'orientation.staffing')
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
@@ -476,7 +528,7 @@ describe('OnboardingSpotlight', () => {
   it('dims an eligible lesson that has a visible anchor', async () => {
     useObjectivesStore().objectives = [objective('first')]
     boundedAnchor('nav-dwellers')
-    acknowledgeLessons('orientation.resources', 'orientation.generator')
+    acknowledgeLessons(...RESOURCE_LESSONS)
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
@@ -513,7 +565,7 @@ describe('OnboardingSpotlight', () => {
     const store = useObjectivesStore()
     store.objectives = [objective('first', { progress: 2 })]
     vi.spyOn(store, 'completeObjective').mockRejectedValue(new Error('rejected'))
-    acknowledgeLessons('orientation.resources', 'orientation.generator')
+    acknowledgeLessons(...RESOURCE_LESSONS)
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
@@ -541,7 +593,7 @@ describe('OnboardingSpotlight', () => {
         toJSON: () => ({}),
       }) as DOMRect
     document.body.appendChild(hidden)
-    acknowledgeLessons('orientation.resources', 'orientation.generator')
+    acknowledgeLessons(...RESOURCE_LESSONS)
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
@@ -646,7 +698,7 @@ describe('OnboardingSpotlight', () => {
     const scrollIntoView = vi.fn()
     offscreen.scrollIntoView = scrollIntoView
     document.body.appendChild(offscreen)
-    acknowledgeLessons('orientation.resources', 'orientation.generator')
+    acknowledgeLessons(...RESOURCE_LESSONS)
 
     const wrapper = mountSpotlight()
     await flushPromises()
@@ -689,7 +741,7 @@ describe('OnboardingSpotlight', () => {
       const wrapper = mountSpotlight()
       await flushPromises()
       await clickButton('Start')
-      expect(card()?.textContent).toContain('Your crew keeps power, food and water flowing')
+      expect(card()?.textContent).toContain('Power keeps the vault running')
       expect(collapseToggle()?.getAttribute('aria-expanded')).toBe('true')
 
       collapseToggle()?.click()
@@ -790,7 +842,7 @@ describe('OnboardingSpotlight', () => {
     it('swaps the spotlight for navigation when resizing hides the control', async () => {
       const anchor = boundedAnchor('nav-dwellers')
       useObjectivesStore().objectives = [objective('first')]
-      acknowledgeLessons('orientation.resources', 'orientation.generator')
+      acknowledgeLessons(...RESOURCE_LESSONS)
 
       const wrapper = mountSpotlight()
       await flushPromises()
@@ -882,7 +934,7 @@ describe('first-session continuity', () => {
 
   it('shows a celebration and roster handoff when housing is claimed in the guide', async () => {
     seedHousing(200)
-    acknowledgeLessons('orientation.resources', 'orientation.generator', 'orientation.staffing')
+    acknowledgeLessons(...RESOURCE_LESSONS, 'orientation.staffing')
     const store = useObjectivesStore()
     store.objectives[0]!.progress = 2
     store.objectives[0]!.reward = 'dweller:Wanderer'

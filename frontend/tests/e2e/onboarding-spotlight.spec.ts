@@ -69,6 +69,10 @@ const ORIENTATION_ACKNOWLEDGED = {
   lessons: {
     'orientation.resources': 'acknowledged',
     'orientation.generator': 'acknowledged',
+    'orientation.food': 'acknowledged',
+    'orientation.diner': 'acknowledged',
+    'orientation.water': 'acknowledged',
+    'orientation.water-treatment': 'acknowledged',
   },
   replayOrientation: false,
 }
@@ -108,6 +112,12 @@ async function mockApi(page: Page) {
     const path = new URL(route.request().url()).pathname
 
     if (path === '/api/v1/users/me') return route.fulfill({ json: AUTH_USER })
+    if (path === '/api/v1/game/balance') {
+      return route.fulfill({ json: { resource: { base_production_rate: 1 } } })
+    }
+    if (path === '/api/v1/game/vaults/vault-1/incidents') {
+      return route.fulfill({ json: { incidents: [] } })
+    }
     if (path === '/api/v1/vaults/my') return route.fulfill({ json: [VAULT] })
     if (path === '/api/v1/vaults/vault-1') return route.fulfill({ json: VAULT })
     if (path === '/api/v1/objectives/vault-1/') {
@@ -170,6 +180,61 @@ test.describe('Spotlight guide — vault page', () => {
       cutoutBox!.y < cardBox!.y + cardBox!.height &&
       cutoutBox!.y + cutoutBox!.height > cardBox!.y
     expect(overlaps).toBe(false)
+  })
+
+  test('teaches power, food and water with their rooms one by one', async ({ page }) => {
+    await openVault(page)
+    const rooms = [
+      { id: 'power', name: 'Power generator', ability: 'strength', coordinate_x: 0 },
+      { id: 'food', name: 'Diner', ability: 'agility', coordinate_x: 3 },
+      { id: 'water', name: 'Water treatment', ability: 'perception', coordinate_x: 7 },
+    ].map((room) => ({
+      ...POWER_ROOM,
+      category: 'Production',
+      size: 3,
+      tier: 1,
+      coordinate_y: 0,
+      ...room,
+    }))
+    await page.route('**/api/v1/rooms/vault/vault-1/', (route) => route.fulfill({ json: rooms }))
+    await page.reload()
+    await page.getByRole('button', { name: 'Start' }).click()
+    const card = page.getByRole('region', { name: 'Vault onboarding' })
+    for (const [anchor, title] of [
+      ['resource-power', 'Keep the power on'],
+      ['room-power', 'Open the Power Generator'],
+      ['resource-food', 'Keep your dwellers fed'],
+      ['room-food', 'Open the Diner'],
+      ['resource-water', 'Keep clean water flowing'],
+      ['room-water', 'Open Water Treatment'],
+    ]) {
+      await expect(card.getByRole('heading', { name: title, exact: true })).toBeVisible()
+      await expect(page.locator('.onboarding-cutout')).toHaveCount(1)
+      await expect
+        .poll(() =>
+          page.evaluate((key) => {
+            const target = document
+              .querySelector(`[data-onboarding="${key}"]`)
+              ?.getBoundingClientRect()
+            const highlight = document.querySelector('.onboarding-cutout')?.getBoundingClientRect()
+            return target && highlight
+              ? Math.max(Math.abs(highlight.x - target.x + 4), Math.abs(highlight.y - target.y + 4))
+              : Infinity
+          }, anchor)
+        )
+        .toBeLessThan(2)
+      // Bounds and the default collapsed state settle on the next animation frame.
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+          )
+      )
+      const expand = card.getByRole('button', { name: 'Expand guide' })
+      if (await expand.isVisible()) await expand.click()
+      await card.getByRole('button', { name: 'Continue', exact: true }).click()
+    }
+    await expect(card.getByRole('heading', { name: 'Understand SPECIAL staffing' })).toBeVisible()
   })
 
   test('yields the guide to a dialog and resumes the same lesson', async ({ page }) => {
@@ -265,6 +330,7 @@ test.describe('Spotlight guide — vault page', () => {
         },
       })
       let built = false
+      let builtRooms: Record<string, unknown>[] = []
       const living = {
         name: 'Living room',
         category: 'Capacity',
@@ -293,14 +359,15 @@ test.describe('Spotlight guide — vault page', () => {
         const request = route.request().postDataJSON()
         expect(request.room_name).toBe('Living room')
         built = true
-        return route.fulfill({
-          json: {
-            ...living,
-            id: 'new-living',
-            coordinate_x: request.coordinate_x,
-            coordinate_y: request.coordinate_y,
-          },
-        })
+        const room = {
+          ...living,
+          id: 'new-living',
+          vault_id: 'vault-1',
+          coordinate_x: request.coordinate_x,
+          coordinate_y: request.coordinate_y,
+        }
+        builtRooms = [room]
+        return route.fulfill({ json: room })
       })
       await page.route('**/api/v1/rooms/buildable/vault-1/', (route) =>
         route.fulfill({ json: [power, living] })
@@ -315,6 +382,7 @@ test.describe('Spotlight guide — vault page', () => {
               coordinate_x: 0,
               coordinate_y: 0,
             },
+            ...builtRooms,
           ],
         })
       )
@@ -375,7 +443,6 @@ test.describe('Spotlight guide — vault page', () => {
       expect(built).toBe(false)
       await placement.click()
       await expect.poll(() => built).toBe(true)
-      await page.reload()
       await expect(page.getByRole('button', { name: 'Claim dweller:Wanderer' })).toBeVisible()
       await expect(page.locator('.onboarding-cutout')).toHaveCount(0)
       // Building earns the reward; selecting and explaining never claims it.

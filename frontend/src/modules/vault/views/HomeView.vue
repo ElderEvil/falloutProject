@@ -223,7 +223,9 @@ onMounted(async () => {
               <label
                 for="boosted-start"
                 class="flex items-start gap-3 rounded border border-theme-primary/20 bg-surface p-3 transition-colors"
-                :class="isSurvivalMode ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-surface-hover'"
+                :class="
+                  isSurvivalMode ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-surface-hover'
+                "
               >
                 <input
                   id="boosted-start"
@@ -247,10 +249,7 @@ onMounted(async () => {
                     seven training rooms with sessions underway—plus extra objectives and caps for
                     upgrades.
                   </span>
-                  <span
-                    v-if="isSurvivalMode"
-                    class="mt-1 block text-xs leading-5 text-warning"
-                  >
+                  <span v-if="isSurvivalMode" class="mt-1 block text-xs leading-5 text-warning">
                     Not available in Survival mode.
                   </span>
                 </span>
@@ -279,7 +278,9 @@ onMounted(async () => {
                   class="h-auto w-full min-w-0 flex-col items-start gap-1 whitespace-normal break-words rounded border border-theme-primary/20 px-3 py-2 text-left data-[state=on]:border-theme-primary data-[state=on]:bg-theme-primary/10"
                 >
                   <span class="font-semibold">{{ mode.label }}</span>
-                  <span class="text-xs leading-5 text-theme-primary/65">{{ mode.description }}</span>
+                  <span class="text-xs leading-5 text-theme-primary/65">{{
+                    mode.description
+                  }}</span>
                 </ToggleGroupItem>
               </ToggleGroup>
               <p class="mt-2 flex items-start gap-1.5 text-xs leading-5 text-warning">
@@ -353,7 +354,6 @@ onMounted(async () => {
                       icon="mdi:coins"
                       label="Caps"
                       :value="vault.bottle_caps"
-                      tone="caps"
                       compact
                     />
                     <TerminalMetric

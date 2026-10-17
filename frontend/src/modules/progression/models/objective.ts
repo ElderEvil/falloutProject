@@ -11,6 +11,7 @@ export type ObjectiveType =
   | 'assign_correct'
   | 'build'
   | 'collect'
+  | 'equip'
   | 'explore'
   | 'expedition'
   | 'level_up'
@@ -83,8 +84,24 @@ export function isOfficeObjective(objective: Objective): boolean {
   )
 }
 
+/** Named rewards use the same single-item format as backend settlement. */
+export function objectiveRewardDetails(reward: string) {
+  const [prefix, value, itemName] = reward.split(':')
+  if ((prefix === 'weapon' || prefix === 'outfit') && value) {
+    return {
+      kind: 'item' as const,
+      name: itemName ?? value,
+      itemType: prefix,
+      rarity: itemName ? value : 'common',
+    }
+  }
+  if (prefix === 'dweller' && value) return { kind: 'dweller' as const, name: value }
+  return { kind: 'currency' as const, name: reward }
+}
+
 /** Existing game surfaces relevant to each objective, without inventing new routes. */
-export function objectiveActionPath(objective: Objective, vaultId: string): string {  const vault = `/vault/${vaultId}`
+export function objectiveActionPath(objective: Objective, vaultId: string): string {
+  const vault = `/vault/${vaultId}`
   switch (objective.objective_type) {
     case 'train':
       return `${vault}/training`
@@ -93,6 +110,7 @@ export function objectiveActionPath(objective: Objective, vaultId: string): stri
     case 'explore':
       return `${vault}/exploration`
     case 'scrap':
+    case 'equip':
       return `${vault}/storage`
     case 'collect':
       return objective.target_entity?.resource_type === 'caps' ? `${vault}/exploration` : vault

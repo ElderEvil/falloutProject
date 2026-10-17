@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  objectiveActionPath,
   isObjectiveClaimable,
   isRetiredStarter,
   type Objective,
@@ -32,9 +33,15 @@ describe('isObjectiveClaimable', () => {
 describe('isRetiredStarter', () => {
   it('flags starter rows without an objective type and nothing else', () => {
     expect(isRetiredStarter(objective({ category: 'starter' }))).toBe(true)
-    expect(
-      isRetiredStarter(objective({ category: 'starter', objective_type: 'collect' }))
-    ).toBe(false)
+    expect(isRetiredStarter(objective({ category: 'starter', objective_type: 'collect' }))).toBe(
+      false
+    )
     expect(isRetiredStarter(objective({ category: 'daily' }))).toBe(false)
   })
+})
+
+it('takes equipment lessons to storage', () => {
+  expect(objectiveActionPath(objective({ objective_type: 'equip' }), 'vault-1')).toBe(
+    '/vault/vault-1/storage'
+  )
 })

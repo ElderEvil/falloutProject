@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Objective } from '../models/objective'
-import { isObjectiveClaimable } from '../models/objective'
+import { isObjectiveClaimable, objectiveRewardDetails } from '../models/objective'
 import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
 import { Progress } from '@/core/components/ui/progress'
@@ -92,7 +92,7 @@ const canClaim = computed(() => isObjectiveClaimable(props.objective))
         <Icon icon="mdi:gift" class="reward-icon" />
         Reward
       </div>
-      <div class="reward-value">{{ objective.reward }}</div>
+      <div class="reward-value">{{ objectiveRewardDetails(objective.reward).name }}</div>
     </div>
 
     <!-- Claim Button (if completed but not claimed) -->

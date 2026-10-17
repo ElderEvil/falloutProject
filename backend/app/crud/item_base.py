@@ -88,8 +88,8 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         )
         return int((await db_session.execute(query)).scalar_one())
 
-    async def count_equipped_by_name(self, db_session: AsyncSession, vault_id: UUID4, name: str) -> int:
-        """Count items of this type equipped by the vault's dwellers, matching the name case-insensitively."""
+    async def count_equipped(self, db_session: AsyncSession, vault_id: UUID4, name: str | None = None) -> int:
+        """Count equipped items on living vault residents, optionally matching a name."""
         from sqlalchemy import func
 
         dweller_subquery = (
@@ -97,10 +97,9 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
             .where(Dweller.vault_id == vault_id, ~Dweller.is_dead, ~Dweller.is_deleted)
             .scalar_subquery()
         )
-        query = select(func.count(self.model.id)).where(
-            self.model.dweller_id.in_(dweller_subquery),
-            func.lower(self.model.name) == name.lower(),
-        )
+        query = select(func.count(self.model.id)).where(self.model.dweller_id.in_(dweller_subquery))
+        if name is not None:
+            query = query.where(func.lower(self.model.name) == name.lower())
         return int((await db_session.execute(query)).scalar_one())
 
     async def get_equipped(self, db_session: AsyncSession, dweller_id: UUID4) -> ModelType | None:

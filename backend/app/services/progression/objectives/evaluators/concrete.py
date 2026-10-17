@@ -70,6 +70,16 @@ class CollectEvaluator(ObjectiveEvaluator):
         return data.get("amount", 1)
 
 
+class EquipEvaluator(ObjectiveEvaluator):
+    """Credit weapon/outfit equipment; inventory collection is a separate lesson."""
+
+    objective_type = "equip"
+    subscribed_events = (GameEvent.ITEM_EQUIPPED,)
+
+    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:
+        return data.get("item_type") == (objective.target_entity or {}).get("item_type")
+
+
 class ScrapEvaluator(ObjectiveEvaluator):
     """Evaluates 'scrap' objectives (e.g. 'Scrap a Rare Weapon').
 

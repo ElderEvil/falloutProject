@@ -15,7 +15,7 @@ from typing import Any
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import ObjectiveCategoryEnum
+from app.core.enums import ObjectiveCategoryEnum, RarityEnum
 from app.crud.objective import objective_crud
 from app.crud.vault import vault as vault_crud
 from app.models.objective import Objective
@@ -181,7 +181,8 @@ async def _process_single_reward(
 def _parse_objective_reward(reward_str: str) -> tuple[RewardType, dict[str, Any]]:
     """Parse objective reward string into (RewardType, data).
 
-    Formats: "100 caps", "50 food", "200 xp", "weapon:Laser Pistol", "outfit:Vault Suit", "dweller:Wanderer"
+    Formats: "100 caps", "50 food", "200 xp", "weapon:Laser Pistol", "outfit:Vault Suit", "dweller:Wanderer".
+    Equipment may specify rarity explicitly: "weapon:rare:Hardened shotgun".
     """
     reward_str = reward_str.strip()
 
@@ -204,10 +205,11 @@ def _parse_objective_reward(reward_str: str) -> tuple[RewardType, dict[str, Any]
         prefix = prefix.lower().strip()
         value = value.strip()
 
-        if prefix == "weapon":
-            return RewardType.ITEM, {"item_type": "weapon", "name": value, "rarity": "common"}
-        if prefix == "outfit":
-            return RewardType.ITEM, {"item_type": "outfit", "name": value, "rarity": "common"}
+        if prefix in {"weapon", "outfit"}:
+            rarity, separator, name = value.partition(":")
+            if not separator:
+                rarity, name = RarityEnum.COMMON.value, value
+            return RewardType.ITEM, {"item_type": prefix, "name": name.strip(), "rarity": RarityEnum(rarity).value}
         if prefix == "dweller":
             return RewardType.DWELLER, {"first_name": value, "rarity": "common"}
 

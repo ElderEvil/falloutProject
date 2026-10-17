@@ -5,6 +5,8 @@ from collections.abc import Sequence
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.crud import outfit as outfit_crud
+from app.crud import weapon as weapon_crud
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.exploration import exploration as exploration_crud
 from app.crud.objective import objective_crud
@@ -21,6 +23,9 @@ from app.utils.objective_constants import normalize_room_type
 async def current_state_progress(db_session: AsyncSession, vault_id: UUID4, objective: ObjectiveBase) -> int:
     """Credit existing state milestones without replaying events or writing on GET."""
     target = objective.target_entity or {}
+    if objective.objective_type == "equip":
+        item_crud = {"weapon": weapon_crud, "outfit": outfit_crud}.get(target.get("item_type"))
+        return await item_crud.count_equipped(db_session, vault_id) if item_crud else 0
     if objective.objective_type == "reach":
         if target.get("reach_type", target.get("target")) in {"dweller_count", "population"}:
             return await dweller_crud.count_living_in_vault(db_session, vault_id)

@@ -34,6 +34,26 @@ intact when touching these flows.
 - Ready rewards keep their routine bell/toast event; successful claims show a modal or toast. Notification opt-outs
   affect notification delivery, not reward settlement or the player-opened guide.
 
+### Starter teaching rewards (wave 1)
+
+- Fresh standard vaults currently seed **10 residents**, including the family. The starter arc grants seven
+  more through housing, departure, equipment, production and expansion lessons. One manual radio recruit
+  (500 caps) reaches the unchanged 18-resident Office requirement. The Office still costs 1,000 caps.
+- The first three orientation keys remain staffing, housing and departure. Additional lessons use stable
+  `starter:*` template keys; expanded spotlight teaching is wave 2 and must attach to these keys rather than
+  introduce a second progression sequence. Dismissing guidance must not claim or skip an objective.
+- Production lessons require 50 power/food/water from actual production. Equipment lessons distinguish weapon
+  and outfit equips; already-equipped gear may satisfy the current step. Additional generator construction
+  requires more floor space than the seeded generator, never just an upgrade; its staffing lesson requires
+  three workers. Population rewards require available housing, as with all other dweller rewards.
+- Pre-Office starter payouts total 1,100 caps, alongside seven dwellers, Wasteland gear and a Hunting rifle.
+  The tested route builds housing and a generator, buys one recruit and builds the Office with at least
+  200 caps left, without exploration returns, random loot or daily rewards.
+- The Office grants a guaranteed rare Hardened shotgun before the rare-weapon scrap lesson. Equipment reward
+  strings may specify rarity as `weapon:rare:Hardened shotgun`; omitted rarity remains common.
+- During balance development, the JSON starter catalog updates matching template definitions on startup.
+  Existing vault progress links are not reconciled or backfilled; playtests should use fresh vaults.
+
 ## Quest gates: one scope per requirement type
 
 Quest requirements gate on exactly one scope, on both the read path (`quest_availability`) and the start

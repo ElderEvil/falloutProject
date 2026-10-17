@@ -213,12 +213,15 @@ def test_spine_migration_rebalances_starter_rows_without_touching_claims(monkeyp
         assert len(connection.execute(sa.select(objectives)).all()) == 95
         migration.downgrade()
         assert len(connection.execute(sa.select(objectives)).all()) == 95
-        # Historical migrations stay frozen; the later copy correction brings
-        # their starter descriptions in line with the current seed catalog.
+        # Compare historical migrations with their frozen release snapshot;
+        # fresh-vault balance now evolves independently in the seed catalog.
+        by_key = {row["template_key"]: row for row in connection.execute(sa.select(objectives)).mappings()}
+        for snapshot in migration._CATALOG:
+            expected = {field: value for field, value in snapshot.items() if field != "legacy_challenge"}
+            assert {field: by_key[expected["template_key"]][field] for field in expected} == expected
         clarification = _load("2026_10_16_0003-d8e4c7a2b915_clarify_starter_scrap_objective.py")
         monkeypatch.setattr(clarification, "op", Operations(MigrationContext.configure(connection)))
         clarification.upgrade()
         by_key = {row["template_key"]: row for row in connection.execute(sa.select(objectives)).mappings()}
-        for key, expected in _json_catalog().items():
-            assert {field: by_key[key][field] for field in expected} == expected
+        assert by_key["starter:reverse-engineer a schematic"]["challenge"] == "Scrap a rare weapon"
     engine.dispose()

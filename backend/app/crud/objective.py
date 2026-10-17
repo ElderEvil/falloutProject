@@ -85,6 +85,20 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
         result = await db_session.execute(select(self.model).where(self.model.category == category))
         return list(result.scalars().all())
 
+    async def sync_starter_templates(self, db_session: AsyncSession, templates: Sequence[ObjectiveCreate]) -> None:
+        """Apply the authored balance to templates; vault progress is deliberately untouched."""
+        by_key = {template.template_key: template for template in templates}
+        previous_release_keys = {f"{key}#v2" for key in by_key}
+        for objective in await self.get_by_category(db_session, ObjectiveCategoryEnum.STARTER):
+            if template := by_key.get(objective.template_key):
+                objective.sqlmodel_update(template.model_dump())
+                objective.assignable = True
+                db_session.add(objective)
+            elif objective.template_key in previous_release_keys:
+                objective.assignable = False
+                db_session.add(objective)
+        await db_session.commit()
+
     async def get_all(self, db_session: AsyncSession) -> list[Objective]:
         """Every objective."""
         return list((await db_session.execute(select(self.model))).scalars().all())

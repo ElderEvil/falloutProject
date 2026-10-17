@@ -58,4 +58,16 @@ describe('ObjectiveCompleteModal handoff', () => {
     expect(router.push).not.toHaveBeenCalled()
     wrapper.unmount()
   })
+
+  it('reveals guaranteed equipment with its item name and rarity', () => {
+    const wrapper = mountModal('weapon:rare:Hardened shotgun')
+    expect(wrapper.getComponent(RewardItemCard).props()).toMatchObject({
+      kind: 'item',
+      name: 'Hardened shotgun',
+      rarity: 'rare',
+      itemType: 'weapon',
+    })
+    expect(wrapper.text()).not.toContain('weapon:rare:')
+    wrapper.unmount()
+  })
 })

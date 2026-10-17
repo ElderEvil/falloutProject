@@ -168,8 +168,13 @@ describe('DwellerDeath Store', () => {
       expect(result).toEqual(mockCost)
     })
 
-    it('should return null on error', async () => {
-      vi.mocked(axios.get).mockRejectedValueOnce(new Error('API error'))
+    it('returns no quote when the API rejects a permanent memorial', async () => {
+      vi.mocked(axios.get).mockRejectedValueOnce({
+        response: {
+          status: 400,
+          data: { detail: 'Dweller is permanently dead and cannot be revived' },
+        },
+      })
 
       const store = useDwellerDeathStore()
       const result = await store.getRevivalCost('d1', 'test-token')

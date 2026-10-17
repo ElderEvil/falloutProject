@@ -15,6 +15,7 @@ from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.relationship import Relationship
 from app.models.vault import Vault
+from app.services.combat.arena_service import arena_service
 from app.services.game_tick import crafting_tick, dwellers_tick, family_tick, radio_tick
 from app.services.game_tick.guard import recover_session
 from app.services.game_tick.tick_results import (
@@ -187,7 +188,14 @@ class GameLoopService:
         breeding_update = await self._process_breeding(db_session, vault_id)
         results["updates"]["breeding"] = breeding_update
 
-        # Arena fights run on their own fast cadence (arena_tick actor), not here.
+        # Read only: arena_tick owns combat cadence. Recover before later phases.
+        try:
+            results["updates"]["arena"] = await arena_service.get_tick_snapshot(db_session, vault_id)
+        except SQLAlchemyError as exc:
+            await recover_session(db_session)
+            self.logger.exception("Error reading arena snapshot for vault %s", vault_id)
+            results["updates"]["arena"] = {"rooms": [], "error": str(exc)}
+            game_state = await self._get_or_create_game_state(db_session, vault_id)
 
         event_update = await self._process_events(db_session, vault_id, seconds_passed, game_state)
         results["updates"]["events"] = event_update

@@ -85,6 +85,7 @@ async def test_manual_tick(
     assert "vault_id" in data
     assert "seconds_passed" in data
     assert "updates" in data
+    assert data["updates"]["arena"] == {"rooms": []}
 
     # Refresh vault to get updated resources
     await async_session.refresh(vault)

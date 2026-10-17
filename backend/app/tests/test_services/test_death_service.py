@@ -469,3 +469,48 @@ class TestDeathCRUD:
         assert len(result) == 1
         assert result[0].id == permanently_dead_dweller.id
         assert result[0].is_permanently_dead is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["build_revival_quote", "revive_dweller"])
+@pytest.mark.parametrize(
+    ("lifecycle", "dead", "permanent", "eligible"),
+    [
+        ("dead_permanent", False, False, False),
+        ("alive", True, True, False),
+        ("dead_revivable", False, True, True),
+        (None, True, True, False),
+        (None, False, False, False),
+        (None, True, False, True),
+    ],
+)
+async def test_revival_uses_canonical_eligibility(
+    async_session, vault, dead_dweller, operation, lifecycle, dead, permanent, eligible
+):
+    from app.core.enums import LifecycleEnum
+    from app.utils.exceptions import ContentNoChangeException
+
+    owner = await crud.user.get(async_session, vault.user_id)
+    vault.bottle_caps = 10000
+    dead_dweller.lifecycle = LifecycleEnum(lifecycle) if lifecycle else None
+    dead_dweller.is_dead = dead
+    dead_dweller.is_permanently_dead = permanent
+    dead_dweller.death_timestamp = None
+    await async_session.commit()
+    memorial = (dead_dweller.epitaph, dead_dweller.lifecycle, dead_dweller.health)
+    action = getattr(death_service, operation)
+    if eligible:
+        result = await action(async_session, dead_dweller.id, owner)
+        if operation == "build_revival_quote":
+            assert result.days_until_permanent is None
+            assert result.can_afford
+        else:
+            await async_session.refresh(dead_dweller)
+            assert dead_dweller.lifecycle == LifecycleEnum.ALIVE
+    else:
+        with pytest.raises(ContentNoChangeException):
+            await action(async_session, dead_dweller.id, owner)
+        await async_session.refresh(vault)
+        await async_session.refresh(dead_dweller)
+        assert vault.bottle_caps == 10000
+        assert (dead_dweller.epitaph, dead_dweller.lifecycle, dead_dweller.health) == memorial

@@ -1667,3 +1667,300 @@ class TestArenaBotSupport:
         _, opponents = await service.get_teams(async_session, arena_room)
         assert opponents[0].is_robot
         assert (opponents[0].power, opponents[0].health, opponents[0].max_health) == (20, 12, 20)
+
+
+async def test_match_status_lifecycle(async_session, arena_room, fighter_a, fighter_b, fighter_c):
+    from app.crud.dweller import determine_status_for_room
+
+    assert determine_status_for_room(RoomTypeEnum.ARENA) == DwellerStatusEnum.IDLE
+    for fighter in (fighter_a, fighter_b, fighter_c):
+        fighter.room_id = arena_room.id
+        fighter.status = DwellerStatusEnum.IDLE
+    await async_session.commit()
+    service = ArenaService()
+    await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
+    assert fighter_a.status == fighter_b.status == DwellerStatusEnum.IDLE
+    await service.start_fight(async_session, arena_room.id)
+    await async_session.refresh(fighter_a)
+    await async_session.refresh(fighter_b)
+    assert fighter_a.status == fighter_b.status == DwellerStatusEnum.FIGHTING
+    assert fighter_c.status == DwellerStatusEnum.IDLE
+    await service.set_fighters(async_session, arena_room.id, fighter_c.id, fighter_b.id)
+    await async_session.refresh(fighter_a)
+    await async_session.refresh(fighter_b)
+    assert fighter_a.status == fighter_b.status == DwellerStatusEnum.IDLE
+
+
+async def test_tick_snapshot_is_read_only(async_session, arena_room, vault):
+    service = ArenaService()
+    expected = {"rooms": [{"room_id": str(arena_room.id), "fight_started": False, "match_done": False, "events": []}]}
+    assert await service.get_tick_snapshot(async_session, vault.id) == expected
+    assert await service.get_tick_snapshot(async_session, vault.id) == expected
+    assert await arena_state_crud.get(async_session, arena_room.id) is None
+    assert await service.get_tick_snapshot(async_session, uuid4()) == {"rooms": []}
+
+
+@pytest.mark.parametrize("mode", list(ArenaMode))
+async def test_match_finish_releases_only_participants(
+    async_session, arena_room, fighter_a, fighter_b, fighter_c, fighter_d, mode
+):
+    from datetime import datetime, timedelta
+
+    from app.services.exit_request_service import exit_request_service
+
+    service = ArenaService()
+    fighters = (fighter_a, fighter_b, fighter_c, fighter_d)
+    for fighter in fighters:
+        fighter.room_id = arena_room.id
+        fighter.status = DwellerStatusEnum.IDLE
+        fighter.health = 100
+        fighter.max_health = 100
+        fighter.radiation = 7
+    await async_session.commit()
+    state = await service.set_fighters(
+        async_session,
+        arena_room.id,
+        fighter_a.id,
+        fighter_b.id if mode != ArenaMode.HUNT else None,
+        mode=mode,
+        fighter_c_id=fighter_c.id if mode != ArenaMode.DUEL else None,
+        fighter_d_id=fighter_d.id if mode == ArenaMode.BRAWL else None,
+        opponent_keys=["deathclaw"] if mode == ArenaMode.HUNT else None,
+    )
+    selected = service._fighter_ids(state)
+    await service.start_fight(async_session, arena_room.id)
+    # Countdown never resolves a round, but selected dwellers are already busy.
+    assert (await service.process_arena_ticks(async_session, 1))["arena"]["rounds"] == []
+    for fighter in fighters:
+        await async_session.refresh(fighter)
+        assert fighter.status == (DwellerStatusEnum.FIGHTING if fighter.id in selected else DwellerStatusEnum.IDLE)
+    assert exit_request_service._eligibility_reason(fighter_a) == "Dweller is busy in an arena match"
+    state.fight_started_at = datetime.utcnow() - timedelta(seconds=60)
+    await async_session.commit()
+    ongoing = await service.process_arena_ticks(async_session, 1)
+    assert ongoing["arena"]["rounds"][0]["status"] == "ongoing"
+    assert fighter_a.status == DwellerStatusEnum.FIGHTING
+    result = await service.process_arena_ticks(async_session, 3600)
+    assert result["arena"]["rounds"][0]["status"] == "finished"
+    for fighter in fighters:
+        await async_session.refresh(fighter)
+        assert fighter.status == DwellerStatusEnum.IDLE
+        assert fighter.radiation == 7
+        assert fighter.health <= 100
+    assert exit_request_service._eligibility_reason(fighter_a) is None
+    injuries = [fighter.health for fighter in fighters]
+    await service.process_arena_ticks(async_session, 3600)
+    assert [fighter.health for fighter in fighters] == injuries
+
+
+@pytest.mark.parametrize("departure", ["move", "unassign", "bulk_unassign"])
+async def test_departure_cancels_match_and_releases_teammate(
+    async_session, arena_room, fighter_a, fighter_b, departure
+):
+    from app.services.dweller_assignment_service import dweller_assignment_service
+
+    service = ArenaService()
+    for fighter in (fighter_a, fighter_b):
+        fighter.room_id = arena_room.id
+        fighter.status = DwellerStatusEnum.IDLE
+        fighter.health = 23
+        fighter.radiation = 11
+    await async_session.commit()
+    await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
+    await service.start_fight(async_session, arena_room.id)
+    if departure == "move":
+        target = await crud_create_room(
+            async_session,
+            RoomCreate(
+                name="Power Generator",
+                category=RoomTypeEnum.PRODUCTION,
+                ability=SPECIALEnum.STRENGTH,
+                base_cost=100,
+                t2_upgrade_cost=500,
+                t3_upgrade_cost=1500,
+                size_min=3,
+                size_max=9,
+                vault_id=arena_room.vault_id,
+            ),
+        )
+        await dweller_service.move_to_room(async_session, fighter_a.id, target.id)
+    elif departure == "unassign":
+        await dweller_service.update_dweller(async_session, fighter_a.id, {"room_id": None})
+    else:
+        await dweller_assignment_service.unassign_all_dwellers(async_session, arena_room.vault_id)
+    state = await arena_state_crud.get(async_session, arena_room.id)
+    assert state.fighter_a_id is None
+    assert state.fight_started_at is None
+    await async_session.refresh(fighter_a)
+    await async_session.refresh(fighter_b)
+    assert fighter_b.status == DwellerStatusEnum.IDLE
+    assert fighter_a.status == (DwellerStatusEnum.WORKING if departure == "move" else DwellerStatusEnum.IDLE)
+    assert fighter_a.health == fighter_b.health == 23
+    assert fighter_a.radiation == fighter_b.radiation == 11
+    await service.clear_fighter_slots_for_dweller(async_session, fighter_a.id)
+    assert (await service.process_arena_ticks(async_session, 3600))["arena"]["rounds"] == []
+
+
+@pytest.mark.parametrize("completed", [False, True])
+async def test_stale_cleanup_preserves_moved_and_dead_dwellers(
+    async_session, arena_room, fighter_a, fighter_b, fighter_c, completed
+):
+    from datetime import datetime
+
+    from app.core.enums import LifecycleEnum
+
+    for fighter in (fighter_a, fighter_b, fighter_c):
+        fighter.room_id = arena_room.id
+        fighter.status = DwellerStatusEnum.FIGHTING
+        fighter.health = 17
+        fighter.radiation = 4
+    fighter_b.room_id = None
+    fighter_b.status = DwellerStatusEnum.EXPLORING
+    fighter_c.lifecycle = LifecycleEnum.DEAD_REVIVABLE
+    fighter_c.is_dead = True
+    fighter_c.status = DwellerStatusEnum.DEAD
+    state = await configure_arena(
+        async_session,
+        arena_room,
+        fighter_a_id=fighter_a.id,
+        fighter_b_id=fighter_b.id,
+        fighter_c_id=fighter_c.id,
+        last_fight_at=datetime.utcnow() if completed else None,
+    )
+    for _ in range(2):
+        await ArenaService().process_arena_ticks(async_session, 1)
+        for fighter in (fighter_a, fighter_b, fighter_c):
+            await async_session.refresh(fighter)
+        assert fighter_a.status == DwellerStatusEnum.IDLE
+        assert fighter_b.status == DwellerStatusEnum.EXPLORING
+        assert fighter_c.status == DwellerStatusEnum.DEAD
+        assert all(fighter.health == 17 and fighter.radiation == 4 for fighter in (fighter_a, fighter_b, fighter_c))
+    assert (state.last_fight_at is not None) is completed
+
+
+async def test_reconciliation_refreshes_newer_active_selection(
+    async_session, db_connection, arena_room, fighter_a, fighter_b
+):
+    from datetime import datetime
+
+    for fighter in (fighter_a, fighter_b):
+        fighter.room_id = arena_room.id
+        fighter.status = DwellerStatusEnum.IDLE
+    state = await configure_arena(async_session, arena_room, fighter_a_id=fighter_a.id, fighter_b_id=fighter_b.id)
+    assert state.fight_started_at is None
+    # A second session starts a match after the actor loaded an inactive state.
+    async with AsyncSession(
+        bind=db_connection, expire_on_commit=False, join_transaction_mode="create_savepoint"
+    ) as other:
+        await ArenaService().start_fight(other, arena_room.id)
+    assert state.fight_started_at is None  # deliberately stale identity-map entry
+    await ArenaService().process_arena_ticks(async_session, 1)
+    for fighter in (fighter_a, fighter_b):
+        await async_session.refresh(fighter)
+        assert fighter.status == DwellerStatusEnum.FIGHTING
+    assert state.fight_started_at is not None
+
+
+@pytest.mark.parametrize("finished", [False, True])
+async def test_snapshot_bounds_and_clears_journal_without_mutation(
+    async_session, arena_room, vault, fighter_a, fighter_b, finished
+):
+    from datetime import datetime, timedelta
+
+    service = ArenaService()
+    for fighter in (fighter_a, fighter_b):
+        fighter.room_id = arena_room.id
+        fighter.health = 19
+    state = await configure_arena(
+        async_session,
+        arena_room,
+        fighter_a_id=fighter_a.id,
+        fighter_b_id=fighter_b.id,
+        fight_started_at=datetime.utcnow(),
+        last_fight_at=datetime.utcnow() if finished else None,
+    )
+    events = [
+        ArenaMatchEvent(
+            room_id=arena_room.id,
+            round_seq=i,
+            kind="hit",
+            message=str(i),
+            created_at=datetime.utcnow() + timedelta(seconds=i),
+        )
+        for i in range(45)
+    ]
+    async_session.add_all(events)
+    await async_session.commit()
+    before = (state.fight_started_at, state.last_fight_at, fighter_a.health, fighter_a.experience, vault.bottle_caps)
+    # Task sessions are raw SQLAlchemy AsyncSessions, without .exec().
+    async with RawAsyncSession(
+        bind=async_session.bind, expire_on_commit=False, join_transaction_mode="create_savepoint"
+    ) as raw:
+        snapshot = await service.get_tick_snapshot(raw, vault.id)
+    assert await service.get_tick_snapshot(async_session, vault.id) == snapshot
+    room = snapshot["rooms"][0]
+    assert room["fight_started"] is True
+    assert room["match_done"] is finished
+    assert [event["id"] for event in room["events"]] == [str(event.id) for event in events[-40:]]
+    assert [event["round_seq"] for event in room["events"]] == list(range(5, 45))
+    assert await service.get_tick_snapshot(async_session, uuid4()) == {"rooms": []}
+    assert (
+        state.fight_started_at,
+        state.last_fight_at,
+        fighter_a.health,
+        fighter_a.experience,
+        vault.bottle_caps,
+    ) == before
+    await service.clear_journal(async_session, arena_room.id)
+    assert (await service.get_tick_snapshot(async_session, vault.id))["rooms"][0]["events"] == []
+    async_session.add(ArenaMatchEvent(room_id=arena_room.id, round_seq=1, kind="hit", message="new"))
+    await async_session.commit()
+    await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
+    assert (await service.get_tick_snapshot(async_session, vault.id))["rooms"][0] == {
+        "room_id": str(arena_room.id),
+        "fight_started": False,
+        "match_done": False,
+        "events": [],
+    }
+
+
+async def test_idle_arena_occupants_do_not_earn_work_xp(async_session, arena_room, fighter_a):
+    from app.services.game_loop import game_loop_service
+
+    fighter_a.room_id = None
+    await async_session.commit()
+    await dweller_service.move_to_room(async_session, fighter_a.id, arena_room.id)
+    before = fighter_a.experience
+    result = await game_loop_service._process_dwellers(async_session, arena_room.vault_id)
+    await async_session.refresh(fighter_a)
+    assert result["xp_awarded"] == 0
+    assert fighter_a.experience == before
+    assert fighter_a.status == DwellerStatusEnum.IDLE
+
+
+async def test_same_room_update_keeps_active_fighter_busy(async_session, arena_room, fighter_a, fighter_b):
+    for fighter in (fighter_a, fighter_b):
+        fighter.room_id = arena_room.id
+        fighter.status = DwellerStatusEnum.IDLE
+    await async_session.commit()
+    service = ArenaService()
+    await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
+    await service.start_fight(async_session, arena_room.id)
+    await dweller_service.update_dweller(async_session, fighter_a.id, {"room_id": arena_room.id})
+    await async_session.refresh(fighter_a)
+    assert fighter_a.status == DwellerStatusEnum.FIGHTING
+    assert (await arena_state_crud.get(async_session, arena_room.id)).fight_started_at is not None
+
+
+async def test_batched_departures_do_not_restore_cleared_slots(async_session, arena_room, fighter_a, fighter_b):
+    for fighter in (fighter_a, fighter_b):
+        fighter.room_id = arena_room.id
+    await async_session.commit()
+    service = ArenaService()
+    await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
+    await service.clear_fighter_slots_for_dweller(async_session, fighter_a.id, commit=False)
+    await service.clear_fighter_slots_for_dweller(async_session, fighter_b.id, commit=False)
+    await async_session.commit()
+    state = await arena_state_crud.get(async_session, arena_room.id)
+    assert state.fighter_a_id is None
+    assert state.fighter_b_id is None

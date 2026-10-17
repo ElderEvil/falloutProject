@@ -85,7 +85,27 @@ class RadioStats(TypedDict, total=False):
     error: str
 
 
+class ArenaEventStats(TypedDict):
+    id: str
+    round_seq: int
+    kind: str
+    message: str
+
+
+class ArenaRoomStats(TypedDict):
+    room_id: str
+    fight_started: bool
+    match_done: bool
+    events: list[ArenaEventStats]
+
+
+class ArenaStats(TypedDict, total=False):
+    rooms: list[ArenaRoomStats]
+    error: str
+
+
 class TickUpdates(TypedDict, total=False):
+    arena: ArenaStats
     resources: ResourcesStats
     explorations: ExplorationStats
     dwellers: DwellersStats

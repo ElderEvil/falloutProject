@@ -20,7 +20,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core import db_locks
-from app.core.enums import ArenaMode
+from app.core.enums import ArenaMode, DwellerStatusEnum
 from app.core.game_config import game_config
 from app.crud import dweller as crud_dweller
 from app.crud import room as room_crud
@@ -40,6 +40,7 @@ from app.schemas.arena import (
     ArenaState as ArenaStateOut,
 )
 from app.services.exploration.data_loader import list_arena_creatures
+from app.services.game_tick.tick_results import ArenaEventStats, ArenaRoomStats, ArenaStats
 from app.utils.combat import combat_power
 from app.utils.exceptions import ValidationException
 
@@ -176,6 +177,7 @@ class ArenaService:
         Dwellers keep their current health; catalog opponents and support bots reset.
         """
         room = await self._get_arena_room(db_session, room_id, vault_id)
+        await arena_state_crud.get_for_update(db_session, room.id)
         self._validate_mode_tier(room, mode)
         bot_keys = {"A": team_a_bot_key, "B": team_b_bot_key}
         support_bots = {}
@@ -219,6 +221,7 @@ class ArenaService:
                 raise ValidationException(detail="Every fighter must be an adult dweller assigned to the Arena")
 
         state = await arena_state_crud.get_or_create(db_session, room.id)
+        await self._release_fighters(db_session, state)
         state.fighter_a_id = fighter_a_id
         state.fighter_b_id = fighter_b_id
         state.fighter_c_id = fighter_c_id
@@ -391,6 +394,28 @@ class ArenaService:
             return False
         return bool(team_a) and bool(team_b)
 
+    @staticmethod
+    def _event_snapshot(event: ArenaMatchEvent) -> ArenaEventStats:
+        return {"id": str(event.id), "round_seq": event.round_seq, "kind": event.kind, "message": event.message}
+
+    async def get_tick_snapshot(self, db_session: AsyncSession, vault_id: UUID4) -> ArenaStats:
+        """Repeatable, bounded journal snapshot; only the arena actor advances matches."""
+        rooms: dict[str, ArenaRoomStats] = {}
+        for room_id, started_at, finished_at, event in await arena_match_event_crud.get_vault_snapshot(
+            db_session, vault_id
+        ):
+            key = str(room_id)
+            if key not in rooms:
+                rooms[key] = {
+                    "room_id": key,
+                    "fight_started": started_at is not None,
+                    "match_done": finished_at is not None,
+                    "events": [],
+                }
+            if event is not None:
+                rooms[key]["events"].append(self._event_snapshot(event))
+        return {"rooms": list(rooms.values())}
+
     async def get_arena_state(self, db_session: AsyncSession, vault_id: UUID4) -> ArenaStateOut:
         """Build the full arena state for a vault: fighters, roster, flags, journal."""
         rooms = await room_crud.get_arena_rooms(db_session, vault_id=vault_id)
@@ -413,12 +438,7 @@ class ArenaService:
                 countdown_remaining = max(0, int(countdown - elapsed))
 
             events = [
-                ArenaMatchEventOut(
-                    id=str(e.id),
-                    round_seq=e.round_seq,
-                    kind=e.kind,
-                    message=e.message,
-                )
+                ArenaMatchEventOut(**self._event_snapshot(e))
                 for e in reversed(await arena_match_event_crud.get_recent_by_room(db_session, room.id))
             ]
             winner_name = self._winner_from_events(events, mode, team_a, team_b)
@@ -466,6 +486,15 @@ class ArenaService:
         await db_session.commit()
         return count
 
+    @staticmethod
+    def _fighter_ids(state: ArenaState) -> list[UUID4]:
+        return [fid for fid in (state.fighter_a_id, state.fighter_b_id, state.fighter_c_id, state.fighter_d_id) if fid]
+
+    async def _release_fighters(self, db_session: AsyncSession, state: ArenaState) -> None:
+        await crud_dweller.set_arena_status(
+            db_session, state.room_id, DwellerStatusEnum.IDLE, ids=self._fighter_ids(state)
+        )
+
     async def clear_fighter_slots_for_dweller(
         self, db_session: AsyncSession, dweller_id: UUID4, *, commit: bool = True
     ) -> None:
@@ -476,6 +505,7 @@ class ArenaService:
         """
         changed = False
         for state in await arena_state_crud.get_by_fighter(db_session, dweller_id):
+            await self._release_fighters(db_session, state)
             state_changed = False
             if state.fighter_a_id == dweller_id:
                 state.fighter_a_id = None
@@ -497,8 +527,10 @@ class ArenaService:
                 self._clear_room_state(str(state.room_id))
                 await arena_match_event_crud.delete_for_room(db_session, state.room_id)
             db_session.add(state)
-        if changed and commit:
-            await db_session.commit()
+        if changed:
+            await db_session.flush()
+            if commit:
+                await db_session.commit()
 
     async def start_fight(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> Room:
         """Arm a match for an arena room: a full team on each side, not done.
@@ -506,7 +538,7 @@ class ArenaService:
         The first combat tick lands after the countdown grace period.
         """
         room = await self._get_arena_room(db_session, room_id, vault_id)
-        state = await self._state(db_session, room)
+        state = await arena_state_crud.get_for_update(db_session, room.id) or ArenaState(room_id=room.id)
         mode = state.mode or ArenaMode.DUEL
         self._validate_mode_tier(room, mode)
         if state.last_fight_at is not None:
@@ -525,6 +557,9 @@ class ArenaService:
         state = await arena_state_crud.get_or_create(db_session, room.id)
         state.fight_started_at = datetime.utcnow()
         db_session.add(state)
+        await crud_dweller.set_arena_status(
+            db_session, room.id, DwellerStatusEnum.FIGHTING, ids=self._fighter_ids(state)
+        )
         await db_session.commit()
         return room
 
@@ -573,10 +608,9 @@ class ArenaService:
         rounds = []
         now = datetime.utcnow()
         for room in rooms:
-            state = await self._state(db_session, room)
-            if state.last_fight_at is not None:
-                continue
-            if state.fight_started_at is None:
+            state = await arena_state_crud.get_for_update(db_session, room.id) or ArenaState(room_id=room.id)
+            if state.last_fight_at is not None or state.fight_started_at is None:
+                await crud_dweller.set_arena_status(db_session, room.id, DwellerStatusEnum.IDLE)
                 continue
             if now - state.fight_started_at < timedelta(seconds=game_config.game_loop.arena_countdown_seconds):
                 continue
@@ -584,6 +618,11 @@ class ArenaService:
             mode = state.mode or ArenaMode.DUEL
             team_a, team_b = await self._teams_from_state(db_session, room, state)
             if not team_a or not team_b:
+                await self._release_fighters(db_session, state)
+                state.fight_started_at = None
+                state.knocked_out_ids = None
+                db_session.add(state)
+                self._clear_room_state(str(room.id))
                 continue
 
             round_result = await self._resolve_round(db_session, room, team_a, team_b, seconds_passed, state=state)
@@ -734,6 +773,7 @@ class ArenaService:
         loser_label = labels[0 if loser_team is team_a else 1] if labels else loser.short_name
         state.last_fight_at = datetime.utcnow()
         state.knocked_out_ids = None
+        await self._release_fighters(db_session, state)
         db_session.add(state)
 
         # Happiness swing instead of caps: the winning team feels great, the losing one is sour.

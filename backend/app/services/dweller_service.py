@@ -3,7 +3,7 @@
 import logging
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -68,13 +68,23 @@ from app.utils.exceptions import (
     InvalidVaultTransferException,
     ResourceConflictException,
     ResourceNotFoundException,
+    VaultOperationException,
 )
+
+if TYPE_CHECKING:
+    from app.services.map.bio_registration import _MapDwellerLike
 
 logger = logging.getLogger(__name__)
 
 
 class DwellerService:
     """Service for general dweller operations that span multiple CRUD modules."""
+
+    @staticmethod
+    def _require_vault_id(dweller: Dweller) -> UUID4:
+        if dweller.vault_id is None:
+            raise VaultOperationException(detail="Dweller is no longer in this vault")
+        return dweller.vault_id
 
     def get_identity_options(self) -> DwellerIdentityOptions:
         """Return identity choices derived directly from the canonical options modules."""
@@ -109,8 +119,8 @@ class DwellerService:
     async def create_dweller(self, db_session: AsyncSession, obj_in: DwellerCreate) -> Dweller:
         """Create a dweller and record the overseer's lifetime total."""
         dweller = await crud.dweller.create(db_session, obj_in)
-        await user_service.record_vault_statistic(db_session, dweller.vault_id, "total_dwellers_created")
-        await event_bus.emit(GameEvent.DWELLER_ADDED, dweller.vault_id, {"dweller_id": str(dweller.id)})
+        await user_service.record_vault_statistic(db_session, self._require_vault_id(dweller), "total_dwellers_created")
+        await event_bus.emit(GameEvent.DWELLER_ADDED, self._require_vault_id(dweller), {"dweller_id": str(dweller.id)})
         return dweller
 
     async def create_random_dweller(
@@ -159,7 +169,7 @@ class DwellerService:
         if bio_places and register_bio_places:
             origin, visited = bio_places
             await map_service.register_bio_places(
-                db_session, dweller, origin_place=origin or "", visited_places=visited
+                db_session, cast("_MapDwellerLike", dweller), origin_place=origin or "", visited_places=visited
             )
         return dweller
 
@@ -242,8 +252,8 @@ class DwellerService:
                 if active_training:
                     await training_service.cancel_training(db_session, active_training.id, dweller=dweller)
 
-        # Compute status if room_id is being set or cleared
-        if room_id is not None or "room_id" in data:
+        # An unchanged posting must preserve the active match's busy status.
+        if "room_id" in data and room_id != dweller.room_id:
             if room_id is None:
                 data["status"] = determine_status_for_room(None)
             else:
@@ -251,6 +261,11 @@ class DwellerService:
                 if not room_obj:
                     raise ResourceNotFoundException(model=Room, identifier=room_id)
                 data["status"] = determine_status_for_room(room_obj.category, room_obj.name)
+
+        if "room_id" in data and room_id != dweller.room_id:
+            from app.services.combat.arena_service import arena_service
+
+            await arena_service.clear_fighter_slots_for_dweller(db_session, dweller_id, commit=False)
 
         updated = await crud.dweller.update(db_session, dweller_id, DwellerUpdate(**data), commit=False)
 
@@ -260,9 +275,9 @@ class DwellerService:
                     updated.age_group = AgeGroupEnum.ADULT
                 updated.radiation = 0
                 if updated.radaway > 0:
-                    storage = await storage_crud.get_by_vault_for_update(db_session, updated.vault_id)
+                    storage = await storage_crud.get_by_vault_for_update(db_session, self._require_vault_id(updated))
                     if storage is None:
-                        storage = Storage(vault_id=updated.vault_id)
+                        storage = Storage(vault_id=self._require_vault_id(updated))
                     storage.radaway += updated.radaway
                     updated.radaway = 0
                     db_session.add(storage)
@@ -275,10 +290,6 @@ class DwellerService:
                 )
             db_session.add(updated)
 
-        if "room_id" in data and room_id != dweller.room_id:
-            from app.services.combat.arena_service import arena_service
-
-            await arena_service.clear_fighter_slots_for_dweller(db_session, dweller_id, commit=False)
         await db_session.commit()
         return updated
 
@@ -303,7 +314,7 @@ class DwellerService:
         await validate_room_assignment(db_session, dweller_obj, room_obj)
 
         if not dweller_obj.room_id and not await vault_service.is_enough_population_space(
-            db_session=db_session, vault_id=dweller_obj.vault_id, space_required=1
+            db_session=db_session, vault_id=self._require_vault_id(dweller_obj), space_required=1
         ):
             raise ContentNoChangeException(detail="Not enough space in the vault to move dweller")
 
@@ -314,21 +325,22 @@ class DwellerService:
             if not dweller_obj.is_mature
             else {"apprentice_stat": None, "apprentice_started_at": None, "apprentice_stat_gains": {}}
         )
-        dweller_obj = await crud.dweller.update(
-            db_session, dweller_id, {"room_id": room_id, "status": new_status, **apprenticeship_update}, commit=False
-        )
-
         # Leaving an arena room must clear the stale fighter slot, or later fighter picks get rejected.
         if old_room_id is not None:
             from app.services.combat.arena_service import arena_service
 
             await arena_service.clear_fighter_slots_for_dweller(db_session, dweller_id, commit=False)
+
+        dweller_obj = await crud.dweller.update(
+            db_session, dweller_id, {"room_id": room_id, "status": new_status, **apprenticeship_update}, commit=False
+        )
+
         await db_session.commit()
 
         # Emit dweller assigned event for objective tracking
         await event_bus.emit(
             GameEvent.DWELLER_ASSIGNED,
-            dweller_obj.vault_id,
+            self._require_vault_id(dweller_obj),
             {"dweller_id": str(dweller_id), "room_type": room_obj.name},
         )
 
@@ -336,7 +348,7 @@ class DwellerService:
         if room_obj.ability and get_highest_special(dweller_obj) == room_obj.ability:
             await event_bus.emit(
                 GameEvent.DWELLER_ASSIGNED_CORRECTLY,
-                dweller_obj.vault_id,
+                self._require_vault_id(dweller_obj),
                 {"dweller_id": str(dweller_id), "room_type": room_obj.name, "is_correct": True},
             )
 
@@ -351,7 +363,9 @@ class DwellerService:
         best_stat = get_highest_special(dweller_obj)
 
         # Find production rooms in the dweller's vault that match this stat
-        production_rooms = await crud.room.get_by_category(db_session, dweller_obj.vault_id, RoomTypeEnum.PRODUCTION)
+        production_rooms = await crud.room.get_by_category(
+            db_session, self._require_vault_id(dweller_obj), RoomTypeEnum.PRODUCTION
+        )
         matching_rooms = [room for room in production_rooms if room.ability == best_stat]
 
         if not matching_rooms:

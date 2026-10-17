@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 _AWAY_STATUSES = {
     DwellerStatusEnum.EXPLORING,
     DwellerStatusEnum.QUESTING,
-    DwellerStatusEnum.FIGHTING,
 }
 
 
@@ -48,6 +47,8 @@ class ExitRequestService:
             return "Dweller is no longer in this vault"
         if not dweller.is_mature:
             return "Only grown dwellers can choose to leave the vault"
+        if dweller.status == DwellerStatusEnum.FIGHTING:
+            return "Dweller is busy in an arena match"
         if dweller.status in _AWAY_STATUSES:
             return "Dweller is away from the vault"
         return None

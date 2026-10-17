@@ -99,17 +99,21 @@ async def test_request_exit_rejects_children(async_session: AsyncSession, vault:
 
 
 @pytest.mark.parametrize(
-    "status",
-    [DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING, DwellerStatusEnum.FIGHTING],
+    ("status", "reason"),
+    [
+        (DwellerStatusEnum.EXPLORING, "away from the vault"),
+        (DwellerStatusEnum.QUESTING, "away from the vault"),
+        (DwellerStatusEnum.FIGHTING, "busy in an arena match"),
+    ],
 )
 @pytest.mark.asyncio
 async def test_request_exit_rejects_a_dweller_who_is_away(
-    async_session: AsyncSession, vault: Vault, status: DwellerStatusEnum
+    async_session: AsyncSession, vault: Vault, status: DwellerStatusEnum, reason: str
 ) -> None:
     dwellers = await _with_room_for_one_exit(async_session, vault)
     await crud.dweller.update(async_session, dwellers[0].id, {"status": status})
 
-    with pytest.raises(VaultOperationException, match="away from the vault"):
+    with pytest.raises(VaultOperationException, match=reason):
         await exit_request_service.request_exit(async_session, dwellers[0].id)
 
 

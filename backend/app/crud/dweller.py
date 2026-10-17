@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import UUID4
-from sqlalchemy import case, exists, func
+from sqlalchemy import case, exists, func, update
 from sqlalchemy.orm import selectinload
 from sqlmodel import and_, col, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -15,6 +15,7 @@ from app.core.enums import (
     DwellerRosterFocus,
     DwellerStatusEnum,
     GenderEnum,
+    LifecycleEnum,
     RarityEnum,
     RoomTypeEnum,
 )
@@ -63,7 +64,7 @@ def determine_status_for_room(room_category: RoomTypeEnum | None, room_name: str
     if room_category == RoomTypeEnum.TRAINING:
         return DwellerStatusEnum.TRAINING
     if room_category == RoomTypeEnum.ARENA:
-        return DwellerStatusEnum.FIGHTING
+        return DwellerStatusEnum.IDLE
     if room_category == RoomTypeEnum.CAPACITY and "living" in (room_name or "").lower():
         return DwellerStatusEnum.RESTING
     # Default to WORKING for PRODUCTION, CAPACITY, CRAFTING, MISC, QUESTS, THEME
@@ -920,6 +921,29 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         if rarity is not None:
             query = query.where(self.model.rarity == rarity)
         return (await db_session.execute(query)).scalars().all()
+
+    async def set_arena_status(
+        self,
+        db_session: AsyncSession,
+        room_id: UUID4,
+        status: DwellerStatusEnum,
+        ids: list[UUID4] | None = None,
+    ) -> None:
+        """Update only living occupants still in this arena; never overwrite a move/death."""
+        conditions = [
+            self.model.room_id == room_id,
+            ~col(self.model.is_deleted),
+            or_(
+                self.model.lifecycle == LifecycleEnum.ALIVE,
+                and_(col(self.model.lifecycle).is_(None), ~col(self.model.is_dead)),
+            ),
+        ]
+        if ids is not None:
+            conditions.append(col(self.model.id).in_(ids))
+        if status == DwellerStatusEnum.IDLE:
+            conditions.append(self.model.status == DwellerStatusEnum.FIGHTING)
+        await db_session.flush()
+        await db_session.execute(update(self.model).where(*conditions).values(status=status))
 
     async def get_for_update(
         self, db_session: AsyncSession, dweller_id: UUID4, include_deleted: bool = False

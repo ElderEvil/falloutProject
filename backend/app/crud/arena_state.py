@@ -5,6 +5,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.arena_state import ArenaState
+from app.models.room import Room
 
 
 class CRUDArenaState:
@@ -14,6 +15,13 @@ class CRUDArenaState:
     async def get(db_session: AsyncSession, room_id: UUID4) -> ArenaState | None:
         result = await db_session.execute(select(ArenaState).where(ArenaState.room_id == room_id))
         return result.scalars().first()
+
+    @staticmethod
+    async def get_for_update(db_session: AsyncSession, room_id: UUID4) -> ArenaState | None:
+        """Serialize selection/start/resolve, even before an ArenaState exists."""
+        await db_session.execute(select(Room.id).where(Room.id == room_id).with_for_update())
+        query = select(ArenaState).where(ArenaState.room_id == room_id).with_for_update()
+        return (await db_session.execute(query.execution_options(populate_existing=True))).scalars().first()
 
     @staticmethod
     async def get_or_create(db_session: AsyncSession, room_id: UUID4) -> ArenaState:
@@ -33,6 +41,7 @@ class CRUDArenaState:
             | (ArenaState.fighter_c_id == dweller_id)
             | (ArenaState.fighter_d_id == dweller_id)
         )
+        query = query.order_by(ArenaState.room_id).with_for_update().execution_options(populate_existing=True)
         result = await db_session.execute(query)
         return list(result.scalars().all())
 

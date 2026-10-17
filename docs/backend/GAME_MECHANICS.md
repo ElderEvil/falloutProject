@@ -312,4 +312,3 @@ weapon, outfit, junk, pet and generic item **except** `Item` rows that are `cons
 named like `%nuka%` (case-insensitive) — so `used_space`, `available_space` and every downstream
 consumer (grants, exploration rewards, incidents, loot overflow) agree. This is a deliberate
 mutation over Fallout Shelter's storage design; all other consumables still count.
-

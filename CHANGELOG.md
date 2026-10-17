@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.229.0 (2026-10-17)
+
+### Features
+
+* compact storage cards and randomize vault numbers ([#1061](https://github.com/ElderEvil/falloutProject/issues/1061)) f8ec26d
+* split merged rooms and manually merge adjacent rooms ([#1059](https://github.com/ElderEvil/falloutProject/issues/1059)) b6d7077
+
 ## 2.228.3 (2026-10-17)
 
 ### Bug Fixes

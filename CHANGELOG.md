@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.228.2 (2026-10-17)
+
+### Bug Fixes
+
+* **deploy:** bound and verify maintenance backups ([#1052](https://github.com/ElderEvil/falloutProject/issues/1052)) 0f9d039
+
 ## 2.228.1 (2026-10-17)
 
 ### Bug Fixes

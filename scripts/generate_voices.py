@@ -103,9 +103,7 @@ def upload_entry(audio_bytes: bytes, cache_key: str, key: str) -> None:
 
     storage = get_storage_client()
     if storage is None or not storage.enabled:
-        logger.warning(
-            "  [warn] Storage service unavailable; skipping upload of %s", key
-        )
+        logger.warning("  [warn] Storage service unavailable; skipping upload of %s", key)
         return
 
     try:
@@ -147,9 +145,7 @@ def main() -> None:
     # The settings instance already loads backend/.env — never overwrite it here.
     elevenlabs_svc = ElevenLabsTtsService()
     if not elevenlabs_svc.is_enabled and not args.dry_run:
-        logger.warning(
-            "ElevenLabs API key not configured (ELEVENLABS_API_KEY in backend/.env or environment)."
-        )
+        logger.warning("ElevenLabs API key not configured (ELEVENLABS_API_KEY in backend/.env or environment).")
         logger.warning("With --dry-run this is fine; otherwise generation will fail.")
 
     entries = load_manifest(manifest_path)
@@ -168,14 +164,10 @@ def main() -> None:
 
         if args.dry_run:
             if has_local or has_remote:
-                logger.info(
-                    "  [skip] %s (%s exists)", key, "local" if has_local else "bucket"
-                )
+                logger.info("  [skip] %s (%s exists)", key, "local" if has_local else "bucket")
                 skipped += 1
             else:
-                logger.info(
-                    "  [dry-run] Would generate: %s → %s", key, entry["text"][:60]
-                )
+                logger.info("  [dry-run] Would generate: %s → %s", key, entry["text"][:60])
                 generated += 1
             continue
 
@@ -220,9 +212,7 @@ def main() -> None:
         if args.upload:
             upload_entry(audio_bytes, cache_key, key)
 
-    print(
-        f"\nSummary: {generated} generated, {skipped} skipped, {failed} failed out of {len(entries)} entries"
-    )
+    print(f"\nSummary: {generated} generated, {skipped} skipped, {failed} failed out of {len(entries)} entries")
 
 
 if __name__ == "__main__":

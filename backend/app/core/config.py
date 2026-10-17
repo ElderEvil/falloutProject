@@ -85,11 +85,6 @@ class Settings(BaseSettings):
 
     # ElevenLabs TTS provider (free-tier narration, cache-first)
     ELEVENLABS_API_KEY: str = ""
-    ELEVENLABS_API_URL: str = "https://api.elevenlabs.io/v1/text-to-speech"
-    ELEVENLABS_VOICE_ID: str = "JBFqnCBsd6RMkjVDRZzb"  # George
-    ELEVENLABS_MODEL_ID: str = "eleven_multilingual_v2"
-    ELEVENLABS_STABILITY: float = 0.5
-    ELEVENLABS_SIMILARITY_BOOST: float = 0.75
     # Local staging dir for the pack generator (environment-agnostic default)
     NARRATION_PACK_DIR: str = "voice-pack"
 

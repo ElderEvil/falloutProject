@@ -499,10 +499,10 @@ class DwellerAIService:
 
             if elevenlabs_svc.is_enabled:
                 provider = "elevenlabs"
-                model = settings.ELEVENLABS_MODEL_ID
+                model = "eleven_multilingual_v2"
                 try:
                     # No explicit voice_id/model_id: the service falls back to
-                    # the Settings-configured defaults.
+                    # its module defaults.
                     audio_bytes = await elevenlabs_svc.generate_speech(text=text)
                 except ElevenLabsProviderException:
                     logger.warning(

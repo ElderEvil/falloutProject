@@ -9,14 +9,18 @@ from app.utils.exceptions import ElevenLabsProviderException
 
 logger = logging.getLogger(__name__)
 
+ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech"
+DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"  # George
+DEFAULT_MODEL_ID = "eleven_multilingual_v2"
+DEFAULT_STABILITY = 0.5
+DEFAULT_SIMILARITY_BOOST = 0.75
+
 
 class ElevenLabsTtsService:
     """Thin async wrapper around ElevenLabs text-to-speech REST API.
 
-    All provider knobs (endpoint, voice, model, voice settings) come from
-    Settings, so deployments can override them via environment/backend .env
-    without touching code. The free tier has no quota, so callers may use
-    this path without checking token quotas.
+    The free tier has no quota, so callers may use this path without
+    checking token quotas.
     """
 
     @property
@@ -34,8 +38,8 @@ class ElevenLabsTtsService:
 
         Args:
             text: The line to speak.
-            voice_id: ElevenLabs voice; defaults to settings.ELEVENLABS_VOICE_ID.
-            model_id: ElevenLabs model; defaults to settings.ELEVENLABS_MODEL_ID.
+            voice_id: ElevenLabs voice; defaults to DEFAULT_VOICE_ID.
+            model_id: ElevenLabs model; defaults to DEFAULT_MODEL_ID.
 
         Raises:
             ElevenLabsProviderException: On HTTP or transport errors from the API.
@@ -48,15 +52,15 @@ class ElevenLabsTtsService:
             "Content-Type": "application/json",
         }
         payload = {
-            "model_id": model_id or settings.ELEVENLABS_MODEL_ID,
+            "model_id": model_id or DEFAULT_MODEL_ID,
             "text": text,
             "voice_settings": {
-                "stability": settings.ELEVENLABS_STABILITY,
-                "similarity_boost": settings.ELEVENLABS_SIMILARITY_BOOST,
+                "stability": DEFAULT_STABILITY,
+                "similarity_boost": DEFAULT_SIMILARITY_BOOST,
             },
         }
 
-        url = f"{settings.ELEVENLABS_API_URL.rstrip('/')}/{voice_id or settings.ELEVENLABS_VOICE_ID}"
+        url = f"{ELEVENLABS_API_URL}/{voice_id or DEFAULT_VOICE_ID}"
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:

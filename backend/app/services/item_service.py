@@ -7,7 +7,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.crud.item_base import get_item_vault_id
+from app.crud.item_base import CRUDItem, get_item_vault_id
+from app.crud.junk import CRUDJunk
 from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.vault import Vault
@@ -17,7 +18,7 @@ from app.utils.exceptions import ResourceNotFoundException
 
 ItemModel = type[Weapon] | type[Outfit] | type[Junk]
 
-_ITEM_CRUD = {Weapon: crud.weapon, Outfit: crud.outfit, Junk: crud.junk}
+_ITEM_CRUD: dict[ItemModel, CRUDItem | CRUDJunk] = {Weapon: crud.weapon, Outfit: crud.outfit, Junk: crud.junk}
 
 
 def _crud_for(model: ItemModel):
@@ -26,6 +27,22 @@ def _crud_for(model: ItemModel):
 
 class ItemService:
     """Item lifecycle operations that span items and vault resources."""
+
+    async def equip_item[ItemT: (Weapon, Outfit)](
+        self, db_session: AsyncSession, *, item_id: UUID4, dweller_id: UUID4, model: type[ItemT]
+    ) -> ItemT:
+        """Equip through the shared CRUD path, then publish the committed action."""
+        from app.core.event_bus import GameEvent, event_bus
+
+        item = await _crud_for(model).equip(db_session=db_session, item_id=item_id, dweller_id=dweller_id)
+        vault_id = await get_item_vault_id(db_session, item)
+        if vault_id:
+            await event_bus.emit(
+                GameEvent.ITEM_EQUIPPED,
+                vault_id,
+                {"dweller_id": str(dweller_id), "item_type": model.__name__.lower()},
+            )
+        return item
 
     async def sell_item(self, db_session: AsyncSession, *, item_id: UUID4, model: ItemModel) -> None:
         """Sell an item for caps: credit the owning vault, then delete the item in a single commit."""

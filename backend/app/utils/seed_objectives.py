@@ -5,11 +5,12 @@ from pathlib import Path
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.crud.objective import objective_crud
 from app.models.objective import Objective
 from app.schemas.objective import ObjectiveCreate
 from app.utils.objective_constants import validate_target_entity
 from app.utils.seeding import seed_from_json
-from app.utils.static_data import DATA_DIR
+from app.utils.static_data import DATA_DIR, StaticGameData
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ async def seed_objectives_from_json(db_session: AsyncSession, objectives_dir: Pa
     if objectives_dir is None:
         objectives_dir = DATA_DIR / "objectives"
 
-    return await seed_from_json(
+    seeded = await seed_from_json(
         db_session=db_session,
         model_class=Objective,
         schema_class=ObjectiveCreate,
@@ -67,3 +68,7 @@ async def seed_objectives_from_json(db_session: AsyncSession, objectives_dir: Pa
         transform_fn=_transform_objective_create_to_model,
         validate_fn=_validate_objective,
     )
+    starter_file = objectives_dir / "starter.json"
+    if starter_file.exists():
+        await objective_crud.sync_starter_templates(db_session, StaticGameData.load_data(starter_file, ObjectiveCreate))
+    return seeded

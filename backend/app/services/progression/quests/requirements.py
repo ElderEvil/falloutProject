@@ -94,8 +94,8 @@ async def validate_item_requirement(
         storage_count = await crud.weapon.count_in_storage_by_name(db_session, storage.id, item_name)
         storage_count += await crud.outfit.count_in_storage_by_name(db_session, storage.id, item_name)
 
-    equipped_count = await crud.weapon.count_equipped_by_name(db_session, vault_id, item_name)
-    equipped_count += await crud.outfit.count_equipped_by_name(db_session, vault_id, item_name)
+    equipped_count = await crud.weapon.count_equipped(db_session, vault_id, item_name)
+    equipped_count += await crud.outfit.count_equipped(db_session, vault_id, item_name)
 
     return storage_count + equipped_count >= required_count
 

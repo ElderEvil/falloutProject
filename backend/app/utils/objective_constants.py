@@ -276,6 +276,9 @@ def validate_target_entity(
             + _validate_item_type(target_entity.get("item_type"))
         ),
         "reach": lambda: _validate_reach_type(target_entity.get("reach_type")),
+        "equip": lambda: (
+            [] if target_entity.get("item_type") in {"weapon", "outfit"} else ["Equipment requires weapon or outfit"]
+        ),
         "scrap": lambda: (
             _validate_item_type(target_entity.get("item_type")) + _validate_rarity(target_entity.get("rarity"))
         ),

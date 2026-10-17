@@ -126,7 +126,7 @@ async def equip_outfit(
     """
     await verify_dweller_access(dweller_id, user, db_session)
     await verify_item_access(outfit_id, Outfit, user, db_session)
-    return await crud.outfit.equip(db_session=db_session, item_id=outfit_id, dweller_id=dweller_id)
+    return await item_service.equip_item(db_session, item_id=outfit_id, dweller_id=dweller_id, model=Outfit)
 
 
 @router.post("/{outfit_id}/unequip/", status_code=200, response_model=None)

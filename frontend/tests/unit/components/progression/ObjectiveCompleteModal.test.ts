@@ -29,20 +29,23 @@ const mountModal = (reward: string) =>
 describe('ObjectiveCompleteModal handoff', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('celebrates a granted dweller and links to the actual vault roster without guessing an id', async () => {
-    const wrapper = mountModal('dweller:Wanderer')
-    const card = wrapper.getComponent(RewardItemCard)
-    expect(card.props('kind')).toBe('dweller')
-    expect(card.props('name')).toBe('Wanderer')
-    expect(wrapper.findComponent(DwellerPortrait).exists()).toBe(true)
-    expect(wrapper.find('img').exists()).toBe(false)
-    expect(wrapper.text()).toContain('Wanderer has joined your vault')
-    await wrapper.get('button.confirm').trigger('click')
-    expect(wrapper.emitted('confirm')).toHaveLength(1)
-    expect(router.push).toHaveBeenCalledWith('/vault/vault-1/dwellers')
-    expect(wrapper.get('button.confirm').text()).toContain('View dwellers')
-    wrapper.unmount()
-  })
+  it.each(['dweller', 'DWELLER', 'DwElLeR'])(
+    'celebrates a %s reward and links to the actual vault roster',
+    async (prefix) => {
+      const wrapper = mountModal(`${prefix}:Wanderer`)
+      const card = wrapper.getComponent(RewardItemCard)
+      expect(card.props('kind')).toBe('dweller')
+      expect(card.props('name')).toBe('Wanderer')
+      expect(wrapper.findComponent(DwellerPortrait).exists()).toBe(true)
+      expect(wrapper.find('img').exists()).toBe(false)
+      expect(wrapper.text()).toContain('Wanderer has joined your vault')
+      await wrapper.get('button.confirm').trigger('click')
+      expect(wrapper.emitted('confirm')).toHaveLength(1)
+      expect(router.push).toHaveBeenCalledWith('/vault/vault-1/dwellers')
+      expect(wrapper.get('button.confirm').text()).toContain('View dwellers')
+      wrapper.unmount()
+    }
+  )
 
   it('renders an ordinary reward as a currency tile and closes without navigation', async () => {
     const wrapper = mountModal('50 caps')
@@ -58,4 +61,21 @@ describe('ObjectiveCompleteModal handoff', () => {
     expect(router.push).not.toHaveBeenCalled()
     wrapper.unmount()
   })
+
+  it.each(['weapon', 'WEAPON', 'WeApOn'])(
+    'reveals %s equipment with its item name and rarity',
+    (prefix) => {
+      const wrapper = mountModal(`${prefix}:rare:Hardened shotgun`)
+      expect(wrapper.getComponent(RewardItemCard).props()).toMatchObject({
+        kind: 'item',
+        name: 'Hardened shotgun',
+        rarity: 'rare',
+        itemType: 'weapon',
+      })
+      expect(wrapper.getComponent(RewardItemCard).text()).toContain('Hardened shotgun')
+      expect(wrapper.getComponent(RewardItemCard).text()).toContain('rare')
+      expect(wrapper.text()).not.toContain('weapon:rare:')
+      wrapper.unmount()
+    }
+  )
 })

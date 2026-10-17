@@ -658,6 +658,12 @@ async def test_process_quest_rewards_multiple(async_session: AsyncSession) -> No
         pytest.param("200 xp", RewardType.EXPERIENCE, {"amount": 200, "dweller_ids": []}, id="xp"),
         pytest.param("150 experience", RewardType.EXPERIENCE, {"amount": 150, "dweller_ids": []}, id="experience"),
         pytest.param(
+            "weapon:rare:Hardened shotgun",
+            RewardType.ITEM,
+            {"item_type": "weapon", "name": "Hardened shotgun", "rarity": "rare"},
+            id="rare-weapon",
+        ),
+        pytest.param(
             "outfit:Combat Armor",
             RewardType.ITEM,
             {"item_type": "outfit", "name": "Combat Armor", "rarity": "common"},

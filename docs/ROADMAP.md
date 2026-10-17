@@ -19,6 +19,15 @@ spikes plus the visual-test safety net; see "Frontend Component-Library Migratio
 
 ## Active Priorities
 
+### Starter progression teaching (#1042)
+
+- **Wave 1 — implementation:** fund the unchanged 1,000-cap / 18-resident Office gate through starter lessons,
+  seven dweller rewards, useful equipment and construction/recruitment cap grants. Balance against fresh vaults;
+  existing-vault progress reconciliation is outside this development wave.
+- **Wave 2 — next:** extend the existing spotlight tutorial to equipment, production expansion, radio and quest
+  preparation. Bind lessons to the wave-1 objective template keys and existing UI destinations. Guidance stays
+  skippable/resumable, rewards remain explicitly claimed, and spotlight dismissal never changes game progress.
+
 ### P0 — Backend service-layer architecture rewrite
 
 Re-establish the CRUD/repository → service → endpoint boundaries before expanding backend mechanics. The current

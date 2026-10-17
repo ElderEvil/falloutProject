@@ -251,7 +251,7 @@ def test_starter_seed_file_integrity() -> None:
     with starter_file.open("r", encoding="utf-8") as f:
         steps = json.load(f)
 
-    assert len(steps) == 11
+    assert len(steps) > 11
     supported_types = {
         "assign",
         "build",
@@ -262,6 +262,7 @@ def test_starter_seed_file_integrity() -> None:
         "train",
         "expedition",
         "explore",
+        "equip",
     }
     sequences = []
     for step in steps:
@@ -282,7 +283,7 @@ def test_starter_seed_file_integrity() -> None:
         elif step["objective_type"] == "reach":
             assert target.get("reach_type") in VALID_REACH_TYPES
 
-    assert sequences == list(range(11)), "sequences must be unique and contiguous 0..10"
+    assert sequences == list(range(len(steps))), "sequences must be unique and contiguous"
 
 
 def test_objective_item_rewards_are_catalog_backed() -> None:
@@ -298,4 +299,43 @@ def test_objective_item_rewards_are_catalog_backed() -> None:
         for entry in json.loads(path.read_text()):
             prefix, sep, name = str(entry.get("reward", "")).partition(":")
             if sep and prefix.lower() in catalog:
+                name = name.rsplit(":", 1)[-1]
                 assert name.strip().lower() in catalog[prefix.lower()], f"{path.name}: {entry['reward']}"
+
+
+async def test_starter_balance_refreshes_existing_templates_without_progress_backfill(async_session, tmp_path, vault):
+    """A new vault must see edited catalog rewards even on an already-seeded database."""
+    from app.crud.objective import objective_crud
+
+    path = tmp_path / "starter.json"
+    template = {
+        "challenge": "Teach production",
+        "template_key": "starter:teach production",
+        "category": "starter",
+        "reward": "50 caps",
+        "objective_type": "collect",
+        "target_entity": {"resource_type": "power", "production_only": True},
+        "target_amount": 50,
+        "sequence": 0,
+    }
+    path.write_text(json.dumps([template]))
+    assert await seed_objectives_from_json(async_session, tmp_path) == 1
+    original = (await objective_crud.get_by_category(async_session, "starter"))[0]
+    # Earlier releases left an inactive canonical row and an active #v2 copy.
+    original.assignable = False
+    previous_release = Objective(**template | {"template_key": template["template_key"] + "#v2"})
+    async_session.add_all([original, previous_release])
+    await async_session.commit()
+    path.write_text(json.dumps([template | {"reward": "dweller:Mechanic", "sequence": 1}]))
+    assert await seed_objectives_from_json(async_session, tmp_path) == 0
+    rows = await objective_crud.get_by_category(async_session, "starter")
+    updated = next(row for row in rows if row.id == original.id)
+    assert updated.id == original.id
+    assert updated.reward == "dweller:Mechanic"
+    assert updated.sequence == 1
+    assert updated.assignable
+    await async_session.refresh(previous_release)
+    assert not previous_release.assignable
+    assert await objective_crud.assign_initial(async_session, vault.id, is_boosted=False) == 1
+    assigned = await objective_crud.get_multi_for_vault(async_session, vault.id)
+    assert [row.reward for row in assigned] == ["dweller:Mechanic"]

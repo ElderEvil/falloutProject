@@ -15,7 +15,11 @@
     "reward": "dweller:Wanderer",
     "category": "starter",
     "objective_type": "build",
-    "target_entity": {"room_type": "living_room", "additional": true, "baseline_size": 3},
+    "target_entity": {
+      "room_type": "living_room",
+      "additional": true,
+      "baseline_size": 3
+    },
     "target_amount": 1,
     "sequence": 1,
     "description": "More living space raises the population cap. Build another quarter and a new dweller joins the vault.",
@@ -23,46 +27,187 @@
   },
   {
     "challenge": "Send a dweller exploring",
-    "reward": "50 caps",
+    "reward": "dweller:Settler",
     "category": "starter",
     "objective_type": "explore",
     "target_entity": {},
     "target_amount": 1,
     "sequence": 2,
-    "description": "The wasteland returns caps and loot. The run takes hours, so do other things while they are out.",
+    "description": "Send an adult into the wasteland, then keep building while they travel. A new resident replaces the explorer in your workforce.",
     "template_key": "starter:send a dweller exploring"
   },
   {
+    "template_key": "starter:equip a weapon",
+    "challenge": "Equip a weapon",
+    "reward": "outfit:Wasteland gear",
+    "category": "starter",
+    "objective_type": "equip",
+    "target_entity": {
+      "item_type": "weapon"
+    },
+    "target_amount": 1,
+    "description": "Open a dweller and equip a weapon from Storage. Weapons improve combat damage; your reward adds Endurance for exploration.",
+    "sequence": 3
+  },
+  {
+    "template_key": "starter:equip an outfit",
+    "challenge": "Equip an outfit",
+    "reward": "dweller:Scout",
+    "category": "starter",
+    "objective_type": "equip",
+    "target_entity": {
+      "item_type": "outfit"
+    },
+    "target_amount": 1,
+    "description": "Equip your Wasteland gear or another outfit. SPECIAL bonuses improve work and survival without changing base stats.",
+    "sequence": 4
+  },
+  {
+    "template_key": "starter:produce 50 power",
+    "challenge": "Collect 50 Power",
+    "reward": "dweller:Mechanic",
+    "category": "starter",
+    "objective_type": "collect",
+    "target_entity": {
+      "resource_type": "power",
+      "production_only": true
+    },
+    "target_amount": 50,
+    "description": "Staff the Power Generator. Production counts even at full storage; gifts and objective rewards do not. A new resident joins when you claim.",
+    "sequence": 5
+  },
+  {
+    "template_key": "starter:produce 50 food",
+    "challenge": "Collect 50 Food",
+    "reward": "dweller:Cook",
+    "category": "starter",
+    "objective_type": "collect",
+    "target_entity": {
+      "resource_type": "food",
+      "production_only": true
+    },
+    "target_amount": 50,
+    "description": "Staff the Diner. Production counts even at full storage; gifts and objective rewards do not. A new resident joins when you claim.",
+    "sequence": 6
+  },
+  {
+    "template_key": "starter:produce 50 water",
+    "challenge": "Collect 50 Water",
+    "reward": "dweller:Rover",
+    "category": "starter",
+    "objective_type": "collect",
+    "target_entity": {
+      "resource_type": "water",
+      "production_only": true
+    },
+    "target_amount": 50,
+    "description": "Staff the Water Treatment. Production counts even at full storage; gifts and objective rewards do not. A new resident joins when you claim.",
+    "sequence": 7
+  },
+  {
     "challenge": "Reach 10 Dwellers",
-    "reward": "100 caps",
+    "reward": "150 caps",
     "category": "starter",
     "objective_type": "reach",
-    "target_entity": {"reach_type": "dweller_count"},
+    "target_entity": {
+      "reach_type": "dweller_count"
+    },
     "target_amount": 10,
-    "sequence": 3,
-    "description": "Grow population via the radio or breeding.",
+    "sequence": 8,
+    "description": "More residents need food, water and living space. These caps help expand production before the vault grows further.",
     "template_key": "starter:reach 10 dwellers"
+  },
+  {
+    "template_key": "starter:expand power production",
+    "challenge": "Expand power production",
+    "reward": "dweller:Builder",
+    "category": "starter",
+    "objective_type": "build",
+    "target_entity": {
+      "room_type": "power_generator",
+      "additional": true,
+      "baseline_size": 3
+    },
+    "target_amount": 1,
+    "description": "Build an additional Power Generator beside the existing one to merge them. More floor space provides room for another worker; upgrading alone does not count.",
+    "sequence": 9
+  },
+  {
+    "template_key": "starter:staff expanded power",
+    "challenge": "Staff expanded power",
+    "reward": "150 caps",
+    "category": "starter",
+    "objective_type": "assign",
+    "target_entity": {
+      "room_type": "power_generator"
+    },
+    "target_amount": 3,
+    "description": "Assign at least three residents across your Power Generators. Extra room space only increases production when staffed.",
+    "sequence": 10
+  },
+  {
+    "template_key": "starter:develop a level 2 dweller",
+    "challenge": "Develop a level 2 dweller",
+    "reward": "weapon:Hunting rifle",
+    "category": "starter",
+    "objective_type": "reach",
+    "target_entity": {
+      "reach_type": "level"
+    },
+    "target_amount": 2,
+    "description": "Work, exploration and combat earn experience. Develop one dweller to level 2; the rifle helps prepare another explorer or quest member.",
+    "sequence": 11
+  },
+  {
+    "template_key": "starter:staff the radio",
+    "challenge": "Staff the Radio Studio",
+    "reward": "200 caps",
+    "category": "starter",
+    "objective_type": "assign",
+    "target_entity": {
+      "room_type": "radio_studio"
+    },
+    "target_amount": 1,
+    "description": "Your starter broadcaster is already working. Open the Radio Studio to review recruitment: passive arrivals take time, while manual recruitment costs 500 caps.",
+    "sequence": 12
+  },
+  {
+    "template_key": "starter:reach 16 dwellers",
+    "challenge": "Reach 16 Dwellers",
+    "reward": "400 caps",
+    "category": "starter",
+    "objective_type": "reach",
+    "target_entity": {
+      "reach_type": "dweller_count"
+    },
+    "target_amount": 16,
+    "description": "Starter rewards supply most of your new residents. Save these caps toward the final radio recruit and the Office; build housing before claiming residents.",
+    "sequence": 13
   },
   {
     "challenge": "Reach 18 Dwellers",
     "reward": "150 caps",
     "category": "starter",
     "objective_type": "reach",
-    "target_entity": {"reach_type": "dweller_count"},
+    "target_entity": {
+      "reach_type": "dweller_count"
+    },
     "target_amount": 18,
-    "sequence": 4,
-    "description": "The Overseer's Office needs 18 dwellers.",
+    "sequence": 14,
+    "description": "The Office requires 18 living residents. Starter rewards bring the fresh vault to 17; recruit once for 500 caps, or use passive recruitment or breeding.",
     "template_key": "starter:reach 18 dwellers"
   },
   {
     "challenge": "Build Overseer's Office",
-    "reward": "200 caps",
+    "reward": "weapon:rare:Hardened shotgun",
     "category": "starter",
     "objective_type": "build",
-    "target_entity": {"room_type": "overseers_office"},
+    "target_entity": {
+      "room_type": "overseers_office"
+    },
     "target_amount": 1,
-    "sequence": 5,
-    "description": "Costs 1000 caps \u2014 keep exploring and selling loot.",
+    "sequence": 15,
+    "description": "Build the Office for 1000 caps at population 18 to unlock quests. Your reward is a guaranteed rare weapon for the next scrapping lesson.",
     "template_key": "starter:build overseer's office"
   },
   {
@@ -70,9 +215,12 @@
     "reward": "300 caps",
     "category": "starter",
     "objective_type": "scrap",
-    "target_entity": {"item_type": "weapon", "rarity": "rare"},
+    "target_entity": {
+      "item_type": "weapon",
+      "rarity": "rare"
+    },
     "target_amount": 1,
-    "sequence": 6,
+    "sequence": 16,
     "description": "Scrap a rare weapon from Storage to recover crafting materials. Only items with a locked recipe teach a new schematic.",
     "template_key": "starter:reverse-engineer a schematic"
   },
@@ -83,7 +231,7 @@
     "objective_type": "train",
     "target_entity": {},
     "target_amount": 1,
-    "sequence": 7,
+    "sequence": 17,
     "description": "Build a training room and train one stat. Choose a stat that improves a dweller's next job or quest role.",
     "template_key": "starter:train a special stat"
   },
@@ -94,7 +242,7 @@
     "objective_type": "expedition",
     "target_entity": {},
     "target_amount": 3,
-    "sequence": 8,
+    "sequence": 18,
     "description": "Use the Overseer's Office to choose missions, prepare a party and claim the rewards after each return.",
     "template_key": "starter:complete 3 quest missions"
   },
@@ -103,9 +251,11 @@
     "reward": "750 caps",
     "category": "starter",
     "objective_type": "reach",
-    "target_entity": {"reach_type": "level"},
+    "target_entity": {
+      "reach_type": "level"
+    },
     "target_amount": 20,
-    "sequence": 9,
+    "sequence": 19,
     "description": "Develop a veteran through work, quests or exploration. Review newly available missions and their equipment requirements.",
     "template_key": "starter:develop a level 20 dweller"
   },
@@ -114,9 +264,11 @@
     "reward": "1 lunchbox",
     "category": "starter",
     "objective_type": "reach",
-    "target_entity": {"reach_type": "dweller_count"},
+    "target_entity": {
+      "reach_type": "dweller_count"
+    },
     "target_amount": 50,
-    "sequence": 10,
+    "sequence": 20,
     "description": "Expand living space and recruit or raise dwellers. Keep production and medical capacity ahead of population growth.",
     "template_key": "starter:grow a 50-dweller vault"
   }

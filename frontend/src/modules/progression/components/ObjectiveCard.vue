@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Objective } from '../models/objective'
-import { isObjectiveClaimable } from '../models/objective'
+import { isObjectiveClaimable, objectiveRewardDetails } from '../models/objective'
 import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
 import { Progress } from '@/core/components/ui/progress'
@@ -43,6 +43,10 @@ const objectiveIcon = computed(() => {
 const categoryLabel = computed(() => capitalize(props.objective.category))
 
 const canClaim = computed(() => isObjectiveClaimable(props.objective))
+const rewardLabel = computed(() => {
+  const reward = objectiveRewardDetails(props.objective.reward)
+  return reward.kind === 'item' ? `${capitalize(reward.rarity)} ${reward.name}` : reward.name
+})
 </script>
 
 <template>
@@ -92,7 +96,7 @@ const canClaim = computed(() => isObjectiveClaimable(props.objective))
         <Icon icon="mdi:gift" class="reward-icon" />
         Reward
       </div>
-      <div class="reward-value">{{ objective.reward }}</div>
+      <div class="reward-value">{{ rewardLabel }}</div>
     </div>
 
     <!-- Claim Button (if completed but not claimed) -->

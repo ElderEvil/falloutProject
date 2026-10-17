@@ -15,7 +15,12 @@ import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import { Icon } from '@iconify/vue'
 import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import {
   Select,
   SelectContent,
@@ -27,7 +32,11 @@ import { QuestCard, PartySelectionModal } from '../components'
 import { Badge } from '@/core/components/ui/badge'
 import QuestRewardsModal from '../components/QuestRewardsModal.vue'
 import type { QuestAvailableSortBy, VaultQuest } from '../models/quest'
-import { compareQuestsByAvailableSort, isQuestReturning } from '../models/quest'
+import {
+  compareQuestsByAvailableSort,
+  isQuestReturning,
+  MAX_ACTIVE_TIMED_QUESTS,
+} from '../models/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 
 const route = useRoute()
@@ -118,6 +127,14 @@ const activeQuestsList = computed(() => [
   })),
 ])
 
+const selectAvailableIfEmpty = () => {
+  if (activeTab.value === 'active' && activeQuestsList.value.length === 0) {
+    activeTab.value = 'available'
+  }
+}
+
+watch(activeQuestsList, selectAvailableIfEmpty)
+
 const refreshActiveQuests = async () => {
   if (!vaultId.value || travellingOrActiveQuests.value.length === 0) return
   await questStore.fetchVaultQuests(vaultId.value, { silent: true })
@@ -182,6 +199,11 @@ const handleAssignParty = async (questId: string) => {
 // Handle party assignment + quest start (combined in one click)
 const handleAssignAndStart = async (dwellerIds: string[]) => {
   if (!vaultId.value || !selectedQuest.value) {
+    return
+  }
+
+  if (questStore.timedQuestLimitReached) {
+    toast.error('All timed quest slots are occupied. Wait for a party to return.')
     return
   }
 
@@ -279,6 +301,7 @@ onMounted(async () => {
     await questStore.fetchVaultQuests(vaultId.value)
     await loadPartyMembers()
   }
+  selectAvailableIfEmpty()
 })
 </script>
 
@@ -321,8 +344,8 @@ onMounted(async () => {
                     Run a quest
                   </h2>
                   <p>
-                    Pick a quest on the Available tab and assign a party. Travelling parties stay
-                    on the Active tab until they return.
+                    Pick a quest on the Available tab and assign a party. Travelling parties stay on
+                    the Active tab until they return.
                   </p>
                 </section>
                 <section>
@@ -360,7 +383,12 @@ onMounted(async () => {
                       <Tooltip>
                         <TooltipTrigger as-child>
                           <TabsTrigger :value="tab.key">
-                            <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
+                            <Icon
+                              v-if="tab.icon"
+                              :icon="tab.icon"
+                              class="mr-2 inline"
+                              :ariaHidden="true"
+                            />
                             {{ tab.label }}
                             <span
                               v-if="tab.key === 'active' && readyToClaimQuests.length > 0"
@@ -413,6 +441,15 @@ onMounted(async () => {
                   </label>
                 </div>
               </div>
+              <p
+                v-if="questStore.timedQuestLimitReached"
+                class="mt-4 text-sm text-theme-accent"
+                role="status"
+              >
+                {{ questStore.activeTimedQuestCount }}/{{ MAX_ACTIVE_TIMED_QUESTS }} timed quest
+                slots occupied. Wait for a party to return before starting another. Rewards ready to
+                claim do not use slots.
+              </p>
               <!-- Active Quests -->
               <div v-if="activeTab === 'active'" class="tab-content">
                 <div v-if="activeQuestsList.length > 0" class="quest-section">

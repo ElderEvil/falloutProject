@@ -154,7 +154,12 @@ function isRequirementMet(req: QuestRequirement): boolean {
   return prerequisitesMet.value
 }
 
+const timedQuestLimitReached = computed(
+  () => status === 'available' && !isStateQuest.value && questStore.timedQuestLimitReached
+)
+
 const actionButtonText = computed(() => {
+  if (timedQuestLimitReached.value) return 'Quest limit reached'
   if (isLocked) return 'Locked'
   if (status === 'completed') return ''
   return {
@@ -179,13 +184,11 @@ const cardBorderColor = computed(() => {
 })
 
 const isButtonDisabled = computed(() => {
-  return isLocked || status === 'active' || status === 'returning'
+  return isLocked || timedQuestLimitReached.value || status === 'active' || status === 'returning'
 })
 
 const handleAction = () => {
-  if (isLocked) {
-    return // Don't do anything for locked quests
-  }
+  if (isButtonDisabled.value) return
   switch (status) {
     case 'available':
       if (isStateQuest.value || hasParty.value) {

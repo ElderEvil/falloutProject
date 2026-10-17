@@ -36,6 +36,41 @@ const quest = {
 } as VaultQuest
 
 describe('QuestCard', () => {
+  it.each(['combat', 'training'])(
+    'limits timed starts while allowing %s state quests',
+    async (quest_category) => {
+      setActivePinia(createPinia())
+      const store = useQuestStore()
+      store.vaultQuests = Array.from({ length: 3 }, (_, index) => ({
+        ...quest,
+        id: `running-${index}`,
+        started_at: '2026-01-01T00:00:00Z',
+        return_completes_at: index === 0 ? '2099-01-01T00:00:00Z' : null,
+      }))
+      store.vaultQuests.push(
+        { ...quest, id: 'ready', started_at: '2026-01-01T00:00:00Z', is_reward_ready: true },
+        { ...quest, id: 'completed', started_at: '2026-01-01T00:00:00Z', is_completed: true },
+        { ...quest, id: 'state', started_at: '2026-01-01T00:00:00Z', quest_category: 'training' }
+      )
+      expect(store.activeTimedQuestCount).toBe(3)
+      const wrapper = mount(QuestCard, {
+        props: { quest: { ...quest, quest_category }, vaultId: 'vault-1', status: 'available' },
+      })
+      const action = wrapper.get('.quest-action-btn')
+      if (quest_category === 'combat') {
+        expect(action.attributes('disabled')).toBeDefined()
+        expect(action.text()).toContain('Quest limit reached')
+        store.vaultQuests = store.vaultQuests.map((entry) => ({ ...entry, is_reward_ready: true }))
+        await wrapper.vm.$nextTick()
+        expect(action.attributes('disabled')).toBeUndefined()
+      } else {
+        expect(action.attributes('disabled')).toBeUndefined()
+        await action.trigger('click')
+        expect(wrapper.emitted('start')).toEqual([['quest-1']])
+      }
+    }
+  )
+
   it('renders a completed quest with a non-interactive Completed mark instead of a Details action', () => {
     setActivePinia(createPinia())
     const wrapper = mount(QuestCard, {

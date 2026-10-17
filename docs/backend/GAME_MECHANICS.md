@@ -74,6 +74,14 @@ intact when touching these flows.
 - During balance development, the JSON starter catalog updates matching template definitions on startup.
   Existing vault progress links are not reconciled or backfilled; playtests should use fresh vaults.
 
+## Timed quest capacity
+
+A vault can have three timed quests in flight at once. Both outbound and returning parties occupy a slot
+until rewards become ready to claim. Unclaimed rewards, completed quests and state-based building,
+population and training quests do not occupy slots. Start requests serialize on the vault row before
+counting active timed links; a fourth start is rejected with 409. The frontend mirrors the count,
+disables timed start/party actions at capacity, and leaves state objectives usable.
+
 ## Quest gates: one scope per requirement type
 
 Quest requirements gate on exactly one scope, on both the read path (`quest_availability`) and the start

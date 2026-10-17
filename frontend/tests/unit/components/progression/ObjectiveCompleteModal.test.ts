@@ -44,10 +44,12 @@ describe('ObjectiveCompleteModal handoff', () => {
     wrapper.unmount()
   })
 
-  it('keeps ordinary reward confirmation and closing free of navigation', async () => {
+  it('renders an ordinary reward as a currency tile and closes without navigation', async () => {
     const wrapper = mountModal('50 caps')
-    expect(wrapper.findComponent(RewardItemCard).exists()).toBe(false)
-    expect(wrapper.find('.reward-card').exists()).toBe(true)
+    const card = wrapper.getComponent(RewardItemCard)
+    expect(card.props('kind')).toBe('currency')
+    expect(card.props('name')).toBe('50 caps')
+    expect(wrapper.find('.reward-card').exists()).toBe(false)
     await wrapper.get('button.cancel').trigger('click')
     expect(wrapper.emitted('close')).toHaveLength(1)
     expect(router.push).not.toHaveBeenCalled()

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import RewardCard from '@/core/components/common/RewardCard.vue'
 import RewardItemCard from '@/core/components/common/RewardItemCard.vue'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
@@ -159,11 +158,12 @@ const dwellerCardMeta = (reward: QuestReward): string =>
           :image-url="itemImage(reward)"
         />
 
-        <RewardCard
+        <RewardItemCard
           v-else
+          kind="currency"
           :icon="rewardMeta(reward).icon"
           :label="rewardMeta(reward).label"
-          :value="numericRewardLabel(reward)"
+          :name="numericRewardLabel(reward)"
         />
       </template>
     </div>

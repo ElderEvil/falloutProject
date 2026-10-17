@@ -2,9 +2,10 @@
 /**
  * RewardItemCard — rarity-styled reward card shared by reveal modals.
  *
- * Renders an item (art via ItemIcon, glyph fallback) or a dweller (portrait via
- * the `media` slot, silhouette supplied by the consumer). Rarity drives both the
- * card border and the text colour through the shared item tokens.
+ * Renders an item (art via ItemIcon, glyph fallback), a dweller (portrait via
+ * the `media` slot, silhouette supplied by the consumer) or a numeric/currency
+ * reward (icon glyph in the same media panel, label above value). Rarity drives
+ * both the card border and the text colour through the shared item tokens.
  *
  * `core/` may not import `@/modules/` (scripts/check-boundaries.mjs hard-fails
  * that direction), so the dweller portrait and rarity badge are injected by the
@@ -30,9 +31,10 @@ interface Props {
   label?: string
   meta?: string
   quantity?: number
-  kind?: 'item' | 'dweller'
+  kind?: 'item' | 'dweller' | 'currency'
   itemType?: string
   imageUrl?: string | null
+  icon?: string
   layout?: 'tile' | 'row'
 }
 
@@ -45,6 +47,7 @@ const {
   kind = 'item',
   itemType = 'item',
   imageUrl = null,
+  icon,
   layout = 'tile',
 } = defineProps<Props>()
 
@@ -77,6 +80,11 @@ const titleClass = computed(() =>
   <Card :class="cardClass">
     <CardContent :class="mediaClass">
       <slot v-if="kind === 'dweller'" name="media" />
+      <Icon
+        v-else-if="kind === 'currency'"
+        :icon="icon ?? 'mdi:gift'"
+        class="size-14 text-theme-primary/60 sm:size-16"
+      />
       <ItemIcon
         v-else
         :item="{ image_url: imageUrl, name }"
@@ -99,6 +107,13 @@ const titleClass = computed(() =>
           <slot name="badge" />
         </div>
         <p v-if="meta" class="text-xs text-muted-foreground">{{ meta }}</p>
+      </template>
+
+      <template v-else-if="kind === 'currency'">
+        <CardDescription class="text-xs">{{ label }}</CardDescription>
+        <CardTitle :class="[titleClass, 'text-theme-primary']">
+          {{ name }}
+        </CardTitle>
       </template>
 
       <template v-else>

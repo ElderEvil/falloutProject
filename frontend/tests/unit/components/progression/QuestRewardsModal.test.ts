@@ -195,7 +195,7 @@ describe('QuestRewardsModal', () => {
     expect(wrapper.find('.reward-card').exists()).toBe(false)
   })
 
-  it('keeps numeric rewards on the shared stat card', () => {
+  it('renders numeric rewards as currency tiles matching the item treatment', () => {
     const capsQuest = {
       ...quest,
       quest_rewards: [
@@ -213,8 +213,12 @@ describe('QuestRewardsModal', () => {
       global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
     })
 
-    expect(wrapper.findComponent(RewardItemCard).exists()).toBe(false)
-    expect(wrapper.find('.reward-card').exists()).toBe(true)
+    const card = wrapper.getComponent(RewardItemCard)
+    expect(card.props('kind')).toBe('currency')
+    expect(card.props('icon')).toBe('mdi:coins')
+    expect(card.props('label')).toBe('Bottle Caps')
+    expect(card.props('name')).toBe('100')
+    expect(wrapper.find('.reward-card').exists()).toBe(false)
     expect(wrapper.text()).toContain('Bottle Caps')
     expect(wrapper.text()).toContain('100')
   })

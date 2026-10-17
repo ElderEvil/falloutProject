@@ -2,7 +2,6 @@
 import { Icon } from '@iconify/vue'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import RewardCard from '@/core/components/common/RewardCard.vue'
 import RewardItemCard from '@/core/components/common/RewardItemCard.vue'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
@@ -72,7 +71,7 @@ function confirm(): void {
         </template>
       </RewardItemCard>
 
-      <RewardCard v-else icon="mdi:gift" label="Reward" :value="objective.reward" />
+      <RewardItemCard v-else kind="currency" icon="mdi:gift" label="Reward" :name="objective.reward" />
 
       <p v-if="newDwellerName" class="text-sm leading-relaxed text-muted-foreground">
         {{ newDwellerName }} has joined your vault. Review their SPECIAL and equipment before

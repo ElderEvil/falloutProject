@@ -445,6 +445,9 @@ export function useDwellerDetail(
         ),
       {
         errorMessage: 'Failed to rename dweller',
+        onSuccess: () => {
+          renameDialogOpen.value = false
+        },
       }
     )
 
@@ -456,8 +459,12 @@ export function useDwellerDetail(
   const confirmRename = () => {
     const name = renameDialogName.value.trim()
     if (!name) return
-    renameDialogOpen.value = false
-    void handleRename(name, renameDialogLastName.value.trim() || null)
+    const lastName = renameDialogLastName.value.trim()
+    if (lastName.length === 1) {
+      toast.error('Last name must contain at least 2 characters.')
+      return
+    }
+    void handleRename(name, lastName || null)
   }
 
   const openSoftDeleteDialog = () => {

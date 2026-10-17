@@ -171,7 +171,7 @@ async def spawn_incident(
     profile = await profile_crud.get_by_user_id(db_session, vault.user_id)
     auto_paused = bool(profile and (profile.preferences or {}).get("pause_on_incident") is True)
     if auto_paused:
-        game_state = await game_state_crud.get_or_create(db_session, vault_id)
+        game_state = await game_state_crud.get_or_create(db_session, vault_id, commit=False)
         game_state.pause()
         db_session.add(game_state)
 

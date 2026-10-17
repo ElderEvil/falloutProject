@@ -792,3 +792,18 @@ async def test_resume_preserves_incident_response_time_and_does_not_shift_twice(
     shifted_start = incident.start_time
     await game_loop_service.resume_vault(async_session, room_in_vault.vault_id)
     assert incident.start_time == shifted_start
+
+
+@pytest.mark.parametrize("tick_offset", [-20, 120])
+async def test_resume_excludes_paused_time_without_counting_it_twice(async_session, vault, tick_offset):
+    """Resume preserves only the unprocessed active time, even if a paused tick ran."""
+    state = await game_loop_service.pause_vault(async_session, vault.id)
+    paused_at = datetime.utcnow() - timedelta(minutes=10)
+    state.paused_at = paused_at
+    state.last_tick_time = paused_at + timedelta(seconds=tick_offset)
+    await async_session.commit()
+    await game_loop_service.resume_vault(async_session, vault.id)
+    assert max(0, -tick_offset - 1) <= state.calculate_offline_time() <= max(0, -tick_offset) + 1
+    last_tick = state.last_tick_time
+    await game_loop_service.resume_vault(async_session, vault.id)
+    assert state.last_tick_time == last_tick

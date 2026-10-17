@@ -46,8 +46,13 @@ class GameState(BaseUUIDModel, GameStateBase, TimeStampMixin, table=True):
 
     def resume(self) -> None:
         """Resume the game state."""
+        resumed_at = datetime.utcnow()
+        if self.is_paused and self.paused_at:
+            paused_since = max(self.paused_at, self.last_tick_time)
+            if resumed_at > paused_since:
+                self.last_tick_time += resumed_at - paused_since
         self.is_paused = False
-        self.resumed_at = datetime.utcnow()
+        self.resumed_at = resumed_at
 
     def update_tick(self, seconds_passed: int) -> None:
         """Update the game state after a tick."""

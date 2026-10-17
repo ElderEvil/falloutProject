@@ -1432,3 +1432,30 @@ async def test_spawn_honors_pause_on_incident_preference(async_session, room_wit
         assert stats["processed"] == 0
         await async_session.refresh(incident)
         assert incident.combat_progress == 0
+
+
+async def test_auto_pause_does_not_commit_before_incident_insert(async_session, room_with_dwellers):
+    """Creating the first game state must not release the spawn lock before inserting its incident."""
+    from sqlalchemy import event
+
+    from app.crud.user_profile import profile_crud
+    from app.models.incident import Incident
+
+    vault = await crud.vault.get(async_session, room_with_dwellers["room"].vault_id)
+    profile = await profile_crud.get_by_user_id(async_session, vault.user_id)
+    if profile is None:
+        profile = await profile_crud.create_for_user(async_session, vault.user_id)
+    profile.preferences = {"pause_on_incident": True}
+    await async_session.commit()
+    commits = []
+
+    def before_commit(session):
+        commits.append(any(isinstance(row, Incident) for row in session.new))
+
+    event.listen(async_session.sync_session, "before_commit", before_commit)
+    try:
+        incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
+    finally:
+        event.remove(async_session.sync_session, "before_commit", before_commit)
+    assert incident is not None
+    assert commits[0], "The first commit must insert the incident, keeping the spawn lock through all checks."

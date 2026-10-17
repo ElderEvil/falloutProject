@@ -129,10 +129,16 @@ const hasPrerequisites = computed(() => {
 
 const prerequisitesMet = computed(() => {
   if (!hasPrerequisites.value) return true
-  return status !== 'available'
+  // The backend only marks a quest startable when its mandatory vault-level
+  // requirements are satisfied, so the card's lock verdict is authoritative for
+  // requirement types the card cannot evaluate per-row (item/room/etc.).
+  return !isLocked
 })
 
 function isRequirementMet(req: QuestRequirement): boolean {
+  // The backend evaluates every vault-scoped gate on the read path with the same
+  // dispatch the availability gate uses; its verdict is authoritative per-row.
+  if (typeof req.is_met === 'boolean') return req.is_met
   const data = req.requirement_data
   if (req.requirement_type === 'level' && data) {
     const level = data.level

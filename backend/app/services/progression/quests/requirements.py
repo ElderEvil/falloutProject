@@ -25,6 +25,20 @@ from app.utils.objective_constants import normalize_room_type
 logger = logging.getLogger(__name__)
 
 
+async def vault_requirement_states(db_session: AsyncSession, vault_id: UUID4, quest: Quest) -> dict[UUID4, bool]:
+    """Per-requirement vault-scoped verdicts keyed by requirement id.
+
+    The read path's honest per-row gate display: every requirement (mandatory or
+    optional) is evaluated through the same fail-closed ``_check_requirement``
+    dispatch the availability gate uses, so the UI shows *which* requirement
+    blocks a quest instead of inferring it from the lock verdict.
+    """
+    states: dict[UUID4, bool] = {}
+    for req in quest.quest_requirements:
+        states[req.id] = await _check_requirement(db_session, vault_id, req)
+    return states
+
+
 async def vault_missing_requirements(db_session: AsyncSession, vault_id: UUID4, quest: Quest) -> list[str]:
     """Vault-level requirement gates for a quest, as human-readable reasons.
 
@@ -172,12 +186,30 @@ async def _check_requirement(db_session: AsyncSession, vault_id: UUID4, requirem
         return False
 
 
+async def vault_missing_item_requirements(db_session: AsyncSession, vault_id: UUID4, quest: Quest) -> list[str]:
+    """Unmet mandatory ITEM gates, as human-readable reasons.
+
+    ITEM is vault-scoped, not a party burden: an item counts when it is in storage or
+    equipped by any dweller in the vault, so the start path applies the same rule the
+    read path already used. Folding this into the party gate made a quest read as
+    available and then refuse to start when the wearer stayed home.
+    """
+    missing: list[str] = []
+    for req in quest.quest_requirements:
+        if not req.is_mandatory or req.requirement_type != RequirementType.ITEM:
+            continue
+        if not await _check_requirement(db_session, vault_id, req):
+            missing.append(_describe_item(req.requirement_data))
+    return missing
+
+
 def party_missing_requirements(party_dwellers: Sequence[Dweller], quest: Quest) -> list[str]:
     """Missing party-level requirements for a quest, given the dwellers being sent.
 
-    LEVEL, ITEM, ATTACK and STAT gates are checked against the party itself — the
-    dwellers actually dispatched — while ROOM, DWELLER_COUNT and QUEST_COMPLETED
-    stay vault-level and keep their validation in ``vault_missing_requirements``.
+    LEVEL, ATTACK and STAT gates are checked against the party itself — the dwellers
+    actually dispatched — while ITEM, ROOM, DWELLER_COUNT and QUEST_COMPLETED are
+    vault-level and keep their validation in ``vault_missing_requirements`` (ITEM via
+    ``vault_missing_item_requirements`` on the start path).
     """
     missing: list[str] = []
     for req in quest.quest_requirements:
@@ -187,10 +219,6 @@ def party_missing_requirements(party_dwellers: Sequence[Dweller], quest: Quest) 
             party_dwellers, req.requirement_data
         ):
             missing.append(_describe_level(req.requirement_data))
-        elif req.requirement_type == RequirementType.ITEM and not _party_meets_item(
-            party_dwellers, req.requirement_data
-        ):
-            missing.append(_describe_party_item(req.requirement_data))
         elif req.requirement_type == RequirementType.ATTACK and not _party_meets_attack(
             party_dwellers, req.requirement_data
         ):
@@ -215,25 +243,16 @@ def individual_meets_requirement(dweller: Dweller, requirement: QuestRequirement
         return True
     if requirement.requirement_type == RequirementType.LEVEL:
         return _individual_meets_level(dweller, requirement.requirement_data)
-    if requirement.requirement_type == RequirementType.ITEM:
-        return _individual_meets_item(dweller, requirement.requirement_data)
     if requirement.requirement_type == RequirementType.ATTACK:
         return _individual_meets_attack(dweller, requirement.requirement_data)
     if requirement.requirement_type == RequirementType.STAT:
         return _individual_meets_stat(dweller, requirement.requirement_data)
-    # ROOM / DWELLER_COUNT / QUEST_COMPLETED are vault-scoped; not judged here.
+    # ITEM / ROOM / DWELLER_COUNT / QUEST_COMPLETED are vault-scoped; not judged here.
     return True
 
 
 def _individual_meets_level(dweller: Dweller, requirement_data: dict[str, Any]) -> bool:
     return dweller.level >= requirement_data.get("level", 1)
-
-
-def _individual_meets_item(dweller: Dweller, requirement_data: dict[str, Any]) -> bool:
-    item_name = requirement_data.get("item_name", "")
-    return (dweller.weapon is not None and dweller.weapon.name == item_name) or (
-        dweller.outfit is not None and dweller.outfit.name == item_name
-    )
 
 
 def _individual_meets_attack(dweller: Dweller, requirement_data: dict[str, Any]) -> bool:
@@ -251,11 +270,6 @@ def _individual_meets_stat(dweller: Dweller, requirement_data: dict[str, Any]) -
 def _party_meets_level(party_dwellers: Sequence[Dweller], requirement_data: dict[str, Any]) -> bool:
     required_count = requirement_data.get("count", 1)
     return sum(1 for dweller in party_dwellers if _individual_meets_level(dweller, requirement_data)) >= required_count
-
-
-def _party_meets_item(party_dwellers: Sequence[Dweller], requirement_data: dict[str, Any]) -> bool:
-    required_count = requirement_data.get("count", 1)
-    return sum(1 for dweller in party_dwellers if _individual_meets_item(dweller, requirement_data)) >= required_count
 
 
 def _party_meets_attack(party_dwellers: Sequence[Dweller], requirement_data: dict[str, Any]) -> bool:
@@ -280,16 +294,8 @@ def _describe_item(data: dict[str, Any]) -> str:
     item_name = data.get("item_name", "Unknown item")
     count = data.get("count", 1)
     if count > 1:
-        return f"Need {count}x {item_name} in storage"
-    return f"Need {item_name} in storage"
-
-
-def _describe_party_item(data: dict[str, Any]) -> str:
-    item_name = data.get("item_name", "Unknown item")
-    count = data.get("count", 1)
-    if count > 1:
-        return f"Need {count} party dweller(s) equipped with {item_name}"
-    return f"Need a party dweller equipped with {item_name}"
+        return f"Need {count}x {item_name} owned or equipped"
+    return f"Need {item_name} owned or equipped"
 
 
 def _describe_attack(data: dict[str, Any]) -> str:

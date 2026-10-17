@@ -288,6 +288,9 @@ def test_individual_meets_requirement_ignores_count() -> None:
         is True
     )
     assert (
+        individual_meets_requirement(dweller, _make_req(RequirementType.ITEM, {"item_name": "Vault 33 suit"})) is True
+    )
+    assert (
         individual_meets_requirement(
             dweller, _make_req(RequirementType.LEVEL, {"level": 99, "count": 1}, is_mandatory=False)
         )
@@ -308,14 +311,14 @@ def test_party_missing_requirements_level_gate() -> None:
     assert party_missing_requirements(party, quest) == ["Need a dweller at level 7 or higher"]
 
 
-def test_party_missing_requirements_item_gate() -> None:
-    """ITEM gates match equipped weapon/outfit names on the party."""
+def test_party_missing_requirements_ignores_item_gate() -> None:
+    """ITEM is vault-scoped, so the party gate never reports it as missing."""
     party = [_party_dweller(weapon=SimpleNamespace(name="10mm Pistol"))]
     quest = _make_quest(_make_req(RequirementType.ITEM, {"item_name": "10mm Pistol", "count": 1}))
     assert party_missing_requirements(party, quest) == []
 
     quest = _make_quest(_make_req(RequirementType.ITEM, {"item_name": "Vault Suit", "count": 1}))
-    assert party_missing_requirements(party, quest) == ["Need a party dweller equipped with Vault Suit"]
+    assert party_missing_requirements(party, quest) == []
 
 
 def test_party_missing_requirements_attack_gate() -> None:
@@ -526,13 +529,10 @@ async def test_get_eligible_dwellers_for_count_two_requirement(
 
 
 @pytest.mark.asyncio
-async def test_get_eligible_dwellers_for_item_requirement(
+async def test_get_eligible_dwellers_ignores_item_requirement(
     async_client: AsyncClient, async_session: AsyncSession
 ) -> None:
-    """An ITEM gate is met by a dweller with the matching equipped weapon.
-
-    Exercises the eager-loaded ``Dweller.weapon`` path in the eligible-dwellers query.
-    """
+    """An ITEM gate is vault-scoped, so it does not filter party candidates."""
     from app.tests.factory.items import create_fake_weapon
     from app.tests.utils.user import user_authentication_headers
 
@@ -587,7 +587,7 @@ async def test_get_eligible_dwellers_for_item_requirement(
     data = response.json()
     dweller_ids = [d["id"] for d in data]
     assert str(dweller_armed.id) in dweller_ids
-    assert str(dweller_unarmed.id) not in dweller_ids
+    assert str(dweller_unarmed.id) in dweller_ids
 
 
 @pytest.mark.asyncio

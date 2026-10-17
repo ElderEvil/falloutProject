@@ -15,7 +15,7 @@ from app import crud
 from app.models.quest import Quest
 from app.models.quest_requirement import RequirementType
 from app.schemas.quest import QuestRead
-from app.services.progression.quests.requirements import vault_missing_requirements
+from app.services.progression.quests.requirements import vault_missing_requirements, vault_requirement_states
 
 OFFICE_ROOM_TYPE = "overseers_office"
 OFFICE_LOCK_REASON = "Requires Overseer's Office"
@@ -143,6 +143,12 @@ async def get_quests_for_vault(
         quest_read.is_visible = quest_read.is_visible and availability.available
         quest_read.is_locked = not availability.available
         quest_read.lock_reason = availability.lock_reason
+        # Per-row gate verdicts for the UI, from the same dispatch the gate used.
+        if quest.quest_requirements:
+            states = await vault_requirement_states(db_session, vault_id, quest)
+            for requirement in quest_read.quest_requirements or []:
+                if requirement.id in states:
+                    requirement.is_met = states[requirement.id]
         visible_reads.append(quest_read)
         if available_only and availability.available:
             available_reads.append(quest_read)

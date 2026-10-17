@@ -48,6 +48,8 @@ export interface QuestRequirement {
     | 'stat'
   requirement_data: Record<string, unknown>
   is_mandatory: boolean
+  /** Backend vault-scoped verdict from the read path; null when not evaluated. */
+  is_met?: boolean | null
 }
 
 /**

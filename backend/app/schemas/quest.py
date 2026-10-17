@@ -19,6 +19,7 @@ class QuestRequirementRead(SQLModel):
     requirement_type: str
     requirement_data: dict[str, Any]
     is_mandatory: bool
+    is_met: bool | None = None
 
 
 class QuestRewardRead(SQLModel):

@@ -110,6 +110,14 @@ export function isQuestReturning(quest: VaultQuest): boolean {
   return quest.return_completes_at != null && !quest.is_reward_ready && !quest.is_completed
 }
 
+/** Display name for an authored dweller reward, without the rarity suffix. */
+export function questDwellerName(reward: QuestReward): string {
+  const data = reward.reward_data || {}
+  const template = rewardText(data.template_id).replaceAll('-', ' ')
+  const raw = rewardText(data.first_name) || rewardText(data.name) || template || 'New Dweller'
+  return raw.replace(/(^|[\s-])\p{L}/gu, (letter) => letter.toUpperCase())
+}
+
 /** Human-readable label for a quest reward (amount + name), shared by card and detail views. */
 export function formatQuestReward(reward: QuestReward): string {
   const data = reward.reward_data || {}
@@ -142,12 +150,9 @@ export function formatQuestReward(reward: QuestReward): string {
       return `${itemName}${rarity}`
     }
     case 'dweller': {
-      const template = rewardText(data.template_id).replaceAll('-', ' ')
-      const raw = rewardText(data.first_name) || rewardText(data.name) || template || 'New Dweller'
-      const name = raw.replace(/(^|[\s-])\p{L}/gu, (letter) => letter.toUpperCase())
       const rarityValue = rewardText(data.rarity)
       const rarity = rarityValue ? ` (${rarityValue})` : ''
-      return `${name}${rarity}`
+      return `${questDwellerName(reward)}${rarity}`
     }
     case 'stimpak': {
       const amt = Number(data.amount) || 1
@@ -303,6 +308,7 @@ export const QUEST_ITEM_LABELS: Record<string, string> = {
   pet: 'Pet',
   consumable: 'Consumable',
   lunchbox: 'Lunchbox',
+  dweller: 'Dweller',
 }
 
 /** Shared resource icon-and-label metadata for advertised and granted rewards. */

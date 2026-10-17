@@ -11,6 +11,8 @@ from typing import Annotated, Literal
 from pydantic import UUID4, Field, TypeAdapter
 from sqlmodel import SQLModel
 
+from app.core.enums import RarityEnum
+
 
 class CapsGranted(SQLModel):
     reward_type: Literal["caps"] = "caps"
@@ -69,6 +71,13 @@ class LunchboxOpenedItem(SQLModel):
     name: str
     type: str
     rarity: str
+    image_url: str | None = None
+
+
+class LunchboxOpenedDweller(DwellerGranted):
+    rarity: RarityEnum
+    image_url: str | None = None
+    thumbnail_url: str | None = None
 
 
 class LunchboxOpened(SQLModel):
@@ -76,7 +85,7 @@ class LunchboxOpened(SQLModel):
 
     reward_type: Literal["lunchbox"] = "lunchbox"
     items: list[LunchboxOpenedItem] = Field(default_factory=list)
-    dweller: DwellerGranted
+    dweller: LunchboxOpenedDweller
 
 
 class LunchboxOpenRequest(SQLModel):

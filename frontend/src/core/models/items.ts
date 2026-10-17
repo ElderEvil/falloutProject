@@ -31,6 +31,7 @@ export const JUNK_ICON = 'mdi:wrench'
 // Generic storage items share the quest-reward icon language (see getItemIcon)
 export const GENERIC_ITEM_ICONS: Record<string, string> = {
   consumable: 'mdi:bottle-tonic',
+  dweller: 'mdi:account-plus',
   lunchbox: 'mdi:gift',
   pet: 'mdi:paw',
 }

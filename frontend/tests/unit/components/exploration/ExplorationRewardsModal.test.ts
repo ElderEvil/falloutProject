@@ -71,6 +71,23 @@ describe('ExplorationRewardsModal', () => {
     expect(wrapper.text()).toContain('No items found during this exploration')
   })
 
+  it('flags a recalled-early return with its completion percentage', () => {
+    const wrapper = mountModal({
+      ...rewardsWithOverflow,
+      items: [],
+      overflow_items: [],
+      recalled_early: true,
+      progress_percentage: 40,
+    })
+
+    expect(wrapper.text()).toContain('Recalled early (40% complete)')
+    expect(wrapper.text()).toContain('Reduced rewards')
+  })
+
+  it('hides the recalled banner for a full-length return', () => {
+    expect(mountModal().text()).not.toContain('Recalled early')
+  })
+
   it('allows deferring overflow resolution so storage can be managed first', async () => {
     mockResolve.mockResolvedValueOnce({ caps_granted: 0, unclaimed_loot: [item('Dropped B')] })
     const wrapper = mountModal()

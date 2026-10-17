@@ -2,11 +2,11 @@
 import { Icon } from '@iconify/vue'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import RewardCard from '@/core/components/common/RewardCard.vue'
+import RewardItemCard from '@/core/components/common/RewardItemCard.vue'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
+import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import type { Objective } from '../models/objective'
-import { REWARD_TYPE_META } from '../models/quest'
 
 interface Props {
   objective: Objective | null
@@ -49,12 +49,30 @@ function confirm(): void {
       {{ objective.challenge }}
     </div>
 
-    <div v-if="objective" class="grid grid-cols-1 gap-4">
-      <RewardCard
-        :icon="newDwellerName ? REWARD_TYPE_META.dweller.icon : 'mdi:gift'"
-        :label="newDwellerName ? REWARD_TYPE_META.dweller.label : 'Reward'"
-        :value="newDwellerName || objective.reward"
-      />
+    <div
+      v-if="objective"
+      class="grid grid-cols-1 gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2"
+      aria-live="polite"
+    >
+      <RewardItemCard
+        v-if="newDwellerName"
+        :name="newDwellerName"
+        label="New Dweller"
+        meta="Has joined your vault"
+        kind="dweller"
+        layout="row"
+      >
+        <template #media>
+          <DwellerPortrait
+            :alt="newDwellerName"
+            image-class="h-32 w-full object-cover object-top sm:h-36"
+            fallback-class="size-14 text-theme-primary/50"
+          />
+        </template>
+      </RewardItemCard>
+
+      <RewardItemCard v-else kind="currency" icon="mdi:gift" label="Reward" :name="objective.reward" />
+
       <p v-if="newDwellerName" class="text-sm leading-relaxed text-muted-foreground">
         {{ newDwellerName }} has joined your vault. Review their SPECIAL and equipment before
         choosing a job or preparing their first exploration.

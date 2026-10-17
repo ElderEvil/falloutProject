@@ -29,6 +29,7 @@ from app.services.user_service import user_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 from app.utils.item_factory import build_outfit, build_weapon
 from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
+from app.utils.storage_policy import is_nuka_cola_consumable
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +188,10 @@ async def grant_item(
 
     if item_type not in {"weapon", "outfit", "junk", "consumable", "lunchbox", "pet"}:
         raise ValueError(f"Unsupported item_type: {item_type}")
-    storage_obj = await _ensure_storage(db_session, vault_id, quantity)
+    # Space-free by design (app.utils.storage_policy): bottles live in storage
+    # but occupy no slot, so a full vault must not reject them.
+    space_required = 0 if is_nuka_cola_consumable(item_type, item_name) else quantity
+    storage_obj = await _ensure_storage(db_session, vault_id, space_required)
     created_ids: list[str] = []
     for _ in range(quantity):
         match item_type:

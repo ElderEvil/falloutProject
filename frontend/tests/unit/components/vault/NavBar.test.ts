@@ -50,6 +50,7 @@ const vaultHeader = vi.hoisted(() => ({
   food: null as { value: { current: number; max: number } } | null,
   water: null as { value: { current: number; max: number } } | null,
   resourceRates: null as { value: Record<'power' | 'food' | 'water', number> } | null,
+  nukaColaCount: null as { value: number | null } | null,
 }))
 vi.mock('@/modules/vault/composables/useVaultHeaderContext', () => {
   const vault = ref<{ number: number } | null>(null)
@@ -60,6 +61,7 @@ vi.mock('@/modules/vault/composables/useVaultHeaderContext', () => {
   const food = ref({ current: 60, max: 100 })
   const water = ref({ current: 70, max: 100 })
   const resourceRates = ref({ power: 1, food: 2, water: 3 })
+  const nukaColaCount = ref<number | null>(42)
   vaultHeader.vault = vault
   vaultHeader.isVaultRoute = isVaultRoute
   vaultHeader.isReady = isReady
@@ -68,6 +70,7 @@ vi.mock('@/modules/vault/composables/useVaultHeaderContext', () => {
   vaultHeader.food = food
   vaultHeader.water = water
   vaultHeader.resourceRates = resourceRates
+  vaultHeader.nukaColaCount = nukaColaCount
   return {
     useVaultHeaderContext: () => ({
       vault,
@@ -84,9 +87,11 @@ vi.mock('@/modules/vault/composables/useVaultHeaderContext', () => {
       water,
       resourceRates,
       bottleCaps: ref(500),
+      nukaColaCount,
       dwellersTooltip: ref('10 of 20 dwellers'),
       happinessTooltip: ref('80% happiness'),
       capsTooltip: ref('500 bottle caps'),
+      nukaColaTooltip: ref('42 Nuka-Cola bottles'),
     }),
   }
 })
@@ -113,6 +118,7 @@ describe('NavBar', () => {
     vaultHeader.food!.value = { current: 60, max: 100 }
     vaultHeader.water!.value = { current: 70, max: 100 }
     vaultHeader.resourceRates!.value = { power: 1, food: 2, water: 3 }
+    vaultHeader.nukaColaCount!.value = 42
     audioManager.setMuted(true)
     audioManager.setVolume('ui', 0.6)
     audioManager.setVolume('sfx', 0.8)
@@ -205,13 +211,44 @@ describe('NavBar', () => {
     expect(
       resources.findAllComponents(ResourceBar).map((bar) => bar.props('productionRate'))
     ).toEqual([1, 2, 3])
-    const [bottles, caps] = currency.findAllComponents(PageHeaderMetric)
+    const currencyMetrics = currency.findAllComponents(PageHeaderMetric)
+    const [caps, bottles] = currencyMetrics
     const bell = account.find('notification-bell-stub')
-    expect(bottles?.props('label')).toBe('Nuka bottles')
-    expect(bottles?.props('value')).toBe('—')
-    expect(caps?.props('label')).toBe('Caps')
+    expect(currencyMetrics.map((metric) => metric.props('label'))).toEqual([
+      'Caps',
+      'Nuka bottles',
+    ])
+    expect(caps?.props('value')).toBe('500')
+    expect(bottles?.props('value')).toBe('42')
     expect(bell.exists()).toBe(true)
     expect(currency.element.textContent).toContain('500')
+  })
+
+  it('renders the Nuka bottles dash until loaded, then the formatted count', async () => {
+    useAuthStore().token = 'test-token'
+    vaultHeader.isVaultRoute!.value = true
+    vaultHeader.nukaColaCount!.value = null
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/vault/:id', component: { template: '<div />' } }],
+    })
+    await router.push('/vault/vault-1')
+    await router.isReady()
+
+    const wrapper = mount(NavBar, {
+      global: { plugins: [router], stubs: { Icon: true, NotificationBell: true } },
+    })
+
+    const bottles = () =>
+      wrapper
+        .findAllComponents(PageHeaderMetric)
+        .find((metric) => metric.props('label') === 'Nuka bottles')
+    expect(bottles()?.props('value')).toBe('—')
+
+    vaultHeader.nukaColaCount!.value = 1234
+    await wrapper.vm.$nextTick()
+    expect(bottles()?.props('value')).toBe('1,234')
   })
 
   it('points a critical resource warning at the production room that fixes it', async () => {

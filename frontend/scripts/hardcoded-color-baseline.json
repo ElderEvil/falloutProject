@@ -13,7 +13,6 @@
   "src/modules/dwellers/components/stats/DwellerStats.vue": 1,
   "src/modules/dwellers/components/stats/XPProgressBar.vue": 4,
   "src/modules/exploration/components/ActiveExplorationList.vue": 12,
-  "src/modules/exploration/components/ExplorationRewardsModal.vue": 3,
   "src/modules/exploration/components/WastelandDropzone.vue": 7,
   "src/modules/progression/components/party/PartySlots.vue": 1,
   "src/modules/progression/components/QuestCard.vue": 1,

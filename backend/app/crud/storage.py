@@ -3,9 +3,11 @@
 import logging
 
 from pydantic import UUID4
-from sqlmodel import func, select
+from sqlalchemy import or_
+from sqlmodel import col, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import ItemTypeEnum
 from app.crud.base import CRUDBase
 from app.models.item import Item
 from app.models.junk import Junk
@@ -14,8 +16,18 @@ from app.models.pet import Pet
 from app.models.storage import Storage, StorageBase
 from app.models.weapon import Weapon
 from app.utils.exceptions import ResourceNotFoundException
+from app.utils.storage_policy import NUKA_COLA_LIKE
 
 logger = logging.getLogger(__name__)
+
+
+def _storage_counted_items():
+    """Rows that occupy storage space: everything except nuka-cola consumables.
+
+    The exclusion mirrors ``app.utils.storage_policy`` so counting and
+    admission cannot drift on the space-free bottle rule.
+    """
+    return or_(col(Item.item_type) != ItemTypeEnum.CONSUMABLE.value, ~col(Item.name).ilike(NUKA_COLA_LIKE))
 
 
 class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
@@ -42,7 +54,7 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
         junk_count = junk_result.scalar() or 0
 
         items_result = await db_session.execute(
-            select(func.count()).select_from(Item).where(Item.storage_id == storage_id)
+            select(func.count()).select_from(Item).where(Item.storage_id == storage_id, _storage_counted_items())
         )
         items_count = items_result.scalar() or 0
 

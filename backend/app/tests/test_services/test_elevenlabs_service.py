@@ -60,8 +60,8 @@ class TestGenerateSpeech:
         assert "xi-api-key" in call_args.kwargs.get("headers", {})
         payload = call_args.kwargs["json"]
         assert payload["text"] == "Hello world"
-        assert payload["model_settings"]["stability"] == 0.5
-        assert payload["model_settings"]["similarity_boost"] == 0.75
+        assert payload["voice_settings"]["stability"] == 0.5
+        assert payload["voice_settings"]["similarity_boost"] == 0.75
 
     async def test_401_raises_provider_exception(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.services.elevenlabs_service import ElevenLabsTtsService

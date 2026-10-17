@@ -21,14 +21,14 @@ from pathlib import Path
 # Bootstrap so backend/app imports resolve regardless of CWD
 _SCRIPT_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _SCRIPT_DIR.parent
-_BACKEND_APP = str(_REPO_ROOT / "backend" / "app")
-if _BACKEND_APP not in sys.path:
-    sys.path.insert(0, _BACKEND_APP)
+_BACKEND_ROOT = _REPO_ROOT / "backend"
+if str(_BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_ROOT))
 
-from app.core.config import settings as _core_settings  # noqa: E402
-from app.services.elevenlabs_service import (  # noqa: E402
-    DEFAULT_VOICE_ID,
+from app.core.config import settings as _core_settings
+from app.services.elevenlabs_service import (
     DEFAULT_MODEL_ID,
+    DEFAULT_VOICE_ID,
     ElevenLabsTtsService,
 )
 
@@ -67,7 +67,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_manifest(path: Path) -> list[dict]:
-    with open(path, "r", encoding="utf-8") as fh:
+    with Path(path).open("r", encoding="utf-8") as fh:
         return json.load(fh)
 
 
@@ -97,7 +97,7 @@ def generate_entry(
             text=text, voice_id=voice_id, model_id=DEFAULT_MODEL_ID
         )
         return audio_bytes, ""
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - CLI boundary: report-and-continue per entry
         logger.error("  [error] %s: %s", key, e)
         return None, str(e)
 
@@ -105,7 +105,7 @@ def generate_entry(
 def upload_entry(entry: dict, audio_bytes: bytes, key: str) -> None:
     """Upload audio to the dweller-audio bucket via storage service."""
     # Lazy-import the storage client
-    from app.services.storage.factory import get_storage_client  # noqa: E402
+    from app.services.storage.factory import get_storage_client
 
     storage = get_storage_client()
     if storage is None or not storage.enabled:
@@ -120,7 +120,7 @@ def upload_entry(entry: dict, audio_bytes: bytes, key: str) -> None:
             bucket_name="dweller-audio",
         )
         logger.info("  [uploaded] %s → %s", key, url)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - CLI boundary: report-and-continue per entry
         logger.error("  [upload-fail] %s: %s", key, e)
 
 

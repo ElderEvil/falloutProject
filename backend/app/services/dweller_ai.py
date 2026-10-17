@@ -22,7 +22,7 @@ from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.ai_service import get_ai_service
 from app.services.bio_service import bio_service, compile_bio, truncate_bio
 from app.services.dweller_service import dweller_service
-from app.services.elevenlabs_service import get_elevenlabs_tts_service
+from app.services.elevenlabs_service import DEFAULT_VOICE_ID, get_elevenlabs_tts_service
 from app.services.map_service import map_service
 from app.services.prompt_service import get_instructions, get_provider_model_snapshot
 from app.services.quota_service import quota_service
@@ -506,10 +506,10 @@ class DwellerAIService:
 
         if elevenlabs_svc.is_enabled:
             provider = "elevenlabs"
-            model = voice_type
+            model = "eleven_multilingual_v2"
             try:
                 audio_bytes = await elevenlabs_svc.generate_speech(
-                    text=text, voice_id=voice_type, model_id="eleven_multilingual_v2"
+                    text=text, voice_id=DEFAULT_VOICE_ID, model_id="eleven_multilingual_v2"
                 )
             except ElevenLabsProviderException:
                 logger.warning(

@@ -47,7 +47,7 @@ class ElevenLabsTtsService:
         payload = {
             "model_id": model_id,
             "text": text,
-            "model_settings": {
+            "voice_settings": {
                 "stability": 0.5,
                 "similarity_boost": 0.75,
             },

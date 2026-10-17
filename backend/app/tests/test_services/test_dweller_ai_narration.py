@@ -151,7 +151,7 @@ async def test_elevenlabs_enabled_skips_openai_and_quota(
     call_kwargs = mock_llm.create.call_args
     log_entry = call_kwargs.kwargs["obj_in"]
     assert log_entry.provider == "elevenlabs"
-    assert log_entry.model == "JBFqnCBsd6RMkjVDRZzb"
+    assert log_entry.model == "eleven_multilingual_v2"
 
 
 # ── ElevenLabs failure falls through to OpenAI ──────────────────────────

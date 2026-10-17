@@ -1,0 +1,271 @@
+{
+  "chain_id": "almost_human",
+  "chain_name": "Almost Human",
+  "chain_description": "Follow a Railroad distress call and bring hunted synths to safety.",
+  "quests": [
+    {
+      "quest_name": "Off the Rails",
+      "short_description": "Recover a missing Railroad courier from a raider checkpoint.",
+      "long_description": "A broken radio repeats the same warning: the refugee route has been compromised. Find the Railroad courier at the checkpoint, recover the route notes, and get them out before the next raider patrol clocks in. Vault-Tec recommends filing any rescue expenses under community outreach.",
+      "requirements": [
+        "Level 15 dwellers",
+        "4+ average equipped weapon damage"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 1,
+      "duration_minutes": 45,
+      "quest_requirements": [
+        {
+          "requirement_type": "LEVEL",
+          "requirement_data": {
+            "level": 15,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "ATTACK",
+          "requirement_data": {
+            "attack": 4,
+            "count": 1
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 500
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Laser pistol",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Laser pistol",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "STIMPAK",
+          "reward_data": {
+            "amount": 3
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Synth in a Pinch",
+      "short_description": "Extract a captive synth from the Atomatoys offices.",
+      "long_description": "The courier marks an Atomatoys office on your map. Raiders have turned its reception desk into a holding pen for a captured synth. Clear an escape route and escort the prisoner away; the employee evacuation signs are finally going to earn their keep.",
+      "requirements": [
+        "Level 20 dwellers",
+        "7+ average equipped weapon damage",
+        "Complete \"Off the Rails\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "LEVEL",
+          "requirement_data": {
+            "level": 20,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "ATTACK",
+          "requirement_data": {
+            "attack": 7,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "QUEST_COMPLETED",
+          "requirement_data": {
+            "quest_name": "Off the Rails"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 700
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Advanced Institute jumper",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Advanced Institute jumper",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "RADAWAY",
+          "reward_data": {
+            "amount": 3
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Not-so-Safehouse",
+      "short_description": "Check a Railroad safehouse that has gone silent.",
+      "long_description": "The safehouse missed its scheduled check-in. Search the old Chryslus building for survivors and secure the records before the raiders find them. A safehouse with a visitor log was probably asking for trouble, but the people inside still need help.",
+      "requirements": [
+        "Level 30 dwellers",
+        "10+ average equipped weapon damage",
+        "Complete \"Synth in a Pinch\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 3,
+      "duration_minutes": 90,
+      "quest_requirements": [
+        {
+          "requirement_type": "LEVEL",
+          "requirement_data": {
+            "level": 30,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "ATTACK",
+          "requirement_data": {
+            "attack": 10,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "QUEST_COMPLETED",
+          "requirement_data": {
+            "quest_name": "Synth in a Pinch"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1000
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Gauss rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Gauss rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "STIMPAK",
+          "reward_data": {
+            "amount": 5
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Synths for Sale",
+      "short_description": "Break up the raiders' synth auction and escort the captives home.",
+      "long_description": "The recovered records point to a prisoner exchange at a deserted department store. Stop the auction and bring the captives somewhere the Institute cannot collect them. Harkness has offered to help secure their route and join your vault afterward. Please disregard the store's no-refunds policy.",
+      "requirements": [
+        "Level 40 dwellers",
+        "13+ average equipped weapon damage",
+        "Complete \"Not-so-Safehouse\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 4,
+      "duration_minutes": 120,
+      "quest_requirements": [
+        {
+          "requirement_type": "LEVEL",
+          "requirement_data": {
+            "level": 40,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "ATTACK",
+          "requirement_data": {
+            "attack": 13,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "QUEST_COMPLETED",
+          "requirement_data": {
+            "quest_name": "Not-so-Safehouse"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1500
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "T-45a power armor",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "T-45a power armor",
+            "item_type": "outfit",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "DWELLER",
+          "reward_data": {
+            "template_id": "harkness"
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    }
+  ]
+}

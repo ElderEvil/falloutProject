@@ -1,0 +1,333 @@
+{
+  "chain_id": "a_settler_needs_your_help",
+  "chain_name": "A Settler Needs Your Help",
+  "chain_description": "Follow Preston Garvey's trail through the Commonwealth and help the settlers along the way.",
+  "quests": [
+    {
+      "quest_name": "Following His First Steps",
+      "short_description": "Trace Preston Garvey's last report to a raider-held office.",
+      "long_description": "Preston Garvey has missed a rendezvous, and the settlers are getting worried. Search the office where his last report originated and recover any clues the raiders left behind. The filing cabinets may finally contain something more useful than overdue invoices.",
+      "requirements": [
+        "Level 40 dwellers",
+        "12+ average equipped weapon damage"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 1,
+      "duration_minutes": 90,
+      "quest_requirements": [
+        {
+          "requirement_type": "LEVEL",
+          "requirement_data": {
+            "level": 40,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "ATTACK",
+          "requirement_data": {
+            "attack": 12,
+            "count": 1
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1200
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Gauss rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Gauss rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "STIMPAK",
+          "reward_data": {
+            "amount": 5
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Raider Troubles at Corvega",
+      "short_description": "Recover the settlers' route information from Corvega.",
+      "long_description": "The trail leads to Road Rash's crew at the Corvega factory. Break through their position and recover the maps they took from a settler caravan. Watch the production floor: Corvega built cars to last, and apparently built its hazards to last even longer.",
+      "requirements": [
+        "Level 42 dwellers",
+        "13+ average equipped weapon damage",
+        "Complete \"Following His First Steps\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 2,
+      "duration_minutes": 105,
+      "quest_requirements": [
+        {
+          "requirement_type": "LEVEL",
+          "requirement_data": {
+            "level": 42,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "ATTACK",
+          "requirement_data": {
+            "attack": 13,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "QUEST_COMPLETED",
+          "requirement_data": {
+            "quest_name": "Following His First Steps"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1400
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Sturdy combat armor",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Sturdy combat armor",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "RADAWAY",
+          "reward_data": {
+            "amount": 5
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "When Preston Calls",
+      "short_description": "Bring a stranded settler group out of a mole-rat den.",
+      "long_description": "A caravan carrying news of Preston took shelter underground and discovered that the tunnel already had tenants. Get the settlers past the mole rats and back to the surface. They can identify his next stop once everyone is accounted for and no longer being chewed on.",
+      "requirements": [
+        "Level 45 dwellers",
+        "14+ average equipped weapon damage",
+        "Complete \"Raider Troubles at Corvega\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 3,
+      "duration_minutes": 120,
+      "quest_requirements": [
+        {
+          "requirement_type": "LEVEL",
+          "requirement_data": {
+            "level": 45,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "ATTACK",
+          "requirement_data": {
+            "attack": 14,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "QUEST_COMPLETED",
+          "requirement_data": {
+            "quest_name": "Raider Troubles at Corvega"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1600
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Plasma rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Plasma rifle",
+            "item_type": "weapon",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "STIMPAK",
+          "reward_data": {
+            "amount": 6
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Kidnapping at Vault 778",
+      "short_description": "Free the settlers held by Mastiff Muldoon in Vault 778.",
+      "long_description": "Mastiff Muldoon has occupied Vault 778 and is holding settlers for ransom. Recover the prisoners and their supplies before following Preston's trail onward. The vault brochure promised secure accommodation; the fine print apparently neglected to specify for whom.",
+      "requirements": [
+        "Level 47 dwellers",
+        "15+ average equipped weapon damage",
+        "Complete \"When Preston Calls\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 4,
+      "duration_minutes": 135,
+      "quest_requirements": [
+        {
+          "requirement_type": "LEVEL",
+          "requirement_data": {
+            "level": 47,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "ATTACK",
+          "requirement_data": {
+            "attack": 15,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "QUEST_COMPLETED",
+          "requirement_data": {
+            "quest_name": "When Preston Calls"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1800
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Minuteman uniform",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Minuteman uniform",
+            "item_type": "outfit",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "RADAWAY",
+          "reward_data": {
+            "amount": 6
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "A Settler Needs Your Help",
+      "short_description": "Extract Preston Garvey from the overrun Kendall Hospital.",
+      "long_description": "Preston's signal is coming from Kendall Hospital, where feral ghouls have cut off the exits. Reach him, secure the patients' escape route, and bring everyone back. Preston will join your vault once the survivors are safe. He would also like a word about a nearby settlement.",
+      "requirements": [
+        "Level 50 dwellers",
+        "16+ average equipped weapon damage",
+        "Complete \"Kidnapping at Vault 778\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 5,
+      "duration_minutes": 150,
+      "quest_requirements": [
+        {
+          "requirement_type": "LEVEL",
+          "requirement_data": {
+            "level": 50,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "ATTACK",
+          "requirement_data": {
+            "attack": 16,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "QUEST_COMPLETED",
+          "requirement_data": {
+            "quest_name": "Kidnapping at Vault 778"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 2200
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "DWELLER",
+          "reward_data": {
+            "template_id": "preston-garvey"
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "STIMPAK",
+          "reward_data": {
+            "amount": 8
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    }
+  ]
+}

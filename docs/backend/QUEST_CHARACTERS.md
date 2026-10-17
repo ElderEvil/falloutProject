@@ -5,7 +5,8 @@ Snapshot of the quest-NPC roster for content planning: who exists in FOS canon, 
 and what role they play. Only 12 of 50 have any wiki image, and those are game screenshots, not portrait
 art — there is nothing to vendor as dweller portraits here.
 
-In-game presence: none of these 50 currently appear in our quest/event data (checked 2026-09-28). The six
+At the 2026-09-28 snapshot, none of these 50 appeared in our quest/event data. Later adaptations are
+documented below. The six
 TV-series quest rewards that ARE playable live in `backend/app/data/dwellers/quest_rewards.json`
 (Lucy MacLean, The Ghoul, Maximus, Ma June, Snip Snip, Snake Oil Salesman); CX404 moved to pets.
 
@@ -63,3 +64,36 @@ Knock 'Em Down | Ghoul |  | no |
 | Wizard of Water | Snake Water | Salesman | Dilapidated factory | no |
 | Wyatt | Bunker Down | Railroad leader | Railroad bunker | yes |
 | Yak | Bounty: Yak | Mole rat brood mother |  | no |
+
+## Playable questline adaptations
+
+The JSON catalog now includes these three independent chains, adding 13 quests. Their first missions
+use the existing Overseer's Office gate; later missions require claiming the previous mission's rewards.
+No unimplemented cross-chain prerequisite is advertised.
+
+| Chain | Quests | Party level gates | Outbound duration | Finale rewards |
+|---|---:|---|---|---|
+| Almost Human | 4 | 15, 20, 30, 40 | 45–120 minutes | Harkness, T-45a power armor, 1,500 caps |
+| Climbing the Ranks | 4 | 20, 24, 27, 35 | 60–120 minutes | Sarah Lyons, Sturdy combat armor, 1,600 caps |
+| A Settler Needs Your Help | 5 | 40, 42, 45, 47, 50 | 90–150 minutes | Preston Garvey, 8 Stimpaks, 2,200 caps |
+
+Sources: [Almost Human](https://fallout.fandom.com/wiki/Almost_Human),
+[Climbing the Ranks](https://fallout.fandom.com/wiki/Climbing_the_Ranks), and
+[A Settler Needs Your Help](https://fallout.fandom.com/wiki/A_Settler_Needs_Your_Help),
+Fallout Wiki / Nukapedia contributors (CC-BY-SA). Quest names, ordering and story premises follow those
+references; the descriptions are newly written for this project.
+
+Balance and implementation differences from Fallout Shelter:
+
+- Level gates follow the source chains. Durations are explicitly shortened for this project's pacing;
+  the normal return journey is added by the existing quest service.
+- Weapon gates use our equipped weapon's average damage, with explicit mandatory `ATTACK` requirements.
+  Almost Human uses 4/7/10/13, Climbing the Ranks uses 5/9/10/12, and the settler chain uses 12/13/14/15/16.
+  Level and attack counts both use the existing minimum-one-party-member rule.
+- Recipe fragments and random loot tables are replaced with guaranteed catalog equipment, treatment
+  supplies and caps. Gear payouts retain each item's catalog rarity. Earlier missions supply useful
+  weapons for later damage gates; the rescue story does not create a new combat or dialogue mechanic.
+- Harkness is an additional, project-specific rescue reward in Almost Human. All three finale recruits
+  use existing named templates, population-capacity checks, and duplicate-template fallback behaviour.
+- Sources are content references, not live dependencies. Versioned JSON is loaded by the normal startup
+  seeder, including existing vaults; no migration or external request is needed to add these quests.

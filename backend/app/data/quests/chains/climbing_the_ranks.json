@@ -1,0 +1,283 @@
+{
+  "chain_id": "climbing_the_ranks",
+  "chain_name": "Climbing the Ranks",
+  "chain_description": "Earn the Brotherhood of Steel's trust through a series of field assignments.",
+  "quests": [
+    {
+      "quest_name": "Clearing a Path",
+      "short_description": "Secure a machine-parts factory for a Brotherhood patrol.",
+      "long_description": "A Brotherhood patrol needs parts, and the local factory has an impressive surplus of hostile occupants. Clear a path to the loading bay and recover the shipment. Your reward includes actual equipment, which is a refreshing change from a certificate of appreciation.",
+      "requirements": [
+        "Level 20 dwellers",
+        "5+ average equipped weapon damage"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "LEVEL",
+          "requirement_data": {
+            "level": 20,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "ATTACK",
+          "requirement_data": {
+            "attack": 5,
+            "count": 1
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 600
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "BoS uniform",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "BoS uniform",
+            "item_type": "outfit",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Hardened shotgun",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Hardened shotgun",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Taking out the Trash",
+      "short_description": "Clear the ghoul infestation from Vault 840.",
+      "long_description": "The Brotherhood wants Vault 840 surveyed before it becomes an outpost. The current residents are feral, radioactive, and unlikely to respect an inspection notice. Sweep the occupied corridors and recover the maintenance records for the incoming engineers.",
+      "requirements": [
+        "Level 24 dwellers",
+        "9+ average equipped weapon damage",
+        "Complete \"Clearing a Path\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 2,
+      "duration_minutes": 75,
+      "quest_requirements": [
+        {
+          "requirement_type": "LEVEL",
+          "requirement_data": {
+            "level": 24,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "ATTACK",
+          "requirement_data": {
+            "attack": 9,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "QUEST_COMPLETED",
+          "requirement_data": {
+            "quest_name": "Clearing a Path"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 800
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Sturdy battle armor",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Sturdy battle armor",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "RADAWAY",
+          "reward_data": {
+            "amount": 5
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Heat of the Knight",
+      "short_description": "Recover a stranded patrol at the RobCo corporate offices.",
+      "long_description": "A patrol investigating the RobCo offices stopped transmitting halfway through a routine salvage report. Find the soldiers and recover their technical survey. The building still advertises a brighter automated tomorrow; try not to let tomorrow shoot the rescue team.",
+      "requirements": [
+        "Level 27 dwellers",
+        "10+ average equipped weapon damage",
+        "Complete \"Taking out the Trash\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 3,
+      "duration_minutes": 90,
+      "quest_requirements": [
+        {
+          "requirement_type": "LEVEL",
+          "requirement_data": {
+            "level": 27,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "ATTACK",
+          "requirement_data": {
+            "attack": 10,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "QUEST_COMPLETED",
+          "requirement_data": {
+            "quest_name": "Taking out the Trash"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1100
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "RobCo R&D suit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "RobCo R&D suit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Laser rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Laser rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "In Shining Armor",
+      "short_description": "Rescue Sarah Lyons and her squad at the Nuka-Cola plant.",
+      "long_description": "Raiders have trapped Sarah Lyons' squad inside a Nuka-Cola plant. Open an extraction route through the bottling works and get the soldiers clear. Sarah is willing to help defend a vault that stands by its allies. Complimentary soda is subject to surviving the machinery.",
+      "requirements": [
+        "Level 35 dwellers",
+        "12+ average equipped weapon damage",
+        "Complete \"Heat of the Knight\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 4,
+      "duration_minutes": 120,
+      "quest_requirements": [
+        {
+          "requirement_type": "LEVEL",
+          "requirement_data": {
+            "level": 35,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "ATTACK",
+          "requirement_data": {
+            "attack": 12,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "QUEST_COMPLETED",
+          "requirement_data": {
+            "quest_name": "Heat of the Knight"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1600
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Sturdy combat armor",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Sturdy combat armor",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "DWELLER",
+          "reward_data": {
+            "template_id": "sarah-lyons"
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    }
+  ]
+}

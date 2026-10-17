@@ -43,10 +43,13 @@ for (const width of [1280, 375]) {
       fullPage: true,
       animations: 'disabled',
     })
-    await page.getByLabel('Boosted Start').check()
+    await page.getByRole('switch', { name: /Boosted Start/ }).click()
     await page.getByRole('button', { name: 'Survival', exact: false }).click()
     await expect(page.getByLabel('Boosted Start')).toBeDisabled()
-    await expect(page.getByLabel('Boosted Start')).not.toBeChecked()
+    await expect(page.getByRole('switch', { name: /Boosted Start/ })).toHaveAttribute(
+      'aria-checked',
+      'false'
+    )
     await page.getByRole('button', { name: 'Continue', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Ready to open the doors?' })).toBeFocused()
     await expect(page.getByText('068', { exact: true })).toBeVisible()

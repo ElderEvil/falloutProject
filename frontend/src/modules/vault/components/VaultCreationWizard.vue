@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { Alert, AlertDescription } from '@/core/components/ui/alert'
 import { Button } from '@/core/components/ui/button'
 import { Label } from '@/core/components/ui/label'
+import { Switch } from '@/core/components/ui/switch'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/core/components/ui/card'
 import { ToggleGroup, ToggleGroupItem } from '@/core/components/ui/toggle-group'
 import VaultNumberField from './VaultNumberField.vue'
@@ -184,12 +185,11 @@ function advance() {
           <fieldset class="border-t border-theme-primary/20 pt-4">
             <legend class="sr-only">Starting point</legend>
             <Label for="boosted-start" class="flex items-start gap-3 text-sm">
-              <input
+              <Switch
                 id="boosted-start"
-                v-model="boosted"
-                type="checkbox"
+                v-model:checked="boosted"
                 :disabled="isSurvival || creating"
-                class="mt-1 size-4 shrink-0 accent-theme-primary scheme-dark"
+                class="mt-1"
               />
               <span class="flex flex-col gap-1">
                 <span class="font-semibold"

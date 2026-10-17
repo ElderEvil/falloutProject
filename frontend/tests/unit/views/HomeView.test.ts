@@ -624,14 +624,14 @@ describe('HomeView', () => {
       await continueStep(wrapper)
 
       // Opt into Boosted Start while Standard is selected.
-      await wrapper.find('#boosted-start').setValue(true)
-      expect((wrapper.find('#boosted-start').element as HTMLInputElement).checked).toBe(true)
+      await wrapper.find('#boosted-start').trigger('click')
+      expect(wrapper.find('#boosted-start').attributes('aria-checked')).toBe('true')
       expect(wrapper.find('#boosted-start').attributes('disabled')).toBeUndefined()
 
       // Survival disables the control, states the reason, and clears the boost.
       await findModeToggle(wrapper, 'Survival')!.trigger('click')
       expect(wrapper.find('#boosted-start').attributes('disabled')).toBeDefined()
-      expect((wrapper.find('#boosted-start').element as HTMLInputElement).checked).toBe(false)
+      expect(wrapper.find('#boosted-start').attributes('aria-checked')).toBe('false')
       expect(wrapper.text()).toContain('Not available in Survival mode')
       // The control stays visible with its label and description intact.
       expect(wrapper.find('label[for="boosted-start"]').text()).toContain('Boosted Start')
@@ -682,7 +682,7 @@ describe('HomeView', () => {
       await flushPromises()
       await wrapper.get('input[type="number"]').setValue('68')
       await continueStep(wrapper)
-      await wrapper.get('#boosted-start').setValue(true)
+      await wrapper.get('#boosted-start').trigger('click')
       await continueStep(wrapper)
 
       expect(wrapper.text()).toContain('Ready to open the doors?')
@@ -693,7 +693,7 @@ describe('HomeView', () => {
         .findAll('button')
         .find((button) => button.text() === 'Back')!
         .trigger('click')
-      expect((wrapper.get('#boosted-start').element as HTMLInputElement).checked).toBe(true)
+      expect(wrapper.get('#boosted-start').attributes('aria-checked')).toBe('true')
       await wrapper
         .findAll('button')
         .find((button) => button.text() === 'Back')!

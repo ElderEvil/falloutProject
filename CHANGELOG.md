@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.224.1 (2026-10-17)
+
+### Bug Fixes
+
+* **ui:** use theme color for vault selection caps ([#1047](https://github.com/ElderEvil/falloutProject/issues/1047)) b9ffd17
+
 ## 2.224.0 (2026-10-17)
 
 ### Features

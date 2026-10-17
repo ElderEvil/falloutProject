@@ -41,7 +41,7 @@ const isOpenable = computed(() => itemType === 'lunchbox')
 <template>
   <Card
     :class="[
-      'h-full w-full overflow-hidden rounded-lg border-2 gap-0 p-4 font-mono transition-all duration-200 hover:-translate-y-0.5 hover:bg-surface-raised hover:shadow-glow-md',
+      'h-full w-full overflow-hidden rounded-lg border-2 gap-0 p-3 font-mono transition-all duration-200 hover:-translate-y-0.5 hover:bg-surface-raised hover:shadow-glow-md',
       rarityBorderClass,
     ]"
   >
@@ -50,13 +50,13 @@ const isOpenable = computed(() => itemType === 'lunchbox')
         <!-- Footer: value + inventory actions (generic supplies have no sell/scrap endpoints) -->
         <div
           v-if="isActionable || isOpenable"
-          class="mt-auto flex items-center justify-between gap-3 border-t border-(--color-theme-primary)/20 pt-2"
+          class="mt-auto flex items-center justify-between gap-2 border-t border-(--color-theme-primary)/20 pt-2"
         >
           <div class="flex items-center gap-1.5 text-sm font-bold text-(--color-theme-primary)">
             <Icon icon="mdi:coins" class="h-4 w-4 text-(--color-caps)" />
             <span>{{ item.value || 0 }}</span>
           </div>
-          <div class="flex flex-wrap justify-end gap-2">
+          <div class="flex flex-wrap justify-end gap-1.5">
             <!--
               TooltipProvider delayDuration (200ms) preserves the previous tooltip
               hover delay; reka-ui opens instantly on keyboard focus, which is the

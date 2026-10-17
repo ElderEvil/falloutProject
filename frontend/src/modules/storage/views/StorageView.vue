@@ -411,7 +411,7 @@ const closeLunchboxModal = async () => {
               :description="`You don't have any ${activeTab} in storage.`"
             />
 
-            <div v-else class="grid grid-cols-1 gap-4 pb-8 md:grid-cols-2">
+            <div v-else class="grid grid-cols-1 gap-3 pb-8 md:grid-cols-2 xl:grid-cols-3">
               <StorageItemCard
                 v-for="item in activeItems"
                 :key="item.id"

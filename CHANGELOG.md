@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.227.1 (2026-10-17)
+
+### Bug Fixes
+
+* **arena:** complete fighter lifecycle and expose tick snapshots ([#1053](https://github.com/ElderEvil/falloutProject/issues/1053)) fde8099
+
 ## 2.227.0 (2026-10-17)
 
 ### Features

@@ -166,6 +166,9 @@ class TrainingService:
         stat_to_train = room.ability
         if stat_to_train is None:
             raise VaultOperationException(detail="Training room has no assigned SPECIAL stat")
+        vault_id = dweller.vault_id
+        if vault_id is None:
+            raise VaultOperationException(detail="Dweller must belong to a vault to train")
         current_stat_value = SPECIALModel.get_stat(dweller, stat_to_train)
 
         # Calculate duration
@@ -184,7 +187,7 @@ class TrainingService:
         training = Training(
             dweller_id=dweller.id,
             room_id=room.id,
-            vault_id=dweller.vault_id,
+            vault_id=vault_id,
             stat_being_trained=stat_to_train,
             current_stat_value=current_stat_value,
             target_stat_value=current_stat_value + 1,
@@ -318,7 +321,7 @@ class TrainingService:
         # Emit DWELLER_TRAINED event for objective tracking (after commit)
         await event_bus.emit(
             GameEvent.DWELLER_TRAINED,
-            dweller.vault_id,
+            training.vault_id,
             {
                 "dweller_id": str(dweller.id),
                 "stat_trained": training.stat_being_trained.value,
@@ -329,12 +332,12 @@ class TrainingService:
         # Send notification (non-critical, don't break completion on failure)
         await notification_service.notify_owner(
             db_session,
-            dweller.vault_id,
-            context=f"training_complete vault={dweller.vault_id} dweller={dweller.id}",
+            training.vault_id,
+            context=f"training_complete vault={training.vault_id} dweller={dweller.id}",
             sender=lambda user_id: notification_service.notify_training_complete(
                 db_session,
                 user_id=user_id,
-                vault_id=dweller.vault_id,
+                vault_id=training.vault_id,
                 dweller_id=dweller.id,
                 dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
                 stat_name=training.stat_being_trained.value,

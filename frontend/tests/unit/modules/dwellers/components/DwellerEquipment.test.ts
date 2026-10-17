@@ -61,6 +61,7 @@ function makeDweller(overrides: Partial<Dweller> = {}): Dweller {
     experience: 0,
     happiness: 75,
     gender: 'male',
+    age_group: 'adult',
     status: 'idle',
     weapon: null,
     outfit: null,
@@ -111,6 +112,17 @@ describe('DwellerEquipment', () => {
     petsStoreMock.getAvailablePets.mockReturnValue([])
     petsStoreMock.equipPet.mockResolvedValue(undefined)
     petsStoreMock.unequipPet.mockResolvedValue(undefined)
+  })
+
+  it.each(['child', 'teen'] as const)('blocks all equipment for a %s', (age_group) => {
+    const wrapper = mountEquip(makeDweller({ age_group }))
+    expect(wrapper.findAll('button.empty-slot')).toHaveLength(3)
+    expect(
+      wrapper
+        .findAll('button.empty-slot')
+        .every((button) => button.attributes('disabled') !== undefined)
+    ).toBe(true)
+    expect(wrapper.text()).toContain('Equipment unlocks at adulthood')
   })
 
   it.each(['male', 'female'] as const)(

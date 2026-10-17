@@ -33,7 +33,7 @@ from app.utils.exceptions import (
     ResourceNotFoundException,
     ValidationException,
 )
-from app.utils.item_factory import build_pet, build_weapon
+from app.utils.item_factory import build_outfit, build_pet, build_weapon
 
 fake = Faker()
 
@@ -146,43 +146,24 @@ async def test_equip_same_item_already_equipped(async_session: AsyncSession, equ
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("item_attr", ["weapon", "outfit", "pet"])
-async def test_equip_rejected_for_non_adult(async_session: AsyncSession, vault: Vault, dweller, item_attr) -> None:
-    """Issue #1036 youth rule: no weapon/outfit/pet before ADULT."""
-    dweller.age_group = AgeGroupEnum.CHILD
-    async_session.add(dweller)
-    await async_session.commit()
-
-    if item_attr == "pet":
-        from app.models.pet import Pet
-
-        item = Pet(name="Dogmeat", value=5, rarity=RarityEnum.RARE, vault_id=vault.id)
-        async_session.add(item)
-        await async_session.commit()
-    elif item_attr == "weapon":
-        item = Weapon(**create_fake_weapon(), vault_id=vault.id)
-        async_session.add(item)
-        await async_session.commit()
-    else:
-        item = Outfit(name="Test Gear", value=5, rarity=RarityEnum.RARE, vault_id=vault.id)
-        async_session.add(item)
-        await async_session.commit()
-
-    with pytest.raises(ValidationException, match="adult"):
-        await CRUDItem(type(item)).equip(db_session=async_session, item_id=item.id, dweller_id=dweller.id)
-
-
-@pytest.mark.asyncio
-async def test_equip_allowed_once_adult(async_session: AsyncSession, vault: Vault, dweller) -> None:
-    dweller.age_group = AgeGroupEnum.ADULT
-    async_session.add(dweller)
-    await async_session.commit()
-
-    item = Weapon(**create_fake_weapon(), vault_id=vault.id)
+@pytest.mark.parametrize("age_group", list(AgeGroupEnum))
+async def test_equipment_maturity_gate(
+    async_session: AsyncSession, vault: Vault, dweller, item_attr, age_group
+) -> None:
+    dweller.age_group = age_group
+    storage = await _create_storage(async_session, vault.id)
+    factory = {"weapon": build_weapon, "outfit": build_outfit, "pet": build_pet}[item_attr]
+    item = factory({"name": "Test Gear", "value": 5}, RarityEnum.COMMON, storage_id=storage.id)
     async_session.add(item)
+    async_session.add(dweller)
     await async_session.commit()
 
-    equipped = await CRUDItem(Weapon).equip(db_session=async_session, item_id=item.id, dweller_id=dweller.id)
-    assert equipped.dweller_id == dweller.id
+    if age_group in (AgeGroupEnum.CHILD, AgeGroupEnum.TEEN):
+        with pytest.raises(ValidationException, match="adult"):
+            await CRUDItem(type(item)).equip(db_session=async_session, item_id=item.id, dweller_id=dweller.id)
+    else:
+        equipped = await CRUDItem(type(item)).equip(db_session=async_session, item_id=item.id, dweller_id=dweller.id)
+        assert equipped.dweller_id == dweller.id
 
 
 # ---------------------------------------------------------------------------

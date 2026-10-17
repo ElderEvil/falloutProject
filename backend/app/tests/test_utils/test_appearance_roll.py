@@ -114,3 +114,51 @@ def test_non_adult_cannot_get_facial_hair_from_roll():
     assert child_va["facial_hair"] == "None"
     adult_va = roll_appearance(RaceOption.HUMAN, GenderEnum.MALE, random.Random(3), AgeGroupEnum.ADULT)
     assert adult_va["facial_hair"] in beard_options
+
+
+def test_both_parents_contribute_traits(monkeypatch):
+    monkeypatch.setattr(game_config.breeding, "trait_mutation_chance", 0.0)
+    monkeypatch.setattr(game_config.breeding, "race_mutation_chance", 0.0)
+    children = [roll_child_identity(HUMAN_MOTHER, HUMAN_FATHER, random.Random(seed)) for seed in range(40)]
+    assert {child["skin_tone"] for child in children} == {"Pale", "Tan"}
+    assert {child["eye_color"] for child in children} == {"green", "blue"}
+
+
+def test_newborn_appearance_has_no_beard_or_separate_gender():
+    for seed in range(40):
+        child = roll_child_identity(HUMAN_MOTHER, HUMAN_FATHER, random.Random(seed))
+        assert child["facial_hair"] == "None"
+        assert "gender" not in child
+
+
+@pytest.mark.parametrize("age_group", [AgeGroupEnum.CHILD, AgeGroupEnum.TEEN])
+def test_all_youth_rolls_have_no_beard(age_group):
+    for seed in range(10):
+        assert (
+            roll_appearance(RaceOption.HUMAN, GenderEnum.MALE, random.Random(seed), age_group)["facial_hair"] == "None"
+        )
+
+
+def test_template_without_visuals_gets_seeded_profile():
+    from app.utils.dwellers import create_dweller_from_template
+    from app.utils.static_data import game_data_store
+
+    template = game_data_store.get_dweller("snip-snip")
+    first = create_dweller_from_template(template, seed=7)
+    second = create_dweller_from_template(template, seed=7)
+    assert first["visual_attributes"]
+    assert first["visual_attributes"] == second["visual_attributes"]
+    assert first["visual_attributes"]["hair_style"] in haircuts[RaceOption.HUMAN]
+
+
+@pytest.mark.asyncio
+async def test_generic_creation_fills_only_missing_traits(async_session, vault):
+    from app.schemas.dweller import DwellerCreate
+    from app.services.dweller_service import dweller_service
+    from app.tests.factory.dwellers import create_fake_adult_dweller
+
+    attrs = {"race": "human", "hair_color": "authored silver", "expression": "smiling"}
+    payload = DwellerCreate(**(create_fake_adult_dweller() | {"vault_id": vault.id, "visual_attributes": attrs}))
+    created = await dweller_service.create_dweller(async_session, payload)
+    assert created.visual_attributes.items() >= attrs.items()
+    assert created.visual_attributes["skin_tone"] in skin_tone_options[RaceOption.HUMAN]

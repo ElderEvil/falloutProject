@@ -15,7 +15,7 @@ from __future__ import annotations
 import random
 from typing import TYPE_CHECKING, Any
 
-from app.core.enums import GenderEnum
+from app.core.enums import ADULT_AGE_GROUPS, AgeGroupEnum, GenderEnum
 from app.core.game_config import game_config
 from app.options.appearance import (
     beard_options,
@@ -30,9 +30,6 @@ from app.options.races import RaceOption
 
 if TYPE_CHECKING:
     from types import ModuleType
-
-#: Traits a child directly inherits from a parent (with mutation chance).
-INHERITED_TRAITS: frozenset[str] = frozenset({"skin_tone", "hair_color", "eye_color", "hair_style"})
 
 
 def _mutate(rng: random.Random | ModuleType, value: str, options: list[str]) -> str:
@@ -55,21 +52,16 @@ def _inherit(
         options = options_for_race.get(child_race) or options_for_race[RaceOption.HUMAN]
     else:
         options = options_for_race
-    # Prefer a parent's stored value when it is valid for the child's race;
-    # fall back to a race-valid roll when neither parent's value transfers
-    # (e.g. human skin tones onto a ghoul child after a race mutation).
-    for parent in (mother, father):
-        value = (parent.visual_attributes or {}).get(field)
-        if value in options:
-            return _mutate(rng, value, options)
-    return _mutate(rng, rng.choice(options), options)
+    values = [(parent.visual_attributes or {}).get(field) for parent in (mother, father)]
+    valid = [value for value in values if value in options]
+    return _mutate(rng, rng.choice(valid or options), options)
 
 
 def roll_appearance(
     race: RaceOption,
-    gender: GenderEnum,
+    gender: GenderEnum | None,
     rng: random.Random | ModuleType = random,
-    age_group: Any = None,
+    age_group: AgeGroupEnum = AgeGroupEnum.ADULT,
 ) -> dict[str, Any]:
     """Roll a complete, race-valid appearance profile for a new dweller.
 
@@ -88,7 +80,7 @@ def roll_appearance(
         "build": rng.choice(body_type_options[race]),
         "expression": "neutral",
     }
-    if gender == GenderEnum.MALE and (age_group is None or age_group != "child"):
+    if gender == GenderEnum.MALE and age_group in ADULT_AGE_GROUPS:
         appearance["facial_hair"] = rng.choice(beard_options)
     else:
         appearance["facial_hair"] = "None"
@@ -97,7 +89,6 @@ def roll_appearance(
 
 def inherit_appearance_for_child(
     child_race: RaceOption,
-    child_gender: GenderEnum,
     mother: Any,
     father: Any,
     rng: random.Random | ModuleType,
@@ -116,9 +107,14 @@ def inherit_appearance_for_child(
         "height": _inherit(rng, mother, father, "height", height_options, child_race),
         "build": _inherit(rng, mother, father, "build", body_type_options, child_race),
     }
-    if child_gender == GenderEnum.MALE:
-        appearance["facial_hair"] = _inherit(rng, mother, father, "facial_hair", beard_options)
-    else:
-        appearance["facial_hair"] = "None"
+    appearance["facial_hair"] = "None"
     appearance["expression"] = "neutral"
     return appearance
+
+
+def complete_appearance(data: dict[str, Any], rng: random.Random | ModuleType = random) -> dict[str, Any]:
+    """Fill missing creation-time traits, preserving authored and AI values."""
+    existing = {key: value for key, value in (data.get("visual_attributes") or {}).items() if value is not None}
+    race = RaceOption(existing.get("race", RaceOption.HUMAN))
+    rolled = roll_appearance(race, data.get("gender"), rng, data.get("age_group", AgeGroupEnum.ADULT))
+    return rolled | existing

@@ -53,7 +53,7 @@ def test_template_rejects_blank_origin() -> None:
         DwellerTemplate.model_validate(_template_payload(origin_place="   "))
 
 
-def test_companion_template_allows_null_visuals() -> None:
+def test_companion_template_allows_null_visuals_and_generates_defaults() -> None:
     t = DwellerTemplate.model_validate(
         {
             "first_name": "Snip Snip",
@@ -76,7 +76,8 @@ def test_companion_template_allows_null_visuals() -> None:
     )
     assert t.visual_attributes is None
     data = create_dweller_from_template(t)
-    assert data["visual_attributes"] is None
+    assert data["visual_attributes"]["race"] == "human"
+    assert data["visual_attributes"]["hair_style"]
 
 
 def test_template_rejects_invalid_visual_identity() -> None:

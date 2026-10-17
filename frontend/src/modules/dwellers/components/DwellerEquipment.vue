@@ -7,6 +7,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import EquipmentCard from '@/modules/combat/components/equipment/EquipmentCard.vue'
 import PetCard from '@/modules/pets/components/PetCard.vue'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
+import { isMature } from '../models/dweller'
 import { getItemIcon } from '@/core/models/items'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 
@@ -18,20 +19,22 @@ const authStore = useAuthStore()
 
 const dweller = computed(() => ctx.dweller.value)
 const vaultId = computed(() => ctx.vaultId.value)
+const mature = computed(() => !!dweller.value && isMature(dweller.value))
+const canEquip = computed(() => mature.value && !isAway.value)
 const isAway = computed(() => ['exploring', 'questing'].includes(dweller.value?.status ?? ''))
 
 const showInventoryModal = ref(false)
 const petActionPending = ref(false)
 const inventoryMode = ref<'weapon' | 'outfit' | 'pet'>('weapon')
 
-watch(isAway, (away) => {
-  if (away) showInventoryModal.value = false
+watch(canEquip, (allowed) => {
+  if (!allowed) showInventoryModal.value = false
 })
 
 // Get equipped items from the dweller object
-const equippedWeapon = computed(() => dweller.value?.weapon ?? null)
-const equippedOutfit = computed(() => dweller.value?.outfit ?? null)
-const equippedPet = computed(() => dweller.value?.pet ?? null)
+const equippedWeapon = computed(() => (mature.value ? (dweller.value?.weapon ?? null) : null))
+const equippedOutfit = computed(() => (mature.value ? (dweller.value?.outfit ?? null) : null))
+const equippedPet = computed(() => (mature.value ? (dweller.value?.pet ?? null) : null))
 
 // Get available (unequipped) items
 const availableWeapons = computed(() => equipmentStore.getAvailableWeapons())
@@ -64,14 +67,14 @@ const handleUnequipOutfit = async () => {
 }
 
 const handleEquipWeapon = async (weaponId: string) => {
-  if (isAway.value || !authStore.token || !dweller.value?.id) return
+  if (!canEquip.value || !authStore.token || !dweller.value?.id) return
   await equipmentStore.equipWeapon(dweller.value.id, weaponId, authStore.token)
   showInventoryModal.value = false
   ctx.actions.refresh()
 }
 
 const handleEquipOutfit = async (outfitId: string) => {
-  if (isAway.value || !authStore.token || !dweller.value?.id) return
+  if (!canEquip.value || !authStore.token || !dweller.value?.id) return
   await equipmentStore.equipOutfit(dweller.value.id, outfitId, authStore.token)
   showInventoryModal.value = false
   ctx.actions.refresh()
@@ -89,7 +92,7 @@ const handleUnequipPet = async () => {
 }
 
 const handleEquipPet = async (petId: string) => {
-  if (isAway.value || petActionPending.value || !authStore.token || !dweller.value?.id) return
+  if (!canEquip.value || petActionPending.value || !authStore.token || !dweller.value?.id) return
   petActionPending.value = true
   try {
     const pet = await petsStore.equipPet(dweller.value.id, petId, authStore.token)
@@ -134,7 +137,10 @@ const modalIcon = computed(() => {
 
 <template>
   <div class="dweller-equipment">
-    <p v-if="isAway" class="text-sm text-theme-accent mb-4" role="status">
+    <p v-if="!mature" class="text-sm text-theme-accent mb-4" role="status">
+      Equipment unlocks at adulthood.
+    </p>
+    <p v-else-if="isAway" class="text-sm text-theme-accent mb-4" role="status">
       Return to the vault to change equipment.
     </p>
     <div class="equipment-grid">
@@ -150,7 +156,7 @@ const modalIcon = computed(() => {
           :item="equippedWeapon"
           type="weapon"
           :equipped="true"
-          :show-actions="!isAway"
+          :show-actions="canEquip"
           @unequip="handleUnequipWeapon"
         />
 
@@ -158,7 +164,7 @@ const modalIcon = computed(() => {
           v-else
           type="button"
           class="empty-slot"
-          :disabled="isAway"
+          :disabled="!canEquip"
           @click="openWeaponInventory"
         >
           <Icon icon="mdi:plus-circle" class="empty-icon" />
@@ -178,7 +184,7 @@ const modalIcon = computed(() => {
           :item="equippedOutfit"
           type="outfit"
           :equipped="true"
-          :show-actions="!isAway"
+          :show-actions="canEquip"
           @unequip="handleUnequipOutfit"
         />
 
@@ -186,7 +192,7 @@ const modalIcon = computed(() => {
           v-else
           type="button"
           class="empty-slot"
-          :disabled="isAway"
+          :disabled="!canEquip"
           @click="openOutfitInventory"
         >
           <Icon icon="mdi:plus-circle" class="empty-icon" />
@@ -205,7 +211,7 @@ const modalIcon = computed(() => {
           v-if="equippedPet"
           :pet="equippedPet"
           :equipped="true"
-          :show-actions="!isAway"
+          :show-actions="canEquip"
           :disabled="petActionPending"
           @unequip="handleUnequipPet"
         />
@@ -214,7 +220,7 @@ const modalIcon = computed(() => {
           v-else
           type="button"
           class="empty-slot"
-          :disabled="isAway"
+          :disabled="!canEquip"
           @click="openPetInventory"
         >
           <Icon icon="mdi:plus-circle" class="empty-icon" />
@@ -225,7 +231,7 @@ const modalIcon = computed(() => {
 
     <!-- Inventory Modal -->
     <TerminalModal
-      :open="showInventoryModal && !isAway"
+      :open="showInventoryModal && canEquip"
       @update:open="showInventoryModal = $event"
       size="xl"
       max-height="75"
@@ -244,7 +250,7 @@ const modalIcon = computed(() => {
               :key="weapon.id"
               :item="weapon"
               type="weapon"
-              :show-actions="!isAway"
+              :show-actions="canEquip"
               @equip="handleEquipWeapon(weapon.id)"
             />
             <div v-if="availableWeapons.length === 0" class="empty-state">
@@ -259,7 +265,7 @@ const modalIcon = computed(() => {
               :key="outfit.id"
               :item="outfit"
               type="outfit"
-              :show-actions="!isAway"
+              :show-actions="canEquip"
               @equip="handleEquipOutfit(outfit.id)"
             />
             <div v-if="availableOutfits.length === 0" class="empty-state">
@@ -273,7 +279,7 @@ const modalIcon = computed(() => {
               v-for="pet in availablePets"
               :key="pet.id"
               :pet="pet"
-              :show-actions="!isAway"
+              :show-actions="canEquip"
               :disabled="petActionPending"
               @equip="handleEquipPet(pet.id)"
             />

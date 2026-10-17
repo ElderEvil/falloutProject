@@ -467,12 +467,12 @@ async def test_collect_evaluator_does_not_reprocess_its_reward(
 
 
 @pytest.mark.asyncio
-async def test_only_current_starter_step_progresses(
+async def test_all_assigned_starter_steps_record_early_progress(
     async_session: AsyncSession,
     fresh_event_bus,
     patched_session_maker,
 ) -> None:
-    """Only the current starter step (lowest unfinished sequence) progresses."""
+    """Events count toward later starter steps before their rewards become claimable."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
         async_session,
@@ -507,8 +507,84 @@ async def test_only_current_starter_step_progresses(
     await async_session.refresh(links[1])
     await async_session.refresh(links[2])
     assert links[0].progress == 1
-    assert links[1].progress == 0
-    assert links[2].progress == 0
+    assert links[1].progress == 1
+    assert links[2].progress == 1
+
+
+@pytest.mark.asyncio
+async def test_storage_scrap_counts_early_and_rewards_claim_in_any_order(
+    async_session: AsyncSession, vault, fresh_event_bus, patched_session_maker
+) -> None:
+    from app.models.weapon import Weapon
+    from app.services.item_service import item_service
+    from app.services.recipe_unlock_service import catalog_entry
+    from app.services.reward_service import reward_service
+    from app.utils.exceptions import ResourceConflictException
+    from app.utils.item_factory import build_weapon
+
+    current = Objective(
+        challenge="Collect one cap",
+        reward="10 caps",
+        category="starter",
+        sequence=0,
+        objective_type="collect",
+        target_entity={"resource_type": "caps"},
+        target_amount=1,
+    )
+    future = Objective(
+        challenge="Scrap a rare weapon",
+        reward="300 caps",
+        category="starter",
+        sequence=1,
+        objective_type="scrap",
+        target_entity={"item_type": "weapon", "rarity": "rare"},
+        target_amount=1,
+    )
+    links = [VaultObjectiveProgressLink(vault_id=vault.id, objective_id=o.id, total=1) for o in (current, future)]
+    async_session.add_all([current, future, *links])
+    storage = await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
+    storage.max_space = 20
+    entry = catalog_entry("weapon", "Hunting rifle")
+    weapon = build_weapon(entry, rarity="rare", storage_id=storage.id)
+    weapon_id = weapon.id
+    async_session.add(weapon)
+    await async_session.commit()
+    initial_caps = vault.bottle_caps
+    announcements = []
+
+    async def observe(_event, _vault_id, data):
+        announcements.append(data)
+
+    fresh_event_bus.subscribe(GameEvent.OBJECTIVE_COMPLETED, observe)
+    ScrapEvaluator(fresh_event_bus)
+    CollectEvaluator(fresh_event_bus)
+    junk = await item_service.scrap_item(async_session, item_id=weapon_id, model=Weapon)
+
+    assert junk
+    assert await crud.weapon.get_or_none(async_session, weapon_id) is None
+    await async_session.refresh(links[1])
+    await async_session.refresh(vault)
+    assert links[1].progress == 1
+    assert links[1].is_completed is False
+    assert vault.bottle_caps == initial_caps
+    assert announcements == [
+        {
+            "objective_id": str(future.id),
+            "challenge": future.challenge,
+            "ready_to_claim": True,
+        }
+    ]
+
+    await reward_service.claim_objective_reward(async_session, future.id, vault.id)
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == initial_caps + 300
+
+    await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "caps", "amount": 1})
+    await reward_service.claim_objective_reward(async_session, current.id, vault.id)
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == initial_caps + 310
+    with pytest.raises(ResourceConflictException, match="already claimed"):
+        await reward_service.claim_objective_reward(async_session, future.id, vault.id)
 
 
 @pytest.mark.asyncio

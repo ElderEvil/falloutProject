@@ -569,18 +569,20 @@ class NotificationService:
         meta_data: dict[str, Any] | None = None,
     ):
         """Notify user that an objective has been completed."""
+        if (meta_data or {}).get("ready_to_claim"):
+            title = "Objective Reward Ready"
+            message = f"'{objective_challenge}' complete — claim {reward} in Objectives"
+        else:
+            title = "Objective Complete!"
+            message = f"'{objective_challenge}' completed! Reward: {reward}"
         return await NotificationService.create_and_send(
             db,
             user_id=user_id,
             vault_id=vault_id,
             notification_type=NotificationType.OBJECTIVE_COMPLETED,
             priority=NotificationPriority.NORMAL,
-            title="Objective Reward Ready" if (meta_data or {}).get("ready_to_claim") else "Objective Complete!",
-            message=(
-                f"'{objective_challenge}' complete — claim {reward} in Objectives"
-                if (meta_data or {}).get("ready_to_claim")
-                else f"'{objective_challenge}' completed! Reward: {reward}"
-            ),
+            title=title,
+            message=message,
             meta_data=meta_data,
         )
 

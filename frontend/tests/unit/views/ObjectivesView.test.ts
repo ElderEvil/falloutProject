@@ -89,6 +89,18 @@ beforeEach(() => {
   document.querySelectorAll('[role="tooltip"]').forEach((element) => element.remove())
 })
 
+it('offers an earned starter reward without waiting for earlier steps', async () => {
+  objectivesStore.objectives = [starterObjective(0), { ...starterObjective(1), progress: 1 }]
+  wrapper = mountView()
+  await flushPromises()
+
+  expect(wrapper.text()).not.toContain('Claim earlier starter rewards first.')
+  const claimButtons = wrapper.findAll('.claim-btn')
+  expect(claimButtons.length).toBe(1)
+  expect(claimButtons[0]!.attributes('disabled')).toBeUndefined()
+  expect(wrapper.find('[aria-label="1 reward ready to claim"]').exists()).toBe(true)
+})
+
 describe('ObjectivesView claim flow', () => {
   it('claiming an objective calls completeObjective and opens the completion modal', async () => {
     objectivesStore.objectives = [{ ...dailyObjective }]
@@ -151,7 +163,13 @@ describe('ObjectivesView objective gating', () => {
   it('ignores a retired starter when picking the current step', async () => {
     objectivesStore.objectives = [
       starterObjective(5, true),
-      { ...dailyObjective, id: 'retired', category: 'starter', sequence: null, objective_type: undefined },
+      {
+        ...dailyObjective,
+        id: 'retired',
+        category: 'starter',
+        sequence: null,
+        objective_type: undefined,
+      },
       { ...dailyObjective, id: 'daily-1' },
     ]
 
@@ -173,11 +191,7 @@ describe('ObjectivesView objective gating', () => {
   })
 
   it('opens the regular tabs once the Office is completed', async () => {
-    objectivesStore.objectives = [
-      officeObjective(true),
-      starterObjective(6),
-      { ...dailyObjective },
-    ]
+    objectivesStore.objectives = [officeObjective(true), starterObjective(6), { ...dailyObjective }]
 
     wrapper = mountView()
     await wrapper.vm.$nextTick()
@@ -202,7 +216,9 @@ describe('ObjectivesView objective gating', () => {
 
   it('keeps the Starter tab after the spotlight is skipped', async () => {
     localStorage.setItem('onboarding:v1', JSON.stringify({ 'vault-123': { skipped: true } }))
-    objectivesStore.objectives = [{ ...starterObjective(1), challenge: 'Match a dweller to their room' }]
+    objectivesStore.objectives = [
+      { ...starterObjective(1), challenge: 'Match a dweller to their room' },
+    ]
 
     wrapper = mountView()
     await wrapper.vm.$nextTick()
@@ -233,6 +249,42 @@ describe('ObjectivesView objective gating', () => {
 })
 
 describe('ObjectivesView claimable counters', () => {
+  it.each([0, 1])(
+    'omits hidden daily and weekly rewards until the Office unlock (starter progress %i)',
+    async (progress) => {
+      objectivesStore.objectives = [
+        { ...starterObjective(4), progress },
+        officeObjective(),
+        { ...dailyObjective },
+        { ...dailyObjective, id: 'weekly-1', category: 'weekly' },
+      ]
+      wrapper = mountWithRealHeader()
+      await nextTick()
+      const rewardsReady = () => wrapper.findAll('.page-header-metric-value')[1]!.text()
+
+      expect(rewardsReady()).toBe(String(progress))
+      expect(
+        wrapper
+          .findAll('[role="tab"]')
+          .map((tab) => tab.text())
+          .join(' ')
+      ).not.toContain('Daily')
+
+      objectivesStore.objectives[0]!.is_completed = true
+      objectivesStore.objectives[1]!.is_completed = true
+      await nextTick()
+
+      expect(rewardsReady()).toBe('2')
+      expect(
+        wrapper
+          .findAll('[role="tab"]')
+          .map((tab) => tab.text())
+          .join(' ')
+      ).toContain('Daily')
+      expect(wrapper.find('[aria-label="1 reward ready to claim"]').exists()).toBe(true)
+    }
+  )
+
   it('counts claimable rewards per tab and omits a tab with none', async () => {
     objectivesStore.objectives = [
       { ...dailyObjective, id: 'daily-1' },
@@ -245,7 +297,10 @@ describe('ObjectivesView claimable counters', () => {
     await wrapper.vm.$nextTick()
 
     const tabText = (label: string) =>
-      wrapper.findAll('[role="tab"]').find((tab) => tab.text().startsWith(label))?.text() ?? ''
+      wrapper
+        .findAll('[role="tab"]')
+        .find((tab) => tab.text().startsWith(label))
+        ?.text() ?? ''
 
     expect(tabText('Daily')).toContain('2')
     expect(tabText('Weekly')).toContain('1')
@@ -254,7 +309,9 @@ describe('ObjectivesView claimable counters', () => {
   })
 
   it('does not count an already claimed reward', async () => {
-    objectivesStore.objectives = [{ ...dailyObjective, is_completed: true, progress: 100, total: 100 }]
+    objectivesStore.objectives = [
+      { ...dailyObjective, is_completed: true, progress: 100, total: 100 },
+    ]
 
     wrapper = mountView()
     await wrapper.vm.$nextTick()

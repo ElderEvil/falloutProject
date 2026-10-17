@@ -66,14 +66,14 @@
     "template_key": "starter:build overseer's office"
   },
   {
-    "challenge": "Reverse-engineer a schematic",
+    "challenge": "Scrap a rare weapon",
     "reward": "300 caps",
     "category": "starter",
     "objective_type": "scrap",
     "target_entity": {"item_type": "weapon", "rarity": "rare"},
     "target_amount": 1,
     "sequence": 6,
-    "description": "Find a rare weapon in the wasteland and scrap it to learn its schematic.",
+    "description": "Scrap a rare weapon from Storage to recover crafting materials. Only items with a locked recipe teach a new schematic.",
     "template_key": "starter:reverse-engineer a schematic"
   },
   {

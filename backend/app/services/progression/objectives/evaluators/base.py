@@ -168,8 +168,13 @@ class ObjectiveEvaluator(abc.ABC):
         link.progress = objective.target_amount
         link.reward_snapshot = link.reward_snapshot or objective.reward
         await db_session.commit()
+
         await self._event_bus.emit(
             GameEvent.OBJECTIVE_COMPLETED,
             vault_id,
-            {"objective_id": str(objective.id), "challenge": objective.challenge, "ready_to_claim": True},
+            {
+                "objective_id": str(objective.id),
+                "challenge": objective.challenge,
+                "ready_to_claim": True,
+            },
         )

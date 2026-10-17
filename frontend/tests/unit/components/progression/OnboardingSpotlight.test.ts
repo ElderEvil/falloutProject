@@ -281,7 +281,7 @@ describe('OnboardingSpotlight', () => {
     wrapper.unmount()
   })
 
-  it('withholds a claim until the lowest unclaimed starter step is current', async () => {
+  it('does not block an earned step behind earlier unclaimed starter steps', async () => {
     const store = useObjectivesStore()
     store.objectives = [
       objective('earlier', { sequence: 0, templateKey: 'starter:some earlier step' }),
@@ -291,12 +291,9 @@ describe('OnboardingSpotlight', () => {
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
-    expect(document.body.querySelector('.onboarding-note')).not.toBeNull()
-    expect(findButton('Open Starter')).toBeDefined()
-    const claimButton = [...document.querySelectorAll('.onboarding-actions button')].find((button) =>
-      button.textContent?.trim().startsWith('Claim ')
-    )
-    expect(claimButton).toBeUndefined()
+    expect(findButton('Open Starter')).toBeUndefined()
+    expect(document.body.textContent).not.toContain('Claim your earlier reward in Starter first.')
+    expect(findButton('Continue')).toBeDefined()
     wrapper.unmount()
   })
 

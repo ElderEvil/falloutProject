@@ -20,7 +20,12 @@ import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import { Icon } from '@iconify/vue'
 import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { Badge } from '@/core/components/ui/badge'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import { ObjectiveCard } from '../components'
 import ObjectiveCompleteModal from '../components/ObjectiveCompleteModal.vue'
 
@@ -105,16 +110,16 @@ const emptyMessage = computed(() =>
 const claimableCounts = computed(() => {
   const counts: Record<string, number> = {}
   for (const objective of objectivesStore.objectives) {
-    if (isObjectiveClaimable(objective))
-      counts[objective.category] = (counts[objective.category] ?? 0) + 1
+    if (!visibleTabs.value.some((tab) => tab.key === objective.category)) continue
+    if (isObjectiveClaimable(objective)) counts[objective.category] = (counts[objective.category] ?? 0) + 1
   }
   return counts
 })
 const claimableTotal = computed(() =>
   Object.values(claimableCounts.value).reduce((total, count) => total + count, 0)
 )
-const openObjectivesCount = computed(() =>
-  objectivesStore.objectives.filter((objective) => !objective.is_completed).length
+const openObjectivesCount = computed(
+  () => objectivesStore.objectives.filter((objective) => !objective.is_completed).length
 )
 function claimTooltip(count: number): string {
   return `${count} reward${count === 1 ? '' : 's'} ready to claim`
@@ -206,7 +211,12 @@ function closeClaimModal(): void {
                     <Tooltip>
                       <TooltipTrigger as-child>
                         <TabsTrigger :value="tab.key">
-                          <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
+                          <Icon
+                            v-if="tab.icon"
+                            :icon="tab.icon"
+                            class="mr-2 inline"
+                            :ariaHidden="true"
+                          />
                           {{ tab.label }}
                           <span
                             v-if="claimableCounts[tab.key]"
@@ -230,8 +240,8 @@ function closeClaimModal(): void {
                 </template>
               </TabsList>
               <p v-if="!objectivesUnlocked" class="unlock-hint">
-                Daily, weekly and achievement objectives unlock once you claim the Overseer's
-                Office objective.
+                Daily, weekly and achievement objectives unlock once you claim the Overseer's Office
+                objective. Rewards already earned stay saved until then.
               </p>
               <div class="tab-content">
                 <div v-if="visibleObjectives.length === 0" class="empty-state">

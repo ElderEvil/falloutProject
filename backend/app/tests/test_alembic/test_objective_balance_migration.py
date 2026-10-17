@@ -26,13 +26,6 @@ def _json_catalog():
     return {row["template_key"]: row for file in OBJECTIVES.glob("*.json") for row in json.loads(file.read_text())}
 
 
-def _frozen_catalog(migration):
-    return {
-        row["template_key"]: {key: value for key, value in row.items() if key != "legacy_challenge"}
-        for row in migration._CATALOG
-    }
-
-
 def test_balance_migration_preserves_earned_claims(monkeypatch):
     migration = _load(BALANCE_MIGRATION)
     metadata = sa.MetaData()
@@ -216,9 +209,16 @@ def test_spine_migration_rebalances_starter_rows_without_touching_claims(monkeyp
         assert len(connection.execute(sa.select(objectives)).all()) == 95
         earned = connection.execute(sa.select(links).where(links.c.objective_id == identifier)).mappings().one()
         assert earned["reward_snapshot"] == "50 caps"
-        assert _frozen_catalog(migration) == _json_catalog()
         migration.upgrade()
         assert len(connection.execute(sa.select(objectives)).all()) == 95
         migration.downgrade()
         assert len(connection.execute(sa.select(objectives)).all()) == 95
+        # Historical migrations stay frozen; the later copy correction brings
+        # their starter descriptions in line with the current seed catalog.
+        clarification = _load("2026_10_16_0003-d8e4c7a2b915_clarify_starter_scrap_objective.py")
+        monkeypatch.setattr(clarification, "op", Operations(MigrationContext.configure(connection)))
+        clarification.upgrade()
+        by_key = {row["template_key"]: row for row in connection.execute(sa.select(objectives)).mappings()}
+        for key, expected in _json_catalog().items():
+            assert {field: by_key[key][field] for field in expected} == expected
     engine.dispose()

@@ -472,6 +472,21 @@ async def test_vault_initiate_rejects_unknown_mode(
 
 
 @pytest.mark.asyncio
+async def test_vault_initiate_rejects_boosted_survival(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+):
+    """Boosted Start is incompatible with survival mode and is rejected at creation (issue 1031)."""
+    response = await async_client.post(
+        "/vaults/initiate",
+        headers=superuser_token_headers,
+        json={"number": 215, "boosted": True, "vault_mode": "survival"},
+    )
+    assert response.status_code == 422
+    assert "survival" in response.json()["detail"][0]["msg"].lower()
+
+
+@pytest.mark.asyncio
 async def test_vault_mode_is_immutable_via_api(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],

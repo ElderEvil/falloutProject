@@ -6,11 +6,11 @@ import httpx
 
 from app.core.config import settings
 from app.utils.exceptions import ElevenLabsProviderException
+from app.utils.narration_keys import elevenlabs_voice_id
 
 logger = logging.getLogger(__name__)
 
 ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech"
-DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"  # George
 DEFAULT_MODEL_ID = "eleven_multilingual_v2"
 DEFAULT_STABILITY = 0.5
 DEFAULT_SIMILARITY_BOOST = 0.75
@@ -38,7 +38,7 @@ class ElevenLabsTtsService:
 
         Args:
             text: The line to speak.
-            voice_id: ElevenLabs voice; defaults to DEFAULT_VOICE_ID.
+            voice_id: ElevenLabs voice; defaults to the shared echo voice.
             model_id: ElevenLabs model; defaults to DEFAULT_MODEL_ID.
 
         Raises:
@@ -60,7 +60,7 @@ class ElevenLabsTtsService:
             },
         }
 
-        url = f"{ELEVENLABS_API_URL}/{voice_id or DEFAULT_VOICE_ID}"
+        url = f"{ELEVENLABS_API_URL}/{voice_id or elevenlabs_voice_id('echo')}"
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:

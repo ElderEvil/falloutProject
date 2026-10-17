@@ -282,3 +282,31 @@ async def test_cache_hit_attaches_voice_line_to_dweller(async_session, user_with
         mock_el.return_value.generate_speech.assert_not_called()
         mock_openai.generate_audio.assert_not_called()
         mock_quota.check_quota.assert_not_called()
+
+
+@pytest.mark.parametrize("voice_type", ["echo", "alloy", "fable"])
+async def test_runtime_synthesizes_the_same_voice_as_pack(
+    async_session, user_with_vault, dweller_in_vault, voice_type
+) -> None:
+    import scripts.generate_voices as gen
+
+    from app.services.dweller_ai import dweller_ai as service
+
+    entry = {"text": "Hello", "voice_type": voice_type}
+    user, _ = user_with_vault
+    with (
+        patch.object(service, "storage_service") as storage,
+        patch("app.services.dweller_ai.get_elevenlabs_tts_service") as provider,
+    ):
+        storage.enabled = True
+        storage.file_exists.return_value = False
+        storage.upload_file.return_value = "https://cdn.example.com/line.mp3"
+        provider.return_value.is_enabled = True
+        provider.return_value.generate_speech = AsyncMock(return_value=b"audio")
+
+        await service.generate_audio(
+            "Hello", user, async_session, dweller_id=dweller_in_vault.id, voice_type=voice_type
+        )
+
+        provider.return_value.generate_speech.assert_awaited_once_with(text="Hello", voice_id=gen.resolve_voice(entry))
+        assert storage.upload_file.call_args.kwargs["file_name"] == gen.content_cache_key(entry)

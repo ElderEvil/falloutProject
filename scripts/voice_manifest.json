@@ -1,9 +1,4 @@
 {
-  "voices": {
-    "echo": "JBFqnCBsd6RMkjVDRZzb",
-    "alloy": "pNInz6obpgDQGcFmaJgB",
-    "fable": "21m00Tcm4TlvDq8ikWAM"
-  },
   "lines": [
     {
       "key": "announcer.welcome",

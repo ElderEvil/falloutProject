@@ -35,7 +35,7 @@ from app.utils.exceptions import (
     QuotaExceededException,
     ValidationException,
 )
-from app.utils.narration_keys import narration_cache_key
+from app.utils.narration_keys import elevenlabs_voice_id, narration_cache_key
 
 logger = logging.getLogger(__name__)
 
@@ -501,9 +501,9 @@ class DwellerAIService:
                 provider = "elevenlabs"
                 model = "eleven_multilingual_v2"
                 try:
-                    # No explicit voice_id/model_id: the service falls back to
-                    # its module defaults.
-                    audio_bytes = await elevenlabs_svc.generate_speech(text=text)
+                    audio_bytes = await elevenlabs_svc.generate_speech(
+                        text=text, voice_id=elevenlabs_voice_id(voice_type)
+                    )
                 except ElevenLabsProviderException:
                     logger.warning(
                         "ElevenLabs TTS failed for dweller %s, falling back to OpenAI",

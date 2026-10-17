@@ -309,14 +309,20 @@ polling must not overwrite an open bot selection.
 
 Voice lines are generated through a cache-first pipeline:
 
-1. **Cache lookup** — a deterministic filename is computed from `sha256(text:voice)`,
+1. **Cache lookup** — a deterministic filename is computed from
+   `sha256(text:voice_type:resolved_elevenlabs_voice_id)`,
    stored under `pa/<16-hex>.mp3` in the `dweller-audio` bucket. If the object already
-   exists in RustFS, the URL is reused and no TTS API is called.
+   exists in RustFS, the URL is reused and no TTS API is called. Runtime synthesis
+   and pack generation share the voice mapping in `app.utils.narration_keys`;
+   changing a provider voice invalidates its cached recordings. Unmapped runtime
+   voice types retain the default echo voice. Packs reject unknown voice types
+   and local voice overrides. The new keys leave earlier alias-only recordings
+   unused; no storage deletion or data migration is needed.
 2. **ElevenLabs (quota-exempt)** — when `ELEVENLABS_API_KEY` is set, the ElevenLabs
    `eleven_multilingual_v2` model is used with `stability: 0.5` and
    `similarity_boost: 0.75`. The free tier has no token quota, so no
    `quota_service` check is performed. The `LLMInteraction` log records
-   `provider='elevenlabs'` and `model=<voice_id>`.
+   `provider='elevenlabs'` and `model='eleven_multilingual_v2'`.
 3. **OpenAI fallback (quota-checked)** — if ElevenLabs is not configured or fails
    (logged as a warning on failure), the pipeline falls through to OpenAI TTS.
    The standard per-user token quota **is** checked here and enforced. The log

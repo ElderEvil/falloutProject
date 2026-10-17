@@ -30,7 +30,11 @@ if str(_BACKEND_ROOT) not in sys.path:
 
 from app.core.config import settings as _settings
 from app.services.elevenlabs_service import ElevenLabsTtsService
-from app.utils.narration_keys import narration_cache_key
+from app.utils.narration_keys import (
+    ELEVENLABS_VOICES,
+    elevenlabs_voice_id,
+    narration_cache_key,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -69,22 +73,18 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_manifest(path: Path) -> tuple[dict[str, str], list[dict]]:
-    """Load manifest; returns (voice_registry, lines).
-
-    The voice registry is the authoritative game-side key -> ElevenLabs
-    voice_id mapping. Line entries reference voices only by key; a
-    per-entry ``voice_id`` override is rejected — one canonical provider
-    voice per game-side voice_type, or the content cache collides.
-    """
+def load_manifest(path: Path) -> list[dict]:
+    """Load manifest lines; voice mappings belong to the shared runtime registry."""
     with Path(path).open("r", encoding="utf-8") as fh:
         data = json.load(fh)
-    if isinstance(data, list):  # legacy format: no registry
-        return {}, data
-    return data.get("voices", {}), data.get("lines", [])
+    if "voices" in data:
+        raise ValueError(
+            "Voice mappings belong in app.utils.narration_keys, not the manifest"
+        )
+    return data["lines"]
 
 
-def resolve_voice(entry: dict, registry: dict[str, str]) -> str:
+def resolve_voice(entry: dict) -> str:
     """Resolve the entry's synthesis voice via the registry.
 
     Raises:
@@ -94,15 +94,14 @@ def resolve_voice(entry: dict, registry: dict[str, str]) -> str:
     if entry.get("voice_id"):
         raise ValueError(
             f"{entry.get('key', '<entry>')}: per-entry voice_id is forbidden — "
-            "map the voice_type in the manifest's 'voices' registry instead"
+            "use the shared runtime voice mapping instead"
         )
     voice_type = entry.get("voice_type", "echo")
-    voice_id = registry.get(voice_type)
-    if not voice_id:
+    if voice_type not in ELEVENLABS_VOICES:
         raise ValueError(
-            f"{entry.get('key', '<entry>')}: voice_type '{voice_type}' not in manifest voice registry"
+            f"{entry.get('key', '<entry>')}: voice_type '{voice_type}' not in shared voice registry"
         )
-    return voice_id
+    return elevenlabs_voice_id(voice_type)
 
 
 def content_cache_key(entry: dict) -> str:
@@ -120,11 +119,10 @@ def content_cache_key(entry: dict) -> str:
 def generate_entry(
     entry: dict,
     elevenlabs_svc: ElevenLabsTtsService,
-    registry: dict[str, str],
 ) -> bytes:
     """Generate speech for one manifest entry. Raises on provider errors."""
     text = entry["text"]
-    voice_id = resolve_voice(entry, registry)
+    voice_id = resolve_voice(entry)
     return asyncio.run(elevenlabs_svc.generate_speech(text=text, voice_id=voice_id))
 
 
@@ -183,7 +181,7 @@ def main() -> None:
         )
         logger.warning("With --dry-run this is fine; otherwise generation will fail.")
 
-    registry, entries = load_manifest(manifest_path)
+    entries = load_manifest(manifest_path)
     generated = 0
     skipped = 0
     failed = 0
@@ -195,7 +193,7 @@ def main() -> None:
         try:
             # Contract check up front: every line must resolve through the
             # registry (no per-entry voice_id), or the cache contract breaks.
-            resolve_voice(entry, registry)
+            resolve_voice(entry)
         except ValueError as e:
             logger.error("  [invalid] %s: %s", key, e)
             failed += 1
@@ -245,7 +243,7 @@ def main() -> None:
             continue
 
         try:
-            audio_bytes = generate_entry(entry, elevenlabs_svc, registry)
+            audio_bytes = generate_entry(entry, elevenlabs_svc)
         except Exception as e:  # noqa: BLE001 - CLI boundary: report-and-continue per entry
             logger.error("  [error] %s: %s", key, e)
             failed += 1

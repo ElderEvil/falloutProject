@@ -74,7 +74,7 @@ export function useNukaColaCount(
 
   const nukaColaCount = computed<number | null>(() => {
     const id = vaultId.value
-    return id && authStore.token ? counts.get(id)?.value ?? null : null
+    return id && authStore.token ? (counts.get(id)?.value ?? null) : null
   })
 
   watch(
@@ -101,10 +101,13 @@ export function useNukaColaCount(
  * Headers sharing the vault's cached Ref update in place; on fetch failure the
  * cached value is kept (never dropped to `null` by a refresh attempt).
  */
-export function refreshNukaColaCount(
+export async function refreshNukaColaCount(
   vaultId: string,
   counts: Map<string, Ref<number | null>> = sharedCounts
 ): Promise<void> {
+  // A request started before the mutation can contain the old inventory. Its
+  // owner handles errors; refresh still needs a new read after it settles.
+  await inFlightCounts.get(vaultId)?.catch(() => undefined)
   const entry = cacheFor(vaultId, counts)
   return fetchNukaColaCount(vaultId, entry)
     .then(() => undefined)

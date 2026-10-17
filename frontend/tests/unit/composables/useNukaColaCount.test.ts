@@ -40,9 +40,7 @@ function newCache(): Map<string, Ref<number | null>> {
 
 describe('countNukaColaBottles', () => {
   it('counts every item whose name references Nuka-Cola', () => {
-    expect(
-      countNukaColaBottles([{ name: 'Nuka-Cola Quantum' }, { name: 'nuka-cola' }])
-    ).toBe(2)
+    expect(countNukaColaBottles([{ name: 'Nuka-Cola Quantum' }, { name: 'nuka-cola' }])).toBe(2)
   })
 
   it('ignores items unrelated to Nuka-Cola', () => {
@@ -70,8 +68,13 @@ describe('useNukaColaCount', () => {
     scope.stop()
   })
 
-  function useCount(vaultId: Ref<string | null>, cache?: Map<string, Ref<number | null>>): NukaColaCountState {
-    const state = scope.run(() => useNukaColaCount(vaultId, cache as Map<string, Ref<number | null>> | undefined))
+  function useCount(
+    vaultId: Ref<string | null>,
+    cache?: Map<string, Ref<number | null>>
+  ): NukaColaCountState {
+    const state = scope.run(() =>
+      useNukaColaCount(vaultId, cache as Map<string, Ref<number | null>> | undefined)
+    )
     if (!state) throw new Error('composable did not run inside the effect scope')
     return state
   }
@@ -169,6 +172,33 @@ describe('useNukaColaCount', () => {
 
     expect(first.nukaColaCount.value).toBe(1)
     expect(second.nukaColaCount.value).toBe(1)
+  })
+
+  it.each([false, true])('refreshes after an older request settles (failed=%s)', async (failed) => {
+    const cache = newCache()
+    let resolveOld!: (value: StorageItemsResponse) => void
+    let rejectOld!: (reason: Error) => void
+    vi.mocked(storageService.getStorageItems)
+      .mockReturnValueOnce(
+        new Promise((resolve, reject) => {
+          resolveOld = resolve
+          rejectOld = reject
+        })
+      )
+      .mockResolvedValue(storageItems('Nuka-Cola'))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const state = useCount(ref('claim-race'), cache)
+    const refreshed = refreshNukaColaCount('claim-race', cache)
+    try {
+      if (failed) rejectOld(new Error('old request failed'))
+      else resolveOld(storageItems())
+      await refreshed
+      await flushPromises()
+      expect(state.nukaColaCount.value).toBe(1)
+      expect(storageService.getStorageItems).toHaveBeenCalledTimes(2)
+    } finally {
+      warn.mockRestore()
+    }
   })
 
   it('keeps the count unloaded when the storage fetch fails and logs context', async () => {

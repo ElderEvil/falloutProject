@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.228.3 (2026-10-17)
+
+### Bug Fixes
+
+* address playtest feedback and enforce continuous vault rows ([#1058](https://github.com/ElderEvil/falloutProject/issues/1058)) aa62ed6
+
 ## 2.228.2 (2026-10-17)
 
 ### Bug Fixes

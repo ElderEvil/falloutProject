@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useEquipmentStore } from '@/modules/combat/stores/equipment'
 import { usePetsStore } from '@/modules/pets/stores/pets'
@@ -23,6 +23,10 @@ const isAway = computed(() => ['exploring', 'questing'].includes(dweller.value?.
 const showInventoryModal = ref(false)
 const petActionPending = ref(false)
 const inventoryMode = ref<'weapon' | 'outfit' | 'pet'>('weapon')
+
+watch(isAway, (away) => {
+  if (away) showInventoryModal.value = false
+})
 
 // Get equipped items from the dweller object
 const equippedWeapon = computed(() => dweller.value?.weapon ?? null)

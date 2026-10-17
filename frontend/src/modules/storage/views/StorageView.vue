@@ -418,6 +418,7 @@ const closeLunchboxModal = async () => {
                 :item="item.item"
                 :item-type="cardItemType(item)"
                 :count="item.count"
+                :disabled="isLoading"
                 @sell="handleSellItem(item.ids[0], activeTab)"
                 @sell-all="handleSellItem(item.ids, activeTab)"
                 @scrap="handleScrapItem(item.id, activeTab as 'weapon' | 'outfit')"

@@ -160,6 +160,9 @@ describe('DwellerEquipment', () => {
       dweller.value.status = status
       await nextTick()
       expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
+      dweller.value.status = 'idle'
+      await nextTick()
+      expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
     }
   )
 

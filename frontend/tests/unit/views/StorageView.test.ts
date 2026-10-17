@@ -145,10 +145,18 @@ describe('StorageView', () => {
       await flushPromises()
       expect(wrapper.text()).not.toContain('Loading storage...')
       expect(wrapper.findAllComponents({ name: 'StorageItemCard' })[1]!.element).toBe(survivor)
+      for (const button of cards[0]!.findAll('button')) {
+        expect(button.attributes('disabled')).toBeDefined()
+        await button.trigger('click')
+      }
+      expect(axios.post).toHaveBeenCalledTimes(1)
       finishRefresh({ data: { ...items, weapons: [items.weapons[1]] } })
       await flushPromises()
       expect(wrapper.findAllComponents({ name: 'StorageItemCard' })[0]!.element).toBe(survivor)
       expect(wrapper.text()).not.toContain('Pistol')
+      for (const button of wrapper.findComponent({ name: 'StorageItemCard' }).findAll('button')) {
+        expect(button.attributes('disabled')).toBeUndefined()
+      }
       expect(vaultStore.refreshVault).toHaveBeenCalled()
       wrapper.unmount()
     }

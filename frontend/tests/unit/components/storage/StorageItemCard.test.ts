@@ -37,6 +37,28 @@ describe('StorageItemCard', () => {
     document.querySelectorAll('[role="tooltip"]').forEach((element) => element.remove())
   })
 
+  it.each(['weapon', 'junk', 'lunchbox'])(
+    'disables all %s actions until the refresh finishes',
+    async (itemType) => {
+      const wrapper = mount(StorageItemCard, {
+        props: { item: { name: 'Stored item', value: 10 }, itemType, count: 3, disabled: true },
+        global: { stubs: { Icon: true } },
+      })
+      const buttons = wrapper.findAll('button')
+      expect(buttons.length).toBeGreaterThan(0)
+      for (const button of buttons) {
+        expect(button.attributes('disabled')).toBeDefined()
+        await button.trigger('click')
+      }
+      for (const event of ['sell', 'sellAll', 'scrap', 'open']) {
+        expect(wrapper.emitted(event)).toBeUndefined()
+      }
+      await wrapper.setProps({ disabled: false })
+      for (const button of buttons) expect(button.attributes('disabled')).toBeUndefined()
+      wrapper.unmount()
+    }
+  )
+
   it('presents the item description and clearly labelled inventory actions', async () => {
     const wrapper = mount(StorageItemCard, {
       props: {

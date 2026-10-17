@@ -3,16 +3,22 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import { Card } from '@/core/components/ui/card'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import { getRarityBorderClass } from '@/core/models/items'
 import ItemCard from '@/core/components/common/ItemCard.vue'
 interface Props {
   item: any
   itemType: string
   count?: number
+  disabled?: boolean
 }
 
-const { count = 1, item, itemType } = defineProps<Props>()
+const { count = 1, disabled = false, item, itemType } = defineProps<Props>()
 
 const emit = defineEmits<{
   sell: []
@@ -25,7 +31,9 @@ const rarityBorderClass = computed(() => getRarityBorderClass((item as any).rari
 
 const showSellAll = computed(() => count > 1 && itemType === 'junk')
 
-const isActionable = computed(() => itemType === 'weapon' || itemType === 'outfit' || itemType === 'junk')
+const isActionable = computed(
+  () => itemType === 'weapon' || itemType === 'outfit' || itemType === 'junk'
+)
 
 const isOpenable = computed(() => itemType === 'lunchbox')
 </script>
@@ -37,13 +45,7 @@ const isOpenable = computed(() => itemType === 'lunchbox')
       rarityBorderClass,
     ]"
   >
-    <ItemCard
-      :item="item"
-      :item-type="itemType"
-      :count="count"
-      variant="grid"
-      class="h-full"
-    >
+    <ItemCard :item="item" :item-type="itemType" :count="count" variant="grid" class="h-full">
       <template #actions>
         <!-- Footer: value + inventory actions (generic supplies have no sell/scrap endpoints) -->
         <div
@@ -66,6 +68,7 @@ const isOpenable = computed(() => itemType === 'lunchbox')
                   <Button
                     variant="default"
                     size="sm"
+                    :disabled="disabled"
                     @click="emit('open')"
                     class="border-2 border-theme-primary font-mono"
                   >
@@ -80,6 +83,7 @@ const isOpenable = computed(() => itemType === 'lunchbox')
                   <Button
                     variant="outline"
                     size="sm"
+                    :disabled="disabled"
                     @click="emit('sell')"
                     class="border-2 border-(--color-caps) font-mono text-(--color-caps) hover:bg-(--color-caps)/20 hover:text-(--color-caps)"
                   >
@@ -94,6 +98,7 @@ const isOpenable = computed(() => itemType === 'lunchbox')
                   <Button
                     variant="outline"
                     size="sm"
+                    :disabled="disabled"
                     @click="emit('scrap')"
                     class="border-2 border-danger/60 font-mono text-danger hover:bg-danger/15 hover:text-danger"
                   >
@@ -108,6 +113,7 @@ const isOpenable = computed(() => itemType === 'lunchbox')
                   <Button
                     variant="default"
                     size="sm"
+                    :disabled="disabled"
                     @click="emit('sellAll')"
                     class="border-2 border-(--color-caps) bg-(--color-caps)/20 font-mono text-(--color-caps) hover:bg-(--color-caps)/30"
                   >

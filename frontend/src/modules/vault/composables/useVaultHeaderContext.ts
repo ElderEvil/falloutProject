@@ -3,6 +3,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { getHappinessLevel, type HappinessLevel } from '@/modules/dwellers/models/dweller'
 import { useVaultStore, type VaultWithNumbers } from '../stores/vault'
+import { useNukaColaCount } from './useNukaColaCount'
 
 export type ResourceRates = Record<'power' | 'food' | 'water', number>
 
@@ -23,9 +24,11 @@ export interface VaultHeaderContext {
   water: ComputedRef<{ current: number; max: number }>
   resourceRates: ComputedRef<ResourceRates | undefined>
   bottleCaps: ComputedRef<number>
+  nukaColaCount: Ref<number | null>
   dwellersTooltip: ComputedRef<string>
   happinessTooltip: ComputedRef<string>
   capsTooltip: ComputedRef<string>
+  nukaColaTooltip: ComputedRef<string>
 }
 
 // The header renders these as Tailwind text classes, so the strings stay local
@@ -131,6 +134,8 @@ export function useVaultHeaderContext(): VaultHeaderContext {
     () => `Bottle Caps: ${bottleCaps.value}\nVault currency for construction and upgrades`
   )
 
+  const { nukaColaCount, nukaColaTooltip } = useNukaColaCount(vaultId)
+
   // Hydrate the vault for the current route. Fires only when both a vault id
   // and a token exist; a missing either means "do nothing" — no request.
   // ensureVaultLoaded is idempotent (cached vaults skip the GET, concurrent
@@ -176,8 +181,10 @@ export function useVaultHeaderContext(): VaultHeaderContext {
     water,
     resourceRates,
     bottleCaps,
+    nukaColaCount,
     dwellersTooltip,
     happinessTooltip,
     capsTooltip,
+    nukaColaTooltip,
   }
 }

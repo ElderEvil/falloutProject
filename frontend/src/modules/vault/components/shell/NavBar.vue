@@ -45,9 +45,11 @@ const {
   water,
   resourceRates,
   bottleCaps,
+  nukaColaCount,
   dwellersTooltip,
   happinessTooltip,
   capsTooltip,
+  nukaColaTooltip,
 } = useVaultHeaderContext()
 const vaultNumber = computed(() => vault.value?.number)
 const { versionBadgeVisible, showChangelog } = useVersionDetection({
@@ -317,18 +319,17 @@ onUnmounted(() => {
           >
             <PageHeaderMetric
               compact
-              icon="mdi:bottle-soda-classic"
-              value="—"
-              label="Nuka bottles"
-              tooltip="Nuka bottles are a preview; balances are not tracked yet."
-              value-class="text-theme-primary/55"
-            />
-            <PageHeaderMetric
-              compact
               icon="mdi:coins"
               :value="bottleCaps.toLocaleString('en-US')"
               label="Caps"
               :tooltip="capsTooltip"
+            />
+            <PageHeaderMetric
+              compact
+              icon="mdi:bottle-soda-classic"
+              :value="nukaColaCount === null ? '—' : nukaColaCount.toLocaleString('en-US')"
+              label="Nuka bottles"
+              :tooltip="nukaColaTooltip"
             />
           </div>
         </div>

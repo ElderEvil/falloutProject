@@ -1,5 +1,4 @@
 import asyncio
-import hashlib
 import logging
 from math import ceil
 from typing import Any
@@ -36,6 +35,7 @@ from app.utils.exceptions import (
     QuotaExceededException,
     ValidationException,
 )
+from app.utils.narration_keys import narration_cache_key
 
 logger = logging.getLogger(__name__)
 
@@ -448,9 +448,7 @@ class DwellerAIService:
     @staticmethod
     def _cache_key(text: str, voice_type: str) -> str:
         """Return a deterministic cache filename from a sha256 of text + voice."""
-        raw = f"{text}:{voice_type}"
-        h = hashlib.sha256(raw.encode("utf-8")).hexdigest()
-        return f"pa/{h[:16]}.mp3"
+        return narration_cache_key(text, voice_type)
 
     async def generate_audio(
         self,
@@ -485,9 +483,12 @@ class DwellerAIService:
         cache_key = self._cache_key(text, voice_type)
         audio_url: str | None = None
         provider, model = "cache", cache_key
-        if self.storage_service.file_exists(file_name=cache_key, bucket_name="dweller-audio"):
+        # Sync S3 head/URL calls — keep them off the event loop like upload_file.
+        if await asyncio.to_thread(self.storage_service.file_exists, file_name=cache_key, bucket_name="dweller-audio"):
             # Cache hit — reconstruct the URL, skip generation and upload
-            audio_url = self.storage_service.public_url(file_name=cache_key, bucket_name="dweller-audio")
+            audio_url = await asyncio.to_thread(
+                self.storage_service.public_url, file_name=cache_key, bucket_name="dweller-audio"
+            )
             logger.info("Cache hit for audio: %s", cache_key)
 
         # ── provider dispatch ────────────────────────────────────────────

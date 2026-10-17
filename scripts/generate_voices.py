@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import hashlib
 import json
 import logging
 import sys
@@ -34,6 +33,7 @@ from app.services.elevenlabs_service import (
     DEFAULT_VOICE_ID,
     ElevenLabsTtsService,
 )
+from app.utils.narration_keys import narration_cache_key
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -76,15 +76,15 @@ def load_manifest(path: Path) -> list[dict]:
 
 
 def content_cache_key(entry: dict) -> str:
-    """Deterministic cache object key, shared with the runtime lookup.
+    """Deterministic cache object key via the shared runtime helper.
 
-    Must stay in sync with DwellerAIService._cache_key(text, voice): the
-    runtime hashes f"{text}:{voice}" with sha256 and takes 16 hex chars.
+    Uses the entry's runtime voice_type ("echo" unless overridden) — the
+    same identifier dweller requests hash — so pre-generated pack audio IS
+    the runtime cache. The ElevenLabs voice_id only steers generation.
     """
     text = entry["text"]
-    voice_id = entry.get("voice_id", DEFAULT_VOICE_ID)
-    digest = hashlib.sha256(f"{text}:{voice_id}".encode()).hexdigest()
-    return f"pa/{digest[:16]}.mp3"
+    voice_type = entry.get("voice_type", "echo")
+    return narration_cache_key(text, voice_type)
 
 
 def generate_entry(

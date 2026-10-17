@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.224.0 (2026-10-17)
+
+### Features
+
+* **quests:** expose per-requirement gate verdicts on the vault quest read bd63b3d
+
+### Bug Fixes
+
+* **quests:** treat quest ITEM requirement as vault-scoped 6de05ad
+
 ## 2.223.2 (2026-10-17)
 
 ### Bug Fixes

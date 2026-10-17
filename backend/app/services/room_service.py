@@ -240,6 +240,12 @@ class RoomService:
                 previous_capacity=counted_capacity,
             )
 
+        # Preserve allocated rounding when remodeled segments enter an automatic merge.
+        allocated_refund = (
+            sum(room_rules.room_refund(room) for room in [candidate, *group])
+            if any(getattr(room, "refund_caps", None) is not None for room in [candidate, *group])
+            else None
+        )
         created = False
         if survivor_is_candidate:
             if candidate_id is None:
@@ -274,6 +280,8 @@ class RoomService:
         else:
             return MergeResult(room=None, absorbed_ids=[], merged=False)
 
+        survivor_room.refund_caps = allocated_refund
+        db_session.add(survivor_room)
         if absorbed_ids:
             await crud.dweller.reassign_dwellers_between_rooms(
                 db_session=db_session,
@@ -295,6 +303,7 @@ class RoomService:
             for room in absorbed:
                 await crud.room.delete(db_session=db_session, id=room.id, soft=False)
 
+        await db_session.commit()
         return MergeResult(
             room=survivor_room,
             absorbed_ids=absorbed_ids,
@@ -593,14 +602,7 @@ class RoomService:
         await crud.room.clear_origin_room_references(db_session, room_id)
         db_obj = await crud.room.delete(db_session, id=room_id)
 
-        refundable_total = db_obj.base_cost + (db_obj.incremental_cost or 0)
-
-        if db_obj.tier >= 2 and db_obj.t2_upgrade_cost:
-            refundable_total += db_obj.t2_upgrade_cost
-        if db_obj.tier >= 3 and db_obj.t3_upgrade_cost:
-            refundable_total += db_obj.t3_upgrade_cost
-
-        refund = int(refundable_total * db_obj.segment_count * game_config.resource.destroy_room_refund_rate)
+        refund = room_rules.room_refund(db_obj)
 
         await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=refund, track_earnings=False)
 
@@ -663,6 +665,8 @@ class RoomService:
 
         await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=upgrade_cost)
 
+        if room.refund_caps is not None:
+            room.refund_caps += int(upgrade_cost * game_config.resource.destroy_room_refund_rate)
         old_tier = room.tier
         old_capacity = room.capacity
         room.tier += 1

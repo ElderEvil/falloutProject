@@ -2,6 +2,7 @@ from datetime import datetime
 
 from pydantic import UUID4
 from sqlmodel import Field, SQLModel
+from sqlmodel._compat import SQLModelConfig
 
 from app.core.grid_config import GRID_BUILD_X_MAX, GRID_BUILD_Y_MAX, GRID_X_MIN, GRID_Y_MIN
 from app.models.room import RoomBase
@@ -20,7 +21,7 @@ class RoomCreate(RoomCreateWithoutVaultID):
 class RoomBuild(SQLModel):
     """The only player-controlled input for building a room."""
 
-    model_config = {"extra": "forbid"}
+    model_config = SQLModelConfig(extra="forbid")
 
     vault_id: UUID4
     room_name: str = Field(min_length=3, max_length=32)
@@ -37,3 +38,9 @@ class RoomRead(RoomBase):
 @optional()
 class RoomUpdate(RoomBase):
     pass
+
+
+class RoomMerge(SQLModel):
+    model_config = SQLModelConfig(extra="forbid")
+
+    other_room_id: UUID4

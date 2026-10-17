@@ -12,6 +12,17 @@ Merged rooms follow the same rule using their entire footprint. Construction, de
 and room merging share the vault placement lock. Elevator dependency and vault door
 protections still apply.
 
+Room management can split a merged non-unique facility into its base segments, or
+merge two adjacent facilities of the same type and tier within their size limit.
+These free layout changes preserve occupied cells, total capacity/output, upgrade
+tiers, and the exact demolition refund. Integer remainders are distributed across
+the split segments; `room.refund_caps = NULL` retains the legacy refund formula.
+Unique and fixed-width facilities cannot be remodeled. Active incidents, including
+spread targets, block remodeling. Worker/apprentice assignments, training, dispatch
+return postings, and historical incident references follow the resulting rooms.
+Splitting does not immediately invoke automatic merging; subsequent construction
+or upgrades retain their existing automatic merge behavior.
+
 ## Progression visibility (red line)
 
 Every player-facing progression event — level-up, loot, training completion, quest/objective completion —

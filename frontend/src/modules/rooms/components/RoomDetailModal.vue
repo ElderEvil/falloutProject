@@ -94,13 +94,21 @@ const { resourceIcon, roomImageUrl, roomGridImageUrl, productionInfo } = useRoom
   dwellerCapacity
 )
 
-const { isUpgrading, isDestroying, upgradeInfo, isVaultDoor, handleUpgrade, handleDestroy } =
-  useRoomUpgrade(
-    roomRef,
-    actionError,
-    () => emit('roomUpdated'),
-    () => emit('close')
-  )
+const {
+  isUpgrading,
+  isDestroying,
+  isRemodeling,
+  handleRemodel,
+  upgradeInfo,
+  isVaultDoor,
+  handleUpgrade,
+  handleDestroy,
+} = useRoomUpgrade(
+  roomRef,
+  actionError,
+  () => emit('roomUpdated'),
+  () => emit('close')
+)
 
 const {
   isRecruiting,
@@ -276,10 +284,13 @@ onUnmounted(stopAmbience)
             :upgrade-info="upgradeInfo"
             :is-upgrading="isUpgrading"
             :is-destroying="isDestroying"
+            :is-remodeling="isRemodeling"
             :is-vault-door="isVaultDoor"
             :assigned-dweller-count="assignedDwellers.length"
             @upgrade="handleUpgrade"
             @destroy="handleDestroy"
+            @split="handleRemodel()"
+            @merge="handleRemodel"
             @unassign-all="handleUnassignAll"
           />
         </template>

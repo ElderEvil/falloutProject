@@ -8,6 +8,7 @@ import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
+import axios from '@/core/plugins/axios'
 import { audioManager } from '@/core/audio/audioManager'
 
 // Mock @iconify/vue
@@ -134,6 +135,33 @@ describe('RoomDetailModal', () => {
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',
   }
+
+  it.each(['split', 'merge'])('runs the %s control through the room API', async (action) => {
+    const room = { ...mockRoom, size: action === 'split' ? 6 : 3, incremental_cost: 25 }
+    const store = useRoomStore()
+    store.rooms = [room, { ...room, id: 'neighbor', size: 3, coordinate_x: room.size }]
+    useAuthStore().token = 'token'
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.mocked(axios.post).mockResolvedValueOnce({
+      data: action === 'split' ? [room, { ...room, id: 'piece-2' }] : { ...room, size: 6 },
+    })
+    const wrapper = mount(RoomDetailModal, {
+      props: { room, modelValue: true, vaultId: 'vault-123' },
+    })
+    const button = wrapper
+      .findAll('button')
+      .find((b) => b.text().includes(action === 'split' ? 'Split into' : 'Merge right'))!
+    await button.trigger('click')
+    await flushPromises()
+    expect(axios.post).toHaveBeenCalledWith(
+      `/api/v1/rooms/${action}/room-1`,
+      action === 'split' ? {} : { other_room_id: 'neighbor' },
+      { headers: { Authorization: 'Bearer token' } }
+    )
+    expect(wrapper.emitted('roomUpdated')).toHaveLength(1)
+    expect(wrapper.emitted('close')).toHaveLength(1)
+    vi.mocked(window.confirm).mockRestore()
+  })
 
   const mockDwellers = [
     {

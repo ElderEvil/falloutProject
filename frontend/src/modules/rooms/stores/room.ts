@@ -185,6 +185,21 @@ export const useRoomStore = defineStore('room', () => {
     await refreshVaultSafely(vaultId, token, 'Failed to refresh vault after upgrading room')
   }
 
+  async function remodelRoom(roomId: string, token: string, otherRoomId?: string): Promise<void> {
+    const action = otherRoomId ? 'merge' : 'split'
+    const response = await axios.post<Room | Room[]>(
+      `/api/v1/rooms/${action}/${roomId}`,
+      otherRoomId ? { other_room_id: otherRoomId } : {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    const replacements = Array.isArray(response.data) ? response.data : [response.data]
+    rooms.value = rooms.value
+      .filter((room) => room.id !== roomId && room.id !== otherRoomId)
+      .concat(replacements)
+    if (otherRoomId) flashMergedRoom(replacements[0]!.id)
+    audioManager.play('vaultBuild', 'sfx')
+  }
+
   function flashMergedRoom(roomId: string): void {
     mergedRoomId.value = roomId
     if (mergedHighlightTimeout !== null) clearTimeout(mergedHighlightTimeout)
@@ -249,6 +264,7 @@ export const useRoomStore = defineStore('room', () => {
     buildRoom,
     destroyRoom,
     upgradeRoom,
+    remodelRoom,
     selectRoom,
     deselectRoom,
   }

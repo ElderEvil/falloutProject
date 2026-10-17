@@ -24,14 +24,22 @@ const modes = [
   {
     value: 'standard',
     label: 'Standard',
+    icon: 'mdi:shield-check-outline',
     description: 'Dwellers can be revived with caps. A little breathing room for a new Overseer.',
   },
   {
     value: 'survival',
     label: 'Survival',
+    icon: 'mdi:skull-outline',
     description: 'Deaths are permanent. The wasteland offers no second chances.',
   },
 ] as const
+
+const summary = computed(() => [
+  ['Vault number', parseVaultNumber(number.value).toString().padStart(3, '0')],
+  ['Vault mode', isSurvival.value ? 'Survival' : 'Standard'],
+  ['Starting point', boosted.value ? 'Boosted Start' : 'Build from scratch'],
+])
 
 function selectMode(value: unknown) {
   if (value !== 'standard' && value !== 'survival') return
@@ -162,12 +170,7 @@ function advance() {
                 :value="mode.value"
                 class="h-auto w-full min-w-0 items-start gap-3 whitespace-normal rounded border border-theme-primary/20 p-4 text-left data-[state=on]:border-theme-primary data-[state=on]:bg-theme-primary/10"
               >
-                <Icon
-                  :icon="
-                    mode.value === 'standard' ? 'mdi:shield-check-outline' : 'mdi:skull-outline'
-                  "
-                  class="mt-0.5 shrink-0"
-                />
+                <Icon :icon="mode.icon" class="mt-0.5 shrink-0" />
                 <span class="flex min-w-0 flex-col gap-1">
                   <span class="font-semibold">{{ mode.label }}</span>
                   <span class="text-xs leading-5 text-theme-primary/65">{{
@@ -223,19 +226,15 @@ function advance() {
           <dl
             class="flex flex-col divide-y divide-theme-primary/20 rounded border border-theme-primary/20 bg-surface-sunken px-4"
           >
-            <div class="flex items-center justify-between gap-4 py-4">
-              <dt class="text-sm text-theme-primary/65">Vault number</dt>
-              <dd class="text-2xl font-bold terminal-glow">
-                {{ parseVaultNumber(number).toString().padStart(3, '0') }}
+            <div
+              v-for="([label, value], index) in summary"
+              :key="label"
+              class="flex items-center justify-between gap-4 py-4"
+            >
+              <dt class="text-sm text-theme-primary/65">{{ label }}</dt>
+              <dd :class="index === 0 ? 'text-2xl font-bold terminal-glow' : 'font-semibold'">
+                {{ value }}
               </dd>
-            </div>
-            <div class="flex items-center justify-between gap-4 py-4">
-              <dt class="text-sm text-theme-primary/65">Vault mode</dt>
-              <dd class="font-semibold">{{ isSurvival ? 'Survival' : 'Standard' }}</dd>
-            </div>
-            <div class="flex items-center justify-between gap-4 py-4">
-              <dt class="text-sm text-theme-primary/65">Starting point</dt>
-              <dd class="font-semibold">{{ boosted ? 'Boosted Start' : 'Build from scratch' }}</dd>
             </div>
           </dl>
           <p v-if="isSurvival" class="text-sm leading-6 text-warning">

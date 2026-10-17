@@ -187,6 +187,10 @@ class TestDwellerAIQuotaEnforcement:
         with patch.object(dweller_ai, "storage_service", create=True) as mock_storage:
             mock_storage.enabled = True
             mock_storage.upload_file = MagicMock(return_value="https://example.com/audio.mp3")
+            # Cache miss: the cache-first pipeline must reach the provider path
+            # for the quota check to fire.
+            mock_storage.file_exists = MagicMock(return_value=False)
+            mock_storage.public_url = MagicMock(return_value="https://example.com/audio.mp3")
 
             with patch("app.services.dweller_ai.get_ai_service") as mock_ai:
                 mock_ai_service = MagicMock()

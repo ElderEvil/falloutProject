@@ -278,6 +278,57 @@ async def test_storage_space_reports_over_capacity_instead_of_500(
 
 
 @pytest.mark.asyncio
+async def test_storage_space_ignores_nuka_consumables(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """Space-free nuka-cola bottles never reduce used_space or available_space."""
+    from app.models.item import Item
+    from app.schemas.common import ItemTypeEnum
+
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault = await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
+
+    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+    storage.max_space = 10
+    async_session.add(storage)
+    await async_session.flush()
+
+    for name in ("Nuka-Cola Quantum", "Nuka-Cola"):
+        async_session.add(
+            Item(
+                name=name,
+                item_type=ItemTypeEnum.CONSUMABLE,
+                rarity=RarityEnum.COMMON,
+                storage_id=storage.id,
+            )
+        )
+    async_session.add(
+        Junk(
+            name="Counting Junk",
+            junk_type=JunkTypeEnum.VALUABLES,
+            rarity=RarityEnum.COMMON,
+            description="Still counts",
+            storage_id=storage.id,
+        )
+    )
+    await async_session.flush()
+
+    response = await async_client.get(
+        f"/storage/vault/{vault.id}/space",
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["used_space"] == 1
+    assert data["available_space"] == 9
+
+
+@pytest.mark.asyncio
 async def test_distribute_recovery_supplies_endpoint(
     async_client: AsyncClient,
     async_session: AsyncSession,

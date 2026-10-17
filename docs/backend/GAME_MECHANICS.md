@@ -304,3 +304,12 @@ Arena bots face right beside allied dwellers and mirror left on the enemy side,
 including picker previews. Creature artwork retains its native enemy-facing direction.
 Incomplete partner edits stay local and disable Start until selection is complete;
 polling must not overwrite an open bot selection.
+
+## Storage space: nuka-cola is free
+
+Nuka-cola bottles do not consume vault storage. `StorageRepository.count_items` counts every
+weapon, outfit, junk, pet and generic item **except** `Item` rows that are `consumable` *and*
+named like `%nuka%` (case-insensitive) — so `used_space`, `available_space` and every downstream
+consumer (grants, exploration rewards, incidents, loot overflow) agree. This is a deliberate
+mutation over Fallout Shelter's storage design; all other consumables still count.
+

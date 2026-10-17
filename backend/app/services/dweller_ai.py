@@ -483,74 +483,67 @@ class DwellerAIService:
 
         # ── cache lookup ──────────────────────────────────────────────────
         cache_key = self._cache_key(text, voice_type)
+        audio_url: str | None = None
+        provider, model = "cache", cache_key
         if self.storage_service.file_exists(file_name=cache_key, bucket_name="dweller-audio"):
-            # Cache hit — reconstruct the URL and skip generation entirely
+            # Cache hit — reconstruct the URL, skip generation and upload
             audio_url = self.storage_service.public_url(file_name=cache_key, bucket_name="dweller-audio")
             logger.info("Cache hit for audio: %s", cache_key)
-            await self._log_audio_result(
-                db_session,
-                user.id,
-                text,
-                voice_type,
-                audio_url,
-                provider="cache",
-                model=cache_key,
-                estimated_tokens=estimated_tokens,
-            )
-            return await dweller_crud.get_full_info(db_session, dweller_obj.id)
 
         # ── provider dispatch ────────────────────────────────────────────
-        elevenlabs_svc = get_elevenlabs_tts_service()
-        provider = "openai"
-        model = "tts-1"
+        if audio_url is None:
+            elevenlabs_svc = get_elevenlabs_tts_service()
+            provider = "openai"
+            model = "tts-1"
 
-        if elevenlabs_svc.is_enabled:
-            provider = "elevenlabs"
-            model = "eleven_multilingual_v2"
-            try:
-                audio_bytes = await elevenlabs_svc.generate_speech(
-                    text=text, voice_id=DEFAULT_VOICE_ID, model_id="eleven_multilingual_v2"
-                )
-            except ElevenLabsProviderException:
-                logger.warning(
-                    "ElevenLabs TTS failed for dweller %s, falling back to OpenAI",
-                    dweller_obj.id,
-                    exc_info=True,
-                )
-                audio_bytes = None
-                # Reset provider/model for the OpenAI fallback
-                provider = "openai"
-                model = "tts-1"
+            if elevenlabs_svc.is_enabled:
+                provider = "elevenlabs"
+                model = "eleven_multilingual_v2"
+                try:
+                    audio_bytes = await elevenlabs_svc.generate_speech(
+                        text=text, voice_id=DEFAULT_VOICE_ID, model_id="eleven_multilingual_v2"
+                    )
+                except ElevenLabsProviderException:
+                    logger.warning(
+                        "ElevenLabs TTS failed for dweller %s, falling back to OpenAI",
+                        dweller_obj.id,
+                        exc_info=True,
+                    )
+                    audio_bytes = None
+                    # Reset provider/model for the OpenAI fallback
+                    provider = "openai"
+                    model = "tts-1"
             else:
-                # ElevenLabs succeeded — skip quota, use provider='elevenlabs'
-                pass
-        else:
-            audio_bytes = None
+                audio_bytes = None
 
-        if audio_bytes is None:
-            # OpenAI fallback — quota-checked
-            quota_result = await quota_service.check_quota(user.id, db_session)
-            if not quota_result.allowed or quota_result.remaining < estimated_tokens:
-                raise QuotaExceededException(
-                    detail=f"Monthly token quota exceeded. Used: {quota_result.used}/{quota_result.limit} tokens. "
-                    f"Estimated TTS cost: {estimated_tokens} tokens."
-                )
+            if audio_bytes is None:
+                # OpenAI fallback — quota-checked
+                quota_result = await quota_service.check_quota(user.id, db_session)
+                if not quota_result.allowed or quota_result.remaining < estimated_tokens:
+                    raise QuotaExceededException(
+                        detail=f"Monthly token quota exceeded. Used: {quota_result.used}/{quota_result.limit} tokens. "
+                        f"Estimated TTS cost: {estimated_tokens} tokens."
+                    )
 
-            try:
-                audio_bytes = await self.ai_service.generate_audio(text=text, voice=voice_type, model="tts-1")
-                if not len(audio_bytes):
-                    logger.warning("Empty audio bytes from OpenAI TTS")
-            except (ValueError, RuntimeError) as e:
-                raise AIAudioException(detail=f"Failed to generate audio via OpenAI: {e}") from e
+                try:
+                    audio_bytes = await self.ai_service.generate_audio(text=text, voice=voice_type, model="tts-1")
+                    if not len(audio_bytes):
+                        logger.warning("Empty audio bytes from OpenAI TTS")
+                except (ValueError, RuntimeError) as e:
+                    raise AIAudioException(detail=f"Failed to generate audio via OpenAI: {e}") from e
 
-        # ── persist ──────────────────────────────────────────────────────
-        audio_url = await asyncio.to_thread(
-            self.storage_service.upload_file,
-            file_data=audio_bytes,
-            file_name=cache_key,
-            file_type="audio/mpeg",
-            bucket_name="dweller-audio",
-        )
+            # ── persist ──────────────────────────────────────────────────
+            audio_url = await asyncio.to_thread(
+                self.storage_service.upload_file,
+                file_data=audio_bytes,
+                file_name=cache_key,
+                file_type="audio/mpeg",
+                bucket_name="dweller-audio",
+            )
+
+        # Cache-exempt paths bill nothing: check_quota() sums total_tokens
+        # across providers, so exempt paths must record explicit zeros.
+        billable_tokens = estimated_tokens if provider == "openai" else 0
 
         updated_visual_attributes = dweller_obj.visual_attributes or {}
         updated_visual_attributes["voice_line_text"] = text
@@ -570,7 +563,7 @@ class DwellerAIService:
             audio_url,
             provider=provider,
             model=model,
-            estimated_tokens=estimated_tokens,
+            estimated_tokens=billable_tokens,
         )
         await db_session.commit()
 

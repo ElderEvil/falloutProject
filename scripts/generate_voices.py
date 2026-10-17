@@ -6,15 +6,19 @@ Usage:
     python scripts/generate_voices.py --upload
 
 Reads scripts/voice_manifest.json and generates MP3 files via ElevenLabs.
-Skips entries already generated. With --upload also pushes to the dweller-audio bucket.
+Skips entries whose content-keyed audio already exists locally or (with
+--upload) in the dweller-audio bucket. Keys are content hashes shared with
+the runtime cache-first lookup (DwellerAIService._cache_key), so a
+pre-generated pack IS the runtime cache.
 """
 
 from __future__ import annotations
 
 import argparse
+import asyncio
+import hashlib
 import json
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -25,7 +29,6 @@ _BACKEND_ROOT = _REPO_ROOT / "backend"
 if str(_BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(_BACKEND_ROOT))
 
-from app.core.config import settings as _core_settings
 from app.services.elevenlabs_service import (
     DEFAULT_MODEL_ID,
     DEFAULT_VOICE_ID,
@@ -37,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_OUTPUT_DIR = Path.home() / ".hermes" / "state" / "voice-pack"
 MANIFEST_PATH = _REPO_ROOT / "scripts" / "voice_manifest.json"
+BUCKET = "dweller-audio"
 
 
 def parse_args() -> argparse.Namespace:
@@ -71,59 +75,61 @@ def load_manifest(path: Path) -> list[dict]:
         return json.load(fh)
 
 
-def skip_if_exists(output_dir: Path, entry: dict, key: str) -> bool:
-    """Return True if the output file already exists (skip)."""
-    mp3_path = output_dir / f"{key}.mp3"
-    return mp3_path.exists()
+def content_cache_key(entry: dict) -> str:
+    """Deterministic cache object key, shared with the runtime lookup.
+
+    Must stay in sync with DwellerAIService._cache_key(text, voice): the
+    runtime hashes f"{text}:{voice}" with sha256 and takes 16 hex chars.
+    """
+    text = entry["text"]
+    voice_id = entry.get("voice_id", DEFAULT_VOICE_ID)
+    digest = hashlib.sha256(f"{text}:{voice_id}".encode()).hexdigest()
+    return f"pa/{digest[:16]}.mp3"
 
 
 def generate_entry(
     entry: dict,
     elevenlabs_svc: ElevenLabsTtsService,
-    *,
-    dry_run: bool,
-) -> tuple[bytes | None, str]:
-    """Generate speech for one manifest entry. Returns (bytes_or_None, error_message)."""
-    key = entry["key"]
+) -> bytes:
+    """Generate speech for one manifest entry. Raises on provider errors."""
     text = entry["text"]
     voice_id = entry.get("voice_id", DEFAULT_VOICE_ID)
-
-    if dry_run:
-        logger.info("  [dry-run] Would generate: %s → %s", key, text[:60])
-        return b"", ""
-
-    try:
-        audio_bytes = elevenlabs_svc.generate_speech(
-            text=text, voice_id=voice_id, model_id=DEFAULT_MODEL_ID
-        )
-        return audio_bytes, ""
-    except Exception as e:  # noqa: BLE001 - CLI boundary: report-and-continue per entry
-        logger.error("  [error] %s: %s", key, e)
-        return None, str(e)
+    return asyncio.run(elevenlabs_svc.generate_speech(text=text, voice_id=voice_id, model_id=DEFAULT_MODEL_ID))
 
 
-def upload_entry(entry: dict, audio_bytes: bytes, key: str) -> None:
-    """Upload audio to the dweller-audio bucket via storage service."""
-    # Lazy-import the storage client
+def upload_entry(audio_bytes: bytes, cache_key: str, key: str) -> None:
+    """Upload audio to the dweller-audio bucket under its content-cache key."""
     from app.services.storage.factory import get_storage_client
 
     storage = get_storage_client()
     if storage is None or not storage.enabled:
-        logger.warning(
-            "  [warn] Storage service unavailable; skipping upload of %s", key
-        )
+        logger.warning("  [warn] Storage service unavailable; skipping upload of %s", key)
         return
 
     try:
         url = storage.upload_file(
             file_data=audio_bytes,
-            file_name=f"{key}.mp3",
+            file_name=cache_key,
             file_type="audio/mpeg",
-            bucket_name="dweller-audio",
+            bucket_name=BUCKET,
         )
         logger.info("  [uploaded] %s → %s", key, url)
     except Exception as e:  # noqa: BLE001 - CLI boundary: report-and-continue per entry
         logger.error("  [upload-fail] %s: %s", key, e)
+
+
+def remote_exists(cache_key: str, key: str) -> bool | None:
+    """True/False if the bucket can be queried, None if storage is unavailable."""
+    from app.services.storage.factory import get_storage_client
+
+    storage = get_storage_client()
+    if storage is None or not storage.enabled:
+        return None
+    try:
+        return storage.file_exists(file_name=cache_key, bucket_name=BUCKET)
+    except Exception as e:  # noqa: BLE001 - CLI boundary: report-and-continue per entry
+        logger.warning("  [warn] Bucket lookup failed for %s: %s", key, e)
+        return None
 
 
 def main() -> None:
@@ -136,15 +142,10 @@ def main() -> None:
         logger.error("Manifest not found: %s", manifest_path)
         sys.exit(1)
 
-    # Force a minimal core settings so the backend can run
-    # (real API keys come from environment / .env, never from this script)
-    _core_settings.ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
-
+    # The settings instance already loads backend/.env — never overwrite it here.
     elevenlabs_svc = ElevenLabsTtsService()
     if not elevenlabs_svc.is_enabled and not args.dry_run:
-        logger.warning(
-            "ElevenLabs API key not configured. Set ELEVENLABS_API_KEY in the environment."
-        )
+        logger.warning("ElevenLabs API key not configured (ELEVENLABS_API_KEY in backend/.env or environment).")
         logger.warning("With --dry-run this is fine; otherwise generation will fail.")
 
     entries = load_manifest(manifest_path)
@@ -154,47 +155,64 @@ def main() -> None:
 
     for entry in entries:
         key = entry["key"]
+        cache_key = content_cache_key(entry)
+        mp3_path = output_dir / cache_key.replace("pa/", "")
+
+        # Local skip is keyed by content: changed text/voice regenerates.
+        has_local = mp3_path.exists()
+        has_remote = remote_exists(cache_key, key) if args.upload else None
 
         if args.dry_run:
-            if skip_if_exists(output_dir, entry, key):
-                logger.info("  [skip] %s (already exists)", key)
+            if has_local or has_remote:
+                logger.info("  [skip] %s (%s exists)", key, "local" if has_local else "bucket")
                 skipped += 1
             else:
-                _, err = generate_entry(entry, elevenlabs_svc, dry_run=True)
-                if err:
-                    logger.error("  [error] %s: %s", key, err)
-                    failed += 1
-                else:
-                    generated += 1
+                logger.info("  [dry-run] Would generate: %s → %s", key, entry["text"][:60])
+                generated += 1
             continue
 
-        # Real generation
-        output_dir.mkdir(parents=True, exist_ok=True)
-        mp3_path = output_dir / f"{key}.mp3"
+        if has_remote:
+            # Bucket already has the content-keyed audio; just mirror it locally
+            # if missing, so later --upload runs don't spend credits.
+            output_dir.mkdir(parents=True, exist_ok=True)
+            if not has_local:
+                from app.services.storage.factory import get_storage_client
 
-        if mp3_path.exists():
-            logger.info("  [skip] %s (already exists)", key)
+                storage = get_storage_client()
+                data = storage.download_file(file_name=cache_key, bucket_name=BUCKET)
+                mp3_path.write_bytes(data)
+                logger.info("  [mirrored] %s ← bucket", key)
+            else:
+                logger.info("  [skip] %s (bucket has it)", key)
             skipped += 1
             continue
 
-        audio_bytes, err = generate_entry(entry, elevenlabs_svc, dry_run=False)
-        if err:
+        if has_local:
+            # Generated locally before but never uploaded: upload without regenerating.
+            if args.upload:
+                logger.info("  [upload-only] %s", key)
+                upload_entry(mp3_path.read_bytes(), cache_key, key)
+            else:
+                logger.info("  [skip] %s (already exists)", key)
+            skipped += 1
+            continue
+
+        try:
+            audio_bytes = generate_entry(entry, elevenlabs_svc)
+        except Exception as e:  # noqa: BLE001 - CLI boundary: report-and-continue per entry
+            logger.error("  [error] %s: %s", key, e)
             failed += 1
             continue
 
-        # Write locally
+        output_dir.mkdir(parents=True, exist_ok=True)
         mp3_path.write_bytes(audio_bytes)
         logger.info("  [generated] %s → %s", key, mp3_path)
         generated += 1
 
-        # Upload if requested
         if args.upload:
-            upload_entry(entry, audio_bytes, key)
+            upload_entry(audio_bytes, cache_key, key)
 
-    print(
-        f"\nSummary: {generated} generated, {skipped} skipped, {failed} failed "
-        f"out of {len(entries)} entries"
-    )
+    print(f"\nSummary: {generated} generated, {skipped} skipped, {failed} failed out of {len(entries)} entries")
 
 
 if __name__ == "__main__":

@@ -53,6 +53,7 @@ async def test_cache_hit_skips_all_tts_calls(
     mock_crud.get_full_info = AsyncMock(
         side_effect=lambda *a, **kw: _make_dweller_mock(visual_attributes=None, dweller_id=uuid.uuid4())
     )
+    mock_crud.update = AsyncMock()
     mock_llm.create = AsyncMock()
 
     mock_storage = MagicMock()
@@ -246,3 +247,40 @@ async def test_already_has_audio_line_raises_before_anything(
             db_session=mock_db,
             dweller_info=mock_dweller,
         )
+
+
+# ── Cache hit attaches voice_line_url to the requesting dweller ─────────
+
+
+async def test_cache_hit_attaches_voice_line_to_dweller(
+    async_session, user_with_vault, dweller_in_vault
+) -> None:
+    """A dweller reusing a cached line must end up with a playable voice_line_url."""
+    import app.services.dweller_ai as dweller_ai_mod
+    from app.services.dweller_ai import dweller_ai as dweller_ai_service
+
+    user, _vault = user_with_vault
+
+    with (
+        patch.object(dweller_ai_service, "storage_service") as mock_storage,
+        patch.object(dweller_ai_service, "ai_service") as mock_openai,
+        patch("app.services.dweller_ai.get_elevenlabs_tts_service") as mock_el,
+        patch("app.services.dweller_ai.quota_service") as mock_quota,
+    ):
+        mock_storage.enabled = True
+        mock_storage.file_exists = MagicMock(return_value=True)
+        mock_storage.public_url = MagicMock(return_value="https://cdn.example.com/pa/cached.mp3")
+        mock_el.return_value.generate_speech = AsyncMock()
+        mock_openai.generate_audio = AsyncMock()
+
+        result = await dweller_ai_service.generate_audio(
+            "Cached line", user, async_session, dweller_id=dweller_in_vault.id
+        )
+
+        # The requesting dweller now carries the cached audio URL.
+        assert result.visual_attributes["voice_line_url"] == "https://cdn.example.com/pa/cached.mp3"
+        assert result.visual_attributes["voice_line_text"] == "Cached line"
+        # No generation, no upload, no quota.
+        mock_el.return_value.generate_speech.assert_not_called()
+        mock_openai.generate_audio.assert_not_called()
+        mock_quota.check_quota.assert_not_called()

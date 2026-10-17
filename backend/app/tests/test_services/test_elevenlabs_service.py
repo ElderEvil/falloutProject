@@ -125,3 +125,21 @@ class TestGenerateSpeech:
         svc = ElevenLabsTtsService()
         with pytest.raises(ElevenLabsProviderException, match="not configured"):
             await svc.generate_speech("test")
+
+    async def test_transport_error_raises_provider_exception(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Timeouts / DNS / connect failures must hit the fallback path, not leak."""
+        import httpx
+
+        from app.services.elevenlabs_service import ElevenLabsTtsService
+
+        monkeypatch.setattr("app.services.elevenlabs_service.settings.ELEVENLABS_API_KEY", "test-key")
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(side_effect=httpx.ConnectError("connection refused"))
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        monkeypatch.setattr("app.services.elevenlabs_service.httpx.AsyncClient", lambda *a, **k: mock_client)
+
+        svc = ElevenLabsTtsService()
+        with pytest.raises(ElevenLabsProviderException, match="unreachable"):
+            await svc.generate_speech("test")

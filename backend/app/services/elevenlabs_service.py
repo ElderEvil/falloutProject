@@ -53,23 +53,29 @@ class ElevenLabsTtsService:
             },
         }
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                ELEVENLABS_API_URL.format(voice_id=voice_id),
-                headers=headers,
-                json=payload,
-            )
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    ELEVENLABS_API_URL.format(voice_id=voice_id),
+                    headers=headers,
+                    json=payload,
+                )
+        except httpx.RequestError as e:
+            # Transport-level failures (timeout, DNS, connect) must also hit the
+            # caller's degradation path, not leak out as unhandled errors.
+            logger.warning("ElevenLabs TTS transport error: %s", e)
+            raise ElevenLabsProviderException(detail=f"ElevenLabs unreachable: {e}") from e
 
-            if response.status_code == 401:
-                raise ElevenLabsProviderException(detail="ElevenLabs API key is invalid")
-            if response.status_code == 429:
-                raise ElevenLabsProviderException(detail="ElevenLabs rate limit exceeded")
-            if response.status_code != 200:
-                body = response.text[:200]
-                logger.warning("ElevenLabs TTS returned status %d: %s", response.status_code, body)
-                raise ElevenLabsProviderException(detail=f"ElevenLabs error: HTTP {response.status_code}")
+        if response.status_code == 401:
+            raise ElevenLabsProviderException(detail="ElevenLabs API key is invalid")
+        if response.status_code == 429:
+            raise ElevenLabsProviderException(detail="ElevenLabs rate limit exceeded")
+        if response.status_code != 200:
+            body = response.text[:200]
+            logger.warning("ElevenLabs TTS returned status %d: %s", response.status_code, body)
+            raise ElevenLabsProviderException(detail=f"ElevenLabs error: HTTP {response.status_code}")
 
-            return response.content
+        return response.content
 
 
 # Module-level singleton for direct injection

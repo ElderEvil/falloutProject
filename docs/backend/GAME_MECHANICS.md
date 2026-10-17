@@ -29,6 +29,20 @@ intact when touching these flows.
 - Ready rewards keep their routine bell/toast event; successful claims show a modal or toast. Notification opt-outs
   affect notification delivery, not reward settlement or the player-opened guide.
 
+## Quest gates: one scope per requirement type
+
+Quest requirements gate on exactly one scope, on both the read path (`quest_availability`) and the start
+path (`start_quest`) — the two must never disagree:
+
+- **Vault-scoped** — ITEM, ROOM, DWELLER_COUNT, QUEST_COMPLETED. ITEM counts an item in storage *or*
+  equipped by any living vault dweller; the dispatched party is irrelevant. A quest that reads as
+  available must start.
+- **Party-scoped** — LEVEL, ATTACK, STAT. Checked against the dwellers actually dispatched; the
+  eligible-dwellers endpoint mediates candidate selection on the read.
+
+The vault quest read stamps each `QuestRequirementRead.is_met` from the same fail-closed dispatch the
+availability gate uses, so the UI shows per-row gate verdicts instead of inferring them from `is_locked`.
+
 ## Incident responder returns
 
 - Manual and automatic dispatch record the responder's original room once, before moving them.

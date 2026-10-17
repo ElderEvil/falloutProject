@@ -25,6 +25,20 @@ from app.utils.objective_constants import normalize_room_type
 logger = logging.getLogger(__name__)
 
 
+async def vault_requirement_states(db_session: AsyncSession, vault_id: UUID4, quest: Quest) -> dict[UUID4, bool]:
+    """Per-requirement vault-scoped verdicts keyed by requirement id.
+
+    The read path's honest per-row gate display: every requirement (mandatory or
+    optional) is evaluated through the same fail-closed ``_check_requirement``
+    dispatch the availability gate uses, so the UI shows *which* requirement
+    blocks a quest instead of inferring it from the lock verdict.
+    """
+    states: dict[UUID4, bool] = {}
+    for req in quest.quest_requirements:
+        states[req.id] = await _check_requirement(db_session, vault_id, req)
+    return states
+
+
 async def vault_missing_requirements(db_session: AsyncSession, vault_id: UUID4, quest: Quest) -> list[str]:
     """Vault-level requirement gates for a quest, as human-readable reasons.
 

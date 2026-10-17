@@ -136,6 +136,9 @@ const prerequisitesMet = computed(() => {
 })
 
 function isRequirementMet(req: QuestRequirement): boolean {
+  // The backend evaluates every vault-scoped gate on the read path with the same
+  // dispatch the availability gate uses; its verdict is authoritative per-row.
+  if (typeof req.is_met === 'boolean') return req.is_met
   const data = req.requirement_data
   if (req.requirement_type === 'level' && data) {
     const level = data.level

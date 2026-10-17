@@ -925,6 +925,9 @@ async def test_item_requirement_read_and_start_agree_for_non_party_wearer(
     assert read_response.status_code == 200, f"Expected 200, got {read_response.status_code}: {read_response.text}"
     quest_read = next(q for q in read_response.json() if q["id"] == str(quest.id))
     assert quest_read["is_locked"] is False
+    # Per-row verdicts ride along on the read, so the UI can show which gate blocks what.
+    item_row = next(r for r in quest_read["quest_requirements"] if r["requirement_type"] == "item")
+    assert item_row["is_met"] is True
 
     start_response = await async_client.post(f"/quests/{vault.id}/{quest.id}/start", headers=headers)
     assert start_response.status_code == 200, f"Expected 200, got {start_response.status_code}: {start_response.text}"

@@ -652,6 +652,12 @@ class BreedingConfig(BaseSettings):
         ge=0.0,
         le=1.0,
     )
+    trait_mutation_chance: float = Field(
+        default=0.15,
+        description="15% chance an inherited appearance trait mutates to a different valid option",
+        ge=0.0,
+        le=1.0,
+    )
 
     # Youth maturity
     child_growth_duration_hours: int = Field(default=60, description="Total hours from child to adult", ge=2)

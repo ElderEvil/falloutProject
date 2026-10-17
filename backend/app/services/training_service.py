@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import DwellerStatusEnum, RoomTypeEnum
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum, RoomTypeEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import training as training_crud
@@ -79,6 +79,12 @@ class TrainingService:
         # Check if room is a training room
         if room.category != RoomTypeEnum.TRAINING:
             return False, "Room is not a training room"
+
+        # Youth focus play, not SPECIAL drills (issue #1036 decision: training
+        # is maturity-gated like equipment; apprenticeship #889 is the youth
+        # learning path and is a separate mechanism). Elders are mature adults.
+        if dweller.age_group in (AgeGroupEnum.CHILD, AgeGroupEnum.TEEN):
+            return False, f"Only adult dwellers can train; {dweller.first_name} is still a {dweller.age_group.value}."
 
         # Check if dweller has an active training session
         existing_training = await training_crud.training.get_active_by_dweller(db_session, dweller.id)

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoomStore } from '../stores/room'
+import { isRoomAtRowEnd } from '../utils/room'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
 import { Button } from '@/core/components/ui/button'
@@ -26,7 +29,11 @@ interface Props {
   disabled?: boolean
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
+const roomStore = useRoomStore()
+const isInnerRoom = computed(
+  () => props.room.name.toLowerCase() !== 'elevator' && !isRoomAtRowEnd(roomStore.rooms, props.room)
+)
 
 const emit = defineEmits<{
   upgrade: []
@@ -95,7 +102,8 @@ const emit = defineEmits<{
       <Button
         v-else
         @click="emit('destroy')"
-        :disabled="disabled || isDestroying"
+        :disabled="disabled || isDestroying || isInnerRoom"
+        :title="isInnerRoom ? 'Remove the outer rooms first.' : undefined"
         variant="secondary"
         size="sm"
         class="action-btn action-btn--half destroy-btn justify-start"

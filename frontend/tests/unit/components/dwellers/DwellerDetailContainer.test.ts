@@ -97,11 +97,41 @@ describe('DwellerDetailContainer', () => {
     await router.push(path)
     await router.isReady()
     const wrapper = mount(DwellerDetailContainer, {
-      global: { plugins: [router] },
+      global: {
+        plugins: [router],
+        stubs: {
+          Teleport: true,
+          TerminalModal: {
+            props: ['open'],
+            template: '<div v-if="open"><slot /><slot name="footer" /></div>',
+          },
+        },
+      },
     })
     await flushPromises()
     return wrapper
   }
+
+  it('prefills and submits separate first and last names', async () => {
+    const management = useDwellerStore().management
+    const rename = vi.spyOn(management, 'renameDweller').mockResolvedValue(fakeDweller)
+    const wrapper = await mountAt('/vault/vault-1/dwellers/dweller-1')
+    wrapper.findComponent({ name: 'DwellerOverflowMenu' }).vm.$emit('rename')
+    await flushPromises()
+    const first = wrapper.find('#rename-dweller')
+    const last = wrapper.find('#rename-dweller-last-name')
+    expect((first.element as HTMLInputElement).value).toBe('Amata')
+    expect((last.element as HTMLInputElement).value).toBe('Almodovar')
+    await first.setValue('Lucy')
+    await last.setValue('MacLean')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Save')!
+      .trigger('click')
+    await flushPromises()
+    expect(rename).toHaveBeenCalledWith('dweller-1', 'Lucy', 'mock-token', 'MacLean')
+    wrapper.unmount()
+  })
 
   it('reads the dweller from the :dwellerId route param', async () => {
     const wrapper = await mountAt('/vault/vault-1/dwellers/dweller-1?tab=SPECIAL&stat=SPECIAL')

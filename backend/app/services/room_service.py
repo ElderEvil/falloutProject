@@ -566,7 +566,13 @@ class RoomService:
             VaultOperationException: If room cannot be destroyed (vault door, elevator dependency)
         """
         try:
-            return await self._destroy(db_session, room_id)
+            room = await crud.room.get(db_session, room_id)
+            async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(room.vault_id)) as acquired:
+                if not acquired:
+                    raise ResourceConflictException(
+                        detail=f"Vault {room.vault_id} is already being built in — try again"
+                    )
+                return await self._destroy(db_session, room_id)
         except ValueError as e:
             raise VaultOperationException(detail=str(e)) from e
 
@@ -578,6 +584,7 @@ class RoomService:
             msg = "Cannot destroy the vault door. It is a critical structure and must remain in place."
             raise ValueError(msg)
 
+        room_rules.validate_row_end_destroy(room, await crud.room.get_all_by_vault(db_session, room.vault_id))
         await room_rules.validate_elevator_destroy(db_session, room)
 
         # A demolished room must leave no dangling dispatch origin behind: clear the

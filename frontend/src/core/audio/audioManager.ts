@@ -48,7 +48,12 @@ export function parseSoundSettings(raw: unknown): SoundSettingsInput | null {
     input.muted = record.muted
   }
   const volumes = record.volumes
-  if (volumes !== null && volumes !== undefined && typeof volumes === 'object' && !Array.isArray(volumes)) {
+  if (
+    volumes !== null &&
+    volumes !== undefined &&
+    typeof volumes === 'object' &&
+    !Array.isArray(volumes)
+  ) {
     const parsedVolumes: Partial<Record<AudioBus, number>> = {}
     const volumeRecord = volumes as Record<string, unknown>
     for (const bus of AUDIO_BUSES) {
@@ -121,6 +126,11 @@ class AudioManager {
     }
   }
 
+  /** Stored slider values stay linear; playback uses a gentler low-volume curve. */
+  private playbackVolume(bus: AudioBus): number {
+    return this.settings.volumes[bus] ** 2
+  }
+
   get muted(): boolean {
     return this.settings.muted
   }
@@ -144,10 +154,13 @@ class AudioManager {
   setVolume(bus: AudioBus, volume: number): void {
     this.settings.volumes[bus] = Math.min(1, Math.max(0, volume))
     if (bus === 'music' && this.currentLoop) {
-      this.currentLoop.audio.volume = this.settings.volumes.music
+      this.currentLoop.audio.volume = this.playbackVolume('music')
     }
     if (bus === 'ambience' && this.ambienceAudio) {
-      this.ambienceAudio.volume = this.settings.volumes.ambience
+      this.ambienceAudio.volume = this.playbackVolume('ambience')
+    }
+    if (bus === 'sfx' && this.alarmAudio) {
+      this.alarmAudio.volume = this.playbackVolume('sfx')
     }
     this.persist()
     this.notifyChange()
@@ -192,7 +205,7 @@ class AudioManager {
 
     // Restart from the top so rapid re-triggers overlap-free.
     audio.currentTime = 0
-    audio.volume = this.settings.volumes[bus]
+    audio.volume = this.playbackVolume(bus)
     audio.play().catch(() => {
       // Missing file or interrupted play — stay silent by design.
     })
@@ -209,7 +222,7 @@ class AudioManager {
       this.musicPreview.preload = 'auto'
     }
     this.musicPreview.currentTime = 0
-    this.musicPreview.volume = this.settings.volumes.music
+    this.musicPreview.volume = this.playbackVolume('music')
     this.musicPreview.play().catch(() => {})
   }
 
@@ -224,7 +237,7 @@ class AudioManager {
       this.ambiencePreview.preload = 'auto'
     }
     this.ambiencePreview.currentTime = 0
-    this.ambiencePreview.volume = this.settings.volumes.ambience
+    this.ambiencePreview.volume = this.playbackVolume('ambience')
     this.ambiencePreview.play().catch(() => {})
   }
 
@@ -244,7 +257,7 @@ class AudioManager {
 
     const audio = new Audio(src)
     audio.loop = true
-    audio.volume = this.settings.volumes.music
+    audio.volume = this.playbackVolume('music')
     audio.play().catch(() => {})
     this.currentLoop = { audio, key }
   }
@@ -267,7 +280,7 @@ class AudioManager {
     if (this.settings.muted || !this.unlocked || this.musicDucked) return
     if (this.ambienceKey === key && this.ambienceAudio) {
       if (!this.ambienceAudio.paused) return
-      this.ambienceAudio.volume = this.settings.volumes.ambience
+      this.ambienceAudio.volume = this.playbackVolume('ambience')
       void this.ambienceAudio.play().catch(() => {})
       return
     }
@@ -276,7 +289,7 @@ class AudioManager {
     if (!src) return
     const audio = new Audio(src)
     audio.loop = true
-    audio.volume = this.settings.volumes.ambience
+    audio.volume = this.playbackVolume('ambience')
     audio.play().catch(() => {})
     this.ambienceAudio = audio
     this.ambienceKey = key
@@ -352,7 +365,7 @@ class AudioManager {
       this.alarmAudio.preload = 'auto'
     }
     this.cancelFade(this.alarmAudio)
-    this.alarmAudio.volume = this.settings.volumes.sfx
+    this.alarmAudio.volume = this.playbackVolume('sfx')
     if (!this.alarmAudio.paused) return
     this.alarmAudio.play().catch(() => {})
   }
@@ -392,20 +405,20 @@ class AudioManager {
         if (loop) {
           loop.audio.volume = 0
           void loop.audio.play().catch(() => {})
-          this.fadeElement(loop.audio, this.settings.volumes.music, fadeMs)
+          this.fadeElement(loop.audio, this.playbackVolume('music'), fadeMs)
         }
       }
       const ambience = this.ambienceAudio
       if (ambience && this.ambienceKey === this.ambienceWanted) {
         ambience.volume = 0
         void ambience.play().catch(() => {})
-        this.fadeElement(ambience, this.settings.volumes.ambience, fadeMs)
+        this.fadeElement(ambience, this.playbackVolume('ambience'), fadeMs)
       } else if (this.ambienceWanted) {
         this.playAmbience(this.ambienceWanted)
         const started = this.ambienceAudio
         if (started) {
           started.volume = 0
-          this.fadeElement(started, this.settings.volumes.ambience, fadeMs)
+          this.fadeElement(started, this.playbackVolume('ambience'), fadeMs)
         }
       }
     }, delayMs)
@@ -432,7 +445,7 @@ class AudioManager {
       this.pendingLoop = null
       this.playLoop(pending)
     } else if (this.currentLoop && !this.musicDucked) {
-      this.currentLoop.audio.volume = this.settings.volumes.music
+      this.currentLoop.audio.volume = this.playbackVolume('music')
       void this.currentLoop.audio.play().catch(() => {})
     }
     if (this.alarmWanted) this.startAlarmLoop()

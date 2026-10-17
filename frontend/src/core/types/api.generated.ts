@@ -732,7 +732,7 @@ export interface paths {
         head?: never;
         /**
          * Rename Dweller
-         * @description Rename a dweller (first name only).
+         * @description Rename a dweller, preserving an omitted last name.
          *
          *     Returns:
          *         DwellerRead: The renamed dweller.
@@ -7051,13 +7051,13 @@ export interface components {
         };
         /**
          * DwellerRename
-         * @description Schema for renaming a dweller.
-         *
-         *     Constraint intent: allow simple human names (words), disallow emoji/symbol spam.
+         * @description Human names without emoji or symbol spam; omitted surnames stay unchanged.
          */
         DwellerRename: {
             /** First Name */
             first_name: string;
+            /** Last Name */
+            last_name?: string | null;
         };
         /**
          * DwellerReviveResponse

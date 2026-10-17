@@ -142,7 +142,11 @@ async def test_fresh_starter_rewards_reach_office_without_loot(async_session, su
     rare_reward = next(w for w in weapons if w.name == "Hardened shotgun" and w.storage_id == storage.id)
     assert rare_reward.rarity == RarityEnum.RARE
     await item_service.scrap_item(async_session, item_id=rare_reward.id, model=Weapon)
-    scrap = next(o for o in await read_objectives(async_session, vault.id) if o.objective_type == "scrap")
+    scrap = next(
+        o
+        for o in await read_objectives(async_session, vault.id)
+        if o.category == "starter" and o.objective_type == "scrap"
+    )
     assert scrap.progress == scrap.total
 
 

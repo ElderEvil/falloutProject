@@ -10,6 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
 from app.crud import game_state_crud
+from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
@@ -230,6 +231,14 @@ class GameLoopService:
 
     async def resume_vault(self, db_session: AsyncSession, vault_id: UUID4) -> GameState:
         """Resume game loop for a specific vault."""
+        game_state = await game_state_crud.get_or_create(db_session, vault_id)
+        if game_state.is_paused and game_state.paused_at:
+            resumed_at = datetime.utcnow()
+            for incident in await incident_crud.get_active_by_vault(db_session, vault_id):
+                paused_since = max(game_state.paused_at, incident.start_time)
+                if resumed_at > paused_since:
+                    incident.start_time += resumed_at - paused_since
+                    db_session.add(incident)
         game_state = await game_state_crud.resume(db_session, vault_id)
         self.logger.info(f"Vault {vault_id} resumed")
         return game_state

@@ -70,6 +70,10 @@ async def process_vault_incidents(
                 stats["spawned"] = 1
                 logger.info(f"Spawned new incident {new_incident.type} in vault {vault_id}")
 
+        # A newly spawned incident can pause the vault before any existing fight advances.
+        if game_state and game_state.is_paused:
+            return stats
+
         total_caps_earned = 0
 
         for incident in active_incidents:

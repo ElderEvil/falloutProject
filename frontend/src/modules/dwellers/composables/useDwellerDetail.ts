@@ -32,7 +32,7 @@ export interface DwellerDetailActions {
   rerollWastelandHeading(duration?: number): void
   setWastelandHeading(degrees: number): void
   healSupply(supply: 'stimpack' | 'radaway'): void
-  rename(name: string): void
+  rename(name: string, lastName?: string | null): void
   confirmRename(): void
   openRenameDialog(): void
   openSoftDeleteDialog(): void
@@ -80,6 +80,7 @@ export interface UseDwellerDetailReturn {
   trainingModalOpen: Ref<boolean>
   renameDialogOpen: Ref<boolean>
   renameDialogName: Ref<string>
+  renameDialogLastName: Ref<string>
   softDeleteDialogOpen: Ref<boolean>
   wastelandModalOpen: Ref<boolean>
   wastelandPendingDweller: Readonly<Ref<{ firstName: string; lastName?: string } | null>>
@@ -135,6 +136,7 @@ export function useDwellerDetail(
   const trainingModalOpen = ref(false)
   const renameDialogOpen = ref(false)
   const renameDialogName = ref('')
+  const renameDialogLastName = ref('')
   const softDeleteDialogOpen = ref(false)
   const softDeleting = ref(false)
 
@@ -432,23 +434,37 @@ export function useDwellerDetail(
     }
   }
 
-  const handleRename = (name: string) =>
+  const handleRename = (name: string, lastName?: string | null) =>
     runAction(
-      () => dwellerManagementStore.renameDweller(dwellerId.value, name, authStore.token as string),
+      () =>
+        dwellerManagementStore.renameDweller(
+          dwellerId.value,
+          name,
+          authStore.token as string,
+          lastName
+        ),
       {
         errorMessage: 'Failed to rename dweller',
+        onSuccess: () => {
+          renameDialogOpen.value = false
+        },
       }
     )
 
   const openRenameDialog = () => {
     renameDialogName.value = dweller.value?.first_name ?? ''
+    renameDialogLastName.value = dweller.value?.last_name ?? ''
     renameDialogOpen.value = true
   }
   const confirmRename = () => {
     const name = renameDialogName.value.trim()
     if (!name) return
-    renameDialogOpen.value = false
-    void handleRename(name)
+    const lastName = renameDialogLastName.value.trim()
+    if (lastName.length === 1) {
+      toast.error('Last name must contain at least 2 characters.')
+      return
+    }
+    void handleRename(name, lastName || null)
   }
 
   const openSoftDeleteDialog = () => {
@@ -524,6 +540,7 @@ export function useDwellerDetail(
     trainingModalOpen,
     renameDialogOpen,
     renameDialogName,
+    renameDialogLastName,
     softDeleteDialogOpen,
     wastelandModalOpen: sendWasteland.showModal,
     wastelandPendingDweller: readonly(sendWasteland.pendingDweller),

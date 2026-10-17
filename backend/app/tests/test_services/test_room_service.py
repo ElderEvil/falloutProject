@@ -917,3 +917,37 @@ async def test_boosted_seeded_station_grows_to_nine(async_session: AsyncSession,
 
     names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
     assert names.count("Response Station") == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("inner_x", "outer_x", "size"), [(7, 10, 3), (3, 0, 3), (7, 16, 9)])
+async def test_destroy_requires_outermost_room(async_session: AsyncSession, rich_vault: Vault, inner_x, outer_x, size):
+    from app.utils.exceptions import VaultOperationException
+
+    await _create_elevator(async_session, rich_vault.id, 1)
+    inner = await _create_existing_room(async_session, rich_vault.id, coordinate_x=inner_x, size=size)
+    outer = await _create_existing_room(async_session, rich_vault.id, coordinate_x=outer_x)
+    dweller = await _create_dweller_in_room(async_session, rich_vault.id, inner)
+    caps = rich_vault.bottle_caps
+
+    with pytest.raises(VaultOperationException, match="end of a row"):
+        await room_service.destroy_room(async_session, inner.id)
+
+    await async_session.refresh(rich_vault)
+    await async_session.refresh(dweller)
+    assert rich_vault.bottle_caps == caps
+    assert dweller.room_id == inner.id
+    assert await crud.room.get(async_session, inner.id)
+    await room_service.destroy_room(async_session, outer.id)
+    await room_service.destroy_room(async_session, inner.id)
+
+
+@pytest.mark.asyncio
+async def test_destroy_refused_when_vault_placement_lock_is_held(async_session: AsyncSession, rich_vault: Vault):
+    room = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7)
+    with (
+        patch("app.services.room_service.db_locks.hold_advisory_lock", new=_placement_lock_held),
+        pytest.raises(ResourceConflictException),
+    ):
+        await room_service.destroy_room(async_session, room.id)
+    assert await crud.room.get(async_session, room.id)

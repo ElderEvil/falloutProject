@@ -9,6 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core import db_locks
 from app.core.game_config import game_config
+from app.crud import game_state_crud
 from app.crud.dweller import dweller as crud_dweller
 from app.crud.incident import incident_crud
 from app.crud.room import room as room_crud
@@ -167,7 +168,14 @@ async def spawn_incident(
 
     incident_name = INCIDENT_NAMES.get(incident_type, str(incident_type))
 
-    # Create incident
+    profile = await profile_crud.get_by_user_id(db_session, vault.user_id)
+    auto_paused = bool(profile and (profile.preferences or {}).get("pause_on_incident") is True)
+    if auto_paused:
+        game_state = await game_state_crud.get_or_create(db_session, vault_id, commit=False)
+        game_state.pause()
+        db_session.add(game_state)
+
+    # The incident insert commits the pause too, before the fast tick can advance it.
     incident = await incident_crud.create(
         db_session,
         vault_id=vault_id,
@@ -199,6 +207,7 @@ async def spawn_incident(
         incident,
         "incident_spawned",
         room_name=target_room.name if target_room else None,
+        is_paused=auto_paused,
     )
 
     return incident

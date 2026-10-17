@@ -806,3 +806,47 @@ async def test_revival_endpoints_reject_permanent_memorial(
     assert vault.bottle_caps == caps
     assert dweller.lifecycle == LifecycleEnum.DEAD_PERMANENT
     assert dweller.epitaph == "Remembered"
+
+
+@pytest.mark.parametrize("last_name", ["O'Connor", "Волков", None])
+async def test_rename_dweller_updates_both_names(
+    async_client, async_session, dweller, superuser_token_headers, last_name
+):
+    response = await async_client.patch(
+        f"/dwellers/{dweller.id}/rename",
+        json={"first_name": "Amata", "last_name": last_name},
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["first_name"] == "Amata"
+    assert response.json()["last_name"] == last_name
+    await async_session.refresh(dweller)
+    assert dweller.last_name == last_name
+
+
+async def test_rename_dweller_preserves_omitted_last_name(async_client, dweller, superuser_token_headers):
+    response = await async_client.patch(
+        f"/dwellers/{dweller.id}/rename", json={"first_name": "Amata"}, headers=superuser_token_headers
+    )
+    assert response.status_code == 200
+    assert response.json()["last_name"] == dweller.last_name
+
+
+@pytest.mark.parametrize("last_name", ["x", "Bad123", "x" * 33])
+async def test_rename_dweller_rejects_invalid_last_name(async_client, dweller, superuser_token_headers, last_name):
+    response = await async_client.patch(
+        f"/dwellers/{dweller.id}/rename",
+        json={"first_name": "Amata", "last_name": last_name},
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize("action", ["restore", "grant-exit", "refuse-exit"])
+async def test_unvaulted_dweller_actions_return_not_found(
+    async_client, async_session, dweller, superuser_token_headers, action
+):
+    dweller.vault_id = None
+    await async_session.commit()
+    response = await async_client.post(f"/dwellers/{dweller.id}/{action}", headers=superuser_token_headers)
+    assert response.status_code == 404

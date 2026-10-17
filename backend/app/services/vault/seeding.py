@@ -117,7 +117,7 @@ def prepare_initial_rooms(
         # level 2 holds the storage row with medbay and science lab side by
         # side, level 3 the living block; the storage row fuses at seed time.
         capacity_specs = [
-            ("living room", 25, 3, 3),
+            ("living room", 22, 3, 3),
             ("storage room", 7, 2, 3),
             ("storage room", 10, 2, 3),
             ("storage room", 13, 2, 3),
@@ -126,8 +126,8 @@ def prepare_initial_rooms(
         capacity_specs = [("living room", 7, 1, 3), ("storage room", 7, 2, 3)]
     capacity = mk_sized(capacity_specs)
     if is_boosted:
-        # The seeded Response Station crew needs living capacity, so a third living
-        # room fills the level-3 gap the arena left when it moved to the door level.
+        # Keep the size-9 living room between the two base rooms: the housing row
+        # stays contiguous without merging away a seeded household's room.
         merged_name, merged_x, merged_y, merged_size = BOOSTED_MERGED_LIVING_ROOM
         capacity.append(build_room(rooms_by_name, merged_name, vault_id, merged_x, merged_y, size=merged_size))
         capacity.append(build_room(rooms_by_name, "living room", vault_id, 10, 3))

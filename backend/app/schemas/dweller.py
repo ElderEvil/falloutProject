@@ -226,18 +226,21 @@ class DwellerCreateCommonOverride(SQLModel):
     visual_attributes: DwellerVisualAttributesInput | None = Field(default=None)
 
 
-class DwellerRename(SQLModel):
-    """Schema for renaming a dweller.
-
-    Constraint intent: allow simple human names (words), disallow emoji/symbol spam.
-    """
-
-    # Letters (latin/cyrillic + accents), spaces, apostrophe, hyphen; 2-20 chars.
-    first_name: str = Field(
+DwellerRenameName = Annotated[
+    str,
+    Field(
         min_length=2,
-        max_length=20,
+        max_length=32,
         pattern=r"^[A-Za-zÀ-ÖØ-öø-ÿА-Яа-яЁё]+(?:[ '\-][A-Za-zÀ-ÖØ-öø-ÿА-Яа-яЁё]+)*$",
-    )
+    ),
+]
+
+
+class DwellerRename(SQLModel):
+    """Human names without emoji or symbol spam; omitted surnames stay unchanged."""
+
+    first_name: DwellerRenameName
+    last_name: DwellerRenameName | None = None
 
 
 class BioAddendumRequest(SQLModel):

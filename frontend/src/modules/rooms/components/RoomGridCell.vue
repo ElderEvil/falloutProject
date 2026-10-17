@@ -13,6 +13,7 @@ import { getRoomSegmentCount } from '../utils/room'
 import TooltipLabel from './TooltipLabel.vue'
 interface Props {
   room: Room
+  isInnerRoom?: boolean
   showRoomImages: boolean
   isPowerOutage: boolean
   selected: boolean
@@ -173,10 +174,11 @@ function handleDragLeave(event: DragEvent): void {
             <span class="upgrade-cost">{{ getUpgradeCost(room) }}</span>
           </button>
         </TooltipLabel>
-        <TooltipLabel label="Destroy Room">
+        <TooltipLabel :label="isInnerRoom ? 'Remove the outer rooms first.' : 'Destroy Room'">
           <button
             @click="emit('destroy', room.id, $event)"
             class="destroy-button"
+            :disabled="isInnerRoom"
             aria-label="Destroy room"
           >
             <Icon icon="mdi:delete" class="h-5 w-5" />

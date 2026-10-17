@@ -74,6 +74,36 @@ describe('useDwellerDetail soft-delete', () => {
     await router.isReady()
   })
 
+  it('keeps invalid or failed surname edits open and closes after a successful rename', async () => {
+    const { filter, management } = useDwellerStore()
+    vi.spyOn(filter, 'fetchDwellerDetails').mockImplementation(async () => {
+      filter.detailedDwellers['dweller-1'] = fakeDweller
+      return fakeDweller
+    })
+    const rename = vi
+      .spyOn(management, 'renameDweller')
+      .mockRejectedValueOnce(new Error('Rejected'))
+    const wrapper = mount(Harness, { global: { plugins: [router] } })
+    await flushPromises()
+    const detail = wrapper.vm.detail
+    detail.actions.openRenameDialog()
+    detail.renameDialogLastName.value = ' A '
+    detail.actions.confirmRename()
+    await flushPromises()
+    expect(rename).not.toHaveBeenCalled()
+    expect(detail.renameDialogOpen.value).toBe(true)
+    detail.renameDialogLastName.value = ' Valid '
+    detail.actions.confirmRename()
+    await flushPromises()
+    expect(detail.renameDialogOpen.value).toBe(true)
+    rename.mockResolvedValueOnce(fakeDweller)
+    detail.actions.confirmRename()
+    await flushPromises()
+    expect(rename).toHaveBeenLastCalledWith('dweller-1', 'Amata', 'mock-token', 'Valid')
+    expect(detail.renameDialogOpen.value).toBe(false)
+    wrapper.unmount()
+  })
+
   it('does not refetch details after soft-delete and navigates back to the roster', async () => {
     const { filter: dwellerStore, management } = useDwellerStore()
     const fetchSpy = vi
@@ -210,7 +240,9 @@ describe('useDwellerDetail one-click heal', () => {
     const useStimpack = vi
       .spyOn(medical, 'useStimpack')
       .mockResolvedValue({ id: 'dweller-1' } as never)
-    const useRadaway = vi.spyOn(medical, 'useRadaway').mockResolvedValue({ id: 'dweller-1' } as never)
+    const useRadaway = vi
+      .spyOn(medical, 'useRadaway')
+      .mockResolvedValue({ id: 'dweller-1' } as never)
     const issueMedicalSupply = vi
       .spyOn(medical, 'issueMedicalSupply')
       .mockResolvedValue({ stimpaks: 1 } as never)
@@ -250,10 +282,8 @@ describe('useDwellerDetail one-click heal', () => {
   })
 
   it('auto-issues from the vault, refreshes, then heals when the dweller carries none', async () => {
-    const { detail, fetchDetails, refreshVault, useStimpack, issueMedicalSupply } = await mountDetail(
-      makeDweller({ stimpack: 0 }),
-      { stimpack: 3 }
-    )
+    const { detail, fetchDetails, refreshVault, useStimpack, issueMedicalSupply } =
+      await mountDetail(makeDweller({ stimpack: 0 }), { stimpack: 3 })
     fetchDetails.mockClear()
 
     await detail.actions.healSupply('stimpack')
@@ -282,10 +312,9 @@ describe('useDwellerDetail one-click heal', () => {
   })
 
   it('holds one busy state across both store calls', async () => {
-    const { detail, issueMedicalSupply } = await mountDetail(
-      makeDweller({ stimpack: 0 }),
-      { stimpack: 3 }
-    )
+    const { detail, issueMedicalSupply } = await mountDetail(makeDweller({ stimpack: 0 }), {
+      stimpack: 3,
+    })
     let resolveIssue!: (value: unknown) => void
     issueMedicalSupply.mockReturnValueOnce(
       new Promise((resolve) => {

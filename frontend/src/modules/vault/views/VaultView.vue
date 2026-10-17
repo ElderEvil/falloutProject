@@ -10,6 +10,7 @@ import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { useSound } from '@/core/composables/useSound'
 import RoomGrid from '@/modules/rooms/components/RoomGrid.vue'
+import { Button } from '@/core/components/ui/button'
 import BuildModeButton from '@/core/components/common/BuildModeButton.vue'
 import RoomMenu from '@/modules/rooms/components/RoomMenu.vue'
 import GameControlPanel from '@/modules/vault/components/shell/GameControlPanel.vue'
@@ -102,6 +103,11 @@ const overseerBriefing = computed(() => ({
 const overseerAttentionCount = computed(() => getOverseerAttentionCount(overseerBriefing.value))
 
 const activeIncidents = computed(() => incidentStore.activeIncidents)
+const pendingIncidentReports = computed(() =>
+  [...incidentStore.aftermaths.values()].filter((report) =>
+    roomStore.rooms.some((room) => room.id === report.roomId)
+  )
+)
 
 usePolling(
   () =>
@@ -315,6 +321,17 @@ const reviewActiveIncidents = () => {
           <div v-if="activeIncidents.length > 0" class="w-full mb-4">
             <IncidentAlert :incidents="activeIncidents" @click="handleIncidentClicked" />
           </div>
+
+          <Button
+            v-if="pendingIncidentReports.length"
+            variant="outline"
+            class="w-full mb-4"
+            @click="openRoomId = pendingIncidentReports[0]?.roomId ?? null"
+          >
+            Review incident report<span v-if="pendingIncidentReports.length > 1"
+              >s ({{ pendingIncidentReports.length }})</span
+            >
+          </Button>
 
           <!-- Unassigned Dwellers Panel -->
           <div class="w-full mb-4">

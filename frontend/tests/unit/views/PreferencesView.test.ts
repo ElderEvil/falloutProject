@@ -3,6 +3,7 @@ import { createRouterMock } from '../helpers/mocks'
 import { flushPromises, mount, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import PreferencesView from '@/modules/profile/views/PreferencesView.vue'
+import { audioManager } from '@/core/audio/audioManager'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useToast } from '@/core/composables/useToast'
@@ -60,6 +61,27 @@ describe('PreferencesView', () => {
       },
     })
   }
+
+  it('provides one-percent volume adjustments', () => {
+    audioManager.setMuted(false)
+    const wrapper = mountView()
+    const sliders = wrapper.findAllComponents({ name: 'Slider' })
+    expect(sliders).toHaveLength(4)
+    for (const slider of sliders) expect(slider.props('step')).toBe(0.01)
+    audioManager.setMuted(true)
+    wrapper.unmount()
+  })
+
+  it('saves the optional pause-on-incident preference', async () => {
+    useProfileStore().profile = { ...mockProfile, preferences: {} }
+    const wrapper = mountView()
+    const toggle = switchByLabel(wrapper, 'Pause on incident')
+    expect(toggle.attributes('aria-checked')).toBe('false')
+    await toggle.trigger('click')
+    await flushPromises()
+    expect(useProfileStore().profile?.preferences?.pause_on_incident).toBe(true)
+    expect(toggle.attributes('aria-checked')).toBe('true')
+  })
 
   it('passes the persisted selection to the vault sidebar after a refresh', () => {
     useVaultStore().selectedVaultId = 'vault-123'

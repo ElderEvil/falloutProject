@@ -4,6 +4,7 @@ Single source of truth for the vault-grid invariants:
 
 - R1: an elevator can only be built directly under another elevator
 - R2: non-elevator rooms above row 0 need an elevator on their level
+- D0: only outermost non-elevator rooms on a level may be destroyed
 - D1: an elevator that is the only access to its level cannot be destroyed
 - D2: an elevator with another elevator stacked directly above cannot be destroyed
 
@@ -151,6 +152,20 @@ async def _validate_footprint(
                 "rooms must be built next to another room or an elevator."
             )
         )
+
+
+def validate_row_end_destroy(room: Room, rooms: list[Room]) -> None:
+    """Only the outermost room on either side of a floor may be demolished."""
+    if is_elevator(room.name) or room.coordinate_x is None:
+        return
+    start, end = _room_span(room)
+    spans = [
+        _room_span(other)
+        for other in rooms
+        if other.coordinate_y == room.coordinate_y and other.id != room.id and other.coordinate_x is not None
+    ]
+    if any(right < start for _, right in spans) and any(left > end for left, _ in spans):
+        raise ValueError("Only rooms at the end of a row can be destroyed. Remove the outer rooms first.")
 
 
 async def validate_elevator_destroy(db_session: AsyncSession, elevator_room: Room) -> None:

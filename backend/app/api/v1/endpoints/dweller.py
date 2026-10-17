@@ -165,14 +165,17 @@ async def rename_dweller(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Dweller:
-    """Rename a dweller (first name only).
+    """Rename a dweller, preserving an omitted last name.
 
     Returns:
         DwellerRead: The renamed dweller.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    dweller_data = DwellerUpdate(first_name=rename.first_name)
-    return await crud.dweller.update(db_session, dweller_id, dweller_data)
+    return await dweller_service.update_dweller(
+        db_session=db_session,
+        dweller_id=dweller_id,
+        dweller_data=DwellerUpdate(**rename.model_dump(exclude_unset=True)),
+    )
 
 
 @router.delete("/{dweller_id}", status_code=204)

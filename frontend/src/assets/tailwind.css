@@ -446,18 +446,18 @@ body {
 }
 /* stylelint-enable rule-empty-line-before */
 
-.flicker {
+[data-flickering='true'] .flicker {
     animation: flicker 2s steps(1) infinite;
     animation-delay: calc(var(--flicker-delay, 0) * 1s);
 }
 
 /* Random flicker variation using different animation durations */
-.flicker-random {
+[data-flickering='true'] .flicker-random {
     animation: flicker 1.8s steps(1) infinite;
     animation-delay: calc(var(--flicker-delay, 0) * 1s);
 }
 
-.flicker-slow {
+[data-flickering='true'] .flicker-slow {
     animation: flicker 2.5s steps(1) infinite;
     animation-delay: calc(var(--flicker-delay, 0) * 1s);
 }

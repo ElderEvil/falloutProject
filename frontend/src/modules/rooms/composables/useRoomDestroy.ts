@@ -1,4 +1,6 @@
 import { ref, type Ref } from 'vue'
+import { isRoomAtRowEnd } from '../utils/room'
+import { getErrorMessage } from '@/core/utils/errorHandler'
 import { useRoute } from 'vue-router'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -21,6 +23,15 @@ export function useRoomDestroy() {
 
   async function destroyRoom(roomId: string, options?: DestroyRoomOptions): Promise<void> {
     options?.event?.stopPropagation()
+
+    const room = roomStore.rooms.find((r) => r.id === roomId)
+    if (room && room.name.toLowerCase() !== 'elevator' && !isRoomAtRowEnd(roomStore.rooms, room)) {
+      const message =
+        'Only rooms at the end of a row can be destroyed. Remove the outer rooms first.'
+      if (options?.actionError) options.actionError.value = message
+      toast.error(message)
+      return
+    }
 
     const name = options?.roomName || 'this room'
     if (!confirm(`Are you sure you want to destroy ${name}? You will receive a partial refund.`)) {
@@ -49,7 +60,7 @@ export function useRoomDestroy() {
       toast.success(`${options?.roomName || 'Room'} destroyed. Caps refunded (50%).`)
       options?.onSuccess?.()
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to destroy room'
+      const message = getErrorMessage(error)
       if (options?.actionError) options.actionError.value = message
       toast.error(message, 5000)
     } finally {

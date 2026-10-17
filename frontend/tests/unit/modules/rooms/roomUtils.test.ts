@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { getRoomSegmentCount, getTrainingRoomCapacity } from '@/modules/rooms/utils/room'
+import {
+  getRoomSegmentCount,
+  getTrainingRoomCapacity,
+  isRoomAtRowEnd,
+} from '@/modules/rooms/utils/room'
 import type { Room } from '@/modules/rooms/models/room'
 
 const room = (overrides: Partial<Room> = {}): Pick<Room, 'size' | 'size_min'> => ({
@@ -31,5 +35,20 @@ describe('getTrainingRoomCapacity', () => {
   it('fits two dwellers per three-unit segment', () => {
     expect(getTrainingRoomCapacity(room())).toBe(2)
     expect(getTrainingRoomCapacity(room({ size: 9 }))).toBe(6)
+  })
+})
+
+describe('isRoomAtRowEnd', () => {
+  it.each([
+    [7, 10, 3],
+    [3, 0, 3],
+    [7, 16, 9],
+  ])('blocks an inner room at %i while allowing the outer room at %i', (innerX, outerX, size) => {
+    const inner = { id: 'inner', coordinate_x: innerX, coordinate_y: 1, size } as Room
+    const outer = { id: 'outer', coordinate_x: outerX, coordinate_y: 1, size: 3 } as Room
+    const elevator = { id: 'shaft', coordinate_x: 6, coordinate_y: 1, size: 1 } as Room
+    expect(isRoomAtRowEnd([inner, outer, elevator], inner)).toBe(false)
+    expect(isRoomAtRowEnd([inner, outer, elevator], outer)).toBe(true)
+    expect(isRoomAtRowEnd([inner, elevator], inner)).toBe(true)
   })
 })

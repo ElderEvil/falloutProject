@@ -24,3 +24,4 @@ class IncidentSseEvent(BaseModel):
     success: bool | None = None
     caps_earned: int | None = None
     experience_earned: int | None = None
+    is_paused: bool | None = None

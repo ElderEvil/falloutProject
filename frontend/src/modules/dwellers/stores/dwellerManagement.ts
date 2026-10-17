@@ -195,12 +195,13 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
   async function renameDweller(
     dwellerId: string,
     firstName: string,
-    token: string
+    token: string,
+    lastName?: string | null
   ): Promise<Dweller | null> {
     try {
       const response = await axios.patch(
         `/api/v1/dwellers/${dwellerId}/rename`,
-        { first_name: firstName },
+        { first_name: firstName, ...(lastName === undefined ? {} : { last_name: lastName }) },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -219,6 +220,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
         filterStore.dwellers[dwellerIndex] = {
           ...filterStore.dwellers[dwellerIndex]!,
           first_name: response.data.first_name,
+          last_name: response.data.last_name,
         }
       }
 

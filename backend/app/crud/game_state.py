@@ -20,15 +20,18 @@ class CRUDGameState:
         return result.scalars().first()
 
     @staticmethod
-    async def get_or_create(db_session: AsyncSession, vault_id: UUID4) -> GameState:
-        """Get existing game state or create new one."""
+    async def get_or_create(db_session: AsyncSession, vault_id: UUID4, *, commit: bool = True) -> GameState:
+        """Get or create state, optionally leaving the insert in the caller's transaction."""
         game_state = await CRUDGameState.get_by_vault_id(db_session, vault_id)
 
         if not game_state:
             game_state = GameState(vault_id=vault_id)
             db_session.add(game_state)
-            await db_session.commit()
-            await db_session.refresh(game_state)
+            if commit:
+                await db_session.commit()
+                await db_session.refresh(game_state)
+            else:
+                await db_session.flush()
 
         return game_state
 

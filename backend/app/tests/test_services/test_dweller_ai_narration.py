@@ -252,9 +252,7 @@ async def test_already_has_audio_line_raises_before_anything(
 # ── Cache hit attaches voice_line_url to the requesting dweller ─────────
 
 
-async def test_cache_hit_attaches_voice_line_to_dweller(
-    async_session, user_with_vault, dweller_in_vault
-) -> None:
+async def test_cache_hit_attaches_voice_line_to_dweller(async_session, user_with_vault, dweller_in_vault) -> None:
     """A dweller reusing a cached line must end up with a playable voice_line_url."""
     import app.services.dweller_ai as dweller_ai_mod
     from app.services.dweller_ai import dweller_ai as dweller_ai_service

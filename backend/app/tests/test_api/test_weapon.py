@@ -197,3 +197,34 @@ async def test_sell_weapon_not_found(
     fake_id = str(uuid.uuid4())
     response = await async_client.post(f"/weapons/{fake_id}/sell/", headers=superuser_token_headers)
     assert response.status_code in (404, 403)
+
+
+@pytest.mark.parametrize("item_type", ["weapon", "outfit", "pet"])
+@pytest.mark.parametrize("status", ["exploring", "questing"])
+async def test_away_dweller_cannot_equip_from_storage(
+    async_client, async_session, superuser_token_headers, vault, dweller, item_type, status
+):
+    from app.core.enums import DwellerStatusEnum
+    from app.utils.item_factory import build_outfit, build_pet, build_weapon
+
+    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+    builder = {"weapon": build_weapon, "outfit": build_outfit, "pet": build_pet}[item_type]
+    item = builder({"name": "Test equipment"}, RarityEnum.COMMON, storage.id)
+    async_session.add(item)
+    dweller.status = DwellerStatusEnum(status)
+    await async_session.commit()
+    path = f"/{item_type}s/{dweller.id}/equip/{item.id}"
+
+    response = await async_client.post(path, headers=superuser_token_headers)
+
+    assert response.status_code == 409
+    assert "outside the vault" in response.json()["detail"]
+    await async_session.refresh(item)
+    assert item.storage_id == storage.id
+    assert item.dweller_id is None
+
+    dweller.status = DwellerStatusEnum.IDLE
+    await async_session.commit()
+    response = await async_client.post(path, headers=superuser_token_headers)
+    assert response.status_code == 200
+    assert response.json()["dweller_id"] == str(dweller.id)

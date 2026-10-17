@@ -14,6 +14,7 @@ from app.models.outfit import Outfit
 from app.models.vault import Vault
 from app.models.weapon import Weapon
 from app.services.vault_service import vault_service
+from app.utils.dweller_availability import require_vault_equipment_access
 from app.utils.exceptions import ResourceNotFoundException
 
 ItemModel = type[Weapon] | type[Outfit] | type[Junk]
@@ -34,6 +35,8 @@ class ItemService:
         """Equip through the shared CRUD path, then publish the committed action."""
         from app.core.event_bus import GameEvent, event_bus
 
+        dweller = await crud.dweller.get(db_session, dweller_id)
+        require_vault_equipment_access(dweller)
         item = await _crud_for(model).equip(db_session=db_session, item_id=item_id, dweller_id=dweller_id)
         vault_id = await get_item_vault_id(db_session, item)
         if vault_id:

@@ -139,6 +139,30 @@ describe('DwellerEquipment', () => {
     }
   )
 
+  it.each(['exploring', 'questing'] as const)(
+    'blocks storage equipment selection while %s',
+    async (status) => {
+      const dweller = ref(makeDweller({ status }))
+      const wrapper = mountEquip(dweller.value, { dweller: dweller as never })
+      expect(wrapper.text()).toContain('Return to the vault to change equipment.')
+      const slots = wrapper.findAll('button.empty-slot')
+      expect(slots).toHaveLength(3)
+      for (const slot of slots) {
+        expect(slot.attributes('disabled')).toBeDefined()
+        await slot.trigger('click')
+      }
+      expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
+      dweller.value.status = 'idle'
+      await nextTick()
+      expect(slots[0]!.attributes('disabled')).toBeUndefined()
+      await slots[0]!.trigger('click')
+      expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(true)
+      dweller.value.status = status
+      await nextTick()
+      expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
+    }
+  )
+
   it('renders equipment slots', () => {
     const wrapper = mountEquip(makeDweller())
     expect(wrapper.text()).toContain('Weapon')

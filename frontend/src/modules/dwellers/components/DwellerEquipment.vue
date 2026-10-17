@@ -18,6 +18,7 @@ const authStore = useAuthStore()
 
 const dweller = computed(() => ctx.dweller.value)
 const vaultId = computed(() => ctx.vaultId.value)
+const isAway = computed(() => ['exploring', 'questing'].includes(dweller.value?.status ?? ''))
 
 const showInventoryModal = ref(false)
 const petActionPending = ref(false)
@@ -59,14 +60,14 @@ const handleUnequipOutfit = async () => {
 }
 
 const handleEquipWeapon = async (weaponId: string) => {
-  if (!authStore.token || !dweller.value?.id) return
+  if (isAway.value || !authStore.token || !dweller.value?.id) return
   await equipmentStore.equipWeapon(dweller.value.id, weaponId, authStore.token)
   showInventoryModal.value = false
   ctx.actions.refresh()
 }
 
 const handleEquipOutfit = async (outfitId: string) => {
-  if (!authStore.token || !dweller.value?.id) return
+  if (isAway.value || !authStore.token || !dweller.value?.id) return
   await equipmentStore.equipOutfit(dweller.value.id, outfitId, authStore.token)
   showInventoryModal.value = false
   ctx.actions.refresh()
@@ -84,7 +85,7 @@ const handleUnequipPet = async () => {
 }
 
 const handleEquipPet = async (petId: string) => {
-  if (petActionPending.value || !authStore.token || !dweller.value?.id) return
+  if (isAway.value || petActionPending.value || !authStore.token || !dweller.value?.id) return
   petActionPending.value = true
   try {
     const pet = await petsStore.equipPet(dweller.value.id, petId, authStore.token)
@@ -129,6 +130,9 @@ const modalIcon = computed(() => {
 
 <template>
   <div class="dweller-equipment">
+    <p v-if="isAway" class="text-sm text-theme-accent mb-4" role="status">
+      Return to the vault to change equipment.
+    </p>
     <div class="equipment-grid">
       <!-- Weapon Slot -->
       <div class="equipment-slot">
@@ -142,11 +146,17 @@ const modalIcon = computed(() => {
           :item="equippedWeapon"
           type="weapon"
           :equipped="true"
-          :show-actions="true"
+          :show-actions="!isAway"
           @unequip="handleUnequipWeapon"
         />
 
-        <button v-else type="button" class="empty-slot" @click="openWeaponInventory">
+        <button
+          v-else
+          type="button"
+          class="empty-slot"
+          :disabled="isAway"
+          @click="openWeaponInventory"
+        >
           <Icon icon="mdi:plus-circle" class="empty-icon" />
           <p class="empty-text">Click to equip weapon</p>
         </button>
@@ -164,11 +174,17 @@ const modalIcon = computed(() => {
           :item="equippedOutfit"
           type="outfit"
           :equipped="true"
-          :show-actions="true"
+          :show-actions="!isAway"
           @unequip="handleUnequipOutfit"
         />
 
-        <button v-else type="button" class="empty-slot" @click="openOutfitInventory">
+        <button
+          v-else
+          type="button"
+          class="empty-slot"
+          :disabled="isAway"
+          @click="openOutfitInventory"
+        >
           <Icon icon="mdi:plus-circle" class="empty-icon" />
           <p class="empty-text">Click to equip outfit</p>
         </button>
@@ -185,12 +201,18 @@ const modalIcon = computed(() => {
           v-if="equippedPet"
           :pet="equippedPet"
           :equipped="true"
-          :show-actions="true"
+          :show-actions="!isAway"
           :disabled="petActionPending"
           @unequip="handleUnequipPet"
         />
 
-        <button v-else type="button" class="empty-slot" @click="openPetInventory">
+        <button
+          v-else
+          type="button"
+          class="empty-slot"
+          :disabled="isAway"
+          @click="openPetInventory"
+        >
           <Icon icon="mdi:plus-circle" class="empty-icon" />
           <p class="empty-text">Click to equip pet</p>
         </button>
@@ -199,7 +221,8 @@ const modalIcon = computed(() => {
 
     <!-- Inventory Modal -->
     <TerminalModal
-      v-model:open="showInventoryModal"
+      :open="showInventoryModal && !isAway"
+      @update:open="showInventoryModal = $event"
       size="xl"
       max-height="75"
       title-class="flex items-center gap-3 text-2xl font-bold text-theme-primary terminal-glow"
@@ -217,7 +240,7 @@ const modalIcon = computed(() => {
               :key="weapon.id"
               :item="weapon"
               type="weapon"
-              :show-actions="true"
+              :show-actions="!isAway"
               @equip="handleEquipWeapon(weapon.id)"
             />
             <div v-if="availableWeapons.length === 0" class="empty-state">
@@ -232,7 +255,7 @@ const modalIcon = computed(() => {
               :key="outfit.id"
               :item="outfit"
               type="outfit"
-              :show-actions="true"
+              :show-actions="!isAway"
               @equip="handleEquipOutfit(outfit.id)"
             />
             <div v-if="availableOutfits.length === 0" class="empty-state">
@@ -246,7 +269,7 @@ const modalIcon = computed(() => {
               v-for="pet in availablePets"
               :key="pet.id"
               :pet="pet"
-              :show-actions="true"
+              :show-actions="!isAway"
               :disabled="petActionPending"
               @equip="handleEquipPet(pet.id)"
             />

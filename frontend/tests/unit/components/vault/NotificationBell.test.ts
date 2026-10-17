@@ -5,6 +5,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import NotificationBell from '@/modules/vault/components/shell/NotificationBell.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
+import { audioManager } from '@/core/audio/audioManager'
 import {
   removePendingReport,
   usePendingReports,
@@ -142,6 +143,34 @@ describe('NotificationBell SSE watcher null-safety', () => {
     vi.useRealTimers()
     vi.restoreAllMocks()
     errorSpy.mockRestore()
+  })
+
+  it.each([
+    ['objective_completed', 'objectiveReady'],
+    ['level_up', 'levelUp'],
+    ['training_complete', 'trainingComplete'],
+    ['radio_new_dweller', 'radioRecruit'],
+    ['resource_low', 'notification'],
+  ])('plays one %s cue when a notification is delivered twice', async (type, sound) => {
+    const play = vi.spyOn(audioManager, 'play').mockImplementation(() => {})
+    useAuthStore().token = 'test-token'
+    const data = JSON.stringify({
+      notification: { ...JSON.parse(notifData).notification, notification_type: type },
+    })
+    fetchMock.mockResolvedValue(
+      createMockResponse([encodeSse(data, 'notification'), encodeSse(data, 'notification')], {
+        hang: true,
+      })
+    )
+    const wrapper = mount(NotificationBell)
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+
+    expect(play).toHaveBeenCalledExactlyOnceWith(sound, 'ui')
+    await wrapper.get('button[aria-label="Notifications"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('[data-notification-id="n1"]')).toHaveLength(1)
+    wrapper.unmount()
   })
 
   it('does not throw on the watcher getter when authenticated and an SSE notification arrives', async () => {

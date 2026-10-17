@@ -1200,8 +1200,12 @@ source; curated copies land in `frontend/public/audio/`).
   shared messages watcher), incident alarm loops for the whole chain (spawn hook starts the loop and
   ducks music over 2s; the loop stops and music resumes 5s after the last incident resolves; asset is
   a public-domain excerpt, see the sound manifest). A speaker toggle in the navbar mutes/unmutes
-  without leaving the page. Remaining: `cardDrop` on dweller drag-and-drop assignment,
-  `upgrade` on room upgrades, `success` on completions.
+  without leaving the page. Curated progression cues replace the generic notification ping for objective
+  readiness, dweller level-ups, completed training and radio arrivals. Successful objective claims play a
+  separate claim cue through the shared claim flow; failures stay silent apart from normal button feedback.
+  Replayed notification IDs do not replay their cue or increment the bell count. These cues use the UI bus
+  and retain the existing mute, volume and browser-unlock rules. Room build/upgrade and crafting feedback
+  are already wired. Remaining: `cardDrop` on dweller drag-and-drop assignment.
 - ⬜ **Radio station integration** — the radio room already streams a station concept; pipe music through it
   instead of the view-level loop.
 - ⬜ **Ambient layers** — per-room ambience loops from `assets/audio/sounds/ambience/` (armory, cafeteria,

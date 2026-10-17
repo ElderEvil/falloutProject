@@ -3,6 +3,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
+import { useSound } from '@/core/composables/useSound'
 import { useObjectivesStore } from '../stores/objectives'
 import type { Objective } from '../models/objective'
 
@@ -14,6 +15,7 @@ export function useObjectiveClaim(vaultId: Ref<string | null>) {
   const vaultStore = useVaultStore()
   const dwellerStore = useDwellerStore()
   const auth = useAuthStore()
+  const { playSound } = useSound()
   const claiming = ref(false)
   const error = ref<string | null>(null)
 
@@ -28,6 +30,7 @@ export function useObjectiveClaim(vaultId: Ref<string | null>) {
     try {
       const claimed = await objectivesStore.completeObjective(id, objectiveId)
       if (vaultId.value !== id) return
+      playSound('objectiveClaim')
       onClaimed?.(claimed)
       void objectivesStore
         .fetchObjectives(vaultId.value)

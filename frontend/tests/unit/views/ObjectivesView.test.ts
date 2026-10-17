@@ -7,6 +7,7 @@ import ObjectivesView from '@/modules/progression/views/ObjectivesView.vue'
 import ObjectiveCompleteModal from '@/modules/progression/components/ObjectiveCompleteModal.vue'
 import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import type { Objective } from '@/modules/progression/models/objective'
+import { audioManager } from '@/core/audio/audioManager'
 
 vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-123' } }))
 
@@ -103,6 +104,7 @@ it('offers an earned starter reward without waiting for earlier steps', async ()
 
 describe('ObjectivesView claim flow', () => {
   it('claiming an objective calls completeObjective and opens the completion modal', async () => {
+    const play = vi.spyOn(audioManager, 'play').mockImplementation(() => {})
     objectivesStore.objectives = [{ ...dailyObjective }]
     const completed = { ...dailyObjective, is_completed: true }
     const completeSpy = vi.spyOn(objectivesStore, 'completeObjective').mockResolvedValue(completed)
@@ -123,9 +125,14 @@ describe('ObjectivesView claim flow', () => {
     expect(modal.props('show')).toBe(true)
     expect(modal.props('objective')).toMatchObject({ id: 'obj-1', reward: '50 Caps' })
     expect(wrapper.text()).toContain('50 Caps')
+    expect(play.mock.calls.filter(([key]) => key === 'objectiveClaim')).toEqual([
+      ['objectiveClaim', 'ui'],
+    ])
+    play.mockRestore()
   })
 
   it('a failed claim surfaces an error toast and opens no modal', async () => {
+    const play = vi.spyOn(audioManager, 'play').mockImplementation(() => {})
     objectivesStore.objectives = [{ ...dailyObjective }]
     vi.spyOn(objectivesStore, 'completeObjective').mockRejectedValue(new Error('Claim failed'))
 
@@ -139,6 +146,8 @@ describe('ObjectivesView claim flow', () => {
     const modal = wrapper.findComponent(ObjectiveCompleteModal)
     expect(modal.props('show')).toBe(false)
     expect(wrapper.text()).toContain('Claim failed')
+    expect(play).not.toHaveBeenCalledWith('objectiveClaim', 'ui')
+    play.mockRestore()
   })
 })
 

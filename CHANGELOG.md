@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.223.1 (2026-10-17)
+
+### Bug Fixes
+
+* **vault:** reject Boosted Start in survival mode at the API (issue 1031) 4ebe279
+
 ## 2.223.0 (2026-10-17)
 
 ### Features

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.228.0 (2026-10-17)
+
+### Features
+
+* **vault:** introduce a three-step creation wizard ([#1054](https://github.com/ElderEvil/falloutProject/issues/1054)) efe1da7
+
 ## 2.227.1 (2026-10-17)
 
 ### Bug Fixes

@@ -92,6 +92,94 @@ def test_quest_item_reward_rejects_unknown_item_type() -> None:
         )
 
 
+def test_quest_item_reward_fills_catalog_art_at_parse() -> None:
+    """Weapon/outfit rewards gain the item factory's own art when parsed for seeding."""
+    weapon = QuestRewardJSON.model_validate(
+        {"reward_type": "ITEM", "reward_data": {"item_name": "Assault rifle", "quantity": 1}}
+    )
+    outfit = QuestRewardJSON.model_validate(
+        {"reward_type": "ITEM", "reward_data": {"item_name": "Hazmat suit", "quantity": 1}}
+    )
+
+    assert weapon.item_data is not None
+    assert weapon.item_data.image_url == "/static/weapon_images/Assault Rifle FOS.png"
+    assert outfit.item_data is not None
+    assert outfit.item_data.image_url == "/static/apparel_images/FOS Rad Suit.png"
+
+
+def test_quest_item_reward_fills_pet_and_junk_art() -> None:
+    """Pet and mapped-junk rewards resolve art just like the item factory does."""
+    pet = QuestRewardJSON.model_validate({"reward_type": "ITEM", "reward_data": {"item_name": "CX404", "quantity": 1}})
+    junk = QuestRewardJSON.model_validate(
+        {"reward_type": "ITEM", "reward_data": {"item_name": "Teddy bear", "quantity": 1}}
+    )
+
+    assert pet.item_data is not None
+    assert pet.item_data.item_type == "pet"
+    assert pet.item_data.image_url == "/static/pet_images/FOS CX404.png"
+    assert junk.item_data is not None
+    assert junk.item_data.item_type == "junk"
+    assert junk.item_data.image_url == "/static/junk_images/FOS Teddy bear.png"
+
+
+def test_quest_item_reward_preserves_author_provided_image_url() -> None:
+    """A hand-authored reward art must never be overwritten by the resolver."""
+    reward = QuestRewardJSON.model_validate(
+        {
+            "reward_type": "ITEM",
+            "reward_data": {"item_name": "Assault rifle", "quantity": 1},
+            "item_data": {"name": "Assault rifle", "item_type": "weapon", "image_url": "/custom/art.png"},
+        }
+    )
+
+    assert reward.item_data is not None
+    assert reward.item_data.image_url == "/custom/art.png"
+
+
+def test_quest_item_reward_leaves_photo_less_types_photo_less() -> None:
+    """Dweller, consumable and lunchbox rewards keep the themed icon fallback."""
+    for payload in (
+        {"reward_type": "ITEM", "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 1}},
+        {"reward_type": "ITEM", "reward_data": {"item_name": "Lunchbox", "quantity": 1}},
+        {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary Dweller", "quantity": 1}},
+    ):
+        reward = QuestRewardJSON.model_validate(payload)
+        assert reward.item_data is not None
+        assert reward.item_data.image_url is None
+
+
+@pytest.mark.asyncio
+async def test_seed_quests_backfills_reward_art_on_reseed(async_session: AsyncSession, tmp_path: Path) -> None:
+    """A legacy reward row lacking image_url gains it when the quest is re-seeded."""
+    quest_dir = tmp_path / "quests"
+    quest_dir.mkdir()
+    quest_data = [
+        {
+            "Quest name": "Backfill Art Quest",
+            "Long description": "A quest whose reward art was added later.",
+            "Short description": "Backfill reward art",
+            "Requirements": "Level 1",
+            "Rewards": "Assault rifle",
+            "quest_rewards": [{"reward_type": "ITEM", "reward_data": {"item_name": "Assault rifle", "quantity": 1}}],
+        }
+    ]
+    with (quest_dir / "rewards.json").open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+
+    await seed_quests_from_json(async_session, quest_dir=quest_dir)
+    quest = (await async_session.execute(select(Quest).where(Quest.title == "Backfill Art Quest"))).scalar_one()
+    reward = (await async_session.execute(select(QuestReward).where(QuestReward.quest_id == quest.id))).scalar_one()
+
+    # Simulate a row seeded before the enrichment existed.
+    reward.item_data = {"name": "Assault rifle", "item_type": "weapon", "rarity": "common"}
+    await async_session.commit()
+
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 0
+
+    reward = (await async_session.execute(select(QuestReward).where(QuestReward.quest_id == quest.id))).scalar_one()
+    assert reward.item_data["image_url"] == "/static/weapon_images/Assault Rifle FOS.png"
+
+
 @pytest.mark.asyncio
 async def test_seed_quests_rejects_duplicate_names(async_session: AsyncSession, tmp_path: Path) -> None:
     """A duplicate title cannot silently acquire another chain's metadata."""

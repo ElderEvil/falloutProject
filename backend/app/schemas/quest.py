@@ -6,8 +6,11 @@ from sqlmodel import SQLModel
 
 from app.models.quest import QuestBase
 from app.schemas.rewards import GrantedReward
+from app.utils.junk_assets import get_junk_image_url
+from app.utils.outfit_assets import get_outfit_image_url
 from app.utils.partial import optional
-from app.utils.pet_assets import PET_NAME_TO_IMAGE_FILE
+from app.utils.pet_assets import PET_NAME_TO_IMAGE_FILE, get_pet_image_url
+from app.utils.weapon_assets import get_weapon_image_url
 
 
 class QuestCreate(QuestBase):
@@ -44,7 +47,6 @@ class QuestRead(QuestBase):
     return_completes_at: datetime | None = None
     completed_at: datetime | None = None
     granted_rewards: list[GrantedReward] | None = None
-    duration_minutes: int | None = None
     quest_requirements: list[QuestRequirementRead] | None = None
     quest_rewards: list[QuestRewardRead] | None = None
 
@@ -158,6 +160,22 @@ def infer_item_type(name: str, item_data: QuestItemData | dict[str, Any] | None 
     return "junk"
 
 
+def resolve_item_image_url(item_name: str, item_type: str | None) -> str | None:
+    """Resolve reward art from the same asset maps the item factory uses.
+
+    Weapon/outfit/junk/pet rewards get their catalog picture; dweller,
+    consumable and lunchbox rewards have no photo and keep the themed icon
+    fallback. Unmapped names return None rather than a generic stand-in.
+    """
+    resolver = {
+        "weapon": get_weapon_image_url,
+        "outfit": get_outfit_image_url,
+        "junk": get_junk_image_url,
+        "pet": get_pet_image_url,
+    }.get((item_type or "").lower())
+    return resolver(item_name) if resolver else None
+
+
 def normalize_item_reward(
     reward_data: dict[str, Any], item_data: QuestItemData | None
 ) -> tuple[dict[str, Any], QuestItemData]:
@@ -169,6 +187,8 @@ def normalize_item_reward(
         normalized_item_data.name = item_name
     if normalized_item_data.item_type is None:
         normalized_item_data.item_type = cast(ItemType, infer_item_type(item_name, normalized_item_data))
+    if not normalized_item_data.image_url:
+        normalized_item_data.image_url = resolve_item_image_url(item_name, normalized_item_data.item_type)
     if "quantity" not in normalized_reward_data and "amount" in normalized_reward_data:
         normalized_reward_data["quantity"] = normalized_reward_data["amount"]
     if "quantity" in normalized_reward_data:

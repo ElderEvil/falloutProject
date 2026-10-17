@@ -1,20 +1,22 @@
 <script setup lang="ts">
-import { computed, inject, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, inject, onMounted, ref } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { MAX_USER_VAULTS, useVaultStore, type VaultMode } from '../stores/vault'
+import { MAX_USER_VAULTS, useVaultStore } from '../stores/vault'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { Alert, AlertDescription, AlertTitle } from '@/core/components/ui/alert'
-import { ToggleGroup, ToggleGroupItem } from '@/core/components/ui/toggle-group'
 import { Button } from '@/core/components/ui/button'
-import { Card } from '@/core/components/ui/card'
 import { Progress } from '@/core/components/ui/progress'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
-import VaultNumberField from '../components/VaultNumberField.vue'
+import type { VaultNumberData } from '../schemas/vault'
 import { formatDateTime } from '@/core/utils/format'
 import { useOnboardingState } from '@/core/composables/useOnboardingState'
+
+const VaultCreationWizard = defineAsyncComponent(
+  () => import('../components/VaultCreationWizard.vue')
+)
 
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
@@ -25,36 +27,13 @@ const markCreatedVault = (id: string) => patchOnboarding(id, { created: true })
 // Inject visual effects
 const isFlickering = inject('isFlickering', ref(true))
 
-const newVaultNumber = ref('')
-const boostedStart = ref(false)
-const vaultMode = ref<VaultMode>('standard')
-const vaultModes: { value: VaultMode; label: string; description: string }[] = [
-  {
-    value: 'standard',
-    label: 'Standard',
-    description: 'Normal difficulty. Dwellers lost in incidents can be revived with caps.',
-  },
-  {
-    value: 'survival',
-    label: 'Survival',
-    description: 'Deaths are permanent — no caps revival window.',
-  },
-]
-const selectVaultMode = (value: unknown) => {
-  if (value !== 'standard' && value !== 'survival') return
-  vaultMode.value = value
-  // Issue 1031: Survival has no Boosted Start — clear any pending boost so
-  // the payload never combines boosted: true with survival.
-  if (value === 'survival') boostedStart.value = false
-}
-const isSurvivalMode = computed(() => vaultMode.value === 'survival')
+const creationKey = ref(0)
 const showCreation = ref(false)
 const selectedVaultId = ref<string | null>(null)
 const creatingVault = ref(false)
 const deletingVault = ref<string | null>(null)
 const loadingVaults = ref(true)
 const vaultsReady = ref(false)
-const vaultNumberFieldRef = ref<InstanceType<typeof VaultNumberField> | null>(null)
 
 const sortedVaults = computed(() =>
   [...vaultStore.vaults].sort(
@@ -68,15 +47,6 @@ const isCreationVisible = computed(
   () => canCreateVault.value && (!sortedVaults.value.length || showCreation.value)
 )
 
-// Commissioning opens either from the toggle or because the user owns no vaults
-// yet: once the card is on screen, put the caret in the number field so the
-// flow starts ready to type.
-watch(isCreationVisible, async (visible) => {
-  if (!visible) return
-  await nextTick()
-  vaultNumberFieldRef.value?.focus()
-})
-
 const refreshVaults = async () => {
   loadingVaults.value = true
   vaultsReady.value = await vaultStore.fetchVaults(authStore.token as string)
@@ -86,27 +56,22 @@ const refreshVaults = async () => {
 const resourcePercentage = (current: number, maximum: number) =>
   maximum > 0 ? (current / maximum) * 100 : 0
 
-const createVault = async () => {
-  if (!canCreateVault.value || !vaultNumberFieldRef.value?.isValid() || creatingVault.value) {
-    return
-  }
+const createVault = async ({ number, boosted, vaultMode }: VaultNumberData) => {
+  if (!canCreateVault.value || creatingVault.value) return
 
   creatingVault.value = true
   try {
-    // Issue 1031: Survival never carries a boosted start.
-    const boosted = boostedStart.value && !isSurvivalMode.value
+    const boostedStart = boosted && vaultMode !== 'survival'
     const createdId = await vaultStore.createVault(
-      parseInt(newVaultNumber.value, 10),
-      boosted,
+      number,
+      boostedStart,
       authStore.token as string,
-      vaultMode.value
+      vaultMode
     )
     if (!createdId) return
 
-    if (!boosted) markCreatedVault(createdId)
-    newVaultNumber.value = ''
-    boostedStart.value = false
-    vaultMode.value = 'standard'
+    if (!boostedStart) markCreatedVault(createdId)
+    creationKey.value++
     showCreation.value = false
   } finally {
     creatingVault.value = false
@@ -174,127 +139,13 @@ onMounted(async () => {
           </AlertDescription>
         </Alert>
 
-        <Card
+        <VaultCreationWizard
           v-if="isCreationVisible"
-          class="order-3 relative mt-6 w-full max-w-md gap-0 overflow-hidden border-theme-primary/20 bg-surface p-5 py-5 shadow-glow-sm"
-        >
-          <div class="mb-4 flex items-start justify-between gap-4">
-            <div>
-              <p class="text-[0.65rem] font-bold tracking-[0.14em] text-theme-primary/60">
-                VAULT-TEC // COMMISSIONING
-              </p>
-              <h2 class="mt-1 text-2xl font-bold text-theme-primary terminal-glow">
-                Create New Vault
-              </h2>
-            </div>
-            <div
-              class="flex items-center gap-2 rounded border border-theme-primary/20 bg-surface-sunken px-2.5 py-1.5 text-[0.65rem] font-bold tracking-[0.1em] text-theme-primary/70"
-            >
-              <span
-                class="h-2 w-2 rounded-full bg-theme-primary animate-pulse motion-reduce:animate-none"
-              ></span>
-              READY
-            </div>
-          </div>
-          <p class="mb-4 flex items-start gap-1.5 text-xs leading-5 text-theme-primary/65">
-            <Icon icon="mdi:information-outline" class="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span>Choose an unused vault number (1-999), pick a vault mode, then Create.</span>
-          </p>
-          <div class="flex flex-col gap-2">
-            <div class="flex items-start gap-2">
-              <VaultNumberField v-model="newVaultNumber" ref="vaultNumberFieldRef" />
-              <Button
-                variant="default"
-                :disabled="creatingVault || !newVaultNumber || !canCreateVault"
-                @click="createVault"
-                class="mt-6 shrink-0 whitespace-nowrap border-2 border-theme-primary shadow-glow-sm hover:shadow-glow-md"
-              >
-                {{ creatingVault ? 'Creating...' : 'Create Vault' }}
-              </Button>
-            </div>
-
-            <div class="mt-3">
-              <!--
-              Native checkbox stays: it is a peer-styled custom control (sr-only
-              input + styled sibling span), not a simple control, and shadcn
-              Checkbox is out of scope for this migration. Native input preserves
-              keyboard behavior; the sibling renders its warm terminal state.
-            -->
-              <label
-                for="boosted-start"
-                class="flex items-start gap-3 rounded border border-theme-primary/20 bg-surface p-3 transition-colors"
-                :class="
-                  isSurvivalMode ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-surface-hover'
-                "
-              >
-                <input
-                  id="boosted-start"
-                  v-model="boostedStart"
-                  type="checkbox"
-                  class="peer sr-only"
-                  :disabled="isSurvivalMode"
-                />
-                <span
-                  class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border border-theme-primary/50 bg-surface-sunken text-black transition-colors peer-checked:border-theme-primary peer-checked:bg-theme-primary peer-focus-visible:ring-2 peer-focus-visible:ring-theme-primary/50 peer-disabled:border-theme-primary/20 peer-disabled:opacity-40"
-                >
-                  <Icon
-                    icon="mdi:check"
-                    class="h-4 w-4 opacity-0 transition-opacity peer-checked:opacity-100"
-                  />
-                </span>
-                <span class="select-none text-sm text-theme-primary">
-                  <span class="font-semibold">Boosted Start</span>
-                  <span class="mt-1 block text-xs leading-5 text-theme-primary/65">
-                    Creates an expanded vault with medical, science, crafting, an arena, and all
-                    seven training rooms with sessions underway—plus extra objectives and caps for
-                    upgrades.
-                  </span>
-                  <span v-if="isSurvivalMode" class="mt-1 block text-xs leading-5 text-warning">
-                    Not available in Survival mode.
-                  </span>
-                </span>
-              </label>
-            </div>
-
-            <fieldset class="mt-3">
-              <legend class="mb-2 text-xs font-bold tracking-[0.14em] text-theme-primary/60">
-                VAULT MODE
-              </legend>
-              <ToggleGroup
-                type="single"
-                :model-value="vaultMode"
-                :spacing="8"
-                class="grid w-full grid-cols-1 gap-2"
-                @update:model-value="selectVaultMode"
-              >
-                <!-- Cards stay stacked in one column: the card is max-w-md at
-                     every breakpoint, so side-by-side only cramp the copy.
-                     whitespace-normal + min-w-0 override the toggle primitives,
-                     whose whitespace-nowrap let descriptions escape the box. -->
-                <ToggleGroupItem
-                  v-for="mode in vaultModes"
-                  :key="mode.value"
-                  :value="mode.value"
-                  class="h-auto w-full min-w-0 flex-col items-start gap-1 whitespace-normal break-words rounded border border-theme-primary/20 px-3 py-2 text-left data-[state=on]:border-theme-primary data-[state=on]:bg-theme-primary/10"
-                >
-                  <span class="font-semibold">{{ mode.label }}</span>
-                  <span class="text-xs leading-5 text-theme-primary/65">{{
-                    mode.description
-                  }}</span>
-                </ToggleGroupItem>
-              </ToggleGroup>
-              <p class="mt-2 flex items-start gap-1.5 text-xs leading-5 text-warning">
-                <Icon icon="mdi:lock-outline" class="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                Vault mode is chosen at creation and cannot be changed later.
-              </p>
-            </fieldset>
-          </div>
-
-          <Alert variant="default" class="mt-4 border-warning bg-warning/10 text-warning">
-            <span class="font-bold">Experimental:</span>
-            Vaults are experimental. Vault data might be deleted in a future update.
-          </Alert>
-        </Card>
+          :key="creationKey"
+          :creating="creatingVault"
+          class="order-3 mt-6"
+          @create="createVault"
+        />
 
         <div v-if="sortedVaults.length && !showCreation" class="order-1 w-full max-w-4xl">
           <h2 class="mb-4 text-2xl font-bold text-theme-primary">Your Vaults</h2>
@@ -447,6 +298,7 @@ onMounted(async () => {
             size="sm"
             class="border-dashed border-theme-primary/60 bg-surface-raised px-4 shadow-glow-sm hover:bg-surface-hover hover:shadow-glow-md"
             :aria-expanded="isCreationVisible"
+            :disabled="creatingVault"
             @click="showCreation = !showCreation"
           >
             <Icon :icon="isCreationVisible ? 'mdi:minus' : 'mdi:plus'" />

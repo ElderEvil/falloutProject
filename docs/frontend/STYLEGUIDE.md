@@ -29,6 +29,14 @@ The Fallout Shelter UI embodies a **retro-futuristic terminal aesthetic** inspir
 - **High contrast** for readability
 - **Consistent spacing** and typography
 
+### Personality within the terminal
+
+Evolve the existing CRT interface with Vault-Tec optimism, RobCo machinery and restrained wasteland
+character. Keep the shared components, theme tokens, typography and familiar navigation consistent.
+Small insignias, commissioning labels and occasional corporate humor should give useful screens
+personality without adding extra panels or steps. Keep action labels, costs, errors and irreversible
+consequences plain. Decorative wear belongs on accents, never over readable content or controls.
+
 ---
 
 ## Color System

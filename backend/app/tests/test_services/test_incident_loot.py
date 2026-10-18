@@ -347,9 +347,7 @@ async def test_taking_held_loot_with_no_catalog_row_is_rejected_and_kept(
         difficulty=3,
         duration=60,
     )
-    incident.unclaimed_loot = [
-        {"item_type": "weapon", "rarity": "common", "name": "Nonexistent Relic", "quantity": 1}
-    ]
+    incident.unclaimed_loot = [{"item_type": "weapon", "rarity": "common", "name": "Nonexistent Relic", "quantity": 1}]
     async_session.add(incident)
     await async_session.commit()
 

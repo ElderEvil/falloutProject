@@ -38,7 +38,8 @@ These are authored encounter markers, not a blanket conversion of ordinary world
 ### Arena skill trial
 
 - Dwellers start at zero charge. Each second of resolved combat adds 20 charge to standing dwellers, capped at
-  100: five seconds of combat fill the meter (three ticks on the current two-second Arena clock). Countdown, idle rooms and knocked-out fighters add none.
+  100: three ticks on the current two-second Arena clock (six seconds of combat) fill the meter.
+  Countdown, idle rooms and knocked-out fighters add none.
 - The player can activate either dweller side in Duel/Brawl; Hunt exposes skills only for real dwellers.
   Training bots and creatures have no manual skill.
 - Team A support bots, including the previously allowed Hunt companion, are intentionally disabled
@@ -78,7 +79,7 @@ stay relevant. No skill effects have been enabled in incidents, quests or expedi
 - Give existing world-location archetypes explicit search/fight/choice actions through their current dispatch
   and settlement services, with discovery requirements and replay protection. Do not pay loot from client state.
 - Playtest short and long Arena matches, both team sizes, Hunt and skills queued on both teams. Check whether
-  five-second charge leaves enough opportunities to use a skill before a knockout; tune charge and damage together.
+  six-second charge leaves enough opportunities to use a skill before a knockout; tune charge and damage together.
 - Decide whether later effects need player-selected targets, stun/bleed/defence or enemy AI skill usage.
   Add those only after the damage-only trial is useful. Decide how asynchronous expedition combat will expose
   player timing before extending skills beyond Arena.
@@ -86,7 +87,7 @@ stay relevant. No skill effects have been enabled in incidents, quests or expedi
 ## Local trial
 
 Apply the new Arena migration through the usual backend startup/migration flow. Assign adults to Arena,
-select Duel/Brawl/Hunt and start. Surviving five seconds of combat fills a meter; activate a skill and observe the
+select Duel/Brawl/Hunt and start. Surviving three combat ticks (six seconds) fills a meter; activate a skill and observe the
 next tick and journal. Reset the selection to clear the meters. Equip different weapon types/subtypes before
 starting another match to compare their skills.
 

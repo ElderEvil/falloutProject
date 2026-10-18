@@ -74,7 +74,7 @@ describe('ObjectiveCard', () => {
     expect(card.emitted('claim')).toEqual([['4']])
   })
 
-  it('separates the counting-rule note from the progress block with the divider', () => {
+  it('separates the goal from progress and the claim action with the divider', () => {
     const card = mount(ObjectiveCard, {
       props: {
         objective: objective({
@@ -87,12 +87,12 @@ describe('ObjectiveCard', () => {
       const nodes = [...card.element.querySelectorAll('*')]
       return nodes.findIndex((node) => node.matches(selector))
     }
-    const note = order('.objective-note')
+    const title = order('.progression-title')
     const divider = order('.progression-divider')
     const progress = order('[aria-label="Objective progress"]')
     const claim = order('button')
-    expect(note).toBeGreaterThanOrEqual(0)
-    expect(divider).toBeGreaterThan(note)
+    expect(title).toBeGreaterThanOrEqual(0)
+    expect(divider).toBeGreaterThan(title)
     expect(progress).toBeGreaterThan(divider)
     expect(claim).toBeGreaterThan(divider)
   })
@@ -100,7 +100,7 @@ describe('ObjectiveCard', () => {
   it.each([
     ['production_only', 'Production counts even when storage is full.'],
     ['distinct_dwellers', 'Each dweller counts once for this objective.'],
-  ])('explains the %s counting rule', (rule, message) => {
+  ])('keeps the %s counting rule out of the card', (rule, message) => {
     const withRule = objective({
       id: '3',
       challenge: 'Collect power',
@@ -110,13 +110,32 @@ describe('ObjectiveCard', () => {
       target_entity: { [rule]: true },
     })
     const card = mount(ObjectiveCard, { props: { objective: withRule } })
-    expect(card.text()).toContain(message)
+    expect(card.text()).not.toContain(message)
     const ordinary = mount(ObjectiveCard, {
       props: { objective: { ...withRule, target_entity: {} } },
     })
     expect(ordinary.text()).not.toContain(message)
   })
-  it('shows the reset time and protects earned rewards in the explanation', () => {
+  it('shows the current goal without stage mechanics or next-stage previews', () => {
+    const card = mount(ObjectiveCard, {
+      props: {
+        objective: objective({
+          id: 'water-track',
+          category: 'achievement',
+          track_key: 'collect:water',
+          sequence: 1,
+          next_stage_challenge: 'Collect 500 Water',
+        }),
+      },
+    })
+    expect(card.text()).not.toContain('Stage 1')
+    expect(card.text()).toContain('Collect caps')
+    expect(card.text()).toContain('50 Caps')
+    expect(card.text()).not.toContain('Each stage starts at zero')
+    expect(card.text()).not.toContain('Collect 500 Water')
+  })
+
+  it('keeps reset schedules and reward-retention rules out of the card', () => {
     const card = mount(ObjectiveCard, {
       props: {
         objective: objective({
@@ -126,7 +145,36 @@ describe('ObjectiveCard', () => {
         }),
       },
     })
-    expect(card.text()).toContain('Next reset:')
-    expect(card.text()).toContain('Earned rewards stay claimable')
+    expect(card.text()).not.toContain('Next reset:')
+    expect(card.text()).not.toContain('Earned rewards stay claimable')
   })
+})
+
+it.each([
+  [
+    { objective_type: 'collect', target_entity: { resource_type: 'water' } },
+    'Keep the taps running. Every drop helps the vault.',
+  ],
+  [
+    { objective_type: 'assign_correct', target_entity: { distinct_dwellers: true } },
+    'The right resident in the right room. Put different dwellers’ talents to work.',
+  ],
+] as const)('gives the goal a short vault-aware description', (details, description) => {
+  const card = mount(ObjectiveCard, { props: { objective: objective(details) } })
+  expect(card.get('.progression-description').text()).toBe(description)
+})
+
+it('keeps an authored mission description', () => {
+  const card = mount(ObjectiveCard, {
+    props: {
+      objective: objective({
+        objective_type: 'collect',
+        target_entity: { resource_type: 'water' },
+        description: 'Fresh water is the first step toward a thriving vault.',
+      }),
+    },
+  })
+  expect(card.get('.progression-description').text()).toBe(
+    'Fresh water is the first step toward a thriving vault.'
+  )
 })

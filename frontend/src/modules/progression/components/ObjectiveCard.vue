@@ -2,8 +2,11 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Objective } from '../models/objective'
-import { isObjectiveClaimable, objectiveRewardDetails } from '../models/objective'
-import { Badge } from '@/core/components/ui/badge'
+import {
+  isObjectiveClaimable,
+  objectiveDescription,
+  objectiveRewardDetails,
+} from '../models/objective'
 import { Button } from '@/core/components/ui/button'
 import { Progress } from '@/core/components/ui/progress'
 import { capitalize } from '@/core/utils/format'
@@ -40,8 +43,6 @@ const objectiveIcon = computed(() => {
   return 'mdi:target'
 })
 
-const categoryLabel = computed(() => capitalize(props.objective.category))
-
 const canClaim = computed(() => isObjectiveClaimable(props.objective))
 const rewardLabel = computed(() => {
   const reward = objectiveRewardDetails(props.objective.reward)
@@ -53,30 +54,13 @@ const rewardLabel = computed(() => {
   <ProgressionCard
     class="objective-card"
     :title="objective.challenge"
-    :description="objective.description"
+    :description="objectiveDescription(objective)"
     :completed="objective.is_completed"
   >
     <template #leading>
       <div class="objective-icon-wrapper">
         <Icon :icon="objectiveIcon" class="objective-icon" />
       </div>
-    </template>
-
-    <template #badges>
-      <Badge variant="outline" class="category-badge">{{ categoryLabel }}</Badge>
-    </template>
-
-    <template #note>
-      <p v-if="objective.resets_at" class="objective-note">
-        Next reset: {{ new Date(objective.resets_at).toLocaleString() }}. Earned rewards stay
-        claimable.
-      </p>
-      <p v-if="objective.target_entity?.production_only" class="objective-note">
-        Production counts even when storage is full.
-      </p>
-      <p v-else-if="objective.target_entity?.distinct_dwellers" class="objective-note">
-        Each dweller counts once for this objective.
-      </p>
     </template>
 
     <!-- Progress Section -->
@@ -121,8 +105,8 @@ const rewardLabel = computed(() => {
 
 <style scoped>
 .objective-icon-wrapper {
-  width: 48px;
-  height: 48px;
+  width: 32px;
+  height: 32px;
   background: var(--color-theme-glow);
   border-radius: 8px;
   display: flex;
@@ -132,22 +116,8 @@ const rewardLabel = computed(() => {
 }
 
 .objective-icon {
-  font-size: 24px;
+  font-size: 18px;
   color: var(--color-theme-primary);
-}
-
-.category-badge {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-
-.objective-note {
-  font-size: 0.9rem;
-  color: var(--color-theme-primary);
-  opacity: 0.85;
-  line-height: 1.5;
-  margin: 0 0 12px;
 }
 
 .progress-section {

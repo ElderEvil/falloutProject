@@ -1197,7 +1197,7 @@ class TestInitiateVault:
 
     @pytest.mark.parametrize("is_boosted", [True, False], ids=["boosted", "standard"])
     async def test_initiate_vault_start_resources(self, async_session, superuser, is_boosted: bool) -> None:
-        """Starts preserve caps budgets and adopt refresh periods for both modes."""
+        """Starts preserve caps budgets and one active stage per achievement family."""
         from app.crud.objective import objective_crud
         from app.tests.factory.vaults import random_vault_number
         from app.utils.seed_objectives import seed_objectives_from_json
@@ -1215,8 +1215,14 @@ class TestInitiateVault:
         else:
             assert result.bottle_caps == 1_000
         objectives = await objective_crud.get_multi_for_vault(async_session, result.id)
-        assert {"daily", "weekly"} <= {o.category for o in objectives}
+        assert {"daily", "weekly", "achievement"} <= {o.category for o in objectives}
+        achievements = [o for o in objectives if o.category == "achievement"]
+        assert all(o.sequence == 1 for o in achievements if o.objective_type != "reach")
+        unfinished = [o for o in achievements if o.progress < o.total]
+        assert {o.track_key for o in achievements} == {o.track_key for o in unfinished}
+        assert len({o.track_key for o in unfinished}) == len(unfinished)
         state = await crud.game_state_crud.get_or_create(async_session, result.id)
+        assert state.achievement_tracks_initialized
         assert state.daily_objectives_period is not None
 
 

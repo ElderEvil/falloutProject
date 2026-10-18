@@ -121,9 +121,6 @@ const claimableCounts = computed(() => {
 const claimableTotal = computed(() =>
   Object.values(claimableCounts.value).reduce((total, count) => total + count, 0)
 )
-const openObjectivesCount = computed(
-  () => objectivesStore.objectives.filter((objective) => !objective.is_completed).length
-)
 function claimTooltip(count: number): string {
   return `${count} reward${count === 1 ? '' : 's'} ready to claim`
 }
@@ -169,23 +166,37 @@ function closeClaimModal(): void {
                 </section>
                 <section>
                   <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
-                    <Icon icon="mdi:gift" class="size-4 shrink-0" />
-                    Claim finished objectives
+                    <Icon icon="mdi:calendar" class="size-4 shrink-0" />
+                    Daily &amp; weekly directives
                   </h2>
                   <p>
-                    Daily objectives reset at 00:00 UTC; weeklies reset on Monday at 00:00 UTC.
-                    Earned rewards remain claimable after a reset. Claimed objectives move to the
-                    Completed tab.
+                    Vault-Tec issues new directives daily and weekly. Earned rewards remain yours to
+                    claim. Dailies renew at 00:00 UTC; weeklies renew on Monday at 00:00 UTC.
+                  </p>
+                </section>
+                <section>
+                  <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                    <Icon icon="mdi:trophy" class="size-4 shrink-0" />
+                    Your vault’s legacy
+                  </h2>
+                  <p>
+                    Finish a milestone to reveal the next; each collection goal begins fresh.
+                    Population and level milestones use your current vault state. Claim earned
+                    rewards whenever you’re ready.
+                  </p>
+                </section>
+                <section>
+                  <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                    <Icon icon="mdi:clipboard-check-outline" class="size-4 shrink-0" />
+                    Making progress
+                  </h2>
+                  <p>
+                    Some assignments call for different dwellers. Production goals count output even
+                    when storage is full. Claimed objectives move to the Completed tab.
                   </p>
                 </section>
               </template>
               <template #actions>
-                <PageHeaderMetric
-                  icon="mdi:target"
-                  :value="openObjectivesCount"
-                  label="Open objectives"
-                  tooltip="Objectives still waiting to be finished"
-                />
                 <PageHeaderMetric
                   icon="mdi:treasure-chest"
                   :value="claimableTotal"

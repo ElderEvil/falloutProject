@@ -171,16 +171,8 @@ class ObjectiveEvaluator(abc.ABC):
         link: VaultObjectiveProgressLink,
     ) -> None:
         """Persist earned progress; the owner must explicitly claim the reward."""
-        link.progress = objective.target_amount
-        link.reward_snapshot = link.reward_snapshot or objective.reward
-        await db_session.commit()
+        from app.services.progression.objectives.assignment import ObjectiveAssignmentService
 
-        await self._event_bus.emit(
-            GameEvent.OBJECTIVE_COMPLETED,
-            vault_id,
-            {
-                "objective_id": str(objective.id),
-                "challenge": objective.challenge,
-                "ready_to_claim": True,
-            },
-        )
+        data = await ObjectiveAssignmentService(db_session).prepare_completion(vault_id, objective, link)
+        await db_session.commit()
+        await self._event_bus.emit(GameEvent.OBJECTIVE_COMPLETED, vault_id, data)

@@ -8715,6 +8715,11 @@ export interface components {
              */
             target_amount: number;
             /**
+             * Track Key
+             * @description Achievement family; stages unlock in sequence
+             */
+            track_key?: string | null;
+            /**
              * Sequence
              * @description Ordering within a sequenced category (e.g. the starter arc); NULL for unsequenced categories
              */
@@ -8770,6 +8775,11 @@ export interface components {
              */
             target_amount: number;
             /**
+             * Track Key
+             * @description Achievement family; stages unlock in sequence
+             */
+            track_key?: string | null;
+            /**
              * Sequence
              * @description Ordering within a sequenced category (e.g. the starter arc); NULL for unsequenced categories
              */
@@ -8809,6 +8819,11 @@ export interface components {
              */
             target_amount: number;
             /**
+             * Track Key
+             * @description Achievement family; stages unlock in sequence
+             */
+            track_key?: string | null;
+            /**
              * Sequence
              * @description Ordering within a sequenced category (e.g. the starter arc); NULL for unsequenced categories
              */
@@ -8827,6 +8842,8 @@ export interface components {
             id: string;
             /** Resets At */
             resets_at?: string | null;
+            /** Next Stage Challenge */
+            next_stage_challenge?: string | null;
             /** Progress */
             progress: number;
             /** Total */
@@ -10989,6 +11006,11 @@ export interface components {
              * @default false
              */
             is_completed: boolean;
+            /**
+             * Is Locked
+             * @default false
+             */
+            is_locked: boolean;
             /** Credited Dweller Ids */
             credited_dweller_ids?: string[];
             /** Reward Snapshot */

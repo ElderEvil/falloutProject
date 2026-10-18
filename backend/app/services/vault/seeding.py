@@ -467,9 +467,9 @@ async def seed_family_child(
     is_boosted: bool,
 ) -> Dweller:
     """Create a child linked to both parents; teens apprentice at the working parent's production room."""
-    from app.options.bios import render_adopted_child_bio, render_newborn_bio
     from app.services.bio_service import bio_service, make_entry
     from app.services.dweller_service import dweller_service
+    from app.utils.bios import render_adopted_child_bio, render_newborn_bio
 
     child = await dweller_service.create_random_dweller(
         db_session,

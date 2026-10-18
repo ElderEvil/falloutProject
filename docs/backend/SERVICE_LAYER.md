@@ -12,6 +12,22 @@ new code must follow them from the start.
 | Service (`services/`)          | Domain orchestration, transaction boundaries, raising domain exceptions     | `HTTPException`, transport formatting (headers/Responses), direct transport concerns |
 | CRUD (`crud/`)                 | Persistence queries and row mutations                                       | Committing, business rules, raising transport exceptions                             |
 
+## Catalogs and generation helpers
+
+Dweller catalogs in `options/presets.py` and `options/bios.py` contain data only:
+appearance subsets, weights, personality lines, templates and rumors. Their record
+shapes live in `schemas/dweller_catalog.py` as `TypedDict` definitions, preserving
+ordinary dictionaries while checking required fields and trait names statically.
+
+Pure generation and rendering live in `utils/dwellers.py`, `utils/appearance_roll.py`
+and `utils/bios.py`. Helpers take an RNG where selection needs seeded reproducibility.
+Services retain gameplay orchestration and persistence. Canonical appearance choices
+remain in `options/appearance.py`; shared enums remain in `core/enums.py`.
+
+This boundary is enforced for the migrated dweller catalogs by the preset tests.
+Other legacy option modules, including race/faction policy and equipment modifiers,
+can migrate in separate domain batches.
+
 ## Transaction ownership
 
 - A **service public entry point owns the commit** for its operation on HTTP paths. One operation, one

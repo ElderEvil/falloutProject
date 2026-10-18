@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.235.0 (2026-10-18)
+
+### Features
+
+* **arena:** add charged skills and ring combat preview ([#1079](https://github.com/ElderEvil/falloutProject/issues/1079)) e716c98
+
 ## 2.234.3 (2026-10-18)
 
 ### Bug Fixes

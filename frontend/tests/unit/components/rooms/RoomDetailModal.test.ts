@@ -1528,31 +1528,41 @@ describe('RoomDetailModal', () => {
   })
 
   describe('Ambience', () => {
-    it('starts ambience for an initially-open modal', () => {
+    it('starts the per-room ambience for an initially-open modal', () => {
       const ambienceSpy = vi.spyOn(audioManager, 'playAmbience')
       mount(RoomDetailModal, {
         props: { room: mockRoom, modelValue: true },
       })
 
-      expect(ambienceSpy).toHaveBeenCalledWith('production')
+      expect(ambienceSpy).toHaveBeenCalledWith('power generator')
       ambienceSpy.mockRestore()
     })
 
-    it('switches ambience when the room category changes while open', async () => {
+    it('switches ambience between two rooms of the same category', async () => {
       const ambienceSpy = vi.spyOn(audioManager, 'playAmbience')
       const playSpy = vi.spyOn(audioManager, 'play')
       const wrapper = mount(RoomDetailModal, {
-        props: { room: mockRoom, modelValue: true },
+        props: { room: { ...mockRoom, name: 'Armory', category: 'TRAINING' }, modelValue: true },
       })
-      expect(ambienceSpy).toHaveBeenCalledWith('production')
+      expect(ambienceSpy).toHaveBeenCalledWith('armory')
 
-      await wrapper.setProps({ room: { ...mockRoom, category: 'training' } })
+      await wrapper.setProps({ room: { ...mockRoom, id: 'room-2', name: 'Classroom', category: 'TRAINING' } })
 
-      expect(ambienceSpy).toHaveBeenCalledWith('training')
+      expect(ambienceSpy).toHaveBeenCalledWith('classroom')
       const modalOpenCalls = playSpy.mock.calls.filter(([key]) => key === 'modalOpen')
       expect(modalOpenCalls).toHaveLength(1)
       ambienceSpy.mockRestore()
       playSpy.mockRestore()
+    })
+
+    it('falls back to the category loop for a room with no per-room ambience', () => {
+      const ambienceSpy = vi.spyOn(audioManager, 'playAmbience')
+      mount(RoomDetailModal, {
+        props: { room: { ...mockRoom, name: 'Broom Closet', category: 'TRAINING' }, modelValue: true },
+      })
+
+      expect(ambienceSpy).toHaveBeenCalledWith('training')
+      ambienceSpy.mockRestore()
     })
   })
 })

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { audioManager, parseSoundSettings } from '@/core/audio/audioManager'
-import { SOUND_MANIFEST, MUSIC_MANIFEST, AMBIENCE_MANIFEST } from '@/core/audio/soundManifest'
+import { SOUND_MANIFEST, MUSIC_MANIFEST, AMBIENCE_MANIFEST, ROOM_AMBIENCE_MANIFEST } from '@/core/audio/soundManifest'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
@@ -8,6 +8,7 @@ it('ships every manifest audio file in the public directory', () => {
   const sources = [
     ...Object.values(SOUND_MANIFEST),
     ...Object.values(AMBIENCE_MANIFEST),
+    ...Object.values(ROOM_AMBIENCE_MANIFEST),
     ...Object.values(MUSIC_MANIFEST).flat(),
   ]
   for (const src of sources) {

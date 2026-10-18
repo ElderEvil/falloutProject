@@ -3,6 +3,7 @@ import {
   AMBIENCE_MANIFEST,
   MUSIC_MANIFEST,
   SOUND_MANIFEST,
+  getAmbienceSrc,
   type AmbienceKey,
   type MusicKey,
   type SoundKey,
@@ -323,7 +324,7 @@ class AudioManager {
     audio.currentTime = 0
   }
 
-  /** Start a looping room-category ambience track (one at a time). */
+  /** Start a looping room ambience track (one at a time). */
   playAmbience(key: AmbienceKey): void {
     this.stopPreview()
     this.ambienceWanted = key
@@ -335,7 +336,7 @@ class AudioManager {
       return
     }
     this.stopAmbiencePlayback()
-    const src = AMBIENCE_MANIFEST[key]
+    const src = getAmbienceSrc(key)
     if (!src) return
     const audio = new Audio(src)
     audio.loop = true

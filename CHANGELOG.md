@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.231.0 (2026-10-18)
+
+### Features
+
+* **dwellers:** per-race archetypes with richer random bios ([#1066](https://github.com/ElderEvil/falloutProject/issues/1066)) 4890451
+
 ## 2.230.0 (2026-10-17)
 
 ### Features

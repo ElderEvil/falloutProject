@@ -1,9 +1,10 @@
-"""Construction of a storage row from a held loot entry, shared by both owners.
+"""How a held loot entry resolves against the shipped catalog.
 
 Exploration and incidents hold loot under the same shape but name the catalog
 field differently (``item_name`` vs ``name``) and describe their junk
-differently. ``build_storage_row`` is the single place both turn a held entry
-back into a catalog-backed row, so its contract is asserted here directly.
+differently. One lookup answers both "what row does this build into" and "what
+is this worth", so a name that can be taken can always be sold for the same
+price.
 """
 
 from uuid import uuid4
@@ -77,3 +78,22 @@ def test_unknown_catalog_row_returns_none_rather_than_a_defaulted_item(item_type
     loot = {"item_name": "Nonexistent Relic", "item_type": item_type, "rarity": "common", "quantity": 1}
 
     assert loot_overflow_service.build_storage_row(loot, uuid4(), junk_description="anything") is None
+
+
+@pytest.mark.parametrize("item_type", ["weapon", "outfit"])
+def test_pricing_resolves_a_catalog_name_case_insensitively(item_type: str):
+    """An entry the build path accepts must price the same, or take succeeds and sell fails."""
+    catalog = game_data_store.weapons[0] if item_type == "weapon" else game_data_store.outfits[0]
+    loot = {"item_name": catalog.name.upper(), "item_type": item_type, "rarity": "common", "quantity": 1}
+
+    assert loot_overflow_service.unit_value_of(loot) == (catalog.value or 0)
+
+
+@pytest.mark.parametrize("item_type", ["weapon", "outfit"])
+def test_an_entry_that_can_be_taken_can_always_be_sold(item_type: str):
+    """Regression: an upper-cased catalog name built fine but raised when priced."""
+    catalog = game_data_store.weapons[0] if item_type == "weapon" else game_data_store.outfits[0]
+    loot = {"item_name": catalog.name.upper(), "item_type": item_type, "rarity": "common", "quantity": 2}
+
+    assert loot_overflow_service.build_storage_row(loot, uuid4(), junk_description="anything") is not None
+    assert loot_overflow_service.value_of(loot) == (catalog.value or 0) * 2

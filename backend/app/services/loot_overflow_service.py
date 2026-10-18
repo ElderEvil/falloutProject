@@ -22,6 +22,8 @@ from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.storage import Storage
 from app.models.weapon import Weapon
+from app.schemas.outfit import OutfitCreate
+from app.schemas.weapon import WeaponCreate
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 from app.utils.item_factory import build_junk, build_outfit, build_weapon
 from app.utils.static_data import game_data_store
@@ -65,21 +67,13 @@ class LootOverflowService:
         Weapons and outfits carry their own catalog price; junk is priced by
         rarity. Unknown names raise rather than silently paying zero.
         """
-        name = self.item_name(loot_item)
-        match loot_item.get("item_type", "junk"):
-            case "weapon":
-                data = next((weapon for weapon in game_data_store.weapons if weapon.name == name), None)
-                if data is None:
-                    raise ValidationException(f"Unknown weapon loot: {name}")
-                return data.value or 0
-            case "outfit":
-                data = next((outfit for outfit in game_data_store.outfits if outfit.name == name), None)
-                if data is None:
-                    raise ValidationException(f"Unknown outfit loot: {name}")
-                return data.value or 0
-            case _:
-                rarity = str(loot_item.get("rarity", "common"))
-                return game_config.exploration.get_junk_value(rarity)
+        if loot_item.get("item_type", "junk") not in {"weapon", "outfit"}:
+            rarity = str(loot_item.get("rarity", "common"))
+            return game_config.exploration.get_junk_value(rarity)
+        catalog = self._catalog_row(loot_item)
+        if catalog is None:
+            raise ValidationException(f"Unknown loot item: {self.item_name(loot_item)}")
+        return catalog.value or 0
 
     def value_of(self, loot_item: dict) -> int:
         """Caps paid for selling every unit of a held entry."""
@@ -97,14 +91,18 @@ class LootOverflowService:
         that stack instead of persisting a defaulted item.
         """
         name = self.item_name(loot_item)
+        item_type = loot_item.get("item_type", "junk")
         rarity = self._rarity_of(loot_item)
-        match loot_item.get("item_type", "junk"):
-            case "weapon":
-                catalog = next((w for w in game_data_store.weapons if w.name.lower() == name.lower()), None)
-                return build_weapon(catalog.model_dump(), rarity, storage_id) if catalog else None
-            case "outfit":
-                catalog = next((o for o in game_data_store.outfits if o.name.lower() == name.lower()), None)
-                return build_outfit(catalog.model_dump(), rarity, storage_id) if catalog else None
+        match item_type:
+            case "weapon" | "outfit":
+                catalog = self._catalog_row(loot_item)
+                if catalog is None:
+                    return None
+                return (
+                    build_weapon(catalog.model_dump(), rarity, storage_id)
+                    if item_type == "weapon"
+                    else build_outfit(catalog.model_dump(), rarity, storage_id)
+                )
             case _:
                 return build_junk(
                     name,
@@ -113,6 +111,21 @@ class LootOverflowService:
                     value=self.unit_value_of(loot_item),
                     description=junk_description,
                 )
+
+    @staticmethod
+    def _catalog_row(loot_item: dict) -> WeaponCreate | OutfitCreate | None:
+        """The shipped catalog row a held weapon/outfit names, matched case-insensitively.
+
+        The one lookup behind both pricing and building, so a name that can be
+        taken can always be sold for the same price.
+        """
+        name = LootOverflowService.item_name(loot_item).lower()
+        match loot_item.get("item_type", "junk"):
+            case "weapon":
+                return next((weapon for weapon in game_data_store.weapons if weapon.name.lower() == name), None)
+            case "outfit":
+                return next((outfit for outfit in game_data_store.outfits if outfit.name.lower() == name), None)
+        return None
 
     @staticmethod
     def _rarity_of(loot_item: dict) -> RarityEnum:

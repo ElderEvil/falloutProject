@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.234.2 (2026-10-18)
+
+### Bug Fixes
+
+* **rooms:** price construction by existing room segments ([#1076](https://github.com/ElderEvil/falloutProject/issues/1076)) 1ea5763
+
 ## 2.234.1 (2026-10-18)
 
 ### Code Refactoring

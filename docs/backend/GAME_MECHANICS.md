@@ -62,7 +62,7 @@ by the scheduler. Each category's successful UTC period is persisted in the same
 transaction as its assignments, under a vault row lock. Repeated or concurrent calls
 are no-ops; failures leave the period due for the next attempt. Missed periods yield
 one current batch, without replaying historical batches. Ready unclaimed rewards survive.
-The UI retains the Office unlock gate and displays each recurring category's next reset.
+The UI retains the Office unlock gate. Reset schedules are explained in optional page help.
 Fresh-task notifications appear in both the bell and a toast.
 
 Existing refresh windows are adopted for the current UTC period to avoid deployment
@@ -82,9 +82,10 @@ Achievements are permanent and never participate in daily/weekly resets.
 Collection tracks for Power, Food and Water now have targets 100, 500, 1,500 and 5,000.
 Other existing families are sequenced by their authored targets. The expanded
 achievement caps pool totals 45,745 (previously 43,765), including 1,980 caps across
-the nine new resource stages. The stage badge and
-next-target preview explain progression; the completion bell/toast announces the newly
-unlocked stage. Earlier earned rewards remain separately claimable.
+the nine new resource stages. The completion bell/toast announces the newly unlocked
+stage. Earlier earned rewards remain separately claimable. Objective cards show the
+goal, a short vault-aware description, progress, reward and claim action. Schedules,
+stage mechanics and counting rules live in the existing About help, outside the cards. Do not headline the unfinished-objective total.
 
 The migration preserves template IDs, links, reward snapshots and completed history.
 Legacy vaults retain their current unfinished stage and its recorded progress; later

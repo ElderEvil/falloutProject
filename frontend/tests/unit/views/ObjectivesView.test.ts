@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createRouterMock } from '../helpers/mocks'
 import { mount, VueWrapper, flushPromises } from '@vue/test-utils'
 import { nextTick } from 'vue'
@@ -88,6 +88,10 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.spyOn(objectivesStore, 'fetchObjectives').mockResolvedValue()
   document.querySelectorAll('[role="tooltip"]').forEach((element) => element.remove())
+})
+
+afterEach(() => {
+  wrapper?.unmount()
 })
 
 it('offers an earned starter reward without waiting for earlier steps', async () => {
@@ -291,7 +295,7 @@ describe('ObjectivesView claimable counters', () => {
       ]
       wrapper = mountWithRealHeader()
       await nextTick()
-      const rewardsReady = () => wrapper.findAll('.page-header-metric-value')[1]!.text()
+      const rewardsReady = () => wrapper.findAll('.page-header-metric-value')[0]!.text()
 
       expect(rewardsReady()).toBe(String(progress))
       expect(
@@ -350,7 +354,7 @@ describe('ObjectivesView claimable counters', () => {
     expect(wrapper.find('[role="tab"]').text()).not.toMatch(/\d/)
   })
 
-  it('shows open and rewards-ready totals in the page header', async () => {
+  it('shows earned rewards without an unfinished-objective total', async () => {
     objectivesStore.objectives = [
       { ...dailyObjective, id: 'daily-1' },
       { ...dailyObjective, id: 'daily-2', progress: 3, total: 10 },
@@ -360,7 +364,7 @@ describe('ObjectivesView claimable counters', () => {
     wrapper = mountWithRealHeader()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.text()).toContain('Open objectives')
+    expect(wrapper.text()).not.toContain('Open objectives')
     expect(wrapper.text()).toContain('Rewards ready')
   })
 
@@ -372,6 +376,16 @@ describe('ObjectivesView claimable counters', () => {
     // poll instead of assuming one flush settles the dynamic import.
     await vi.waitFor(() => {
       expect(wrapper.find('button[aria-label="About Objectives"]').exists()).toBe(true)
+    })
+    await wrapper.get('button[aria-label="About Objectives"]').trigger('click')
+    await vi.waitFor(() => {
+      const help = [...document.querySelectorAll('[role="dialog"]')].find((dialog) =>
+        dialog.textContent?.includes('About Objectives')
+      )
+      expect(help?.textContent).toContain('Vault-Tec issues new directives')
+      expect(help?.textContent).toContain('each collection goal begins fresh')
+      expect(help?.textContent).toContain('different dwellers')
+      expect(help?.textContent).toContain('even when storage is full')
     })
   })
 

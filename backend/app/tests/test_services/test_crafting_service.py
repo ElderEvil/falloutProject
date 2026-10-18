@@ -185,6 +185,40 @@ async def test_list_recipes_excludes_uncraftable_entries(async_session: AsyncSes
     assert all(recipe.name != UNCRAFTABLE_OUTFIT for recipe in recipes)
 
 
+@pytest.mark.parametrize(
+    ("name", "junk_types"),
+    [("Vault 33 suit", ["cloth", "valuables"]), ("BOS casual", ["cloth", "leather"])],
+)
+async def test_power_struggle_outfits_craftable_without_discovery(
+    async_session: AsyncSession, vault: Vault, name: str, junk_types: list[str]
+) -> None:
+    """An existing vault can craft chain requirements without finding them in a lunchbox first."""
+    storage = await _make_storage(async_session, vault)
+    await _add_workshop(async_session, vault, "Outfit workshop")
+    vault.bottle_caps = 1_000
+    await async_session.commit()
+    for material, count in game_config.crafting.junk_recipe("rare").items():
+        await _add_junk(async_session, storage, RarityEnum(material), count, JunkTypeEnum.CLOTH)
+
+    recipes = await crafting_service.list_recipes(async_session, vault.id, "outfit")
+    recipe = next((recipe for recipe in recipes if recipe.name == name), None)
+    assert recipe is not None
+    assert recipe.unlocked is True
+    assert recipe.can_craft is True
+    assert recipe.junk_types == junk_types
+    assert recipe.rarity == RarityEnum.RARE
+
+    order = await crafting_service.start_order(async_session, vault.id, name, "outfit")
+    await _finish_queue(async_session, vault.id)
+    result = await crafting_service.collect_order(async_session, vault.id, order.id)
+
+    outfit = await async_session.get(Outfit, result.item_id)
+    assert outfit is not None
+    assert outfit.name == name
+    assert outfit.rarity == RarityEnum.RARE
+    assert outfit.storage_id == storage.id
+
+
 @pytest.mark.asyncio
 async def test_catalog_entries_without_craftable_flag_are_excluded(
     async_session: AsyncSession, vault: Vault, monkeypatch: pytest.MonkeyPatch

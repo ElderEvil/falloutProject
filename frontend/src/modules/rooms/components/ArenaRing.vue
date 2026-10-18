@@ -123,25 +123,35 @@ const imageFor = (id: string) => getStaticImageUrl(getCreatureImagePath(creature
             <ArenaDamageNumbers
               :numbers="damageNumbers.filter((d) => d.fighterId === fighter.id)"
             />
-            <span
-              class="w-full truncate text-center text-xs font-semibold text-theme-primary [text-shadow:0_1px_3px_black]"
-              :title="fighter.name"
-              >{{ fighter.name }}</span
+            <Tooltip
+              ><TooltipTrigger as-child
+                ><span
+                  class="w-full truncate text-center text-xs font-semibold text-theme-primary [text-shadow:0_1px_3px_black]"
+                  tabindex="0"
+                  >{{ fighter.name }}</span
+                ></TooltipTrigger
+              ><TooltipContent
+                class="border border-theme-primary/40 bg-popover text-theme-primary"
+                >{{ fighter.name }}</TooltipContent
+              ></Tooltip
             >
             <div class="w-full rounded bg-black/80 p-1">
-              <div
-                class="flex min-h-4 items-center gap-1"
-                :title="`${fighter.health}/${fighter.max_health} HP`"
+              <Tooltip
+                ><TooltipTrigger as-child
+                  ><div class="flex min-h-4 items-center gap-1" tabindex="0">
+                    <Heart class="size-3 shrink-0 fill-danger text-danger" aria-hidden="true" />
+                    <Progress
+                      size="xs"
+                      :tone="team.side === 'A' ? 'success' : 'danger'"
+                      :model-value="(fighter.health / Math.max(1, fighter.max_health)) * 100"
+                      :label="`${fighter.name} HP`"
+                      :value-text="`${fighter.health}/${fighter.max_health}`"
+                    /></div></TooltipTrigger
+                ><TooltipContent
+                  class="border border-theme-primary/40 bg-popover text-theme-primary"
+                  >{{ `${fighter.health}/${fighter.max_health} HP` }}</TooltipContent
+                ></Tooltip
               >
-                <Heart class="size-3 shrink-0 fill-danger text-danger" aria-hidden="true" />
-                <Progress
-                  size="xs"
-                  :tone="team.side === 'A' ? 'success' : 'danger'"
-                  :model-value="(fighter.health / Math.max(1, fighter.max_health)) * 100"
-                  :label="`${fighter.name} HP`"
-                  :value-text="`${fighter.health}/${fighter.max_health}`"
-                />
-              </div>
               <Tooltip v-if="fighter.active_skill">
                 <TooltipTrigger as-child
                   ><span class="block w-full">

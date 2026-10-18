@@ -52,10 +52,23 @@ export const SOUND_MANIFEST = {
 
 export type SoundKey = keyof typeof SOUND_MANIFEST
 
-/** Looping music tracks, keyed for `audioManager.playLoop`. */
+/**
+ * Music playlists, keyed for `audioManager.playLoop`. Entries cycle in order —
+ * the next track crossfades in as one ends, wrapping after the last entry.
+ */
 export const MUSIC_MANIFEST = {
-  vaultAmbient: '/audio/music/vault-ambient-1.mp3',
-  exploration: '/audio/music/exploration-1.mp3',
+  vaultAmbient: [
+    '/audio/music/vault-ambient-1.mp3',
+    '/audio/music/vault-ambient-2.mp3',
+    '/audio/music/vault-ambient-3.mp3',
+    '/audio/music/vault-ambient-4.mp3',
+  ],
+  exploration: [
+    '/audio/music/exploration-1.mp3',
+    '/audio/music/exploration-2.mp3',
+    '/audio/music/exploration-3.mp3',
+    '/audio/music/exploration-4.mp3',
+  ],
 } as const
 
 export type MusicKey = keyof typeof MUSIC_MANIFEST

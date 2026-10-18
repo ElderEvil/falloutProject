@@ -16,6 +16,9 @@ export type AudioBus = 'ui' | 'sfx' | 'music' | 'ambience'
 
 const STORAGE_KEY = 'audioSettings'
 
+/** Overlap between consecutive playlist tracks, so ambient music never gaps. */
+const MUSIC_CROSSFADE_MS = 1500
+
 const AUDIO_BUSES: readonly AudioBus[] = ['ui', 'sfx', 'music', 'ambience']
 
 export interface AudioSettings {
@@ -94,8 +97,9 @@ class AudioManager {
   private sfxBuffers = new Map<SoundKey, HTMLAudioElement>()
   private musicPreview: HTMLAudioElement | null = null
   private ambiencePreview: HTMLAudioElement | null = null
-  private currentLoop: { audio: HTMLAudioElement; key: MusicKey } | null = null
+  private currentLoop: { audio: HTMLAudioElement; key: MusicKey; index: number } | null = null
   private pendingLoop: MusicKey | null = null
+  private outgoingLoop: HTMLAudioElement | null = null
   private ambienceAudio: HTMLAudioElement | null = null
   private ambienceKey: AmbienceKey | null = null
   private ambienceWanted: AmbienceKey | null = null
@@ -214,7 +218,7 @@ class AudioManager {
   /** One-shot sample of the music bus at its current volume (volume sliders). */
   previewMusic(): void {
     if (this.settings.muted || !this.unlocked) return
-    const src = MUSIC_MANIFEST.vaultAmbient
+    const src = MUSIC_MANIFEST.vaultAmbient[0]
     if (!src) return
 
     if (!this.musicPreview) {
@@ -241,7 +245,10 @@ class AudioManager {
     this.ambiencePreview.play().catch(() => {})
   }
 
-  /** Start a looping music track (one loop at a time; restarts if same key). */
+  /**
+   * Start a music playlist (one playlist at a time). Requesting the key that is
+   * already playing keeps the playlist where it is instead of restarting it.
+   */
   playLoop(key: MusicKey): void {
     this.stopPreview()
     if (this.currentLoop?.key === key) return
@@ -252,14 +259,50 @@ class AudioManager {
       return
     }
 
-    const src = MUSIC_MANIFEST[key]
-    if (!src) return
+    this.startLoopTrack(key, 0)
+  }
 
-    const audio = new Audio(src)
-    audio.loop = true
-    audio.volume = this.playbackVolume('music')
-    audio.play().catch(() => {})
-    this.currentLoop = { audio, key }
+  /**
+   * Play one playlist entry. The next entry is queued from `timeupdate` just
+   * before this one ends and crossfaded over it; when the duration is unknown
+   * the `ended` event advances instead, so rotation works either way.
+   */
+  private startLoopTrack(key: MusicKey, index: number, crossfadeFrom?: HTMLAudioElement): void {
+    const audio = new Audio(MUSIC_MANIFEST[key][index])
+    audio.loop = false
+    audio.volume = crossfadeFrom ? 0 : this.playbackVolume('music')
+    audio.play().catch(() => {
+      // Missing file or interrupted play — stay silent by design.
+    })
+    this.currentLoop = { audio, key, index }
+    audio.addEventListener('timeupdate', () => this.crossfadeBeforeEnd(audio))
+    audio.addEventListener('ended', () => this.advanceLoop(audio, false))
+
+    if (crossfadeFrom) {
+      this.outgoingLoop = crossfadeFrom
+      this.fadeElement(audio, this.playbackVolume('music'), MUSIC_CROSSFADE_MS)
+      this.fadeElement(crossfadeFrom, 0, MUSIC_CROSSFADE_MS, () => {
+        crossfadeFrom.pause()
+        if (this.outgoingLoop === crossfadeFrom) this.outgoingLoop = null
+      })
+    }
+  }
+
+  /** Start the crossfade once a playing track is within its final fade window. */
+  private crossfadeBeforeEnd(audio: HTMLAudioElement): void {
+    const { duration, currentTime } = audio
+    if (!Number.isFinite(duration) || duration <= 0) return
+    if (duration - currentTime > MUSIC_CROSSFADE_MS / 1000) return
+    this.advanceLoop(audio, true)
+  }
+
+  /** Move to the next playlist entry, wrapping around after the last one. */
+  private advanceLoop(from: HTMLAudioElement, crossfade: boolean): void {
+    const loop = this.currentLoop
+    // A late event from a track that already handed over must not advance twice.
+    if (!loop || loop.audio !== from) return
+    const nextIndex = (loop.index + 1) % MUSIC_MANIFEST[loop.key].length
+    this.startLoopTrack(loop.key, nextIndex, crossfade ? from : undefined)
   }
 
   stopLoop(): void {
@@ -267,10 +310,17 @@ class AudioManager {
     this.pendingLoop = null
     this.musicDucked = false
     this.cancelMusicRestore()
-    if (!this.currentLoop) return
-    this.currentLoop.audio.pause()
-    this.currentLoop.audio.currentTime = 0
+    this.stopLoopPlayback(this.outgoingLoop)
+    this.outgoingLoop = null
+    this.stopLoopPlayback(this.currentLoop?.audio ?? null)
     this.currentLoop = null
+  }
+
+  private stopLoopPlayback(audio: HTMLAudioElement | null): void {
+    if (!audio) return
+    this.cancelFade(audio)
+    audio.pause()
+    audio.currentTime = 0
   }
 
   /** Start a looping room-category ambience track (one at a time). */

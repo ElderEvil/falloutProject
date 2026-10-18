@@ -46,6 +46,11 @@ def is_available(dweller: Dweller, *, require_healthy: bool = False) -> bool:
     return availability_error(dweller, require_healthy=require_healthy) is None
 
 
+def is_incident_responder_available(dweller: Dweller) -> bool:
+    """Healthy vault adults may respond unless already fighting in the Arena."""
+    return is_available(dweller, require_healthy=True) and dweller.status != DwellerStatusEnum.FIGHTING
+
+
 def available_dweller_conditions(*, require_healthy: bool = False) -> tuple:
     """Database conditions mirroring :func:`availability_error` for candidate queries."""
     conditions = [

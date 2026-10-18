@@ -7,7 +7,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core import db_locks
-from app.core.enums import DwellerStatusEnum, HazardTeam, RoomTypeEnum
+from app.core.enums import HazardTeam, RoomTypeEnum
 from app.crud import outfit as outfit_crud
 from app.crud.dweller import dweller as crud_dweller
 from app.crud.incident_participant import incident_participant_crud
@@ -21,7 +21,7 @@ from app.models.team import ACTIVE_STATUS, COMMITTED_MEMBER_STATUSES, DISPATCHED
 from app.schemas.contamination_team import ContaminationTeamRead, HazardTeamMemberRead, HazardTeamRosterRead
 from app.services.bio_service import bio_service
 from app.services.notification_service import notification_service
-from app.utils.dweller_availability import availability_error
+from app.utils.dweller_availability import availability_error, is_incident_responder_available
 from app.utils.exceptions import (
     ContentNoChangeException,
     ResourceConflictException,
@@ -328,9 +328,8 @@ class HazardTeamService:
                 for dweller in dwellers
                 if dweller.id not in existing_ids
                 and dweller.room_id != incident.room_id
-                and dweller.status != DwellerStatusEnum.FIGHTING
                 and dweller.id not in committed_ids
-                and availability_error(dweller, require_healthy=True) is None
+                and is_incident_responder_available(dweller)
             ][:room]
             if not candidates:
                 return []

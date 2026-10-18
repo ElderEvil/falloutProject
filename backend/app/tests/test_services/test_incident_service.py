@@ -1497,6 +1497,9 @@ async def test_current_residents_do_not_consume_helper_slots(async_session, room
     members = await crud.team_crud.get_incident_team(async_session, incident.id, room.vault_id)
     assert [member.dweller_id for member in members] == [helper.id]
     assert resident.room_id == helper.room_id == room.id
+    events = await crud.incident_crud.get_recent_events(async_session, incident.id)
+    assigned_event = next(event for event in events if event.kind == "responders_assigned")
+    assert assigned_event.data == {"skipped": [resident.first_name]}
 
 
 async def test_residents_and_six_helpers_all_fight_without_replacing_each_other(

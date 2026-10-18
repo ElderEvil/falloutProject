@@ -25,11 +25,8 @@ GUARDED_MODELS = frozenset({"Weapon", "Outfit", "Junk", "Item"})
 EXCLUDED_DIRS = frozenset({"tests", "alembic", "__pycache__"})
 
 # Pre-existing direct constructions, keyed by (module, model) -> call count.
-# Shrink these numbers with each migration batch; never raise them.
-ITEM_CONSTRUCTION_BASELINE: dict[tuple[str, str], int] = {
-    ("crud/item_base.py", "Junk"): 2,  # scrap byproducts, not catalog-backed
-    ("services/rewards/items.py", "Item"): 1,  # generic reward item
-}
+# Empty: every guarded model is built through the factory.
+ITEM_CONSTRUCTION_BASELINE: dict[tuple[str, str], int] = {}
 
 
 def _direct_constructions(source: str) -> Counter[str]:

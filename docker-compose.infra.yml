@@ -52,6 +52,7 @@ services:
     # Development source mount preserves the image's /app/.venv dependencies.
     volumes:
       - ./backend/app:/app/app:z
+    # watchfiles is locked via fastapi[standard] -> uvicorn[standard]; keep that extra installed.
     command:
       - sh
       - -c

@@ -143,7 +143,7 @@ def describe_appearance(appearance: dict[str, Any], gender: GenderEnum, race: Ra
     deterministic).
     """
     gender_word = "woman" if gender == GenderEnum.FEMALE else "man"
-    height_word = appearance.get("height", "average")
+    height_word = str(appearance.get("height", "average")).lower()
     build_word = _BUILD_DISPLAY.get(appearance.get("build", ""), "average build")
     skin = appearance.get("skin_tone", "")
     hair_style = appearance.get("hair_style", "")

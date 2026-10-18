@@ -7,6 +7,8 @@ weights are positive, and all personality lines start with "I " (first-person).
 
 import random
 
+import pytest
+
 from app.core.enums import AgeGroupEnum, GenderEnum
 from app.options.appearance import (
     body_type_options,
@@ -127,3 +129,27 @@ def test_archetype_pools_constrain_to_pool_values():
                 assert rolled["expression"] in pools["expression"], (
                     f"{name}: expression {rolled['expression']!r} not in pool"
                 )
+
+
+@pytest.mark.parametrize("race", list(RaceOption))
+def test_generated_bio_matches_identity_and_keeps_rumor_last(monkeypatch, race):
+    from app.core.game_config import game_config
+    from app.options.bios import ZONE_RUMORS
+    from app.utils.appearance_roll import describe_appearance
+    from app.utils.dwellers import create_random_common_dweller
+
+    monkeypatch.setattr(
+        game_config.dweller, "race_weights", {option.value: int(option == race) for option in RaceOption}
+    )
+    monkeypatch.setattr(game_config.bio, "zone_rumor_chance", 1.0)
+    for seed in range(5):
+        dweller = create_random_common_dweller(seed=seed)
+        assert dweller == create_random_common_dweller(seed=seed)
+        appearance = dweller["visual_attributes"]
+        assert appearance["race"] == race.value
+        assert describe_appearance(appearance, dweller["gender"], race) in dweller["bio"]
+        personalities = (
+            line for entry in archetypes.values() if entry["race"] == race for line in entry["personality_lines"]
+        )
+        assert any(line in dweller["bio"] for line in personalities)
+        assert dweller["bio"].endswith(ZONE_RUMORS)

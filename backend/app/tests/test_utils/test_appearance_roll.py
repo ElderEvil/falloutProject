@@ -23,7 +23,7 @@ from app.options.appearance import (
     skin_tone_options,
 )
 from app.options.races import RaceOption
-from app.utils.appearance_roll import roll_appearance
+from app.utils.appearance_roll import describe_appearance, roll_appearance
 from app.utils.dwellers import create_random_common_dweller, roll_child_identity
 
 
@@ -155,3 +155,15 @@ async def test_generic_creation_fills_only_missing_traits(async_session, vault):
     created = await dweller_service.create_dweller(async_session, payload)
     assert created.visual_attributes.items() >= attrs.items()
     assert created.visual_attributes["skin_tone"] in skin_tone_options[RaceOption.HUMAN]
+
+
+@pytest.mark.parametrize(
+    ("height", "expected"),
+    [("Tall", "a tall"), ("Average", "an average"), ("SHORT", "a short")],
+)
+@pytest.mark.parametrize(("gender", "word"), [(GenderEnum.FEMALE, "woman"), (GenderEnum.MALE, "man")])
+def test_describe_appearance_normalizes_height_and_article(height, expected, gender, word):
+    appearance = roll_appearance(RaceOption.HUMAN, gender, random.Random(7))
+    appearance.update(height=height, build="Slim")
+    description = describe_appearance(appearance, gender, RaceOption.HUMAN)
+    assert description.startswith(f"I'm {expected}, slim {word} with ")

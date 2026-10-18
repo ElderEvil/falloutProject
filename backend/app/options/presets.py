@@ -8,6 +8,7 @@ Existing keys, values, and positional structure are preserved so that consumers
 such as the AI-visual tests keep working unmodified.
 """
 
+from app.options.appearance import skin_tone_options
 from app.options.factions import FactionOption
 from app.options.races import RaceOption
 
@@ -36,47 +37,6 @@ def _pool(*, skin_tone=None, hair_color=None, hair_style=None, build=None, expre
 # Canonical subsets used for pool definitions
 # ---------------------------------------------------------------------------
 
-_HUMAN_SKINS = ["Pale", "Light", "Tan", "Brown", "Dark Brown", "Ebony"]
-_HUMAN_BUILD = ["Slim", "Athletic", "Muscular", "Stocky", "Average", "Overweight"]
-_GHOUl_SKINS = ["Pale Grey", "Ashen", "Mottled", "Necrotic", "Glowing"]
-_GHOUl_BUILD = ["Skeletal", "Withered", "Twisted"]
-_MUTANT_SKINS = ["Light Green", "Green", "Dark Green", "Olive Green"]
-_MUTANT_BUILD = ["Muscular", "Brutish", "Towering"]
-_SYNTH_SKINS = ["Synthetic Fair", "Synthetic Dark", "Metallic Silver", "Exposed Component"]
-_SYNTH_BUILD = ["Slender", "Muscular", "Armored"]
-
-_HUMAN_HAIR = [
-    "Short Hair",
-    "Long Hair",
-    "Ponytail",
-    "Mohawk",
-    "Buzz Cut",
-    "Curly Hair",
-    "Bun",
-    "Braided Hair",
-    "Wavy Hair",
-    "Dreadlocks",
-]
-_GHOUl_HAIR = [
-    "Patchy Hair",
-    "Stringy Hair",
-    "Messy Hair",
-    "Mohawk",
-    "Burned Scalp",
-    "Radiation-Scarred",
-    "Thinning Hair",
-    "Wispy Remains",
-]
-_MUTANT_HAIR = ["Bald", "Scalp Ridges", "Patchy Tufts", "Mohawk", "Thick Stubble", "War Paint Scalp"]
-_SYNTH_HAIR = [
-    "Clean Cut",
-    "Slicked Back",
-    "Military Precision Cut",
-    "Exposed Circuits",
-    "Synthetic Fiber Weave",
-    "Metallic Sheen Hair",
-]
-
 _NATURAL_HAIR = ["blonde", "brunette", "black", "brown", "red", "gray"]
 
 # ---------------------------------------------------------------------------
@@ -97,7 +57,7 @@ archetypes: dict[str, dict] = {
         "background": "Vault Interior",
         "weight": 4,
         "appearance_pools": _pool(
-            skin_tone=_HUMAN_SKINS,
+            skin_tone=skin_tone_options[RaceOption.HUMAN],
             hair_color=_NATURAL_HAIR,
             hair_style=("Short Hair", "Ponytail", "Bun", "Buzz Cut", "Curly Hair"),
             build=("Average", "Athletic", "Slim"),
@@ -122,7 +82,7 @@ archetypes: dict[str, dict] = {
         "background": "Brotherhood Airship",
         "weight": 3,
         "appearance_pools": _pool(
-            skin_tone=_HUMAN_SKINS,
+            skin_tone=skin_tone_options[RaceOption.HUMAN],
             hair_color=_NATURAL_HAIR,
             hair_style=("Buzz Cut", "Short Hair", "Mohawk"),
             build=("Muscular", "Athletic", "Stocky"),
@@ -147,7 +107,7 @@ archetypes: dict[str, dict] = {
         "background": "Pre-War Suburb",
         "weight": 3,
         "appearance_pools": _pool(
-            skin_tone=_HUMAN_SKINS,
+            skin_tone=skin_tone_options[RaceOption.HUMAN],
             hair_color=_NATURAL_HAIR,
             hair_style=("Buzz Cut", "Short Hair"),
             build=("Athletic", "Muscular"),
@@ -172,7 +132,7 @@ archetypes: dict[str, dict] = {
         "background": "Wasteland Ruins",
         "weight": 3,
         "appearance_pools": _pool(
-            skin_tone=_HUMAN_SKINS,
+            skin_tone=skin_tone_options[RaceOption.HUMAN],
             hair_color=None,
             hair_style=("Mohawk", "Buzz Cut", "Short Hair", "Dreadlocks"),
             build=("Muscular", "Stocky"),
@@ -197,7 +157,7 @@ archetypes: dict[str, dict] = {
         "background": "Super Mutant Camp",
         "weight": 3,
         "appearance_pools": _pool(
-            skin_tone=_MUTANT_SKINS,
+            skin_tone=skin_tone_options[RaceOption.SUPER_MUTANT],
             hair_style=("Bald", "Scalp Ridges", "Mohawk"),
             build=("Muscular", "Brutish", "Towering"),
             expression=("angry", "proud", "stoic"),
@@ -270,7 +230,7 @@ archetypes: dict[str, dict] = {
         "background": "Nuclear Crater",
         "weight": 3,
         "appearance_pools": _pool(
-            skin_tone=_GHOUl_SKINS,
+            skin_tone=skin_tone_options[RaceOption.GHOUL],
             hair_color=("gray", "white"),
             hair_style=("Patchy Hair", "Stringy Hair", "Thinning Hair", "Wispy Remains"),
             build=("Withered", "Skeletal"),
@@ -315,7 +275,7 @@ archetypes: dict[str, dict] = {
         "faction": FactionOption.NONE,
         "weight": 4,
         "appearance_pools": _pool(
-            skin_tone=_HUMAN_SKINS,
+            skin_tone=skin_tone_options[RaceOption.HUMAN],
             hair_color=None,
             hair_style=("Wavy Hair", "Dreadlocks", "Long Hair", "Buzz Cut"),
             build=("Average", "Stocky", "Overweight"),
@@ -332,7 +292,7 @@ archetypes: dict[str, dict] = {
         "faction": FactionOption.NONE,
         "weight": 2,
         "appearance_pools": _pool(
-            skin_tone=_HUMAN_SKINS,
+            skin_tone=skin_tone_options[RaceOption.HUMAN],
             hair_color=None,
             hair_style=("Braided Hair", "Ponytail", "Wavy Hair"),
             build=("Average", "Overweight", "Slim"),

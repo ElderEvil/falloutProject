@@ -7,7 +7,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core import db_locks
-from app.core.enums import HazardTeam, RoomTypeEnum
+from app.core.enums import DwellerStatusEnum, HazardTeam, RoomTypeEnum
 from app.crud import outfit as outfit_crud
 from app.crud.dweller import dweller as crud_dweller
 from app.crud.incident_participant import incident_participant_crud
@@ -327,6 +327,8 @@ class HazardTeamService:
                 dweller
                 for dweller in dwellers
                 if dweller.id not in existing_ids
+                and dweller.room_id != incident.room_id
+                and dweller.status != DwellerStatusEnum.FIGHTING
                 and dweller.id not in committed_ids
                 and availability_error(dweller, require_healthy=True) is None
             ][:room]
@@ -380,12 +382,10 @@ class HazardTeamService:
             if origin is not None:
                 if dweller.room_id != origin.id:
                     await dweller_service.move_to_room(db_session, member.dweller_id, origin.id)
-            else:
-                # Clear the temporary posting before auto-assignment, which otherwise
-                # treats an overfilled incident room as already matching the best stat.
-                if dweller.room_id == incident.room_id:
-                    await dweller_service.update_dweller(db_session, member.dweller_id, {"room_id": None})
-                await dweller_service.auto_assign_to_best_room(db_session, member.dweller_id)
+            # No original posting (or it was demolished): restore unassigned
+            # rather than silently selecting a different job.
+            elif dweller.room_id == incident.room_id:
+                await dweller_service.update_dweller(db_session, member.dweller_id, {"room_id": None})
         except ContentNoChangeException:
             return dweller.room_id is not None
         except ResourceConflictException:
@@ -411,6 +411,10 @@ class HazardTeamService:
             closed = 0
             for member in dispatched:
                 dweller = member.dweller
+                if dweller is not None and dweller.room_id == incident.room_id and member.dweller_id in committed:
+                    # A new incident in the temporary room needs its residents.
+                    # Keep the original posting until that defense finishes.
+                    continue
                 if (
                     dweller is None
                     or dweller.vault_id != incident.vault_id

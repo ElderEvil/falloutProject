@@ -158,15 +158,20 @@ availability gate uses, so the UI shows per-row gate verdicts instead of inferri
 
 ## Incident responder returns
 
+- Healthy adult room residents defend automatically and remain visible alongside up to six arriving
+  helpers. Residents do not consume helper slots or enter the return ledger. Dwellers defending another
+  active incident or fighting in the Arena cannot be recruited. Nearby support is sent manually.
+
 - Manual and automatic dispatch record the responder's original room once, before moving them.
   Re-selecting someone already on the incident roster must not overwrite that posting.
 - After victory or defeat, restore surviving available responders to their original room through
   normal room-assignment capacity checks. Residents originally posted in the incident room stay there.
 - If that posting is full or busy, clear the temporary incident assignment and retry on subsequent
-  online, unpaused incident ticks. If the posting was demolished or unknown, use capacity-checked
-  production auto-assignment; no available room leaves the responder unassigned pending retry.
+  online, unpaused incident ticks. An originally unassigned responder returns to idle and unassigned.
+  If the original room was demolished, leave the responder unassigned rather than choosing a new job.
 - Mark settled roster entries completed. A newer player room assignment or another active incident
-  takes precedence over an older return. Returns do not heal dwellers or restart cancelled training.
+  takes precedence over an older return. A new incident in the temporary room defers the old return
+  without forgetting its destination. Returns do not heal dwellers or restart cancelled training.
 
 ## Notification preferences
 

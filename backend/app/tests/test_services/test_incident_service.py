@@ -12,6 +12,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import DwellerStatusEnum
 from app.core.game_config import game_config
 from app.models.game_state import GameState
 from app.models.incident import IncidentFamily, IncidentObjective, IncidentStatus, IncidentType
@@ -1459,3 +1460,83 @@ async def test_auto_pause_does_not_commit_before_incident_insert(async_session, 
         event.remove(async_session.sync_session, "before_commit", before_commit)
     assert incident is not None
     assert commits[0], "The first commit must insert the incident, keeping the spawn lock through all checks."
+
+
+async def test_incident_cannot_draft_residents_defending_another_room(async_session, room_with_dwellers):
+    room = room_with_dwellers["room"]
+    resident = room_with_dwellers["dwellers"][0]
+    other_room = await crud.room.create(
+        async_session, RoomCreate(**create_test_room(), vault_id=room.vault_id, coordinate_x=10, coordinate_y=2)
+    )
+    await crud.incident_crud.create(
+        async_session, vault_id=room.vault_id, room_id=room.id, incident_type=IncidentType.RAIDER_ATTACK, difficulty=4
+    )
+    other = await crud.incident_crud.create(
+        async_session,
+        vault_id=room.vault_id,
+        room_id=other_room.id,
+        incident_type=IncidentType.RAIDER_ATTACK,
+        difficulty=4,
+    )
+    with pytest.raises(ValidationException, match="committed"):
+        await incident_service.assign_responders(async_session, other, [resident.id])
+    await async_session.refresh(resident)
+    assert resident.room_id == room.id
+    assert await crud.team_crud.get_incident_team(async_session, other.id, room.vault_id) == []
+
+
+async def test_current_residents_do_not_consume_helper_slots(async_session, room_with_dwellers, dweller_data):
+    room = room_with_dwellers["room"]
+    resident = room_with_dwellers["dwellers"][0]
+    helper = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
+    incident = await crud.incident_crud.create(
+        async_session, vault_id=room.vault_id, room_id=room.id, incident_type=IncidentType.RAIDER_ATTACK, difficulty=4
+    )
+    assigned = await incident_service.assign_responders(async_session, incident, [resident.id, helper.id])
+    assert assigned == [helper.id]
+    members = await crud.team_crud.get_incident_team(async_session, incident.id, room.vault_id)
+    assert [member.dweller_id for member in members] == [helper.id]
+    assert resident.room_id == helper.room_id == room.id
+
+
+async def test_residents_and_six_helpers_all_fight_without_replacing_each_other(
+    async_session, room_with_dwellers, dweller_data
+):
+    room = room_with_dwellers["room"]
+    residents = room_with_dwellers["dwellers"]
+    helpers = [
+        await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
+        for _ in range(6)
+    ]
+    for dweller in [*residents, *helpers]:
+        dweller.health = dweller.max_health = 1000
+        dweller.radiation = 0
+        async_session.add(dweller)
+    await async_session.commit()
+    incident = await crud.incident_crud.create(
+        async_session, vault_id=room.vault_id, room_id=room.id, incident_type=IncidentType.RAIDER_ATTACK, difficulty=100
+    )
+    await incident_service.assign_responders(async_session, incident, [helper.id for helper in helpers])
+    result = await incident_service.process_incident(async_session, incident, 2)
+    assert not result.no_defenders
+    for dweller in [*residents, *helpers]:
+        await async_session.refresh(dweller)
+        assert 0 < dweller.health < 1000
+        assert dweller.room_id == room.id
+    members = await crud.team_crud.get_incident_team(async_session, incident.id, room.vault_id)
+    assert {member.dweller_id for member in members} == {helper.id for helper in helpers}
+
+
+async def test_incident_does_not_pull_a_fighter_out_of_arena(async_session, room_with_dwellers, dweller_data):
+    room = room_with_dwellers["room"]
+    helper = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
+    helper.status = DwellerStatusEnum.FIGHTING
+    async_session.add(helper)
+    await async_session.commit()
+    incident = await crud.incident_crud.create(
+        async_session, vault_id=room.vault_id, room_id=room.id, incident_type=IncidentType.RAIDER_ATTACK, difficulty=4
+    )
+    with pytest.raises(ValidationException, match="healthy adult"):
+        await incident_service.assign_responders(async_session, incident, [helper.id])
+    assert helper.status == DwellerStatusEnum.FIGHTING
+    assert await crud.team_crud.get_incident_team(async_session, incident.id, room.vault_id) == []

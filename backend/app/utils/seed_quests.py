@@ -57,6 +57,29 @@ def generate_rewards_string(quest_json: QuestJSON) -> str:
     return ", ".join(format_reward(r) for r in quest_json.quest_rewards)
 
 
+def _quest_text_fields(quest_json: QuestJSON) -> dict[str, str]:
+    """Resolve the display-text fields shared by the create and sync paths.
+
+    ``rewards`` goes through :func:`generate_rewards_string` rather than the raw
+    authored text: most catalog quests leave "Rewards" empty and describe their
+    rewards structurally, and the model rejects text shorter than 3 characters.
+    Resolving both paths here keeps them from drifting apart - a raw ``rewards``
+    here would have blanked 24 of 35 quests on every re-seed.
+    """
+    reqs = quest_json.requirements
+    req_str = ""
+    if isinstance(reqs, str):
+        req_str = reqs
+    elif isinstance(reqs, list):
+        req_str = ", ".join(reqs) if all(isinstance(r, str) for r in reqs) else str(reqs[0]) if reqs else ""
+    return {
+        "short_description": quest_json.short_description,
+        "long_description": quest_json.long_description,
+        "requirements": req_str,
+        "rewards": generate_rewards_string(quest_json),
+    }
+
+
 def _quest_metadata(quest_json: QuestJSON, chain_id: str | None) -> dict[str, Any]:
     return {
         "quest_type": QuestType(quest_json.quest_type or QuestType.SIDE),
@@ -64,6 +87,7 @@ def _quest_metadata(quest_json: QuestJSON, chain_id: str | None) -> dict[str, An
         "chain_id": chain_id,
         "chain_order": quest_json.chain_order,
         "duration_minutes": quest_json.duration_minutes,
+        **_quest_text_fields(quest_json),
     }
 
 
@@ -245,26 +269,10 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
         # Seed quests that don't exist yet
         seeded_count = 0
         for quest_json in all_quest_jsons:
-            # Handle requirements - can be string, list of strings, or list of QuestJSON (from chain format)
-            reqs = quest_json.requirements
-            req_str = ""
-            if isinstance(reqs, str):
-                req_str = reqs
-            elif isinstance(reqs, list):
-                # Check if it's a list of strings or list of QuestJSON
-                req_str = ", ".join(reqs) if all(isinstance(r, str) for r in reqs) else str(reqs[0]) if reqs else ""
-
             # Use quest_name from JSON as the title
             if quest_json.quest_name not in existing_titles:
-                # Generate rewards string from structured quest_rewards if available
-                rewards_str = generate_rewards_string(quest_json)
-
                 quest = Quest(
                     title=quest_json.quest_name,
-                    short_description=quest_json.short_description,
-                    long_description=quest_json.long_description,
-                    requirements=req_str,
-                    rewards=rewards_str,
                     **_quest_metadata(quest_json, quest_chain_ids[quest_json.quest_name]),
                 )
                 db_session.add(quest)

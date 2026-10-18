@@ -21,6 +21,7 @@ from app.utils.exceptions import (
     ResourceNotFoundException,
     ValidationException,
 )
+from app.utils.item_factory import build_junk
 
 ItemT = TypeVar("ItemT", Weapon, Outfit, Pet)
 
@@ -357,12 +358,12 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
 
         if same_rarity_junk_type:
             junk_results.append(
-                Junk(
-                    name=same_rarity_junk_type.value,
-                    junk_type=same_rarity_junk_type,
-                    rarity=item.rarity,
+                build_junk(
+                    same_rarity_junk_type.value,
+                    item.rarity,
                     value=game_config.exploration.get_junk_value(item.rarity.value),
                     description=f"Derived from {item.name}",
+                    junk_type=same_rarity_junk_type,
                 )
             )
 
@@ -370,12 +371,12 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         for junk_type, (rarity, probability) in junk_options.items():
             if junk_type != same_rarity_junk_type and random.random() < probability:
                 junk_results.append(
-                    Junk(
-                        name=junk_type.value,
-                        junk_type=junk_type,
-                        rarity=rarity,
+                    build_junk(
+                        junk_type.value,
+                        rarity,
                         value=game_config.exploration.get_junk_value(rarity.value),
                         description=f"Derived from {item.name}",
+                        junk_type=junk_type,
                     )
                 )
 

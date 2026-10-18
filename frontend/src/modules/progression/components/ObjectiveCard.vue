@@ -64,9 +64,21 @@ const rewardLabel = computed(() => {
 
     <template #badges>
       <Badge variant="outline" class="category-badge">{{ categoryLabel }}</Badge>
+      <Badge v-if="objective.track_key && objective.sequence" variant="outline">
+        Stage {{ objective.sequence }}
+      </Badge>
     </template>
 
     <template #note>
+      <p v-if="objective.track_key && objective.objective_type === 'reach'" class="objective-note">
+        Milestones use your current vault state. Claim earned rewards separately.
+      </p>
+      <p v-else-if="objective.track_key" class="objective-note">
+        Each stage starts at zero. Claim earned rewards separately.
+      </p>
+      <p v-if="objective.next_stage_challenge" class="objective-note">
+        Next stage: {{ objective.next_stage_challenge }}
+      </p>
       <p v-if="objective.resets_at" class="objective-note">
         Next reset: {{ new Date(objective.resets_at).toLocaleString() }}. Earned rewards stay
         claimable.

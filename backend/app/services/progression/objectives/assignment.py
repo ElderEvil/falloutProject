@@ -6,10 +6,15 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import ObjectiveCategoryEnum
 from app.crud.objective import objective_crud
+from app.crud.vault import vault as vault_crud
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
 
 logger = logging.getLogger(__name__)
+
+
+def _earned(link: VaultObjectiveProgressLink) -> bool:
+    return link.is_completed or link.progress >= link.total
 
 
 class ObjectiveAssignmentService:
@@ -25,28 +30,78 @@ class ObjectiveAssignmentService:
     async def assign_weekly_objectives(self, vault_id: UUID4) -> list[Objective]:
         return await self._assign_category_objectives(vault_id, ObjectiveCategoryEnum.WEEKLY, self.WEEKLY_COUNT)
 
-    async def assign_achievement_objectives(self, vault_id: UUID4) -> list[Objective]:
-        all_achievements = await objective_crud.get_by_category(self._db_session, ObjectiveCategoryEnum.ACHIEVEMENT)
-
+    async def assign_achievement_objectives(self, vault_id: UUID4, *, auto_commit: bool = True) -> list[Objective]:
+        """Assign first stages and reconcile legacy links, preserving earned rewards."""
+        db = self._db_session
+        await vault_crud.lock_for_update(db, vault_id)
+        templates = await objective_crud.get_assignable_achievements(db)
+        links = {link.objective_id: link for link in await objective_crud.get_links_for_vault(db, vault_id)}
+        tracks: dict[str, list[Objective]] = {}
+        for objective in templates:
+            tracks.setdefault(objective.track_key or str(objective.id), []).append(objective)
         assigned = []
-        for objective in all_achievements:
-            exists = await self._objective_already_assigned(vault_id, objective.id)
-            if not exists:
-                link = VaultObjectiveProgressLink(
-                    vault_id=vault_id,
-                    objective_id=objective.id,
-                    progress=0,
-                    total=objective.target_amount or 1,
-                    is_completed=False,
+        for stages in tracks.values():
+            # Legacy vaults continue from their oldest assigned unfinished stage.
+            # A newer, easier catalog stage is not retroactively rewarded.
+            present = [o for o in stages if o.id in links]
+            unfinished = [o for o in present if not _earned(links[o.id]) and not links[o.id].is_locked]
+            if unfinished:
+                active = unfinished[0]
+            elif present:
+                last_earned = max((o.sequence or 0 for o in present if _earned(links[o.id])), default=0)
+                active = next((o for o in stages if (o.sequence or 0) > last_earned), None)
+            else:
+                active = stages[0]
+            for objective in present:
+                link = links[objective.id]
+                if not _earned(link):
+                    if objective is active and link.is_locked:
+                        link.progress = 0
+                        link.credited_dweller_ids = []
+                        link.reward_snapshot = None
+                    link.is_locked = objective is not active
+            if active is not None and active.id not in links:
+                db.add(
+                    VaultObjectiveProgressLink(vault_id=vault_id, objective_id=active.id, total=active.target_amount)
                 )
-                self._db_session.add(link)
-                assigned.append(objective)
-
-        if assigned:
-            await self._db_session.commit()
-            logger.info(f"Assigned {len(assigned)} achievement objectives to vault {vault_id}")
-
+                assigned.append(active)
+        await db.flush()
+        if auto_commit:
+            await db.commit()
         return assigned
+
+    async def unlock_next_achievement(self, vault_id: UUID4, completed: Objective) -> Objective | None:
+        """Unlock the next unfinished stage at zero in the completion transaction."""
+        db = self._db_session
+        if not completed.track_key:
+            return None
+        stages = [
+            o
+            for o in await objective_crud.get_assignable_achievements(db)
+            if o.track_key == completed.track_key and (o.sequence or 0) > (completed.sequence or 0)
+        ]
+        links = {link.objective_id: link for link in await objective_crud.get_links_for_vault(db, vault_id)}
+        for objective in stages:
+            link = links.get(objective.id)
+            if link is not None and _earned(link):
+                continue
+            if link is None:
+                db.add(
+                    VaultObjectiveProgressLink(
+                        vault_id=vault_id, objective_id=objective.id, total=objective.target_amount
+                    )
+                )
+            elif link.is_locked:
+                link.is_locked = False
+                link.progress = 0
+                link.total = objective.target_amount
+                link.credited_dweller_ids = []
+                link.reward_snapshot = None
+            else:
+                return None  # Already unlocked; duplicate completion must not reset progress.
+            await db.flush()
+            return objective
+        return None
 
     async def assign_all_objectives(self, vault_id: UUID4) -> dict[str, list[Objective]]:
         daily = await self.assign_daily_objectives(vault_id)
@@ -106,9 +161,7 @@ class ObjectiveAssignmentService:
             link = VaultObjectiveProgressLink(
                 vault_id=vault_id,
                 objective_id=objective.id,
-                progress=0,
                 total=objective.target_amount or 1,
-                is_completed=False,
             )
             self._db_session.add(link)
             assigned.append(objective)
@@ -152,9 +205,7 @@ class ObjectiveAssignmentService:
             link = VaultObjectiveProgressLink(
                 vault_id=vault_id,
                 objective_id=objective.id,
-                progress=0,
                 total=objective.target_amount or 1,
-                is_completed=False,
             )
             self._db_session.add(link)
 
@@ -163,6 +214,3 @@ class ObjectiveAssignmentService:
             await self._db_session.commit()
             logger.info(f"Assigned {len(assigned)} random objectives to vault {vault_id}")
         return assigned
-
-    async def _objective_already_assigned(self, vault_id: UUID4, objective_id: UUID4) -> bool:
-        return await objective_crud.link_exists(self._db_session, vault_id=vault_id, objective_id=objective_id)

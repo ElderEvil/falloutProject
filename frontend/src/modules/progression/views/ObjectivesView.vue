@@ -174,8 +174,9 @@ function closeClaimModal(): void {
                   </h2>
                   <p>
                     Daily objectives reset at 00:00 UTC; weeklies reset on Monday at 00:00 UTC.
-                    Earned rewards remain claimable after a reset. Claimed objectives move to the
-                    Completed tab.
+                    Earned rewards remain claimable after a reset. Achievement stages start at zero;
+                    reaching a target unlocks the next stage without waiting for a reward claim.
+                    Claimed objectives move to the Completed tab.
                   </p>
                 </section>
               </template>

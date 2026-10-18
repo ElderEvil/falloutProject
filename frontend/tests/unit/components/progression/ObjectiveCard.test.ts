@@ -116,6 +116,23 @@ describe('ObjectiveCard', () => {
     })
     expect(ordinary.text()).not.toContain(message)
   })
+  it('explains fresh achievement stages and previews the next target', () => {
+    const card = mount(ObjectiveCard, {
+      props: {
+        objective: objective({
+          id: 'water-track',
+          category: 'achievement',
+          track_key: 'collect:water',
+          sequence: 1,
+          next_stage_challenge: 'Collect 500 Water',
+        }),
+      },
+    })
+    expect(card.text()).toContain('Stage 1')
+    expect(card.text()).toContain('Each stage starts at zero')
+    expect(card.text()).toContain('Next stage: Collect 500 Water')
+  })
+
   it('shows the reset time and protects earned rewards in the explanation', () => {
     const card = mount(ObjectiveCard, {
       props: {

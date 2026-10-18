@@ -575,6 +575,8 @@ class NotificationService:
         else:
             title = "Objective Complete!"
             message = f"'{objective_challenge}' completed! Reward: {reward}"
+        if next_achievement := (meta_data or {}).get("next_achievement"):
+            message += f". Next achievement unlocked: {next_achievement} (starts at zero)."
         return await NotificationService.create_and_send(
             db,
             user_id=user_id,

@@ -20,6 +20,7 @@ from typing import Any
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import ObjectiveCategoryEnum
 from app.core.event_bus import EventBus, GameEvent
 from app.db.session import async_session_maker
 from app.models.objective import Objective
@@ -173,6 +174,12 @@ class ObjectiveEvaluator(abc.ABC):
         """Persist earned progress; the owner must explicitly claim the reward."""
         link.progress = objective.target_amount
         link.reward_snapshot = link.reward_snapshot or objective.reward
+        next_stage = None
+        if objective.category == ObjectiveCategoryEnum.ACHIEVEMENT:
+            from app.services.progression.objectives.assignment import ObjectiveAssignmentService
+
+            await db_session.flush()
+            next_stage = await ObjectiveAssignmentService(db_session).unlock_next_achievement(vault_id, objective)
         await db_session.commit()
 
         await self._event_bus.emit(
@@ -182,5 +189,6 @@ class ObjectiveEvaluator(abc.ABC):
                 "objective_id": str(objective.id),
                 "challenge": objective.challenge,
                 "ready_to_claim": True,
+                **({"next_achievement": next_stage.challenge} if next_stage else {}),
             },
         )

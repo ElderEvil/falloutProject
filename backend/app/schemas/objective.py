@@ -20,6 +20,7 @@ class ObjectiveRead(ObjectiveBase):
     template_key: str | None = Field(default=None, max_length=160)
     id: UUID4
     resets_at: datetime | None = None
+    next_stage_challenge: str | None = None
     progress: int
     total: int
     is_completed: bool

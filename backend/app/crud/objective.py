@@ -6,7 +6,7 @@ from uuid import UUID
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col, select
+from sqlmodel import col, or_, select
 from sqlmodel.sql.expression import SelectOfScalar
 
 from app.core.enums import ObjectiveCategoryEnum
@@ -54,7 +54,8 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
                 self.link_model.reward_snapshot,
             )
             .join(self.link_model)
-            .where(self.link_model.vault_id == vault_id)
+            .where(self.link_model.vault_id == vault_id, col(self.link_model.is_locked).is_(False))
+            .order_by(col(self.model.category), col(self.model.track_key), col(self.model.sequence), col(self.model.id))
             .offset(skip)
             .limit(limit)
         )
@@ -70,6 +71,7 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
                 objective_type=obj.objective_type,
                 target_entity=obj.target_entity,
                 target_amount=obj.target_amount,
+                track_key=obj.track_key,
                 sequence=obj.sequence,
                 description=obj.description,
                 template_key=obj.template_key,
@@ -96,6 +98,24 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
                 db_session.add(objective)
             elif objective.template_key in previous_release_keys:
                 objective.assignable = False
+                db_session.add(objective)
+        await db_session.commit()
+
+    async def get_assignable_achievements(self, db_session: AsyncSession) -> list[Objective]:
+        query = (
+            select(self.model)
+            .where(self.model.category == ObjectiveCategoryEnum.ACHIEVEMENT, col(self.model.assignable).is_(True))
+            .order_by(col(self.model.track_key), col(self.model.sequence), col(self.model.id))
+        )
+        return list((await db_session.execute(query)).scalars())
+
+    async def sync_achievement_templates(self, db_session: AsyncSession, templates: Sequence[ObjectiveCreate]) -> None:
+        by_key = {template.template_key: template for template in templates}
+        for objective in await self.get_by_category(db_session, ObjectiveCategoryEnum.ACHIEVEMENT):
+            if template := by_key.get(objective.template_key):
+                objective.track_key = template.track_key
+                objective.sequence = template.sequence
+                objective.challenge = template.challenge
                 db_session.add(objective)
         await db_session.commit()
 
@@ -167,6 +187,7 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
             .where(
                 self.link_model.vault_id == vault_id,
                 col(self.link_model.is_completed).is_(False),
+                col(self.link_model.is_locked).is_(False),
                 self.model.objective_type == objective_type,
                 self.link_model.progress < self.link_model.total,
             )
@@ -201,6 +222,10 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
                     .where(
                         col(self.model.category).not_in([*categories, ObjectiveCategoryEnum.STARTER]),
                         col(self.model.objective_type).is_not(None),
+                        or_(
+                            self.model.category != ObjectiveCategoryEnum.ACHIEVEMENT,
+                            col(self.model.track_key).is_(None),
+                        ),
                     )
                     .order_by(col(self.model.id))
                     .limit(8)

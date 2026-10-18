@@ -29,7 +29,11 @@ async def ensure_current_objectives(db: AsyncSession, vault_id: UUID4, *, now: d
     state = await game_state_crud.get_or_create(db, vault_id, commit=False)
     await db.refresh(state)
     daily, weekly = objective_periods(now or datetime.now(UTC))
-    if state.daily_objectives_period == daily and state.weekly_objectives_period == weekly:
+    if (
+        state.achievement_tracks_initialized
+        and state.daily_objectives_period == daily
+        and state.weekly_objectives_period == weekly
+    ):
         await db.commit()  # Release the vault lock even when a sweep has no work.
         return []
     links = await objective_crud.get_links_for_vault(db, vault_id)
@@ -50,6 +54,9 @@ async def ensure_current_objectives(db: AsyncSession, vault_id: UUID4, *, now: d
             await refresh(vault_id, auto_commit=False)
             refreshed.append(category.value)
         setattr(state, field, period)
+    if not state.achievement_tracks_initialized or refreshed:
+        await service.assign_achievement_objectives(vault_id, auto_commit=False)
+        state.achievement_tracks_initialized = True
     db.add(state)
     await db.commit()
     if refreshed:

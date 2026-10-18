@@ -81,9 +81,19 @@ async def read_objectives(
     from app.services.progression.objectives.refresh_service import objective_periods
 
     daily, weekly = objective_periods(datetime.now(UTC))
+    achievements = await objective_crud.get_assignable_achievements(db_session)
     for objective in objectives:
         if objective.category == "daily":
             objective.resets_at = (daily + timedelta(days=1)).replace(tzinfo=UTC)
         elif objective.category == "weekly":
             objective.resets_at = (weekly + timedelta(days=7)).replace(tzinfo=UTC)
+        if objective.track_key:
+            objective.next_stage_challenge = next(
+                (
+                    stage.challenge
+                    for stage in achievements
+                    if stage.track_key == objective.track_key and (stage.sequence or 0) > (objective.sequence or 0)
+                ),
+                None,
+            )
     return objectives

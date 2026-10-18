@@ -31,6 +31,8 @@ export interface Objective {
   objective_type?: ObjectiveType
   template_key?: string | null
   target_entity?: Record<string, unknown>
+  track_key?: string | null
+  next_stage_challenge?: string | null
   resets_at?: string | null
   sequence?: number | null
   description?: string | null

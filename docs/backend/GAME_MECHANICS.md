@@ -68,6 +68,32 @@ Fresh-task notifications appear in both the bell and a toast.
 Existing refresh windows are adopted for the current UTC period to avoid deployment
 resets.
 
+### Achievement tracks
+
+Achievement templates have a stable `track_key` and stage `sequence`. Only one
+unfinished stage per family is unlocked. Reaching its target freezes the reward and
+unlocks the next stage immediately, independently of reward claims. Event counters
+start at zero for each new stage: 100 Water followed by 500 Water requires 600 total
+new Water, and excess from the completing event does not spill into the next stage.
+Distinct-dweller counting windows also restart. Absolute **Reach** milestones continue
+to test current vault state, rather than counting additional residents or levels.
+Achievements are permanent and never participate in daily/weekly resets.
+
+Collection tracks for Power, Food and Water now have targets 100, 500, 1,500 and 5,000.
+Other existing families are sequenced by their authored targets. The expanded
+achievement caps pool totals 45,745 (previously 43,765), including 1,980 caps across
+the nine new resource stages. The stage badge and
+next-target preview explain progression; the completion bell/toast announces the newly
+unlocked stage. Earlier earned rewards remain separately claimable.
+
+The migration preserves template IDs, links, reward snapshots and completed history.
+Legacy vaults retain their current unfinished stage and its recorded progress; later
+unfinished stages are locked with their old counters retained until they unlock, when
+the new counting window starts at zero. Previously earned later stages remain claimable.
+A newly added easier stage is not retroactively awarded to an established track.
+Track initialization runs on first use and recurring renewals so newly added families
+become available without resetting an existing stage.
+
 ### Starter teaching rewards (wave 1)
 
 - Fresh standard vaults currently seed **10 residents**, including the family. The starter arc grants seven
@@ -373,7 +399,7 @@ after the balance migration, and the UI displays that saved payout. Objective
 rewards continue to suppress collection events to avoid reward feedback loops.
 Starter grants remain unchanged. The uniform-selection caps-only expectation
 for a fully completed batch is now 216.14 daily and 589.62 weekly (previously
-1,034.09 and 2,959.62). The achievement caps pool is 43,765 (previously 95,250).
+1,034.09 and 2,959.62). The achievement caps pool before staged extensions was 43,765 (previously 95,250).
 These are catalog expectations, not measured income: item/lunchbox value and
 actual completion rates are excluded. Prices are unchanged pending income data.
 

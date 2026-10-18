@@ -100,6 +100,20 @@ describe('Room Store', () => {
       expect(result).toBe('loaded')
     })
 
+    it('loads beyond the API default page so build prices count the entire vault', async () => {
+      const rooms = Array.from({ length: 101 }, (_, index) => ({
+        id: `room-${index}`,
+        name: 'Diner',
+      }))
+      vi.mocked(axios.get).mockImplementationOnce(async (_url, config) => ({
+        data: rooms.slice(0, config?.params?.limit ?? 100),
+      }))
+      const store = useRoomStore()
+      await store.fetchRooms('vault-1', 'test-token')
+      expect(store.rooms).toHaveLength(101)
+      expect(store.roomsLoadedVaultId).toBe('vault-1')
+    })
+
     it('should handle errors gracefully', async () => {
       vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network error'))
 

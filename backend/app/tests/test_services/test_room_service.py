@@ -398,25 +398,23 @@ async def test_build_merge_reassigns_dwellers(async_session: AsyncSession, rich_
 
 
 @pytest.mark.asyncio
-async def test_build_merge_charges_price(async_session: AsyncSession, rich_vault: Vault):
-    """The vault is charged the normal build price for the added segment."""
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
+@pytest.mark.parametrize(("size", "expected_price"), [(3, 125), (6, 150)])
+async def test_build_merge_charges_price(
+    async_session: AsyncSession, rich_vault: Vault, size: int, expected_price: int
+):
+    """Charge for existing segments, excluding the segment about to merge into them."""
+    await _create_elevator(async_session, rich_vault.id, coordinate_y=1, coordinate_x=9)
+    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0, size=size)
     caps_before = rich_vault.bottle_caps
 
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        await room_service._build(
-            db_session=async_session,
-            obj_in=_make_room_create(
-                rich_vault.id,
-                name="Power Generator",
-                coordinate_x=3,
-                coordinate_y=1,
-            ),
-        )
+    result, _created = await room_service._build(
+        db_session=async_session,
+        obj_in=_make_room_create(rich_vault.id, name="Power Generator", coordinate_x=size, coordinate_y=1),
+    )
 
     await async_session.refresh(rich_vault)
-    assert rich_vault.bottle_caps < caps_before
+    assert rich_vault.bottle_caps == caps_before - expected_price
+    assert result.size == size + 3
 
 
 @pytest.mark.asyncio

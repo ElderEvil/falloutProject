@@ -12,6 +12,10 @@ Merged rooms follow the same rule using their entire footprint. Construction, de
 and room merging share the vault placement lock. Elevator dependency and vault door
 protections still apply.
 
+Each new room segment costs its base price plus its incremental price per existing base segment of
+that same named room in the vault, across all tiers. Quote before merging the new segment; merging
+or splitting existing rooms must not change the next build price.
+
 Room management can split a merged non-unique facility into its base segments, or
 merge two adjacent facilities of the same type and tier within their size limit.
 These free layout changes preserve occupied cells, total capacity/output, upgrade

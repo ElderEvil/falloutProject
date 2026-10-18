@@ -1,11 +1,13 @@
-"""Shared constructors for catalog-backed weapons, outfits, junk, and pets.
+"""Shared constructors for catalog-backed weapons, outfits, junk, pets, and generic items.
 
 Both reward settlement and crafting build items from the same JSON catalogs
 (`items/weapons.json`, `items/outfits/*.json`), so the mapping from catalog
 shape to ORM model lives here exactly once. Junk rows carry no catalog row:
 pricing and prose stay caller-owned because incidents and exploration value
 and describe held junk differently. Pets carry no catalog-owned stats either —
-bonuses resolve by name at read time (`app.options.pet_modifiers`).
+bonuses resolve by name at read time (`app.options.pet_modifiers`). Generic
+``Item`` rows (consumables, lunchboxes, misc) carry no catalog columns at all;
+``build_item`` exists so the factory remains the single item constructor.
 
 These are the only sanctioned constructors for these models — building an item
 directly leaves every catalog-owned column at its default, a state no test can
@@ -18,7 +20,16 @@ from typing import Any
 
 from pydantic import UUID4
 
-from app.core.enums import GenderEnum, JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
+from app.core.enums import (
+    GenderEnum,
+    ItemTypeEnum,
+    JunkTypeEnum,
+    OutfitTypeEnum,
+    RarityEnum,
+    WeaponSubtypeEnum,
+    WeaponTypeEnum,
+)
+from app.models.item import Item
 from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.pet import Pet
@@ -105,6 +116,32 @@ def build_pet(data: dict[str, Any], rarity: RarityEnum | str, storage_id: UUID4 
         rarity=RarityEnum(rarity),
         value=data.get("value"),
         image_url=data.get("image_url") or get_pet_image_url(name),
+        storage_id=storage_id,
+    )
+
+
+def build_item(
+    name: str,
+    item_type: str,
+    rarity: RarityEnum | str,
+    storage_id: UUID4 | None = None,
+    *,
+    value: int | None = None,
+    image_url: str | None = None,
+) -> Item:
+    """Build a generic ``Item`` row for reward categories with no dedicated model.
+
+    ``Item`` is the catch-all for consumables, lunchboxes and misc: it owns no
+    catalog columns, so nothing can be silently dropped here. It is still built
+    through the factory so ``item_factory`` stays the single item constructor
+    (the architecture guard counts bare ``Item(...)`` calls like any other).
+    """
+    return Item(
+        name=name,
+        item_type=ItemTypeEnum(item_type),
+        rarity=RarityEnum(rarity),
+        value=value,
+        image_url=image_url,
         storage_id=storage_id,
     )
 

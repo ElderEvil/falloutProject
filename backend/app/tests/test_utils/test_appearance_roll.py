@@ -23,7 +23,7 @@ from app.options.appearance import (
     skin_tone_options,
 )
 from app.options.races import RaceOption
-from app.utils.appearance_roll import roll_appearance
+from app.utils.appearance_roll import describe_appearance, roll_appearance
 from app.utils.dwellers import create_random_common_dweller, roll_child_identity
 
 
@@ -155,3 +155,35 @@ async def test_generic_creation_fills_only_missing_traits(async_session, vault):
     created = await dweller_service.create_dweller(async_session, payload)
     assert created.visual_attributes.items() >= attrs.items()
     assert created.visual_attributes["skin_tone"] in skin_tone_options[RaceOption.HUMAN]
+
+
+@pytest.mark.parametrize(
+    ("height", "expected"),
+    [("Tall", "a tall"), ("Average", "an average"), ("SHORT", "a short")],
+)
+@pytest.mark.parametrize(("gender", "word"), [(GenderEnum.FEMALE, "woman"), (GenderEnum.MALE, "man")])
+def test_describe_appearance_normalizes_height_and_article(height, expected, gender, word):
+    appearance = roll_appearance(RaceOption.HUMAN, gender, random.Random(7))
+    appearance.update(height=height, build="Slim")
+    description = describe_appearance(appearance, gender, RaceOption.HUMAN)
+    assert description.startswith(f"I'm {expected}, slim {word} with ")
+
+
+@pytest.mark.parametrize(
+    ("race", "style", "clause"),
+    [
+        (RaceOption.SUPER_MUTANT, "Bald", "a bald scalp"),
+        (RaceOption.SUPER_MUTANT, "Scalp Ridges", "scalp ridges"),
+        (RaceOption.SUPER_MUTANT, "War Paint Scalp", "war paint on my scalp"),
+        (RaceOption.GHOUL, "Burned Scalp", "a burned scalp"),
+        (RaceOption.GHOUL, "Radiation-Scarred", "a radiation-scarred scalp"),
+        (RaceOption.SYNTH, "Exposed Circuits", "exposed circuits on my scalp"),
+    ],
+)
+def test_describe_scalp_features_without_inventing_hair(race, style, clause):
+    appearance = roll_appearance(race, GenderEnum.FEMALE, random.Random(7))
+    appearance.update(hair_style=style, hair_color="pink")
+    description = describe_appearance(appearance, GenderEnum.FEMALE, race)
+    assert clause in description
+    assert "pink" not in description
+    assert "hair" not in description

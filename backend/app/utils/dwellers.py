@@ -10,9 +10,15 @@ from app.core.enums import AgeGroupEnum, GenderEnum
 from app.core.game_config import game_config
 from app.options.bios import maybe_zone_rumor, render_bio
 from app.options.factions import FactionOption, faction_restrictions
+from app.options.presets import archetypes
 from app.options.races import STATE_OF_BEING_OPTIONS, RaceOption, is_ageless, race_of
 from app.schemas.dweller import LETTER_TO_STAT, STATS_RANGE_BY_RARITY, RarityEnum
-from app.utils.appearance_roll import complete_appearance, inherit_appearance_for_child, roll_appearance
+from app.utils.appearance_roll import (
+    complete_appearance,
+    describe_appearance,
+    inherit_appearance_for_child,
+    roll_appearance,
+)
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -189,6 +195,31 @@ def _xp_for_level(level: int) -> int:
     return int(game_config.leveling.base_xp_requirement * (level**game_config.leveling.xp_curve_exponent))
 
 
+def _pick_archetype_for_race(race: RaceOption, rng: random.Random | ModuleType) -> dict[str, Any] | None:
+    """Select a random archetype for the given race (weighted) or None.
+
+    Filters ``archetypes`` by the rolled race; existing entries without
+    ``appearance_pools`` are silently skipped.  The selected archetype's
+    ``appearance_pools`` and ``personality_lines`` are returned; the
+    ``faction`` key is intentionally ignored (random dwellers keep the
+    identity faction from ``_roll_identity``).
+    """
+    candidates = [
+        (name, entry)
+        for name, entry in archetypes.items()
+        if entry.get("race") == race and entry.get("appearance_pools")
+    ]
+    if not candidates:
+        return None
+    entries = [entry for _, entry in candidates]
+    weights = [entry.get("weight", 1) for entry in entries]
+    chosen = rng.choices(entries, weights=weights, k=1)[0]
+    return {
+        "appearance_pools": chosen.get("appearance_pools"),
+        "personality_lines": chosen.get("personality_lines", ()),
+    }
+
+
 def create_random_common_dweller(
     gender: GenderEnum | None = None, seed: int | None = None, rarity: RarityEnum = RarityEnum.COMMON
 ) -> dict[str, Any]:
@@ -214,11 +245,25 @@ def create_random_common_dweller(
     else:
         age_group = AgeGroupEnum.ELDER if birth_date <= elder_birth_threshold(now) else AgeGroupEnum.ADULT
 
-    identity.update(roll_appearance(_race_from_attributes(identity) or RaceOption.HUMAN, gender, rng, age_group))
+    race = _race_from_attributes(identity) or RaceOption.HUMAN
+    # Pick archetype after race is known.
+    archetype = _pick_archetype_for_race(race, rng)
+    appearance_pools = archetype["appearance_pools"] if archetype else None
+
+    identity.update(roll_appearance(race, gender, rng, age_group, appearance_pools=appearance_pools))
+
     origin, visited = _procedural_bio_places(rng, rarity)
-    bio = render_bio(origin, visited, race=_race_from_attributes(identity), rng=rng)
+    bio = render_bio(origin, visited, race=race, rng=rng)
+
+    # Enrich bio: add appearance description and personality line.
+    if archetype and archetype["personality_lines"]:
+        appearance_desc = describe_appearance(identity, gender, race)
+        personality = rng.choice(archetype["personality_lines"])
+        bio = f"{bio} {appearance_desc} {personality}"
+
     if rumor := maybe_zone_rumor(rng, game_config.bio.zone_rumor_chance):
         bio = f"{bio} {rumor}"
+
     level = _rarity_start_level(rarity, rng)
     starting_health = _max_health_for_level(level)
     starting_xp = _xp_for_level(level)

@@ -24,12 +24,36 @@ from app.options.appearance import (
     hair_color_options,
     haircuts,
     height_options,
+    scalp_feature_descriptions,
     skin_tone_options,
 )
 from app.options.races import RaceOption
 
 if TYPE_CHECKING:
     from types import ModuleType
+
+# ---------------------------------------------------------------------------
+# Default expression pool (used when no archetype pools are provided)
+# ---------------------------------------------------------------------------
+
+_DEFAULT_EXPRESSIONS: tuple[str, ...] = ("neutral", "stoic", "determined")
+
+# Build display mapping: canonical build value -> prose adjective.
+_BUILD_DISPLAY: dict[str, str] = {
+    "Slim": "slim",
+    "Athletic": "athletic",
+    "Muscular": "muscular",
+    "Stocky": "stocky",
+    "Average": "average build",
+    "Overweight": "heavyset",
+    "Withered": "withered",
+    "Skeletal": "skeletal",
+    "Twisted": "twisted",
+    "Brutish": "brutish",
+    "Towering": "towering",
+    "Slender": "slender",
+    "Armored": "armored",
+}
 
 
 def _mutate(rng: random.Random | ModuleType, value: str, options: list[str]) -> str:
@@ -57,34 +81,120 @@ def _inherit(
     return _mutate(rng, rng.choice(valid or options), options)
 
 
+def _roll_with_pools(
+    pools: dict[str, Any] | None,
+    key: str,
+    canonical: list[str],
+    rng: random.Random | ModuleType,
+) -> str:
+    """Sample one trait from ``pools[key]`` if present, else from ``canonical``."""
+    if pools is not None and key in pools and pools[key] is not None:
+        return rng.choice(pools[key])
+    return rng.choice(canonical)
+
+
 def roll_appearance(
     race: RaceOption,
     gender: GenderEnum | None,
     rng: random.Random | ModuleType = random,
     age_group: AgeGroupEnum = AgeGroupEnum.ADULT,
+    appearance_pools: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Roll a complete, race-valid appearance profile for a new dweller.
 
-    Deterministic under a seeded ``rng``. Every value comes from the canonical
-    option list for ``race``; facial hair is gender-gated. Equipment-derived
-    fields (``accessory``, ``object_held``, ``headgear``) are left unset so
-    youth never appear equipped (issue #1036 youth rule).
+    When ``appearance_pools`` (from a preset archetype entry) is provided,
+    each listed trait is sampled from the corresponding pool rather than
+    the full canonical list.  Unconstrained traits fall back to canonical.
+    Facial hair is gender-gated.
+
+    When no pools are given the behaviour is unchanged except that the
+    expression picks from the small neutral-leaning default pool
+    ``(_DEFAULT_EXPRESSIONS)`` rather than being hardcoded to ``"neutral"``.
     """
     appearance: dict[str, Any] = {
         "race": race.value,
-        "skin_tone": rng.choice(skin_tone_options[race]),
-        "hair_color": rng.choice(hair_color_options),
+        "skin_tone": _roll_with_pools(appearance_pools, "skin_tone", skin_tone_options[race], rng),
+        "hair_color": _roll_with_pools(appearance_pools, "hair_color", hair_color_options, rng),
         "eye_color": rng.choice(eye_color_options),
-        "hair_style": rng.choice(haircuts[race]),
+        "hair_style": _roll_with_pools(appearance_pools, "hair_style", haircuts[race], rng),
         "height": rng.choice(height_options),
-        "build": rng.choice(body_type_options[race]),
-        "expression": "neutral",
+        "build": _roll_with_pools(appearance_pools, "build", body_type_options[race], rng),
     }
+
+    # Expression: use pool, or default pool when no pools at all.
+    if appearance_pools and "expression" in appearance_pools:
+        appearance["expression"] = rng.choice(appearance_pools["expression"])
+    else:
+        appearance["expression"] = rng.choice(_DEFAULT_EXPRESSIONS)
+
     if gender == GenderEnum.MALE and age_group in ADULT_AGE_GROUPS:
         appearance["facial_hair"] = rng.choice(beard_options)
     else:
         appearance["facial_hair"] = "None"
     return appearance
+
+
+def describe_appearance(appearance: dict[str, Any], gender: GenderEnum, race: RaceOption) -> str:
+    """Build a single first-person appearance sentence.
+
+    Example: ``"I'm a tall, stocky woman with ashen skin, stringy gray hair, and gray eyes."``
+
+    Gender word: man/woman.  Facial hair is appended when present and not "None".
+    Race-specific phrasing trails the sentence for non-humans (one variant each,
+    deterministic).
+    """
+    gender_word = "woman" if gender == GenderEnum.FEMALE else "man"
+    height_word = str(appearance.get("height", "average")).lower()
+    build_word = _BUILD_DISPLAY.get(appearance.get("build", ""), "average build")
+    skin = appearance.get("skin_tone", "")
+    hair_style = appearance.get("hair_style", "")
+    hair_color = appearance.get("hair_color", "")
+    eye_color = appearance.get("eye_color", "")
+
+    # Start the sentence.
+    article = "an" if height_word.startswith(("a", "e", "i", "o", "u")) else "a"
+    sentence = f"I'm {article} {height_word}, {build_word} {gender_word}"
+
+    # Skin tone (plain here; race flavor trails the sentence).
+    if skin and race == RaceOption.SYNTH:
+        sentence += f" with {skin} synthetic skin"
+    elif skin:
+        sentence += f" with {skin} skin"
+    else:
+        sentence += f" with {gender_word.lower()}'s skin"
+
+    # Hair. Styles like "Short Hair" or "Wavy Hair" already end in "hair" —
+    # strip the suffix so we don't render "short hair blonde hair".
+    # Bare scalps and exposed hardware never invent a hair color.
+    style_word = hair_style.lower()
+    if style_word.endswith("hair"):
+        style_word = style_word.removesuffix("hair").strip()
+    if scalp_feature := scalp_feature_descriptions.get(hair_style):
+        sentence += f", {scalp_feature}"
+    elif style_word and hair_color:
+        sentence += f", {style_word} {hair_color} hair"
+    elif style_word:
+        sentence += f", {style_word} hair"
+    elif hair_color:
+        sentence += f", {hair_color} hair"
+
+    # Eyes.
+    sentence += f" and {eye_color} eyes"
+
+    # Facial hair.
+    facial_hair = appearance.get("facial_hair", "None")
+    if facial_hair and facial_hair != "None":
+        sentence += f", sporting a {facial_hair.lower()}"
+
+    # Race flavor trails the sentence so the trait list stays readable.
+    if race == RaceOption.GHOUL:
+        sentence += " — my skin has been ash and scars since the bombs"
+    elif race == RaceOption.SUPER_MUTANT:
+        sentence += " — the vats do not apologize"
+    elif race == RaceOption.SYNTH:
+        sentence += " — assembled by hands I never met"
+
+    return sentence + "."
 
 
 def inherit_appearance_for_child(

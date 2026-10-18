@@ -1,5 +1,6 @@
 """Tests for arena service logic — experimental dweller-vs-dweller fighting."""
 
+from itertools import pairwise
 from uuid import uuid4
 
 import pytest
@@ -76,12 +77,13 @@ def test_arena_wildlife_preserves_exploration_catalog_and_reserves_brahmin():
         ArenaService._hunt_opponents(["brahmin"])
 
 
-def test_team_damage_ignores_knocked_out_attackers():
+@pytest.mark.parametrize(("seconds", "expected"), [(0, 0.0), (1, 2.0), (2, 4.0)])
+def test_team_damage_uses_ten_percent_power_per_second_and_ignores_knockouts(seconds, expected):
     team = [
         ArenaParticipant(key="down", name="Down", short_name="Down", power=100.0, health=0, max_health=100),
         ArenaParticipant(key="up", name="Up", short_name="Up", power=20.0, health=10, max_health=100),
     ]
-    assert ArenaService._team_damage(team, 1) == pytest.approx(2.0)
+    assert ArenaService._team_damage(team, seconds) == pytest.approx(expected)
 
 
 @pytest.mark.parametrize(
@@ -850,6 +852,7 @@ class TestArenaService:
         await service._resolve_round(async_session, arena_room, [hero], [weak, strong], 1)
 
         # Only the surviving creature attacks on B's turn.
+        # Arena ordinary attacks deal 10% power per second (halved from 20%).
         assert hero.health == after_first - 10
 
     @pytest.mark.asyncio
@@ -2158,3 +2161,44 @@ async def test_skill_endpoint_authorizes_vault_and_queues_once(
     repeated = await async_client.post(url, json=payload, headers=superuser_token_headers)
     assert repeated.status_code == 400
     assert state.queued_skill_ids == [str(fighter_a.id)]
+
+
+async def test_both_queued_skills_resolve_once_on_their_own_team_turn(async_session, arena_room, fighter_a, fighter_b):
+    from datetime import datetime, timedelta
+
+    for dweller in (fighter_a, fighter_b):
+        dweller.room_id = arena_room.id
+        dweller.health = dweller.max_health = 1000
+    await async_session.commit()
+    service = ArenaService()
+    state = await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
+    await service.start_fight(async_session, arena_room.id)
+    state.fight_started_at = datetime.utcnow() - timedelta(seconds=60)
+    state.skill_charge = {str(fighter_a.id): 100, str(fighter_b.id): 100}
+    await async_session.commit()
+    for fighter in (fighter_a, fighter_b):
+        await service.queue_skill(async_session, arena_room.id, fighter.id, arena_room.vault_id)
+
+    await service.process_arena_fights(async_session, arena_room.vault_id, 2)
+    assert fighter_a.health == 1000
+    assert fighter_b.health < 1000
+    assert state.queued_skill_ids == [str(fighter_b.id)]
+    after_a_turn = fighter_b.health
+
+    # A new worker must preserve B's pending skill and the next attacking side.
+    service = ArenaService()
+    await service.process_arena_fights(async_session, arena_room.vault_id, 2)
+    assert fighter_a.health < 1000
+    assert fighter_b.health == after_a_turn
+    assert not state.queued_skill_ids
+    await service.process_arena_fights(async_session, arena_room.vault_id, 2)
+    view = (await service.get_arena_state(async_session, arena_room.vault_id)).rooms[0]
+    skills = [event for event in view.events if event.kind == "skill"]
+    assert len(skills) == 2
+    turns = [(index, event) for index, event in enumerate(view.events) if event.kind == "turn"]
+    assert [event.message for _, event in turns] == ["Team A attacks", "Team B attacks", "Team A attacks"]
+    for turn, next_turn in pairwise(turns):
+        actions = view.events[turn[0] + 1 : next_turn[0]]
+        assert [event.kind for event in actions].count("skill") == 1
+        assert any(event.kind == "hit" for event in actions)
+    assert not any(event.kind == "skill" for event in view.events[turns[-1][0] + 1 :])

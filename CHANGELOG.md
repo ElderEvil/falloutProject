@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.234.0 (2026-10-18)
+
+### Features
+
+* **storage:** reveal lunchbox rewards in place with rarity sounds ([#1074](https://github.com/ElderEvil/falloutProject/issues/1074)) 53cd07c
+
 ## 2.233.0 (2026-10-18)
 
 ### Features

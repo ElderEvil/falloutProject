@@ -633,13 +633,7 @@ async def test_get_vault_map_expedition_sites_ready(async_session: AsyncSession,
     await _legacy_journey(async_session, vault)
     map_data = await map_service.get_vault_map(async_session, vault)
     by_id = {site.id: site for site in map_data.expedition_sites}
-    assert set(by_id) == {
-        "red_rocket",
-        "super_duper_mart",
-        "abandoned_campsite",
-        "roadside_supply_truck",
-        "forgotten_shack",
-    }
+    assert set(by_id) == {"red_rocket", "super_duper_mart"}
     for site in data_loader.load_expedition_sites():
         marker = by_id[site.id]
         assert marker.block_reason is None
@@ -767,7 +761,7 @@ async def test_get_vault_map_spatial_journey_exposes_only_offered_sites(
     exploration = await _spatial_journey_near_red_rocket(async_session, vault, dweller)
 
     map_data = await map_service.get_vault_map(async_session, vault)
-    assert {site.id for site in map_data.expedition_sites} == {"red_rocket", "roadside_supply_truck"}
+    assert {site.id for site in map_data.expedition_sites} == {"red_rocket"}
 
     run = await crud.expedition_run.create_run(
         async_session, exploration_id=exploration.id, vault_id=vault.id, site_id="red_rocket"
@@ -778,7 +772,7 @@ async def test_get_vault_map_spatial_journey_exposes_only_offered_sites(
     await async_session.commit()
 
     map_data = await map_service.get_vault_map(async_session, vault)
-    assert {site.id for site in map_data.expedition_sites} == {"roadside_supply_truck"}
+    assert map_data.expedition_sites == []
 
 
 @pytest.mark.asyncio

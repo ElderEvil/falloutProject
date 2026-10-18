@@ -26,13 +26,7 @@ async def test_setup_creates_level_five_dweller_on_active_exploration(
     assert result.dweller.display_name == "Scout Scenario"
     assert result.exploration.status == ExplorationStatus.ACTIVE
     assert result.exploration.duration == 8
-    assert {site.id for site in result.available_sites} == {
-        "red_rocket",
-        "super_duper_mart",
-        "abandoned_campsite",
-        "roadside_supply_truck",
-        "forgotten_shack",
-    }
+    assert {site.id for site in result.available_sites} == {"red_rocket", "super_duper_mart"}
     assert result.precleared_site_id is None
 
 
@@ -43,12 +37,7 @@ async def test_setup_level_four_gates_super_duper_mart(async_session: AsyncSessi
     )
 
     assert result.dweller.level == 4
-    assert [site.id for site in result.available_sites] == [
-        "red_rocket",
-        "abandoned_campsite",
-        "roadside_supply_truck",
-        "forgotten_shack",
-    ]
+    assert [site.id for site in result.available_sites] == ["red_rocket"]
 
 
 @pytest.mark.asyncio
@@ -88,13 +77,7 @@ async def test_get_status_none_before_setup_and_populated_after(async_session: A
     assert entry.dweller_level == 5
     assert entry.status == "active"
     assert entry.open_run_site_id is None
-    assert {site.id for site in entry.available_sites} == {
-        "red_rocket",
-        "super_duper_mart",
-        "abandoned_campsite",
-        "roadside_supply_truck",
-        "forgotten_shack",
-    }
+    assert {site.id for site in entry.available_sites} == {"red_rocket", "super_duper_mart"}
 
 
 @pytest.mark.asyncio

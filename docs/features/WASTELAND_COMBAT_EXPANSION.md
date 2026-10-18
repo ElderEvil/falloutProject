@@ -21,7 +21,8 @@ already wired through exploration details and map site markers; they were not re
 only sites near the travelled trail are offered. No active journey means no temporary expedition markers.
 That visibility rule can make the feature seem absent; this slice does not remove fog/trail requirements.
 
-Three new level-1 sites reuse the same entry, resolution, loot, outcome modal and replay guards:
+A separate salvage-sites PR proposes three level-1 sites through the same entry, resolution, loot,
+outcome modal and replay guards (these catalog additions are not part of the Arena PR):
 
 | Site | Map coordinates (catalog grid) | Contents |
 | --- | --- | --- |

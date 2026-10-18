@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createIconifyMock, createRouterMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import RoomMenu from '@/modules/rooms/components/RoomMenu.vue'
+import { useRoomStore } from '@/modules/rooms/stores/room'
 import RoomMenuItem from '@/modules/rooms/components/RoomMenuItem.vue'
 import { getRoomImageUrl } from '@/core/utils/image'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -83,5 +85,37 @@ describe('RoomMenuItem', () => {
 
     const details = wrapper.findAll('.room-category, .room-cost, .room-population, .room-size')
     expect(details).toHaveLength(4)
+  })
+})
+
+describe('RoomMenu search', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    useRoomStore().availableRooms = [room, { ...room, name: 'Living room', category: 'capacity' }]
+  })
+
+  it('filters by name and category, ignores case and whitespace, and recovers from no results', async () => {
+    const wrapper = mount(RoomMenu)
+    const search = wrapper.get('input[aria-label="Search rooms"]')
+    await search.setValue('  LIVING  ')
+    expect(wrapper.findAll('.room-menu-item')).toHaveLength(1)
+    expect(wrapper.find('[data-onboarding="build-living-room"]').exists()).toBe(true)
+    await search.setValue('PRODUCTION')
+    expect(wrapper.findAll('.room-menu-item')).toHaveLength(1)
+    expect(wrapper.text()).toContain('Power Generator')
+    await search.setValue('missing room')
+    expect(wrapper.findAll('.room-menu-item')).toHaveLength(0)
+    expect(wrapper.text()).toContain('No rooms match')
+    await wrapper.get('button[aria-label="Clear room search"]').trigger('click')
+    expect(wrapper.findAll('.room-menu-item')).toHaveLength(2)
+    wrapper.unmount()
+  })
+
+  it('preserves keyboard room selection after filtering', async () => {
+    const wrapper = mount(RoomMenu)
+    await wrapper.get('input[aria-label="Search rooms"]').setValue('living')
+    await wrapper.get('[data-onboarding="build-living-room"]').trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('roomSelected')?.[0]?.[0]).toMatchObject({ name: 'Living room' })
+    wrapper.unmount()
   })
 })

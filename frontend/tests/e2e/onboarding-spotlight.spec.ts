@@ -213,7 +213,9 @@ test.describe('Spotlight guide — vault page', () => {
     await page.addStyleTag({
       content: '[data-onboarding="nav-dwellers"] { display: none !important }',
     })
-    await expect(page.locator('[data-onboarding="nav-dwellers"]')).toBeHidden()
+    const dwellersAnchor = page.locator('[data-onboarding="nav-dwellers"]')
+    await expect(dwellersAnchor).toHaveCount(1)
+    await expect(dwellersAnchor).toBeHidden()
 
     await expect(page.getByRole('button', { name: 'Open Dwellers' })).toBeVisible({
       timeout: 15000,

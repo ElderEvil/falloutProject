@@ -137,6 +137,7 @@ describe('ArenaRoomDetail', () => {
       wrapper.get('details').element
     )
     expect(wrapper.get('details .preview-panel').exists()).toBe(true)
+    expect(wrapper.get('details summary').text()).toBe('Manage Arena roster')
     expect(wrapper.text()).not.toMatch(/[12] ·/)
     expect(wrapper.text()).toContain('Battle UI')
     expect(wrapper.find('.room-management').text()).toContain('Management')

@@ -3,7 +3,7 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import event
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncSession as RawAsyncSession
 
 from app.core.enums import ObjectiveCategoryEnum
@@ -95,23 +95,32 @@ async def test_refresh_failure_preserves_period_and_tick_state_then_retries(asyn
     assert await ensure_current_objectives(async_session, vault_id) == ["daily", "weekly"]
 
 
-async def test_refresh_keeps_earned_reward_snapshots_and_weekly_has_its_own_period(async_session, vault):
-    await calendar_catalog(async_session, vault.id)
-    daily_templates = await objective_crud.get_by_category(async_session, "daily")
-    earned = VaultObjectiveProgressLink(
-        vault_id=vault.id, objective_id=daily_templates[1].id, progress=100, total=100, reward_snapshot="17 caps"
-    )
-    async_session.add(earned)
-    state = await game_state_crud.get_or_create(async_session, vault.id)
-    state.daily_objectives_period = datetime(2026, 10, 20)
-    state.weekly_objectives_period = datetime(2026, 10, 12)
-    await async_session.commit()
-    assert await ensure_current_objectives(async_session, vault.id, now=datetime(2026, 10, 20)) == ["weekly"]
-    assert await ensure_current_objectives(async_session, vault.id, now=datetime(2026, 10, 21)) == ["daily"]
-    await async_session.refresh(earned)
-    assert earned.progress == 100
-    assert not earned.is_completed
-    assert earned.reward_snapshot == "17 caps"
+@pytest.mark.parametrize("reverse_results", [False, True])
+async def test_refresh_keeps_earned_reward_snapshots_and_weekly_has_its_own_period(
+    async_session, vault, reverse_results
+):
+    await async_session.execute(text(f"PRAGMA reverse_unordered_selects = {int(reverse_results)}"))
+    try:
+        await calendar_catalog(async_session, vault.id)
+        daily_templates = await objective_crud.get_by_category(async_session, "daily")
+        unlinked = next(template for template in daily_templates if template.challenge == "daily task 1")
+        earned = VaultObjectiveProgressLink(
+            vault_id=vault.id, objective_id=unlinked.id, progress=100, total=100, reward_snapshot="17 caps"
+        )
+        async_session.add(earned)
+        state = await game_state_crud.get_or_create(async_session, vault.id)
+        state.daily_objectives_period = datetime(2026, 10, 20)
+        state.weekly_objectives_period = datetime(2026, 10, 12)
+        await async_session.commit()
+        assert await ensure_current_objectives(async_session, vault.id, now=datetime(2026, 10, 20)) == ["weekly"]
+        assert await ensure_current_objectives(async_session, vault.id, now=datetime(2026, 10, 21)) == ["daily"]
+        await async_session.refresh(earned)
+        assert earned.progress == 100
+        assert not earned.is_completed
+        assert earned.reward_snapshot == "17 caps"
+    finally:
+        await async_session.rollback()
+        await async_session.execute(text("PRAGMA reverse_unordered_selects = OFF"))
 
 
 @pytest.mark.integration

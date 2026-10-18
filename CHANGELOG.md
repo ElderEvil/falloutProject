@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.233.0 (2026-10-18)
+
+### Features
+
+* **rooms:** add build search and fix upgrade button layout ([#1073](https://github.com/ElderEvil/falloutProject/issues/1073)) a39b389
+* simplify quest card headers with category icons ([#1072](https://github.com/ElderEvil/falloutProject/issues/1072)) d5c479c
+
 ## 2.232.1 (2026-10-18)
 
 ### Bug Fixes

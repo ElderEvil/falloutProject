@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.234.1 (2026-10-18)
+
+### Code Refactoring
+
+* **loot:** unify overflow take/sell settlement behind one item builder ([#1075](https://github.com/ElderEvil/falloutProject/issues/1075)) 3d3201e
+
 ## 2.234.0 (2026-10-18)
 
 ### Features

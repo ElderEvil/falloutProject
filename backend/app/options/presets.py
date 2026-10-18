@@ -12,31 +12,6 @@ from app.options.appearance import skin_tone_options
 from app.options.factions import FactionOption
 from app.options.races import RaceOption
 
-# ---------------------------------------------------------------------------
-# Helper to build an appearance_pools dict
-# ---------------------------------------------------------------------------
-
-
-def _pool(*, skin_tone=None, hair_color=None, hair_style=None, build=None, expression=None):
-    """Build a appearance_pools dict from keyword arguments."""
-    result = {}
-    if skin_tone is not None:
-        result["skin_tone"] = skin_tone
-    if hair_color is not None:
-        result["hair_color"] = hair_color
-    if hair_style is not None:
-        result["hair_style"] = hair_style
-    if build is not None:
-        result["build"] = build
-    if expression is not None:
-        result["expression"] = expression
-    return result
-
-
-# ---------------------------------------------------------------------------
-# Canonical subsets used for pool definitions
-# ---------------------------------------------------------------------------
-
 _NATURAL_HAIR = ["blonde", "brunette", "black", "brown", "red", "gray"]
 
 # ---------------------------------------------------------------------------
@@ -56,13 +31,13 @@ archetypes: dict[str, dict] = {
         "pose": "Standing confidently",
         "background": "Vault Interior",
         "weight": 4,
-        "appearance_pools": _pool(
-            skin_tone=skin_tone_options[RaceOption.HUMAN],
-            hair_color=_NATURAL_HAIR,
-            hair_style=("Short Hair", "Ponytail", "Bun", "Buzz Cut", "Curly Hair"),
-            build=("Average", "Athletic", "Slim"),
-            expression=("neutral", "smiling", "proud"),
-        ),
+        "appearance_pools": {
+            "skin_tone": skin_tone_options[RaceOption.HUMAN],
+            "hair_color": _NATURAL_HAIR,
+            "hair_style": ("Short Hair", "Ponytail", "Bun", "Buzz Cut", "Curly Hair"),
+            "build": ("Average", "Athletic", "Slim"),
+            "expression": ("neutral", "smiling", "proud"),
+        },
         "personality_lines": (
             "I was born and raised behind a vault door, and I still flinch at open skies.",
             "I follow schedules, rations, and recycles — the vault way is the only way I know.",
@@ -81,15 +56,15 @@ archetypes: dict[str, dict] = {
         "pose": "Power armor stance",
         "background": "Brotherhood Airship",
         "weight": 3,
-        "appearance_pools": _pool(
-            skin_tone=skin_tone_options[RaceOption.HUMAN],
-            hair_color=_NATURAL_HAIR,
-            hair_style=("Buzz Cut", "Short Hair", "Mohawk"),
-            build=("Muscular", "Athletic", "Stocky"),
-            expression=("determined", "stoic", "proud"),
-        ),
+        "appearance_pools": {
+            "skin_tone": skin_tone_options[RaceOption.HUMAN],
+            "hair_color": _NATURAL_HAIR,
+            "hair_style": ("Buzz Cut", "Short Hair", "Mohawk"),
+            "build": ("Muscular", "Athletic", "Stocky"),
+            "expression": ("determined", "stoic", "proud"),
+        },
         "personality_lines": (
-            "I joined the Brotherhood when I had nothing, and I swore to earn every inch of that armor.",
+            "I once served the Brotherhood, but I left the armor and the orders behind.",
             "I don't think faith is a weakness — it's the one thing a laser rifle can't replace.",
             "I have seen what happens when technology runs without discipline, and I won't let that happen here.",
         ),
@@ -106,15 +81,15 @@ archetypes: dict[str, dict] = {
         "pose": "Weapon drawn",
         "background": "Pre-War Suburb",
         "weight": 3,
-        "appearance_pools": _pool(
-            skin_tone=skin_tone_options[RaceOption.HUMAN],
-            hair_color=_NATURAL_HAIR,
-            hair_style=("Buzz Cut", "Short Hair"),
-            build=("Athletic", "Muscular"),
-            expression=("determined", "stoic", "proud"),
-        ),
+        "appearance_pools": {
+            "skin_tone": skin_tone_options[RaceOption.HUMAN],
+            "hair_color": _NATURAL_HAIR,
+            "hair_style": ("Buzz Cut", "Short Hair"),
+            "build": ("Athletic", "Muscular"),
+            "expression": ("determined", "stoic", "proud"),
+        },
         "personality_lines": (
-            "I grew up in the Enclave, and they taught me that order is worth any price.",
+            "I grew up around Enclave orders, but I left that life to decide for myself what order is worth.",
             "I was told it was purification, but I just followed orders and asked no questions.",
             "I still believe the old world can be rebuilt, even if the ground beneath me burned.",
         ),
@@ -131,15 +106,14 @@ archetypes: dict[str, dict] = {
         "pose": "Alert and wary",
         "background": "Wasteland Ruins",
         "weight": 3,
-        "appearance_pools": _pool(
-            skin_tone=skin_tone_options[RaceOption.HUMAN],
-            hair_color=None,
-            hair_style=("Mohawk", "Buzz Cut", "Short Hair", "Dreadlocks"),
-            build=("Muscular", "Stocky"),
-            expression=("angry", "mischievous", "determined"),
-        ),
+        "appearance_pools": {
+            "skin_tone": skin_tone_options[RaceOption.HUMAN],
+            "hair_style": ("Mohawk", "Buzz Cut", "Short Hair", "Dreadlocks"),
+            "build": ("Muscular", "Stocky"),
+            "expression": ("angry", "mischievous", "determined"),
+        },
         "personality_lines": (
-            "I built this gang from nothing, and the only thing I trust is the weight in my hand.",
+            "I once led a raider gang, but I left it behind; trusting people again has taken longer.",
             "I have learned the hard way that the weak feed the strong — that is the only law that ever stuck.",
             "I don't remember a time before the fire, and maybe that's for the best.",
         ),
@@ -156,12 +130,12 @@ archetypes: dict[str, dict] = {
         "pose": "Action shot",
         "background": "Super Mutant Camp",
         "weight": 3,
-        "appearance_pools": _pool(
-            skin_tone=skin_tone_options[RaceOption.SUPER_MUTANT],
-            hair_style=("Bald", "Scalp Ridges", "Mohawk"),
-            build=("Muscular", "Brutish", "Towering"),
-            expression=("angry", "proud", "stoic"),
-        ),
+        "appearance_pools": {
+            "skin_tone": skin_tone_options[RaceOption.SUPER_MUTANT],
+            "hair_style": ("Bald", "Scalp Ridges", "Mohawk"),
+            "build": ("Muscular", "Brutish", "Towering"),
+            "expression": ("angry", "proud", "stoic"),
+        },
         "personality_lines": (
             "I was grown in a vat, big and strong, and they taught me to hate — hating was easy; forgetting is not.",
             "I let my fists do most of the thinking around here, and they do it well enough.",
@@ -180,12 +154,12 @@ archetypes: dict[str, dict] = {
         "pose": "Stealth crouch",
         "background": "The Institute",
         "weight": 3,
-        "appearance_pools": _pool(
-            skin_tone=["Synthetic Fair", "Synthetic Dark"],
-            hair_style=("Clean Cut", "Slicked Back", "Military Precision Cut"),
-            build=("Slender", "Muscular"),
-            expression=("suspicious", "determined", "stoic"),
-        ),
+        "appearance_pools": {
+            "skin_tone": ["Synthetic Fair", "Synthetic Dark"],
+            "hair_style": ("Clean Cut", "Slicked Back", "Military Precision Cut"),
+            "build": ("Slender", "Muscular"),
+            "expression": ("suspicious", "determined", "stoic"),
+        },
         "personality_lines": (
             "I woke up one cycle and decided the Institute didn't own my mind anymore.",
             "I still dream in code, but I've learned to translate it before it wakes me.",
@@ -204,15 +178,15 @@ archetypes: dict[str, dict] = {
         "pose": "Weapon drawn",
         "background": "New Vegas Strip",
         "weight": 3,
-        "appearance_pools": _pool(
-            skin_tone=["Light", "Tan", "Brown", "Dark Brown"],
-            hair_color=_NATURAL_HAIR,
-            hair_style=("Short Hair", "Wavy Hair", "Long Hair"),
-            build=("Athletic", "Average", "Slim"),
-            expression=("determined", "smiling", "stoic"),
-        ),
+        "appearance_pools": {
+            "skin_tone": ["Light", "Tan", "Brown", "Dark Brown"],
+            "hair_color": _NATURAL_HAIR,
+            "hair_style": ("Short Hair", "Wavy Hair", "Long Hair"),
+            "build": ("Athletic", "Average", "Slim"),
+            "expression": ("determined", "smiling", "stoic"),
+        },
         "personality_lines": (
-            "I got my NCR badge from a long road, and I haven't looked back since.",
+            "I used to carry an NCR badge; these days I follow my own road.",
             "I have seen enough of this land to know that civilization is just a promise you keep.",
             "I carry a rifle and a map, and they've taken me further than most people's prayers ever will.",
         ),
@@ -229,13 +203,13 @@ archetypes: dict[str, dict] = {
         "pose": "Alert and wary",
         "background": "Nuclear Crater",
         "weight": 3,
-        "appearance_pools": _pool(
-            skin_tone=skin_tone_options[RaceOption.GHOUL],
-            hair_color=("gray", "white"),
-            hair_style=("Patchy Hair", "Stringy Hair", "Thinning Hair", "Wispy Remains"),
-            build=("Withered", "Skeletal"),
-            expression=("stoic", "suspicious", "determined"),
-        ),
+        "appearance_pools": {
+            "skin_tone": skin_tone_options[RaceOption.GHOUL],
+            "hair_color": ("gray", "white"),
+            "hair_style": ("Patchy Hair", "Stringy Hair", "Thinning Hair", "Wispy Remains"),
+            "build": ("Withered", "Skeletal"),
+            "expression": ("stoic", "suspicious", "determined"),
+        },
         "personality_lines": (
             "I was someone else, somewhere else, before the bombs fell, and the radiation took the rest.",
             "I do mercenary work because it's honest — you pay caps, I keep you breathing, simple.",
@@ -254,13 +228,13 @@ archetypes: dict[str, dict] = {
         "pose": "Meditating/praying",
         "background": "Nuclear Crater",
         "weight": 3,
-        "appearance_pools": _pool(
-            skin_tone=["Pale", "Light"],
-            hair_color=_NATURAL_HAIR,
-            hair_style=("Buzz Cut", "Short Hair"),
-            build=("Slim", "Average"),
-            expression=("stoic", "proud", "determined"),
-        ),
+        "appearance_pools": {
+            "skin_tone": ["Pale", "Light"],
+            "hair_color": _NATURAL_HAIR,
+            "hair_style": ("Buzz Cut", "Short Hair"),
+            "build": ("Slim", "Average"),
+            "expression": ("stoic", "proud", "determined"),
+        },
         "personality_lines": (
             "I found the Atom showed me the truth — destruction isn't an ending, it's a purification.",
             "I don't fear radiation, I bow to it, because it's the fire that cleanses the weak.",
@@ -274,13 +248,12 @@ archetypes: dict[str, dict] = {
         "race": RaceOption.HUMAN,
         "faction": FactionOption.NONE,
         "weight": 4,
-        "appearance_pools": _pool(
-            skin_tone=skin_tone_options[RaceOption.HUMAN],
-            hair_color=None,
-            hair_style=("Wavy Hair", "Dreadlocks", "Long Hair", "Buzz Cut"),
-            build=("Average", "Stocky", "Overweight"),
-            expression=("determined", "stoic", "skeptical"),
-        ),
+        "appearance_pools": {
+            "skin_tone": skin_tone_options[RaceOption.HUMAN],
+            "hair_style": ("Wavy Hair", "Dreadlocks", "Long Hair", "Buzz Cut"),
+            "build": ("Average", "Stocky", "Overweight"),
+            "expression": ("determined", "stoic", "skeptical"),
+        },
         "personality_lines": (
             "I have learned to read rust like other folk read books, the wastes teaching everything I know.",
             "I won't touch anything that isn't useful or sellable — survival doesn't allow waste.",
@@ -291,13 +264,12 @@ archetypes: dict[str, dict] = {
         "race": RaceOption.HUMAN,
         "faction": FactionOption.NONE,
         "weight": 2,
-        "appearance_pools": _pool(
-            skin_tone=skin_tone_options[RaceOption.HUMAN],
-            hair_color=None,
-            hair_style=("Braided Hair", "Ponytail", "Wavy Hair"),
-            build=("Average", "Overweight", "Slim"),
-            expression=("smiling", "flirty", "confused"),
-        ),
+        "appearance_pools": {
+            "skin_tone": skin_tone_options[RaceOption.HUMAN],
+            "hair_style": ("Braided Hair", "Ponytail", "Wavy Hair"),
+            "build": ("Average", "Overweight", "Slim"),
+            "expression": ("smiling", "flirty", "confused"),
+        },
         "personality_lines": (
             "I have traded in everything from pre-war tea to working toasters, and I have never seen a buyer turn down a smile.",
             "I have found that the road taught me most problems come down to negotiation.",
@@ -308,13 +280,13 @@ archetypes: dict[str, dict] = {
         "race": RaceOption.GHOUL,
         "faction": FactionOption.NONE,
         "weight": 3,
-        "appearance_pools": _pool(
-            skin_tone=["Pale Grey", "Ashen"],
-            hair_color=("gray", "white"),
-            hair_style=("Thinning Hair", "Wispy Remains", "Stringy Hair"),
-            build=("Withered", "Skeletal"),
-            expression=("sad", "stoic", "neutral"),
-        ),
+        "appearance_pools": {
+            "skin_tone": ["Pale Grey", "Ashen"],
+            "hair_color": ("gray", "white"),
+            "hair_style": ("Thinning Hair", "Wispy Remains", "Stringy Hair"),
+            "build": ("Withered", "Skeletal"),
+            "expression": ("sad", "stoic", "neutral"),
+        },
         "personality_lines": (
             "I was old when the bombs fell — old enough to remember rain that didn't burn.",
             "I stopped counting years long ago, because time means nothing now.",
@@ -325,12 +297,12 @@ archetypes: dict[str, dict] = {
         "race": RaceOption.GHOUL,
         "faction": FactionOption.NONE,
         "weight": 2,
-        "appearance_pools": _pool(
-            skin_tone=["Mottled", "Necrotic", "Glowing"],
-            hair_style=("Patchy Hair", "Burned Scalp", "Radiation-Scarred"),
-            build=("Skeletal", "Twisted", "Withered"),
-            expression=("determined", "suspicious", "angry"),
-        ),
+        "appearance_pools": {
+            "skin_tone": ["Mottled", "Necrotic", "Glowing"],
+            "hair_style": ("Patchy Hair", "Burned Scalp", "Radiation-Scarred"),
+            "build": ("Skeletal", "Twisted", "Withered"),
+            "expression": ("determined", "suspicious", "angry"),
+        },
         "personality_lines": (
             "I carry ash and scars on my skin since the bombs, but I keep my wits sharp to stay what I am.",
             "I have watched the wasteland take my family and the radiation try to take my mind, but it failed so far.",
@@ -341,12 +313,12 @@ archetypes: dict[str, dict] = {
         "race": RaceOption.SUPER_MUTANT,
         "faction": FactionOption.SUPER_MUTANT_TRIBE,
         "weight": 2,
-        "appearance_pools": _pool(
-            skin_tone=["Light Green", "Olive Green"],
-            hair_style=("Patchy Tufts", "Thick Stubble", "Bald"),
-            build=("Muscular", "Towering"),
-            expression=("smiling", "confused", "awkward"),
-        ),
+        "appearance_pools": {
+            "skin_tone": ["Light Green", "Olive Green"],
+            "hair_style": ("Patchy Tufts", "Thick Stubble", "Bald"),
+            "build": ("Muscular", "Towering"),
+            "expression": ("smiling", "confused", "awkward"),
+        },
         "personality_lines": (
             "I have learned they call me a brute because of my size, but they stop after I help them move a fridge.",
             "I read a lot in the vats, finding books about people like me — soft, kind ones.",
@@ -357,12 +329,12 @@ archetypes: dict[str, dict] = {
         "race": RaceOption.SYNTH,
         "faction": FactionOption.NONE,
         "weight": 2,
-        "appearance_pools": _pool(
-            skin_tone=["Metallic Silver", "Exposed Component"],
-            hair_style=("Exposed Circuits", "Synthetic Fiber Weave", "Metallic Sheen Hair"),
-            build=("Slender", "Armored"),
-            expression=("confused", "shocked", "stoic"),
-        ),
+        "appearance_pools": {
+            "skin_tone": ["Metallic Silver", "Exposed Component"],
+            "hair_style": ("Exposed Circuits", "Synthetic Fiber Weave", "Metallic Sheen Hair"),
+            "build": ("Slender", "Armored"),
+            "expression": ("confused", "shocked", "stoic"),
+        },
         "personality_lines": (
             "I don't remember who built me, and the Institute sure doesn't either — I've checked.",
             "I catch bits of memory surfacing, and some of them feel like they belong to someone else.",

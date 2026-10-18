@@ -24,6 +24,7 @@ from app.options.appearance import (
     hair_color_options,
     haircuts,
     height_options,
+    scalp_feature_descriptions,
     skin_tone_options,
 )
 from app.options.races import RaceOption
@@ -163,13 +164,13 @@ def describe_appearance(appearance: dict[str, Any], gender: GenderEnum, race: Ra
         sentence += f" with {gender_word.lower()}'s skin"
 
     # Hair. Styles like "Short Hair" or "Wavy Hair" already end in "hair" —
-    # strip the suffix so we don't render "short hair blonde hair". Bald
-    # styles render as plain "bald" with no hair clause at all.
+    # strip the suffix so we don't render "short hair blonde hair".
+    # Bare scalps and exposed hardware never invent a hair color.
     style_word = hair_style.lower()
     if style_word.endswith("hair"):
         style_word = style_word.removesuffix("hair").strip()
-    if hair_style.lower() == "bald":
-        sentence += ", bald"
+    if scalp_feature := scalp_feature_descriptions.get(hair_style):
+        sentence += f", {scalp_feature}"
     elif style_word and hair_color:
         sentence += f", {style_word} {hair_color} hair"
     elif style_word:

@@ -48,6 +48,16 @@ haircuts: dict[RaceOption, list[str]] = {
     ],
 }
 
+# Canonical styles that describe a bare scalp or exposed hardware, rather than hair.
+scalp_feature_descriptions: dict[str, str] = {
+    "Bald": "a bald scalp",
+    "Burned Scalp": "a burned scalp",
+    "Radiation-Scarred": "a radiation-scarred scalp",
+    "Scalp Ridges": "scalp ridges",
+    "War Paint Scalp": "war paint on my scalp",
+    "Exposed Circuits": "exposed circuits on my scalp",
+}
+
 # Headgear options available per race
 headgear_options: dict[RaceOption, list[str]] = {
     RaceOption.HUMAN: [

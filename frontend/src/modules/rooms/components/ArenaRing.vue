@@ -6,6 +6,7 @@ import { creatureKeyOf } from '../models/arena'
 import { getCreatureImagePath, getCreatureModelSizeClass } from '@/core/utils/creatureAssets'
 import { getStaticImageUrl } from '@/core/utils/image'
 import { Progress } from '@/core/components/ui/progress'
+import { Button } from '@/core/components/ui/button'
 import {
   TooltipProvider,
   Tooltip,
@@ -144,9 +145,10 @@ const imageFor = (id: string) => getStaticImageUrl(getCreatureImagePath(creature
               <Tooltip v-if="fighter.active_skill">
                 <TooltipTrigger as-child
                   ><span class="block w-full">
-                    <button
+                    <Button
                       type="button"
-                      class="group relative flex min-h-4 w-full items-center gap-1 rounded focus-visible:outline-2 focus-visible:outline-theme-primary disabled:cursor-default"
+                      variant="ghost"
+                      class="group relative h-auto p-0 hover:bg-transparent flex min-h-4 w-full items-center gap-1 rounded focus-visible:outline-2 focus-visible:outline-theme-primary disabled:cursor-default"
                       :class="{
                         'animate-pulse motion-reduce:animate-none':
                           fighter.active_skill.charge >= 100 && !fighter.active_skill.queued,
@@ -171,7 +173,7 @@ const imageFor = (id: string) => getStaticImageUrl(getCreatureImagePath(creature
                         :model-value="fighter.active_skill.charge"
                         :label="`${fighter.name} skill charge`"
                       />
-                    </button> </span
+                    </Button> </span
                 ></TooltipTrigger>
                 <TooltipContent
                   class="border border-theme-primary/40 bg-popover text-theme-primary"
@@ -201,14 +203,16 @@ const imageFor = (id: string) => getStaticImageUrl(getCreatureImagePath(creature
                   :key="ready.fighter.id"
                 >
                   <TooltipTrigger as-child>
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon"
                       class="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-theme-primary bg-black/85 text-theme-primary shadow-lg motion-safe:animate-pulse hover:bg-theme-primary hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary sm:size-11"
                       :aria-label="`Use ${ready.skill.name} from ${ready.fighter.name} on ${fighter.name}`"
                       @click="emit('skill', ready.fighter.id)"
                     >
                       <Crosshair class="size-6" aria-hidden="true" />
-                    </button>
+                    </Button>
                   </TooltipTrigger>
                   <TooltipContent
                     class="border border-theme-primary/40 bg-popover text-theme-primary"

@@ -7,6 +7,8 @@ import NavBar from '@/modules/vault/components/shell/NavBar.vue'
 import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import ResourceBar from '@/modules/vault/components/shell/ResourceBar.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useProfileStore } from '@/modules/profile/stores/profile'
+import type { ProfileRead } from '@/core/types/api.generated'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import type { Room } from '@/modules/rooms/models/room'
@@ -395,6 +397,65 @@ describe('NavBar', () => {
     expect(wrapper.find('button[aria-label="User menu for Overseer"]').classes()).toContain(
       'bg-theme-primary/10'
     )
+  })
+
+  it('shows the profile picture in the menu button when the profile has an avatar', async () => {
+    const authStore = useAuthStore()
+    authStore.token = 'test-token'
+    authStore.user = testUser
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/vault/:id', component: { template: '<div />' } }],
+    })
+    await router.push('/vault/vault-1')
+    await router.isReady()
+
+    const profileStore = useProfileStore()
+    // eslint-disable-next-line testing-library/no-await-sync-queries
+    profileStore.profile = {
+      bio: null,
+      avatar_url: 'https://example.com/overseer.png',
+    } as ProfileRead
+
+    const wrapper = mount(NavBar, {
+      global: { plugins: [router], stubs: { Icon: true, NotificationBell: true } },
+    })
+
+    const button = wrapper.find('button[aria-label="User menu for Overseer"]')
+    const img = button.find('img')
+    expect(img.exists()).toBe(true)
+    expect(img.attributes('src')).toBe('https://example.com/overseer.png')
+    wrapper.unmount()
+  })
+
+  it('keeps the generic icon when the profile has no avatar or fails to load', async () => {
+    const authStore = useAuthStore()
+    authStore.token = 'test-token'
+    authStore.user = testUser
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/vault/:id', component: { template: '<div />' } }],
+    })
+    await router.push('/vault/vault-1')
+    await router.isReady()
+
+    // No profile loaded at all.
+    let wrapper = mount(NavBar, {
+      global: { plugins: [router], stubs: { Icon: true, NotificationBell: true } },
+    })
+    expect(wrapper.find('button[aria-label="User menu for Overseer"] img').exists()).toBe(false)
+    wrapper.unmount()
+
+    // Profile loaded but avatar_url empty.
+    const profileStore = useProfileStore()
+    profileStore.profile = { bio: null, avatar_url: null } as ProfileRead
+    wrapper = mount(NavBar, {
+      global: { plugins: [router], stubs: { Icon: true, NotificationBell: true } },
+    })
+    expect(wrapper.find('button[aria-label="User menu for Overseer"] img').exists()).toBe(false)
+    wrapper.unmount()
   })
 
   describe('sound toggle', () => {

@@ -10,6 +10,7 @@ import {
 } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useProfileStore } from '@/modules/profile/stores/profile'
 import { useRouter, useRoute } from 'vue-router'
 const NotificationBell = defineAsyncComponent(() => import('./NotificationBell.vue'))
 import ResourceBar from './ResourceBar.vue'
@@ -58,6 +59,19 @@ const { versionBadgeVisible, showChangelog } = useVersionDetection({
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const user = computed(() => authStore.user)
 const isProfileRoute = computed(() => route.path === '/profile')
+
+// Profile avatar for the menu button. Hydrated lazily on mount so the navbar
+// never blocks first paint on a profile fetch; the generic icon shows until
+// the profile (with its avatar_url) arrives.
+const profileStore = useProfileStore()
+const avatarLoadFailed = ref(false)
+const avatarUrl = computed(() => (avatarLoadFailed.value ? null : profileStore.profile?.avatar_url ?? null))
+watch(
+  () => profileStore.profile?.avatar_url,
+  () => {
+    avatarLoadFailed.value = false
+  }
+)
 
 // Params of the currently open vault; a critical resource warning deep-links to the room that fixes it.
 const activeVaultId = computed(() => (typeof route.params.id === 'string' ? route.params.id : null))
@@ -169,6 +183,9 @@ onMounted(() => {
     navObserver.observe(navRoot.value)
   }
   publishNavbarHeight()
+  // Opportunistic avatar hydration: fills the menu button's picture when the
+  // profile hasn't been fetched yet. Never blocks, never crashes boot.
+  if (isAuthenticated.value) void profileStore.ensureProfileLoaded()
 })
 
 onUnmounted(() => {
@@ -415,7 +432,14 @@ onUnmounted(() => {
               aria-haspopup="true"
               :aria-label="`User menu for ${user?.username || 'user'}`"
             >
-              <Icon icon="mdi:account-circle" class="h-5 w-5" :ariaHidden="true" />
+              <img
+                v-if="avatarUrl"
+                :src="avatarUrl"
+                alt=""
+                class="size-5 rounded-full border border-theme-primary/40 object-cover"
+                @error="avatarLoadFailed = true"
+              />
+              <Icon v-else icon="mdi:account-circle" class="h-5 w-5" :ariaHidden="true" />
               <span class="hidden sm:inline">{{ user?.username }}</span>
             </button>
             <Transition name="dropdown">

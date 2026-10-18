@@ -80,7 +80,7 @@ function confirm(): void {
           :name="reward.name"
           :item-type="reward.kind === 'item' ? reward.itemType : undefined"
           :rarity="reward.kind === 'item' ? reward.rarity : undefined"
-          icon="mdi:gift"
+          :icon="reward.kind === 'currency' ? reward.icon : 'mdi:gift'"
           label="Reward"
         />
 

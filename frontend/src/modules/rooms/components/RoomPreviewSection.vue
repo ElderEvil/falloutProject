@@ -80,7 +80,7 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
             <div
               v-for="slot in dwellerCapacity"
               :key="`slot-${slot}`"
-              class="dweller-sprite-slot"
+              class="dweller-sprite-slot dweller-sprite-slot-lg"
               :class="{ 'slot-filled': workerDwellers[slot - 1] }"
             >
               <template v-if="workerDwellers[slot - 1]">
@@ -315,6 +315,13 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Issue #1083: the occupant portrait reads better larger; the unassign badge
+   stays hover/focus-gated (touch users get the always-reachable labeled button). */
+.dweller-sprite-slot-lg .placeholder-dweller {
+  width: 64px;
+  height: 64px;
 }
 
 .placeholder-dweller {

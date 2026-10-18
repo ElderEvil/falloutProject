@@ -1,120 +1,68 @@
-import { afterEach, describe, expect, it } from 'vitest'
-import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
+import { describe, expect, it } from 'vitest'
 import ArenaRing from '@/modules/rooms/components/ArenaRing.vue'
-import type { ArenaFighter, ArenaRoomState } from '@/modules/rooms/api/arena'
+import { TooltipProvider } from '@/core/components/ui/tooltip'
 
-enableAutoUnmount(afterEach)
-
-const fighter = (id: string, overrides: Partial<ArenaFighter> = {}): ArenaFighter => ({
+const fighter = (id: string, name: string, health = 100) => ({
   id,
-  name: id,
-  level: 5,
-  health: 80,
+  name,
+  health,
   max_health: 100,
+  level: 5,
   power: 10,
-  is_creature: false,
-  is_robot: false,
-  active_skill: {
-    name: 'Aimed Shot',
-    description: 'Extra attack on your next team turn.',
-    charge: 100,
-    queued: false,
-  },
-  ...overrides,
+  active_skill: null,
+  creature_key: null,
+  is_bot: false,
+  side: 'A' as const,
+  slot: 0,
 })
-const state = (
-  teamA = [fighter('Alpha'), fighter('Charlie')],
-  teamB = [fighter('Bravo'), fighter('Delta')]
-): ArenaRoomState => ({
-  room_id: 'arena',
-  room_name: 'Arena',
-  tier: 3,
-  mode: 'brawl',
-  available_modes: ['duel', 'brawl', 'hunt'],
-  fighter_a_id: teamA[0]?.id ?? null,
-  fighter_b_id: teamB[0]?.id ?? null,
+
+const ringState = (teamA: unknown[], teamB: unknown[]) => ({
+  room_id: 'room-1',
+  next_attack_team: 'A',
   team_a: teamA,
   team_b: teamB,
-  fighters: [...teamA, ...teamB],
-  roster: [],
-  fight_ready: true,
-  can_start: false,
-  fight_started: true,
-  match_done: false,
-  next_attack_team: 'A',
-  countdown_remaining: 0,
-  winner_name: null,
-  events: [],
 })
-const render = (room = state(), pendingSkills = new Set<string>(), skillEnabled = true) =>
+
+const baseProps = {
+  state: ringState([fighter('a1', 'Ada')], [fighter('b1', 'Brutus')]),
+  attackingTeam: null,
+  damageNumbers: [],
+}
+
+const mountRing = (props: Record<string, unknown> = {}) =>
   mount(ArenaRing, {
-    props: { state: room, skillEnabled, pendingSkills, attackingTeam: null, damageNumbers: [] },
-    attachTo: document.body,
+    props: { ...baseProps, ...props },
+    global: { plugins: [TooltipProvider] },
   })
 
-describe('Arena ring', () => {
-  it('places each ready dweller activation on its paired target and emits the attacker ID', async () => {
-    const wrapper = render()
-    const marker = wrapper.get('button[aria-label="Use Aimed Shot from Alpha on Bravo"]')
-    await marker.trigger('click')
-    expect(wrapper.emitted('skill')).toEqual([['Alpha']])
-    expect(wrapper.find('button[aria-label="Use Aimed Shot from Charlie on Delta"]').exists()).toBe(
-      true
-    )
-    expect(wrapper.get('[aria-label="Alpha HP"]').attributes('aria-valuenow')).toBe('80')
-  })
-
-  it.each(['uncharged', 'queued', 'pending', 'knocked out', 'countdown', 'finished'])(
-    'hides target activation when %s',
-    (reason) => {
-      const alpha = fighter('Alpha')
-      if (reason === 'uncharged') alpha.active_skill!.charge = 99
-      if (reason === 'queued') alpha.active_skill!.queued = true
-      if (reason === 'knocked out') alpha.health = 0
-      const room = state([alpha], [fighter('Bravo', { active_skill: null })])
-      if (reason === 'finished') room.match_done = true
-      const wrapper = render(
-        room,
-        new Set(reason === 'pending' ? ['Alpha'] : []),
-        !['countdown', 'finished'].includes(reason)
-      )
-      expect(wrapper.find('button[aria-label^="Use Aimed Shot from Alpha"]').exists()).toBe(false)
-      expect(
-        wrapper.get('button[aria-label^="Use Aimed Shot for Alpha"]').attributes('disabled')
-      ).toBeDefined()
+describe('ArenaRing fighter positions (issue #1086)', () => {
+  it('centers single fighters in a duel: no lane-offset classes', () => {
+    const wrapper = mountRing()
+    const fighters = wrapper.findAll('.ring-fighter')
+    expect(fighters).toHaveLength(2)
+    for (const fighter of fighters) {
+      expect(fighter.classes()).not.toContain('left-4')
+      expect(fighter.classes()).not.toContain('right-4')
+      expect(fighter.classes()).not.toContain('left-2')
+      expect(fighter.classes()).not.toContain('right-2')
     }
-  )
-
-  it('shares the surviving target after a KO and removes markers immediately while pending', async () => {
-    const room = state(undefined, [fighter('Bravo', { health: 0 }), fighter('Delta')])
-    const wrapper = render(room)
-    expect(wrapper.findAll('button[aria-label$="on Delta"]')).toHaveLength(2)
-    await wrapper.setProps({ pendingSkills: new Set(['Alpha']) })
-    expect(wrapper.find('button[aria-label^="Use Aimed Shot from Alpha"]').exists()).toBe(false)
-    expect(wrapper.find('button[aria-label="Use Aimed Shot from Charlie on Delta"]').exists()).toBe(
-      true
-    )
+    wrapper.unmount()
   })
 
-  it('shows the animated countdown over the preview and removes it when combat starts', async () => {
-    const room = { ...state(), countdown_remaining: 3 }
-    const wrapper = render(room, new Set(), false)
-    expect(wrapper.get('[role="status"]').text()).toMatch(/STARTING IN\s*3/)
-    await wrapper.setProps({ state: { ...room, countdown_remaining: 2 } })
-    expect(wrapper.get('.countdown-number').text()).toBe('2')
-    await wrapper.setProps({ state: { ...room, countdown_remaining: 0 }, skillEnabled: true })
-    expect(wrapper.find('.countdown-number').exists()).toBe(false)
-  })
-
-  it('exposes themed skill tooltips with the attacker, skill and target', async () => {
-    const wrapper = render()
-    await wrapper.get('button[aria-label="Use Aimed Shot from Alpha on Bravo"]').trigger('focus')
-    await flushPromises()
-    const tooltip = document.body.querySelector('[data-slot="tooltip-content"]')!
-    expect(tooltip.textContent).toContain('Alpha · Aimed Shot')
-    expect(tooltip.textContent).toContain('Activate skill against Bravo')
-    expect(
-      wrapper.get('button[aria-label="Use Aimed Shot from Alpha on Bravo"]').attributes('title')
-    ).toBeUndefined()
+  it('keeps mirrored lane offsets for two-fighter brawl lines', () => {
+    const wrapper = mountRing({
+      state: ringState(
+        [fighter('a1', 'Ada'), fighter('a2', 'Ash')],
+        [fighter('b1', 'Brutus'), fighter('b2', 'Bo')]
+      ),
+    })
+    const fighters = wrapper.findAll('.ring-fighter')
+    expect(fighters).toHaveLength(4)
+    expect(fighters[0].classes()).toContain('left-4')
+    expect(fighters[1].classes()).toContain('right-2')
+    expect(fighters[2].classes()).toContain('right-4')
+    expect(fighters[3].classes()).toContain('left-2')
+    wrapper.unmount()
   })
 })

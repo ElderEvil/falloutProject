@@ -1,3 +1,4 @@
+import type { components } from '@/core/types/api.generated'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getDwellerDisplayName, isMature } from '@/modules/dwellers/models/dweller'
 import type { SoundKey } from '@/core/audio/soundManifest'
@@ -214,3 +215,5 @@ export function getIncidentParticipants(
       }),
   ]
 }
+
+export type IncidentRespondersResponse = components['schemas']['IncidentRespondersResponse']

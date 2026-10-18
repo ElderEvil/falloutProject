@@ -30,9 +30,24 @@ describe('incidentApi.getIncidentTeam', () => {
 
     const team = await incidentApi.getIncidentTeam('vault-1', 'incident-1', 'token')
 
-    expect(axios.get).toHaveBeenCalledWith('/api/v1/game/vaults/vault-1/incidents/incident-1/team', {
-      headers: { Authorization: 'Bearer token' },
-    })
+    expect(axios.get).toHaveBeenCalledWith(
+      '/api/v1/game/vaults/vault-1/incidents/incident-1/team',
+      {
+        headers: { Authorization: 'Bearer token' },
+      }
+    )
     expect(team).toEqual([teamMember])
   })
+})
+
+it('returns the responders actually accepted by the backend', async () => {
+  const result = {
+    incident_id: 'incident-1',
+    room_id: 'room-1',
+    assigned_dweller_ids: ['dweller-1'],
+  }
+  vi.mocked(axios.post).mockResolvedValueOnce({ data: result })
+  expect(
+    await incidentApi.assignResponders('vault-1', 'incident-1', ['dweller-1', 'dweller-2'], 'token')
+  ).toEqual(result)
 })

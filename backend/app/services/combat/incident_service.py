@@ -36,8 +36,6 @@ from app.services.combat import incident_publishing, incident_round, incident_sp
 from app.services.loot_overflow_service import loot_overflow_service
 from app.utils.dweller_availability import availability_error
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
-from app.utils.item_factory import build_junk, build_outfit, build_weapon
-from app.utils.static_data import game_data_store
 
 logger = logging.getLogger(__name__)
 
@@ -61,31 +59,6 @@ async def committed_responder_ids(
         members = await team_crud.get_incident_team(db_session, incident.id, vault_id)
         committed.update(member.dweller_id for member in members if member.status in COMMITTED_MEMBER_STATUSES)
     return committed
-
-
-def _build_held_item(loot_item: dict, storage_id):
-    """Rebuild one held incident item for storage, priced the same as its sale."""
-    name = loot_overflow_service.item_name(loot_item)
-    rarity = str(loot_item.get("rarity", "common"))
-    match loot_item.get("item_type", "junk"):
-        case "weapon":
-            data = next((weapon for weapon in game_data_store.weapons if weapon.name == name), None)
-            if data is None:
-                raise ValidationException(f"Unknown weapon loot: {name}")
-            return build_weapon(data.model_dump(), rarity, storage_id)
-        case "outfit":
-            data = next((outfit for outfit in game_data_store.outfits if outfit.name == name), None)
-            if data is None:
-                raise ValidationException(f"Unknown outfit loot: {name}")
-            return build_outfit(data.model_dump(), rarity, storage_id)
-        case _:
-            return build_junk(
-                name,
-                rarity,
-                storage_id,
-                value=loot_overflow_service.unit_value_of(loot_item),
-                description="Recovered from an incident",
-            )
 
 
 class IncidentService:
@@ -267,7 +240,7 @@ class IncidentService:
             owner=Incident,
             owner_id=incident.id,
             vault_id=incident.vault_id,
-            build_row=_build_held_item,
+            junk_description="Recovered from an incident",
         )
         incident.unclaimed_loot = unclaimed
         db_session.add(incident)

@@ -1,15 +1,12 @@
 """Rewards application for completed explorations."""
 
-import asyncio
 import logging
 from typing import Any, TypedDict
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import RarityEnum
 from app.core.event_bus import GameEvent, event_bus
-from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
 from app.crud import exploration as crud_exploration
 from app.crud import outfit as crud_outfit
@@ -19,20 +16,17 @@ from app.crud import vault as crud_vault
 from app.crud import weapon as crud_weapon
 from app.crud.team import team_crud
 from app.models.exploration import Exploration
-from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.weapon import Weapon
 from app.options.pet_modifiers import MAX_PCT_BONUS, pet_modifiers_for
 from app.schemas.exploration import PendingOverflowRead
 from app.schemas.exploration_event import RewardsSchema
-from app.services.exploration import data_loader
 from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration.rewards_calculator import rewards_calculator
 from app.services.loot_overflow_service import loot_overflow_service
 from app.services.resource_manager import compute_medical_capacity
 from app.services.vault_service import vault_service
 from app.utils.exceptions import ValidationException
-from app.utils.item_factory import build_catalog_item, build_junk
 
 logger = logging.getLogger(__name__)
 
@@ -63,57 +57,6 @@ class RewardsService:
     def discard_pending_rewards(self, db_session: AsyncSession) -> None:
         """Drop parked reward events for a rolled-back finalization."""
         db_session.info.pop(_PENDING_REWARD_EVENTS, None)
-
-    @staticmethod
-    def _parse_rarity_to_enum(rarity_str: str) -> RarityEnum:
-        """Convert rarity string to RarityEnum with fallback to COMMON.
-
-        :param rarity_str: Rarity string (e.g., "Legendary", "COMMON")
-        :returns: RarityEnum value, defaults to COMMON if invalid
-        """
-        try:
-            return RarityEnum[rarity_str.upper()]
-        except (KeyError, AttributeError):
-            return RarityEnum.COMMON
-
-    def _build_item_from_loot(
-        self,
-        loot_item: dict,
-        rarity: RarityEnum,
-        storage_id: UUID4,
-        weapons_data: list[dict],
-        outfits_data: list[dict],
-    ) -> Weapon | Outfit | Junk | None:
-        """Build a storage item from a loot dict. Shared by transfer and overflow-take."""
-        item_name = loot_item.get("item_name", "Unknown Item")
-        try:
-            match loot_item.get("item_type", "junk"):
-                case "weapon":
-                    return build_catalog_item(
-                        "weapon", item_name, rarity, storage_id, weapons_data=weapons_data, outfits_data=[]
-                    )
-                case "outfit":
-                    return build_catalog_item(
-                        "outfit", item_name, rarity, storage_id, weapons_data=[], outfits_data=outfits_data
-                    )
-                case _:
-                    return build_junk(
-                        item_name,
-                        rarity,
-                        storage_id,
-                        value=game_config.exploration.get_junk_value(rarity.value),
-                        description="Found during wasteland exploration",
-                    )
-        except (KeyError, ValueError):
-            logger.exception(
-                "Failed to build item from loot",
-                extra={
-                    "loot_item": loot_item,
-                    "rarity": rarity.value if rarity else None,
-                    "storage_id": str(storage_id),
-                },
-            )
-            return None
 
     @staticmethod
     def _held_spec(row: Weapon | Outfit, item_type: str) -> dict:
@@ -185,10 +128,6 @@ class RewardsService:
 
         transferred: list[dict] = []
 
-        # Load item data for lookups
-        weapons_data = await asyncio.to_thread(data_loader.load_weapons)
-        outfits_data = await asyncio.to_thread(data_loader.load_outfits)
-
         for loot_item in granted:
             if "held_row_id" in loot_item:
                 row = held_rows[loot_item["held_row_id"]]
@@ -201,11 +140,12 @@ class RewardsService:
             item_name = loot_item.get("item_name", "Unknown Item")
             item_type = loot_item.get("item_type", "junk")
             rarity_str = loot_item.get("rarity", "Common")
-            rarity = self._parse_rarity_to_enum(rarity_str)
             stored_quantity = 0
 
             for _ in range(loot_item["quantity"]):
-                item = self._build_item_from_loot(loot_item, rarity, storage_id, weapons_data, outfits_data)
+                item = loot_overflow_service.build_storage_row(
+                    loot_item, storage_id, junk_description="Found during wasteland exploration"
+                )
                 if item is None:
                     break
 
@@ -295,13 +235,6 @@ class RewardsService:
     async def take_unclaimed_item(self, db_session: AsyncSession, exploration_id: UUID4, index: int) -> list[dict]:
         """Store one overflow item. 409 when storage is still full."""
         exploration, unclaimed = await self._load_unclaimed(db_session, exploration_id)
-        weapons_data = await asyncio.to_thread(data_loader.load_weapons)
-        outfits_data = await asyncio.to_thread(data_loader.load_outfits)
-
-        def build_row(loot_item: dict, storage_id: UUID4) -> Any:
-            rarity = self._parse_rarity_to_enum(loot_item.get("rarity", "common"))
-            return self._build_item_from_loot(loot_item, rarity, storage_id, weapons_data, outfits_data)
-
         unclaimed = await loot_overflow_service.settle_take_decision(
             db_session,
             unclaimed,
@@ -309,7 +242,7 @@ class RewardsService:
             owner=Exploration,
             owner_id=exploration.id,
             vault_id=exploration.vault_id,
-            build_row=build_row,
+            junk_description="Found during wasteland exploration",
         )
         exploration.unclaimed_loot = unclaimed
         db_session.add(exploration)

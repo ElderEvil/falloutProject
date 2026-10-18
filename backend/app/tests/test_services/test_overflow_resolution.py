@@ -17,6 +17,7 @@ from app.models.dweller import Dweller
 from app.models.junk import Junk
 from app.models.storage import Storage
 from app.models.vault import Vault
+from app.models.weapon import Weapon
 from app.services.exploration.coordinator import exploration_coordinator
 from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
@@ -299,3 +300,31 @@ async def test_failed_overflow_sale_does_not_emit_caps(async_session, vault, dwe
         await async_session.rollback()
     restored = await crud.exploration.get(async_session, exploration_id)
     assert len(restored.unclaimed_loot) == 1
+
+
+@pytest.mark.asyncio
+async def test_taking_loot_with_no_catalog_row_is_rejected_and_kept(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    make_vault_storage,
+):
+    """A weapon the catalog does not know must never mint a defaulted row, and must stay held."""
+    storage = await make_vault_storage(0)
+    exploration, _ = await _completed_with_overflow(
+        async_session,
+        vault,
+        dweller,
+        loots=[{"item_name": "Nonexistent Relic", "quantity": 1, "rarity": "Common", "item_type": "weapon"}],
+    )
+    storage.max_space = 1
+    async_session.add(storage)
+    await async_session.flush()
+
+    with pytest.raises(ValidationException):
+        await rewards_service.take_unclaimed_item(async_session, exploration.id, 0)
+
+    await async_session.refresh(exploration)
+    assert len(exploration.unclaimed_loot or []) == 1
+    stored = (await async_session.execute(select(Weapon).where(Weapon.storage_id == storage.id))).scalars().all()
+    assert stored == []

@@ -16,7 +16,7 @@ from app.models.storage import Storage
 from app.models.weapon import Weapon
 from app.services.combat import incident_math, incident_round
 from app.services.combat.incident_service import incident_service
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
+from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 from app.utils.static_data import game_data_store
 
 VICTORY_TYPES = (
@@ -323,3 +323,40 @@ async def test_taking_stacked_junk_prices_each_row_at_the_unit_value(
     assert len(stored) == 2
     unit_value = game_config.exploration.junk_value_common
     assert [junk.value for junk in stored] == [unit_value, unit_value]
+
+
+@pytest.mark.asyncio
+async def test_taking_held_loot_with_no_catalog_row_is_rejected_and_kept(
+    async_session: AsyncSession, room_with_dwellers: dict
+) -> None:
+    """A weapon the catalog does not know must never mint a defaulted row, and must stay held."""
+    room = room_with_dwellers["room"]
+    vault = room_with_dwellers["vault"]
+    storage = await storage_crud.get_by_vault(async_session, vault.id)
+    if storage is None:
+        storage = Storage(vault_id=vault.id, max_space=1)
+        async_session.add(storage)
+    else:
+        storage.max_space = 1
+        storage.used_space = 0
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=vault.id,
+        room_id=room.id,
+        incident_type=IncidentType.RAIDER_ATTACK,
+        difficulty=3,
+        duration=60,
+    )
+    incident.unclaimed_loot = [
+        {"item_type": "weapon", "rarity": "common", "name": "Nonexistent Relic", "quantity": 1}
+    ]
+    async_session.add(incident)
+    await async_session.commit()
+
+    with pytest.raises(ValidationException):
+        await incident_service.take_unclaimed_item(async_session, incident.id, vault.id, 0)
+
+    await async_session.refresh(incident)
+    assert len(incident.unclaimed_loot) == 1
+    stored = (await async_session.exec(select(Weapon).where(Weapon.storage_id == storage.id))).all()
+    assert stored == []

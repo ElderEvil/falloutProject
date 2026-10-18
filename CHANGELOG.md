@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.231.1 (2026-10-18)
+
+### Bug Fixes
+
+* **objectives:** defer overflow-sale events until commit b8e5e6a
+* **objectives:** renew daily and weekly tasks on UTC boundaries 8f49c26
+
 ## 2.231.0 (2026-10-18)
 
 ### Features

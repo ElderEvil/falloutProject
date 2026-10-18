@@ -1196,150 +1196,28 @@ class TestInitiateVault:
             assert getattr(outfit, ability.value.lower()) == 3
 
     @pytest.mark.parametrize("is_boosted", [True, False], ids=["boosted", "standard"])
-    async def test_initiate_vault_start_resources(self, is_boosted: bool) -> None:
-        """Boosted starts fund Arena upgrades; standard starts keep their existing caps."""
-        vault_id = VAULT_ID
-        user_id = UUID4("11111111-1111-1111-1111-111111111111")
+    async def test_initiate_vault_start_resources(self, async_session, superuser, is_boosted: bool) -> None:
+        """Starts preserve caps budgets and adopt refresh periods for both modes."""
+        from app.crud.objective import objective_crud
+        from app.tests.factory.vaults import random_vault_number
+        from app.utils.seed_objectives import seed_objectives_from_json
 
-        vault = Vault(
-            id=vault_id,
-            number=99,
-            user_id=user_id,
-            population_max=0,
-            power_max=50,
-            food_max=50,
-            water_max=50,
+        await seed_objectives_from_json(async_session)
+        result = await VaultService().initiate_vault(
+            async_session,
+            VaultNumber(number=random_vault_number(), boosted=is_boosted),
+            superuser.id,
+            is_boosted=is_boosted,
         )
-        storage_obj = _make_storage(vault_id=str(vault_id), stimpack=0, radaway=0)
-
-        room_templates = [
-            _make_room_create("elevator", category=RoomTypeEnum.CAPACITY),
-            _make_room_create("vault door", category=RoomTypeEnum.CAPACITY),
-            _make_room_create("living room", category=RoomTypeEnum.CAPACITY, ability=SPECIALEnum.CHARISMA),
-            _make_room_create("storage room", category=RoomTypeEnum.CAPACITY, ability=SPECIALEnum.ENDURANCE),
-            _make_room_create("power generator", ability=SPECIALEnum.STRENGTH),
-            _make_room_create("diner", ability=SPECIALEnum.AGILITY),
-            _make_room_create("water treatment", ability=SPECIALEnum.PERCEPTION),
-            _make_room_create("medbay", ability=SPECIALEnum.INTELLIGENCE),
-            _make_room_create("science lab", ability=SPECIALEnum.INTELLIGENCE),
-            _make_room_create("radio studio", category=RoomTypeEnum.MISC, ability=SPECIALEnum.CHARISMA),
-            _make_room_create("overseer's office", category=RoomTypeEnum.MISC),
-            _make_room_create("weight room", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.STRENGTH),
-            _make_room_create("armory", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.PERCEPTION),
-            _make_room_create("athletics room", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.ENDURANCE),
-            _make_room_create("classroom", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.CHARISMA),
-            _make_room_create("game room", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.INTELLIGENCE),
-            _make_room_create("fitness room", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.AGILITY),
-            _make_room_create("lounge", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.LUCK),
-        ]
-
-        mock_game_data = MagicMock()
-        mock_game_data.rooms = room_templates
-
-        prod_rooms = [
-            _make_room(f"p{i}", name, ability=ability)
-            for i, (name, ability) in enumerate(
-                [
-                    ("Power Gen", SPECIALEnum.STRENGTH),
-                    ("Diner", SPECIALEnum.AGILITY),
-                    ("Water Treatment", SPECIALEnum.PERCEPTION),
-                ],
-                1,
-            )
-        ]
-        train_rooms = [
-            _make_room(name="Train Room", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.STRENGTH)
-            for i in range(7)
-        ]
-        misc_rooms = [_make_room(name="Radio Studio", category=RoomTypeEnum.MISC, ability=SPECIALEnum.CHARISMA)]
-        cap_rooms = [_make_room(name="Living Room", category=RoomTypeEnum.CAPACITY, ability=SPECIALEnum.CHARISMA)]
-
-        db_session = AsyncMock()
-        db_session.commit = AsyncMock()
-        db_session.refresh = AsyncMock()
-        db_session.add = MagicMock()
-        db_session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=storage_obj)))
-
-        with (
-            patch("app.services.map_service.map_service.register_bio_places", new=AsyncMock(return_value=True)),
-            patch(
-                "app.services.vault_service.vault_crud.create_with_user_id",
-                new_callable=AsyncMock,
-                return_value=vault,
-            ),
-            patch(
-                "app.services.vault_service.vault_crud.create_storage",
-                new_callable=AsyncMock,
-                return_value=storage_obj,
-            ),
-            patch(
-                "app.services.vault_service.vault_crud.update", new_callable=AsyncMock, return_value=vault
-            ) as mock_update,
-            patch(
-                "app.services.vault_service.get_static_game_data",
-                new_callable=AsyncMock,
-                return_value=mock_game_data,
-            ),
-            patch("app.services.vault.seeding.room_crud.evaluate_capacity_formula", return_value=4),
-            patch(
-                "app.services.vault_service.compute_medical_capacity",
-                return_value={"stimpack": 5, "radaway": 5},
-            ),
-            patch(
-                "app.crud.objective.objective_crud.assign_initial",
-                new_callable=AsyncMock,
-                return_value=2,
-            ) as mock_assign_initial,
-            patch(
-                "app.services.vault.seeding.prepare_initial_rooms",
-                return_value=PreparedRooms(
-                    infrastructure=[], capacity=[], production=[], misc=[], training=[], arena=[]
-                ),
-            ),
-            patch(
-                "app.services.vault.seeding.create_initial_rooms",
-                new=AsyncMock(
-                    return_value=(
-                        vault,
-                        CreatedRooms(
-                            production=prod_rooms,
-                            training=train_rooms,
-                            misc=misc_rooms,
-                            capacity=cap_rooms,
-                            arena=[],
-                        ),
-                    )
-                ),
-            ),
-            patch("app.services.vault.seeding.create_initial_dwellers", new_callable=AsyncMock),
-            patch("app.services.vault.seeding.start_training_sessions", new_callable=AsyncMock) as mock_start_training,
-            patch("app.services.vault.seeding.create_initial_items", new_callable=AsyncMock),
-            patch(
-                "app.services.vault.seeding.get_static_game_data",
-                new_callable=AsyncMock,
-                return_value=mock_game_data,
-            ),
-        ):
-            result = await VaultService().initiate_vault(
-                db_session,
-                VaultNumber(number=99, boosted=is_boosted),
-                user_id,
-                is_boosted=is_boosted,
-            )
-
-        assert result == vault
-        mock_start_training.assert_awaited_once()
-        mock_assign_initial.assert_awaited_once_with(db_session, vault.id, is_boosted=is_boosted)
-
-        initial_caps = mock_update.call_args.kwargs["obj_in"].bottle_caps
-        if initial_caps is None:
-            initial_caps = vault.bottle_caps
-        arena_template = next(room for room in (await get_static_game_data()).rooms if room.name.lower() == "arena")
-        upgrade_budget = arena_template.t2_upgrade_cost + arena_template.t3_upgrade_cost
+        arena = next(room for room in (await get_static_game_data()).rooms if room.name.lower() == "arena")
         if is_boosted:
-            assert initial_caps >= upgrade_budget + 1_000
+            assert result.bottle_caps >= arena.t2_upgrade_cost + arena.t3_upgrade_cost + 1_000
         else:
-            assert initial_caps == vault.bottle_caps
+            assert result.bottle_caps == 1_000
+        objectives = await objective_crud.get_multi_for_vault(async_session, result.id)
+        assert {"daily", "weekly"} <= {o.category for o in objectives}
+        state = await crud.game_state_crud.get_or_create(async_session, result.id)
+        assert state.daily_objectives_period is not None
 
 
 class TestVaultStartConfig:

@@ -48,6 +48,7 @@ NOTIFICATION_CATEGORY_BY_TYPE: dict[NotificationType, NotificationCategory | Non
     NotificationType.POWER_OUTAGE: None,
     NotificationType.QUEST_COMPLETE: NotificationCategory.ARRIVALS_AND_COMPLETIONS,
     NotificationType.OBJECTIVE_COMPLETED: None,
+    NotificationType.OBJECTIVES_REFRESHED: None,
     NotificationType.ACHIEVEMENT_UNLOCKED: None,
     NotificationType.MAP_REGISTRATION_FAILED: None,
 }

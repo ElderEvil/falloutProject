@@ -147,6 +147,7 @@ class GameLoopService:
             await db_session.commit()
 
             await self.resource_manager.emit_production_events(vault_id, resource_events)
+            await self._refresh_objectives(db_session, vault_id, game_state)
             results["updates"]["resources"] = {
                 "power": resource_update.power,
                 "food": resource_update.food,
@@ -273,6 +274,16 @@ class GameLoopService:
     async def _get_or_create_game_state(self, db_session: AsyncSession, vault_id: UUID4) -> GameState:
         """Get existing game state or create a new one."""
         return await game_state_crud.get_or_create(db_session, vault_id)
+
+    async def _refresh_objectives(self, db_session: AsyncSession, vault_id: UUID4, game_state: GameState) -> None:
+        from app.services.progression.objectives.refresh_service import ensure_current_objectives
+
+        try:
+            await ensure_current_objectives(db_session, vault_id)
+        except Exception:
+            await recover_session(db_session)
+            self.logger.exception("Objective refresh failed for vault %s; will retry next tick", vault_id)
+            await db_session.refresh(game_state)
 
     async def _process_explorations(self, db_session: AsyncSession, vault_id: UUID4) -> ExplorationStats:
         """Process all active explorations for a vault."""

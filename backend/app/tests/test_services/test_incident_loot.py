@@ -7,6 +7,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud.storage import storage as storage_crud
 from app.models.incident import IncidentStatus, IncidentType
@@ -271,8 +272,19 @@ async def test_selling_held_incident_overflow_pays_caps_without_space(
     await async_session.refresh(vault)
     caps_before = vault.bottle_caps
 
-    caps, remaining = await incident_service.sell_unclaimed_item(async_session, incident.id, vault.id, 0)
+    observed = []
 
+    async def caps_event(_kind, event_vault_id, data):
+        if event_vault_id == vault.id and data.get("resource_type") == "caps":
+            observed.append((async_session.in_transaction(), data["amount"]))
+
+    event_bus.subscribe(GameEvent.RESOURCE_COLLECTED, caps_event)
+    try:
+        caps, remaining = await incident_service.sell_unclaimed_item(async_session, incident.id, vault.id, 0)
+    finally:
+        event_bus.unsubscribe(GameEvent.RESOURCE_COLLECTED, caps_event)
+
+    assert observed == [(False, caps)]
     assert caps > 0
     assert remaining == []
     await async_session.refresh(vault)

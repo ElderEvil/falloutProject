@@ -169,7 +169,8 @@ class LootOverflowService:
         """Shared sell flow: pop, reject medical, credit caps without committing.
 
         The caller persists its owner row and commits, so a later failure rolls
-        the credit back with everything else. Returns the caps value and remainder.
+        the credit back with everything else. Returns the caps actually credited
+        and remainder; the caller emits the collection event after commit.
         """
         from app.services.vault_service import vault_service
 
@@ -177,8 +178,10 @@ class LootOverflowService:
         self.reject_medical(loot_item)
         value = self.value_of(loot_item)
         vault = await crud_vault.get(db_session, vault_id)
-        await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=value, commit=False)
-        return value, unclaimed
+        credited = await vault_service.deposit_caps(
+            db_session=db_session, vault_obj=vault, amount=value, commit=False, emit_event=False
+        )
+        return credited, unclaimed
 
 
 loot_overflow_service = LootOverflowService()

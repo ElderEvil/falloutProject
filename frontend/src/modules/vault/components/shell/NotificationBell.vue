@@ -8,6 +8,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/core/components/ui/tooltip'
+import { useObjectivesStore } from '@/modules/progression/stores/objectives'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSse, type SseEvent } from '@/core/composables/useEventStream'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
@@ -34,6 +36,7 @@ interface Notification {
 }
 
 const authStore = useAuthStore()
+const objectivesStore = useObjectivesStore()
 const router = useRouter()
 const { playSound } = useSound()
 const notificationSounds: Partial<Record<string, SoundKey>> = {
@@ -195,8 +198,15 @@ watch(currentSseEvent, (evt) => {
     toast.success(notificationData.message)
   }
   // Objective completion is asynchronous; announce it beyond the bell (progression red line).
-  if (notificationData.notification_type === 'objective_completed') {
+  if (
+    ['objective_completed', 'objectives_refreshed'].includes(notificationData.notification_type)
+  ) {
     toast.success(notificationData.message)
+    if (newNotif.vault_id && objectivesStore.objectivesVaultId === newNotif.vault_id) {
+      void objectivesStore.fetchObjectives(newNotif.vault_id).catch((error) => {
+        handleStoreError(error, 'Failed to reload objectives after progression')
+      })
+    }
   }
 })
 

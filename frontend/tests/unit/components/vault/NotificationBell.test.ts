@@ -573,46 +573,49 @@ describe('NotificationBell SSE watcher null-safety', () => {
     wrapper.unmount()
   })
 
-  it('toasts when an objective-completion notification arrives', async () => {
-    // ARRANGE: authenticated user, SSE delivers an objective_completed notification
-    const authStore = useAuthStore()
-    authStore.token = 'test-token'
-    const { toasts } = useToast()
-    toasts.value = []
+  it.each(['objective_completed', 'objectives_refreshed'])(
+    'toasts when a %s notification arrives',
+    async (notificationType) => {
+      // ARRANGE: authenticated user, SSE delivers an objective_completed notification
+      const authStore = useAuthStore()
+      authStore.token = 'test-token'
+      const { toasts } = useToast()
+      toasts.value = []
 
-    const objectiveData = JSON.stringify({
-      notification: {
-        id: 'n8',
-        notification_type: 'objective_completed',
-        title: 'Objective Complete',
-        message: 'Objective complete: Scrap 1 Baseball bat',
-        priority: 'normal',
-        created_at: '2026-08-11T15:00:00',
-        vault_id: 'vault-1',
-        meta_data: {},
-      },
-    })
-    fetchMock.mockResolvedValue(
-      createMockResponse([encodeSse(objectiveData, 'notification')], { hang: true })
-    )
+      const objectiveData = JSON.stringify({
+        notification: {
+          id: 'n8',
+          notification_type: notificationType,
+          title: 'Objective Complete',
+          message: 'Objective complete: Scrap 1 Baseball bat',
+          priority: 'normal',
+          created_at: '2026-08-11T15:00:00',
+          vault_id: 'vault-1',
+          meta_data: {},
+        },
+      })
+      fetchMock.mockResolvedValue(
+        createMockResponse([encodeSse(objectiveData, 'notification')], { hang: true })
+      )
 
-    // ACT: mount (onMounted starts SSE) and let the stream flush
-    const wrapper = mount(NotificationBell)
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
+      // ACT: mount (onMounted starts SSE) and let the stream flush
+      const wrapper = mount(NotificationBell)
+      await vi.advanceTimersByTimeAsync(0)
+      await flushPromises()
 
-    // ASSERT: announced immediately (progression red line)
-    expect(toasts.value.some((t) => t.message === 'Objective complete: Scrap 1 Baseball bat')).toBe(
-      true
-    )
+      // ASSERT: announced immediately (progression red line)
+      expect(
+        toasts.value.some((t) => t.message === 'Objective complete: Scrap 1 Baseball bat')
+      ).toBe(true)
 
-    // ASSERT: the event also produced a bell entry
-    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
-    await flushPromises()
-    expect(wrapper.text()).toContain('Objective Complete')
+      // ASSERT: the event also produced a bell entry
+      await wrapper.find('button[aria-label="Notifications"]').trigger('click')
+      await flushPromises()
+      expect(wrapper.text()).toContain('Objective Complete')
 
-    wrapper.unmount()
-  })
+      wrapper.unmount()
+    }
+  )
 })
 
 describe('NotificationBell popup accessibility', () => {

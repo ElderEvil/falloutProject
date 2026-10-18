@@ -9,6 +9,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import storage as crud_storage
 from app.crud.vault import vault as vault_crud
@@ -226,3 +227,75 @@ async def test_require_space_locks_the_shared_storage_row(
 
     assert storage is not None
     assert locked_vaults == [vault.id]
+
+
+@pytest.mark.parametrize("starting_caps", [0, 999_998, 999_999])
+async def test_overflow_sale_emits_only_committed_caps(
+    async_session, vault, dweller, make_vault_storage, starting_caps
+):
+    await make_vault_storage(1)
+    exploration, _ = await _completed_with_overflow(
+        async_session,
+        vault,
+        dweller,
+        loots=[
+            {"item_name": "Item A", "quantity": 1, "rarity": "Common", "item_type": "junk"},
+            {"item_name": "Item B", "quantity": 2, "rarity": "Common", "item_type": "junk"},
+        ],
+    )
+    vault_id, exploration_id = vault.id, exploration.id
+    vault.bottle_caps = starting_caps
+    async_session.add(vault)
+    await async_session.commit()
+    observed = []
+
+    async def caps_event(_kind, event_vault_id, data):
+        if event_vault_id == vault_id and data.get("resource_type") == "caps":
+            observed.append((async_session.in_transaction(), data["amount"]))
+
+    event_bus.subscribe(GameEvent.RESOURCE_COLLECTED, caps_event)
+    try:
+        caps, remaining = await rewards_service.sell_unclaimed_item(async_session, exploration_id, 0)
+    finally:
+        event_bus.unsubscribe(GameEvent.RESOURCE_COLLECTED, caps_event)
+    assert remaining == []
+    await async_session.refresh(vault)
+    assert caps == vault.bottle_caps - starting_caps
+    assert observed == ([(False, caps)] if caps else [])
+
+
+async def test_failed_overflow_sale_does_not_emit_caps(async_session, vault, dweller, make_vault_storage):
+    from sqlalchemy import event
+
+    await make_vault_storage(1)
+    exploration, _ = await _completed_with_overflow(
+        async_session,
+        vault,
+        dweller,
+        loots=[
+            {"item_name": "Item A", "quantity": 1, "rarity": "Common", "item_type": "junk"},
+            {"item_name": "Item B", "quantity": 1, "rarity": "Common", "item_type": "junk"},
+        ],
+    )
+    exploration_id, vault_id = exploration.id, vault.id
+    observed = []
+
+    async def caps_event(_kind, event_vault_id, data):
+        if event_vault_id == vault_id and data.get("resource_type") == "caps":
+            observed.append(data)
+
+    def fail_commit(_session):
+        raise RuntimeError("Overflow sale commit failed")
+
+    event_bus.subscribe(GameEvent.RESOURCE_COLLECTED, caps_event)
+    event.listen(async_session.sync_session, "before_commit", fail_commit)
+    try:
+        with pytest.raises(RuntimeError, match="Overflow sale commit failed"):
+            await rewards_service.sell_unclaimed_item(async_session, exploration_id, 0)
+        assert observed == []
+    finally:
+        event_bus.unsubscribe(GameEvent.RESOURCE_COLLECTED, caps_event)
+        event.remove(async_session.sync_session, "before_commit", fail_commit)
+        await async_session.rollback()
+    restored = await crud.exploration.get(async_session, exploration_id)
+    assert len(restored.unclaimed_loot) == 1

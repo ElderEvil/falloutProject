@@ -54,6 +54,20 @@ intact when touching these flows.
 - Ready rewards keep their routine bell/toast event; successful claims show a modal or toast. Notification opt-outs
   affect notification delivery, not reward settlement or the player-opened guide.
 
+### Objective renewal
+
+Daily objectives renew at 00:00 UTC; weekly objectives renew on Monday at 00:00 UTC.
+Vault ticks credit committed production before calling the same refresh policy used
+by the scheduler. Each category's successful UTC period is persisted in the same
+transaction as its assignments, under a vault row lock. Repeated or concurrent calls
+are no-ops; failures leave the period due for the next attempt. Missed periods yield
+one current batch, without replaying historical batches. Ready unclaimed rewards survive.
+The UI retains the Office unlock gate and displays each recurring category's next reset.
+Fresh-task notifications appear in both the bell and a toast.
+
+Existing refresh windows are adopted for the current UTC period to avoid deployment
+resets.
+
 ### Starter teaching rewards (wave 1)
 
 - Fresh standard vaults currently seed **10 residents**, including the family. The starter arc grants seven

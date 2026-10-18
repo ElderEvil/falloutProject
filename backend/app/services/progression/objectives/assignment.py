@@ -65,22 +65,24 @@ class ObjectiveAssignmentService:
     async def clear_weekly_objectives(self, vault_id: UUID4) -> int:
         return await self._clear_category_objectives(vault_id, ObjectiveCategoryEnum.WEEKLY)
 
-    async def refresh_daily_objectives(self, vault_id: UUID4) -> list[Objective]:
-        # Atomic clear + assign: do not commit between operations
-        await self._clear_category_objectives(vault_id, ObjectiveCategoryEnum.DAILY, auto_commit=False)
-        assigned = await self._assign_category_objectives(
-            vault_id, ObjectiveCategoryEnum.DAILY, self.DAILY_COUNT, auto_commit=False
+    async def refresh_daily_objectives(self, vault_id: UUID4, *, auto_commit: bool = True) -> list[Objective]:
+        return await self._refresh_category_objectives(
+            vault_id, ObjectiveCategoryEnum.DAILY, self.DAILY_COUNT, auto_commit
         )
-        await self._db_session.commit()
-        return assigned
 
-    async def refresh_weekly_objectives(self, vault_id: UUID4) -> list[Objective]:
-        # Atomic clear + assign: do not commit between operations
-        await self._clear_category_objectives(vault_id, ObjectiveCategoryEnum.WEEKLY, auto_commit=False)
-        assigned = await self._assign_category_objectives(
-            vault_id, ObjectiveCategoryEnum.WEEKLY, self.WEEKLY_COUNT, auto_commit=False
+    async def refresh_weekly_objectives(self, vault_id: UUID4, *, auto_commit: bool = True) -> list[Objective]:
+        return await self._refresh_category_objectives(
+            vault_id, ObjectiveCategoryEnum.WEEKLY, self.WEEKLY_COUNT, auto_commit
         )
-        await self._db_session.commit()
+
+    async def _refresh_category_objectives(
+        self, vault_id: UUID4, category: ObjectiveCategoryEnum, count: int, auto_commit: bool
+    ) -> list[Objective]:
+        await self._clear_category_objectives(vault_id, category, auto_commit=False)
+        await self._db_session.flush()
+        assigned = await self._assign_category_objectives(vault_id, category, count, auto_commit=False)
+        if auto_commit:
+            await self._db_session.commit()
         return assigned
 
     async def _assign_category_objectives(

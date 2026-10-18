@@ -5,6 +5,7 @@ import logging
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.event_bus import GameEvent, event_bus
 from app.crud.dweller import dweller as crud_dweller
 from app.crud.incident import incident_crud
 from app.crud.room import room as room_crud
@@ -285,6 +286,10 @@ class IncidentService:
         incident.unclaimed_loot = unclaimed
         db_session.add(incident)
         await db_session.commit()
+        if value > 0:
+            await event_bus.emit(
+                GameEvent.RESOURCE_COLLECTED, incident.vault_id, {"resource_type": "caps", "amount": value}
+            )
         return value, unclaimed
 
     async def assign_responders(

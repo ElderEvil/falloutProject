@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import UUID4, Field, model_validator
 
 from app.models.objective import ObjectiveBase
@@ -17,6 +19,7 @@ class ObjectiveCreate(ObjectiveBase):
 class ObjectiveRead(ObjectiveBase):
     template_key: str | None = Field(default=None, max_length=160)
     id: UUID4
+    resets_at: datetime | None = None
     progress: int
     total: int
     is_completed: bool

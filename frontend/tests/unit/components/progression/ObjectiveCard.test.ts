@@ -116,4 +116,17 @@ describe('ObjectiveCard', () => {
     })
     expect(ordinary.text()).not.toContain(message)
   })
+  it('shows the reset time and protects earned rewards in the explanation', () => {
+    const card = mount(ObjectiveCard, {
+      props: {
+        objective: objective({
+          id: 'daily-water',
+          category: 'daily',
+          resets_at: '2026-10-20T00:00:00Z',
+        }),
+      },
+    })
+    expect(card.text()).toContain('Next reset:')
+    expect(card.text()).toContain('Earned rewards stay claimable')
+  })
 })

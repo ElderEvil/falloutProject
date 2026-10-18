@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.234.3 (2026-10-18)
+
+### Bug Fixes
+
+* **quests:** widen quest text limits to match authored prose ([#1078](https://github.com/ElderEvil/falloutProject/issues/1078)) d3afd91
+
+### Code Refactoring
+
+* build all items via item_factory and share departure helpers ([#1077](https://github.com/ElderEvil/falloutProject/issues/1077)) fc05a4f
+
 ## 2.234.2 (2026-10-18)
 
 ### Bug Fixes

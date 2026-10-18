@@ -28,6 +28,28 @@ class ArenaCreature(BaseModel):
     is_robot: bool = False
 
 
+class ArenaActiveSkill(BaseModel):
+    """Weapon-derived manual attack and its match-local charge."""
+
+    name: str
+    description: str
+    charge: int = Field(ge=0, le=100)
+    queued: bool
+
+
+class ArenaSkillRequest(BaseModel):
+    """Select a participating dweller to use their active skill."""
+
+    fighter_id: UUID4
+
+
+class ArenaSkillQueued(BaseModel):
+    """The attack will resolve on the next combat tick."""
+
+    room_id: str
+    fighter_id: str
+
+
 class ArenaFighter(BaseModel):
     """A single selected fighter with live HP and combat power."""
 
@@ -37,6 +59,7 @@ class ArenaFighter(BaseModel):
     health: int
     max_health: int
     power: float
+    active_skill: ArenaActiveSkill | None = None
     is_creature: bool = False
     is_robot: bool = False
     image_url: str | None = None

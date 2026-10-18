@@ -3348,6 +3348,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/arena/vault/{vault_id}/rooms/{room_id}/skill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue Arena Skill
+         * @description Queue a charged dweller skill for the next Arena combat tick.
+         */
+        post: operations["queue_arena_skill_api_v1_arena_vault__vault_id__rooms__room_id__skill_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/radio/vault/{vault_id}/stats": {
         parameters: {
             query?: never;
@@ -5180,6 +5200,20 @@ export interface components {
          */
         AgeGroupEnum: "child" | "teen" | "adult" | "elder";
         /**
+         * ArenaActiveSkill
+         * @description Weapon-derived manual attack and its match-local charge.
+         */
+        ArenaActiveSkill: {
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /** Charge */
+            charge: number;
+            /** Queued */
+            queued: boolean;
+        };
+        /**
          * ArenaCreature
          * @description A selectable hunt opponent from the creature catalog.
          */
@@ -5235,6 +5269,7 @@ export interface components {
             max_health: number;
             /** Power */
             power: number;
+            active_skill?: components["schemas"]["ArenaActiveSkill"] | null;
             /**
              * Is Creature
              * @default false
@@ -5364,6 +5399,27 @@ export interface components {
             image_url?: string | null;
             /** Thumbnail Url */
             thumbnail_url?: string | null;
+        };
+        /**
+         * ArenaSkillQueued
+         * @description The attack will resolve on the next combat tick.
+         */
+        ArenaSkillQueued: {
+            /** Room Id */
+            room_id: string;
+            /** Fighter Id */
+            fighter_id: string;
+        };
+        /**
+         * ArenaSkillRequest
+         * @description Select a participating dweller to use their active skill.
+         */
+        ArenaSkillRequest: {
+            /**
+             * Fighter Id
+             * Format: uuid4
+             */
+            fighter_id: string;
         };
         /**
          * ArenaState
@@ -16360,6 +16416,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ArenaFightStarted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    queue_arena_skill_api_v1_arena_vault__vault_id__rooms__room_id__skill_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArenaSkillRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArenaSkillQueued"];
                 };
             };
             /** @description Validation Error */

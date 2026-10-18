@@ -143,6 +143,7 @@ const storeMock = vi.hoisted(() => {
     fetchState: vi.fn(),
     setFighters: vi.fn(),
     fetchCreatures: vi.fn(),
+    queueSkill: vi.fn().mockResolvedValue(true),
     creatures: [
       { key: 'training-eyebot', name: 'Training Eyebot', power: 30, max_hp: 20, is_robot: true },
       {
@@ -180,6 +181,7 @@ vi.mock('@/modules/rooms/stores/arena', () => ({
     fetchCreatures: storeMock.fetchCreatures,
     creatures: storeMock.creatures,
     startFight: vi.fn().mockResolvedValue(true),
+    queueSkill: storeMock.queueSkill,
     clearEvents: vi.fn().mockResolvedValue(true),
     reset: vi.fn(),
   }),
@@ -217,6 +219,47 @@ const pickOption = async (slot: ReturnType<typeof slots>[number], name: string) 
 
 describe('ArenaModal', () => {
   it.each([
+    [100, false, 80, 0, true],
+    [99, false, 80, 0, false],
+    [100, true, 80, 0, false],
+    [100, false, 0, 0, false],
+    [100, false, 80, 3, false],
+  ] as const)(
+    'gates a skill at charge %i, queued %s, hp %i, countdown %i',
+    async (charge, queued, health, countdown, enabled) => {
+      const fighter = {
+        ...storeMock.readyRoom.team_a[0],
+        health,
+        active_skill: { name: 'Aimed Shot', description: 'Deal bonus damage.', charge, queued },
+      }
+      storeMock.currentRoom = {
+        ...storeMock.readyRoom,
+        team_a: [fighter],
+        fighters: [fighter, ...storeMock.readyRoom.team_b],
+        fight_started: true,
+        can_start: false,
+        countdown_remaining: countdown,
+      }
+      const wrapper = mountModal()
+      await flushPromises()
+      const skills = wrapper.get('section[aria-label="Active combat skills"]')
+      expect(skills.get('[role="progressbar"]').attributes('aria-valuenow')).toBe(String(charge))
+      const button = skills.get('button')
+      expect(button.attributes('disabled') === undefined).toBe(enabled)
+      if (enabled) {
+        await button.trigger('click')
+        await flushPromises()
+        expect(storeMock.queueSkill).toHaveBeenCalledWith(
+          'vault-1',
+          'room-1',
+          fighter.id,
+          'test-token'
+        )
+      }
+    }
+  )
+
+  it.each([
     [1, ['duel'], true, true],
     [2, ['duel', 'brawl'], false, true],
     [3, ['duel', 'brawl', 'hunt'], false, false],
@@ -236,6 +279,7 @@ describe('ArenaModal', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     storeMock.currentRoom = storeMock.readyRoom
+    storeMock.queueSkill.mockClear()
     storeMock.fetchState.mockReset().mockResolvedValue(true)
     storeMock.setFighters.mockReset().mockResolvedValue(true)
     storeMock.fetchCreatures.mockReset().mockResolvedValue(true)

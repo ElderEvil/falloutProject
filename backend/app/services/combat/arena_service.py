@@ -31,6 +31,7 @@ from app.models.arena_state import ArenaState
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.schemas.arena import (
+    ArenaActiveSkill,
     ArenaFighter,
     ArenaMatchEventOut,
     ArenaRoomState,
@@ -39,6 +40,7 @@ from app.schemas.arena import (
 from app.schemas.arena import (
     ArenaState as ArenaStateOut,
 )
+from app.services.combat.weapon_skill_service import CHARGE_PER_SECOND, MAX_CHARGE, weapon_skill
 from app.services.exploration.data_loader import list_arena_creatures
 from app.services.game_tick.tick_results import ArenaEventStats, ArenaRoomStats, ArenaStats
 from app.utils.combat import combat_power
@@ -232,6 +234,8 @@ class ArenaService:
         state.last_fight_at = None
         state.fight_started_at = None
         state.knocked_out_ids = None
+        state.skill_charge = None
+        state.queued_skill_ids = None
         db_session.add(state)
         self._clear_room_state(str(room.id))
 
@@ -363,8 +367,18 @@ class ArenaService:
         return None
 
     @staticmethod
-    def _participant_out(participant: ArenaParticipant) -> ArenaFighter:
+    def _participant_out(participant: ArenaParticipant, state: ArenaState) -> ArenaFighter:
         return ArenaFighter(
+            active_skill=(
+                ArenaActiveSkill(
+                    name=weapon_skill(participant.dweller).name,
+                    description=weapon_skill(participant.dweller).description,
+                    charge=(state.skill_charge or {}).get(participant.key, 0),
+                    queued=participant.key in (state.queued_skill_ids or []),
+                )
+                if participant.dweller
+                else None
+            ),
             id=participant.key,
             name=participant.name,
             level=participant.dweller.level if participant.dweller else 0,
@@ -452,9 +466,9 @@ class ArenaService:
                     available_modes=available_modes,
                     fighter_a_id=str(state.fighter_a_id) if state.fighter_a_id else None,
                     fighter_b_id=str(state.fighter_b_id) if state.fighter_b_id else None,
-                    fighters=[self._participant_out(team[0]) for team in (team_a, team_b) if team],
-                    team_a=[self._participant_out(p) for p in team_a],
-                    team_b=[self._participant_out(p) for p in team_b],
+                    fighters=[self._participant_out(team[0], state) for team in (team_a, team_b) if team],
+                    team_a=[self._participant_out(p, state) for p in team_a],
+                    team_b=[self._participant_out(p, state) for p in team_b],
                     roster=[
                         ArenaRosterEntry(
                             id=str(d.id),
@@ -524,6 +538,8 @@ class ArenaService:
                 state.last_fight_at = None
                 state.fight_started_at = None
                 state.knocked_out_ids = None
+                state.skill_charge = None
+                state.queued_skill_ids = None
                 self._clear_room_state(str(state.room_id))
                 await arena_match_event_crud.delete_for_room(db_session, state.room_id)
             db_session.add(state)
@@ -562,6 +578,63 @@ class ArenaService:
         )
         await db_session.commit()
         return room
+
+    async def queue_skill(self, db_session: AsyncSession, room_id: UUID4, fighter_id: UUID4, vault_id: UUID4) -> None:
+        """Reserve a charged attack under the same room lock as combat ticks."""
+        room = await self._get_arena_room(db_session, room_id, vault_id)
+        state = await arena_state_crud.get_for_update(db_session, room.id)
+        if state is None or state.fight_started_at is None or state.last_fight_at is not None:
+            raise ValidationException(detail="Skills require an active match")
+        self._validate_mode_tier(room, state.mode or ArenaMode.DUEL)
+        elapsed = (datetime.utcnow() - state.fight_started_at).total_seconds()
+        if elapsed < game_config.game_loop.arena_countdown_seconds:
+            raise ValidationException(detail="Wait for the countdown to finish")
+        teams = await self._teams_from_state(db_session, room, state)
+        key = str(fighter_id)
+        fighter = next((p for team in teams for p in team if p.key == key), None)
+        if fighter is None or fighter.dweller is None or fighter.health <= 0:
+            raise ValidationException(detail="Choose a standing dweller in this match")
+        charge = dict(state.skill_charge or {})
+        queued = list(state.queued_skill_ids or [])
+        if key in queued or charge.get(key, 0) < MAX_CHARGE:
+            raise ValidationException(detail="Skill is not charged or is already queued")
+        charge[key] = 0
+        state.skill_charge = charge
+        state.queued_skill_ids = [*queued, key]
+        db_session.add(state)
+        await db_session.commit()
+
+    def _resolve_skills(
+        self,
+        db_session: AsyncSession,
+        room: Room,
+        state: ArenaState,
+        team_a: list[ArenaParticipant],
+        team_b: list[ArenaParticipant],
+        seq: int,
+    ) -> None:
+        """Resolve reserved attacks simultaneously; the normal round settles KOs/rewards."""
+        queued = set(state.queued_skill_ids or [])
+        attacks = [
+            (member, enemies, weapon_skill(member.dweller))
+            for allies, enemies in ((team_a, team_b), (team_b, team_a))
+            for member in allies
+            if member.key in queued and member.health > 0 and member.dweller is not None
+        ]
+        state.queued_skill_ids = None
+        for attacker, enemies, skill in attacks:
+            targets = sorted((p for p in enemies if p.health > 0), key=lambda p: p.health)
+            for target in targets if skill.area else targets[:1]:
+                hits = self._apply_team_damage(str(room.id), [target], attacker.power * skill.multiplier)
+                damage = sum(amount for _, amount in hits)
+                db_session.add(
+                    ArenaMatchEvent(
+                        room_id=room.id,
+                        round_seq=seq,
+                        kind="skill",
+                        message=f"{attacker.short_name} uses {skill.name} on {target.short_name} for {damage}",
+                    )
+                )
 
     @staticmethod
     def _locked_out() -> dict:
@@ -621,6 +694,8 @@ class ArenaService:
                 await self._release_fighters(db_session, state)
                 state.fight_started_at = None
                 state.knocked_out_ids = None
+                state.skill_charge = None
+                state.queued_skill_ids = None
                 db_session.add(state)
                 self._clear_room_state(str(room.id))
                 continue
@@ -642,25 +717,34 @@ class ArenaService:
     @staticmethod
     def _team_damage(team: list[ArenaParticipant], seconds_passed: int) -> float:
         """Damage per tick from standing attackers only; knocked-out members deal none."""
-        return sum(member.power for member in team if member.health > 0) / 5 * seconds_passed
+        return sum(member.power for member in team if member.health > 0) / 10 * max(0, seconds_passed)
 
     def _apply_team_damage(
         self,
         room_key: str,
         defenders: list[ArenaParticipant],
         damage: float,
+        *,
+        seconds_passed: int | None = None,
     ) -> list[tuple[ArenaParticipant, int]]:
         hits: list[tuple[ArenaParticipant, int]] = []
         pool = damage
         for defender in sorted((member for member in defenders if member.health > 0), key=lambda member: member.health):
             carry_key = (room_key, defender.key)
-            carried = self._damage_carry.get(carry_key, 0.0) + pool
+            # Ordinary training hits cannot remove more than 25% of max HP per
+            # five seconds; skill bursts deliberately bypass this pacing cap.
+            capped = (
+                min(pool, defender.max_health * 0.05 * max(0, seconds_passed)) if seconds_passed is not None else pool
+            )
+            carried = self._damage_carry.get(carry_key, 0.0) + capped
             total = int(carried)
             self._damage_carry[carry_key] = carried - total
             before = defender.health
             defender.health = max(0, defender.health - total)
             hits.append((defender, total))
             spill = total - min(total, before)
+            if defender.health == 0:
+                spill += max(0, pool - capped)
             if spill <= 0:
                 break
             pool = float(spill)
@@ -709,16 +793,19 @@ class ArenaService:
         *,
         state: ArenaState | None = None,
     ) -> dict:
-        # Damage dealt by each team's aggregate power (20% per second, matching incident
-        # math). Fractional damage carries per participant between ticks so near-equal
+        # Arena normal attacks use 10% of team power per second, half the incident
+        # rate. Fractional damage carries per participant between ticks so near-equal
         # powers stay visibly different instead of both truncating to the same int.
         room_key = str(room.id)
         state = state or await arena_state_crud.get_or_create(db_session, room.id)
         damage_from_a = self._team_damage(team_a, seconds_passed)
         damage_from_b = self._team_damage(team_b, seconds_passed)
 
-        hits_on_b = self._apply_team_damage(room_key, team_b, damage_from_a)
-        hits_on_a = self._apply_team_damage(room_key, team_a, damage_from_b)
+        seq = self._round_seq.get(room_key, 1)
+        self._resolve_skills(db_session, room, state, team_a, team_b, seq)
+
+        hits_on_b = self._apply_team_damage(room_key, team_b, damage_from_a, seconds_passed=seconds_passed)
+        hits_on_a = self._apply_team_damage(room_key, team_a, damage_from_b, seconds_passed=seconds_passed)
 
         knocked_out = set(state.knocked_out_ids or [])
         for participant in (*team_a, *team_b):
@@ -733,7 +820,6 @@ class ArenaService:
                 participant.dweller.health = participant.health
             db_session.add(participant.dweller)
 
-        seq = self._round_seq.get(room_key, 1)
         self._emit_hit_events(db_session, room, seq, team_b, hits_on_a)
         self._emit_hit_events(db_session, room, seq, team_a, hits_on_b)
         self._round_seq[room_key] = seq + 1
@@ -741,6 +827,13 @@ class ArenaService:
         a_defeated = self._team_defeated(team_a)
         b_defeated = self._team_defeated(team_b)
         if not a_defeated and not b_defeated:
+            state.skill_charge = {
+                p.key: min(
+                    MAX_CHARGE, (state.skill_charge or {}).get(p.key, 0) + max(0, seconds_passed) * CHARGE_PER_SECOND
+                )
+                for p in (*team_a, *team_b)
+                if p.dweller is not None and p.health > 0
+            }
             state.knocked_out_ids = sorted(knocked_out) or None
             db_session.add(state)
             return {
@@ -771,6 +864,8 @@ class ArenaService:
         labels = TEAM_LABELS.get(state.mode or ArenaMode.DUEL)
         winner_label = labels[0 if winner_team is team_a else 1] if labels else winner.short_name
         loser_label = labels[0 if loser_team is team_a else 1] if labels else loser.short_name
+        state.skill_charge = None
+        state.queued_skill_ids = None
         state.last_fight_at = datetime.utcnow()
         state.knocked_out_ids = None
         await self._release_fighters(db_session, state)

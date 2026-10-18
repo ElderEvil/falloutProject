@@ -23,15 +23,28 @@ interface Props {
   damageNumbers: Array<{ id: number; amount: number }>
   options: ArenaRosterEntry[]
   pickerOpen: boolean
+  skillEnabled?: boolean
+  skillPending?: boolean
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
+  skill: [fighterId: string]
   clear: [side: ArenaSlotKey]
   togglePicker: [side: ArenaSlotKey]
   select: [side: ArenaSlotKey, entry: ArenaRosterEntry]
 }>()
+
+const skill = computed(() => props.fighter?.active_skill)
+const skillReady = computed(() => !!skill.value && skill.value.charge >= 100 && !skill.value.queued)
+const canUseSkill = computed(
+  () =>
+    props.skillEnabled &&
+    skillReady.value &&
+    !props.skillPending &&
+    (props.fighter?.health ?? 0) > 0
+)
 
 const powerLabel = computed(() =>
   props.fighter?.power != null ? Math.round(props.fighter.power) : null
@@ -47,7 +60,8 @@ const healthPercent = (f: ArenaSlotFighter | null) =>
       <ArenaDamageNumbers :numbers="damageNumbers" />
       <CardHeader class="justify-items-center text-center">
         <div
-          class="fighter-portrait flex size-10 items-center justify-center overflow-hidden rounded-full border-2 border-theme-primary bg-surface-raised"
+          :class="{ 'fighter-hit': damageNumbers.length > 0, 'fighter-channel': skill?.queued }"
+          class="fighter-portrait flex size-14 items-center justify-center overflow-hidden rounded-full border-2 border-theme-primary bg-surface-raised"
         >
           <DwellerPortrait
             :image-url="fighter.image_url"
@@ -70,6 +84,39 @@ const healthPercent = (f: ArenaSlotFighter | null) =>
           >{{ fighter.health }}/{{ fighter.max_health }}</span
         >
       </CardContent>
+      <div v-if="skill" class="flex flex-col gap-1 px-3">
+        <Button
+          size="xs"
+          :variant="skillReady && skillEnabled ? 'default' : 'outline'"
+          :disabled="!canUseSkill"
+          :aria-label="`Use ${skill.name} for ${fighter.name}`"
+          :title="skill.description"
+          :aria-describedby="`arena-skill-${fighter.id}`"
+          class="h-auto min-h-9 w-full min-w-0 gap-1.5 px-2 py-1"
+          :class="{ 'skill-ready': canUseSkill }"
+          @click="emit('skill', fighter.id)"
+        >
+          <Icon
+            icon="mdi:lightning-bolt"
+            class="hidden size-3.5 shrink-0 sm:inline"
+            :ariaHidden="true"
+          />
+          <span class="whitespace-normal">{{ skill.name }}</span>
+        </Button>
+        <div class="flex items-center gap-1.5">
+          <Progress
+            :model-value="skill.charge"
+            :label="`${fighter.name} skill charge`"
+            size="xs"
+            tone="warning"
+            class="flex-1"
+          />
+          <span class="shrink-0 text-[10px] tabular-nums text-muted-foreground">{{
+            skill.queued || skillPending ? 'QUEUED' : skillReady ? 'READY' : `${skill.charge}%`
+          }}</span>
+        </div>
+        <span :id="`arena-skill-${fighter.id}`" class="sr-only">{{ skill.description }}</span>
+      </div>
       <CardFooter v-if="canChange" class="flex flex-wrap justify-center gap-1">
         <Button variant="outline" size="xs" @click="emit('togglePicker', side)">SWAP</Button>
         <Button
@@ -129,3 +176,48 @@ const healthPercent = (f: ArenaSlotFighter | null) =>
     </div>
   </div>
 </template>
+
+<style scoped>
+.fighter-hit {
+  animation: fighter-impact 0.4s ease-out;
+}
+.fighter-channel {
+  animation: fighter-channel 0.6s ease-in-out infinite alternate;
+}
+.skill-ready {
+  animation: skill-ready 1.6s ease-in-out infinite alternate;
+}
+@keyframes fighter-impact {
+  15%,
+  45% {
+    transform: translateX(-5px) rotate(-4deg);
+    filter: brightness(1.8);
+  }
+  30%,
+  60% {
+    transform: translateX(5px) rotate(4deg);
+  }
+  to {
+    transform: none;
+    filter: none;
+  }
+}
+@keyframes fighter-channel {
+  to {
+    box-shadow: 0 0 20px var(--color-warning);
+    transform: scale(1.06);
+  }
+}
+@keyframes skill-ready {
+  to {
+    box-shadow: 0 0 12px var(--color-theme-primary);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fighter-hit,
+  .fighter-channel,
+  .skill-ready {
+    animation: none;
+  }
+}
+</style>

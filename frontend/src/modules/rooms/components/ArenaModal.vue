@@ -23,6 +23,7 @@ import {
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useSound } from '@/core/composables/useSound'
 import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import ArenaFighterSlot from './ArenaFighterSlot.vue'
@@ -68,6 +69,7 @@ const EMPTY_DRAFT: DraftSlots = { a: null, b: null, c: null, d: null }
 
 const authStore = useAuthStore()
 const toast = useToast()
+const { playSound } = useSound()
 const { management: dwellerManagementStore } = useDwellerStore()
 const medicalStore = useDwellerMedicalStore()
 const vaultStore = useVaultStore()
@@ -89,6 +91,7 @@ const botPicker = ref<ArenaTeamSide | null>(null)
 const partnerSlot = (side: ArenaTeamSide): ArenaSlotKey => (side === 'A' ? 'c' : 'd')
 const draftDirty = ref(false)
 const isStarting = ref(false)
+const pendingSkills = ref(new Set<string>())
 let damageSeq = 0
 let loadSequence = 0
 const pendingDamageTimers = new Set<ReturnType<typeof setTimeout>>()
@@ -115,6 +118,17 @@ const teamFighters = computed<ArenaFighter[]>(() => [
   ...(roomState.value?.team_b ?? []),
 ])
 
+const queueSkill = async (fighterId: string) => {
+  if (!authStore.token || pendingSkills.value.has(fighterId)) return
+  pendingSkills.value.add(fighterId)
+  try {
+    await arenaStore.queueSkill(props.vaultId, props.roomId, fighterId, authStore.token)
+    applyState()
+  } finally {
+    pendingSkills.value.delete(fighterId)
+  }
+}
+
 const damageForId = (fighterId: string | null) =>
   fighterId ? damageNumbers.value.filter((entry) => entry.fighterId === fighterId) : []
 
@@ -132,7 +146,57 @@ const recordDamage = (fighter: ArenaFighter) => {
   previousHp.value[fighter.id] = fighter.health
 }
 
+const seenEvents = new Set<string>()
+const previousCharge = new Map<string, number>()
+let feedbackPrimed = false
+let lastCountdown = 0
+let lastStarted = false
+const skillBurst = ref<{ id: string; message: string } | null>(null)
+let burstTimer: ReturnType<typeof setTimeout> | undefined
+onUnmounted(() => clearTimeout(burstTimer))
+
+const recordFeedback = () => {
+  const state = roomState.value
+  if (!state) return
+  const fresh = state.events.filter((event) => !seenEvents.has(event.id))
+  for (const event of state.events) seenEvents.add(event.id)
+  const newlyReady = teamFighters.value.map((fighter) => {
+    const charge = fighter.active_skill?.charge ?? 0
+    const before = previousCharge.get(fighter.id)
+    previousCharge.set(fighter.id, charge)
+    return before !== undefined && before < 100 && charge >= 100 && fighter.health > 0
+  })
+  const ready = newlyReady.some(Boolean)
+  if (feedbackPrimed) {
+    const skill = [...fresh].reverse().find((event) => event.kind === 'skill')
+    if (fresh.some((event) => event.kind === 'finish')) playSound('arenaFinish')
+    else if (skill) playSound('arenaSkill')
+    else if (ready && !state.match_done) playSound('arenaReady')
+    else if (state.countdown_remaining > 0 && state.countdown_remaining !== lastCountdown)
+      playSound('arenaCountdown')
+    else if (
+      state.fight_started &&
+      !state.match_done &&
+      state.countdown_remaining === 0 &&
+      (!lastStarted || lastCountdown > 0)
+    )
+      playSound('arenaStart')
+    else if (fresh.some((event) => event.kind === 'hit')) playSound('incidentHit')
+    if (skill) {
+      skillBurst.value = { id: skill.id, message: skill.message }
+      clearTimeout(burstTimer)
+      burstTimer = setTimeout(() => {
+        skillBurst.value = null
+      }, 1600)
+    }
+  }
+  lastCountdown = state.countdown_remaining
+  lastStarted = state.fight_started
+  feedbackPrimed = true
+}
+
 const applyState = () => {
+  recordFeedback()
   for (const fighter of teamFighters.value) recordDamage(fighter)
   const liveIds = new Set(teamFighters.value.map((f) => f.id))
   for (const id of Object.keys(previousHp.value)) {
@@ -561,7 +625,10 @@ const startFight = async () => {
   isStarting.value = true
   try {
     const ok = await arenaStore.startFight(props.vaultId, props.roomId, authStore.token)
-    if (ok) previousHp.value = {}
+    if (ok) {
+      previousHp.value = {}
+      applyState()
+    }
   } finally {
     isStarting.value = false
   }
@@ -632,7 +699,7 @@ const updateMode = (value: unknown) => {
             <CardTitle class="sr-only">Match</CardTitle>
             <div class="flex flex-wrap items-center justify-between gap-2">
               <!-- @vue-ignore -->
-              <TabsList variant="line" aria-label="Match mode">
+              <TabsList v-if="canChangeFighters" variant="line" aria-label="Match mode">
                 <!-- @vue-ignore -->
                 <TabsTrigger
                   v-for="(option, index) in MODE_OPTIONS"
@@ -650,10 +717,17 @@ const updateMode = (value: unknown) => {
                   <Icon v-if="!availableModes.includes(option.value)" icon="mdi:lock-outline" />
                 </TabsTrigger>
               </TabsList>
+              <span
+                v-if="isFighting"
+                class="text-xs font-semibold tracking-wider text-theme-primary"
+                >{{ mode.toUpperCase() }} · LIVE MATCH</span
+              >
               <Badge :variant="canStart ? 'default' : 'outline'">{{ statusLabel }}</Badge>
             </div>
-            <CardDescription class="text-xs">{{ modeDescription }}</CardDescription>
-            <p v-if="mode !== 'duel'" class="text-xs text-muted-foreground">
+            <CardDescription v-if="canChangeFighters" class="text-xs">{{
+              modeDescription
+            }}</CardDescription>
+            <p v-if="mode !== 'duel' && canChangeFighters" class="text-xs text-muted-foreground">
               Bots reset each match and earn no rewards.
             </p>
           </CardHeader>
@@ -668,7 +742,7 @@ const updateMode = (value: unknown) => {
                 </AlertDescription>
               </Alert>
               <template v-else>
-                <div v-if="mode === 'hunt'" class="flex flex-col gap-2">
+                <div v-if="mode === 'hunt' && canChangeFighters" class="flex flex-col gap-2">
                   <!-- @vue-ignore -->
                   <ToggleGroup
                     v-if="huntPresets.length"
@@ -701,7 +775,7 @@ const updateMode = (value: unknown) => {
                   >
                 </Alert>
                 <div
-                  class="teams-row grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 sm:gap-4"
+                  class="teams-row relative grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 sm:gap-4"
                 >
                   <template v-for="side in TEAM_SIDES" :key="side">
                     <div
@@ -751,7 +825,7 @@ const updateMode = (value: unknown) => {
                         <div v-for="slot in slotsFor(side)" :key="slot" class="min-w-0">
                           <!-- @vue-ignore -->
                           <ToggleGroup
-                            v-if="slot === partnerSlot(side)"
+                            v-if="slot === partnerSlot(side) && canChangeFighters"
                             type="single"
                             variant="outline"
                             size="sm"
@@ -789,6 +863,9 @@ const updateMode = (value: unknown) => {
                             v-else
                             :side="slot"
                             :fighter="slotFighter(slot)"
+                            :skill-enabled="isFighting && countdown === 0"
+                            :skill-pending="pendingSkills.has(draft[slot] ?? '')"
+                            @skill="queueSkill"
                             :can-change="canChangeFighters"
                             :damage-numbers="damageForId(draft[slot])"
                             :options="pickerOptions(slot)"
@@ -804,6 +881,15 @@ const updateMode = (value: unknown) => {
                 </div>
               </template>
 
+              <div
+                v-if="skillBurst"
+                :key="skillBurst.id"
+                role="status"
+                class="arena-skill-burst relative overflow-hidden rounded border border-warning/40 px-3 py-2 text-center text-xs font-semibold text-warning"
+              >
+                <Icon icon="mdi:lightning-bolt" class="mr-1 inline size-4" :ariaHidden="true" />
+                {{ skillBurst.message }}
+              </div>
               <Alert v-if="winnerName" class="result-banner">
                 <Icon icon="mdi:trophy" :ariaHidden="true" />
                 <AlertTitle v-if="roomState?.mode === 'duel'"
@@ -845,90 +931,79 @@ const updateMode = (value: unknown) => {
         </Card>
       </Tabs>
 
-      <section v-if="bench.length" aria-label="Arena bench">
-        <Card size="sm">
-          <CardHeader>
-            <div class="flex items-center justify-between gap-2">
-              <CardTitle class="flex items-center gap-2">
-                <Icon
-                  icon="mdi:account-group-outline"
-                  class="size-4 text-theme-primary"
-                  :ariaHidden="true"
-                />
-                Bench
-              </CardTitle>
-              <Badge variant="secondary">{{ bench.length }} waiting</Badge>
-            </div>
-          </CardHeader>
-          <CardContent class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            <Card v-for="entry in bench" :key="entry.id" size="sm" class="gap-2 py-3">
-              <CardHeader>
-                <div class="flex items-start gap-2">
-                  <DwellerPortrait
-                    :image-url="entry.image_url"
-                    :thumbnail-url="entry.thumbnail_url"
-                    :alt="entry.name"
-                    prefer-thumbnail
-                    image-class="size-10 shrink-0 rounded-md object-cover"
-                    fallback-class="size-10 shrink-0 text-theme-primary"
-                  />
-                  <div class="flex min-w-0 flex-1 flex-col gap-1">
-                    <CardTitle class="break-words">{{ entry.name }}</CardTitle>
-                    <CardDescription>Level {{ entry.level }}</CardDescription>
-                  </div>
-                  <TooltipProvider v-if="!isFighting" :delay-duration="200">
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <Button
-                          size="icon-sm"
-                          variant="ghost"
-                          :aria-label="`Remove ${entry.name} from Arena`"
-                          @click="unassign(entry)"
-                        >
-                          <Icon icon="mdi:account-minus-outline" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Remove {{ entry.name }} from Arena</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              </CardHeader>
-              <CardContent class="flex flex-col gap-2">
-                <span class="text-xs text-muted-foreground tabular-nums"
-                  >{{ entry.health }} / {{ entry.max_health }} HP</span
-                >
-                <Progress
-                  :model-value="hpPercent(entry)"
-                  :tone="hpTone(entry)"
-                  :label="`${entry.name} health`"
-                  :value-text="`${entry.health} of ${entry.max_health} HP`"
-                />
-              </CardContent>
-            </Card>
-          </CardContent>
-        </Card>
-      </section>
+      <details v-if="bench.length" aria-label="Arena bench" class="border-t border-border pt-2">
+        <summary
+          class="cursor-pointer py-1 text-xs text-muted-foreground focus-visible:outline focus-visible:outline-ring"
+        >
+          Bench · {{ bench.length }} waiting
+        </summary>
 
-      <Card size="sm">
-        <CardHeader>
-          <div class="flex items-center justify-between gap-2">
-            <CardTitle class="flex items-center gap-2">
-              <Icon
-                icon="mdi:clipboard-text-clock-outline"
-                class="size-4 text-theme-primary"
-                :ariaHidden="true"
+        <div class="grid gap-2 pt-2 sm:grid-cols-2 lg:grid-cols-3">
+          <Card v-for="entry in bench" :key="entry.id" size="sm" class="gap-2 py-3">
+            <CardHeader>
+              <div class="flex items-start gap-2">
+                <DwellerPortrait
+                  :image-url="entry.image_url"
+                  :thumbnail-url="entry.thumbnail_url"
+                  :alt="entry.name"
+                  prefer-thumbnail
+                  image-class="size-10 shrink-0 rounded-md object-cover"
+                  fallback-class="size-10 shrink-0 text-theme-primary"
+                />
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <CardTitle class="break-words">{{ entry.name }}</CardTitle>
+                  <CardDescription>Level {{ entry.level }}</CardDescription>
+                </div>
+                <TooltipProvider v-if="!isFighting" :delay-duration="200">
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        :aria-label="`Remove ${entry.name} from Arena`"
+                        @click="unassign(entry)"
+                      >
+                        <Icon icon="mdi:account-minus-outline" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Remove {{ entry.name }} from Arena</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </CardHeader>
+            <CardContent class="flex flex-col gap-2">
+              <span class="text-xs text-muted-foreground tabular-nums"
+                >{{ entry.health }} / {{ entry.max_health }} HP</span
+              >
+              <Progress
+                :model-value="hpPercent(entry)"
+                :tone="hpTone(entry)"
+                :label="`${entry.name} health`"
+                :value-text="`${entry.health} of ${entry.max_health} HP`"
               />
-              Battle Journal
-            </CardTitle>
-            <Button v-if="roomState?.events.length" variant="ghost" size="xs" @click="clearJournal"
-              >CLEAR</Button
-            >
-          </div>
-        </CardHeader>
-        <CardContent>
+            </CardContent>
+          </Card>
+        </div>
+      </details>
+
+      <details aria-label="Battle journal" class="border-t border-border pt-2">
+        <summary
+          class="cursor-pointer py-1 text-xs text-muted-foreground focus-visible:outline focus-visible:outline-ring"
+        >
+          Battle journal · {{ roomState?.events.length ?? 0 }} entries
+        </summary>
+        <div class="flex flex-col gap-2 pt-2">
+          <Button
+            v-if="roomState?.events.length"
+            variant="ghost"
+            size="xs"
+            class="self-end"
+            @click="clearJournal"
+            >CLEAR</Button
+          >
           <BattleLog :entries="journalEntries" empty-text="No rounds fought yet." />
-        </CardContent>
-      </Card>
+        </div>
+      </details>
 
       <details class="text-xs text-muted-foreground">
         <summary
@@ -937,6 +1012,7 @@ const updateMode = (value: unknown) => {
           Match rewards &amp; recovery
         </summary>
         <p class="pt-2 leading-relaxed">
+          Skills charge during combat (5 seconds to full). Hover or focus a skill for its effect.
           Winners gain happiness and XP. Losing dwellers lose happiness and are left at 1 HP.
           Healing uses carried stimpaks, or vault storage when none are carried. Check their health
           before the next fight. Change the fighters to start a new match.
@@ -947,6 +1023,43 @@ const updateMode = (value: unknown) => {
 </template>
 
 <style scoped>
+.arena-skill-burst {
+  animation: skill-burst 0.45s ease-out;
+}
+.arena-skill-burst::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--color-warning), transparent);
+  opacity: 0.15;
+  animation: skill-sweep 0.6s ease-out forwards;
+}
+@keyframes skill-burst {
+  from {
+    transform: scale(0.96);
+    filter: brightness(2);
+  }
+  to {
+    transform: none;
+    filter: none;
+  }
+}
+@keyframes skill-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arena-skill-burst,
+  .arena-skill-burst::before {
+    animation: none;
+  }
+}
+
 .countdown-pop-enter-active,
 .countdown-pop-leave-active {
   transition:

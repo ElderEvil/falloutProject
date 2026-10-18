@@ -412,6 +412,17 @@ for a fully completed batch is now 216.14 daily and 589.62 weekly (previously
 These are catalog expectations, not measured income: item/lunchbox value and
 actual completion rates are excluded. Prices are unchanged pending income data.
 
+## Arena active skills (prototype)
+
+Real dweller fighters gain 20 charge per second of resolved combat while standing, capped at 100.
+Countdowns and idle rooms do not charge. Ordinary Arena damage is 10% of team power per second (half the incident rate), capped per target at 5% of maximum HP per second; active skill bursts bypass that pacing cap. The player reserves the full meter for a weapon type/subtype skill;
+the next Arena tick resolves it and the existing round settles nonlethal KOs and rewards. Single-target attacks
+hit the weakest standing enemy; area attacks hit each standing enemy. Both sides retain their ordinary
+simultaneous retaliation. Creatures and support bots have no manual skill.
+Charge and pending attacks are persisted under the Arena room lock, cleared on match reset/interruption/finish,
+and must never be trusted from a client. See `docs/features/WASTELAND_COMBAT_EXPANSION.md` for the prototype
+balance table. Skills remain Arena-only until playtested.
+
 ## Arena training bot partners
 
 Hunt allows one or two dwellers, or one dweller with a training bot. Brawl requires

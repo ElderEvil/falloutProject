@@ -53,7 +53,11 @@ const healthPercent = (creature: ArenaCreatureView | null) =>
 
 <template>
   <div class="creature-slot">
-    <div v-if="creature" class="creature-card">
+    <div
+      v-if="creature"
+      class="creature-card"
+      :class="{ 'creature-hit': damageNumbers.length > 0 }"
+    >
       <TooltipProvider v-if="canChange" :delay-duration="200">
         <Tooltip>
           <TooltipTrigger as-child>
@@ -135,6 +139,29 @@ const healthPercent = (creature: ArenaCreatureView | null) =>
 </template>
 
 <style scoped>
+.creature-hit {
+  animation: creature-impact 0.4s ease-out;
+}
+@keyframes creature-impact {
+  20%,
+  60% {
+    transform: translateX(5px);
+    filter: brightness(1.6);
+  }
+  40% {
+    transform: translateX(-5px);
+  }
+  to {
+    transform: none;
+    filter: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .creature-hit {
+    animation: none;
+  }
+}
+
 .creature-slot {
   position: relative;
   display: flex;

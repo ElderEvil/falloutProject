@@ -19,6 +19,18 @@ spikes plus the visual-test safety net; see "Frontend Component-Library Migratio
 
 ## Active Priorities
 
+### Wasteland encounters and weapon skills — Arena trial (2026-10-18)
+
+**Idea and implementation notes:** [Wasteland encounters and active combat skills](features/WASTELAND_COMBAT_EXPANSION.md).
+
+- [ ] Restore expedition sites as an obvious part of exploring: existing entry/room/retreat flows are present;
+  audit discoverability on spatial journeys before changing their trail-based offer rules.
+- [x] Initial loot-only encounter slice: three level-1 salvage sites reuse expedition loot and replay protection.
+- [ ] Extend more existing map locations with search, combat or choice actions according to their archetype.
+- [x] Arena prototype: manual skills selected by weapon type/subtype, combat-earned charge, persistent queued
+  attacks, charge meters and battle-journal feedback. Charge chosen by the maintainer; stamina is deferred.
+- [ ] Playtest and balance in Arena before extending skills to expeditions, quests or incidents.
+
 ### Starter progression teaching (#1042)
 
 - **Wave 1 — implementation:** fund the unchanged 1,000-cap / 18-resident Office gate through starter lessons,

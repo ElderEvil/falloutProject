@@ -12,8 +12,8 @@ Room management module. Handles vault room grid layout, construction, production
 - `components/RoomGrid.vue` — vault room grid layout
 - `components/RoomItem.vue` — individual room display
 - `components/RoomDetailModal.vue` — room detail dialog
-- `components/RoomIncidentDetail.vue` — live incident overlay that replaces the generic sections
-- `components/IncidentScene.vue` — responders vs threat scene (room backdrop, floating damage)
+- `components/RoomIncidentDetail.vue` — live incident overlay with residents plus helpers, original return postings, and manual nearby/strongest support
+- `components/IncidentScene.vue` — room preview with resident/helper portraits, health bars, scaled threats, containment and floating damage
 - `components/IncidentBattleLog.vue` — incident journal rounds for the overlay
 - `components/BattleLog.vue` — shared event log (optional timestamps, skill highlighting, grouping, autoscroll, live region) for arena and incident journals
 - `components/RoomActions.vue` — room action buttons (upgrade, destroy)

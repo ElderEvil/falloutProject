@@ -5,11 +5,18 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import {
   getIncidentIcon,
+  getIncidentParticipants,
   type Incident,
-  type IncidentTeamMember,
 } from '@/modules/combat/models/incident'
+import type { Room } from '../models/room'
+import { UNITS_PER_ROOM } from '../models/grid'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
-import { getCombatPower, getDwellerDisplayName, isMature } from '@/modules/dwellers/models/dweller'
+import {
+  getCombatPower,
+  getDwellerDisplayName,
+  getStatusConfig,
+  isMature,
+} from '@/modules/dwellers/models/dweller'
 import DwellerListRow from '@/modules/dwellers/components/DwellerListRow.vue'
 import { Button } from '@/core/components/ui/button'
 import { threatName } from '@/core/utils/format'
@@ -22,6 +29,7 @@ interface Props {
   dwellers: DwellerShort[]
   roomImageUrl?: string | null
   fallbackImageUrl?: string | null
+  rooms?: Room[]
 }
 
 const props = defineProps<Props>()
@@ -38,7 +46,7 @@ const threatLabel = computed(() => threatName(props.incident.type))
 const icon = computed(() => getIncidentIcon(props.incident.type))
 const progress = computed(() => props.incident.progress)
 
-// The POST appends to the roster and rejects teams over six.
+// Six arriving helpers are allowed in addition to the room residents.
 const MAX_TEAM_SIZE = 6
 const currentTeamIds = computed(() =>
   incidentStore.getIncidentTeam(props.incident.id).map((member) => member.dweller_id)
@@ -78,34 +86,72 @@ const availableResponders = computed(() => {
         dweller.health > 0 &&
         !unavailableResponderIds.value.has(dweller.id) &&
         dweller.room_id !== props.incident.room_id &&
-        !['exploring', 'questing', 'dead'].includes(dweller.status)
+        !['exploring', 'questing', 'dead', 'fighting'].includes(dweller.status) &&
+        !otherActiveIncidents.value.some((incident) => incident.room_id === dweller.room_id)
     )
-    .sort(
-      (a, b) =>
-        (b.combat_power ?? getCombatPower(b)) - (a.combat_power ?? getCombatPower(a)) ||
-        getDwellerDisplayName(a).localeCompare(getDwellerDisplayName(b)) ||
-        a.id.localeCompare(b.id)
-    )
+    .sort((a, b) => {
+      const nearA = distanceFromIncident(a),
+        nearB = distanceFromIncident(b)
+      if (nearA !== nearB) return nearA - nearB
+      return Number(b.status === 'idle') - Number(a.status === 'idle') || comparePower(a, b)
+    })
 })
 
-const bestResponders = computed(() =>
-  availableResponders.value.slice(0, Math.min(3, remainingRosterSlots.value))
-)
+const roomsById = computed(() => new Map((props.rooms ?? []).map((room) => [room.id, room])))
+const comparePower = (a: DwellerShort, b: DwellerShort) =>
+  (b.combat_power ?? getCombatPower(b)) - (a.combat_power ?? getCombatPower(a)) ||
+  getDwellerDisplayName(a).localeCompare(getDwellerDisplayName(b)) ||
+  a.id.localeCompare(b.id)
 
-interface TeamMemberEntry {
-  member: IncidentTeamMember
-  dweller: DwellerShort | undefined
+// Estimate proximity from the vault grid; this is selection priority, not an ETA.
+const distanceFromIncident = (dweller: DwellerShort): number => {
+  const source = dweller.room_id ? roomsById.value.get(dweller.room_id) : undefined
+  const target = roomsById.value.get(props.incident.room_id)
+  if (
+    source?.coordinate_x == null ||
+    source.coordinate_y == null ||
+    target?.coordinate_x == null ||
+    target.coordinate_y == null
+  )
+    return Infinity
+  const sourceCenter = source.coordinate_x + (source.size ?? source.size_min) / 2
+  const targetCenter = target.coordinate_x + (target.size ?? target.size_min) / 2
+  return (
+    Math.abs(sourceCenter - targetCenter) / UNITS_PER_ROOM +
+    Math.abs(source.coordinate_y - target.coordinate_y)
+  )
 }
-
-const teamMembers = computed<TeamMemberEntry[]>(() =>
-  incidentStore.getIncidentTeam(props.incident.id).map((member) => ({
-    member,
-    dweller: props.dwellers.find((dweller) => dweller.id === member.dweller_id),
-  }))
+const posting = (dweller: DwellerShort) =>
+  dweller.room_id ? (roomsById.value.get(dweller.room_id)?.name ?? 'Assigned room') : 'Unassigned'
+const proximity = (dweller: DwellerShort) => {
+  const source = dweller.room_id ? roomsById.value.get(dweller.room_id) : undefined
+  const target = roomsById.value.get(props.incident.room_id)
+  if (!Number.isFinite(distanceFromIncident(dweller))) return null
+  const floors = Math.abs(source!.coordinate_y! - target!.coordinate_y!)
+  return floors === 0 ? 'Same floor' : `${floors} floor${floors === 1 ? '' : 's'} away`
+}
+const returnPosting = (originRoomId: string | null | undefined) =>
+  originRoomId === null
+    ? 'Unassigned'
+    : originRoomId
+      ? (roomsById.value.get(originRoomId)?.name ?? 'Original room')
+      : 'Original posting'
+const helperBatchSize = computed(() => Math.min(3, remainingRosterSlots.value))
+const bestResponders = computed(() =>
+  [...availableResponders.value].sort(comparePower).slice(0, helperBatchSize.value)
 )
-
-const teamMemberLabel = (entry: TeamMemberEntry): string =>
-  entry.dweller?.first_name ?? entry.member.dweller_id.slice(0, 8)
+const nearbyResponders = computed(() =>
+  availableResponders.value
+    .filter((dweller) => Number.isFinite(distanceFromIncident(dweller)))
+    .slice(0, helperBatchSize.value)
+)
+const teamMembers = computed(() =>
+  getIncidentParticipants(
+    props.incident.room_id,
+    props.dwellers,
+    incidentStore.getIncidentTeam(props.incident.id)
+  )
+)
 
 // The team is on scene but the backend has not fought a round yet: the log is
 // empty by design, so the overlay says so instead of looking broken.
@@ -146,15 +192,17 @@ const send = async (dwellerIds: string[]) => {
   )
 }
 
-const sendBestDefenders = async () => {
-  if (isAssigning.value || !responderTeamsLoaded.value || !bestResponders.value.length) return
+const sendGroup = async (candidates: DwellerShort[]) => {
+  if (isAssigning.value || !responderTeamsLoaded.value || !candidates.length) return
   isSendingBest.value = true
   try {
-    await send(bestResponders.value.map((dweller) => dweller.id))
+    await send(candidates.map((dweller) => dweller.id))
   } finally {
     isSendingBest.value = false
   }
 }
+const sendBestDefenders = () => sendGroup(bestResponders.value)
+const sendNearbyDefenders = () => sendGroup(nearbyResponders.value)
 
 const assignResponder = async (dwellerId: string) => {
   if (isAssigning.value || !responderTeamsLoaded.value || !remainingRosterSlots.value) return
@@ -180,6 +228,10 @@ const assignResponder = async (dwellerId: string) => {
       </div>
     </header>
 
+    <p class="text-xs text-muted-foreground">
+      Room residents defend automatically. Helpers return to their original postings after the
+      incident.
+    </p>
     <IncidentScene
       :incident="incident"
       :dwellers="dwellers"
@@ -188,7 +240,12 @@ const assignResponder = async (dwellerId: string) => {
       :team="teamLoaded ? incidentStore.getIncidentTeam(incident.id) : undefined"
     />
 
-    <IncidentBattleLog :events="incident.events" />
+    <details class="border-t border-border pt-2">
+      <summary class="cursor-pointer text-xs text-muted-foreground">
+        Battle journal · {{ incident.events.length }} events
+      </summary>
+      <IncidentBattleLog :events="incident.events" />
+    </details>
     <p v-if="awaitingFirstRound" class="text-xs text-terminal-green-dim">Awaiting next round…</p>
 
     <div>
@@ -209,20 +266,28 @@ const assignResponder = async (dwellerId: string) => {
         <ul class="flex flex-col gap-1.5">
           <li
             v-for="entry in teamMembers"
-            :key="entry.member.id"
-            class="flex items-center gap-2 rounded border border-theme-primary/20 bg-surface-canvas px-3 py-1.5 text-xs"
+            :key="entry.id"
+            class="flex flex-wrap items-center gap-2 rounded border border-theme-primary/20 bg-surface-canvas px-3 py-1.5 text-xs"
           >
             <Icon icon="mdi:account" class="h-4 w-4 shrink-0 text-terminal-green" />
-            <span class="truncate text-terminal-green">{{ teamMemberLabel(entry) }}</span>
+            <span class="truncate text-terminal-green">{{ entry.name }}</span>
             <span v-if="entry.dweller" class="shrink-0 tabular-nums text-terminal-green-dim">
               · Lv {{ entry.dweller.level }}
             </span>
             <span
-              v-if="entry.member.status === 'dispatched'"
+              v-if="entry.source === 'resident'"
+              class="shrink-0 rounded border border-theme-primary/30 px-1 text-[10px] font-bold text-theme-primary"
+              >RESIDENT</span
+            >
+            <span
+              v-else-if="entry.dispatched"
               class="shrink-0 rounded border border-theme-primary/30 px-1 text-[10px] font-bold tracking-wide text-terminal-green-dim"
             >
               DISPATCHED
             </span>
+            <span v-if="entry.source === 'helper'" class="text-xs text-muted-foreground"
+              >Returns to {{ returnPosting(entry.originRoomId) }}</span
+            >
             <span class="ml-auto flex items-center gap-1 text-terminal-green-dim">
               <Icon icon="mdi:sword" class="h-3.5 w-3.5" />
               POW {{ entry.dweller ? getCombatPower(entry.dweller) : '—' }}
@@ -233,17 +298,26 @@ const assignResponder = async (dwellerId: string) => {
 
       <div v-if="bestResponders.length" class="mb-3 flex flex-wrap items-center gap-2">
         <Button
+          v-if="nearbyResponders.length"
           variant="default"
+          size="sm"
+          :disabled="isAssigning || !responderTeamsLoaded"
+          @click="sendNearbyDefenders"
+        >
+          Send nearby {{ nearbyResponders.length }}
+        </Button>
+        <Button
+          variant="outline"
           size="sm"
           :disabled="isAssigning || !responderTeamsLoaded"
           @click="sendBestDefenders"
         >
           <Icon v-if="isSendingBest" icon="mdi:loading" class="mr-1 animate-spin" />
-          Send best {{ bestResponders.length }}
+          Send strongest {{ bestResponders.length }}
         </Button>
-        <span class="text-xs text-terminal-green-dim">
-          {{ bestResponders.map((d) => d.first_name).join(', ') }}
-        </span>
+        <span class="text-xs text-muted-foreground"
+          >{{ remainingRosterSlots }} helper slots available · residents defend automatically</span
+        >
       </div>
 
       <ul v-if="availableResponders.length" class="flex flex-col gap-2">
@@ -252,9 +326,18 @@ const assignResponder = async (dwellerId: string) => {
           :key="dweller.id"
           :dweller="dweller"
           :clickable="false"
+          class="flex-wrap gap-2 [&_.dweller-identity]:w-auto [&_.dweller-identity]:flex-1"
         >
           <template #middle>
-            <div class="flex items-center gap-3 text-xs text-terminal-green-dim">
+            <div
+              class="order-last flex w-full flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"
+            >
+              <span class="flex items-center gap-1" :class="getStatusConfig(dweller.status).color">
+                <Icon :icon="getStatusConfig(dweller.status).icon" class="size-3.5" />
+                {{ getStatusConfig(dweller.status).label }}
+              </span>
+              <span>{{ posting(dweller) }}</span>
+              <span v-if="proximity(dweller)">{{ proximity(dweller) }}</span>
               <span class="flex items-center gap-1">
                 <Icon icon="mdi:heart" class="h-3.5 w-3.5 text-danger" />
                 {{ dweller.health }}/{{ dweller.max_health }}

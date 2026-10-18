@@ -1,11 +1,28 @@
 <script setup lang="ts">
+import {
+  TooltipProvider,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/core/components/ui/tooltip'
+
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { Heart, ShieldAlert, UserRound } from '@lucide/vue'
 import { Progress } from '@/core/components/ui/progress'
+import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
-import { getCombatPower } from '@/modules/dwellers/models/dweller'
-import type { Incident, IncidentTeamMember } from '@/modules/combat/models/incident'
-import { getIncidentIcon } from '@/modules/combat/models/incident'
+import { getCombatPower, getEffectiveMaxHealth } from '@/modules/dwellers/models/dweller'
+import {
+  IncidentType,
+  getIncidentParticipants,
+  getIncidentIcon,
+  type Incident,
+  type IncidentTeamMember,
+} from '@/modules/combat/models/incident'
+import { getCreatureImagePath, getCreatureModelSizeClass } from '@/core/utils/creatureAssets'
+import { getStaticImageUrl } from '@/core/utils/image'
+import { humanizePreserveCase } from '@/core/utils/format'
 import { useFallbackImage } from '../composables/useFallbackImage'
 
 const props = defineProps<{
@@ -21,32 +38,38 @@ const { url: sceneImageUrl, onError: imageFailed } = useFallbackImage(() => [
   props.fallbackImageUrl,
 ])
 
-// The roster from GET /incidents/{id}/team is authoritative: auto-dispatched
-// hazard-team responders keep a stale room_id in the dweller store (it only
-// loads at VaultView mount), so filtering by room_id hides them. When the
-// roster is present (even empty) it wins; undefined means not loaded yet.
-const responders = computed(() => {
-  if (props.team === undefined)
-    return props.dwellers.filter((dweller) => dweller.room_id === props.incident.room_id)
-  const rosterIds = new Set(props.team.map((member) => member.dweller_id))
-  return props.dwellers.filter((dweller) => rosterIds.has(dweller.id))
-})
-const dispatchedIds = computed(
-  () =>
-    new Set(
-      (props.team ?? [])
-        .filter((member) => member.status === 'dispatched')
-        .map((member) => member.dweller_id)
-    )
+const responders = computed(() =>
+  getIncidentParticipants(props.incident.room_id, props.dwellers, props.team)
 )
+const healthCeiling = (dweller: DwellerShort) =>
+  Math.max(
+    1,
+    dweller.effective_max_health ?? getEffectiveMaxHealth(dweller.radiation, dweller.max_health)
+  )
 const remainingEnemies = computed(() =>
   Math.max(0, props.incident.progress.target - props.incident.progress.current)
 )
-const enemyIcons = computed(() => Array.from({ length: Math.min(5, remainingEnemies.value) }))
 const progressPercent = computed(() =>
   props.incident.progress.target > 0
-    ? Math.round((props.incident.progress.current / props.incident.progress.target) * 100)
+    ? Math.min(
+        100,
+        Math.max(0, (props.incident.progress.current / props.incident.progress.target) * 100)
+      )
     : 0
+)
+const creatureKeys: Partial<Record<IncidentType, string>> = {
+  [IncidentType.RADROACH_INFESTATION]: 'radroach',
+  [IncidentType.MOLE_RAT_ATTACK]: 'mole-rat',
+  [IncidentType.DEATHCLAW_ATTACK]: 'deathclaw',
+  [IncidentType.FERAL_GHOUL_ATTACK]: 'feral-ghoul',
+  [IncidentType.RADSCORPION_ATTACK]: 'radscorpion',
+}
+const creatureKey = computed(() => creatureKeys[props.incident.type])
+const { url: creatureImage, onError: creatureFailed } = useFallbackImage(() => [
+  getStaticImageUrl(getCreatureImagePath(creatureKey.value ?? '')),
+])
+const creatureName = computed(() =>
+  humanizePreserveCase((creatureKey.value ?? 'Raider').replaceAll('-', '_'))
 )
 const latestEffect = computed(
   () => [...props.incident.events].reverse().find((event) => event.data !== null) ?? null
@@ -59,240 +82,224 @@ const containmentGain = computed(() =>
 </script>
 
 <template>
-  <section
-    class="incident-scene"
-    :class="`incident-scene--${incident.family}`"
-    aria-label="Incident live status"
-  >
-    <img
-      v-if="sceneImageUrl"
-      :src="sceneImageUrl"
-      class="scene-backdrop"
-      alt=""
-      aria-hidden="true"
-      @error="imageFailed"
-    />
-
-    <div class="stage-side">
-      <span class="stage-label">RESPONDERS</span>
-      <div class="combatants effect-target">
-        <span
-          v-if="dwellerDamage"
-          :key="latestEffect?.id"
-          class="floating-effect floating-effect--damage"
-        >
-          -{{ dwellerDamage }}
-        </span>
-        <div v-for="dweller in responders" :key="dweller.id" class="combatant">
-          <span class="combatant-portrait">{{ dweller.first_name[0] }}</span>
-          <span class="combatant-name">{{ dweller.first_name }}</span>
-          <span v-if="dispatchedIds.has(dweller.id)" class="combatant-dispatched">DISPATCHED</span>
-          <span class="combatant-power"
-            >POW {{ getCombatPower(dweller) }} · Lv {{ dweller.level }}</span
-          >
-          <Progress :model-value="(dweller.health / dweller.max_health) * 100" class="h-[7px]" />
-        </div>
-        <span v-if="!responders.length" class="stage-empty">No responders assigned</span>
+  <TooltipProvider :delay-duration="200">
+    <section
+      class="incident-scene relative isolate aspect-[5/2] min-h-64 w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
+      aria-label="Incident live status"
+    >
+      <img
+        v-if="sceneImageUrl"
+        :src="sceneImageUrl"
+        class="scene-backdrop absolute inset-0 size-full object-cover"
+        alt=""
+        aria-hidden="true"
+        @error="imageFailed"
+      />
+      <div
+        class="pointer-events-none absolute inset-0 bg-linear-to-t from-black/70 via-transparent to-black/30"
+        aria-hidden="true"
+      />
+      <div
+        class="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-3 bg-black/75 px-3 py-2 text-xs font-semibold text-theme-primary"
+      >
+        <span class="shrink-0">RESPONDERS · {{ responders.length }}</span>
+        <span v-if="incident.room_name" class="hidden truncate font-normal sm:block">{{
+          incident.room_name
+        }}</span>
+        <span>{{ incident.objective === 'defeat' ? 'THREAT' : 'ROOM HAZARD' }}</span>
       </div>
-    </div>
 
-    <div class="stage-axis" aria-hidden="true">
-      <Icon :icon="incident.objective === 'defeat' ? 'mdi:sword-cross' : 'mdi:arrow-right-bold'" />
-    </div>
-
-    <div v-if="incident.objective === 'defeat'" class="stage-side stage-side--threat">
-      <span class="stage-label">THREAT</span>
-      <div class="combatants combatants--enemies effect-target">
-        <span
-          v-if="threatDamage"
-          :key="latestEffect?.id"
-          class="floating-effect floating-effect--damage"
-        >
-          -{{ threatDamage }}
-        </span>
-        <Icon
-          v-for="(_, index) in enemyIcons"
-          :key="index"
-          :icon="getIncidentIcon(incident.type)"
-          class="enemy-icon"
-        />
-        <span class="enemy-count">{{ remainingEnemies }} remaining</span>
-      </div>
-    </div>
-
-    <div v-else class="stage-side stage-side--threat">
-      <span class="stage-label">ROOM HAZARD</span>
-      <div class="hazard-state effect-target">
-        <span
-          v-if="containmentGain"
-          :key="latestEffect?.id"
-          class="floating-effect floating-effect--containment"
-        >
-          +{{ containmentGain }}%
-        </span>
-        <svg
-          v-if="incident.type === 'fire'"
-          class="hazard-flame"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path
-            class="flame-outer"
-            d="M12 2.5c2.5 3.5 5.5 5.8 5.5 9.6a5.5 5.5 0 0 1-11 0c0-2 1-3.6 2.3-5.2.6 1 1.2 1.6 2 2 .3-2.3.7-4.2 1.2-6.4Z"
-          />
-          <path
-            class="flame-inner"
-            d="M12 9c1.2 1.6 2.3 2.8 2.3 4.5a2.3 2.3 0 0 1-4.6 0c0-1.7 1.1-2.9 2.3-4.5Z"
-          />
-        </svg>
-        <Icon v-else :icon="getIncidentIcon(incident.type)" class="hazard-icon" />
-        <div>
-          <strong>{{ incident.progress.label }}</strong>
-          <Progress :model-value="progressPercent" class="h-2" tone="warning" />
+      <div
+        class="absolute inset-x-3 top-12 bottom-16 grid grid-cols-[3fr_2fr] items-end gap-5 sm:inset-x-6 sm:gap-10"
+      >
+        <div class="relative min-w-0">
           <span
-            >{{ incident.risk.rooms_affected }} room{{
-              incident.risk.rooms_affected === 1 ? '' : 's'
-            }}
-            affected</span
+            v-if="dwellerDamage"
+            :key="latestEffect?.id"
+            class="floating-effect absolute -top-3 left-1/2 z-30 font-bold text-danger"
+            aria-hidden="true"
+            >-{{ Math.round(dwellerDamage) }}</span
+          >
+          <div class="flex min-w-0 items-end gap-2 overflow-x-auto pt-6 pb-1">
+            <div
+              v-for="responder in responders"
+              :key="responder.id"
+              class="incident-responder relative flex w-12 min-w-12 max-w-16 flex-1 flex-col items-center gap-1 sm:w-14 sm:min-w-14"
+              :class="{
+                'opacity-40 grayscale': responder.dweller && responder.dweller.health <= 0,
+              }"
+            >
+              <Tooltip
+                ><TooltipTrigger as-child
+                  ><span
+                    class="w-full truncate text-center text-xs font-semibold text-theme-primary [text-shadow:0_1px_3px_black]"
+                    tabindex="0"
+                    >{{ responder.name }}</span
+                  ></TooltipTrigger
+                ><TooltipContent
+                  class="border border-theme-primary/40 bg-popover text-theme-primary"
+                  >{{ responder.name }}</TooltipContent
+                ></Tooltip
+              >
+              <Tooltip v-if="responder.dweller"
+                ><TooltipTrigger as-child
+                  ><div class="w-full rounded bg-black/85 p-1" tabindex="0">
+                    <div class="flex items-center gap-1">
+                      <Heart class="size-3 shrink-0 fill-danger text-danger" aria-hidden="true" />
+                      <Progress
+                        size="xs"
+                        :model-value="
+                          (responder.dweller.health / healthCeiling(responder.dweller)) * 100
+                        "
+                        :label="`${responder.name} health`"
+                        :value-text="`${responder.dweller.health}/${healthCeiling(responder.dweller)}`"
+                      />
+                    </div>
+                    <span class="sr-only"
+                      >POW {{ getCombatPower(responder.dweller) }} · Lv
+                      {{ responder.dweller.level }}</span
+                    >
+                  </div></TooltipTrigger
+                ><TooltipContent
+                  class="border border-theme-primary/40 bg-popover text-theme-primary"
+                  >{{
+                    `${responder.dweller.health}/${healthCeiling(responder.dweller)} HP · Lv ${responder.dweller.level} · POW ${getCombatPower(responder.dweller)}`
+                  }}</TooltipContent
+                ></Tooltip
+              >
+              <div class="flex h-12 w-full items-end justify-center sm:h-16">
+                <DwellerPortrait
+                  v-if="responder.dweller?.thumbnail_url"
+                  :thumbnail-url="responder.dweller.thumbnail_url"
+                  :alt="responder.name"
+                  image-class="max-h-full w-full object-contain drop-shadow-lg"
+                  fallback-class="size-10 text-theme-primary"
+                />
+                <UserRound
+                  v-else
+                  class="h-full w-full max-w-16 text-theme-primary drop-shadow-lg"
+                  :aria-label="responder.name"
+                  role="img"
+                />
+              </div>
+              <span
+                v-if="responder.source === 'resident'"
+                class="max-w-full truncate rounded bg-black/80 px-1 text-[9px] font-semibold text-theme-primary"
+                >RESIDENT</span
+              >
+              <span
+                v-else-if="responder.dispatched"
+                class="max-w-full truncate rounded bg-black/80 px-1 text-[9px] font-semibold text-info"
+                >DISPATCHED</span
+              >
+              <span
+                v-else
+                class="max-w-full truncate rounded bg-black/80 px-1 text-[9px] font-semibold text-info"
+                >HELPER</span
+              >
+            </div>
+            <span
+              v-if="!responders.length"
+              class="self-center rounded bg-black/80 p-2 text-center text-xs text-theme-primary"
+              >No responders assigned</span
+            >
+          </div>
+        </div>
+
+        <div
+          class="relative flex min-w-0 flex-col items-center justify-end gap-2 self-end"
+          :class="{
+            'opacity-40 grayscale': incident.objective === 'defeat' && remainingEnemies === 0,
+          }"
+        >
+          <span
+            v-if="threatDamage && incident.objective === 'defeat'"
+            :key="latestEffect?.id"
+            class="floating-effect absolute -top-3 z-30 font-bold text-danger"
+            aria-hidden="true"
+            >-{{ Math.round(threatDamage) }}</span
+          >
+          <span
+            v-if="containmentGain && incident.objective === 'contain'"
+            :key="latestEffect?.id"
+            class="floating-effect absolute -top-3 z-30 font-bold text-success"
+            aria-hidden="true"
+            >+{{ containmentGain }}%</span
+          >
+          <svg
+            v-if="incident.type === 'fire'"
+            class="hazard-flame h-24 w-20 drop-shadow-lg sm:h-36 sm:w-28"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              class="flame-outer"
+              d="M12 2.5c2.5 3.5 5.5 5.8 5.5 9.6a5.5 5.5 0 0 1-11 0c0-2 1-3.6 2.3-5.2.6 1 1.2 1.6 2 2 .3-2.3.7-4.2 1.2-6.4Z"
+            />
+            <path
+              class="flame-inner"
+              d="M12 9c1.2 1.6 2.3 2.8 2.3 4.5a2.3 2.3 0 0 1-4.6 0c0-1.7 1.1-2.9 2.3-4.5Z"
+            />
+          </svg>
+          <div
+            v-else-if="creatureImage"
+            class="flex max-w-full items-end justify-center"
+            :class="getCreatureModelSizeClass(creatureKey ?? '')"
+          >
+            <img
+              :src="creatureImage"
+              :alt="creatureName"
+              class="size-full object-contain drop-shadow-lg"
+              @error="creatureFailed"
+            />
+          </div>
+          <UserRound
+            v-else-if="incident.type === 'raider_attack'"
+            class="h-20 w-16 text-danger drop-shadow-lg sm:h-28 sm:w-20"
+            role="img"
+            aria-label="Raider"
+          />
+          <Icon
+            v-else
+            :icon="getIncidentIcon(incident.type)"
+            class="hazard-icon size-16 text-warning"
+            :ariaHidden="true"
+          />
+          <span
+            v-if="incident.objective === 'defeat'"
+            class="rounded bg-black/85 px-2 py-1 text-xs font-semibold text-theme-primary"
+            >{{ remainingEnemies }} remaining</span
           >
         </div>
       </div>
-    </div>
-  </section>
+
+      <div class="absolute inset-x-0 bottom-0 z-20 flex flex-col gap-1 bg-black/85 px-3 py-2">
+        <div class="flex items-center justify-between gap-2 text-xs text-theme-primary">
+          <span
+            >{{ incident.progress.label }} · {{ incident.progress.current }} /
+            {{ incident.progress.target }}</span
+          >
+          <span class="flex shrink-0 items-center gap-1 text-warning"
+            ><ShieldAlert class="size-3.5" aria-hidden="true" />{{
+              incident.risk.rooms_affected
+            }}
+            room{{ incident.risk.rooms_affected === 1 ? '' : 's' }} affected</span
+          >
+        </div>
+        <Progress
+          :model-value="progressPercent"
+          :label="incident.progress.label"
+          :tone="incident.objective === 'contain' ? 'warning' : 'default'"
+          size="xs"
+        />
+      </div>
+    </section>
+  </TooltipProvider>
 </template>
 
 <style scoped>
-.incident-scene {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  gap: 1rem;
-  padding: 1rem;
-  border: 1px solid var(--color-surface-hover);
-  background: var(--color-surface-sunken);
-  overflow: hidden;
-}
-
-.scene-backdrop {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  background-position: center;
-  opacity: 0.18;
-}
-.stage-side {
-  position: relative;
-  min-width: 0;
-}
-.stage-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: var(--color-theme-primary);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-}
-.combatants {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-.effect-target {
-  position: relative;
-}
 .floating-effect {
-  position: absolute;
-  top: -0.9rem;
-  z-index: 2;
-  font-size: 0.85rem;
-  font-weight: 700;
   animation: float-effect 0.9s ease-out both;
-}
-.floating-effect--damage {
-  color: var(--color-danger);
-}
-.floating-effect--containment {
-  color: var(--color-success);
-}
-.combatant {
-  display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr);
-  gap: 0.15rem 0.5rem;
-  align-items: center;
-  min-width: 7rem;
-  color: var(--color-theme-primary);
-  font-size: 0.75rem;
-}
-.combatant-portrait {
-  grid-row: span 3;
-  display: grid;
-  place-items: center;
-  width: 2rem;
-  aspect-ratio: 1;
-  border: 1px solid var(--color-theme-primary);
-  border-radius: 50%;
-  font-size: 0.85rem;
-}
-.combatant-power {
-  color: var(--color-warning);
-  font-size: 0.65rem;
-  font-variant-numeric: tabular-nums;
-}
-.combatant-dispatched {
-  color: var(--color-info, var(--color-theme-primary));
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-.combatant-name,
-.stage-empty,
-.enemy-count,
-.hazard-state span {
-  color: var(--color-theme-primary);
-  opacity: 0.7;
-}
-.stage-axis {
-  position: relative;
-  display: grid;
-  place-items: center;
-  color: var(--color-danger);
-  font-size: 1.5rem;
-}
-.stage-side--threat {
-  text-align: right;
-}
-.combatants--enemies {
-  justify-content: flex-end;
-  align-items: center;
-}
-.enemy-icon {
-  width: 1.25rem;
-  height: 1.25rem;
-  color: var(--color-danger);
-}
-.hazard-state {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.6rem;
-  color: var(--color-warning);
-  font-size: 0.7rem;
-  text-align: left;
-}
-.hazard-state > div {
-  width: min(12rem, 100%);
-}
-.hazard-icon {
-  width: 2rem;
-  height: 2rem;
-  color: var(--color-warning);
-}
-
-.hazard-flame {
-  flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
 }
 .flame-outer,
 .flame-inner {
@@ -322,28 +329,6 @@ const containmentGain = computed(() =>
     transform: scale(1.03, 0.96);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .flame-outer,
-  .flame-inner {
-    animation: none;
-  }
-}
-@media (max-width: 640px) {
-  .incident-scene {
-    grid-template-columns: 1fr;
-  }
-  .stage-axis {
-    transform: rotate(90deg);
-  }
-  .stage-side--threat,
-  .hazard-state {
-    text-align: left;
-    justify-content: flex-start;
-  }
-  .combatants--enemies {
-    justify-content: flex-start;
-  }
-}
 @keyframes float-effect {
   from {
     opacity: 1;
@@ -352,6 +337,15 @@ const containmentGain = computed(() =>
   to {
     opacity: 0;
     transform: translateY(-1.5rem);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flame-outer,
+  .flame-inner {
+    animation: none;
+  }
+  .floating-effect {
+    animation: none;
   }
 }
 </style>

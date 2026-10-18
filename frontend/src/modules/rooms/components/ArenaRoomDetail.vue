@@ -56,12 +56,7 @@ const assignmentMode = defineModel<'worker' | 'apprentice' | null>('assignmentMo
       :open="!roomState?.team_a.length && !roomState?.team_b.length"
       class="group"
     >
-      <summary
-        v-if="roomState?.team_a.length || roomState?.team_b.length"
-        class="cursor-pointer text-xs text-theme-primary"
-      >
-        Manage Arena roster
-      </summary>
+      <summary class="cursor-pointer text-xs text-theme-primary">Manage Arena roster</summary>
       <RoomPreviewSection
         :room-name="room.name"
         :image-url="room.image_url ?? null"

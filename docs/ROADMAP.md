@@ -25,7 +25,7 @@ spikes plus the visual-test safety net; see "Frontend Component-Library Migratio
 
 - [ ] Restore expedition sites as an obvious part of exploring: existing entry/room/retreat flows are present;
   audit discoverability on spatial journeys before changing their trail-based offer rules.
-- [x] Initial loot-only encounter slice: three level-1 salvage sites reuse expedition loot and replay protection.
+- [ ] Initial loot-only encounter slice: three level-1 salvage sites reuse expedition loot and replay protection (#1082).
 - [ ] Extend more existing map locations with search, combat or choice actions according to their archetype.
 - [x] Arena prototype: manual skills selected by weapon type/subtype, combat-earned charge, persistent queued
   attacks, charge meters and battle-journal feedback. Charge chosen by the maintainer; stamina is deferred.

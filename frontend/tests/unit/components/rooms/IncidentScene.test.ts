@@ -124,7 +124,7 @@ describe('IncidentScene', () => {
     expect(wrapper.find('.hazard-icon').exists()).toBe(false)
   })
 
-  it('falls back to the hazard icon for a non-fire containment incident', () => {
+  it('uses creature artwork for a non-fire containment incident', () => {
     const wrapper = mountScene({
       incident: incident({
         type: 'radroach_infestation',
@@ -134,10 +134,12 @@ describe('IncidentScene', () => {
     })
 
     expect(wrapper.find('.hazard-flame').exists()).toBe(false)
-    expect(wrapper.find('.hazard-icon').exists()).toBe(true)
+    expect(wrapper.get('img[alt="Radroach"]').attributes('src')).toContain(
+      '/assembled/radroach.webp'
+    )
   })
 
-  it('shows roster responders even when their stored room is stale', () => {
+  it('does not show helpers who moved out of the incident room', () => {
     const wrapper = mountScene({
       dwellers: [dweller({ id: 'd1', first_name: 'Alice', room_id: 'room-9' })],
       team: [
@@ -153,18 +155,19 @@ describe('IncidentScene', () => {
       ],
     })
 
-    expect(wrapper.text()).toContain('Alice')
-    expect(wrapper.text()).toContain('DISPATCHED')
+    expect(wrapper.text()).not.toContain('Alice')
+    expect(wrapper.text()).not.toContain('DISPATCHED')
   })
 
-  it('prefers an empty roster over room occupants', () => {
+  it('keeps room occupants visible even with an empty helper roster', () => {
     const wrapper = mountScene({
       dwellers: [dweller({ id: 'd1', first_name: 'Alice', room_id: 'room-1' })],
       team: [],
     })
 
-    expect(wrapper.text()).toContain('No responders assigned')
-    expect(wrapper.text()).not.toContain('Alice')
+    expect(wrapper.text()).not.toContain('No responders assigned')
+    expect(wrapper.text()).toContain('Alice')
+    expect(wrapper.text()).toContain('RESIDENT')
   })
 
   it('stops the flame animation under prefers-reduced-motion', () => {
@@ -180,5 +183,46 @@ describe('IncidentScene', () => {
 
     expect(wrapper.text()).toContain('POW 42')
     expect(wrapper.text()).toContain('Lv 12')
+  })
+})
+
+describe('Incident room preview', () => {
+  it('uses real responder artwork and a labelled health meter', () => {
+    const wrapper = mountScene({
+      dwellers: [dweller({ thumbnail_url: '/static/portraits/alice.png' })],
+    })
+    expect(wrapper.get('img[alt="Alice"]').attributes('src')).toContain(
+      '/static/portraits/alice.png'
+    )
+    expect(
+      wrapper.get('[role="progressbar"][aria-label="Alice health"]').attributes('aria-valuenow')
+    ).toBe('90')
+  })
+
+  it('shows creature artwork instead of repeated threat glyphs', () => {
+    const wrapper = mountScene({ incident: incident({ type: 'deathclaw_attack' }) })
+    expect(wrapper.get('img[alt="Deathclaw"]').attributes('src')).toContain(
+      '/assembled/deathclaw.webp'
+    )
+    expect(wrapper.text()).toContain('70 remaining')
+  })
+
+  it('retains a dispatched responder when their dweller data has not loaded', () => {
+    const wrapper = mountScene({
+      team: [
+        {
+          id: 't1',
+          team_id: 'team-1',
+          dweller_id: 'missing',
+          slot_number: 2,
+          status: 'dispatched',
+          created_at: null,
+          updated_at: null,
+        },
+      ],
+    })
+    expect(wrapper.text()).toContain('Responder 2')
+    expect(wrapper.text()).toContain('DISPATCHED')
+    expect(wrapper.text()).not.toContain('No responders assigned')
   })
 })

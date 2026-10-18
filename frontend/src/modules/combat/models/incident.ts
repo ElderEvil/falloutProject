@@ -1,3 +1,6 @@
+import type { components } from '@/core/types/api.generated'
+import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import { getDwellerDisplayName, isMature } from '@/modules/dwellers/models/dweller'
 import type { SoundKey } from '@/core/audio/soundManifest'
 
 export enum IncidentType {
@@ -147,7 +150,70 @@ export interface IncidentTeamMember {
   team_id: string
   dweller_id: string
   slot_number: number | null
+  origin_room_id?: string | null
   status: string
   created_at: string | null
   updated_at: string | null
 }
+
+export interface IncidentParticipant {
+  id: string
+  dweller: DwellerShort | undefined
+  name: string
+  source: 'resident' | 'helper'
+  originRoomId?: string | null
+  dispatched: boolean
+}
+
+/** Room residents defend automatically; sent responders add to that group. */
+export function getIncidentParticipants(
+  roomId: string,
+  dwellers: DwellerShort[],
+  team: IncidentTeamMember[] = []
+): IncidentParticipant[] {
+  const helpers = team.filter((member) => {
+    if (!['assigned', 'dispatched'].includes(member.status)) return false
+    const dweller = dwellers.find((dweller) => dweller.id === member.dweller_id)
+    return (
+      !dweller ||
+      (dweller.room_id === roomId && !['exploring', 'questing'].includes(dweller.status))
+    )
+  })
+  const helperIds = new Set(helpers.map((member) => member.dweller_id))
+  const residents: IncidentParticipant[] = dwellers
+    .filter(
+      (dweller) =>
+        dweller.room_id === roomId &&
+        isMature(dweller) &&
+        dweller.health > 0 &&
+        dweller.status !== 'dead' &&
+        !helperIds.has(dweller.id)
+    )
+    .map((dweller) => ({
+      id: dweller.id,
+      dweller,
+      name: getDwellerDisplayName(dweller),
+      source: 'resident',
+      dispatched: false,
+    }))
+  return [
+    ...residents,
+    ...[...helpers]
+      .sort((a, b) => (a.slot_number ?? 0) - (b.slot_number ?? 0))
+      .map((member, index): IncidentParticipant => {
+        const dweller = dwellers.find((dweller) => dweller.id === member.dweller_id)
+        return {
+          id: member.dweller_id,
+          dweller,
+          name: dweller
+            ? getDwellerDisplayName(dweller)
+            : `Responder ${member.slot_number ?? index + 1}`,
+          source: 'helper',
+          originRoomId: member.origin_room_id,
+          dispatched: member.status === 'dispatched',
+        }
+      }),
+  ]
+}
+
+export type IncidentRespondersResponse = components['schemas']['IncidentRespondersResponse']

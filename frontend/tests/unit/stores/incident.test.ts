@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { nextTick, ref } from 'vue'
 import { flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
+import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { incidentApi } from '@/modules/combat/api/incident'
@@ -245,7 +246,11 @@ describe('Incident Store', () => {
   describe('assignResponders', () => {
     it('should refresh the incident after assigning a responder', async () => {
       const store = useIncidentStore()
-      vi.mocked(incidentApi.assignResponders).mockResolvedValueOnce()
+      vi.mocked(incidentApi.assignResponders).mockResolvedValueOnce({
+        incident_id: 'incident-1',
+        room_id: 'room-1',
+        assigned_dweller_ids: ['dweller-1'],
+      })
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
       vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
       vi.mocked(incidentApi.getIncidentTeam).mockResolvedValueOnce([])
@@ -260,6 +265,27 @@ describe('Incident Store', () => {
       )
       expect(incidentApi.getActiveIncidents).toHaveBeenCalledWith('vault-1', 'token')
       expect(incidentApi.getIncident).toHaveBeenCalledWith('vault-1', 'incident-1', 'token')
+    })
+
+    it('warns when only part of the selected response team is accepted', async () => {
+      const store = useIncidentStore()
+      useDwellerFilterStore().dwellers = [
+        { id: 'dweller-2', first_name: 'Ada', last_name: 'Smith' },
+      ] as never
+      vi.mocked(incidentApi.assignResponders).mockResolvedValueOnce({
+        incident_id: 'incident-1',
+        room_id: 'room-1',
+        assigned_dweller_ids: ['dweller-1'],
+      })
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+      vi.mocked(incidentApi.getIncidentTeam).mockResolvedValue([])
+      await store.assignResponders('vault-1', 'incident-1', ['dweller-1', 'dweller-2'], 'token')
+      expect(sseMock.toast.warning).toHaveBeenCalledWith(
+        expect.stringContaining('1 of 2 responders assigned')
+      )
+      expect(sseMock.toast.warning).toHaveBeenCalledWith(expect.stringContaining('Ada Smith'))
+      expect(sseMock.toast.success).not.toHaveBeenCalled()
     })
 
     it('should rethrow assignment failures without refreshing the incident', async () => {
@@ -313,7 +339,11 @@ describe('Incident Store', () => {
     it('assignResponders posts the union roster and refreshes the team', async () => {
       const store = useIncidentStore()
       const union = ['dweller-1', 'dweller-2']
-      vi.mocked(incidentApi.assignResponders).mockResolvedValueOnce()
+      vi.mocked(incidentApi.assignResponders).mockResolvedValueOnce({
+        incident_id: 'incident-1',
+        room_id: 'room-1',
+        assigned_dweller_ids: union,
+      })
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
       vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
       // The spawned-incident team fetch inside fetchIncidents and the explicit

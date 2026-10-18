@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Incident room preview</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import '../../../src/assets/tailwind.css'
+      import '../../../src/assets/main.css'
+      import { createApp, h } from 'vue'
+      import IncidentScene from '../../../src/modules/rooms/components/IncidentScene.vue'
+      const params = new URLSearchParams(location.search)
+      const fire = params.get('type') === 'fire'
+      const count = Number(params.get('responders') ?? 2)
+      const residentCount = Math.max(1, count - 6)
+      const names = ['Preston', 'Jericho', 'Madison', 'Owyn', 'Three Dog', 'Lucas']
+      const dwellers = Array.from({ length: count }, (_, index) => ({
+        age_group: 'adult',
+        id: `dweller-${index}`,
+        first_name: names[index % names.length],
+        last_name: null,
+        level: index + 4,
+        health: 80 - index * 5,
+        max_health: 100,
+        radiation: 0,
+        room_id: 'diner',
+        combat_power: 25 + index,
+        status: 'fighting',
+        thumbnail_url: `/static/legendary_dweller_images/${['FOS_Dw_Preston_Garvey.png', 'FOS_Dw_Jericho.png', 'FOS_Dw_Madison_Li.png', 'FOS_Dw_Owyn_Lyons.png', 'FOS_Dw_Three_Dog.png', 'FOS_Dw_Lucas_Simms.png'][index % names.length]}`,
+      }))
+      const incident = {
+        id: 'incident',
+        room_id: 'diner',
+        room_name: 'Diner',
+        type: fire ? 'fire' : (params.get('type') ?? 'deathclaw_attack'),
+        family: fire ? 'hazard' : 'intrusion',
+        objective: fire ? 'contain' : 'defeat',
+        difficulty: 4,
+        progress: {
+          current: fire ? 35 : 2,
+          target: fire ? 100 : 8,
+          label: fire ? 'Contained' : 'Enemies defeated',
+        },
+        risk: { kind: fire ? 'spread' : 'casualties', rooms_affected: 2 },
+        events: [
+          {
+            id: 'event-1',
+            kind: fire ? 'containment' : 'round',
+            data: fire ? { amount: 0.1 } : { damage_to_dwellers: 5, damage_to_threat: 10 },
+          },
+        ],
+      }
+      createApp({
+        render: () =>
+          h(IncidentScene, {
+            incident,
+            dwellers,
+            team: dwellers.slice(residentCount).map((d, index) => ({
+              dweller_id: d.id,
+              slot_number: index + 1,
+              status: index ? 'dispatched' : 'assigned',
+            })),
+            roomImageUrl: params.has('fallback')
+              ? '/missing-room.webp'
+              : '/static/room_images/FOS Diner 3-3.png',
+            fallbackImageUrl: '/static/room_images/FOS Diner 3-3.png',
+          }),
+      }).mount('#app')
+    </script>
+  </body>
+</html>

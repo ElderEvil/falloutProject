@@ -1422,6 +1422,7 @@ describe('RoomDetailModal', () => {
       status: 'active',
       difficulty: 4,
       progress: { current: 30, target: 100, label: 'Threat' },
+      risk: { kind: 'casualties', rooms_affected: 1 },
       family: 'intrusion',
       objective: 'defeat',
       response: { label: 'Send defenders' },

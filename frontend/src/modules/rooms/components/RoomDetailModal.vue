@@ -10,6 +10,7 @@ import {
   isElevator,
   type RoomPart,
 } from '../models/roomParts'
+import { useRoomStore } from '../stores/room'
 import { useRoomProduction } from '../composables/useRoomProduction'
 import { useRoomUpgrade } from '../composables/useRoomUpgrade'
 import { useRoomDwellers } from '../composables/useRoomDwellers'
@@ -56,6 +57,7 @@ const roomRef = toRef(props, 'room')
 const modelValueRef = toRef(props, 'modelValue')
 
 const incidentStore = useIncidentStore()
+const roomStore = useRoomStore()
 const liveIncident = computed(
   () => incidentStore.activeIncidents.find((inc) => inc.room_id === props.room?.id) ?? null
 )
@@ -174,6 +176,7 @@ onUnmounted(stopAmbience)
         <RoomIncidentDetail
           v-if="has('incident') && liveIncident"
           :incident="liveIncident"
+          :rooms="roomStore.rooms"
           :vault-id="props.vaultId"
           :dwellers="vaultDwellers"
           :fallback-image-url="roomGridImageUrl ?? null"

@@ -14,6 +14,8 @@ import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { audioManager } from '@/core/audio/audioManager'
 import { useSse } from '@/core/composables/useEventStream'
+import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
+import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { usePolling } from '@/core/composables/usePolling'
 
@@ -30,7 +32,7 @@ export const useIncidentStore = defineStore('incident', () => {
   const announcedIncidentSounds = new Set<string>()
   const seenEventCounts = new Map<string, number>()
 
-  const { success: showSuccess, error: showError } = useToast()
+  const { success: showSuccess, error: showError, warning: showWarning } = useToast()
 
   // Computed
   const activeIncidents = computed(() => {
@@ -275,10 +277,23 @@ export const useIncidentStore = defineStore('incident', () => {
     token: string
   ): Promise<void> {
     try {
-      await incidentApi.assignResponders(vaultId, incidentId, dwellerIds, token)
+      const result = await incidentApi.assignResponders(vaultId, incidentId, dwellerIds, token)
       await fetchIncidents(vaultId, token)
       await fetchIncidentTeam(vaultId, incidentId, token)
-      showSuccess('Responders assigned. They will fight on the next vault round.')
+      const assignedIds = new Set(result.assigned_dweller_ids)
+      const skippedIds = dwellerIds.filter((id) => !assignedIds.has(id))
+      if (skippedIds.length) {
+        const dwellers = useDwellerFilterStore().dwellers
+        const names = skippedIds.map((id) => {
+          const dweller = dwellers.find((dweller) => dweller.id === id)
+          return dweller ? getDwellerDisplayName(dweller) : 'Unknown responder'
+        })
+        showWarning(
+          `${assignedIds.size} of ${dwellerIds.length} responders assigned. Already defending: ${names.join(', ')}.`
+        )
+      } else {
+        showSuccess('Responders assigned. They will fight on the next vault round.')
+      }
     } catch (err) {
       handleStoreError(err, 'Failed to assign incident responders')
       showError('Responder assignment failed')

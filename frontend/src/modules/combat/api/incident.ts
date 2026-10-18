@@ -4,6 +4,7 @@ import type {
   IncidentListResponse,
   IncidentOverflowResponse,
   IncidentTeamMember,
+  IncidentRespondersResponse,
 } from '../models/incident'
 
 export const incidentApi = {
@@ -31,23 +32,36 @@ export const incidentApi = {
     return response.data
   },
 
-  async assignResponders(vaultId: string, incidentId: string, dwellerIds: string[], token: string): Promise<void> {
-    await axios.post(
+  async assignResponders(
+    vaultId: string,
+    incidentId: string,
+    dwellerIds: string[],
+    token: string
+  ): Promise<IncidentRespondersResponse> {
+    const response = await axios.post<IncidentRespondersResponse>(
       `/api/v1/game/vaults/${vaultId}/incidents/${incidentId}/responders`,
       { dweller_ids: dwellerIds },
       { headers: { Authorization: `Bearer ${token}` } }
     )
+    return response.data
   },
 
   /**
    * Get the designated responder team for an incident
    */
-  async getIncidentTeam(vaultId: string, incidentId: string, token: string): Promise<IncidentTeamMember[]> {
-    const response = await axios.get(`/api/v1/game/vaults/${vaultId}/incidents/${incidentId}/team`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
+  async getIncidentTeam(
+    vaultId: string,
+    incidentId: string,
+    token: string
+  ): Promise<IncidentTeamMember[]> {
+    const response = await axios.get(
+      `/api/v1/game/vaults/${vaultId}/incidents/${incidentId}/team`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    )
     return response.data
   },
 

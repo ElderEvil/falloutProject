@@ -9,7 +9,6 @@ on:
       - 'scripts/check_backend_image.py'
       - '.github/workflows/backend-image-ci.yml'
   pull_request:
-    branches: [ master ]
     paths:
       - 'backend/**'
       - 'CHANGELOG.md'

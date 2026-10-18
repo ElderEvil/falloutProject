@@ -12,9 +12,10 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 from app.models.quest import Quest
@@ -100,12 +101,21 @@ async def test_seeder_round_trips_full_catalog_through_postgres(live_pg_engine: 
     production failure mode SQLite cannot reproduce. Assumes migrations are
     applied (CI applies them before the suite; run `alembic upgrade head` on a
     scratch DB locally).
+
+    The session class must be SQLModel's, not the raw SQLAlchemy one the app's
+    tick path uses: the seeder issues ``.exec()``, which only SQLModel adds.
+
+    Seeding runs twice: production re-seeds on every boot, so the second pass
+    exercises the existing-quest sync path. A fresh database only ever runs the
+    create path, which is how the sync path was able to blank ``rewards`` for the
+    24 catalog quests that carry no authored "Rewards" text.
     """
     session_factory = async_sessionmaker(live_pg_engine, class_=AsyncSession, expire_on_commit=False)
 
     async with session_factory() as session:
-        await seed_quests_from_json(session, quest_dir=Path(__file__).parents[2] / "data" / "quests")
-        await session.commit()
+        for _pass_number in (1, 2):
+            await seed_quests_from_json(session, quest_dir=Path(__file__).parents[2] / "data" / "quests")
+            await session.commit()
 
         rows = (await session.execute(select(Quest))).scalars().all()
         assert len(rows) >= 35, f"expected the full catalog, got {len(rows)} quests"

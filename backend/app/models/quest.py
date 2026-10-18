@@ -27,10 +27,10 @@ class QuestType(StrEnum):
 
 class QuestBase(SQLModel):
     title: str = Field(index=True, min_length=3, max_length=64)
-    short_description: str = Field(min_length=3, max_length=64)
-    long_description: str = Field(min_length=3, max_length=255)
-    requirements: str = Field(min_length=3, max_length=255)
-    rewards: str = Field(min_length=3, max_length=255)
+    short_description: str = Field(min_length=3, max_length=128)
+    long_description: str = Field(min_length=3, max_length=500)
+    requirements: str = Field(min_length=3, max_length=500)
+    rewards: str = Field(min_length=3, max_length=500)
     quest_type: QuestType = Field(default=QuestType.SIDE, index=True)
     quest_category: str | None = Field(default=None, max_length=64, index=True)
     duration_minutes: int = Field(default=60, description="Quest duration in minutes")

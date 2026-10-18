@@ -57,6 +57,22 @@ def generate_rewards_string(quest_json: QuestJSON) -> str:
     return ", ".join(format_reward(r) for r in quest_json.quest_rewards)
 
 
+def _quest_text_fields(quest_json: QuestJSON) -> dict[str, str]:
+    """Resolve the display-text fields, matching the seeder's string coercion for lists."""
+    reqs = quest_json.requirements
+    req_str = ""
+    if isinstance(reqs, str):
+        req_str = reqs
+    elif isinstance(reqs, list):
+        req_str = ", ".join(reqs) if all(isinstance(r, str) for r in reqs) else str(reqs[0]) if reqs else ""
+    return {
+        "short_description": quest_json.short_description,
+        "long_description": quest_json.long_description,
+        "requirements": req_str,
+        "rewards": quest_json.rewards,
+    }
+
+
 def _quest_metadata(quest_json: QuestJSON, chain_id: str | None) -> dict[str, Any]:
     return {
         "quest_type": QuestType(quest_json.quest_type or QuestType.SIDE),
@@ -64,6 +80,7 @@ def _quest_metadata(quest_json: QuestJSON, chain_id: str | None) -> dict[str, An
         "chain_id": chain_id,
         "chain_order": quest_json.chain_order,
         "duration_minutes": quest_json.duration_minutes,
+        **_quest_text_fields(quest_json),
     }
 
 
@@ -261,11 +278,15 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
 
                 quest = Quest(
                     title=quest_json.quest_name,
-                    short_description=quest_json.short_description,
-                    long_description=quest_json.long_description,
                     requirements=req_str,
                     rewards=rewards_str,
-                    **_quest_metadata(quest_json, quest_chain_ids[quest_json.quest_name]),
+                    **{
+                        key: value
+                        for key, value in _quest_metadata(quest_json, quest_chain_ids[quest_json.quest_name]).items()
+                        if key not in {"short_description", "long_description", "requirements", "rewards"}
+                    },
+                    short_description=quest_json.short_description,
+                    long_description=quest_json.long_description,
                 )
                 db_session.add(quest)
                 quests_to_commit.append((quest, quest_json))

@@ -59,6 +59,7 @@ async def ensure_current_objectives(db: AsyncSession, vault_id: UUID4, *, now: d
         state.achievement_tracks_initialized = True
     db.add(state)
     await db.commit()
+    await service.notify_completions(vault_id)
     if refreshed:
         from app.services.progression.objectives.notifications import notify_objectives_refreshed
 

@@ -1,14 +1,17 @@
 import logging
 import random
+from typing import Any
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import ObjectiveCategoryEnum
+from app.core.event_bus import GameEvent, event_bus
 from app.crud.objective import objective_crud
 from app.crud.vault import vault as vault_crud
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
+from app.services.progression.objectives.guidance import current_state_progress
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +26,7 @@ class ObjectiveAssignmentService:
 
     def __init__(self, db_session: AsyncSession):
         self._db_session = db_session
+        self._pending_completions: list[dict[str, Any]] = []
 
     async def assign_daily_objectives(self, vault_id: UUID4) -> list[Objective]:
         return await self._assign_category_objectives(vault_id, ObjectiveCategoryEnum.DAILY, self.DAILY_COUNT)
@@ -33,6 +37,7 @@ class ObjectiveAssignmentService:
     async def assign_achievement_objectives(self, vault_id: UUID4, *, auto_commit: bool = True) -> list[Objective]:
         """Assign first stages and reconcile legacy links, preserving earned rewards."""
         db = self._db_session
+        self._pending_completions = []
         await vault_crud.lock_for_update(db, vault_id)
         templates = await objective_crud.get_assignable_achievements(db)
         links = {link.objective_id: link for link in await objective_crud.get_links_for_vault(db, vault_id)}
@@ -61,14 +66,41 @@ class ObjectiveAssignmentService:
                         link.reward_snapshot = None
                     link.is_locked = objective is not active
             if active is not None and active.id not in links:
-                db.add(
-                    VaultObjectiveProgressLink(vault_id=vault_id, objective_id=active.id, total=active.target_amount)
-                )
+                link = VaultObjectiveProgressLink(vault_id=vault_id, objective_id=active.id, total=active.target_amount)
+                db.add(link)
+                if active.objective_type == "reach":
+                    link.progress = min(link.total, await current_state_progress(db, vault_id, active))
+                    if link.progress >= link.total:
+                        self._pending_completions.append(await self.prepare_completion(vault_id, active, link))
                 assigned.append(active)
         await db.flush()
         if auto_commit:
             await db.commit()
+            await self.notify_completions(vault_id)
         return assigned
+
+    async def prepare_completion(
+        self, vault_id: UUID4, objective: Objective, link: VaultObjectiveProgressLink
+    ) -> dict[str, Any]:
+        """Freeze the reward and unlock a stage in the caller's transaction."""
+        link.progress = objective.target_amount
+        link.reward_snapshot = link.reward_snapshot or objective.reward
+        next_stage = None
+        if objective.category == ObjectiveCategoryEnum.ACHIEVEMENT:
+            await self._db_session.flush()
+            next_stage = await self.unlock_next_achievement(vault_id, objective)
+        return {
+            "objective_id": str(objective.id),
+            "challenge": objective.challenge,
+            "ready_to_claim": True,
+            **({"next_achievement": next_stage.challenge} if next_stage else {}),
+        }
+
+    async def notify_completions(self, vault_id: UUID4) -> None:
+        """Publish initial-assignment completions only after the caller commits."""
+        completions, self._pending_completions = self._pending_completions, []
+        for data in completions:
+            await event_bus.emit(GameEvent.OBJECTIVE_COMPLETED, vault_id, data)
 
     async def unlock_next_achievement(self, vault_id: UUID4, completed: Objective) -> Objective | None:
         """Unlock the next unfinished stage at zero in the completion transaction."""

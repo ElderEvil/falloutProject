@@ -77,6 +77,10 @@ start at zero for each new stage: 100 Water followed by 500 Water requires 600 t
 new Water, and excess from the completing event does not spill into the next stage.
 Distinct-dweller counting windows also restart. Absolute **Reach** milestones continue
 to test current vault state, rather than counting additional residents or levels.
+When initially assigning a new **Reach** milestone, credit current living population
+or highest level, capped at its target. An already-met target freezes its reward,
+unlocks the next stage at zero and announces completion after commit. Existing links
+keep their recorded progress.
 Achievements are permanent and never participate in daily/weekly resets.
 
 Collection tracks for Power, Food and Water now have targets 100, 500, 1,500 and 5,000.

@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import pytest
 from sqlalchemy import event
 
-from app.core.event_bus import EventBus, GameEvent
+from app.core.event_bus import EventBus, GameEvent, event_bus
 from app.crud.objective import objective_crud
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
@@ -45,6 +45,7 @@ async def water_events(async_session):
         notifications.append(data)
 
     bus.subscribe(GameEvent.OBJECTIVE_COMPLETED, completed)
+    event_bus.subscribe(GameEvent.OBJECTIVE_COMPLETED, completed)
 
     @asynccontextmanager
     async def scope():
@@ -52,6 +53,7 @@ async def water_events(async_session):
 
     token = current_session_maker.set(scope)
     yield bus, notifications
+    event_bus.unsubscribe(GameEvent.OBJECTIVE_COMPLETED, completed)
     current_session_maker.reset(token)
 
 
@@ -226,3 +228,130 @@ async def test_renewal_discovers_new_families_without_resetting_current_progress
     assert links[stages[0].id].progress == 42
     assert links[added.id].progress == 0
     assert stages[1].id not in links
+
+
+async def existing_population(db, vault_id, count, *, level=1):
+    from app import crud
+    from app.schemas.dweller import DwellerCreate
+    from app.tests.factory.dwellers import create_random_common_dweller
+
+    for _ in range(count):
+        await crud.dweller.create(
+            db,
+            obj_in=DwellerCreate(**(create_random_common_dweller() | {"level": level}), vault_id=vault_id),
+        )
+
+
+async def population_stages(db):
+    stages = [
+        Objective(
+            challenge=f"Reach {amount} Dwellers",
+            reward="10 caps",
+            category="achievement",
+            objective_type="reach",
+            target_entity={"reach_type": "dweller_count"},
+            target_amount=amount,
+            track_key="reach:dweller_count",
+            sequence=sequence,
+        )
+        for sequence, amount in enumerate((10, 25, 50), 1)
+    ]
+    db.add_all(stages)
+    await db.commit()
+    return stages
+
+
+@pytest.mark.parametrize("population", [4, 15, 30])
+@pytest.mark.parametrize("through_refresh", [False, True], ids=["assignment", "refresh"])
+async def test_new_population_milestone_credits_existing_residents(
+    async_session, vault, water_events, population, through_refresh
+):
+    from app.services.progression.objectives.refresh_service import ensure_current_objectives
+
+    await existing_population(async_session, vault.id, population)
+    stages = await population_stages(async_session)
+    if through_refresh:
+        from sqlalchemy.ext.asyncio import AsyncSession as RawAsyncSession
+
+        async with RawAsyncSession(
+            bind=await async_session.connection(), expire_on_commit=False, join_transaction_mode="create_savepoint"
+        ) as worker:
+            await ensure_current_objectives(worker, vault.id)
+    else:
+        await ObjectiveAssignmentService(async_session).assign_achievement_objectives(vault.id)
+    links = {link.objective_id: link for link in await objective_crud.get_links_for_vault(async_session, vault.id)}
+    first = links[stages[0].id]
+    assert first.progress == min(population, 10)
+    assert not first.is_completed
+    if population < 10:
+        assert first.reward_snapshot is None
+        assert stages[1].id not in links
+        assert water_events[1] == []
+    else:
+        assert first.reward_snapshot == "10 caps"
+        assert links[stages[1].id].progress == 0
+        assert stages[2].id not in links
+        assert water_events[1] == [
+            {
+                "objective_id": str(stages[0].id),
+                "challenge": "Reach 10 Dwellers",
+                "ready_to_claim": True,
+                "next_achievement": "Reach 25 Dwellers",
+            }
+        ]
+        await claim_objective_reward(async_session, stages[0].id, vault.id)
+        await async_session.refresh(first)
+        assert first.is_completed
+    before = len(water_events[1])
+    await ObjectiveAssignmentService(async_session).assign_achievement_objectives(vault.id)
+    assert len(water_events[1]) == before
+    if population >= 10:
+        assert links[stages[1].id].progress == 0
+
+
+async def test_initial_population_completion_is_not_announced_before_commit(async_session, vault, water_events):
+    from app.services.progression.objectives.refresh_service import ensure_current_objectives
+
+    vault_id = vault.id
+    await existing_population(async_session, vault_id, 15)
+    stages = await population_stages(async_session)
+    first_id = stages[0].id
+
+    def fail_commit(_session):
+        raise RuntimeError("Assignment commit failed")
+
+    event.listen(async_session.sync_session, "before_commit", fail_commit)
+    try:
+        with pytest.raises(RuntimeError, match="Assignment commit failed"):
+            await ensure_current_objectives(async_session, vault_id)
+        assert water_events[1] == []
+    finally:
+        event.remove(async_session.sync_session, "before_commit", fail_commit)
+        await async_session.rollback()
+    assert await objective_crud.get_link_for_update(async_session, first_id, vault_id) is None
+    await ensure_current_objectives(async_session, vault_id)
+    assert len(water_events[1]) == 1
+    assert water_events[1][0]["objective_id"] == str(first_id)
+
+
+async def test_new_level_milestone_credits_existing_experience(async_session, vault, water_events):
+    await existing_population(async_session, vault.id, 1, level=8)
+    milestone = Objective(
+        challenge="Reach Level 5",
+        reward="10 caps",
+        category="achievement",
+        objective_type="reach",
+        target_entity={"reach_type": "level"},
+        target_amount=5,
+        track_key="reach:level",
+        sequence=1,
+    )
+    async_session.add(milestone)
+    await async_session.commit()
+    await ObjectiveAssignmentService(async_session).assign_achievement_objectives(vault.id)
+    link = await objective_crud.get_link_for_update(async_session, milestone.id, vault.id)
+    assert link.progress == 5
+    assert link.reward_snapshot == "10 caps"
+    assert water_events[1] == [
+        {"objective_id": str(milestone.id), "challenge": "Reach Level 5", "ready_to_claim": True}
+    ]

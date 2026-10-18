@@ -4,6 +4,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import StorageView from '@/modules/storage/views/StorageView.vue'
+import LunchboxOpenModal from '@/modules/storage/components/LunchboxOpenModal.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import axios from '@/core/plugins/axios'
@@ -116,6 +117,97 @@ describe('StorageView', () => {
     await trigger.trigger('mousedown')
     await flushPromises()
   }
+
+  it('keeps a lunchbox unopened when its sealed preview is dismissed', async () => {
+    vi.mocked(axios.post).mockResolvedValue({
+      data: { items: [], dweller: { name: 'Lucy', rarity: 'rare' } },
+    })
+    const wrapper = await mountWith({
+      weapons: [],
+      outfits: [],
+      junk: [],
+      pets: [],
+      items: [{ id: 'box-1', name: 'Lunchbox', item_type: 'lunchbox', value: 500 }],
+    })
+    await clickTab(wrapper, 'Supplies')
+    wrapper.findComponent({ name: 'StorageItemCard' }).vm.$emit('open')
+    await flushPromises()
+    expect(wrapper.findComponent(LunchboxOpenModal).props('show')).toBe(true)
+    expect(axios.post).not.toHaveBeenCalled()
+    wrapper.findComponent(LunchboxOpenModal).vm.$emit('close')
+    await flushPromises()
+    expect(axios.post).not.toHaveBeenCalled()
+    expect(wrapper.findComponent(LunchboxOpenModal).props('show')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('opens only on reveal, ignores repeat reveals and close while waiting, then refreshes inventory', async () => {
+    let finish!: (value: unknown) => void
+    vi.mocked(axios.post).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
+    )
+    const wrapper = await mountWith({
+      weapons: [],
+      outfits: [],
+      junk: [],
+      pets: [],
+      items: [{ id: 'box-1', name: 'Lunchbox', item_type: 'lunchbox', value: 500 }],
+    })
+    await clickTab(wrapper, 'Supplies')
+    wrapper.findComponent({ name: 'StorageItemCard' }).vm.$emit('open')
+    await flushPromises()
+    const modal = wrapper.findComponent(LunchboxOpenModal)
+    modal.vm.$emit('reveal')
+    modal.vm.$emit('reveal')
+    await flushPromises()
+    expect(axios.post).toHaveBeenCalledTimes(1)
+    expect(axios.post).toHaveBeenCalledWith('/api/v1/storage/vault/vault-1/lunchbox/open', {
+      item_id: 'box-1',
+    })
+    modal.vm.$emit('close')
+    await flushPromises()
+    expect(modal.props('show')).toBe(true)
+    expect(modal.props('opening')).toBe(true)
+    finish({ data: { items: [], dweller: { name: 'Lucy', rarity: 'rare' } } })
+    await flushPromises()
+    expect(modal.props('opening')).toBe(false)
+    expect(modal.props('result')?.dweller.name).toBe('Lucy')
+    modal.vm.$emit('close')
+    await flushPromises()
+    expect(vaultStore.refreshVault).toHaveBeenCalledWith('vault-1', 'test-token')
+    wrapper.unmount()
+  })
+
+  it('keeps opening errors in the sealed preview and lets the player retry', async () => {
+    vi.mocked(axios.post).mockRejectedValueOnce(new Error('Not enough storage'))
+    const wrapper = await mountWith({
+      weapons: [],
+      outfits: [],
+      junk: [],
+      pets: [],
+      items: [{ id: 'box-1', name: 'Lunchbox', item_type: 'lunchbox', value: 500 }],
+    })
+    await clickTab(wrapper, 'Supplies')
+    wrapper.findComponent({ name: 'StorageItemCard' }).vm.$emit('open')
+    await flushPromises()
+    const modal = wrapper.findComponent(LunchboxOpenModal)
+    modal.vm.$emit('reveal')
+    await flushPromises()
+    expect(modal.props('show')).toBe(true)
+    expect(modal.props('result')).toBeNull()
+    expect(modal.props('error')).toBe('Not enough storage')
+    vi.mocked(axios.post).mockResolvedValueOnce({
+      data: { items: [], dweller: { name: 'Lucy', rarity: 'rare' } },
+    })
+    modal.vm.$emit('reveal')
+    await flushPromises()
+    expect(modal.props('error')).toBeNull()
+    expect(modal.props('result')?.dweller.name).toBe('Lucy')
+    wrapper.unmount()
+  })
 
   it.each(['sell', 'scrap'] as const)(
     'keeps surviving cards mounted during a %s refresh',

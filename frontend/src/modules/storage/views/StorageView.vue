@@ -264,25 +264,42 @@ const handleScrapItem = async (
   }
 }
 
-// Lunchbox opening
+// Previewing a sealed lunchbox is free; only Reveal Contents consumes it.
 const showLunchboxModal = ref(false)
+const selectedLunchboxId = ref<string | null>(null)
 const lunchboxResult = ref<components['schemas']['LunchboxOpened'] | null>(null)
-
-const handleOpenLunchbox = async (itemId: string) => {
-  if (!vaultId.value) return
-  try {
-    lunchboxResult.value = await storageService.openLunchbox(vaultId.value, itemId)
+const {
+  run: revealLunchbox,
+  isLoading: openingLunchbox,
+  error: lunchboxError,
+} = useAsyncAction(
+  async () => {
+    if (!vaultId.value || !selectedLunchboxId.value || lunchboxResult.value) return
+    lunchboxResult.value = await storageService.openLunchbox(
+      vaultId.value,
+      selectedLunchboxId.value
+    )
     void refreshNukaColaCount(vaultId.value)
     playSound('lunchboxOpen', 'ui')
-    showLunchboxModal.value = true
-  } catch (error: unknown) {
-    handleStoreError(error, 'Failed to open lunchbox')
-  }
+  },
+  { context: 'Failed to open lunchbox', showToast: false }
+)
+
+const handleOpenLunchbox = (itemId: string) => {
+  if (openingLunchbox.value) return
+  selectedLunchboxId.value = itemId
+  lunchboxResult.value = null
+  lunchboxError.value = null
+  showLunchboxModal.value = true
 }
 
 const closeLunchboxModal = async () => {
+  if (openingLunchbox.value) return
+  const opened = !!lunchboxResult.value
   showLunchboxModal.value = false
+  selectedLunchboxId.value = null
   lunchboxResult.value = null
+  if (!opened) return
   await fetchStorageData()
   if (vaultId.value && authStore.token) {
     await vaultStore.refreshVault(vaultId.value, authStore.token)
@@ -430,6 +447,9 @@ const closeLunchboxModal = async () => {
         <LunchboxOpenModal
           :show="showLunchboxModal"
           :result="lunchboxResult"
+          :opening="openingLunchbox"
+          :error="lunchboxError"
+          @reveal="!openingLunchbox && revealLunchbox()"
           @close="closeLunchboxModal"
         />
       </PageContentRail>

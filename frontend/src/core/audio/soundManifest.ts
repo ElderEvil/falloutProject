@@ -28,6 +28,8 @@ export const SOUND_MANIFEST = {
   lunchboxOpen: '/audio/ui/lunchbox-open.wav',
   cardWeapon: '/audio/ui/card-weapon.wav',
   cardOutfit: '/audio/ui/card-outfit.wav',
+  cardCommon: '/audio/ui/card-common.mp3',
+  cardRare: '/audio/ui/card-rare.mp3',
   cardLegendary: '/audio/ui/card-legendary.mp3',
   craftStart: '/audio/ui/craft-start.wav',
   vaultBuild: '/audio/ui/vault-build.wav',

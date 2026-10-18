@@ -52,6 +52,7 @@ describe('LunchboxOpenModal', () => {
   let wrapper: VueWrapper | null = null
 
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     soundMock.playSound.mockClear()
   })
 
@@ -68,7 +69,7 @@ describe('LunchboxOpenModal', () => {
     expect(dialog.exists()).toBe(true)
     const titleId = dialog.attributes('aria-labelledby')
     expect(titleId).toBeTruthy()
-    expect(wrapper.find(`[id="${titleId}"]`).text()).toContain('Lunchbox Opened!')
+    expect(wrapper.find(`[id="${titleId}"]`).text()).toContain('Vault-Tec supply drop')
     expect(wrapper.text()).toContain('Reveal Contents')
     expect(wrapper.text()).not.toContain('Laser Pistol')
     expect(wrapper.text()).not.toContain('Jane Doe')
@@ -80,6 +81,7 @@ describe('LunchboxOpenModal', () => {
     const reveal = findButton(wrapper, 'Reveal Contents')
     expect(reveal?.exists()).toBe(true)
     await reveal!.trigger('click')
+    await vi.advanceTimersByTimeAsync(2700)
 
     expect(wrapper.text()).toContain('Laser Pistol')
     expect(wrapper.text()).toContain('rare')
@@ -91,9 +93,56 @@ describe('LunchboxOpenModal', () => {
     expect(wrapper.text()).toContain('3 items added to Storage')
   })
 
+  it('reveals each item then the dweller in the same slots, without replacing the supply-drop panel', async () => {
+    wrapper = mountModal()
+    const slots = wrapper.findAll('[data-reward-slot]').map((slot) => slot.element)
+    const reveal = findButton(wrapper, 'Reveal Contents')!
+    await reveal.trigger('click')
+    expect(reveal.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).not.toContain('Laser Pistol')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(wrapper.text()).toContain('Laser Pistol')
+    expect(wrapper.text()).not.toContain('Vault Suit')
+    await vi.advanceTimersByTimeAsync(899)
+    expect(wrapper.text()).not.toContain('Vault Suit')
+    await vi.advanceTimersByTimeAsync(1)
+    expect(wrapper.text()).toContain('Vault Suit')
+    expect(wrapper.text()).not.toContain('Combat Armor')
+    await vi.advanceTimersByTimeAsync(900)
+    expect(wrapper.text()).toContain('Combat Armor')
+    expect(wrapper.text()).not.toContain('Jane Doe')
+    await vi.advanceTimersByTimeAsync(900)
+    expect(wrapper.text()).toContain('Jane Doe')
+    expect(wrapper.text()).toContain('Vault-Tec supply drop')
+    expect(wrapper.findAll('[data-reward-slot]').map((slot) => slot.element)).toEqual(slots)
+    expect(findButton(wrapper, 'Done')!.element).toBe(reveal.element)
+    expect(reveal.attributes('disabled')).toBeUndefined()
+  })
+
+  it('cancels the old sequence and waits for a result after reopening a sealed box', async () => {
+    wrapper = mountModal()
+    await findButton(wrapper, 'Reveal Contents')!.trigger('click')
+    await vi.advanceTimersByTimeAsync(0)
+    soundMock.playSound.mockClear()
+    await wrapper.setProps({ show: false, result: null })
+    await wrapper.setProps({ show: true })
+    await vi.advanceTimersByTimeAsync(3600)
+    expect(soundMock.playSound).not.toHaveBeenCalled()
+    await findButton(wrapper, 'Reveal Contents')!.trigger('click')
+    expect(wrapper.emitted('reveal')).toHaveLength(1)
+    expect(wrapper.text()).toContain('Something rattles inside')
+    await wrapper.setProps({
+      result: { ...result, items: [{ name: 'New Suit', type: 'outfit', rarity: 'common' }] },
+    })
+    await vi.advanceTimersByTimeAsync(900)
+    expect(wrapper.text()).toContain('New Suit')
+    expect(wrapper.text()).toContain('Jane Doe')
+  })
+
   it('falls back to item icons and a dweller silhouette when images fail', async () => {
     wrapper = mountModal()
     await findButton(wrapper, 'Reveal Contents')!.trigger('click')
+    await vi.advanceTimersByTimeAsync(2700)
     await wrapper.find('img[alt="Laser Pistol"]').trigger('error')
     await wrapper.find('img[alt="Jane Doe"]').trigger('error')
 
@@ -103,24 +152,29 @@ describe('LunchboxOpenModal', () => {
     expect(wrapper.text()).toContain('Jane Doe')
   })
 
-  it('plays the legendary fanfare for a legendary dweller even when equipment is common', async () => {
-    vi.useFakeTimers()
+  it.each([
+    ['common', 'cardCommon'],
+    ['rare', 'cardRare'],
+    ['legendary', 'cardLegendary'],
+  ])('plays the %s dweller reveal sound without a generic card drop', async (rarity, sound) => {
     wrapper = mountModal({
       props: {
         show: true,
         result: {
           ...result,
           items: [{ name: 'Vault Suit', type: 'outfit', rarity: 'common' }],
-          dweller: { ...result.dweller, rarity: 'legendary' },
+          dweller: { ...result.dweller, rarity },
         },
       },
     })
     await findButton(wrapper, 'Reveal Contents')!.trigger('click')
-    await vi.advanceTimersByTimeAsync(1000)
-    expect(soundMock.playSound).toHaveBeenCalledWith('cardLegendary', 'sfx')
+    await vi.advanceTimersByTimeAsync(0)
+    soundMock.playSound.mockClear()
+    await vi.advanceTimersByTimeAsync(900)
+    expect(soundMock.playSound).toHaveBeenCalledExactlyOnceWith(sound, 'sfx')
   })
 
-  it('plays staggered card sounds on reveal and a legendary fanfare after', async () => {
+  it('plays each rarity fanfare with its own card rather than borrowing the dweller reveal', async () => {
     vi.useFakeTimers()
     wrapper = mountModal()
 
@@ -129,18 +183,20 @@ describe('LunchboxOpenModal', () => {
 
     expect(soundMock.playSound).not.toHaveBeenCalled()
 
-    await vi.advanceTimersByTimeAsync(250)
+    await vi.advanceTimersByTimeAsync(0)
     expect(soundMock.playSound).toHaveBeenNthCalledWith(1, 'cardWeapon', 'ui')
 
-    await vi.advanceTimersByTimeAsync(250)
+    await vi.advanceTimersByTimeAsync(900)
     expect(soundMock.playSound).toHaveBeenNthCalledWith(2, 'cardOutfit', 'ui')
 
-    await vi.advanceTimersByTimeAsync(250)
+    await vi.advanceTimersByTimeAsync(900)
     expect(soundMock.playSound).toHaveBeenNthCalledWith(3, 'cardOutfit', 'ui')
-
-    await vi.advanceTimersByTimeAsync(250)
     expect(soundMock.playSound).toHaveBeenNthCalledWith(4, 'cardLegendary', 'sfx')
-    expect(soundMock.playSound).toHaveBeenCalledTimes(4)
+
+    await vi.advanceTimersByTimeAsync(900)
+    expect(soundMock.playSound).toHaveBeenNthCalledWith(4, 'cardLegendary', 'sfx')
+    expect(soundMock.playSound).toHaveBeenNthCalledWith(5, 'cardRare', 'sfx')
+    expect(soundMock.playSound).toHaveBeenCalledTimes(5)
   })
 
   it('clears pending reveal timers when the modal closes', async () => {
@@ -151,13 +207,15 @@ describe('LunchboxOpenModal', () => {
     await reveal!.trigger('click')
 
     await wrapper.setProps({ show: false })
-    await vi.advanceTimersByTimeAsync(1000)
+    await vi.advanceTimersByTimeAsync(3600)
 
     expect(soundMock.playSound).not.toHaveBeenCalled()
   })
 
   it('emits close from the Done action', async () => {
     wrapper = mountModal()
+    await findButton(wrapper, 'Reveal Contents')!.trigger('click')
+    await vi.advanceTimersByTimeAsync(2700)
 
     const done = findButton(wrapper, 'Done')
     expect(done?.exists()).toBe(true)

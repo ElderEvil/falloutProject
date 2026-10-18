@@ -41,6 +41,8 @@ These are authored encounter markers, not a blanket conversion of ordinary world
   100: five seconds of combat fill the meter (three ticks on the current two-second Arena clock). Countdown, idle rooms and knocked-out fighters add none.
 - The player can activate either dweller side in Duel/Brawl; Hunt exposes skills only for real dwellers.
   Training bots and creatures have no manual skill.
+- Team A support bots, including the previously allowed Hunt companion, are intentionally disabled
+  for this prototype at the maintainer’s request. Team A uses real dwellers; Brawl still permits a Team B bot.
 - Activation reserves all 100 charge immediately, preventing double-clicks/replays. The attack resolves on the
   fighter's next team turn. Charge earned during that tick starts the next meter.
 - Ordinary attacks deal 10% of each fighter's power per second, capped at 5% of the target's maximum HP per second. Each fighter pairs with a separate standing enemy in team-slot order while enough enemies remain. Survivors share the last enemy when outnumbering it. No ordinary attack spills into another fighter's target.

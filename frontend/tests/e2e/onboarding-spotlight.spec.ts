@@ -147,9 +147,7 @@ async function openVault(page: Page, teaching?: unknown) {
 }
 
 test.describe('Spotlight guide — vault page', () => {
-  test('shows the guide and highlights an on-screen control at phone width', async ({
-    page,
-  }) => {
+  test('shows the guide and highlights an on-screen control at phone width', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await openVault(page)
 
@@ -208,10 +206,14 @@ test.describe('Spotlight guide — vault page', () => {
   })
 
   test('offers explicit navigation at phone width when the control is hidden', async ({ page }) => {
-    // The side panel collapses below the desktop breakpoint, so the staffing
-    // anchor is hidden; the guide must navigate rather than spotlight nothing.
+    // Exercise a hidden anchor explicitly. A collapsed drawer can still have
+    // an offscreen anchor, which correctly offers Show control instead.
     await page.setViewportSize({ width: 390, height: 844 })
     await openVault(page, ORIENTATION_ACKNOWLEDGED)
+    await page.addStyleTag({
+      content: '[data-onboarding="nav-dwellers"] { display: none !important }',
+    })
+    await expect(page.locator('[data-onboarding="nav-dwellers"]')).toBeHidden()
 
     await expect(page.getByRole('button', { name: 'Open Dwellers' })).toBeVisible({
       timeout: 15000,
@@ -256,11 +258,17 @@ test.describe('Spotlight guide — vault page', () => {
     await openVault(page, ORIENTATION_ACKNOWLEDGED)
     let completed = false
     const housing = {
-      ...STAFFING_OBJECTIVE, id: 'housing', challenge: 'Build a Living Quarters',
-      template_key: 'starter:build a living quarters#v2', objective_type: 'build',
-      target_entity: { room_type: 'living_room' }, progress: 1, total: 1, reward: 'dweller:Wanderer',
+      ...STAFFING_OBJECTIVE,
+      id: 'housing',
+      challenge: 'Build a Living Quarters',
+      template_key: 'starter:build a living quarters#v2',
+      objective_type: 'build',
+      target_entity: { room_type: 'living_room' },
+      progress: 1,
+      total: 1,
+      reward: 'dweller:Wanderer',
     }
-    await page.route('**/api/v1/objectives/vault-1/**', async route => {
+    await page.route('**/api/v1/objectives/vault-1/**', async (route) => {
       if (route.request().url().endsWith('/housing/claim')) {
         completed = true
         return route.fulfill({ json: { progress: 1, total: 1, is_completed: true } })
@@ -276,7 +284,9 @@ test.describe('Spotlight guide — vault page', () => {
     await expect(celebration).toHaveCount(0)
   })
 
-  test('the first-expedition handoff offers one task and stays dismissed after reload', async ({ page }) => {
+  test('the first-expedition handoff offers one task and stays dismissed after reload', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     const teaching = {
       ...ORIENTATION_ACKNOWLEDGED,
@@ -288,17 +298,46 @@ test.describe('Spotlight guide — vault page', () => {
       },
     }
     await openVault(page, teaching)
-    await page.route('**/api/v1/objectives/vault-1/**', route => route.fulfill({ json: [{
-      ...STAFFING_OBJECTIVE, id: 'departure', template_key: 'starter:send a dweller exploring',
-      objective_type: 'explore', progress: 1, total: 1, is_completed: true,
-    }] }))
-    await page.route('**/api/v1/explorations/vault/vault-1?*', route => route.fulfill({ json: [{
-      id: 'first-run', vault_id: 'vault-1', dweller_id: 'wanderer', status: 'active',
-      duration: 1, start_time: new Date().toISOString(),
-    }] }))
-    await page.route('**/api/v1/storage/vault/vault-1/items', route => route.fulfill({
-      json: { weapons: [{ id: 'weapon', dweller_id: null }], outfits: [], items: [], junk: [], pets: [] },
-    }))
+    await page.route('**/api/v1/objectives/vault-1/**', (route) =>
+      route.fulfill({
+        json: [
+          {
+            ...STAFFING_OBJECTIVE,
+            id: 'departure',
+            template_key: 'starter:send a dweller exploring',
+            objective_type: 'explore',
+            progress: 1,
+            total: 1,
+            is_completed: true,
+          },
+        ],
+      })
+    )
+    await page.route('**/api/v1/explorations/vault/vault-1?*', (route) =>
+      route.fulfill({
+        json: [
+          {
+            id: 'first-run',
+            vault_id: 'vault-1',
+            dweller_id: 'wanderer',
+            status: 'active',
+            duration: 1,
+            start_time: new Date().toISOString(),
+          },
+        ],
+      })
+    )
+    await page.route('**/api/v1/storage/vault/vault-1/items', (route) =>
+      route.fulfill({
+        json: {
+          weapons: [{ id: 'weapon', dweller_id: null }],
+          outfits: [],
+          items: [],
+          junk: [],
+          pets: [],
+        },
+      })
+    )
     await page.reload()
     const handoff = page.getByRole('region', { name: 'First expedition handoff' })
     await expect(handoff).toContainText('While they’re away')

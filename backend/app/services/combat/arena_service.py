@@ -644,6 +644,7 @@ class ArenaService:
                 if not living:
                     break
                 multiplier = attack_skill.multiplier if attack_skill else 1.0
+                # Re-evaluate for each action: a skill may knock out the original target.
                 targets = living if attack_skill and attack_skill.area else [chosen if chosen.health > 0 else living[0]]
                 damage = self._team_damage([attacker], seconds_passed) * multiplier
                 for target in targets:

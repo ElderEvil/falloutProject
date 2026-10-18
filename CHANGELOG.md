@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.236.0 (2026-10-18)
+
+### Features
+
+* **exploration:** add salvage sites and reload development workers ([#1082](https://github.com/ElderEvil/falloutProject/issues/1082)) ea18f2a
+* **incidents:** preview room defenders and send nearby support ([#1081](https://github.com/ElderEvil/falloutProject/issues/1081)) a00b93d
+
 ## 2.235.1 (2026-10-18)
 
 ### Bug Fixes

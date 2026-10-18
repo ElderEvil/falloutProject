@@ -5,7 +5,6 @@ import logging
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import DwellerStatusEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.crud.dweller import dweller as crud_dweller
 from app.crud.incident import incident_crud
@@ -35,7 +34,7 @@ from app.schemas.incident import (
 )
 from app.services.combat import incident_publishing, incident_round, incident_spawning, incident_tick
 from app.services.loot_overflow_service import loot_overflow_service
-from app.utils.dweller_availability import availability_error
+from app.utils.dweller_availability import is_incident_responder_available
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)
@@ -306,11 +305,7 @@ class IncidentService:
         if len(dwellers) != len(unique_ids):
             raise ValidationException("One or more responders do not belong to this vault")
 
-        unavailable = [
-            dweller
-            for dweller in dwellers
-            if availability_error(dweller, require_healthy=True) or dweller.status == DwellerStatusEnum.FIGHTING
-        ]
+        unavailable = [dweller for dweller in dwellers if not is_incident_responder_available(dweller)]
         if unavailable:
             raise ValidationException("Only healthy adult dwellers in the vault can respond")
 

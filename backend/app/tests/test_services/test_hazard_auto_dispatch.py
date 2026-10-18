@@ -7,7 +7,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import HazardTeam
+from app.core.enums import DwellerStatusEnum, HazardTeam
 from app.models.incident import IncidentType
 from app.models.team import ACTIVE_STATUS, DISPATCHED_STATUS, RESERVE_STATUS, TeamMember
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
@@ -168,17 +168,19 @@ async def test_dispatch_respects_responder_cap(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(("health", "status"), [(0, DwellerStatusEnum.IDLE), (100, DwellerStatusEnum.FIGHTING)])
 async def test_unavailable_member_skipped_others_dispatched(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict, health: int, status: DwellerStatusEnum
 ):
-    """A wounded active member is skipped; the healthy ones still respond."""
+    """Wounded members and Arena fighters stay put; available members respond."""
     room = room_with_dwellers["room"]
     vault = room_with_dwellers["vault"]
     dwellers = room_with_dwellers["dwellers"]
     for dweller in dwellers:
         await dweller_service.update_dweller(async_session, dweller.id, {"room_id": None})
     wounded = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
-    wounded.health = 0
+    wounded.health = health
+    wounded.status = status
     async_session.add(wounded)
     await async_session.commit()
     for dweller in [*dwellers, wounded]:

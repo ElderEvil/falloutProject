@@ -115,6 +115,7 @@ const storeMock = vi.hoisted(() => {
     tier: 3,
     available_modes: ['duel', 'brawl', 'hunt'],
     mode: 'duel',
+    next_attack_team: 'A',
     fighter_a_id: 'a-1',
     fighter_b_id: 'b-1',
     fighters: [alpha, bravo],
@@ -242,9 +243,12 @@ describe('ArenaModal', () => {
       }
       const wrapper = mountModal()
       await flushPromises()
-      const skills = wrapper.get('section[aria-label="Active combat skills"]')
-      expect(skills.get('[role="progressbar"]').attributes('aria-valuenow')).toBe(String(charge))
-      const button = skills.get('button')
+      const ring = wrapper.get('[aria-label="Arena ring"]')
+      expect(
+        ring.get('[aria-label="Alpha Dweller skill charge"]').attributes('aria-valuenow')
+      ).toBe(String(charge))
+      const button = ring.get('button[aria-label^="Use Aimed Shot for"]')
+      expect(wrapper.find('.teams-row').exists()).toBe(false)
       expect(button.attributes('disabled') === undefined).toBe(enabled)
       if (enabled) {
         await button.trigger('click')
@@ -357,7 +361,7 @@ describe('ArenaModal', () => {
     storeMock.currentRoom = { ...storeMock.readyRoom, mode: 'brawl', can_start: false }
     const brawl = mountModal()
     await flushPromises()
-    expect(brawl.text()).toContain('NEEDS 2 DWELLERS + PARTNERS')
+    expect(brawl.text()).toContain('NEEDS 3 DWELLERS + A PARTNER')
   })
 
   it('switches to brawl with two slots per team', async () => {
@@ -392,9 +396,7 @@ describe('ArenaModal', () => {
     await chooseMode(wrapper, 'BRAWL')
     const picker = await openPicker(wrapper, 1)
     await pickOption(picker, 'Charlie Dweller')
-    expect(slots(wrapper)[1].get('.fighter-portrait img').attributes('src')).toContain(
-      '/static/portraits/c-1.png'
-    )
+    expect(slots(wrapper)[1].get('img').attributes('src')).toContain('/static/portraits/c-1.png')
     expect(storeMock.setFighters).not.toHaveBeenCalled()
   })
 
@@ -598,9 +600,8 @@ describe('ArenaModal', () => {
     storeMock.currentRoom = { ...storeMock.huntRoom, fight_started: true, match_done: false }
     wrapper = mountModal()
     await flushPromises()
-    const buttons = wrapper.get('[aria-label="Hunt preset"]').findAll('button')
-    expect(buttons.every((button) => button.attributes('disabled') !== undefined)).toBe(true)
-    await buttons[0]!.trigger('click')
+    expect(wrapper.find('[aria-label="Hunt preset"]').exists()).toBe(false)
+    expect(wrapper.find('.teams-row').exists()).toBe(false)
     expect(storeMock.setFighters).not.toHaveBeenCalled()
   })
 
@@ -755,7 +756,7 @@ describe('ArenaModal', () => {
     )
   })
 
-  it('renders the battle journal oldest-first with round numbers and grouping', async () => {
+  it('renders legacy journal entries in order without round labels', async () => {
     storeMock.currentRoom = {
       ...storeMock.readyRoom,
       events: [
@@ -776,12 +777,56 @@ describe('ArenaModal', () => {
     const items = wrapper.findAll('[aria-label="Battle log"] li')
     expect(items).toHaveLength(3)
     expect(items[0].text()).toContain('Bravo Dweller hits Alpha Dweller for 3')
-    expect(items[0].text()).toContain('R1')
+    expect(items[0].text()).not.toContain('R1')
     expect(items[1].text()).toContain('Alpha Dweller hits Bravo Dweller for 5')
-    expect(items[1].text()).toContain('R2')
+    expect(items[1].text()).not.toContain('R2')
     expect(items[1].text()).toContain('×2')
     expect(items[2].text()).toContain('FINISH')
-    expect(items[2].text()).toContain('R4')
+    expect(items[2].text()).not.toContain('R4')
+  })
+
+  it('orders timestamped events by real time without collapsing separate hits', async () => {
+    storeMock.currentRoom = {
+      ...storeMock.readyRoom,
+      events: [
+        {
+          id: 'last',
+          round_seq: 1,
+          kind: 'skill',
+          message: 'Alpha uses Aimed Shot on Bravo for 2',
+          created_at: '2026-10-18T12:00:03+00:00',
+        },
+        {
+          id: 'middle',
+          round_seq: 99,
+          kind: 'hit',
+          message: 'Alpha hits Bravo for 1',
+          created_at: '2026-10-18T12:00:02+00:00',
+        },
+        {
+          id: 'first',
+          round_seq: 100,
+          kind: 'hit',
+          message: 'Alpha hits Bravo for 1',
+          created_at: '2026-10-18T12:00:01+00:00',
+        },
+      ],
+    }
+    const wrapper = mountModal()
+    await flushPromises()
+    const entries = wrapper.findAll('[aria-label="Battle log"] li')
+    expect(entries).toHaveLength(3)
+    expect(entries.map((entry) => entry.get('time').attributes('datetime'))).toEqual([
+      '2026-10-18T12:00:01+00:00',
+      '2026-10-18T12:00:02+00:00',
+      '2026-10-18T12:00:03+00:00',
+    ])
+    expect(entries.every((entry) => /^\d{2}:\d{2}:\d{2}$/.test(entry.get('time').text()))).toBe(
+      true
+    )
+    expect(entries[2].find('svg').exists()).toBe(true)
+    expect(entries[2].text()).toContain('SKILL')
+    expect(wrapper.get('[aria-label="Battle log"]').text()).not.toContain('×2')
   })
 
   it('shows a polite empty state when no rounds have been fought', async () => {
@@ -790,7 +835,7 @@ describe('ArenaModal', () => {
 
     const journal = wrapper.get('[aria-label="Battle log"]')
     expect(journal.attributes('aria-live')).toBe('polite')
-    expect(journal.text()).toContain('No rounds fought yet.')
+    expect(journal.text()).toContain('No attacks yet.')
   })
 
   it('resyncs the draft when the server rejects a selection', async () => {
@@ -800,7 +845,7 @@ describe('ArenaModal', () => {
     expect(wrapper.text()).toContain('START FIGHT')
 
     const slot = slots(wrapper)[0]
-    const swap = slot.findAll('button').find((button) => button.text() === 'SWAP')!
+    const swap = slot.get('button[aria-label^="Swap"]')
     await swap.trigger('click')
     await flushPromises()
     await pickOption(slot, 'Charlie Dweller')
@@ -811,65 +856,54 @@ describe('ArenaModal', () => {
     expect(wrapper.text()).toContain('READY')
     expect(wrapper.text()).not.toContain('NEEDS 2 FIGHTERS')
   })
-  it.each(['hunt', 'brawl'] as const)(
-    'selects a bot instead of the second dweller in %s',
-    async (mode) => {
-      storeMock.currentRoom = {
-        ...(mode === 'hunt' ? storeMock.huntRoom : storeMock.readyRoom),
-        mode,
-      }
-      const wrapper = mountModal()
-      await flushPromises()
-      const group = wrapper.get('[role="group"][aria-label="Team A partner"]')
-      await group
+  it.each(['hunt', 'brawl'] as const)('never offers a Team A bot in %s', async (mode) => {
+    storeMock.currentRoom = { ...storeMock.huntRoom, mode }
+    const wrapper = mountModal()
+    await flushPromises()
+    expect(wrapper.find('[aria-label="Team A partner"]').exists()).toBe(false)
+    if (mode === 'brawl') expect(wrapper.find('[aria-label="Team B partner"]').exists()).toBe(true)
+  })
+
+  it('preserves a Team B bot draft across polling and commits it with two Team A dwellers', async () => {
+    const wrapper = mountModal()
+    await flushPromises()
+    await chooseMode(wrapper, 'BRAWL')
+    await pickOption(await openPicker(wrapper, 1), 'Charlie Dweller')
+    const group = wrapper.get('[aria-label="Team B partner"]')
+    await group
+      .findAll('button')
+      .find((b) => b.text() === 'Bot')!
+      .trigger('click')
+    await flushPromises()
+    await pollMock.run!()
+    await flushPromises()
+    expect(
+      group
         .findAll('button')
-        .find((button) => button.text() === 'Bot')!
-        .trigger('click')
-      await flushPromises()
-      await pollMock.run!()
-      await flushPromises()
-      expect(
-        group
-          .findAll('button')
-          .find((button) => button.text() === 'Bot')!
-          .attributes('aria-pressed')
-      ).toBe('true')
-      expect(storeMock.setFighters).not.toHaveBeenCalled()
-      const option = wrapper
-        .findAll('.picker-option')
-        .find((button) => button.text().includes('Training Eyebot'))!
-      expect(
-        wrapper.findAll('.picker-option').filter((button) => button.text().includes('Deathclaw'))
-      ).toHaveLength(0)
-      await option.trigger('click')
-      await flushPromises()
-      // A Brawl without its second partner remains a local draft until both teams are complete.
-      if (mode === 'brawl') {
-        const b = wrapper.get('[role="group"][aria-label="Team B partner"]')
-        await b
-          .findAll('button')
-          .find((button) => button.text() === 'Bot')!
-          .trigger('click')
-        await flushPromises()
-        await wrapper
-          .findAll('.picker-option')
-          .find((button) => button.text().includes('Training Protectron'))!
-          .trigger('click')
-        await flushPromises()
-      }
-      expect(storeMock.setFighters).toHaveBeenLastCalledWith(
-        'vault-1',
-        'room-1',
-        expect.objectContaining({
-          mode,
-          fighterAId: 'a-1',
-          fighterCId: null,
-          teamABotKey: 'training-eyebot',
-          teamBBotKey: mode === 'brawl' ? 'training-protectron' : null,
-        }),
-        'test-token'
-      )
-      expect(wrapper.text()).toContain('Bots reset each match and earn no rewards')
-    }
-  )
+        .find((b) => b.text() === 'Bot')!
+        .attributes('aria-pressed')
+    ).toBe('true')
+    expect(wrapper.findAll('.picker-option').some((b) => b.text().includes('Deathclaw'))).toBe(
+      false
+    )
+    await wrapper
+      .findAll('.picker-option')
+      .find((b) => b.text().includes('Training Eyebot'))!
+      .trigger('click')
+    await flushPromises()
+    expect(storeMock.setFighters).toHaveBeenLastCalledWith(
+      'vault-1',
+      'room-1',
+      expect.objectContaining({
+        mode: 'brawl',
+        fighterAId: 'a-1',
+        fighterCId: 'c-1',
+        fighterBId: 'b-1',
+        teamABotKey: null,
+        teamBBotKey: 'training-eyebot',
+      }),
+      'test-token'
+    )
+    expect(wrapper.text()).toContain('Team B training bots reset each match and earn no rewards.')
+  })
 })

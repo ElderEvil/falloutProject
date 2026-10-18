@@ -86,6 +86,7 @@ class RadioStats(TypedDict, total=False):
 
 
 class ArenaEventStats(TypedDict):
+    created_at: str | None
     id: str
     round_seq: int
     kind: str

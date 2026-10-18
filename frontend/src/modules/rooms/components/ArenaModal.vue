@@ -27,6 +27,7 @@ import { useSound } from '@/core/composables/useSound'
 import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import ArenaFighterSlot from './ArenaFighterSlot.vue'
+import ArenaRing from './ArenaRing.vue'
 import ArenaCreatureSlot from './ArenaCreatureSlot.vue'
 import BattleLog from './BattleLog.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
@@ -43,10 +44,12 @@ import {
   type ArenaTeamSide,
 } from '../models/arena'
 import { battleLogKindLabel, type BattleLogEntry } from '../models/battleLog'
+import { parseUtcMs } from '@/core/utils/time'
 
 interface Props {
   vaultId: string
   roomId: string
+  sceneImageUrl?: string | null
 }
 
 const props = defineProps<Props>()
@@ -129,9 +132,6 @@ const queueSkill = async (fighterId: string) => {
   }
 }
 
-const damageForId = (fighterId: string | null) =>
-  fighterId ? damageNumbers.value.filter((entry) => entry.fighterId === fighterId) : []
-
 const recordDamage = (fighter: ArenaFighter) => {
   const prev = previousHp.value[fighter.id]
   if (prev !== undefined && fighter.health < prev) {
@@ -153,7 +153,12 @@ let lastCountdown = 0
 let lastStarted = false
 const skillBurst = ref<{ id: string; message: string } | null>(null)
 let burstTimer: ReturnType<typeof setTimeout> | undefined
-onUnmounted(() => clearTimeout(burstTimer))
+const attackingTeam = ref<'A' | 'B' | null>(null)
+let attackTimer: ReturnType<typeof setTimeout> | undefined
+onUnmounted(() => {
+  clearTimeout(burstTimer)
+  clearTimeout(attackTimer)
+})
 
 const recordFeedback = () => {
   const state = roomState.value
@@ -168,6 +173,13 @@ const recordFeedback = () => {
   })
   const ready = newlyReady.some(Boolean)
   if (feedbackPrimed) {
+    if (fresh.some((event) => event.kind === 'turn')) {
+      attackingTeam.value = state.next_attack_team === 'B' ? 'A' : 'B'
+      clearTimeout(attackTimer)
+      attackTimer = setTimeout(() => {
+        attackingTeam.value = null
+      }, 550)
+    }
     const skill = [...fresh].reverse().find((event) => event.kind === 'skill')
     if (fresh.some((event) => event.kind === 'finish')) playSound('arenaFinish')
     else if (skill) playSound('arenaSkill')
@@ -212,9 +224,7 @@ const syncFromState = () => {
   for (const side of TEAM_SIDES) {
     const team = side === 'A' ? state.team_a : state.team_b
     const bot =
-      state.mode === 'duel' || (state.mode === 'hunt' && side === 'B')
-        ? undefined
-        : team.find((fighter) => fighter.is_robot)
+      state.mode !== 'brawl' || side === 'A' ? undefined : team.find((fighter) => fighter.is_robot)
     botKeys.value[side] = bot ? creatureKeyOf(bot.id) : null
     botEnabled.value[side] = !!bot
   }
@@ -273,6 +283,7 @@ const isFighting = computed(() => (roomState.value?.fight_started ?? false) && !
 const canChangeFighters = computed(() => !isFighting.value)
 const availableModes = computed(() => roomState.value?.available_modes ?? [])
 const countdown = computed(() => roomState.value?.countdown_remaining ?? 0)
+const nextAttackTeam = computed(() => roomState.value?.next_attack_team ?? 'A')
 
 const slotsFor = (side: ArenaTeamSide) => arenaSlotsFor(mode.value, side)
 const activeSlots = computed<ArenaSlotKey[]>(() => [...slotsFor('A'), ...slotsFor('B')])
@@ -280,7 +291,7 @@ const needsLabel = computed(() =>
   mode.value === 'hunt'
     ? 'NEEDS DWELLERS + CREATURES'
     : mode.value === 'brawl'
-      ? 'NEEDS 2 DWELLERS + PARTNERS'
+      ? 'NEEDS 3 DWELLERS + A PARTNER'
       : 'NEEDS 2 FIGHTERS'
 )
 
@@ -450,18 +461,10 @@ const togglePicker = (slot: ArenaSlotKey) => {
 // is valid again.
 const commitDraft = async () => {
   if (!authStore.token) return
-  if (
-    mode.value !== 'duel' &&
-    TEAM_SIDES.some((side) => botEnabled.value[side] && !botKeys.value[side])
-  )
-    return
+  if (mode.value === 'brawl' && botEnabled.value.B && !botKeys.value.B) return
   if (
     mode.value === 'brawl' &&
-    TEAM_SIDES.some(
-      (side) =>
-        !draft.value[side === 'A' ? 'a' : 'b'] ||
-        !(draft.value[partnerSlot(side)] || botKeys.value[side])
-    )
+    (!draft.value.a || !draft.value.c || !draft.value.b || !(draft.value.d || botKeys.value.B))
   )
     return
   if (mode.value === 'hunt' && (!draft.value.a || opponentKeys.value.length === 0)) return
@@ -472,8 +475,8 @@ const commitDraft = async () => {
       mode: mode.value,
       fighterAId: draft.value.a,
       fighterBId: mode.value === 'hunt' ? null : draft.value.b,
-      fighterCId: botKeys.value.A ? null : draft.value.c,
-      teamABotKey: mode.value === 'duel' ? null : botKeys.value.A,
+      fighterCId: draft.value.c,
+      teamABotKey: null,
       teamBBotKey: mode.value === 'brawl' ? botKeys.value.B : null,
       fighterDId: mode.value === 'hunt' ? null : draft.value.d,
       ...(mode.value === 'hunt' ? { opponentKeys: [...opponentKeys.value] } : {}),
@@ -635,21 +638,26 @@ const startFight = async () => {
 }
 
 const JOURNAL_KIND_LABELS: Record<string, string> = {
+  turn: 'TURN',
+  skill: 'SKILL',
   hit: 'HIT',
   finish: 'FINISH',
   reward: 'REWARD',
 }
 
-// Round sequence is the journal's reading order — normalize it here so the
-// list cannot flip if the wire order changes.
+// Persisted timestamps preserve chronology across worker reloads and localize in the log.
 const journalEntries = computed<BattleLogEntry[]>(() =>
   [...(roomState.value?.events ?? [])]
-    .sort((a, b) => a.round_seq - b.round_seq)
+    .sort((a, b) =>
+      a.created_at && b.created_at
+        ? parseUtcMs(a.created_at) - parseUtcMs(b.created_at)
+        : a.round_seq - b.round_seq
+    )
     .map((event) => ({
       id: event.id,
       kind: battleLogKindLabel(event.kind, JOURNAL_KIND_LABELS),
       message: event.message,
-      meta: `R${event.round_seq}`,
+      timestamp: event.created_at,
     }))
 )
 
@@ -662,10 +670,9 @@ const hpTone = (entry: ArenaRosterEntry) => {
 }
 
 const modeDescription = computed(() => {
-  if (mode.value === 'hunt')
-    return '1–2 dwellers against creatures. A training bot can join your lead dweller.'
+  if (mode.value === 'hunt') return 'One or two dwellers on Team A against creatures.'
   if (mode.value === 'brawl')
-    return 'Two teams: a lead dweller and a second dweller or training bot.'
+    return 'Two dwellers on Team A. Team B pairs a lead dweller with a dweller or training bot.'
   return 'Two assigned dwellers, one on each side.'
 })
 
@@ -693,9 +700,23 @@ const updateMode = (value: unknown) => {
     </Alert>
 
     <template v-else>
+      <ArenaRing
+        v-if="roomState && (roomState.team_a.length || roomState.team_b.length)"
+        :state="roomState"
+        :scene-image-url="sceneImageUrl"
+        :skill-enabled="isFighting && countdown === 0"
+        :pending-skills="pendingSkills"
+        :attacking-team="attackingTeam"
+        :damage-numbers="damageNumbers"
+        @skill="queueSkill"
+      />
       <Tabs as-child :model-value="mode" activation-mode="manual" @update:model-value="updateMode">
-        <Card size="sm" class="overflow-visible border border-theme-primary/30">
-          <CardHeader>
+        <Card
+          v-if="!isFighting || skillBurst"
+          size="sm"
+          class="overflow-visible border border-theme-primary/30"
+        >
+          <CardHeader v-if="!isFighting">
             <CardTitle class="sr-only">Match</CardTitle>
             <div class="flex flex-wrap items-center justify-between gap-2">
               <!-- @vue-ignore -->
@@ -727,8 +748,8 @@ const updateMode = (value: unknown) => {
             <CardDescription v-if="canChangeFighters" class="text-xs">{{
               modeDescription
             }}</CardDescription>
-            <p v-if="mode !== 'duel' && canChangeFighters" class="text-xs text-muted-foreground">
-              Bots reset each match and earn no rewards.
+            <p v-if="mode === 'brawl' && canChangeFighters" class="text-xs text-muted-foreground">
+              Team B training bots reset each match and earn no rewards.
             </p>
           </CardHeader>
           <TabsContent :value="mode" as-child>
@@ -775,34 +796,41 @@ const updateMode = (value: unknown) => {
                   >
                 </Alert>
                 <div
-                  class="teams-row relative grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 sm:gap-4"
+                  v-if="canChangeFighters"
+                  class="teams-row relative grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-2 sm:gap-4"
+                  :class="{ 'teams-multi': mode !== 'duel' }"
                 >
                   <template v-for="side in TEAM_SIDES" :key="side">
                     <div
                       v-if="side === 'B'"
                       class="versus flex flex-col items-center gap-1 self-center"
                     >
-                      <Transition name="countdown-pop" mode="out-in">
-                        <span
-                          v-if="isFighting && countdown > 0"
-                          :key="countdown"
-                          class="countdown-number text-3xl font-bold text-danger"
-                          >{{ countdown }}</span
-                        >
-                        <Icon
-                          v-else
-                          icon="mdi:sword-cross"
-                          class="size-5 text-theme-primary"
-                          :ariaHidden="true"
-                        />
-                      </Transition>
-                      <span v-if="countdown === 0" class="text-xs font-bold text-theme-primary"
+                      <Icon
+                        icon="mdi:sword-cross"
+                        class="size-5 text-theme-primary"
+                        :ariaHidden="true"
+                      />
+                      <span
+                        v-if="isFighting && countdown === 0"
+                        class="flex flex-col items-center gap-0.5 text-[10px] font-bold text-theme-primary"
+                        aria-live="polite"
+                      >
+                        <span>NEXT</span><span>TEAM {{ nextAttackTeam }}</span>
+                      </span>
+                      <span v-else-if="countdown === 0" class="text-xs font-bold text-theme-primary"
                         >VS</span
                       >
                     </div>
-                    <div class="team flex min-w-0 flex-col gap-3">
+                    <div
+                      class="team grid min-w-0 gap-3"
+                      :class="{
+                        'team-a': side === 'A',
+                        'team-b': side === 'B',
+                        'team-next': isFighting && countdown === 0 && nextAttackTeam === side,
+                        'team-attacking': attackingTeam === side,
+                      }"
+                    >
                       <span
-                        v-if="mode !== 'duel'"
                         class="team-label text-center text-xs font-semibold tracking-wider text-muted-foreground"
                         >{{ side === 'B' && mode === 'hunt' ? 'CREATURES' : `TEAM ${side}` }}</span
                       >
@@ -812,7 +840,6 @@ const updateMode = (value: unknown) => {
                           :key="slot?.key ?? 'creature-slot-' + index"
                           :creature="slot"
                           :can-change="canChangeFighters"
-                          :damage-numbers="damageForId(slot?.id ?? null)"
                           :options="creaturePickerOptions"
                           :mirror-bots="true"
                           :picker-open="creaturePickerOpen && slot === null"
@@ -822,37 +849,48 @@ const updateMode = (value: unknown) => {
                         />
                       </template>
                       <template v-else>
-                        <div v-for="slot in slotsFor(side)" :key="slot" class="min-w-0">
-                          <!-- @vue-ignore -->
-                          <ToggleGroup
-                            v-if="slot === partnerSlot(side) && canChangeFighters"
-                            type="single"
-                            variant="outline"
-                            size="sm"
-                            class="mb-2"
-                            :model-value="botEnabled[side] ? 'bot' : 'dweller'"
-                            :disabled="!canChangeFighters"
-                            :aria-label="`Team ${side} partner`"
-                            @update:model-value="
-                              (value) => {
-                                if (value === 'bot' || value === 'dweller')
-                                  choosePartnerType(side, value === 'bot')
-                              }
+                        <div
+                          v-for="slot in slotsFor(side)"
+                          :key="slot"
+                          class="flex min-w-0 flex-col"
+                        >
+                          <div
+                            v-if="
+                              slot === partnerSlot(side) && mode === 'brawl' && canChangeFighters
                             "
+                            class="mb-2 flex h-8 shrink-0 items-center justify-center"
                           >
+                            <span v-if="side === 'A'" class="text-xs text-muted-foreground"
+                              >Dweller</span
+                            >
                             <!-- @vue-ignore -->
-                            <ToggleGroupItem value="dweller">Dweller</ToggleGroupItem>
-                            <!-- @vue-ignore -->
-                            <ToggleGroupItem value="bot">Bot</ToggleGroupItem>
-                          </ToggleGroup>
+                            <ToggleGroup
+                              v-if="side === 'B'"
+                              type="single"
+                              variant="outline"
+                              size="sm"
+                              :model-value="botEnabled[side] ? 'bot' : 'dweller'"
+                              :disabled="!canChangeFighters"
+                              :aria-label="`Team ${side} partner`"
+                              @update:model-value="
+                                (value) => {
+                                  if (value === 'bot' || value === 'dweller')
+                                    choosePartnerType(side, value === 'bot')
+                                }
+                              "
+                            >
+                              <!-- @vue-ignore -->
+                              <ToggleGroupItem value="dweller">Dweller</ToggleGroupItem>
+                              <!-- @vue-ignore -->
+                              <ToggleGroupItem value="bot">Bot</ToggleGroupItem>
+                            </ToggleGroup>
+                          </div>
                           <ArenaCreatureSlot
-                            v-if="slot === partnerSlot(side) && botEnabled[side]"
+                            v-if="side === 'B' && slot === partnerSlot(side) && botEnabled.B"
                             :creature="botView(side)"
                             :can-change="canChangeFighters"
-                            :damage-numbers="damageForId(botView(side)?.id ?? null)"
                             :options="robotOptions"
                             :mirror="side === 'B'"
-                            :friendly="side === 'A'"
                             empty-label="+ ADD BOT"
                             :picker-open="botPicker === side"
                             @toggle-picker="botPicker = botPicker === side ? null : side"
@@ -863,11 +901,7 @@ const updateMode = (value: unknown) => {
                             v-else
                             :side="slot"
                             :fighter="slotFighter(slot)"
-                            :skill-enabled="isFighting && countdown === 0"
-                            :skill-pending="pendingSkills.has(draft[slot] ?? '')"
-                            @skill="queueSkill"
                             :can-change="canChangeFighters"
-                            :damage-numbers="damageForId(draft[slot])"
                             :options="pickerOptions(slot)"
                             :picker-open="openPicker === slot"
                             @toggle-picker="togglePicker"
@@ -1001,7 +1035,7 @@ const updateMode = (value: unknown) => {
             @click="clearJournal"
             >CLEAR</Button
           >
-          <BattleLog :entries="journalEntries" empty-text="No rounds fought yet." />
+          <BattleLog :entries="journalEntries" empty-text="No attacks yet." />
         </div>
       </details>
 
@@ -1012,10 +1046,11 @@ const updateMode = (value: unknown) => {
           Match rewards &amp; recovery
         </summary>
         <p class="pt-2 leading-relaxed">
-          Skills charge during combat (5 seconds to full). Hover or focus a skill for its effect.
-          Winners gain happiness and XP. Losing dwellers lose happiness and are left at 1 HP.
-          Healing uses carried stimpaks, or vault storage when none are carried. Check their health
-          before the next fight. Change the fighters to start a new match.
+          Teams take turns attacking, starting with Team A. Queued skills fire on their owner's next
+          team turn. Skills charge during combat (5 seconds to full). Hover or focus a skill for its
+          effect. Winners gain happiness and XP. Losing dwellers lose happiness and are left at 1
+          HP. Healing uses carried stimpaks, or vault storage when none are carried. Check their
+          health before the next fight. Change the fighters to start a new match.
         </p>
       </details>
     </template>
@@ -1023,6 +1058,60 @@ const updateMode = (value: unknown) => {
 </template>
 
 <style scoped>
+.teams-row {
+  grid-template-rows: auto auto;
+}
+.teams-row.teams-multi {
+  grid-template-rows: auto auto auto;
+}
+.team {
+  grid-template-rows: subgrid;
+  grid-row: 1 / -1;
+}
+.team-a {
+  grid-column: 1;
+}
+.team-b {
+  grid-column: 3;
+}
+.versus {
+  grid-column: 2;
+  grid-row: 1 / -1;
+}
+
+.team-next {
+  outline: 1px solid var(--color-theme-primary);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+.team-attacking.team-a {
+  animation: team-strike-a 0.5s ease-out;
+}
+.team-attacking.team-b {
+  animation: team-strike-b 0.5s ease-out;
+}
+@keyframes team-strike-a {
+  35% {
+    transform: translateX(6px);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes team-strike-b {
+  35% {
+    transform: translateX(-6px);
+  }
+  to {
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .team.team-attacking {
+    animation: none;
+  }
+}
+
 .arena-skill-burst {
   animation: skill-burst 0.45s ease-out;
 }
@@ -1057,27 +1146,6 @@ const updateMode = (value: unknown) => {
   .arena-skill-burst,
   .arena-skill-burst::before {
     animation: none;
-  }
-}
-
-.countdown-pop-enter-active,
-.countdown-pop-leave-active {
-  transition:
-    opacity 0.3s ease,
-    transform 0.3s ease;
-}
-.countdown-pop-enter-from {
-  opacity: 0;
-  transform: scale(1.6);
-}
-.countdown-pop-leave-to {
-  opacity: 0;
-  transform: scale(0.6);
-}
-@media (prefers-reduced-motion: reduce) {
-  .countdown-pop-enter-active,
-  .countdown-pop-leave-active {
-    transition: none;
   }
 }
 </style>

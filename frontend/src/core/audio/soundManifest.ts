@@ -47,7 +47,7 @@ export const SOUND_MANIFEST = {
   arenaStart: '/audio/ui/arena-start.wav',
   arenaReady: '/audio/ui/arena-ready.wav',
   arenaSkill: '/audio/ui/arena-skill.wav',
-  arenaFinish: '/audio/ui/success.wav',
+  arenaFinish: '/audio/ui/arena-finish.mp3',
 } as const
 
 export type SoundKey = keyof typeof SOUND_MANIFEST

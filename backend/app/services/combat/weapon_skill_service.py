@@ -10,7 +10,7 @@ MAX_CHARGE = 100
 
 @dataclass(frozen=True)
 class WeaponSkill:
-    """Bonus damage as a multiple of combat power, per target."""
+    """Bonus damage per target, measured as a multiple of one ordinary attack."""
 
     name: str
     multiplier: float
@@ -18,25 +18,25 @@ class WeaponSkill:
 
     @property
     def description(self) -> str:
-        target = "each standing enemy" if self.area else "the weakest standing enemy"
-        return f"Deal {self.multiplier:g}x combat power to {target}. Resolves next combat tick."
+        target = "each standing enemy" if self.area else "the chosen enemy"
+        return f"Deal {self.multiplier:g}x normal attack damage to {target}. Extra attack on this fighter's next team turn."
 
 
 # Both type and subtype matter: an energy rifle differs from a ballistic rifle.
 WEAPON_SKILLS = {
-    ("melee", "blunt"): WeaponSkill("Crushing Blow", 2.5),
-    ("melee", "edged"): WeaponSkill("Cleave", 1.5, area=True),
-    ("melee", "pointed"): WeaponSkill("Piercing Strike", 3),
-    ("gun", "pistol"): WeaponSkill("Quick Draw", 2.5),
-    ("gun", "rifle"): WeaponSkill("Aimed Shot", 3),
-    ("gun", "shotgun"): WeaponSkill("Scattershot", 1.5, area=True),
-    ("energy", "pistol"): WeaponSkill("Overcharge", 3),
-    ("energy", "rifle"): WeaponSkill("Beam Sweep", 1.5, area=True),
-    ("heavy", "automatic"): WeaponSkill("Full Auto", 3),
-    ("heavy", "flamer"): WeaponSkill("Firestorm", 1.5, area=True),
-    ("heavy", "explosive"): WeaponSkill("Blast Wave", 2, area=True),
+    ("melee", "blunt"): WeaponSkill("Crushing Blow", 1.75),
+    ("melee", "edged"): WeaponSkill("Cleave", 0.9, area=True),
+    ("melee", "pointed"): WeaponSkill("Piercing Strike", 2),
+    ("gun", "pistol"): WeaponSkill("Quick Draw", 1.5),
+    ("gun", "rifle"): WeaponSkill("Aimed Shot", 2),
+    ("gun", "shotgun"): WeaponSkill("Scattershot", 0.9, area=True),
+    ("energy", "pistol"): WeaponSkill("Overcharge", 1.75),
+    ("energy", "rifle"): WeaponSkill("Beam Sweep", 1, area=True),
+    ("heavy", "automatic"): WeaponSkill("Full Auto", 1.75),
+    ("heavy", "flamer"): WeaponSkill("Firestorm", 0.9, area=True),
+    ("heavy", "explosive"): WeaponSkill("Blast Wave", 1, area=True),
 }
-UNARMED_SKILL = WeaponSkill("Haymaker", 2)
+UNARMED_SKILL = WeaponSkill("Haymaker", 1.5)
 
 
 def weapon_skill(dweller: Dweller) -> WeaponSkill:

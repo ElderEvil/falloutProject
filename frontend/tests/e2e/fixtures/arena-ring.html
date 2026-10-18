@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Arena ring</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import '../../../src/assets/tailwind.css'
+      import '../../../src/assets/main.css'
+      import { createApp, h, reactive } from 'vue'
+      import ArenaRing from '../../../src/modules/rooms/components/ArenaRing.vue'
+      const params = new URLSearchParams(location.search)
+      const fighter = (id, creature = false) => ({
+        id,
+        name: id,
+        level: 5,
+        health: 80,
+        max_health: 100,
+        power: 10,
+        is_creature: creature,
+        is_robot: false,
+        active_skill: creature
+          ? null
+          : {
+              name: 'Aimed Shot',
+              description: 'Extra attack on your next team turn.',
+              charge: 100,
+              queued: false,
+            },
+      })
+      const state = reactive({
+        room_id: 'arena',
+        room_name: 'Arena',
+        tier: 3,
+        mode: 'hunt',
+        available_modes: ['duel', 'brawl', 'hunt'],
+        fighter_a_id: 'Alpha',
+        fighter_b_id: null,
+        team_a: [fighter('Alpha'), fighter('Charlie')],
+        team_b: [
+          fighter(`${params.get('enemy') || 'deathclaw'}#0`, true),
+          fighter(`${params.get('second') || 'radroach-swarm'}#1`, true),
+        ],
+        roster: [],
+        fighters: [],
+        fight_ready: true,
+        can_start: false,
+        match_done: false,
+        fight_started: true,
+        next_attack_team: 'A',
+        countdown_remaining: Number(params.get('countdown') || 0),
+        winner_name: null,
+        events: [],
+      })
+      if (state.countdown_remaining) {
+        const timer = setInterval(() => {
+          if (--state.countdown_remaining <= 0) clearInterval(timer)
+        }, 1000)
+      }
+      createApp({
+        render: () =>
+          h(ArenaRing, {
+            state,
+            sceneImageUrl: '/assets/room-scenes/arena-cartoon-tier-3-v1.webp',
+            skillEnabled: state.countdown_remaining === 0,
+            pendingSkills: new Set(),
+            attackingTeam: null,
+            damageNumbers: params.has('damage') ? [{ id: 1, amount: 15, fighterId: 'Alpha' }] : [],
+            onSkill: (id) => {
+              const fighter = state.team_a.find((f) => f.id === id)
+              fighter.active_skill.queued = true
+              fighter.active_skill.charge = 0
+            },
+          }),
+      }).mount('#app')
+    </script>
+  </body>
+</html>

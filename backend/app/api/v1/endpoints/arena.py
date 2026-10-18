@@ -114,7 +114,7 @@ async def queue_arena_skill(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ArenaSkillQueued:
-    """Queue a charged dweller skill for the next Arena combat tick."""
+    """Queue a charged dweller skill for their team's next Arena turn."""
     await get_user_vault_or_403(vault_id, user, db_session)
     await arena_service.queue_skill(db_session, room_id, payload.fighter_id, vault_id)
     return ArenaSkillQueued(room_id=str(room_id), fighter_id=str(payload.fighter_id))

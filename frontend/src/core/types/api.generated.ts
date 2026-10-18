@@ -3359,7 +3359,7 @@ export interface paths {
         put?: never;
         /**
          * Queue Arena Skill
-         * @description Queue a charged dweller skill for the next Arena combat tick.
+         * @description Queue a charged dweller skill for their team's next Arena turn.
          */
         post: operations["queue_arena_skill_api_v1_arena_vault__vault_id__rooms__room_id__skill_post"];
         delete?: never;
@@ -5332,6 +5332,8 @@ export interface components {
             kind: string;
             /** Message */
             message: string;
+            /** Created At */
+            created_at?: string | null;
         };
         /**
          * ArenaMode
@@ -5353,6 +5355,12 @@ export interface components {
             mode: string;
             /** Available Modes */
             available_modes: components["schemas"]["ArenaMode"][];
+            /**
+             * Next Attack Team
+             * @default A
+             * @enum {string}
+             */
+            next_attack_team: "A" | "B";
             /** Fighter A Id */
             fighter_a_id: string | null;
             /** Fighter B Id */
@@ -5402,7 +5410,7 @@ export interface components {
         };
         /**
          * ArenaSkillQueued
-         * @description The attack will resolve on the next combat tick.
+         * @description The attack will resolve on the fighter's next team turn.
          */
         ArenaSkillQueued: {
             /** Room Id */

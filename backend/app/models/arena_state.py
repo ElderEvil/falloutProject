@@ -21,6 +21,7 @@ class ArenaState(TimeStampMixin, table=True):
 
     room_id: UUID4 = Field(foreign_key="room.id", primary_key=True, ondelete="CASCADE")
     mode: ArenaMode | None = Field(default=None)
+    next_attack_team: str = Field(default="A", sa_column=sa.Column(sa.String(1), nullable=False, server_default="A"))
     fighter_a_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
     fighter_b_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
     fighter_c_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")

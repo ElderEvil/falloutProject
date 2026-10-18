@@ -1,5 +1,8 @@
 """Arena request/response schemas."""
 
+from datetime import datetime
+from typing import Literal
+
 from pydantic import UUID4, BaseModel, Field
 
 from app.core.enums import ArenaMode
@@ -44,7 +47,7 @@ class ArenaSkillRequest(BaseModel):
 
 
 class ArenaSkillQueued(BaseModel):
-    """The attack will resolve on the next combat tick."""
+    """The attack will resolve on the fighter's next team turn."""
 
     room_id: str
     fighter_id: str
@@ -85,6 +88,7 @@ class ArenaMatchEventOut(BaseModel):
     round_seq: int
     kind: str
     message: str
+    created_at: datetime | None = None
 
 
 class ArenaRoomState(BaseModel):
@@ -95,6 +99,7 @@ class ArenaRoomState(BaseModel):
     tier: int
     mode: str
     available_modes: list[ArenaMode]
+    next_attack_team: Literal["A", "B"] = "A"
     fighter_a_id: str | None
     fighter_b_id: str | None
     fighters: list[ArenaFighter]

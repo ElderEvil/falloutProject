@@ -71,11 +71,13 @@ const emit = defineEmits<{
         :disabled="busy"
         variant="secondary"
         size="sm"
-        class="action-btn action-btn--upgrade justify-start"
+        class="action-btn action-btn--upgrade h-auto min-h-9 flex-wrap justify-start whitespace-normal py-2 text-left"
       >
-        <Icon icon="mdi:arrow-up-circle" class="h-4 w-4" />
-        <span>Upgrade to Tier {{ upgradeInfo.nextTier }}</span>
-        <span class="cost-badge">{{ upgradeInfo.upgradeCost }} caps</span>
+        <span class="flex min-w-0 items-center gap-1">
+          <Icon icon="mdi:arrow-up-circle" class="h-4 w-4" />
+          <span>Upgrade to Tier {{ upgradeInfo.nextTier }}</span>
+        </span>
+        <span class="cost-badge shrink-0">{{ upgradeInfo.upgradeCost }} caps</span>
       </Button>
       <Button
         v-else-if="upgradeInfo && upgradeInfo.maxTier > 1"
@@ -205,8 +207,8 @@ const emit = defineEmits<{
   margin-left: auto;
   padding: 0.125rem 0.5rem;
   background: var(--color-surface-sunken);
-  border: 1px solid var(--color-warning);
-  color: var(--color-warning);
+  border: 1px solid var(--color-theme-primary);
+  color: var(--color-theme-primary);
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: bold;

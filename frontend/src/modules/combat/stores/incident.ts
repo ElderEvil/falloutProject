@@ -292,9 +292,7 @@ export const useIncidentStore = defineStore('incident', () => {
           `${assignedIds.size} of ${dwellerIds.length} responders assigned. Already defending: ${names.join(', ')}.`
         )
       } else {
-        showSuccess(
-          `${assignedIds.size} responders assigned. They will fight on the next vault round.`
-        )
+        showSuccess('Responders assigned. They will fight on the next vault round.')
       }
     } catch (err) {
       handleStoreError(err, 'Failed to assign incident responders')

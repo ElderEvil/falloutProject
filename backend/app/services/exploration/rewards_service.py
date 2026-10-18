@@ -332,6 +332,10 @@ class RewardsService:
         exploration.unclaimed_loot = unclaimed
         db_session.add(exploration)
         await db_session.commit()
+        if value > 0:
+            await event_bus.emit(
+                GameEvent.RESOURCE_COLLECTED, exploration.vault_id, {"resource_type": "caps", "amount": value}
+            )
         return value, unclaimed
 
     async def _grant_member_xp(

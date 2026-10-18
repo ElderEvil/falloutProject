@@ -17,7 +17,7 @@
   "src/modules/progression/components/party/PartySlots.vue": 1,
   "src/modules/progression/components/QuestCard.vue": 1,
   "src/modules/progression/components/training/TrainingRoomModal.vue": 7,
-  "src/modules/rooms/components/ArenaRing.vue": 1,
+  "src/modules/rooms/components/ArenaRing.vue": 3,
   "src/modules/rooms/components/RoomDetailModal.vue": 1,
   "src/modules/rooms/components/RoomGrid.css": 2,
   "src/modules/rooms/components/RoomGridCell.vue": 2,

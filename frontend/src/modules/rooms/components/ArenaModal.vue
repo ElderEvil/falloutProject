@@ -1047,10 +1047,10 @@ const updateMode = (value: unknown) => {
         </summary>
         <p class="pt-2 leading-relaxed">
           Teams take turns attacking, starting with Team A. Queued skills fire on their owner's next
-          team turn. Skills charge during combat (about 6 seconds to full). Hover or focus a skill
-          for its effect. Winners gain happiness and XP. Losing dwellers lose happiness and are left
-          at 1 HP. Healing uses carried stimpaks, or vault storage when none are carried. Check
-          their health before the next fight. Change the fighters to start a new match.
+          team turn. Skills charge as combat progresses. Hover or focus a skill for its effect.
+          Winners gain happiness and XP. Losing dwellers lose happiness and are left at 1 HP.
+          Healing uses carried stimpaks, or vault storage when none are carried. Check their health
+          before the next fight. Change the fighters to start a new match.
         </p>
       </details>
     </template>

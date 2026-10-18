@@ -8208,6 +8208,37 @@ export interface components {
             events: components["schemas"]["IncidentEventRead"][];
         };
         /**
+         * IncidentResponderRead
+         * @description An arriving helper and the posting restored after the incident.
+         */
+        IncidentResponderRead: {
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /**
+             * Team Id
+             * Format: uuid4
+             */
+            team_id: string;
+            /**
+             * Dweller Id
+             * Format: uuid4
+             */
+            dweller_id: string;
+            /** Slot Number */
+            slot_number?: number | null;
+            /** Status */
+            status: string;
+            /** Created At */
+            created_at?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+            /** Origin Room Id */
+            origin_room_id?: string | null;
+        };
+        /**
          * IncidentRespondersRequest
          * @description Dwellers ordered to defend an active incident.
          */
@@ -10402,35 +10433,6 @@ export interface components {
          * @enum {string}
          */
         SynthTypeEnum: "gen_1" | "gen_2" | "gen_3";
-        /**
-         * TeamMemberRead
-         * @description A team member as returned by team services.
-         */
-        TeamMemberRead: {
-            /**
-             * Id
-             * Format: uuid4
-             */
-            id: string;
-            /**
-             * Team Id
-             * Format: uuid4
-             */
-            team_id: string;
-            /**
-             * Dweller Id
-             * Format: uuid4
-             */
-            dweller_id: string;
-            /** Slot Number */
-            slot_number?: number | null;
-            /** Status */
-            status: string;
-            /** Created At */
-            created_at?: string | null;
-            /** Updated At */
-            updated_at?: string | null;
-        };
         /**
          * TestEmailRequest
          * @description Payload for POST /email/test — send a diagnostic email via the configured SMTP server.
@@ -14473,7 +14475,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TeamMemberRead"][];
+                    "application/json": components["schemas"]["IncidentResponderRead"][];
                 };
             };
             /** @description Validation Error */

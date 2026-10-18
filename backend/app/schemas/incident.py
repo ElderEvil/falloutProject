@@ -3,6 +3,7 @@
 from pydantic import UUID4, BaseModel, Field
 
 from app.models.incident import IncidentFamily, IncidentObjective, IncidentStatus, IncidentType
+from app.schemas.team import TeamMemberRead
 
 
 class IncidentProgress(BaseModel):
@@ -152,3 +153,9 @@ class IncidentRoundResult(BaseModel):
     dwellers_killed: int = 0
     enemies_defeated: int = 0
     caps_earned: int = 0
+
+
+class IncidentResponderRead(TeamMemberRead):
+    """An arriving helper and the posting restored after the incident."""
+
+    origin_room_id: UUID4 | None = None

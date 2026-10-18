@@ -16,6 +16,7 @@ from app.schemas.incident import (
     DeleteIncidentsResponse,
     IncidentListResponse,
     IncidentRead,
+    IncidentResponderRead,
     IncidentRespondersRequest,
     IncidentRespondersResponse,
     IncidentSpawnResponse,
@@ -24,7 +25,6 @@ from app.schemas.incident import (
 )
 from app.schemas.overflow import OverflowActionRequest, OverflowActionResponse
 from app.schemas.system import GameBalanceResponse, PresenceResponse
-from app.schemas.team import TeamMemberRead
 from app.services.combat.incident_service import incident_service
 from app.services.game_loop import game_loop_service
 from app.utils.exceptions import (
@@ -252,13 +252,13 @@ async def assign_incident_responders(
         raise HTTPException(status_code=error.status_code, detail=error.detail) from error
 
 
-@router.get("/vaults/{vault_id}/incidents/{incident_id}/team", response_model=list[TeamMemberRead])
+@router.get("/vaults/{vault_id}/incidents/{incident_id}/team", response_model=list[IncidentResponderRead])
 async def get_incident_team(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     incident_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> list[TeamMemberRead]:
+) -> list[IncidentResponderRead]:
     """Get the designated responder team for an incident."""
     try:
         return await incident_service.get_incident_team_read(db_session, incident_id, vault.id)

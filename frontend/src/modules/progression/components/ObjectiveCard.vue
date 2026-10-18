@@ -67,6 +67,10 @@ const rewardLabel = computed(() => {
     </template>
 
     <template #note>
+      <p v-if="objective.resets_at" class="objective-note">
+        Next reset: {{ new Date(objective.resets_at).toLocaleString() }}. Earned rewards stay
+        claimable.
+      </p>
       <p v-if="objective.target_entity?.production_only" class="objective-note">
         Production counts even when storage is full.
       </p>

@@ -31,6 +31,7 @@ export interface Objective {
   objective_type?: ObjectiveType
   template_key?: string | null
   target_entity?: Record<string, unknown>
+  resets_at?: string | null
   sequence?: number | null
   description?: string | null
   created_at: string

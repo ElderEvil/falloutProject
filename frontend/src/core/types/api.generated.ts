@@ -8687,7 +8687,7 @@ export interface components {
          * @description Types of notifications
          * @enum {string}
          */
-        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "arena_morale_boost" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "objective_completed" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready";
+        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "arena_morale_boost" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "objective_completed" | "objectives_refreshed" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready";
         /** Objective */
         Objective: {
             /** Challenge */
@@ -8825,6 +8825,8 @@ export interface components {
              * Format: uuid4
              */
             id: string;
+            /** Resets At */
+            resets_at?: string | null;
             /** Progress */
             progress: number;
             /** Total */

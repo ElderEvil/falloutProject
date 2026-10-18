@@ -67,6 +67,9 @@ class ObjectiveEvaluator(abc.ABC):
         logger.debug(f"[DEBUG] {self.__class__.__name__} received {event_type} for vault {vault_id} with data: {data}")
         maker = current_session_maker.get() or async_session_maker
         async with maker() as db_session:
+            from app.crud.vault import vault as vault_crud
+
+            await vault_crud.lock_for_update(db_session, vault_id)
             objectives = await self._get_active_objectives(db_session, vault_id)
             for objective, link in objectives:
                 objective_id, challenge = objective.id, objective.challenge
@@ -120,6 +123,9 @@ class ObjectiveEvaluator(abc.ABC):
 
         # A previous objective commit releases locks on the remaining loaded
         # links. Reload this link under its own lock before crediting the event.
+        from app.crud.vault import vault as vault_crud
+
+        await vault_crud.lock_for_update(db_session, vault_id)
         locked_link = await objective_crud.get_link_for_update(db_session, objective.id, vault_id)
         if locked_link is None or locked_link.is_completed or locked_link.progress >= locked_link.total:
             return

@@ -254,34 +254,21 @@ def check_location_reclears():
         return {"reclears_swept": count}
 
 
-async def _refresh_objectives(*, weekly: bool) -> dict:
-    """Assign daily or weekly objectives to every non-deleted vault."""
-    from sqlmodel import col, select
-
-    from app.models.vault import Vault
-    from app.services.progression.objectives.assignment import ObjectiveAssignmentService
+async def _refresh_objectives() -> dict:
+    """Refresh due categories for every non-deleted vault through the shared UTC policy."""
+    from app.crud.vault import vault as vault_crud
+    from app.services.progression.objectives.refresh_service import ensure_current_objectives
 
     async with task_session() as session:
-        vault_ids = (await session.exec(select(Vault.id).where(col(Vault.deleted_at).is_(None)))).all()
-
-        total_assigned = 0
+        vault_ids = await vault_crud.get_non_deleted_ids(session)
+        refreshed_count = 0
         for vault_id in vault_ids:
             try:
-                service = ObjectiveAssignmentService(session)
-                assigned = (
-                    await service.refresh_daily_objectives(vault_id)
-                    if not weekly
-                    else await service.refresh_weekly_objectives(vault_id)
-                )
-                total_assigned += len(assigned)
+                refreshed_count += len(await ensure_current_objectives(session, vault_id))
             except Exception:
-                # Recover before the next vault: a poisoned session would fail
-                # every remaining assignment rather than just this one.
                 await recover_session(session)
-                logger.exception(f"Failed to refresh {'weekly' if weekly else 'daily'} objectives for vault {vault_id}")
-                continue
-
-        return {"vaults_processed": len(vault_ids), "objectives_assigned": total_assigned}
+                logger.exception("Objective refresh failed for vault %s", vault_id)
+        return {"vaults_processed": len(vault_ids), "categories_refreshed": refreshed_count}
 
 
 @dramatiq.actor(actor_name="refresh_daily_objectives", max_retries=3, min_backoff=3600000)
@@ -292,7 +279,7 @@ def refresh_daily_objectives():
         dict: Number of vaults processed and objectives assigned.
     """
     try:
-        result = asyncio.run(_refresh_objectives(weekly=False))
+        result = asyncio.run(_refresh_objectives())
     except Exception:
         logger.exception("Daily objectives refresh failed")
         raise
@@ -309,7 +296,7 @@ def refresh_weekly_objectives():
         dict: Number of vaults processed and objectives assigned.
     """
     try:
-        result = asyncio.run(_refresh_objectives(weekly=True))
+        result = asyncio.run(_refresh_objectives())
     except Exception:
         logger.exception("Weekly objectives refresh failed")
         raise

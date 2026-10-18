@@ -71,6 +71,7 @@ export function getNotificationRoute(notification: NotificationNavigationContext
         ? `${vaultPath}/map?place=${encodeURIComponent(locationId)}`
         : `${vaultPath}/map`
     }
+    case 'objectives_refreshed':
     case 'objective_completed':
     case 'achievement_unlocked':
       return `${vaultPath}/objectives`

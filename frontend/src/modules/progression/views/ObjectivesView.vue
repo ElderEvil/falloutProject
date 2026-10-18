@@ -173,8 +173,9 @@ function closeClaimModal(): void {
                     Claim finished objectives
                   </h2>
                   <p>
-                    Tabs with a count badge hold rewards ready to claim. Claimed objectives move to
-                    the Completed tab.
+                    Daily objectives reset at 00:00 UTC; weeklies reset on Monday at 00:00 UTC.
+                    Earned rewards remain claimable after a reset. Claimed objectives move to the
+                    Completed tab.
                   </p>
                 </section>
               </template>

@@ -1,5 +1,8 @@
 """Arena request/response schemas."""
 
+from datetime import datetime
+from typing import Literal
+
 from pydantic import UUID4, BaseModel, Field
 
 from app.core.enums import ArenaMode
@@ -28,6 +31,28 @@ class ArenaCreature(BaseModel):
     is_robot: bool = False
 
 
+class ArenaActiveSkill(BaseModel):
+    """Weapon-derived manual attack and its match-local charge."""
+
+    name: str
+    description: str
+    charge: int = Field(ge=0, le=100)
+    queued: bool
+
+
+class ArenaSkillRequest(BaseModel):
+    """Select a participating dweller to use their active skill."""
+
+    fighter_id: UUID4
+
+
+class ArenaSkillQueued(BaseModel):
+    """The attack will resolve on the fighter's next team turn."""
+
+    room_id: str
+    fighter_id: str
+
+
 class ArenaFighter(BaseModel):
     """A single selected fighter with live HP and combat power."""
 
@@ -37,6 +62,7 @@ class ArenaFighter(BaseModel):
     health: int
     max_health: int
     power: float
+    active_skill: ArenaActiveSkill | None = None
     is_creature: bool = False
     is_robot: bool = False
     image_url: str | None = None
@@ -62,6 +88,7 @@ class ArenaMatchEventOut(BaseModel):
     round_seq: int
     kind: str
     message: str
+    created_at: datetime | None = None
 
 
 class ArenaRoomState(BaseModel):
@@ -72,6 +99,7 @@ class ArenaRoomState(BaseModel):
     tier: int
     mode: str
     available_modes: list[ArenaMode]
+    next_attack_team: Literal["A", "B"] = "A"
     fighter_a_id: str | None
     fighter_b_id: str | None
     fighters: list[ArenaFighter]

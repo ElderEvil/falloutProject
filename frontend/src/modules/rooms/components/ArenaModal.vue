@@ -23,9 +23,11 @@ import {
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useSound } from '@/core/composables/useSound'
 import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import ArenaFighterSlot from './ArenaFighterSlot.vue'
+import ArenaRing from './ArenaRing.vue'
 import ArenaCreatureSlot from './ArenaCreatureSlot.vue'
 import BattleLog from './BattleLog.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
@@ -42,10 +44,12 @@ import {
   type ArenaTeamSide,
 } from '../models/arena'
 import { battleLogKindLabel, type BattleLogEntry } from '../models/battleLog'
+import { parseUtcMs } from '@/core/utils/time'
 
 interface Props {
   vaultId: string
   roomId: string
+  sceneImageUrl?: string | null
 }
 
 const props = defineProps<Props>()
@@ -68,6 +72,7 @@ const EMPTY_DRAFT: DraftSlots = { a: null, b: null, c: null, d: null }
 
 const authStore = useAuthStore()
 const toast = useToast()
+const { playSound } = useSound()
 const { management: dwellerManagementStore } = useDwellerStore()
 const medicalStore = useDwellerMedicalStore()
 const vaultStore = useVaultStore()
@@ -89,6 +94,7 @@ const botPicker = ref<ArenaTeamSide | null>(null)
 const partnerSlot = (side: ArenaTeamSide): ArenaSlotKey => (side === 'A' ? 'c' : 'd')
 const draftDirty = ref(false)
 const isStarting = ref(false)
+const pendingSkills = ref(new Set<string>())
 let damageSeq = 0
 let loadSequence = 0
 const pendingDamageTimers = new Set<ReturnType<typeof setTimeout>>()
@@ -115,8 +121,16 @@ const teamFighters = computed<ArenaFighter[]>(() => [
   ...(roomState.value?.team_b ?? []),
 ])
 
-const damageForId = (fighterId: string | null) =>
-  fighterId ? damageNumbers.value.filter((entry) => entry.fighterId === fighterId) : []
+const queueSkill = async (fighterId: string) => {
+  if (!authStore.token || pendingSkills.value.has(fighterId)) return
+  pendingSkills.value.add(fighterId)
+  try {
+    await arenaStore.queueSkill(props.vaultId, props.roomId, fighterId, authStore.token)
+    applyState()
+  } finally {
+    pendingSkills.value.delete(fighterId)
+  }
+}
 
 const recordDamage = (fighter: ArenaFighter) => {
   const prev = previousHp.value[fighter.id]
@@ -132,7 +146,69 @@ const recordDamage = (fighter: ArenaFighter) => {
   previousHp.value[fighter.id] = fighter.health
 }
 
+const seenEvents = new Set<string>()
+const previousCharge = new Map<string, number>()
+let feedbackPrimed = false
+let lastCountdown = 0
+let lastStarted = false
+const skillBurst = ref<{ id: string; message: string } | null>(null)
+let burstTimer: ReturnType<typeof setTimeout> | undefined
+const attackingTeam = ref<'A' | 'B' | null>(null)
+let attackTimer: ReturnType<typeof setTimeout> | undefined
+onUnmounted(() => {
+  clearTimeout(burstTimer)
+  clearTimeout(attackTimer)
+})
+
+const recordFeedback = () => {
+  const state = roomState.value
+  if (!state) return
+  const fresh = state.events.filter((event) => !seenEvents.has(event.id))
+  for (const event of state.events) seenEvents.add(event.id)
+  const newlyReady = teamFighters.value.map((fighter) => {
+    const charge = fighter.active_skill?.charge ?? 0
+    const before = previousCharge.get(fighter.id)
+    previousCharge.set(fighter.id, charge)
+    return before !== undefined && before < 100 && charge >= 100 && fighter.health > 0
+  })
+  const ready = newlyReady.some(Boolean)
+  if (feedbackPrimed) {
+    if (fresh.some((event) => event.kind === 'turn')) {
+      attackingTeam.value = state.next_attack_team === 'B' ? 'A' : 'B'
+      clearTimeout(attackTimer)
+      attackTimer = setTimeout(() => {
+        attackingTeam.value = null
+      }, 550)
+    }
+    const skill = [...fresh].reverse().find((event) => event.kind === 'skill')
+    if (fresh.some((event) => event.kind === 'finish')) playSound('arenaFinish')
+    else if (skill) playSound('arenaSkill')
+    else if (ready && !state.match_done) playSound('arenaReady')
+    else if (state.countdown_remaining > 0 && state.countdown_remaining !== lastCountdown)
+      playSound('arenaCountdown')
+    else if (
+      state.fight_started &&
+      !state.match_done &&
+      state.countdown_remaining === 0 &&
+      (!lastStarted || lastCountdown > 0)
+    )
+      playSound('arenaStart')
+    else if (fresh.some((event) => event.kind === 'hit')) playSound('incidentHit')
+    if (skill) {
+      skillBurst.value = { id: skill.id, message: skill.message }
+      clearTimeout(burstTimer)
+      burstTimer = setTimeout(() => {
+        skillBurst.value = null
+      }, 1600)
+    }
+  }
+  lastCountdown = state.countdown_remaining
+  lastStarted = state.fight_started
+  feedbackPrimed = true
+}
+
 const applyState = () => {
+  recordFeedback()
   for (const fighter of teamFighters.value) recordDamage(fighter)
   const liveIds = new Set(teamFighters.value.map((f) => f.id))
   for (const id of Object.keys(previousHp.value)) {
@@ -148,9 +224,7 @@ const syncFromState = () => {
   for (const side of TEAM_SIDES) {
     const team = side === 'A' ? state.team_a : state.team_b
     const bot =
-      state.mode === 'duel' || (state.mode === 'hunt' && side === 'B')
-        ? undefined
-        : team.find((fighter) => fighter.is_robot)
+      state.mode !== 'brawl' || side === 'A' ? undefined : team.find((fighter) => fighter.is_robot)
     botKeys.value[side] = bot ? creatureKeyOf(bot.id) : null
     botEnabled.value[side] = !!bot
   }
@@ -209,6 +283,7 @@ const isFighting = computed(() => (roomState.value?.fight_started ?? false) && !
 const canChangeFighters = computed(() => !isFighting.value)
 const availableModes = computed(() => roomState.value?.available_modes ?? [])
 const countdown = computed(() => roomState.value?.countdown_remaining ?? 0)
+const nextAttackTeam = computed(() => roomState.value?.next_attack_team ?? 'A')
 
 const slotsFor = (side: ArenaTeamSide) => arenaSlotsFor(mode.value, side)
 const activeSlots = computed<ArenaSlotKey[]>(() => [...slotsFor('A'), ...slotsFor('B')])
@@ -216,7 +291,7 @@ const needsLabel = computed(() =>
   mode.value === 'hunt'
     ? 'NEEDS DWELLERS + CREATURES'
     : mode.value === 'brawl'
-      ? 'NEEDS 2 DWELLERS + PARTNERS'
+      ? 'NEEDS 3 DWELLERS + A PARTNER'
       : 'NEEDS 2 FIGHTERS'
 )
 
@@ -386,18 +461,10 @@ const togglePicker = (slot: ArenaSlotKey) => {
 // is valid again.
 const commitDraft = async () => {
   if (!authStore.token) return
-  if (
-    mode.value !== 'duel' &&
-    TEAM_SIDES.some((side) => botEnabled.value[side] && !botKeys.value[side])
-  )
-    return
+  if (mode.value === 'brawl' && botEnabled.value.B && !botKeys.value.B) return
   if (
     mode.value === 'brawl' &&
-    TEAM_SIDES.some(
-      (side) =>
-        !draft.value[side === 'A' ? 'a' : 'b'] ||
-        !(draft.value[partnerSlot(side)] || botKeys.value[side])
-    )
+    (!draft.value.a || !draft.value.c || !draft.value.b || !(draft.value.d || botKeys.value.B))
   )
     return
   if (mode.value === 'hunt' && (!draft.value.a || opponentKeys.value.length === 0)) return
@@ -408,8 +475,8 @@ const commitDraft = async () => {
       mode: mode.value,
       fighterAId: draft.value.a,
       fighterBId: mode.value === 'hunt' ? null : draft.value.b,
-      fighterCId: botKeys.value.A ? null : draft.value.c,
-      teamABotKey: mode.value === 'duel' ? null : botKeys.value.A,
+      fighterCId: draft.value.c,
+      teamABotKey: null,
       teamBBotKey: mode.value === 'brawl' ? botKeys.value.B : null,
       fighterDId: mode.value === 'hunt' ? null : draft.value.d,
       ...(mode.value === 'hunt' ? { opponentKeys: [...opponentKeys.value] } : {}),
@@ -561,28 +628,36 @@ const startFight = async () => {
   isStarting.value = true
   try {
     const ok = await arenaStore.startFight(props.vaultId, props.roomId, authStore.token)
-    if (ok) previousHp.value = {}
+    if (ok) {
+      previousHp.value = {}
+      applyState()
+    }
   } finally {
     isStarting.value = false
   }
 }
 
 const JOURNAL_KIND_LABELS: Record<string, string> = {
+  turn: 'TURN',
+  skill: 'SKILL',
   hit: 'HIT',
   finish: 'FINISH',
   reward: 'REWARD',
 }
 
-// Round sequence is the journal's reading order — normalize it here so the
-// list cannot flip if the wire order changes.
+// Persisted timestamps preserve chronology across worker reloads and localize in the log.
 const journalEntries = computed<BattleLogEntry[]>(() =>
   [...(roomState.value?.events ?? [])]
-    .sort((a, b) => a.round_seq - b.round_seq)
+    .sort((a, b) =>
+      a.created_at && b.created_at
+        ? parseUtcMs(a.created_at) - parseUtcMs(b.created_at)
+        : a.round_seq - b.round_seq
+    )
     .map((event) => ({
       id: event.id,
       kind: battleLogKindLabel(event.kind, JOURNAL_KIND_LABELS),
       message: event.message,
-      meta: `R${event.round_seq}`,
+      timestamp: event.created_at,
     }))
 )
 
@@ -595,10 +670,9 @@ const hpTone = (entry: ArenaRosterEntry) => {
 }
 
 const modeDescription = computed(() => {
-  if (mode.value === 'hunt')
-    return '1–2 dwellers against creatures. A training bot can join your lead dweller.'
+  if (mode.value === 'hunt') return 'One or two dwellers on Team A against creatures.'
   if (mode.value === 'brawl')
-    return 'Two teams: a lead dweller and a second dweller or training bot.'
+    return 'Two dwellers on Team A. Team B pairs a lead dweller with a dweller or training bot.'
   return 'Two assigned dwellers, one on each side.'
 })
 
@@ -626,13 +700,27 @@ const updateMode = (value: unknown) => {
     </Alert>
 
     <template v-else>
+      <ArenaRing
+        v-if="roomState && (roomState.team_a.length || roomState.team_b.length)"
+        :state="roomState"
+        :scene-image-url="sceneImageUrl"
+        :skill-enabled="isFighting && countdown === 0"
+        :pending-skills="pendingSkills"
+        :attacking-team="attackingTeam"
+        :damage-numbers="damageNumbers"
+        @skill="queueSkill"
+      />
       <Tabs as-child :model-value="mode" activation-mode="manual" @update:model-value="updateMode">
-        <Card size="sm" class="overflow-visible border border-theme-primary/30">
-          <CardHeader>
+        <Card
+          v-if="!isFighting || skillBurst"
+          size="sm"
+          class="overflow-visible border border-theme-primary/30"
+        >
+          <CardHeader v-if="!isFighting">
             <CardTitle class="sr-only">Match</CardTitle>
             <div class="flex flex-wrap items-center justify-between gap-2">
               <!-- @vue-ignore -->
-              <TabsList variant="line" aria-label="Match mode">
+              <TabsList v-if="canChangeFighters" variant="line" aria-label="Match mode">
                 <!-- @vue-ignore -->
                 <TabsTrigger
                   v-for="(option, index) in MODE_OPTIONS"
@@ -650,11 +738,18 @@ const updateMode = (value: unknown) => {
                   <Icon v-if="!availableModes.includes(option.value)" icon="mdi:lock-outline" />
                 </TabsTrigger>
               </TabsList>
+              <span
+                v-if="isFighting"
+                class="text-xs font-semibold tracking-wider text-theme-primary"
+                >{{ mode.toUpperCase() }} · LIVE MATCH</span
+              >
               <Badge :variant="canStart ? 'default' : 'outline'">{{ statusLabel }}</Badge>
             </div>
-            <CardDescription class="text-xs">{{ modeDescription }}</CardDescription>
-            <p v-if="mode !== 'duel'" class="text-xs text-muted-foreground">
-              Bots reset each match and earn no rewards.
+            <CardDescription v-if="canChangeFighters" class="text-xs">{{
+              modeDescription
+            }}</CardDescription>
+            <p v-if="mode === 'brawl' && canChangeFighters" class="text-xs text-muted-foreground">
+              Team B training bots reset each match and earn no rewards.
             </p>
           </CardHeader>
           <TabsContent :value="mode" as-child>
@@ -668,7 +763,7 @@ const updateMode = (value: unknown) => {
                 </AlertDescription>
               </Alert>
               <template v-else>
-                <div v-if="mode === 'hunt'" class="flex flex-col gap-2">
+                <div v-if="mode === 'hunt' && canChangeFighters" class="flex flex-col gap-2">
                   <!-- @vue-ignore -->
                   <ToggleGroup
                     v-if="huntPresets.length"
@@ -701,34 +796,41 @@ const updateMode = (value: unknown) => {
                   >
                 </Alert>
                 <div
-                  class="teams-row grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 sm:gap-4"
+                  v-if="canChangeFighters"
+                  class="teams-row relative grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-2 sm:gap-4"
+                  :class="{ 'teams-multi': mode !== 'duel' }"
                 >
                   <template v-for="side in TEAM_SIDES" :key="side">
                     <div
                       v-if="side === 'B'"
                       class="versus flex flex-col items-center gap-1 self-center"
                     >
-                      <Transition name="countdown-pop" mode="out-in">
-                        <span
-                          v-if="isFighting && countdown > 0"
-                          :key="countdown"
-                          class="countdown-number text-3xl font-bold text-danger"
-                          >{{ countdown }}</span
-                        >
-                        <Icon
-                          v-else
-                          icon="mdi:sword-cross"
-                          class="size-5 text-theme-primary"
-                          :ariaHidden="true"
-                        />
-                      </Transition>
-                      <span v-if="countdown === 0" class="text-xs font-bold text-theme-primary"
+                      <Icon
+                        icon="mdi:sword-cross"
+                        class="size-5 text-theme-primary"
+                        :ariaHidden="true"
+                      />
+                      <span
+                        v-if="isFighting && countdown === 0"
+                        class="flex flex-col items-center gap-0.5 text-[10px] font-bold text-theme-primary"
+                        aria-live="polite"
+                      >
+                        <span>NEXT</span><span>TEAM {{ nextAttackTeam }}</span>
+                      </span>
+                      <span v-else-if="countdown === 0" class="text-xs font-bold text-theme-primary"
                         >VS</span
                       >
                     </div>
-                    <div class="team flex min-w-0 flex-col gap-3">
+                    <div
+                      class="team grid min-w-0 gap-3"
+                      :class="{
+                        'team-a': side === 'A',
+                        'team-b': side === 'B',
+                        'team-next': isFighting && countdown === 0 && nextAttackTeam === side,
+                        'team-attacking': attackingTeam === side,
+                      }"
+                    >
                       <span
-                        v-if="mode !== 'duel'"
                         class="team-label text-center text-xs font-semibold tracking-wider text-muted-foreground"
                         >{{ side === 'B' && mode === 'hunt' ? 'CREATURES' : `TEAM ${side}` }}</span
                       >
@@ -738,7 +840,6 @@ const updateMode = (value: unknown) => {
                           :key="slot?.key ?? 'creature-slot-' + index"
                           :creature="slot"
                           :can-change="canChangeFighters"
-                          :damage-numbers="damageForId(slot?.id ?? null)"
                           :options="creaturePickerOptions"
                           :mirror-bots="true"
                           :picker-open="creaturePickerOpen && slot === null"
@@ -748,37 +849,48 @@ const updateMode = (value: unknown) => {
                         />
                       </template>
                       <template v-else>
-                        <div v-for="slot in slotsFor(side)" :key="slot" class="min-w-0">
-                          <!-- @vue-ignore -->
-                          <ToggleGroup
-                            v-if="slot === partnerSlot(side)"
-                            type="single"
-                            variant="outline"
-                            size="sm"
-                            class="mb-2"
-                            :model-value="botEnabled[side] ? 'bot' : 'dweller'"
-                            :disabled="!canChangeFighters"
-                            :aria-label="`Team ${side} partner`"
-                            @update:model-value="
-                              (value) => {
-                                if (value === 'bot' || value === 'dweller')
-                                  choosePartnerType(side, value === 'bot')
-                              }
+                        <div
+                          v-for="slot in slotsFor(side)"
+                          :key="slot"
+                          class="flex min-w-0 flex-col"
+                        >
+                          <div
+                            v-if="
+                              slot === partnerSlot(side) && mode === 'brawl' && canChangeFighters
                             "
+                            class="mb-2 flex h-8 shrink-0 items-center justify-center"
                           >
+                            <span v-if="side === 'A'" class="text-xs text-muted-foreground"
+                              >Dweller</span
+                            >
                             <!-- @vue-ignore -->
-                            <ToggleGroupItem value="dweller">Dweller</ToggleGroupItem>
-                            <!-- @vue-ignore -->
-                            <ToggleGroupItem value="bot">Bot</ToggleGroupItem>
-                          </ToggleGroup>
+                            <ToggleGroup
+                              v-if="side === 'B'"
+                              type="single"
+                              variant="outline"
+                              size="sm"
+                              :model-value="botEnabled[side] ? 'bot' : 'dweller'"
+                              :disabled="!canChangeFighters"
+                              :aria-label="`Team ${side} partner`"
+                              @update:model-value="
+                                (value) => {
+                                  if (value === 'bot' || value === 'dweller')
+                                    choosePartnerType(side, value === 'bot')
+                                }
+                              "
+                            >
+                              <!-- @vue-ignore -->
+                              <ToggleGroupItem value="dweller">Dweller</ToggleGroupItem>
+                              <!-- @vue-ignore -->
+                              <ToggleGroupItem value="bot">Bot</ToggleGroupItem>
+                            </ToggleGroup>
+                          </div>
                           <ArenaCreatureSlot
-                            v-if="slot === partnerSlot(side) && botEnabled[side]"
+                            v-if="side === 'B' && slot === partnerSlot(side) && botEnabled.B"
                             :creature="botView(side)"
                             :can-change="canChangeFighters"
-                            :damage-numbers="damageForId(botView(side)?.id ?? null)"
                             :options="robotOptions"
                             :mirror="side === 'B'"
-                            :friendly="side === 'A'"
                             empty-label="+ ADD BOT"
                             :picker-open="botPicker === side"
                             @toggle-picker="botPicker = botPicker === side ? null : side"
@@ -790,7 +902,6 @@ const updateMode = (value: unknown) => {
                             :side="slot"
                             :fighter="slotFighter(slot)"
                             :can-change="canChangeFighters"
-                            :damage-numbers="damageForId(draft[slot])"
                             :options="pickerOptions(slot)"
                             :picker-open="openPicker === slot"
                             @toggle-picker="togglePicker"
@@ -804,6 +915,15 @@ const updateMode = (value: unknown) => {
                 </div>
               </template>
 
+              <div
+                v-if="skillBurst"
+                :key="skillBurst.id"
+                role="status"
+                class="arena-skill-burst relative overflow-hidden rounded border border-warning/40 px-3 py-2 text-center text-xs font-semibold text-warning"
+              >
+                <Icon icon="mdi:lightning-bolt" class="mr-1 inline size-4" :ariaHidden="true" />
+                {{ skillBurst.message }}
+              </div>
               <Alert v-if="winnerName" class="result-banner">
                 <Icon icon="mdi:trophy" :ariaHidden="true" />
                 <AlertTitle v-if="roomState?.mode === 'duel'"
@@ -845,90 +965,79 @@ const updateMode = (value: unknown) => {
         </Card>
       </Tabs>
 
-      <section v-if="bench.length" aria-label="Arena bench">
-        <Card size="sm">
-          <CardHeader>
-            <div class="flex items-center justify-between gap-2">
-              <CardTitle class="flex items-center gap-2">
-                <Icon
-                  icon="mdi:account-group-outline"
-                  class="size-4 text-theme-primary"
-                  :ariaHidden="true"
-                />
-                Bench
-              </CardTitle>
-              <Badge variant="secondary">{{ bench.length }} waiting</Badge>
-            </div>
-          </CardHeader>
-          <CardContent class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            <Card v-for="entry in bench" :key="entry.id" size="sm" class="gap-2 py-3">
-              <CardHeader>
-                <div class="flex items-start gap-2">
-                  <DwellerPortrait
-                    :image-url="entry.image_url"
-                    :thumbnail-url="entry.thumbnail_url"
-                    :alt="entry.name"
-                    prefer-thumbnail
-                    image-class="size-10 shrink-0 rounded-md object-cover"
-                    fallback-class="size-10 shrink-0 text-theme-primary"
-                  />
-                  <div class="flex min-w-0 flex-1 flex-col gap-1">
-                    <CardTitle class="break-words">{{ entry.name }}</CardTitle>
-                    <CardDescription>Level {{ entry.level }}</CardDescription>
-                  </div>
-                  <TooltipProvider v-if="!isFighting" :delay-duration="200">
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <Button
-                          size="icon-sm"
-                          variant="ghost"
-                          :aria-label="`Remove ${entry.name} from Arena`"
-                          @click="unassign(entry)"
-                        >
-                          <Icon icon="mdi:account-minus-outline" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Remove {{ entry.name }} from Arena</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              </CardHeader>
-              <CardContent class="flex flex-col gap-2">
-                <span class="text-xs text-muted-foreground tabular-nums"
-                  >{{ entry.health }} / {{ entry.max_health }} HP</span
-                >
-                <Progress
-                  :model-value="hpPercent(entry)"
-                  :tone="hpTone(entry)"
-                  :label="`${entry.name} health`"
-                  :value-text="`${entry.health} of ${entry.max_health} HP`"
-                />
-              </CardContent>
-            </Card>
-          </CardContent>
-        </Card>
-      </section>
+      <details v-if="bench.length" aria-label="Arena bench" class="border-t border-border pt-2">
+        <summary
+          class="cursor-pointer py-1 text-xs text-muted-foreground focus-visible:outline focus-visible:outline-ring"
+        >
+          Bench · {{ bench.length }} waiting
+        </summary>
 
-      <Card size="sm">
-        <CardHeader>
-          <div class="flex items-center justify-between gap-2">
-            <CardTitle class="flex items-center gap-2">
-              <Icon
-                icon="mdi:clipboard-text-clock-outline"
-                class="size-4 text-theme-primary"
-                :ariaHidden="true"
+        <div class="grid gap-2 pt-2 sm:grid-cols-2 lg:grid-cols-3">
+          <Card v-for="entry in bench" :key="entry.id" size="sm" class="gap-2 py-3">
+            <CardHeader>
+              <div class="flex items-start gap-2">
+                <DwellerPortrait
+                  :image-url="entry.image_url"
+                  :thumbnail-url="entry.thumbnail_url"
+                  :alt="entry.name"
+                  prefer-thumbnail
+                  image-class="size-10 shrink-0 rounded-md object-cover"
+                  fallback-class="size-10 shrink-0 text-theme-primary"
+                />
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <CardTitle class="break-words">{{ entry.name }}</CardTitle>
+                  <CardDescription>Level {{ entry.level }}</CardDescription>
+                </div>
+                <TooltipProvider v-if="!isFighting" :delay-duration="200">
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        :aria-label="`Remove ${entry.name} from Arena`"
+                        @click="unassign(entry)"
+                      >
+                        <Icon icon="mdi:account-minus-outline" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Remove {{ entry.name }} from Arena</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </CardHeader>
+            <CardContent class="flex flex-col gap-2">
+              <span class="text-xs text-muted-foreground tabular-nums"
+                >{{ entry.health }} / {{ entry.max_health }} HP</span
+              >
+              <Progress
+                :model-value="hpPercent(entry)"
+                :tone="hpTone(entry)"
+                :label="`${entry.name} health`"
+                :value-text="`${entry.health} of ${entry.max_health} HP`"
               />
-              Battle Journal
-            </CardTitle>
-            <Button v-if="roomState?.events.length" variant="ghost" size="xs" @click="clearJournal"
-              >CLEAR</Button
-            >
-          </div>
-        </CardHeader>
-        <CardContent>
-          <BattleLog :entries="journalEntries" empty-text="No rounds fought yet." />
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
+      </details>
+
+      <details aria-label="Battle journal" class="border-t border-border pt-2">
+        <summary
+          class="cursor-pointer py-1 text-xs text-muted-foreground focus-visible:outline focus-visible:outline-ring"
+        >
+          Battle journal · {{ roomState?.events.length ?? 0 }} entries
+        </summary>
+        <div class="flex flex-col gap-2 pt-2">
+          <Button
+            v-if="roomState?.events.length"
+            variant="ghost"
+            size="xs"
+            class="self-end"
+            @click="clearJournal"
+            >CLEAR</Button
+          >
+          <BattleLog :entries="journalEntries" empty-text="No attacks yet." />
+        </div>
+      </details>
 
       <details class="text-xs text-muted-foreground">
         <summary
@@ -937,6 +1046,8 @@ const updateMode = (value: unknown) => {
           Match rewards &amp; recovery
         </summary>
         <p class="pt-2 leading-relaxed">
+          Teams take turns attacking, starting with Team A. Queued skills fire on their owner's next
+          team turn. Skills charge as combat progresses. Hover or focus a skill for its effect.
           Winners gain happiness and XP. Losing dwellers lose happiness and are left at 1 HP.
           Healing uses carried stimpaks, or vault storage when none are carried. Check their health
           before the next fight. Change the fighters to start a new match.
@@ -947,24 +1058,94 @@ const updateMode = (value: unknown) => {
 </template>
 
 <style scoped>
-.countdown-pop-enter-active,
-.countdown-pop-leave-active {
-  transition:
-    opacity 0.3s ease,
-    transform 0.3s ease;
+.teams-row {
+  grid-template-rows: auto auto;
 }
-.countdown-pop-enter-from {
-  opacity: 0;
-  transform: scale(1.6);
+.teams-row.teams-multi {
+  grid-template-rows: auto auto auto;
 }
-.countdown-pop-leave-to {
-  opacity: 0;
-  transform: scale(0.6);
+.team {
+  grid-template-rows: subgrid;
+  grid-row: 1 / -1;
+}
+.team-a {
+  grid-column: 1;
+}
+.team-b {
+  grid-column: 3;
+}
+.versus {
+  grid-column: 2;
+  grid-row: 1 / -1;
+}
+
+.team-next {
+  outline: 1px solid var(--color-theme-primary);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+.team-attacking.team-a {
+  animation: team-strike-a 0.5s ease-out;
+}
+.team-attacking.team-b {
+  animation: team-strike-b 0.5s ease-out;
+}
+@keyframes team-strike-a {
+  35% {
+    transform: translateX(6px);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes team-strike-b {
+  35% {
+    transform: translateX(-6px);
+  }
+  to {
+    transform: none;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .countdown-pop-enter-active,
-  .countdown-pop-leave-active {
-    transition: none;
+  .team.team-attacking {
+    animation: none;
+  }
+}
+
+.arena-skill-burst {
+  animation: skill-burst 0.45s ease-out;
+}
+.arena-skill-burst::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--color-warning), transparent);
+  opacity: 0.15;
+  animation: skill-sweep 0.6s ease-out forwards;
+}
+@keyframes skill-burst {
+  from {
+    transform: scale(0.96);
+    filter: brightness(2);
+  }
+  to {
+    transform: none;
+    filter: none;
+  }
+}
+@keyframes skill-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arena-skill-burst,
+  .arena-skill-burst::before {
+    animation: none;
   }
 }
 </style>

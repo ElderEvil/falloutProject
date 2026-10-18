@@ -265,7 +265,7 @@ receive production work XP. Active fighters are in the vault but busy for exit r
 
 Vault ticks expose a read-only `updates.arena.rooms` snapshot. Each room reports `room_id`,
 `fight_started`, `match_done` and the latest 40 journal `events` in chronological order
-(`id`, `round_seq`, `kind`, `message`). Repeated reads retain event IDs for caller deduplication;
+(`id`, `round_seq`, `kind`, `message`, `created_at`). Repeated reads retain event IDs for caller deduplication;
 clearing the journal or replacing selections removes events. This is not a durable replay
 feed. The arena actor alone advances combat; snapshots do not create match state or grant rewards.
 
@@ -412,24 +412,41 @@ for a fully completed batch is now 216.14 daily and 589.62 weekly (previously
 These are catalog expectations, not measured income: item/lunchbox value and
 actual completion rates are excluded. Prices are unchanged pending income data.
 
+## Arena active skills (prototype)
+
+Real dweller fighters gain 20 charge per second of resolved combat while standing, capped at 100.
+Countdowns and idle rooms do not charge. Each standing fighter attacks individually and pairs with a
+separate standing enemy in team-slot order while numbers allow. Survivors may share the last enemy;
+ordinary damage never spills into another target. Normal damage is 10% of that fighter's power per second,
+capped at 5% of the target's maximum HP per second. Skills add an extra attack before the normal hit: single-target skills
+use 1.5–2× its damage and cap, and area skills use 0.9–1× per standing enemy. Single-target skills follow the
+fighter's chosen target. The full meter is reserved when queued and resolves on the fighter's next team turn.
+Teams alternate one attack turn per Arena tick, starting with A. The next team persists across worker
+reloads. Defenders do not retaliate during the attacking team's turn, and keep queued skills for their
+own turn. Creatures and support bots have no manual skill. Journal timestamps represent persisted UTC
+instants; the UI displays local 24-hour time and distinguishes skill use by icon and color.
+Charge and pending attacks are persisted under the Arena room lock, cleared on match reset/interruption/finish,
+and must never be trusted from a client. See `docs/features/WASTELAND_COMBAT_EXPANSION.md` for the prototype
+balance table. Skills remain Arena-only until playtested.
+
 ## Arena training bot partners
 
-Hunt allows one or two dwellers, or one dweller with a training bot. Brawl requires
-one lead dweller per side and a second dweller or training bot in each partner slot.
-Duel stays dweller-only. Each team has at most two participants; bots never replace
-the required lead dweller and do not occupy vault population or room worker slots.
+Team A fields dwellers only. Hunt allows one or two dwellers against catalog opponents. Brawl requires
+two dwellers on Team A and a lead dweller plus a dweller or training bot on Team B. Duel stays dweller-only.
+Each team has at most two participants. Bots never replace Team B's required lead dweller and do not occupy
+vault population or room worker slots. Retired Team A bot selections are ignored; an incomplete legacy Brawl
+stops until a real dweller fills Team A's partner slot.
 
-Both sides use the same arena catalog: Training Eyebot 30 power/20 HP, Training
-Mr. Handy 20/30, Training Protectron 10/60. These are free arena training partners,
-not owned dwellers. Their HP persists across combat ticks and resets on a new match
-selection. Destroyed bots stay at 0 HP and deal no damage. Only real dwellers get
-the existing participant XP/happiness rewards; bot support adds no reward multiplier.
+The opponent/support catalog includes Training Eyebot 30 power/20 HP, Training Mr. Handy 20/30,
+and Training Protectron 10/60. These are free arena opponents/partners, not owned dwellers. Their HP
+persists across combat ticks and resets on a new match selection. Destroyed bots stay at 0 HP and deal
+no damage. Only real dwellers get participant XP/happiness rewards; bot support adds no reward multiplier.
 Existing match-completion morale rules, when enabled, remain vault-scoped.
 
-Arena bots face right beside allied dwellers and mirror left on the enemy side,
-including picker previews. Creature artwork retains its native enemy-facing direction.
-Incomplete partner edits stay local and disable Start until selection is complete;
-polling must not overwrite an open bot selection.
+Enemy-side bots face left, including picker previews. Creature artwork retains its native enemy-facing
+direction. Incomplete partner edits stay local and disable Start until selection is complete; polling must
+not overwrite an open bot selection. Dweller and creature cards share the same portrait, title, stats and HP
+layout, with opposing slots aligned in common grid rows.
 
 ## Storage equipment access
 

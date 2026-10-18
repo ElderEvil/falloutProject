@@ -14,6 +14,8 @@ from app.schemas.arena import (
     ArenaFightersRequest,
     ArenaFightersResponse,
     ArenaFightStarted,
+    ArenaSkillQueued,
+    ArenaSkillRequest,
     ArenaState,
 )
 from app.services.combat.arena_service import arena_service
@@ -102,3 +104,17 @@ async def start_arena_fight(
 
     arena_tick.send()
     return ArenaFightStarted(room_id=str(room.id), started=True)
+
+
+@router.post("/vault/{vault_id}/rooms/{room_id}/skill", response_model=ArenaSkillQueued)
+async def queue_arena_skill(
+    vault_id: UUID4,
+    room_id: UUID4,
+    payload: ArenaSkillRequest,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> ArenaSkillQueued:
+    """Queue a charged dweller skill for their team's next Arena turn."""
+    await get_user_vault_or_403(vault_id, user, db_session)
+    await arena_service.queue_skill(db_session, room_id, payload.fighter_id, vault_id)
+    return ArenaSkillQueued(room_id=str(room_id), fighter_id=str(payload.fighter_id))

@@ -11,7 +11,12 @@ describe('ArenaRoomDetail', () => {
     [6, false],
     [2, true],
   ])('guards assignment with %i dwellers and fighting=%s', (count, fighting) => {
-    useArenaStore().rooms.set('arena-1', { fight_started: fighting, match_done: false } as never)
+    useArenaStore().rooms.set('arena-1', {
+      fight_started: fighting,
+      match_done: false,
+      team_a: [],
+      team_b: [],
+    } as never)
     const wrapper = mount(ArenaRoomDetail, {
       props: {
         room: { id: 'arena-1', name: 'Arena', tier: 1, category: 'ARENA', ability: null } as never,
@@ -33,9 +38,9 @@ describe('ArenaRoomDetail', () => {
       false
     )
     expect(wrapper.text()).not.toMatch(/\d+ \/ \d+ assigned/)
-    expect(wrapper.getComponent({ name: 'RoomPreviewSection' }).props('assignEnabled')).toBe(
-      !fighting
-    )
+    if (fighting) expect(wrapper.findComponent({ name: 'RoomPreviewSection' }).exists()).toBe(false)
+    else
+      expect(wrapper.getComponent({ name: 'RoomPreviewSection' }).props('assignEnabled')).toBe(true)
   })
 
   it('locks management until match state is known and while a match is running', async () => {
@@ -60,12 +65,22 @@ describe('ArenaRoomDetail', () => {
     expect(wrapper.getComponent({ name: 'RoomPreviewSection' }).props('assignEnabled')).toBe(false)
     expect(wrapper.text()).toContain('Room management is unavailable until match state loads.')
 
-    arenaStore.rooms.set('arena-1', { fight_started: false, match_done: false } as never)
+    arenaStore.rooms.set('arena-1', {
+      fight_started: false,
+      match_done: false,
+      team_a: [],
+      team_b: [],
+    } as never)
     await flushPromises()
     expect(buttons().every((button) => button.attributes('disabled') === undefined)).toBe(true)
     expect(wrapper.getComponent({ name: 'RoomPreviewSection' }).props('assignEnabled')).toBe(true)
 
-    arenaStore.rooms.set('arena-1', { fight_started: true, match_done: false } as never)
+    arenaStore.rooms.set('arena-1', {
+      fight_started: true,
+      match_done: false,
+      team_a: [],
+      team_b: [],
+    } as never)
     await flushPromises()
     for (const button of buttons()) {
       expect(button.attributes('disabled')).toBeDefined()
@@ -75,7 +90,12 @@ describe('ArenaRoomDetail', () => {
     expect(wrapper.emitted('unassignAll')).toBeUndefined()
     expect(wrapper.emitted('destroy')).toBeUndefined()
 
-    arenaStore.rooms.set('arena-1', { fight_started: true, match_done: true } as never)
+    arenaStore.rooms.set('arena-1', {
+      fight_started: true,
+      match_done: true,
+      team_a: [],
+      team_b: [],
+    } as never)
     await flushPromises()
     expect(buttons().every((button) => button.attributes('disabled') === undefined)).toBe(true)
     for (const button of buttons()) await button.trigger('click')
@@ -114,8 +134,10 @@ describe('ArenaRoomDetail', () => {
     })
 
     expect(wrapper.get('.arena-room-detail').element.firstElementChild).toBe(
-      wrapper.get('.preview-panel').element
+      wrapper.get('details').element
     )
+    expect(wrapper.get('details .preview-panel').exists()).toBe(true)
+    expect(wrapper.get('details summary').text()).toBe('Manage Arena roster')
     expect(wrapper.text()).not.toMatch(/[12] ·/)
     expect(wrapper.text()).toContain('Battle UI')
     expect(wrapper.find('.room-management').text()).toContain('Management')

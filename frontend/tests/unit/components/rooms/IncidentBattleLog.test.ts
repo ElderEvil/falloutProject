@@ -103,7 +103,7 @@ describe('IncidentBattleLog', () => {
     await nextTick()
 
     expect(log.scrollTop).toBe(200)
-    expect(wrapper.text()).not.toContain('New rounds below')
+    expect(wrapper.text()).not.toContain('New events below')
   })
 
   it('follows an appended identical round when the reader is at the bottom', async () => {
@@ -142,7 +142,7 @@ describe('IncidentBattleLog', () => {
     await nextTick()
 
     expect(log.scrollTop).toBe(0)
-    expect(wrapper.text()).toContain('New rounds below')
+    expect(wrapper.text()).toContain('New events below')
   })
 
   it('collapses consecutive identical entries into one row with a count badge', () => {

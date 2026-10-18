@@ -139,3 +139,13 @@ describe('arenaApi.fetchCreatures', () => {
     })
   })
 })
+
+it('posts a charged skill using the authenticated vault and room scope', async () => {
+  vi.mocked(axios.post).mockResolvedValue({ data: {} })
+  await arenaApi.queueSkill('vault-1', 'room-1', 'fighter-1', 'token')
+  expect(axios.post).toHaveBeenLastCalledWith(
+    '/api/v1/arena/vault/vault-1/rooms/room-1/skill',
+    { fighter_id: 'fighter-1' },
+    { headers: { Authorization: 'Bearer token' } }
+  )
+})

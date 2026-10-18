@@ -21,7 +21,6 @@ const render = (selected: ArenaCreatureView | null) =>
     props: {
       creature: selected,
       canChange: true,
-      damageNumbers: [],
       options: [],
       pickerOpen: false,
     },

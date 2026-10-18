@@ -53,6 +53,7 @@ for (const width of [1280, 390]) {
                 room_name: 'Arena',
                 tier: 3,
                 mode: 'duel',
+                next_attack_team: 'A',
                 available_modes: ['duel', 'brawl', 'hunt'],
                 fighter_a_id: fighterA,
                 fighter_b_id: fighterB,
@@ -77,10 +78,9 @@ for (const width of [1280, 390]) {
     })
     await page.goto('/tests/e2e/fixtures/arena-room.html')
     const dialog = page.getByRole('dialog')
-    await expect(dialog.locator('.arena-room-detail > :first-child')).toHaveAttribute(
-      'aria-label',
-      'Arena room preview'
-    )
+    await expect(
+      dialog.locator('.arena-room-detail > details > .room-preview-section')
+    ).toHaveAttribute('aria-label', 'Arena room preview')
     await expect(dialog.getByRole('tablist', { name: 'Match mode' })).toBeVisible()
     await expect(dialog.getByText('Build your arena roster', { exact: true })).toBeVisible()
     await expect(
@@ -97,7 +97,8 @@ for (const width of [1280, 390]) {
         .click()
       await expect.poll(() => roster.length).toBe(names.indexOf(name) + 1)
     }
-    const bench = dialog.getByRole('region', { name: 'Arena bench' })
+    const bench = dialog.locator('details[aria-label="Arena bench"]')
+    await bench.locator('summary').click()
     await expect(bench.getByText('Lucy MacLean', { exact: true })).toBeVisible()
     await expect(bench.getByRole('progressbar', { name: 'Cooper Howard health' })).toHaveAttribute(
       'aria-valuenow',

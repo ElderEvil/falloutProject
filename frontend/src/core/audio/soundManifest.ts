@@ -42,6 +42,12 @@ export const SOUND_MANIFEST = {
   incidentFire: '/audio/ui/incident-fire.wav',
   incidentDefeat: '/audio/ui/incident-defeat.wav',
   incidentHit: '/audio/ui/incident-hit.wav',
+  // Curated from the source library's combat/critical interface cues.
+  arenaCountdown: '/audio/ui/arena-countdown.mp3',
+  arenaStart: '/audio/ui/arena-start.mp3',
+  arenaReady: '/audio/ui/arena-ready.mp3',
+  arenaSkill: '/audio/ui/arena-skill.mp3',
+  arenaFinish: '/audio/ui/arena-finish.mp3',
 } as const
 
 export type SoundKey = keyof typeof SOUND_MANIFEST

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lunchbox reveal fixture</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import '../../../src/assets/tailwind.css'
+      import { createApp, h, ref } from 'vue'
+      import LunchboxOpenModal from '../../../src/modules/storage/components/LunchboxOpenModal.vue'
+      const show = ref(true)
+      const result = ref(null)
+      createApp({
+        render: () =>
+          h(LunchboxOpenModal, {
+            show: show.value,
+            result: result.value,
+            onClose: () => {
+              show.value = false
+            },
+            onReveal: () => {
+              result.value = {
+                reward_type: 'lunchbox',
+                items: [
+                  { name: 'Laser Pistol', type: 'weapon', rarity: 'rare' },
+                  { name: 'Vault Suit', type: 'outfit', rarity: 'common' },
+                  { name: 'Heavy wasteland gear', type: 'outfit', rarity: 'legendary' },
+                ],
+                dweller: {
+                  reward_type: 'dweller',
+                  dweller_id: 'dweller-1',
+                  name: 'Lucy MacLean',
+                  rarity: 'legendary',
+                },
+              }
+            },
+          }),
+      }).mount('#app')
+    </script>
+  </body>
+</html>

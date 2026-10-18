@@ -35,7 +35,7 @@ interface Props {
   itemType?: string
   imageUrl?: string | null
   icon?: string
-  layout?: 'tile' | 'row'
+  layout?: 'tile' | 'row' | 'column'
 }
 
 const {
@@ -52,7 +52,13 @@ const {
 } = defineProps<Props>()
 
 const cardClass = computed(() => [
-  'flex-row gap-0 rounded-lg border bg-surface py-0 shadow-none',
+  'gap-0 rounded-lg border bg-surface py-0 shadow-none',
+  layout === 'column'
+    ? [
+        'relative isolate flex-col border-2 bg-linear-to-b from-surface-raised to-surface-sunken shadow-[0_12px_24px_-14px_currentColor] ring-1 ring-inset ring-theme-primary/10 before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-0.5 before:bg-current before:shadow-[0_0_12px_currentColor]',
+        getRarityTextClass(rarity),
+      ]
+    : 'flex-row',
   layout === 'tile' ? 'sm:flex-col' : '',
   getRarityBorderClass(rarity),
 ])
@@ -60,19 +66,27 @@ const cardClass = computed(() => [
 // Media panel widths differ per kind: the dweller portrait fills a fixed rail,
 // the item art stretches full-width once the tile stacks at `sm:`.
 const mediaClass = computed(() =>
-  kind === 'dweller'
-    ? 'grid w-28 shrink-0 place-items-center bg-surface-sunken p-0 sm:w-36'
-    : 'grid w-24 shrink-0 place-items-center bg-surface-sunken p-3 sm:h-32 sm:w-full sm:p-4'
+  layout === 'column'
+    ? `relative grid min-h-24 w-full flex-1 place-items-center overflow-hidden border-b border-current/20 bg-radial from-current/15 to-surface-sunken ${kind === 'dweller' ? 'p-0' : 'p-3'}`
+    : kind === 'dweller'
+      ? 'grid w-28 shrink-0 place-items-center bg-surface-sunken p-0 sm:w-36'
+      : 'grid w-24 shrink-0 place-items-center bg-surface-sunken p-3 sm:h-32 sm:w-full sm:p-4'
 )
 
 const headerClass = computed(() =>
-  kind === 'dweller'
-    ? 'min-w-0 flex-1 content-center gap-2 p-4 sm:p-5'
-    : 'min-w-0 flex-1 content-center gap-2 p-3 sm:p-4'
+  layout === 'column'
+    ? 'min-w-0 shrink-0 gap-2 bg-surface-sunken/80 p-3'
+    : kind === 'dweller'
+      ? 'min-w-0 flex-1 content-center gap-2 p-4 sm:p-5'
+      : 'min-w-0 flex-1 content-center gap-2 p-3 sm:p-4'
 )
 
 const titleClass = computed(() =>
-  kind === 'dweller' ? 'break-words text-xl sm:text-2xl' : 'break-words text-sm leading-snug'
+  layout === 'column'
+    ? 'break-words text-base font-bold leading-snug text-theme-primary'
+    : kind === 'dweller'
+      ? 'break-words text-xl sm:text-2xl'
+      : 'break-words text-sm leading-snug'
 )
 </script>
 
@@ -89,8 +103,16 @@ const titleClass = computed(() =>
         v-else
         :item="{ image_url: imageUrl, name }"
         :item-type="itemType"
-        img-class="size-20 object-contain sm:size-24"
-        icon-class="size-12 text-theme-primary/60"
+        :img-class="
+          layout === 'column'
+            ? 'size-24 object-contain drop-shadow-[0_6px_10px_var(--color-surface-canvas)] sm:size-28'
+            : 'size-20 object-contain sm:size-24'
+        "
+        :icon-class="
+          layout === 'column'
+            ? 'size-16 opacity-80 drop-shadow-[0_0_12px_currentColor]'
+            : 'size-12 text-theme-primary/60'
+        "
       />
     </CardContent>
 
@@ -100,7 +122,12 @@ const titleClass = computed(() =>
           <Icon icon="mdi:account-plus" class="size-4" />
           {{ label }}
         </CardDescription>
-        <CardTitle :class="[titleClass, getRarityTextClass(rarity)]">
+        <CardTitle
+          :class="[
+            titleClass,
+            layout === 'column' ? 'text-theme-primary' : getRarityTextClass(rarity),
+          ]"
+        >
           {{ name }}
         </CardTitle>
         <div class="flex">
@@ -131,7 +158,12 @@ const titleClass = computed(() =>
             ×{{ quantity }}
           </span>
         </div>
-        <CardTitle :class="[titleClass, getRarityTextClass(rarity)]">
+        <CardTitle
+          :class="[
+            titleClass,
+            layout === 'column' ? 'text-theme-primary' : getRarityTextClass(rarity),
+          ]"
+        >
           {{ name }}
         </CardTitle>
       </template>

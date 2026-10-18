@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.232.1 (2026-10-18)
+
+### Bug Fixes
+
+* make Power Struggle outfit requirements craftable 2599491
+
 ## 2.232.0 (2026-10-18)
 
 ### Features

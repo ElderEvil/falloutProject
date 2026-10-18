@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.232.0 (2026-10-18)
+
+### Features
+
+* **objectives:** unlock achievement stages with fresh progress 03054fc
+
+### Bug Fixes
+
+* **objectives:** credit existing state when assigning reach milestones 4b02223
+
+### Code Refactoring
+
+* **progression:** simplify objective cards and move rules to help 64916fd
+
 ## 2.231.1 (2026-10-18)
 
 ### Bug Fixes

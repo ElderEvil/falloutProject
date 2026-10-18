@@ -157,6 +157,87 @@
         "junk_bundles": 2,
         "stimpaks": 0
       }
+    },
+    {
+      "id": "abandoned_campsite",
+      "name": "Abandoned Campsite",
+      "flavor": "An old bedroll, cold ashes, and a sealed tin. No sign of anyone left to guard it.",
+      "coord_x": 18,
+      "coord_y": 38,
+      "min_dweller_level": 1,
+      "rooms": [
+        {
+          "id": "salvage",
+          "name": "Unattended Supplies",
+          "flavor": "An old bedroll, cold ashes, and a sealed tin. No sign of anyone left to guard it.",
+          "node": {
+            "kind": "finale",
+            "prompt": "Search the supplies. No combat required."
+          }
+        }
+      ],
+      "reward_vault": {
+        "caps_min": 10,
+        "caps_max": 25,
+        "item": {
+          "type": "junk",
+          "floor": null
+        }
+      }
+    },
+    {
+      "id": "roadside_supply_truck",
+      "name": "Roadside Supply Truck",
+      "flavor": "The driver is long gone. A few sealed supply crates survived in the back.",
+      "coord_x": 48,
+      "coord_y": 42,
+      "min_dweller_level": 1,
+      "rooms": [
+        {
+          "id": "salvage",
+          "name": "Unattended Supplies",
+          "flavor": "The driver is long gone. A few sealed supply crates survived in the back.",
+          "node": {
+            "kind": "finale",
+            "prompt": "Search the supplies. No combat required."
+          }
+        }
+      ],
+      "reward_vault": {
+        "caps_min": 20,
+        "caps_max": 35,
+        "item": {
+          "type": "junk",
+          "floor": null
+        }
+      }
+    },
+    {
+      "id": "forgotten_shack",
+      "name": "Forgotten Shack",
+      "flavor": "Dust coats the empty shack. A loose floorboard hides a small salvage stash.",
+      "coord_x": 81,
+      "coord_y": 54,
+      "min_dweller_level": 1,
+      "rooms": [
+        {
+          "id": "salvage",
+          "name": "Unattended Supplies",
+          "flavor": "Dust coats the empty shack. A loose floorboard hides a small salvage stash.",
+          "node": {
+            "kind": "finale",
+            "prompt": "Search the supplies. No combat required."
+          }
+        }
+      ],
+      "reward_vault": {
+        "caps_min": 15,
+        "caps_max": 30,
+        "item": {
+          "type": "junk",
+          "floor": null
+        }
+      }
     }
   ]
 }

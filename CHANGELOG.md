@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.235.1 (2026-10-18)
+
+### Bug Fixes
+
+* **incidents:** preserve residents and helper return postings ([#1080](https://github.com/ElderEvil/falloutProject/issues/1080)) f9311f4
+
 ## 2.235.0 (2026-10-18)
 
 ### Features

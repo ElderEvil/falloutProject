@@ -1,9 +1,16 @@
 """Tests for wasteland service logic."""
 
+from collections.abc import AsyncGenerator
+from contextlib import suppress
 from datetime import datetime, timedelta
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncConnection
+from sqlalchemy.ext.asyncio import AsyncSession as RawAsyncSession
+from sqlalchemy.orm import sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -13,7 +20,9 @@ from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
 from app.models.exploration import ExplorationStatus
 from app.models.storage import Storage
+from app.models.user import User
 from app.models.vault import Vault
+from app.schemas.dweller import DwellerCreate
 from app.schemas.exploration_event import (
     CombatEventSchema,
     DangerEventSchema,
@@ -26,6 +35,8 @@ from app.schemas.room import RoomCreate
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration_service import exploration_service
 from app.services.training_service import training_service
+from app.tests.factory.dwellers import create_fake_adult_dweller
+from app.tests.factory.vaults import create_fake_vault
 
 # Note: Detailed SPECIAL stat calculation tests removed for simplicity
 # These are tested implicitly through integration tests
@@ -614,3 +625,93 @@ async def test_auto_supplies_does_not_lower_health_above_radiation_ceiling(
     assert dweller.health == 20
     assert exploration.stimpaks == 1
     assert records == []
+
+
+@pytest_asyncio.fixture
+async def raw_session(db_connection: AsyncConnection) -> AsyncGenerator[RawAsyncSession]:
+    """The tick-actor session type: raw SQLAlchemy ``AsyncSession`` on the shared connection.
+
+    ``exploration_service`` runs under the dramatiq game-tick, and those actors get a raw
+    session without SQLModel's ``.exec()`` (AGENTS.md "Background task session compatibility").
+    The departure helpers are request-path only today, so a ``.exec()``-shaped regression there
+    would pass this whole suite and fail first in a tick actor.
+    """
+    nested = await db_connection.begin_nested()
+    session_factory = sessionmaker(
+        bind=db_connection,
+        class_=RawAsyncSession,
+        expire_on_commit=False,
+        autoflush=False,
+        join_transaction_mode="create_savepoint",
+    )
+    async with session_factory() as session:
+        yield session
+        with suppress(Exception):
+            await session.rollback()
+        with suppress(Exception):
+            await session.close()
+
+    with suppress(Exception):
+        await nested.rollback()
+    with suppress(Exception):
+        await db_connection.rollback()
+
+
+async def _seed_vault_with_dweller(session: RawAsyncSession) -> tuple[Vault, Dweller]:
+    """A vault and one adult dweller, written through the caller's (raw) session."""
+    tag = uuid4().hex[:10]
+    user = User(username=f"raw_session_{tag}", email=f"raw_session_{tag}@vault.test", hashed_password="x")
+    session.add(user)
+    await session.flush()
+    vault = Vault(user_id=user.id, **create_fake_vault())
+    session.add(vault)
+    await session.flush()
+    dweller = await crud.dweller.create(
+        db_session=session,
+        obj_in=DwellerCreate(vault_id=vault.id, **create_fake_adult_dweller()),
+    )
+    return vault, dweller
+
+
+@pytest.mark.asyncio
+async def test_departure_stages_the_special_snapshot_through_a_raw_session(raw_session: RawAsyncSession) -> None:
+    """The shared snapshot writer records every SPECIAL stat when the session is raw."""
+    assert not hasattr(raw_session, "exec"), "fixture must yield the raw SQLAlchemy session type"
+    vault, dweller = await _seed_vault_with_dweller(raw_session)
+    dweller.strength, dweller.perception, dweller.endurance = 9, 8, 7
+    dweller.charisma, dweller.intelligence, dweller.agility, dweller.luck = 6, 5, 4, 3
+    dweller.stimpack = 0
+    dweller.radaway = 0
+    raw_session.add_all([dweller, Storage(vault_id=vault.id, stimpack=5, radaway=3)])
+    await raw_session.commit()
+
+    exploration = await exploration_service.send_dweller(
+        raw_session, vault.id, dweller.id, duration=4, stimpaks=4, radaways=2
+    )
+
+    assert (
+        exploration.dweller_strength,
+        exploration.dweller_perception,
+        exploration.dweller_endurance,
+        exploration.dweller_charisma,
+        exploration.dweller_intelligence,
+        exploration.dweller_agility,
+        exploration.dweller_luck,
+    ) == (9, 8, 7, 6, 5, 4, 3)
+
+
+@pytest.mark.asyncio
+async def test_departure_reports_the_supply_shortfall_through_a_raw_session(raw_session: RawAsyncSession) -> None:
+    """The shared shortfall message survives the raw session type and charges nothing."""
+    vault, dweller = await _seed_vault_with_dweller(raw_session)
+    dweller.stimpack = 0
+    dweller.radaway = 0
+    storage = Storage(vault_id=vault.id, stimpack=2, radaway=0)
+    raw_session.add_all([dweller, storage])
+    await raw_session.commit()
+
+    with pytest.raises(ValueError, match=r"Total available stimpaks: 2"):
+        await exploration_service.send_dweller(raw_session, vault.id, dweller.id, duration=4, stimpaks=3)
+
+    await raw_session.refresh(storage)
+    assert (storage.stimpack, storage.radaway) == (2, 0)

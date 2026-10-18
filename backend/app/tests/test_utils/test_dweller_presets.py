@@ -153,3 +153,19 @@ def test_generated_bio_matches_identity_and_keeps_rumor_last(monkeypatch, race):
         )
         assert any(line in dweller["bio"] for line in personalities)
         assert dweller["bio"].endswith(ZONE_RUMORS)
+
+
+def test_dweller_catalogs_contain_data_without_behavior():
+    import ast
+    import inspect
+
+    from app.options import bios, presets
+
+    for catalog in (bios, presets):
+        tree = ast.parse(inspect.getsource(catalog))
+        definitions = [
+            node.name
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+        ]
+        assert not definitions, f"{catalog.__name__} contains behavior: {definitions}"

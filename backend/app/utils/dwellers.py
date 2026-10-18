@@ -8,7 +8,6 @@ from faker import Faker
 
 from app.core.enums import AgeGroupEnum, GenderEnum
 from app.core.game_config import game_config
-from app.options.bios import maybe_zone_rumor, render_bio
 from app.options.factions import FactionOption, faction_restrictions
 from app.options.presets import archetypes
 from app.options.races import STATE_OF_BEING_OPTIONS, RaceOption, is_ageless, race_of
@@ -19,9 +18,12 @@ from app.utils.appearance_roll import (
     inherit_appearance_for_child,
     roll_appearance,
 )
+from app.utils.bios import maybe_zone_rumor, render_bio
 
 if TYPE_CHECKING:
     from types import ModuleType
+
+    from app.schemas.dweller_catalog import DwellerArchetype
 
 fake: Faker = Faker()
 
@@ -195,29 +197,18 @@ def _xp_for_level(level: int) -> int:
     return int(game_config.leveling.base_xp_requirement * (level**game_config.leveling.xp_curve_exponent))
 
 
-def _pick_archetype_for_race(race: RaceOption, rng: random.Random | ModuleType) -> dict[str, Any] | None:
+def _pick_archetype_for_race(race: RaceOption, rng: random.Random | ModuleType) -> DwellerArchetype | None:
     """Select a random archetype for the given race (weighted) or None.
 
-    Filters ``archetypes`` by the rolled race; existing entries without
-    ``appearance_pools`` are silently skipped.  The selected archetype's
-    ``appearance_pools`` and ``personality_lines`` are returned; the
-    ``faction`` key is intentionally ignored (random dwellers keep the
-    identity faction from ``_roll_identity``).
+    Filters ``archetypes`` by the rolled race and skips empty appearance pools.
+    The chosen record supplies
+    appearance and personality only; random dwellers retain the identity
+    faction from ``_roll_identity``.
     """
-    candidates = [
-        (name, entry)
-        for name, entry in archetypes.items()
-        if entry.get("race") == race and entry.get("appearance_pools")
-    ]
+    candidates = [entry for entry in archetypes.values() if entry["race"] == race and entry["appearance_pools"]]
     if not candidates:
         return None
-    entries = [entry for _, entry in candidates]
-    weights = [entry.get("weight", 1) for entry in entries]
-    chosen = rng.choices(entries, weights=weights, k=1)[0]
-    return {
-        "appearance_pools": chosen.get("appearance_pools"),
-        "personality_lines": chosen.get("personality_lines", ()),
-    }
+    return rng.choices(candidates, weights=[entry["weight"] for entry in candidates], k=1)[0]
 
 
 def create_random_common_dweller(

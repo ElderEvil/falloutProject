@@ -11,6 +11,7 @@ such as the AI-visual tests keep working unmodified.
 from app.options.appearance import skin_tone_options
 from app.options.factions import FactionOption
 from app.options.races import RaceOption
+from app.schemas.dweller_catalog import DwellerArchetype
 
 _NATURAL_HAIR = ["blonde", "brunette", "black", "brown", "red", "gray"]
 
@@ -18,7 +19,7 @@ _NATURAL_HAIR = ["blonde", "brunette", "black", "brown", "red", "gray"]
 # Archetype presets with default values for quick character creation
 # ---------------------------------------------------------------------------
 
-archetypes: dict[str, dict] = {
+archetypes: dict[str, DwellerArchetype] = {
     "Vault Dweller": {
         "race": RaceOption.HUMAN,
         "faction": FactionOption.VAULT_DWELLER,

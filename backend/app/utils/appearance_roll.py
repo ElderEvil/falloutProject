@@ -30,7 +30,10 @@ from app.options.appearance import (
 from app.options.races import RaceOption
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from types import ModuleType
+
+    from app.schemas.dweller_catalog import AppearancePools
 
 # ---------------------------------------------------------------------------
 # Default expression pool (used when no archetype pools are provided)
@@ -82,15 +85,12 @@ def _inherit(
 
 
 def _roll_with_pools(
-    pools: dict[str, Any] | None,
-    key: str,
-    canonical: list[str],
+    pool: Sequence[str] | None,
+    canonical: Sequence[str],
     rng: random.Random | ModuleType,
 ) -> str:
-    """Sample one trait from ``pools[key]`` if present, else from ``canonical``."""
-    if pools is not None and key in pools and pools[key] is not None:
-        return rng.choice(pools[key])
-    return rng.choice(canonical)
+    """Sample a constrained trait, falling back to its canonical options when omitted."""
+    return rng.choice(canonical if pool is None else pool)
 
 
 def roll_appearance(
@@ -98,7 +98,7 @@ def roll_appearance(
     gender: GenderEnum | None,
     rng: random.Random | ModuleType = random,
     age_group: AgeGroupEnum = AgeGroupEnum.ADULT,
-    appearance_pools: dict[str, Any] | None = None,
+    appearance_pools: AppearancePools | None = None,
 ) -> dict[str, Any]:
     """Roll a complete, race-valid appearance profile for a new dweller.
 
@@ -111,21 +111,18 @@ def roll_appearance(
     expression picks from the small neutral-leaning default pool
     ``(_DEFAULT_EXPRESSIONS)`` rather than being hardcoded to ``"neutral"``.
     """
+    pools: AppearancePools = appearance_pools or {}
     appearance: dict[str, Any] = {
         "race": race.value,
-        "skin_tone": _roll_with_pools(appearance_pools, "skin_tone", skin_tone_options[race], rng),
-        "hair_color": _roll_with_pools(appearance_pools, "hair_color", hair_color_options, rng),
+        "skin_tone": _roll_with_pools(pools.get("skin_tone"), skin_tone_options[race], rng),
+        "hair_color": _roll_with_pools(pools.get("hair_color"), hair_color_options, rng),
         "eye_color": rng.choice(eye_color_options),
-        "hair_style": _roll_with_pools(appearance_pools, "hair_style", haircuts[race], rng),
+        "hair_style": _roll_with_pools(pools.get("hair_style"), haircuts[race], rng),
         "height": rng.choice(height_options),
-        "build": _roll_with_pools(appearance_pools, "build", body_type_options[race], rng),
+        "build": _roll_with_pools(pools.get("build"), body_type_options[race], rng),
     }
 
-    # Expression: use pool, or default pool when no pools at all.
-    if appearance_pools and "expression" in appearance_pools:
-        appearance["expression"] = rng.choice(appearance_pools["expression"])
-    else:
-        appearance["expression"] = rng.choice(_DEFAULT_EXPRESSIONS)
+    appearance["expression"] = _roll_with_pools(pools.get("expression"), _DEFAULT_EXPRESSIONS, rng)
 
     if gender == GenderEnum.MALE and age_group in ADULT_AGE_GROUPS:
         appearance["facial_hair"] = rng.choice(beard_options)

@@ -208,18 +208,29 @@ class TestGetRoomBuildPrice:
         assert price == 300
 
     @pytest.mark.asyncio
-    async def test_price_counts_only_same_category_rooms(self, room_crud, async_session: AsyncSession, vault: Vault):
-        await _create_room(async_session, vault.id, category=RoomTypeEnum.PRODUCTION, coordinate_x=1)
-        await _create_room(async_session, vault.id, category=RoomTypeEnum.PRODUCTION, coordinate_x=3)
-        # A room of another category must not count toward the PRODUCTION build price.
-        await _create_room(async_session, vault.id, category=RoomTypeEnum.CAPACITY, coordinate_x=5)
-        room_in = _make_room_create(
-            vault_id=vault.id, category=RoomTypeEnum.PRODUCTION, base_cost=100, incremental_cost=25
-        )
+    async def test_price_counts_only_same_room_type(
+        self, room_crud, async_session: AsyncSession, vault: Vault, user_with_vault
+    ):
+        await _create_room(async_session, vault.id, name="Power Generator", size_min=3, coordinate_x=1)
+        await _create_room(async_session, vault.id, name="Power Generator", size_min=3, tier=2, coordinate_x=4)
+        await _create_room(async_session, vault.id, name="Diner", coordinate_x=7)
+        await _create_room(async_session, vault.id, name="Living room", category=RoomTypeEnum.CAPACITY, coordinate_x=10)
+        _, other_vault = user_with_vault
+        await _create_room(async_session, other_vault.id, name="Power Generator", size_min=3)
+        room_in = _make_room_create(vault_id=vault.id, name="Power Generator", base_cost=100, incremental_cost=25)
 
         price = await room_crud.get_room_build_price(db_session=async_session, room_in=room_in)
 
-        assert price == 100 + 2 * 25
+        assert price == 150
+
+    @pytest.mark.parametrize(("size", "expected"), [(None, 125), (3, 125), (6, 150), (9, 175)])
+    async def test_price_counts_merged_segments(
+        self, room_crud, async_session: AsyncSession, vault: Vault, size, expected
+    ):
+        await _create_room(async_session, vault.id, name="Power Generator", size_min=3, size=size, size_max=9)
+        room_in = _make_room_create(vault_id=vault.id, name="Power Generator", base_cost=100, incremental_cost=25)
+
+        assert await room_crud.get_room_build_price(db_session=async_session, room_in=room_in) == expected
 
 
 # =============================================================================

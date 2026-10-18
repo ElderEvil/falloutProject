@@ -352,17 +352,16 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         """
         Calculate the price of building a room in a vault.
         It considers the base cost of the room type and applies an incremental cost
-        based on the number of similar rooms already built in the vault.
+        based on the built segments of this specific room type in the vault.
         A unique room (zero/null incremental cost) charges only its base price.
         """
-        response = await db_session.execute(
-            select(Room).where(Room.vault_id == room_in.vault_id, Room.category == room_in.category)
-        )
-        rooms = response.scalars().all()
-
         if not room_in.incremental_cost:
             return room_in.base_cost
-        return room_in.base_cost + (len(rooms) * room_in.incremental_cost)
+        response = await db_session.execute(
+            select(Room).where(Room.vault_id == room_in.vault_id, Room.name == room_in.name)
+        )
+        count = sum(room.segment_count for room in response.scalars())
+        return room_in.base_cost + count * room_in.incremental_cost
 
     @staticmethod
     async def check_is_unique_room(*, db_session: AsyncSession, obj_in: RoomCreate):

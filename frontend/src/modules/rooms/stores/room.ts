@@ -54,6 +54,8 @@ export const useRoomStore = defineStore('room', () => {
 
     try {
       const response = await axios.get<Room[]>(`/api/v1/rooms/vault/${vaultId}/`, {
+        // Every room occupies at least one unit, so this covers the entire grid.
+        params: { limit: floorUnits.value * (yMax.value + 1) },
         headers: {
           Authorization: `Bearer ${token}`,
         },

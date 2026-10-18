@@ -499,10 +499,10 @@ class RoomService:
             obj_in.capacity_formula = room_template.capacity_formula
             obj_in.output_formula = room_template.output_formula
 
+        price = await crud.room.get_room_build_price(db_session=db_session, room_in=obj_in)
         merge_result = await self.merge_adjacent_rooms(db_session=db_session, candidate=obj_in)
         if merge_result.merged and merge_result.room is not None:
             survivor = merge_result.room
-            price = await crud.room.get_room_build_price(db_session=db_session, room_in=obj_in)
             await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=price)
 
             if crud.room.requires_recalculation(survivor):
@@ -534,7 +534,6 @@ class RoomService:
             room_size = obj_in.size if obj_in.size is not None else obj_in.size_min
             obj_in.output = crud.room.evaluate_output_formula(obj_in.output_formula, obj_in.tier, room_size)
 
-        price = await crud.room.get_room_build_price(db_session=db_session, room_in=obj_in)
         await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=price)
 
         room_size = obj_in.size if obj_in.size is not None else obj_in.size_min

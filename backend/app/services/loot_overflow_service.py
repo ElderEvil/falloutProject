@@ -1,24 +1,31 @@
 """Shared policy for loot a full vault had to leave behind.
 
-Exploration and incidents each own an ``unclaimed_loot`` column, their own item
-factory, and their own template for how a held entry looks. This service owns
-the rules those owners share: what fits in storage, what a held entry is worth
-in caps, and how one entry leaves a held list when the player takes or sells it.
+Exploration and incidents each own an ``unclaimed_loot`` column and their own
+template for how a held entry looks. This service owns the rules those owners
+share: what fits in storage, what a held entry is worth in caps, how one entry
+leaves a held list when the player takes or sells it, and how a held entry
+becomes a storage row.
 """
 
 import logging
-from collections.abc import Callable
 from typing import Any
 
 from pydantic import UUID4
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import RarityEnum
 from app.core.game_config import game_config
 from app.crud import storage as crud_storage
 from app.crud import vault as crud_vault
+from app.models.junk import Junk
+from app.models.outfit import Outfit
 from app.models.storage import Storage
+from app.models.weapon import Weapon
+from app.schemas.outfit import OutfitCreate
+from app.schemas.weapon import WeaponCreate
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
+from app.utils.item_factory import build_junk, build_outfit, build_weapon
 from app.utils.static_data import game_data_store
 
 logger = logging.getLogger(__name__)
@@ -26,6 +33,10 @@ logger = logging.getLogger(__name__)
 # Medication returns through its own stock counters, never through storage rows,
 # so a held stimpak or radaway is a bug rather than a player decision.
 MEDICAL_ITEM_TYPES = frozenset({"stimpak", "radaway"})
+
+# Rarities a held entry may declare; a value outside this set falls back to COMMON,
+# matching how the rest of the reward path tolerates a rogue catalog string.
+_KNOWN_RARITIES = frozenset(rarity.value for rarity in RarityEnum)
 
 
 class LootOverflowService:
@@ -56,25 +67,77 @@ class LootOverflowService:
         Weapons and outfits carry their own catalog price; junk is priced by
         rarity. Unknown names raise rather than silently paying zero.
         """
-        name = self.item_name(loot_item)
-        match loot_item.get("item_type", "junk"):
-            case "weapon":
-                data = next((weapon for weapon in game_data_store.weapons if weapon.name == name), None)
-                if data is None:
-                    raise ValidationException(f"Unknown weapon loot: {name}")
-                return data.value or 0
-            case "outfit":
-                data = next((outfit for outfit in game_data_store.outfits if outfit.name == name), None)
-                if data is None:
-                    raise ValidationException(f"Unknown outfit loot: {name}")
-                return data.value or 0
-            case _:
-                rarity = str(loot_item.get("rarity", "common"))
-                return game_config.exploration.get_junk_value(rarity)
+        if loot_item.get("item_type", "junk") not in {"weapon", "outfit"}:
+            rarity = str(loot_item.get("rarity", "common"))
+            return game_config.exploration.get_junk_value(rarity)
+        catalog = self._catalog_row(loot_item)
+        if catalog is None:
+            raise ValidationException(f"Unknown loot item: {self.item_name(loot_item)}")
+        return catalog.value or 0
 
     def value_of(self, loot_item: dict) -> int:
         """Caps paid for selling every unit of a held entry."""
         return self.unit_value_of(loot_item) * (loot_item.get("quantity", 1) or 1)
+
+    def build_storage_row(
+        self, loot_item: dict, storage_id: UUID4, *, junk_description: str
+    ) -> Weapon | Outfit | Junk | None:
+        """Materialize one held entry as a storage row, priced as its sale would be.
+
+        Catalog weapons and outfits resolve by name (case-insensitively) from the
+        shipped catalogs and are built through ``item_factory`` so every catalog-owned
+        column is populated; junk is priced by rarity and described by the owner.
+        Returns ``None`` when the catalog has no matching row, so a caller can stop
+        that stack instead of persisting a defaulted item.
+        """
+        name = self.item_name(loot_item)
+        item_type = loot_item.get("item_type", "junk")
+        rarity = self._rarity_of(loot_item)
+        match item_type:
+            case "weapon" | "outfit":
+                catalog = self._catalog_row(loot_item)
+                if catalog is None:
+                    return None
+                return (
+                    build_weapon(catalog.model_dump(), rarity, storage_id)
+                    if item_type == "weapon"
+                    else build_outfit(catalog.model_dump(), rarity, storage_id)
+                )
+            case _:
+                return build_junk(
+                    name,
+                    rarity,
+                    storage_id,
+                    value=self.unit_value_of(loot_item),
+                    description=junk_description,
+                )
+
+    @staticmethod
+    def _catalog_row(loot_item: dict) -> WeaponCreate | OutfitCreate | None:
+        """The shipped catalog row a held weapon/outfit names, matched case-insensitively.
+
+        The one lookup behind both pricing and building, so a name that can be
+        taken can always be sold for the same price.
+        """
+        name = LootOverflowService.item_name(loot_item).lower()
+        match loot_item.get("item_type", "junk"):
+            case "weapon":
+                return next((weapon for weapon in game_data_store.weapons if weapon.name.lower() == name), None)
+            case "outfit":
+                return next((outfit for outfit in game_data_store.outfits if outfit.name.lower() == name), None)
+        return None
+
+    @staticmethod
+    def _rarity_of(loot_item: dict) -> RarityEnum:
+        raw = str(loot_item.get("rarity", "common")).lower()
+        return RarityEnum(raw) if raw in _KNOWN_RARITIES else RarityEnum.COMMON
+
+    @staticmethod
+    def _require_stored_row(row: Weapon | Outfit | Junk | None, loot_item: dict) -> Weapon | Outfit | Junk:
+        """A missing catalog row is a bad request, not a silently defaulted item."""
+        if row is None:
+            raise ValidationException(f"Unknown loot item: {LootOverflowService.item_name(loot_item)}")
+        return row
 
     def grant_or_hold(self, items: list[dict], available_space: int) -> tuple[list[dict], list[dict]]:
         """Greedy rarity-first split into what storage takes and what is held.
@@ -137,20 +200,23 @@ class LootOverflowService:
         owner: type[SQLModel],
         owner_id: Any,
         vault_id: UUID4,
-        build_row: Callable[[dict, UUID4], Any],
+        junk_description: str,
     ) -> list[dict]:
         """Shared take flow: pop, reject medical, require space, build rows, stage.
 
-        The owner loads and persists its own row; only the row factory differs
-        per owner until the item builders are unified. Returns the remaining list.
+        The owner loads and persists its own row and supplies the junk prose; row
+        construction itself is shared. Returns the remaining list.
         """
         loot_item = self.pop_decision(unclaimed, index, owner=owner, owner_id=owner_id)
         self.reject_medical(loot_item)
         quantity = self.quantity_of(loot_item)
         storage = await self.require_space(db_session, vault_id, quantity)
-        rows = [build_row(loot_item, storage.id) for _ in range(quantity)]
-        if any(row is None for row in rows):
-            raise ValidationException(f"Unknown loot item: {loot_item.get('item_name')}")
+        rows = [
+            self._require_stored_row(
+                self.build_storage_row(loot_item, storage.id, junk_description=junk_description), loot_item
+            )
+            for _ in range(quantity)
+        ]
         db_session.add_all(rows)
         await db_session.flush()
         await crud_storage.update_used_space(db_session, storage.id)

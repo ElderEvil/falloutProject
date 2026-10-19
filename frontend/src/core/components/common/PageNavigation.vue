@@ -15,14 +15,24 @@ const props = withDefaults(
     breadcrumbs: BreadcrumbItem[]
     backLabel?: string
     backTo?: RouteLocationRaw
+    /**
+     * Prefer browser history over `backTo` when expanding a modal into a page:
+     * Back then returns to the surface that opened the modal instead of a
+     * hardcoded detail route. Direct links still fall back to `backTo`.
+     */
+    historyFirst?: boolean
   }>(),
-  { backLabel: 'Back' }
+  { backLabel: 'Back', historyFirst: false }
 )
 
 const router = useRouter()
 const { goBack } = useGoBack()
 
 function navigateBack(): void {
+  if (props.historyFirst && window.history.length > 1 && window.history.state?.back !== undefined) {
+    router.back()
+    return
+  }
   if (props.backTo) {
     void router.push(props.backTo)
     return
@@ -36,8 +46,14 @@ function navigateBack(): void {
     <BackButton :label="backLabel" @click="navigateBack" />
 
     <nav v-if="breadcrumbs.length" aria-label="Breadcrumb">
-      <ol class="flex flex-wrap items-center gap-1.5 text-sm font-bold tracking-[0.1em] text-theme-primary/80">
-        <li v-for="(breadcrumb, index) in breadcrumbs" :key="breadcrumb.label" class="flex items-center gap-1.5">
+      <ol
+        class="flex flex-wrap items-center gap-1.5 text-sm font-bold tracking-[0.1em] text-theme-primary/80"
+      >
+        <li
+          v-for="(breadcrumb, index) in breadcrumbs"
+          :key="breadcrumb.label"
+          class="flex items-center gap-1.5"
+        >
           <Icon
             v-if="index > 0"
             icon="mdi:chevron-right"

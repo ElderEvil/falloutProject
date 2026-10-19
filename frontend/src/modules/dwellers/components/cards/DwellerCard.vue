@@ -268,9 +268,9 @@ const canHealRadaway = computed(
   container-type: inline-size;
 }
 
-/* Portrait and stats share one row while there is room for both. The portrait
-   keeps a 2:1 vertical frame so square generated art and tall static art read
-   at the same size. */
+/* Portrait and stats share one row while there is room for both. The square
+   frame lets generated art fill the card; tall static art is anchored to the
+   top so the face and upper body stay visible. */
 .portrait-rail {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -287,9 +287,9 @@ const canHealRadaway = computed(
 
 .portrait-container {
   position: relative;
-  width: 6rem;
+  width: 9rem;
   max-width: 100%;
-  aspect-ratio: 1 / 2;
+  aspect-ratio: 1;
 }
 
 .stats-container {
@@ -305,6 +305,7 @@ const canHealRadaway = computed(
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: top center;
   border-radius: 8px;
   border: 2px solid var(--color-theme-primary);
   box-shadow: 0 0 15px var(--color-theme-glow);

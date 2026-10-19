@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.238.0 (2026-10-19)
+
+### Features
+
+* **audio:** give the incident alarm its own toggle ([#1093](https://github.com/ElderEvil/falloutProject/issues/1093)) b216ca7
+
 ## 2.237.0 (2026-10-19)
 
 ### Features

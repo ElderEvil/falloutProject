@@ -262,7 +262,10 @@ class QuestService:
         for member in members:
             dweller = await crud.dweller.get_or_none(db_session, member.dweller_id, include_deleted=True)
             if dweller:
+                # Home again: unposted IDLE, matching the exploration return flow.
+                # The pre-quest posting was cleared at departure, so nothing to restore.
                 dweller.status = DwellerStatusEnum.IDLE
+                dweller.room_id = None
         link.is_reward_ready = True
         await db_session.commit()
 

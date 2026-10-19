@@ -64,7 +64,10 @@ class TeamService:
 
         for member in existing_members:
             if member.dweller:
+                # Unposted IDLE, matching the exploration return: the pre-quest
+                # posting was cleared at departure, so there is nothing to restore.
                 member.dweller.status = DwellerStatusEnum.IDLE
+                member.dweller.room_id = None
             await db_session.delete(member)
         await db_session.flush()
 
@@ -74,6 +77,9 @@ class TeamService:
         for i, dweller_id in enumerate(dweller_ids):
             dweller = dwellers_by_id[dweller_id]
             dweller.status = DwellerStatusEnum.QUESTING
+            # Detach from the pre-departure room: a QUESTING dweller is outside the
+            # vault and must not keep occupying (or counting toward) their old room.
+            dweller.room_id = None
 
             member = TeamMember(
                 team_id=team.id,

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.237.0 (2026-10-19)
+
+### Features
+
+* **audio:** rotate context music, per-room ambience, per-notification cues ([#1088](https://github.com/ElderEvil/falloutProject/issues/1088)) 91bb837
+
 ## 2.236.1 (2026-10-19)
 
 ### Bug Fixes

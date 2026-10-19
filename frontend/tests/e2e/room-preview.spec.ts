@@ -71,6 +71,19 @@ test('room preview portraits keep their aspect ratio and size over the room back
   expect(fallbackBounds.slotRatio).toBeCloseTo(proportions.source, 2)
 })
 
+test('room preview shows a silhouette when a thumbnail fails to load', async ({ page }) => {
+  await page.goto('/tests/e2e/fixtures/room-preview.html?broken=1')
+  const worker = page.getByRole('button', { name: 'Open Ada Worker', exact: true })
+  await expect(worker.locator('img')).toHaveCount(0)
+  const fallback = worker.locator('.scene-dweller-icon')
+  await expect(fallback).toBeVisible()
+  const fallbackRatio = await fallback.evaluate((icon) => {
+    const bounds = icon.getBoundingClientRect()
+    return bounds.width / bounds.height
+  })
+  expect(fallbackRatio).toBeCloseTo(2 / 3, 2)
+})
+
 test('touch users see unassign controls for workers and apprentices', async ({ browser }) => {
   const context = await browser.newContext({
     isMobile: true,

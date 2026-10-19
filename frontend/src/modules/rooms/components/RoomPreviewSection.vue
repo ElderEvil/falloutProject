@@ -95,18 +95,18 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
                     @click="emit('activate', workerDwellers[slot - 1]!.id)"
                   >
                     <DwellerPortrait
-                      v-if="workerDwellers[slot - 1]?.thumbnail_url"
                       :thumbnail-url="workerDwellers[slot - 1]?.thumbnail_url"
                       :alt="`${workerDwellers[slot - 1]?.first_name} ${workerDwellers[slot - 1]?.last_name ?? ''}`"
                       image-class="scene-dweller-portrait"
-                      fallback-class="hidden"
                       prefer-thumbnail
-                    />
-                    <PersonStanding
-                      v-else
-                      class="scene-dweller-icon text-theme-primary"
-                      aria-hidden="true"
-                    />
+                    >
+                      <template #fallback>
+                        <PersonStanding
+                          class="scene-dweller-icon text-theme-primary"
+                          aria-hidden="true"
+                        />
+                      </template>
+                    </DwellerPortrait>
                   </button>
                   <button
                     v-if="assignEnabled"
@@ -146,18 +146,18 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
                     @click="emit('activate', apprentice.id)"
                   >
                     <DwellerPortrait
-                      v-if="apprentice.thumbnail_url"
                       :thumbnail-url="apprentice.thumbnail_url"
                       :alt="`${apprentice.first_name} ${apprentice.last_name ?? ''}`"
                       image-class="scene-dweller-portrait"
-                      fallback-class="hidden"
                       prefer-thumbnail
-                    />
-                    <PersonStanding
-                      v-else
-                      class="scene-dweller-icon text-theme-primary"
-                      aria-hidden="true"
-                    />
+                    >
+                      <template #fallback>
+                        <PersonStanding
+                          class="scene-dweller-icon text-theme-primary"
+                          aria-hidden="true"
+                        />
+                      </template>
+                    </DwellerPortrait>
                     <span
                       class="apprentice-marker"
                       :aria-label="`Apprentice training ${apprentice.apprentice_stat}`"

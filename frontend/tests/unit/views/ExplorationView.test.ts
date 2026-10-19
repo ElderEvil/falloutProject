@@ -21,14 +21,20 @@ vi.mock('@/core/composables/useToast', () => ({
   useToast: () => mockToast,
 }))
 
+const pollState = vi.hoisted(() => ({
+  callback: null as null | (() => Promise<void> | void),
+}))
 vi.mock('@/core/composables/usePolling', () => ({
-  usePolling: () => ({
-    run: vi.fn(),
-    pause: vi.fn(),
-    resume: vi.fn(),
-    isActive: { value: false },
-    isRefreshing: { value: false },
-  }),
+  usePolling: (callback: () => Promise<void> | void) => {
+    pollState.callback = callback
+    return {
+      run: vi.fn(),
+      pause: vi.fn(),
+      resume: vi.fn(),
+      isActive: { value: false },
+      isRefreshing: { value: false },
+    }
+  },
 }))
 
 const soundMock = vi.hoisted(() => ({
@@ -163,6 +169,25 @@ describe('ExplorationView', () => {
 
   afterEach(() => {
     wrapper?.unmount()
+  })
+
+  it('refreshes the list with a silent poll', async () => {
+    wrapper = mount(ExplorationView, {
+      global: {
+        stubs: {
+          SidePanel: true,
+          QuestPartyCard: true,
+          ExplorationRewardsModal: true,
+        },
+      },
+    })
+    await flushPromises()
+
+    const fetchSpy = vi.mocked(explorationStore.fetchExplorationsByVault)
+    fetchSpy.mockClear()
+    await pollState.callback?.()
+
+    expect(fetchSpy).toHaveBeenCalledWith('vault-123', 'mock-token', true, true)
   })
 
   it('explains return settlement through optional page help', async () => {

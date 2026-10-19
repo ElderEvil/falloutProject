@@ -424,6 +424,7 @@ describe('NavBar', () => {
     const img = button.find('img')
     expect(img.exists()).toBe(true)
     expect(img.attributes('src')).toBe('https://example.com/overseer.png')
+    expect(img.classes()).toContain('size-7')
     wrapper.unmount()
   })
 
@@ -453,6 +454,7 @@ describe('NavBar', () => {
       global: { plugins: [router], stubs: { Icon: true, NotificationBell: true } },
     })
     expect(wrapper.find('button[aria-label="User menu for Overseer"] img').exists()).toBe(false)
+    expect(wrapper.find('button[aria-label="User menu for Overseer"] .h-7.w-7').exists()).toBe(true)
     wrapper.unmount()
   })
 

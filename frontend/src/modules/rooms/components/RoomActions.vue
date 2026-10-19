@@ -189,8 +189,8 @@ const emit = defineEmits<{
 }
 
 .action-btn {
-  flex: 1 1 200px;
-  min-width: 200px;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .action-btn.destroy-btn {

@@ -15,6 +15,7 @@
       import { useTheme } from '../../../src/core/composables/useTheme'
       useTheme().setTheme(new URLSearchParams(location.search).get('theme') || 'fo4')
       const upgraded = ref(false)
+      const roomSize = new URLSearchParams(location.search).has('remodel') ? 6 : 3
       createApp({
         render: () =>
           h('div', [
@@ -23,9 +24,12 @@
                 id: 'room-1',
                 name: 'Power Generator',
                 tier: 2,
-                size: 3,
+                size: roomSize,
                 size_min: 3,
                 size_max: 9,
+                coordinate_x: 0,
+                coordinate_y: 0,
+                incremental_cost: 50,
               },
               upgradeInfo: { canUpgrade: true, upgradeCost: 180000, nextTier: 3, maxTier: 3 },
               isUpgrading: upgraded.value,

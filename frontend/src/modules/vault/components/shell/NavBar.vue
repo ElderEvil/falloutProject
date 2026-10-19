@@ -65,7 +65,9 @@ const isProfileRoute = computed(() => route.path === '/profile')
 // the profile (with its avatar_url) arrives.
 const profileStore = useProfileStore()
 const avatarLoadFailed = ref(false)
-const avatarUrl = computed(() => (avatarLoadFailed.value ? null : profileStore.profile?.avatar_url ?? null))
+const avatarUrl = computed(() =>
+  avatarLoadFailed.value ? null : (profileStore.profile?.avatar_url ?? null)
+)
 watch(
   () => profileStore.profile?.avatar_url,
   () => {
@@ -436,10 +438,10 @@ onUnmounted(() => {
                 v-if="avatarUrl"
                 :src="avatarUrl"
                 alt=""
-                class="size-5 rounded-full border border-theme-primary/40 object-cover"
+                class="size-7 rounded-full border border-theme-primary/40 object-cover"
                 @error="avatarLoadFailed = true"
               />
-              <Icon v-else icon="mdi:account-circle" class="h-5 w-5" :ariaHidden="true" />
+              <Icon v-else icon="mdi:account-circle" class="h-7 w-7" :ariaHidden="true" />
               <span class="hidden sm:inline">{{ user?.username }}</span>
             </button>
             <Transition name="dropdown">

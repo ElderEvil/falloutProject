@@ -10,7 +10,7 @@ vi.mock('@/core/utils/api', () => createApiClientMock())
 describe('Profile Store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    vi.clearAllMocks()
+    vi.resetAllMocks()
   })
 
   const mockProfile: UserProfile = {
@@ -142,7 +142,11 @@ describe('Profile Store', () => {
     it('does not overwrite a saved profile with an older refresh response', async () => {
       const store = useProfileStore()
       let resolveRefresh!: (value: UserProfile) => void
-      vi.mocked(apiGet).mockReturnValueOnce(new Promise((resolve) => { resolveRefresh = resolve }))
+      vi.mocked(apiGet).mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveRefresh = resolve
+        })
+      )
 
       const refresh = store.refreshProfile()
       const savedProfile = { ...mockProfile, bio: 'Saved bio' }
@@ -323,17 +327,49 @@ describe('Profile Store', () => {
     })
   })
 
+  it.each(['resolve', 'reject'] as const)(
+    'isolates a new profile load when the previous session request will %s',
+    async (outcome) => {
+      const store = useProfileStore()
+      const { promise: oldResponse, resolve, reject } = Promise.withResolvers<UserProfile>()
+      const { promise: newResponse, resolve: resolveNew } = Promise.withResolvers<UserProfile>()
+      vi.mocked(apiGet).mockReturnValueOnce(oldResponse).mockReturnValueOnce(newResponse)
+      const oldLoad = store.ensureProfileLoaded()
+      store.clearProfile()
+      const newLoad = store.ensureProfileLoaded()
+      expect(apiGet).toHaveBeenCalledTimes(2)
+
+      if (outcome === 'resolve') resolve(mockProfile)
+      else reject(new Error('Old session expired'))
+      await oldLoad
+      expect(store.profile).toBeNull()
+      expect(store.error).toBeNull()
+      expect(store.loading).toBe(true)
+
+      const nextProfile = { ...mockProfile, user_id: 'new-user', avatar_url: '/new.png' }
+      resolveNew(nextProfile)
+      await newLoad
+      expect(store.profile).toEqual(nextProfile)
+      expect(store.loading).toBe(false)
+    }
+  )
+
   describe('savePreferences Action', () => {
     it('persists notification category opt-outs in the versioned preference key', async () => {
       const store = useProfileStore()
       store.profile = mockProfile
       const updatedProfile = {
         ...mockProfile,
-        preferences: { theme: 'dark', notifications: { version: 1, disabled_categories: ['advancement'] } },
+        preferences: {
+          theme: 'dark',
+          notifications: { version: 1, disabled_categories: ['advancement'] },
+        },
       }
       vi.mocked(apiPut).mockResolvedValueOnce(updatedProfile)
 
-      await store.savePreferences({ notifications: { version: 1, disabled_categories: ['advancement'] } })
+      await store.savePreferences({
+        notifications: { version: 1, disabled_categories: ['advancement'] },
+      })
 
       expect(apiPut).toHaveBeenCalledWith('/api/v1/users/me/profile', {
         preferences: updatedProfile.preferences,

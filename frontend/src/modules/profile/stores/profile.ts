@@ -59,10 +59,11 @@ export const useProfileStore = defineStore('profile', () => {
       if (requestSession !== session) return
       applyProfile(nextProfile)
     } catch (err: unknown) {
+      if (requestSession !== session) return
       error.value = handleStoreError(err, 'Failed to fetch profile')
       throw err
     } finally {
-      loading.value = false
+      if (requestSession === session) loading.value = false
     }
   }
 
@@ -110,6 +111,7 @@ export const useProfileStore = defineStore('profile', () => {
   function clearProfile(): void {
     session += 1
     saveChain = Promise.resolve()
+    loading.value = false
     profile.value = null
     deathStatistics.value = null
     aiUsageStats.value = null

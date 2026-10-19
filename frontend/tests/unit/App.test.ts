@@ -104,6 +104,7 @@ describe('App', () => {
 
   it('loads the profile when authenticated', () => {
     localStorage.setItem('token', 'test-token')
+    localStorage.setItem('user', JSON.stringify({ id: 'user-a' }))
 
     const wrapper = mount(App, {
       global: {
@@ -121,6 +122,29 @@ describe('App', () => {
 
     expect(profileStoreMock.ensureProfileLoaded).toHaveBeenCalled()
     expect(profileStoreMock.clearProfile).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('reloads the profile when the authenticated account changes without logout', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const auth = useAuthStore()
+    auth.token = 'token-a'
+    auth.user = { id: 'user-a' } as NonNullable<typeof auth.user>
+    const wrapper = mount(App, {
+      global: {
+        plugins: [pinia],
+        stubs: {
+          DefaultLayout: { template: '<main><slot /></main>' },
+          ChangelogModal: true,
+          'router-view': true,
+        },
+      },
+    })
+    profileStoreMock.ensureProfileLoaded.mockClear()
+    auth.user = { id: 'user-b' } as NonNullable<typeof auth.user>
+    await wrapper.vm.$nextTick()
+    expect(profileStoreMock.ensureProfileLoaded).toHaveBeenCalledOnce()
     wrapper.unmount()
   })
 

@@ -3,6 +3,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import axios from '@/core/plugins/axios'
+import { useProfileStore } from '@/modules/profile/stores/profile'
 
 vi.mock('@/core/plugins/axios')
 
@@ -10,7 +11,7 @@ describe('Auth Store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     localStorage.clear()
-    vi.clearAllMocks()
+    vi.resetAllMocks()
   })
 
   afterEach(() => {
@@ -146,6 +147,30 @@ describe('Auth Store', () => {
       expect(result).toBe(false)
     })
   })
+
+  it.each(['login', 'register', 'fetchUser', 'logout'] as const)(
+    'clears the previous account profile during %s',
+    async (action) => {
+      const store = useAuthStore()
+      store.token = 'old-token'
+      store.user = { id: 'old-user' } as NonNullable<typeof store.user>
+      const profiles = useProfileStore()
+      profiles.profile = { user_id: 'old-user', avatar_url: '/old.png' } as NonNullable<
+        typeof profiles.profile
+      >
+      vi.mocked(axios.post).mockResolvedValueOnce({
+        data: { id: 'new-user', access_token: 'new-token', refresh_token: 'new-refresh' },
+      })
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: { id: 'new-user' } })
+
+      if (action === 'login') await store.login('new-user', 'password')
+      else if (action === 'register')
+        await store.register('new-user', 'new@example.com', 'password')
+      else await store[action]()
+
+      expect(profiles.profile).toBeNull()
+    }
+  )
 
   describe('Register Action', () => {
     it('should register successfully with valid data', async () => {

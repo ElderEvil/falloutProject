@@ -71,11 +71,11 @@ useTokenRefresh({
   logout: () => authStore.logout(),
 })
 
-// Profile boot-loading: load once on login/reload, clear on logout.
+// Load the profile on login, reload and account changes; clear on logout.
 const profileStore = useProfileStore()
 watch(
-  () => authStore.isAuthenticated,
-  (authed) => {
+  [() => authStore.isAuthenticated, () => authStore.user?.id],
+  ([authed]) => {
     if (authed) void profileStore.ensureProfileLoaded()
     else profileStore.clearProfile()
   },

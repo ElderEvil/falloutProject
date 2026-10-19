@@ -52,6 +52,8 @@ describe('ObjectiveCompleteModal handoff', () => {
     const card = wrapper.getComponent(RewardItemCard)
     expect(card.props('kind')).toBe('currency')
     expect(card.props('name')).toBe('50 caps')
+    // Caps rewards show the caps icon (matching the navbar/resource bar), not the gift glyph.
+    expect(card.props('icon')).toBe('mdi:coins')
     expect(wrapper.find('.reward-card').exists()).toBe(false)
     await wrapper.get('button.cancel').trigger('click')
     expect(wrapper.emitted('close')).toHaveLength(1)

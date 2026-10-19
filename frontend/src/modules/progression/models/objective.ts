@@ -132,7 +132,10 @@ export function objectiveRewardDetails(reward: string) {
     }
   }
   if (prefix === 'dweller' && value) return { kind: 'dweller' as const, name: value }
-  return { kind: 'currency' as const, name: reward }
+  // Currency rewards show the caps glyph when the reward is caps (matching the
+  // navbar metric and REWARD_TYPE_META.caps); anything else keeps the gift glyph.
+  const isCaps = reward.toLowerCase().includes('caps')
+  return { kind: 'currency' as const, name: reward, icon: isCaps ? 'mdi:coins' : 'mdi:gift' }
 }
 
 /** Existing game surfaces relevant to each objective, without inventing new routes. */

@@ -107,18 +107,23 @@ const imageFor = (id: string) => getStaticImageUrl(getCreatureImagePath(creature
             v-for="(fighter, index) in team.fighters"
             :key="fighter.id"
             class="ring-fighter relative flex min-w-0 max-w-28 flex-1 flex-col items-center gap-1"
-            :class="{
-              'ring-attacking': attackingTeam === team.side,
-              'ring-team-b': team.side === 'B',
-              'bottom-8 z-0 scale-90 sm:bottom-12': index % 2 === 1,
-              'z-10': index % 2 === 0,
-              'left-4 sm:left-6': index % 2 === 0 && team.side === 'A',
-              'right-4 sm:right-6': index % 2 === 0 && team.side === 'B',
-              'right-2 sm:right-3': index % 2 === 1 && team.side === 'A',
-              'left-2 sm:left-3': index % 2 === 1 && team.side === 'B',
-              'ring-hit': damageNumbers.some((d) => d.fighterId === fighter.id),
-              'opacity-40 grayscale': fighter.health <= 0,
-            }"
+            :class="[
+              {
+                'ring-attacking': attackingTeam === team.side,
+                'ring-team-b': team.side === 'B',
+                'bottom-8 z-0 scale-90 sm:bottom-12': index % 2 === 1,
+                'z-10': index % 2 === 0,
+                'ring-hit': damageNumbers.some((d) => d.fighterId === fighter.id),
+                'opacity-40 grayscale': fighter.health <= 0,
+              },
+              // Center solo fighters; offset only multi-fighter lanes.
+              team.fighters.length > 1 && {
+                'left-4 sm:left-6': index % 2 === 0 && team.side === 'A',
+                'right-4 sm:right-6': index % 2 === 0 && team.side === 'B',
+                'right-2 sm:right-3': index % 2 === 1 && team.side === 'A',
+                'left-2 sm:left-3': index % 2 === 1 && team.side === 'B',
+              },
+            ]"
           >
             <ArenaDamageNumbers
               :numbers="damageNumbers.filter((d) => d.fighterId === fighter.id)"
@@ -201,11 +206,11 @@ const imageFor = (id: string) => getStaticImageUrl(getCreatureImagePath(creature
             </div>
             <div
               class="relative flex shrink-0 items-end justify-center"
-              :class="
+              :class="[
                 fighter.is_creature || fighter.is_robot
                   ? getCreatureModelSizeClass(creatureKeyOf(fighter.id))
-                  : 'h-20 w-full sm:h-28'
-              "
+                  : 'h-20 w-full sm:h-28',
+              ]"
             >
               <div class="absolute inset-x-0 top-1/3 z-20 flex flex-wrap justify-center gap-1">
                 <Tooltip
@@ -250,6 +255,7 @@ const imageFor = (id: string) => getStaticImageUrl(getCreatureImagePath(creature
                 :image-url="fighter.image_url"
                 :thumbnail-url="fighter.thumbnail_url"
                 :alt="fighter.name"
+                :class="{ '-scale-x-100': team.side === 'B' }"
                 image-class="size-full object-contain drop-shadow-lg"
                 fallback-class="hidden"
               />
@@ -261,6 +267,7 @@ const imageFor = (id: string) => getStaticImageUrl(getCreatureImagePath(creature
                   !fighter.thumbnail_url
                 "
                 class="absolute bottom-0 h-20 w-12 text-theme-primary sm:h-28 sm:w-16"
+                :class="{ '-scale-x-100': team.side === 'B' }"
               />
             </div>
             <span

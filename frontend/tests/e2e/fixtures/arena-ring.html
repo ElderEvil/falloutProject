@@ -22,6 +22,7 @@
         power: 10,
         is_creature: creature,
         is_robot: false,
+        image_url: !creature && params.has('portrait') ? '/static/test-dweller.png' : null,
         active_skill: creature
           ? null
           : {
@@ -55,6 +56,11 @@
         winner_name: null,
         events: [],
       })
+      if (params.get('mode') === 'duel') {
+        state.mode = 'duel'
+        state.team_a = [fighter('Alpha')]
+        state.team_b = [fighter('Bravo')]
+      }
       if (state.countdown_remaining) {
         const timer = setInterval(() => {
           if (--state.countdown_remaining <= 0) clearInterval(timer)

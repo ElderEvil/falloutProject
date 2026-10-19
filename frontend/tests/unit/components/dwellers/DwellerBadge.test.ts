@@ -57,6 +57,20 @@ describe('DwellerBadge', () => {
     expect(wrapper.find('.badge-icon').exists()).toBe(false)
   })
 
+  it('adds a state marker and includes its description in the accessible name', () => {
+    const wrapper = mount(DwellerBadge, {
+      props: {
+        icon: 'mdi:robot-outline',
+        color: 'var(--badge-race-synth)',
+        label: 'Synth',
+        marker: { monogram: 'III', label: 'Gen III' },
+      },
+    })
+
+    expect(wrapper.find('.badge-state-marker').text()).toBe('III')
+    expect(wrapper.find('[role="img"]').attributes('aria-label')).toBe('Synth · Gen III')
+  })
+
   it('describes the fact on hover without a native title', () => {
     const wrapper = mount(DwellerBadge, {
       props: { icon: 'mdi:account', color: 'var(--badge-age-adult)', label: 'Adult' },
@@ -68,13 +82,40 @@ describe('DwellerBadge', () => {
 })
 
 describe('DwellerIdentitySignal', () => {
-  it('renders race, faction and state through the shared badge primitive', () => {
+  it('combines race and state, keeping faction as a separate badge', () => {
     const wrapper = mount(DwellerIdentitySignal, { props: { visualAttributes } })
 
     const badges = wrapper.findAll('.dweller-badge')
-    expect(badges).toHaveLength(3)
+    expect(badges).toHaveLength(2)
     expect(badges[0].text()).toContain('Super Mutant')
-    expect(badges[2].find('.badge-monogram').text()).toBe('III')
+    expect(badges[0].find('.badge-state-marker [data-icon="mdi:arm-flex"]').exists()).toBe(true)
+    expect(badges[0].attributes('aria-label')).toBe('Super Mutant · Behemoth')
+    expect(badges[1].text()).toContain('The Institute')
+  })
+
+  it('uses a state icon inside the race badge for ghouls', () => {
+    const wrapper = mount(DwellerIdentitySignal, {
+      props: { visualAttributes: { race: 'ghoul', state_of_being: 'feral' } as never },
+    })
+
+    const raceBadge = wrapper.find('.dweller-badge')
+    expect(raceBadge.find('[data-icon="mdi:skull-outline"]').exists()).toBe(true)
+    expect(raceBadge.attributes('aria-label')).toBe('Ghoul · Feral')
+    expect(wrapper.findAll('.dweller-badge')).toHaveLength(1)
+  })
+
+  it('uses a Roman numeral marker for synth generation', () => {
+    const wrapper = mount(DwellerIdentitySignal, {
+      props: {
+        visualAttributes: { race: 'synth', state_of_being: 'gen_2' } as never,
+        compact: true,
+      },
+    })
+
+    const badge = wrapper.find('.dweller-badge')
+    expect(wrapper.findAll('.dweller-badge')).toHaveLength(1)
+    expect(badge.find('[data-icon="mdi:robot-outline"]').exists()).toBe(true)
+    expect(badge.find('.badge-state-marker').text()).toBe('II')
   })
 
   it('marks identity glyphs semantic-light: no hover vocabulary, theme-primary colour', () => {

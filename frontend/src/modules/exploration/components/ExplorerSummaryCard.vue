@@ -40,27 +40,24 @@ const healthPercentage = computed(
 
 <template>
   <div
-    class="mb-4 rounded-lg border-2 border-theme-primary bg-terminal-background p-4 shadow-[0_0_20px_var(--color-theme-glow)]"
+    class="explorer-summary-card mb-4 rounded-lg border-2 border-theme-primary bg-terminal-background p-4 shadow-[0_0_20px_var(--color-theme-glow)]"
   >
     <!-- Dweller Portrait Card -->
     <div
       class="mb-4 flex gap-4 border-b-2 border-theme-primary/30 pb-4 max-md:flex-col max-md:items-center max-md:text-center"
     >
-      <div
-        class="relative flex h-[70px] w-[70px] shrink-0 items-center justify-center rounded-md border-2 border-theme-primary bg-terminal-background shadow-[0_0_15px_var(--color-theme-glow)]"
-      >
-        <DwellerPortrait
-          :image-url="dwellerImageUrl"
-          :thumbnail-url="dwellerThumbnailUrl"
-          prefer-thumbnail
-          :alt="`${dwellerName} portrait`"
-          image-class="dweller-portrait h-full w-full rounded-md object-cover"
-          fallback-class="h-[45px] w-[45px] text-theme-primary drop-shadow-[0_0_8px_var(--color-theme-glow)]"
-        />
+      <div class="portrait-column flex shrink-0 flex-col items-center gap-1.5">
         <div
-          class="absolute -bottom-1.5 -right-1.5 rounded-[3px] bg-theme-primary px-2 py-1 text-xs font-bold text-black shadow-[0_0_10px_var(--color-theme-glow)]"
+          class="dweller-portrait-frame flex h-[70px] w-[70px] items-center justify-center rounded-md border-2 border-theme-primary bg-terminal-background shadow-[0_0_15px_var(--color-theme-glow)]"
         >
-          LVL {{ dwellerLevel }}
+          <DwellerPortrait
+            :image-url="dwellerImageUrl"
+            :thumbnail-url="dwellerThumbnailUrl"
+            prefer-thumbnail
+            :alt="`${dwellerName} portrait`"
+            image-class="dweller-portrait h-full w-full rounded-md object-cover"
+            fallback-class="h-[45px] w-[45px] text-theme-primary drop-shadow-[0_0_8px_var(--color-theme-glow)]"
+          />
         </div>
       </div>
       <div class="flex flex-1 flex-col justify-center">
@@ -79,7 +76,12 @@ const healthPercentage = computed(
           <DwellerIdentitySignal :visual-attributes="dweller?.visual_attributes" />
         </div>
         <div class="flex flex-col gap-1">
-          <div class="flex items-center gap-2">
+          <div class="health-row flex items-center gap-2">
+            <div
+              class="dweller-level shrink-0 rounded-[3px] bg-theme-primary px-1.5 py-0.5 text-[0.625rem] font-bold text-black shadow-[0_0_10px_var(--color-theme-glow)]"
+            >
+              LVL {{ dwellerLevel }}
+            </div>
             <span class="min-w-[50px] text-xs text-theme-primary/80">Health</span>
             <HealthRadiationBar
               :value="healthPercentage"

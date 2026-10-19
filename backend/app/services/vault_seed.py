@@ -167,6 +167,9 @@ BOOSTED_SEED_PETS: tuple[tuple[str, RarityEnum], ...] = (
     ("CX404", RarityEnum.LEGENDARY),
     ("Vault-Tec Parrot", RarityEnum.RARE),
 )
+# A boosted start equips these on its legendary roster; the remaining seed pet
+# stays in storage so the equip flow is still available immediately.
+BOOSTED_EQUIPPED_PETS: tuple[str, ...] = ("Dogmeat (Fallout 4)", "CX404")
 
 
 @dataclass(slots=True)

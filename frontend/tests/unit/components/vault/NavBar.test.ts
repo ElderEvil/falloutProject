@@ -130,7 +130,29 @@ describe('NavBar', () => {
 
   afterEach(() => {
     roomsLoadState.failNext = false
+    localStorage.removeItem('visual-effects:glow')
     vi.restoreAllMocks()
+  })
+
+  it('applies the configured text glow to the vault number', async () => {
+    localStorage.setItem('visual-effects:glow', 'subtle')
+    vaultHeader.vault!.value = { number: 42 }
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/vault/:id', component: { template: '<div />' } }],
+    })
+    await router.push('/vault/vault-1')
+    await router.isReady()
+
+    const wrapper = mount(NavBar, {
+      global: { plugins: [router], stubs: { Icon: true, NotificationBell: true } },
+    })
+
+    const vaultNumber = wrapper.find('[aria-label="Current vault 42"]')
+    expect(vaultNumber.classes()).toContain('terminal-glow-subtle')
+    expect(vaultNumber.classes()).not.toContain('terminal-glow')
+    wrapper.unmount()
   })
 
   it('keeps the Vaults link aria-label verbatim', async () => {

@@ -16,6 +16,7 @@ const NotificationBell = defineAsyncComponent(() => import('./NotificationBell.v
 import ResourceBar from './ResourceBar.vue'
 import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import { useVersionDetection } from '@/core/composables/useVersionDetection'
+import { useVisualEffects } from '@/core/composables/useVisualEffects'
 import { audioManager } from '@/core/audio/audioManager'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import type { ResourceName } from '@/modules/rooms/models/roomParts'
@@ -59,6 +60,7 @@ const { versionBadgeVisible, showChangelog } = useVersionDetection({
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const user = computed(() => authStore.user)
 const isProfileRoute = computed(() => route.path === '/profile')
+const { glowClass } = useVisualEffects()
 
 // Profile avatar for the menu button. Hydrated lazily on mount so the navbar
 // never blocks first paint on a profile fetch; the generic icon shows until
@@ -243,7 +245,8 @@ onUnmounted(() => {
         </router-link>
         <span
           v-if="vaultNumber !== undefined"
-          class="shrink-0 whitespace-nowrap font-mono text-base font-black tracking-tight text-theme-primary terminal-glow sm:text-xl"
+          class="shrink-0 whitespace-nowrap font-mono text-base font-black tracking-tight text-theme-primary sm:text-xl"
+          :class="glowClass"
           :aria-label="`Current vault ${vaultNumber}`"
         >
           <span class="hidden sm:inline">Vault </span>{{ vaultNumber }}

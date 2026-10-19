@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.239.1 (2026-10-19)
+
+### Bug Fixes
+
+* record dweller death in bio ([#1097](https://github.com/ElderEvil/falloutProject/issues/1097)) 0a7585e
+
 ## 2.239.0 (2026-10-19)
 
 ### Features

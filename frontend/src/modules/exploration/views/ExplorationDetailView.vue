@@ -189,6 +189,7 @@ const siteOptionsLoaded = ref(false)
 const canOpenSite = computed(
   () => !siteOptionsLoaded.value || siteStore.availableSites.length > 0 || !!siteStore.room
 )
+const siteCtaReady = computed(() => siteOptionsLoaded.value && canOpenSite.value)
 
 const loadSiteOptions = async () => {
   const requestedId = explorationId.value
@@ -343,7 +344,9 @@ watch(isReady, (ready) => {
             <!-- Expedition site entry CTA (in-progress journeys: active or returning) -->
             <Button
               v-if="isInProgressExploration"
-              class="mb-4 w-full shadow-[var(--glow-2)] transition-shadow disabled:border disabled:border-theme-primary/60 disabled:bg-black disabled:text-theme-primary disabled:opacity-70 disabled:shadow-none"
+              class="mb-4 w-full transition-shadow disabled:border disabled:border-theme-primary/60 disabled:bg-black disabled:text-theme-primary disabled:opacity-70 disabled:shadow-none"
+              :class="siteCtaReady ? 'shadow-[var(--glow-2)]' : 'shadow-none'"
+              :variant="siteCtaReady ? 'default' : 'secondary'"
               size="lg"
               :disabled="!canOpenSite"
               @click="showSiteModal = true"

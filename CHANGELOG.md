@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.239.2 (2026-10-19)
+
+### Bug Fixes
+
+* **ui:** polish vault, exploration, and dweller surfaces ([#1102](https://github.com/ElderEvil/falloutProject/issues/1102)) 0963bf4
+
 ## 2.239.1 (2026-10-19)
 
 ### Bug Fixes

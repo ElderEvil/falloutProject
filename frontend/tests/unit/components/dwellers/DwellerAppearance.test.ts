@@ -64,6 +64,18 @@ describe('DwellerAppearance', () => {
     expect(wrapper.text()).toContain('No appearance yet')
   })
 
+  it('offers only the empty-state generate action when appearance is missing', async () => {
+    const wrapper = mountAppearance({ race: 'human' })
+
+    await nextTick()
+
+    const generateButtons = wrapper
+      .findAll('button')
+      .filter((button) => button.text().includes('Generate appearance'))
+    expect(generateButtons).toHaveLength(1)
+    expect(wrapper.find('section').classes()).toContain('bg-transparent')
+  })
+
   it('omits synth generation from the appearance badge', async () => {
     const wrapper = mountAppearance({
       race: 'synth',

@@ -86,11 +86,6 @@ const hasSubstantialAttributes = computed(() => {
     return !Array.isArray(value) || value.length > 0
   })
 })
-
-/** True if AI can still generate (no substantial attributes yet). */
-const canGenerateAppearance = computed(
-  () => !visualAttributes.value || !hasSubstantialAttributes.value
-)
 </script>
 
 <template>
@@ -98,7 +93,7 @@ const canGenerateAppearance = computed(
     <div class="appearance-header">
       <div class="header-buttons">
         <TooltipProvider :delay-duration="200">
-          <Tooltip v-if="canGenerateAppearance">
+          <Tooltip v-if="hasSubstantialAttributes">
             <TooltipTrigger as-child>
               <Button
                 @click="ctx.actions.generateAppearance()"
@@ -112,9 +107,7 @@ const canGenerateAppearance = computed(
                   class="h-5 w-5"
                   :class="{ 'animate-spin': generatingAppearance }"
                 />
-                <span>{{
-                  hasSubstantialAttributes ? 'Regenerate appearance' : 'Generate appearance'
-                }}</span>
+                <span>Regenerate appearance</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top"
@@ -155,6 +148,7 @@ const canGenerateAppearance = computed(
       title="No appearance yet"
       description="Generate this dweller's look to fill in build, hair, facial features, clothing and pose."
       compact
+      transparent
     >
       <template #actions>
         <Button
@@ -199,7 +193,6 @@ const canGenerateAppearance = computed(
   flex-direction: column;
   gap: 0.75rem;
   padding: 1rem;
-  background: rgba(0, 0, 0, 0.3);
   border-left: 3px solid var(--color-theme-primary);
   border-radius: 4px;
 }

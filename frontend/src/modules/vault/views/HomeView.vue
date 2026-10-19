@@ -73,6 +73,7 @@ const createVault = async ({ number, boosted, vaultMode }: VaultNumberData) => {
     if (!boostedStart) markCreatedVault(createdId)
     creationKey.value++
     showCreation.value = false
+    await loadVault(createdId)
   } finally {
     creatingVault.value = false
   }

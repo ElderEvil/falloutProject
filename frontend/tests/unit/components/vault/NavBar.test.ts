@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick, ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -130,7 +130,29 @@ describe('NavBar', () => {
 
   afterEach(() => {
     roomsLoadState.failNext = false
+    localStorage.removeItem('visual-effects:glow')
     vi.restoreAllMocks()
+  })
+
+  it('applies the configured text glow to the vault number', async () => {
+    localStorage.setItem('visual-effects:glow', 'subtle')
+    vaultHeader.vault!.value = { number: 42 }
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/vault/:id', component: { template: '<div />' } }],
+    })
+    await router.push('/vault/vault-1')
+    await router.isReady()
+
+    const wrapper = mount(NavBar, {
+      global: { plugins: [router], stubs: { Icon: true, NotificationBell: true } },
+    })
+
+    const vaultNumber = wrapper.find('[aria-label="Current vault 42"]')
+    expect(vaultNumber.classes()).toContain('terminal-glow-subtle')
+    expect(vaultNumber.classes()).not.toContain('terminal-glow')
+    wrapper.unmount()
   })
 
   it('keeps the Vaults link aria-label verbatim', async () => {
@@ -344,6 +366,45 @@ describe('NavBar', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.text()).toContain('Vault status unavailable')
     expect(wrapper.findAllComponents(ResourceBar)).toHaveLength(0)
+  })
+
+  it('closes the user menu on logout so it stays closed after re-login', async () => {
+    const authStore = useAuthStore()
+    authStore.token = 'test-token'
+    authStore.user = testUser
+    vi.spyOn(authStore, 'logout').mockImplementation(async () => {
+      authStore.token = null
+      authStore.user = null
+    })
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/vault/:id', component: { template: '<div />' } },
+        { path: '/login', component: { template: '<div />' } },
+      ],
+    })
+    await router.push('/vault/vault-1')
+    await router.isReady()
+
+    const wrapper = mount(NavBar, {
+      global: { plugins: [router], stubs: { Icon: true, NotificationBell: true } },
+    })
+
+    await wrapper.get('button[aria-label="User menu for Overseer"]').trigger('click')
+    expect(wrapper.find('[role="menu"]').exists()).toBe(true)
+
+    await wrapper.get('button[aria-label="Logout"]').trigger('click')
+    await flushPromises()
+
+    authStore.token = 'next-token'
+    authStore.user = testUser
+    await nextTick()
+
+    const button = wrapper.get('button[aria-label="User menu for Overseer"]')
+    expect(button.attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('[role="menu"]').exists()).toBe(false)
+    wrapper.unmount()
   })
 
   it('uses a terminal-green highlight for user menu items', async () => {

@@ -329,13 +329,9 @@ export const useExplorationStore = defineStore('exploration', () => {
         radaways,
       }
       if (headingDegrees !== undefined) body.heading_degrees = headingDegrees
-      const response = await axios.post(
-        `/api/v1/explorations/send?vault_id=${vaultId}`,
-        body,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
+      const response = await axios.post(`/api/v1/explorations/send?vault_id=${vaultId}`, body, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
 
       const exploration = response.data
       explorations.value.push(exploration)
@@ -383,10 +379,13 @@ export const useExplorationStore = defineStore('exploration', () => {
   async function fetchExplorationsByVault(
     vaultId: string,
     token: string,
-    activeOnly = true
+    activeOnly = true,
+    silent = false
   ): Promise<Exploration[]> {
-    isLoading.value = true
-    error.value = null
+    if (!silent) {
+      isLoading.value = true
+      error.value = null
+    }
     try {
       const response = await axios.get(
         `/api/v1/explorations/vault/${vaultId}?active_only=${activeOnly}`,
@@ -404,13 +403,16 @@ export const useExplorationStore = defineStore('exploration', () => {
           activeExplorations.value[e.id] = e
         })
 
+      error.value = null
       return response.data
     } catch (err) {
-      handleStoreError(err, 'Failed to fetch explorations')
-      error.value = 'Failed to fetch explorations'
+      if (!silent) {
+        handleStoreError(err, 'Failed to fetch explorations')
+        error.value = 'Failed to fetch explorations'
+      }
       throw err
     } finally {
-      isLoading.value = false
+      if (!silent) isLoading.value = false
     }
   }
 

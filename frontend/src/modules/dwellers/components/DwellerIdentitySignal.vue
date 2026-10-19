@@ -70,6 +70,7 @@ const identitySignals = computed<IdentitySignal[]>(() => {
 
   const raceValue = props.hideRace ? undefined : attributes.race
   const stateValue = attributes.state_of_being
+  const showStandaloneState = !(props.hideRace && attributes.race === 'synth')
   const signals: IdentitySignal[] = []
 
   if (raceValue) {
@@ -82,7 +83,7 @@ const identitySignals = computed<IdentitySignal[]>(() => {
 
   const otherValues = [
     featureFlags.factionMechanics ? attributes.faction : undefined,
-    !raceValue ? stateValue : undefined,
+    !raceValue && showStandaloneState ? stateValue : undefined,
   ]
 
   signals.push(

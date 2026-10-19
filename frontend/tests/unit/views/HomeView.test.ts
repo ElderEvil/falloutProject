@@ -149,6 +149,23 @@ describe('HomeView', () => {
       expect(wrapper.find('input[type="number"]').exists()).toBe(true)
     })
 
+    it('navigates into a newly created vault instead of staying on the list', async () => {
+      vaultStore.vaults = []
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      vi.spyOn(vaultStore, 'createVault').mockResolvedValue('vault-99')
+
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await settleView()
+
+      await wrapper.get('input[type="number"]').setValue('101')
+      await goToReview(wrapper)
+      await wrapper.get('form').trigger('submit')
+      await settleView()
+
+      expect(vaultStore.createVault).toHaveBeenCalled()
+      expect(router.currentRoute.value.path).toBe('/vault/vault-99')
+    })
+
     it('should show vault list when vaults exist', async () => {
       vaultStore.vaults = [
         {

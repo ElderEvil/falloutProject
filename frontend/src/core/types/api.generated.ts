@@ -3863,6 +3863,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rooms/style/{room_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply Room Style
+         * @description Apply a cosmetic room style (for example, the Party theme).
+         */
+        post: operations["apply_room_style_api_v1_rooms_style__room_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rooms/split/{room_id}": {
         parameters: {
             query?: never;
@@ -10147,6 +10167,11 @@ export interface components {
             /** Image Url */
             image_url?: string | null;
             /**
+             * Room Style
+             * @default default
+             */
+            room_style: string;
+            /**
              * Speedup Multiplier
              * @default 1
              */
@@ -10202,6 +10227,11 @@ export interface components {
             /** Image Url */
             image_url?: string | null;
             /**
+             * Room Style
+             * @default default
+             */
+            room_style: string;
+            /**
              * Speedup Multiplier
              * @default 1
              */
@@ -10221,6 +10251,14 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** RoomStyleUpdate */
+        RoomStyleUpdate: {
+            /**
+             * Style
+             * @enum {string}
+             */
+            style: "default" | "party";
         };
         /**
          * RoomTypeEnum
@@ -17110,6 +17148,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_room_style_api_v1_rooms_style__room_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoomStyleUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

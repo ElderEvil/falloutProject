@@ -8,7 +8,8 @@ import {
   getRoomSegmentCount,
 } from '../utils/room'
 import { Icon } from '@iconify/vue'
-import type { Room } from '../models/room'
+import type { Room, RoomStyleValue } from '../models/room'
+import { supportsPartyStyle } from '../models/room'
 import { Button } from '@/core/components/ui/button'
 import {
   Tooltip,
@@ -30,6 +31,7 @@ interface Props {
   isUpgrading: boolean
   isDestroying: boolean
   isRemodeling?: boolean
+  isApplyingStyle?: boolean
   isVaultDoor: boolean
   assignedDwellerCount: number
   disabled?: boolean
@@ -46,7 +48,12 @@ const canSplit = computed(
 )
 const mergeCandidates = computed(() => getMergeCandidates(roomStore.rooms, props.room))
 const busy = computed(
-  () => props.disabled || props.isUpgrading || props.isDestroying || props.isRemodeling
+  () =>
+    props.disabled ||
+    props.isUpgrading ||
+    props.isDestroying ||
+    props.isRemodeling ||
+    props.isApplyingStyle
 )
 
 const emit = defineEmits<{
@@ -55,6 +62,7 @@ const emit = defineEmits<{
   unassignAll: []
   split: []
   merge: [otherRoomId: string]
+  applyStyle: [style: RoomStyleValue]
 }>()
 </script>
 
@@ -88,6 +96,21 @@ const emit = defineEmits<{
       >
         <Icon icon="mdi:arrow-up-circle" class="h-4 w-4" />
         <span>Max tier reached ({{ room.tier }}/{{ upgradeInfo.maxTier }})</span>
+      </Button>
+
+      <Button
+        v-if="supportsPartyStyle(room)"
+        :disabled="busy"
+        @click="emit('applyStyle', room.room_style === 'party' ? 'default' : 'party')"
+        variant="secondary"
+        size="sm"
+        class="action-btn justify-start"
+      >
+        <Icon
+          :icon="room.room_style === 'party' ? 'mdi:palette-outline' : 'mdi:party-popper'"
+          class="h-4 w-4"
+        />
+        {{ room.room_style === 'party' ? 'Restore standard theme' : 'Apply Party theme' }}
       </Button>
 
       <Button

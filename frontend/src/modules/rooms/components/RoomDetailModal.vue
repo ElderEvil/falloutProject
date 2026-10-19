@@ -15,6 +15,7 @@ import { useRoomProduction } from '../composables/useRoomProduction'
 import { useRoomUpgrade } from '../composables/useRoomUpgrade'
 import { useRoomDwellers } from '../composables/useRoomDwellers'
 import { useRadioRoom } from '../composables/useRadioRoom'
+import { useRoomStyle } from '../composables/useRoomStyle'
 import RoomDetailHeader from './RoomDetailHeader.vue'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import RoomPreviewSection from './RoomPreviewSection.vue'
@@ -110,6 +111,10 @@ const {
   actionError,
   () => emit('roomUpdated'),
   () => emit('close')
+)
+
+const { isApplyingStyle, handleApplyStyle } = useRoomStyle(roomRef, actionError, () =>
+  emit('roomUpdated')
 )
 
 const {
@@ -288,12 +293,14 @@ onUnmounted(stopAmbience)
             :is-upgrading="isUpgrading"
             :is-destroying="isDestroying"
             :is-remodeling="isRemodeling"
+            :is-applying-style="isApplyingStyle"
             :is-vault-door="isVaultDoor"
             :assigned-dweller-count="assignedDwellers.length"
             @upgrade="handleUpgrade"
             @destroy="handleDestroy"
             @split="handleRemodel()"
             @merge="handleRemodel"
+            @apply-style="handleApplyStyle"
             @unassign-all="handleUnassignAll"
           />
         </template>

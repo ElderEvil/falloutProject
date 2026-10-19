@@ -71,7 +71,7 @@ const emit = defineEmits<{
         :disabled="busy"
         variant="secondary"
         size="sm"
-        class="action-btn action-btn--upgrade h-auto min-h-9 justify-start whitespace-normal py-2 text-left"
+        class="action-btn action-btn--upgrade justify-start text-left"
       >
         <span class="flex min-w-0 items-center gap-1">
           <Icon icon="mdi:arrow-up-circle" class="h-4 w-4" />
@@ -95,7 +95,7 @@ const emit = defineEmits<{
         :disabled="busy || assignedDwellerCount === 0"
         variant="secondary"
         size="sm"
-        class="action-btn action-btn--compact justify-start"
+        class="action-btn justify-start"
       >
         <Icon icon="mdi:account-remove" class="h-4 w-4" />
         Unassign All Dwellers
@@ -107,7 +107,7 @@ const emit = defineEmits<{
         @click="emit('split')"
         variant="secondary"
         size="sm"
-        class="action-btn action-btn--compact justify-start"
+        class="action-btn justify-start"
       >
         <Icon icon="mdi:arrow-split-vertical" class="h-4 w-4" />
         Split into {{ getRoomSegmentCount(room) }} rooms
@@ -190,14 +190,9 @@ const emit = defineEmits<{
 }
 
 .action-btn {
-  flex: 5 1 0;
-  min-width: 8rem;
-  white-space: normal;
-}
-
-.action-btn--compact {
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 1 0 auto;
+  height: 2.25rem;
+  white-space: nowrap;
 }
 
 .action-btn.destroy-btn {

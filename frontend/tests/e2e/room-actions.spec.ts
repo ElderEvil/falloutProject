@@ -25,9 +25,7 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
   })
 }
 
-test('remodel actions stay in one weighted row and keep the upgrade cost on one line', async ({
-  page,
-}) => {
+test('remodel actions stay on one line with matching button heights', async ({ page }) => {
   await page.goto('/tests/e2e/fixtures/room-actions.html?remodel=1')
   const actions = page.locator('.actions-grid')
   const buttons = actions.getByRole('button')
@@ -38,12 +36,24 @@ test('remodel actions stay in one weighted row and keep the upgrade cost on one 
     const rects = elements.map((element) => element.getBoundingClientRect())
     return {
       widths: rects.map((rect) => rect.width),
+      heights: rects.map((rect) => rect.height),
       tops: rects.map((rect) => rect.top),
+      textDoesNotWrap: elements.every((element) => {
+        const text = [element, ...element.querySelectorAll('span')]
+        return text.every((node) => getComputedStyle(node).whiteSpace === 'nowrap')
+      }),
     }
   })
   expect(new Set(wideLayout.tops).size).toBe(1)
-  expect(wideLayout.widths[0]).toBeGreaterThan(wideLayout.widths[1] * 1.5)
-  expect(wideLayout.widths[3]).toBeGreaterThan(wideLayout.widths[2] * 1.5)
+  expect(new Set(wideLayout.heights).size).toBe(1)
+  expect(wideLayout.textDoesNotWrap).toBe(true)
+  await page.locator('#app').evaluate((el) => (el.style.width = '1200px'))
+  const expandedWidths = await buttons.evaluateAll((elements) =>
+    elements.map((element) => element.getBoundingClientRect().width)
+  )
+  const growth = expandedWidths.map((width, index) => width - wideLayout.widths[index])
+  expect(Math.min(...growth)).toBeGreaterThan(0)
+  expect(Math.max(...growth) - Math.min(...growth)).toBeLessThan(1)
   const badge = upgrade.locator('.cost-badge')
   const badgePosition = await badge.evaluate((el) => {
     const parent = el.closest('button')!.getBoundingClientRect()
@@ -55,18 +65,19 @@ test('remodel actions stay in one weighted row and keep the upgrade cost on one 
     }
   })
   expect(badgePosition.contained).toBe(true)
-  const titleBounds = await upgrade
-    .locator('span')
-    .first()
-    .evaluate((el) => {
-      const rect = el.getBoundingClientRect()
-      return { top: rect.top, bottom: rect.bottom }
-    })
-  expect(badgePosition.top).toBeLessThan(titleBounds.bottom)
   await page.locator('#app').evaluate((el) => (el.style.width = '200px'))
   const narrowLayout = await buttons.evaluateAll((elements) => {
     const rects = elements.map((element) => element.getBoundingClientRect())
-    return { widths: rects.map((rect) => rect.width), tops: rects.map((rect) => rect.top) }
+    return {
+      heights: rects.map((rect) => rect.height),
+      tops: rects.map((rect) => rect.top),
+      textDoesNotWrap: elements.every((element) => {
+        const text = [element, ...element.querySelectorAll('span')]
+        return text.every((node) => getComputedStyle(node).whiteSpace === 'nowrap')
+      }),
+    }
   })
   expect(new Set(narrowLayout.tops).size).toBe(1)
+  expect(new Set(narrowLayout.heights).size).toBe(1)
+  expect(narrowLayout.textDoesNotWrap).toBe(true)
 })

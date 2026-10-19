@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.238.2 (2026-10-19)
+
+### Bug Fixes
+
+* **ui:** refine room dweller previews ([#1095](https://github.com/ElderEvil/falloutProject/issues/1095)) 6e10132
+
 ## 2.238.1 (2026-10-19)
 
 ### Bug Fixes

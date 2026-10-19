@@ -84,7 +84,7 @@ async def test_fresh_starter_rewards_reach_office_without_loot(async_session, su
                 assert room.population_required == 18
                 assert before_caps - vault.bottle_caps == 1_000
         elif step.objective_type == "explore":
-            explorer = next(d for d in dwellers if d.first_name == "Wanderer")
+            explorer = next(d for d in dwellers if d.first_name == "Juno")
             await exploration_service.send_dweller(async_session, vault.id, explorer.id, duration=2)
         elif step.objective_type == "equip":
             receiver = next(d for d in dwellers if d.is_mature and d.room_id is None and d.status != "exploring")

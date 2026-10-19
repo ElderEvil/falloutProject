@@ -650,6 +650,35 @@ async def test_process_quest_rewards_multiple(async_session: AsyncSession) -> No
     assert RewardType.STIMPAK in types
 
 
+def test_parse_starter_resident_reward_returns_profile() -> None:
+    """Named starter rewards carry their curated name, bio, and appearance."""
+    reward_type, reward_data = settlement._parse_objective_reward("dweller:Juno Pike")
+
+    assert reward_type == RewardType.DWELLER
+    assert reward_data["first_name"] == "Juno"
+    assert reward_data["last_name"] == "Pike"
+    assert reward_data["bio"].startswith("Followed a pre-war radio signal")
+    assert reward_data["visual_attributes"]["hair_style"] == "short"
+
+
+@pytest.mark.asyncio
+async def test_starter_resident_reward_creates_named_dweller(async_session: AsyncSession) -> None:
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    _, reward_data = settlement._parse_objective_reward("dweller:Juno Pike")
+
+    result = await reward_service.grant_dweller(async_session, vault.id, reward_data)
+    dweller = await crud.dweller.get(async_session, UUID(result["dweller_id"]))
+
+    assert dweller.first_name == "Juno"
+    assert dweller.last_name == "Pike"
+    assert dweller.bio.startswith("Followed a pre-war radio signal")
+    assert dweller.visual_attributes["hair_style"] == "short"
+
+
 @pytest.mark.parametrize(
     ("reward_str", "expected_type", "expected_data"),
     [

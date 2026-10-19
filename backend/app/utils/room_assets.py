@@ -45,6 +45,13 @@ SPECIAL_CASE_ROOMS = {
 # Workshops use different naming (no tier-segment)
 WORKSHOP_ROOMS = ["Weapon workshop", "Outfit workshop", "Theme workshop"]
 
+# Curated room-wide theme art. These files are deliberately single images, not
+# tier/segment variants; the style is cosmetic and applies to the whole room.
+PARTY_ROOM_IMAGES = {
+    "Diner": "FOS Diner Party.png",
+    "Living room": "FOS LQ Party.jpg",
+}
+
 ROOM_TYPE_TO_DEFAULT_NAME = {
     RoomTypeEnum.PRODUCTION: "Power Generator",
     RoomTypeEnum.CAPACITY: "Living room",
@@ -85,7 +92,7 @@ def _find_image_with_fallback(base_path: Path, asset_key: str, tier: int, segmen
     return None
 
 
-def get_room_image_url(room_name: str, tier: int = 1, size: int = 3) -> str | None:
+def get_room_image_url(room_name: str, tier: int = 1, size: int = 3, style: str = "default") -> str | None:
     """
     Generate the image URL for a room based on its name, tier, and size.
 
@@ -99,6 +106,9 @@ def get_room_image_url(room_name: str, tier: int = 1, size: int = 3) -> str | No
     Returns:
         URL path to the room image, or None if not found
     """
+    if style == "party" and room_name in PARTY_ROOM_IMAGES:
+        return f"/static/room_images/{PARTY_ROOM_IMAGES[room_name]}"
+
     # Handle special cases first
     if room_name in SPECIAL_CASE_ROOMS:
         return f"/static/room_images/{SPECIAL_CASE_ROOMS[room_name].format(size=size)}"

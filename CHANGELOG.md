@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.239.0 (2026-10-19)
+
+### Features
+
+* polish exploration detail UI ([#1096](https://github.com/ElderEvil/falloutProject/issues/1096)) 15bf74b
+
 ## 2.238.2 (2026-10-19)
 
 ### Bug Fixes

@@ -356,9 +356,22 @@ describe('ExplorationDetailView', () => {
 
       await flushPromises()
 
-      expect(wrapper.text()).toContain('Recall Dweller')
+      expect(wrapper.find('.explorer-navigation [aria-label="Recall dweller"]').exists()).toBe(true)
+      expect(wrapper.text()).not.toContain('Recall Dweller')
       // progress < 100% so Complete button should not be visible
       expect(wrapper.text()).not.toContain('Complete Exploration')
+    })
+
+    it('places explorer equipment directly under the dweller card', async () => {
+      const wrapper = mount(ExplorationDetailView, {
+        global: { plugins: [router] },
+      })
+
+      await flushPromises()
+
+      const summary = wrapper.find('.explorer-summary-card').element
+      const equipment = wrapper.find('.explorer-equipment-slots').element
+      expect(summary.nextElementSibling).toBe(equipment)
     })
 
     it('disables the Expedition site CTA when no sites are available', async () => {

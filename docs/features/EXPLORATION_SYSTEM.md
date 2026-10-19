@@ -460,6 +460,8 @@ from app.services.exploration.coordinator import exploration_coordinator
 - [ ] Story-driven exploration missions
 - [ ] Reputation system with wasteland factions
 - [ ] Settlements and safe zones
+- [ ] Surface SPECIAL stat training/progression during exploration in the journey log and return report.
+- [ ] Design an exploration backpack with clear carried-item capacity and overflow handling; align it with the existing return/storage overflow flow before adding a capacity rule.
 
 ## Changelog
 

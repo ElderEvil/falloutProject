@@ -303,8 +303,10 @@ watch(isReady, (ready) => {
                 :total="allExplorations.length"
                 :has-previous="hasPrevious"
                 :has-next="hasNext"
+                :can-recall="canRecall && !isReturning"
                 @previous="navigatePrevious"
                 @next="navigateNext"
+                @recall="handleRecallExploration"
               />
             </template>
           </PageNavigation>
@@ -328,10 +330,20 @@ watch(isReady, (ready) => {
               :dweller="detailedDweller ?? dweller"
             />
 
+            <!-- Keep equipped items close to the explorer who carries them. -->
+            <ExplorerEquipmentSlots
+              :weapon-name="weaponName"
+              :outfit-name="outfitName"
+              :pet-name="petName"
+              :weapon="detailedDweller?.weapon"
+              :outfit="detailedDweller?.outfit"
+              :pet="detailedDweller?.pet"
+            />
+
             <!-- Expedition site entry CTA (in-progress journeys: active or returning) -->
             <Button
               v-if="isInProgressExploration"
-              class="mb-4 w-full"
+              class="mb-4 w-full shadow-[var(--glow-2)] transition-shadow disabled:border disabled:border-theme-primary/60 disabled:bg-black disabled:text-theme-primary disabled:opacity-70 disabled:shadow-none"
               size="lg"
               :disabled="!canOpenSite"
               @click="showSiteModal = true"
@@ -352,20 +364,10 @@ watch(isReady, (ready) => {
               reverse
             />
 
-            <!-- Equipment Section -->
-            <ExplorerEquipmentSlots
-              :weapon-name="weaponName"
-              :outfit-name="outfitName"
-              :pet-name="petName"
-              :weapon="detailedDweller?.weapon"
-              :outfit="detailedDweller?.outfit"
-              :pet="detailedDweller?.pet"
-            />
-
             <!-- Action Buttons -->
             <ExplorerActions
               :can-complete="isReady"
-              :can-recall="canRecall"
+              :can-recall="false"
               :is-returning="isReturning"
               @complete="handleCompleteExploration"
               @recall="handleRecallExploration"

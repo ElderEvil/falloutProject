@@ -74,14 +74,14 @@ describe('DwellerDetailPane header lockup', () => {
     expect(badges.find((b) => b.attributes('aria-label') === 'Age group: Adult')).toBeDefined()
   })
 
-  it('shows the race, faction and state-of-being chips', () => {
+  it('combines race and state in one badge beside faction', () => {
     const wrapper = mountPane()
 
     const identity = wrapper.find('[aria-label="Dweller identity"]')
     expect(identity.exists()).toBe(true)
-    expect(identity.text()).toContain('Ghoul')
+    expect(identity.findAll('.dweller-badge')).toHaveLength(2)
+    expect(identity.find('[aria-label="Ghoul · Sane"]').exists()).toBe(true)
     expect(identity.text()).toContain('Raiders')
-    expect(identity.text()).toContain('Sane')
   })
 
   it.each(['ghoul', 'super_mutant', 'synth'])(

@@ -13,8 +13,11 @@ interface Props {
 interface IdentitySignal {
   icon?: string
   monogram?: string
+  marker?: { icon?: string; monogram?: string; label: string }
   label: string
 }
+
+type IdentityMetadata = Omit<IdentitySignal, 'marker'>
 
 const props = withDefaults(defineProps<Props>(), { compact: false, hideRace: false })
 
@@ -24,7 +27,7 @@ onMounted(() => {
   void featureFlags.fetchFlags()
 })
 
-const IDENTITY_CONFIG: Record<string, Omit<IdentitySignal, 'value'>> = {
+const IDENTITY_CONFIG: Record<string, IdentityMetadata> = {
   ...RACE_CONFIG_MAP,
   vault_dweller: { icon: 'mdi:shield-home', label: 'Vault Dweller' },
   brotherhood_of_steel: { icon: 'mdi:shield-sword', label: 'Brotherhood of Steel' },
@@ -43,37 +46,52 @@ const IDENTITY_CONFIG: Record<string, Omit<IdentitySignal, 'value'>> = {
   feral: { icon: 'mdi:skull-outline', label: 'Feral' },
   // Ordered tiers carry a numeral instead of an icon: there is no glyph that
   // reads as "how mutated", so the icons repeated and told the player nothing.
-  // Synth generations keep the robot glyph — it says "machine" — and the label
-  // carries the generation. Qualitative states (ghoul sane/wild/feral) keep
-  // their icons, since they are not a ladder.
-  gen_1: { icon: 'mdi:robot-outline', label: 'Gen I' },
-  gen_2: { icon: 'mdi:robot-outline', label: 'Gen II' },
-  gen_3: { icon: 'mdi:robot-outline', label: 'Gen III' },
-  mild: { monogram: 'I', label: 'Mild Mutation' },
-  average: { monogram: 'II', label: 'Average Mutation' },
-  behemoth: { monogram: 'III', label: 'Behemoth' },
+  // Synth generations use Roman numerals; other states use a state-specific glyph.
+  gen_1: { monogram: 'I', label: 'Gen I' },
+  gen_2: { monogram: 'II', label: 'Gen II' },
+  gen_3: { monogram: 'III', label: 'Gen III' },
+  mild: { icon: 'mdi:circle-outline', label: 'Mild Mutation' },
+  average: { icon: 'mdi:circle-slice-4', label: 'Average Mutation' },
+  behemoth: { icon: 'mdi:arm-flex', label: 'Behemoth' },
+}
+
+const getIdentitySignal = (value: string): IdentityMetadata => {
+  const meta = IDENTITY_CONFIG[value]
+  return {
+    icon: meta?.icon,
+    monogram: meta?.monogram,
+    label: meta?.label ?? formatIdentityLabel(value),
+  }
 }
 
 const identitySignals = computed<IdentitySignal[]>(() => {
   const attributes = props.visualAttributes
   if (!attributes) return []
 
-  const values = [
-    props.hideRace ? undefined : attributes.race,
+  const raceValue = props.hideRace ? undefined : attributes.race
+  const stateValue = attributes.state_of_being
+  const signals: IdentitySignal[] = []
+
+  if (raceValue) {
+    const race = getIdentitySignal(raceValue)
+    signals.push({
+      ...race,
+      marker: stateValue ? getIdentitySignal(stateValue) : undefined,
+    })
+  }
+
+  const otherValues = [
     featureFlags.factionMechanics ? attributes.faction : undefined,
-    attributes.state_of_being,
+    !raceValue ? stateValue : undefined,
   ]
 
-  return values
-    .filter((value): value is NonNullable<typeof value> => value != null)
-    .map((value) => {
-      const meta = IDENTITY_CONFIG[value]
-      return {
-        icon: meta?.icon,
-        monogram: meta?.monogram,
-        label: meta?.label ?? formatIdentityLabel(value),
-      }
-    })
+  signals.push(
+    ...otherValues
+      .filter((value): value is NonNullable<typeof value> => value != null)
+      .map(getIdentitySignal)
+  )
+
+  return signals
 })
 </script>
 
@@ -88,6 +106,7 @@ const identitySignals = computed<IdentitySignal[]>(() => {
       :key="signal.label"
       :icon="signal.icon"
       :monogram="signal.monogram"
+      :marker="signal.marker"
       color="var(--color-theme-primary)"
       :label="signal.label"
       :show-label="!compact"

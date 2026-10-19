@@ -64,6 +64,20 @@ describe('DwellerAppearance', () => {
     expect(wrapper.text()).toContain('No appearance yet')
   })
 
+  it('omits synth generation from the appearance badge', async () => {
+    const wrapper = mountAppearance({
+      race: 'synth',
+      state_of_being: 'gen_1',
+      hair_style: 'ponytail',
+    })
+
+    await nextTick()
+
+    expect(wrapper.find('.appearance-content').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Dweller identity"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Gen I')
+  })
+
   it('renders generated attributes once they are substantial', async () => {
     const wrapper = mountAppearance({ race: 'human', hair_style: 'ponytail', eye_color: 'green' })
 

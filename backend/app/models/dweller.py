@@ -70,7 +70,7 @@ class DwellerBaseWithoutStats(SQLModel):
     max_health: int = Field(default=50, ge=50, le=1_500)  # Increased to allow for leveling gains
     health: int = Field(default=50, ge=0, le=1_500)
     radiation: int = Field(default=0, ge=0, le=1_500)  # saturates at max_health
-    happiness: int = Field(default=50, ge=10, le=100)
+    happiness: int = Field(default=50, ge=0, le=100)
 
     @property
     def effective_max_health(self) -> int:

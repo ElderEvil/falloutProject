@@ -1,7 +1,6 @@
 """CRUD operations for arena match state (ArenaState)."""
 
 from pydantic import UUID4
-from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -26,27 +25,19 @@ class CRUDArenaState:
 
     @staticmethod
     async def get_or_create(db_session: AsyncSession, room_id: UUID4) -> ArenaState:
-        """Get or create state, recovering from a concurrent creation race.
+        """Get or create state, race-safe against concurrent creation.
 
-        The insert runs inside a savepoint: a loser of the creation race rolls
-        back its unique-violated insert and re-selects the winner's row instead
-        of surfacing an IntegrityError.
+        The insert is issued as ``INSERT ... ON CONFLICT DO NOTHING`` so the
+        loser of a creation race gets a no-op instead of an IntegrityError,
+        then the winner's row is re-selected and returned to both racers.
         """
         state = await CRUDArenaState.get(db_session, room_id)
         if state is None:
-            state = ArenaState(room_id=room_id)
-            try:
-                async with db_session.begin_nested():
-                    db_session.add(state)
-                    await db_session.flush()
-            except IntegrityError:
-                # Lost the creation race; the savepoint already rolled the loser
-                # back. Re-select the winner's committed row — no session-level
-                # rollback (it would expire the session's whole identity map).
-                row = await db_session.execute(select(ArenaState).where(ArenaState.room_id == room_id))
-                state = row.scalars().first()
-                if state is None:  # pragma: no cover - constraint fired but row vanished
-                    raise
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+            stmt = pg_insert(ArenaState).values(room_id=room_id).on_conflict_do_nothing(index_elements=["room_id"])
+            await db_session.execute(stmt)
+            state = await CRUDArenaState.get(db_session, room_id)
         return state
 
     @staticmethod

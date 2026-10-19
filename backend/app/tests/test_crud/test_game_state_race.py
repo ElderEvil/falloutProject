@@ -56,11 +56,19 @@ async def test_game_state_get_or_create_recovers_from_create_race(async_session:
         monkey.undo()
 
     assert state.vault_id == vault.id
-    assert calls["n"] == 1  # only the stale pre-insert view; recovery re-selects inline
+    assert calls["n"] == 2  # stale pre-insert view + recovery re-select after ON CONFLICT no-op
     if not commit:
         # flush path: the caller's transaction must stay usable afterwards
         await async_session.commit()
     recovered = await crud.game_state_crud.get_by_vault_id(async_session, vault.id)
+    from sqlalchemy import inspect as _i
+
+    print(
+        "RECOVERED-STATE expired=",
+        _i(recovered).expired if recovered else None,
+        "id=",
+        recovered.id if recovered else None,
+    )
     assert recovered is not None
     assert recovered.id == state.id
 

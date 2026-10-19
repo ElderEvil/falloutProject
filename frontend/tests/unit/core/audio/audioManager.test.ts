@@ -1,11 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { audioManager, parseSoundSettings } from '@/core/audio/audioManager'
-import { SOUND_MANIFEST, MUSIC_MANIFEST, AMBIENCE_MANIFEST } from '@/core/audio/soundManifest'
+import { SOUND_MANIFEST, MUSIC_MANIFEST, AMBIENCE_MANIFEST, ROOM_AMBIENCE_MANIFEST } from '@/core/audio/soundManifest'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 it('ships every manifest audio file in the public directory', () => {
-  for (const src of Object.values({ ...SOUND_MANIFEST, ...MUSIC_MANIFEST, ...AMBIENCE_MANIFEST })) {
+  const sources = [
+    ...Object.values(SOUND_MANIFEST),
+    ...Object.values(AMBIENCE_MANIFEST),
+    ...Object.values(ROOM_AMBIENCE_MANIFEST),
+    ...Object.values(MUSIC_MANIFEST).flat(),
+  ]
+  for (const src of sources) {
     expect(existsSync(resolve('public', src.slice(1))), `Missing audio asset: ${src}`).toBe(true)
   }
 })
@@ -14,10 +20,12 @@ class MockAudio {
   static instances: MockAudio[] = []
   volume = 1
   currentTime = 0
+  duration = 0
   loop = false
   preload = 'none'
   paused = true
   src = ''
+  private listeners = new Map<string, Set<() => void>>()
   play = vi.fn(() => {
     this.paused = false
     return Promise.resolve()
@@ -26,6 +34,17 @@ class MockAudio {
   pause = vi.fn(() => {
     this.paused = true
   })
+
+  addEventListener = (type: string, listener: () => void) => {
+    const set = this.listeners.get(type) ?? new Set()
+    set.add(listener)
+    this.listeners.set(type, set)
+  }
+
+  emit(type: 'timeupdate' | 'ended') {
+    if (type === 'ended') this.paused = true
+    for (const listener of [...(this.listeners.get(type) ?? [])]) listener()
+  }
 
   constructor(src?: string) {
     this.src = src ?? ''
@@ -341,7 +360,8 @@ describe('audioManager navigation regression', () => {
     vi.unstubAllGlobals()
   })
 
-  const playing = () => MockAudio.instances.filter((a) => a.loop && !a.paused)
+  const playing = () =>
+    MockAudio.instances.filter((a) => a.src.includes('/audio/music/') && !a.paused)
 
   it('keeps one music loop across vault->exploration->vault (unmuted)', async () => {
     const manager = await freshManager()
@@ -389,7 +409,8 @@ describe('audioManager preview overlap', () => {
     window.dispatchEvent(new Event('pointerdown'))
 
     manager.previewMusic()
-    const preview = MockAudio.instances.find((a) => a.src.includes('vault-ambient') && !a.loop)!
+    const preview = MockAudio.instances.at(-1)!
+    expect(preview.src).toContain('vault-ambient')
     expect(preview.play).toHaveBeenCalled()
 
     manager.playLoop('vaultAmbient')
@@ -419,7 +440,7 @@ describe('audioManager ambience bus', () => {
     manager.playLoop('vaultAmbient')
     manager.playAmbience('production')
 
-    const loop = MockAudio.instances.find((a) => a.loop && a.src.includes('vault-ambient'))!
+    const loop = MockAudio.instances.find((a) => a.src.includes('/audio/music/'))!
     const ambience = MockAudio.instances.find((a) => a.loop && a.src.includes('/audio/ambience/'))!
 
     manager.setVolume('ambience', 0.2)
@@ -440,5 +461,199 @@ describe('audioManager ambience bus', () => {
     manager.playAmbience('production')
 
     expect(preview.pause).toHaveBeenCalled()
+  })
+})
+
+describe('audioManager music rotation', () => {
+  beforeEach(() => {
+    MockAudio.instances = []
+    localStorage.clear()
+    vi.stubGlobal('Audio', MockAudio)
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  const tracks = () => MockAudio.instances.filter((a) => a.src.includes('/audio/music/'))
+  const currentTrack = () => tracks().at(-1)!
+
+  async function playingManager() {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    return manager
+  }
+
+  it('plays the first entry of the playlist', async () => {
+    const manager = await playingManager()
+
+    manager.playLoop('vaultAmbient')
+
+    expect(currentTrack().src).toContain('vault-ambient-1.mp3')
+    expect(currentTrack().play).toHaveBeenCalled()
+  })
+
+  it('crossfades into the next entry as the playing track nears its end', async () => {
+    const manager = await playingManager()
+    manager.playLoop('vaultAmbient')
+    const first = currentTrack()
+    first.duration = 60
+    first.currentTime = 59
+
+    first.emit('timeupdate')
+
+    expect(currentTrack().src).toContain('vault-ambient-2.mp3')
+    expect(currentTrack().play).toHaveBeenCalled()
+  })
+
+  it('ignores late events from the track that already handed over', async () => {
+    const manager = await playingManager()
+    manager.playLoop('vaultAmbient')
+    const first = currentTrack()
+    first.duration = 60
+    first.currentTime = 60
+    first.emit('timeupdate')
+
+    first.emit('ended')
+    first.emit('timeupdate')
+
+    expect(tracks()).toHaveLength(2)
+  })
+
+  it('advances on ended when the duration is unknown', async () => {
+    const manager = await playingManager()
+    manager.playLoop('exploration')
+    const first = currentTrack()
+    expect(first.duration).toBe(0)
+
+    first.emit('ended')
+
+    expect(currentTrack().src).toContain('exploration-2.mp3')
+  })
+
+  it('wraps back to the first entry after the last one', async () => {
+    const manager = await playingManager()
+    manager.playLoop('exploration')
+
+    for (let i = 0; i < 4; i += 1) currentTrack().emit('ended')
+
+    expect(currentTrack().src).toContain('exploration-1.mp3')
+    expect(tracks()).toHaveLength(5)
+  })
+
+  it('silences the fading track when the loop stops mid-crossfade', async () => {
+    const manager = await playingManager()
+    manager.playLoop('vaultAmbient')
+    const first = currentTrack()
+    first.duration = 60
+    first.currentTime = 59
+    first.emit('timeupdate')
+    const second = currentTrack()
+
+    manager.stopLoop()
+    vi.advanceTimersByTime(2000)
+
+    expect(first.pause).toHaveBeenCalled()
+    expect(second.pause).toHaveBeenCalled()
+    expect(first.currentTime).toBe(0)
+  })
+
+  it('keeps the playlist position when the playing key is re-requested', async () => {
+    const manager = await playingManager()
+    manager.playLoop('vaultAmbient')
+    const first = currentTrack()
+    first.duration = 60
+    first.currentTime = 30
+
+    manager.playLoop('vaultAmbient')
+    manager.playLoop('vaultAmbient')
+
+    expect(tracks()).toHaveLength(1)
+    expect(currentTrack()).toBe(first)
+  })
+
+  it('does not advance while the duration is unknown', async () => {
+    const manager = await playingManager()
+    manager.playLoop('vaultAmbient')
+    const first = currentTrack()
+
+    first.duration = 0
+    first.emit('timeupdate')
+    first.duration = Number.NaN
+    first.emit('timeupdate')
+
+    expect(tracks()).toHaveLength(1)
+  })
+
+  it('does not restart itself after the loop stops', async () => {
+    const manager = await playingManager()
+    manager.playLoop('vaultAmbient')
+    const first = currentTrack()
+
+    manager.stopLoop()
+    first.emit('ended')
+    first.emit('timeupdate')
+
+    expect(tracks()).toHaveLength(1)
+    expect(first.pause).toHaveBeenCalled()
+  })
+
+  it('does not start the next entry audibly while the music is ducked', async () => {
+    const manager = await playingManager()
+    manager.playLoop('vaultAmbient')
+    const first = currentTrack()
+
+    manager.duckMusic()
+    vi.advanceTimersByTime(2000)
+    first.duration = 60
+    first.currentTime = 59
+    first.emit('timeupdate')
+
+    expect(tracks()).toHaveLength(1)
+    expect(tracks().some((track) => !track.paused)).toBe(false)
+  })
+
+  it('queues the next entry silently when a ducked track ends', async () => {
+    const manager = await playingManager()
+    manager.playLoop('vaultAmbient')
+    const first = currentTrack()
+
+    manager.duckMusic()
+    first.emit('ended')
+
+    expect(tracks().some((track) => !track.paused)).toBe(false)
+    expect(currentTrack().src).toContain('vault-ambient-2.mp3')
+  })
+
+  it('resumes the queued entry when the duck ends', async () => {
+    const manager = await playingManager()
+    manager.playLoop('vaultAmbient')
+    manager.duckMusic()
+    currentTrack().emit('ended')
+
+    const queued = currentTrack()
+    manager.restoreMusic(0)
+    vi.advanceTimersByTime(0)
+
+    expect(queued.play).toHaveBeenCalled()
+  })
+
+  it('silences the previous track once the crossfade completes', async () => {
+    const manager = await playingManager()
+    manager.playLoop('vaultAmbient')
+    const first = currentTrack()
+    first.duration = 60
+    first.currentTime = 59
+    first.emit('timeupdate')
+
+    expect(first.pause).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(2000)
+
+    expect(first.pause).toHaveBeenCalled()
+    expect(currentTrack().src).toContain('vault-ambient-2.mp3')
   })
 })

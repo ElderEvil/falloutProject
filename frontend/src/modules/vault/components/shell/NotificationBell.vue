@@ -14,11 +14,10 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSse, type SseEvent } from '@/core/composables/useEventStream'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { useSound } from '@/core/composables/useSound'
-import type { SoundKey } from '@/core/audio/soundManifest'
 import { useToast } from '@/core/composables/useToast'
 import { useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
 import { addPendingReport } from '@/modules/exploration/composables/usePendingReports'
-import { getNotificationRoute } from '@/modules/vault/utils/notificationRouting'
+import { getNotificationRoute, getNotificationSound } from '@/modules/vault/utils/notificationRouting'
 import { formatRelativeTime } from '@/core/utils/time'
 import axios from '@/core/plugins/axios'
 
@@ -39,12 +38,6 @@ const authStore = useAuthStore()
 const objectivesStore = useObjectivesStore()
 const router = useRouter()
 const { playSound } = useSound()
-const notificationSounds: Partial<Record<string, SoundKey>> = {
-  objective_completed: 'objectiveReady',
-  level_up: 'levelUp',
-  training_complete: 'trainingComplete',
-  radio_new_dweller: 'radioRecruit',
-}
 const toast = useToast()
 const POPUP_ID = 'notifications-popup'
 const showPopup = ref(false)
@@ -158,7 +151,7 @@ watch(currentSseEvent, (evt) => {
   }
   notifications.value.unshift(newNotif)
   unreadCount.value++
-  playSound(notificationSounds[notificationData.notification_type] ?? 'notification')
+  playSound(getNotificationSound(notificationData.notification_type))
   // A hazard team join surfaces beyond the bell (progression red line).
   if (notificationData.notification_type === 'hazard_team_joined') {
     toast.success(notificationData.message)

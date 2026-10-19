@@ -150,7 +150,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     ['level_up', 'levelUp'],
     ['training_complete', 'trainingComplete'],
     ['radio_new_dweller', 'radioRecruit'],
-    ['resource_low', 'notification'],
+    ['resource_low', 'resourceLow'],
   ])('plays one %s cue when a notification is delivered twice', async (type, sound) => {
     const play = vi.spyOn(audioManager, 'play').mockImplementation(() => {})
     useAuthStore().token = 'test-token'

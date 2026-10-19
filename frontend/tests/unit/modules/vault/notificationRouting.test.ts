@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getNotificationRoute } from '@/modules/vault/utils/notificationRouting'
+import { getNotificationRoute, getNotificationSound } from '@/modules/vault/utils/notificationRouting'
 
 const levelUpNotification = {
   vault_id: 'vault-1',
@@ -49,5 +49,30 @@ describe('getNotificationRoute', () => {
         meta_data: { location_id: 'loc-1' },
       })
     ).toBe('/vault/vault-1/map?place=loc-1')
+  })
+})
+
+describe('getNotificationSound', () => {
+  it('gives a distinct cue to each bell event that previously used the generic alert', () => {
+    expect(getNotificationSound('crafting_complete')).toBe('craftComplete')
+    expect(getNotificationSound('baby_born')).toBe('babyBorn')
+    expect(getNotificationSound('power_outage')).toBe('powerOutage')
+  })
+
+  it('leaves combat on the generic alert so the incident stream does not double-play', () => {
+    expect(getNotificationSound('combat_started')).toBe('notification')
+    expect(getNotificationSound('combat_victory')).toBe('notification')
+    expect(getNotificationSound('combat_defeat')).toBe('notification')
+  })
+
+  it('keeps the cues that were already wired', () => {
+    expect(getNotificationSound('level_up')).toBe('levelUp')
+    expect(getNotificationSound('training_complete')).toBe('trainingComplete')
+    expect(getNotificationSound('radio_new_dweller')).toBe('radioRecruit')
+    expect(getNotificationSound('objective_completed')).toBe('objectiveReady')
+  })
+
+  it('falls back to the generic alert for an unknown notification type', () => {
+    expect(getNotificationSound('something_new')).toBe('notification')
   })
 })

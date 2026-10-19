@@ -136,6 +136,34 @@ async def test_site_resolve_without_choice_rejected(
 
 
 @pytest.mark.asyncio
+async def test_vault_site_opportunities_reports_open_run(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """An open run suppresses the card count instead of advertising sites mid-run."""
+    await crud.dweller.update(async_session, dweller.id, {"level": 10}, commit=True)
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+
+    enter = await async_client.post(
+        f"/explorations/{exploration.id}/site/enter",
+        json={"site_id": "red_rocket"},
+        headers=superuser_token_headers,
+    )
+    assert enter.status_code == 200
+
+    response = await async_client.get(
+        f"/explorations/vault/{vault.id}/site/opportunities",
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == [{"exploration_id": str(exploration.id), "sites": [], "reason": "open"}]
+
+
+@pytest.mark.asyncio
 async def test_site_available_lists_all_sites(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],

@@ -648,6 +648,15 @@ class ExpeditionService:
         for exploration in explorations:
             if exploration.team_id is not None or not exploration.is_in_progress():
                 continue
+            if await crud.expedition_run.get_open_for_exploration(db_session, exploration.id) is not None:
+                opportunities.append(
+                    ExplorationSiteOpportunityView(
+                        exploration_id=exploration.id,
+                        sites=[],
+                        reason="open",
+                    )
+                )
+                continue
             try:
                 availability = await self._availability_for_exploration(db_session, exploration)
             except ResourceNotFoundException:

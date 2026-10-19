@@ -39,7 +39,6 @@ class DwellerStatusEnum(CaseInsensitiveEnum):
     TRAINING = "training"
     RESTING = "resting"
     FIGHTING = "fighting"
-    COMBAT_ZONE = "combat_zone"
     DEAD = "dead"
 
 

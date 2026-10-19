@@ -28,6 +28,9 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
+# Groups whose marker is registered by a system service, not a seeded place.
+SYSTEM_GROUP_KEYS = frozenset({"combat_zone"})
+
 # The wasteland_site fallback has no seeded name, so register an ungrouped place
 # to exercise that (effective) archetype icon too.
 FALLBACK_PLACE_NAME = "Unmapped Wasteland Site"
@@ -77,6 +80,8 @@ def populate(
             markers = []
             for group in load_place_groups():
                 key = group["key"]
+                if key in SYSTEM_GROUP_KEYS:
+                    continue
                 name = seed_names.get(key) or (FALLBACK_PLACE_NAME if key == "wasteland_site" else None)
                 if name is None:
                     continue

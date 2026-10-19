@@ -11,6 +11,7 @@ import dramatiq
 import periodiq
 
 import app.api.arena_tasks  # ruff: ignore[unused-import] - registers the arena_tick watchdog cron
+import app.api.combat_zone_tasks  # ruff: ignore[unused-import] - registers the combat_zone_tick cron
 import app.core.dramatiq  # ruff: ignore[unused-import] — ensures broker is configured when dramatiq CLI imports this module
 from app.core.event_bus import event_bus
 from app.core.game_config import game_config

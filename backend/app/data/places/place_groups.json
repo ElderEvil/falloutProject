@@ -207,5 +207,16 @@
     "reclear_hours": 168,
     "loot_table": "medium",
     "base_difficulty": 3
+  },
+  {
+    "key": "combat_zone",
+    "label": "Combat Zone",
+    "icon": "mdi:sword-cross",
+    "risk": "high",
+    "description": "A pre-war interchange turned neutral ground, where vault parties fight for a winner-takes-all cap pot while the whole wasteland listens in.",
+    "clearable": false,
+    "reclear_hours": null,
+    "loot_table": null,
+    "base_difficulty": null
   }
 ]

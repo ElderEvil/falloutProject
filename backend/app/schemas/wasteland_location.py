@@ -141,6 +141,16 @@ class ExpeditionSiteMarkerRead(SQLModel):
     exploration_id: UUID4 | None = None
 
 
+class CombatZoneMarkerRead(SQLModel):
+    """The shared Combat Zone POI, returned to every vault."""
+
+    id: str
+    name: str
+    coord_x: float
+    coord_y: float
+    enabled: bool
+
+
 class VaultMapResponse(SQLModel):
     """Full world-map payload: persisted locations + computed vault markers."""
 
@@ -150,3 +160,4 @@ class VaultMapResponse(SQLModel):
     discovery_routes: list[DiscoveryRouteRead] = []
     place_groups: list[PlaceGroupRead] = []
     expedition_sites: list[ExpeditionSiteMarkerRead] = []
+    combat_zone: CombatZoneMarkerRead | None = None

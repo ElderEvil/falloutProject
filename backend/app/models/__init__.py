@@ -2,6 +2,7 @@ from .ai_settings import AISettings
 from .arena_match_event import ArenaMatchEvent
 from .arena_state import ArenaState
 from .chat_message import ChatMessage, ChatMessageCreate, ChatMessageRead
+from .combat_zone import CombatZoneEvent, CombatZoneMatch, CombatZoneParty
 from .crafting_order import CraftingOrder, CraftingOrderStatus
 from .dweller import Dweller
 from .exploration import ExpeditionRun, ExpeditionRunStatus, Exploration

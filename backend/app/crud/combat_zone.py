@@ -1,0 +1,206 @@
+"""CRUD for Combat Zone parties, matches, journal rows, and the shared POI.
+
+Every write path in the service is expected to hold the party/match row it is
+mutating; the ``*_for_update`` helpers make that explicit. Queries only — the
+service owns lifecycle decisions and escrow arithmetic.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from sqlalchemy.orm import selectinload
+from sqlmodel import select
+
+from app.core.combat_zone import COMBAT_ZONE_NORMALIZED
+from app.core.enums import CombatZoneMatchStatus, CombatZonePartyStatus
+from app.models.combat_zone import CombatZoneEvent, CombatZoneMatch, CombatZoneParty
+from app.models.dweller import Dweller
+from app.models.room import Room
+from app.models.vault import Vault
+from app.models.world_location import WorldLocation
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from pydantic import UUID4
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+
+class CRUDCombatZone:
+    """Row access for the Combat Zone domain."""
+
+    # -- Party --------------------------------------------------------------------
+
+    async def get_party_by_vault(self, db_session: AsyncSession, vault_id: UUID4) -> CombatZoneParty | None:
+        result = await db_session.execute(select(CombatZoneParty).where(CombatZoneParty.vault_id == vault_id))
+        return result.scalar_one_or_none()
+
+    async def get_party_by_vault_for_update(self, db_session: AsyncSession, vault_id: UUID4) -> CombatZoneParty | None:
+        result = await db_session.execute(
+            select(CombatZoneParty)
+            .where(CombatZoneParty.vault_id == vault_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_party(self, db_session: AsyncSession, party_id: UUID4) -> CombatZoneParty | None:
+        result = await db_session.execute(select(CombatZoneParty).where(CombatZoneParty.id == party_id))
+        return result.scalar_one_or_none()
+
+    async def get_party_for_update(self, db_session: AsyncSession, party_id: UUID4) -> CombatZoneParty | None:
+        result = await db_session.execute(
+            select(CombatZoneParty)
+            .where(CombatZoneParty.id == party_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_dwellers_by_ids(self, db_session: AsyncSession, dweller_ids: Sequence[UUID4]) -> Sequence[Dweller]:
+        """Snapshot participants for match reads; includes deleted rows for history."""
+        if not dweller_ids:
+            return []
+        result = await db_session.execute(
+            select(Dweller)
+            .where(Dweller.id.in_(dweller_ids))
+            .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit), selectinload(Dweller.pet))
+        )
+        return result.scalars().all()
+
+    async def get_room(self, db_session: AsyncSession, room_id: UUID4) -> Room | None:
+        result = await db_session.execute(select(Room).where(Room.id == room_id))
+        return result.scalar_one_or_none()
+
+    async def get_parties(self, db_session: AsyncSession, party_ids: Sequence[UUID4]) -> Sequence[CombatZoneParty]:
+        if not party_ids:
+            return []
+        result = await db_session.execute(select(CombatZoneParty).where(CombatZoneParty.id.in_(party_ids)))
+        return result.scalars().all()
+
+    async def get_dweller_for_update(self, db_session: AsyncSession, dweller_id: UUID4) -> Dweller | None:
+        result = await db_session.execute(
+            select(Dweller)
+            .where(Dweller.id == dweller_id)
+            .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit), selectinload(Dweller.pet))
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return result.scalar_one_or_none()
+
+    async def list_queued(self, db_session: AsyncSession) -> Sequence[CombatZoneParty]:
+        """Queued parties in arrival order (FIFO pairing).
+
+        ``arrives_at`` is retained as the queue-entry timestamp after promotion,
+        which is why ordering does not use the reused row's ``created_at``.
+        """
+        result = await db_session.execute(
+            select(CombatZoneParty)
+            .where(CombatZoneParty.status == CombatZonePartyStatus.QUEUED)
+            .order_by(CombatZoneParty.arrives_at, CombatZoneParty.id)
+        )
+        return result.scalars().all()
+
+    async def list_due_parties(
+        self, db_session: AsyncSession, status: CombatZonePartyStatus, cutoff
+    ) -> Sequence[CombatZoneParty]:
+        """Parties in ``status`` whose travel ETA has passed."""
+        result = await db_session.execute(
+            select(CombatZoneParty)
+            .where(
+                CombatZoneParty.status == status,
+                CombatZoneParty.arrives_at.is_not(None),
+                CombatZoneParty.arrives_at <= cutoff,
+            )
+            .order_by(CombatZoneParty.arrives_at, CombatZoneParty.id)
+        )
+        return result.scalars().all()
+
+    async def list_parties_with_owners(
+        self, db_session: AsyncSession, party_ids: Sequence[UUID4]
+    ) -> Sequence[tuple[CombatZoneParty, Dweller, Vault]]:
+        """Party + dweller + vault rows for schema building (one query)."""
+        if not party_ids:
+            return []
+        result = await db_session.execute(
+            select(CombatZoneParty, Dweller, Vault)
+            .join(Dweller, Dweller.id == CombatZoneParty.dweller_id)
+            .join(Vault, Vault.id == CombatZoneParty.vault_id)
+            .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit), selectinload(Dweller.pet))
+            .where(CombatZoneParty.id.in_(party_ids))
+        )
+        return result.all()
+
+    async def list_queued_with_owners(
+        self, db_session: AsyncSession
+    ) -> Sequence[tuple[CombatZoneParty, Dweller, Vault]]:
+        result = await db_session.execute(
+            select(CombatZoneParty, Dweller, Vault)
+            .join(Dweller, Dweller.id == CombatZoneParty.dweller_id)
+            .join(Vault, Vault.id == CombatZoneParty.vault_id)
+            .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit), selectinload(Dweller.pet))
+            .where(CombatZoneParty.status == CombatZonePartyStatus.QUEUED)
+            .order_by(CombatZoneParty.arrives_at, CombatZoneParty.id)
+        )
+        return result.all()
+
+    # -- Match --------------------------------------------------------------------
+
+    async def get_match(self, db_session: AsyncSession, match_id: UUID4) -> CombatZoneMatch | None:
+        result = await db_session.execute(select(CombatZoneMatch).where(CombatZoneMatch.id == match_id))
+        return result.scalar_one_or_none()
+
+    async def get_match_for_update(self, db_session: AsyncSession, match_id: UUID4) -> CombatZoneMatch | None:
+        result = await db_session.execute(
+            select(CombatZoneMatch)
+            .where(CombatZoneMatch.id == match_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return result.scalar_one_or_none()
+
+    async def list_active_matches(self, db_session: AsyncSession) -> Sequence[CombatZoneMatch]:
+        result = await db_session.execute(
+            select(CombatZoneMatch)
+            .where(CombatZoneMatch.status == CombatZoneMatchStatus.ACTIVE)
+            .order_by(CombatZoneMatch.started_at, CombatZoneMatch.id)
+        )
+        return result.scalars().all()
+
+    async def list_recent_matches(self, db_session: AsyncSession, limit: int = 20) -> Sequence[CombatZoneMatch]:
+        result = await db_session.execute(
+            select(CombatZoneMatch).order_by(CombatZoneMatch.created_at.desc()).limit(limit)
+        )
+        return result.scalars().all()
+
+    async def find_active_match_for_party(self, db_session: AsyncSession, party_id: UUID4) -> CombatZoneMatch | None:
+        result = await db_session.execute(
+            select(CombatZoneMatch).where(
+                CombatZoneMatch.status == CombatZoneMatchStatus.ACTIVE,
+                (CombatZoneMatch.party_a_id == party_id) | (CombatZoneMatch.party_b_id == party_id),
+            )
+        )
+        return result.scalars().first()
+
+    # -- Journal ------------------------------------------------------------------
+
+    async def list_events(
+        self, db_session: AsyncSession, match_id: UUID4, after_seq: int | None = None
+    ) -> Sequence[CombatZoneEvent]:
+        query = select(CombatZoneEvent).where(CombatZoneEvent.match_id == match_id)
+        if after_seq is not None:
+            query = query.where(CombatZoneEvent.round_seq > after_seq)
+        result = await db_session.execute(query.order_by(CombatZoneEvent.round_seq, CombatZoneEvent.created_at))
+        return result.scalars().all()
+
+    # -- Shared POI ---------------------------------------------------------------
+
+    async def get_poi(self, db_session: AsyncSession) -> WorldLocation | None:
+        result = await db_session.execute(
+            select(WorldLocation).where(WorldLocation.normalized_name == COMBAT_ZONE_NORMALIZED)
+        )
+        return result.scalar_one_or_none()
+
+
+combat_zone_crud = CRUDCombatZone()

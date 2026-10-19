@@ -35,7 +35,7 @@ CLEARABLE_GROUPS = {
     "observation_facility",
     "vertical_refuge",
 }
-NON_CLEARABLE_GROUPS = {"settlement", "city", "landmark", "region"}
+NON_CLEARABLE_GROUPS = {"settlement", "city", "landmark", "region", "combat_zone"}
 
 
 def test_catalog_is_valid_and_covers_seeded_groups() -> None:

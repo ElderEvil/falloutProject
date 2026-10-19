@@ -7,6 +7,7 @@ from app.api.v1.endpoints import (
     arena,
     auth,
     chat,
+    combat_zone,
     crafting,
     dweller,
     email,
@@ -56,6 +57,7 @@ api_router.include_router(pet.router)
 api_router.include_router(pregnancy.router)
 api_router.include_router(quest.router)
 api_router.include_router(arena.router)
+api_router.include_router(combat_zone.router)
 api_router.include_router(radio.router)
 api_router.include_router(relationship.router)
 api_router.include_router(room.router)

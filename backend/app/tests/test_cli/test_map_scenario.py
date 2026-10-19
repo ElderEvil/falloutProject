@@ -12,7 +12,7 @@ import pytest
 from typer.testing import CliRunner
 
 from app.cli.main import cli
-from app.cli.map_scenario import FALLBACK_PLACE_NAME, _seed_name_by_group
+from app.cli.map_scenario import FALLBACK_PLACE_NAME, SYSTEM_GROUP_KEYS, _seed_name_by_group
 from app.utils.place_groups import load_place_groups
 
 runner = CliRunner()
@@ -25,7 +25,7 @@ def test_every_group_is_covered_by_the_scenario():
     map at all; the fallback archetype is reached via an ungrouped place.
     """
     seeded = _seed_name_by_group()
-    covered = set(seeded) | {"wasteland_site"}
+    covered = set(seeded) | {"wasteland_site"} | SYSTEM_GROUP_KEYS
     assert covered == {group["key"] for group in load_place_groups()}
 
 
@@ -49,7 +49,7 @@ def test_populate_registers_one_marker_per_group():
         result = runner.invoke(cli, ["map-scenario", "populate", str(vault_id), "--dweller", str(dweller_id)])
 
     assert result.exit_code == 0
-    expected = len(load_place_groups())
+    expected = len(load_place_groups()) - len(SYSTEM_GROUP_KEYS)
     assert crud.get_or_create_location.await_count == expected
     assert crud.get_or_create_state.await_count == expected
     assert crud.link_dweller.await_count == expected
@@ -58,7 +58,9 @@ def test_populate_registers_one_marker_per_group():
 
     markers = json.loads(result.output)["markers"]
     assert len(markers) == expected
-    assert {m["group"] for m in markers} == {group["key"] for group in load_place_groups()}
+    assert {m["group"] for m in markers} == {
+        group["key"] for group in load_place_groups() if group["key"] not in SYSTEM_GROUP_KEYS
+    }
     assert any(m["name"] == FALLBACK_PLACE_NAME and m["group"] == "wasteland_site" for m in markers)
 
 

@@ -269,30 +269,27 @@ const canHealRadaway = computed(
 }
 
 /* Portrait and stats share one row while there is room for both. The portrait
-   is sized by its own ratio within a height budget, so a square portrait gets
-   the full width allowance while a vertical one stays narrow and hands the
-   space to the stats. */
+   keeps a 2:1 vertical frame so square generated art and tall static art read
+   at the same size. */
 .portrait-rail {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 1rem;
+  gap: 1.25rem;
   align-items: start;
 }
 
-/* Too narrow for two columns: stack, and let the portrait use the full width. */
+/* Too narrow for two columns: stack, keeping the portrait's frame. */
 @container (max-width: 360px) {
   .portrait-rail {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .portrait-image {
-    max-width: 100%;
   }
 }
 
 .portrait-container {
   position: relative;
-  min-width: 0;
+  width: 6rem;
+  max-width: 100%;
+  aspect-ratio: 1 / 2;
 }
 
 .stats-container {
@@ -305,10 +302,9 @@ const canHealRadaway = computed(
 
 .portrait-image {
   display: block;
-  width: auto;
-  height: auto;
-  max-width: 11rem;
-  max-height: 12rem;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   border-radius: 8px;
   border: 2px solid var(--color-theme-primary);
   box-shadow: 0 0 15px var(--color-theme-glow);
@@ -317,9 +313,8 @@ const canHealRadaway = computed(
 /* The placeholder has no intrinsic size to borrow, so it takes a definite box
    matching the image allowance and scales its glyph to the container. */
 .portrait-placeholder {
-  width: 11rem;
-  max-width: 100%;
-  aspect-ratio: 1;
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -357,12 +352,6 @@ const canHealRadaway = computed(
   width: 45%;
   height: auto;
   aspect-ratio: 1;
-}
-
-.stats-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
 }
 
 .stat-row {
@@ -406,7 +395,7 @@ const canHealRadaway = computed(
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
-  margin-top: 0.25rem;
+  margin-top: 0.5rem;
 }
 
 .supply-row {

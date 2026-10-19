@@ -152,7 +152,11 @@ class DwellerService:
     ) -> Dweller:
         """Instantiate a dweller from a named template, recording the overseer's total and bio places."""
         payload = await crud.dweller.prepare_template_dweller(db_session, vault_id, template_id, overrides=overrides)
-        return await self._persist_registered_dweller(db_session, vault_id, payload, register_bio_places=True)
+        dweller = await self._persist_registered_dweller(db_session, vault_id, payload, register_bio_places=True)
+        from app.services.family.known_relations import reconcile_known_parent_links
+
+        await reconcile_known_parent_links(db_session, vault_id, template_id)
+        return dweller
 
     async def _persist_registered_dweller(
         self,

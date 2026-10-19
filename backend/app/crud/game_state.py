@@ -1,12 +1,16 @@
 """CRUD operations for GameState model."""
 
+import logging
 from datetime import datetime
 
 from pydantic import UUID4
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.game_state import GameState
+
+logger = logging.getLogger(__name__)
 
 
 class CRUDGameState:
@@ -21,17 +25,37 @@ class CRUDGameState:
 
     @staticmethod
     async def get_or_create(db_session: AsyncSession, vault_id: UUID4, *, commit: bool = True) -> GameState:
-        """Get or create state, optionally leaving the insert in the caller's transaction."""
+        """Get or create state, optionally leaving the insert in the caller's transaction.
+
+        Concurrent first ticks can both see "no row" and both INSERT; the loser
+        hits the unique constraint on ``vault_id``. The insert runs inside a
+        savepoint so the loser rolls back its partial insert and re-selects the
+        winner's committed row instead of surfacing an IntegrityError 500
+        (same treatment as ``vault_slot.claim_next``).
+        """
         game_state = await CRUDGameState.get_by_vault_id(db_session, vault_id)
 
         if not game_state:
             game_state = GameState(vault_id=vault_id)
-            db_session.add(game_state)
+            try:
+                async with db_session.begin_nested():
+                    db_session.add(game_state)
+                    await db_session.flush()
+            except IntegrityError:
+                # Lost the creation race. The savepoint already rolled our insert
+                # back (the pending loser is expunged with it), so the winner's
+                # committed row is visible to a plain re-select. No session-level
+                # rollback here: it would expire every instance in the session
+                # and hand the caller a lazy-load bomb.
+                row = await db_session.execute(select(GameState).where(GameState.vault_id == vault_id))
+                game_state = row.scalars().first()
+                if game_state is None:  # pragma: no cover - constraint fired but row vanished
+                    raise
+                logger.info("Lost GameState creation race for vault %s; recovered winner's row", vault_id)
+                return game_state
             if commit:
                 await db_session.commit()
                 await db_session.refresh(game_state)
-            else:
-                await db_session.flush()
 
         return game_state
 

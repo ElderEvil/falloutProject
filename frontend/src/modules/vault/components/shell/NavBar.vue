@@ -131,11 +131,11 @@ const logout = async () => {
   router.push('/login')
 }
 
-// Sound toggle — reachable while an incident is active. Reads the manager's
+// Alarm toggle — reachable while an incident is active. Reads the manager's
 // reactive settings so profile hydration is reflected.
-const soundMuted = computed(() => audioManager.muted)
+const alarmEnabled = computed(() => audioManager.alarmEnabled)
 
-// Only surface the sound toggle mid-incident; the alarm is the reason to mute.
+// Only surface the alarm toggle mid-incident; it silences the siren alone.
 const hasActiveIncidents = computed(() => incidentStore.hasActiveIncidents)
 
 // Informational at-a-glance signal: how many designated responders are on scene.
@@ -144,8 +144,8 @@ const responderCountLabel = computed(() => {
   return `${count} responder${count === 1 ? '' : 's'} on scene`
 })
 
-const toggleSound = () => {
-  audioManager.setMuted(!audioManager.muted)
+const toggleAlarm = () => {
+  audioManager.setAlarmEnabled(!audioManager.alarmEnabled)
 }
 
 // User Dropdown
@@ -372,19 +372,19 @@ onUnmounted(() => {
             ></span>
           </button>
 
-          <!-- Sound toggle (only while an incident is active) -->
+          <!-- Alarm toggle (only while an incident is active) -->
           <button
             v-if="hasActiveIncidents"
-            @click="toggleSound"
+            @click="toggleAlarm"
             :class="[
               'relative text-theme-primary hover:text-theme-glow',
               'focus:outline-none focus:ring-2 focus:ring-theme-primary',
               'focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1 transition-colors',
             ]"
-            :aria-label="soundMuted ? 'Unmute sounds' : 'Mute sounds'"
-            :aria-pressed="!soundMuted"
+            :aria-label="alarmEnabled ? 'Silence incident alarm' : 'Enable incident alarm'"
+            :aria-pressed="alarmEnabled"
           >
-            <Icon :icon="soundMuted ? 'mdi:volume-off' : 'mdi:volume-high'" class="h-5 w-5" />
+            <Icon :icon="alarmEnabled ? 'mdi:bell-ring' : 'mdi:bell-off'" class="h-5 w-5" />
           </button>
 
           <!-- Responder count (informational, only while incidents are active) -->

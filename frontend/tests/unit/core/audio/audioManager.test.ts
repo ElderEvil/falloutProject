@@ -177,6 +177,24 @@ describe('audioManager alarm', () => {
     expect(alarmElement()?.play).toHaveBeenCalled()
   })
 
+  it('keeps the alarm silent after muting during an incident', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    manager.startAlarmLoop()
+    const alarm = alarmElement()!
+
+    manager.setMuted(true)
+    expect(alarm.paused).toBe(true)
+
+    manager.startAlarmLoop()
+    expect(alarm.paused).toBe(true)
+    expect(alarm.play).toHaveBeenCalledTimes(1)
+
+    vi.advanceTimersByTime(10000)
+    expect(alarm.paused).toBe(true)
+  })
+
   it('cancels a running stop fade when the alarm restarts', async () => {
     const manager = await freshManager()
     manager.setMuted(false)
@@ -655,5 +673,107 @@ describe('audioManager music rotation', () => {
 
     expect(first.pause).toHaveBeenCalled()
     expect(currentTrack().src).toContain('vault-ambient-2.mp3')
+  })
+})
+
+describe('audioManager alarm toggle', () => {
+  beforeEach(() => {
+    MockAudio.instances = []
+    localStorage.clear()
+    vi.stubGlobal('Audio', MockAudio)
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it('leaves the alarm enabled by default', async () => {
+    const manager = await freshManager()
+    expect(manager.alarmEnabled).toBe(true)
+  })
+
+  it('stays silent when the alarm is disabled even though sound is on', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    manager.setAlarmEnabled(false)
+    window.dispatchEvent(new Event('pointerdown'))
+
+    manager.startAlarmLoop()
+
+    expect(alarmElement()).toBeUndefined()
+  })
+
+  it('pauses a running alarm when the alarm is disabled mid-incident', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    manager.startAlarmLoop()
+    const alarm = alarmElement()!
+    expect(alarm.paused).toBe(false)
+
+    manager.setAlarmEnabled(false)
+
+    expect(alarm.paused).toBe(true)
+  })
+
+  it('resumes a wanted alarm when the alarm is re-enabled', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    manager.setAlarmEnabled(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    manager.startAlarmLoop()
+    expect(alarmElement()).toBeUndefined()
+
+    manager.setAlarmEnabled(true)
+
+    const alarm = alarmElement()!
+    expect(alarm).toBeDefined()
+    expect(alarm.paused).toBe(false)
+  })
+
+  it('keeps the alarm silent when master mute is on regardless of the toggle', async () => {
+    const manager = await freshManager()
+    manager.setAlarmEnabled(true)
+    manager.setMuted(true)
+    window.dispatchEvent(new Event('pointerdown'))
+
+    manager.startAlarmLoop()
+
+    expect(alarmElement()).toBeUndefined()
+  })
+
+  it('leaves other sound buses playing when only the alarm is disabled', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    manager.setAlarmEnabled(false)
+    window.dispatchEvent(new Event('pointerdown'))
+
+    manager.play('objectiveClaim', 'sfx')
+
+    expect(MockAudio.instances.at(-1)!.play).toHaveBeenCalled()
+  })
+
+  it('parses and persists the alarm toggle', async () => {
+    expect(parseSoundSettings({ alarmEnabled: false })).toEqual({ alarmEnabled: false })
+    expect(parseSoundSettings({ alarmEnabled: 'no' })).toEqual({})
+
+    const manager = await freshManager()
+    manager.setAlarmEnabled(false)
+
+    const stored = JSON.parse(localStorage.getItem('audioSettings')!)
+    expect(stored.alarmEnabled).toBe(false)
+  })
+
+  it('notifies the change handler when the alarm toggle changes', async () => {
+    const manager = await freshManager()
+    const handler = vi.fn()
+    manager.setChangeHandler(handler)
+
+    manager.setAlarmEnabled(false)
+
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(handler.mock.calls[0][0].alarmEnabled).toBe(false)
   })
 })

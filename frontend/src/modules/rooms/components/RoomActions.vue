@@ -182,14 +182,14 @@ const emit = defineEmits<{
 }
 
 .actions-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
   gap: 0.5rem;
   padding: 0.25rem 0 0;
 }
 
 .action-btn {
-  flex: 0 1 auto;
+  width: 100%;
   min-width: 0;
 }
 

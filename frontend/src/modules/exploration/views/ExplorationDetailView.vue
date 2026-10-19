@@ -9,6 +9,7 @@ import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 import { usePolling } from '@/core/composables/usePolling'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useSound } from '@/core/composables/useSound'
+import { useToast } from '@/core/composables/useToast'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
@@ -25,6 +26,7 @@ import ExplorationEventLog from '../components/ExplorationEventLog.vue'
 import ExplorationLootList from '../components/ExplorationLootList.vue'
 import ExplorerEquipmentSlots from '../components/ExplorerEquipmentSlots.vue'
 import ExplorerActions from '../components/ExplorerActions.vue'
+import { siteAvailabilityDetail } from '../models/siteAvailability'
 
 const route = useRoute()
 const router = useRouter()
@@ -34,6 +36,7 @@ const explorationStore = useExplorationStore()
 const siteStore = useExpeditionSiteStore()
 const { isCollapsed } = useSidePanel()
 const { playMusic } = useSound()
+const toast = useToast()
 
 const showSiteModal = ref(false)
 
@@ -183,21 +186,29 @@ const isInProgressExploration = computed(
 )
 
 const siteOptionsLoaded = ref(false)
+// Null until the first load: the first answer seeds the baseline so a mount
+// does not announce every already-offered site as newly discovered.
+const knownSiteIds = ref<Set<string> | null>(null)
 
-// Enabled until we have a confirmed empty list; a failed load or an open run
-// must never trap the player behind a disabled button.
-const canOpenSite = computed(
-  () => !siteOptionsLoaded.value || siteStore.availableSites.length > 0 || !!siteStore.room
-)
-
-const loadSiteOptions = async () => {
+const loadSiteOptions = async (announce = false) => {
   const requestedId = explorationId.value
   if (!requestedId || !authStore.token || !isInProgressExploration.value) return
   try {
-    await siteStore.fetchAvailableSites(requestedId)
-    if (explorationId.value === requestedId) siteOptionsLoaded.value = true
+    const availability = await siteStore.fetchAvailability(requestedId)
+    if (explorationId.value !== requestedId) return
+    siteOptionsLoaded.value = true
+    const ids = new Set(availability.sites.map((site) => site.id))
+    if (announce && knownSiteIds.value) {
+      const discovered = availability.sites.filter((site) => !knownSiteIds.value!.has(site.id))
+      if (discovered.length === 1) {
+        toast.success(`Expedition site discovered: ${discovered[0].name}`)
+      } else if (discovered.length > 1) {
+        toast.success(`${discovered.length} expedition sites discovered`)
+      }
+    }
+    knownSiteIds.value = ids
   } catch {
-    // Leave the CTA enabled so opening the modal can surface the error.
+    // Keep the CTA enabled so opening the modal can surface the load error.
   }
 }
 
@@ -220,8 +231,13 @@ const reconnectToSite = async () => {
   }
 }
 
+const pollDetail = async () => {
+  await refreshExploration()
+  await loadSiteOptions(true)
+}
+
 // Auto-refresh every 10 seconds. usePolling cleans up with this view scope.
-usePolling(refreshExploration, { interval: 10_000, immediate: false })
+usePolling(pollDetail, { interval: 10_000, immediate: false })
 
 onMounted(async () => {
   playMusic('exploration')
@@ -255,6 +271,7 @@ watch(explorationId, async (id, previousId) => {
   siteStore.reset()
   showSiteModal.value = false
   siteOptionsLoaded.value = false
+  knownSiteIds.value = null
   if (!authStore.token) return
   await explorationStore.fetchExplorationDetails(id, authStore.token)
   if (exploration.value) {
@@ -340,17 +357,33 @@ watch(isReady, (ready) => {
               :pet="detailedDweller?.pet"
             />
 
-            <!-- Expedition site entry CTA (in-progress journeys: active or returning) -->
-            <Button
-              v-if="isInProgressExploration"
-              class="mb-4 w-full shadow-[var(--glow-2)] transition-shadow disabled:border disabled:border-theme-primary/60 disabled:bg-black disabled:text-theme-primary disabled:opacity-70 disabled:shadow-none"
-              size="lg"
-              :disabled="!canOpenSite"
-              @click="showSiteModal = true"
-            >
-              <Icon icon="mdi:radio-tower" class="h-5 w-5" />
-              Expedition site
-            </Button>
+            <!-- Expedition site entry CTA (in-progress journeys: active or returning).
+                 Always enabled: an empty offer still explains itself instead of
+                 leaving the player with a dead button. -->
+            <div v-if="isInProgressExploration" class="mb-4">
+              <Button class="w-full shadow-[var(--glow-2)]" size="lg" @click="showSiteModal = true">
+                <Icon icon="mdi:radio-tower" class="h-5 w-5" />
+                Expedition sites
+                <span
+                  v-if="siteStore.room"
+                  class="ml-2 rounded-full border border-theme-primary/50 px-2 py-0.5 text-xs font-normal"
+                >
+                  In progress
+                </span>
+                <span
+                  v-else-if="siteStore.availableSites.length > 0"
+                  class="ml-2 rounded-full bg-theme-primary/15 px-2 py-0.5 text-xs font-normal"
+                >
+                  {{ siteStore.availableSites.length }} nearby
+                </span>
+              </Button>
+              <p
+                v-if="siteOptionsLoaded && !siteStore.room && siteStore.availableSites.length === 0"
+                class="mt-2 text-center text-sm text-theme-primary/70"
+              >
+                {{ siteAvailabilityDetail(siteStore.availability?.reason) }}
+              </p>
+            </div>
 
             <ExplorerStatsGrid v-if="exploration" :exploration="exploration" />
 

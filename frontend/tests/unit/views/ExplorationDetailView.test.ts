@@ -12,7 +12,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useExpeditionSiteStore } from '@/modules/exploration/stores/expeditionSite'
 import ExpeditionSiteModal from '@/modules/exploration/components/ExpeditionSiteModal.vue'
-import type { AvailableSiteView, SiteRoomView } from '@/modules/exploration/api/expeditionSite'
+import type { SiteAvailabilityView, SiteRoomView } from '@/modules/exploration/api/expeditionSite'
 
 // Mock Iconify
 vi.mock('@iconify/vue', () => createIconifyMock())
@@ -33,15 +33,19 @@ vi.mock('@/core/composables/useToast', () => ({
   useToast: () => mockToast,
 }))
 
-// Mock usePolling - call immediate fn once, no interval
+// Mock usePolling - capture the callback so tests can trigger a poll tick.
+const pollState = vi.hoisted(() => ({ callback: null as null | (() => unknown) }))
 vi.mock('@/core/composables/usePolling', () => ({
-  usePolling: (fn: () => unknown) => ({
-    run: vi.fn(),
-    pause: vi.fn(),
-    resume: vi.fn(),
-    isActive: { value: false },
-    isRefreshing: { value: false },
-  }),
+  usePolling: (fn: () => unknown) => {
+    pollState.callback = fn
+    return {
+      run: vi.fn(),
+      pause: vi.fn(),
+      resume: vi.fn(),
+      isActive: { value: false },
+      isRefreshing: { value: false },
+    }
+  },
 }))
 
 const soundMock = vi.hoisted(() => ({
@@ -157,7 +161,10 @@ describe('ExplorationDetailView', () => {
     }
     siteStore.availableSites = [availableSite]
     vi.spyOn(siteStore, 'fetchCurrentRoom').mockResolvedValue(null)
-    vi.spyOn(siteStore, 'fetchAvailableSites').mockResolvedValue([availableSite])
+    vi.spyOn(siteStore, 'fetchAvailability').mockResolvedValue({
+      sites: [availableSite],
+      reason: 'available',
+    })
 
     // Set up mock data
     authStore.token = 'mock-token'
@@ -374,9 +381,14 @@ describe('ExplorationDetailView', () => {
       expect(summary.nextElementSibling).toBe(equipment)
     })
 
-    it('disables the Expedition site CTA when no sites are available', async () => {
+    it('keeps the site CTA open and explains an empty offer', async () => {
       siteStore.availableSites = []
-      vi.spyOn(siteStore, 'fetchAvailableSites').mockResolvedValue([])
+      vi.spyOn(siteStore, 'fetchAvailability').mockImplementation(async () => {
+        const availability: SiteAvailabilityView = { sites: [], reason: 'trail' }
+        siteStore.availability = availability
+        siteStore.availableSites = []
+        return availability
+      })
 
       const wrapper = mount(ExplorationDetailView, {
         global: {
@@ -388,8 +400,38 @@ describe('ExplorationDetailView', () => {
 
       const siteButton = wrapper
         .findAll('button')
-        .find((b) => b.text().includes('Expedition site'))
-      expect((siteButton?.element as HTMLButtonElement).disabled).toBe(true)
+        .find((b) => b.text().includes('Expedition sites'))
+      expect(siteButton?.attributes('disabled')).toBeUndefined()
+      expect(wrapper.text()).toContain('No sites lie near this trail — travel further to find one.')
+    })
+
+    it('announces a site that appears on a later poll', async () => {
+      const availableSite: SiteAvailabilityView['sites'][number] = {
+        id: 'site-1',
+        name: 'Test Site',
+        flavor: 'A test site.',
+        min_dweller_level: 1,
+        room_total: 3,
+      }
+      const discoveredSite = { ...availableSite, id: 'site-2', name: 'Hidden Bunker' }
+      let calls = 0
+      vi.spyOn(siteStore, 'fetchAvailability').mockImplementation(async () => {
+        calls += 1
+        const sites = calls === 1 ? [availableSite] : [availableSite, discoveredSite]
+        const availability: SiteAvailabilityView = { sites, reason: 'available' }
+        siteStore.availability = availability
+        siteStore.availableSites = sites
+        return availability
+      })
+
+      mount(ExplorationDetailView, { global: { plugins: [router] } })
+      await flushPromises()
+      mockToast.success.mockClear()
+
+      await pollState.callback?.()
+      await flushPromises()
+
+      expect(mockToast.success).toHaveBeenCalledWith('Expedition site discovered: Hidden Bunker')
     })
 
     it('keeps the Expedition site CTA enabled when sites are available', async () => {
@@ -403,7 +445,7 @@ describe('ExplorationDetailView', () => {
 
       const siteButton = wrapper
         .findAll('button')
-        .find((b) => b.text().includes('Expedition site'))
+        .find((b) => b.text().includes('Expedition sites'))
       expect(siteButton?.attributes('disabled')).toBeUndefined()
     })
   })
@@ -551,12 +593,12 @@ describe('ExplorationDetailView', () => {
 
     it('does not let a stale site-options response disable the new explorer CTA', async () => {
       const siteStore = useExpeditionSiteStore()
-      let resolveFirstSites!: (sites: AvailableSiteView[]) => void
+      let resolveFirstSites!: (availability: SiteAvailabilityView) => void
       // First call (expl-1) stays pending; the second (expl-2) rejects.
-      vi.spyOn(siteStore, 'fetchAvailableSites')
+      vi.spyOn(siteStore, 'fetchAvailability')
         .mockImplementationOnce(
           () =>
-            new Promise<AvailableSiteView[]>((resolve) => {
+            new Promise<SiteAvailabilityView>((resolve) => {
               resolveFirstSites = resolve
             })
         )
@@ -575,13 +617,13 @@ describe('ExplorationDetailView', () => {
       await flushPromises()
 
       // The stale expl-1 response lands after the switch; it must not mark the
-      // current explorer's options as loaded (which would disable the CTA).
-      resolveFirstSites([])
+      // current explorer's options as loaded.
+      resolveFirstSites({ sites: [], reason: 'trail' })
       await flushPromises()
 
       const siteButton = wrapper
         .findAll('button')
-        .find((b) => b.text().includes('Expedition site'))
+        .find((b) => b.text().includes('Expedition sites'))
       expect(siteButton?.attributes('disabled')).toBeUndefined()
       expect((wrapper.vm as any).siteOptionsLoaded).toBe(false)
       wrapper.unmount()

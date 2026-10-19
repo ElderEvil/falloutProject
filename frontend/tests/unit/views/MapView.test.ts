@@ -619,6 +619,39 @@ describe('MapView', () => {
       return clearable
     }
 
+    it('sorts idle dwellers ahead of busy ones in the send-team picker', async () => {
+      const clearable = mountWithClearable()
+      const { filter } = useDwellerStore()
+      filter.dwellers = [
+        {
+          id: 'busy',
+          first_name: 'Bess',
+          last_name: 'Busy',
+          age_group: 'adult',
+          is_adult: true,
+          status: 'working',
+        },
+        {
+          id: 'idle',
+          first_name: 'Ada',
+          last_name: 'Idle',
+          age_group: 'adult',
+          is_adult: true,
+          status: 'idle',
+        },
+      ] as never
+      const wrapper = mountView()
+      await flushPromises()
+
+      wrapper
+        .findComponent({ name: 'WorldMap' })
+        .vm.$emit('marker-click', { kind: 'location', data: clearable })
+      await flushPromises()
+
+      const dwellers = wrapper.findComponent({ name: 'MarkerDetailModal' }).props('dwellers')
+      expect(dwellers.map((dweller: { id: string }) => dweller.id)).toEqual(['idle', 'busy'])
+    })
+
     it('opens the details modal (not the picker) for a clearable location click', async () => {
       const clearable = mountWithClearable()
       const wrapper = mountView()

@@ -31,6 +31,9 @@ import {
 } from '@/core/components/ui/tooltip'
 import { useExplorationStore } from '../stores/exploration'
 import type { PendingOverflow } from '../stores/exploration'
+import { expeditionSiteApi } from '../api/expeditionSite'
+import type { ExplorationSiteOpportunityView } from '../api/expeditionSite'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import { usePendingReports, removePendingReport } from '../composables/usePendingReports'
 import { useExplorationFinish } from '../composables/useExplorationFinish'
 
@@ -71,6 +74,8 @@ const { isLoading: explorationLoading, error: explorationError } = storeToRefs(e
 const activeQueuedReportId = ref<string | null>(null)
 const isPendingOverflowModal = ref(false)
 const pendingOverflow = ref<PendingOverflow[]>([])
+// Active free-roam journeys' current site offers, keyed by exploration id.
+const siteOpportunities = ref<Record<string, ExplorationSiteOpportunityView>>({})
 
 const {
   showRewardsModal,
@@ -122,6 +127,19 @@ function showNextPendingOverflow(): boolean {
   return true
 }
 
+const loadSiteOpportunities = async () => {
+  if (!vaultId.value || !authStore.token) return
+  try {
+    const opportunities = await expeditionSiteApi.getVaultOpportunities(vaultId.value)
+    siteOpportunities.value = Object.fromEntries(
+      opportunities.map((opportunity) => [opportunity.exploration_id, opportunity])
+    )
+  } catch (error) {
+    // Best-effort discovery hint: the explorer list itself stays usable.
+    handleStoreError(error, 'Failed to load expedition site opportunities', false)
+  }
+}
+
 const loadData = async () => {
   if (!vaultId.value || !authStore.token) return
 
@@ -135,6 +153,7 @@ const loadData = async () => {
     for (const exploration of activeExplorationsArray.value) {
       await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
     }
+    await loadSiteOpportunities()
   } catch (error) {
     toast.error('Failed to load exploration data')
   }
@@ -196,6 +215,7 @@ const pollExplorations = async () => {
     await explorationStore.fetchPartiesForActiveExplorations(vaultId.value)
     await questStore.fetchVaultQuests(vaultId.value, { silent: true })
     await questStore.fetchPartiesForActiveQuests(vaultId.value)
+    await loadSiteOpportunities()
   } catch (error) {
     toast.error('Failed to refresh activities')
   }
@@ -395,6 +415,7 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
                     :exploration="exploration"
                     :dweller="getDetailedDweller(exploration.dweller_id) ?? undefined"
                     :party-members="getPartyMembersForExploration(exploration.id)"
+                    :site-opportunity="siteOpportunities[exploration.id]"
                     :selected="selectedExplorerId === exploration.id"
                     @select="selectedExplorerId = exploration.id"
                     @complete="handleCompleteExploration"

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { expeditionSiteApi } from '../api/expeditionSite'
-import type { AvailableSiteView, SiteRoomView } from '../api/expeditionSite'
+import type { AvailableSiteView, SiteAvailabilityView, SiteRoomView } from '../api/expeditionSite'
 import { handleStoreError } from '@/core/utils/errorHandler'
 
 export type SiteRunStatus = 'in_room' | 'retreated' | 'cleared' | 'died'
@@ -14,6 +14,7 @@ export function isTerminal(status: string): boolean {
 
 export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
   const availableSites = ref<AvailableSiteView[]>([])
+  const availability = ref<SiteAvailabilityView | null>(null)
   const room = ref<SiteRoomView | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
@@ -27,6 +28,7 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
       scopeVersion++
       room.value = null
       availableSites.value = []
+      availability.value = null
       error.value = null
       currentExplorationId.value = explorationId
     }
@@ -57,13 +59,14 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
     }
   }
 
-  function fetchAvailableSites(explorationId: string): Promise<AvailableSiteView[]> {
+  function fetchAvailability(explorationId: string): Promise<SiteAvailabilityView> {
     return runRequest(
       explorationId,
-      () => expeditionSiteApi.listAvailableSites(explorationId),
+      () => expeditionSiteApi.getAvailability(explorationId),
       'Failed to load available expedition sites',
-      (sites) => {
-        availableSites.value = sites
+      (nextAvailability) => {
+        availability.value = nextAvailability
+        availableSites.value = nextAvailability.sites
       }
     )
   }
@@ -116,6 +119,7 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
     scopeVersion++
     room.value = null
     availableSites.value = []
+    availability.value = null
     error.value = null
     currentExplorationId.value = null
     isLoading.value = false
@@ -123,11 +127,12 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
 
   return {
     availableSites,
+    availability,
     room,
     isLoading,
     error,
     currentExplorationId,
-    fetchAvailableSites,
+    fetchAvailability,
     enterSite,
     resolveNode,
     retreat,

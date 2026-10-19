@@ -21,6 +21,11 @@ vi.mock('@/core/composables/useToast', () => ({
   useToast: () => mockToast,
 }))
 
+const mockGetVaultOpportunities = vi.hoisted(() => vi.fn())
+vi.mock('@/modules/exploration/api/expeditionSite', () => ({
+  expeditionSiteApi: { getVaultOpportunities: mockGetVaultOpportunities },
+}))
+
 vi.mock('@/core/composables/usePolling', () => ({
   usePolling: () => ({
     run: vi.fn(),
@@ -148,6 +153,7 @@ describe('ExplorationView', () => {
     vi.spyOn(explorationStore, 'fetchExplorationsByVault').mockResolvedValue([])
     vi.spyOn(explorationStore, 'fetchPartiesForActiveExplorations').mockResolvedValue()
     vi.spyOn(explorationStore, 'fetchPendingOverflow').mockResolvedValue([])
+    mockGetVaultOpportunities.mockResolvedValue([])
     vi.spyOn(explorationStore, 'startSseSubscription').mockImplementation(() => {})
     vi.spyOn(explorationStore, 'stopSseSubscription').mockImplementation(() => {})
     vi.spyOn(dwellerStore, 'fetchDwellersByVault').mockResolvedValue([])
@@ -275,7 +281,7 @@ describe('ExplorationView', () => {
             name: 'ExplorerCard',
             template:
               '<div class="explorer-card-stub" :data-exploration-id="exploration.id" :data-party-count="partyMembers?.length ?? 0" />',
-            props: ['exploration', 'dweller', 'partyMembers', 'selected'],
+            props: ['exploration', 'dweller', 'partyMembers', 'siteOpportunity', 'selected'],
             emits: ['select', 'complete', 'recall'],
           },
         },
@@ -287,6 +293,42 @@ describe('ExplorationView', () => {
     expect(
       wrapper.find('[data-exploration-id="exploration-party"]').attributes('data-party-count')
     ).toBe('2')
+  })
+
+  it('passes each active run its expedition-site opportunity', async () => {
+    explorationStore.activeExplorations = {
+      'exploration-party': activeRun('exploration-party', 'dweller-1'),
+    }
+    mockGetVaultOpportunities.mockResolvedValue([
+      {
+        exploration_id: 'exploration-party',
+        sites: [],
+        reason: 'trail',
+      },
+    ])
+
+    wrapper = mount(ExplorationView, {
+      global: {
+        stubs: {
+          SidePanel: true,
+          QuestPartyCard: true,
+          ExplorationRewardsModal: true,
+          ExplorerCard: {
+            name: 'ExplorerCard',
+            template:
+              '<div class="explorer-card-stub" :data-exploration-id="exploration.id" :data-site-reason="siteOpportunity?.reason" />',
+            props: ['exploration', 'dweller', 'partyMembers', 'siteOpportunity', 'selected'],
+            emits: ['select', 'complete', 'recall'],
+          },
+        },
+      },
+    })
+    await flushPromises()
+
+    expect(mockGetVaultOpportunities).toHaveBeenCalledWith('vault-123')
+    expect(
+      wrapper.find('[data-exploration-id="exploration-party"]').attributes('data-site-reason')
+    ).toBe('trail')
   })
 
   it('switches between the Active explorers and Quest parties tabs', async () => {
@@ -308,7 +350,7 @@ describe('ExplorationView', () => {
           ExplorerCard: {
             name: 'ExplorerCard',
             template: '<div class="explorer-card-stub" :data-exploration-id="exploration.id" />',
-            props: ['exploration', 'dweller', 'partyMembers', 'selected'],
+            props: ['exploration', 'dweller', 'partyMembers', 'siteOpportunity', 'selected'],
             emits: ['select', 'complete', 'recall'],
           },
           QuestPartyCard: {

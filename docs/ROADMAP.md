@@ -23,8 +23,8 @@ spikes plus the visual-test safety net; see "Frontend Component-Library Migratio
 
 **Idea and implementation notes:** [Wasteland encounters and active combat skills](features/WASTELAND_COMBAT_EXPANSION.md).
 
-- [ ] Restore expedition sites as an obvious part of exploring: existing entry/room/retreat flows are present;
-  audit discoverability on spatial journeys before changing their trail-based offer rules.
+- [x] Restore expedition sites as an obvious part of exploring: entry/room/retreat flows are surfaced on the
+  explorer list and detail page with availability reasons; trail-based offer rules unchanged.
 - [ ] Initial loot-only encounter slice: three level-1 salvage sites reuse expedition loot and replay protection (#1082).
 - [ ] Extend more existing map locations with search, combat or choice actions according to their archetype.
 - [x] Arena prototype: manual skills selected by weapon type/subtype, combat-earned charge, persistent queued

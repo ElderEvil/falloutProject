@@ -20,7 +20,7 @@ const { mockList, mockEnter, mockResolve, mockRetreat } = vi.hoisted(() => ({
 
 vi.mock('@/modules/exploration/api/expeditionSite', () => ({
   expeditionSiteApi: {
-    listAvailableSites: (...args: unknown[]) => mockList(...args),
+    getAvailability: (...args: unknown[]) => mockList(...args),
     enterSite: (...args: unknown[]) => mockEnter(...args),
     resolveNode: (...args: unknown[]) => mockResolve(...args),
     retreatSite: (...args: unknown[]) => mockRetreat(...args),
@@ -127,7 +127,7 @@ describe('ExpeditionSiteModal', () => {
     mockEnter.mockReset()
     mockResolve.mockReset()
     mockRetreat.mockReset()
-    mockList.mockResolvedValue(sites)
+    mockList.mockResolvedValue({ sites, reason: 'available' })
   })
 
   it('uses the shared wide terminal modal like other popups', () => {
@@ -169,13 +169,14 @@ describe('ExpeditionSiteModal', () => {
     expect(buttonByText(wrapper, 'Talk it out')).toBeUndefined()
   })
 
-  it('shows the empty state when no sites are available', async () => {
-    mockList.mockResolvedValue([])
+  it('explains a trail with no sites instead of blaming level or time', async () => {
+    mockList.mockResolvedValue({ sites: [], reason: 'trail' })
     const wrapper = mountModal()
 
     await flushPromises()
 
-    expect(wrapper.text()).toContain('No sites available — level up or come back later')
+    expect(wrapper.text()).toContain('No sites available')
+    expect(wrapper.text()).toContain('No sites lie near this trail — travel further to find one.')
   })
 
   it('shows the load error inline', async () => {

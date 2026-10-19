@@ -11,9 +11,10 @@ from app.api.deps import CurrentActiveUser, get_user_vault_or_403, verify_explor
 from app.db.session import get_async_session
 from app.models.exploration import Exploration
 from app.schemas.expedition import (
-    AvailableSiteView,
     ExpeditionEnterRequest,
     ExpeditionResolveRequest,
+    ExplorationSiteOpportunityView,
+    SiteAvailabilityView,
     SiteRoomView,
 )
 from app.schemas.exploration import (
@@ -155,6 +156,17 @@ async def list_pending_overflow(
     """List overflow loot that still needs a take or sell decision."""
     await get_user_vault_or_403(vault_id, user, db_session)
     return await rewards_service.get_pending_overflow(db_session, vault_id)
+
+
+@router.get("/vault/{vault_id}/site/opportunities", response_model=list[ExplorationSiteOpportunityView])
+async def list_vault_site_opportunities(
+    vault_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> list[ExplorationSiteOpportunityView]:
+    """List current expedition-site offers for the vault's active free-roam journeys."""
+    await get_user_vault_or_403(vault_id, user, db_session)
+    return await expedition_service.list_vault_opportunities(db_session, vault_id)
 
 
 @router.get("/{exploration_id}", response_model=ExplorationRead)
@@ -300,15 +312,15 @@ async def enter_expedition_site(
     return await expedition_service.enter_run(db_session, exploration_id, request.site_id)
 
 
-@router.get("/{exploration_id}/site/available", response_model=list[AvailableSiteView])
+@router.get("/{exploration_id}/site/available", response_model=SiteAvailabilityView)
 async def list_available_expedition_sites(
     exploration_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> list[AvailableSiteView]:
-    """List expedition sites the dweller may currently enter (level + anti-farm gates)."""
+) -> SiteAvailabilityView:
+    """List expedition sites the dweller may enter and why the list is empty otherwise."""
     await verify_exploration_access(exploration_id, user, db_session)
-    return await expedition_service.list_available_sites(db_session, exploration_id)
+    return await expedition_service.get_site_availability(db_session, exploration_id)
 
 
 @router.get("/{exploration_id}/site", response_model=SiteRoomView | None)

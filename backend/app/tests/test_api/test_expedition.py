@@ -152,7 +152,9 @@ async def test_site_available_lists_all_sites(
         headers=superuser_token_headers,
     )
     assert response.status_code == 200
-    sites = {site["id"]: site for site in response.json()}
+    body = response.json()
+    assert body["reason"] == "available"
+    sites = {site["id"]: site for site in body["sites"]}
     assert set(sites) == {
         "red_rocket",
         "super_duper_mart",
@@ -183,7 +185,7 @@ async def test_site_available_level_gate_excludes_sites(
         headers=superuser_token_headers,
     )
     assert response.status_code == 200
-    site_ids = [site["id"] for site in response.json()]
+    site_ids = [site["id"] for site in response.json()["sites"]]
     assert site_ids == ["red_rocket", "abandoned_campsite", "roadside_supply_truck", "forgotten_shack"]
 
 
@@ -214,7 +216,7 @@ async def test_site_available_anti_farm_excludes_recent_clear(
         headers=superuser_token_headers,
     )
     assert response.status_code == 200
-    site_ids = [site["id"] for site in response.json()]
+    site_ids = [site["id"] for site in response.json()["sites"]]
     assert site_ids == ["super_duper_mart", "abandoned_campsite", "roadside_supply_truck", "forgotten_shack"]
 
 
@@ -229,3 +231,89 @@ async def test_site_available_missing_exploration_404(
         headers=superuser_token_headers,
     )
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_site_available_reports_level_reason(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An empty list explains the level gate instead of looking like a missing feature."""
+    from app.services.exploration import data_loader
+
+    red_rocket = next(site for site in data_loader.load_expedition_sites() if site.id == "red_rocket")
+    monkeypatch.setattr(data_loader, "load_expedition_sites", lambda: [red_rocket])
+    await crud.dweller.update(async_session, dweller.id, {"level": 1}, commit=True)
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+
+    response = await async_client.get(
+        f"/explorations/{exploration.id}/site/available",
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"sites": [], "reason": "level"}
+
+
+@pytest.mark.asyncio
+async def test_site_available_reports_cooldown_reason(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A legacy journey distinguishes an anti-farm cooldown from a genuinely empty catalog."""
+    from app.services.exploration import data_loader
+
+    red_rocket = next(site for site in data_loader.load_expedition_sites() if site.id == "red_rocket")
+    monkeypatch.setattr(data_loader, "load_expedition_sites", lambda: [red_rocket])
+    await crud.dweller.update(async_session, dweller.id, {"level": 10}, commit=True)
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    run = await crud.expedition_run.create_run(
+        async_session,
+        exploration_id=exploration.id,
+        vault_id=vault.id,
+        site_id="red_rocket",
+    )
+    run.status = ExpeditionRunStatus.CLEARED
+    run.finished_at = datetime.utcnow()
+    async_session.add(run)
+    await async_session.commit()
+
+    response = await async_client.get(
+        f"/explorations/{exploration.id}/site/available",
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"sites": [], "reason": "cooldown"}
+
+
+@pytest.mark.asyncio
+async def test_vault_site_opportunities_lists_active_free_roam(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """The list page gets one availability record per active free-roam journey."""
+    await crud.dweller.update(async_session, dweller.id, {"level": 10}, commit=True)
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+
+    response = await async_client.get(
+        f"/explorations/vault/{vault.id}/site/opportunities",
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [entry["exploration_id"] for entry in body] == [str(exploration.id)]
+    assert body[0]["reason"] == "available"
+    assert {site["id"] for site in body[0]["sites"]} >= {"red_rocket", "super_duper_mart"}

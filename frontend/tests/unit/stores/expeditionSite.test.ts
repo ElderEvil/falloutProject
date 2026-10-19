@@ -7,7 +7,11 @@ import {
   isTerminal,
 } from '@/modules/exploration/stores/expeditionSite'
 import { expeditionSiteApi } from '@/modules/exploration/api/expeditionSite'
-import type { AvailableSiteView, SiteRoomView } from '@/modules/exploration/api/expeditionSite'
+import type {
+  AvailableSiteView,
+  SiteAvailabilityView,
+  SiteRoomView,
+} from '@/modules/exploration/api/expeditionSite'
 
 vi.mock('@/modules/exploration/api/expeditionSite')
 
@@ -23,6 +27,8 @@ const mockSite: AvailableSiteView = {
   min_dweller_level: 3,
   room_total: 4,
 }
+
+const mockAvailability: SiteAvailabilityView = { sites: [mockSite], reason: 'available' }
 
 const mockRoom: SiteRoomView = {
   exploration_id: 'exploration-1',
@@ -50,14 +56,15 @@ describe('Expedition Site Store', () => {
     vi.clearAllMocks()
   })
 
-  it('fetchAvailableSites populates availableSites', async () => {
-    vi.mocked(expeditionSiteApi.listAvailableSites).mockResolvedValue([mockSite])
+  it('fetchAvailability populates availability and availableSites', async () => {
+    vi.mocked(expeditionSiteApi.getAvailability).mockResolvedValue(mockAvailability)
     const store = useExpeditionSiteStore()
 
-    const result = await store.fetchAvailableSites('exploration-1')
+    const result = await store.fetchAvailability('exploration-1')
 
-    expect(expeditionSiteApi.listAvailableSites).toHaveBeenCalledWith('exploration-1')
-    expect(result).toEqual([mockSite])
+    expect(expeditionSiteApi.getAvailability).toHaveBeenCalledWith('exploration-1')
+    expect(result).toEqual(mockAvailability)
+    expect(store.availability).toEqual(mockAvailability)
     expect(store.availableSites).toEqual([mockSite])
     expect(store.isLoading).toBe(false)
     expect(store.error).toBeNull()
@@ -121,31 +128,31 @@ describe('Expedition Site Store', () => {
   })
 
   it('sets error and rethrows on API rejection', async () => {
-    vi.mocked(expeditionSiteApi.listAvailableSites).mockRejectedValue(new Error('boom'))
+    vi.mocked(expeditionSiteApi.getAvailability).mockRejectedValue(new Error('boom'))
     const store = useExpeditionSiteStore()
 
-    await expect(store.fetchAvailableSites('exploration-1')).rejects.toThrow('boom')
+    await expect(store.fetchAvailability('exploration-1')).rejects.toThrow('boom')
 
     expect(store.error).toBe('Failed to load available expedition sites')
     expect(store.isLoading).toBe(false)
   })
 
   it('clears a previous error when retrying', async () => {
-    vi.mocked(expeditionSiteApi.listAvailableSites).mockResolvedValue([mockSite])
+    vi.mocked(expeditionSiteApi.getAvailability).mockResolvedValue(mockAvailability)
     const store = useExpeditionSiteStore()
     store.error = 'Some error'
 
-    await store.fetchAvailableSites('exploration-1')
+    await store.fetchAvailability('exploration-1')
 
     expect(store.error).toBeNull()
     expect(store.availableSites).toEqual([mockSite])
   })
 
   it('reset clears room, availableSites, and error', async () => {
-    vi.mocked(expeditionSiteApi.listAvailableSites).mockResolvedValue([mockSite])
+    vi.mocked(expeditionSiteApi.getAvailability).mockResolvedValue(mockAvailability)
     vi.mocked(expeditionSiteApi.enterSite).mockResolvedValue(mockRoom)
     const store = useExpeditionSiteStore()
-    await store.fetchAvailableSites('exploration-1')
+    await store.fetchAvailability('exploration-1')
     await store.enterSite('exploration-1', 'red_rocket')
     store.error = 'Some error'
 
@@ -153,6 +160,7 @@ describe('Expedition Site Store', () => {
 
     expect(store.room).toBeNull()
     expect(store.availableSites).toEqual([])
+    expect(store.availability).toBeNull()
     expect(store.error).toBeNull()
   })
 

@@ -13,6 +13,7 @@ import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import type { VaultNumberData } from '../schemas/vault'
 import { formatDateTime } from '@/core/utils/format'
 import { useOnboardingState } from '@/core/composables/useOnboardingState'
+import { useVisualEffects } from '@/core/composables/useVisualEffects'
 
 const VaultCreationWizard = defineAsyncComponent(
   () => import('../components/VaultCreationWizard.vue')
@@ -22,6 +23,7 @@ const authStore = useAuthStore()
 const vaultStore = useVaultStore()
 const router = useRouter()
 const { patch: patchOnboarding } = useOnboardingState()
+const { glowClass } = useVisualEffects()
 const markCreatedVault = (id: string) => patchOnboarding(id, { created: true })
 
 // Inject visual effects
@@ -170,7 +172,8 @@ onMounted(async () => {
                     VAULT-TEC // OPERATIONS
                   </p>
                   <p
-                    class="my-2 text-6xl font-bold leading-none tracking-[-0.08em] text-theme-primary terminal-glow"
+                    class="my-2 text-6xl font-bold leading-none tracking-[-0.08em] text-theme-primary"
+                    :class="glowClass"
                   >
                     {{ vault.number }}
                   </p>

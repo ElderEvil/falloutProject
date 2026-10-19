@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.240.0 (2026-10-19)
+
+### Features
+
+* **progression:** name the starter resident rewards 421e63f
+* **vault:** equip legendary pets on boosted starts 5157c78
+
+### Bug Fixes
+
+* **backend:** race-safe get_or_create for GameState and ArenaState ([#1099](https://github.com/ElderEvil/falloutProject/issues/1099)) 80686f9, closes #1065 #1065
+* **dwellers:** link known parents in bios and family trees a62328c
+
 ## 2.239.2 (2026-10-19)
 
 ### Bug Fixes

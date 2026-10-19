@@ -1,5 +1,18 @@
 import { test, expect } from '@playwright/test'
 
+test('room preview dweller icons sit slightly above the bottom edge', async ({ page }) => {
+  await page.goto('/tests/e2e/fixtures/room-preview.html')
+  const lift = await page.locator('.dweller-sprites-overlay').evaluate((overlay) => {
+    const frame = overlay.closest('.room-image-container')!
+    const overlayBounds = overlay.getBoundingClientRect()
+    const frameBounds = frame.getBoundingClientRect()
+    const baseline = parseFloat(getComputedStyle(document.documentElement).fontSize) / 2
+    return (frameBounds.bottom - overlayBounds.bottom - baseline) / frameBounds.height
+  })
+  expect(lift).toBeGreaterThanOrEqual(0.05)
+  expect(lift).toBeLessThanOrEqual(0.1)
+})
+
 test('touch users see unassign controls for workers and apprentices', async ({ browser }) => {
   const context = await browser.newContext({
     isMobile: true,

@@ -304,7 +304,7 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
 .dweller-sprites-overlay {
   position: absolute;
   right: 0.5rem;
-  bottom: 0.5rem;
+  bottom: calc(0.5rem + 7%);
   left: 0.5rem;
   z-index: 10;
   display: flex;

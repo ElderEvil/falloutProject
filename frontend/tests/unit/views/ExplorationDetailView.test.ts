@@ -402,7 +402,9 @@ describe('ExplorationDetailView', () => {
         .findAll('button')
         .find((b) => b.text().includes('Expedition sites'))
       expect(siteButton?.attributes('disabled')).toBeUndefined()
-      expect(wrapper.text()).toContain('No sites lie near this trail — travel further to find one.')
+      expect(wrapper.text()).toContain(
+        'No sites on this trail yet — keep exploring; sites appear as the trail grows.'
+      )
     })
 
     it('announces a site that appears on a later poll', async () => {
@@ -413,11 +415,11 @@ describe('ExplorationDetailView', () => {
         min_dweller_level: 1,
         room_total: 3,
       }
-      const discoveredSite = { ...availableSite, id: 'site-2', name: 'Hidden Bunker' }
+      const newlyAvailableSite = { ...availableSite, id: 'site-2', name: 'Hidden Bunker' }
       let calls = 0
       vi.spyOn(siteStore, 'fetchAvailability').mockImplementation(async () => {
         calls += 1
-        const sites = calls === 1 ? [availableSite] : [availableSite, discoveredSite]
+        const sites = calls === 1 ? [availableSite] : [availableSite, newlyAvailableSite]
         const availability: SiteAvailabilityView = { sites, reason: 'available' }
         siteStore.availability = availability
         siteStore.availableSites = sites
@@ -431,7 +433,7 @@ describe('ExplorationDetailView', () => {
       await pollState.callback?.()
       await flushPromises()
 
-      expect(mockToast.success).toHaveBeenCalledWith('Expedition site discovered: Hidden Bunker')
+      expect(mockToast.success).toHaveBeenCalledWith('Expedition site available: Hidden Bunker')
     })
 
     it('keeps the Expedition site CTA enabled when sites are available', async () => {

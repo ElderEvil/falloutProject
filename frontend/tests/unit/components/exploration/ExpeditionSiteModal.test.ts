@@ -176,7 +176,9 @@ describe('ExpeditionSiteModal', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('No sites available')
-    expect(wrapper.text()).toContain('No sites lie near this trail — travel further to find one.')
+    expect(wrapper.text()).toContain(
+      'No sites on this trail yet — keep exploring; sites appear as the trail grows.'
+    )
   })
 
   it('shows the load error inline', async () => {

@@ -187,7 +187,7 @@ const isInProgressExploration = computed(
 
 const siteOptionsLoaded = ref(false)
 // Null until the first load: the first answer seeds the baseline so a mount
-// does not announce every already-offered site as newly discovered.
+// does not announce every already-offered site as newly available.
 const knownSiteIds = ref<Set<string> | null>(null)
 let siteOptionsRequest = 0
 
@@ -201,11 +201,11 @@ const loadSiteOptions = async (announce = false) => {
     siteOptionsLoaded.value = true
     const ids = new Set(availability.sites.map((site) => site.id))
     if (announce && knownSiteIds.value) {
-      const discovered = availability.sites.filter((site) => !knownSiteIds.value!.has(site.id))
-      if (discovered.length === 1) {
-        toast.success(`Expedition site discovered: ${discovered[0].name}`)
-      } else if (discovered.length > 1) {
-        toast.success(`${discovered.length} expedition sites discovered`)
+      const newlyAvailable = availability.sites.filter((site) => !knownSiteIds.value!.has(site.id))
+      if (newlyAvailable.length === 1) {
+        toast.success(`Expedition site available: ${newlyAvailable[0].name}`)
+      } else if (newlyAvailable.length > 1) {
+        toast.success(`${newlyAvailable.length} expedition sites available on this trail`)
       }
     }
     knownSiteIds.value = ids
@@ -378,7 +378,7 @@ watch(isReady, (ready) => {
                   v-else-if="siteStore.availableSites.length > 0"
                   class="ml-2 rounded-full bg-theme-primary/15 px-2 py-0.5 text-xs font-normal"
                 >
-                  {{ siteStore.availableSites.length }} nearby
+                  {{ siteStore.availableSites.length }} on trail
                 </span>
               </Button>
               <p

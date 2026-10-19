@@ -11,8 +11,11 @@
       import '../../../src/assets/tailwind.css'
       import { createApp, h, ref } from 'vue'
       import RoomPreviewSection from '../../../src/modules/rooms/components/RoomPreviewSection.vue'
+      const samplePortrait = new URLSearchParams(location.search).has('portrait')
+        ? 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2260%22%3E%3C/svg%3E'
+        : null
       const assignedDwellers = ref([
-        { id: 'worker', first_name: 'Ada', last_name: 'Worker', thumbnail_url: null },
+        { id: 'worker', first_name: 'Ada', last_name: 'Worker', thumbnail_url: samplePortrait },
         {
           id: 'apprentice',
           first_name: 'Ash',

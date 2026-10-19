@@ -412,7 +412,10 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
 .scene-dweller :deep(.scene-dweller-icon) {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+}
+
+.scene-dweller :deep(.scene-dweller-portrait) {
+  object-fit: contain;
 }
 
 .scene-dweller :deep([role='img']) {

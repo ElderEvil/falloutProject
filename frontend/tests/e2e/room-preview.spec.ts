@@ -13,6 +13,17 @@ test('room preview dweller icons sit slightly above the bottom edge', async ({ p
   expect(lift).toBeLessThanOrEqual(0.1)
 })
 
+test('room preview portraits preserve their image aspect ratio', async ({ page }) => {
+  await page.goto('/tests/e2e/fixtures/room-preview.html?portrait=1')
+  const portrait = page.locator('.scene-dweller-portrait').first()
+  await expect(portrait).toBeVisible()
+  await expect(portrait).toHaveCSS('object-fit', 'contain')
+  const aspectRatio = await portrait.evaluate(
+    (image: HTMLImageElement) => image.naturalWidth / image.naturalHeight
+  )
+  expect(aspectRatio).toBeLessThan(1)
+})
+
 test('touch users see unassign controls for workers and apprentices', async ({ browser }) => {
   const context = await browser.newContext({
     isMobile: true,

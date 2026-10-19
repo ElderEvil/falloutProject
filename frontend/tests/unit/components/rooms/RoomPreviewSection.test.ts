@@ -25,24 +25,31 @@ const mountPreview = (props: Record<string, unknown> = {}) =>
   })
 
 describe('RoomPreviewSection unassign affordance (issue #1083)', () => {
-  it('keeps the unassign control hover-gated (opacity 0 until hover/focus)', () => {
+  it('emits the worker ID when unassign is activated', async () => {
     const wrapper = mountPreview()
-    const button = wrapper.get('.scene-unassign')
-    expect(button.classes()).toContain('scene-unassign')
+    const button = wrapper.get('button[aria-label="Unassign Ada "]')
+    await button.trigger('click')
+    expect(wrapper.emitted('unassign')).toEqual([['d1']])
+    expect(wrapper.emitted('activate')).toBeUndefined()
     wrapper.unmount()
   })
 
-  it('enlarges the occupant portrait beyond the legacy 48px slot', () => {
-    const wrapper = mountPreview()
-    const slot = wrapper.get('.dweller-sprite-slot')
-    expect(slot.classes()).toContain('dweller-sprite-slot-lg')
+  it('emits the apprentice ID when unassign is activated', async () => {
+    const wrapper = mountPreview({
+      showApprenticeSlot: true,
+      assignedDwellers: [{ ...dweller('a1', 'Ash'), apprentice_stat: 'strength' }],
+    })
+    await wrapper.get('button[aria-label="Unassign Ash "]').trigger('click')
+    expect(wrapper.emitted('unassign')).toEqual([['a1']])
+    expect(wrapper.emitted('activate')).toBeUndefined()
     wrapper.unmount()
   })
 
-  it('keeps the unassign button reachable on touch (labeled, no hover-only trap)', () => {
-    const wrapper = mountPreview()
-    const button = wrapper.get('.scene-unassign')
-    expect(button.attributes('aria-label')).toContain('Unassign Ada')
+  it('hides worker assignment actions in a read-only preview', () => {
+    const wrapper = mountPreview({ assignEnabled: false })
+    expect(wrapper.find('button[aria-label^="Unassign"]').exists()).toBe(false)
+    expect(wrapper.find('button[aria-label="Assign worker"]').exists()).toBe(false)
+    expect(wrapper.get('button[aria-label="Open Ada "]').exists()).toBe(true)
     wrapper.unmount()
   })
 })

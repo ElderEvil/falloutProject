@@ -40,7 +40,9 @@ const sceneSizeClass = computed(() => {
     // The size-6 Response Station bay ships as a 2:1 scene while the wide frame is
     // 3:1, so cropping to the frame would cut off its floor and equipment. Let that
     // scene set its own frame height instead of cropping it.
-    return props.roomImageUrl === RESPONSE_DETAIL_SCENES[6] ? 'room-scene--wide-native' : 'room-scene--wide'
+    return props.roomImageUrl === RESPONSE_DETAIL_SCENES[6]
+      ? 'room-scene--wide-native'
+      : 'room-scene--wide'
   }
   return null
 })
@@ -125,7 +127,7 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
             </div>
             <div
               v-if="showApprenticeSlot"
-              class="dweller-sprite-slot apprentice-slot"
+              class="dweller-sprite-slot dweller-sprite-slot-lg apprentice-slot"
               :class="{ 'slot-filled': apprentice }"
             >
               <template v-if="apprentice">
@@ -317,8 +319,7 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   justify-content: center;
 }
 
-/* Issue #1083: the occupant portrait reads better larger; the unassign badge
-   stays hover/focus-gated (touch users get the always-reachable labeled button). */
+/* Keep worker and apprentice portraits the same size. */
 .dweller-sprite-slot-lg .placeholder-dweller {
   width: 64px;
   height: 64px;
@@ -388,6 +389,12 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
 .scene-occupant:hover .scene-unassign,
 .scene-occupant:focus-within .scene-unassign {
   opacity: 1;
+}
+
+@media (hover: none) {
+  .scene-unassign {
+    opacity: 1;
+  }
 }
 
 .scene-unassign:focus-visible,

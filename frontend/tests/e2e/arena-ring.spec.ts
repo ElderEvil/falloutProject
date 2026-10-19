@@ -54,3 +54,53 @@ test('countdown is centered in the preview and clears when combat begins', async
   await expect(ring.locator('.countdown-number')).toHaveCount(0)
   await expect(ring.getByRole('button', { name: /from Alpha/ })).toBeEnabled()
 })
+
+for (const width of [390, 1280]) {
+  test(`duel fighters center in mirrored halves at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/tests/e2e/fixtures/arena-ring.html?mode=duel')
+    const ring = page.getByRole('region', { name: 'Arena ring' })
+    const actors = ring.locator('.ring-fighter')
+    await expect(actors).toHaveCount(2)
+    const scene = (await ring.boundingBox())!
+    const a = (await actors.nth(0).boundingBox())!
+    const b = (await actors.nth(1).boundingBox())!
+    const centerA = a.x + a.width / 2
+    const centerB = b.x + b.width / 2
+    expect(centerA).toBeLessThan(scene.x + scene.width / 2)
+    expect(centerB).toBeGreaterThan(scene.x + scene.width / 2)
+    expect(Math.abs((centerA + centerB) / 2 - (scene.x + scene.width / 2))).toBeLessThan(1)
+    for (const actor of await actors.all()) {
+      const box = (await actor.boundingBox())!
+      const half = (await actor.locator('..').boundingBox())!
+      expect(Math.abs(box.x + box.width / 2 - (half.x + half.width / 2))).toBeLessThan(1)
+    }
+    expect(Math.abs(a.y + a.height - (b.y + b.height))).toBeLessThan(1)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  })
+}
+
+test('team B portrait faces inward while its skill control stays upright', async ({ page }) => {
+  await page.route('**/static/test-dweller.png', (route) =>
+    route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><path d="M0 0h100L0 100z" fill="green"/></svg>',
+    })
+  )
+  await page.goto('/tests/e2e/fixtures/arena-ring.html?mode=duel&portrait=1')
+  const defender = page.getByRole('region', { name: 'Arena ring' }).locator('.ring-fighter').nth(1)
+  const marker = defender.getByRole('button', { name: 'Use Aimed Shot from Alpha on Bravo' })
+  const horizontalScale = (element: Element) => {
+    let scale = 1
+    for (let node: Element | null = element; node; node = node.parentElement) {
+      const style = getComputedStyle(node)
+      if (style.scale !== 'none') scale *= Number(style.scale.split(' ')[0])
+      if (style.transform !== 'none') scale *= new DOMMatrix(style.transform).a
+    }
+    return scale
+  }
+  expect(await marker.evaluate(horizontalScale)).toBeGreaterThan(0)
+  expect(
+    await defender.getByAltText('Bravo', { exact: true }).evaluate(horizontalScale)
+  ).toBeLessThan(0)
+})

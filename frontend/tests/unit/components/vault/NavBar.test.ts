@@ -216,10 +216,7 @@ describe('NavBar', () => {
     const currencyMetrics = currency.findAllComponents(PageHeaderMetric)
     const [caps, bottles] = currencyMetrics
     const bell = account.find('notification-bell-stub')
-    expect(currencyMetrics.map((metric) => metric.props('label'))).toEqual([
-      'Caps',
-      'Nuka bottles',
-    ])
+    expect(currencyMetrics.map((metric) => metric.props('label'))).toEqual(['Caps', 'Nuka bottles'])
     expect(caps?.props('value')).toBe('500')
     expect(bottles?.props('value')).toBe('42')
     expect(bell.exists()).toBe(true)
@@ -429,7 +426,7 @@ describe('NavBar', () => {
     wrapper.unmount()
   })
 
-  it('keeps the generic icon when the profile has no avatar or fails to load', async () => {
+  it('keeps the generic icon when the profile has no avatar', async () => {
     const authStore = useAuthStore()
     authStore.token = 'test-token'
     authStore.user = testUser
@@ -455,6 +452,30 @@ describe('NavBar', () => {
       global: { plugins: [router], stubs: { Icon: true, NotificationBell: true } },
     })
     expect(wrapper.find('button[aria-label="User menu for Overseer"] img').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('falls back after an avatar error and retries when its URL changes', async () => {
+    const auth = useAuthStore()
+    auth.token = 'test-token'
+    auth.user = testUser
+    const profile = useProfileStore()
+    profile.profile = { avatar_url: 'https://example.com/broken.png' } as ProfileRead
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: ['/', '/profile'].map((path) => ({ path, component: { template: '<div />' } })),
+    })
+    await router.push('/profile')
+    await router.isReady()
+    const wrapper = mount(NavBar, {
+      global: { plugins: [router], stubs: { Icon: true, NotificationBell: true } },
+    })
+    const button = wrapper.get('button[aria-label="User menu for Overseer"]')
+    await button.get('img').trigger('error')
+    expect(button.find('img').exists()).toBe(false)
+    profile.profile = { avatar_url: 'https://example.com/fixed.png' } as ProfileRead
+    await nextTick()
+    expect(button.get('img').attributes('src')).toBe('https://example.com/fixed.png')
     wrapper.unmount()
   })
 

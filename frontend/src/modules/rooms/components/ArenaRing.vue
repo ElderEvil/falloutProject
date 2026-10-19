@@ -48,14 +48,6 @@ const readySkills = computed(() => {
   })
 })
 const imageFor = (id: string) => getStaticImageUrl(getCreatureImagePath(creatureKeyOf(id)))
-// Issue #1086: the right-side fighter must face the ring center, not outward.
-// Human/dweller art faces right by default, so mirror the whole portrait
-// container on team B (creatures and robots handle their own mirroring below).
-const fighterFacingClass = (
-  fighter: { is_creature?: boolean; is_robot?: boolean },
-  side: string
-) => (!(fighter.is_creature || fighter.is_robot) && side === 'B' ? '-scale-x-100' : '')
-
 </script>
 
 <template>
@@ -124,9 +116,7 @@ const fighterFacingClass = (
                 'ring-hit': damageNumbers.some((d) => d.fighterId === fighter.id),
                 'opacity-40 grayscale': fighter.health <= 0,
               },
-              // Issue #1086: a lone fighter (duel) takes the head position —
-              // centered in the team's half, no lane offset. Lane offsets only
-              // apply to multi-fighter lines (Brawl).
+              // Center solo fighters; offset only multi-fighter lanes.
               team.fighters.length > 1 && {
                 'left-4 sm:left-6': index % 2 === 0 && team.side === 'A',
                 'right-4 sm:right-6': index % 2 === 0 && team.side === 'B',
@@ -220,7 +210,6 @@ const fighterFacingClass = (
                 fighter.is_creature || fighter.is_robot
                   ? getCreatureModelSizeClass(creatureKeyOf(fighter.id))
                   : 'h-20 w-full sm:h-28',
-                fighterFacingClass(fighter, team.side),
               ]"
             >
               <div class="absolute inset-x-0 top-1/3 z-20 flex flex-wrap justify-center gap-1">
@@ -266,12 +255,10 @@ const fighterFacingClass = (
                 :image-url="fighter.image_url"
                 :thumbnail-url="fighter.thumbnail_url"
                 :alt="fighter.name"
+                :class="{ '-scale-x-100': team.side === 'B' }"
                 image-class="size-full object-contain drop-shadow-lg"
                 fallback-class="hidden"
               />
-              <!-- Issue #1086 feedback: the right-side fighter must face the ring
-                   center, not outward. Dweller art faces right by default, so
-                   mirror the whole portrait container on team B. -->
               <UserRound
                 v-if="
                   !fighter.is_creature &&

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Room preview</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import '../../../src/assets/tailwind.css'
+      import { createApp, h, ref } from 'vue'
+      import RoomPreviewSection from '../../../src/modules/rooms/components/RoomPreviewSection.vue'
+      const assignedDwellers = ref([
+        { id: 'worker', first_name: 'Ada', last_name: 'Worker', thumbnail_url: null },
+        {
+          id: 'apprentice',
+          first_name: 'Ash',
+          last_name: 'Apprentice',
+          thumbnail_url: null,
+          apprentice_stat: 'strength',
+        },
+      ])
+      createApp({
+        render: () =>
+          h(RoomPreviewSection, {
+            roomName: 'Power Generator',
+            imageUrl: null,
+            roomImageUrl: null,
+            dwellerCapacity: 2,
+            assignedDwellers: assignedDwellers.value,
+            showApprenticeSlot: true,
+            onUnassign: (id) => {
+              assignedDwellers.value = assignedDwellers.value.filter((dweller) => dweller.id !== id)
+            },
+          }),
+      }).mount('#app')
+    </script>
+  </body>
+</html>

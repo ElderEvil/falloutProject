@@ -76,6 +76,7 @@ const isPendingOverflowModal = ref(false)
 const pendingOverflow = ref<PendingOverflow[]>([])
 // Active free-roam journeys' current site offers, keyed by exploration id.
 const siteOpportunities = ref<Record<string, ExplorationSiteOpportunityView>>({})
+let latestSiteOpportunityRequest = 0
 
 const {
   showRewardsModal,
@@ -128,9 +129,12 @@ function showNextPendingOverflow(): boolean {
 }
 
 const loadSiteOpportunities = async () => {
-  if (!vaultId.value || !authStore.token) return
+  const requestedVaultId = vaultId.value
+  if (!requestedVaultId || !authStore.token) return
+  const requestId = ++latestSiteOpportunityRequest
   try {
-    const opportunities = await expeditionSiteApi.getVaultOpportunities(vaultId.value)
+    const opportunities = await expeditionSiteApi.getVaultOpportunities(requestedVaultId)
+    if (requestedVaultId !== vaultId.value || requestId !== latestSiteOpportunityRequest) return
     siteOpportunities.value = Object.fromEntries(
       opportunities.map((opportunity) => [opportunity.exploration_id, opportunity])
     )
@@ -139,6 +143,11 @@ const loadSiteOpportunities = async () => {
     handleStoreError(error, 'Failed to load expedition site opportunities', false)
   }
 }
+
+watch(vaultId, () => {
+  siteOpportunities.value = {}
+  void loadSiteOpportunities()
+})
 
 const loadData = async () => {
   if (!vaultId.value || !authStore.token) return

@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createIconifyMock, createRouterMock, createToastMock } from '../helpers/mocks'
+import { createIconifyMock, createToastMock } from '../helpers/mocks'
 import { flushPromises, mount, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import { reactive } from 'vue'
 import ExplorationView from '@/modules/exploration/views/ExplorationView.vue'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
@@ -10,7 +11,10 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
-vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-123' } }))
+const routeState = vi.hoisted(() => ({
+  route: { params: { id: 'vault-123' } } as { params: { id: string } },
+}))
+vi.mock('vue-router', () => ({ useRoute: () => routeState.route }))
 
 vi.mock('@iconify/vue', () =>
   createIconifyMock({ template: '<span class="icon-mock" />', props: [] })
@@ -162,6 +166,7 @@ describe('ExplorationView', () => {
     vi.spyOn(questStore, 'fetchPartiesForActiveQuests').mockResolvedValue()
 
     authStore.token = 'mock-token'
+    routeState.route = reactive({ params: { id: 'vault-123' } })
     dwellerStore.dwellers = [
       { id: 'dweller-1', first_name: 'Lucy', last_name: 'MacLean', level: 5 },
     ]
@@ -326,6 +331,55 @@ describe('ExplorationView', () => {
     await flushPromises()
 
     expect(mockGetVaultOpportunities).toHaveBeenCalledWith('vault-123')
+    expect(
+      wrapper.find('[data-exploration-id="exploration-party"]').attributes('data-site-reason')
+    ).toBe('trail')
+  })
+
+  it('ignores a previous vault opportunity response after switching vaults', async () => {
+    explorationStore.activeExplorations = {
+      'exploration-party': activeRun('exploration-party', 'dweller-1'),
+    }
+    let finishOld!: (value: unknown) => void
+    mockGetVaultOpportunities
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishOld = resolve
+          })
+      )
+      .mockResolvedValueOnce([
+        {
+          exploration_id: 'exploration-party',
+          sites: [],
+          reason: 'trail',
+        },
+      ])
+
+    wrapper = mount(ExplorationView, {
+      global: {
+        stubs: {
+          SidePanel: true,
+          QuestPartyCard: true,
+          ExplorationRewardsModal: true,
+          ExplorerCard: {
+            name: 'ExplorerCard',
+            template:
+              '<div class="explorer-card-stub" :data-exploration-id="exploration.id" :data-site-reason="siteOpportunity?.reason" />',
+            props: ['exploration', 'dweller', 'partyMembers', 'siteOpportunity', 'selected'],
+            emits: ['select', 'complete', 'recall'],
+          },
+        },
+      },
+    })
+    await flushPromises()
+
+    routeState.route.params.id = 'vault-456'
+    await flushPromises()
+    finishOld([{ exploration_id: 'exploration-party', sites: [], reason: 'cooldown' }])
+    await flushPromises()
+
+    expect(mockGetVaultOpportunities).toHaveBeenCalledWith('vault-456')
     expect(
       wrapper.find('[data-exploration-id="exploration-party"]').attributes('data-site-reason')
     ).toBe('trail')

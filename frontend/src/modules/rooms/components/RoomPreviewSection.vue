@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { PersonStanding } from '@lucide/vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getRoomImageUrl } from '@/core/utils/image'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
@@ -94,11 +95,17 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
                     @click="emit('activate', workerDwellers[slot - 1]!.id)"
                   >
                     <DwellerPortrait
+                      v-if="workerDwellers[slot - 1]?.thumbnail_url"
                       :thumbnail-url="workerDwellers[slot - 1]?.thumbnail_url"
                       :alt="`${workerDwellers[slot - 1]?.first_name} ${workerDwellers[slot - 1]?.last_name ?? ''}`"
                       image-class="scene-dweller-portrait"
-                      fallback-class="scene-dweller-icon"
+                      fallback-class="hidden"
                       prefer-thumbnail
+                    />
+                    <PersonStanding
+                      v-else
+                      class="scene-dweller-icon text-theme-primary"
+                      aria-hidden="true"
                     />
                   </button>
                   <button
@@ -119,10 +126,10 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
                 aria-label="Assign worker"
                 @click="emit('assignWorker')"
               >
-                <Icon icon="mdi:account-outline" class="h-6 w-6 opacity-30" />
+                <PersonStanding class="scene-dweller-icon empty-dweller-icon" aria-hidden="true" />
               </button>
               <div v-else class="placeholder-dweller empty scene-empty-slot" aria-hidden="true">
-                <Icon icon="mdi:account-outline" class="h-6 w-6 opacity-30" />
+                <PersonStanding class="scene-dweller-icon empty-dweller-icon" aria-hidden="true" />
               </div>
             </div>
             <div
@@ -139,11 +146,17 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
                     @click="emit('activate', apprentice.id)"
                   >
                     <DwellerPortrait
+                      v-if="apprentice.thumbnail_url"
                       :thumbnail-url="apprentice.thumbnail_url"
                       :alt="`${apprentice.first_name} ${apprentice.last_name ?? ''}`"
                       image-class="scene-dweller-portrait"
-                      fallback-class="scene-dweller-icon"
+                      fallback-class="hidden"
                       prefer-thumbnail
+                    />
+                    <PersonStanding
+                      v-else
+                      class="scene-dweller-icon text-theme-primary"
+                      aria-hidden="true"
                     />
                     <span
                       class="apprentice-marker"
@@ -321,8 +334,8 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
 
 /* Keep worker and apprentice portraits the same size. */
 .dweller-sprite-slot-lg .placeholder-dweller {
-  width: 64px;
-  height: 64px;
+  width: 4.4rem;
+  height: 6.6rem;
 }
 
 .placeholder-dweller {
@@ -360,6 +373,11 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   border-style: solid;
   border-color: var(--color-theme-primary);
   background: var(--color-surface-raised);
+}
+
+.slot-filled .placeholder-dweller.scene-dweller {
+  border: 0;
+  background: transparent;
 }
 
 .scene-dweller:hover,
@@ -414,7 +432,15 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   height: 100%;
 }
 
+.scene-empty-slot :deep(.empty-dweller-icon) {
+  width: 72%;
+  height: 72%;
+  opacity: 0.3;
+}
+
 .scene-dweller :deep(.scene-dweller-portrait) {
+  width: auto;
+  max-width: 100%;
   object-fit: contain;
 }
 

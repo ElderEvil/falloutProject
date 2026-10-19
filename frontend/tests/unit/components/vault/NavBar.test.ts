@@ -122,6 +122,7 @@ describe('NavBar', () => {
     vaultHeader.resourceRates!.value = { power: 1, food: 2, water: 3 }
     vaultHeader.nukaColaCount!.value = 42
     audioManager.setMuted(true)
+    audioManager.setAlarmEnabled(true)
     audioManager.setVolume('ui', 0.6)
     audioManager.setVolume('sfx', 0.8)
     audioManager.setVolume('music', 0.4)
@@ -479,7 +480,7 @@ describe('NavBar', () => {
     wrapper.unmount()
   })
 
-  describe('sound toggle', () => {
+  describe('alarm toggle', () => {
     async function mountNavBar() {
       const router = createRouter({
         history: createMemoryHistory(),
@@ -499,28 +500,30 @@ describe('NavBar', () => {
     it('is hidden while no incident is active', async () => {
       const wrapper = await mountNavBar()
 
-      expect(wrapper.find('button[aria-label="Unmute sounds"]').exists()).toBe(false)
-      expect(wrapper.find('button[aria-label="Mute sounds"]').exists()).toBe(false)
+      expect(wrapper.find('button[aria-label="Silence incident alarm"]').exists()).toBe(false)
+      expect(wrapper.find('button[aria-label="Enable incident alarm"]').exists()).toBe(false)
     })
 
-    it('shows the unmute action while sounds are muted', async () => {
+    it('offers to silence the alarm while an incident is active', async () => {
       useIncidentStore().activeIncidentIds = ['incident-1']
 
       const wrapper = await mountNavBar()
 
-      expect(wrapper.find('button[aria-label="Unmute sounds"]').exists()).toBe(true)
+      expect(wrapper.find('button[aria-label="Silence incident alarm"]').exists()).toBe(true)
     })
 
-    it('mutes and unmutes without leaving the page', async () => {
+    it('toggles the alarm without changing the master mute', async () => {
       useIncidentStore().activeIncidentIds = ['incident-1']
       audioManager.setMuted(false)
+      audioManager.setAlarmEnabled(true)
 
       const wrapper = await mountNavBar()
 
-      await wrapper.find('button[aria-label="Mute sounds"]').trigger('click')
+      await wrapper.find('button[aria-label="Silence incident alarm"]').trigger('click')
 
-      expect(audioManager.muted).toBe(true)
-      expect(wrapper.find('button[aria-label="Unmute sounds"]').exists()).toBe(true)
+      expect(audioManager.alarmEnabled).toBe(false)
+      expect(audioManager.muted).toBe(false)
+      expect(wrapper.find('button[aria-label="Enable incident alarm"]').exists()).toBe(true)
     })
   })
 

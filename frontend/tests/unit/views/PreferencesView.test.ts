@@ -72,6 +72,24 @@ describe('PreferencesView', () => {
     wrapper.unmount()
   })
 
+  it('toggles the incident alarm independently of the master switch', async () => {
+    audioManager.setMuted(false)
+    audioManager.setAlarmEnabled(true)
+    const wrapper = mountView()
+
+    const toggle = switchByLabel(wrapper, 'Toggle incident alarm')
+    expect(toggle.attributes('aria-checked')).toBe('true')
+
+    await toggle.trigger('click')
+
+    expect(audioManager.alarmEnabled).toBe(false)
+    expect(audioManager.muted).toBe(false)
+    expect(toggle.attributes('aria-checked')).toBe('false')
+    wrapper.unmount()
+    audioManager.setAlarmEnabled(true)
+    audioManager.setMuted(true)
+  })
+
   it('saves the optional pause-on-incident preference', async () => {
     useProfileStore().profile = { ...mockProfile, preferences: {} }
     const wrapper = mountView()

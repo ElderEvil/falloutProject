@@ -601,6 +601,46 @@ describe('audioManager music rotation', () => {
     expect(first.pause).toHaveBeenCalled()
   })
 
+  it('does not start the next entry audibly while the music is ducked', async () => {
+    const manager = await playingManager()
+    manager.playLoop('vaultAmbient')
+    const first = currentTrack()
+
+    manager.duckMusic()
+    vi.advanceTimersByTime(2000)
+    first.duration = 60
+    first.currentTime = 59
+    first.emit('timeupdate')
+
+    expect(tracks()).toHaveLength(1)
+    expect(tracks().some((track) => !track.paused)).toBe(false)
+  })
+
+  it('queues the next entry silently when a ducked track ends', async () => {
+    const manager = await playingManager()
+    manager.playLoop('vaultAmbient')
+    const first = currentTrack()
+
+    manager.duckMusic()
+    first.emit('ended')
+
+    expect(tracks().some((track) => !track.paused)).toBe(false)
+    expect(currentTrack().src).toContain('vault-ambient-2.mp3')
+  })
+
+  it('resumes the queued entry when the duck ends', async () => {
+    const manager = await playingManager()
+    manager.playLoop('vaultAmbient')
+    manager.duckMusic()
+    currentTrack().emit('ended')
+
+    const queued = currentTrack()
+    manager.restoreMusic(0)
+    vi.advanceTimersByTime(0)
+
+    expect(queued.play).toHaveBeenCalled()
+  })
+
   it('silences the previous track once the crossfade completes', async () => {
     const manager = await playingManager()
     manager.playLoop('vaultAmbient')

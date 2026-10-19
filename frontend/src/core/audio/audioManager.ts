@@ -268,26 +268,42 @@ class AudioManager {
    * before this one ends and crossfaded over it; when the duration is unknown
    * the `ended` event advances instead, so rotation works either way.
    */
-  private startLoopTrack(key: MusicKey, index: number, crossfadeFrom?: HTMLAudioElement): void {
-    const audio = new Audio(MUSIC_MANIFEST[key][index])
-    audio.loop = false
-    audio.volume = crossfadeFrom ? 0 : this.playbackVolume('music')
-    audio.play().catch(() => {
-      // Missing file or interrupted play — stay silent by design.
-    })
-    this.currentLoop = { audio, key, index }
-    audio.addEventListener('timeupdate', () => this.crossfadeBeforeEnd(audio))
-    audio.addEventListener('ended', () => this.advanceLoop(audio, false))
-
-    if (crossfadeFrom) {
-      this.outgoingLoop = crossfadeFrom
-      this.fadeElement(audio, this.playbackVolume('music'), MUSIC_CROSSFADE_MS)
-      this.fadeElement(crossfadeFrom, 0, MUSIC_CROSSFADE_MS, () => {
-        crossfadeFrom.pause()
-        if (this.outgoingLoop === crossfadeFrom) this.outgoingLoop = null
+    private startLoopTrack(key: MusicKey, index: number, crossfadeFrom?: HTMLAudioElement): void {
+      const audio = this.createLoopAudio(key, index)
+      audio.volume = crossfadeFrom ? 0 : this.playbackVolume('music')
+      audio.play().catch(() => {
+        // Missing file or interrupted play — stay silent by design.
       })
+      this.currentLoop = { audio, key, index }
+
+      if (crossfadeFrom) {
+        this.outgoingLoop = crossfadeFrom
+        this.fadeElement(audio, this.playbackVolume('music'), MUSIC_CROSSFADE_MS)
+        this.fadeElement(crossfadeFrom, 0, MUSIC_CROSSFADE_MS, () => {
+          crossfadeFrom.pause()
+          if (this.outgoingLoop === crossfadeFrom) this.outgoingLoop = null
+        })
+      }
     }
-  }
+
+    private createLoopAudio(key: MusicKey, index: number): HTMLAudioElement {
+      const audio = new Audio(MUSIC_MANIFEST[key][index])
+      audio.loop = false
+      audio.addEventListener('timeupdate', () => this.crossfadeBeforeEnd(audio))
+      audio.addEventListener('ended', () => this.advanceLoop(audio, false))
+      return audio
+    }
+
+    /**
+     * Advance the playlist without starting audible playback, so a track that
+     * ends while ducked or muted hands over silently and restore/unmute resumes it.
+     */
+    private queueLoopTrack(key: MusicKey, index: number): void {
+      const audio = this.createLoopAudio(key, index)
+      audio.volume = 0
+      this.currentLoop = { audio, key, index }
+    }
+
 
   /** Start the crossfade once a playing track is within its final fade window. */
   private crossfadeBeforeEnd(audio: HTMLAudioElement): void {
@@ -297,14 +313,19 @@ class AudioManager {
     this.advanceLoop(audio, true)
   }
 
-  /** Move to the next playlist entry, wrapping around after the last one. */
-  private advanceLoop(from: HTMLAudioElement, crossfade: boolean): void {
-    const loop = this.currentLoop
-    // A late event from a track that already handed over must not advance twice.
-    if (!loop || loop.audio !== from) return
-    const nextIndex = (loop.index + 1) % MUSIC_MANIFEST[loop.key].length
-    this.startLoopTrack(loop.key, nextIndex, crossfade ? from : undefined)
-  }
+    /** Move to the next playlist entry, wrapping around after the last one. */
+    private advanceLoop(from: HTMLAudioElement, crossfade: boolean): void {
+      const loop = this.currentLoop
+      // A late event from a track that already handed over must not advance twice.
+      if (!loop || loop.audio !== from) return
+      const nextIndex = (loop.index + 1) % MUSIC_MANIFEST[loop.key].length
+      if (this.musicDucked || this.settings.muted) {
+        if (crossfade) return
+        this.queueLoopTrack(loop.key, nextIndex)
+        return
+      }
+      this.startLoopTrack(loop.key, nextIndex, crossfade ? from : undefined)
+    }
 
   stopLoop(): void {
     this.stopPreview()

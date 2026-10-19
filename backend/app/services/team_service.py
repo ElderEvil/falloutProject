@@ -18,6 +18,7 @@ from app.models.team import TeamMember
 from app.models.vault import Vault
 from app.utils.dweller_availability import availability_error
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
+from app.utils.quest_duration import STATE_QUEST_CATEGORIES
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +33,13 @@ class TeamService:
         if len(dweller_ids) > 3 or len(dweller_ids) < 1:
             raise ValidationException("Party size must be 1-3")
 
-        if not await crud.quest_crud.get_or_none(db_session, quest_id):
+        quest = await crud.quest_crud.get_or_none(db_session, quest_id)
+        if not quest:
             raise ResourceNotFoundException(Quest, identifier=quest_id)
+        if quest.quest_category in STATE_QUEST_CATEGORIES:
+            # State objectives complete instantly on start and never run the
+            # return path, so a party would stay QUESTING forever.
+            raise ValidationException("State objectives cannot take a quest party")
         if not await crud.vault.get_or_none(db_session, vault_id):
             raise ResourceNotFoundException(Vault, identifier=vault_id)
 
@@ -64,7 +70,10 @@ class TeamService:
 
         for member in existing_members:
             if member.dweller:
+                # Unposted IDLE, matching the exploration return: the pre-quest
+                # posting was cleared at departure, so there is nothing to restore.
                 member.dweller.status = DwellerStatusEnum.IDLE
+                member.dweller.room_id = None
             await db_session.delete(member)
         await db_session.flush()
 
@@ -74,6 +83,9 @@ class TeamService:
         for i, dweller_id in enumerate(dweller_ids):
             dweller = dwellers_by_id[dweller_id]
             dweller.status = DwellerStatusEnum.QUESTING
+            # Detach from the pre-departure room: a QUESTING dweller is outside the
+            # vault and must not keep occupying (or counting toward) their old room.
+            dweller.room_id = None
 
             member = TeamMember(
                 team_id=team.id,

@@ -44,6 +44,7 @@ from app.services.family.breeding_service import conception_potential
 from app.services.training_service import training_service
 from app.services.vault_seed import (
     BOOSTED_CRAFTING_ROOM_SPECS,
+    BOOSTED_EQUIPPED_PETS,
     BOOSTED_LEGENDARY_DWELLER_COUNT,
     BOOSTED_MERGED_LIVING_ROOM,
     BOOSTED_SEED_JUNK,
@@ -637,11 +638,23 @@ async def seed_boosted_junk(db_session: AsyncSession, storage_id: UUID4) -> None
         logger.info(f"Seeded {seeded} crafting materials into storage {storage_id}")
 
 
-async def seed_boosted_pets(db_session: AsyncSession, storage_id: UUID4) -> None:
-    """Seed unassigned pets into a boosted vault's storage so equip and bonuses are testable immediately."""
+async def seed_boosted_pets(db_session: AsyncSession, vault_id: UUID4, storage_id: UUID4) -> None:
+    """Seed pets for a boosted vault, equipping the legendary pair on its legendary roster."""
     pets = [build_pet({"name": name}, rarity, storage_id) for name, rarity in BOOSTED_SEED_PETS]
+    legendary_dwellers = await dweller_crud.get_multi_by_vault(
+        db_session,
+        vault_id,
+        limit=len(BOOSTED_EQUIPPED_PETS),
+        rarity=RarityEnum.LEGENDARY,
+        sort_by="first_name",
+        order="asc",
+    )
+    equipped = [pet for pet in pets if pet.name in BOOSTED_EQUIPPED_PETS]
+    for pet, dweller in zip(equipped, legendary_dwellers, strict=False):
+        pet.storage_id = None
+        pet.dweller_id = dweller.id
     await pet_crud.create_many(db_session, pets)
-    logger.info(f"Seeded {len(pets)} pets into storage {storage_id}")
+    logger.info(f"Seeded {len(pets)} pets for vault {vault_id} ({len(equipped)} equipped)")
 
 
 def build_boosted_outfits(storage_id: UUID4) -> list[Outfit]:
@@ -673,7 +686,7 @@ async def create_initial_items(db_session: AsyncSession, vault_id: UUID4, is_boo
     await outfit_crud.create_many(db_session, outfits)
     if is_boosted:
         await seed_boosted_junk(db_session, storage.id)
-        await seed_boosted_pets(db_session, storage.id)
+        await seed_boosted_pets(db_session, vault_id, storage.id)
     logger.info(f"Created initial items for vault {vault_id}")
 
 

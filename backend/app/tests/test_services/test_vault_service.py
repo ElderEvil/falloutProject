@@ -501,6 +501,39 @@ class TestCreateInitialItems:
         assert all(p.storage_id == storage.id and p.dweller_id is None for p in pets)
         assert all(p.image_url for p in pets)
 
+    async def test_boosted_vault_equips_some_pets_on_legendary_dwellers(self, async_session, vault) -> None:
+        """The legendary pair starts equipped; the remaining pet stays in storage."""
+        from app.crud.item_base import get_items_by_vault
+        from app.models.pet import Pet
+        from app.schemas.common import RarityEnum
+        from app.schemas.dweller import DwellerCreate
+        from app.services.vault_seed import BOOSTED_EQUIPPED_PETS
+        from app.tests.factory.dwellers import create_fake_adult_dweller
+
+        storage = await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
+        first = await crud.dweller.create(
+            async_session,
+            obj_in=DwellerCreate(
+                **(create_fake_adult_dweller() | {"rarity": RarityEnum.LEGENDARY, "first_name": "Alpha"}),
+                vault_id=vault.id,
+            ),
+        )
+        second = await crud.dweller.create(
+            async_session,
+            obj_in=DwellerCreate(
+                **(create_fake_adult_dweller() | {"rarity": RarityEnum.LEGENDARY, "first_name": "Beta"}),
+                vault_id=vault.id,
+            ),
+        )
+
+        await seeding.create_initial_items(async_session, vault.id, is_boosted=True)
+        pets = {pet.name: pet for pet in await get_items_by_vault(async_session, Pet, vault.id)}
+
+        assert pets[BOOSTED_EQUIPPED_PETS[0]].dweller_id == first.id
+        assert pets[BOOSTED_EQUIPPED_PETS[1]].dweller_id == second.id
+        assert pets["Vault-Tec Parrot"].storage_id == storage.id
+        assert pets["Vault-Tec Parrot"].dweller_id is None
+
     async def test_boosted_vault_seeds_crafting_junk_from_catalog(self, async_session, vault) -> None:
         """Boosted-vault junk rows carry their catalog type/value/prose, assigned to storage."""
         from sqlmodel import select

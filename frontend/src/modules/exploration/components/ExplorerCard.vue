@@ -28,7 +28,6 @@ import ExplorationStatusBadges from './ExplorationStatusBadges.vue'
 import ExplorerActions from './ExplorerActions.vue'
 import PartyRoster from './PartyRoster.vue'
 import type { ExplorationSiteOpportunityView } from '../api/expeditionSite'
-import { siteAvailabilityShort } from '../models/siteAvailability'
 
 interface Props {
   exploration: Exploration
@@ -74,16 +73,14 @@ const isParty = computed(
 const siteSummary = computed(() => {
   const opportunity = props.siteOpportunity
   if (!opportunity) return null
-  if (['dead', 'catalog_empty', 'unavailable'].includes(opportunity.reason)) return null
+  if (opportunity.reason === 'open') {
+    return { ready: true, text: 'Site run in progress' }
+  }
+  if (opportunity.reason !== 'available' || opportunity.sites.length === 0) return null
   const count = opportunity.sites.length
   return {
-    ready: count > 0,
-    text:
-      count === 1
-        ? '1 expedition site nearby'
-        : count > 1
-          ? `${count} expedition sites nearby`
-          : siteAvailabilityShort(opportunity.reason),
+    ready: true,
+    text: count === 1 ? '1 site on this trail' : `${count} sites on this trail`,
   }
 })
 

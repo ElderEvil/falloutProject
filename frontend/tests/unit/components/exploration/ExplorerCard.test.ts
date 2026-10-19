@@ -126,10 +126,10 @@ describe('ExplorerCard', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('1 expedition site nearby')
+    expect(wrapper.text()).toContain('1 site on this trail')
   })
 
-  it('explains an empty site offer on the card without opening the detail page', () => {
+  it('leaves empty site blockers to the detail page', () => {
     const wrapper = mount(ExplorerCard, {
       props: {
         exploration,
@@ -138,7 +138,20 @@ describe('ExplorerCard', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('No sites on this trail')
+    expect(wrapper.text()).not.toContain('No sites on this trail')
+    expect(wrapper.text()).not.toContain('site on this trail')
+  })
+
+  it('marks a site run in progress instead of advertising more sites', () => {
+    const wrapper = mount(ExplorerCard, {
+      props: {
+        exploration,
+        dweller,
+        siteOpportunity: { exploration_id: exploration.id, sites: [], reason: 'open' },
+      },
+    })
+
+    expect(wrapper.text()).toContain('Site run in progress')
   })
 
   it('updates progress and remaining time while mounted, then stops its clock when unmounted', async () => {

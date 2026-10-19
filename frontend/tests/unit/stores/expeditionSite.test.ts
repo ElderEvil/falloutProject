@@ -30,6 +30,11 @@ const mockSite: AvailableSiteView = {
 
 const mockAvailability: SiteAvailabilityView = { sites: [mockSite], reason: 'available' }
 
+const newerAvailability: SiteAvailabilityView = {
+  sites: [{ ...mockSite, id: 'super_duper_mart', name: 'Super Duper Mart' }],
+  reason: 'available',
+}
+
 const mockRoom: SiteRoomView = {
   exploration_id: 'exploration-1',
   site_id: 'red_rocket',
@@ -68,6 +73,46 @@ describe('Expedition Site Store', () => {
     expect(store.availableSites).toEqual([mockSite])
     expect(store.isLoading).toBe(false)
     expect(store.error).toBeNull()
+  })
+
+  it('ignores an older availability response that resolves after a newer one', async () => {
+    let finishOld!: (value: SiteAvailabilityView) => void
+    vi.mocked(expeditionSiteApi.getAvailability)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishOld = resolve
+          })
+      )
+      .mockResolvedValueOnce(newerAvailability)
+    const store = useExpeditionSiteStore()
+
+    const oldRequest = store.fetchAvailability('exploration-1')
+    await store.fetchAvailability('exploration-1')
+    finishOld(mockAvailability)
+    await oldRequest
+
+    expect(store.availability).toEqual(newerAvailability)
+    expect(store.availableSites).toEqual(newerAvailability.sites)
+  })
+
+  it('ignores a pending availability response after reset', async () => {
+    let finish!: (value: SiteAvailabilityView) => void
+    vi.mocked(expeditionSiteApi.getAvailability).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
+    )
+    const store = useExpeditionSiteStore()
+    const request = store.fetchAvailability('exploration-1')
+
+    store.reset()
+    finish(mockAvailability)
+    await request
+
+    expect(store.availability).toBeNull()
+    expect(store.availableSites).toEqual([])
   })
 
   it('enterSite stores the returned room', async () => {

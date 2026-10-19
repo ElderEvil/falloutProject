@@ -20,12 +20,14 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
   const error = ref<string | null>(null)
   const currentExplorationId = ref<string | null>(null)
   let scopeVersion = 0
+  let availabilityRequest = 0
 
   // Gap 4.3: room state is scoped to the exploration that loaded it. Acting on
   // a different exploration must never render a stale room from a previous one.
   function scopeToExploration(explorationId: string): void {
     if (explorationId !== currentExplorationId.value) {
       scopeVersion++
+      availabilityRequest++
       room.value = null
       availableSites.value = []
       availability.value = null
@@ -60,11 +62,14 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
   }
 
   function fetchAvailability(explorationId: string): Promise<SiteAvailabilityView> {
+    scopeToExploration(explorationId)
+    const requestId = ++availabilityRequest
     return runRequest(
       explorationId,
       () => expeditionSiteApi.getAvailability(explorationId),
       'Failed to load available expedition sites',
       (nextAvailability) => {
+        if (requestId !== availabilityRequest) return
         availability.value = nextAvailability
         availableSites.value = nextAvailability.sites
       }
@@ -117,6 +122,7 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
 
   function reset(): void {
     scopeVersion++
+    availabilityRequest++
     room.value = null
     availableSites.value = []
     availability.value = null

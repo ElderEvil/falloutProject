@@ -628,5 +628,50 @@ describe('ExplorationDetailView', () => {
       expect((wrapper.vm as any).siteOptionsLoaded).toBe(false)
       wrapper.unmount()
     })
+
+    it('ignores a stale same-exploration site-options response', async () => {
+      const siteStore = useExpeditionSiteStore()
+      const baseline = {
+        id: 'site-1',
+        name: 'Test Site',
+        flavor: 'A test site.',
+        min_dweller_level: 1,
+        room_total: 3,
+      }
+      const newerSite = { ...baseline, id: 'site-2', name: 'New Site' }
+      const staleSite = { ...baseline, id: 'site-3', name: 'Stale Site' }
+      let resolveFirst!: (availability: SiteAvailabilityView) => void
+      let resolveSecond!: (availability: SiteAvailabilityView) => void
+      vi.spyOn(siteStore, 'fetchAvailability')
+        .mockResolvedValueOnce({ sites: [baseline], reason: 'available' })
+        .mockImplementationOnce(
+          () =>
+            new Promise<SiteAvailabilityView>((resolve) => {
+              resolveFirst = resolve
+            })
+        )
+        .mockImplementationOnce(
+          () =>
+            new Promise<SiteAvailabilityView>((resolve) => {
+              resolveSecond = resolve
+            })
+        )
+
+      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      const firstPoll = pollState.callback?.()
+      await flushPromises()
+      const secondPoll = pollState.callback?.()
+      await flushPromises()
+      resolveSecond({ sites: [newerSite], reason: 'available' })
+      await secondPoll
+      resolveFirst({ sites: [staleSite], reason: 'available' })
+      await firstPoll
+      await flushPromises()
+
+      expect((wrapper.vm as any).knownSiteIds).toEqual(new Set(['site-2']))
+      wrapper.unmount()
+    })
   })
 })

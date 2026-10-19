@@ -189,13 +189,15 @@ const siteOptionsLoaded = ref(false)
 // Null until the first load: the first answer seeds the baseline so a mount
 // does not announce every already-offered site as newly discovered.
 const knownSiteIds = ref<Set<string> | null>(null)
+let siteOptionsRequest = 0
 
 const loadSiteOptions = async (announce = false) => {
   const requestedId = explorationId.value
   if (!requestedId || !authStore.token || !isInProgressExploration.value) return
+  const requestToken = ++siteOptionsRequest
   try {
     const availability = await siteStore.fetchAvailability(requestedId)
-    if (explorationId.value !== requestedId) return
+    if (explorationId.value !== requestedId || requestToken !== siteOptionsRequest) return
     siteOptionsLoaded.value = true
     const ids = new Set(availability.sites.map((site) => site.id))
     if (announce && knownSiteIds.value) {
@@ -267,7 +269,9 @@ onUnmounted(() => {
 // Switching explorers reuses this view (router.push without a remount), so the
 // mount-time reconnect never runs again. Re-scope the site store and reconnect.
 watch(explorationId, async (id, previousId) => {
-  if (!id || id === previousId) return
+  if (id === previousId) return
+  siteOptionsRequest++
+  if (!id) return
   siteStore.reset()
   showSiteModal.value = false
   siteOptionsLoaded.value = false

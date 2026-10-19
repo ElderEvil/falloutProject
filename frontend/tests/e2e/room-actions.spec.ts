@@ -25,7 +25,7 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
   })
 }
 
-test('remodel actions fill the available space evenly and keep the upgrade cost inside its button', async ({
+test('remodel actions stay in one equally sized row and keep the upgrade cost inside its button', async ({
   page,
 }) => {
   await page.goto('/tests/e2e/fixtures/room-actions.html?remodel=1')
@@ -38,16 +38,18 @@ test('remodel actions fill the available space evenly and keep the upgrade cost 
     const rects = elements.map((element) => element.getBoundingClientRect())
     return {
       widths: rects.map((rect) => rect.width),
-      rowWidths: rects.filter((rect) => rect.top === rects[0].top).map((rect) => rect.width),
+      tops: rects.map((rect) => rect.top),
     }
   })
-  expect(wideLayout.widths.every((width) => width > 250)).toBe(true)
-  expect(Math.max(...wideLayout.rowWidths) - Math.min(...wideLayout.rowWidths)).toBeLessThan(1)
+  expect(new Set(wideLayout.tops).size).toBe(1)
+  expect(Math.max(...wideLayout.widths) - Math.min(...wideLayout.widths)).toBeLessThan(1)
   await page.locator('#app').evaluate((el) => (el.style.width = '200px'))
-  const narrowWidths = await buttons.evaluateAll((elements) =>
-    elements.map((element) => element.getBoundingClientRect().width)
-  )
-  expect(narrowWidths.every((width) => width > 180)).toBe(true)
+  const narrowLayout = await buttons.evaluateAll((elements) => {
+    const rects = elements.map((element) => element.getBoundingClientRect())
+    return { widths: rects.map((rect) => rect.width), tops: rects.map((rect) => rect.top) }
+  })
+  expect(new Set(narrowLayout.tops).size).toBe(1)
+  expect(Math.max(...narrowLayout.widths) - Math.min(...narrowLayout.widths)).toBeLessThan(1)
   const badge = upgrade.locator('.cost-badge')
   const badgePosition = await badge.evaluate((el) => {
     const parent = el.closest('button')!.getBoundingClientRect()

@@ -182,15 +182,17 @@ const emit = defineEmits<{
 }
 
 .actions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  display: flex;
+  flex-wrap: nowrap;
   gap: 0.5rem;
+  overflow-x: auto;
   padding: 0.25rem 0 0;
 }
 
 .action-btn {
-  width: 100%;
-  min-width: 0;
+  flex: 1 0 8rem;
+  min-width: 8rem;
+  white-space: normal;
 }
 
 .action-btn.destroy-btn {

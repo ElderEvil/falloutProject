@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { Button } from '@/core/components/ui/button'
 
 withDefaults(
   defineProps<{
@@ -21,15 +22,16 @@ const emit = defineEmits<{
 
 <template>
   <div class="explorer-navigation flex items-center">
-    <button
+    <Button
       v-if="canRecall"
       @click="emit('recall')"
       aria-label="Recall dweller"
-      class="flex h-8 mr-2 cursor-pointer items-center gap-1 rounded border border-theme-primary bg-theme-primary px-2 text-xs font-bold text-black transition-colors hover:bg-theme-primary/80 focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-black"
+      size="xs"
+      class="h-8 mr-2 cursor-pointer border-theme-primary bg-theme-primary text-xs font-bold text-black hover:bg-theme-primary/80 focus-visible:ring-theme-primary focus-visible:ring-offset-2 focus-visible:ring-offset-black"
     >
-      <Icon icon="mdi:arrow-u-left-top" />
+      <Icon icon="mdi:arrow-u-left-top" class="h-4 w-4" />
       <span>Recall</span>
-    </button>
+    </Button>
     <div
       class="explorer-navigation-box flex items-center gap-3 rounded-md border border-theme-primary/40 bg-black/30 px-2.5 py-1"
     >

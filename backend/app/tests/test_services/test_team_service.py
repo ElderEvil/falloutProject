@@ -25,7 +25,9 @@ from app.tests.factory.vaults import create_fake_vault
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 
 
-async def _make_quest_vault(async_session: AsyncSession, *, title: str = "Team Quest") -> tuple[Vault, Quest]:
+async def _make_quest_vault(
+    async_session: AsyncSession, *, title: str = "Team Quest", quest_category: str | None = None
+) -> tuple[Vault, Quest]:
     """A vault with a quest assigned and visible."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
@@ -41,6 +43,7 @@ async def _make_quest_vault(async_session: AsyncSession, *, title: str = "Team Q
             requirements="1 dweller",
             rewards="100 caps",
             duration_minutes=60,
+            quest_category=quest_category,
         ),
     )
     await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
@@ -204,6 +207,25 @@ async def _make_room(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("quest_category", ["building", "population", "training"])
+async def test_assign_quest_team_rejects_state_objectives(async_session: AsyncSession, quest_category: str) -> None:
+    """State objectives have no return path, so assigning a party would strand it QUESTING."""
+    vault, quest = await _make_quest_vault(async_session, quest_category=quest_category)
+    room = await _make_room(async_session, vault)
+    dweller = await _make_adult_dweller(async_session, vault)
+    dweller.status = DwellerStatusEnum.WORKING
+    dweller.room_id = room.id
+    await async_session.commit()
+
+    with pytest.raises(ValidationException, match="State objectives"):
+        await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
+
+    await async_session.refresh(dweller)
+    assert dweller.status == DwellerStatusEnum.WORKING
+    assert dweller.room_id == room.id
+
+
+@pytest.mark.asyncio
 async def test_assign_quest_team_clears_pre_departure_room(async_session: AsyncSession) -> None:
     """Departure detaches dwellers from their old room so it stops counting them."""
     vault, quest = await _make_quest_vault(async_session)
@@ -231,6 +253,12 @@ async def test_assign_quest_team_reassignment_clears_freed_dwellers_rooms(async_
     await async_session.commit()
 
     await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller1.id])
+
+    # Simulate a pre-fix in-flight quest: still QUESTING with the old room attached.
+    await async_session.refresh(dweller1)
+    dweller1.room_id = room.id
+    await async_session.commit()
+
     await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller2.id])
 
     await async_session.refresh(dweller1)

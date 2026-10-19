@@ -313,6 +313,24 @@ describe('DwellerBio', () => {
     })
   })
 
+  it('renders backend-authored dweller family links', () => {
+    ctx.dweller = ref({
+      first_name: 'Lucy',
+      bio: 'Searching for <a href="/vault/v1/dwellers/h1" class="dweller-link">Hank</a>.',
+      bio_entries: [
+        {
+          source: 'template',
+          text: 'Searching for <a href="/vault/v1/dwellers/h1" class="dweller-link">Hank</a>.',
+        },
+      ],
+    } as unknown as Dweller) as never
+    wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
+
+    const anchor = wrapper.find('.dweller-link')
+    expect(anchor.text()).toBe('Hank')
+    expect(anchor.attributes('href')).toBe('/vault/v1/dwellers/h1')
+  })
+
   describe('place links', () => {
     const links: MapPlaceLink[] = [
       { name: 'Living Quarters', locationId: 'loc1' },

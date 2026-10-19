@@ -72,7 +72,7 @@ const handleDragEnd = () => {
   display: flex;
   gap: 0.25rem;
   flex-wrap: nowrap;
-  justify-content: center;
+  justify-content: space-evenly;
   align-items: center;
   margin-top: 0.5rem;
   padding: 0.5rem;
@@ -82,7 +82,7 @@ const handleDragEnd = () => {
 
 .dweller-avatar {
   position: relative;
-  flex: 1 1 0;
+  flex: 0 1 40px;
   min-width: 28px;
   max-width: 40px;
   aspect-ratio: 1;

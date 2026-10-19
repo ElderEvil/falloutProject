@@ -48,6 +48,7 @@ watch(portraitUrl, () => {
     :style="{ objectPosition: isThumbnailPreview ? 'center top' : undefined }"
     @error="hasImageError = true"
   />
+  <slot v-else-if="$slots.fallback" name="fallback" />
   <span v-else role="img" :aria-label="alt">
     <Icon :icon="fallbackIcon" :ariaHidden="true" :class="fallbackClass" />
   </span>

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.236.1 (2026-10-19)
+
+### Bug Fixes
+
+* **ui:** player feedback round — objective icons, navbar avatar, ring positions ([#1087](https://github.com/ElderEvil/falloutProject/issues/1087)) 27ba3b8, closes #1083 #1085 #1086 #1085 #1083 #1086 #1084 #1086
+
 ## 2.236.0 (2026-10-18)
 
 ### Features

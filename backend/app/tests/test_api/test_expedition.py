@@ -317,3 +317,25 @@ async def test_vault_site_opportunities_lists_active_free_roam(
     assert [entry["exploration_id"] for entry in body] == [str(exploration.id)]
     assert body[0]["reason"] == "available"
     assert {site["id"] for site in body[0]["sites"]} >= {"red_rocket", "super_duper_mart"}
+
+
+@pytest.mark.asyncio
+async def test_vault_site_opportunities_skips_soft_deleted_dweller(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """A supported dweller soft delete must not fail the vault opportunity list."""
+    await crud.dweller.update(async_session, dweller.id, {"level": 10}, commit=True)
+    await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    await crud.dweller.soft_delete(async_session, dweller.id)
+
+    response = await async_client.get(
+        f"/explorations/vault/{vault.id}/site/opportunities",
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []

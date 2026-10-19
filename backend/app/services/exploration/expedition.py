@@ -648,7 +648,10 @@ class ExpeditionService:
         for exploration in explorations:
             if exploration.team_id is not None or not exploration.is_in_progress():
                 continue
-            availability = await self._availability_for_exploration(db_session, exploration)
+            try:
+                availability = await self._availability_for_exploration(db_session, exploration)
+            except ResourceNotFoundException:
+                continue
             opportunities.append(
                 ExplorationSiteOpportunityView(
                     exploration_id=exploration.id,

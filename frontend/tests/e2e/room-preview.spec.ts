@@ -18,6 +18,7 @@ test('room preview portraits keep their aspect ratio and size over the room back
   const portrait = page.locator('.scene-dweller-portrait').first()
   await expect(portrait).toBeVisible()
   await expect(portrait).toHaveCSS('object-fit', 'contain')
+  await expect.poll(() => portrait.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0)
   const slot = portrait.locator('..')
   await expect(slot).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
   await expect(slot).toHaveCSS('border-top-width', '0px')

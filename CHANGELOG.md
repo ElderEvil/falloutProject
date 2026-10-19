@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.238.1 (2026-10-19)
+
+### Bug Fixes
+
+* **quests:** detach questing dwellers from their pre-departure room ([#1094](https://github.com/ElderEvil/falloutProject/issues/1094)) fd58f0f, closes #1092
+
 ## 2.238.0 (2026-10-19)
 
 ### Features

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useRouter, type RouteLocationRaw } from 'vue-router'
+import { Button } from '@/core/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -43,6 +45,9 @@ const props = withDefaults(
      * scroll region rather than pinning it as a sibling.
      */
     bodyClass?: string
+    /** When set, a full-page button next to the close X navigates here. */
+    fullscreenTo?: RouteLocationRaw | null
+    fullscreenLabel?: string
   }>(),
   {
     size: 'md',
@@ -51,13 +56,18 @@ const props = withDefaults(
     showFooter: true,
     titleAsChild: false,
     iconClass: 'h-8 w-8 text-theme-primary terminal-glow',
+    fullscreenTo: null,
+    fullscreenLabel: 'Open full page',
   }
 )
 
 const emit = defineEmits<{
   'update:open': [open: boolean]
   close: []
+  fullscreen: []
 }>()
+
+const router = useRouter()
 
 // Every Reka dialog shell registers here, so overlay owners do not each have to
 // remember to announce themselves to cross-cutting consumers.
@@ -101,8 +111,14 @@ const contentClasses = computed(() =>
 )
 
 const titleClasses = computed(() =>
-  props.titleAsChild ? undefined : props.titleClass ?? TITLE_CLASS
+  props.titleAsChild ? undefined : (props.titleClass ?? TITLE_CLASS)
 )
+
+function openFullscreen(): void {
+  if (!props.fullscreenTo) return
+  emit('fullscreen')
+  void router?.push(props.fullscreenTo)
+}
 
 const handleOpenChange = (open: boolean) => {
   emit('update:open', open)
@@ -113,6 +129,18 @@ const handleOpenChange = (open: boolean) => {
 <template>
   <Dialog :open="open" @update:open="handleOpenChange">
     <DialogContent :show-close-button="showClose" :class="contentClasses">
+      <Button
+        v-if="fullscreenTo"
+        variant="ghost"
+        size="icon-sm"
+        class="absolute top-4 right-12 z-10"
+        :aria-label="fullscreenLabel"
+        :title="fullscreenLabel"
+        @click="openFullscreen"
+      >
+        <Icon icon="mdi:arrow-expand" />
+      </Button>
+
       <DialogHeader :class="headerClass ?? HEADER_CLASS">
         <Icon v-if="icon" :icon="icon" :class="iconClass" />
         <DialogTitle :as-child="titleAsChild" :class="titleClasses">

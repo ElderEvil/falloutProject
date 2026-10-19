@@ -126,7 +126,7 @@ const loadData = async () => {
   if (!vaultId.value || !authStore.token) return
 
   try {
-    await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token, true, true)
+    await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
     await explorationStore.fetchPartiesForActiveExplorations(vaultId.value)
     await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
     await questStore.fetchVaultQuests(vaultId.value)

@@ -171,6 +171,27 @@ describe('ExplorationView', () => {
     wrapper?.unmount()
   })
 
+  it('keeps the initial fetch error-aware while polling silently', async () => {
+    wrapper = mount(ExplorationView, {
+      global: {
+        stubs: {
+          SidePanel: true,
+          QuestPartyCard: true,
+          ExplorationRewardsModal: true,
+        },
+      },
+    })
+    await flushPromises()
+
+    const fetchSpy = vi.mocked(explorationStore.fetchExplorationsByVault)
+    expect(fetchSpy).toHaveBeenCalledWith('vault-123', 'mock-token')
+
+    fetchSpy.mockClear()
+    await pollState.callback?.()
+
+    expect(fetchSpy).toHaveBeenCalledWith('vault-123', 'mock-token', true, true)
+  })
+
   it('refreshes the list with a silent poll', async () => {
     wrapper = mount(ExplorationView, {
       global: {

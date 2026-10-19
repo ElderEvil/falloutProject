@@ -171,6 +171,12 @@ const closeDropdown = () => {
   isDropdownOpen.value = false
 }
 
+// NavBar stays mounted across logout/login; close the menu whenever the session
+// ends so a stale open state cannot reappear after the next login.
+watch(isAuthenticated, (authenticated) => {
+  if (!authenticated) closeDropdown()
+})
+
 // Close dropdown when clicking outside
 const handleClickOutside = (event: MouseEvent) => {
   if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {

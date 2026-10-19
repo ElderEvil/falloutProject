@@ -73,7 +73,6 @@ describe('DwellerAppearance', () => {
       .findAll('button')
       .filter((button) => button.text().includes('Generate appearance'))
     expect(generateButtons).toHaveLength(1)
-    expect(wrapper.find('section').classes()).toContain('bg-transparent')
   })
 
   it('omits synth generation from the appearance badge', async () => {

@@ -87,7 +87,11 @@ class DwellerBaseWithoutStats(SQLModel):
     @property
     def is_in_vault(self) -> bool:
         """Whether the dweller's travel status places them inside the vault."""
-        return self.status not in (DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING)
+        return self.status not in (
+            DwellerStatusEnum.EXPLORING,
+            DwellerStatusEnum.QUESTING,
+            DwellerStatusEnum.COMBAT_ZONE,
+        )
 
     # Exit requests: a dweller in despair asks to leave once they have been unhappy long enough;
     # the ask is resolved by granting or refusing it, or withdrawn when their mood recovers.

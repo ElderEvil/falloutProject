@@ -21,6 +21,7 @@ interface Props {
   cooldown?: boolean
   cleared?: boolean
   exploring?: boolean
+  pulse?: boolean
   status?: string
   risk?: string | null
   baseDifficulty?: number | null
@@ -36,6 +37,7 @@ const props = withDefaults(defineProps<Props>(), {
   cooldown: false,
   cleared: false,
   exploring: false,
+  pulse: false,
   interactive: true,
   scale: 1,
 })
@@ -64,7 +66,9 @@ const isVault = computed(() => props.type === 'vault')
 const isLocked = computed(() => isHintLocation(props))
 const displayIcon = computed(() => (isLocked.value ? 'mdi:lock-question' : icon.value))
 const displayLabel = computed(() => (isLocked.value ? 'Unknown Location' : props.name))
-const shouldPulse = computed(() => isDiscovery.value && !isLocked.value && props.unseen)
+const shouldPulse = computed(
+  () => props.pulse || (isDiscovery.value && !isLocked.value && props.unseen)
+)
 
 // Glyph size in marker user units; the backing disc is r=3.8, so this leaves a
 // ring of dark margin around every glyph. Passed to Iconify with an explicit

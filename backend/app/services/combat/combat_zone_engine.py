@@ -221,7 +221,7 @@ class CombatZoneTickEngine:
 
         for party in queued:
             owner = owners.get(party.id)
-            if owner is None or owner[0].is_deleted or owner[0].is_dead:
+            if owner is None or owner[0].is_deleted or owner[0].is_dead or not owner[1].combat_zone_enabled:
                 await self._cancel_party(db_session, party.id, now)
 
         if len(queued) < 2:
@@ -420,8 +420,11 @@ class CombatZoneTickEngine:
             db_session.add(party)
             dweller = await combat_zone_crud.get_dweller_for_update(db_session, party.dweller_id)
             if dweller is not None and not dweller.is_deleted:
-                # Non-lethal: the defeated leave the Zone standing at 1 HP.
-                dweller.health = max(1, min(dweller.health, dweller.effective_max_health))
+                # Non-lethal: both leave the Zone at a viable floor, so a bout cannot
+                # directly seed a death in the next incident.
+                max_health = dweller.effective_max_health
+                floor = max(1, (max_health * config.return_health_pct + 99) // 100)
+                dweller.health = max(floor, min(dweller.health, max_health))
                 db_session.add(dweller)
 
         match.status = CombatZoneMatchStatus.FINISHED

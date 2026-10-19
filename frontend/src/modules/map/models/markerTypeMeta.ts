@@ -4,6 +4,7 @@ export type MarkerType =
   | WastelandLocationWithDwellers['type']
   | 'vault'
   | 'expedition_site'
+  | 'combat_zone'
   | 'explorer'
 
 export interface MarkerTypeMeta {
@@ -22,13 +23,24 @@ export const MARKER_TYPES: readonly MarkerTypeMeta[] = [
   { type: 'visited', icon: 'mdi:eye', label: 'Visited' },
   { type: 'discovery', icon: 'mdi:map-marker-question', label: 'Discovery' },
   { type: 'vault', icon: 'mdi:radioactive', label: 'Vault Signal' },
-  { type: 'expedition_site', icon: EXPEDITION_SITE_ICON, label: 'Expedition Sites' },
+  {
+    type: 'expedition_site',
+    icon: EXPEDITION_SITE_ICON,
+    label: 'Expedition Sites',
+  },
+  { type: 'combat_zone', icon: 'mdi:sword-cross', label: 'Combat Zone' },
 ]
 
 const BY_TYPE = new Map<string, MarkerTypeMeta>(MARKER_TYPES.map((meta) => [meta.type, meta]))
 
 export function markerTypeMeta(type: string): MarkerTypeMeta {
-  return BY_TYPE.get(type) ?? { type: type as MarkerType, icon: 'mdi:map-marker', label: type }
+  return (
+    BY_TYPE.get(type) ?? {
+      type: type as MarkerType,
+      icon: 'mdi:map-marker',
+      label: type,
+    }
+  )
 }
 
 /**
@@ -39,7 +51,7 @@ export function markerTypeMeta(type: string): MarkerTypeMeta {
 export function locationMarkerIcon(
   type: string,
   groupKey: string | null | undefined,
-  groupIconByKey: ReadonlyMap<string, string>,
+  groupIconByKey: ReadonlyMap<string, string>
 ): string {
   if (groupKey) {
     const groupIcon = groupIconByKey.get(groupKey)

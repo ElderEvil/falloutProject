@@ -30,7 +30,7 @@ from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreate
 from app.services.combat.combat_zone_engine import CombatZoneTickStats, combat_zone_engine
 from app.services.combat.combat_zone_service import combat_zone_service
-from app.utils.exceptions import ResourceConflictException, ValidationException
+from app.utils.exceptions import FeatureDisabledException, ResourceConflictException, ValidationException
 
 
 @pytest.fixture(autouse=True)
@@ -238,6 +238,17 @@ async def test_send_requires_the_entry_fee_and_one_party_per_vault(async_session
         await combat_zone_service.send_party(async_session, vault.id, second.id)
 
 
+async def test_send_rejects_a_vault_with_the_admin_switch_off(async_session: AsyncSession):
+    vault = await _make_vault(async_session, 824)
+    vault.combat_zone_enabled = False
+    async_session.add(vault)
+    await async_session.commit()
+    dweller = await _make_dweller(async_session, vault)
+
+    with pytest.raises(FeatureDisabledException, match="disabled for this vault"):
+        await combat_zone_service.send_party(async_session, vault.id, dweller.id)
+
+
 async def test_arrival_marks_the_party_queued(async_session: AsyncSession):
     vault = await _make_vault(async_session, 815)
     dweller = await _make_dweller(async_session, vault)
@@ -351,7 +362,7 @@ async def test_victory_is_non_lethal_and_pays_the_winner(async_session: AsyncSes
     assert match.status == CombatZoneMatchStatus.FINISHED
     assert match.finish_reason == "victory"
     assert match.winner_party_id == party_a.id
-    assert dweller_b.health == 1
+    assert dweller_b.health == 25
     assert vault_a.bottle_caps == 1_000 - game_config.combat_zone.entry_fee_caps + match.pot_caps
 
 

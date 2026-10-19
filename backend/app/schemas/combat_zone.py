@@ -119,3 +119,14 @@ class CombatZoneMatchRead(BaseModel):
     party_a: CombatZoneMatchPartyRead
     party_b: CombatZoneMatchPartyRead
     events: list[CombatZoneEventRead] = Field(default_factory=list)
+
+
+class CombatZoneVaultToggleRequest(BaseModel):
+    """Admin switch for one vault; the global flag remains the master switch."""
+
+    enabled: bool
+
+
+class CombatZoneVaultToggleRead(BaseModel):
+    vault_id: UUID4
+    enabled: bool

@@ -117,3 +117,35 @@ async def test_unknown_match_and_empty_lobby(
         headers=superuser_token_headers,
     )
     assert missing.status_code == 404
+
+
+async def test_admin_can_toggle_the_vault_switch(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    user_with_vault,
+):
+    _user, vault = user_with_vault
+
+    disabled = await async_client.post(
+        f"/combat-zone/admin/vault/{vault.id}/enabled",
+        headers=superuser_token_headers,
+        json={"enabled": False},
+    )
+    assert disabled.status_code == 200
+    assert disabled.json()["enabled"] is False
+    await async_session.refresh(vault)
+    assert vault.combat_zone_enabled is False
+
+    marker = await async_client.get(f"/map/vault/{vault.id}", headers=superuser_token_headers)
+    assert marker.status_code == 200
+    assert marker.json()["combat_zone"]["enabled"] is False
+    assert marker.json()["combat_zone"]["global_enabled"] is True
+
+    enabled = await async_client.post(
+        f"/combat-zone/admin/vault/{vault.id}/enabled",
+        headers=superuser_token_headers,
+        json={"enabled": True},
+    )
+    assert enabled.status_code == 200
+    assert enabled.json()["enabled"] is True

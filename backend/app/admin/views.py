@@ -125,6 +125,7 @@ class VaultAdmin(AdminModelView, model=Vault):
         Vault.radio_mode,
         Vault.vault_mode,
         Vault.incidents_disabled,
+        Vault.combat_zone_enabled,
         Vault.user,
         Vault.created_at,
         Vault.updated_at,
@@ -134,9 +135,11 @@ class VaultAdmin(AdminModelView, model=Vault):
         Vault.bottle_caps: "Caps",
         Vault.population_max: "Population limit",
         Vault.incidents_disabled: "Incidents disabled",
+        Vault.combat_zone_enabled: "Combat Zone enabled",
     }
     column_filters: ClassVar[list] = [
         BooleanFilter(col(Vault.incidents_disabled)),  # ty: ignore[invalid-argument-type]
+        BooleanFilter(col(Vault.combat_zone_enabled)),  # ty: ignore[invalid-argument-type]
     ]
     column_sortable_list: ClassVar[list] = [
         Vault.number,

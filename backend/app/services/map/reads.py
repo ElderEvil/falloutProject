@@ -229,7 +229,8 @@ async def get_vault_map(db_session: AsyncSession, vault: Vault, *, unlocked_only
             name=combat_zone_poi.name if combat_zone_poi else COMBAT_ZONE_NAME,
             coord_x=round((combat_zone_poi.coord_x if combat_zone_poi else COMBAT_ZONE_COORDS[0]) * WORLD_SCALE, 1),
             coord_y=round((combat_zone_poi.coord_y if combat_zone_poi else COMBAT_ZONE_COORDS[1]) * WORLD_SCALE, 1),
-            enabled=game_config.combat_zone.enabled,
+            enabled=game_config.combat_zone.enabled and vault.combat_zone_enabled,
+            global_enabled=game_config.combat_zone.enabled,
         ),
     )
 

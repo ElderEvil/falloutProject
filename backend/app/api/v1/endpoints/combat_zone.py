@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.deps import CurrentActiveUser, get_user_vault_or_403
+from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403
 from app.db.session import get_async_session
 from app.schemas.combat_zone import (
     CombatZoneEventRead,
@@ -15,6 +15,8 @@ from app.schemas.combat_zone import (
     CombatZonePartyRead,
     CombatZoneSendRequest,
     CombatZoneStanceRequest,
+    CombatZoneVaultToggleRead,
+    CombatZoneVaultToggleRequest,
 )
 from app.services.combat.combat_zone_service import combat_zone_service
 
@@ -87,6 +89,18 @@ async def challenge_party(
     """Challenge a queued party directly, ignoring the auto-pair power band."""
     await get_user_vault_or_403(vault_id, user, db_session)
     return await combat_zone_service.challenge(db_session, vault_id, target_party_id)
+
+
+@router.post("/admin/vault/{vault_id}/enabled", response_model=CombatZoneVaultToggleRead)
+async def set_vault_enabled(
+    vault_id: UUID4,
+    payload: CombatZoneVaultToggleRequest,
+    _user: CurrentSuperuser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> CombatZoneVaultToggleRead:
+    """Admin switch: enable or disable the Combat Zone for one vault."""
+    enabled = await combat_zone_service.set_vault_enabled(db_session, vault_id, payload.enabled)
+    return CombatZoneVaultToggleRead(vault_id=vault_id, enabled=enabled)
 
 
 @router.get("/matches/{match_id}", response_model=CombatZoneMatchRead)

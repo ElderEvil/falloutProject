@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import UUID4
-from sqlalchemy import Column, String
+from sqlalchemy import Boolean, Column, String, true
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.enums import VaultModeEnum
@@ -53,6 +53,13 @@ class VaultBase(SQLModel):
 
     # Incident control (e.g. a test playground vault)
     incidents_disabled: bool = Field(default=False, description="Suppresses incident spawns and processing")
+
+    # Admin switch; the global Combat Zone flag remains the master kill switch.
+    combat_zone_enabled: bool = Field(
+        default=True,
+        sa_column=Column(Boolean, nullable=False, server_default=true()),
+        description="Whether this vault can use the Combat Zone",
+    )
 
     # Game state
 

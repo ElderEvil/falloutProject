@@ -6,6 +6,7 @@ import { Button } from '@/core/components/ui/button'
 import { formatRemaining } from '@/modules/exploration/composables/useExplorationProgress'
 import type {
   DiscoveryRouteRead,
+  CombatZoneMarkerRead,
   ExpeditionSiteMarkerRead,
   ExplorerTrack,
   MarkerClickPayload,
@@ -41,6 +42,7 @@ interface Props {
   playerVaults?: PlayerVaultMarkerRead[]
   discoveryRoutes?: DiscoveryRouteRead[]
   expeditionSites?: ExpeditionSiteMarkerRead[]
+  combatZone?: CombatZoneMarkerRead | null
   explorerTracks?: ExplorerTrack[]
   groupColors?: boolean
   fogDisabled?: boolean
@@ -53,6 +55,7 @@ const props = withDefaults(defineProps<Props>(), {
   playerVaults: () => [],
   discoveryRoutes: () => [],
   expeditionSites: () => [],
+  combatZone: null,
   explorerTracks: () => [],
   groupColors: false,
   fogDisabled: false,
@@ -408,6 +411,11 @@ function onExplorerClick(track: ExplorerTrack, event: Event) {
   emit('dweller-click', { track, x, y })
 }
 
+function onCombatZoneClick() {
+  if (hasDragMoved.value || !props.combatZone) return
+  emit('marker-click', { kind: 'combat_zone', data: props.combatZone })
+}
+
 // ── Discovery clustering ──────────────────────────────────────────────
 // Discoveries render at every zoom, so on a dense atlas their count is what
 // swamps the map. Grid cells shrink as the map zooms in, so a badge expands
@@ -628,6 +636,22 @@ function handleTouchEnd(event: TouchEvent) {
           :status="siteStatus(site)"
           :selected="selectedMarkerId === `site-${site.id}`"
           @click="onSiteClick(site)"
+        />
+
+        <!-- The shared Combat Zone POI: always visible, pulse while the signal is live. -->
+        <MapMarker
+          v-if="combatZone"
+          :scale="markerScale"
+          :x="combatZone.coord_x"
+          :y="combatZone.coord_y"
+          :name="combatZone.name"
+          type="combat_zone"
+          icon="mdi:sword-cross"
+          label="Combat Zone"
+          :status="combatZone.enabled ? 'Regulation bouts' : 'Signal dark'"
+          :pulse="combatZone.enabled"
+          :selected="selectedMarkerId === 'combat-zone'"
+          @click="onCombatZoneClick"
         />
 
         <!-- Moving parties open exploration details; solo explorers retain their popover. -->

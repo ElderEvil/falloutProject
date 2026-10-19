@@ -140,7 +140,10 @@ class CRUDCombatZone:
             .join(Dweller, Dweller.id == CombatZoneParty.dweller_id)
             .join(Vault, Vault.id == CombatZoneParty.vault_id)
             .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit), selectinload(Dweller.pet))
-            .where(CombatZoneParty.status == CombatZonePartyStatus.QUEUED)
+            .where(
+                CombatZoneParty.status == CombatZonePartyStatus.QUEUED,
+                Vault.combat_zone_enabled.is_(True),
+            )
             .order_by(CombatZoneParty.arrives_at, CombatZoneParty.id)
         )
         return result.all()

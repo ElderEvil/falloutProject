@@ -3456,6 +3456,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/combat-zone/admin/vault/{vault_id}/enabled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Vault Enabled
+         * @description Admin switch: enable or disable the Combat Zone for one vault.
+         */
+        post: operations["set_vault_enabled_api_v1_combat_zone_admin_vault__vault_id__enabled_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/combat-zone/matches/{match_id}": {
         parameters: {
             query?: never;
@@ -6033,6 +6053,8 @@ export interface components {
             coord_y: number;
             /** Enabled */
             enabled: boolean;
+            /** Global Enabled */
+            global_enabled: boolean;
         };
         /**
          * CombatZoneMatchPartyRead
@@ -6191,6 +6213,24 @@ export interface components {
          */
         CombatZoneStanceRequest: {
             stance: components["schemas"]["CombatZoneStance"];
+        };
+        /** CombatZoneVaultToggleRead */
+        CombatZoneVaultToggleRead: {
+            /**
+             * Vault Id
+             * Format: uuid4
+             */
+            vault_id: string;
+            /** Enabled */
+            enabled: boolean;
+        };
+        /**
+         * CombatZoneVaultToggleRequest
+         * @description Admin switch for one vault; the global flag remains the master switch.
+         */
+        CombatZoneVaultToggleRequest: {
+            /** Enabled */
+            enabled: boolean;
         };
         /**
          * CompatibilityScore
@@ -11261,6 +11301,12 @@ export interface components {
              */
             incidents_disabled: boolean;
             /**
+             * Combat Zone Enabled
+             * @description Whether this vault can use the Combat Zone
+             * @default true
+             */
+            combat_zone_enabled: boolean;
+            /**
              * Id
              * Format: uuid4
              */
@@ -11337,6 +11383,12 @@ export interface components {
              * @default false
              */
             incidents_disabled: boolean;
+            /**
+             * Combat Zone Enabled
+             * @description Whether this vault can use the Combat Zone
+             * @default true
+             */
+            combat_zone_enabled: boolean;
         };
         /**
          * VaultMapResponse
@@ -11514,6 +11566,12 @@ export interface components {
              */
             incidents_disabled: boolean;
             /**
+             * Combat Zone Enabled
+             * @description Whether this vault can use the Combat Zone
+             * @default true
+             */
+            combat_zone_enabled: boolean;
+            /**
              * Id
              * Format: uuid4
              */
@@ -11597,6 +11655,12 @@ export interface components {
              * @default false
              */
             incidents_disabled: boolean;
+            /**
+             * Combat Zone Enabled
+             * @description Whether this vault can use the Combat Zone
+             * @default true
+             */
+            combat_zone_enabled: boolean;
             /**
              * Id
              * Format: uuid4
@@ -11689,6 +11753,12 @@ export interface components {
              * @default false
              */
             incidents_disabled: boolean;
+            /**
+             * Combat Zone Enabled
+             * @description Whether this vault can use the Combat Zone
+             * @default true
+             */
+            combat_zone_enabled: boolean;
             /**
              * Id
              * Format: uuid4
@@ -11783,6 +11853,11 @@ export interface components {
              * @description Suppresses incident spawns and processing
              */
             incidents_disabled?: boolean | null;
+            /**
+             * Combat Zone Enabled
+             * @description Whether this vault can use the Combat Zone
+             */
+            combat_zone_enabled?: boolean | null;
         };
         /**
          * WastelandLocationWithDwellers
@@ -17011,6 +17086,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CombatZoneMatchRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_vault_enabled_api_v1_combat_zone_admin_vault__vault_id__enabled_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CombatZoneVaultToggleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CombatZoneVaultToggleRead"];
                 };
             };
             /** @description Validation Error */

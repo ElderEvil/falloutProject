@@ -140,9 +140,13 @@ async def test_dweller_admin_bio_flag(
     assert "..." in response.text
 
 
-def test_vault_admin_exposes_incidents_disabled_column_and_filter() -> None:
+def test_vault_admin_exposes_playground_and_combat_zone_switches() -> None:
     assert Vault.incidents_disabled in VaultAdmin.column_list
-    assert {filter_.column for filter_ in VaultAdmin.column_filters} == {Vault.incidents_disabled}
+    assert Vault.combat_zone_enabled in VaultAdmin.column_list
+    assert {filter_.column for filter_ in VaultAdmin.column_filters} == {
+        Vault.incidents_disabled,
+        Vault.combat_zone_enabled,
+    }
 
 
 def test_vault_admin_sorting_covers_scalar_columns() -> None:

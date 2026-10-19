@@ -63,9 +63,11 @@ class CombatZoneService:
     # -- Guards -------------------------------------------------------------------
 
     @staticmethod
-    def _ensure_enabled() -> None:
+    def _ensure_enabled(vault: Vault | None = None) -> None:
         if not game_config.combat_zone.enabled:
             raise FeatureDisabledException("The Combat Zone is currently offline.")
+        if vault is not None and not vault.combat_zone_enabled:
+            raise FeatureDisabledException("The Combat Zone is disabled for this vault.")
 
     @staticmethod
     def _assert_active_vault(vault: Vault | None) -> Vault:
@@ -82,7 +84,10 @@ class CombatZoneService:
     # -- Reads --------------------------------------------------------------------
 
     async def get_party(self, db_session: AsyncSession, vault_id: UUID4) -> CombatZonePartyRead | None:
-        self._ensure_enabled()
+        vault = await vault_crud.get_or_none(db_session, vault_id)
+        if vault is None:
+            raise NotFoundException("Vault not found.")
+        self._ensure_enabled(vault)
         party = await combat_zone_crud.get_party_by_vault(db_session, vault_id)
         if party is None:
             return None
@@ -222,6 +227,7 @@ class CombatZoneService:
 
         # Last lock in the send path so it matches the tick's party -> vault order.
         vault = self._assert_active_vault(await vault_crud.get_for_update(db_session, vault_id))
+        self._ensure_enabled(vault)
         fee = game_config.combat_zone.entry_fee_caps
         if vault.bottle_caps < fee:
             raise ValidationException(f"Sending a party requires {fee} bottle caps.")
@@ -252,7 +258,10 @@ class CombatZoneService:
         return await self._party_read(db_session, party)
 
     async def recall_party(self, db_session: AsyncSession, vault_id: UUID4) -> CombatZonePartyRead:
-        self._ensure_enabled()
+        vault = await vault_crud.get_or_none(db_session, vault_id)
+        if vault is None:
+            raise NotFoundException("Vault not found.")
+        self._ensure_enabled(vault)
         now = _now()
         party = self._assert_party(
             await combat_zone_crud.get_party_by_vault_for_update(db_session, vault_id),
@@ -286,7 +295,10 @@ class CombatZoneService:
     async def set_stance(
         self, db_session: AsyncSession, vault_id: UUID4, stance: CombatZoneStance
     ) -> CombatZonePartyRead:
-        self._ensure_enabled()
+        vault = await vault_crud.get_or_none(db_session, vault_id)
+        if vault is None:
+            raise NotFoundException("Vault not found.")
+        self._ensure_enabled(vault)
         party = self._assert_party(
             await combat_zone_crud.get_party_by_vault_for_update(db_session, vault_id),
             statuses=(CombatZonePartyStatus.QUEUED, CombatZonePartyStatus.IN_MATCH),
@@ -304,6 +316,10 @@ class CombatZoneService:
             if not acquired:
                 raise ResourceConflictException("The Combat Zone is busy; retry in a moment.")
 
+            attacker_vault = await vault_crud.get_or_none(db_session, vault_id)
+            if attacker_vault is None:
+                raise NotFoundException("Vault not found.")
+            self._ensure_enabled(attacker_vault)
             attacker = self._assert_party(
                 await combat_zone_crud.get_party_by_vault_for_update(db_session, vault_id),
                 statuses=(CombatZonePartyStatus.QUEUED,),
@@ -314,6 +330,10 @@ class CombatZoneService:
             )
             if target.vault_id == attacker.vault_id:
                 raise ValidationException("A vault cannot challenge its own party.")
+            target_vault = await vault_crud.get_or_none(db_session, target.vault_id)
+            if target_vault is None:
+                raise NotFoundException("Vault not found.")
+            self._ensure_enabled(target_vault)
 
             match = await combat_zone_engine.create_match(db_session, attacker, target, _now())
             if match is None:
@@ -322,6 +342,19 @@ class CombatZoneService:
             match_id = match.id
         request_combat_zone_tick()
         return await self.get_match(db_session, match_id)
+
+    # -- Admin --------------------------------------------------------------------
+
+    async def set_vault_enabled(self, db_session: AsyncSession, vault_id: UUID4, enabled: bool) -> bool:
+        """Turn the Zone on/off for one vault; the global flag remains the master switch."""
+        vault = await vault_crud.get_for_update(db_session, vault_id)
+        if vault is None or vault.is_deleted:
+            raise NotFoundException("Vault not found.")
+        vault.combat_zone_enabled = enabled
+        db_session.add(vault)
+        await db_session.commit()
+        await db_session.refresh(vault)
+        return vault.combat_zone_enabled
 
     # -- Tick ---------------------------------------------------------------------
 

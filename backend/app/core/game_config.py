@@ -1251,7 +1251,7 @@ class CombatZoneConfig(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="COMBAT_ZONE_")
 
-    enabled: bool = Field(default=False, description="Gate every Combat Zone endpoint and tick actor")
+    enabled: bool = Field(default=True, description="Global Combat Zone master switch")
     tick_seconds: int = Field(default=2, ge=1, description="Match actor cadence; one micro-round per tick")
     travel_seconds: int = Field(default=60, ge=0, description="Outbound and inbound travel time")
     entry_fee_caps: int = Field(default=100, ge=0, description="Fixed caps escrowed by each sent party")
@@ -1260,6 +1260,9 @@ class CombatZoneConfig(BaseSettings):
     )
     retreat_forfeit_seconds: int = Field(default=6, ge=1, description="RETREAT stands this long before forfeiting")
     match_max_seconds: int = Field(default=120, ge=1, description="Hard cap; higher HP wins, tie is a draw")
+    return_health_pct: int = Field(
+        default=25, ge=1, le=100, description="Both contenders return at least this share of max HP"
+    )
     auto_match_power_tolerance: float = Field(
         default=0.20, ge=0, le=1, description="Relative combat-power band auto-pairing accepts"
     )

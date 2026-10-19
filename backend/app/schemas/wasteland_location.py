@@ -149,6 +149,7 @@ class CombatZoneMarkerRead(SQLModel):
     coord_x: float
     coord_y: float
     enabled: bool
+    global_enabled: bool
 
 
 class VaultMapResponse(SQLModel):

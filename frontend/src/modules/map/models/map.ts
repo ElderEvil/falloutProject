@@ -9,6 +9,7 @@ export type VaultMapResponse = components['schemas']['VaultMapResponse']
 export type DwellerRef = components['schemas']['DwellerRef']
 export type PlaceGroup = components['schemas']['PlaceGroupRead']
 export type ExpeditionSiteMarkerRead = components['schemas']['ExpeditionSiteMarkerRead']
+export type CombatZoneMarkerRead = components['schemas']['CombatZoneMarkerRead']
 export type WorldSlotRead = components['schemas']['WorldSlotRead']
 export type WorldSnapshotRead = components['schemas']['WorldSnapshotRead']
 
@@ -35,3 +36,4 @@ export type MarkerClickPayload =
   | { kind: 'location'; data: WastelandLocationWithDwellers }
   | { kind: 'vault'; data: VaultMarkerRead }
   | { kind: 'site'; data: ExpeditionSiteMarkerRead }
+  | { kind: 'combat_zone'; data: CombatZoneMarkerRead }

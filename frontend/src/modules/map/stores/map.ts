@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { useIntervalFn, useLocalStorage } from '@vueuse/core'
 import type {
   DiscoveryRouteRead,
+  CombatZoneMarkerRead,
   ExpeditionSiteMarkerRead,
   PlaceGroup,
   PlayerVaultMarkerRead,
@@ -25,6 +26,7 @@ export const useMapStore = defineStore('map', () => {
   const playerVaults = ref<PlayerVaultMarkerRead[]>([])
   const discoveryRoutes = ref<DiscoveryRouteRead[]>([])
   const expeditionSites = ref<ExpeditionSiteMarkerRead[]>([])
+  const combatZone = ref<CombatZoneMarkerRead | null>(null)
   const placeGroups = ref<PlaceGroup[]>([])
   // Backend-owned world snapshot (terrain + slots). Fetched once per map load:
   // the snapshot is immutable per (world_id, generator_version), so polling the
@@ -34,16 +36,12 @@ export const useMapStore = defineStore('map', () => {
   const snapshotError = ref<string | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
-  const viewedLocationKeys = useLocalStorage<Set<string>>(
-    VIEWED_LOCATIONS_STORAGE_KEY,
-    new Set(),
-    {
-      serializer: {
-        read: (raw) => new Set<string>(JSON.parse(raw) as string[]),
-        write: (value) => JSON.stringify([...value]),
-      },
-    }
-  )
+  const viewedLocationKeys = useLocalStorage<Set<string>>(VIEWED_LOCATIONS_STORAGE_KEY, new Set(), {
+    serializer: {
+      read: (raw) => new Set<string>(JSON.parse(raw) as string[]),
+      write: (value) => JSON.stringify([...value]),
+    },
+  })
 
   const viewedKey = (vaultId: string, locationId: string) => `${vaultId}:${locationId}`
 
@@ -80,7 +78,9 @@ export const useMapStore = defineStore('map', () => {
 
   // Getters
   const hasUnseenDiscoveries = computed(() => locations.value.some(isUnseenDiscovery))
-  const placeGroupByKey = computed(() => new Map(placeGroups.value.map((group) => [group.key, group])))
+  const placeGroupByKey = computed(
+    () => new Map(placeGroups.value.map((group) => [group.key, group]))
+  )
 
   function isUnseenDiscovery(loc: WastelandLocationWithDwellers): boolean {
     return (
@@ -111,6 +111,7 @@ export const useMapStore = defineStore('map', () => {
     playerVaults.value = data.player_vaults ?? []
     discoveryRoutes.value = data.discovery_routes ?? []
     expeditionSites.value = data.expedition_sites ?? []
+    combatZone.value = data.combat_zone ?? null
     placeGroups.value = data.place_groups ?? []
   }
 
@@ -194,7 +195,8 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
-  async function refreshMap(vaultId: string, token?: string): Promise<void> {    const effectiveToken = token ?? _pollToken.value
+  async function refreshMap(vaultId: string, token?: string): Promise<void> {
+    const effectiveToken = token ?? _pollToken.value
     if (!effectiveToken) return
     const gen = _pollGeneration
     try {
@@ -214,6 +216,7 @@ export const useMapStore = defineStore('map', () => {
     playerVaults,
     discoveryRoutes,
     expeditionSites,
+    combatZone,
     placeGroups,
     placeGroupByKey,
     isLoading,

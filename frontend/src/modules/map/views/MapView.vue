@@ -29,10 +29,12 @@ import {
 } from '@/core/components/ui/select'
 import WorldMap from '../components/WorldMap.vue'
 import MarkerDetailModal from '../components/MarkerDetailModal.vue'
+import CombatZonePanel from '@/modules/combat-zone/components/CombatZonePanel.vue'
 import VaultInfoModal from '../components/VaultInfoModal.vue'
 import DwellerMarkerPopover from '../components/DwellerMarkerPopover.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import type {
+  CombatZoneMarkerRead,
   ExpeditionSiteMarkerRead,
   ExplorerTrack,
   WastelandLocationWithDwellers,
@@ -98,6 +100,7 @@ const siteTypeFilterSelect = computed<AcceptableValue>({
 
 // Modal state
 const showModal = ref(false)
+const showCombatZone = ref(false)
 // Single selection identity; selected objects derive from store state so polling
 // refreshes them automatically instead of manual re-selection after each refresh.
 const selectedMarkerId = ref<string | null>(null)
@@ -133,6 +136,7 @@ function onDwellerClick(payload: { track: ExplorerTrack; x: number; y: number })
   explorerPos.value = { x: payload.x, y: payload.y }
   selectedMarkerId.value = null
   showModal.value = false
+  showCombatZone.value = false
 }
 
 function openExplorerDetails() {
@@ -377,8 +381,10 @@ function handleMarkerClick(
     | { kind: 'location'; data: WastelandLocationWithDwellers }
     | { kind: 'vault'; data: VaultMarkerRead }
     | { kind: 'site'; data: ExpeditionSiteMarkerRead }
+    | { kind: 'combat_zone'; data: CombatZoneMarkerRead }
 ) {
   closeExplorerPopover()
+  if (payload.kind !== 'combat_zone') showCombatZone.value = false
   if (payload.kind === 'location') {
     selectedMarkerId.value = `loc-${payload.data.id}`
     mapStore.markLocationViewed(payload.data.vault_id, payload.data.id)
@@ -393,6 +399,12 @@ function handleMarkerClick(
   } else if (payload.kind === 'site') {
     selectedMarkerId.value = `site-${payload.data.id}`
     clearPlaceQuery()
+  } else if (payload.kind === 'combat_zone') {
+    selectedMarkerId.value = 'combat-zone'
+    clearPlaceQuery()
+    showModal.value = false
+    showCombatZone.value = true
+    return
   } else {
     selectedMarkerId.value = `vault-${payload.data.name}`
     clearPlaceQuery()
@@ -489,25 +501,25 @@ const hasNoData = computed(
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <PageContentRail>
-            <PageHeader
-              title="World Map"
-              icon="mdi:map"
-              subtitle="Track discoveries, expeditions & the wider wasteland."
-            >
-              <template #help>
-                <section>
-                  <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
-                    <Icon icon="mdi:map" class="size-4 shrink-0" />
-                    Follow parties and sites
-                  </h2>
-                  <p>
-                    Parties out counts groups travelling to a chosen expedition site. Ready to
-                    clear counts discovered expedition sites with their conditions met that no
-                    party is visiting — toggle the filter to focus them.
-                  </p>
-                </section>
-              </template>
-              <template #actions>
+          <PageHeader
+            title="World Map"
+            icon="mdi:map"
+            subtitle="Track discoveries, expeditions & the wider wasteland."
+          >
+            <template #help>
+              <section>
+                <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                  <Icon icon="mdi:map" class="size-4 shrink-0" />
+                  Follow parties and sites
+                </h2>
+                <p>
+                  Parties out counts groups travelling to a chosen expedition site. Ready to clear
+                  counts discovered expedition sites with their conditions met that no party is
+                  visiting — toggle the filter to focus them.
+                </p>
+              </section>
+            </template>
+            <template #actions>
               <PageHeaderMetric
                 icon="mdi:account-group"
                 :value="partiesOut"
@@ -564,6 +576,7 @@ const hasNoData = computed(
               :player-vaults="mapStore.playerVaults"
               :discovery-routes="mapStore.discoveryRoutes"
               :expedition-sites="mapStore.expeditionSites"
+              :combat-zone="mapStore.combatZone"
               :explorer-tracks="explorerTracks"
               :group-colors="groupColors"
               :fog-disabled="fogDisabled"
@@ -659,6 +672,12 @@ const hasNoData = computed(
           />
 
           <!-- Own-vault summary: same fields as the vault-selection card -->
+          <CombatZonePanel
+            v-model:open="showCombatZone"
+            :vault-id="vaultId"
+            :marker="mapStore.combatZone"
+          />
+
           <VaultInfoModal
             v-model:open="showVaultInfo"
             :vault="vaultInfoVault"

@@ -165,6 +165,36 @@ async def test_read_room(async_client: AsyncClient, superuser_token_headers: dic
 
 @pytest.mark.smoke
 @pytest.mark.asyncio
+async def test_apply_room_style_endpoint(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+) -> None:
+    """Applying the Party theme updates the room's style and sprite URL."""
+    from app.schemas.room import RoomCreate
+    from app.tests.factory.rooms import create_fake_room
+
+    room = await crud.room.create(
+        async_session,
+        obj_in=RoomCreate(
+            **(create_fake_room() | {"name": "Diner", "category": RoomTypeEnum.PRODUCTION}),
+            vault_id=vault.id,
+        ),
+    )
+
+    response = await async_client.post(
+        f"/rooms/style/{room.id}",
+        json={"style": "party"},
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["room_style"] == "party"
+    assert response.json()["image_url"] == "/static/room_images/FOS Diner Party.png"
+
+
+@pytest.mark.asyncio
 @pytest.mark.skip(
     reason="Flaky: fails with 400 only when run in the full suite (passes in isolation and "
     "file-level runs). Likely shared-state pollution from earlier tests; disable until root-caused."

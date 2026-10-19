@@ -117,7 +117,10 @@ def fix_room_image_urls() -> None:
             updated_room_count = 0
             for room in rooms:
                 expected = get_room_image_url(
-                    room.name, tier=room.tier, size=room.size if room.size is not None else room.size_min
+                    room.name,
+                    tier=room.tier,
+                    size=room.size if room.size is not None else room.size_min,
+                    style=getattr(room, "room_style", "default"),
                 )
                 if expected != room.image_url:
                     room.image_url = expected

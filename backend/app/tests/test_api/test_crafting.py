@@ -224,3 +224,28 @@ async def test_start_without_materials_returns_400(
     )
 
     assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_cancel_order_returns_the_cancelled_order(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    vault = await _superuser_vault(async_session)
+    await _seed_crafting(async_session, vault.id)
+    created = await async_client.post(
+        f"/crafting/vault/{vault.id}/orders",
+        json={"item_name": COMMON_WEAPON, "item_type": "weapon"},
+        headers=superuser_token_headers,
+    )
+    order_id = created.json()["id"]
+
+    response = await async_client.post(
+        f"/crafting/vault/{vault.id}/orders/{order_id}/cancel",
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "cancelled"
+    assert response.json()["cancelled_at"] is not None

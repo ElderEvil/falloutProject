@@ -356,9 +356,22 @@ describe('ExplorationDetailView', () => {
 
       await flushPromises()
 
-      expect(wrapper.text()).toContain('Recall Dweller')
+      expect(wrapper.find('.explorer-navigation [aria-label="Recall dweller"]').exists()).toBe(true)
+      expect(wrapper.text()).not.toContain('Recall Dweller')
       // progress < 100% so Complete button should not be visible
       expect(wrapper.text()).not.toContain('Complete Exploration')
+    })
+
+    it('places explorer equipment directly under the dweller card', async () => {
+      const wrapper = mount(ExplorationDetailView, {
+        global: { plugins: [router] },
+      })
+
+      await flushPromises()
+
+      const summary = wrapper.find('.explorer-summary-card').element
+      const equipment = wrapper.find('.explorer-equipment-slots').element
+      expect(summary.nextElementSibling).toBe(equipment)
     })
 
     it('disables the Expedition site CTA when no sites are available', async () => {
@@ -373,10 +386,41 @@ describe('ExplorationDetailView', () => {
 
       await flushPromises()
 
-      const siteButton = wrapper
-        .findAll('button')
-        .find((b) => b.text().includes('Expedition site'))
+      const siteButton = wrapper.findAll('button').find((b) => b.text().includes('Expedition site'))
       expect((siteButton?.element as HTMLButtonElement).disabled).toBe(true)
+    })
+
+    it('starts the Expedition site CTA dark until availability resolves', async () => {
+      const availableSite = {
+        id: 'site-1',
+        name: 'Test Site',
+        flavor: 'A test site.',
+        min_dweller_level: 1,
+        room_total: 3,
+      }
+      let resolveSites!: (sites: (typeof availableSite)[]) => void
+      vi.spyOn(siteStore, 'fetchAvailableSites').mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSites = resolve
+          })
+      )
+
+      const wrapper = mount(ExplorationDetailView, {
+        global: { plugins: [router] },
+      })
+      await flushPromises()
+
+      const siteButton = () =>
+        wrapper.findAll('button').find((button) => button.text().includes('Expedition site'))
+      expect(siteButton()?.classes()).toContain('bg-secondary')
+      expect(siteButton()?.classes()).not.toContain('bg-primary')
+
+      resolveSites([availableSite])
+      await flushPromises()
+
+      expect(siteButton()?.classes()).toContain('bg-primary')
+      wrapper.unmount()
     })
 
     it('keeps the Expedition site CTA enabled when sites are available', async () => {
@@ -388,9 +432,7 @@ describe('ExplorationDetailView', () => {
 
       await flushPromises()
 
-      const siteButton = wrapper
-        .findAll('button')
-        .find((b) => b.text().includes('Expedition site'))
+      const siteButton = wrapper.findAll('button').find((b) => b.text().includes('Expedition site'))
       expect(siteButton?.attributes('disabled')).toBeUndefined()
     })
   })
@@ -566,9 +608,7 @@ describe('ExplorationDetailView', () => {
       resolveFirstSites([])
       await flushPromises()
 
-      const siteButton = wrapper
-        .findAll('button')
-        .find((b) => b.text().includes('Expedition site'))
+      const siteButton = wrapper.findAll('button').find((b) => b.text().includes('Expedition site'))
       expect(siteButton?.attributes('disabled')).toBeUndefined()
       expect((wrapper.vm as any).siteOptionsLoaded).toBe(false)
       wrapper.unmount()

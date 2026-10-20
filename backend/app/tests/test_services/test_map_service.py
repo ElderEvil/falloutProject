@@ -628,12 +628,18 @@ async def _legacy_journey(async_session: AsyncSession, vault: Vault) -> None:
 @pytest.mark.asyncio
 async def test_get_vault_map_expedition_sites_ready(async_session: AsyncSession, vault: Vault) -> None:
     """No runs yet: every site is ready with zeroed cooldown and scaled coords."""
-    from app.services.exploration import data_loader
+    from app.services import catalog_service as data_loader
 
     await _legacy_journey(async_session, vault)
     map_data = await map_service.get_vault_map(async_session, vault)
     by_id = {site.id: site for site in map_data.expedition_sites}
-    assert set(by_id) == {"red_rocket", "super_duper_mart"}
+    assert set(by_id) == {
+        "red_rocket",
+        "super_duper_mart",
+        "abandoned_campsite",
+        "roadside_supply_truck",
+        "forgotten_shack",
+    }
     for site in data_loader.load_expedition_sites():
         marker = by_id[site.id]
         assert marker.block_reason is None
@@ -761,7 +767,7 @@ async def test_get_vault_map_spatial_journey_exposes_only_offered_sites(
     exploration = await _spatial_journey_near_red_rocket(async_session, vault, dweller)
 
     map_data = await map_service.get_vault_map(async_session, vault)
-    assert {site.id for site in map_data.expedition_sites} == {"red_rocket"}
+    assert {site.id for site in map_data.expedition_sites} == {"red_rocket", "roadside_supply_truck"}
 
     run = await crud.expedition_run.create_run(
         async_session, exploration_id=exploration.id, vault_id=vault.id, site_id="red_rocket"
@@ -772,7 +778,7 @@ async def test_get_vault_map_spatial_journey_exposes_only_offered_sites(
     await async_session.commit()
 
     map_data = await map_service.get_vault_map(async_session, vault)
-    assert map_data.expedition_sites == []
+    assert {site.id for site in map_data.expedition_sites} == {"roadside_supply_truck"}
 
 
 @pytest.mark.asyncio

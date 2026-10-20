@@ -15,7 +15,12 @@ import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import { Icon } from '@iconify/vue'
 import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import {
   Select,
   SelectContent,
@@ -27,7 +32,11 @@ import { QuestCard, PartySelectionModal } from '../components'
 import { Badge } from '@/core/components/ui/badge'
 import QuestRewardsModal from '../components/QuestRewardsModal.vue'
 import type { QuestAvailableSortBy, VaultQuest } from '../models/quest'
-import { compareQuestsByAvailableSort, isQuestReturning } from '../models/quest'
+import {
+  compareQuestsByAvailableSort,
+  isQuestReturning,
+  MAX_ACTIVE_TIMED_QUESTS,
+} from '../models/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 
 const route = useRoute()
@@ -118,6 +127,14 @@ const activeQuestsList = computed(() => [
   })),
 ])
 
+const selectAvailableIfEmpty = () => {
+  if (activeTab.value === 'active' && activeQuestsList.value.length === 0) {
+    activeTab.value = 'available'
+  }
+}
+
+watch(activeQuestsList, selectAvailableIfEmpty)
+
 const refreshActiveQuests = async () => {
   if (!vaultId.value || travellingOrActiveQuests.value.length === 0) return
   await questStore.fetchVaultQuests(vaultId.value, { silent: true })
@@ -182,6 +199,11 @@ const handleAssignParty = async (questId: string) => {
 // Handle party assignment + quest start (combined in one click)
 const handleAssignAndStart = async (dwellerIds: string[]) => {
   if (!vaultId.value || !selectedQuest.value) {
+    return
+  }
+
+  if (questStore.timedQuestLimitReached) {
+    toast.error('All timed quest slots are occupied. Wait for a party to return.')
     return
   }
 
@@ -265,6 +287,23 @@ const confirmClaimRewards = async () => {
   }
 }
 
+async function collectAllQuestRewards(): Promise<void> {
+  const id = vaultId.value
+  if (!id || isClaiming.value || readyToClaimQuests.value.length === 0) return
+  const questIds = readyToClaimQuests.value.map((quest) => quest.id)
+  isClaiming.value = true
+  try {
+    // Settle one claim at a time: rewards share the same vault balance.
+    // The store announces each success/error; a failed claim leaves the rest collectable.
+    for (const questId of questIds) {
+      if (vaultId.value !== id) break
+      await questStore.claimQuestRewards(id, questId).catch(() => null)
+    }
+  } finally {
+    isClaiming.value = false
+  }
+}
+
 // Fetch quests on mount
 onMounted(async () => {
   const token = authStore.token || localStorage.getItem('token')?.replace(/^"|"$/g, '')
@@ -279,6 +318,7 @@ onMounted(async () => {
     await questStore.fetchVaultQuests(vaultId.value)
     await loadPartyMembers()
   }
+  selectAvailableIfEmpty()
 })
 </script>
 
@@ -321,8 +361,8 @@ onMounted(async () => {
                     Run a quest
                   </h2>
                   <p>
-                    Pick a quest on the Available tab and assign a party. Travelling parties stay
-                    on the Active tab until they return.
+                    Pick a quest on the Available tab and assign a party. Travelling parties stay on
+                    the Active tab until they return.
                   </p>
                 </section>
                 <section>
@@ -347,7 +387,10 @@ onMounted(async () => {
                   icon="mdi:treasure-chest"
                   :value="readyToClaimQuests.length"
                   label="Rewards ready"
+                  hover-text="Collect rewards"
                   tooltip="Finished quests with rewards ready to claim"
+                  :disabled="isClaiming || readyToClaimQuests.length === 0"
+                  @click="collectAllQuestRewards"
                 />
               </template>
             </PageHeader>
@@ -360,7 +403,12 @@ onMounted(async () => {
                       <Tooltip>
                         <TooltipTrigger as-child>
                           <TabsTrigger :value="tab.key">
-                            <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
+                            <Icon
+                              v-if="tab.icon"
+                              :icon="tab.icon"
+                              class="mr-2 inline"
+                              :ariaHidden="true"
+                            />
                             {{ tab.label }}
                             <span
                               v-if="tab.key === 'active' && readyToClaimQuests.length > 0"
@@ -387,6 +435,12 @@ onMounted(async () => {
                 </TabsList>
 
                 <div v-if="activeTab === 'available'" class="filter-row">
+                  <!-- Raw checkbox: no Checkbox/Switch primitive is vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
+                  <label class="toggle-label">
+                    <input v-model="showAllQuests" type="checkbox" class="toggle-input" />
+                    <span class="toggle-text">Show All</span>
+                  </label>
+                  <span v-if="showAllQuests" class="filter-hint">(Showing All)</span>
                   <Select :model-value="availableSort" @update:model-value="onAvailableSortChange">
                     <SelectTrigger
                       size="sm"
@@ -405,14 +459,17 @@ onMounted(async () => {
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                  <span v-if="showAllQuests" class="filter-hint">(Showing All)</span>
-                  <!-- Raw checkbox: no Checkbox/Switch primitive is vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
-                  <label class="toggle-label">
-                    <input v-model="showAllQuests" type="checkbox" class="toggle-input" />
-                    <span class="toggle-text">Show All</span>
-                  </label>
                 </div>
               </div>
+              <p
+                v-if="questStore.timedQuestLimitReached"
+                class="mt-4 text-sm text-theme-accent"
+                role="status"
+              >
+                {{ questStore.activeTimedQuestCount }}/{{ MAX_ACTIVE_TIMED_QUESTS }} timed quest
+                slots occupied. Wait for a party to return before starting another. Rewards ready to
+                claim do not use slots.
+              </p>
               <!-- Active Quests -->
               <div v-if="activeTab === 'active'" class="tab-content">
                 <div v-if="activeQuestsList.length > 0" class="quest-section">

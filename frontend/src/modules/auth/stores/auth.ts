@@ -1,4 +1,5 @@
 import { computed } from 'vue'
+import { useStorageStore } from '@/modules/storage/stores/storage'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import { handleStoreError } from '@/core/utils/errorHandler'
@@ -9,6 +10,7 @@ import {
 import { authService } from '../services/authService'
 import type { User } from '../types/user'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useProfileStore } from '@/modules/profile/stores/profile'
 
 export const useAuthStore = defineStore('auth', () => {
   // State (using VueUse for reactive localStorage)
@@ -41,12 +43,19 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!token.value)
   const isSuperuser = computed(() => user.value?.is_superuser ?? false)
 
+  // Invalidate account-owned state before replacing credentials or user identity.
+  function clearSession(): void {
+    useVaultStore().clearSession()
+    useStorageStore().reset()
+    useProfileStore().clearProfile()
+  }
+
   // Actions
   async function login(username: string, password: string): Promise<boolean> {
     try {
       const response = await authService.login({ username, password })
 
-      useVaultStore().clearSession()
+      clearSession()
       user.value = null
       token.value = response.data.access_token
       refreshToken.value = response.data.refresh_token
@@ -67,7 +76,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await authService.register({ username, email, password })
 
-      useVaultStore().clearSession()
+      clearSession()
       user.value = null
       token.value = response.data.access_token
       refreshToken.value = response.data.refresh_token
@@ -98,7 +107,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await authService.getCurrentUser()
       if (user.value?.id && user.value.id !== response.data.id) {
-        useVaultStore().clearSession()
+        clearSession()
       }
       user.value = response.data
     } catch (error) {
@@ -143,7 +152,7 @@ export const useAuthStore = defineStore('auth', () => {
       handleStoreError(error, 'Logout failed')
     } finally {
       // Clear all stored data (VueUse handles localStorage automatically)
-      useVaultStore().clearSession()
+      clearSession()
       token.value = null
       refreshToken.value = null
       user.value = null
@@ -152,7 +161,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Initialize: fetch user if we have a token but no user data
   if (token.value && !user.value) {
-    useVaultStore().clearSession()
+    clearSession()
     void fetchUser()
   }
 

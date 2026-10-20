@@ -3,6 +3,7 @@ import {
   AMBIENCE_MANIFEST,
   MUSIC_MANIFEST,
   SOUND_MANIFEST,
+  getAmbienceSrc,
   type AmbienceKey,
   type MusicKey,
   type SoundKey,
@@ -16,20 +17,27 @@ export type AudioBus = 'ui' | 'sfx' | 'music' | 'ambience'
 
 const STORAGE_KEY = 'audioSettings'
 
+/** Overlap between consecutive playlist tracks, so ambient music never gaps. */
+const MUSIC_CROSSFADE_MS = 1500
+
 const AUDIO_BUSES: readonly AudioBus[] = ['ui', 'sfx', 'music', 'ambience']
 
 export interface AudioSettings {
   muted: boolean
+  /** Dedicated switch for the looping incident siren; independent of master mute. */
+  alarmEnabled: boolean
   volumes: Record<AudioBus, number>
 }
 
 export interface SoundSettingsInput {
   muted?: boolean
+  alarmEnabled?: boolean
   volumes?: Partial<Record<AudioBus, number>>
 }
 
 const DEFAULT_SETTINGS: AudioSettings = {
   muted: true,
+  alarmEnabled: true,
   volumes: { ui: 0.6, sfx: 0.8, music: 0.4, ambience: 0.4 },
 }
 
@@ -46,6 +54,9 @@ export function parseSoundSettings(raw: unknown): SoundSettingsInput | null {
   const input: SoundSettingsInput = {}
   if (typeof record.muted === 'boolean') {
     input.muted = record.muted
+  }
+  if (typeof record.alarmEnabled === 'boolean') {
+    input.alarmEnabled = record.alarmEnabled
   }
   const volumes = record.volumes
   if (
@@ -73,6 +84,7 @@ function loadSettings(): AudioSettings {
     if (!cached) return { ...DEFAULT_SETTINGS }
     return {
       muted: cached.muted ?? DEFAULT_SETTINGS.muted,
+      alarmEnabled: cached.alarmEnabled ?? DEFAULT_SETTINGS.alarmEnabled,
       volumes: { ...DEFAULT_SETTINGS.volumes, ...cached.volumes },
     }
   } catch {
@@ -94,8 +106,9 @@ class AudioManager {
   private sfxBuffers = new Map<SoundKey, HTMLAudioElement>()
   private musicPreview: HTMLAudioElement | null = null
   private ambiencePreview: HTMLAudioElement | null = null
-  private currentLoop: { audio: HTMLAudioElement; key: MusicKey } | null = null
+  private currentLoop: { audio: HTMLAudioElement; key: MusicKey; index: number } | null = null
   private pendingLoop: MusicKey | null = null
+  private outgoingLoop: HTMLAudioElement | null = null
   private ambienceAudio: HTMLAudioElement | null = null
   private ambienceKey: AmbienceKey | null = null
   private ambienceWanted: AmbienceKey | null = null
@@ -135,6 +148,10 @@ class AudioManager {
     return this.settings.muted
   }
 
+  get alarmEnabled(): boolean {
+    return this.settings.alarmEnabled
+  }
+
   get volumes(): Readonly<Record<AudioBus, number>> {
     return this.settings.volumes
   }
@@ -146,6 +163,14 @@ class AudioManager {
 
   setMuted(muted: boolean): void {
     this.settings.muted = muted
+    this.reconcilePlayback()
+    this.persist()
+    this.notifyChange()
+  }
+
+  /** Toggle the incident siren without touching the master mute or other buses. */
+  setAlarmEnabled(enabled: boolean): void {
+    this.settings.alarmEnabled = enabled
     this.reconcilePlayback()
     this.persist()
     this.notifyChange()
@@ -177,6 +202,9 @@ class AudioManager {
     if (!parsed) return
     if (parsed.muted !== undefined) {
       this.settings.muted = parsed.muted
+    }
+    if (parsed.alarmEnabled !== undefined) {
+      this.settings.alarmEnabled = parsed.alarmEnabled
     }
     if (parsed.volumes) {
       for (const bus of AUDIO_BUSES) {
@@ -214,7 +242,7 @@ class AudioManager {
   /** One-shot sample of the music bus at its current volume (volume sliders). */
   previewMusic(): void {
     if (this.settings.muted || !this.unlocked) return
-    const src = MUSIC_MANIFEST.vaultAmbient
+    const src = MUSIC_MANIFEST.vaultAmbient[0]
     if (!src) return
 
     if (!this.musicPreview) {
@@ -241,7 +269,10 @@ class AudioManager {
     this.ambiencePreview.play().catch(() => {})
   }
 
-  /** Start a looping music track (one loop at a time; restarts if same key). */
+  /**
+   * Start a music playlist (one playlist at a time). Requesting the key that is
+   * already playing keeps the playlist where it is instead of restarting it.
+   */
   playLoop(key: MusicKey): void {
     this.stopPreview()
     if (this.currentLoop?.key === key) return
@@ -252,28 +283,92 @@ class AudioManager {
       return
     }
 
-    const src = MUSIC_MANIFEST[key]
-    if (!src) return
-
-    const audio = new Audio(src)
-    audio.loop = true
-    audio.volume = this.playbackVolume('music')
-    audio.play().catch(() => {})
-    this.currentLoop = { audio, key }
+    this.startLoopTrack(key, 0)
   }
+
+  /**
+   * Play one playlist entry. The next entry is queued from `timeupdate` just
+   * before this one ends and crossfaded over it; when the duration is unknown
+   * the `ended` event advances instead, so rotation works either way.
+   */
+    private startLoopTrack(key: MusicKey, index: number, crossfadeFrom?: HTMLAudioElement): void {
+      const audio = this.createLoopAudio(key, index)
+      audio.volume = crossfadeFrom ? 0 : this.playbackVolume('music')
+      audio.play().catch(() => {
+        // Missing file or interrupted play — stay silent by design.
+      })
+      this.currentLoop = { audio, key, index }
+
+      if (crossfadeFrom) {
+        this.outgoingLoop = crossfadeFrom
+        this.fadeElement(audio, this.playbackVolume('music'), MUSIC_CROSSFADE_MS)
+        this.fadeElement(crossfadeFrom, 0, MUSIC_CROSSFADE_MS, () => {
+          crossfadeFrom.pause()
+          if (this.outgoingLoop === crossfadeFrom) this.outgoingLoop = null
+        })
+      }
+    }
+
+    private createLoopAudio(key: MusicKey, index: number): HTMLAudioElement {
+      const audio = new Audio(MUSIC_MANIFEST[key][index])
+      audio.loop = false
+      audio.addEventListener('timeupdate', () => this.crossfadeBeforeEnd(audio))
+      audio.addEventListener('ended', () => this.advanceLoop(audio, false))
+      return audio
+    }
+
+    /**
+     * Advance the playlist without starting audible playback, so a track that
+     * ends while ducked or muted hands over silently and restore/unmute resumes it.
+     */
+    private queueLoopTrack(key: MusicKey, index: number): void {
+      const audio = this.createLoopAudio(key, index)
+      audio.volume = 0
+      this.currentLoop = { audio, key, index }
+    }
+
+
+  /** Start the crossfade once a playing track is within its final fade window. */
+  private crossfadeBeforeEnd(audio: HTMLAudioElement): void {
+    const { duration, currentTime } = audio
+    if (!Number.isFinite(duration) || duration <= 0) return
+    if (duration - currentTime > MUSIC_CROSSFADE_MS / 1000) return
+    this.advanceLoop(audio, true)
+  }
+
+    /** Move to the next playlist entry, wrapping around after the last one. */
+    private advanceLoop(from: HTMLAudioElement, crossfade: boolean): void {
+      const loop = this.currentLoop
+      // A late event from a track that already handed over must not advance twice.
+      if (!loop || loop.audio !== from) return
+      const nextIndex = (loop.index + 1) % MUSIC_MANIFEST[loop.key].length
+      if (this.musicDucked || this.settings.muted) {
+        if (crossfade) return
+        this.queueLoopTrack(loop.key, nextIndex)
+        return
+      }
+      this.startLoopTrack(loop.key, nextIndex, crossfade ? from : undefined)
+    }
 
   stopLoop(): void {
     this.stopPreview()
     this.pendingLoop = null
     this.musicDucked = false
     this.cancelMusicRestore()
-    if (!this.currentLoop) return
-    this.currentLoop.audio.pause()
-    this.currentLoop.audio.currentTime = 0
+    this.stopLoopPlayback(this.outgoingLoop)
+    this.outgoingLoop = null
+    this.stopLoopPlayback(this.currentLoop?.audio ?? null)
     this.currentLoop = null
   }
 
-  /** Start a looping room-category ambience track (one at a time). */
+  private stopLoopPlayback(audio: HTMLAudioElement | null): void {
+    if (!audio) return
+    this.cancelFade(audio)
+    audio.pause()
+    audio.currentTime = 0
+  }
+
+  /** Start a looping room ambience track (one at a time). */
   playAmbience(key: AmbienceKey): void {
     this.stopPreview()
     this.ambienceWanted = key
@@ -285,7 +380,7 @@ class AudioManager {
       return
     }
     this.stopAmbiencePlayback()
-    const src = AMBIENCE_MANIFEST[key]
+    const src = getAmbienceSrc(key)
     if (!src) return
     const audio = new Audio(src)
     audio.loop = true
@@ -356,7 +451,7 @@ class AudioManager {
   /** Start the looping incident alarm. Stays on until stopAlarmLoop. */
   startAlarmLoop(): void {
     this.alarmWanted = true
-    if (this.settings.muted || !this.unlocked) return
+    if (this.settings.muted || !this.settings.alarmEnabled || !this.unlocked) return
     const src = SOUND_MANIFEST.alarm
     if (!src) return
     if (!this.alarmAudio) {
@@ -440,6 +535,7 @@ class AudioManager {
       this.ambienceAudio?.pause()
       return
     }
+    if (!this.settings.alarmEnabled) this.alarmAudio?.pause()
     if (this.pendingLoop && !this.musicDucked) {
       const pending = this.pendingLoop
       this.pendingLoop = null
@@ -463,6 +559,7 @@ class AudioManager {
   private notifyChange(): void {
     this.changeHandler?.({
       muted: this.settings.muted,
+      alarmEnabled: this.settings.alarmEnabled,
       volumes: { ...this.settings.volumes },
     })
   }

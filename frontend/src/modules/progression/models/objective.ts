@@ -31,6 +31,9 @@ export interface Objective {
   objective_type?: ObjectiveType
   template_key?: string | null
   target_entity?: Record<string, unknown>
+  track_key?: string | null
+  next_stage_challenge?: string | null
+  resets_at?: string | null
   sequence?: number | null
   description?: string | null
   created_at: string
@@ -51,6 +54,38 @@ export interface ObjectiveCreate {
  */
 export interface ObjectiveProgressUpdate {
   progress: number
+}
+
+const descriptions = new Map([
+  ['collect:water', 'Keep the taps running. Every drop helps the vault.'],
+  ['collect:food', 'Keep the diner stocked and your residents fed.'],
+  ['collect:power', 'Keep the lights on. Your vault runs on reliable power.'],
+  ['collect:caps', 'Caps keep the vault moving. Add a little more to the treasury.'],
+  ['collect', 'Stock up on supplies. Life underground rewards a prepared Overseer.'],
+  ['assign', 'Every resident has a part to play. Give your dwellers a job.'],
+  ['assign_correct', 'The right resident in the right room. Put your dwellers’ talents to work.'],
+  ['build', 'Make room for a better life underground.'],
+  ['train', 'Turn spare time into SPECIAL skills.'],
+  ['equip', 'The wasteland doesn’t fight fair. Give your dwellers an edge.'],
+  ['explore', 'There’s a whole wasteland beyond that door. Send a dweller out to explore.'],
+  ['expedition', 'Send a team beyond the vault door and bring them home.'],
+  ['level_up', 'Experience keeps a dweller alive. Help yours grow stronger.'],
+  ['reach', 'Build a vault worth calling home.'],
+  ['scrap', 'Nothing goes to waste down here. Salvage what you can.'],
+])
+
+export function objectiveDescription(objective: Objective): string | null {
+  if (objective.description) return objective.description
+  if (objective.objective_type === 'assign_correct' && objective.target_entity?.distinct_dwellers)
+    return 'The right resident in the right room. Put different dwellers’ talents to work.'
+  const resource = objective.target_entity?.resource_type
+  return (
+    descriptions.get(
+      `${objective.objective_type ?? ''}:${typeof resource === 'string' ? resource : ''}`
+    ) ??
+    descriptions.get(objective.objective_type ?? '') ??
+    null
+  )
 }
 
 /** A starter row kept for its progress links that no longer advances the arc. */
@@ -97,7 +132,10 @@ export function objectiveRewardDetails(reward: string) {
     }
   }
   if (prefix === 'dweller' && value) return { kind: 'dweller' as const, name: value }
-  return { kind: 'currency' as const, name: reward }
+  // Currency rewards show the caps glyph when the reward is caps (matching the
+  // navbar metric and REWARD_TYPE_META.caps); anything else keeps the gift glyph.
+  const isCaps = reward.toLowerCase().includes('caps')
+  return { kind: 'currency' as const, name: reward, icon: isCaps ? 'mdi:coins' : 'mdi:gift' }
 }
 
 /** Existing game surfaces relevant to each objective, without inventing new routes. */

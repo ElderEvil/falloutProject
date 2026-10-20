@@ -43,6 +43,8 @@ PET_PARENT = "907b110e6ae4"
 PET_REVISION = "c19031dc6b22"
 LIFECYCLE_PARENT = "5b2fc79f1d46"
 LIFECYCLE_REVISION = "a2b4c6d8e0f2"
+DEAD_DWELLER_STATE_PARENT = "d83a5c7e901f"
+DEAD_DWELLER_STATE_REVISION = "f4c2a6e8b103"
 
 #: Every dweller column that has no server default at this revision, plus the flags the
 #: assertions read. Plain literal (no interpolation) so the statement stays parameterised.
@@ -705,3 +707,28 @@ class TestDwellerLifecycleMigration:
 
         assert harness.scalar("SELECT content_provenance FROM dweller WHERE id = :id", id=curated) == "curated"
         assert harness.scalar("SELECT content_provenance FROM dweller WHERE id = :id", id=unknown) is None
+
+
+class TestDeadDwellerStateMigration:
+    """Legacy corpses display as dead and have no remaining happiness."""
+
+    def test_normalizes_dead_status_and_happiness(self, harness: MigrationHarness) -> None:
+        harness.upgrade(DEAD_DWELLER_STATE_PARENT)
+        vault_id = _seed_vault(harness, number=908)
+        dweller_id = _seed_lifecycle_dweller(
+            harness,
+            vault_id=vault_id,
+            first_name="Fallen",
+            is_dead=True,
+            is_permanently_dead=False,
+            death_cause="HEALTH",
+        )
+        harness.execute("UPDATE dweller SET status = 'IDLE', happiness = 10 WHERE id = :id", id=dweller_id)
+
+        harness.upgrade(DEAD_DWELLER_STATE_REVISION)
+
+        assert harness.fetch("SELECT status::text, happiness FROM dweller WHERE id = :id", id=dweller_id)[0] == (
+            "DEAD",
+            0,
+        )
+        harness.downgrade(DEAD_DWELLER_STATE_PARENT)

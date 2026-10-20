@@ -33,6 +33,11 @@ for (const width of [1280, 375]) {
       fullPage: true,
       animations: 'disabled',
     })
+    const random = page.getByRole('button', { name: 'Random vault number' })
+    await random.focus()
+    await random.press('Space')
+    await expect(input).toHaveValue(/^[1-9]\d{0,2}$/)
+    expect(creations).toHaveLength(0)
     await input.fill('68')
     await input.press('Enter')
     const setupHeading = page.getByRole('heading', { name: 'Choose how you start' })

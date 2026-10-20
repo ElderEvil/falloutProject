@@ -21,7 +21,7 @@ from app.models.team import ACTIVE_STATUS, COMMITTED_MEMBER_STATUSES, DISPATCHED
 from app.schemas.contamination_team import ContaminationTeamRead, HazardTeamMemberRead, HazardTeamRosterRead
 from app.services.bio_service import bio_service
 from app.services.notification_service import notification_service
-from app.utils.dweller_availability import availability_error
+from app.utils.dweller_availability import availability_error, is_incident_responder_available
 from app.utils.exceptions import (
     ContentNoChangeException,
     ResourceConflictException,
@@ -327,8 +327,9 @@ class HazardTeamService:
                 dweller
                 for dweller in dwellers
                 if dweller.id not in existing_ids
+                and dweller.room_id != incident.room_id
                 and dweller.id not in committed_ids
-                and availability_error(dweller, require_healthy=True) is None
+                and is_incident_responder_available(dweller)
             ][:room]
             if not candidates:
                 return []
@@ -380,12 +381,10 @@ class HazardTeamService:
             if origin is not None:
                 if dweller.room_id != origin.id:
                     await dweller_service.move_to_room(db_session, member.dweller_id, origin.id)
-            else:
-                # Clear the temporary posting before auto-assignment, which otherwise
-                # treats an overfilled incident room as already matching the best stat.
-                if dweller.room_id == incident.room_id:
-                    await dweller_service.update_dweller(db_session, member.dweller_id, {"room_id": None})
-                await dweller_service.auto_assign_to_best_room(db_session, member.dweller_id)
+            # No original posting (or it was demolished): restore unassigned
+            # rather than silently selecting a different job.
+            elif dweller.room_id == incident.room_id:
+                await dweller_service.update_dweller(db_session, member.dweller_id, {"room_id": None})
         except ContentNoChangeException:
             return dweller.room_id is not None
         except ResourceConflictException:
@@ -411,6 +410,10 @@ class HazardTeamService:
             closed = 0
             for member in dispatched:
                 dweller = member.dweller
+                if dweller is not None and dweller.room_id == incident.room_id and member.dweller_id in committed:
+                    # A new incident in the temporary room needs its residents.
+                    # Keep the original posting until that defense finishes.
+                    continue
                 if (
                     dweller is None
                     or dweller.vault_id != incident.vault_id

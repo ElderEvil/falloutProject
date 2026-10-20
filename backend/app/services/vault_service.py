@@ -123,6 +123,13 @@ class VaultService:
         if assigned == 0:
             self.logger.warning("No objectives found for vault %s", vault_db_obj.id)
 
+        from app.services.progression.objectives.refresh_service import ensure_current_objectives
+
+        await ensure_current_objectives(db_session, vault_db_obj.id)
+
+        if is_boosted:
+            await seeding.seed_boosted_theme_unlocks(db_session, vault_db_obj.id)
+
         # Create initial weapons, outfits, and (boosted) crafting materials for testing
         await seeding.create_initial_items(db_session, vault_db_obj.id, is_boosted)
 

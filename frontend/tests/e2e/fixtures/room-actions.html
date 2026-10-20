@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Room management fixture</title>
+  </head>
+  <body>
+    <div id="app" class="w-[200px]"></div>
+    <script type="module">
+      import '../../../src/assets/tailwind.css'
+      import { createApp, h, ref } from 'vue'
+      import { createPinia } from 'pinia'
+      import RoomActions from '../../../src/modules/rooms/components/RoomActions.vue'
+      import { useTheme } from '../../../src/core/composables/useTheme'
+      useTheme().setTheme(new URLSearchParams(location.search).get('theme') || 'fo4')
+      const upgraded = ref(false)
+      const roomSize = new URLSearchParams(location.search).has('remodel') ? 6 : 3
+      createApp({
+        render: () =>
+          h('div', [
+            h(RoomActions, {
+              room: {
+                id: 'room-1',
+                name: 'Power Generator',
+                tier: 2,
+                size: roomSize,
+                size_min: 3,
+                size_max: 9,
+                coordinate_x: 0,
+                coordinate_y: 0,
+                incremental_cost: 50,
+              },
+              upgradeInfo: { canUpgrade: true, upgradeCost: 180000, nextTier: 3, maxTier: 3 },
+              isUpgrading: upgraded.value,
+              isDestroying: false,
+              isVaultDoor: false,
+              assignedDwellerCount: 0,
+              onUpgrade: () => {
+                upgraded.value = true
+              },
+            }),
+            h('output', upgraded.value ? 'Upgrade requested' : ''),
+          ]),
+      })
+        .use(createPinia())
+        .mount('#app')
+    </script>
+  </body>
+</html>

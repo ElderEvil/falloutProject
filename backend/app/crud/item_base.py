@@ -1,5 +1,6 @@
 import random
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Any, TypeVar
 
 from pydantic import UUID4
@@ -8,7 +9,7 @@ from sqlalchemy.orm import aliased
 from sqlmodel import SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import ItemTypeEnum, JunkTypeEnum, RarityEnum
+from app.core.enums import AgeGroupEnum, ItemTypeEnum, JunkTypeEnum, RarityEnum
 from app.core.game_config import game_config
 from app.crud.base import CRUDBase
 from app.models import Outfit, Pet, Storage, Vault, Weapon
@@ -19,7 +20,9 @@ from app.utils.exceptions import (
     InvalidItemAssignmentException,
     ResourceConflictException,
     ResourceNotFoundException,
+    ValidationException,
 )
+from app.utils.item_factory import build_junk
 
 ItemT = TypeVar("ItemT", Weapon, Outfit, Pet)
 
@@ -168,6 +171,14 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         if not dweller:
             raise ResourceNotFoundException(Dweller, identifier=dweller_id)
 
+        # Youth cannot use equipment until they mature (issue #1036): block
+        # CHILD and TEEN at the shared weapons/outfits/pets seam. Elders are
+        # mature adults and keep their gear.
+        if dweller.age_group in (AgeGroupEnum.CHILD, AgeGroupEnum.TEEN):
+            raise ValidationException(
+                detail=f"Only adult dwellers can use equipment; {dweller.first_name} is still a {dweller.age_group.value}."
+            )
+
         item = await db_session.get(self.model, item_id)
         if not item:
             raise ResourceNotFoundException(self.model, identifier=item_id)
@@ -285,9 +296,10 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
     async def _update_item(
         db_session: AsyncSession, item_model: type[Weapon | Outfit | Pet], item_id: UUID4, storage_id: UUID4
     ) -> None:
-        await db_session.execute(
-            update(item_model).where(item_model.id == item_id).values(dweller_id=None, storage_id=storage_id)
-        )
+        values: dict[str, Any] = {"dweller_id": None, "storage_id": storage_id}
+        if item_model is Weapon:
+            values["last_maintenance_trial_at"] = datetime.utcnow()
+        await db_session.execute(update(item_model).where(item_model.id == item_id).values(**values))
 
     @staticmethod
     async def _update_dweller(db_session: AsyncSession, dweller: Dweller, item_type: str) -> None:
@@ -348,12 +360,12 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
 
         if same_rarity_junk_type:
             junk_results.append(
-                Junk(
-                    name=same_rarity_junk_type.value,
-                    junk_type=same_rarity_junk_type,
-                    rarity=item.rarity,
+                build_junk(
+                    same_rarity_junk_type.value,
+                    item.rarity,
                     value=game_config.exploration.get_junk_value(item.rarity.value),
                     description=f"Derived from {item.name}",
+                    junk_type=same_rarity_junk_type,
                 )
             )
 
@@ -361,12 +373,12 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         for junk_type, (rarity, probability) in junk_options.items():
             if junk_type != same_rarity_junk_type and random.random() < probability:
                 junk_results.append(
-                    Junk(
-                        name=junk_type.value,
-                        junk_type=junk_type,
-                        rarity=rarity,
+                    build_junk(
+                        junk_type.value,
+                        rarity,
                         value=game_config.exploration.get_junk_value(rarity.value),
                         description=f"Derived from {item.name}",
+                        junk_type=junk_type,
                     )
                 )
 

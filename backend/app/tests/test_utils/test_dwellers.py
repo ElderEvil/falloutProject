@@ -7,10 +7,11 @@ import pytest
 from pydantic import ValidationError
 
 from app.core.game_config import DwellerConfig, game_config
-from app.options.bios import ZONE_RUMORS, maybe_zone_rumor, render_adopted_child_bio, render_bio, render_newborn_bio
+from app.options.bios import ZONE_RUMORS
 from app.options.factions import faction_restrictions
 from app.options.races import STATE_OF_BEING_VALUES, RaceOption
 from app.schemas.common import AgeGroupEnum, RarityEnum
+from app.utils.bios import maybe_zone_rumor, render_adopted_child_bio, render_bio, render_newborn_bio
 from app.utils.dwellers import (
     _PLACE_POOL,
     _calendar_years_ago,
@@ -241,20 +242,20 @@ def test_crafting_config_normalizes_rarity_keys() -> None:
 
 
 def test_render_newborn_bio_links_both_parents(monkeypatch: pytest.MonkeyPatch) -> None:
-    from app.options import bios
+    from app.utils import bios
 
     monkeypatch.setattr(bios, "NEWBORN_BIO_TEMPLATES", ("{mother} and {father}.",))
 
     bio = render_newborn_bio("Jane", "John", "m-1", "f-1", "v-1")
 
-    assert 'href="/vault/v-1/dwellers/m-1"' in bio
-    assert 'href="/vault/v-1/dwellers/f-1"' in bio
-    assert "Jane" in bio
-    assert "John" in bio
+    assert bio == (
+        '<a href="/vault/v-1/dwellers/m-1" class="dweller-link">Jane</a> and '
+        '<a href="/vault/v-1/dwellers/f-1" class="dweller-link">John</a>.'
+    )
 
 
 def test_render_newborn_bio_escapes_parent_names(monkeypatch: pytest.MonkeyPatch) -> None:
-    from app.options import bios
+    from app.utils import bios
 
     monkeypatch.setattr(bios, "NEWBORN_BIO_TEMPLATES", ("{mother} {father}",))
 
@@ -266,10 +267,11 @@ def test_render_newborn_bio_escapes_parent_names(monkeypatch: pytest.MonkeyPatch
 
 def test_render_newborn_bio_never_injects_parent_names(monkeypatch: pytest.MonkeyPatch) -> None:
     """Every authored template must escape a hostile name, placeholders or not."""
-    from app.options import bios
+    from app.options import bios as catalog
+    from app.utils import bios as renderer
 
-    for template in bios.NEWBORN_BIO_TEMPLATES:
-        monkeypatch.setattr(bios, "NEWBORN_BIO_TEMPLATES", (template,))
+    for template in catalog.NEWBORN_BIO_TEMPLATES:
+        monkeypatch.setattr(renderer, "NEWBORN_BIO_TEMPLATES", (template,))
         bio = render_newborn_bio("<script>x</script>", "<b>John</b>", "m-1", "f-1", "v-1")
         assert "<script>" not in bio
         assert "<b>" not in bio

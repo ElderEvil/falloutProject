@@ -10,11 +10,13 @@ import {
 } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useProfileStore } from '@/modules/profile/stores/profile'
 import { useRouter, useRoute } from 'vue-router'
 const NotificationBell = defineAsyncComponent(() => import('./NotificationBell.vue'))
 import ResourceBar from './ResourceBar.vue'
 import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import { useVersionDetection } from '@/core/composables/useVersionDetection'
+import { useVisualEffects } from '@/core/composables/useVisualEffects'
 import { audioManager } from '@/core/audio/audioManager'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import type { ResourceName } from '@/modules/rooms/models/roomParts'
@@ -58,6 +60,22 @@ const { versionBadgeVisible, showChangelog } = useVersionDetection({
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const user = computed(() => authStore.user)
 const isProfileRoute = computed(() => route.path === '/profile')
+const { glowClass } = useVisualEffects()
+
+// Profile avatar for the menu button. Hydrated lazily on mount so the navbar
+// never blocks first paint on a profile fetch; the generic icon shows until
+// the profile (with its avatar_url) arrives.
+const profileStore = useProfileStore()
+const avatarLoadFailed = ref(false)
+const avatarUrl = computed(() =>
+  avatarLoadFailed.value ? null : (profileStore.profile?.avatar_url ?? null)
+)
+watch(
+  () => profileStore.profile?.avatar_url,
+  () => {
+    avatarLoadFailed.value = false
+  }
+)
 
 // Params of the currently open vault; a critical resource warning deep-links to the room that fixes it.
 const activeVaultId = computed(() => (typeof route.params.id === 'string' ? route.params.id : null))
@@ -117,11 +135,11 @@ const logout = async () => {
   router.push('/login')
 }
 
-// Sound toggle — reachable while an incident is active. Reads the manager's
+// Alarm toggle — reachable while an incident is active. Reads the manager's
 // reactive settings so profile hydration is reflected.
-const soundMuted = computed(() => audioManager.muted)
+const alarmEnabled = computed(() => audioManager.alarmEnabled)
 
-// Only surface the sound toggle mid-incident; the alarm is the reason to mute.
+// Only surface the alarm toggle mid-incident; it silences the siren alone.
 const hasActiveIncidents = computed(() => incidentStore.hasActiveIncidents)
 
 // Informational at-a-glance signal: how many designated responders are on scene.
@@ -130,8 +148,8 @@ const responderCountLabel = computed(() => {
   return `${count} responder${count === 1 ? '' : 's'} on scene`
 })
 
-const toggleSound = () => {
-  audioManager.setMuted(!audioManager.muted)
+const toggleAlarm = () => {
+  audioManager.setAlarmEnabled(!audioManager.alarmEnabled)
 }
 
 // User Dropdown
@@ -155,6 +173,12 @@ const closeDropdown = () => {
   isDropdownOpen.value = false
 }
 
+// NavBar stays mounted across logout/login; close the menu whenever the session
+// ends so a stale open state cannot reappear after the next login.
+watch(isAuthenticated, (authenticated) => {
+  if (!authenticated) closeDropdown()
+})
+
 // Close dropdown when clicking outside
 const handleClickOutside = (event: MouseEvent) => {
   if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
@@ -169,6 +193,9 @@ onMounted(() => {
     navObserver.observe(navRoot.value)
   }
   publishNavbarHeight()
+  // Opportunistic avatar hydration: fills the menu button's picture when the
+  // profile hasn't been fetched yet. Never blocks, never crashes boot.
+  if (isAuthenticated.value) void profileStore.ensureProfileLoaded()
 })
 
 onUnmounted(() => {
@@ -218,7 +245,8 @@ onUnmounted(() => {
         </router-link>
         <span
           v-if="vaultNumber !== undefined"
-          class="shrink-0 whitespace-nowrap font-mono text-base font-black tracking-tight text-theme-primary terminal-glow sm:text-xl"
+          class="shrink-0 whitespace-nowrap font-mono text-base font-black tracking-tight text-theme-primary sm:text-xl"
+          :class="glowClass"
           :aria-label="`Current vault ${vaultNumber}`"
         >
           <span class="hidden sm:inline">Vault </span>{{ vaultNumber }}
@@ -361,19 +389,19 @@ onUnmounted(() => {
             ></span>
           </button>
 
-          <!-- Sound toggle (only while an incident is active) -->
+          <!-- Alarm toggle (only while an incident is active) -->
           <button
             v-if="hasActiveIncidents"
-            @click="toggleSound"
+            @click="toggleAlarm"
             :class="[
               'relative text-theme-primary hover:text-theme-glow',
               'focus:outline-none focus:ring-2 focus:ring-theme-primary',
               'focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1 transition-colors',
             ]"
-            :aria-label="soundMuted ? 'Unmute sounds' : 'Mute sounds'"
-            :aria-pressed="!soundMuted"
+            :aria-label="alarmEnabled ? 'Silence incident alarm' : 'Enable incident alarm'"
+            :aria-pressed="alarmEnabled"
           >
-            <Icon :icon="soundMuted ? 'mdi:volume-off' : 'mdi:volume-high'" class="h-5 w-5" />
+            <Icon :icon="alarmEnabled ? 'mdi:bell-ring' : 'mdi:bell-off'" class="h-5 w-5" />
           </button>
 
           <!-- Responder count (informational, only while incidents are active) -->
@@ -421,7 +449,14 @@ onUnmounted(() => {
               aria-haspopup="true"
               :aria-label="`User menu for ${user?.username || 'user'}`"
             >
-              <Icon icon="mdi:account-circle" class="h-5 w-5" :ariaHidden="true" />
+              <img
+                v-if="avatarUrl"
+                :src="avatarUrl"
+                alt=""
+                class="size-7 rounded-full border border-theme-primary/40 object-cover"
+                @error="avatarLoadFailed = true"
+              />
+              <Icon v-else icon="mdi:account-circle" class="h-7 w-7" :ariaHidden="true" />
               <span class="hidden sm:inline">{{ user?.username }}</span>
             </button>
             <Transition name="dropdown">

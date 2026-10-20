@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoomStore } from '../stores/room'
-import { isRoomAtRowEnd } from '../utils/room'
+import {
+  isRoomAtRowEnd,
+  canRemodelRoom,
+  getMergeCandidates,
+  getRoomSegmentCount,
+} from '../utils/room'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
 import { Button } from '@/core/components/ui/button'
@@ -24,6 +29,7 @@ interface Props {
   upgradeInfo: UpgradeInfo | null
   isUpgrading: boolean
   isDestroying: boolean
+  isRemodeling?: boolean
   isVaultDoor: boolean
   assignedDwellerCount: number
   disabled?: boolean
@@ -35,10 +41,20 @@ const isInnerRoom = computed(
   () => props.room.name.toLowerCase() !== 'elevator' && !isRoomAtRowEnd(roomStore.rooms, props.room)
 )
 
+const canSplit = computed(
+  () => canRemodelRoom(props.room) && (props.room.size ?? props.room.size_min) > props.room.size_min
+)
+const mergeCandidates = computed(() => getMergeCandidates(roomStore.rooms, props.room))
+const busy = computed(
+  () => props.disabled || props.isUpgrading || props.isDestroying || props.isRemodeling
+)
+
 const emit = defineEmits<{
   upgrade: []
   destroy: []
   unassignAll: []
+  split: []
+  merge: [otherRoomId: string]
 }>()
 </script>
 
@@ -52,14 +68,16 @@ const emit = defineEmits<{
       <Button
         v-if="upgradeInfo?.canUpgrade"
         @click="emit('upgrade')"
-        :disabled="disabled || isUpgrading"
+        :disabled="busy"
         variant="secondary"
         size="sm"
-        class="action-btn action-btn--upgrade justify-start"
+        class="action-btn action-btn--upgrade justify-start text-left"
       >
-        <Icon icon="mdi:arrow-up-circle" class="h-4 w-4" />
-        <span>Upgrade to Tier {{ upgradeInfo.nextTier }}</span>
-        <span class="cost-badge">{{ upgradeInfo.upgradeCost }} caps</span>
+        <span class="flex min-w-0 items-center gap-1">
+          <Icon icon="mdi:arrow-up-circle" class="h-4 w-4" />
+          <span>Upgrade to Tier {{ upgradeInfo.nextTier }}</span>
+        </span>
+        <span class="cost-badge shrink-0">{{ upgradeInfo.upgradeCost }} caps</span>
       </Button>
       <Button
         v-else-if="upgradeInfo && upgradeInfo.maxTier > 1"
@@ -74,13 +92,37 @@ const emit = defineEmits<{
 
       <Button
         @click="emit('unassignAll')"
-        :disabled="disabled || assignedDwellerCount === 0"
+        :disabled="busy || assignedDwellerCount === 0"
         variant="secondary"
         size="sm"
-        class="action-btn action-btn--half justify-start"
+        class="action-btn justify-start"
       >
         <Icon icon="mdi:account-remove" class="h-4 w-4" />
         Unassign All Dwellers
+      </Button>
+
+      <Button
+        v-if="canSplit"
+        :disabled="busy"
+        @click="emit('split')"
+        variant="secondary"
+        size="sm"
+        class="action-btn justify-start"
+      >
+        <Icon icon="mdi:arrow-split-vertical" class="h-4 w-4" />
+        Split into {{ getRoomSegmentCount(room) }} rooms
+      </Button>
+      <Button
+        v-for="neighbor in mergeCandidates"
+        :key="neighbor.id"
+        :disabled="busy"
+        @click="emit('merge', neighbor.id)"
+        variant="secondary"
+        size="sm"
+        class="action-btn justify-start"
+      >
+        <Icon icon="mdi:arrow-collapse-horizontal" class="h-4 w-4" />
+        Merge {{ neighbor.coordinate_x! < room.coordinate_x! ? 'left' : 'right' }}
       </Button>
 
       <TooltipProvider v-if="isVaultDoor" :delay-duration="200">
@@ -90,7 +132,7 @@ const emit = defineEmits<{
               disabled
               variant="secondary"
               size="sm"
-              class="action-btn action-btn--half destroy-btn justify-start"
+              class="action-btn destroy-btn justify-start"
             >
               <Icon icon="mdi:delete" class="h-4 w-4" />
               Destroy Room
@@ -102,11 +144,11 @@ const emit = defineEmits<{
       <Button
         v-else
         @click="emit('destroy')"
-        :disabled="disabled || isDestroying || isInnerRoom"
+        :disabled="busy || isInnerRoom"
         :title="isInnerRoom ? 'Remove the outer rooms first.' : undefined"
         variant="secondary"
         size="sm"
-        class="action-btn action-btn--half destroy-btn justify-start"
+        class="action-btn destroy-btn justify-start"
       >
         <Icon icon="mdi:delete" class="h-4 w-4" />
         Destroy Room
@@ -141,14 +183,16 @@ const emit = defineEmits<{
 
 .actions-grid {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.5rem;
+  overflow-x: auto;
   padding: 0.25rem 0 0;
 }
 
 .action-btn {
-  flex: 1 1 200px;
-  min-width: 200px;
+  flex: 1 0 auto;
+  height: 2.25rem;
+  white-space: nowrap;
 }
 
 .action-btn.destroy-btn {
@@ -163,10 +207,11 @@ const emit = defineEmits<{
 
 .cost-badge {
   margin-left: auto;
+  white-space: nowrap;
   padding: 0.125rem 0.5rem;
   background: var(--color-surface-sunken);
-  border: 1px solid var(--color-warning);
-  color: var(--color-warning);
+  border: 1px solid var(--color-theme-primary);
+  color: var(--color-theme-primary);
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: bold;

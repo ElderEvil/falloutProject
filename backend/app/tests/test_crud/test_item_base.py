@@ -14,6 +14,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import AgeGroupEnum
 from app.crud.item_base import CRUDItem, get_item_vault_id, get_items_by_vault
 from app.models.dweller import Dweller
 from app.models.outfit import Outfit
@@ -30,8 +31,9 @@ from app.utils.exceptions import (
     InvalidItemAssignmentException,
     ResourceConflictException,
     ResourceNotFoundException,
+    ValidationException,
 )
-from app.utils.item_factory import build_pet, build_weapon
+from app.utils.item_factory import build_outfit, build_pet, build_weapon
 
 fake = Faker()
 
@@ -140,6 +142,28 @@ async def test_equip_same_item_already_equipped(async_session: AsyncSession, equ
 
     with pytest.raises(ContentNoChangeException):
         await CRUDItem(Weapon).equip(db_session=async_session, item_id=weapon.id, dweller_id=dweller.id)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("item_attr", ["weapon", "outfit", "pet"])
+@pytest.mark.parametrize("age_group", list(AgeGroupEnum))
+async def test_equipment_maturity_gate(
+    async_session: AsyncSession, vault: Vault, dweller, item_attr, age_group
+) -> None:
+    dweller.age_group = age_group
+    storage = await _create_storage(async_session, vault.id)
+    factory = {"weapon": build_weapon, "outfit": build_outfit, "pet": build_pet}[item_attr]
+    item = factory({"name": "Test Gear", "value": 5}, RarityEnum.COMMON, storage_id=storage.id)
+    async_session.add(item)
+    async_session.add(dweller)
+    await async_session.commit()
+
+    if age_group in (AgeGroupEnum.CHILD, AgeGroupEnum.TEEN):
+        with pytest.raises(ValidationException, match="adult"):
+            await CRUDItem(type(item)).equip(db_session=async_session, item_id=item.id, dweller_id=dweller.id)
+    else:
+        equipped = await CRUDItem(type(item)).equip(db_session=async_session, item_id=item.id, dweller_id=dweller.id)
+        assert equipped.dweller_id == dweller.id
 
 
 # ---------------------------------------------------------------------------

@@ -7,6 +7,7 @@ const props = withDefaults(
   defineProps<{
     icon?: string
     monogram?: string
+    marker?: { icon?: string; monogram?: string; label: string }
     color: string
     label: string
     category?: string
@@ -18,7 +19,9 @@ const props = withDefaults(
 
 /** Icon-only badges carry no text, so the accessible name must state the category too. */
 const accessibleName = computed(() =>
-  props.category ? `${props.category}: ${props.label}` : props.label
+  [props.category ? `${props.category}: ${props.label}` : props.label, props.marker?.label]
+    .filter(Boolean)
+    .join(' · ')
 )
 </script>
 
@@ -28,17 +31,21 @@ const accessibleName = computed(() =>
       <TooltipTrigger as-child>
         <span
           class="dweller-badge"
-          :class="[`size-${size}`, { 'icon-only': !showLabel }]"
+          :class="[`size-${size}`, { 'icon-only': !showLabel, 'has-state-marker': marker }]"
           :style="{ '--badge-color': color }"
           :aria-label="accessibleName"
           role="img"
         >
           <Icon v-if="icon" :icon="icon" class="badge-icon" :ariaHidden="true" />
           <span v-else-if="monogram" class="badge-monogram" aria-hidden="true">{{ monogram }}</span>
+          <span v-if="marker" class="badge-state-marker" aria-hidden="true">
+            <Icon v-if="marker.icon" :icon="marker.icon" />
+            <span v-else>{{ marker.monogram }}</span>
+          </span>
           <span v-if="showLabel" class="badge-label">{{ label }}</span>
         </span>
       </TooltipTrigger>
-      <TooltipContent side="top">{{ category ? `${category}: ${label}` : label }}</TooltipContent>
+      <TooltipContent side="top">{{ accessibleName }}</TooltipContent>
     </Tooltip>
   </TooltipProvider>
 </template>
@@ -73,9 +80,19 @@ const accessibleName = computed(() =>
   height: 1.5rem;
 }
 
+.icon-only.size-sm.has-state-marker {
+  width: 2.5rem;
+  gap: 0.15rem;
+}
+
 .icon-only.size-md {
   width: 2.25rem;
   height: 2.25rem;
+}
+
+.icon-only.size-md.has-state-marker {
+  width: 3rem;
+  gap: 0.2rem;
 }
 
 .size-md {
@@ -88,6 +105,18 @@ const accessibleName = computed(() =>
 }
 
 .badge-monogram {
+  font-weight: 700;
+  line-height: 1;
+}
+
+.badge-state-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1em;
+  border-left: 1px solid currentcolor;
+  padding-left: 0.3rem;
+  font-size: 0.85em;
   font-weight: 700;
   line-height: 1;
 }

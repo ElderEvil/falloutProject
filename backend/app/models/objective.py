@@ -37,6 +37,9 @@ class ObjectiveBase(SQLModel):
         ge=1,
         description="How many/much needed to complete the objective",
     )
+    track_key: str | None = Field(
+        default=None, max_length=160, index=True, description="Achievement family; stages unlock in sequence"
+    )
     sequence: int | None = Field(
         default=None,
         index=True,
@@ -52,6 +55,7 @@ class ObjectiveBase(SQLModel):
 
 
 class Objective(BaseUUIDModel, ObjectiveBase, table=True):
+    __table_args__ = (sa.Index("ix_objective_track_stage", "track_key", "sequence", unique=True),)
     template_key: str | None = Field(default=None, max_length=160, unique=True, index=True)
     assignable: bool = Field(
         default=True,

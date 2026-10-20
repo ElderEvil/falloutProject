@@ -149,7 +149,7 @@ describe('QuestsView', () => {
       ]
     })
 
-    it('should show active tab by default', async () => {
+    it('defaults to Available when there are no active quests', async () => {
       wrapper = mount(QuestsView, {
         global: {
           stubs: {
@@ -162,7 +162,7 @@ describe('QuestsView', () => {
       await wrapper.vm.$nextTick()
 
       const tabs = wrapper.findAll('[role="tab"]')
-      expect(tabs[0].attributes('aria-selected')).toBe('true')
+      expect(tabs[1].attributes('aria-selected')).toBe('true')
     })
 
     it('should switch to completed tab when clicked', async () => {
@@ -512,6 +512,8 @@ describe('QuestsView', () => {
 
       await wrapper.vm.$nextTick()
 
+      await wrapper.findAll('[role="tab"]')[0]!.trigger('mousedown')
+      await flushPromises()
       expect(wrapper.text()).toContain('No active quests')
     })
   })
@@ -1030,6 +1032,36 @@ describe('QuestsView', () => {
       })
     }
 
+    it.each([
+      { started_at: '2025-01-02T00:00:00Z' },
+      { started_at: '2025-01-02T00:00:00Z', return_completes_at: '2099-01-01T00:00:00Z' },
+      { is_reward_ready: true },
+    ])(
+      'keeps Active selected while a mission is active, returning or claimable: %j',
+      async (state) => {
+        wrapper = mountWithQuests([quest(state)])
+        await flushPromises()
+        expect(wrapper.get('[role="tab"][data-state="active"]').text()).toContain('Active')
+      }
+    )
+
+    it('switches to Available after the last reward is claimed', async () => {
+      wrapper = mountWithQuests([quest({ is_reward_ready: true })])
+      await flushPromises()
+      questStore.vaultQuests = [quest({ is_completed: true })] as never
+      await flushPromises()
+      expect(wrapper.get('[role="tab"][data-state="active"]').text()).toContain('Available')
+    })
+
+    it('preserves Completed selection when the last active quest disappears', async () => {
+      wrapper = mountWithQuests([quest({ is_reward_ready: true })])
+      await flushPromises()
+      await wrapper.findAll('[role="tab"]')[2]!.trigger('mousedown')
+      questStore.vaultQuests = [quest({ is_completed: true })] as never
+      await flushPromises()
+      expect(wrapper.get('[role="tab"][data-state="active"]').text()).toContain('Completed')
+    })
+
     it('puts claimable rewards before active quests regardless of server order', async () => {
       wrapper = mountWithQuests([
         quest({ id: 'active', started_at: '2025-01-02T00:00:00Z' }),
@@ -1051,7 +1083,7 @@ describe('QuestsView', () => {
 
       const header = wrapper.text()
       expect(header).toContain('Available quests')
-      expect(header).toContain('Rewards ready')
+      expect(header).toContain('Collect rewards')
     })
 
     it('badges the Active tab with the ready-to-claim count and explains it', async () => {

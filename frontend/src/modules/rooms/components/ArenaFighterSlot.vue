@@ -1,26 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { ArrowLeftRight, X } from '@lucide/vue'
 import { Button } from '@/core/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/core/components/ui/card'
-import { Progress } from '@/core/components/ui/progress'
 import type { ArenaRosterEntry } from '../api/arena'
 import type { ArenaSlotFighter, ArenaSlotKey } from '../models/arena'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
-import ArenaDamageNumbers from './ArenaDamageNumbers.vue'
+import ArenaCombatantCard from './ArenaCombatantCard.vue'
 
 interface Props {
   side: ArenaSlotKey
   fighter: ArenaSlotFighter | null
   canChange: boolean
-  damageNumbers: Array<{ id: number; amount: number }>
   options: ArenaRosterEntry[]
   pickerOpen: boolean
 }
@@ -36,55 +27,53 @@ const emit = defineEmits<{
 const powerLabel = computed(() =>
   props.fighter?.power != null ? Math.round(props.fighter.power) : null
 )
-
-const healthPercent = (f: ArenaSlotFighter | null) =>
-  f ? Math.round((f.health / Math.max(1, f.max_health)) * 100) : 0
 </script>
 
 <template>
-  <div class="fighter-slot relative flex min-w-0 flex-col gap-2">
-    <Card v-if="fighter" class="fighter-card relative gap-2 py-3" size="sm">
-      <ArenaDamageNumbers :numbers="damageNumbers" />
-      <CardHeader class="justify-items-center text-center">
-        <div
-          class="fighter-portrait flex size-10 items-center justify-center overflow-hidden rounded-full border-2 border-theme-primary bg-surface-raised"
-        >
-          <DwellerPortrait
-            :image-url="fighter.image_url"
-            :thumbnail-url="fighter.thumbnail_url"
-            :alt="fighter.name"
-            prefer-thumbnail
-            image-class="size-full rounded-full object-cover"
-            fallback-class="size-8 text-theme-primary"
-          />
-        </div>
-        <CardTitle class="mt-1 max-w-full break-words">{{ fighter.name }}</CardTitle>
-        <CardDescription class="flex flex-wrap justify-center gap-x-2 gap-y-1">
-          <span class="whitespace-nowrap">Lv {{ fighter.level }}</span>
-          <span v-if="powerLabel !== null" class="whitespace-nowrap">POW {{ powerLabel }}</span>
-        </CardDescription>
-      </CardHeader>
-      <CardContent class="flex flex-col gap-1">
-        <Progress :model-value="healthPercent(fighter)" :label="`${fighter.name} health`" />
-        <span class="text-center text-xs text-muted-foreground tabular-nums"
-          >{{ fighter.health }}/{{ fighter.max_health }}</span
-        >
-      </CardContent>
-      <CardFooter v-if="canChange" class="flex flex-wrap justify-center gap-1">
-        <Button variant="outline" size="xs" @click="emit('togglePicker', side)">SWAP</Button>
+  <div class="fighter-slot relative flex h-full min-w-0 flex-col gap-2">
+    <ArenaCombatantCard
+      v-if="fighter"
+      class="fighter-card"
+      :name="fighter.name"
+      :subtitle="`Lv ${fighter.level}`"
+      :power="powerLabel"
+      :health="fighter.health"
+      :max-health="fighter.max_health"
+      :editable="canChange"
+    >
+      <template #portrait>
+        <DwellerPortrait
+          :image-url="fighter.image_url"
+          :thumbnail-url="fighter.thumbnail_url"
+          :alt="fighter.name"
+          prefer-thumbnail
+          image-class="size-full object-contain"
+          fallback-class="size-12 text-theme-primary"
+        />
+      </template>
+      <template #management>
+        <Button
+          variant="outline"
+          size="icon-sm"
+          :aria-label="`Swap ${fighter.name}`"
+          :title="`Swap ${fighter.name}`"
+          :aria-expanded="pickerOpen"
+          @click="emit('togglePicker', side)"
+          ><ArrowLeftRight class="size-4"
+        /></Button>
         <Button
           size="icon-sm"
           variant="ghost"
           aria-label="Clear fighter"
           @click="emit('clear', side)"
         >
-          <Icon icon="mdi:close" />
+          <X class="size-4" />
         </Button>
-      </CardFooter>
-    </Card>
+      </template>
+    </ArenaCombatantCard>
     <template v-else>
       <Button
-        class="fighter-slot-empty h-auto min-h-24 w-full flex-col gap-2 whitespace-normal border-dashed px-2 py-4 text-center"
+        class="fighter-slot-empty h-auto min-h-20 w-full flex-1 flex-col gap-1 whitespace-normal border-dashed px-2 py-2 text-center"
         variant="outline"
         :disabled="!canChange || !options.length"
         :aria-expanded="pickerOpen"
@@ -113,8 +102,8 @@ const healthPercent = (f: ArenaSlotFighter | null) =>
           :thumbnail-url="entry.thumbnail_url"
           :alt="entry.name"
           prefer-thumbnail
-          image-class="size-8 shrink-0 rounded-md object-cover"
-          fallback-class="size-8 shrink-0 text-theme-primary"
+          image-class="size-12 shrink-0 rounded-md object-cover"
+          fallback-class="size-12 shrink-0 text-theme-primary"
         />
         <span class="flex min-w-0 flex-col gap-0.5">
           <span class="break-words">{{ entry.name }}</span>

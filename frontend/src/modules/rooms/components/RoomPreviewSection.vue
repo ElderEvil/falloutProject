@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { PersonStanding } from '@lucide/vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getRoomImageUrl } from '@/core/utils/image'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { useFallbackImage } from '../composables/useFallbackImage'
 import { RESPONSE_DETAIL_SCENES } from '../models/roomScenes'
+import type { RoomStyleValue } from '../models/room'
+import RoomThemeSelector from './RoomThemeSelector.vue'
 
 interface Props {
   roomName: string
@@ -16,18 +19,25 @@ interface Props {
   assignedDwellers: DwellerShort[]
   showApprenticeSlot?: boolean
   assignEnabled?: boolean
+  roomStyle?: RoomStyleValue | null
+  availableThemes?: RoomStyleValue[]
+  roomTier?: number
+  isApplyingStyle?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showApprenticeSlot: false,
   roomUnits: 3,
   assignEnabled: true,
+  availableThemes: () => [],
+  roomTier: 1,
 })
 const emit = defineEmits<{
   activate: [dwellerId: string]
   unassign: [dwellerId: string]
   assignWorker: []
   assignApprentice: []
+  applyStyle: [style: RoomStyleValue]
 }>()
 
 const { url: sceneImageUrl, onError: imageFailed } = useFallbackImage(() => [
@@ -40,7 +50,9 @@ const sceneSizeClass = computed(() => {
     // The size-6 Response Station bay ships as a 2:1 scene while the wide frame is
     // 3:1, so cropping to the frame would cut off its floor and equipment. Let that
     // scene set its own frame height instead of cropping it.
-    return props.roomImageUrl === RESPONSE_DETAIL_SCENES[6] ? 'room-scene--wide-native' : 'room-scene--wide'
+    return props.roomImageUrl === RESPONSE_DETAIL_SCENES[6]
+      ? 'room-scene--wide-native'
+      : 'room-scene--wide'
   }
   return null
 })
@@ -56,10 +68,20 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
     :class="sceneSizeClass"
     :aria-label="`${roomName} room preview`"
   >
-    <h3 class="section-title">
-      <Icon icon="mdi:image-outline" class="h-5 w-5" />
-      Room Preview
-    </h3>
+    <div class="preview-header">
+      <h3 class="section-title">
+        <Icon icon="mdi:image-outline" class="h-5 w-5" />
+        Room Preview
+      </h3>
+      <RoomThemeSelector
+        v-if="roomStyle"
+        :model-value="roomStyle"
+        :themes="availableThemes"
+        :tier="roomTier"
+        :disabled="isApplyingStyle"
+        @update:model-value="emit('applyStyle', $event)"
+      />
+    </div>
     <div class="preview-container">
       <div class="room-image-container">
         <img
@@ -80,7 +102,7 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
             <div
               v-for="slot in dwellerCapacity"
               :key="`slot-${slot}`"
-              class="dweller-sprite-slot"
+              class="dweller-sprite-slot dweller-sprite-slot-lg"
               :class="{ 'slot-filled': workerDwellers[slot - 1] }"
             >
               <template v-if="workerDwellers[slot - 1]">
@@ -95,9 +117,15 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
                       :thumbnail-url="workerDwellers[slot - 1]?.thumbnail_url"
                       :alt="`${workerDwellers[slot - 1]?.first_name} ${workerDwellers[slot - 1]?.last_name ?? ''}`"
                       image-class="scene-dweller-portrait"
-                      fallback-class="scene-dweller-icon"
                       prefer-thumbnail
-                    />
+                    >
+                      <template #fallback>
+                        <PersonStanding
+                          class="scene-dweller-icon text-theme-primary"
+                          aria-hidden="true"
+                        />
+                      </template>
+                    </DwellerPortrait>
                   </button>
                   <button
                     v-if="assignEnabled"
@@ -117,15 +145,15 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
                 aria-label="Assign worker"
                 @click="emit('assignWorker')"
               >
-                <Icon icon="mdi:account-outline" class="h-6 w-6 opacity-30" />
+                <PersonStanding class="scene-dweller-icon empty-dweller-icon" aria-hidden="true" />
               </button>
               <div v-else class="placeholder-dweller empty scene-empty-slot" aria-hidden="true">
-                <Icon icon="mdi:account-outline" class="h-6 w-6 opacity-30" />
+                <PersonStanding class="scene-dweller-icon empty-dweller-icon" aria-hidden="true" />
               </div>
             </div>
             <div
               v-if="showApprenticeSlot"
-              class="dweller-sprite-slot apprentice-slot"
+              class="dweller-sprite-slot dweller-sprite-slot-lg apprentice-slot"
               :class="{ 'slot-filled': apprentice }"
             >
               <template v-if="apprentice">
@@ -140,9 +168,15 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
                       :thumbnail-url="apprentice.thumbnail_url"
                       :alt="`${apprentice.first_name} ${apprentice.last_name ?? ''}`"
                       image-class="scene-dweller-portrait"
-                      fallback-class="scene-dweller-icon"
                       prefer-thumbnail
-                    />
+                    >
+                      <template #fallback>
+                        <PersonStanding
+                          class="scene-dweller-icon text-theme-primary"
+                          aria-hidden="true"
+                        />
+                      </template>
+                    </DwellerPortrait>
                     <span
                       class="apprentice-marker"
                       :aria-label="`Apprentice training ${apprentice.apprentice_stat}`"
@@ -187,6 +221,14 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .section-title {
@@ -302,7 +344,7 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
 .dweller-sprites-overlay {
   position: absolute;
   right: 0.5rem;
-  bottom: 0.5rem;
+  bottom: calc(0.5rem + 7%);
   left: 0.5rem;
   z-index: 10;
   display: flex;
@@ -315,6 +357,12 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Keep worker and apprentice portraits the same size. */
+.dweller-sprite-slot-lg .placeholder-dweller {
+  width: 4.4rem;
+  height: 6.6rem;
 }
 
 .placeholder-dweller {
@@ -354,6 +402,11 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   background: var(--color-surface-raised);
 }
 
+.slot-filled .placeholder-dweller.scene-dweller {
+  border: 0;
+  background: transparent;
+}
+
 .scene-dweller:hover,
 .scene-dweller:focus-visible {
   box-shadow: 0 0 8px var(--color-theme-glow);
@@ -383,6 +436,12 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   opacity: 1;
 }
 
+@media (hover: none) {
+  .scene-unassign {
+    opacity: 1;
+  }
+}
+
 .scene-unassign:focus-visible,
 .scene-unassign:hover {
   background: color-mix(in srgb, var(--color-danger) 15%, transparent);
@@ -398,7 +457,18 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
 .scene-dweller :deep(.scene-dweller-icon) {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+}
+
+.scene-empty-slot :deep(.empty-dweller-icon) {
+  width: 72%;
+  height: 72%;
+  opacity: 0.3;
+}
+
+.scene-dweller :deep(.scene-dweller-portrait) {
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
 }
 
 .scene-dweller :deep([role='img']) {

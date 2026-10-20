@@ -44,6 +44,15 @@ describe('DwellerCard', () => {
     room: null,
   } as any
 
+  it.each(['child', 'teen'] as const)('disables training for a %s', (age_group) => {
+    const wrapper = mount(DwellerCard, {
+      props: { dweller: { ...mockDweller, age_group }, imageUrl: null },
+    })
+    const train = wrapper.findAll('button').find((button) => button.text() === 'Train')
+    expect(train?.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('Training unlocks at adulthood')
+  })
+
   describe('Portrait Display', () => {
     it('should render portrait placeholder when no image', () => {
       const wrapper = mount(DwellerCard, {

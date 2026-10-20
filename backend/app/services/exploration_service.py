@@ -226,12 +226,9 @@ class ExplorationService:
         total_stimpaks = vault_stimpaks + dweller_stimpaks
         total_radaways = vault_radaways + dweller_radaways
 
-        if stimpaks > total_stimpaks:
-            msg = f"Total available stimpaks: {total_stimpaks}"
-            raise ValueError(msg)
-        if radaways > total_radaways:
-            msg = f"Total available radaways: {total_radaways}"
-            raise ValueError(msg)
+        shortfall = self._supply_shortfall(total_stimpaks, total_radaways, stimpaks, radaways)
+        if shortfall is not None:
+            raise ValueError(shortfall)
 
         # Departure and room removal must be committed together so a failed
         # dispatch never leaves the dweller unexpectedly unassigned.
@@ -273,18 +270,26 @@ class ExplorationService:
             duration=duration,
             stimpaks=stimpaks,
             radaways=radaways,
-            dweller_strength=dweller.strength,
-            dweller_perception=dweller.perception,
-            dweller_endurance=dweller.endurance,
-            dweller_charisma=dweller.charisma,
-            dweller_intelligence=dweller.intelligence,
-            dweller_agility=dweller.agility,
-            dweller_luck=dweller.luck,
             start_time=start_time,
             status=ExplorationStatus.ACTIVE,
         )
+        self._stage_special_snapshot(exploration, dweller)
         self._init_spatial_movement(exploration, origin, heading_degrees, world_version, start_time)
         return await self._persist_departure(db_session, vault_id=vault_id, dwellers=[dweller], exploration=exploration)
+
+    @staticmethod
+    def _stage_special_snapshot(exploration: Exploration, dweller: Dweller) -> None:
+        """Copy a departing dweller's SPECIAL values onto the run.
+
+        Shared by roam and dispatch so a new SPECIAL stat is staged in one place.
+        """
+        exploration.dweller_strength = dweller.strength
+        exploration.dweller_perception = dweller.perception
+        exploration.dweller_endurance = dweller.endurance
+        exploration.dweller_charisma = dweller.charisma
+        exploration.dweller_intelligence = dweller.intelligence
+        exploration.dweller_agility = dweller.agility
+        exploration.dweller_luck = dweller.luck
 
     @staticmethod
     def _init_spatial_movement(
@@ -501,18 +506,12 @@ class ExplorationService:
             duration=duration,
             stimpaks=stimpaks,
             radaways=radaways,
-            dweller_strength=anchor.strength,
-            dweller_perception=anchor.perception,
-            dweller_endurance=anchor.endurance,
-            dweller_charisma=anchor.charisma,
-            dweller_intelligence=anchor.intelligence,
-            dweller_agility=anchor.agility,
-            dweller_luck=anchor.luck,
             target_location_id=location_id,
             clear_tier=tier,
             start_time=datetime.utcnow(),
             status=ExplorationStatus.ACTIVE,
         )
+        self._stage_special_snapshot(exploration, anchor)
         self._init_spatial_movement(
             exploration,
             origin,
@@ -533,14 +532,29 @@ class ExplorationService:
         return await self._persist_departure(db_session, vault_id=vault_id, dwellers=dwellers, exploration=exploration)
 
     @staticmethod
-    def _require_supplies(storage: Storage | None, stimpaks: int, radaways: int) -> None:
-        """Reject a dispatch whose requested supplies exceed the storage row."""
-        available_stimpaks = storage.stimpack if storage else 0
-        available_radaways = storage.radaway if storage else 0
+    def _supply_shortfall(available_stimpaks: int, available_radaways: int, stimpaks: int, radaways: int) -> str | None:
+        """The message for the first requested supply the stock cannot cover, else None.
+
+        Shared by roam (vault + dweller carry) and dispatch (vault only) so the
+        availability messages have a single source; the caller picks the exception type.
+        """
         if stimpaks > available_stimpaks:
-            raise ValidationException(f"Total available stimpaks: {available_stimpaks}")
+            return f"Total available stimpaks: {available_stimpaks}"
         if radaways > available_radaways:
-            raise ValidationException(f"Total available radaways: {available_radaways}")
+            return f"Total available radaways: {available_radaways}"
+        return None
+
+    @classmethod
+    def _require_supplies(cls, storage: Storage | None, stimpaks: int, radaways: int) -> None:
+        """Reject a dispatch whose requested supplies exceed the storage row."""
+        shortfall = cls._supply_shortfall(
+            storage.stimpack if storage else 0,
+            storage.radaway if storage else 0,
+            stimpaks,
+            radaways,
+        )
+        if shortfall is not None:
+            raise ValidationException(shortfall)
 
     @staticmethod
     def _speed() -> float:

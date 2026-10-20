@@ -33,6 +33,7 @@ from app.crud import team_crud
 from app.crud import weapon as weapon_crud
 from app.crud.relationship import relationship_crud
 from app.crud.storage import storage as storage_crud
+from app.crud.vault_theme import vault_theme as vault_theme_crud
 from app.models import Dweller, Room
 from app.models.outfit import Outfit
 from app.models.team import ACTIVE_STATUS, TeamMember
@@ -44,6 +45,7 @@ from app.services.family.breeding_service import conception_potential
 from app.services.training_service import training_service
 from app.services.vault_seed import (
     BOOSTED_CRAFTING_ROOM_SPECS,
+    BOOSTED_EQUIPPED_PETS,
     BOOSTED_LEGENDARY_DWELLER_COUNT,
     BOOSTED_MERGED_LIVING_ROOM,
     BOOSTED_SEED_JUNK,
@@ -265,7 +267,7 @@ async def seed_working_dweller(
 
 async def equip_boosted_worker_outfit(db_session: AsyncSession, worker: Dweller, stat: SPECIALEnum) -> None:
     """Craft and equip the Common +3 outfit matching a boosted production worker's room stat."""
-    from app.services.exploration.data_loader import load_outfits
+    from app.services.catalog_service import load_outfits
 
     name = BOOSTED_WORKER_OUTFITS.get(stat)
     if name is None:
@@ -276,6 +278,18 @@ async def equip_boosted_worker_outfit(db_session: AsyncSession, worker: Dweller,
         return
     item = await outfit_crud.create(db_session, build_outfit(entry, entry["rarity"]))
     await outfit_crud.equip(db_session=db_session, item_id=item.id, dweller_id=worker.id, commit=False)
+
+
+async def seed_boosted_theme_unlocks(db_session: AsyncSession, vault_id: UUID4) -> None:
+    """Seed every catalog theme as crafted so a boosted vault can theme eligible rooms immediately."""
+    from app.services.catalog_service import load_themes
+
+    for entry in load_themes():
+        style = str(entry.get("style") or "")
+        if style:
+            await vault_theme_crud.mark_crafted(db_session, vault_id=vault_id, style=style, source="boosted")
+    await db_session.commit()
+    logger.info(f"Seeded boosted theme unlocks for vault {vault_id}")
 
 
 async def seed_boosted_response_team(db_session: AsyncSession, vault_id: UUID4, station_room: Room) -> None:
@@ -467,9 +481,9 @@ async def seed_family_child(
     is_boosted: bool,
 ) -> Dweller:
     """Create a child linked to both parents; teens apprentice at the working parent's production room."""
-    from app.options.bios import render_adopted_child_bio, render_newborn_bio
     from app.services.bio_service import bio_service, make_entry
     from app.services.dweller_service import dweller_service
+    from app.utils.bios import render_adopted_child_bio, render_newborn_bio
 
     child = await dweller_service.create_random_dweller(
         db_session,
@@ -611,7 +625,7 @@ async def start_training_sessions(
 
 async def seed_boosted_junk(db_session: AsyncSession, storage_id: UUID4) -> None:
     """Drop craftable materials into a vault so item creation is testable."""
-    from app.services.exploration.data_loader import load_junk_items
+    from app.services.catalog_service import load_junk_items
 
     catalog = {(str(entry["junk_type"]).lower(), str(entry["rarity"]).lower()): entry for entry in load_junk_items()}
     seeded = 0
@@ -637,16 +651,28 @@ async def seed_boosted_junk(db_session: AsyncSession, storage_id: UUID4) -> None
         logger.info(f"Seeded {seeded} crafting materials into storage {storage_id}")
 
 
-async def seed_boosted_pets(db_session: AsyncSession, storage_id: UUID4) -> None:
-    """Seed unassigned pets into a boosted vault's storage so equip and bonuses are testable immediately."""
+async def seed_boosted_pets(db_session: AsyncSession, vault_id: UUID4, storage_id: UUID4) -> None:
+    """Seed pets for a boosted vault, equipping the legendary pair on its legendary roster."""
     pets = [build_pet({"name": name}, rarity, storage_id) for name, rarity in BOOSTED_SEED_PETS]
+    legendary_dwellers = await dweller_crud.get_multi_by_vault(
+        db_session,
+        vault_id,
+        limit=len(BOOSTED_EQUIPPED_PETS),
+        rarity=RarityEnum.LEGENDARY,
+        sort_by="first_name",
+        order="asc",
+    )
+    equipped = [pet for pet in pets if pet.name in BOOSTED_EQUIPPED_PETS]
+    for pet, dweller in zip(equipped, legendary_dwellers, strict=False):
+        pet.storage_id = None
+        pet.dweller_id = dweller.id
     await pet_crud.create_many(db_session, pets)
-    logger.info(f"Seeded {len(pets)} pets into storage {storage_id}")
+    logger.info(f"Seeded {len(pets)} pets for vault {vault_id} ({len(equipped)} equipped)")
 
 
 def build_boosted_outfits(storage_id: UUID4) -> list[Outfit]:
     """Spare hazard-team suits from the outfit catalog, so resists stay correct."""
-    from app.services.exploration.data_loader import load_outfits
+    from app.services.catalog_service import load_outfits
 
     catalog = {str(entry["name"]).strip().lower(): entry for entry in load_outfits()}
     outfits: list[Outfit] = []
@@ -673,14 +699,14 @@ async def create_initial_items(db_session: AsyncSession, vault_id: UUID4, is_boo
     await outfit_crud.create_many(db_session, outfits)
     if is_boosted:
         await seed_boosted_junk(db_session, storage.id)
-        await seed_boosted_pets(db_session, storage.id)
+        await seed_boosted_pets(db_session, vault_id, storage.id)
     logger.info(f"Created initial items for vault {vault_id}")
 
 
 async def create_boosted_legendary_dwellers(db_session: AsyncSession, vault_id: UUID4) -> None:
     """Add a random, equipped legendary roster to boosted vaults."""
+    from app.services.catalog_service import load_outfits, load_weapons
     from app.services.dweller_service import dweller_service
-    from app.services.exploration.data_loader import load_outfits, load_weapons
 
     game_data = await get_static_game_data()
     weapons_data = load_weapons()

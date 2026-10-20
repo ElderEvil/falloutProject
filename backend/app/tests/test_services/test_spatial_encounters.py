@@ -12,7 +12,7 @@ from app.models.dweller import Dweller
 from app.models.exploration import ExpeditionRunStatus, ExplorationStatus
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
-from app.services.exploration import data_loader
+from app.services import catalog_service as data_loader
 from app.services.exploration import expedition as expedition_module
 from app.services.exploration_service import exploration_service
 from app.services.game_tick.dwellers_tick import process_explorations

@@ -530,6 +530,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/crafting/vault/{vault_id}/orders/{order_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Crafting Order
+         * @description Cancel an active order, refunding its caps and junk.
+         *
+         *     Returns:
+         *         The cancelled order.
+         *
+         *     Raises:
+         *         HTTPException: 403 if user lacks access to the vault.
+         */
+        post: operations["cancel_crafting_order_api_v1_crafting_vault__vault_id__orders__order_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/crafting/vault/{vault_id}/orders/{order_id}/collect": {
         parameters: {
             query?: never;
@@ -3348,6 +3374,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/arena/vault/{vault_id}/rooms/{room_id}/skill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue Arena Skill
+         * @description Queue a charged dweller skill for their team's next Arena turn.
+         */
+        post: operations["queue_arena_skill_api_v1_arena_vault__vault_id__rooms__room_id__skill_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/radio/vault/{vault_id}/stats": {
         parameters: {
             query?: never;
@@ -3843,6 +3889,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rooms/style/{room_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply Room Style
+         * @description Apply a cosmetic room style (for example, the Party theme).
+         */
+        post: operations["apply_room_style_api_v1_rooms_style__room_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rooms/split/{room_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Split Room
+         * @description Split a merged room into its base segments without charging caps.
+         */
+        post: operations["split_room_api_v1_rooms_split__room_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rooms/merge/{room_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge Rooms
+         * @description Merge two explicitly chosen adjacent rooms.
+         */
+        post: operations["merge_rooms_api_v1_rooms_merge__room_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/storage/vault/{vault_id}/space": {
         parameters: {
             query?: never;
@@ -3974,6 +4080,26 @@ export interface paths {
          *         HTTPException: 409 when storage cannot fit the rolled contents.
          */
         post: operations["open_lunchbox_api_v1_storage_vault__vault_id__lunchbox_open_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/storage/vault/{vault_id}/maintenance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Storage Maintenance
+         * @description Read the vault's storage protection without running trials.
+         */
+        get: operations["get_storage_maintenance_api_v1_storage_vault__vault_id__maintenance_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5140,6 +5266,20 @@ export interface components {
          */
         AgeGroupEnum: "child" | "teen" | "adult" | "elder";
         /**
+         * ArenaActiveSkill
+         * @description Weapon-derived manual attack and its match-local charge.
+         */
+        ArenaActiveSkill: {
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /** Charge */
+            charge: number;
+            /** Queued */
+            queued: boolean;
+        };
+        /**
          * ArenaCreature
          * @description A selectable hunt opponent from the creature catalog.
          */
@@ -5195,6 +5335,7 @@ export interface components {
             max_health: number;
             /** Power */
             power: number;
+            active_skill?: components["schemas"]["ArenaActiveSkill"] | null;
             /**
              * Is Creature
              * @default false
@@ -5257,6 +5398,8 @@ export interface components {
             kind: string;
             /** Message */
             message: string;
+            /** Created At */
+            created_at?: string | null;
         };
         /**
          * ArenaMode
@@ -5278,6 +5421,12 @@ export interface components {
             mode: string;
             /** Available Modes */
             available_modes: components["schemas"]["ArenaMode"][];
+            /**
+             * Next Attack Team
+             * @default A
+             * @enum {string}
+             */
+            next_attack_team: "A" | "B";
             /** Fighter A Id */
             fighter_a_id: string | null;
             /** Fighter B Id */
@@ -5324,6 +5473,27 @@ export interface components {
             image_url?: string | null;
             /** Thumbnail Url */
             thumbnail_url?: string | null;
+        };
+        /**
+         * ArenaSkillQueued
+         * @description The attack will resolve on the fighter's next team turn.
+         */
+        ArenaSkillQueued: {
+            /** Room Id */
+            room_id: string;
+            /** Fighter Id */
+            fighter_id: string;
+        };
+        /**
+         * ArenaSkillRequest
+         * @description Select a participating dweller to use their active skill.
+         */
+        ArenaSkillRequest: {
+            /**
+             * Fighter Id
+             * Format: uuid4
+             */
+            fighter_id: string;
         };
         /**
          * ArenaState
@@ -5779,20 +5949,20 @@ export interface components {
              * Item Type
              * @enum {string}
              */
-            item_type: "weapon" | "outfit";
+            item_type: "weapon" | "outfit" | "theme";
         };
         /**
          * CraftResultRead
          * @description The crafted item plus the materials that were spent.
+         *
+         *     Theme orders grant permanent ownership rather than a storage item, so
+         *     ``item_id`` is null for them.
          */
         CraftResultRead: {
             /** Item Type */
             item_type: string;
-            /**
-             * Item Id
-             * Format: uuid4
-             */
-            item_id: string;
+            /** Item Id */
+            item_id?: string | null;
             /** Name */
             name: string;
             rarity: components["schemas"]["RarityEnum"];
@@ -5836,6 +6006,8 @@ export interface components {
             estimated_completion_at: string;
             /** Completed At */
             completed_at?: string | null;
+            /** Cancelled At */
+            cancelled_at?: string | null;
             /** Junk Spent */
             junk_spent: number;
             /** Caps Spent */
@@ -5850,7 +6022,7 @@ export interface components {
          * @description Lifecycle of a workshop order.
          * @enum {string}
          */
-        CraftingOrderStatus: "active" | "completed" | "collected";
+        CraftingOrderStatus: "active" | "completed" | "collected" | "cancelled";
         /** CraftingOrdersRead */
         CraftingOrdersRead: {
             /**
@@ -5874,7 +6046,7 @@ export interface components {
              * Item Type
              * @enum {string}
              */
-            item_type: "weapon" | "outfit";
+            item_type: "weapon" | "outfit" | "theme";
             rarity: components["schemas"]["RarityEnum"];
             /** Value */
             value?: number | null;
@@ -5932,6 +6104,13 @@ export interface components {
             unlocked: boolean;
             /** Unlock Hint */
             unlock_hint?: string | null;
+            /** Style */
+            style?: string | null;
+            /**
+             * Owned
+             * @default false
+             */
+            owned: boolean;
         };
         /**
          * CraftingRecipesRead
@@ -8104,6 +8283,37 @@ export interface components {
             events: components["schemas"]["IncidentEventRead"][];
         };
         /**
+         * IncidentResponderRead
+         * @description An arriving helper and the posting restored after the incident.
+         */
+        IncidentResponderRead: {
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /**
+             * Team Id
+             * Format: uuid4
+             */
+            team_id: string;
+            /**
+             * Dweller Id
+             * Format: uuid4
+             */
+            dweller_id: string;
+            /** Slot Number */
+            slot_number?: number | null;
+            /** Status */
+            status: string;
+            /** Created At */
+            created_at?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+            /** Origin Room Id */
+            origin_room_id?: string | null;
+        };
+        /**
          * IncidentRespondersRequest
          * @description Dwellers ordered to defend an active incident.
          */
@@ -8647,7 +8857,7 @@ export interface components {
          * @description Types of notifications
          * @enum {string}
          */
-        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "arena_morale_boost" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "objective_completed" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready";
+        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "storage_item_degraded" | "storage_item_upgraded" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "arena_morale_boost" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "objective_completed" | "objectives_refreshed" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready";
         /** Objective */
         Objective: {
             /** Challenge */
@@ -8674,6 +8884,11 @@ export interface components {
              * @default 1
              */
             target_amount: number;
+            /**
+             * Track Key
+             * @description Achievement family; stages unlock in sequence
+             */
+            track_key?: string | null;
             /**
              * Sequence
              * @description Ordering within a sequenced category (e.g. the starter arc); NULL for unsequenced categories
@@ -8730,6 +8945,11 @@ export interface components {
              */
             target_amount: number;
             /**
+             * Track Key
+             * @description Achievement family; stages unlock in sequence
+             */
+            track_key?: string | null;
+            /**
              * Sequence
              * @description Ordering within a sequenced category (e.g. the starter arc); NULL for unsequenced categories
              */
@@ -8769,6 +8989,11 @@ export interface components {
              */
             target_amount: number;
             /**
+             * Track Key
+             * @description Achievement family; stages unlock in sequence
+             */
+            track_key?: string | null;
+            /**
              * Sequence
              * @description Ordering within a sequenced category (e.g. the starter arc); NULL for unsequenced categories
              */
@@ -8785,6 +9010,10 @@ export interface components {
              * Format: uuid4
              */
             id: string;
+            /** Resets At */
+            resets_at?: string | null;
+            /** Next Stage Challenge */
+            next_stage_challenge?: string | null;
             /** Progress */
             progress: number;
             /** Total */
@@ -8928,6 +9157,8 @@ export interface components {
             dweller_id?: string | null;
             /** Storage Id */
             storage_id?: string | null;
+            /** Description */
+            description?: string | null;
         };
         /**
          * OutfitTypeEnum
@@ -9514,8 +9745,12 @@ export interface components {
             quest_type: components["schemas"]["QuestType"];
             /** Quest Category */
             quest_category?: string | null;
-            /** Duration Minutes */
-            duration_minutes?: number | null;
+            /**
+             * Duration Minutes
+             * @description Quest duration in minutes
+             * @default 60
+             */
+            duration_minutes: number;
             /** Chain Id */
             chain_id?: string | null;
             /**
@@ -9584,6 +9819,8 @@ export interface components {
             };
             /** Is Mandatory */
             is_mandatory: boolean;
+            /** Is Met */
+            is_met?: boolean | null;
         };
         /** QuestRewardRead */
         QuestRewardRead: {
@@ -9987,6 +10224,11 @@ export interface components {
             /** Image Url */
             image_url?: string | null;
             /**
+             * Room Style
+             * @default default
+             */
+            room_style: string;
+            /**
              * Speedup Multiplier
              * @default 1
              */
@@ -9995,6 +10237,14 @@ export interface components {
             capacity_formula?: string | null;
             /** Output Formula */
             output_formula?: string | null;
+        };
+        /** RoomMerge */
+        RoomMerge: {
+            /**
+             * Other Room Id
+             * Format: uuid4
+             */
+            other_room_id: string;
         };
         /** RoomRead */
         RoomRead: {
@@ -10034,6 +10284,11 @@ export interface components {
             /** Image Url */
             image_url?: string | null;
             /**
+             * Room Style
+             * @default default
+             */
+            room_style: string;
+            /**
              * Speedup Multiplier
              * @default 1
              */
@@ -10053,6 +10308,14 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** RoomStyleUpdate */
+        RoomStyleUpdate: {
+            /**
+             * Style
+             * @enum {string}
+             */
+            style: "default" | "party" | "brotherhood" | "halloween" | "institute" | "minutemen" | "railroad" | "thanksgiving" | "xmas";
         };
         /**
          * RoomTypeEnum
@@ -10218,6 +10481,29 @@ export interface components {
             pets?: components["schemas"]["PetRead"][];
         };
         /**
+         * StorageMaintenanceRead
+         * @description Vault-wide protection from storage-room staffing; chance is per trial interval.
+         */
+        StorageMaintenanceRead: {
+            /** Enabled */
+            enabled: boolean;
+            /** Worker Count */
+            worker_count: number;
+            /** Total Endurance */
+            total_endurance: number;
+            /** Protection Pct */
+            protection_pct: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "disabled" | "rusting" | "stable" | "improving";
+            /** Hourly Chance */
+            hourly_chance: number;
+            /** Trial Interval Seconds */
+            trial_interval_seconds: number;
+        };
+        /**
          * StorageSpaceResponse
          * @description Storage space information response.
          */
@@ -10265,35 +10551,6 @@ export interface components {
          * @enum {string}
          */
         SynthTypeEnum: "gen_1" | "gen_2" | "gen_3";
-        /**
-         * TeamMemberRead
-         * @description A team member as returned by team services.
-         */
-        TeamMemberRead: {
-            /**
-             * Id
-             * Format: uuid4
-             */
-            id: string;
-            /**
-             * Team Id
-             * Format: uuid4
-             */
-            team_id: string;
-            /**
-             * Dweller Id
-             * Format: uuid4
-             */
-            dweller_id: string;
-            /** Slot Number */
-            slot_number?: number | null;
-            /** Status */
-            status: string;
-            /** Created At */
-            created_at?: string | null;
-            /** Updated At */
-            updated_at?: string | null;
-        };
         /**
          * TestEmailRequest
          * @description Payload for POST /email/test — send a diagnostic email via the configured SMTP server.
@@ -10933,6 +11190,11 @@ export interface components {
              * @default false
              */
             is_completed: boolean;
+            /**
+             * Is Locked
+             * @default false
+             */
+            is_locked: boolean;
             /** Credited Dweller Ids */
             credited_dweller_ids?: string[];
             /** Reward Snapshot */
@@ -11372,6 +11634,8 @@ export interface components {
             dweller_id?: string | null;
             /** Storage Id */
             storage_id?: string | null;
+            /** Description */
+            description?: string | null;
         };
         /**
          * WeaponSubtypeEnum
@@ -12162,6 +12426,38 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CraftingOrderRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_crafting_order_api_v1_crafting_vault__vault_id__orders__order_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13966,7 +14262,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -13997,7 +14293,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14028,7 +14324,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14059,7 +14355,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14092,7 +14388,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14123,7 +14419,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14154,7 +14450,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14186,7 +14482,7 @@ export interface operations {
             header?: never;
             path: {
                 incident_id: string;
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14218,7 +14514,7 @@ export interface operations {
             header?: never;
             path: {
                 incident_id: string;
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14249,7 +14545,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14283,7 +14579,7 @@ export interface operations {
             header?: never;
             path: {
                 incident_id: string;
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14319,7 +14615,7 @@ export interface operations {
             header?: never;
             path: {
                 incident_id: string;
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14331,7 +14627,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TeamMemberRead"][];
+                    "application/json": components["schemas"]["IncidentResponderRead"][];
                 };
             };
             /** @description Validation Error */
@@ -14351,7 +14647,7 @@ export interface operations {
             header?: never;
             path: {
                 incident_id: string;
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14387,7 +14683,7 @@ export interface operations {
             header?: never;
             path: {
                 incident_id: string;
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14424,7 +14720,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14689,7 +14985,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -14721,7 +15017,7 @@ export interface operations {
             header?: never;
             path: {
                 location_id: string;
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -16295,6 +16591,42 @@ export interface operations {
             };
         };
     };
+    queue_arena_skill_api_v1_arena_vault__vault_id__rooms__room_id__skill_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArenaSkillRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArenaSkillQueued"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_radio_stats_api_v1_radio_vault__vault_id__stats_get: {
         parameters: {
             query?: never;
@@ -16951,6 +17283,107 @@ export interface operations {
             };
         };
     };
+    apply_room_style_api_v1_rooms_style__room_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoomStyleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    split_room_api_v1_rooms_split__room_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    merge_rooms_api_v1_rooms_merge__room_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoomMerge"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_storage_space_api_v1_storage_vault__vault_id__space_get: {
         parameters: {
             query?: never;
@@ -17114,6 +17547,37 @@ export interface operations {
             };
         };
     };
+    get_storage_maintenance_api_v1_storage_vault__vault_id__maintenance_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageMaintenanceRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     stream_notifications_api_v1_stream_notifications_get: {
         parameters: {
             query?: never;
@@ -17139,7 +17603,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -17170,7 +17634,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -17201,7 +17665,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -17232,7 +17696,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -17265,7 +17729,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -17298,7 +17762,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -17942,7 +18406,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -17973,7 +18437,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -18011,7 +18475,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -18104,7 +18568,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -18137,7 +18601,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -18170,7 +18634,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -18203,7 +18667,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };
@@ -18236,7 +18700,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                vault_id: string;
+                vault_id: string | null;
             };
             cookie?: never;
         };

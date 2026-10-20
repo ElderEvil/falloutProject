@@ -150,7 +150,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     ['level_up', 'levelUp'],
     ['training_complete', 'trainingComplete'],
     ['radio_new_dweller', 'radioRecruit'],
-    ['resource_low', 'notification'],
+    ['resource_low', 'resourceLow'],
   ])('plays one %s cue when a notification is delivered twice', async (type, sound) => {
     const play = vi.spyOn(audioManager, 'play').mockImplementation(() => {})
     useAuthStore().token = 'test-token'
@@ -573,46 +573,49 @@ describe('NotificationBell SSE watcher null-safety', () => {
     wrapper.unmount()
   })
 
-  it('toasts when an objective-completion notification arrives', async () => {
-    // ARRANGE: authenticated user, SSE delivers an objective_completed notification
-    const authStore = useAuthStore()
-    authStore.token = 'test-token'
-    const { toasts } = useToast()
-    toasts.value = []
+  it.each(['objective_completed', 'objectives_refreshed'])(
+    'toasts when a %s notification arrives',
+    async (notificationType) => {
+      // ARRANGE: authenticated user, SSE delivers an objective_completed notification
+      const authStore = useAuthStore()
+      authStore.token = 'test-token'
+      const { toasts } = useToast()
+      toasts.value = []
 
-    const objectiveData = JSON.stringify({
-      notification: {
-        id: 'n8',
-        notification_type: 'objective_completed',
-        title: 'Objective Complete',
-        message: 'Objective complete: Scrap 1 Baseball bat',
-        priority: 'normal',
-        created_at: '2026-08-11T15:00:00',
-        vault_id: 'vault-1',
-        meta_data: {},
-      },
-    })
-    fetchMock.mockResolvedValue(
-      createMockResponse([encodeSse(objectiveData, 'notification')], { hang: true })
-    )
+      const objectiveData = JSON.stringify({
+        notification: {
+          id: 'n8',
+          notification_type: notificationType,
+          title: 'Objective Complete',
+          message: 'Objective complete: Scrap 1 Baseball bat',
+          priority: 'normal',
+          created_at: '2026-08-11T15:00:00',
+          vault_id: 'vault-1',
+          meta_data: {},
+        },
+      })
+      fetchMock.mockResolvedValue(
+        createMockResponse([encodeSse(objectiveData, 'notification')], { hang: true })
+      )
 
-    // ACT: mount (onMounted starts SSE) and let the stream flush
-    const wrapper = mount(NotificationBell)
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
+      // ACT: mount (onMounted starts SSE) and let the stream flush
+      const wrapper = mount(NotificationBell)
+      await vi.advanceTimersByTimeAsync(0)
+      await flushPromises()
 
-    // ASSERT: announced immediately (progression red line)
-    expect(toasts.value.some((t) => t.message === 'Objective complete: Scrap 1 Baseball bat')).toBe(
-      true
-    )
+      // ASSERT: announced immediately (progression red line)
+      expect(
+        toasts.value.some((t) => t.message === 'Objective complete: Scrap 1 Baseball bat')
+      ).toBe(true)
 
-    // ASSERT: the event also produced a bell entry
-    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
-    await flushPromises()
-    expect(wrapper.text()).toContain('Objective Complete')
+      // ASSERT: the event also produced a bell entry
+      await wrapper.find('button[aria-label="Notifications"]').trigger('click')
+      await flushPromises()
+      expect(wrapper.text()).toContain('Objective Complete')
 
-    wrapper.unmount()
-  })
+      wrapper.unmount()
+    }
+  )
 })
 
 describe('NotificationBell popup accessibility', () => {
@@ -794,6 +797,40 @@ describe('NotificationBell popup accessibility', () => {
     expect(badgeClass).not.toMatch(/bg-danger\/20/)
     expect(badgeClass).toMatch(/(^|\s)text-black(\s|$)/)
 
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['storage_item_degraded', 'mdi:tools'],
+    ['storage_item_upgraded', 'mdi:arrow-up-bold'],
+  ])('shows %s in both toast and bell', async (notification_type, icon) => {
+    useAuthStore().token = 'test-token'
+    const { toasts } = useToast()
+    toasts.value = []
+    const message = 'A stored weapon changed catalog variant'
+    const data = JSON.stringify({
+      notification: {
+        id: 'storage-notification',
+        vault_id: 'vault-1',
+        notification_type,
+        title: 'Storage maintenance',
+        message,
+        priority: 'normal',
+        created_at: '2026-10-20T12:00:00',
+      },
+    })
+    fetchMock.mockResolvedValue(
+      createMockResponse([encodeSse(data, 'notification')], { hang: true })
+    )
+    const wrapper = mount(NotificationBell)
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+    expect(toasts.value.some((toast) => toast.message === message)).toBe(true)
+    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find(`[data-icon="${icon}"]`).exists()).toBe(true)
+    expect(wrapper.text()).toContain('Storage maintenance')
+    expect(wrapper.text()).toContain(message)
     wrapper.unmount()
   })
 })

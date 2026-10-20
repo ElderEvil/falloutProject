@@ -38,6 +38,9 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         response = await db_session.execute(query)
         return response.scalars().all()
 
+    async def get_non_deleted_ids(self, db_session: AsyncSession) -> list[UUID4]:
+        return list((await db_session.execute(select(self.model.id).where(self.model.deleted_at.is_(None)))).scalars())
+
     async def lock_for_update(self, db_session: AsyncSession, vault_id: UUID4) -> Vault:
         """Lock a vault row and return its current committed state.
 

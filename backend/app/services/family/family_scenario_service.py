@@ -36,15 +36,20 @@ from app.core.enums import (
     PregnancyStatusEnum,
     RelationshipTypeEnum,
     RoomTypeEnum,
+    SPECIALEnum,
 )
 from app.core.game_config import game_config
+from app.crud.relationship import relationship_crud
 from app.services.family.breeding_service import breeding_service
 from app.utils.exceptions import ResourceNotFoundException
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from sqlmodel.ext.asyncio.session import AsyncSession
 
     from app.models.dweller import Dweller
+    from app.models.relationship import Relationship
     from app.models.room import Room
 
 from app.models.pregnancy import Pregnancy
@@ -132,7 +137,7 @@ class FamilyScenarioService:
     @staticmethod
     async def find_living_quarters(db_session: AsyncSession, vault_id: UUID4) -> Room | None:
         """Return the first living-quarters (capacity) room in the vault, if any."""
-        rooms = await crud.room.get_by_category(db_session, vault_id, RoomTypeEnum.CAPACITY)
+        rooms = await crud.room.get_living_quarters(db_session, vault_id)
         return rooms[0] if rooms else None
 
     @staticmethod
@@ -150,6 +155,8 @@ class FamilyScenarioService:
             raise ValueError(f"Room not found (id={room_id})") from exc
         if vault_id is not None and room.vault_id != vault_id:
             raise ValueError(f"Room {room_id} does not belong to vault {vault_id}")
+        if room.category != RoomTypeEnum.CAPACITY or room.ability != SPECIALEnum.CHARISMA:
+            raise ValueError("Family scenarios require Living Quarters")
         return room
 
     # ------------------------------------------------------------------
@@ -224,7 +231,7 @@ class FamilyScenarioService:
                 raise ValueError(f"Dweller {d.id} does not belong to vault {vault_id}")
 
         rel_type = RelationshipTypeEnum(stage)
-        rel = await crud.relationship.create_with_defaults(
+        rel = await relationship_crud.create_with_defaults(
             db_session,
             dweller_1_id,
             dweller_2_id,
@@ -370,7 +377,7 @@ class FamilyScenarioService:
             return f"{dwellers_by_id[dweller_id].first_name} {dwellers_by_id[dweller_id].last_name or ''}".strip()
 
         # Relationships with next-milestone countdowns.
-        relationships = await crud.relationship.get_by_vault(db_session, vault_id)
+        relationships = await relationship_crud.get_by_vault(db_session, vault_id)
         for rel in relationships:
             name_1 = await _name(rel.dweller_1_id)
             name_2 = await _name(rel.dweller_2_id)
@@ -417,7 +424,9 @@ class FamilyScenarioService:
                     TimelineRow(kind="pregnancy", label=f"{mother} ⚧ {father}", detail="pregnant", countdown=countdown)
                 )
             else:
-                cooldown_ends = preg.updated_at + timedelta(hours=game_config.breeding.birth_cooldown_hours)
+                cooldown_ends = (preg.updated_at or preg.due_at) + timedelta(
+                    hours=game_config.breeding.birth_cooldown_hours
+                )
                 remaining = cooldown_ends - datetime.now(UTC).replace(tzinfo=None)
                 if remaining > timedelta(0):
                     countdown = f"cooldown ends in {_fmt_delta(remaining)}"
@@ -465,14 +474,14 @@ class FamilyScenarioService:
         """
         counts: dict[str, int] = {"relationships": 0, "pregnancies": 0, "children": 0}
 
-        relationships = await crud.relationship.get_by_vault(db_session, vault_id)
+        relationships = await relationship_crud.get_by_vault(db_session, vault_id)
         for rel in relationships:
             for dweller_id in (rel.dweller_1_id, rel.dweller_2_id):
                 dweller = await crud.dweller.get(db_session, dweller_id)
                 if dweller and dweller.partner_id in (rel.dweller_1_id, rel.dweller_2_id):
                     dweller.partner_id = None
                     db_session.add(dweller)
-            await crud.relationship.delete(db_session, rel.id, soft=False)
+            await relationship_crud.delete(db_session, rel.id, soft=False)
             counts["relationships"] += 1
 
         for preg in await crud.pregnancy.get_all_by_mother_vault(db_session, vault_id):
@@ -528,7 +537,7 @@ class FamilyScenarioService:
         if pairs:
             raw_pairs = pairs
         else:
-            raw_pairs = await cls.auto_pair(db_session, vault_id, count, seed)
+            raw_pairs = [(a.id, b.id) for a, b in await cls.auto_pair(db_session, vault_id, count, seed)]
 
         # Resolve and validate the co-location room before creating any couples,
         # so an invalid or cross-vault room is rejected up front.
@@ -551,7 +560,7 @@ class FamilyScenarioService:
         result = ScenarioResult(couples=couples)
 
         # Timing lists map to couples by index (cycling for couples[0]).
-        def _targets(values: list[float] | None) -> list[tuple[Couple, float]]:
+        def _targets(values: Sequence[float] | None) -> list[tuple[Couple, float]]:
             if not values:
                 return []
             return [(couples[i % len(couples)], value) for i, value in enumerate(values)]

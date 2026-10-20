@@ -10,10 +10,14 @@ import {
   isElevator,
   type RoomPart,
 } from '../models/roomParts'
+import { roomStyle, supportsRoomStyles } from '../models/room'
+import { useRoomStore } from '../stores/room'
 import { useRoomProduction } from '../composables/useRoomProduction'
 import { useRoomUpgrade } from '../composables/useRoomUpgrade'
 import { useRoomDwellers } from '../composables/useRoomDwellers'
 import { useRadioRoom } from '../composables/useRadioRoom'
+import { useRoomStyle } from '../composables/useRoomStyle'
+import { useRoomThemes } from '../composables/useRoomThemes'
 import RoomDetailHeader from './RoomDetailHeader.vue'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import RoomPreviewSection from './RoomPreviewSection.vue'
@@ -27,6 +31,7 @@ import ArenaRoomDetail from './ArenaRoomDetail.vue'
 import RoomIncidentDetail from './RoomIncidentDetail.vue'
 import IncidentAftermath from './IncidentAftermath.vue'
 import CraftingPanel from '@/modules/crafting/components/CraftingPanel.vue'
+import StorageMaintenancePanel from '@/modules/storage/components/StorageMaintenancePanel.vue'
 import OverseerBriefing from '@/modules/vault/components/shell/OverseerBriefing.vue'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
 import { useSound } from '@/core/composables/useSound'
@@ -56,6 +61,7 @@ const roomRef = toRef(props, 'room')
 const modelValueRef = toRef(props, 'modelValue')
 
 const incidentStore = useIncidentStore()
+const roomStore = useRoomStore()
 const liveIncident = computed(
   () => incidentStore.activeIncidents.find((inc) => inc.room_id === props.room?.id) ?? null
 )
@@ -70,6 +76,10 @@ const parts = computed<RoomPart[]>(() =>
 const has = (part: RoomPart) => hasPart(parts.value, part)
 const craftingType = computed(() => craftingItemType(props.room))
 const roomUnits = computed(() => props.room?.size ?? props.room?.size_min ?? 3)
+const themeSelectorEnabled = computed(
+  () => !!props.room && supportsRoomStyles(props.room) && props.room.tier >= 3
+)
+const { availableThemes } = useRoomThemes(props.vaultId, themeSelectorEnabled)
 // Elevators keep one static slot for future transit display — no assignment.
 const isElevatorRoom = computed(() => isElevator(props.room))
 
@@ -94,13 +104,25 @@ const { resourceIcon, roomImageUrl, roomGridImageUrl, productionInfo } = useRoom
   dwellerCapacity
 )
 
-const { isUpgrading, isDestroying, upgradeInfo, isVaultDoor, handleUpgrade, handleDestroy } =
-  useRoomUpgrade(
-    roomRef,
-    actionError,
-    () => emit('roomUpdated'),
-    () => emit('close')
-  )
+const {
+  isUpgrading,
+  isDestroying,
+  isRemodeling,
+  handleRemodel,
+  upgradeInfo,
+  isVaultDoor,
+  handleUpgrade,
+  handleDestroy,
+} = useRoomUpgrade(
+  roomRef,
+  actionError,
+  () => emit('roomUpdated'),
+  () => emit('close')
+)
+
+const { isApplyingStyle, handleApplyStyle } = useRoomStyle(roomRef, actionError, () =>
+  emit('roomUpdated')
+)
 
 const {
   isRecruiting,
@@ -113,9 +135,14 @@ const {
 
 const { playSound, playAmbience, stopAmbience } = useSound()
 
-// Clear error when modal closes; start ambience on open and when the room category changes.
+// Clear error when modal closes; start ambience on open and when the room changes.
 watch(
-  [() => props.modelValue, () => props.room?.category],
+  [
+    () => props.modelValue,
+    () => props.room?.name,
+    () => props.room?.category,
+    () => props.room?.room_style,
+  ],
   ([open], oldValues) => {
     if (!open) {
       actionError.value = null
@@ -126,7 +153,7 @@ watch(
     if (open !== oldValues?.[0]) {
       playSound('modalOpen')
     }
-    const ambience = getRoomAmbienceKey(props.room?.category)
+    const ambience = getRoomAmbienceKey(props.room)
     if (ambience) playAmbience(ambience)
     else stopAmbience()
   },
@@ -166,6 +193,7 @@ onUnmounted(stopAmbience)
         <RoomIncidentDetail
           v-if="has('incident') && liveIncident"
           :incident="liveIncident"
+          :rooms="roomStore.rooms"
           :vault-id="props.vaultId"
           :dwellers="vaultDwellers"
           :fallback-image-url="roomGridImageUrl ?? null"
@@ -208,12 +236,23 @@ onUnmounted(stopAmbience)
             :assigned-dwellers="assignedDwellers"
             :show-apprentice-slot="producesResources(room) && !isElevatorRoom"
             :assign-enabled="!isElevatorRoom"
+            :room-style="supportsRoomStyles(room) ? roomStyle(room) : null"
+            :available-themes="availableThemes"
+            :room-tier="room.tier"
+            :is-applying-style="isApplyingStyle"
             @activate="openDwellerDetails"
             @unassign="handleUnassignDweller"
             @assign-worker="assignmentMode = 'worker'"
             @assign-apprentice="assignmentMode = 'apprentice'"
+            @apply-style="handleApplyStyle"
           />
 
+          <StorageMaintenancePanel
+            v-if="has('storageMaintenance')"
+            :vault-id="vaultId"
+            :workers="assignedDwellers.length"
+            :slots="dwellerCapacity"
+          />
           <ResponseStationDetail
             v-if="has('responseStation')"
             :room="room"
@@ -257,6 +296,7 @@ onUnmounted(stopAmbience)
             v-if="has('crafting') && craftingType"
             :vault-id="vaultId"
             :item-type="craftingType"
+            :crew-key="assignedDwellers.map((dweller) => dweller.id).join(',')"
             @crafted="emit('roomUpdated')"
           />
 
@@ -276,10 +316,13 @@ onUnmounted(stopAmbience)
             :upgrade-info="upgradeInfo"
             :is-upgrading="isUpgrading"
             :is-destroying="isDestroying"
+            :is-remodeling="isRemodeling"
             :is-vault-door="isVaultDoor"
             :assigned-dweller-count="assignedDwellers.length"
             @upgrade="handleUpgrade"
             @destroy="handleDestroy"
+            @split="handleRemodel()"
+            @merge="handleRemodel"
             @unassign-all="handleUnassignAll"
           />
         </template>

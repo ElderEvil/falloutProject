@@ -86,6 +86,7 @@ class RadioStats(TypedDict, total=False):
 
 
 class ArenaEventStats(TypedDict):
+    created_at: str | None
     id: str
     round_seq: int
     kind: str
@@ -112,6 +113,7 @@ class TickUpdates(TypedDict, total=False):
     apprenticeships: ApprenticeStats
     training: TrainingStats
     crafting: CraftingStats
+    storage: dict[str, int]
     happiness: dict[str, Any]
     breeding: BreedingStats
     events: EventsStats

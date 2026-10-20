@@ -2,6 +2,185 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.243.0 (2026-10-20)
+
+### Features
+
+* **progression:** collect ready rewards in one click ([#1110](https://github.com/ElderEvil/falloutProject/issues/1110)) 24370d7
+
+## 2.242.0 (2026-10-20)
+
+### Features
+
+* **storage:** add weapon maintenance and recipe status ([#1108](https://github.com/ElderEvil/falloutProject/issues/1108)) 5c73d58
+
+## 2.241.0 (2026-10-20)
+
+### Features
+
+* **rooms:** add themed rooms, selector, and theme crafting ([#1106](https://github.com/ElderEvil/falloutProject/issues/1106)) 78330c2
+
+## 2.240.0 (2026-10-19)
+
+### Features
+
+* **progression:** name the starter resident rewards 421e63f
+* **vault:** equip legendary pets on boosted starts 5157c78
+
+### Bug Fixes
+
+* **backend:** race-safe get_or_create for GameState and ArenaState ([#1099](https://github.com/ElderEvil/falloutProject/issues/1099)) 80686f9, closes #1065 #1065
+* **dwellers:** link known parents in bios and family trees a62328c
+
+## 2.239.2 (2026-10-19)
+
+### Bug Fixes
+
+* **ui:** polish vault, exploration, and dweller surfaces ([#1102](https://github.com/ElderEvil/falloutProject/issues/1102)) 0963bf4
+
+## 2.239.1 (2026-10-19)
+
+### Bug Fixes
+
+* record dweller death in bio ([#1097](https://github.com/ElderEvil/falloutProject/issues/1097)) 0a7585e
+
+## 2.239.0 (2026-10-19)
+
+### Features
+
+* polish exploration detail UI ([#1096](https://github.com/ElderEvil/falloutProject/issues/1096)) 15bf74b
+
+## 2.238.2 (2026-10-19)
+
+### Bug Fixes
+
+* **ui:** refine room dweller previews ([#1095](https://github.com/ElderEvil/falloutProject/issues/1095)) 6e10132
+
+## 2.238.1 (2026-10-19)
+
+### Bug Fixes
+
+* **quests:** detach questing dwellers from their pre-departure room ([#1094](https://github.com/ElderEvil/falloutProject/issues/1094)) fd58f0f, closes #1092
+
+## 2.238.0 (2026-10-19)
+
+### Features
+
+* **audio:** give the incident alarm its own toggle ([#1093](https://github.com/ElderEvil/falloutProject/issues/1093)) b216ca7
+
+## 2.237.0 (2026-10-19)
+
+### Features
+
+* **audio:** rotate context music, per-room ambience, per-notification cues ([#1088](https://github.com/ElderEvil/falloutProject/issues/1088)) 91bb837
+
+## 2.236.1 (2026-10-19)
+
+### Bug Fixes
+
+* **ui:** player feedback round — objective icons, navbar avatar, ring positions ([#1087](https://github.com/ElderEvil/falloutProject/issues/1087)) 27ba3b8, closes #1083 #1085 #1086 #1085 #1083 #1086 #1084 #1086
+
+## 2.236.0 (2026-10-18)
+
+### Features
+
+* **exploration:** add salvage sites and reload development workers ([#1082](https://github.com/ElderEvil/falloutProject/issues/1082)) ea18f2a
+* **incidents:** preview room defenders and send nearby support ([#1081](https://github.com/ElderEvil/falloutProject/issues/1081)) a00b93d
+
+## 2.235.1 (2026-10-18)
+
+### Bug Fixes
+
+* **incidents:** preserve residents and helper return postings ([#1080](https://github.com/ElderEvil/falloutProject/issues/1080)) f9311f4
+
+## 2.235.0 (2026-10-18)
+
+### Features
+
+* **arena:** add charged skills and ring combat preview ([#1079](https://github.com/ElderEvil/falloutProject/issues/1079)) e716c98
+
+## 2.234.3 (2026-10-18)
+
+### Bug Fixes
+
+* **quests:** widen quest text limits to match authored prose ([#1078](https://github.com/ElderEvil/falloutProject/issues/1078)) d3afd91
+
+### Code Refactoring
+
+* build all items via item_factory and share departure helpers ([#1077](https://github.com/ElderEvil/falloutProject/issues/1077)) fc05a4f
+
+## 2.234.2 (2026-10-18)
+
+### Bug Fixes
+
+* **rooms:** price construction by existing room segments ([#1076](https://github.com/ElderEvil/falloutProject/issues/1076)) 1ea5763
+
+## 2.234.1 (2026-10-18)
+
+### Code Refactoring
+
+* **loot:** unify overflow take/sell settlement behind one item builder ([#1075](https://github.com/ElderEvil/falloutProject/issues/1075)) 3d3201e
+
+## 2.234.0 (2026-10-18)
+
+### Features
+
+* **storage:** reveal lunchbox rewards in place with rarity sounds ([#1074](https://github.com/ElderEvil/falloutProject/issues/1074)) 53cd07c
+
+## 2.233.0 (2026-10-18)
+
+### Features
+
+* **rooms:** add build search and fix upgrade button layout ([#1073](https://github.com/ElderEvil/falloutProject/issues/1073)) a39b389
+* simplify quest card headers with category icons ([#1072](https://github.com/ElderEvil/falloutProject/issues/1072)) d5c479c
+
+## 2.232.1 (2026-10-18)
+
+### Bug Fixes
+
+* make Power Struggle outfit requirements craftable 2599491
+
+## 2.232.0 (2026-10-18)
+
+### Features
+
+* **objectives:** unlock achievement stages with fresh progress 03054fc
+
+### Bug Fixes
+
+* **objectives:** credit existing state when assigning reach milestones 4b02223
+
+### Code Refactoring
+
+* **progression:** simplify objective cards and move rules to help 64916fd
+
+## 2.231.1 (2026-10-18)
+
+### Bug Fixes
+
+* **objectives:** defer overflow-sale events until commit b8e5e6a
+* **objectives:** renew daily and weekly tasks on UTC boundaries 8f49c26
+
+## 2.231.0 (2026-10-18)
+
+### Features
+
+* **dwellers:** per-race archetypes with richer random bios ([#1066](https://github.com/ElderEvil/falloutProject/issues/1066)) 4890451
+
+## 2.230.0 (2026-10-17)
+
+### Features
+
+* **dwellers:** semi-random appearance, inherited from parents at birth ([#1062](https://github.com/ElderEvil/falloutProject/issues/1062)) 9be8a80, closes #1036
+* **quests:** add wasteland story chains and timed mission limit ([#1064](https://github.com/ElderEvil/falloutProject/issues/1064)) 6c03c43
+
+## 2.229.0 (2026-10-17)
+
+### Features
+
+* compact storage cards and randomize vault numbers ([#1061](https://github.com/ElderEvil/falloutProject/issues/1061)) f8ec26d
+* split merged rooms and manually merge adjacent rooms ([#1059](https://github.com/ElderEvil/falloutProject/issues/1059)) b6d7077
+
 ## 2.228.3 (2026-10-17)
 
 ### Bug Fixes

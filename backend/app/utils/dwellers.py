@@ -8,13 +8,22 @@ from faker import Faker
 
 from app.core.enums import AgeGroupEnum, GenderEnum
 from app.core.game_config import game_config
-from app.options.bios import maybe_zone_rumor, render_bio
 from app.options.factions import FactionOption, faction_restrictions
+from app.options.presets import archetypes
 from app.options.races import STATE_OF_BEING_OPTIONS, RaceOption, is_ageless, race_of
 from app.schemas.dweller import LETTER_TO_STAT, STATS_RANGE_BY_RARITY, RarityEnum
+from app.utils.appearance_roll import (
+    complete_appearance,
+    describe_appearance,
+    inherit_appearance_for_child,
+    roll_appearance,
+)
+from app.utils.bios import maybe_zone_rumor, render_bio
 
 if TYPE_CHECKING:
     from types import ModuleType
+
+    from app.schemas.dweller_catalog import DwellerArchetype
 
 fake: Faker = Faker()
 
@@ -134,7 +143,9 @@ def roll_child_identity(mother: Any, father: Any, source: random.Random | Module
     Mutation (``BreedingConfig.race_mutation_chance``) picks a race *different*
     from the parents, weighted by ``race_weights`` over the remaining candidates,
     which is how non-humans arise from breeding given that only humans are
-    breeding-eligible.
+    breeding-eligible. When the mutated race differs from both parents, the
+    finer appearance is re-rolled for that race (issue #1036): skin/hair/eye
+    traits that cannot transfer re-roll cleanly inside the new race's options.
     """
     parent_races = [race for race in (race_of(mother), race_of(father)) if race is not None] or [RaceOption.HUMAN]
     if source.random() < game_config.breeding.race_mutation_chance:
@@ -143,7 +154,13 @@ def roll_child_identity(mother: Any, father: Any, source: random.Random | Module
         race = source.choices(candidates, weights=[weights[candidate.value] for candidate in candidates])[0]
     else:
         race = source.choice(parent_races)
-    return _identity_for_race(race, source)
+    identity = _identity_for_race(race, source)
+
+    if race not in parent_races:
+        identity.update(roll_appearance(race, None, source, AgeGroupEnum.CHILD))
+    else:
+        identity.update(inherit_appearance_for_child(race, mother, father, source))
+    return identity
 
 
 def _rarity_start_level(rarity: RarityEnum | str, rng: random.Random | ModuleType) -> int:
@@ -180,6 +197,20 @@ def _xp_for_level(level: int) -> int:
     return int(game_config.leveling.base_xp_requirement * (level**game_config.leveling.xp_curve_exponent))
 
 
+def _pick_archetype_for_race(race: RaceOption, rng: random.Random | ModuleType) -> DwellerArchetype | None:
+    """Select a random archetype for the given race (weighted) or None.
+
+    Filters ``archetypes`` by the rolled race and skips empty appearance pools.
+    The chosen record supplies
+    appearance and personality only; random dwellers retain the identity
+    faction from ``_roll_identity``.
+    """
+    candidates = [entry for entry in archetypes.values() if entry["race"] == race and entry["appearance_pools"]]
+    if not candidates:
+        return None
+    return rng.choices(candidates, weights=[entry["weight"] for entry in candidates], k=1)[0]
+
+
 def create_random_common_dweller(
     gender: GenderEnum | None = None, seed: int | None = None, rarity: RarityEnum = RarityEnum.COMMON
 ) -> dict[str, Any]:
@@ -204,10 +235,26 @@ def create_random_common_dweller(
         age_group = AgeGroupEnum.ADULT
     else:
         age_group = AgeGroupEnum.ELDER if birth_date <= elder_birth_threshold(now) else AgeGroupEnum.ADULT
+
+    race = _race_from_attributes(identity) or RaceOption.HUMAN
+    # Pick archetype after race is known.
+    archetype = _pick_archetype_for_race(race, rng)
+    appearance_pools = archetype["appearance_pools"] if archetype else None
+
+    identity.update(roll_appearance(race, gender, rng, age_group, appearance_pools=appearance_pools))
+
     origin, visited = _procedural_bio_places(rng, rarity)
-    bio = render_bio(origin, visited, race=_race_from_attributes(identity), rng=rng)
+    bio = render_bio(origin, visited, race=race, rng=rng)
+
+    # Enrich bio: add appearance description and personality line.
+    if archetype and archetype["personality_lines"]:
+        appearance_desc = describe_appearance(identity, gender, race)
+        personality = rng.choice(archetype["personality_lines"])
+        bio = f"{bio} {appearance_desc} {personality}"
+
     if rumor := maybe_zone_rumor(rng, game_config.bio.zone_rumor_chance):
         bio = f"{bio} {rumor}"
+
     level = _rarity_start_level(rarity, rng)
     starting_health = _max_health_for_level(level)
     starting_xp = _xp_for_level(level)
@@ -276,8 +323,7 @@ def create_dweller_from_template(
         data["max_health"] = _max_health_for_level(start_level)
         data["health"] = data["max_health"]
         data["experience"] = _xp_for_level(start_level)
-    if data.get("visual_attributes") is None:
-        data["visual_attributes"] = None
+    data["visual_attributes"] = complete_appearance(data, rng)
     data["_bio_places"] = (origin, visited) if origin or visited else None
     if not data.get("bio"):
         origin_fallback, visited_fallback = origin or "Vault 111", visited or []

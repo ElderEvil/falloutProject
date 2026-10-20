@@ -54,6 +54,21 @@ export const useArenaStore = defineStore('arena', () => {
     }
   }
 
+  async function queueSkill(
+    vaultId: string,
+    roomId: string,
+    fighterId: string,
+    token: string
+  ): Promise<boolean> {
+    try {
+      await arenaApi.queueSkill(vaultId, roomId, fighterId, token)
+      return await fetchState(vaultId, token, true)
+    } catch (error) {
+      handleStoreError(error, 'Failed to use active skill')
+      return false
+    }
+  }
+
   async function clearEvents(vaultId: string, roomId: string, token: string): Promise<boolean> {
     try {
       await arenaApi.clearEvents(vaultId, roomId, token)
@@ -80,6 +95,7 @@ export const useArenaStore = defineStore('arena', () => {
     fetchCreatures,
     setFighters,
     startFight,
+    queueSkill,
     clearEvents,
     getRoom,
     reset,

@@ -101,6 +101,20 @@ describe('Room Store', () => {
       expect(result).toBe('loaded')
     })
 
+    it('loads beyond the API default page so build prices count the entire vault', async () => {
+      const rooms = Array.from({ length: 101 }, (_, index) => ({
+        id: `room-${index}`,
+        name: 'Diner',
+      }))
+      vi.mocked(axios.get).mockImplementationOnce(async (_url, config) => ({
+        data: rooms.slice(0, config?.params?.limit ?? 100),
+      }))
+      const store = useRoomStore()
+      await store.fetchRooms('vault-1', 'test-token')
+      expect(store.rooms).toHaveLength(101)
+      expect(store.roomsLoadedVaultId).toBe('vault-1')
+    })
+
     it('should handle errors gracefully', async () => {
       vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network error'))
 
@@ -541,5 +555,40 @@ describe('Room Store', () => {
       expect(store.selectedRoom).toBeNull()
       expect(store.isPlacingRoom).toBe(false)
     })
+  })
+})
+
+describe('room remodeling', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+  })
+
+  it('replaces a split footprint locally and preserves unrelated rooms', async () => {
+    const store = useRoomStore()
+    const source = makeRoom({ size: 6 })
+    const unrelated = makeRoom({ id: 'other' })
+    const pieces = [makeRoom(), makeRoom({ id: 'piece-2', coordinate_x: 3 })]
+    store.rooms = [source, unrelated]
+    vi.mocked(axios.post).mockResolvedValueOnce({ data: pieces })
+    await store.remodelRoom(source.id, 'token')
+    expect(axios.post).toHaveBeenCalledWith(
+      `/api/v1/rooms/split/${source.id}`,
+      {},
+      { headers: { Authorization: 'Bearer token' } }
+    )
+    expect(store.rooms.map((r) => r.id)).toEqual(['other', 'room-1', 'piece-2'])
+  })
+
+  it('removes both merge inputs, accepts the survivor id, and keeps state on failure', async () => {
+    const store = useRoomStore()
+    store.rooms = [makeRoom(), makeRoom({ id: 'right' })]
+    vi.mocked(axios.post).mockRejectedValueOnce(new Error('Incident active'))
+    await expect(store.remodelRoom('room-1', 'token', 'right')).rejects.toThrow('Incident active')
+    expect(store.rooms).toHaveLength(2)
+    vi.mocked(axios.post).mockResolvedValueOnce({ data: makeRoom({ size: 6 }) })
+    await store.remodelRoom('right', 'token', 'room-1')
+    expect(store.rooms).toHaveLength(1)
+    expect(store.rooms[0]?.size).toBe(6)
   })
 })

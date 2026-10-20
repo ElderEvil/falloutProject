@@ -288,7 +288,7 @@ def test_starter_seed_file_integrity() -> None:
 
 def test_objective_item_rewards_are_catalog_backed() -> None:
     """Every weapon:/outfit: objective reward must name a real catalog item."""
-    from app.services.exploration import data_loader
+    from app.services import catalog_service as data_loader
     from app.utils.static_data import DATA_DIR
 
     catalog = {

@@ -13,8 +13,8 @@ from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.weapon import Weapon
 from app.schemas.room import RoomBuild
 from app.schemas.vault import VaultNumber
+from app.services import catalog_service as data_loader
 from app.services.dweller_service import dweller_service
-from app.services.exploration import data_loader
 from app.services.exploration_service import exploration_service
 from app.services.item_service import item_service
 from app.services.progression.objectives.evaluators import evaluator_manager
@@ -84,7 +84,7 @@ async def test_fresh_starter_rewards_reach_office_without_loot(async_session, su
                 assert room.population_required == 18
                 assert before_caps - vault.bottle_caps == 1_000
         elif step.objective_type == "explore":
-            explorer = next(d for d in dwellers if d.first_name == "Wanderer")
+            explorer = next(d for d in dwellers if d.first_name == "Juno")
             await exploration_service.send_dweller(async_session, vault.id, explorer.id, duration=2)
         elif step.objective_type == "equip":
             receiver = next(d for d in dwellers if d.is_mature and d.room_id is None and d.status != "exploring")

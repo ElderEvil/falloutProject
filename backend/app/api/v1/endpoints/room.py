@@ -12,7 +12,8 @@ from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_
 from app.db.session import get_async_session
 from app.models.room import Room
 from app.schemas.grid import GridConfig, grid_config
-from app.schemas.room import RoomBuild, RoomCreateWithoutVaultID, RoomRead
+from app.schemas.room import RoomBuild, RoomCreateWithoutVaultID, RoomMerge, RoomRead, RoomStyleUpdate
+from app.services.room_remodel_service import remodel_room
 from app.services.room_service import room_service
 
 router = APIRouter(prefix="/rooms", tags=["Room"])
@@ -127,3 +128,39 @@ async def upgrade_room(
     """
     await verify_room_access(room_id, user, db_session)
     return await room_service.upgrade_room(db_session, room_id)
+
+
+@router.post("/style/{room_id}", response_model=RoomRead)
+async def apply_room_style(
+    room_id: UUID4,
+    request: RoomStyleUpdate,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> Room:
+    """Apply a cosmetic room style (for example, the Party theme)."""
+    await verify_room_access(room_id, user, db_session)
+    return await room_service.apply_room_style(db_session, room_id, request.style)
+
+
+@router.post("/split/{room_id}", response_model=list[RoomRead])
+async def split_room(
+    room_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> list[Room]:
+    """Split a merged room into its base segments without charging caps."""
+    await verify_room_access(room_id, user, db_session)
+    return await remodel_room(db_session, room_id)
+
+
+@router.post("/merge/{room_id}", response_model=RoomRead)
+async def merge_rooms(
+    room_id: UUID4,
+    request: RoomMerge,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> Room:
+    """Merge two explicitly chosen adjacent rooms."""
+    await verify_room_access(room_id, user, db_session)
+    await verify_room_access(request.other_room_id, user, db_session)
+    return (await remodel_room(db_session, room_id, request.other_room_id))[0]

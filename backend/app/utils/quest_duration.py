@@ -2,6 +2,9 @@
 
 from app.core.config import settings
 
+MAX_ACTIVE_TIMED_QUESTS = 3
+STATE_QUEST_CATEGORIES = ("building", "population", "training")
+
 # The trip home takes half the effective quest duration, capped so a long quest
 # never adds more than 30 minutes of dead time.
 QUEST_RETURN_LEG_FRACTION = 0.5

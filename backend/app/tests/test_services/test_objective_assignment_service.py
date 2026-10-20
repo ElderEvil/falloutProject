@@ -143,31 +143,29 @@ class TestAssignAllObjectives:
     """Tests for assign_all_objectives."""
 
     @pytest.mark.asyncio
-    async def test_aggregates_all_three_categories(
-        self, service: ObjectiveAssignmentService, mock_db: AsyncMock
-    ) -> None:
-        """Returns dict with daily, weekly, achievements keys."""
-        daily_obj = _make_objective(_id=_O1, category=ObjectiveCategoryEnum.DAILY)
-        weekly_obj = _make_objective(_id=_O2, category=ObjectiveCategoryEnum.WEEKLY)
-        ach_obj = _make_objective(_id=_OACH1, category=ObjectiveCategoryEnum.ACHIEVEMENT)
-
-        # assign_achievement: query achievements + check each
-        responses = [
-            _make_exec_result([daily_obj]),
-            _make_exec_all([]),
-            _make_exec_result([weekly_obj]),
-            _make_exec_all([]),
-            _make_exec_result([ach_obj]),
-            _make_exec_result_scalar_one_or_none(None),
+    async def test_aggregates_all_three_categories(self, async_session, vault) -> None:
+        objectives = [
+            Objective(
+                challenge=f"{category} task",
+                reward="10 caps",
+                category=category,
+                objective_type="collect",
+                target_amount=5,
+            )
+            for category in (
+                ObjectiveCategoryEnum.DAILY,
+                ObjectiveCategoryEnum.WEEKLY,
+                ObjectiveCategoryEnum.ACHIEVEMENT,
+            )
         ]
-        mock_db.execute = AsyncMock(side_effect=responses)
-
-        result = await service.assign_all_objectives(_VAULT_ID)
-
-        assert set(result.keys()) == {"daily", "weekly", "achievements"}
-        assert len(result["daily"]) == 1
-        assert len(result["weekly"]) == 1
-        assert len(result["achievements"]) == 1
+        async_session.add_all(objectives)
+        await async_session.commit()
+        result = await ObjectiveAssignmentService(async_session).assign_all_objectives(vault.id)
+        assert set(result) == {"daily", "weekly", "achievements"}
+        assert all(len(rows) == 1 for rows in result.values())
+        assert {link.objective_id for link in await objective_crud.get_links_for_vault(async_session, vault.id)} == {
+            o.id for o in objectives
+        }
 
 
 # ===================================================================

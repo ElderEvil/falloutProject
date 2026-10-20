@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from pydantic import UUID4
-from sqlalchemy import JSON, Column
+from sqlalchemy import JSON, Boolean, Column, false
 from sqlmodel import Field, SQLModel
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
@@ -19,6 +19,11 @@ class GameStateBase(SQLModel):
     )
     is_active: bool = Field(default=True, description="Whether the vault game loop is active")
     is_paused: bool = Field(default=False, description="Whether the vault is manually paused by player")
+    achievement_tracks_initialized: bool = Field(
+        default=False, sa_column=Column(Boolean, nullable=False, server_default=false())
+    )
+    daily_objectives_period: datetime | None = Field(default=None)
+    weekly_objectives_period: datetime | None = Field(default=None)
     total_game_time: int = Field(default=0, ge=0, description="Total seconds the vault has been active")
     water_empty_since: datetime | None = Field(
         default=None, description="When vault water last hit zero; None while water is available"

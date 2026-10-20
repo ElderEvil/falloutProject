@@ -64,6 +64,7 @@ async def handle_objective_completed(_event_type: str, vault_id: UUID4, data: di
                         "objective_id": str(objective_id),
                         "reward": objective.reward,
                         "ready_to_claim": data.get("ready_to_claim", False),
+                        **({"next_achievement": data["next_achievement"]} if data.get("next_achievement") else {}),
                     },
                 ),
                 context=f"objective_completed vault={vault_id} objective={objective_id}",
@@ -79,3 +80,23 @@ def register_objective_event_handlers() -> None:
     """Register event handlers for objective events."""
     event_bus.subscribe(GameEvent.OBJECTIVE_COMPLETED, handle_objective_completed)
     logger.info("Registered handler for OBJECTIVE_COMPLETED event")
+
+
+async def notify_objectives_refreshed(db_session: AsyncSession, vault_id: UUID4, categories: list[str]) -> None:
+    """Persist and publish the fresh-task announcement beyond the notification bell."""
+    from app.models.notification import NotificationType
+
+    await notification_service.notify_owner(
+        db_session,
+        vault_id,
+        sender=lambda user_id: notification_service.create_and_send(
+            db_session,
+            user_id=user_id,
+            vault_id=vault_id,
+            notification_type=NotificationType.OBJECTIVES_REFRESHED,
+            title="New Objectives Available",
+            message=f"Fresh {' and '.join(categories)} objectives are available. Earned rewards remain claimable.",
+            meta_data={"refreshed_categories": categories},
+        ),
+        context=f"objectives refreshed vault={vault_id}",
+    )

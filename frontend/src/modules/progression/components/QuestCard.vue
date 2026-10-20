@@ -15,9 +15,8 @@ import {
   linearProgress,
   parseStartTimeMs,
 } from '@/modules/exploration/composables/useExplorationProgress'
-import { QUEST_TYPE_COLORS, isStateQuestCategory } from '../models/quest'
+import { QUEST_TYPE_COLORS, isStateQuestCategory, questTypeLabel } from '../models/quest'
 import type { QuestPartyMember, QuestRequirement, VaultQuest } from '../models/quest'
-import QuestTypeBadge from './QuestTypeBadge.vue'
 import QuestRewardList from './QuestRewardList.vue'
 import QuestRequirementList from './QuestRequirementList.vue'
 
@@ -102,6 +101,19 @@ const typeColor = computed(() => {
   return QUEST_TYPE_COLORS[quest.quest_type] || QUEST_TYPE_COLORS.side
 })
 
+const categoryIcons: Record<string, string> = {
+  building: 'mdi:home-group',
+  collection: 'mdi:package-variant',
+  combat: 'mdi:sword-cross',
+  exploration: 'mdi:compass',
+  population: 'mdi:account-group',
+  training: 'mdi:dumbbell',
+}
+const questIcon = computed(() => categoryIcons[quest.quest_category ?? ''] ?? 'mdi:flag')
+const iconLabel = computed(() =>
+  [`${questTypeLabel(quest.quest_type)} quest`, quest.quest_category].filter(Boolean).join(' · ')
+)
+
 const isChainQuest = computed(() => {
   return quest.chain_id !== null
 })
@@ -154,7 +166,12 @@ function isRequirementMet(req: QuestRequirement): boolean {
   return prerequisitesMet.value
 }
 
+const timedQuestLimitReached = computed(
+  () => status === 'available' && !isStateQuest.value && questStore.timedQuestLimitReached
+)
+
 const actionButtonText = computed(() => {
+  if (timedQuestLimitReached.value) return 'Quest limit reached'
   if (isLocked) return 'Locked'
   if (status === 'completed') return ''
   return {
@@ -179,13 +196,11 @@ const cardBorderColor = computed(() => {
 })
 
 const isButtonDisabled = computed(() => {
-  return isLocked || status === 'active' || status === 'returning'
+  return isLocked || timedQuestLimitReached.value || status === 'active' || status === 'returning'
 })
 
 const handleAction = () => {
-  if (isLocked) {
-    return // Don't do anything for locked quests
-  }
+  if (isButtonDisabled.value) return
   switch (status) {
     case 'available':
       if (isStateQuest.value || hasParty.value) {
@@ -212,21 +227,22 @@ const handleAction = () => {
     :completed="status === 'completed'"
     :border-color="cardBorderColor"
   >
-    <template #badges>
-      <div class="quest-badges">
-        <QuestTypeBadge :quest-type="quest.quest_type" />
-        <Badge v-if="quest.quest_category" variant="outline" class="category-badge">
-          {{ quest.quest_category }}
-        </Badge>
-        <Badge v-if="chainProgress" variant="outline" class="chain-badge">
-          <Icon icon="mdi:link-variant" class="inline-icon" />
-          {{ chainProgress }}
-        </Badge>
-        <Badge v-if="isLocked" variant="outline" class="locked-badge">
-          <Icon icon="mdi:lock" class="inline-icon" />
-          LOCKED
-        </Badge>
-      </div>
+    <template #leading>
+      <span
+        class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-theme-glow text-theme-primary"
+        role="img"
+        :aria-label="iconLabel"
+        :title="iconLabel"
+      >
+        <Icon :icon="questIcon" class="text-lg" ariaHidden="true" />
+      </span>
+    </template>
+    <template v-if="chainProgress" #badges>
+      <Badge variant="outline" class="shrink-0 gap-1 text-xs">
+        <Icon icon="mdi:link-variant" ariaHidden="true" />
+        <span class="sr-only">Quest </span>{{ chainProgress }}
+        <span class="sr-only"> in chain</span>
+      </Badge>
     </template>
 
     <div class="quest-card-content flex-1">
@@ -341,27 +357,6 @@ const handleAction = () => {
 </template>
 
 <style scoped>
-.quest-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  justify-content: flex-end;
-}
-
-.category-badge,
-.chain-badge,
-.locked-badge {
-  font-size: 0.7rem;
-  font-weight: bold;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.locked-badge {
-  border-color: var(--color-quest-locked) !important;
-  color: var(--color-quest-locked) !important;
-}
-
 .quest-section {
   margin-bottom: 12px;
 }

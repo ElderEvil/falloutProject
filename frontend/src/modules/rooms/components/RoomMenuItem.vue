@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useRoomStore } from '../stores/room'
+import { getRoomSegmentCount } from '../utils/room'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoute } from 'vue-router'
 import { getRoomImageUrl } from '@/core/utils/image'
@@ -17,6 +19,7 @@ const emit = defineEmits<{
 
 const route = useRoute()
 const vaultStore = useVaultStore()
+const roomStore = useRoomStore()
 const showRoomImage = ref(true)
 
 const categoryIcons: Record<string, string> = {
@@ -36,7 +39,15 @@ const currentVault = computed(() => {
   return vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null
 })
 
-const roomCost = computed(() => props.room.base_cost)
+const roomCost = computed(() => {
+  const count =
+    roomStore.roomsLoadedVaultId === vaultId.value
+      ? roomStore.rooms
+          .filter((room) => room.name === props.room.name)
+          .reduce((total, room) => total + getRoomSegmentCount(room), 0)
+      : 0
+  return props.room.base_cost + count * (props.room.incremental_cost ?? 0)
+})
 const canAfford = computed(() => {
   const caps = currentVault.value?.bottle_caps ?? 0
   return caps >= roomCost.value

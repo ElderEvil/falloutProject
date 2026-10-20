@@ -14,7 +14,7 @@ from app.schemas.expedition import EnemySpec, ExpeditionResolveRequest, ItemRoll
 from app.schemas.exploration_event import JunkSchema
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
-from app.services.exploration import data_loader
+from app.services import catalog_service as data_loader
 from app.services.exploration import expedition as expedition_module
 from app.services.exploration.expedition import (
     expedition_service,
@@ -623,3 +623,23 @@ async def test_site_event_logs_no_health_loss_when_undamaged(async_session: Asyn
     refreshed = await crud.exploration.get(async_session, exploration.id)
     site_events = [event for event in refreshed.events if event["type"] == "site"]
     assert "health_loss" not in site_events[-1]  # add_event omits None-valued fields
+
+
+@pytest.mark.parametrize("site_id", ["abandoned_campsite", "roadside_supply_truck", "forgotten_shack"])
+async def test_loot_only_sites_pay_once_without_combat_or_damage(async_session, site_id):
+    _, dweller, exploration = await _make_exploration(async_session, level=1)
+    site = data_loader.get_expedition_site(site_id)
+    before_hp = dweller.health
+    before_caps = exploration.total_caps_found
+    entry = await expedition_service.enter_run(async_session, exploration.id, site_id)
+    assert entry.node.kind == "finale"
+    view = await expedition_service.resolve_node(async_session, exploration.id, ExpeditionResolveRequest())
+    assert view.status == "cleared"
+    assert view.finale_paid
+    assert view.outcome.damage_taken == 0
+    assert not view.outcome.combat
+    assert dweller.health == before_hp
+    assert site.reward_vault.caps_min <= exploration.total_caps_found - before_caps <= site.reward_vault.caps_max
+    assert view.outcome.loot_gained
+    with pytest.raises((ResourceConflictException, ValidationException)):
+        await expedition_service.enter_run(async_session, exploration.id, site_id)

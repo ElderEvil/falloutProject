@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 test('creature damage feedback respects reduced motion', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.route('**/static/creature_images/**', (route) => route.abort())
-  await page.goto('/tests/e2e/fixtures/arena-creature.html?damage')
+  await page.goto('/tests/e2e/fixtures/arena-ring.html?damage')
   const damage = page.getByText('-15', { exact: true })
   await expect(damage).toHaveCSS('animation-name', 'none')
   await expect(damage.locator('..')).toHaveAttribute('aria-hidden', 'true')
@@ -49,7 +49,7 @@ for (const { mirror, robot, enemy } of [
     await expect(
       page.getByAltText(robot ? 'Training Eyebot' : 'Radscorpion', { exact: true })
     ).toHaveCount(1)
-    await expect(page.getByText('20/35', { exact: true })).toBeVisible()
+    await expect(page.getByText('20/35 HP', { exact: true })).toBeVisible()
   })
 }
 
@@ -74,7 +74,7 @@ for (const width of [1280, 390]) {
       },
     ]
     const creature = { key: 'deathclaw', name: 'Deathclaw', power: 50, max_hp: 50, is_robot: false }
-    const humans = ['Alpha', 'Bravo'].map((name, i) => ({
+    const humans = ['Alpha', 'Bravo', 'Charlie'].map((name, i) => ({
       id: `dweller-${i}`,
       name,
       level: 1,
@@ -110,7 +110,7 @@ for (const width of [1280, 390]) {
         posts.push(body)
         mode = body.mode
         teamA = [humans.find((human) => human.id === body.fighter_a_id)!]
-        if (body.team_a_bot_key) teamA.push(asBot(body.team_a_bot_key, 'A'))
+        if (body.fighter_c_id) teamA.push(humans.find((human) => human.id === body.fighter_c_id)!)
         teamB = mode === 'brawl' ? [humans.find((human) => human.id === body.fighter_b_id)!] : teamB
         if (body.team_b_bot_key) teamB.push(asBot(body.team_b_bot_key, 'B'))
         return route.fulfill({ json: {} })
@@ -123,6 +123,7 @@ for (const width of [1280, 390]) {
               room_name: 'Arena',
               tier: 3,
               mode,
+              next_attack_team: 'A',
               available_modes: ['duel', 'brawl', 'hunt'],
               fighter_a_id: humans[0].id,
               fighter_b_id: mode === 'brawl' ? humans[1].id : null,
@@ -149,16 +150,11 @@ for (const width of [1280, 390]) {
       })
     )
     await page.goto('/tests/e2e/fixtures/arena-teams.html')
-    const a = page.getByRole('group', { name: 'Team A partner' })
-    await a.getByRole('button', { name: 'Bot', exact: true }).click()
-    // Let the real one-second poll run before choosing: it must preserve the picker.
-    await page.waitForTimeout(1200)
-    await page.getByRole('button', { name: /Training Eyebot.*POW/ }).click()
-    await expect.poll(() => posts.at(-1)?.team_a_bot_key).toBe('training-eyebot')
-    await expect(page.getByAltText('Training Eyebot', { exact: true })).toHaveCSS(
-      'transform',
-      'none'
-    )
+    await expect(page.getByRole('group', { name: 'Team A partner' })).toHaveCount(0)
+    await page.getByRole('button', { name: /Choose from roster/ }).click()
+    await page.getByRole('button', { name: /^Charlie/ }).click()
+    await expect.poll(() => posts.at(-1)?.fighter_c_id).toBe('dweller-2')
+    expect(posts.at(-1)?.team_a_bot_key).toBeNull()
     await page.getByRole('tab', { name: 'Hunt', exact: true }).press('ArrowLeft')
     await page.getByRole('tab', { name: 'Brawl', exact: true }).press('Enter')
     await page
@@ -172,10 +168,9 @@ for (const width of [1280, 390]) {
       .click()
     await page.getByRole('button', { name: /Training Protectron.*POW/ }).click()
     await expect.poll(() => posts.at(-1)?.team_b_bot_key).toBe('training-protectron')
-    await expect(page.getByAltText('Training Protectron', { exact: true })).toHaveCSS(
-      'transform',
-      'matrix(-1, 0, 0, 1, 0, 0)'
-    )
+    await expect(
+      page.locator('.creature-slot').getByAltText('Training Protectron', { exact: true })
+    ).toHaveCSS('transform', 'matrix(-1, 0, 0, 1, 0, 0)')
     await expect(page.getByRole('button', { name: /START FIGHT/ })).toBeEnabled()
     await page.screenshot({ path: testInfo.outputPath('mixed-teams.png'), fullPage: true })
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)

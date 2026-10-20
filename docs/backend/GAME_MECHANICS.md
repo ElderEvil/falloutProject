@@ -12,6 +12,21 @@ Merged rooms follow the same rule using their entire footprint. Construction, de
 and room merging share the vault placement lock. Elevator dependency and vault door
 protections still apply.
 
+Each new room segment costs its base price plus its incremental price per existing base segment of
+that same named room in the vault, across all tiers. Quote before merging the new segment; merging
+or splitting existing rooms must not change the next build price.
+
+Room management can split a merged non-unique facility into its base segments, or
+merge two adjacent facilities of the same type and tier within their size limit.
+These free layout changes preserve occupied cells, total capacity/output, upgrade
+tiers, and the exact demolition refund. Integer remainders are distributed across
+the split segments; `room.refund_caps = NULL` retains the legacy refund formula.
+Unique and fixed-width facilities cannot be remodeled. Active incidents, including
+spread targets, block remodeling. Worker/apprentice assignments, training, dispatch
+return postings, and historical incident references follow the resulting rooms.
+Splitting does not immediately invoke automatic merging; subsequent construction
+or upgrades retain their existing automatic merge behavior.
+
 ## Progression visibility (red line)
 
 Every player-facing progression event — level-up, loot, training completion, quest/objective completion —
@@ -42,6 +57,54 @@ intact when touching these flows.
   already-claimed links. Objective rewards never count toward another resource-collection objective.
 - Ready rewards keep their routine bell/toast event; successful claims show a modal or toast. Notification opt-outs
   affect notification delivery, not reward settlement or the player-opened guide.
+- The Objectives and Quests headers let owners collect all currently ready rewards. Claims run sequentially;
+  objectives stop on the first failure and announce any rewards already collected, while quests show each
+  claim's result and continue after failures. Failed claims remain available to retry.
+
+### Objective renewal
+
+Daily objectives renew at 00:00 UTC; weekly objectives renew on Monday at 00:00 UTC.
+Vault ticks credit committed production before calling the same refresh policy used
+by the scheduler. Each category's successful UTC period is persisted in the same
+transaction as its assignments, under a vault row lock. Repeated or concurrent calls
+are no-ops; failures leave the period due for the next attempt. Missed periods yield
+one current batch, without replaying historical batches. Ready unclaimed rewards survive.
+The UI retains the Office unlock gate. Reset schedules are explained in optional page help.
+Fresh-task notifications appear in both the bell and a toast.
+
+Existing refresh windows are adopted for the current UTC period to avoid deployment
+resets.
+
+### Achievement tracks
+
+Achievement templates have a stable `track_key` and stage `sequence`. Only one
+unfinished stage per family is unlocked. Reaching its target freezes the reward and
+unlocks the next stage immediately, independently of reward claims. Event counters
+start at zero for each new stage: 100 Water followed by 500 Water requires 600 total
+new Water, and excess from the completing event does not spill into the next stage.
+Distinct-dweller counting windows also restart. Absolute **Reach** milestones continue
+to test current vault state, rather than counting additional residents or levels.
+When initially assigning a new **Reach** milestone, credit current living population
+or highest level, capped at its target. An already-met target freezes its reward,
+unlocks the next stage at zero and announces completion after commit. Existing links
+keep their recorded progress.
+Achievements are permanent and never participate in daily/weekly resets.
+
+Collection tracks for Power, Food and Water now have targets 100, 500, 1,500 and 5,000.
+Other existing families are sequenced by their authored targets. The expanded
+achievement caps pool totals 45,745 (previously 43,765), including 1,980 caps across
+the nine new resource stages. The completion bell/toast announces the newly unlocked
+stage. Earlier earned rewards remain separately claimable. Objective cards show the
+goal, a short vault-aware description, progress, reward and claim action. Schedules,
+stage mechanics and counting rules live in the existing About help, outside the cards. Do not headline the unfinished-objective total.
+
+The migration preserves template IDs, links, reward snapshots and completed history.
+Legacy vaults retain their current unfinished stage and its recorded progress; later
+unfinished stages are locked with their old counters retained until they unlock, when
+the new counting window starts at zero. Previously earned later stages remain claimable.
+A newly added easier stage is not retroactively awarded to an established track.
+Track initialization runs on first use and recurring renewals so newly added families
+become available without resetting an existing stage.
 
 ### Starter teaching rewards (wave 1)
 
@@ -62,6 +125,14 @@ intact when touching these flows.
   strings may specify rarity as `weapon:rare:Hardened shotgun`; omitted rarity remains common.
 - During balance development, the JSON starter catalog updates matching template definitions on startup.
   Existing vault progress links are not reconciled or backfilled; playtests should use fresh vaults.
+
+## Timed quest capacity
+
+A vault can have three timed quests in flight at once. Both outbound and returning parties occupy a slot
+until rewards become ready to claim. Unclaimed rewards, completed quests and state-based building,
+population and training quests do not occupy slots. Start requests serialize on the vault row before
+counting active timed links; a fourth start is rejected with 409. The frontend mirrors the count,
+disables timed start/party actions at capacity, and leaves state objectives usable.
 
 ## Quest gates: one scope per requirement type
 
@@ -90,15 +161,20 @@ availability gate uses, so the UI shows per-row gate verdicts instead of inferri
 
 ## Incident responder returns
 
+- Healthy adult room residents defend automatically and remain visible alongside up to six arriving
+  helpers. Residents do not consume helper slots or enter the return ledger. Dwellers defending another
+  active incident or fighting in the Arena cannot be recruited. Nearby support is sent manually.
+
 - Manual and automatic dispatch record the responder's original room once, before moving them.
   Re-selecting someone already on the incident roster must not overwrite that posting.
 - After victory or defeat, restore surviving available responders to their original room through
   normal room-assignment capacity checks. Residents originally posted in the incident room stay there.
 - If that posting is full or busy, clear the temporary incident assignment and retry on subsequent
-  online, unpaused incident ticks. If the posting was demolished or unknown, use capacity-checked
-  production auto-assignment; no available room leaves the responder unassigned pending retry.
+  online, unpaused incident ticks. An originally unassigned responder returns to idle and unassigned.
+  If the original room was demolished, leave the responder unassigned rather than choosing a new job.
 - Mark settled roster entries completed. A newer player room assignment or another active incident
-  takes precedence over an older return. Returns do not heal dwellers or restart cancelled training.
+  takes precedence over an older return. A new incident in the temporary room defers the old return
+  without forgetting its destination. Returns do not heal dwellers or restart cancelled training.
 
 ## Notification preferences
 
@@ -197,7 +273,7 @@ receive production work XP. Active fighters are in the vault but busy for exit r
 
 Vault ticks expose a read-only `updates.arena.rooms` snapshot. Each room reports `room_id`,
 `fight_started`, `match_done` and the latest 40 journal `events` in chronological order
-(`id`, `round_seq`, `kind`, `message`). Repeated reads retain event IDs for caller deduplication;
+(`id`, `round_seq`, `kind`, `message`, `created_at`). Repeated reads retain event IDs for caller deduplication;
 clearing the journal or replacing selections removes events. This is not a durable replay
 feed. The arena actor alone advances combat; snapshots do not create match state or grant rewards.
 
@@ -340,28 +416,45 @@ after the balance migration, and the UI displays that saved payout. Objective
 rewards continue to suppress collection events to avoid reward feedback loops.
 Starter grants remain unchanged. The uniform-selection caps-only expectation
 for a fully completed batch is now 216.14 daily and 589.62 weekly (previously
-1,034.09 and 2,959.62). The achievement caps pool is 43,765 (previously 95,250).
+1,034.09 and 2,959.62). The achievement caps pool before staged extensions was 43,765 (previously 95,250).
 These are catalog expectations, not measured income: item/lunchbox value and
 actual completion rates are excluded. Prices are unchanged pending income data.
 
+## Arena active skills (prototype)
+
+Real dweller fighters gain 20 charge per second of resolved combat while standing, capped at 100.
+Countdowns and idle rooms do not charge. Each standing fighter attacks individually and pairs with a
+separate standing enemy in team-slot order while numbers allow. Survivors may share the last enemy;
+ordinary damage never spills into another target. Normal damage is 10% of that fighter's power per second,
+capped at 5% of the target's maximum HP per second. Skills add an extra attack before the normal hit: single-target skills
+use 1.5–2× its damage and cap, and area skills use 0.9–1× per standing enemy. Single-target skills follow the
+fighter's chosen target. The full meter is reserved when queued and resolves on the fighter's next team turn.
+Teams alternate one attack turn per Arena tick, starting with A. The next team persists across worker
+reloads. Defenders do not retaliate during the attacking team's turn, and keep queued skills for their
+own turn. Creatures and support bots have no manual skill. Journal timestamps represent persisted UTC
+instants; the UI displays local 24-hour time and distinguishes skill use by icon and color.
+Charge and pending attacks are persisted under the Arena room lock, cleared on match reset/interruption/finish,
+and must never be trusted from a client. See `docs/features/WASTELAND_COMBAT_EXPANSION.md` for the prototype
+balance table. Skills remain Arena-only until playtested.
+
 ## Arena training bot partners
 
-Hunt allows one or two dwellers, or one dweller with a training bot. Brawl requires
-one lead dweller per side and a second dweller or training bot in each partner slot.
-Duel stays dweller-only. Each team has at most two participants; bots never replace
-the required lead dweller and do not occupy vault population or room worker slots.
+Team A fields dwellers only. Hunt allows one or two dwellers against catalog opponents. Brawl requires
+two dwellers on Team A and a lead dweller plus a dweller or training bot on Team B. Duel stays dweller-only.
+Each team has at most two participants. Bots never replace Team B's required lead dweller and do not occupy
+vault population or room worker slots. Retired Team A bot selections are ignored; an incomplete legacy Brawl
+stops until a real dweller fills Team A's partner slot.
 
-Both sides use the same arena catalog: Training Eyebot 30 power/20 HP, Training
-Mr. Handy 20/30, Training Protectron 10/60. These are free arena training partners,
-not owned dwellers. Their HP persists across combat ticks and resets on a new match
-selection. Destroyed bots stay at 0 HP and deal no damage. Only real dwellers get
-the existing participant XP/happiness rewards; bot support adds no reward multiplier.
+The opponent/support catalog includes Training Eyebot 30 power/20 HP, Training Mr. Handy 20/30,
+and Training Protectron 10/60. These are free arena opponents/partners, not owned dwellers. Their HP
+persists across combat ticks and resets on a new match selection. Destroyed bots stay at 0 HP and deal
+no damage. Only real dwellers get participant XP/happiness rewards; bot support adds no reward multiplier.
 Existing match-completion morale rules, when enabled, remain vault-scoped.
 
-Arena bots face right beside allied dwellers and mirror left on the enemy side,
-including picker previews. Creature artwork retains its native enemy-facing direction.
-Incomplete partner edits stay local and disable Start until selection is complete;
-polling must not overwrite an open bot selection.
+Enemy-side bots face left, including picker previews. Creature artwork retains its native enemy-facing
+direction. Incomplete partner edits stay local and disable Start until selection is complete; polling must
+not overwrite an open bot selection. Dweller and creature cards share the same portrait, title, stats and HP
+layout, with opposing slots aligned in common grid rows.
 
 ## Storage equipment access
 
@@ -408,3 +501,43 @@ All paths write the audio under the cache key (`pa/<hash>.mp3`) so subsequent
 calls hit the cache even when the provider chain differs. The existing
 "already has an audio line" guard (`voice_line_url` present) fires before
 cache lookup and raises `ContentNoChangeException` unchanged.
+
+## Room themes (Diner and Living Quarters)
+
+- Only Diner and Living Quarters accept non-default themes; `apply_room_style` rejects any other room.
+- Applying a non-default theme requires **tier 3** and a theme the vault has **crafted**. The standard
+  style is always available, including below tier 3.
+- Themes are crafted **once per vault** at the Theme workshop through the normal order queue
+  (`junk + caps + time`). Collecting the order writes the permanent `vault_theme` row; there is no
+  per-room application item and no second craft. A theme with an active or uncollected order cannot
+  be queued again.
+- Boosted vaults are seeded with every catalog theme already crafted, so the selector is usable
+  immediately. Standard vaults unlock themes only by crafting them.
+- The room selector lists standard plus crafted themes. Below tier 3 it is disabled with a tier hint;
+  at tier 3 with no crafted themes it points the player at the Theme workshop.
+
+## Storage weapon maintenance
+
+Storage rooms (CAPACITY + ENDURANCE) share a vault-wide protection pool. Only living
+adult workers posted there contribute effective END, including outfit/pet and identity
+production modifiers. Living Quarters are CAPACITY + CHARISMA; storage workers are
+never included in conception or family-scenario living-quarter selection.
+
+When `STORAGE_MAINTENANCE_ENABLED=true`, each eligible stored weapon gets at most one
+trial per configured hour. Below 20 effective END the trial can downgrade one catalog
+rung; above 20 it can upgrade one. At zero or at least 40 END the chance caps at 2%.
+Catalog ladders sort by average damage, not rarity. Swaps preserve item identity and
+rewrite catalog-owned fields through the item factory; there is no condition meter.
+Single-rung and unknown items are excluded. Upgrades and rarity crossings have separate
+configuration switches; blocked and unsuccessful attempts still consume the hour.
+
+New legacy clocks initialize without rolling. Missed hours never accumulate; offline
+passes advance clocks without rolling by default. Pause/resume shifts stored-item
+clocks, and every return to storage resets the clock. ORM returns share a Weapon mapper
+hook, while bulk unequip updates explicitly set the timestamp. Trial processing locks
+storage and due weapons, persists aggregated notifications in the same transaction,
+and delivers the bell/toast event only after commit. Notifications are limited to one
+per direction per vault per 24 hours. Both storage notification types are intentionally always
+delivered: upgrades are progression and degradation needs player attention, so routine category
+preferences do not mute them. Maintenance is enabled by default; set
+`STORAGE_MAINTENANCE_ENABLED=false` to disable it.

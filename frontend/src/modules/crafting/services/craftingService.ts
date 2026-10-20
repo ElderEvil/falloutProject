@@ -27,6 +27,14 @@ export const craftingService = {
     return response.data
   },
 
+  /** Cancel an active order, refunding its caps and junk. */
+  async cancelOrder(vaultId: string, orderId: string): Promise<CraftingOrder> {
+    const response = await axios.post<CraftingOrder>(
+      `/api/v1/crafting/vault/${vaultId}/orders/${orderId}/cancel`,
+    )
+    return response.data
+  },
+
   /** Move a finished order's item into storage. */
   async collectOrder(vaultId: string, orderId: string): Promise<CraftResult> {
     const response = await axios.post<CraftResult>(

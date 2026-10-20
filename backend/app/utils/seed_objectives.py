@@ -25,6 +25,7 @@ def _transform_objective_create_to_model(objective_data: ObjectiveCreate) -> Obj
         objective_type=objective_data.objective_type,
         target_entity=objective_data.target_entity,
         target_amount=objective_data.target_amount,
+        track_key=objective_data.track_key,
         sequence=objective_data.sequence,
         description=objective_data.description,
     )
@@ -71,4 +72,9 @@ async def seed_objectives_from_json(db_session: AsyncSession, objectives_dir: Pa
     starter_file = objectives_dir / "starter.json"
     if starter_file.exists():
         await objective_crud.sync_starter_templates(db_session, StaticGameData.load_data(starter_file, ObjectiveCreate))
+    achievement_file = objectives_dir / "achievements.json"
+    if achievement_file.exists():
+        await objective_crud.sync_achievement_templates(
+            db_session, StaticGameData.load_data(achievement_file, ObjectiveCreate)
+        )
     return seeded

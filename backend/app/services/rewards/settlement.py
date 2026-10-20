@@ -71,6 +71,8 @@ async def claim_objective_reward(
     link = await objective_crud.get_link_for_update(db_session, objective_id, vault_id)
     if link is None:
         raise ResourceNotFoundException(Objective, objective_id)
+    if link.is_locked:
+        raise ValidationException("Complete the previous achievement stage first")
     if link.is_completed:
         raise ResourceConflictException("Objective reward already claimed")
     objective = await objective_crud.get(db_session, objective_id)
@@ -211,7 +213,17 @@ def _parse_objective_reward(reward_str: str) -> tuple[RewardType, dict[str, Any]
                 rarity, name = RarityEnum.COMMON.value, value
             return RewardType.ITEM, {"item_type": prefix, "name": name.strip(), "rarity": RarityEnum(rarity).value}
         if prefix == "dweller":
-            return RewardType.DWELLER, {"first_name": value, "rarity": "common"}
+            from app.services.rewards.starter_residents import get_starter_resident
+
+            profile = get_starter_resident(value)
+            if profile is not None:
+                return RewardType.DWELLER, {**profile, "rarity": "common"}
+            first_name, _, last_name = value.partition(" ")
+            return RewardType.DWELLER, {
+                "first_name": first_name,
+                "last_name": last_name or None,
+                "rarity": "common",
+            }
 
     msg = f"Cannot parse objective reward string: '{reward_str}'"
     raise ValueError(msg)

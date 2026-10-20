@@ -5,6 +5,7 @@ import logging
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.event_bus import GameEvent, event_bus
 from app.crud.dweller import dweller as crud_dweller
 from app.crud.incident import incident_crud
 from app.crud.room import room as room_crud
@@ -25,22 +26,20 @@ from app.schemas.incident import (
     IncidentListResponse,
     IncidentProgress,
     IncidentRead,
+    IncidentResponderRead,
     IncidentResponse,
     IncidentRisk,
     IncidentRoundResult,
     PendingIncidentOverflowRead,
 )
-from app.schemas.team import TeamMemberRead
 from app.services.combat import incident_publishing, incident_round, incident_spawning, incident_tick
 from app.services.loot_overflow_service import loot_overflow_service
-from app.utils.dweller_availability import availability_error
+from app.utils.dweller_availability import is_incident_responder_available
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
-from app.utils.item_factory import build_junk, build_outfit, build_weapon
-from app.utils.static_data import game_data_store
 
 logger = logging.getLogger(__name__)
 
-#: Hard ceiling on one incident's designated responder roster.
+#: Maximum arriving helpers, in addition to the affected room's residents.
 MAX_INCIDENT_RESPONDERS = 6
 
 
@@ -49,6 +48,7 @@ async def committed_responder_ids(
 ) -> set[UUID4]:
     """Dweller ids rostered on another ACTIVE incident and therefore unavailable.
 
+    Room residents defend automatically and cannot be pulled to another incident.
     A dweller holding an ``assigned`` or ``dispatched`` slot on any live incident
     other than ``exclude_incident_id`` is already committed to that response and
     must not be drafted again; ``completed`` members are free.
@@ -57,34 +57,12 @@ async def committed_responder_ids(
     for incident in await incident_crud.get_active_by_vault(db_session, vault_id):
         if exclude_incident_id is not None and incident.id == exclude_incident_id:
             continue
+        committed.update(
+            dweller.id for dweller in await crud_dweller.get_healthy_adults_in_room(db_session, incident.room_id)
+        )
         members = await team_crud.get_incident_team(db_session, incident.id, vault_id)
         committed.update(member.dweller_id for member in members if member.status in COMMITTED_MEMBER_STATUSES)
     return committed
-
-
-def _build_held_item(loot_item: dict, storage_id):
-    """Rebuild one held incident item for storage, priced the same as its sale."""
-    name = loot_overflow_service.item_name(loot_item)
-    rarity = str(loot_item.get("rarity", "common"))
-    match loot_item.get("item_type", "junk"):
-        case "weapon":
-            data = next((weapon for weapon in game_data_store.weapons if weapon.name == name), None)
-            if data is None:
-                raise ValidationException(f"Unknown weapon loot: {name}")
-            return build_weapon(data.model_dump(), rarity, storage_id)
-        case "outfit":
-            data = next((outfit for outfit in game_data_store.outfits if outfit.name == name), None)
-            if data is None:
-                raise ValidationException(f"Unknown outfit loot: {name}")
-            return build_outfit(data.model_dump(), rarity, storage_id)
-        case _:
-            return build_junk(
-                name,
-                rarity,
-                storage_id,
-                value=loot_overflow_service.unit_value_of(loot_item),
-                description="Recovered from an incident",
-            )
 
 
 class IncidentService:
@@ -266,7 +244,7 @@ class IncidentService:
             owner=Incident,
             owner_id=incident.id,
             vault_id=incident.vault_id,
-            build_row=_build_held_item,
+            junk_description="Recovered from an incident",
         )
         incident.unclaimed_loot = unclaimed
         db_session.add(incident)
@@ -285,6 +263,10 @@ class IncidentService:
         incident.unclaimed_loot = unclaimed
         db_session.add(incident)
         await db_session.commit()
+        if value > 0:
+            await event_bus.emit(
+                GameEvent.RESOURCE_COLLECTED, incident.vault_id, {"resource_type": "caps", "amount": value}
+            )
         return value, unclaimed
 
     async def assign_responders(
@@ -323,7 +305,7 @@ class IncidentService:
         if len(dwellers) != len(unique_ids):
             raise ValidationException("One or more responders do not belong to this vault")
 
-        unavailable = [dweller for dweller in dwellers if availability_error(dweller, require_healthy=True)]
+        unavailable = [dweller for dweller in dwellers if not is_incident_responder_available(dweller)]
         if unavailable:
             raise ValidationException("Only healthy adult dwellers in the vault can respond")
 
@@ -335,6 +317,18 @@ class IncidentService:
 
         existing_members = await team_crud.get_incident_team(db_session, incident.id, incident.vault_id)
         existing_member_ids = {member.dweller_id for member in existing_members}
+        # Residents already defend through room presence; only arrivals consume
+        # helper slots or need an origin posting for the return pass.
+        residents = [
+            dweller
+            for dweller in eligible
+            if dweller.room_id == incident.room_id and dweller.id not in existing_member_ids
+        ]
+        resident_ids = {dweller.id for dweller in residents}
+        eligible = [dweller for dweller in eligible if dweller.id not in resident_ids]
+        skipped.extend(residents)
+        if not eligible:
+            raise ValidationException("Chosen dwellers are already defending this room")
         eligible_ids = [dweller.id for dweller in eligible]
         if len(existing_member_ids | set(eligible_ids)) > MAX_INCIDENT_RESPONDERS:
             raise ValidationException("An incident team holds at most 6 responders")
@@ -361,17 +355,18 @@ class IncidentService:
 
     async def get_incident_team_read(
         self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4
-    ) -> list[TeamMemberRead]:
+    ) -> list[IncidentResponderRead]:
         """The vault's designated responder roster for an incident, as read shapes."""
         incident = await self.get_incident_for_vault(db_session, incident_id, vault_id)
         members = await team_crud.get_incident_team(db_session, incident.id, incident.vault_id)
         return [
-            TeamMemberRead(
+            IncidentResponderRead(
                 id=member.id,
                 team_id=member.team_id,
                 dweller_id=member.dweller_id,
                 slot_number=member.slot_number,
                 status=member.status,
+                origin_room_id=member.origin_room_id,
                 created_at=member.created_at,
                 updated_at=member.updated_at,
             )

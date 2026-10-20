@@ -1,5 +1,4 @@
 from app.models.outfit import Outfit
-from app.models.weapon import Weapon
 
 from . import storage
 from .ai_settings import ai_settings
@@ -23,8 +22,10 @@ from .team import team_crud
 from .user import user
 from .vault import vault
 from .vault_recipe_unlock import vault_recipe_unlock
-from .world_location import world_location
+from .vault_theme import vault_theme
 
 # Create CRUD instances directly using CRUDItem
-weapon = CRUDItem(Weapon)
+from .weapon import weapon
+from .world_location import world_location
+
 outfit = CRUDItem(Outfit)

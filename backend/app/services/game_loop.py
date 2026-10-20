@@ -17,7 +17,7 @@ from app.models.game_state import GameState
 from app.models.relationship import Relationship
 from app.models.vault import Vault
 from app.services.combat.arena_service import arena_service
-from app.services.game_tick import crafting_tick, dwellers_tick, family_tick, radio_tick
+from app.services.game_tick import crafting_tick, dwellers_tick, family_tick, radio_tick, storage_tick
 from app.services.game_tick.guard import recover_session
 from app.services.game_tick.tick_results import (
     AgeStats,
@@ -147,6 +147,7 @@ class GameLoopService:
             await db_session.commit()
 
             await self.resource_manager.emit_production_events(vault_id, resource_events)
+            await self._refresh_objectives(db_session, vault_id, game_state)
             results["updates"]["resources"] = {
                 "power": resource_update.power,
                 "food": resource_update.food,
@@ -178,6 +179,14 @@ class GameLoopService:
 
         crafting_update = await self._process_crafting(db_session, vault_id)
         results["updates"]["crafting"] = crafting_update
+
+        try:
+            results["updates"]["storage"] = await storage_tick.process_storage_maintenance(db_session, vault_id)
+        except (SQLAlchemyError, ResourceNotFoundException):
+            await recover_session(db_session)
+            self.logger.exception("Storage maintenance failed for vault %s", vault_id)
+            results["updates"]["storage"] = {"checked": 0, "changed": 0}
+            game_state = await self._get_or_create_game_state(db_session, vault_id)
 
         happiness_update = await self._process_happiness(db_session, vault_id, seconds_passed)
         results["updates"]["happiness"] = happiness_update
@@ -232,8 +241,14 @@ class GameLoopService:
     async def resume_vault(self, db_session: AsyncSession, vault_id: UUID4) -> GameState:
         """Resume game loop for a specific vault."""
         game_state = await game_state_crud.get_or_create(db_session, vault_id)
+        from app import crud
+
+        # Share the maintenance storage lock before adjusting per-item clocks.
+        await crud.storage.get_storage_by_vault_for_update(db_session, vault_id)
+        await db_session.refresh(game_state, with_for_update=True)
         if game_state.is_paused and game_state.paused_at:
             resumed_at = datetime.utcnow()
+            await crud.weapon.shift_trial_clocks(db_session, vault_id, resumed_at - game_state.paused_at, resumed_at)
             for incident in await incident_crud.get_active_by_vault(db_session, vault_id):
                 paused_since = max(game_state.paused_at, incident.start_time)
                 if resumed_at > paused_since:
@@ -273,6 +288,16 @@ class GameLoopService:
     async def _get_or_create_game_state(self, db_session: AsyncSession, vault_id: UUID4) -> GameState:
         """Get existing game state or create a new one."""
         return await game_state_crud.get_or_create(db_session, vault_id)
+
+    async def _refresh_objectives(self, db_session: AsyncSession, vault_id: UUID4, game_state: GameState) -> None:
+        from app.services.progression.objectives.refresh_service import ensure_current_objectives
+
+        try:
+            await ensure_current_objectives(db_session, vault_id)
+        except Exception:
+            await recover_session(db_session)
+            self.logger.exception("Objective refresh failed for vault %s; will retry next tick", vault_id)
+            await db_session.refresh(game_state)
 
     async def _process_explorations(self, db_session: AsyncSession, vault_id: UUID4) -> ExplorationStats:
         """Process all active explorations for a vault."""

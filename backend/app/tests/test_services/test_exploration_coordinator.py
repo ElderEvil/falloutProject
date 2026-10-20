@@ -394,6 +394,7 @@ async def test_auto_radaway_fires_at_quarter_max_health_radiation(
     dweller.health = 100
     dweller.max_health = 100
     dweller.radiation = 25
+    dweller.radaway = 1
     async_session.add(dweller)
     await async_session.flush()
 
@@ -419,6 +420,7 @@ async def test_auto_radaway_skips_below_quarter_max_health_radiation(
     dweller.health = 100
     dweller.max_health = 100
     dweller.radiation = 24
+    dweller.radaway = 1
     async_session.add(dweller)
     await async_session.flush()
 
@@ -464,6 +466,7 @@ async def test_auto_stimpak_skips_at_radiation_capped_health(
     dweller: Dweller,
 ):
     """A dweller at the radiation-reduced ceiling must not spend a Stimpak on 0 healing."""
+    dweller.stimpack = 1
     dweller.health = 40
     dweller.max_health = 100
     dweller.radiation = 60

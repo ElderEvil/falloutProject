@@ -4,7 +4,6 @@ import { createPinia, setActivePinia } from 'pinia'
 import { Icon } from '@iconify/vue'
 import { Progress } from '@/core/components/ui/progress'
 import QuestCard from '@/modules/progression/components/QuestCard.vue'
-import QuestTypeBadge from '@/modules/progression/components/QuestTypeBadge.vue'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
@@ -36,6 +35,41 @@ const quest = {
 } as VaultQuest
 
 describe('QuestCard', () => {
+  it.each(['combat', 'training'])(
+    'limits timed starts while allowing %s state quests',
+    async (quest_category) => {
+      setActivePinia(createPinia())
+      const store = useQuestStore()
+      store.vaultQuests = Array.from({ length: 3 }, (_, index) => ({
+        ...quest,
+        id: `running-${index}`,
+        started_at: '2026-01-01T00:00:00Z',
+        return_completes_at: index === 0 ? '2099-01-01T00:00:00Z' : null,
+      }))
+      store.vaultQuests.push(
+        { ...quest, id: 'ready', started_at: '2026-01-01T00:00:00Z', is_reward_ready: true },
+        { ...quest, id: 'completed', started_at: '2026-01-01T00:00:00Z', is_completed: true },
+        { ...quest, id: 'state', started_at: '2026-01-01T00:00:00Z', quest_category: 'training' }
+      )
+      expect(store.activeTimedQuestCount).toBe(3)
+      const wrapper = mount(QuestCard, {
+        props: { quest: { ...quest, quest_category }, vaultId: 'vault-1', status: 'available' },
+      })
+      const action = wrapper.get('.quest-action-btn')
+      if (quest_category === 'combat') {
+        expect(action.attributes('disabled')).toBeDefined()
+        expect(action.text()).toContain('Quest limit reached')
+        store.vaultQuests = store.vaultQuests.map((entry) => ({ ...entry, is_reward_ready: true }))
+        await wrapper.vm.$nextTick()
+        expect(action.attributes('disabled')).toBeUndefined()
+      } else {
+        expect(action.attributes('disabled')).toBeUndefined()
+        await action.trigger('click')
+        expect(wrapper.emitted('start')).toEqual([['quest-1']])
+      }
+    }
+  )
+
   it('renders a completed quest with a non-interactive Completed mark instead of a Details action', () => {
     setActivePinia(createPinia())
     const wrapper = mount(QuestCard, {
@@ -586,38 +620,65 @@ describe('QuestCard', () => {
     expect(wrapper.text().match(/Snipping Coupons/g) || []).toHaveLength(1)
   })
 
-  it('renders the side quest type chip with the bordered outline styling', () => {
+  it.each([
+    ['building', 'mdi:home-group'],
+    ['collection', 'mdi:package-variant'],
+    ['combat', 'mdi:sword-cross'],
+    ['exploration', 'mdi:compass'],
+    ['population', 'mdi:account-group'],
+    ['training', 'mdi:dumbbell'],
+    [null, 'mdi:flag'],
+    ['unknown', 'mdi:flag'],
+  ])('represents %s with an accessible icon instead of written badges', (category, icon) => {
     setActivePinia(createPinia())
     const wrapper = mount(QuestCard, {
       props: {
-        quest: { ...quest, quest_type: 'side' },
+        quest: { ...quest, quest_category: category },
         vaultId: 'vault-1',
         status: 'available',
-        partyMembers: [],
       },
     })
 
-    expect(wrapper.find('.type-badge').attributes('style')).toBeUndefined()
-    expect(wrapper.findComponent(QuestTypeBadge).props('questType')).toBe('side')
+    const header = wrapper.get('.progression-header')
+    const label = ['Side quest', category].filter(Boolean).join(' · ')
+    expect(header.get('[role="img"]').attributes('aria-label')).toBe(label)
+    expect(header.get('[role="img"]').attributes('title')).toBe(label)
+    expect(header.findComponent(Icon).props('icon')).toBe(icon)
+    expect(header.text()).toBe(quest.title)
   })
 
-  it.each(['building', 'exploration'])(
-    'renders the %s category chip with the bordered outline styling',
-    (category) => {
-      setActivePinia(createPinia())
-      const wrapper = mount(QuestCard, {
-        props: {
-          quest: { ...quest, quest_category: category },
-          vaultId: 'vault-1',
-          status: 'available',
-          partyMembers: [],
+  it('keeps the chain position after the title and identifies main quests', () => {
+    setActivePinia(createPinia())
+    const store = useQuestStore()
+    store.quests = [1, 2, 3].map((order) => ({
+      ...quest,
+      id: `chain-${order}`,
+      chain_id: 'chain',
+      chain_order: order,
+    }))
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          chain_id: 'chain',
+          chain_order: 2,
+          quest_type: 'main',
+          quest_category: 'combat',
         },
-      })
+        vaultId: 'vault-1',
+        status: 'available',
+      },
+    })
 
-      expect(wrapper.find('.category-badge').text()).toBe(category)
-      expect(wrapper.text()).toContain(category)
-    }
-  )
+    const header = wrapper.get('.progression-header')
+    expect(header.get('[role="img"]').attributes('aria-label')).toBe('Main quest · combat')
+    expect(header.text()).toContain('2/3')
+    expect(header.findAllComponents(Icon).map((icon) => icon.props('icon'))).toEqual([
+      'mdi:sword-cross',
+      'mdi:link-variant',
+    ])
+    expect(header.get('h3').element.nextElementSibling?.textContent).toContain('2/3')
+  })
 
   it.each([
     ['available', 'var(--color-quest-side)'],

@@ -64,6 +64,19 @@ export const arenaApi = {
     })
   },
 
+  async queueSkill(
+    vaultId: string,
+    roomId: string,
+    fighterId: string,
+    token: string
+  ): Promise<void> {
+    await axios.post(
+      `/api/v1/arena/vault/${vaultId}/rooms/${roomId}/skill`,
+      { fighter_id: fighterId },
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+  },
+
   async clearEvents(vaultId: string, roomId: string, token: string): Promise<number> {
     const response = await axios.delete<{ cleared: number }>(
       `/api/v1/arena/vault/${vaultId}/rooms/${roomId}/events`,

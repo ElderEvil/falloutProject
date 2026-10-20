@@ -5,6 +5,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import RoomMenu from '@/modules/rooms/components/RoomMenu.vue'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import RoomMenuItem from '@/modules/rooms/components/RoomMenuItem.vue'
+import type { Room } from '@/modules/rooms/models/room'
 import { getRoomImageUrl } from '@/core/utils/image'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
@@ -37,6 +38,24 @@ describe('RoomMenuItem', () => {
     await preview.trigger('error')
     expect(wrapper.find('.room-icon img').exists()).toBe(false)
     expect(wrapper.find('.room-icon [data-icon="mdi:lightning-bolt"]').exists()).toBe(true)
+  })
+
+  it('prices matching room segments as the vault changes and keeps unique rooms at base cost', async () => {
+    const roomStore = useRoomStore()
+    roomStore.roomsLoadedVaultId = 'vault-1'
+    roomStore.rooms = [
+      { ...room, id: 'generator', size: 6 },
+      { ...room, id: 'diner', name: 'Diner', size: 9 },
+    ] as Room[]
+    useVaultStore().loadedVaults['vault-1'] = { bottle_caps: 149, dweller_count: 10 } as never
+    const wrapper = mount(RoomMenuItem, { props: { room } })
+    expect(wrapper.get('.room-cost').text()).toContain('150')
+    roomStore.rooms.push({ ...room, id: 'second-generator', size: 3 } as Room)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('.room-cost').text()).toContain('175')
+    await wrapper.setProps({ room: { ...room, incremental_cost: null } })
+    expect(wrapper.get('.room-cost').text()).toContain('100')
+    wrapper.unmount()
   })
 
   it('keeps population progress visible once a room is unlocked', () => {

@@ -21,13 +21,12 @@ from app.core.event_bus import GameEvent, event_bus
 from app.crud.storage import get_available_space
 from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
-from app.models.item import Item
 from app.models.quest_reward import RewardType
 from app.models.storage import Storage
 from app.services.rewards.resources import _medication_kind, grant_radaway, grant_stimpak
 from app.services.user_service import user_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
-from app.utils.item_factory import build_outfit, build_weapon
+from app.utils.item_factory import build_item, build_outfit, build_weapon
 from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
 from app.utils.storage_policy import is_nuka_cola_consumable
 
@@ -117,7 +116,7 @@ async def _grant_as_dweller(
 
 def _build_weapon(name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
     """Prefer the catalog weapon so stats and metadata are canonical."""
-    from app.services.exploration import data_loader
+    from app.services import catalog_service as data_loader
     from app.utils.item_factory import build_catalog_item
 
     catalog_weapon = build_catalog_item(
@@ -131,7 +130,7 @@ def _build_weapon(name: str, rarity: str, data: dict[str, Any], storage_id: UUID
 
 def _build_outfit(name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
     """Prefer the catalog outfit so SPECIAL bonuses and metadata are kept."""
-    from app.services.exploration import data_loader
+    from app.services import catalog_service as data_loader
     from app.utils.item_factory import build_catalog_item
 
     catalog_outfit = build_catalog_item(
@@ -204,13 +203,13 @@ async def grant_item(
             case "pet":
                 item = _build_pet(str(item_name), str(item_rarity), item_data, storage_obj.id)
             case _:
-                item = Item(
-                    name=str(item_name),
-                    item_type=item_type,
-                    rarity=str(item_rarity),
+                item = build_item(
+                    str(item_name),
+                    item_type,
+                    str(item_rarity),
+                    storage_obj.id,
                     value=item_data.get("value"),
                     image_url=item_data.get("image_url"),
-                    storage_id=storage_obj.id,
                 )
         db_session.add(item)
         await db_session.flush()

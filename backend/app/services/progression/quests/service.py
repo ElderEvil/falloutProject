@@ -26,7 +26,12 @@ from app.services.progression.quests.requirements import (
 )
 from app.services.reward_service import reward_service
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
-from app.utils.quest_duration import effective_quest_duration_minutes, quest_return_leg_minutes
+from app.utils.quest_duration import (
+    MAX_ACTIVE_TIMED_QUESTS,
+    STATE_QUEST_CATEGORIES,
+    effective_quest_duration_minutes,
+    quest_return_leg_minutes,
+)
 from app.utils.reward_delivery import defer_reward_delivery
 
 logger = logging.getLogger(__name__)
@@ -115,6 +120,8 @@ class QuestService:
             ValidationException,
         )
 
+        # Serialize capacity checks and starts, including attempts on different quests.
+        await crud.vault.lock_for_update(db_session, vault_id)
         link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
 
         if not link:
@@ -122,6 +129,7 @@ class QuestService:
                 VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}"
             )
 
+        await db_session.refresh(link)
         if link.is_completed:
             raise AccessDeniedException("Quest already completed")
         if link.started_at is not None:
@@ -130,13 +138,16 @@ class QuestService:
         quest = await crud.quest_crud.get_or_none(db_session, quest_id)
         if quest is None:
             raise ResourceNotFoundException(Quest, identifier=quest_id)
-        if quest.quest_category in ("building", "population", "training"):
+        if quest.quest_category in STATE_QUEST_CATEGORIES:
             link.is_reward_ready = True
             await db_session.commit()
             await db_session.refresh(link)
             return link
         if quest.duration_minutes is None or quest.duration_minutes <= 0:
             raise ValidationException("Quest duration must be a positive value")
+
+        if await crud.quest_crud.count_active_timed_quests(db_session, vault_id) >= MAX_ACTIVE_TIMED_QUESTS:
+            raise ResourceConflictException(f"Only {MAX_ACTIVE_TIMED_QUESTS} timed quests can run at once")
 
         members = await crud.team_crud.get_quest_team(db_session, quest_id, vault_id)
         if not members:
@@ -251,7 +262,10 @@ class QuestService:
         for member in members:
             dweller = await crud.dweller.get_or_none(db_session, member.dweller_id, include_deleted=True)
             if dweller:
+                # Home again: unposted IDLE, matching the exploration return flow.
+                # The pre-quest posting was cleared at departure, so nothing to restore.
                 dweller.status = DwellerStatusEnum.IDLE
+                dweller.room_id = None
         link.is_reward_ready = True
         await db_session.commit()
 

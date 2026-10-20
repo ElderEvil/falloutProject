@@ -270,10 +270,16 @@ test.describe('Spotlight guide — vault page', () => {
   })
 
   test('offers explicit navigation at phone width when the control is hidden', async ({ page }) => {
-    // The side panel collapses below the desktop breakpoint, so the staffing
-    // anchor is hidden; the guide must navigate rather than spotlight nothing.
+    // Exercise a hidden anchor explicitly. A collapsed drawer can still have
+    // an offscreen anchor, which correctly offers Show control instead.
     await page.setViewportSize({ width: 390, height: 844 })
     await openVault(page, ORIENTATION_ACKNOWLEDGED)
+    await page.addStyleTag({
+      content: '[data-onboarding="nav-dwellers"] { display: none !important }',
+    })
+    const dwellersAnchor = page.locator('[data-onboarding="nav-dwellers"]')
+    await expect(dwellersAnchor).toHaveCount(1)
+    await expect(dwellersAnchor).toBeHidden()
 
     await expect(page.getByRole('button', { name: 'Open Dwellers' })).toBeVisible({
       timeout: 15000,

@@ -398,25 +398,23 @@ async def test_build_merge_reassigns_dwellers(async_session: AsyncSession, rich_
 
 
 @pytest.mark.asyncio
-async def test_build_merge_charges_price(async_session: AsyncSession, rich_vault: Vault):
-    """The vault is charged the normal build price for the added segment."""
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
+@pytest.mark.parametrize(("size", "expected_price"), [(3, 125), (6, 150)])
+async def test_build_merge_charges_price(
+    async_session: AsyncSession, rich_vault: Vault, size: int, expected_price: int
+):
+    """Charge for existing segments, excluding the segment about to merge into them."""
+    await _create_elevator(async_session, rich_vault.id, coordinate_y=1, coordinate_x=9)
+    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0, size=size)
     caps_before = rich_vault.bottle_caps
 
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        await room_service._build(
-            db_session=async_session,
-            obj_in=_make_room_create(
-                rich_vault.id,
-                name="Power Generator",
-                coordinate_x=3,
-                coordinate_y=1,
-            ),
-        )
+    result, _created = await room_service._build(
+        db_session=async_session,
+        obj_in=_make_room_create(rich_vault.id, name="Power Generator", coordinate_x=size, coordinate_y=1),
+    )
 
     await async_session.refresh(rich_vault)
-    assert rich_vault.bottle_caps < caps_before
+    assert rich_vault.bottle_caps == caps_before - expected_price
+    assert result.size == size + 3
 
 
 @pytest.mark.asyncio
@@ -951,3 +949,189 @@ async def test_destroy_refused_when_vault_placement_lock_is_held(async_session: 
     ):
         await room_service.destroy_room(async_session, room.id)
     assert await crud.room.get(async_session, room.id)
+
+
+@pytest.mark.parametrize(("size", "tier"), [(6, 1), (9, 2), (9, 3)])
+async def test_split_merge_preserves_room_totals_and_dwellers(async_session, rich_vault, size, tier):
+    from app.services.room_remodel_service import remodel_room
+    from app.utils.room_rules import room_refund
+
+    await _create_elevator(async_session, rich_vault.id, 1)
+    source = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7, size=size, tier=tier)
+    source.capacity, source.output = 101, 37
+    async_session.add(source)
+    await async_session.commit()
+    residents = [await _create_dweller_in_room(async_session, rich_vault.id, source) for _ in range(size // 3 * 2)]
+    rich_vault.bottle_caps = 5_000
+    async_session.add(rich_vault)
+    await async_session.commit()
+    caps, refund = rich_vault.bottle_caps, room_refund(source)
+    pieces = await remodel_room(async_session, source.id)
+    assert [r.coordinate_x for r in pieces] == list(range(7, 7 + size, 3))
+    assert all(r.size == 3 and r.tier == tier for r in pieces)
+    assert sum(r.capacity for r in pieces) == 101
+    assert sum(r.output for r in pieces) == 37
+    assert sum(room_refund(r) for r in pieces) == refund
+    for piece in pieces:
+        assert len(await crud.dweller.get_by_room(async_session, piece.id)) == 2
+    merged = pieces[0]
+    for piece in pieces[1:]:
+        merged = (await remodel_room(async_session, merged.id, piece.id))[0]
+    assert (merged.size, merged.capacity, merged.output, merged.tier) == (size, 101, 37, tier)
+    assert room_refund(merged) == refund
+    assert rich_vault.bottle_caps == caps
+    for resident in residents:
+        await async_session.refresh(resident)
+        assert resident.room_id == merged.id
+    # Round trips retain the exact rounded refund even after repeated splitting.
+    pieces = await remodel_room(async_session, merged.id)
+    for piece in reversed(pieces):
+        await room_service.destroy_room(async_session, piece.id)
+    await async_session.refresh(rich_vault)
+    assert rich_vault.bottle_caps == caps + refund
+
+
+@pytest.mark.parametrize(
+    "change", [{"tier": 2}, {"name": "Diner"}, {"coordinate_x": 13}, {"coordinate_y": 2}, {"size": 9}]
+)
+async def test_manual_merge_rejects_incompatible_neighbors(async_session, rich_vault, change):
+    from app.services.room_remodel_service import remodel_room
+    from app.utils.exceptions import VaultOperationException
+
+    left = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7)
+    right = await _create_existing_room(async_session, rich_vault.id, coordinate_x=10)
+    await crud.room.update(async_session, right.id, change)
+    with pytest.raises(VaultOperationException):
+        await remodel_room(async_session, left.id, right.id)
+    assert len(await crud.room.get_all_by_vault(async_session, rich_vault.id)) == 2
+
+
+async def test_split_requires_multiple_base_segments_and_free_placement_lock(async_session, rich_vault):
+    from app.services.room_remodel_service import remodel_room
+    from app.utils.exceptions import VaultOperationException
+
+    source = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7)
+    with pytest.raises(VaultOperationException, match="one base segment"):
+        await remodel_room(async_session, source.id)
+    with (
+        patch("app.services.room_remodel_service.db_locks.hold_advisory_lock", new=_placement_lock_held),
+        pytest.raises(ResourceConflictException),
+    ):
+        await remodel_room(async_session, source.id)
+
+
+async def test_remodel_training_and_incident_references_follow_survivor(async_session, rich_vault):
+    from app.models.incident import Incident, IncidentStatus, IncidentType
+    from app.services.room_remodel_service import remodel_room
+    from app.utils.exceptions import VaultOperationException
+
+    source = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7, size=6)
+    dwellers = [await _create_dweller_in_room(async_session, rich_vault.id, source) for _ in range(4)]
+    trainings = [
+        Training(
+            vault_id=rich_vault.id,
+            dweller_id=d.id,
+            room_id=source.id,
+            stat_being_trained=SPECIALEnum.STRENGTH,
+            current_stat_value=5,
+            target_stat_value=6,
+            progress=0.45,
+            started_at=datetime.utcnow(),
+            estimated_completion_at=datetime.utcnow(),
+        )
+        for d in dwellers
+    ]
+    async_session.add_all(trainings)
+    await async_session.commit()
+    pieces = await remodel_room(async_session, source.id)
+    for training, dweller in zip(trainings, dwellers, strict=True):
+        await async_session.refresh(training)
+        await async_session.refresh(dweller)
+        assert training.room_id == dweller.room_id
+        assert training.progress == 0.45
+    incident = Incident(
+        vault_id=rich_vault.id,
+        room_id=pieces[1].id,
+        type=IncidentType.FIRE,
+        difficulty=1,
+        rooms_affected=[str(pieces[1].id)],
+    )
+    async_session.add(incident)
+    await async_session.commit()
+    with pytest.raises(VaultOperationException, match="Resolve the incident"):
+        await remodel_room(async_session, pieces[0].id, pieces[1].id)
+    incident.status = IncidentStatus.RESOLVED
+    async_session.add(incident)
+    await async_session.commit()
+    merged = (await remodel_room(async_session, pieces[1].id, pieces[0].id))[0]
+    await async_session.refresh(incident)
+    assert incident.room_id == merged.id
+    assert incident.rooms_affected == [str(merged.id)]
+    for training in trainings:
+        await async_session.refresh(training)
+        assert training.room_id == merged.id
+
+
+async def test_split_preserves_dispatched_return_postings(async_session, rich_vault):
+    from app.models.team import Team, TeamMember
+    from app.services.room_remodel_service import remodel_room
+
+    source = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7, size=6)
+    residents = [await _create_dweller_in_room(async_session, rich_vault.id, source) for _ in range(4)]
+    team = Team(vault_id=rich_vault.id, name="Return crew", exploration_id=source.id)
+    async_session.add(team)
+    await async_session.flush()
+    members = [TeamMember(team_id=team.id, dweller_id=d.id, origin_room_id=source.id) for d in residents]
+    for d in residents:
+        d.room_id = None
+        async_session.add(d)
+    async_session.add_all(members)
+    await async_session.commit()
+    pieces = await remodel_room(async_session, source.id)
+    for member in members:
+        await async_session.refresh(member)
+    assert sorted(sum(m.origin_room_id == p.id for m in members) for p in pieces) == [2, 2]
+    for d in residents:
+        await async_session.refresh(d)
+        assert d.room_id is None
+
+
+async def test_split_failure_rolls_back_the_entire_layout(async_session, rich_vault):
+    from sqlalchemy import event
+    from sqlalchemy.exc import OperationalError
+
+    from app.services.room_remodel_service import remodel_room
+
+    source = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7, size=6)
+    vault_id, source_id = rich_vault.id, source.id
+    connection = await async_session.connection()
+
+    def fail_insert(_conn, _cursor, statement, _parameters, _context, _executemany):
+        if statement.startswith("INSERT INTO room "):
+            raise OperationalError(statement, {}, RuntimeError("injected insert failure"))
+
+    event.listen(connection.sync_connection, "before_cursor_execute", fail_insert)
+    try:
+        with pytest.raises(OperationalError, match="injected insert failure"):
+            await remodel_room(async_session, source_id)
+    finally:
+        event.remove(connection.sync_connection, "before_cursor_execute", fail_insert)
+        await async_session.rollback()
+    rooms = await crud.room.get_all_by_vault(async_session, vault_id)
+    assert [(r.id, r.coordinate_x, r.size, r.refund_caps) for r in rooms] == [(source_id, 7, 6, None)]
+
+
+async def test_remodeled_refunds_survive_upgrades_and_automatic_merging(async_session, rich_vault):
+    from app.services.room_remodel_service import remodel_room
+    from app.utils.room_rules import room_refund
+
+    source = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7, size=9)
+    refund = room_refund(source)
+    pieces = await remodel_room(async_session, source.id)
+    for piece in pieces:
+        await room_service.upgrade_room(async_session, piece.id)
+    remaining = await crud.room.get_all_by_vault(async_session, rich_vault.id)
+    assert len(remaining) == 1
+    assert remaining[0].size == 9
+    assert remaining[0].tier == 2
+    assert room_refund(remaining[0]) == refund + 750

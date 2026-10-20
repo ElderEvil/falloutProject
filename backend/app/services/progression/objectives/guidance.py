@@ -1,6 +1,7 @@
 """Current tutorial selection and read-only credit for existing vault state."""
 
 from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -77,4 +78,22 @@ async def read_objectives(
         current.progress = min(
             current.total, max(current.progress, await current_state_progress(db_session, vault_id, current))
         )
+    from app.services.progression.objectives.refresh_service import objective_periods
+
+    daily, weekly = objective_periods(datetime.now(UTC))
+    achievements = await objective_crud.get_assignable_achievements(db_session)
+    for objective in objectives:
+        if objective.category == "daily":
+            objective.resets_at = (daily + timedelta(days=1)).replace(tzinfo=UTC)
+        elif objective.category == "weekly":
+            objective.resets_at = (weekly + timedelta(days=7)).replace(tzinfo=UTC)
+        if objective.track_key:
+            objective.next_stage_challenge = next(
+                (
+                    stage.challenge
+                    for stage in achievements
+                    if stage.track_key == objective.track_key and (stage.sequence or 0) > (objective.sequence or 0)
+                ),
+                None,
+            )
     return objectives

@@ -501,6 +501,39 @@ class TestCreateInitialItems:
         assert all(p.storage_id == storage.id and p.dweller_id is None for p in pets)
         assert all(p.image_url for p in pets)
 
+    async def test_boosted_vault_equips_some_pets_on_legendary_dwellers(self, async_session, vault) -> None:
+        """The legendary pair starts equipped; the remaining pet stays in storage."""
+        from app.crud.item_base import get_items_by_vault
+        from app.models.pet import Pet
+        from app.schemas.common import RarityEnum
+        from app.schemas.dweller import DwellerCreate
+        from app.services.vault_seed import BOOSTED_EQUIPPED_PETS
+        from app.tests.factory.dwellers import create_fake_adult_dweller
+
+        storage = await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
+        first = await crud.dweller.create(
+            async_session,
+            obj_in=DwellerCreate(
+                **(create_fake_adult_dweller() | {"rarity": RarityEnum.LEGENDARY, "first_name": "Alpha"}),
+                vault_id=vault.id,
+            ),
+        )
+        second = await crud.dweller.create(
+            async_session,
+            obj_in=DwellerCreate(
+                **(create_fake_adult_dweller() | {"rarity": RarityEnum.LEGENDARY, "first_name": "Beta"}),
+                vault_id=vault.id,
+            ),
+        )
+
+        await seeding.create_initial_items(async_session, vault.id, is_boosted=True)
+        pets = {pet.name: pet for pet in await get_items_by_vault(async_session, Pet, vault.id)}
+
+        assert pets[BOOSTED_EQUIPPED_PETS[0]].dweller_id == first.id
+        assert pets[BOOSTED_EQUIPPED_PETS[1]].dweller_id == second.id
+        assert pets["Vault-Tec Parrot"].storage_id == storage.id
+        assert pets["Vault-Tec Parrot"].dweller_id is None
+
     async def test_boosted_vault_seeds_crafting_junk_from_catalog(self, async_session, vault) -> None:
         """Boosted-vault junk rows carry their catalog type/value/prose, assigned to storage."""
         from sqlmodel import select
@@ -611,7 +644,7 @@ class TestCreateBoostedLegendaryDwellers:
 
     async def test_roster_selects_only_exact_catalog_equipment_names(self) -> None:
         """Every candidate's equipment must resolve through the case-sensitive item factory."""
-        from app.services.exploration.data_loader import load_outfits, load_weapons
+        from app.services.catalog_service import load_outfits, load_weapons
 
         weapon_names = {entry["name"] for entry in load_weapons()}
         outfit_names = {entry["name"] for entry in load_outfits()}
@@ -654,7 +687,7 @@ class TestCreateBoostedLegendaryDwellers:
 
     async def test_roster_excludes_templates_with_missing_catalog_equipment(self) -> None:
         """Templates missing a weapon or outfit asset are not selected for the showcase roster."""
-        from app.services.exploration.data_loader import load_outfits
+        from app.services.catalog_service import load_outfits
 
         templates = _boosted_legendary_templates()
         catalog = [entry for entry in load_outfits() if entry["name"] != "Vault 33 suit"]
@@ -671,7 +704,7 @@ class TestCreateBoostedLegendaryDwellers:
         ]
 
         with (
-            patch("app.services.exploration.data_loader.load_outfits", return_value=catalog),
+            patch("app.services.catalog_service.load_outfits", return_value=catalog),
             patch(
                 "app.services.vault.seeding.random.sample", side_effect=lambda population, k: population[:k]
             ) as sample,
@@ -1196,150 +1229,34 @@ class TestInitiateVault:
             assert getattr(outfit, ability.value.lower()) == 3
 
     @pytest.mark.parametrize("is_boosted", [True, False], ids=["boosted", "standard"])
-    async def test_initiate_vault_start_resources(self, is_boosted: bool) -> None:
-        """Boosted starts fund Arena upgrades; standard starts keep their existing caps."""
-        vault_id = VAULT_ID
-        user_id = UUID4("11111111-1111-1111-1111-111111111111")
+    async def test_initiate_vault_start_resources(self, async_session, superuser, is_boosted: bool) -> None:
+        """Starts preserve caps budgets and one active stage per achievement family."""
+        from app.crud.objective import objective_crud
+        from app.tests.factory.vaults import random_vault_number
+        from app.utils.seed_objectives import seed_objectives_from_json
 
-        vault = Vault(
-            id=vault_id,
-            number=99,
-            user_id=user_id,
-            population_max=0,
-            power_max=50,
-            food_max=50,
-            water_max=50,
+        await seed_objectives_from_json(async_session)
+        result = await VaultService().initiate_vault(
+            async_session,
+            VaultNumber(number=random_vault_number(), boosted=is_boosted),
+            superuser.id,
+            is_boosted=is_boosted,
         )
-        storage_obj = _make_storage(vault_id=str(vault_id), stimpack=0, radaway=0)
-
-        room_templates = [
-            _make_room_create("elevator", category=RoomTypeEnum.CAPACITY),
-            _make_room_create("vault door", category=RoomTypeEnum.CAPACITY),
-            _make_room_create("living room", category=RoomTypeEnum.CAPACITY, ability=SPECIALEnum.CHARISMA),
-            _make_room_create("storage room", category=RoomTypeEnum.CAPACITY, ability=SPECIALEnum.ENDURANCE),
-            _make_room_create("power generator", ability=SPECIALEnum.STRENGTH),
-            _make_room_create("diner", ability=SPECIALEnum.AGILITY),
-            _make_room_create("water treatment", ability=SPECIALEnum.PERCEPTION),
-            _make_room_create("medbay", ability=SPECIALEnum.INTELLIGENCE),
-            _make_room_create("science lab", ability=SPECIALEnum.INTELLIGENCE),
-            _make_room_create("radio studio", category=RoomTypeEnum.MISC, ability=SPECIALEnum.CHARISMA),
-            _make_room_create("overseer's office", category=RoomTypeEnum.MISC),
-            _make_room_create("weight room", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.STRENGTH),
-            _make_room_create("armory", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.PERCEPTION),
-            _make_room_create("athletics room", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.ENDURANCE),
-            _make_room_create("classroom", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.CHARISMA),
-            _make_room_create("game room", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.INTELLIGENCE),
-            _make_room_create("fitness room", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.AGILITY),
-            _make_room_create("lounge", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.LUCK),
-        ]
-
-        mock_game_data = MagicMock()
-        mock_game_data.rooms = room_templates
-
-        prod_rooms = [
-            _make_room(f"p{i}", name, ability=ability)
-            for i, (name, ability) in enumerate(
-                [
-                    ("Power Gen", SPECIALEnum.STRENGTH),
-                    ("Diner", SPECIALEnum.AGILITY),
-                    ("Water Treatment", SPECIALEnum.PERCEPTION),
-                ],
-                1,
-            )
-        ]
-        train_rooms = [
-            _make_room(name="Train Room", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.STRENGTH)
-            for i in range(7)
-        ]
-        misc_rooms = [_make_room(name="Radio Studio", category=RoomTypeEnum.MISC, ability=SPECIALEnum.CHARISMA)]
-        cap_rooms = [_make_room(name="Living Room", category=RoomTypeEnum.CAPACITY, ability=SPECIALEnum.CHARISMA)]
-
-        db_session = AsyncMock()
-        db_session.commit = AsyncMock()
-        db_session.refresh = AsyncMock()
-        db_session.add = MagicMock()
-        db_session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=storage_obj)))
-
-        with (
-            patch("app.services.map_service.map_service.register_bio_places", new=AsyncMock(return_value=True)),
-            patch(
-                "app.services.vault_service.vault_crud.create_with_user_id",
-                new_callable=AsyncMock,
-                return_value=vault,
-            ),
-            patch(
-                "app.services.vault_service.vault_crud.create_storage",
-                new_callable=AsyncMock,
-                return_value=storage_obj,
-            ),
-            patch(
-                "app.services.vault_service.vault_crud.update", new_callable=AsyncMock, return_value=vault
-            ) as mock_update,
-            patch(
-                "app.services.vault_service.get_static_game_data",
-                new_callable=AsyncMock,
-                return_value=mock_game_data,
-            ),
-            patch("app.services.vault.seeding.room_crud.evaluate_capacity_formula", return_value=4),
-            patch(
-                "app.services.vault_service.compute_medical_capacity",
-                return_value={"stimpack": 5, "radaway": 5},
-            ),
-            patch(
-                "app.crud.objective.objective_crud.assign_initial",
-                new_callable=AsyncMock,
-                return_value=2,
-            ) as mock_assign_initial,
-            patch(
-                "app.services.vault.seeding.prepare_initial_rooms",
-                return_value=PreparedRooms(
-                    infrastructure=[], capacity=[], production=[], misc=[], training=[], arena=[]
-                ),
-            ),
-            patch(
-                "app.services.vault.seeding.create_initial_rooms",
-                new=AsyncMock(
-                    return_value=(
-                        vault,
-                        CreatedRooms(
-                            production=prod_rooms,
-                            training=train_rooms,
-                            misc=misc_rooms,
-                            capacity=cap_rooms,
-                            arena=[],
-                        ),
-                    )
-                ),
-            ),
-            patch("app.services.vault.seeding.create_initial_dwellers", new_callable=AsyncMock),
-            patch("app.services.vault.seeding.start_training_sessions", new_callable=AsyncMock) as mock_start_training,
-            patch("app.services.vault.seeding.create_initial_items", new_callable=AsyncMock),
-            patch(
-                "app.services.vault.seeding.get_static_game_data",
-                new_callable=AsyncMock,
-                return_value=mock_game_data,
-            ),
-        ):
-            result = await VaultService().initiate_vault(
-                db_session,
-                VaultNumber(number=99, boosted=is_boosted),
-                user_id,
-                is_boosted=is_boosted,
-            )
-
-        assert result == vault
-        mock_start_training.assert_awaited_once()
-        mock_assign_initial.assert_awaited_once_with(db_session, vault.id, is_boosted=is_boosted)
-
-        initial_caps = mock_update.call_args.kwargs["obj_in"].bottle_caps
-        if initial_caps is None:
-            initial_caps = vault.bottle_caps
-        arena_template = next(room for room in (await get_static_game_data()).rooms if room.name.lower() == "arena")
-        upgrade_budget = arena_template.t2_upgrade_cost + arena_template.t3_upgrade_cost
+        arena = next(room for room in (await get_static_game_data()).rooms if room.name.lower() == "arena")
         if is_boosted:
-            assert initial_caps >= upgrade_budget + 1_000
+            assert result.bottle_caps >= arena.t2_upgrade_cost + arena.t3_upgrade_cost + 1_000
         else:
-            assert initial_caps == vault.bottle_caps
+            assert result.bottle_caps == 1_000
+        objectives = await objective_crud.get_multi_for_vault(async_session, result.id)
+        assert {"daily", "weekly", "achievement"} <= {o.category for o in objectives}
+        achievements = [o for o in objectives if o.category == "achievement"]
+        assert all(o.sequence == 1 for o in achievements if o.objective_type != "reach")
+        unfinished = [o for o in achievements if o.progress < o.total]
+        assert {o.track_key for o in achievements} == {o.track_key for o in unfinished}
+        assert len({o.track_key for o in unfinished}) == len(unfinished)
+        state = await crud.game_state_crud.get_or_create(async_session, result.id)
+        assert state.achievement_tracks_initialized
+        assert state.daily_objectives_period is not None
 
 
 class TestVaultStartConfig:

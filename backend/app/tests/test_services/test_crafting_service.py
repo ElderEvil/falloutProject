@@ -56,10 +56,15 @@ async def _make_storage(async_session: AsyncSession, vault: Vault, max_space: in
     return storage
 
 
-async def _add_workshop(async_session: AsyncSession, vault: Vault, name: str) -> Room:
+async def _add_workshop(
+    async_session: AsyncSession,
+    vault: Vault,
+    name: str,
+    category: RoomTypeEnum = RoomTypeEnum.CRAFTING,
+) -> Room:
     room = Room(
         name=name,
-        category=RoomTypeEnum.CRAFTING,
+        category=category,
         ability=None,
         population_required=None,
         base_cost=800,
@@ -183,6 +188,40 @@ async def test_list_recipes_excludes_uncraftable_entries(async_session: AsyncSes
     recipes = await crafting_service.list_recipes(async_session, vault.id, "outfit")
 
     assert all(recipe.name != UNCRAFTABLE_OUTFIT for recipe in recipes)
+
+
+@pytest.mark.parametrize(
+    ("name", "junk_types"),
+    [("Vault 33 suit", ["cloth", "valuables"]), ("BOS casual", ["cloth", "leather"])],
+)
+async def test_power_struggle_outfits_craftable_without_discovery(
+    async_session: AsyncSession, vault: Vault, name: str, junk_types: list[str]
+) -> None:
+    """An existing vault can craft chain requirements without finding them in a lunchbox first."""
+    storage = await _make_storage(async_session, vault)
+    await _add_workshop(async_session, vault, "Outfit workshop")
+    vault.bottle_caps = 1_000
+    await async_session.commit()
+    for material, count in game_config.crafting.junk_recipe("rare").items():
+        await _add_junk(async_session, storage, RarityEnum(material), count, JunkTypeEnum.CLOTH)
+
+    recipes = await crafting_service.list_recipes(async_session, vault.id, "outfit")
+    recipe = next((recipe for recipe in recipes if recipe.name == name), None)
+    assert recipe is not None
+    assert recipe.unlocked is True
+    assert recipe.can_craft is True
+    assert recipe.junk_types == junk_types
+    assert recipe.rarity == RarityEnum.RARE
+
+    order = await crafting_service.start_order(async_session, vault.id, name, "outfit")
+    await _finish_queue(async_session, vault.id)
+    result = await crafting_service.collect_order(async_session, vault.id, order.id)
+
+    outfit = await async_session.get(Outfit, result.item_id)
+    assert outfit is not None
+    assert outfit.name == name
+    assert outfit.rarity == RarityEnum.RARE
+    assert outfit.storage_id == storage.id
 
 
 @pytest.mark.asyncio
@@ -519,3 +558,217 @@ async def test_crafting_tick_notifies_owner_when_order_completes(async_session: 
 
     result = await async_session.execute(select(Notification).where(Notification.vault_id == vault.id))
     assert any(n.notification_type == NotificationType.CRAFTING_COMPLETE for n in result.scalars().all())
+
+
+THEME_WORKSHOP = "Theme workshop"
+PARTY_THEME = "Party theme"
+
+
+async def _add_theme_workshop(async_session: AsyncSession, vault: Vault) -> Room:
+    return await _add_workshop(async_session, vault, THEME_WORKSHOP, RoomTypeEnum.THEME)
+
+
+@pytest.mark.asyncio
+async def test_theme_recipes_are_listed_unowned_until_crafted(async_session: AsyncSession, vault: Vault) -> None:
+    await _make_storage(async_session, vault)
+
+    recipes = await crafting_service.list_recipes(async_session, vault.id, "theme")
+
+    assert len(recipes) == 8
+    party = next(recipe for recipe in recipes if recipe.name == PARTY_THEME)
+    assert party.style == "party"
+    assert party.unlocked is True
+    assert party.owned is False
+
+
+@pytest.mark.asyncio
+async def test_collecting_a_theme_order_grants_vault_ownership(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _make_storage(async_session, vault)
+    await _add_theme_workshop(async_session, vault)
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON), JunkTypeEnum.CLOTH)
+
+    order = await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+    await _finish_queue(async_session, vault.id)
+    result = await crafting_service.collect_order(async_session, vault.id, order.id)
+
+    assert result.item_type == "theme"
+    assert result.item_id is None
+    assert await crud.vault_theme.is_crafted(async_session, vault.id, "party")
+
+
+@pytest.mark.asyncio
+async def test_a_theme_can_only_be_crafted_once(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _make_storage(async_session, vault)
+    await _add_theme_workshop(async_session, vault)
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON) + 3, JunkTypeEnum.CLOTH)
+
+    order = await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+    await _finish_queue(async_session, vault.id)
+    await crafting_service.collect_order(async_session, vault.id, order.id)
+
+    with pytest.raises(ValidationException, match="already been crafted"):
+        await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+
+
+@pytest.mark.asyncio
+async def test_collecting_a_theme_needs_no_storage_space(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _make_storage(async_session, vault)
+    await _add_theme_workshop(async_session, vault)
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON), JunkTypeEnum.CLOTH)
+    order = await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+
+    await async_session.delete(storage)
+    await async_session.commit()
+    await _finish_queue(async_session, vault.id)
+
+    result = await crafting_service.collect_order(async_session, vault.id, order.id)
+    assert result.name == PARTY_THEME
+
+
+@pytest.mark.asyncio
+async def test_theme_orders_need_the_theme_workshop(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _make_storage(async_session, vault)
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON), JunkTypeEnum.CLOTH)
+
+    with pytest.raises(ValidationException, match="Build the Theme workshop"):
+        await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+
+
+@pytest.mark.asyncio
+async def test_boosted_seeding_crafts_every_theme(async_session: AsyncSession, vault: Vault) -> None:
+    from app.services.catalog_service import load_themes
+    from app.services.vault import seeding
+
+    await seeding.seed_boosted_theme_unlocks(async_session, vault.id)
+
+    crafted = await crud.vault_theme.crafted_styles(async_session, vault.id)
+    assert crafted == {str(entry["style"]) for entry in load_themes()}
+
+
+@pytest.mark.asyncio
+async def test_a_theme_cannot_be_queued_twice(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _make_storage(async_session, vault)
+    await _add_theme_workshop(async_session, vault)
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON), JunkTypeEnum.CLOTH)
+
+    await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+
+    with pytest.raises(ValidationException, match="already being crafted"):
+        await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+
+
+@pytest.mark.asyncio
+async def test_theme_duration_shortens_with_matching_crew(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _make_storage(async_session, vault)
+    workshop = await _add_theme_workshop(async_session, vault)
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON), JunkTypeEnum.CLOTH)
+
+    base_party = next(
+        recipe
+        for recipe in await crafting_service.list_recipes(async_session, vault.id, "theme")
+        if recipe.name == PARTY_THEME
+    )
+    await _add_worker(async_session, vault, workshop, index=1, agility=10)
+    await _add_worker(async_session, vault, workshop, index=2, agility=10)
+
+    party = next(
+        recipe
+        for recipe in await crafting_service.list_recipes(async_session, vault.id, "theme")
+        if recipe.name == PARTY_THEME
+    )
+    assert party.ability_sum == 20
+    assert party.duration_seconds < base_party.duration_seconds
+
+    order = await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+    assert (order.estimated_completion_at - order.started_at).total_seconds() == party.duration_seconds
+
+
+@pytest.mark.asyncio
+async def test_cancel_active_order_refunds_caps_and_junk(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _make_storage(async_session, vault)
+    await _add_theme_workshop(async_session, vault)
+    vault.bottle_caps = 1_000
+    await async_session.commit()
+    await _add_junk(async_session, storage, RarityEnum.COMMON, 3, JunkTypeEnum.CLOTH)
+    await _add_junk(async_session, storage, RarityEnum.RARE, 3, JunkTypeEnum.CLOTH)
+
+    order = await crafting_service.start_order(async_session, vault.id, "Halloween theme", "theme")
+    cancelled = await crafting_service.cancel_order(async_session, vault.id, order.id)
+
+    assert cancelled.status == CraftingOrderStatus.CANCELLED
+    assert cancelled.cancelled_at is not None
+    assert await crud.crafting_order.get_active_by_vault(async_session, vault.id) == []
+    refreshed_vault = await crud.vault.get(async_session, vault.id)
+    assert refreshed_vault.bottle_caps == 1_000
+    junk = (await async_session.execute(select(Junk))).scalars().all()
+    assert len(junk) == 6
+
+
+@pytest.mark.asyncio
+async def test_cancel_rejects_orders_that_are_not_active(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _make_storage(async_session, vault)
+    await _add_workshop(async_session, vault, "Weapon workshop")
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON))
+    order = await crafting_service.start_order(async_session, vault.id, COMMON_WEAPON, "weapon")
+    await _finish_queue(async_session, vault.id)
+
+    with pytest.raises(ValidationException, match="Only active orders"):
+        await crafting_service.cancel_order(async_session, vault.id, order.id)
+
+
+@pytest.mark.asyncio
+async def test_cancel_unknown_order_raises_not_found(async_session: AsyncSession, vault: Vault) -> None:
+    with pytest.raises(ResourceNotFoundException):
+        await crafting_service.cancel_order(async_session, vault.id, uuid4())
+
+
+@pytest.mark.asyncio
+async def test_cancelled_theme_can_be_queued_again(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _make_storage(async_session, vault)
+    await _add_theme_workshop(async_session, vault)
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON), JunkTypeEnum.CLOTH)
+
+    order = await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+    await crafting_service.cancel_order(async_session, vault.id, order.id)
+
+    replacement = await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+    assert replacement.id != order.id
+
+
+@pytest.mark.asyncio
+async def test_cancel_legacy_order_rebuilds_an_equivalent_junk_refund(
+    async_session: AsyncSession, vault: Vault
+) -> None:
+    storage = await _make_storage(async_session, vault)
+    await _add_theme_workshop(async_session, vault)
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON), JunkTypeEnum.CLOTH)
+    order = await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+    order.junk_snapshot = []
+    async_session.add(order)
+    await async_session.commit()
+
+    await crafting_service.cancel_order(async_session, vault.id, order.id)
+
+    junk = (await async_session.execute(select(Junk))).scalars().all()
+    assert len(junk) == _junk_cost(RarityEnum.COMMON)
+
+
+@pytest.mark.asyncio
+async def test_crafting_tick_does_not_revive_a_cancelled_order(async_session: AsyncSession, vault: Vault) -> None:
+    from app.services.game_tick import crafting_tick
+
+    storage = await _make_storage(async_session, vault)
+    await _add_workshop(async_session, vault, "Weapon workshop")
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON), JunkTypeEnum.STEEL)
+    order = await crafting_service.start_order(async_session, vault.id, COMMON_WEAPON, "weapon")
+    await crafting_service.cancel_order(async_session, vault.id, order.id)
+
+    order.estimated_completion_at = datetime.utcnow() - timedelta(seconds=1)
+    async_session.add(order)
+    await async_session.commit()
+
+    stats = await crafting_tick.process_crafting(async_session, vault.id)
+
+    assert stats["completed"] == 0
+    await async_session.refresh(order)
+    assert order.status == CraftingOrderStatus.CANCELLED

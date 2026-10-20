@@ -28,7 +28,7 @@ from app.schemas.wasteland_location import (
     VaultMarkerRead,
     WastelandLocationWithDwellers,
 )
-from app.services.exploration.data_loader import load_expedition_sites
+from app.services.catalog_service import load_expedition_sites
 from app.services.exploration.expedition import (
     SiteBlockState,
     journey_offer_context,

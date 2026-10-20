@@ -1,5 +1,6 @@
 """Tests for arena service logic — experimental dweller-vs-dweller fighting."""
 
+from itertools import pairwise
 from uuid import uuid4
 
 import pytest
@@ -19,15 +20,24 @@ from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
+from app.services.catalog_service import load_enemies
 from app.services.combat.arena_service import ArenaParticipant, ArenaService, participant_from_dweller
 from app.services.dweller_service import dweller_service
-from app.services.exploration.data_loader import load_enemies
 from app.utils.combat import combat_power
 from app.utils.exceptions import ValidationException
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
+
+async def finish_match(service, session, room, team_a, team_b, *, state=None):
+    """Play alternating turns until the reward/settlement boundary under test."""
+    for _ in range(100):
+        result = await service._resolve_round(session, room, team_a, team_b, 1000, state=state)
+        if result["status"] == "finished":
+            return result
+    pytest.fail("Arena match did not settle")
 
 
 def test_arena_catalog_replaces_raiders_with_training_robots():
@@ -67,12 +77,13 @@ def test_arena_wildlife_preserves_exploration_catalog_and_reserves_brahmin():
         ArenaService._hunt_opponents(["brahmin"])
 
 
-def test_team_damage_ignores_knocked_out_attackers():
+@pytest.mark.parametrize(("seconds", "expected"), [(0, 0.0), (1, 2.0), (2, 4.0)])
+def test_team_damage_uses_ten_percent_power_per_second_and_ignores_knockouts(seconds, expected):
     team = [
         ArenaParticipant(key="down", name="Down", short_name="Down", power=100.0, health=0, max_health=100),
         ArenaParticipant(key="up", name="Up", short_name="Up", power=20.0, health=10, max_health=100),
     ]
-    assert ArenaService._team_damage(team, 1) == pytest.approx(4.0)
+    assert ArenaService._team_damage(team, seconds) == pytest.approx(expected)
 
 
 @pytest.mark.parametrize(
@@ -117,14 +128,21 @@ async def test_hunt_xp_pool_is_split_and_reported_once(
         None,
         mode=ArenaMode.HUNT,
         fighter_c_id=fighter_c.id if two_dwellers else None,
-        team_a_bot_key="training-eyebot" if bot else None,
         opponent_keys=keys,
     )
     team_a, team_b = await service.get_teams(async_session, arena_room)
     team_a[0].power = 1000
+    if bot:
+        # Legacy Team A support is ignored, including for XP distribution.
+        state.support_bots = {"A": service._hunt_opponents(["training-eyebot"])[0]}
+        team_a, team_b = await service.get_teams(async_session, arena_room)
+        team_a[0].power = 1000
+        assert len(team_a) == len(dwellers)
+    for hunter in team_a:
+        hunter.health = hunter.max_health = 100000
     if knocked_out:
         team_a[1].health = 0
-    result = await service._resolve_round(async_session, arena_room, team_a, team_b, 1, state=state)
+    result = await finish_match(service, async_session, arena_room, team_a, team_b, state=state)
     assert result["status"] == "finished"
     assert [dweller.experience for dweller in dwellers] == expected
     await async_session.commit()
@@ -155,7 +173,8 @@ async def test_defeated_hunters_receive_no_xp(async_session, arena_room, fighter
     team_a, team_b = await service.get_teams(async_session, arena_room)
     team_a[0].power = 0
     team_a[0].health = 1
-    assert (await service._resolve_round(async_session, arena_room, team_a, team_b, 1, state=state))[
+    state.next_attack_team = "B"
+    assert (await service._resolve_round(async_session, arena_room, team_a, team_b, 2, state=state))[
         "status"
     ] == "finished"
     assert fighter_a.experience == 0
@@ -188,7 +207,7 @@ async def test_dweller_matches_keep_existing_xp_per_winner(
     team_a[0].power = 10000
     for participant in team_b:
         participant.power = 0
-    await service._resolve_round(async_session, arena_room, team_a, team_b, 1, state=state)
+    await finish_match(service, async_session, arena_room, team_a, team_b, state=state)
     assert fighter_a.experience == game_config.combat.xp_per_difficulty * 2
     assert fighter_c.experience == (game_config.combat.xp_per_difficulty * 2 if mode == ArenaMode.BRAWL else 0)
     assert fighter_b.experience == fighter_d.experience == 0
@@ -760,64 +779,61 @@ class TestArenaService:
         assert arena_state.fighter_a_id == replacement.id
 
     @pytest.mark.asyncio
-    async def test_resolve_round_1v1_matches_legacy_math(self, async_session, arena_room, fighter_a, fighter_b):
-        fighter_a.room_id = arena_room.id
-        fighter_b.room_id = arena_room.id
-        await async_session.refresh(fighter_a, ["weapon"])
-        await async_session.refresh(fighter_b, ["weapon"])
-        power_a = combat_power(fighter_a)
-        power_b = combat_power(fighter_b)
-        expected_a_damage = int(power_b / 5 * 1)
-        expected_b_damage = int(power_a / 5 * 1)
-
+    async def test_resolve_round_1v1_alternates_with_halved_damage(
+        self, async_session, arena_room, fighter_a, fighter_b
+    ):
+        for fighter in (fighter_a, fighter_b):
+            fighter.room_id = arena_room.id
+            await async_session.refresh(fighter, ["weapon"])
+        a, b = [participant_from_dweller(fighter_a)], [participant_from_dweller(fighter_b)]
+        state = await configure_arena(async_session, arena_room, fighter_a_id=fighter_a.id, fighter_b_id=fighter_b.id)
         service = ArenaService()
-        result = await service._resolve_round(
-            async_session,
-            arena_room,
-            [participant_from_dweller(fighter_a)],
-            [participant_from_dweller(fighter_b)],
-            1,
-        )
-
-        assert result["status"] == "ongoing"
-        assert result["fighter_a_hp"] == fighter_a.health
-        assert result["fighter_b_hp"] == fighter_b.health
-        assert fighter_a.health == max(0, 100 - expected_a_damage)
-        assert fighter_b.health == max(0, 50 - expected_b_damage)
-        assert service._damage_carry[(str(arena_room.id), str(fighter_a.id))] == power_b / 5 * 1 - expected_a_damage
-        assert service._damage_carry[(str(arena_room.id), str(fighter_b.id))] == power_a / 5 * 1 - expected_b_damage
+        damage_b = min(combat_power(fighter_a) / 10, 50 * 0.05)
+        await service._resolve_round(async_session, arena_room, a, b, 1, state=state)
+        assert fighter_a.health == 100
+        assert fighter_b.health == 50 - int(damage_b)
+        assert service._damage_carry[(str(arena_room.id), str(fighter_b.id))] == pytest.approx(damage_b % 1)
+        assert state.next_attack_team == "B"
+        await async_session.commit()
+        # A fresh worker resumes B rather than restarting with A.
+        await async_session.refresh(state)
+        damage_a = min(combat_power(fighter_b) / 10, 100 * 0.05)
+        await ArenaService()._resolve_round(async_session, arena_room, a, b, 1, state=state)
+        assert fighter_a.health == 100 - int(damage_a)
+        assert fighter_b.health == 50 - int(damage_b)
+        assert state.next_attack_team == "A"
+        await async_session.commit()
+        view = (await service.get_arena_state(async_session, arena_room.vault_id)).rooms[0]
+        assert [event.message for event in view.events if event.kind == "turn"] == ["Team A attacks", "Team B attacks"]
 
     @pytest.mark.asyncio
-    async def test_resolve_round_focus_fire_spills_and_carries_per_member(self, async_session, arena_room):
+    async def test_resolve_round_pairs_targets_and_preserves_fractional_carry(self, async_session, arena_room):
         service = ArenaService()
-        attacker = ArenaParticipant(
-            key="hero", name="Hero One", short_name="Hero", power=43.5, health=100, max_health=100
-        )
-        weak = ArenaParticipant(key="weak", name="Weak", short_name="Weak", power=1.0, health=5, max_health=50)
-        strong = ArenaParticipant(
-            key="strong", name="Strong", short_name="Strong", power=1.0, health=200, max_health=200
-        )
-        expected_carry = 43.5 / 5 * 1 - int(43.5 / 5 * 1)
-
-        result = await service._resolve_round(async_session, arena_room, [attacker], [weak, strong], 1)
-
-        assert result["status"] == "ongoing"
-        assert weak.health == 0
-        assert strong.health == 197
-        assert service._damage_carry[(str(arena_room.id), "weak")] == expected_carry
-
-        await service._resolve_round(async_session, arena_room, [attacker], [weak, strong], 1)
-
-        assert weak.health == 0
-        assert strong.health == 189
-        assert service._damage_carry[(str(arena_room.id), "strong")] == expected_carry
+        heroes = [
+            ArenaParticipant(key=k, name=k, short_name=k, power=p, health=100, max_health=100)
+            for k, p in [("hero", 43.5), ("ally", 20)]
+        ]
+        weak = ArenaParticipant(key="weak", name="Weak", short_name="Weak", power=0, health=5, max_health=50)
+        strong = ArenaParticipant(key="strong", name="Strong", short_name="Strong", power=0, health=200, max_health=200)
+        await service._resolve_round(async_session, arena_room, heroes, [weak, strong], 1)
+        assert (weak.health, strong.health) == (3, 198)
+        assert service._damage_carry[(str(arena_room.id), "weak")] == 0.5
+        await service._resolve_round(async_session, arena_room, heroes, [weak, strong], 1)
+        assert (weak.health, strong.health) == (3, 198)  # B's turn cannot hurt B.
+        await service._resolve_round(async_session, arena_room, heroes, [weak, strong], 1)
+        assert (weak.health, strong.health) == (0, 196)
+        assert service._damage_carry[(str(arena_room.id), "weak")] == 0
+        # Once one enemy remains, both attackers may share it.
+        await service._resolve_round(async_session, arena_room, heroes, [weak, strong], 1)
+        await service._resolve_round(async_session, arena_room, heroes, [weak, strong], 1)
+        assert strong.health == 190
 
     @pytest.mark.asyncio
     async def test_resolve_round_defeated_creature_stops_dealing_damage(self, async_session, arena_room):
         service = ArenaService()
         hero = ArenaParticipant(key="hero", name="Hero", short_name="Hero", power=100.0, health=1000, max_health=1000)
         weak = ArenaParticipant(
-            key="weak", name="Weak", short_name="Weak", power=50.0, health=5, max_health=5, is_creature=True
+            key="weak", name="Weak", short_name="Weak", power=50.0, health=1, max_health=100, is_creature=True
         )
         strong = ArenaParticipant(
             key="strong",
@@ -835,8 +851,9 @@ class TestArenaService:
 
         await service._resolve_round(async_session, arena_room, [hero], [weak, strong], 1)
 
-        # Only the surviving creature attacks: 100 / 5 = 20, not (100 + 50) / 5 = 30.
-        assert hero.health == after_first - 20
+        # Only the surviving creature attacks on B's turn.
+        # Arena ordinary attacks deal 10% power per second (halved from 20%).
+        assert hero.health == after_first - 10
 
     @pytest.mark.asyncio
     async def test_brawl_knockout_keeps_fighter_alive_and_match_running(
@@ -1255,8 +1272,9 @@ class TestArenaService:
         fighter_a.health = 1
         await configure_arena(async_session, arena_room, fight_started_at=datetime.utcnow() - timedelta(seconds=10))
 
-        result = await service.process_arena_ticks(async_session, 1)
-
+        first = await service.process_arena_ticks(async_session, 2)
+        assert first["arena"]["rounds"][0]["status"] == "ongoing"
+        result = await service.process_arena_ticks(async_session, 2)
         assert result["arena"]["rounds"][0]["status"] == "finished"
         assert result["arena"]["rounds"][0]["winner"] == "Deathclaw"
         await async_session.refresh(fighter_a)
@@ -1288,13 +1306,14 @@ class TestArenaService:
         arena_state = await arena_state_crud.get(async_session, arena_room.id)
         assert arena_state is not None
         first_hp = arena_state.opponents[0]["hp"]
-        assert 0 < first_hp < 10
+        assert 0 < first_hp <= 10
         assert arena_state.last_fight_at is None
 
         await service.process_arena_ticks(async_session, 1)
         arena_state = await arena_state_crud.get(async_session, arena_room.id)
-        second_hp = arena_state.opponents[0]["hp"]
-        assert 0 < second_hp < first_hp
+        assert arena_state.opponents[0]["hp"] == first_hp  # Only B attacks this turn.
+        await service.process_arena_ticks(async_session, 2)
+        assert 0 < arena_state.opponents[0]["hp"] < first_hp
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -1326,7 +1345,8 @@ class TestArenaService:
         fighter_a.health = 100000
         await configure_arena(async_session, arena_room, fight_started_at=datetime.utcnow() - timedelta(seconds=10))
 
-        result = await service.process_arena_ticks(async_session, 3600)
+        for _ in range(3):
+            result = await service.process_arena_ticks(async_session, 3600)
 
         assert result["arena"]["rounds"][0]["status"] == "finished"
         assert result["arena"]["rounds"][0]["winner"] == "Arena Champ"
@@ -1485,46 +1505,22 @@ class TestArenaMoraleBonus:
 
 class TestArenaBotSupport:
     @pytest.mark.parametrize("mode", [ArenaMode.HUNT, ArenaMode.BRAWL])
-    async def test_robot_replaces_second_dweller(self, async_session, arena_room, fighter_a, fighter_b, mode):
-        for fighter in (fighter_a, fighter_b):
-            fighter.room_id = arena_room.id
-        await async_session.commit()
-        service = ArenaService()
-        await service.set_fighters(
-            async_session,
-            arena_room.id,
-            fighter_a.id,
-            fighter_b.id if mode == ArenaMode.BRAWL else None,
-            mode=mode,
-            team_a_bot_key="training-eyebot",
-            team_b_bot_key="training-protectron" if mode == ArenaMode.BRAWL else None,
-            opponent_keys=["deathclaw"] if mode == ArenaMode.HUNT else None,
-        )
-        a, b = await service.get_teams(async_session, arena_room)
-        assert len(a) == 2
-        assert a[0].dweller.id == fighter_a.id
-        assert a[1].name == "Training Eyebot"
-        assert (a[1].power, a[1].health) == (30, 20)
-        if mode == ArenaMode.BRAWL:
-            assert len(b) == 2
-            assert (b[1].power, b[1].health) == (10, 60)
-        else:
-            assert b[0].name == "Deathclaw"
-        await service.start_fight(async_session, arena_room.id)
-
-    @pytest.mark.parametrize("robot", ["deathclaw", "unknown"])
-    async def test_only_training_bots_can_assist(self, async_session, arena_room, fighter_a, robot):
-        fighter_a.room_id = arena_room.id
-        await async_session.commit()
-        with pytest.raises(ValidationException, match="training bot"):
+    async def test_team_a_rejects_bots_in_every_mode(self, async_session, arena_room, fighter_a, fighter_b, mode):
+        with pytest.raises(ValidationException, match="Team A only supports dweller"):
             await ArenaService().set_fighters(
                 async_session,
                 arena_room.id,
                 fighter_a.id,
-                None,
-                mode=ArenaMode.HUNT,
-                team_a_bot_key=robot,
-                opponent_keys=["deathclaw"],
+                fighter_b.id if mode == ArenaMode.BRAWL else None,
+                mode=mode,
+                team_a_bot_key="training-eyebot",
+            )
+
+    @pytest.mark.parametrize("robot", ["deathclaw", "unknown"])
+    async def test_only_training_bots_can_assist(self, async_session, arena_room, fighter_a, robot):
+        with pytest.raises(ValidationException, match="training bot"):
+            await ArenaService().set_fighters(
+                async_session, arena_room.id, fighter_a.id, None, mode=ArenaMode.BRAWL, team_b_bot_key=robot
             )
 
     async def test_dweller_and_bot_cannot_share_second_slot(self, async_session, arena_room, fighter_a, fighter_b):
@@ -1534,36 +1530,40 @@ class TestArenaBotSupport:
                 arena_room.id,
                 fighter_a.id,
                 None,
-                mode=ArenaMode.HUNT,
-                fighter_c_id=fighter_b.id,
-                team_a_bot_key="training-eyebot",
-                opponent_keys=["deathclaw"],
+                mode=ArenaMode.BRAWL,
+                fighter_d_id=fighter_b.id,
+                team_b_bot_key="training-eyebot",
             )
 
-    async def test_support_bot_health_survives_next_tick(self, async_session, arena_room, fighter_a):
-        fighter_a.room_id = arena_room.id
+    async def test_team_b_bot_health_survives_worker_reload(
+        self, async_session, arena_room, fighter_a, fighter_b, fighter_c
+    ):
+        from datetime import datetime, timedelta
+
+        for fighter in (fighter_a, fighter_b, fighter_c):
+            fighter.room_id = arena_room.id
         await async_session.commit()
         service = ArenaService()
-        await service.set_fighters(
+        state = await service.set_fighters(
             async_session,
             arena_room.id,
             fighter_a.id,
-            None,
-            mode=ArenaMode.HUNT,
-            team_a_bot_key="training-protectron",
-            opponent_keys=["deathclaw"],
+            fighter_b.id,
+            mode=ArenaMode.BRAWL,
+            fighter_c_id=fighter_c.id,
+            team_b_bot_key="training-protectron",
         )
         await service.start_fight(async_session, arena_room.id)
-        state = await arena_state_crud.get(async_session, arena_room.id)
-        from datetime import datetime, timedelta
-
         state.fight_started_at = datetime.utcnow() - timedelta(seconds=20)
         await async_session.commit()
         await service.process_arena_fights(async_session, arena_room.vault_id, 2)
+        _, team_b = await service.get_teams(async_session, arena_room)
+        hp = team_b[1].health
+        assert 0 < hp < 60
         async_session.expunge_all()
         room = await crud.room.get(async_session, arena_room.id)
-        a, _ = await ArenaService().get_teams(async_session, room)
-        assert a[1].health == 40
+        _, reloaded = await ArenaService().get_teams(async_session, room)
+        assert reloaded[1].health == hp
 
     async def test_bots_are_not_allowed_in_duels(self, async_session, arena_room, fighter_a, fighter_b):
         with pytest.raises(ValidationException, match="only available"):
@@ -1572,81 +1572,88 @@ class TestArenaBotSupport:
                 arena_room.id,
                 fighter_a.id,
                 fighter_b.id,
-                team_a_bot_key="training-eyebot",
+                team_b_bot_key="training-eyebot",
             )
 
-    async def test_brawl_still_requires_a_dweller_on_both_sides(self, async_session, arena_room, fighter_a):
-        with pytest.raises(ValidationException, match="four fighters"):
+    async def test_brawl_requires_two_team_a_dwellers_and_team_b_lead(self, async_session, arena_room, fighter_a):
+        with pytest.raises(ValidationException, match="two Team A dwellers"):
             await ArenaService().set_fighters(
                 async_session,
                 arena_room.id,
                 fighter_a.id,
                 None,
                 mode=ArenaMode.BRAWL,
-                team_a_bot_key="training-eyebot",
                 team_b_bot_key="training-protectron",
             )
 
-    async def test_same_bot_on_both_sides_has_independent_health(self, async_session, arena_room, fighter_a, fighter_b):
-        for fighter in (fighter_a, fighter_b):
+    async def test_team_b_bot_resets_on_reselection(self, async_session, arena_room, fighter_a, fighter_b, fighter_c):
+        for fighter in (fighter_a, fighter_b, fighter_c):
             fighter.room_id = arena_room.id
         await async_session.commit()
         service = ArenaService()
-        await service.set_fighters(
+        state = await service.set_fighters(
             async_session,
             arena_room.id,
             fighter_a.id,
             fighter_b.id,
             mode=ArenaMode.BRAWL,
-            team_a_bot_key="training-eyebot",
+            fighter_c_id=fighter_c.id,
             team_b_bot_key="training-eyebot",
         )
         a, b = await service.get_teams(async_session, arena_room)
-        assert a[1].key != b[1].key
-        a[1].health = 0
-        state = await arena_state_crud.get(async_session, arena_room.id)
+        assert len(a) == len(b) == 2
+        assert all(p.dweller is not None for p in a)
+        assert (b[1].name, b[1].power, b[1].health) == ("Training Eyebot", 30, 20)
+        b[1].health = 0
         service._persist_creature_hp(state, a, b)
         await async_session.commit()
-        a, b = await ArenaService().get_teams(async_session, arena_room)
-        assert a[1].health == 0
-        assert b[1].health == 20
-        assert ArenaService._team_damage(a, 2) == pytest.approx(a[0].power * 0.4)
+        _, b = await ArenaService().get_teams(async_session, arena_room)
+        assert b[1].health == 0
+        assert ArenaService._team_damage(b, 2) == pytest.approx(b[0].power * 0.2)
         await service.set_fighters(
             async_session,
             arena_room.id,
             fighter_a.id,
             fighter_b.id,
             mode=ArenaMode.BRAWL,
-            team_a_bot_key="training-eyebot",
+            fighter_c_id=fighter_c.id,
             team_b_bot_key="training-eyebot",
         )
-        a, b = await service.get_teams(async_session, arena_room)
-        assert a[1].health == b[1].health == 20
+        _, b = await service.get_teams(async_session, arena_room)
+        assert b[1].health == 20
+        await service.start_fight(async_session, arena_room.id)
 
-    async def test_supported_win_rewards_only_the_dweller(self, async_session, arena_room, fighter_a):
+    async def test_team_b_bot_win_rewards_only_its_dweller(
+        self, async_session, arena_room, fighter_a, fighter_b, fighter_c
+    ):
         from app.core.game_config import game_config
 
-        fighter_a.room_id = arena_room.id
-        fighter_a.happiness = 50
-        fighter_a.experience = 0
-        fighter_a.level = 1
+        for fighter in (fighter_a, fighter_b, fighter_c):
+            fighter.room_id = arena_room.id
+            fighter.experience = 0
+            fighter.happiness = 50
         await async_session.commit()
         service = ArenaService()
-        await service.set_fighters(
+        state = await service.set_fighters(
             async_session,
             arena_room.id,
             fighter_a.id,
-            None,
-            mode=ArenaMode.HUNT,
-            team_a_bot_key="training-eyebot",
-            opponent_keys=["radroach-swarm"],
+            fighter_b.id,
+            mode=ArenaMode.BRAWL,
+            fighter_c_id=fighter_c.id,
+            team_b_bot_key="training-eyebot",
         )
         a, b = await service.get_teams(async_session, arena_room)
-        result = await service._resolve_round(async_session, arena_room, a, b, 2)
-        assert result["status"] == "finished"
-        assert fighter_a.experience == game_config.combat.xp_per_difficulty
-        assert fighter_a.happiness == 61
-        assert await crud.dweller.count_in_room(async_session, arena_room.id) == 1
+        for p in a:
+            p.power = 0
+            p.health = 1
+        state.next_attack_team = "B"
+        result = await finish_match(service, async_session, arena_room, a, b, state=state)
+        assert result["winner_id"] in {p.key for p in b}
+        assert fighter_b.experience == game_config.combat.xp_per_difficulty * 2
+        assert fighter_a.experience == fighter_c.experience == 0
+        assert fighter_b.happiness == 61
+        assert await crud.dweller.count_in_room(async_session, arena_room.id) == 3
 
     async def test_legacy_robot_opponent_keeps_stats_and_gets_facing_metadata(
         self, async_session, arena_room, fighter_a
@@ -1740,7 +1747,10 @@ async def test_match_finish_releases_only_participants(
     ongoing = await service.process_arena_ticks(async_session, 1)
     assert ongoing["arena"]["rounds"][0]["status"] == "ongoing"
     assert fighter_a.status == DwellerStatusEnum.FIGHTING
-    result = await service.process_arena_ticks(async_session, 3600)
+    for _ in range(3):
+        result = await service.process_arena_ticks(async_session, 3600)
+        if result["arena"]["rounds"][0]["status"] == "finished":
+            break
     assert result["arena"]["rounds"][0]["status"] == "finished"
     for fighter in fighters:
         await async_session.refresh(fighter)
@@ -1903,6 +1913,11 @@ async def test_snapshot_bounds_and_clears_journal_without_mutation(
     assert room["match_done"] is finished
     assert [event["id"] for event in room["events"]] == [str(event.id) for event in events[-40:]]
     assert [event["round_seq"] for event in room["events"]] == list(range(5, 45))
+    from datetime import UTC
+
+    assert room["events"][0]["created_at"] == events[5].created_at.replace(tzinfo=UTC).isoformat()
+    api_room = (await service.get_arena_state(async_session, vault.id)).rooms[0]
+    assert api_room.events[0].created_at == events[5].created_at.replace(tzinfo=UTC)
     assert await service.get_tick_snapshot(async_session, uuid4()) == {"rooms": []}
     assert (
         state.fight_started_at,
@@ -1964,3 +1979,226 @@ async def test_batched_departures_do_not_restore_cleared_slots(async_session, ar
     state = await arena_state_crud.get(async_session, arena_room.id)
     assert state.fighter_a_id is None
     assert state.fighter_b_id is None
+
+
+@pytest.mark.parametrize(
+    ("weapon_type", "subtype", "name", "area"),
+    [
+        ("melee", "blunt", "Crushing Blow", False),
+        ("melee", "edged", "Cleave", True),
+        ("melee", "pointed", "Piercing Strike", False),
+        ("gun", "pistol", "Quick Draw", False),
+        ("gun", "rifle", "Aimed Shot", False),
+        ("gun", "shotgun", "Scattershot", True),
+        ("energy", "pistol", "Overcharge", False),
+        ("energy", "rifle", "Beam Sweep", True),
+        ("heavy", "automatic", "Full Auto", False),
+        ("heavy", "flamer", "Firestorm", True),
+        ("heavy", "explosive", "Blast Wave", True),
+    ],
+)
+def test_active_skill_uses_weapon_type_and_subtype(weapon_type, subtype, name, area):
+    from app.services.combat.weapon_skill_service import weapon_skill
+    from app.utils.item_factory import build_weapon
+
+    dweller = Dweller()
+    dweller.weapon = build_weapon(
+        {"name": "Arena test weapon", "weapon_type": weapon_type, "weapon_subtype": subtype}, "common"
+    )
+    skill = weapon_skill(dweller)
+    assert (skill.name, skill.area) == (name, area)
+
+
+async def test_skill_charge_persists_and_queued_attack_resolves_once(async_session, arena_room, fighter_a, fighter_b):
+    from datetime import datetime, timedelta
+
+    for dweller in (fighter_a, fighter_b):
+        dweller.room_id = arena_room.id
+        dweller.health = dweller.max_health = 1000
+    await async_session.commit()
+    service = ArenaService()
+    state = await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
+    await service.start_fight(async_session, arena_room.id)
+    state.fight_started_at = datetime.utcnow() - timedelta(seconds=60)
+    await async_session.commit()
+    for _ in range(3):
+        await service.process_arena_fights(async_session, arena_room.vault_id, 2)
+    service = ArenaService()
+    view = (await service.get_arena_state(async_session, arena_room.vault_id)).rooms[0]
+    assert view.team_a[0].active_skill.charge == 100
+    assert view.team_a[0].active_skill.name == "Haymaker"
+    before = fighter_b.health
+    await service.queue_skill(async_session, arena_room.id, fighter_a.id, arena_room.vault_id)
+    assert state.skill_charge[str(fighter_a.id)] == 0
+    with pytest.raises(ValidationException, match="already queued"):
+        await service.queue_skill(async_session, arena_room.id, fighter_a.id, arena_room.vault_id)
+    await service.process_arena_fights(async_session, arena_room.vault_id, 2)
+    assert state.queued_skill_ids == [str(fighter_a.id)]  # B's turn leaves A queued.
+    assert fighter_b.health == before
+    async with RawAsyncSession(
+        bind=async_session.bind, expire_on_commit=False, join_transaction_mode="create_savepoint"
+    ) as raw:
+        await ArenaService().process_arena_fights(raw, arena_room.vault_id, 2)
+    await async_session.refresh(fighter_b)
+    await async_session.refresh(state)
+    assert fighter_b.health < before - int(combat_power(fighter_a) / 10 * 2)
+    assert not state.queued_skill_ids
+    await service.process_arena_fights(async_session, arena_room.vault_id, 2)
+    view = (await service.get_arena_state(async_session, arena_room.vault_id)).rooms[0]
+    skills = [event for event in view.events if event.kind == "skill"]
+    assert len(skills) == 1
+    assert any(
+        event.kind == "hit" and event.round_seq == skills[0].round_seq and event.message.startswith("Arena hits")
+        for event in view.events
+    )
+    assert view.team_a[0].active_skill.charge == 100
+    await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
+    assert state.skill_charge is None
+    assert state.queued_skill_ids is None
+
+
+@pytest.mark.parametrize(
+    "blocked", ["idle", "countdown", "uncharged", "foreign", "knocked_out", "finished", "wrong_vault"]
+)
+async def test_active_skill_rejects_invalid_actions(async_session, arena_room, fighter_a, fighter_b, blocked):
+    from datetime import datetime, timedelta
+
+    for dweller in (fighter_a, fighter_b):
+        dweller.room_id = arena_room.id
+    await async_session.commit()
+    service = ArenaService()
+    state = await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
+    state.skill_charge = {str(fighter_a.id): 100}
+    if blocked != "idle":
+        state.fight_started_at = datetime.utcnow() - timedelta(seconds=60)
+    if blocked == "countdown":
+        state.fight_started_at = datetime.utcnow()
+    if blocked == "uncharged":
+        state.skill_charge = None
+    if blocked == "knocked_out":
+        state.knocked_out_ids = [str(fighter_a.id)]
+    if blocked == "finished":
+        state.last_fight_at = datetime.utcnow()
+    await async_session.commit()
+    with pytest.raises(ValidationException):
+        await service.queue_skill(
+            async_session,
+            arena_room.id,
+            uuid4() if blocked == "foreign" else fighter_a.id,
+            uuid4() if blocked == "wrong_vault" else arena_room.vault_id,
+        )
+    assert not state.queued_skill_ids
+
+
+@pytest.mark.parametrize("area", [False, True])
+async def test_active_skill_targeting_and_nonlethal_finish(
+    async_session, arena_room, fighter_a, fighter_b, fighter_c, area
+):
+    from datetime import datetime, timedelta
+
+    from app.utils.item_factory import build_weapon
+
+    for dweller in (fighter_a, fighter_b, fighter_c):
+        dweller.room_id = arena_room.id
+    fighter_a.weapon = build_weapon(
+        {"name": "Arena test weapon", "weapon_type": "gun", "weapon_subtype": "shotgun" if area else "rifle"}, "common"
+    )
+    await async_session.commit()
+    service = ArenaService()
+    state = await service.set_fighters(
+        async_session,
+        arena_room.id,
+        fighter_a.id,
+        fighter_b.id,
+        mode=ArenaMode.BRAWL,
+        fighter_c_id=fighter_c.id,
+        team_b_bot_key="training-protectron",
+    )
+    state.skill_charge = {str(fighter_a.id): 100}
+    state.fight_started_at = datetime.utcnow() - timedelta(seconds=60)
+    await async_session.commit()
+    await service.queue_skill(async_session, arena_room.id, fighter_a.id, arena_room.vault_id)
+    team_a, team_b = await service.get_teams(async_session, arena_room)
+    team_a[0].power = 1000
+    team_a[1].power = 0
+    for target in team_b:
+        target.power = 0
+    team_b[0].health = 1
+    result = await service._resolve_round(async_session, arena_room, team_a, team_b, 2, state=state)
+    assert fighter_b.health == 1
+    assert team_b[1].health == (49 if area else 54)
+    assert result["status"] == "ongoing"
+    await finish_match(service, async_session, arena_room, team_a, team_b, state=state)
+    await async_session.commit()
+    view = (await service.get_arena_state(async_session, arena_room.vault_id)).rooms[0]
+    assert len([event for event in view.events if event.kind == "skill"]) == (2 if area else 1)
+    assert view.match_done
+    assert state.skill_charge is None
+    assert fighter_b.health == 1
+
+
+async def test_skill_endpoint_authorizes_vault_and_queues_once(
+    async_session, async_client, superuser_token_headers, normal_user_token_headers, arena_room, fighter_a, fighter_b
+):
+    from datetime import datetime, timedelta
+
+    for dweller in (fighter_a, fighter_b):
+        dweller.room_id = arena_room.id
+    await async_session.commit()
+    service = ArenaService()
+    state = await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
+    state.fight_started_at = datetime.utcnow() - timedelta(seconds=60)
+    state.skill_charge = {str(fighter_a.id): 100}
+    await async_session.commit()
+    url = f"/arena/vault/{arena_room.vault_id}/rooms/{arena_room.id}/skill"
+    payload = {"fighter_id": str(fighter_a.id)}
+    forbidden = await async_client.post(url, json=payload, headers=normal_user_token_headers)
+    assert forbidden.status_code == 403
+    assert state.skill_charge[str(fighter_a.id)] == 100
+    accepted = await async_client.post(url, json=payload, headers=superuser_token_headers)
+    assert accepted.status_code == 200
+    assert accepted.json() == {"room_id": str(arena_room.id), "fighter_id": str(fighter_a.id)}
+    repeated = await async_client.post(url, json=payload, headers=superuser_token_headers)
+    assert repeated.status_code == 400
+    assert state.queued_skill_ids == [str(fighter_a.id)]
+
+
+async def test_both_queued_skills_resolve_once_on_their_own_team_turn(async_session, arena_room, fighter_a, fighter_b):
+    from datetime import datetime, timedelta
+
+    for dweller in (fighter_a, fighter_b):
+        dweller.room_id = arena_room.id
+        dweller.health = dweller.max_health = 1000
+    await async_session.commit()
+    service = ArenaService()
+    state = await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
+    await service.start_fight(async_session, arena_room.id)
+    state.fight_started_at = datetime.utcnow() - timedelta(seconds=60)
+    state.skill_charge = {str(fighter_a.id): 100, str(fighter_b.id): 100}
+    await async_session.commit()
+    for fighter in (fighter_a, fighter_b):
+        await service.queue_skill(async_session, arena_room.id, fighter.id, arena_room.vault_id)
+
+    await service.process_arena_fights(async_session, arena_room.vault_id, 2)
+    assert fighter_a.health == 1000
+    assert fighter_b.health < 1000
+    assert state.queued_skill_ids == [str(fighter_b.id)]
+    after_a_turn = fighter_b.health
+
+    # A new worker must preserve B's pending skill and the next attacking side.
+    service = ArenaService()
+    await service.process_arena_fights(async_session, arena_room.vault_id, 2)
+    assert fighter_a.health < 1000
+    assert fighter_b.health == after_a_turn
+    assert not state.queued_skill_ids
+    await service.process_arena_fights(async_session, arena_room.vault_id, 2)
+    view = (await service.get_arena_state(async_session, arena_room.vault_id)).rooms[0]
+    skills = [event for event in view.events if event.kind == "skill"]
+    assert len(skills) == 2
+    turns = [(index, event) for index, event in enumerate(view.events) if event.kind == "turn"]
+    assert [event.message for _, event in turns] == ["Team A attacks", "Team B attacks", "Team A attacks"]
+    for turn, next_turn in pairwise(turns):
+        actions = view.events[turn[0] + 1 : next_turn[0]]
+        assert [event.kind for event in actions].count("skill") == 1
+        assert any(event.kind == "hit" for event in actions)
+    assert not any(event.kind == "skill" for event in view.events[turns[-1][0] + 1 :])

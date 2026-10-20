@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { getRoomImageUrl } from '@/core/utils/image'
 import { useArenaStore } from '../stores/arena'
 import DwellerList from './DwellerList.vue'
 import type { Room } from '../models/room'
@@ -50,18 +51,25 @@ const assignmentMode = defineModel<'worker' | 'apprentice' | null>('assignmentMo
 
 <template>
   <div class="arena-room-detail flex flex-col gap-3">
-    <RoomPreviewSection
-      :room-name="room.name"
-      :image-url="room.image_url ?? null"
-      :room-image-url="roomImageUrl"
-      :room-units="room.size ?? room.size_min ?? 3"
-      :dweller-capacity="dwellerCapacity"
-      :assigned-dwellers="assignedDwellers"
-      :assign-enabled="!managementLocked"
-      @activate="emit('viewDweller', $event)"
-      @unassign="emit('unassignDweller', $event)"
-      @assign-worker="assignmentMode = 'worker'"
-    />
+    <details
+      v-if="!isFighting"
+      :open="!roomState?.team_a.length && !roomState?.team_b.length"
+      class="group"
+    >
+      <summary class="cursor-pointer text-xs text-theme-primary">Manage Arena roster</summary>
+      <RoomPreviewSection
+        :room-name="room.name"
+        :image-url="room.image_url ?? null"
+        :room-image-url="roomImageUrl"
+        :room-units="room.size ?? room.size_min ?? 3"
+        :dweller-capacity="dwellerCapacity"
+        :assigned-dwellers="assignedDwellers"
+        :assign-enabled="!managementLocked"
+        @activate="emit('viewDweller', $event)"
+        @unassign="emit('unassignDweller', $event)"
+        @assign-worker="assignmentMode = 'worker'"
+      />
+    </details>
     <p v-if="!roomState" class="text-xs text-muted-foreground">
       Room management is unavailable until match state loads.
     </p>
@@ -76,7 +84,11 @@ const assignmentMode = defineModel<'worker' | 'apprentice' | null>('assignmentMo
       empty-text="No unassigned adults available. Unassign an adult from another room first."
       @assign-dweller="emit('assignDweller', $event)"
     />
-    <ArenaModal :vault-id="vaultId" :room-id="room.id" />
+    <ArenaModal
+      :vault-id="vaultId"
+      :room-id="room.id"
+      :scene-image-url="roomImageUrl ?? getRoomImageUrl(room.image_url)"
+    />
     <RoomActions
       :disabled="managementLocked"
       :room="room"

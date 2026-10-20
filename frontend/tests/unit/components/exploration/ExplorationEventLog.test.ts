@@ -148,6 +148,18 @@ describe('ExplorationEventLog', () => {
     expect(lootLine.text()).toContain('25 caps')
   })
 
+  it('preserves event type accents and shows the item rarity on its loot chip', () => {
+    const wrapper = mount(ExplorationEventLog, {
+      props: { events: [makeLootEvent()] },
+      global: { stubs: { Icon: true } },
+    })
+
+    expect(wrapper.find('.event-row').attributes('style')).toContain(
+      'border-left-color: var(--color-rarity-legendary)'
+    )
+    expect(wrapper.find('.loot-line').text()).toContain('Laser rifle (Rare)')
+  })
+
   it('hides loot line when showLoot is false', () => {
     const events = [makeLootEvent()]
 

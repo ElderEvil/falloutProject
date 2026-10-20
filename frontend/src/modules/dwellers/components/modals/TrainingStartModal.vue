@@ -8,7 +8,7 @@ import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import type { components } from '@/core/types/api.generated'
-import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
+import { getDwellerDisplayName, isMature } from '@/modules/dwellers/models/dweller'
 
 type DwellerReadFull = components['schemas']['DwellerReadFull']
 
@@ -111,8 +111,10 @@ const selectedRoom = computed(() => {
   return found
 })
 
+const mature = computed(() => isMature(props.dweller))
+
 const canStart = computed(() => {
-  return selectedStat.value !== null && selectedRoom.value !== null && !loading.value
+  return mature.value && selectedStat.value !== null && selectedRoom.value != null && !loading.value
 })
 
 const handleStart = async () => {
@@ -167,11 +169,16 @@ const close = () => {
           {{ errorMessage }}
         </Alert>
 
+        <p v-if="!mature" class="text-sm text-theme-accent" role="status">
+          Training unlocks at adulthood. Children and teens learn through apprenticeships.
+        </p>
+
         <div class="stats-grid">
           <button
             v-for="stat in availableStats"
             :key="stat.key"
             class="stat-button"
+            :disabled="!mature"
             :class="{ selected: selectedStat === stat.key }"
             @click="selectedStat = stat.key"
           >

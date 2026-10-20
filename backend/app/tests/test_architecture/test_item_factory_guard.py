@@ -1,7 +1,9 @@
 """Architecture guard for catalog-backed item construction (app/utils/item_factory.py).
 
-``Weapon``, ``Outfit``, ``Junk`` and ``Item`` all carry columns whose real values live in
-the data catalog, and every one of those columns has a benign default (``0``/``None``). A
+``Weapon``, ``Outfit``, ``Junk``, ``Item`` and ``Pet`` each carry a column the shared
+factory fills — catalog stats and art for weapons/outfits, caller-owned value/prose for
+junk, and name-resolved art or defaults for items and pets — and every one of those
+columns has a benign default (``0``/``None``). A
 direct constructor call therefore compiles, persists, serializes and renders exactly like a
 correct item — it just silently drops whatever the catalog would have filled. That is how
 outfits shipped with no SPECIAL bonuses (see the backfill migration
@@ -21,15 +23,12 @@ from pathlib import Path
 
 APP_DIR = Path(__file__).resolve().parents[2]
 FACTORY = APP_DIR / "utils" / "item_factory.py"
-GUARDED_MODELS = frozenset({"Weapon", "Outfit", "Junk", "Item"})
+GUARDED_MODELS = frozenset({"Weapon", "Outfit", "Junk", "Item", "Pet"})
 EXCLUDED_DIRS = frozenset({"tests", "alembic", "__pycache__"})
 
 # Pre-existing direct constructions, keyed by (module, model) -> call count.
-# Shrink these numbers with each migration batch; never raise them.
-ITEM_CONSTRUCTION_BASELINE: dict[tuple[str, str], int] = {
-    ("crud/item_base.py", "Junk"): 2,  # scrap byproducts, not catalog-backed
-    ("services/rewards/items.py", "Item"): 1,  # generic reward item
-}
+# Empty: every guarded model is built through the factory.
+ITEM_CONSTRUCTION_BASELINE: dict[tuple[str, str], int] = {}
 
 
 def _direct_constructions(source: str) -> Counter[str]:

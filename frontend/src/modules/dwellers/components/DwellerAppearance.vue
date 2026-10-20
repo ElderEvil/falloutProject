@@ -3,9 +3,15 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import { capitalize } from '@/core/utils/format'
 import { useDwellerDetailContext } from './DwellerDetailContext'
+import { isMature } from '../models/dweller'
 import type { VisualAttributes } from '../models/dweller'
 import DwellerIdentitySignal from './DwellerIdentitySignal.vue'
 
@@ -14,6 +20,7 @@ const ctx = useDwellerDetailContext()
 const visualAttributes = computed<VisualAttributes | null>(
   () => ctx.dweller.value?.visual_attributes ?? null
 )
+const mature = computed(() => !!ctx.dweller.value && isMature(ctx.dweller.value))
 const generatingAppearance = computed(() => ctx.generatingAppearance.value)
 const isAnyGenerating = computed(() => ctx.isAnyGenerating.value)
 
@@ -42,7 +49,8 @@ const formattedAttributes = computed(() => {
     formatted.push({ label: 'Facial Hair', value: capitalize(attrs.facial_hair) })
   if (attrs.makeup) formatted.push({ label: 'Makeup', value: capitalize(attrs.makeup) })
   if (attrs.expression) formatted.push({ label: 'Expression', value: capitalize(attrs.expression) })
-  if (attrs.headgear) formatted.push({ label: 'Headgear', value: capitalize(attrs.headgear) })
+  if (mature.value && attrs.headgear)
+    formatted.push({ label: 'Headgear', value: capitalize(attrs.headgear) })
   if (attrs.clothing_style)
     formatted.push({ label: 'Clothing', value: capitalize(attrs.clothing_style) })
 
@@ -52,8 +60,10 @@ const formattedAttributes = computed(() => {
   }
 
   // Equipment
-  if (attrs.accessory) formatted.push({ label: 'Accessory', value: capitalize(attrs.accessory) })
-  if (attrs.object_held) formatted.push({ label: 'Object', value: capitalize(attrs.object_held) })
+  if (mature.value && attrs.accessory)
+    formatted.push({ label: 'Accessory', value: capitalize(attrs.accessory) })
+  if (mature.value && attrs.object_held)
+    formatted.push({ label: 'Object', value: capitalize(attrs.object_held) })
 
   // Scene
   if (attrs.pose) formatted.push({ label: 'Pose', value: capitalize(attrs.pose) })
@@ -76,11 +86,6 @@ const hasSubstantialAttributes = computed(() => {
     return !Array.isArray(value) || value.length > 0
   })
 })
-
-/** True if AI can still generate (no substantial attributes yet). */
-const canGenerateAppearance = computed(
-  () => !visualAttributes.value || !hasSubstantialAttributes.value
-)
 </script>
 
 <template>
@@ -88,7 +93,7 @@ const canGenerateAppearance = computed(
     <div class="appearance-header">
       <div class="header-buttons">
         <TooltipProvider :delay-duration="200">
-          <Tooltip v-if="canGenerateAppearance">
+          <Tooltip v-if="hasSubstantialAttributes">
             <TooltipTrigger as-child>
               <Button
                 @click="ctx.actions.generateAppearance()"
@@ -102,11 +107,12 @@ const canGenerateAppearance = computed(
                   class="h-5 w-5"
                   :class="{ 'animate-spin': generatingAppearance }"
                 />
-                <span>{{ hasSubstantialAttributes ? 'Regenerate appearance' : 'Generate appearance' }}</span>
+                <span>Regenerate appearance</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top"
-              >Creates or replaces visual attributes; it does not generate a portrait</TooltipContent
+              >Creates or replaces visual attributes; it does not generate a
+              portrait</TooltipContent
             >
           </Tooltip>
 
@@ -142,6 +148,7 @@ const canGenerateAppearance = computed(
       title="No appearance yet"
       description="Generate this dweller's look to fill in build, hair, facial features, clothing and pose."
       compact
+      transparent
     >
       <template #actions>
         <Button
@@ -186,7 +193,6 @@ const canGenerateAppearance = computed(
   flex-direction: column;
   gap: 0.75rem;
   padding: 1rem;
-  background: rgba(0, 0, 0, 0.3);
   border-left: 3px solid var(--color-theme-primary);
   border-radius: 4px;
 }

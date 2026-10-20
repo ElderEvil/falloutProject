@@ -1,13 +1,14 @@
 import ast
 import logging
 import operator
+from typing import TYPE_CHECKING
 
 from pydantic import UUID4
-from sqlalchemy import update
+from sqlalchemy import delete, update
 from sqlmodel import and_, func, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import RoomTypeEnum
+from app.core.enums import RoomTypeEnum, SPECIALEnum
 from app.crud.base import CRUDBase
 from app.models.room import Room
 from app.schemas.room import RoomCreate, RoomRead, RoomUpdate
@@ -15,6 +16,9 @@ from app.utils.exceptions import (
     UniqueRoomViolationException,
 )
 from app.utils.objective_constants import normalize_room_type
+
+if TYPE_CHECKING:
+    from app.models.dweller import Dweller
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +56,100 @@ def _evaluate_room_formula(formula: str, level: int, size: int) -> int:
 
 
 class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
+    @staticmethod
+    async def get_remodel_dwellers(db_session: AsyncSession, vault_id: UUID4, room_ids: list[UUID4]) -> list["Dweller"]:
+        """Include dispatched residents whose return posting belongs to a remodeled room."""
+        from app.models.dweller import Dweller
+        from app.models.team import TeamMember
+
+        returning = select(TeamMember.dweller_id).where(TeamMember.origin_room_id.in_(room_ids))
+        response = await db_session.execute(
+            select(Dweller).where(
+                Dweller.vault_id == vault_id,
+                ~Dweller.is_deleted,
+                or_(Dweller.room_id.in_(room_ids), Dweller.id.in_(returning)),
+            )
+        )
+        return list(response.scalars().all())
+
+    @staticmethod
+    async def apply_remodel(
+        db_session: AsyncSession, originals: list[Room], replacements: list[Room], destinations: dict[UUID4, UUID4]
+    ) -> list[Room]:
+        """Persist footprints and all room references in one transaction; caller holds the placement lock."""
+        from app.models.crafting_order import CraftingOrder
+        from app.models.dweller import Dweller
+        from app.models.incident import Incident
+        from app.models.team import TeamMember
+        from app.models.training import Training
+
+        survivor_id = replacements[0].id
+        original_ids = [room.id for room in originals]
+        absorbed_ids = [room_id for room_id in original_ids if room_id != survivor_id]
+        survivor = next(room for room in originals if room.id == survivor_id)
+        survivor.sqlmodel_update(replacements[0].model_dump(exclude={"id", "created_at", "updated_at"}))
+        replacements[0] = survivor
+        db_session.add_all(replacements)
+        await db_session.flush()
+        residents = (await db_session.execute(select(Dweller).where(Dweller.room_id.in_(original_ids)))).scalars().all()
+        for dweller in residents:
+            destination = destinations.get(dweller.id, survivor_id)
+            dweller.room_id = destination
+            await db_session.execute(
+                update(Training)
+                .where(Training.dweller_id == dweller.id, Training.room_id.in_(original_ids))
+                .values(room_id=destination)
+            )
+        for dweller_id, destination in destinations.items():
+            await db_session.execute(
+                update(TeamMember)
+                .where(TeamMember.dweller_id == dweller_id, TeamMember.origin_room_id.in_(original_ids))
+                .values(origin_room_id=destination)
+            )
+        if absorbed_ids:
+            for model, field in [
+                (Training, Training.room_id),
+                (TeamMember, TeamMember.origin_room_id),
+                (Incident, Incident.room_id),
+                (CraftingOrder, CraftingOrder.room_id),
+            ]:
+                await db_session.execute(
+                    update(model)
+                    .where(field.in_(absorbed_ids))
+                    .values(**{"origin_room_id" if model is TeamMember else "room_id": survivor_id})
+                )
+            # Historical spread/report references must follow the surviving room too.
+            incidents = (
+                (await db_session.execute(select(Incident).where(Incident.vault_id == survivor.vault_id)))
+                .scalars()
+                .all()
+            )
+            absorbed = {str(room_id) for room_id in absorbed_ids}
+            for incident in incidents:
+                incident.rooms_affected = list(
+                    dict.fromkeys(
+                        str(survivor_id) if value in absorbed else value for value in (incident.rooms_affected or [])
+                    )
+                )
+            await db_session.flush()
+            await db_session.execute(delete(Room).where(Room.id.in_(absorbed_ids)))
+        await db_session.commit()
+        for room in replacements:
+            await db_session.refresh(room)
+        return replacements
+
+    @staticmethod
+    async def get_living_quarters(db_session: AsyncSession, vault_id: UUID4) -> list[Room]:
+        """Storage rooms share CAPACITY, but only Charisma rooms are living quarters."""
+        result = await db_session.execute(
+            select(Room).where(
+                Room.vault_id == vault_id,
+                Room.category == RoomTypeEnum.CAPACITY,
+                Room.ability == SPECIALEnum.CHARISMA,
+            )
+        )
+        return list(result.scalars().all())
+
     @staticmethod
     async def get_by_category(db_session: AsyncSession, vault_id: UUID4, category: RoomTypeEnum) -> list[Room]:
         """Rooms of one category for a vault."""
@@ -266,17 +364,16 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         """
         Calculate the price of building a room in a vault.
         It considers the base cost of the room type and applies an incremental cost
-        based on the number of similar rooms already built in the vault.
+        based on the built segments of this specific room type in the vault.
         A unique room (zero/null incremental cost) charges only its base price.
         """
-        response = await db_session.execute(
-            select(Room).where(Room.vault_id == room_in.vault_id, Room.category == room_in.category)
-        )
-        rooms = response.scalars().all()
-
         if not room_in.incremental_cost:
             return room_in.base_cost
-        return room_in.base_cost + (len(rooms) * room_in.incremental_cost)
+        response = await db_session.execute(
+            select(Room).where(Room.vault_id == room_in.vault_id, Room.name == room_in.name)
+        )
+        count = sum(room.segment_count for room in response.scalars())
+        return room_in.base_cost + count * room_in.incremental_cost
 
     @staticmethod
     async def check_is_unique_room(*, db_session: AsyncSession, obj_in: RoomCreate):

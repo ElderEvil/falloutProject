@@ -12,8 +12,8 @@ from app.models.incident import IncidentType
 from app.models.notification import Notification, NotificationType
 from app.models.team import ACTIVE_STATUS, RESERVE_STATUS
 from app.schemas.dweller import DwellerCreate
+from app.services.catalog_service import load_outfits
 from app.services.combat.incident_service import incident_service
-from app.services.exploration.data_loader import load_outfits
 from app.services.hazard_team_service import (
     QUALIFYING_INCIDENTS,
     TEAM_SIZE,

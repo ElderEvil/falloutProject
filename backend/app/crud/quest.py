@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import UUID4
 from sqlalchemy.orm import selectinload
-from sqlmodel import and_, select
+from sqlmodel import and_, func, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
@@ -20,7 +20,7 @@ from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import QuestCreate, QuestRead, QuestRequirementRead, QuestRewardRead, QuestUpdate
 from app.utils.dweller_availability import available_dweller_conditions
 from app.utils.exceptions import ResourceNotFoundException
-from app.utils.quest_duration import effective_quest_duration_minutes
+from app.utils.quest_duration import STATE_QUEST_CATEGORIES, effective_quest_duration_minutes
 
 
 def _previous_quest_id(quest: Quest, requirements: list[QuestRequirement]) -> UUID4 | str | None:
@@ -257,7 +257,7 @@ class CRUDQuest(
             select(VaultQuestCompletionLink)
             .join(Quest)
             .where(
-                Quest.quest_category.in_(("building", "population", "training")),
+                Quest.quest_category.in_(STATE_QUEST_CATEGORIES),
                 VaultQuestCompletionLink.started_at.is_not(None),
                 ~VaultQuestCompletionLink.is_completed,
                 ~VaultQuestCompletionLink.is_reward_ready,
@@ -308,6 +308,23 @@ class CRUDQuest(
         if vault_id is not None:
             conditions.append(VaultQuestCompletionLink.vault_id == vault_id)
         return list((await db_session.execute(select(VaultQuestCompletionLink).where(*conditions))).scalars().all())
+
+    async def count_active_timed_quests(self, db_session: AsyncSession, vault_id: UUID4) -> int:
+        """Timed missions occupy a slot until the returning party is ready to claim."""
+        result = await db_session.execute(
+            select(func.count())
+            .select_from(VaultQuestCompletionLink)
+            .join(Quest, Quest.id == VaultQuestCompletionLink.quest_id)
+            .where(
+                VaultQuestCompletionLink.vault_id == vault_id,
+                VaultQuestCompletionLink.started_at.isnot(None),
+                ~VaultQuestCompletionLink.is_completed,
+                ~VaultQuestCompletionLink.is_reward_ready,
+                func.coalesce(VaultQuestCompletionLink.duration_minutes, Quest.duration_minutes) > 0,
+                or_(Quest.quest_category.is_(None), Quest.quest_category.notin_(STATE_QUEST_CATEGORIES)),
+            )
+        )
+        return result.scalar_one()
 
     async def get_link_for_update(
         self, db_session: AsyncSession, *, quest_id: UUID4, vault_id: UUID4

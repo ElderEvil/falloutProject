@@ -14,7 +14,6 @@ from app.core.enums import (
     GenderEnum,
     PregnancyStatusEnum,
     RarityEnum,
-    RoomTypeEnum,
 )
 from app.core.game_config import game_config
 from app.crud import vault as vault_crud
@@ -24,11 +23,11 @@ from app.crud.relationship import relationship_crud
 from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
 from app.models.pregnancy import Pregnancy
-from app.options.bios import render_newborn_bio
 from app.options.races import can_breed, is_ageless, race_of
 from app.schemas.dweller import DwellerCreate
 from app.services.bio_service import bio_service
 from app.services.notification_service import notification_service
+from app.utils.bios import render_newborn_bio
 from app.utils.dwellers import elder_birth_threshold
 
 logger = logging.getLogger(__name__)
@@ -141,7 +140,7 @@ class BreedingService:
         :param vault_id: Vault ID to check
         :returns: List of newly created pregnancies
         """
-        living_quarters = await room_crud.get_by_category(db_session, vault_id, RoomTypeEnum.CAPACITY)
+        living_quarters = await room_crud.get_living_quarters(db_session, vault_id)
         if not living_quarters:
             return []
 
@@ -368,7 +367,7 @@ class BreedingService:
             **child_stats,
         }
 
-        child_in = DwellerCreate(**child_data, vault_id=mother.vault_id)
+        child_in = DwellerCreate.model_validate(child_data | {"vault_id": mother.vault_id})
         from app.services.dweller_service import dweller_service
 
         child = await dweller_service.create_dweller(db_session=db_session, obj_in=child_in)
@@ -392,7 +391,7 @@ class BreedingService:
         await db_session.refresh(child)
         logger.info(f"Baby delivered with bio: {child.bio is not None}")
 
-        vault_id = mother.vault_id
+        vault_id = child_in.vault_id
 
         # Link newborn to home vault on world map (best-effort, non-critical)
         await BreedingService._link_newborn_to_home(db_session, child, vault_id)

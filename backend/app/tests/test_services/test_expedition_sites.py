@@ -4,12 +4,18 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas.expedition import SiteDefinition
-from app.services.exploration import data_loader
+from app.services import catalog_service as data_loader
 
 
 def test_sites_load_and_validate():
     sites = data_loader.load_expedition_sites()
-    assert {site.id for site in sites} == {"red_rocket", "super_duper_mart"}
+    assert {site.id for site in sites} == {
+        "red_rocket",
+        "super_duper_mart",
+        "abandoned_campsite",
+        "roadside_supply_truck",
+        "forgotten_shack",
+    }
     for site in sites:
         assert isinstance(site, SiteDefinition)
         assert site.rooms

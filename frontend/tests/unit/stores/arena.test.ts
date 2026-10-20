@@ -36,6 +36,20 @@ const mockRoom: ArenaRoomState = {
 const mockState: ArenaState = { rooms: [mockRoom] }
 
 describe('Arena Store', () => {
+  it('queues an active skill and refreshes charge and journal state', async () => {
+    const store = useArenaStore()
+    expect(await store.queueSkill('vault-1', 'room-1', 'fighter-1', 'token')).toBe(true)
+    expect(arenaApi.queueSkill).toHaveBeenCalledWith('vault-1', 'room-1', 'fighter-1', 'token')
+    expect(store.getRoom('room-1')).toEqual(mockRoom)
+  })
+
+  it('surfaces a rejected active skill', async () => {
+    vi.mocked(arenaApi.queueSkill).mockRejectedValueOnce(new Error('Skill is not charged'))
+    const store = useArenaStore()
+    expect(await store.queueSkill('vault-1', 'room-1', 'fighter-1', 'token')).toBe(false)
+    expect(arenaApi.fetchState).not.toHaveBeenCalled()
+  })
+
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()

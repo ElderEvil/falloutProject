@@ -7,6 +7,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud.storage import storage as storage_crud
 from app.models.incident import IncidentStatus, IncidentType
@@ -15,7 +16,7 @@ from app.models.storage import Storage
 from app.models.weapon import Weapon
 from app.services.combat import incident_math, incident_round
 from app.services.combat.incident_service import incident_service
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
+from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 from app.utils.static_data import game_data_store
 
 VICTORY_TYPES = (
@@ -271,8 +272,19 @@ async def test_selling_held_incident_overflow_pays_caps_without_space(
     await async_session.refresh(vault)
     caps_before = vault.bottle_caps
 
-    caps, remaining = await incident_service.sell_unclaimed_item(async_session, incident.id, vault.id, 0)
+    observed = []
 
+    async def caps_event(_kind, event_vault_id, data):
+        if event_vault_id == vault.id and data.get("resource_type") == "caps":
+            observed.append((async_session.in_transaction(), data["amount"]))
+
+    event_bus.subscribe(GameEvent.RESOURCE_COLLECTED, caps_event)
+    try:
+        caps, remaining = await incident_service.sell_unclaimed_item(async_session, incident.id, vault.id, 0)
+    finally:
+        event_bus.unsubscribe(GameEvent.RESOURCE_COLLECTED, caps_event)
+
+    assert observed == [(False, caps)]
     assert caps > 0
     assert remaining == []
     await async_session.refresh(vault)
@@ -311,3 +323,38 @@ async def test_taking_stacked_junk_prices_each_row_at_the_unit_value(
     assert len(stored) == 2
     unit_value = game_config.exploration.junk_value_common
     assert [junk.value for junk in stored] == [unit_value, unit_value]
+
+
+@pytest.mark.asyncio
+async def test_taking_held_loot_with_no_catalog_row_is_rejected_and_kept(
+    async_session: AsyncSession, room_with_dwellers: dict
+) -> None:
+    """A weapon the catalog does not know must never mint a defaulted row, and must stay held."""
+    room = room_with_dwellers["room"]
+    vault = room_with_dwellers["vault"]
+    storage = await storage_crud.get_by_vault(async_session, vault.id)
+    if storage is None:
+        storage = Storage(vault_id=vault.id, max_space=1)
+        async_session.add(storage)
+    else:
+        storage.max_space = 1
+        storage.used_space = 0
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=vault.id,
+        room_id=room.id,
+        incident_type=IncidentType.RAIDER_ATTACK,
+        difficulty=3,
+        duration=60,
+    )
+    incident.unclaimed_loot = [{"item_type": "weapon", "rarity": "common", "name": "Nonexistent Relic", "quantity": 1}]
+    async_session.add(incident)
+    await async_session.commit()
+
+    with pytest.raises(ValidationException):
+        await incident_service.take_unclaimed_item(async_session, incident.id, vault.id, 0)
+
+    await async_session.refresh(incident)
+    assert len(incident.unclaimed_loot) == 1
+    stored = (await async_session.exec(select(Weapon).where(Weapon.storage_id == storage.id))).all()
+    assert stored == []

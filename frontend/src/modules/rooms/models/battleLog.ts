@@ -2,6 +2,7 @@ export interface BattleLogEntry {
   id: string
   kind: string
   message: string
+  timestamp?: string | null
   meta?: string | null
   delta?: string | null
 }

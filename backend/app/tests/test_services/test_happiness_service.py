@@ -593,6 +593,7 @@ class TestHappinessService:
         dweller_data.update(
             {
                 "first_name": "Pet",
+                "age_group": "adult",
                 "last_name": "Owner",
                 "status": "training",
                 "happiness": 50,

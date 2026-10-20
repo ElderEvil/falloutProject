@@ -99,6 +99,40 @@ class CraftingService:
         ]
 
     @staticmethod
+    def _legacy_junk_refund(order: CraftingOrder) -> list[dict[str, Any]]:
+        """Rebuild an equivalent refund for orders queued before junk snapshots existed."""
+        if order.junk_snapshot or order.junk_spent <= 0:
+            return []
+        entry = order.item_snapshot or {}
+        craft_types = {str(junk_type).lower() for junk_type in ((entry.get("craft") or {}).get("types") or [])}
+        recipe = game_config.crafting.junk_recipe(order.rarity.value)
+        catalog = data_loader.load_junk_items()
+        refund: list[dict[str, Any]] = []
+        for material, needed in recipe.items():
+            matches = [
+                item
+                for item in catalog
+                if str(item.get("rarity", "")).lower() == material
+                and (not craft_types or str(item.get("junk_type", "")).lower() in craft_types)
+            ]
+            matches = matches or [item for item in catalog if str(item.get("rarity", "")).lower() == material]
+            for index in range(needed):
+                if not matches:
+                    break
+                item = matches[index % len(matches)]
+                refund.append(
+                    {
+                        "name": str(item["name"]),
+                        "junk_type": str(item.get("junk_type", "Valuables")).lower(),
+                        "rarity": str(item.get("rarity", material)).lower(),
+                        "value": item.get("value"),
+                        "description": str(item.get("description") or "Recovered from a cancelled order"),
+                        "image_url": item.get("image_url"),
+                    }
+                )
+        return refund[: order.junk_spent]
+
+    @staticmethod
     def craft_types(entry: dict[str, Any]) -> list[str]:
         """Junk types this item accepts, from its catalog craft block."""
         craft = entry.get("craft") or {}
@@ -360,7 +394,7 @@ class CraftingService:
 
         storage = await crud.storage.get_storage_by_vault(db_session, vault_id)
         if storage is not None:
-            for snapshot in order.junk_snapshot or []:
+            for snapshot in order.junk_snapshot or self._legacy_junk_refund(order):
                 db_session.add(
                     build_junk(
                         name=str(snapshot["name"]),

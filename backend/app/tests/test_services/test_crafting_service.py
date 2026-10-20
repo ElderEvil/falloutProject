@@ -733,3 +733,19 @@ async def test_cancelled_theme_can_be_queued_again(async_session: AsyncSession, 
 
     replacement = await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
     assert replacement.id != order.id
+
+
+@pytest.mark.asyncio
+async def test_cancel_legacy_order_rebuilds_an_equivalent_junk_refund(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _make_storage(async_session, vault)
+    await _add_theme_workshop(async_session, vault)
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON), JunkTypeEnum.CLOTH)
+    order = await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+    order.junk_snapshot = []
+    async_session.add(order)
+    await async_session.commit()
+
+    await crafting_service.cancel_order(async_session, vault.id, order.id)
+
+    junk = (await async_session.execute(select(Junk))).scalars().all()
+    assert len(junk) == _junk_cost(RarityEnum.COMMON)

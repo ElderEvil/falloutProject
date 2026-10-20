@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.241.0 (2026-10-20)
+
+### Features
+
+* **rooms:** add themed rooms, selector, and theme crafting ([#1106](https://github.com/ElderEvil/falloutProject/issues/1106)) 78330c2
+
 ## 2.240.0 (2026-10-19)
 
 ### Features

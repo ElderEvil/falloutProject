@@ -17,6 +17,8 @@ import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
+import { Button } from '@/core/components/ui/button'
+import { useToast } from '@/core/composables/useToast'
 import { Icon } from '@iconify/vue'
 import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { Badge } from '@/core/components/ui/badge'
@@ -45,7 +47,8 @@ const STARTER_TAB = 'starter'
 const vaultId = computed(() => route.params.id as string)
 
 // Claim + celebration modal (mirrors the quest claim flow)
-const { claiming: isClaiming, error: claimError, claim } = useObjectiveClaim(vaultId)
+const { claiming: isClaiming, error: claimError, claim, claimAll } = useObjectiveClaim(vaultId)
+const toast = useToast()
 const claimedObjective = ref<Objective | null>(null)
 const showClaimModal = ref(false)
 const loadError = ref<string | null>(null)
@@ -108,19 +111,22 @@ const emptyMessage = computed(() =>
     : `No ${effectiveTab.value} objectives available`
 )
 
+const claimableObjectives = computed(() =>
+  objectivesStore.objectives.filter(
+    (objective) =>
+      visibleTabs.value.some((tab) => tab.key === objective.category) &&
+      isObjectiveClaimable(objective)
+  )
+)
+
 /** Claimable rewards per category, so a tab shows its pending claims at a glance. */
 const claimableCounts = computed(() => {
   const counts: Record<string, number> = {}
-  for (const objective of objectivesStore.objectives) {
-    if (!visibleTabs.value.some((tab) => tab.key === objective.category)) continue
-    if (isObjectiveClaimable(objective))
-      counts[objective.category] = (counts[objective.category] ?? 0) + 1
-  }
+  for (const objective of claimableObjectives.value)
+    counts[objective.category] = (counts[objective.category] ?? 0) + 1
   return counts
 })
-const claimableTotal = computed(() =>
-  Object.values(claimableCounts.value).reduce((total, count) => total + count, 0)
-)
+const claimableTotal = computed(() => claimableObjectives.value.length)
 function claimTooltip(count: number): string {
   return `${count} reward${count === 1 ? '' : 's'} ready to claim`
 }
@@ -130,6 +136,12 @@ function handleClaimObjective(objectiveId: string): void {
     claimedObjective.value = claimed
     showClaimModal.value = claimed !== null
   })
+}
+
+async function handleCollectAll(): Promise<void> {
+  const claimed = await claimAll(claimableObjectives.value.map((objective) => objective.id))
+  if (claimed === 0 || claimError.value) return
+  toast.success(`Collected ${claimed} reward${claimed === 1 ? '' : 's'}`)
 }
 
 function closeClaimModal(): void {
@@ -200,7 +212,7 @@ function closeClaimModal(): void {
                 <PageHeaderMetric
                   icon="mdi:treasure-chest"
                   :value="claimableTotal"
-                  label="Rewards ready"
+                  label="Collect rewards"
                   tooltip="Finished objectives with rewards ready to claim"
                 />
               </template>
@@ -220,40 +232,52 @@ function closeClaimModal(): void {
             </div>
 
             <Tabs :model-value="effectiveTab" @update:model-value="activeTab = String($event)">
-              <TabsList>
-                <template v-for="tab in visibleTabs" :key="tab.key">
-                  <TooltipProvider :delay-duration="200">
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <TabsTrigger :value="tab.key">
-                          <Icon
-                            v-if="tab.icon"
-                            :icon="tab.icon"
-                            class="mr-2 inline"
-                            :ariaHidden="true"
-                          />
-                          {{ tab.label }}
-                          <span
-                            v-if="claimableCounts[tab.key]"
-                            :aria-label="claimTooltip(claimableCounts[tab.key] ?? 0)"
-                          >
-                            <Badge
-                              variant="outline"
-                              class="ml-2 border-0 bg-terminal-background text-theme-primary"
+              <div class="tabs-row">
+                <TabsList>
+                  <template v-for="tab in visibleTabs" :key="tab.key">
+                    <TooltipProvider :delay-duration="200">
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <TabsTrigger :value="tab.key">
+                            <Icon
+                              v-if="tab.icon"
+                              :icon="tab.icon"
+                              class="mr-2 inline"
+                              :ariaHidden="true"
+                            />
+                            {{ tab.label }}
+                            <span
+                              v-if="claimableCounts[tab.key]"
+                              :aria-label="claimTooltip(claimableCounts[tab.key] ?? 0)"
                             >
-                              {{ claimableCounts[tab.key] }}
-                              <span class="sr-only">claimable</span>
-                            </Badge>
-                          </span>
-                        </TabsTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent v-if="claimableCounts[tab.key]" side="bottom">
-                        {{ claimTooltip(claimableCounts[tab.key] ?? 0) }}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </template>
-              </TabsList>
+                              <Badge
+                                variant="outline"
+                                class="ml-2 border-0 bg-terminal-background text-theme-primary"
+                              >
+                                {{ claimableCounts[tab.key] }}
+                                <span class="sr-only">claimable</span>
+                              </Badge>
+                            </span>
+                          </TabsTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent v-if="claimableCounts[tab.key]" side="bottom">
+                          {{ claimTooltip(claimableCounts[tab.key] ?? 0) }}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </template>
+                </TabsList>
+                <Button
+                  class="collect-all-btn"
+                  variant="outline"
+                  size="sm"
+                  :disabled="isClaiming || claimableTotal === 0"
+                  @click="handleCollectAll"
+                >
+                  <Icon icon="mdi:gift-open" />
+                  Collect All<span v-if="claimableTotal > 0"> ({{ claimableTotal }})</span>
+                </Button>
+              </div>
               <p v-if="!objectivesUnlocked" class="unlock-hint">
                 Daily, weekly and achievement objectives unlock once you claim the Overseer's Office
                 objective. Rewards already earned stay saved until then.
@@ -349,6 +373,14 @@ function closeClaimModal(): void {
   color: var(--color-theme-primary);
   text-decoration: underline;
   text-underline-offset: 4px;
+}
+
+.tabs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .unlock-hint {

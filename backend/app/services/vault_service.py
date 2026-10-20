@@ -40,7 +40,7 @@ class VaultService:
         - Vault door and elevators (infrastructure)
         - Production rooms (power generator, diner, water treatment) with assigned dwellers
         - Storage room and 1 living room
-        - Radio studio (for recruitment)
+        - No radio studio: recruitment is a build decision for the player
         - Weight room (training room for testing leveling system)
         - 6 dwellers with boosted SPECIAL stats assigned to production rooms
 

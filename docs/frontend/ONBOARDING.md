@@ -65,6 +65,11 @@ separate revised templates rather than an in-place rewrite.
 - **Links are never touched** by the cohort migration: progress, totals, completed claims and
   reward snapshots survive. No template is retired while assigned links still depend on it.
 - **Boosted-vault assignment is unchanged.**
+- **Standard vaults no longer seed a Radio Studio.** The room requires 20 dwellers to build, so
+  the seeded copy bypassed its own gate. The `starter:staff the radio` template stops fresh
+  assignment (migration `2026_10_23_0001-e4b8d2a6c1f9`) while existing links keep their progress
+  and rewards; starter rewards carry a standard vault to 16 residents and births close the gap to
+  the Office gate.
 - Implemented by the corrective migration `2026_10_14_0002-f6a1b2c3d4e5`, applied on top of the
   spine revision `2026_10_14_0001-e5c2b7f19a04`.
 

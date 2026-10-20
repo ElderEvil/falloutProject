@@ -143,9 +143,9 @@ def prepare_initial_rooms(
         production += mk([("science lab", 19, 2), ("medbay", 16, 2)])
     else:
         production = mk([("power generator", 3, 1), ("diner", 3, 2), ("water treatment", 3, 3)])
-    misc = mk(
-        [("radio studio", 7, 3)] + ([("overseer's office", 22, 2), ("response station", 13, 0)] if is_boosted else [])
-    )
+    # A standard vault starts without the radio studio: recruitment is a build decision,
+    # and seeding it would hand a new player the population cap and a radio worker for free.
+    misc = mk([("radio studio", 7, 3), ("overseer's office", 22, 2), ("response station", 13, 0)]) if is_boosted else []
     arena = mk([("arena", 7, 0)] if is_boosted else [])
     crafting = mk(list(BOOSTED_CRAFTING_ROOM_SPECS)) if is_boosted else []
     training = mk(

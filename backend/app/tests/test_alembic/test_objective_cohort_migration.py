@@ -11,9 +11,11 @@ from alembic.operations import Operations
 VERSIONS = Path(__file__).parents[2] / "alembic/versions"
 SPINE_MIGRATION = "2026_10_14_0001-e5c2b7f19a04_spine_starter_objectives.py"
 CORRECTIVE_MIGRATION = "2026_10_14_0002-f6a1b2c3d4e5_restore_legacy_starter_cohort.py"
+RETIRE_RADIO_MIGRATION = "2026_10_23_0001-e4b8d2a6c1f9_retire_staff_radio_objective.py"
 
 STAFFING = "starter:assign a dweller correctly"
 POWER_STEP = "starter:collect 150 power"
+RADIO_STEP = "starter:staff the radio"
 
 
 def _load(filename):
@@ -38,6 +40,7 @@ def _schema():
         sa.Column("sequence", sa.Integer()),
         sa.Column("description", sa.String()),
         sa.Column("template_key", sa.String()),
+        sa.Column("assignable", sa.Boolean(), server_default=sa.true()),
     )
     link = sa.Table(
         "vaultobjectiveprogresslink",
@@ -155,5 +158,40 @@ def test_corrective_migration_restores_legacy_and_versions_revised(monkeypatch):
             .all()
         )
         assert sorted(rerun) == sorted(assignable)
+
+    engine.dispose()
+
+
+def test_retire_radio_migration_stops_fresh_assignment(monkeypatch):
+    migration = _load(RETIRE_RADIO_MIGRATION)
+    metadata, objective, _ = _schema()
+    engine = sa.create_engine("sqlite://")
+
+    with engine.begin() as connection:
+        metadata.create_all(connection)
+        identifier = uuid4()
+        connection.execute(
+            objective.insert().values(
+                id=identifier,
+                template_key=RADIO_STEP,
+                challenge="Staff the Radio Studio",
+                category="starter",
+                objective_type="assign",
+                target_amount=1,
+                sequence=12,
+                assignable=True,
+            )
+        )
+
+        monkeypatch.setattr(migration, "op", Operations(MigrationContext.configure(connection)))
+        migration.upgrade()
+        retired = connection.execute(sa.select(objective.c.assignable).where(objective.c.id == identifier)).scalar_one()
+        assert not retired
+
+        migration.downgrade()
+        restored = connection.execute(
+            sa.select(objective.c.assignable).where(objective.c.id == identifier)
+        ).scalar_one()
+        assert restored
 
     engine.dispose()

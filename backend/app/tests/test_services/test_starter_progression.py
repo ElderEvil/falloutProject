@@ -1,26 +1,28 @@
 """Fresh-vault teaching rewards must fund the unchanged Office gate."""
 
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from app import crud
-from app.core.enums import RarityEnum
-from app.core.game_config import game_config
+from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
 from app.models.objective import Objective
 from app.models.outfit import Outfit
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.weapon import Weapon
+from app.options.races import can_breed
 from app.schemas.room import RoomBuild
 from app.schemas.vault import VaultNumber
 from app.services import catalog_service as data_loader
 from app.services.dweller_service import dweller_service
 from app.services.exploration_service import exploration_service
+from app.services.family.breeding_service import breeding_service
+from app.services.game_tick.family_tick import process_pregnancies_and_births
 from app.services.item_service import item_service
 from app.services.progression.objectives.evaluators import evaluator_manager
 from app.services.progression.objectives.evaluators.base import current_session_maker
 from app.services.progression.objectives.guidance import current_state_progress, read_objectives
-from app.services.radio_service import RadioService
 from app.services.resource_manager import ResourceManager
 from app.services.rewards.settlement import claim_objective_reward
 from app.services.room_service import room_service
@@ -53,9 +55,9 @@ async def test_fresh_starter_rewards_reach_office_without_loot(async_session, su
     vault = await vault_service.initiate_vault(async_session, VaultNumber(number=random_vault_number()), superuser.id)
     initial_population = await crud.dweller.count_living_in_vault(async_session, vault.id)
     storage = await crud.storage.storage.get_by_vault(async_session, vault.id)
-    assert initial_population == 10
-    assert game_config.radio.manual_recruitment_cost == 500
-    paid_recruits = 0
+    initial_rooms = await crud.room.get_all_by_vault(async_session, vault.id)
+    assert initial_population == 9
+    assert not any("radio" in room.name.lower() for room in initial_rooms)
     production_seconds = 0
     granted_residents = 0
 
@@ -113,9 +115,26 @@ async def test_fresh_starter_rewards_reach_office_without_loot(async_session, su
             await dweller_service.move_to_room(async_session, worker.id, room.id)
         elif step.objective_type == "reach":
             if target["reach_type"] == "dweller_count":
-                while await crud.dweller.count_living_in_vault(async_session, vault.id) < step.total:
-                    await RadioService.manual_recruit(async_session, vault.id)
-                    paid_recruits += 1
+                for _ in range(10):
+                    if await crud.dweller.count_living_in_vault(async_session, vault.id) >= step.total:
+                        break
+                    mother = next(
+                        d
+                        for d in dwellers
+                        if d.age_group == AgeGroupEnum.ADULT and d.gender == GenderEnum.FEMALE and can_breed(d)
+                    )
+                    father = next(
+                        d
+                        for d in dwellers
+                        if d.age_group == AgeGroupEnum.ADULT and d.gender == GenderEnum.MALE and can_breed(d)
+                    )
+                    pregnancy = await breeding_service.create_pregnancy(async_session, mother.id, father.id)
+                    pregnancy.due_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=1)
+                    async_session.add(pregnancy)
+                    await async_session.commit()
+                    await process_pregnancies_and_births(async_session, vault.id)
+                else:
+                    pytest.fail(f"Breeding did not reach {step.challenge}")
             elif step.progress < step.total:
                 worker = next(d for d in dwellers if d.is_mature and d.room_id is not None)
                 await dweller_service.add_experience(
@@ -133,7 +152,6 @@ async def test_fresh_starter_rewards_reach_office_without_loot(async_session, su
 
     await async_session.refresh(vault)
     assert granted_residents == 7
-    assert paid_recruits == 1
     assert production_seconds <= 30 * 60
     assert await crud.dweller.count_living_in_vault(async_session, vault.id) == 18
     assert vault.bottle_caps >= 200

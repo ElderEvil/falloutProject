@@ -159,19 +159,6 @@
     "sequence": 11
   },
   {
-    "template_key": "starter:staff the radio",
-    "challenge": "Staff the Radio Studio",
-    "reward": "200 caps",
-    "category": "starter",
-    "objective_type": "assign",
-    "target_entity": {
-      "room_type": "radio_studio"
-    },
-    "target_amount": 1,
-    "description": "Your starter broadcaster is already working. Open the Radio Studio to review recruitment: passive arrivals take time, while manual recruitment costs 500 caps.",
-    "sequence": 12
-  },
-  {
     "template_key": "starter:reach 16 dwellers",
     "challenge": "Reach 16 Dwellers",
     "reward": "400 caps",
@@ -181,8 +168,8 @@
       "reach_type": "dweller_count"
     },
     "target_amount": 16,
-    "description": "Starter rewards supply most of your new residents. Save these caps toward the final radio recruit and the Office; build housing before claiming residents.",
-    "sequence": 13
+    "description": "Starter rewards supply most of your new residents. Build housing before claiming them, and let couples in Living Quarters grow the vault to 16.",
+    "sequence": 12
   },
   {
     "challenge": "Reach 18 Dwellers",
@@ -193,8 +180,8 @@
       "reach_type": "dweller_count"
     },
     "target_amount": 18,
-    "sequence": 14,
-    "description": "The Office requires 18 living residents. Starter rewards bring the fresh vault to 17; recruit once for 500 caps, or use passive recruitment or breeding.",
+    "sequence": 13,
+    "description": "The Office requires 18 living residents. Starter rewards bring the fresh vault to 16; two births in Living Quarters close the gap.",
     "template_key": "starter:reach 18 dwellers"
   },
   {
@@ -206,7 +193,7 @@
       "room_type": "overseers_office"
     },
     "target_amount": 1,
-    "sequence": 15,
+    "sequence": 14,
     "description": "Build the Office for 1000 caps at population 18 to unlock quests. Your reward is a guaranteed rare weapon for the next scrapping lesson.",
     "template_key": "starter:build overseer's office"
   },
@@ -220,7 +207,7 @@
       "rarity": "rare"
     },
     "target_amount": 1,
-    "sequence": 16,
+    "sequence": 15,
     "description": "Scrap a rare weapon from Storage to recover crafting materials. Only items with a locked recipe teach a new schematic.",
     "template_key": "starter:reverse-engineer a schematic"
   },
@@ -231,7 +218,7 @@
     "objective_type": "train",
     "target_entity": {},
     "target_amount": 1,
-    "sequence": 17,
+    "sequence": 16,
     "description": "Build a training room and train one stat. Choose a stat that improves a dweller's next job or quest role.",
     "template_key": "starter:train a special stat"
   },
@@ -242,7 +229,7 @@
     "objective_type": "expedition",
     "target_entity": {},
     "target_amount": 3,
-    "sequence": 18,
+    "sequence": 17,
     "description": "Use the Overseer's Office to choose missions, prepare a party and claim the rewards after each return.",
     "template_key": "starter:complete 3 quest missions"
   },
@@ -255,7 +242,7 @@
       "reach_type": "level"
     },
     "target_amount": 20,
-    "sequence": 19,
+    "sequence": 18,
     "description": "Develop a veteran through work, quests or exploration. Review newly available missions and their equipment requirements.",
     "template_key": "starter:develop a level 20 dweller"
   },
@@ -268,7 +255,7 @@
       "reach_type": "dweller_count"
     },
     "target_amount": 50,
-    "sequence": 20,
+    "sequence": 19,
     "description": "Expand living space and recruit or raise dwellers. Keep production and medical capacity ahead of population growth.",
     "template_key": "starter:grow a 50-dweller vault"
   }

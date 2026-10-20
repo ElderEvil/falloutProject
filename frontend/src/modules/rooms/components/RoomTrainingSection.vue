@@ -14,6 +14,7 @@ import TrainingProgressCard from '@/modules/progression/components/training/Trai
 import { getTrainingRoomCapacity } from '../utils/room'
 import { usePolling } from '@/core/composables/usePolling'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 
 type TrainingRead = components['schemas']['TrainingRead']
 
@@ -28,6 +29,7 @@ const props = defineProps<Props>()
 const authStore = useAuthStore()
 const trainingStore = useTrainingStore()
 const dwellerStore = useDwellerFilterStore()
+const vaultStore = useVaultStore()
 
 const trainings = ref<TrainingRead[]>([])
 const isLoading = ref(false)
@@ -135,6 +137,7 @@ watch(
         :key="training.id"
         :training="training"
         :dweller-name="dwellerName(training.dweller_id)"
+        :continuous-training="!!vaultStore.loadedVaults[vaultId]?.continuous_training"
         @cancel="handleCancel"
         @complete="handleComplete"
       />

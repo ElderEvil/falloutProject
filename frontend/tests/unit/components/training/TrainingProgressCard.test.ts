@@ -38,4 +38,44 @@ describe('TrainingProgressCard', () => {
 
     wrapper.unmount()
   })
+
+  it('shows the next stat gain and the repeat goal only for active repeating training', async () => {
+    const wrapper = mount(TrainingProgressCard, {
+      props: {
+        dwellerName: 'Alice',
+        roomName: 'Weight Room',
+        continuousTraining: true,
+        training: {
+          id: 't1',
+          dweller_id: 'd1',
+          room_id: 'r1',
+          stat_being_trained: 'strength',
+          current_stat_value: 5,
+          target_stat_value: 6,
+          status: 'active',
+          progress: 0,
+          started_at: new Date().toISOString(),
+          estimated_completion_at: new Date(Date.now() + 42 * 60_000).toISOString(),
+        },
+      },
+      global: { stubs: { Icon: true, DwellerPortrait: true } },
+    })
+    expect(wrapper.text()).toContain('Alice')
+    expect(wrapper.text()).toContain('Strength 5 → 6')
+    expect(wrapper.text()).toContain('Weight Room')
+    expect(wrapper.text()).toContain('42m left')
+    expect(wrapper.text()).toContain('Goal: 10')
+    await wrapper.setProps({ continuousTraining: false })
+    expect(wrapper.text()).not.toContain('Goal: 10')
+    await wrapper.setProps({
+      training: {
+        ...wrapper.props('training'),
+        estimated_completion_at: new Date(
+          Date.parse(wrapper.props('training').started_at) + 120 * 60_000
+        ).toISOString(),
+      },
+    })
+    expect(wrapper.find('.completion-time').text()).toBe('2h 0m left')
+    wrapper.unmount()
+  })
 })

@@ -441,7 +441,7 @@ describe('RoomDetailModal', () => {
       await flushPromises()
 
       expect(fetchSpy).toHaveBeenCalledWith('room-1', 'test-token')
-      expect(wrapper.text()).toContain('Training STRENGTH')
+      expect(wrapper.text()).toContain('Strength')
       expect(wrapper.text()).toContain('Jane Smith')
       expect(wrapper.text()).toContain('John Doe')
     })

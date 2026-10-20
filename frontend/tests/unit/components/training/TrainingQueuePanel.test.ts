@@ -9,6 +9,7 @@ import TrainingQueuePanel from '@/modules/progression/components/training/Traini
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import TrainingProgressCard from '@/modules/progression/components/training/TrainingProgressCard.vue'
 
 // Mock training service to prevent real HTTP calls
 vi.mock('@/modules/progression/services/trainingService', () => ({
@@ -104,7 +105,8 @@ describe('TrainingQueuePanel', () => {
       },
     })
     await flushPromises()
-    const toggle = wrapper.get('button[aria-label="Continuous training"]')
+    const toggle = wrapper.get('button[aria-label="Repeat to 10"]')
+    expect(toggle.text()).toContain('Repeat to 10')
     expect(toggle.attributes('aria-pressed')).toBe('false')
     await toggle.trigger('click')
     await flushPromises()
@@ -127,7 +129,38 @@ describe('TrainingQueuePanel', () => {
   it('renders the queue without requiring a tooltip provider from its page', async () => {
     wrapper = mount(TrainingQueuePanel, { global: { stubs: { Icon: true } } })
     await flushPromises()
-    expect(wrapper.get('button[aria-label="Continuous training"]').exists()).toBe(true)
+    expect(wrapper.get('button[aria-label="Repeat to 10"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Training Queue')
+  })
+
+  it('shows every trainee once, soonest first across rooms, with the repeat goal', async () => {
+    vaultStore.loadedVaults['vault-1'] = { id: 'vault-1', continuous_training: true } as any
+    vaultStore.activeVaultId = 'vault-1'
+    wrapper = mount(TrainingQueuePanel, { global: { stubs: { Icon: true } } })
+    await flushPromises()
+    for (const [id, minutes, roomId] of [
+      ['later', 120, 'r1'],
+      ['soon', 5, 'r2'],
+      ['first', 1, 'r1'],
+    ] as const) {
+      trainingStore.activeTrainings.set(id, {
+        id,
+        room_id: roomId,
+        dweller_id: id,
+        status: 'active',
+        stat_being_trained: 'strength',
+        current_stat_value: 5,
+        target_stat_value: 6,
+        progress: 0,
+        started_at: new Date().toISOString(),
+        estimated_completion_at: new Date(Date.now() + minutes * 60_000).toISOString(),
+      } as any)
+    }
+    await flushPromises()
+    const cards = wrapper.findAllComponents(TrainingProgressCard)
+    expect(cards.map((card) => card.props('training').id)).toEqual(['first', 'soon', 'later'])
+    expect(cards.every((card) => card.text().includes('Goal: 10'))).toBe(true)
+    expect(cards.filter((card) => card.text().includes('Soon'))).toHaveLength(2)
+    expect(wrapper.text()).not.toContain('Completing Soon')
   })
 })

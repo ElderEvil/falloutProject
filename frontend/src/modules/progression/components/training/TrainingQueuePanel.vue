@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 import { useTrainingStore } from '@/modules/progression/stores/training'
@@ -23,9 +23,11 @@ const vaultStore = useVaultStore()
 const dwellerStore = useDwellerFilterStore()
 const roomStore = useRoomStore()
 
-const loading = ref(false)
-
-const activeTrainings = computed(() => trainingStore.allActiveTrainings)
+const activeTrainings = computed(() =>
+  [...trainingStore.allActiveTrainings].sort(
+    (a, b) => Date.parse(a.estimated_completion_at) - Date.parse(b.estimated_completion_at)
+  )
+)
 const continuousTraining = computed(() => !!vaultStore.activeVault?.continuous_training)
 
 const toggleContinuousTraining = async () => {
@@ -34,8 +36,6 @@ const toggleContinuousTraining = async () => {
   if (!vaultId || !token) return
   await trainingStore.setContinuousTraining(vaultId, !continuousTraining.value, token)
 }
-
-const completingSoon = computed(() => trainingStore.completingSoon)
 
 const dwellerLookup = computed(() => {
   const lookup = new Map<string, { name: string; image: string | null }>()
@@ -60,41 +60,14 @@ const getDweller = (dwellerId: string) => dwellerLookup.value.get(dwellerId)
 
 const getRoomName = (roomId: string) => roomLookup.value.get(roomId) ?? 'Training Room'
 
-const groupedByRoom = computed(() => {
-  const groups: Record<string, typeof activeTrainings.value> = {}
-
-  activeTrainings.value.forEach((training) => {
-    const roomId = training.room_id
-    if (!groups[roomId]) {
-      groups[roomId] = []
-    }
-    groups[roomId].push(training)
-  })
-
-  return groups
-})
-
-const roomGroups = computed(() => {
-  return Object.entries(groupedByRoom.value).map(([roomId, trainings]) => ({
-    roomId,
-    roomName: getRoomName(roomId),
-    trainings,
-  }))
-})
-
 const fetchTrainings = async () => {
   if (!vaultStore.activeVault?.id || !authStore.token) return
 
-  loading.value = true
-  try {
-    await Promise.all([
-      trainingStore.fetchVaultTrainings(vaultStore.activeVault.id, authStore.token),
-      dwellerStore.fetchDwellersByVault(vaultStore.activeVault.id, authStore.token),
-      roomStore.fetchRooms(vaultStore.activeVault.id, authStore.token),
-    ])
-  } finally {
-    loading.value = false
-  }
+  await Promise.all([
+    trainingStore.fetchVaultTrainings(vaultStore.activeVault.id, authStore.token),
+    dwellerStore.fetchDwellersByVault(vaultStore.activeVault.id, authStore.token),
+    roomStore.fetchRooms(vaultStore.activeVault.id, authStore.token),
+  ])
 }
 
 // Refresh trainings every 30 seconds while this panel is mounted.
@@ -140,8 +113,8 @@ onMounted(() => {
           <TooltipTrigger as-child>
             <Button
               :variant="continuousTraining ? 'default' : 'outline'"
-              size="icon"
-              aria-label="Continuous training"
+              size="sm"
+              aria-label="Repeat to 10"
               :aria-pressed="continuousTraining"
               :disabled="
                 !vaultStore.activeVault ||
@@ -151,6 +124,7 @@ onMounted(() => {
               @click="toggleContinuousTraining"
             >
               <Icon :icon="continuousTraining ? 'mdi:repeat' : 'mdi:repeat-off'" />
+              Repeat to 10
             </Button>
           </TooltipTrigger>
           <TooltipContent>{{
@@ -172,74 +146,18 @@ onMounted(() => {
         description="Assign dwellers to training rooms to improve their SPECIAL stats."
       />
 
-      <!-- Completing Soon Section -->
-      <div v-if="completingSoon.length > 0" class="completing-soon-section">
-        <div class="section-header">
-          <Icon icon="mdi:clock-fast" class="section-icon pulsing" />
-          <h4 class="section-title">Completing Soon ({{ completingSoon.length }})</h4>
-        </div>
-        <div class="training-list">
-          <TrainingProgressCard
-            v-for="training in completingSoon"
-            :key="training.id"
-            :training="training"
-            :dweller-name="getDweller(training.dweller_id)?.name"
-            :dweller-image="getDweller(training.dweller_id)?.image"
-            @cancel="handleCancelTraining"
-            @complete="handleCompleteTraining"
-          />
-        </div>
-      </div>
-
-      <!-- Active Trainings grouped by room -->
-      <div v-if="activeTrainings.length > 0" class="active-trainings-section">
-        <div class="section-header">
-          <Icon icon="mdi:account-clock" class="section-icon" />
-          <h4 class="section-title">Active Training ({{ activeTrainings.length }})</h4>
-        </div>
-        <div v-for="group in roomGroups" :key="group.roomId" class="mb-4 flex flex-col gap-3">
-          <div
-            class="flex items-center gap-2 rounded border border-theme-glow bg-black/30 px-2 py-1.5"
-          >
-            <Icon
-              icon="mdi:office-building"
-              class="text-base text-theme-primary [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
-            />
-            <span
-              class="flex-1 font-mono text-xs font-bold uppercase tracking-[0.05em] text-theme-primary"
-              >{{ group.roomName }}</span
-            >
-            <span class="font-mono text-xs font-bold text-theme-accent">{{
-              group.trainings.length
-            }}</span>
-          </div>
-          <div class="training-list">
-            <TrainingProgressCard
-              v-for="training in group.trainings"
-              :key="training.id"
-              :training="training"
-              :dweller-name="getDweller(training.dweller_id)?.name"
-              :dweller-image="getDweller(training.dweller_id)?.image"
-              @cancel="handleCancelTraining"
-              @complete="handleCompleteTraining"
-            />
-          </div>
-        </div>
-      </div>
-
-      <!-- Training Summary -->
-      <div v-if="activeTrainings.length > 0" class="training-summary">
-        <div class="summary-row">
-          <Icon icon="mdi:account-multiple" class="summary-icon" />
-          <span class="summary-text">
-            {{ activeTrainings.length }} dweller{{ activeTrainings.length !== 1 ? 's' : '' }}
-            training
-          </span>
-        </div>
-        <div v-if="completingSoon.length > 0" class="summary-row">
-          <Icon icon="mdi:clock-alert" class="summary-icon completing" />
-          <span class="summary-text completing"> {{ completingSoon.length }} completing soon </span>
-        </div>
+      <div v-else class="training-list">
+        <TrainingProgressCard
+          v-for="training in activeTrainings"
+          :key="training.id"
+          :training="training"
+          :dweller-name="getDweller(training.dweller_id)?.name"
+          :dweller-image="getDweller(training.dweller_id)?.image"
+          :room-name="getRoomName(training.room_id)"
+          :continuous-training="continuousTraining"
+          @cancel="handleCancelTraining"
+          @complete="handleCompleteTraining"
+        />
       </div>
     </div>
   </div>
@@ -261,6 +179,8 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   padding: 1rem;
   background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent);
   border-bottom: 1px solid var(--color-theme-glow);
@@ -280,8 +200,9 @@ onMounted(() => {
 
 .panel-header h3 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: bold;
+  white-space: nowrap;
   color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
   text-transform: uppercase;
@@ -297,92 +218,9 @@ onMounted(() => {
   gap: 1.5rem;
 }
 
-.completing-soon-section + .active-trainings-section {
-  border-top: 1px solid var(--color-theme-glow);
-  padding-top: 1rem;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.section-icon {
-  font-size: 1.25rem;
-  color: var(--color-theme-primary);
-  filter: drop-shadow(0 0 4px var(--color-theme-glow));
-}
-
-.section-icon.pulsing {
-  color: var(--color-theme-accent);
-  filter: drop-shadow(0 0 6px var(--color-theme-accent));
-  animation: pulse-icon 2s ease-in-out infinite;
-}
-
-.section-title {
-  margin: 0;
-  font-size: 0.875rem;
-  font-weight: bold;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
 .training-list {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-}
-
-.training-summary {
-  margin-top: auto;
-  padding-top: 1rem;
-  border-top: 1px solid var(--color-theme-glow);
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.summary-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-family: 'Courier New', monospace;
-}
-
-.summary-icon {
-  font-size: 1rem;
-  color: var(--color-theme-primary);
-}
-
-.summary-icon.completing {
-  color: var(--color-theme-accent);
-  filter: drop-shadow(0 0 4px var(--color-theme-accent));
-}
-
-.summary-text {
-  font-size: 0.875rem;
-  color: var(--color-theme-primary);
-  opacity: 0.85;
-}
-
-.summary-text.completing {
-  color: var(--color-theme-accent);
-  font-weight: bold;
-}
-
-@keyframes pulse-icon {
-  0%,
-  100% {
-    transform: scale(1);
-    filter: drop-shadow(0 0 6px var(--color-theme-accent));
-  }
-  50% {
-    transform: scale(1.1);
-    filter: drop-shadow(0 0 12px var(--color-theme-accent));
-  }
 }
 </style>

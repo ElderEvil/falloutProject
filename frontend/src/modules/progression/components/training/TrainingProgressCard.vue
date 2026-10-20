@@ -9,6 +9,7 @@ import { formatDuration } from '@/core/utils/time'
 import type { components } from '@/core/types/api.generated'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
+import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
 
 type TrainingRead = components['schemas']['TrainingRead']
 type TrainingProgress = components['schemas']['TrainingProgress']
@@ -17,6 +18,8 @@ interface Props {
   training: TrainingRead | TrainingProgress
   dwellerName?: string
   dwellerImage?: string | null
+  roomName?: string
+  continuousTraining?: boolean
 }
 
 const props = defineProps<Props>()
@@ -27,6 +30,11 @@ const emit = defineEmits<{
 }>()
 
 const now = useNow(1000)
+const ability = computed(() => getAbilityConfig(props.training.stat_being_trained))
+const isCompletingSoon = computed(() => {
+  const remaining = Date.parse(props.training.estimated_completion_at) - now.value
+  return props.training.status === 'active' && remaining > 0 && remaining <= 10 * 60_000
+})
 
 const progressPercentage = computed(() => {
   // Prefer the backend's persisted progress when present (it's 0.0-1.0),
@@ -52,10 +60,10 @@ const timeRemaining = computed(() => {
   const remaining = completionTime - now.value
 
   if (remaining <= 0) {
-    return 'Ready to complete!'
+    return 'Ready'
   }
 
-  return formatDuration(Math.floor(remaining / 1000), { includeSeconds: true })
+  return formatDuration(Math.ceil(remaining / 60_000) * 60, { omitZeroHours: true, suffix: 'left' })
 })
 
 const isReadyToComplete = computed(() => {
@@ -72,23 +80,8 @@ const fillGradient = computed(() => {
 })
 
 const portraitStateClass = computed(() =>
-  isReadyToComplete.value
-    ? 'border-theme-accent shadow-[0_0_8px_var(--color-theme-accent)]'
-    : ''
+  isReadyToComplete.value ? 'border-theme-accent shadow-[0_0_8px_var(--color-theme-accent)]' : ''
 )
-
-const getStatIcon = (stat: string): string => {
-  const iconMap: Record<string, string> = {
-    strength: 'mdi:arm-flex',
-    perception: 'mdi:eye',
-    endurance: 'mdi:heart',
-    charisma: 'mdi:account-voice',
-    intelligence: 'mdi:brain',
-    agility: 'mdi:run-fast',
-    luck: 'mdi:clover',
-  }
-  return iconMap[stat.toLowerCase()] || 'mdi:star'
-}
 
 const handleCancel = () => {
   if (props.training.id) {
@@ -114,68 +107,52 @@ const handleComplete = () => {
         training.status !== 'active',
     }"
   >
-    <div class="mb-1.5 flex items-center gap-2">
-      <div class="flex shrink-0 items-center gap-1.5">
-        <DwellerPortrait
-          :thumbnail-url="dwellerImage"
-          :alt="dwellerName ?? 'Dweller'"
-          :image-class="`h-12 w-12 shrink-0 rounded-md border border-theme-glow object-cover [image-rendering:pixelated] ${portraitStateClass}`"
-          :fallback-class="`flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-theme-glow bg-surface-sunken text-theme-primary ${portraitStateClass}`"
-        />
-        <Icon
-          :icon="getStatIcon(training.stat_being_trained)"
-          class="completion-stat-icon text-lg text-theme-primary"
-          :class="{
-            'text-theme-accent': isReadyToComplete,
-          }"
-        />
-      </div>
-      <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span v-if="dwellerName" class="truncate font-mono text-xs text-theme-primary">{{
-          dwellerName
-        }}</span>
-        <span class="truncate font-mono text-xs font-bold uppercase tracking-[0.05em] text-theme-primary"
-          >Training {{ training.stat_being_trained.toUpperCase() }}</span
+    <div class="mb-2 flex items-start gap-2">
+      <DwellerPortrait
+        :thumbnail-url="dwellerImage"
+        :alt="dwellerName ?? 'Dweller'"
+        :image-class="`size-10 shrink-0 rounded-md border border-theme-glow object-cover [image-rendering:pixelated] ${portraitStateClass}`"
+        :fallback-class="`flex size-10 shrink-0 items-center justify-center rounded-md border border-theme-glow bg-surface-sunken text-theme-primary ${portraitStateClass}`"
+      />
+      <div class="flex min-w-0 flex-1 flex-col gap-1">
+        <div class="flex min-w-0 items-center gap-2">
+          <span class="min-w-0 flex-1 truncate font-mono text-sm font-bold text-theme-primary">{{
+            dwellerName ?? 'Dweller'
+          }}</span>
+          <Badge v-if="isCompletingSoon" variant="secondary">Soon</Badge>
+          <span
+            v-if="continuousTraining && training.status === 'active'"
+            class="shrink-0 whitespace-nowrap font-mono text-xs text-theme-accent"
+            >Goal: 10</span
+          >
+        </div>
+        <div
+          class="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-theme-primary"
         >
+          <span class="inline-flex items-center gap-1">
+            <Icon :icon="ability?.icon ?? 'mdi:star'" class="completion-stat-icon shrink-0" />
+            {{ ability?.label ?? training.stat_being_trained }} {{ training.current_stat_value }} →
+            {{ training.target_stat_value }}
+          </span>
+          <span v-if="roomName" class="text-muted-foreground">{{ roomName }}</span>
+        </div>
       </div>
-      <Badge
-        :variant="
-          training.status === 'active'
-            ? 'default'
-            : training.status === 'completed'
-              ? 'default'
-              : 'secondary'
-        "
-      >
-        {{ training.current_stat_value }} → {{ training.target_stat_value }}
-      </Badge>
     </div>
 
-    <div class="flex items-center gap-2">
-      <div class="flex min-w-0 flex-1 items-center gap-1.5">
-        <Progress
-          class="h-2"
-          :fill="fillGradient"
-          :model-value="progressPercentage"
-        />
-        <span class="w-9 shrink-0 text-right font-mono text-xs text-theme-primary"
-          >{{ progressPercentage.toFixed(0) }}%</span
-        >
-      </div>
-      <div class="flex shrink-0 items-center gap-1">
-        <Icon icon="mdi:clock-outline" class="text-xs text-theme-primary" />
-        <span
-          class="completion-time whitespace-nowrap font-mono text-xs font-bold text-theme-primary"
-          :class="{
-            'text-theme-accent [text-shadow:0_0_4px_var(--color-theme-accent)]': isReadyToComplete,
-          }"
-        >
-          {{ timeRemaining }}
-        </span>
-      </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <Progress
+        class="h-1.5 min-w-16 flex-1"
+        :fill="fillGradient"
+        :model-value="progressPercentage"
+      />
+      <span
+        class="completion-time whitespace-nowrap font-mono text-xs text-theme-primary"
+        :class="{ 'text-theme-accent': isReadyToComplete }"
+        >{{ timeRemaining }}</span
+      >
       <div class="flex shrink-0 gap-1">
         <Button v-if="isReadyToComplete" size="xs" variant="default" @click="handleComplete">
-          <Icon icon="mdi:check-circle" class="h-3.5 w-3.5" />
+          <Icon icon="mdi:check-circle" />
           Complete
         </Button>
         <Button
@@ -184,7 +161,7 @@ const handleComplete = () => {
           variant="destructive"
           @click="handleCancel"
         >
-          <Icon icon="mdi:close-circle" class="h-3.5 w-3.5" />
+          <Icon icon="mdi:close-circle" />
           Cancel
         </Button>
       </div>

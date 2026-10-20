@@ -32,6 +32,7 @@ import type { CraftableItemType, CraftingOrder, CraftingRecipe } from '../models
 interface Props {
   vaultId: string
   itemType: CraftableItemType
+  crewKey?: string
 }
 
 const props = defineProps<Props>()
@@ -224,7 +225,7 @@ onUnmounted(() => {
   if (recheckTimer) clearInterval(recheckTimer)
 })
 
-watch(() => [props.vaultId, props.itemType], loadAll)
+watch(() => [props.vaultId, props.itemType, props.crewKey], loadAll)
 </script>
 
 <template>

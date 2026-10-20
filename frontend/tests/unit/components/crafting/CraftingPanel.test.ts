@@ -300,6 +300,19 @@ describe('CraftingPanel', () => {
     expect(findButton(wrapper, 'Start').attributes('disabled')).toBeDefined()
   })
 
+  it('reloads recipe estimates when the room crew changes', async () => {
+    const wrapper = mount(CraftingPanel, {
+      props: { vaultId: 'vault-1', itemType: 'weapon', crewKey: 'dweller-1' },
+    })
+    await flushPromises()
+    expect(craftingService.listRecipes).toHaveBeenCalledTimes(1)
+
+    await wrapper.setProps({ crewKey: 'dweller-1,dweller-2' })
+    await flushPromises()
+
+    expect(craftingService.listRecipes).toHaveBeenCalledTimes(2)
+  })
+
   it('offers a first craft for a theme and locks a crafted theme', async () => {
     vi.mocked(craftingService.listRecipes).mockResolvedValue([
       recipe({ name: 'Party theme', item_type: 'theme', style: 'party', owned: true, can_craft: false }),

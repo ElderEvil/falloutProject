@@ -289,6 +289,7 @@ onUnmounted(stopAmbience)
             v-if="has('crafting') && craftingType"
             :vault-id="vaultId"
             :item-type="craftingType"
+            :crew-key="assignedDwellers.map((dweller) => dweller.id).join(',')"
             @crafted="emit('roomUpdated')"
           />
 

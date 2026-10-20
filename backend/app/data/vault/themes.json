@@ -4,7 +4,7 @@
     "style": "party",
     "rarity": "common",
     "craftable": true,
-    "stat": "charisma",
+    "stat": "agility",
     "craft": {
       "types": ["cloth", "adhesive"]
     }

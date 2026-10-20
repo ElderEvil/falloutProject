@@ -655,3 +655,29 @@ async def test_a_theme_cannot_be_queued_twice(async_session: AsyncSession, vault
 
     with pytest.raises(ValidationException, match="already being crafted"):
         await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+
+
+@pytest.mark.asyncio
+async def test_theme_duration_shortens_with_matching_crew(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _make_storage(async_session, vault)
+    workshop = await _add_theme_workshop(async_session, vault)
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON), JunkTypeEnum.CLOTH)
+
+    base_party = next(
+        recipe
+        for recipe in await crafting_service.list_recipes(async_session, vault.id, "theme")
+        if recipe.name == PARTY_THEME
+    )
+    await _add_worker(async_session, vault, workshop, index=1, agility=10)
+    await _add_worker(async_session, vault, workshop, index=2, agility=10)
+
+    party = next(
+        recipe
+        for recipe in await crafting_service.list_recipes(async_session, vault.id, "theme")
+        if recipe.name == PARTY_THEME
+    )
+    assert party.ability_sum == 20
+    assert party.duration_seconds < base_party.duration_seconds
+
+    order = await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+    assert (order.estimated_completion_at - order.started_at).total_seconds() == party.duration_seconds

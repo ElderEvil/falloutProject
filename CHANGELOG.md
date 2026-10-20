@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.242.0 (2026-10-20)
+
+### Features
+
+* **storage:** add weapon maintenance and recipe status ([#1108](https://github.com/ElderEvil/falloutProject/issues/1108)) 5c73d58
+
 ## 2.241.0 (2026-10-20)
 
 ### Features

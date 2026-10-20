@@ -24,12 +24,13 @@ VARIANT_PREFIXES: tuple[str, ...] = (
     "auto",
     "long",
 )
+_PREFIXES_LONGEST_FIRST = tuple(sorted(VARIANT_PREFIXES, key=len, reverse=True))
 
 
 def family_key(name: str) -> str:
     """Strip the longest recognized variant prefix from a normalized name."""
     name = name.strip().casefold()
-    for prefix in sorted(VARIANT_PREFIXES, key=len, reverse=True):
+    for prefix in _PREFIXES_LONGEST_FIRST:
         if name.startswith(prefix + " "):
             return name[len(prefix) + 1 :]
     return name

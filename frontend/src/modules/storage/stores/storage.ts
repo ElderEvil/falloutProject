@@ -32,8 +32,9 @@ export const useStorageStore = defineStore('storage', () => {
     return `${maintenanceMode.value} · ${(value.hourly_chance * 100).toFixed(1)}% / ${interval}`
   })
   let sequence = 0
+  const consumers = new Set<symbol>()
 
-  async function refresh(id: string): Promise<boolean> {
+  async function refresh(id: string): Promise<'loaded' | 'stale' | 'error'> {
     const request = ++sequence
     if (vaultId.value !== id) {
       items.value = { weapons: [], outfits: [], junk: [], items: [], pets: [] }
@@ -48,24 +49,33 @@ export const useStorageStore = defineStore('storage', () => {
         storageService.getStorageItems(id),
         storageService.getMaintenance(id),
       ])
-      if (request !== sequence) return false
+      if (request !== sequence) return 'stale'
       space.value = nextSpace
       items.value = nextItems
       maintenance.value = nextMaintenance
-      return true
+      return 'loaded'
     } catch (error) {
       if (request === sequence) {
         console.error('Failed to refresh vault storage', error)
         handleStoreError(error, 'Failed to refresh storage', false)
+        return 'error'
       }
-      return false
+      return 'stale'
     } finally {
       if (request === sequence) isLoading.value = false
     }
   }
 
   function refreshIfActive(id: string) {
-    if (vaultId.value === id) void refresh(id)
+    if (consumers.size && vaultId.value === id) void refresh(id)
+  }
+
+  function retain() {
+    const consumer = Symbol()
+    consumers.add(consumer)
+    return () => {
+      if (consumers.delete(consumer) && consumers.size === 0) reset()
+    }
   }
 
   function reset() {
@@ -80,6 +90,7 @@ export const useStorageStore = defineStore('storage', () => {
   return {
     ...storageService,
     reset,
+    retain,
     vaultId,
     items,
     space,

@@ -2,6 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import axios from '@/core/plugins/axios'
+import { useStorageStore } from '@/modules/storage/stores/storage'
 import StorageMaintenancePanel from '@/modules/storage/components/StorageMaintenancePanel.vue'
 
 vi.mock('@/core/plugins/axios', () => ({ default: { get: vi.fn(), post: vi.fn() } }))
@@ -48,6 +49,9 @@ it.each([
     expect(wrapper.text()).toContain('3 / 4 room workers')
     expect(axios.get).toHaveBeenCalledWith('/api/v1/storage/vault/vault-1/maintenance')
     wrapper.unmount()
+    vi.mocked(axios.get).mockClear()
+    useStorageStore().refreshIfActive('vault-1')
+    expect(axios.get).not.toHaveBeenCalled()
   }
 )
 

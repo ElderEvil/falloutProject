@@ -35,6 +35,8 @@ from app.core.enums import (
     GenderEnum,
     PregnancyStatusEnum,
     RelationshipTypeEnum,
+    RoomTypeEnum,
+    SPECIALEnum,
 )
 from app.core.game_config import game_config
 from app.crud.relationship import relationship_crud
@@ -153,6 +155,8 @@ class FamilyScenarioService:
             raise ValueError(f"Room not found (id={room_id})") from exc
         if vault_id is not None and room.vault_id != vault_id:
             raise ValueError(f"Room {room_id} does not belong to vault {vault_id}")
+        if room.category != RoomTypeEnum.CAPACITY or room.ability != SPECIALEnum.CHARISMA:
+            raise ValueError("Family scenarios require Living Quarters")
         return room
 
     # ------------------------------------------------------------------

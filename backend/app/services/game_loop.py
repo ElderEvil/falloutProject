@@ -180,7 +180,13 @@ class GameLoopService:
         crafting_update = await self._process_crafting(db_session, vault_id)
         results["updates"]["crafting"] = crafting_update
 
-        results["updates"]["storage"] = await storage_tick.process_storage_maintenance(db_session, vault_id)
+        try:
+            results["updates"]["storage"] = await storage_tick.process_storage_maintenance(db_session, vault_id)
+        except (SQLAlchemyError, ResourceNotFoundException):
+            await recover_session(db_session)
+            self.logger.exception("Storage maintenance failed for vault %s", vault_id)
+            results["updates"]["storage"] = {"checked": 0, "changed": 0}
+            game_state = await self._get_or_create_game_state(db_session, vault_id)
 
         happiness_update = await self._process_happiness(db_session, vault_id, seconds_passed)
         results["updates"]["happiness"] = happiness_update

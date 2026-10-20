@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onScopeDispose, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useStorageStore } from '../stores/storage'
 import { useRoute } from 'vue-router'
@@ -32,6 +32,7 @@ const { playSound } = useSound()
 
 const vaultId = computed(() => route.params.id as string)
 const storageStore = useStorageStore()
+onScopeDispose(storageStore.retain())
 const {
   space: storageSpace,
   items: storageItems,
@@ -77,7 +78,7 @@ const fetchStorageData = async () => {
   if (!vaultId.value || !authStore.token) return
 
   const result = await runFetchStorageData(vaultId.value)
-  if (!result) {
+  if (result === 'error') {
     toast.error('Failed to load storage data')
   }
 }

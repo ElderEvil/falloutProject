@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { onScopeDispose, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Card } from '@/core/components/ui/card'
 import { storeToRefs } from 'pinia'
@@ -7,6 +7,7 @@ import { useStorageStore } from '../stores/storage'
 
 const props = defineProps<{ vaultId: string; workers: number; slots: number }>()
 const storage = useStorageStore()
+onScopeDispose(storage.retain())
 const { maintenance, maintenanceLabel } = storeToRefs(storage)
 const maintenanceIcons: Record<string, string> = {
   rusting: 'mdi:arrow-down-bold',

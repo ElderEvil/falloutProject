@@ -3,6 +3,7 @@ import { createIconifyMock, createToastMock } from '../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
+import { useStorageStore } from '@/modules/storage/stores/storage'
 import StorageView from '@/modules/storage/views/StorageView.vue'
 import LunchboxOpenModal from '@/modules/storage/components/LunchboxOpenModal.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -291,6 +292,47 @@ describe('StorageView', () => {
       wrapper.unmount()
     }
   )
+
+  it('does not show a load error when a tick supersedes a sell refresh', async () => {
+    const items = {
+      weapons: [{ id: 'w1', name: 'Pistol', rarity: 'common', value: 10 }],
+      outfits: [],
+      junk: [],
+      items: [],
+      pets: [],
+    }
+    const wrapper = await mountWith(items)
+    const pending: Array<{ url: string; resolve: (response: { data: unknown }) => void }> = []
+    vi.mocked(axios.get).mockImplementation(
+      (url: string) =>
+        new Promise((resolve) => {
+          pending.push({ url, resolve })
+        })
+    )
+    vi.mocked(axios.post).mockResolvedValue({ data: {} })
+    wrapper.findComponent({ name: 'StorageItemCard' }).vm.$emit('sell')
+    await flushPromises()
+    expect(pending).toHaveLength(3)
+    useStorageStore().refreshIfActive('vault-1')
+    expect(pending).toHaveLength(6)
+    const complete = ({ url, resolve }: (typeof pending)[number]) =>
+      resolve({
+        data: url.endsWith('/maintenance')
+          ? { enabled: false }
+          : url.endsWith('/space')
+            ? spaceData
+            : items,
+      })
+    pending.slice(3).forEach(complete)
+    await flushPromises()
+    pending.slice(0, 3).forEach(complete)
+    await flushPromises()
+    expect(mockToast.error).not.toHaveBeenCalled()
+    wrapper.unmount()
+    vi.mocked(axios.get).mockClear()
+    useStorageStore().refreshIfActive('vault-1')
+    expect(axios.get).not.toHaveBeenCalled()
+  })
 
   it('renders returned pets with name and art in the pets tab', async () => {
     const wrapper = await mountWith({

@@ -39,7 +39,7 @@ const interactiveAttrs = computed(() =>
   isInteractive.value
     ? {
         role: 'button',
-        tabindex: props.disabled ? '-1' : '0',
+        tabindex: '0',
         'aria-disabled': props.disabled ? 'true' : undefined,
         'aria-label': props.disabled
           ? `${props.label}: ${props.value}`

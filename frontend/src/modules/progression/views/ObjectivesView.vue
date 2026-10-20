@@ -139,7 +139,7 @@ function handleClaimObjective(objectiveId: string): void {
 
 async function handleCollectAll(): Promise<void> {
   const claimed = await claimAll(claimableObjectives.value.map((objective) => objective.id))
-  if (claimed === 0 || claimError.value) return
+  if (claimed === 0) return
   toast.success(`Collected ${claimed} reward${claimed === 1 ? '' : 's'}`)
 }
 

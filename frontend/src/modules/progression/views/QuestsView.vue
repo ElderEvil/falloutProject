@@ -290,13 +290,15 @@ const confirmClaimRewards = async () => {
 async function collectAllQuestRewards(): Promise<void> {
   const id = vaultId.value
   if (!id || isClaiming.value || readyToClaimQuests.value.length === 0) return
+  const questIds = readyToClaimQuests.value.map((quest) => quest.id)
   isClaiming.value = true
   try {
-    // Each claim toasts its own result; allSettled keeps one failure from
-    // discarding the rewards of the quests that did succeed.
-    await Promise.allSettled(
-      readyToClaimQuests.value.map((quest) => questStore.claimQuestRewards(id, quest.id))
-    )
+    // Settle one claim at a time: rewards share the same vault balance.
+    // The store announces each success/error; a failed claim leaves the rest collectable.
+    for (const questId of questIds) {
+      if (vaultId.value !== id) break
+      await questStore.claimQuestRewards(id, questId).catch(() => null)
+    }
   } finally {
     isClaiming.value = false
   }

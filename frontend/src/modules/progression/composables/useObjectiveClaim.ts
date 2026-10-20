@@ -63,16 +63,20 @@ export function useObjectiveClaim(vaultId: Ref<string | null>) {
     let claimedCount = 0
     try {
       for (const objectiveId of objectiveIds) {
+        if (vaultId.value !== id) break
         await objectivesStore.completeObjective(id, objectiveId)
         claimedCount += 1
       }
-      if (vaultId.value === id) playSound('objectiveClaim')
     } catch (err) {
       if (vaultId.value === id) error.value = getErrorMessage(err)
     } finally {
       claiming.value = false
     }
-    if (claimedCount > 0 && vaultId.value === id) refreshAfterClaim(id)
+    if (vaultId.value !== id) return 0
+    if (claimedCount > 0) {
+      playSound('objectiveClaim')
+      refreshAfterClaim(id)
+    }
     return claimedCount
   }
 

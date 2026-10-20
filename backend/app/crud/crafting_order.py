@@ -21,9 +21,7 @@ class CRUDCraftingOrder(CRUDBase[CraftingOrder, CraftingOrderCreate, CraftingOrd
         )
         return list(result.scalars().all())
 
-    async def has_uncollected(
-        self, db_session: AsyncSession, vault_id: UUID4, item_type: str, item_name: str
-    ) -> bool:
+    async def has_uncollected(self, db_session: AsyncSession, vault_id: UUID4, item_type: str, item_name: str) -> bool:
         """True while an order for this exact item is active or awaiting collection."""
         result = await db_session.execute(
             select(CraftingOrder.id)

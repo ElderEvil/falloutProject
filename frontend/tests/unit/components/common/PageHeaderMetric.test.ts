@@ -62,4 +62,43 @@ describe('PageHeaderMetric', () => {
 
     expect(wrapper.find(value).attributes('class')).not.toContain('text-caller-supplied-warning')
   })
+
+  it('turns the metric into a button whose label swaps to the hover action', async () => {
+    const wrapper = mountWithSetup(PageHeaderMetric, {
+      props: {
+        label: 'Rewards ready',
+        value: 3,
+        icon: 'mdi:treasure-chest',
+        hoverText: 'Collect rewards',
+      },
+    })
+
+    const cardEl = wrapper.find(card)
+    expect(cardEl.attributes('role')).toBe('button')
+    expect(cardEl.attributes('tabindex')).toBe('0')
+    expect(cardEl.attributes('aria-label')).toBe('Collect rewards: 3')
+    expect(wrapper.text()).toContain('Rewards ready')
+    expect(wrapper.text()).toContain('Collect rewards')
+
+    await cardEl.trigger('click')
+    await cardEl.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('click')).toHaveLength(2)
+  })
+
+  it('does not emit a click when an interactive metric is disabled', async () => {
+    const wrapper = mountWithSetup(PageHeaderMetric, {
+      props: {
+        label: 'Rewards ready',
+        value: 0,
+        icon: 'mdi:treasure-chest',
+        hoverText: 'Collect rewards',
+        disabled: true,
+      },
+    })
+
+    const cardEl = wrapper.find(card)
+    expect(cardEl.attributes('aria-disabled')).toBe('true')
+    await cardEl.trigger('click')
+    expect(wrapper.emitted('click')).toBeUndefined()
+  })
 })

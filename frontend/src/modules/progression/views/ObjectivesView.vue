@@ -212,8 +212,11 @@ function closeClaimModal(): void {
                 <PageHeaderMetric
                   icon="mdi:treasure-chest"
                   :value="claimableTotal"
-                  label="Collect rewards"
+                  label="Rewards ready"
+                  hover-text="Collect rewards"
                   tooltip="Finished objectives with rewards ready to claim"
+                  :disabled="isClaiming || claimableTotal === 0"
+                  @click="handleCollectAll"
                 />
               </template>
             </PageHeader>

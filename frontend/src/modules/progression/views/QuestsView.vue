@@ -287,6 +287,21 @@ const confirmClaimRewards = async () => {
   }
 }
 
+async function collectAllQuestRewards(): Promise<void> {
+  const id = vaultId.value
+  if (!id || isClaiming.value || readyToClaimQuests.value.length === 0) return
+  isClaiming.value = true
+  try {
+    // Each claim toasts its own result; allSettled keeps one failure from
+    // discarding the rewards of the quests that did succeed.
+    await Promise.allSettled(
+      readyToClaimQuests.value.map((quest) => questStore.claimQuestRewards(id, quest.id))
+    )
+  } finally {
+    isClaiming.value = false
+  }
+}
+
 // Fetch quests on mount
 onMounted(async () => {
   const token = authStore.token || localStorage.getItem('token')?.replace(/^"|"$/g, '')
@@ -369,8 +384,11 @@ onMounted(async () => {
                 <PageHeaderMetric
                   icon="mdi:treasure-chest"
                   :value="readyToClaimQuests.length"
-                  label="Collect rewards"
+                  label="Rewards ready"
+                  hover-text="Collect rewards"
                   tooltip="Finished quests with rewards ready to claim"
+                  :disabled="isClaiming || readyToClaimQuests.length === 0"
+                  @click="collectAllQuestRewards"
                 />
               </template>
             </PageHeader>

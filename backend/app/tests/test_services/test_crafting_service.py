@@ -736,7 +736,9 @@ async def test_cancelled_theme_can_be_queued_again(async_session: AsyncSession, 
 
 
 @pytest.mark.asyncio
-async def test_cancel_legacy_order_rebuilds_an_equivalent_junk_refund(async_session: AsyncSession, vault: Vault) -> None:
+async def test_cancel_legacy_order_rebuilds_an_equivalent_junk_refund(
+    async_session: AsyncSession, vault: Vault
+) -> None:
     storage = await _make_storage(async_session, vault)
     await _add_theme_workshop(async_session, vault)
     await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON), JunkTypeEnum.CLOTH)

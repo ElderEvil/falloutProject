@@ -9137,6 +9137,8 @@ export interface components {
             dweller_id?: string | null;
             /** Storage Id */
             storage_id?: string | null;
+            /** Description */
+            description?: string | null;
         };
         /**
          * OutfitTypeEnum
@@ -11589,6 +11591,8 @@ export interface components {
             dweller_id?: string | null;
             /** Storage Id */
             storage_id?: string | null;
+            /** Description */
+            description?: string | null;
         };
         /**
          * WeaponSubtypeEnum

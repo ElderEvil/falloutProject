@@ -418,7 +418,7 @@ class CraftingService:
 
     async def advance_orders(self, db_session: AsyncSession, vault_id: UUID4) -> int:
         """Advance the queue one tick; returns how many orders just completed."""
-        orders = await crud.crafting_order.get_active_by_vault(db_session, vault_id)
+        orders = await crud.crafting_order.get_active_by_vault_for_update(db_session, vault_id)
         if not orders:
             return 0
 

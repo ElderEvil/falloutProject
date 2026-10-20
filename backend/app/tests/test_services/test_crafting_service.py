@@ -751,3 +751,24 @@ async def test_cancel_legacy_order_rebuilds_an_equivalent_junk_refund(
 
     junk = (await async_session.execute(select(Junk))).scalars().all()
     assert len(junk) == _junk_cost(RarityEnum.COMMON)
+
+
+@pytest.mark.asyncio
+async def test_crafting_tick_does_not_revive_a_cancelled_order(async_session: AsyncSession, vault: Vault) -> None:
+    from app.services.game_tick import crafting_tick
+
+    storage = await _make_storage(async_session, vault)
+    await _add_workshop(async_session, vault, "Weapon workshop")
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON), JunkTypeEnum.STEEL)
+    order = await crafting_service.start_order(async_session, vault.id, COMMON_WEAPON, "weapon")
+    await crafting_service.cancel_order(async_session, vault.id, order.id)
+
+    order.estimated_completion_at = datetime.utcnow() - timedelta(seconds=1)
+    async_session.add(order)
+    await async_session.commit()
+
+    stats = await crafting_tick.process_crafting(async_session, vault.id)
+
+    assert stats["completed"] == 0
+    await async_session.refresh(order)
+    assert order.status == CraftingOrderStatus.CANCELLED

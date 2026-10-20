@@ -36,7 +36,13 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.execute("DELETE FROM craftingorder WHERE status = 'CANCELLED'")
+    op.execute("ALTER TYPE craftingorderstatus RENAME TO craftingorderstatus_old")
+    op.execute("CREATE TYPE craftingorderstatus AS ENUM ('ACTIVE', 'COMPLETED', 'COLLECTED')")
+    op.execute(
+        "ALTER TABLE craftingorder ALTER COLUMN status TYPE craftingorderstatus "
+        "USING status::text::craftingorderstatus"
+    )
+    op.execute("DROP TYPE craftingorderstatus_old")
     op.drop_column("craftingorder", "junk_snapshot")
     op.drop_column("craftingorder", "cancelled_at")
-    # PostgreSQL cannot remove a single enum value; the type is recreated only when
-    # the crafting-order table itself is dropped (see 2026_09_13_0003).

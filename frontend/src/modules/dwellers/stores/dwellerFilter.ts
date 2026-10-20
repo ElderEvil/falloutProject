@@ -225,6 +225,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   let allDwellersVaultId: string | null = null
   let allDwellersRequestSeq = 0
   const allDwellersLoadedVaultId = ref<string | null>(null)
+  let allDwellersInFlight: { vaultId: string; promise: Promise<void> } | null = null
 
   // Filter and sort state (persisted in localStorage)
   const filterFocus = useLocalStorage<DwellerRosterFocus>('dwellerFilterFocus', 'all', {
@@ -441,6 +442,21 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     vaultId: string,
     token: string,
     throwOnError = false
+  ): Promise<void> {
+    if (allDwellersInFlight?.vaultId === vaultId) return allDwellersInFlight.promise
+    const request = loadAllDwellers(vaultId, token, throwOnError)
+    allDwellersInFlight = { vaultId, promise: request }
+    try {
+      await request
+    } finally {
+      if (allDwellersInFlight?.promise === request) allDwellersInFlight = null
+    }
+  }
+
+  async function loadAllDwellers(
+    vaultId: string,
+    token: string,
+    throwOnError: boolean
   ): Promise<void> {
     allDwellers.value = []
     allDwellersVaultId = vaultId

@@ -317,22 +317,12 @@ describe('DwellerFilter Store', () => {
       expect(store.allDwellers[0].id).toBe('new')
     })
 
-    it('should ignore a stale response from an older request', async () => {
-      let resolveFirst!: (value: unknown) => void
-      const freshData = [
+    it('shares one request between concurrent same-vault loads', async () => {
+      let resolveRequest!: (value: unknown) => void
+      const data = [
         {
-          id: 'fresh',
-          first_name: 'Fresh',
-          last_name: 'Data',
-          status: 'idle',
-          level: 1,
-          happiness: 50,
-        },
-      ]
-      const staleData = [
-        {
-          id: 'stale',
-          first_name: 'Stale',
+          id: 'shared',
+          first_name: 'Shared',
           last_name: 'Data',
           status: 'idle',
           level: 1,
@@ -340,28 +330,22 @@ describe('DwellerFilter Store', () => {
         },
       ]
 
-      vi.mocked(axios.get)
-        .mockImplementationOnce(
-          () =>
-            new Promise((resolve) => {
-              resolveFirst = resolve
-            })
-        )
-        .mockResolvedValueOnce({ data: freshData })
+      vi.mocked(axios.get).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveRequest = resolve
+          })
+      )
 
       const store = useDwellerFilterStore()
-      const firstPromise = store.fetchAllDwellers('vault-1', 'test-token')
-      const secondPromise = store.fetchAllDwellers('vault-1', 'test-token')
+      const firstPromise = store.fetchAllDwellers('vault-1', 'test-token', true)
+      const secondPromise = store.fetchAllDwellers('vault-1', 'test-token', true)
 
-      await secondPromise
-      expect(store.allDwellers).toEqual(freshData)
+      resolveRequest({ data })
+      await Promise.all([firstPromise, secondPromise])
 
-      // Resolve the stale first request after the second
-      resolveFirst({ data: staleData })
-      await firstPromise
-
-      // Stale response must not overwrite the fresh one
-      expect(store.allDwellers).toEqual(freshData)
+      expect(vi.mocked(axios.get)).toHaveBeenCalledTimes(1)
+      expect(store.allDwellers).toEqual(data)
     })
 
     it('should ignore a response for a different vault than the current one', async () => {

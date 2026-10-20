@@ -799,4 +799,38 @@ describe('NotificationBell popup accessibility', () => {
 
     wrapper.unmount()
   })
+
+  it.each([
+    ['storage_item_degraded', 'mdi:tools'],
+    ['storage_item_upgraded', 'mdi:arrow-up-bold'],
+  ])('shows %s in both toast and bell', async (notification_type, icon) => {
+    useAuthStore().token = 'test-token'
+    const { toasts } = useToast()
+    toasts.value = []
+    const message = 'A stored weapon changed catalog variant'
+    const data = JSON.stringify({
+      notification: {
+        id: 'storage-notification',
+        vault_id: 'vault-1',
+        notification_type,
+        title: 'Storage maintenance',
+        message,
+        priority: 'normal',
+        created_at: '2026-10-20T12:00:00',
+      },
+    })
+    fetchMock.mockResolvedValue(
+      createMockResponse([encodeSse(data, 'notification')], { hang: true })
+    )
+    const wrapper = mount(NotificationBell)
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+    expect(toasts.value.some((toast) => toast.message === message)).toBe(true)
+    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find(`[data-icon="${icon}"]`).exists()).toBe(true)
+    expect(wrapper.text()).toContain('Storage maintenance')
+    expect(wrapper.text()).toContain(message)
+    wrapper.unmount()
+  })
 })

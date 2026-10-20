@@ -1,5 +1,6 @@
 import random
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Any, TypeVar
 
 from pydantic import UUID4
@@ -295,9 +296,10 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
     async def _update_item(
         db_session: AsyncSession, item_model: type[Weapon | Outfit | Pet], item_id: UUID4, storage_id: UUID4
     ) -> None:
-        await db_session.execute(
-            update(item_model).where(item_model.id == item_id).values(dweller_id=None, storage_id=storage_id)
-        )
+        values: dict[str, Any] = {"dweller_id": None, "storage_id": storage_id}
+        if item_model is Weapon:
+            values["last_maintenance_trial_at"] = datetime.utcnow()
+        await db_session.execute(update(item_model).where(item_model.id == item_id).values(**values))
 
     @staticmethod
     async def _update_dweller(db_session: AsyncSession, dweller: Dweller, item_type: str) -> None:

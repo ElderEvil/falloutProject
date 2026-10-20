@@ -61,6 +61,25 @@ def unlock_hint(entry: dict[str, Any] | None) -> str | None:
     return f"Scrap {phrase} to learn it"
 
 
+def recipe_description(item_type: str, name: str, *, unlocked_names: set[str]) -> str | None:
+    """One-line workshop status for an item card, or None for a non-workshop item type.
+
+    Gear the catalog does not list (seed-only starters, legacy rows) cannot be crafted either,
+    so it reports like any other uncraftable item. The requirement line omits the item name
+    because the card already shows it; ``unlock_hint`` names it for the crafting panel, where
+    many recipes are listed together.
+    """
+    if item_type not in _ITEM_TYPE_LOADERS:
+        return None
+    entry = catalog_entry(item_type, name)
+    if entry is None or not entry.get("craftable", False):
+        return "Not craftable"
+    count = scrap_unlock_count(entry)
+    if count > 0 and str(entry["name"]) not in unlocked_names:
+        return f"Recipe locked — scrap {count} to learn it"
+    return "Craftable — recipe known"
+
+
 class RecipeUnlockService:
     """Reads and advances per-vault recipe unlock progress."""
 

@@ -10,6 +10,7 @@ export type RoomPart =
   | 'preview'
   | 'info'
   | 'productionStats'
+  | 'storageMaintenance'
   | 'radioStats'
   | 'crafting'
   | 'dwellerList'
@@ -43,6 +44,10 @@ export function isOverseersOffice(room: Room | null): boolean {
 /** A room contributes to resource production when it is a production room with an ability. */
 export function producesResources(room: Room | null): boolean {
   return room?.category.toLowerCase() === 'production' && !!room.ability
+}
+
+export function isStorageRoom(room: Room | null): boolean {
+  return room?.category.toLowerCase() === 'capacity' && room.ability === 'endurance'
 }
 
 export type ResourceName = 'power' | 'food' | 'water'
@@ -115,6 +120,7 @@ export function getRoomDetailParts(
 
   const parts: RoomPart[] = ['preview', 'info']
   if (isOverseersOffice(room)) parts.push('overseerBriefing')
+  if (isStorageRoom(room)) parts.push('storageMaintenance')
   if (isRadioRoom(room)) parts.push('radioStats')
   else if (producesResources(room)) parts.push('productionStats')
   if (craftingItemType(room)) parts.push('crafting')

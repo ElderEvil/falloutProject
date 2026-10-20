@@ -512,3 +512,29 @@ cache lookup and raises `ContentNoChangeException` unchanged.
   immediately. Standard vaults unlock themes only by crafting them.
 - The room selector lists standard plus crafted themes. Below tier 3 it is disabled with a tier hint;
   at tier 3 with no crafted themes it points the player at the Theme workshop.
+
+## Storage weapon maintenance
+
+Storage rooms (CAPACITY + ENDURANCE) share a vault-wide protection pool. Only living
+adult workers posted there contribute effective END, including outfit/pet and identity
+production modifiers. Living Quarters are CAPACITY + CHARISMA; storage workers are
+never included in conception or family-scenario living-quarter selection.
+
+When `STORAGE_MAINTENANCE_ENABLED=true`, each eligible stored weapon gets at most one
+trial per configured hour. Below 20 effective END the trial can downgrade one catalog
+rung; above 20 it can upgrade one. At zero or at least 40 END the chance caps at 2%.
+Catalog ladders sort by average damage, not rarity. Swaps preserve item identity and
+rewrite catalog-owned fields through the item factory; there is no condition meter.
+Single-rung and unknown items are excluded. Upgrades and rarity crossings have separate
+configuration switches; blocked and unsuccessful attempts still consume the hour.
+
+New legacy clocks initialize without rolling. Missed hours never accumulate; offline
+passes advance clocks without rolling by default. Pause/resume shifts stored-item
+clocks, and every return to storage resets the clock. ORM returns share a Weapon mapper
+hook, while bulk unequip updates explicitly set the timestamp. Trial processing locks
+storage and due weapons, persists aggregated notifications in the same transaction,
+and delivers the bell/toast event only after commit. Notifications are limited to one
+per direction per vault per 24 hours. Both storage notification types are intentionally always
+delivered: upgrades are progression and degradation needs player attention, so routine category
+preferences do not mute them. Maintenance is enabled by default; set
+`STORAGE_MAINTENANCE_ENABLED=false` to disable it.

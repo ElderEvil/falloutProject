@@ -14,7 +14,6 @@ from app.core.enums import (
     GenderEnum,
     PregnancyStatusEnum,
     RarityEnum,
-    RoomTypeEnum,
 )
 from app.core.game_config import game_config
 from app.crud import vault as vault_crud
@@ -141,7 +140,7 @@ class BreedingService:
         :param vault_id: Vault ID to check
         :returns: List of newly created pregnancies
         """
-        living_quarters = await room_crud.get_by_category(db_session, vault_id, RoomTypeEnum.CAPACITY)
+        living_quarters = await room_crud.get_living_quarters(db_session, vault_id)
         if not living_quarters:
             return []
 

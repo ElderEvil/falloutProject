@@ -17,7 +17,7 @@ from app.models.game_state import GameState
 from app.models.relationship import Relationship
 from app.models.vault import Vault
 from app.services.combat.arena_service import arena_service
-from app.services.game_tick import crafting_tick, dwellers_tick, family_tick, radio_tick
+from app.services.game_tick import crafting_tick, dwellers_tick, family_tick, radio_tick, storage_tick
 from app.services.game_tick.guard import recover_session
 from app.services.game_tick.tick_results import (
     AgeStats,
@@ -180,6 +180,14 @@ class GameLoopService:
         crafting_update = await self._process_crafting(db_session, vault_id)
         results["updates"]["crafting"] = crafting_update
 
+        try:
+            results["updates"]["storage"] = await storage_tick.process_storage_maintenance(db_session, vault_id)
+        except (SQLAlchemyError, ResourceNotFoundException):
+            await recover_session(db_session)
+            self.logger.exception("Storage maintenance failed for vault %s", vault_id)
+            results["updates"]["storage"] = {"checked": 0, "changed": 0}
+            game_state = await self._get_or_create_game_state(db_session, vault_id)
+
         happiness_update = await self._process_happiness(db_session, vault_id, seconds_passed)
         results["updates"]["happiness"] = happiness_update
 
@@ -233,8 +241,14 @@ class GameLoopService:
     async def resume_vault(self, db_session: AsyncSession, vault_id: UUID4) -> GameState:
         """Resume game loop for a specific vault."""
         game_state = await game_state_crud.get_or_create(db_session, vault_id)
+        from app import crud
+
+        # Share the maintenance storage lock before adjusting per-item clocks.
+        await crud.storage.get_storage_by_vault_for_update(db_session, vault_id)
+        await db_session.refresh(game_state, with_for_update=True)
         if game_state.is_paused and game_state.paused_at:
             resumed_at = datetime.utcnow()
+            await crud.weapon.shift_trial_clocks(db_session, vault_id, resumed_at - game_state.paused_at, resumed_at)
             for incident in await incident_crud.get_active_by_vault(db_session, vault_id):
                 paused_since = max(game_state.paused_at, incident.start_time)
                 if resumed_at > paused_since:

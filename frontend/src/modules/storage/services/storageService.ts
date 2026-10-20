@@ -18,7 +18,15 @@ export interface StorageItemsResponse {
   pets: PetRead[]
 }
 
+export type StorageMaintenance = components['schemas']['StorageMaintenanceRead']
+
 export const storageService = {
+  async getMaintenance(vaultId: string): Promise<StorageMaintenance> {
+    const { data } = await axios.get<StorageMaintenance>(
+      `/api/v1/storage/vault/${vaultId}/maintenance`
+    )
+    return data
+  },
   /**
    * Get storage space information for a vault
    */
@@ -76,7 +84,7 @@ export const storageService = {
   async openLunchbox(vaultId: string, itemId: string): Promise<LunchboxOpened> {
     const response = await axios.post<LunchboxOpened>(
       `/api/v1/storage/vault/${vaultId}/lunchbox/open`,
-      { item_id: itemId } satisfies LunchboxOpenRequest,
+      { item_id: itemId } satisfies LunchboxOpenRequest
     )
     return response.data
   },

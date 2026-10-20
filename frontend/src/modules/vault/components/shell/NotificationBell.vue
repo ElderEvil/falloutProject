@@ -17,9 +17,13 @@ import { useSound } from '@/core/composables/useSound'
 import { useToast } from '@/core/composables/useToast'
 import { useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
 import { addPendingReport } from '@/modules/exploration/composables/usePendingReports'
-import { getNotificationRoute, getNotificationSound } from '@/modules/vault/utils/notificationRouting'
+import {
+  getNotificationRoute,
+  getNotificationSound,
+} from '@/modules/vault/utils/notificationRouting'
 import { formatRelativeTime } from '@/core/utils/time'
 import axios from '@/core/plugins/axios'
+import { useStorageStore } from '@/modules/storage/stores/storage'
 
 interface Notification {
   id: string
@@ -153,6 +157,15 @@ watch(currentSseEvent, (evt) => {
   unreadCount.value++
   playSound(getNotificationSound(notificationData.notification_type))
   // A hazard team join surfaces beyond the bell (progression red line).
+  if (
+    ['storage_item_degraded', 'storage_item_upgraded'].includes(notificationData.notification_type)
+  ) {
+    if (notificationData.notification_type === 'storage_item_upgraded')
+      toast.success(notificationData.message)
+    else toast.info(notificationData.message)
+    if (notificationData.vault_id) useStorageStore().refreshIfActive(notificationData.vault_id)
+  }
+
   if (notificationData.notification_type === 'hazard_team_joined') {
     toast.success(notificationData.message)
   }
@@ -271,6 +284,8 @@ const handleNotificationClick = async (notification: Notification) => {
 const getNotificationIcon = (type: string): string => {
   const iconMap: Record<string, string> = {
     baby_born: 'mdi:baby-face',
+    storage_item_degraded: 'mdi:tools',
+    storage_item_upgraded: 'mdi:arrow-up-bold',
     dweller_died: 'mdi:skull',
     dweller_exit_requested: 'mdi:exit-run',
     exploration_complete: 'mdi:map-marker-check',

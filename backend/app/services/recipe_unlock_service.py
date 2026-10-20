@@ -17,7 +17,7 @@ from app.core import db_locks
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.db.session import async_session_maker
-from app.services.exploration import data_loader
+from app.services import catalog_service as data_loader
 
 logger = logging.getLogger(__name__)
 

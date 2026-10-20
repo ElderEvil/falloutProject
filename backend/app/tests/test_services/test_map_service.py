@@ -628,7 +628,7 @@ async def _legacy_journey(async_session: AsyncSession, vault: Vault) -> None:
 @pytest.mark.asyncio
 async def test_get_vault_map_expedition_sites_ready(async_session: AsyncSession, vault: Vault) -> None:
     """No runs yet: every site is ready with zeroed cooldown and scaled coords."""
-    from app.services.exploration import data_loader
+    from app.services import catalog_service as data_loader
 
     await _legacy_journey(async_session, vault)
     map_data = await map_service.get_vault_map(async_session, vault)

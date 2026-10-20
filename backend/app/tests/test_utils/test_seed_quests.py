@@ -679,7 +679,7 @@ async def test_seed_quests_requirement_sync_is_idempotent(async_session: AsyncSe
 def test_quest_gear_rewards_are_catalog_backed() -> None:
     """Authored weapon/outfit rewards must name a real catalog item."""
     from app.schemas.quest import infer_item_type
-    from app.services.exploration import data_loader
+    from app.services import catalog_service as data_loader
     from app.utils.static_data import DATA_DIR
 
     catalog = {

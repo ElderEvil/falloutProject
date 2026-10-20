@@ -13,8 +13,8 @@ from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.weapon import Weapon
 from app.schemas.room import RoomBuild
 from app.schemas.vault import VaultNumber
+from app.services import catalog_service as data_loader
 from app.services.dweller_service import dweller_service
-from app.services.exploration import data_loader
 from app.services.exploration_service import exploration_service
 from app.services.item_service import item_service
 from app.services.progression.objectives.evaluators import evaluator_manager

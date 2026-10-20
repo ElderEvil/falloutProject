@@ -522,7 +522,7 @@ def test_parse_objective_reward_lunchbox() -> None:
 @pytest.mark.asyncio
 async def test_lunchbox_roll_is_catalog_backed(async_session: AsyncSession) -> None:
     """Every lunchbox roll is a real catalog row whose rarity matches the rolled tier."""
-    from app.services.exploration import data_loader
+    from app.services import catalog_service as data_loader
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
@@ -545,7 +545,7 @@ async def test_lunchbox_roll_is_catalog_backed(async_session: AsyncSession) -> N
 @pytest.mark.asyncio
 async def test_grant_item_outfit_uses_catalog_stats(async_session: AsyncSession) -> None:
     """Objective/quest gear resolves through the catalog instead of a zero-SPECIAL default row."""
-    from app.services.exploration import data_loader
+    from app.services import catalog_service as data_loader
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))

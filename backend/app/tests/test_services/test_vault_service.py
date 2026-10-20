@@ -611,7 +611,7 @@ class TestCreateBoostedLegendaryDwellers:
 
     async def test_roster_selects_only_exact_catalog_equipment_names(self) -> None:
         """Every candidate's equipment must resolve through the case-sensitive item factory."""
-        from app.services.exploration.data_loader import load_outfits, load_weapons
+        from app.services.catalog_service import load_outfits, load_weapons
 
         weapon_names = {entry["name"] for entry in load_weapons()}
         outfit_names = {entry["name"] for entry in load_outfits()}
@@ -654,7 +654,7 @@ class TestCreateBoostedLegendaryDwellers:
 
     async def test_roster_excludes_templates_with_missing_catalog_equipment(self) -> None:
         """Templates missing a weapon or outfit asset are not selected for the showcase roster."""
-        from app.services.exploration.data_loader import load_outfits
+        from app.services.catalog_service import load_outfits
 
         templates = _boosted_legendary_templates()
         catalog = [entry for entry in load_outfits() if entry["name"] != "Vault 33 suit"]
@@ -671,7 +671,7 @@ class TestCreateBoostedLegendaryDwellers:
         ]
 
         with (
-            patch("app.services.exploration.data_loader.load_outfits", return_value=catalog),
+            patch("app.services.catalog_service.load_outfits", return_value=catalog),
             patch(
                 "app.services.vault.seeding.random.sample", side_effect=lambda population, k: population[:k]
             ) as sample,

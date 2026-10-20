@@ -26,7 +26,7 @@ from app.schemas.exploration_event import (
     RestEventSchema,
     WeaponSchema,
 )
-from app.services.exploration import data_loader
+from app.services import catalog_service as data_loader
 from app.services.exploration.event_generator import describe_discovery, event_generator
 from app.services.notification_service import notification_service
 from app.services.radiation_service import (

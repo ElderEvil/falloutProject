@@ -20,9 +20,9 @@ from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
+from app.services.catalog_service import load_enemies
 from app.services.combat.arena_service import ArenaParticipant, ArenaService, participant_from_dweller
 from app.services.dweller_service import dweller_service
-from app.services.exploration.data_loader import load_enemies
 from app.utils.combat import combat_power
 from app.utils.exceptions import ValidationException
 

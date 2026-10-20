@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.243.0 (2026-10-20)
+
+### Features
+
+* **progression:** collect ready rewards in one click ([#1110](https://github.com/ElderEvil/falloutProject/issues/1110)) 24370d7
+
 ## 2.242.0 (2026-10-20)
 
 ### Features

@@ -17,6 +17,7 @@ from app.services.crafting_service import crafting_service
 from app.services.recipe_unlock_service import (
     catalog_entry,
     is_gated,
+    recipe_description,
     recipe_unlock_service,
     scrap_unlock_count,
     unlock_hint,
@@ -55,6 +56,24 @@ def test_unlock_hint_names_the_exact_item():
     assert unlock_hint(catalog_entry("weapon", LEGENDARY_WEAPON)) == "Scrap a Power fist to learn it"
     assert unlock_hint(catalog_entry("weapon", COMMON_WEAPON)) is None
     assert unlock_hint(None) is None
+
+
+def test_recipe_description_reports_craft_and_unlock_state():
+    assert recipe_description("weapon", COMMON_WEAPON, unlocked_names=set()) == "Craftable — recipe known"
+    assert recipe_description("weapon", RARE_WEAPON, unlocked_names=set()) == "Recipe locked — scrap 1 to learn it"
+    assert recipe_description("weapon", RARE_WEAPON, unlocked_names={RARE_WEAPON}) == "Craftable — recipe known"
+
+
+def test_recipe_description_honours_the_catalog_unlock_override():
+    assert recipe_description("outfit", "BOS casual", unlocked_names=set()) == "Craftable — recipe known"
+
+
+def test_recipe_description_flags_uncraftable_and_off_catalog_gear():
+    assert recipe_description("outfit", "Accountant outfit", unlocked_names=set()) == "Not craftable"
+    # Starter gear is seeded from vault_seed, so the catalog never lists it and cannot craft it.
+    assert recipe_description("outfit", "T-51b Power Armor", unlocked_names=set()) == "Not craftable"
+    assert recipe_description("weapon", "Rusty Pistol", unlocked_names=set()) == "Not craftable"
+    assert recipe_description("junk", RARE_WEAPON, unlocked_names=set()) is None
 
 
 def test_catalog_override_beats_the_rarity_default():

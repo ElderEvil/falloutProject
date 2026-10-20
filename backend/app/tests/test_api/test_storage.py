@@ -12,8 +12,11 @@ from app.models.outfit import Outfit
 from app.models.weapon import Weapon
 from app.schemas.common import JunkTypeEnum, RarityEnum
 from app.schemas.vault import VaultCreateWithUserID
+from app.services.recipe_unlock_service import catalog_entry
+from app.services.vault_seed import SEED_OUTFITS
 from app.tests.factory.items import create_fake_junk, create_fake_outfit, create_fake_weapon
 from app.tests.factory.vaults import create_fake_vault
+from app.utils.item_factory import build_outfit, build_weapon
 
 pytestmark = pytest.mark.asyncio(scope="module")
 
@@ -123,6 +126,53 @@ async def test_get_storage_items_success(
     for item in data["junk"]:
         assert "id" in item
         assert "name" in item
+
+
+@pytest.mark.asyncio
+async def test_storage_items_describe_recipe_status(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """Weapon and outfit cards report craftability and whether this vault knows the recipe."""
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault = await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
+    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+
+    weapon_entry = catalog_entry("weapon", "Baseball bat")
+    outfit_entry = catalog_entry("outfit", "Accountant outfit")
+    assert weapon_entry is not None
+    assert outfit_entry is not None
+    starter_armor = next(outfit for outfit in SEED_OUTFITS if outfit["name"] == "T-51b Power Armor")
+    async_session.add_all(
+        [
+            build_weapon(weapon_entry, "rare", storage.id),
+            build_outfit(outfit_entry, "common", storage.id),
+            build_outfit(starter_armor, starter_armor["rarity"], storage.id),
+        ]
+    )
+    await async_session.flush()
+
+    response = await async_client.get(f"/storage/vault/{vault.id}/items", headers=superuser_token_headers)
+    assert response.status_code == 200
+    data = response.json()
+    descriptions = {item["name"]: item["description"] for item in data["weapons"] + data["outfits"]}
+    assert descriptions["Baseball bat"] == "Recipe locked — scrap 1 to learn it"
+    assert descriptions["Accountant outfit"] == "Not craftable"
+    assert descriptions["T-51b Power Armor"] == "Not craftable"
+
+    await crud.vault_recipe_unlock.record_scrap(
+        async_session, vault_id=vault.id, item_type="weapon", recipe_name="Baseball bat", threshold=1
+    )
+    await async_session.flush()
+
+    response = await async_client.get(f"/storage/vault/{vault.id}/items", headers=superuser_token_headers)
+    assert response.status_code == 200
+    data = response.json()
+    descriptions = {item["name"]: item["description"] for item in data["weapons"] + data["outfits"]}
+    assert descriptions["Baseball bat"] == "Craftable — recipe known"
 
 
 @pytest.mark.asyncio

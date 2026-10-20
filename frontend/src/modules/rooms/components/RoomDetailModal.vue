@@ -10,6 +10,7 @@ import {
   isElevator,
   type RoomPart,
 } from '../models/roomParts'
+import { roomStyle, supportsRoomStyles } from '../models/room'
 import { useRoomStore } from '../stores/room'
 import { useRoomProduction } from '../composables/useRoomProduction'
 import { useRoomUpgrade } from '../composables/useRoomUpgrade'
@@ -229,10 +230,13 @@ onUnmounted(stopAmbience)
             :assigned-dwellers="assignedDwellers"
             :show-apprentice-slot="producesResources(room) && !isElevatorRoom"
             :assign-enabled="!isElevatorRoom"
+            :room-style="supportsRoomStyles(room) ? roomStyle(room) : null"
+            :is-applying-style="isApplyingStyle"
             @activate="openDwellerDetails"
             @unassign="handleUnassignDweller"
             @assign-worker="assignmentMode = 'worker'"
             @assign-apprentice="assignmentMode = 'apprentice'"
+            @apply-style="handleApplyStyle"
           />
 
           <ResponseStationDetail
@@ -298,14 +302,12 @@ onUnmounted(stopAmbience)
             :is-upgrading="isUpgrading"
             :is-destroying="isDestroying"
             :is-remodeling="isRemodeling"
-            :is-applying-style="isApplyingStyle"
             :is-vault-door="isVaultDoor"
             :assigned-dweller-count="assignedDwellers.length"
             @upgrade="handleUpgrade"
             @destroy="handleDestroy"
             @split="handleRemodel()"
             @merge="handleRemodel"
-            @apply-style="handleApplyStyle"
             @unassign-all="handleUnassignAll"
           />
         </template>

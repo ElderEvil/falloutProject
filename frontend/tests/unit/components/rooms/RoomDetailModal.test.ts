@@ -179,6 +179,8 @@ describe('RoomDetailModal', () => {
 
     const select = wrapper.findComponent({ name: 'Select' })
     expect(select.exists()).toBe(true)
+    expect(wrapper.find('.preview-header [data-slot="select-trigger"]').exists()).toBe(true)
+    expect(wrapper.find('.room-management [data-slot="select-trigger"]').exists()).toBe(false)
     select.vm.$emit('update:modelValue', 'party')
     await flushPromises()
 
@@ -315,9 +317,7 @@ describe('RoomDetailModal', () => {
       })
 
       expect(wrapper.find('.room-scene').exists()).toBe(true)
-      expect(wrapper.find('.room-preview-section > .section-title').text()).toContain(
-        'Room Preview'
-      )
+      expect(wrapper.find('.room-preview-section .section-title').text()).toContain('Room Preview')
       expect(wrapper.findAll('.slot-filled')).toHaveLength(2)
       expect(wrapper.find('.staffing-summary').exists()).toBe(false)
       expect(wrapper.find('.header-metadata').text()).toContain('Capacity: 4')

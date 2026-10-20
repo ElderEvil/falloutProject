@@ -8,16 +8,8 @@ import {
   getRoomSegmentCount,
 } from '../utils/room'
 import { Icon } from '@iconify/vue'
-import type { Room, RoomStyleValue } from '../models/room'
-import { ROOM_STYLES, roomStyle, supportsRoomStyles } from '../models/room'
+import type { Room } from '../models/room'
 import { Button } from '@/core/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/core/components/ui/select'
 import {
   Tooltip,
   TooltipContent,
@@ -38,7 +30,6 @@ interface Props {
   isUpgrading: boolean
   isDestroying: boolean
   isRemodeling?: boolean
-  isApplyingStyle?: boolean
   isVaultDoor: boolean
   assignedDwellerCount: number
   disabled?: boolean
@@ -55,12 +46,7 @@ const canSplit = computed(
 )
 const mergeCandidates = computed(() => getMergeCandidates(roomStore.rooms, props.room))
 const busy = computed(
-  () =>
-    props.disabled ||
-    props.isUpgrading ||
-    props.isDestroying ||
-    props.isRemodeling ||
-    props.isApplyingStyle
+  () => props.disabled || props.isUpgrading || props.isDestroying || props.isRemodeling
 )
 
 const emit = defineEmits<{
@@ -69,7 +55,6 @@ const emit = defineEmits<{
   unassignAll: []
   split: []
   merge: [otherRoomId: string]
-  applyStyle: [style: RoomStyleValue]
 }>()
 </script>
 
@@ -104,27 +89,6 @@ const emit = defineEmits<{
         <Icon icon="mdi:arrow-up-circle" class="h-4 w-4" />
         <span>Max tier reached ({{ room.tier }}/{{ upgradeInfo.maxTier }})</span>
       </Button>
-
-      <label v-if="supportsRoomStyles(room)" class="theme-picker">
-        <span class="theme-picker-label">
-          <Icon icon="mdi:palette-outline" class="h-4 w-4" />
-          Room theme
-        </span>
-        <Select
-          :model-value="roomStyle(room)"
-          :disabled="busy"
-          @update:model-value="emit('applyStyle', $event as RoomStyleValue)"
-        >
-          <SelectTrigger class="w-full" size="sm" aria-label="Room theme">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem v-for="style in ROOM_STYLES" :key="style.value" :value="style.value">
-              {{ style.label }}
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </label>
 
       <Button
         @click="emit('unassignAll')"
@@ -198,24 +162,6 @@ const emit = defineEmits<{
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-}
-
-.theme-picker {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.theme-picker-label {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  color: var(--color-theme-primary);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  opacity: 0.75;
 }
 
 .section-title {
